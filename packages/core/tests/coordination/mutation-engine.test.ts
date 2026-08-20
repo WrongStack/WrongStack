@@ -417,3 +417,192 @@ describe('planMutations — edge cases', () => {
     }
   });
 });
+
+// ── Template-literal & block-comment masking (cross-line scanner) ────
+// Dogfood finding 2026-08-20 (review follow-up): the old per-line
+// `isMasked` could not see backticks or block comments that span lines,
+// so tokens inside template text were planned as if they were code —
+// mutating string content and reporting fake survivors. planMutations
+// now runs one forward scanner (computeLineMasks) that tracks
+// template/string/comment state ACROSS lines, with a frame stack so
+// interpolation contents stay mutable code.
+
+describe('planMutations — template & block-comment masking', () => {
+  it('masks tokens inside a single-line template literal', () => {
+    const source = [
+      'export function f(): string {',
+      '  const s = `a > b + true`;',
+      '  return s;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t1.ts', source);
+    expect(plan.filter((m) => m.line === 2)).toEqual([]);
+    // return s; is real code and still planned.
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('masks tokens inside a multi-line template literal', () => {
+    const source = [
+      'export function f(): string {',
+      '  const s = `start',
+      '   b > c + true',
+      '   d >= e',
+      '  end`;',
+      '  return s;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t2.ts', source);
+    // Template text on lines 2-5 must yield nothing — the old per-line
+    // mask leaked exactly these.
+    expect(plan.filter((m) => m.line >= 2 && m.line <= 5)).toEqual([]);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 6)).toBe(true);
+  });
+
+  it('treats an escaped backtick as template text, not a terminator', () => {
+    const source = [
+      'export function f(): string {',
+      '  const s = `a \\` b > c`;',
+      '  const n = 1 > 0;',
+      '  return s + String(n);',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t3.ts', source);
+    // `>` inside the template after the escaped backtick stays masked…
+    expect(plan.filter((m) => m.line === 2)).toEqual([]);
+    // …and scanner state survives so line 3 remains mutable.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 3)).toBe(true);
+  });
+
+  it('does not open a template from backticks inside strings or comments', () => {
+    const source = [
+      'export function f(): string {',
+      "  const q = 'not ` a template';",
+      '  // comment with ` backtick > and +',
+      '  const n = 2 > 1;',
+      '  return q + String(n);',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t4.ts', source);
+    // If the string backtick had opened a template, line 4 would be
+    // masked as template text and the `>` would silently vanish.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 4)).toBe(true);
+  });
+
+  it('keeps interpolation contents mutable while masking template text', () => {
+    const source = [
+      'export function f(n: number): string {',
+      '  const msg = `v=${n > 0 ? 1 : 2} end`;',
+      '  return msg;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t5.ts', source);
+    const interp = plan.find((m) => m.kind === 'relax-boundary' && m.line === 2);
+    expect(interp).toBeDefined(); // `n > 0` is code inside ${...}
+    // Template text `v=` / ` end` must contribute nothing — the only
+    // line-2 mutant is the interpolation's boundary.
+    expect(plan.filter((m) => m.line === 2)).toHaveLength(1);
+  });
+
+  it('handles nested templates inside interpolations', () => {
+    const source = [
+      'export function f(x: number): string {',
+      '  const t = `a${`b${x + 1}c`}d`;',
+      '  return t;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t6.ts', source);
+    // `x + 1` sits in a code frame two templates deep — still mutable.
+    expect(plan.some((m) => m.kind === 'arith-plus-to-minus' && m.line === 2)).toBe(true);
+  });
+
+  it('closes an interpolation only after inner object literals close', () => {
+    const source = [
+      'export function f(): string {',
+      '  const y = `${ { a: 2 }.a + 1 } tail`;',
+      '  return y;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t7.ts', source);
+    expect(plan.some((m) => m.kind === 'arith-plus-to-minus' && m.line === 2)).toBe(true);
+  });
+
+  it('masks tokens inside a multi-line block comment', () => {
+    const source = [
+      'export function f(): number {',
+      '  /* block with > and + and true',
+      '     more > text',
+      '  */',
+      '  const n = 3 > 2;',
+      '  return n;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t8.ts', source);
+    expect(plan.filter((m) => m.line >= 2 && m.line <= 4)).toEqual([]);
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 5)).toBe(true);
+  });
+
+  it('keeps code after a same-line block-comment closer mutable', () => {
+    const source = [
+      'export function f(): number {',
+      '  /* note */ const n = 4 > 3;',
+      '  return n;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t9.ts', source);
+    // The old whole-line `startsWith("/*")` guard dropped the entire
+    // line; the scanner must mask only the comment span itself.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 2)).toBe(true);
+  });
+
+  it('masks a template opened inside an interpolation that spans lines', () => {
+    const source = [
+      'export function f(n: number): string {',
+      '  const z = `start ${',
+      '    n >= 5',
+      '  } end`;',
+      '  return z;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t10.ts', source);
+    // `n >= 5` on line 3 is code inside a multi-line interpolation.
+    expect(plan.some((m) => m.kind === 'tighten-boundary' && m.line === 3)).toBe(true);
+    // The template text lines contribute nothing.
+    expect(plan.filter((m) => m.line === 2 || m.line === 4)).toEqual([]);
+  });
+
+  it('plans return-null for a return of a template literal (start-anchored containment)', () => {
+    // Regression (review follow-up): the return-null token spans the whole
+    // `return <expr>;` match, which legitimately CROSSES masked template
+    // text. Full-span containment silently dropped these mutants; the
+    // check now anchors at the token start. NB: the fixture must be a
+    // brace-free template — the return-null regex's expression class
+    // excludes `{`/`}`, so `${...}` interpolations never match at all
+    // (pre-existing engine limitation, unrelated to containment).
+    const source = ['export function greet(): string {', '  return `hello > world`;', '}'].join(
+      '\n',
+    );
+    const plan = planMutations('src/t11.ts', source);
+    const ret = plan.find((m) => m.kind === 'return-null' && m.line === 2);
+    expect(ret).toBeDefined();
+    expect(ret!.original).toBe('return `hello > world`;');
+    expect(ret!.replacement).toBe('return null;');
+  });
+
+  it('does not plan mutants for `return` appearing inside template text', () => {
+    // The mirror case: a bare `return` word in template TEXT must not
+    // become a return-null mutant just because start-anchored containment
+    // is more permissive — the token must BEGIN in code.
+    const source = [
+      'export function doc(): string {',
+      '  const t = `usage:',
+      '    return early > 0;',
+      '  `;',
+      '  const n = 1 > 0;',
+      '  return t + String(n);',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/t12.ts', source);
+    expect(plan.filter((m) => m.line >= 2 && m.line <= 4)).toEqual([]);
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 5)).toBe(true);
+  });
+});

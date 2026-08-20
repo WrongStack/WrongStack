@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type * as Host from '../../src/coordination/director-host-contracts.js';
 import { makeMutationTestTool } from '../../src/coordination/director-mutation-test-tool.js';
+import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
 import type { TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
 /**
@@ -70,9 +71,36 @@ function survivorIdsOf(desc: string): string[] {
 const TARGET_FILE = 'packages/core/tests/coordination/__mutation_fixture__/subject.ts';
 
 describe('makeMutationTestTool', () => {
+  it('refuses to run without a chaos-monkey roster entry — no silent prompt/tools strip', async () => {
+    // Regression: makeChaosConfig used to fall back through a dead
+    // getAgentDefinition('chaos-monkey') lookup (the role is outside the
+    // catalog by design) to a bare {name, role} config — spawning a
+    // saboteur with no prompt, tools, or skills. The tool must fail
+    // loudly before any spawn.
+    const { director, spawns, assigns } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
+        }),
+    });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(out['verdict']).toBe('inconclusive');
+    expect(out['passed']).toBe(false);
+    expect(out['error']).toMatch(/chaos-monkey role missing from the roster/);
+    // Loud failure means preflight: nothing may have been spawned or assigned.
+    expect(spawns).toHaveLength(0);
+    expect(assigns).toHaveLength(0);
+  });
+
   it('errors cleanly when no mutable sites exist', async () => {
     const { director } = makeFakeDirector({ chaos: () => '{}' });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       { targets: ['no/such/file.ts'], testCommand: 'vitest' },
       { projectRoot: process.cwd() } as never,
@@ -90,7 +118,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed', evidence: 'assert failed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
       { projectRoot: process.cwd() } as never,
@@ -123,7 +151,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: (ids) => `strengthened ${ids.length} survivors`,
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -147,7 +175,7 @@ describe('makeMutationTestTool', () => {
 
   it('treats a failed chaos task as skipped mutants, never as kills', async () => {
     const { director } = makeFakeDirector({ chaos: () => undefined });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
       { projectRoot: process.cwd() } as never,
@@ -156,6 +184,39 @@ describe('makeMutationTestTool', () => {
     expect(out['skipped']).toBeGreaterThan(0);
     expect(out['killed']).toBe(0);
     expect(out['verdict']).toBe('inconclusive');
+    expect(out['passed']).toBe(false);
+  });
+
+  it('treats a valid-but-partial report as skipped for unreported mutants, never as a pass', async () => {
+    // Regression: a well-formed JSON reporting a strict subset of the
+    // planned ids used to make the omitted mutants vanish from outcomes,
+    // so a single 'killed' row over an N-mutant plan yielded verdict
+    // 'pass'. Planned-but-unreported ids must count as skipped unknowns.
+    let plannedCount = 0;
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        plannedCount = task.mutants.length;
+        return JSON.stringify({
+          summary: 'partial report — only the first mutant reported',
+          mutants: task.mutants
+            .slice(0, 1)
+            .map((m) => ({ ...m, status: 'killed', evidence: 'assert failed' })),
+        });
+      },
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(plannedCount).toBeGreaterThan(1); // self-check: the report IS partial
+    expect(out['killed']).toBe(1);
+    expect(out['survived']).toBe(0);
+    expect(out['skipped']).toBe(plannedCount - 1);
+    expect(out['mutationScore']).toBeLessThan(1);
+    expect(out['verdict']).toBe('partial'); // pre-fix: this was 'pass'
     expect(out['passed']).toBe(false);
   });
 
@@ -170,7 +231,7 @@ describe('makeMutationTestTool', () => {
         });
       },
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     for (let i = 0; i < 2; i++) {
       await tool.execute(
         { targets: [TARGET_FILE], testCommand: 'pnpm test' },
@@ -219,7 +280,7 @@ describe('makeMutationTestTool', () => {
     };
 
     // 1. Default: no chaosWorktree passed → caller default `'off'`.
-    const t1 = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const t1 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     await t1.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
       { projectRoot: process.cwd() } as never,
@@ -228,13 +289,165 @@ describe('makeMutationTestTool', () => {
     expect(seenWorktree[0]).toBe('off');
 
     // 2. Explicit `'auto'` propagates verbatim.
-    const t2 = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const t2 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     await t2.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: 'auto' },
       { projectRoot: process.cwd() } as never,
       { signal: new AbortController().signal },
     );
     expect(seenWorktree[1]).toBe('auto');
+  });
+
+  it('honors the roster chaos-monkey worktree policy when no override is passed', async () => {
+    const seenWorktree: unknown[] = [];
+    const director: Host.DirectorRepairPort = {
+      async spawn(config) {
+        seenWorktree.push((config as { worktree?: unknown }).worktree);
+        return 'sub-1';
+      },
+      async assign(task) {
+        return task.id;
+      },
+      async awaitTasks(ids) {
+        return ids.map((id) => ({
+          subagentId: 'sub-1',
+          taskId: id,
+          status: 'success' as const,
+          result: JSON.stringify({
+            mutants: [{ id: 'm#1#1', file: 'a.ts', line: 1, kind: 'X', status: 'killed' }],
+          }),
+          iterations: 1,
+          toolCalls: 1,
+          durationMs: 1,
+        }));
+      },
+      async awaitTasksAny(ids) {
+        return { completed: [], pending: ids };
+      },
+    };
+    const roster = { 'chaos-monkey': { ...FLEET_ROSTER['chaos-monkey']!, worktree: 'required' as const } };
+
+    // No chaosWorktree input → the roster's policy is the default.
+    const t1 = makeMutationTestTool(director, roster, { projectRoot: process.cwd() });
+    await t1.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(seenWorktree[0]).toBe('required');
+
+    // Explicit input still overrides the roster policy.
+    const t2 = makeMutationTestTool(director, roster, { projectRoot: process.cwd() });
+    await t2.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: false },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(seenWorktree[1]).toBe(false);
+  });
+
+  it('normalizes a garbage chaosWorktree value away instead of casting it through', async () => {
+    const seenWorktree: unknown[] = [];
+    const director: Host.DirectorRepairPort = {
+      async spawn(config) {
+        seenWorktree.push((config as { worktree?: unknown }).worktree);
+        return 'sub-1';
+      },
+      async assign(task) {
+        return task.id;
+      },
+      async awaitTasks(ids) {
+        return ids.map((id) => ({
+          subagentId: 'sub-1',
+          taskId: id,
+          status: 'success' as const,
+          result: JSON.stringify({
+            mutants: [{ id: 'm#1#1', file: 'a.ts', line: 1, kind: 'X', status: 'killed' }],
+          }),
+          iterations: 1,
+          toolCalls: 1,
+          durationMs: 1,
+        }));
+      },
+      async awaitTasksAny(ids) {
+        return { completed: [], pending: ids };
+      },
+    };
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    await tool.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: 'sometimes' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    );
+    // 'sometimes' is not boolean|auto|required|off → dropped by
+    // normalizeWorktreeOverride → falls back to the roster ('off').
+    expect(seenWorktree[0]).toBe('off');
+  });
+
+  it('reconciles duplicate planned ids by occurrence — a partial report cannot hide the twin', async () => {
+    // Same target passed twice → every id is planned twice (ids are only
+    // unique per file). A report with one row per id must leave the
+    // second occurrence skipped, not silently confirmed by its twin.
+    const { director } = makeFakeDirector({
+      chaos: (task) =>
+        JSON.stringify({
+          summary: 'one row per id',
+          mutants: task.mutants
+            .filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
+            .map((m) => ({ ...m, status: 'killed', evidence: 'assert failed' })),
+        }),
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      { targets: [TARGET_FILE, TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+    expect(out['planned']).toBe(4); // 2 mutants × 2 copies
+    expect(out['killed']).toBe(2);
+    expect(out['skipped']).toBe(2);
+    expect(out['verdict']).toBe('partial');
+  });
+
+  it('never labels a rerun-unreported or skipped mutant as suspected-equivalent', async () => {
+    // Pass 1: one survivor. Strengthen succeeds. Rerun: the mutant is
+    // NOT re-tested (partial report / drift) → outcome 'skipped'. A
+    // skipped mutant is an unknown, not equivalent code — labeling it
+    // suspectedEquivalent would dismiss a real test gap.
+    let chaosPasses = 0;
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        // Pass 1: first mutant survives. Rerun (pass 2): report nothing
+        // for the survivor — collectOutcomes marks it skipped via the
+        // partial-report padding.
+        const mutants =
+          chaosPasses === 1
+            ? task.mutants.map((m, idx) => ({
+                ...m,
+                status: idx === 0 ? ('survived' as const) : ('killed' as const),
+              }))
+            : []; // empty report → everything unreported
+        return JSON.stringify({ summary: 'pass done', mutants });
+      },
+      strengthen: () => 'strengthened',
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 1,
+        repairSubagentId: 'repair-sub',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(chaosPasses).toBe(2); // pass 1 + one re-verify
+    expect(out['strengthenAttempts']).toBe(1);
+    const equivalent = out['suspectedEquivalent'] as string[];
+    expect(equivalent).toHaveLength(0); // the pre-peer-fix bug: ['…#1#…'] here
   });
 
   it('breaks the strengthen loop when the repair task fails', async () => {
@@ -290,7 +503,7 @@ describe('makeMutationTestTool', () => {
         return { completed: [], pending: ids };
       },
     };
-    const tool = makeMutationTestTool(failRepairDirector, undefined, {
+    const tool = makeMutationTestTool(failRepairDirector, FLEET_ROSTER, {
       projectRoot: process.cwd(),
     });
     const out = (await tool.execute(
@@ -334,7 +547,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -399,7 +612,7 @@ describe('makeMutationTestTool', () => {
       },
     };
     void director;
-    const t = makeMutationTestTool(dir2, undefined, { projectRoot: process.cwd() });
+    const t = makeMutationTestTool(dir2, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await t.execute(
       {
         targets: [TARGET_FILE],
@@ -426,7 +639,7 @@ describe('makeMutationTestTool', () => {
         return 'strengthened';
       },
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -454,7 +667,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     await tool.execute(
       {
         targets: [TARGET_FILE, TARGET_FILE],
@@ -474,7 +687,7 @@ describe('makeMutationTestTool', () => {
   it('returns `inconclusive` when no mutable sites exist across all targets', async () => {
     // Two unreadable targets + one masked target → empty plan → inconclusive.
     const { director } = makeFakeDirector({ chaos: () => '{}' });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       {
         targets: [
@@ -503,7 +716,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -533,7 +746,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'survived' })),
         }),
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],

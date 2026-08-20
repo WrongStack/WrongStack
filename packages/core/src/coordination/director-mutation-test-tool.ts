@@ -27,9 +27,8 @@ import { isAbsolute, join } from 'node:path';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
-import { getAgentDefinition } from './agents/index.js';
 import type * as Host from './director-host-contracts.js';
-import { instantiateRosterConfig, stringArray } from './director-input-helpers.js';
+import { instantiateRosterConfig, normalizeWorktreeOverride, stringArray } from './director-input-helpers.js';
 import { type MutationPlanItem, parseMutationReport, planMutations } from './mutation-engine.js';
 
 /** Mutants per file kept per pass — keeps one spawn bounded. */
@@ -46,7 +45,7 @@ interface MutationTestInput {
   maxPerFile?: number | undefined;
   maxStrengthenAttempts?: number | undefined;
   repairSubagentId?: string | undefined;
-  /** Worktree override for the chaos agent ('off' for uncommitted targets). */
+  /** Worktree override for the chaos agent; falls back to the roster entry's policy, else 'off'. */
   chaosWorktree?: SubagentConfig['worktree'] | undefined;
   timeoutMs?: number | undefined;
   /** Skip the strengthen loop even when survivors exist. */
@@ -121,7 +120,7 @@ export function makeMutationTestTool(
         chaosWorktree: {
           anyOf: [{ type: 'boolean' }, { type: 'string', enum: ['auto', 'required', 'off'] }],
           description:
-            "Worktree override for the chaos agent. Use 'off' when targets are uncommitted — a worktree from HEAD would not contain them.",
+            "Worktree override for the chaos agent. Defaults to the roster policy for chaos-monkey ('off'), because mutation targets are usually freshly written and uncommitted — a worktree from HEAD would not contain them and every mutant would drift to skipped. Only pass 'auto' or 'required' when the targets are committed.",
         },
         timeoutMs: { type: 'number', minimum: 1, description: 'Per-task timeout for chaos/strengthen/rerun tasks.' },
         reportOnly: {
@@ -145,8 +144,21 @@ export function makeMutationTestTool(
       }
 
       // ── Pass 1: chaos agent executes the deterministic plan ──────────
+      // Loud preflight: without the roster entry the spawn would carry no
+      // prompt, tools, or skills — a silent contract strip. The catalog
+      // cannot rescue it (`chaos-monkey` is deliberately outside
+      // ALL_AGENT_DEFINITIONS), so a missing entry is a hard stop.
+      const chaosBase = roster?.[CHAOS_ROLE];
+      if (!chaosBase) {
+        return {
+          verdict: 'inconclusive',
+          passed: false,
+          error:
+            "chaos-monkey role missing from the roster — refusing to spawn a saboteur without its prompt/tools contract. Build the toolset with a roster that includes 'chaos-monkey' (FLEET_ROSTER does).",
+        };
+      }
       const chaosSubagentId = await director.spawn(
-        makeChaosConfig(roster, i.chaosWorktree ?? 'off'),
+        makeChaosConfig(chaosBase, i.chaosWorktree ?? chaosBase.worktree ?? 'off'),
       );
       const chaosTaskId = await director.assign({
         id: randomUUID(),
@@ -194,7 +206,7 @@ export function makeMutationTestTool(
         // target source unless the strengthen task changed the code itself).
         const survivorPlan = plan.filter((p) => current.some((s) => s.id === p.id));
         const rerunSubagentId = await director.spawn(
-          makeChaosConfig(roster, i.chaosWorktree ?? 'off'),
+          makeChaosConfig(chaosBase, i.chaosWorktree ?? chaosBase.worktree ?? 'off'),
         );
         const rerunTaskId = await director.assign({
           id: randomUUID(),
@@ -213,7 +225,7 @@ export function makeMutationTestTool(
           rerunResult: { taskId: rerunTaskId, status: rerunResult?.status ?? 'unknown' },
           survivorsAfter: stillSurviving,
           suspectedEquivalent: stillSurviving
-            .filter((m) => current.some((c) => c.id === m.id))
+            .filter((m) => m.status === 'survived' && current.some((c) => c.id === m.id))
             .map((m) => m.id),
         });
         current = stillSurviving.filter((m) => m.status === 'survived');
@@ -283,7 +295,7 @@ function normalizeMutationTestInput(input: unknown): MutationTestInput {
       typeof raw['repairSubagentId'] === 'string' && raw['repairSubagentId'].trim()
         ? raw['repairSubagentId'].trim()
         : undefined,
-    chaosWorktree: (raw['chaosWorktree'] as MutationTestInput['chaosWorktree']) ?? undefined,
+    chaosWorktree: normalizeWorktreeOverride(raw['chaosWorktree']),
     timeoutMs: typeof raw['timeoutMs'] === 'number' ? raw['timeoutMs'] : undefined,
     reportOnly: raw['reportOnly'] === true,
   };
@@ -308,11 +320,7 @@ function buildPlan(i: MutationTestInput, projectRoot: string | undefined): Mutat
   return plan;
 }
 
-function makeChaosConfig(
-  roster: Record<string, SubagentConfig> | undefined,
-  worktree: SubagentConfig['worktree'],
-): SubagentConfig {
-  const base = roster?.[CHAOS_ROLE] ?? getAgentDefinition(CHAOS_ROLE)?.config ?? { name: 'Chaos Monkey', role: CHAOS_ROLE };
+function makeChaosConfig(base: SubagentConfig, worktree: SubagentConfig['worktree']): SubagentConfig {
   return { ...instantiateRosterConfig(CHAOS_ROLE, base), worktree };
 }
 
@@ -368,11 +376,35 @@ function buildStrengthenTask(survivors: MutantOutcome[], i: MutationTestInput, a
 function collectOutcomes(result: TaskResult | undefined, plan: MutationPlanItem[]): MutantOutcome[] {
   const fromText = parseTextOutcomes(result);
   if (fromText.length > 0) {
-    // Keep only ids this pass planned — an agent-echoed unknown id must not
+    // Reconcile by OCCURRENCE, not by id set: ids are only unique per
+    // file (`kind#line#col`), so a plan can legitimately carry duplicate
+    // ids (the same target passed twice, or two roots projecting to the
+    // same relative path). Each reported row consumes exactly one planned
+    // occurrence; an agent-echoed unknown id consumes nothing and cannot
     // skew the killed/survived ratio.
-    const planned = new Set(plan.map((p) => p.id));
-    const matched = fromText.filter((m) => planned.has(m.id));
-    if (matched.length > 0) return matched;
+    const remaining = [...plan];
+    const matched: MutantOutcome[] = [];
+    for (const m of fromText) {
+      const idx = remaining.findIndex((p) => p.id === m.id);
+      if (idx === -1) continue;
+      remaining.splice(idx, 1);
+      matched.push(m);
+    }
+    if (matched.length > 0) {
+      // A valid-but-partial report must not make the unreported mutants
+      // vanish: a planned occurrence with no outcome row is an unknown,
+      // and the verdict gates count unknowns as skipped — never as
+      // silent kills.
+      const missing: MutantOutcome[] = remaining.map((p) => ({
+        id: p.id,
+        file: p.file,
+        line: p.line,
+        kind: p.kind,
+        status: 'skipped',
+        evidence: 'not reported by chaos task',
+      }));
+      return [...matched, ...missing];
+    }
   }
   // Chaos task failed or produced nothing parseable: every planned mutant is
   // unknown — report as skipped with the failure as evidence rather than

@@ -79,12 +79,12 @@ const TOKEN_PATTERNS: readonly TokenPattern[] = [
     regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>\+(?!\+|=))/g,
     replace: () => '-',
   },
-    {
+  {
     kind: 'arith-minus-to-plus',
     // Binary `-` between operands, not `--`, `-=` or negative-number literal.
     regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>-(?!-|=))/g,
     replace: () => '+',
-    },
+  },
   {
     kind: 'negate-boolean',
     // Standalone boolean literals used as values, not property names.
@@ -103,8 +103,10 @@ const TOKEN_PATTERNS: readonly TokenPattern[] = [
  * Plan mutations for one file's source text.
  *
  * The scan is line-by-line with the file's own line splits preserved so ids
- * stay (line, column) anchored. Mutations inside comments and string
- * literals are filtered out by `isMasked` below.
+ * stay (line, column) anchored. Mutations inside comments, string literals,
+ * and template literals (single- or multi-line, interpolation contents
+ * excepted) are filtered out by the cross-line scanner `computeLineMasks`
+ * below.
  */
 export function planMutations(
   file: string,
@@ -115,14 +117,29 @@ export function planMutations(
   const out: MutationPlanItem[] = [];
 
   const lines = source.split('\n');
+  // One forward scan classifies every line into mutable code ranges —
+  // this is what keeps mutants out of multi-line templates and block
+  // comments, which a per-line mask can never see.
+  const masks = computeLineMasks(source);
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx]!;
     const t = line.trim();
-    // Skip whole-line comments: `//` lines, JSDoc/block bodies (` * `),
-    // openers (`/** … */` single-line JSDoc included) and closers (`*/`).
-    // Dogfood finding 2026-08-20: `/** Stable id: <kind>#… */` lines were
-    // NOT masked, so the planner emitted dead mutants inside doc comments.
-    if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) continue;
+    // Skip whole-line `//` comments. Block comments — single-line JSDoc
+    // openers, multi-line bodies, closers — are handled by the cross-line
+    // scanner below, which also keeps code that follows a same-line
+    // `/* … */` closer mutable. (Dogfood finding 2026-08-20: the old
+    // per-line heuristic needed these guard arms; the scanner does not.)
+    if (t.startsWith('//')) continue;
+
+    const codeRanges = masks[lineIdx]!;
+    // Containment anchors at the token START, not its full span: the
+    // return-null family's token is the whole `return <expr>;` match,
+    // which legitimately crosses masked template text inside the
+    // expression — replacing it with `return null;` is still valid,
+    // meaningful code. Operator tokens are 1-2 chars, so start-anchoring
+    // loses nothing there; a token beginning inside template text,
+    // string, or comment remains masked.
+    const inCode = (start: number): boolean => codeRanges.some(([s, e]) => start >= s && start < e);
 
     for (const pattern of TOKEN_PATTERNS) {
       pattern.regex.lastIndex = 0;
@@ -130,8 +147,8 @@ export function planMutations(
       while ((m = pattern.regex.exec(line)) !== null) {
         const token = m.groups?.['op'] ?? m[0];
         const tokenStart = m.index + m[0].indexOf(token);
-        // Only mutate tokens that sit in real code (not comments/strings).
-        if (isMasked(line, tokenStart, token.length)) continue;
+        // Only mutate tokens that begin in real code.
+        if (!inCode(tokenStart)) continue;
         const original = line.slice(tokenStart, tokenStart + token.length);
         const replacement = pattern.replace(token);
         if (replacement === original) continue;
@@ -172,25 +189,117 @@ export function applyMutation(
 }
 
 /**
- * True when [start, start+len) on `line` falls inside a line comment,
- * block-comment tail, single- or double-quoted string. The engine only ever
- * plans single-line tokens, so a whole-file comment/string tracker is not
- * needed; this filter exists to keep the obvious false positives out.
+ * One forward scan over the whole source, classifying every line into
+ * [start, end) ranges of REAL code — everything else (single/double-quoted
+ * strings, line comments, block comments, template-literal text) is masked.
+ * This is the cross-line replacement for the old per-line `isMasked`:
+ * template literals and block comments routinely span lines, so a per-line
+ * mask can never see them.
+ *
+ * Heuristic scanner, deliberately not a parser (same trade-off as the rest
+ * of the engine): regex literals are not distinguished from division or
+ * comments. Over-masking is safe for planning; the failure mode this exists
+ * to prevent is planning mutants inside string, comment, or template text.
  */
-function isMasked(line: string, start: number, len: number): boolean {
-  let inSingle = false;
-  let inDouble = false;
-  for (let i = 0; i < start; i++) {
-    const c = line[i]!;
-    const prev = i > 0 ? line[i - 1] : undefined;
-    if (c === "'" && prev !== '\\') inSingle = !inSingle;
-    else if (c === '"' && prev !== '\\') inDouble = !inDouble;
-    if (!inSingle && !inDouble && c === '/' && prev === '/') return true;
+function computeLineMasks(source: string): Array<Array<[number, number]>> {
+  const lines = source.split('\n');
+  const masks: Array<Array<[number, number]>> = lines.map(() => []);
+  // Frame stack for nesting: the bottom frame is plain code; a backtick
+  // pushes a template frame; `${` inside a template pushes a code frame
+  // (interpolation contents ARE code and stay mutable). `depth` tracks
+  // brace nesting inside a code frame so a `}` closes an interpolation
+  // only after any inner object literal has closed.
+  type Frame = { kind: 'code' | 'template'; depth: number };
+  const stack: Frame[] = [{ kind: 'code', depth: 0 }];
+  let inBlockComment = false;
+
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx]!;
+    const ranges = masks[lineIdx]!;
+    let runStart: number | null = null;
+    const closeRun = (end: number): void => {
+      if (runStart !== null && end > runStart) ranges.push([runStart, end]);
+      runStart = null;
+    };
+
+    let i = 0;
+    // Resume after a block comment that spanned onto this line.
+    if (inBlockComment) {
+      const close = line.indexOf('*/');
+      if (close === -1) continue; // whole line is comment text
+      inBlockComment = false;
+      i = close + 2;
+    }
+
+    while (i < line.length) {
+      const top = stack[stack.length - 1]!;
+      const c = line[i]!;
+      if (top.kind === 'template') {
+        if (c === '\\') {
+          i += 2;
+          continue;
+        }
+        if (c === '`') {
+          stack.pop();
+          i++;
+          continue;
+        }
+        if (c === '$' && line[i + 1] === '{') {
+          stack.push({ kind: 'code', depth: 0 });
+          i += 2;
+          continue;
+        }
+        i++;
+        continue;
+      }
+      // Plain code frame.
+      if (c === "'" || c === '"') {
+        closeRun(i);
+        i++;
+        while (i < line.length && line[i] !== c) {
+          if (line[i] === '\\') i++;
+          i++;
+        }
+        i++; // closing quote (or end of line)
+        continue;
+      }
+      if (c === '`') {
+        closeRun(i);
+        stack.push({ kind: 'template', depth: 0 });
+        i++;
+        continue;
+      }
+      if (c === '/' && line[i + 1] === '/') {
+        closeRun(i);
+        break; // rest of the line is a comment
+      }
+      if (c === '/' && line[i + 1] === '*') {
+        closeRun(i);
+        const close = line.indexOf('*/', i + 2);
+        if (close === -1) {
+          inBlockComment = true;
+          break; // comment continues on following lines
+        }
+        i = close + 2;
+        continue;
+      }
+      if (c === '{') {
+        top.depth++;
+      } else if (c === '}') {
+        if (top.depth > 0) top.depth--;
+        else if (stack.length > 1) {
+          closeRun(i);
+          stack.pop(); // closes a `${…}` interpolation → template text again
+          i++;
+          continue;
+        }
+      }
+      if (runStart === null) runStart = i;
+      i++;
+    }
+    closeRun(line.length);
   }
-  if (inSingle || inDouble) return true;
-  // Token spans a quote boundary (rare; a matched token containing quotes).
-  const window = line.slice(start, start + len);
-  return /['"]/.test(window);
+  return masks;
 }
 
 /**

@@ -112,11 +112,13 @@ export const CHAOS_MONKEY_AGENT: SubagentConfig = {
   tools: [...TOOLS.build],
   skillNames: ['testing', 'typescript-strict'],
   spawnBudgetExempt: true,
-  // Follow fleet worktree policy (NOT 'required'): mutation targets are
-  // often freshly written and uncommitted — a worktree spawned from HEAD
-  // would not contain them and every mutant would drift. Callers pass
-  // `worktree: 'off'` in the mutation_test input for uncommitted targets.
-  worktree: 'auto',
+  // Run in the live checkout: mutation targets are usually freshly
+  // written and uncommitted — a worktree spawned from HEAD would not
+  // contain them and every mutant would drift. The mutation_test tool
+  // honors this value as its default; callers can still override per
+  // call via its `chaosWorktree` input when targets are committed and
+  // isolation is wanted.
+  worktree: 'off',
   // Report travels via submit_result + final text, not the leader's stream.
   textStream: 'silent',
   toolStream: 'silent',
