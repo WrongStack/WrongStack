@@ -79,7 +79,7 @@
       "relativeImports": 15
     },
     "packages/core/src/coordination/subagent-budget.ts": {
-      "lines": 822,
+      "lines": 828,
       "relativeImports": 3
     },
     "packages/core/src/core/context.ts": {

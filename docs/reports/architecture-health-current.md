@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-20T15:49:05.880Z
+**Generated:** 2026-08-20T15:54:30.810Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,7 +21,7 @@
 
 ## Verification result
 
-- packages/core/src/coordination/subagent-budget.ts: hotspot grew from 822 to 828 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
