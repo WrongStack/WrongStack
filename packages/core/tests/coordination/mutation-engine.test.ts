@@ -836,3 +836,144 @@ describe('planMutations — slash context (paren-kind, cross-line)', () => {
     expect(plan.some((m) => m.kind === 'return-null' && m.line === 5)).toBe(true);
   });
 });
+
+// ── Dogfood pinning tests (2026-08-20 run: 77% kill rate) ───────────
+// A mutation pass executed against this suite's own engine surfaced
+// behaviors no test pinned. Each group names the surviving mutant(s)
+// it exists to kill; the survivors that remain after these are judged
+// true/near equivalents (output-identical under the suite's oracle).
+
+describe('planMutations — dogfood pinning: comment resume, regex classes, resync, JSON escapes', () => {
+  it('resumes code scanning right after a multi-line comment closer with code on the closer line', () => {
+    // Kills arith-plus-to-minus#269#19 (`i = close + 2` → `close - 2`):
+    // resuming two chars early re-enters the comment tail; with an `=`
+    // directly before the closer, the following `/` classifies as a
+    // regex opener and masks the rest of the closer line — `4 > 3`
+    // would stop being planned. (A word before the closer would read
+    // as division and NOT kill — the operator is load-bearing.)
+    const source = [
+      'export function f(): number {',
+      '  /* head',
+      '   * end = */ const n = 4 > 3;',
+      '  return n;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/p1.ts', source);
+    // Code AFTER the closer on line 3 is live: the `>` is planned.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 3)).toBe(true);
+    // The line after the comment is untouched by any phantom frame.
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 4)).toBe(true);
+    // Nothing from inside the comment body is planned.
+    expect(plan.filter((m) => m.line === 2)).toEqual([]);
+  });
+
+  it('searches for the same-line comment closer from the opener, not before it', () => {
+    // Kills arith-plus-to-minus#329#… (`line.indexOf('*/', i + 2)` → `i - 2`):
+    // with an `/*/` opener, searching from two chars earlier finds the
+    // `*/` formed by the opener's own `*/` pair at k+1 — the scan then
+    // resumes inside the comment, the real closer's `/` reads as a regex
+    // opener, and `4 > 3` stops being planned.
+    const source = [
+      'export function f2(): number {',
+      '  const n = /*/ c */ 4 > 3;',
+      '  return n;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/p6.ts', source);
+    const relax = plan.filter((m) => m.kind === 'relax-boundary' && m.line === 2);
+    expect(relax).toHaveLength(1); // the `4 > 3` after the real closer
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('keeps same-line code live after a regex containing a character class', () => {
+    // Kills negate-boolean#445#33 (`inClass = false` on `]` flipped):
+    // a class that never closes consumes the rest of the line as class
+    // content, so `n > 2` would stop being planned.
+    const source = [
+      'export function g(s: string, n: number): boolean {',
+      '  const ok = /[a-z]+/g.test(s) && n > 2;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/p2.ts', source);
+    const relax = plan.filter((m) => m.kind === 'relax-boundary' && m.line === 2);
+    expect(relax).toHaveLength(1); // exactly the `n > 2` boundary
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('does not let a slash inside a character class close the regex early', () => {
+    // Kills negate-boolean#450#17 (`inClass = true` on `[` flipped):
+    // when the class never opens, the FIRST `/` inside it closes the
+    // literal early — everything after it (`b>c]`) is then scanned as
+    // code and the `>` leaks into the plan as a second relax-boundary.
+    // Correct behavior masks the whole class: exactly one boundary
+    // (`n > 2`) is planned. (The mask-all direction of #445 is caught
+    // here too: the count would become 0.)
+    const source = [
+      'export function h(s: string, n: number): boolean {',
+      '  const ok = /[a/b>c]/.test(s) && n > 2;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/p3.ts', source);
+    const relax = plan.filter((m) => m.kind === 'relax-boundary' && m.line === 2);
+    expect(relax).toHaveLength(1); // only `n > 2` — `b>c` stays class content
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('masks an unterminated regex only to end of line — the next line stays live', () => {
+    // Pins skipRegexLiteral's unterminated-literal behavior: the
+    // remainder of the line is masked, but the scan resyncs cleanly —
+    // no phantom frame bleeds into following lines.
+    const source = [
+      'export function k(n: number): boolean {',
+      '  const re = /unterminated > oops',
+      '  return n > 1;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/p4.ts', source);
+    expect(plan.filter((m) => m.line === 2)).toEqual([]); // masked tail
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 3)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('masks an unterminated regex tail under CRLF too — the \\r must not resync into code', () => {
+    // Lines are split on '\n', so a lone '\n' can never appear inside a
+    // line — the EOL guard in skipRegexLiteral is reachable ONLY via
+    // the '\r' that CRLF leaves at line end. Under the old `start + 1`
+    // resync, the '\r' re-exposed the regex tail as code and the `>`
+    // leaked into the plan. Mask-to-EOL must hold for CRLF sources.
+    const source = [
+      'export function k2(n: number): boolean {',
+      '  const re = /unterminated > oops',
+      '  return n > 1;',
+      '}',
+    ].join('\r\n');
+    const plan = planMutations('src/p5.ts', source);
+    expect(plan.filter((m) => m.line === 2)).toEqual([]); // masked tail incl. '\r'
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 3)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('parseMutationReport survives escaped quotes inside bare JSON in prose', () => {
+    // Kills negate-boolean#518#17 / #522#17 (the `escaped` state flips
+    // in extractBalancedObject). The UNBALANCED `{` inside the quoted
+    // evidence text is load-bearing: with the escape flag broken, the
+    // `\"` toggles the string tracker prematurely and the `{` then
+    // corrupts the depth count — the balanced-object extraction never
+    // closes and the report is unparseable. (With only balanced
+    // structural content the corruption cancels — the first version of
+    // this test survived #522 exactly that way.) Bare JSON, no fence —
+    // the fenced candidate bypasses this code path entirely.
+    const report = [
+      'Mutation report (prose):',
+      '{"summary":"ok","mutants":[{"id":"m#1#1","file":"a.ts","line":1,"kind":"relax-boundary","status":"killed","evidence":"assert \\"obj { ok"}]}',
+      'trailing prose',
+    ].join('\n');
+    const parsed = parseMutationReport(report);
+    expect(parsed?.mutants).toHaveLength(1);
+    expect(parsed?.mutants[0]?.id).toBe('m#1#1');
+    expect(parsed?.mutants[0]?.evidence).toBe('assert "obj { ok');
+    expect(parsed?.summary).toBe('ok');
+  });
+});

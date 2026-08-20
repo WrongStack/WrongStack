@@ -455,7 +455,7 @@ function skipRegexLiteral(line: string, start: number): number {
       i++;
       break;
     }
-    if (ch === '\n' || ch === '\r') return start + 1; // not a regex — resync
+    if (ch === '\n' || ch === '\r') return line.length; // unterminated at EOL — mask the tail (never expose regex content)
     i++;
   }
   while (i < line.length && /[a-z]/.test(line[i]!)) i++; // flags
