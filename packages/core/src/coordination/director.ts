@@ -429,7 +429,9 @@ export class Director implements DirectorFleetHost, ICoordinator {
     }
     this.armSubagentIdleRetirement(
       r.subagentId,
-      this.retireSubagentOnTaskComplete ? 0 : this.subagentIdleTimeoutMs,
+      this.retireSubagentOnTaskComplete
+        ? 0
+        : (this.subagentIdleDelayMs.get(r.subagentId) ?? this.subagentIdleTimeoutMs),
     );
   }
 

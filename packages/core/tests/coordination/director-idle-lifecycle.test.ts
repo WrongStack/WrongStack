@@ -163,4 +163,21 @@ describe('Director subagent idle lifecycle', () => {
     expect(director.status().subagents.some((a) => a.id === 'resident')).toBe(false);
     await director.shutdown();
   });
+
+  it('non-internal completion re-arms with the spawn-time override when retire-on-complete is off', async () => {
+    vi.useFakeTimers();
+    // Director-wide window is far longer than the override — if completion
+    // re-armed with the Director default, the configured 30ms window would
+    // silently stretch to 60s after the first task.
+    const director = makeDirector({ idleMs: 60_000, retireOnComplete: false });
+    await director.spawn({ id: 'worker', name: 'Worker', idleTimeoutMs: 30 });
+    await director.assign({ id: 'task-1', description: 'work', subagentId: 'worker' });
+
+    const [result] = await director.awaitTasks(['task-1']);
+    expect(result?.result).toBe('final answer');
+
+    await vi.advanceTimersByTimeAsync(30);
+    expect(director.status().subagents.some((a) => a.id === 'worker')).toBe(false);
+    await director.shutdown();
+  });
 });

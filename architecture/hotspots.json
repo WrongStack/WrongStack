@@ -59,7 +59,7 @@
       "relativeImports": 15
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 919,
+      "lines": 921,
       "relativeImports": 39
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
