@@ -757,3 +757,82 @@ describe('planMutations — return-null endpoint containment', () => {
     expect(plan.filter((m) => m.kind === 'return-null')).toEqual([]);
   });
 });
+
+// ── Slash-context classification (paren-kind + cross-line token) ────
+// Hardening follow-up: the regex heuristic classified a `/` by the
+// previous token on the SAME line only, and treated every `)` as
+// operand-ending. Two failures: `if (ok) /re > ex/.test(s)` read the
+// regex body as code (the unsafe direction — a `>` inside a regex
+// became a planned mutant), and a line-leading `/ 2` continuing a
+// division from the previous line was masked as a phantom regex (lost
+// coverage). The scanner now tracks the paren KIND (control header vs
+// expression) per frame and carries the last significant token ACROSS
+// lines: a control-header `)` does not end an operand (if-body may
+// start with a regex), an identifier before a line break does
+// (continued division).
+
+describe('planMutations — slash context (paren-kind, cross-line)', () => {
+  it('masks an if-body regex literal — control-header `)` does not end an operand', () => {
+    const source = [
+      'export function f(ok: boolean, s: string): string {',
+      '  if (ok) /a > b/.test(s);',
+      '  return s;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/s1.ts', source);
+    // The `>` lives inside the regex body — never planned. Old
+    // behavior: `)` from the if-header read as operand-end → regex
+    // body treated as code → relax-boundary mutant inside `/a > b/`.
+    expect(plan.filter((m) => m.kind === 'relax-boundary' && m.line === 2)).toEqual([]);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('treats a line-leading slash after an identifier as continued division', () => {
+    const source = [
+      'export function g(total: number): boolean {',
+      '  const half =',
+      '    total / 2;',
+      '  return half > 1;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/s2.ts', source);
+    // Old behavior: line-leading `/` saw no previous token on its own
+    // line → classified as regex → ` 2;` masked (harmless) but the
+    // division itself gone; the real loss shows in the NEXT line being
+    // resynced from a phantom frame. The `>` on line 4 must be planned.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 4)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 4)).toBe(true);
+  });
+
+  it('still classifies same-line division after a call as division, nested parens intact', () => {
+    const source = [
+      'export function h(xs: number[], k: number): boolean {',
+      '  const ok = xs.reduce((a, b) => a + b, 0) / k > 1;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/s3.ts', source);
+    // `)` of reduce(...) is an EXPRESSION paren — the `/ k` after it is
+    // division (not a regex), so the `>` at line end is planned. The
+    // arrow `=>` is not a boundary mutant by construction.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 2)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('still masks a regex after a control header spanning to a new line', () => {
+    const source = [
+      'export function j(ok: boolean, s: string): string {',
+      '  if (',
+      '    ok',
+      '  ) /x > y/.test(s);',
+      '  return s;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/s4.ts', source);
+    // The control-header `)` sits on its own line; the regex starts
+    // line 4. Cross-line token tracking must still see
+    // control-paren-close → regex, so its body stays masked.
+    expect(plan.filter((m) => m.kind === 'relax-boundary' && m.line === 4)).toEqual([]);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 5)).toBe(true);
+  });
+});

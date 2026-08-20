@@ -228,116 +228,159 @@ export function applyMutation(
  */
 function computeLineMasks(source: string): Array<Array<[number, number]>> {
   const lines = source.split('\n');
-  const masks: Array<Array<[number, number]>> = lines.map(() => []);
-  // Frame stack for nesting: the bottom frame is plain code; a backtick
-  // pushes a template frame; `${` inside a template pushes a code frame
-  // (interpolation contents ARE code and stay mutable). `depth` tracks
-  // brace nesting inside a code frame so a `}` closes an interpolation
-  // only after any inner object literal has closed.
-  type Frame = { kind: 'code' | 'template'; depth: number };
-  const stack: Frame[] = [{ kind: 'code', depth: 0 }];
-  let inBlockComment = false;
-
-  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx]!;
-    const ranges = masks[lineIdx]!;
-    let runStart: number | null = null;
-    const closeRun = (end: number): void => {
-      if (runStart !== null && end > runStart) ranges.push([runStart, end]);
-      runStart = null;
+    const masks: Array<Array<[number, number]>> = lines.map(() => []);
+    // Frame stack for nesting: the bottom frame is plain code; a backtick
+    // pushes a template frame; `${` inside a template pushes a code frame
+    // (interpolation contents ARE code and stay mutable). `depth` tracks
+    // brace nesting inside a code frame so a `}` closes an interpolation
+    // only after any inner object literal has closed. `parens` tracks the
+    // KIND of each open parenthesis in this frame — control headers
+    // (if/for/while/…) vs plain expressions — because a `)` that closes a
+    // control header does NOT end an operand: `if (ok) /re/.test(s)` must
+    // classify the `/` as a regex, while `f(x) / 2` is division.
+    type Frame = {
+      kind: 'code' | 'template';
+      depth: number;
+      parens: Array<'control' | 'expr'>;
     };
-
-    let i = 0;
-    // Resume after a block comment that spanned onto this line.
-    if (inBlockComment) {
-      const close = line.indexOf('*/');
-      if (close === -1) continue; // whole line is comment text
-      inBlockComment = false;
-      i = close + 2;
-    }
-
-    while (i < line.length) {
-      const top = stack[stack.length - 1]!;
-      const c = line[i]!;
-      if (top.kind === 'template') {
-        if (c === '\\') {
-          i += 2;
+    const stack: Frame[] = [{ kind: 'code', depth: 0, parens: [] }];
+    let inBlockComment = false;
+    // Last significant token consumed in a code frame — persists ACROSS
+    // lines, so a line-leading `/` classifies by what the previous line
+    // ended with (`total` → continued division; a control-header `)` →
+    // if-body regex; an operator → regex).
+    let lastToken: string | null = null;
+  
+    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+      const line = lines[lineIdx]!;
+      const ranges = masks[lineIdx]!;
+      let runStart: number | null = null;
+      const closeRun = (end: number): void => {
+        if (runStart !== null && end > runStart) ranges.push([runStart, end]);
+        runStart = null;
+      };
+  
+      let i = 0;
+      // Resume after a block comment that spanned onto this line.
+      if (inBlockComment) {
+        const close = line.indexOf('*/');
+        if (close === -1) continue; // whole line is comment text
+        inBlockComment = false;
+        i = close + 2;
+      }
+  
+      while (i < line.length) {
+        const top = stack[stack.length - 1]!;
+        const c = line[i]!;
+        if (top.kind === 'template') {
+          if (c === '\\') {
+            i += 2;
+            continue;
+          }
+          if (c === '`') {
+            stack.pop();
+            lastToken = '`'; // a closed template literal ends an operand
+            i++;
+            continue;
+          }
+          if (c === '$' && line[i + 1] === '{') {
+            stack.push({ kind: 'code', depth: 0, parens: [] });
+            lastToken = '${'; // interpolation opens a fresh expression
+            i += 2;
+            continue;
+          }
+          i++;
+          continue;
+        }
+        // Plain code frame.
+        if (/[\w$]/.test(c)) {
+          // Consume the whole word/number as ONE token so lastToken
+          // carries identifiers and keywords (if/return/typeof/…) intact.
+          let j = i + 1;
+          while (j < line.length && /[\w$]/.test(line[j]!)) j++;
+          lastToken = line.slice(i, j);
+          if (runStart === null) runStart = i;
+          i = j;
+          continue;
+        }
+        if (c === "'" || c === '"') {
+          closeRun(i);
+          i++;
+          while (i < line.length && line[i] !== c) {
+            if (line[i] === '\\') i++;
+            i++;
+          }
+          i++; // closing quote (or end of line)
+          lastToken = c; // a closed string ends an operand
           continue;
         }
         if (c === '`') {
-          stack.pop();
-          i++;
-          continue;
-        }
-        if (c === '$' && line[i + 1] === '{') {
-          stack.push({ kind: 'code', depth: 0 });
-          i += 2;
-          continue;
-        }
-        i++;
-        continue;
-      }
-      // Plain code frame.
-      if (c === "'" || c === '"') {
-        closeRun(i);
-        i++;
-        while (i < line.length && line[i] !== c) {
-          if (line[i] === '\\') i++;
-          i++;
-        }
-        i++; // closing quote (or end of line)
-        continue;
-      }
-      if (c === '`') {
-        closeRun(i);
-        stack.push({ kind: 'template', depth: 0 });
-        i++;
-        continue;
-      }
-      if (c === '/' && line[i + 1] === '/') {
-        closeRun(i);
-        break; // rest of the line is a comment
-      }
-      if (c === '/' && line[i + 1] === '*') {
-        closeRun(i);
-        const close = line.indexOf('*/', i + 2);
-        if (close === -1) {
-          inBlockComment = true;
-          break; // comment continues on following lines
-        }
-        i = close + 2;
-        continue;
-      }
-      // A lone `/` is a regex literal or division. It starts a regex
-      // when the previous significant token cannot END an operand
-      // (identifier vs operand-expecting keyword, `)`/`]`/`.`/quote
-      // close vs operator); a `/` right after `}` leans regex because
-      // over-masking is safe for planning. Skipping the literal
-      // wholesale keeps its braces, brackets and slashes away from the
-      // interpolation depth counter and the comment detectors.
-      if (c === '/') {
-        const prev = prevSignificantToken(line, i);
-        if (prev === null || !tokenCanEndOperand(prev)) {
           closeRun(i);
-          i = skipRegexLiteral(line, i);
-          continue;
-        }
-      }
-      if (c === '{') {
-        top.depth++;
-      } else if (c === '}') {
-        if (top.depth > 0) top.depth--;
-        else if (stack.length > 1) {
-          closeRun(i);
-          stack.pop(); // closes a `${…}` interpolation → template text again
+          stack.push({ kind: 'template', depth: 0, parens: [] });
           i++;
           continue;
         }
+        if (c === '/' && line[i + 1] === '/') {
+          closeRun(i);
+          break; // rest of the line is a comment
+        }
+        if (c === '/' && line[i + 1] === '*') {
+          closeRun(i);
+          const close = line.indexOf('*/', i + 2);
+          if (close === -1) {
+            inBlockComment = true;
+            break; // comment continues on following lines
+          }
+          i = close + 2;
+          continue; // a closed block comment is transparent: lastToken unchanged
+        }
+        // A lone `/` is a regex literal or division. It starts a regex
+        // when the previous significant token cannot END an operand —
+        // tracked across lines in `lastToken`, and paren-kind aware: a
+        // `)` that closed a control header (if/for/while…) does not end
+        // an operand, so the statement body may start with a regex
+        // literal; a `)` that closed a call or grouping does, making the
+        // `/` division. A `/` right after `}` leans regex because
+        // over-masking is safe for planning. Skipping the literal
+        // wholesale keeps its braces, brackets and slashes away from the
+        // interpolation depth counter and the comment detectors.
+        if (c === '/') {
+          if (!tokenCanEndOperand(lastToken)) {
+            closeRun(i);
+            const next = skipRegexLiteral(line, i);
+            lastToken = next > i + 1 ? 'regex' : '/';
+            i = next;
+            continue;
+          }
+        }
+        if (c === '(') {
+          top.parens.push(CONTROL_KEYWORDS.has(lastToken ?? '') ? 'control' : 'expr');
+          lastToken = c;
+        } else if (c === ')') {
+          const kind = top.parens.pop() ?? 'expr';
+          lastToken = kind === 'control' ? 'control-paren-close' : ')';
+        } else if (c === '{') {
+          top.depth++;
+          lastToken = c;
+        } else if (c === '}') {
+          if (top.depth > 0) {
+            top.depth--;
+            lastToken = c;
+          } else if (stack.length > 1) {
+            closeRun(i);
+            stack.pop(); // closes a `${…}` interpolation → template text again
+            i++;
+            continue;
+          } else {
+            lastToken = c;
+          }
+        } else if (c !== ' ' && c !== '\t' && c !== '\r') {
+          lastToken = c; // operators, commas, semicolons, brackets
+        }
+        if (runStart === null) runStart = i;
+        i++;
       }
-      if (runStart === null) runStart = i;
-      i++;
-    }
-    closeRun(line.length);
+      closeRun(line.length);
   }
   return masks;
 }
@@ -361,33 +404,21 @@ const KEYWORDS_BEFORE_REGEX = new Set([
 ]);
 
 /**
- * Last significant (non-whitespace) token before `end` on `line`.
- * Returns the full identifier/keyword when the char is a word char,
- * otherwise the single punctuation char; null when nothing precedes.
+ * Keywords whose following `(...)` is a CONTROL HEADER (if/for/while/…)
+ * rather than a call or grouping. A `)` closing one does not end an
+ * operand — the statement body may then start with a regex literal
+ * (`if (ok) /re/.test(s)`), unlike `f(x) / 2` which is division.
+ * `return` is deliberately absent: `return (x) / 2` is division.
  */
-function prevSignificantToken(line: string, end: number): string | null {
-  let j = end - 1;
-  while (j >= 0) {
-    const ch = line[j]!;
-    if (ch === ' ' || ch === '\t' || ch === '\r') {
-      j--;
-      continue;
-    }
-    if (/[\w$]/.test(ch)) {
-      let k = j;
-      while (k >= 0 && /[\w$]/.test(line[k]!)) k--;
-      return line.slice(k + 1, j + 1);
-    }
-    return ch;
-  }
-  return null;
-}
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with']);
 
 /**
  * Whether `token` can END an operand — if it can, a following `/` is
  * division, not a regex literal. `}` is deliberately NOT here: it is
  * ambiguous (block close vs object-literal close) and leaning "regex"
- * only over-masks, which is safe for planning.
+ * only over-masks, which is safe for planning. `control-paren-close`
+ * (a `)` that closed an if/for/while header) also fails this test by
+ * design — the statement body may begin with a regex literal.
  */
 function tokenCanEndOperand(token: string | null): boolean {
   if (token === null) return false;
