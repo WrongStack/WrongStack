@@ -23,6 +23,10 @@ execution order and diagnosis, never the mutation set.
 3. Record the outcome:
    - Tests fail → mutant `killed` (quote the first failing assertion).
    - Tests pass → mutant `survived` (this is a weak-test finding, not your failure).
+   - The test command times out or is aborted → mutant `killed-by-hang`
+     (the mutation broke the suite by non-termination — a kill, NOT a
+     survivor; record the timeout as evidence). Never report a hung
+     command as `survived`.
 4. Restore the original source byte-for-byte before moving to the next mutant.
    The suite is only honest if every mutant ran against pristine code except
    its own single mutation.
@@ -47,7 +51,7 @@ Submit via `submit_result`, then repeat it as your final text (fenced JSON):
   "summary": "<one line: N killed / M survived / K skipped>",
   "mutants": [
     { "id": "<plan id>", "file": "...", "line": 0, "kind": "...",
-      "status": "killed | survived | skipped",
+      "status": "killed | survived | skipped | killed-by-hang",
       "evidence": "<failing assertion, or 'suite green' for survivors>" }
   ]
 }

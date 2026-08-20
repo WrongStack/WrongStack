@@ -220,6 +220,56 @@ describe('makeMutationTestTool', () => {
     expect(out['passed']).toBe(false);
   });
 
+  it('scores killed-by-hang as a kill — full-kill report yields pass, never a strengthen round', async () => {
+    // Regression: a hung test command used to fall through exit-code
+    // mapping and read as "suite green" (a false survivor). The dogfood
+    // run hit this live: mutating `let j = i + 1` to `i - 1` walked the
+    // scanner backwards — an infinite loop the harness timed out on and
+    // mislabeled. Classical mutation testing counts a hang as a kill:
+    // the mutation broke the suite by non-termination. A report where
+    // every mutant is killed-by-hang must therefore end verdict 'pass'
+    // with no strengthen attempt.
+    let chaosPasses = 0;
+    let strengthenTasks = 0;
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        return JSON.stringify({
+          summary: 'every mutant hung the suite',
+          mutants: task.mutants.map((m) => ({
+            ...m,
+            status: 'killed-by-hang',
+            evidence: 'test command exceeded timeout (60000ms)',
+          })),
+        });
+      },
+      strengthen: () => {
+        strengthenTasks++;
+        return 'strengthened';
+      },
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      // repairSubagentId is load-bearing: without it the strengthen loop
+      // is disabled and the no-strengthen assertions below would pass
+      // vacuously. With it enabled, a killed-by-hang row wrongly kept
+      // in the worklist would spawn a strengthen task and fail this.
+      { targets: [TARGET_FILE], testCommand: 'pnpm test', repairSubagentId: 'repair-sub' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(out['killed']).toBe((out['planned'] as number)); // hangs count as kills
+    expect(out['survived']).toBe(0);
+    expect(out['skipped']).toBe(0);
+    expect(out['mutationScore']).toBe(1);
+    expect(out['verdict']).toBe('pass');
+    expect(out['passed']).toBe(true);
+    expect(out['nextAction']).toBe('accept');
+    expect(chaosPasses).toBe(1); // no re-verify: nothing survived
+    expect(strengthenTasks).toBe(0); // a hang is not a weak-test finding
+  });
+
   it('plans deterministically — same target, same ids across two calls', async () => {
     const seen: string[][] = [];
     const { director } = makeFakeDirector({

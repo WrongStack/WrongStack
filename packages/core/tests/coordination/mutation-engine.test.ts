@@ -148,6 +148,19 @@ describe('parseMutationReport', () => {
     expect(parseMutationReport('{"summary":"no mutants key"}')).toBeUndefined();
   });
 
+  it('accepts killed-by-hang as a valid outcome status', () => {
+    // A hung test command is a kill detected by non-termination, not an
+    // unknown: the parser must keep the row (pre-fix, "weird"-status
+    // dropping would have discarded it, silently converting a kill into
+    // an unreported unknown).
+    const text =
+      'Report:\n```json\n{"summary":"done","mutants":[{"id":"arith-plus-to-minus#299#21","file":"src/e.ts","line":299,"kind":"arith-plus-to-minus","status":"killed-by-hang","evidence":"test command exceeded timeout (60000ms)"}]}\n```';
+    const r = parseMutationReport(text);
+    expect(r?.mutants).toHaveLength(1);
+    expect(r?.mutants[0]?.status).toBe('killed-by-hang');
+    expect(r?.mutants[0]?.evidence).toBe('test command exceeded timeout (60000ms)');
+  });
+
   // ── parseMutationReport edge-case hardening ───────────────────────────
   // The chaos subagent wraps its JSON in prose with arbitrary escaping;
   // the parser must remain robust against all of these so a

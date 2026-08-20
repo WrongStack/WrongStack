@@ -475,7 +475,7 @@ export function parseMutationReport(
     file: string;
     line: number;
     kind: string;
-    status: 'killed' | 'survived' | 'skipped';
+    status: 'killed' | 'survived' | 'skipped' | 'killed-by-hang';
     evidence?: string | undefined;
   }>;
   summary?: string | undefined;
@@ -539,7 +539,7 @@ function normalizeMutantEntry(value: unknown):
       file: string;
       line: number;
       kind: string;
-      status: 'killed' | 'survived' | 'skipped';
+      status: 'killed' | 'survived' | 'skipped' | 'killed-by-hang';
       evidence?: string | undefined;
     }
   | undefined {
@@ -547,7 +547,7 @@ function normalizeMutantEntry(value: unknown):
   const rec = value as Record<string, unknown>;
   const id = typeof rec['id'] === 'string' ? rec['id'] : undefined;
   const status = rec['status'];
-  if (!id || (status !== 'killed' && status !== 'survived' && status !== 'skipped')) {
+  if (!id || (status !== 'killed' && status !== 'survived' && status !== 'skipped' && status !== 'killed-by-hang')) {
     return undefined;
   }
   return {

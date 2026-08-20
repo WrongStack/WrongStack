@@ -57,7 +57,7 @@ interface MutantOutcome {
   file: string;
   line: number;
   kind: string;
-  status: 'killed' | 'survived' | 'skipped';
+  status: 'killed' | 'survived' | 'skipped' | 'killed-by-hang';
   evidence?: string | undefined;
 }
 
@@ -224,7 +224,7 @@ export function makeMutationTestTool(
         // Killed mutants leave the worklist; skipped/unreported ones STAY
         // in it so a later attempt can re-verify them (bounded by
         // maxAttempts) — a skip is an unknown, not a verdict.
-        const stillSurviving = passN.filter((m) => m.status !== 'killed');
+        const stillSurviving = passN.filter((m) => !isKill(m.status));
         // Ledger = THIS round's skipped outcomes, recomputed per round.
         // Occurrence-correct by construction: every unresolved occurrence
         // stays in the worklist and is re-presented in each later round's
@@ -260,7 +260,7 @@ export function makeMutationTestTool(
       // killed, whatever `finalSurvivors` being empty implies.
       const rerunUnknownCount = rerunUnknowns.length;
       const score =
-        plan.length === 0 ? 0 : pass1.filter((m) => m.status === 'killed').length / plan.length;
+        plan.length === 0 ? 0 : pass1.filter((m) => isKill(m.status)).length / plan.length;
       // Honest verdicts: a pass requires zero survivors AND zero unknowns
       // (first-pass skips AND re-verify skips alike). A failed/failed-to-
       // parse chaos pass is 'inconclusive' — claiming a green gate
@@ -282,7 +282,7 @@ export function makeMutationTestTool(
         passed: verdict === 'pass',
         mutationScore: Number.parseFloat(score.toFixed(3)),
         planned: plan.length,
-        killed: pass1.filter((m) => m.status === 'killed').length,
+        killed: pass1.filter((m) => isKill(m.status)).length,
         survived: pass1.filter((m) => m.status === 'survived').length,
         skipped: pass1.filter((m) => m.status === 'skipped').length,
         finalSurvivors: finalSurvivors.map((m) => ({ id: m.id, file: m.file, kind: m.kind })),
@@ -375,7 +375,7 @@ function buildChaosTask(
     'For each mutant, in order:',
     '1. Apply ONLY that mutation at its exact (file, line, column).',
     `2. Run the test command: ${i.testCommand}${i.cwd ? ` (cwd: ${i.cwd})` : ''}`,
-    '3. Record killed (tests failed — quote first failing assertion) or survived (suite green).',
+    '3. Record killed (tests failed — quote first failing assertion), survived (suite green), or killed-by-hang (the test command timed out or was aborted — the mutation broke the suite by non-termination; record the timeout as evidence, do NOT report it as survived).',
     '4. Restore the file byte-for-byte before the next mutant.',
     '',
     'Mutants:',
@@ -464,6 +464,20 @@ function collectOutcomes(result: TaskResult | undefined, plan: MutationPlanItem[
     status: 'skipped',
     evidence: result ? `chaos task ended ${result.status}` : 'chaos task produced no result',
   }));
+}
+
+/**
+ * A kill is a kill, however it was detected: an assertion failure
+ * (`killed`) or the test command hanging until timeout/abort
+ * (`killed-by-hang`). Classical mutation testing counts a hang as a
+ * kill — the mutated code still broke the suite, just by non-termination
+ * instead of a red assertion. Everywhere kills matter (worklist exit,
+ * score numerator, killed count, accept gate) both count; only `survived`
+ * keeps a mutant in the strengthen loop and only `skipped`/unreported
+ * make it an unknown.
+ */
+function isKill(status: MutantOutcome['status']): boolean {
+  return status === 'killed' || status === 'killed-by-hang';
 }
 
 function parseTextOutcomes(result: TaskResult | undefined): MutantOutcome[] {
