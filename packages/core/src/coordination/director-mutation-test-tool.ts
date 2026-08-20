@@ -283,6 +283,12 @@ export function makeMutationTestTool(
         mutationScore: Number.parseFloat(score.toFixed(3)),
         planned: plan.length,
         killed: pass1.filter((m) => isKill(m.status)).length,
+        // Breakout of `killed`: how many kills were detected by the test
+        // command hanging rather than by a failing assertion. A subset of
+        // `killed`, surfaced so a director can distinguish a hang-heavy
+        // suite (mutants breaking termination, not assertions) from an
+        // assertion-strong one. hangHeavy = killedByHang === killed.
+        killedByHang: pass1.filter((m) => m.status === 'killed-by-hang').length,
         survived: pass1.filter((m) => m.status === 'survived').length,
         skipped: pass1.filter((m) => m.status === 'skipped').length,
         finalSurvivors: finalSurvivors.map((m) => ({ id: m.id, file: m.file, kind: m.kind })),

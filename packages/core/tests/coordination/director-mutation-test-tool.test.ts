@@ -260,6 +260,7 @@ describe('makeMutationTestTool', () => {
     )) as Record<string, unknown>;
 
     expect(out['killed']).toBe((out['planned'] as number)); // hangs count as kills
+    expect(out['killedByHang']).toBe(out['planned']); // hang-heavy: breakout equals total
     expect(out['survived']).toBe(0);
     expect(out['skipped']).toBe(0);
     expect(out['mutationScore']).toBe(1);
@@ -268,6 +269,47 @@ describe('makeMutationTestTool', () => {
     expect(out['nextAction']).toBe('accept');
     expect(chaosPasses).toBe(1); // no re-verify: nothing survived
     expect(strengthenTasks).toBe(0); // a hang is not a weak-test finding
+  });
+
+  it('reports killedByHang as a breakout subset of killed in a mixed report', async () => {
+    // `killed` keeps its meaning: ALL kills, assertion + hang. The
+    // `killedByHang` field breaks out the hang-detected portion so a
+    // director can distinguish a hang-heavy suite from an
+    // assertion-strong one without changing what existing consumers
+    // pin (killed === planned on a full-kill report).
+    let plannedCount = 0;
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        plannedCount = task.mutants.length;
+        return JSON.stringify({
+          summary: 'mixed outcomes',
+          mutants: task.mutants.map((m, idx) =>
+            idx % 2 === 0
+              ? { ...m, status: 'killed', evidence: 'assertion failed' }
+              : {
+                  ...m,
+                  status: 'killed-by-hang',
+                  evidence: 'test command exceeded timeout (60000ms)',
+                },
+          ),
+        });
+      },
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      { targets: [TARGET_FILE], testCommand: 'pnpm test' },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(plannedCount).toBeGreaterThanOrEqual(2); // self-check: the mix exists
+    expect(plannedCount % 2).toBe(0); // floor/ceil agree only on even N — pin it
+    expect(out['killed']).toBe(plannedCount); // subset semantics: all kills
+    expect(out['killedByHang']).toBe(Math.floor(plannedCount / 2)); // the hang half
+    expect((out['killedByHang'] as number) + 0).toBeLessThanOrEqual(out['killed'] as number); // never exceeds
+    expect(out['survived']).toBe(0);
+    expect(out['skipped']).toBe(0);
+    expect(out['verdict']).toBe('pass');
   });
 
   it('plans deterministically — same target, same ids across two calls', async () => {
