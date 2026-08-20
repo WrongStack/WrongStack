@@ -1,5 +1,11 @@
 import { baseTheme, themePresets } from './theme-presets.js';
-import type { SyntaxPalette, SyntaxRole, Theme, ThemeName } from './theme-types.js';
+import type {
+  SyntaxPalette,
+  SyntaxRole,
+  Theme,
+  ThemeListener,
+  ThemeName,
+} from './theme-types.js';
 import {
   mixHexColors,
   resolveSyntaxColor as resolveSyntaxColorFn,
@@ -70,35 +76,37 @@ export function getActiveTheme(): Theme {
   return theme;
 }
 
-export function setActiveTheme(name: string | undefined): ThemeName {
-  let applied: ThemeName = currentPresetName;
-  const preset = name ? (themePresets as Record<string, Theme | undefined>)[name] : undefined;
-  if (preset && (name as ThemeName) in themePresets) {
-    applied = name as ThemeName;
-  }
-  if (!preset) {
-    return applied;
-  }
-  const t = theme as unknown as Record<string, unknown>;
-  const p = preset as unknown as Record<string, unknown>;
-  for (const k of Object.keys(t)) {
-    if (!(k in p)) delete t[k];
-  }
-  for (const k of Object.keys(p)) {
-    t[k] = p[k];
-  }
-  currentPresetName = applied;
-  for (const cb of themeSubscribers) {
-    try {
-      cb(applied);
-    } catch {
-      // ignore
-    }
-  }
-  return applied;
+function isThemeName(name: string): name is ThemeName {
+  return name in themePresets;
 }
 
-type ThemeListener = (name: ThemeName) => void;
+export function setActiveTheme(name: string | undefined): ThemeName {
+  if (name === undefined || !isThemeName(name)) {
+    // Unknown or absent preset: keep the current palette untouched and
+    // report what is actually active so callers can persist a valid name.
+    return currentPresetName;
+  }
+  const preset = themePresets[name];
+  // Drop keys the new preset does not define (e.g. an optional `syntax`
+  // override left behind by the previous preset), then copy the preset
+  // into the shared mutable `theme` so every module-level reader picks up
+  // the new palette without re-importing.
+  const mutable = theme as Partial<Record<keyof Theme, unknown>>;
+  for (const key of Object.keys(theme) as (keyof Theme)[]) {
+    if (!(key in preset)) delete mutable[key];
+  }
+  Object.assign(theme, preset);
+  currentPresetName = name;
+  for (const cb of themeSubscribers) {
+    try {
+      cb(name);
+    } catch {
+      // A throwing subscriber must never break the theme swap for the rest.
+    }
+  }
+  return name;
+}
+
 const themeSubscribers = new Set<ThemeListener>();
 
 export function subscribeToTheme(cb: ThemeListener): () => void {

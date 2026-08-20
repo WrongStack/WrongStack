@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { getActiveTheme, getActiveThemeName, subscribeToTheme } from '../theme.js';
+import { getActiveTheme, getActiveThemeName, subscribeToTheme, type Theme } from '../theme.js';
 
 /**
  * Subscribes to the module-scoped active theme so a render reads the
@@ -13,7 +13,7 @@ import { getActiveTheme, getActiveThemeName, subscribeToTheme } from '../theme.j
  * but exposing it lets test code and stat panels introspect the active
  * palette without re-implementing the listener.
  */
-export function useActiveTheme() {
+export function useActiveTheme(): Theme {
   // Track the active preset name as a primitive snapshot. React's
   // useSyncExternalStore triggers a re-render whenever the snapshot
   // identity changes — for mutable objects the identity is constant, so
