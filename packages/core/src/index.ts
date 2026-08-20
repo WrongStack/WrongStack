@@ -159,6 +159,7 @@ export {
   makeFleetEmitTool,
   makeFleetTool,
   makeKanbanQueueTool,
+  makeMutationTestTool,
   makeQualityGateTool,
   makeRollUpTool,
   makeSpawnTool,

@@ -9,6 +9,7 @@ import {
   makeFleetEmitTool,
   makeFleetTool,
   makeKanbanQueueTool,
+  makeMutationTestTool,
   makeQualityGateTool,
   makeRollUpTool,
   makeSpawnTool,
@@ -26,6 +27,7 @@ type DirectorToolsetHost =
   & Parameters<typeof makeAskResultTool>[0]
   & Parameters<typeof makeRollUpTool>[0]
   & Parameters<typeof makeQualityGateTool>[0]
+  & Parameters<typeof makeMutationTestTool>[0]
   & Parameters<typeof makeTerminateTool>[0]
   & Parameters<typeof makeTerminateAllTool>[0]
   & Parameters<typeof makeFleetTool>[0]
@@ -46,6 +48,7 @@ export function buildDirectorToolset(
     makeAskResultTool(director),
     makeRollUpTool(director),
     makeQualityGateTool(director, roster),
+    makeMutationTestTool(director, roster),
     makeTerminateTool(director),
     makeTerminateAllTool(director),
     makeFleetTool(director),

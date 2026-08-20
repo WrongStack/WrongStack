@@ -27,8 +27,12 @@
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings-mutations.ts": {
-      "lines": 894,
+      "lines": 897,
       "relativeImports": 4
+    },
+    "packages/cli/src/subcommands/handlers/providers-models.ts": {
+      "lines": 800,
+      "relativeImports": 5
     },
     "packages/core/src/boot.ts": {
       "lines": 804,
@@ -51,11 +55,11 @@
       "relativeImports": 9
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 831,
-      "relativeImports": 13
+      "lines": 839,
+      "relativeImports": 15
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 861,
+      "lines": 873,
       "relativeImports": 39
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
@@ -63,8 +67,8 @@
       "relativeImports": 6
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 972,
-      "relativeImports": 10
+      "lines": 1022,
+      "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
       "lines": 964,
@@ -73,6 +77,10 @@
     "packages/core/src/coordination/sqlite-mailbox.ts": {
       "lines": 852,
       "relativeImports": 15
+    },
+    "packages/core/src/coordination/subagent-budget.ts": {
+      "lines": 822,
+      "relativeImports": 3
     },
     "packages/core/src/core/context.ts": {
       "lines": 1013,
@@ -115,7 +123,7 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1020,
+      "lines": 1021,
       "relativeImports": 154
     },
     "packages/core/src/security/secret-vault.ts": {
@@ -129,6 +137,10 @@
     "packages/core/src/storage/session-store.ts": {
       "lines": 821,
       "relativeImports": 38
+    },
+    "packages/core/src/types/provider.ts": {
+      "lines": 837,
+      "relativeImports": 7
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
       "lines": 863,
@@ -287,7 +299,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 1000,
+      "lines": 1007,
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {

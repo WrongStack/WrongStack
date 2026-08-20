@@ -125,7 +125,7 @@
         "export { hashRequest, stableStringify, } from './replay/hash.js';",
         "export { isMailboxLeader, isMailboxMessageVisibleTo, mailboxIdentityBase, normalizeRecipient, } from './coordination/mailbox-types.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './coordination/model-matrix.js';",
-        "export { makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateTool, } from './coordination/director-tools.js';",
+        "export { makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, makeKanbanQueueTool, makeMutationTestTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateTool, } from './coordination/director-tools.js';",
         "export { persistReviewReport, type ReportIntegrationResult, type ReportReopenResult, type ReportSyncResult, syncReportCompletion, syncReportReopen, } from './plugins/review-report-integration.js';",
         "export { readBundledInstructionText, renderInstructionTemplate, } from './utils/instruction-file.js';",
         "export { resolveProjectDir } from './coordination/global-mailbox-paths.js';",
@@ -661,7 +661,7 @@
         "export { isMailboxProjectServerAvailable, MailboxProjectServerConnection, type MailboxProjectServerConnectionState, } from './mailbox-project-server-client.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './model-matrix.js';",
         "export { mailboxProjectServerEndpoint, mailboxProjectServerMetadataPath, } from './mailbox-project-server-endpoint.js';",
-        "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
+        "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeMutationTestTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
         "export { parseMailboxAckInput, parseMailboxQueryInput, parseMailboxSendInput, } from './mailbox-codecs.js';",
         "export { redactMailboxCredential } from './mailbox-credential-store.js';",
         "export { resolveProjectDir } from './global-mailbox-paths.js';",
@@ -1160,8 +1160,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 162,
-      "sourceLines": 46273
+      "sourceFiles": 164,
+      "sourceLines": 47020
     },
     {
       "directory": "core",

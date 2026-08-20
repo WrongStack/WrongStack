@@ -148,14 +148,19 @@ describe('agent catalog integrity', () => {
 });
 
 describe('fleet roster derivation', () => {
-  it('FLEET_ROSTER is the catalog plus the standalone shadow, generic, and explore-companion roles', () => {
-    expect(Object.keys(FLEET_ROSTER).length).toBe(78);
+  it('FLEET_ROSTER is the catalog plus the standalone shadow, generic, explore-companion, and chaos-monkey roles', () => {
+    expect(Object.keys(FLEET_ROSTER).length).toBe(79);
     // Legacy four are preserved alongside the catalog.
     for (const legacy of ['audit-log', 'bug-hunter', 'refactor-planner', 'security-scanner']) {
       expect(FLEET_ROSTER[legacy]).toBeDefined();
     }
     // Standalone operational roles registered outside the phase catalog.
-    for (const operational of ['shadow-agent', 'generic', 'explore-companion']) {
+    for (const operational of [
+      'shadow-agent',
+      'generic',
+      'explore-companion',
+      'chaos-monkey',
+    ]) {
       expect(FLEET_ROSTER[operational]).toBeDefined();
     }
     // Every catalog role is in the roster.

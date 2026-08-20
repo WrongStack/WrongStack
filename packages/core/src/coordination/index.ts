@@ -260,6 +260,7 @@ export {
   // (exported below). The old leader-side fleet_status was consolidated into
   // `fleet` (action: status).
   makeKanbanQueueTool,
+  makeMutationTestTool,
   makeQualityGateTool,
   makeRollUpTool,
   makeSpawnTool,

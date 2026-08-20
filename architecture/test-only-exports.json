@@ -357,7 +357,8 @@
     "packages/core/src/coordination/mailbox-codecs.ts": [
       "MailboxValidationError",
       "parseMailboxHeartbeatInput",
-      "parseMailboxRegistrationInput"
+      "parseMailboxRegistrationInput",
+      "SEND_ALLOWED_FIELDS"
     ],
     "packages/core/src/coordination/mailbox-credential-store.ts": [
       "resolveCredentialStorePath"
@@ -787,6 +788,9 @@
     ],
     "packages/providers/src/oauth/index.ts": [
       "OAUTH_PROVIDER_IDS"
+    ],
+    "packages/providers/src/openai-shared.ts": [
+      "OPENAI_EFFORT_ACCEPT"
     ],
     "packages/providers/src/opencode.ts": [
       "usesResponsesEndpoint"

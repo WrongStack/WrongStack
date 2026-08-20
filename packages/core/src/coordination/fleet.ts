@@ -97,6 +97,32 @@ export const EXPLORE_COMPANION_AGENT: SubagentConfig = {
 };
 
 /**
+ * Chaos Monkey ("Kaos Maymunu") — one-shot mutation-testing saboteur.
+ * Use for: proving whether tests actually pin down the code they cover.
+ *
+ * Operational role — deliberately NOT in ALL_AGENT_DEFINITIONS (like
+ * `shadow-agent` and `explore-companion`), so the free-form dispatcher
+ * never routes to it and the phase-catalog count stays intact. The
+ * `mutation_test` director tool computes the deterministic mutation plan
+ * and hands this agent an exact apply/run/restore checklist; the agent
+ * never invents mutants.
+ */
+export const CHAOS_MONKEY_AGENT: SubagentConfig = {
+  ...defineAgent('chaos-monkey', 'Chaos Monkey'),
+  tools: [...TOOLS.build],
+  skillNames: ['testing', 'typescript-strict'],
+  spawnBudgetExempt: true,
+  // Follow fleet worktree policy (NOT 'required'): mutation targets are
+  // often freshly written and uncommitted — a worktree spawned from HEAD
+  // would not contain them and every mutant would drift. Callers pass
+  // `worktree: 'off'` in the mutation_test input for uncommitted targets.
+  worktree: 'auto',
+  // Report travels via submit_result + final text, not the leader's stream.
+  textStream: 'silent',
+  toolStream: 'silent',
+};
+
+/**
  * Critic Agent — evaluates code quality, architecture decisions, and
  * refactoring plans against project conventions and engineering standards.
  * Use for: real-time evaluation of bug reports, refactor plans, and
@@ -110,8 +136,9 @@ export const GENERIC_AGENT = defineAgent('generic', 'Generic Project Agent');
 /**
  * All agents in a map for easy lookup by role. The 75-role phase catalog
  * (`ALL_AGENT_DEFINITIONS`) already includes `critic` and the historical
- * audit/review specialists. Adding standalone `generic` and `shadow-agent`
- * roles produces 77 unique built-in role ids.
+ * audit/review specialists. Adding standalone `generic`, `shadow-agent`,
+ * `explore-companion`, and `chaos-monkey` roles produces 79 unique built-in
+ * role ids.
  */
 /**
  * Carry the catalog's curated one-line capability onto the roster config.
@@ -147,6 +174,7 @@ export const FLEET_ROSTER: Record<string, SubagentConfig> = {
   generic: GENERIC_AGENT,
   'shadow-agent': SHADOW_AGENT,
   'explore-companion': EXPLORE_COMPANION_AGENT,
+  'chaos-monkey': CHAOS_MONKEY_AGENT,
   ...Object.fromEntries(
     ALL_AGENT_DEFINITIONS.map((d) => [d.config.role as string, withDispatchMetadata(d)] as const),
   ),
@@ -204,6 +232,16 @@ export const FLEET_ROSTER_BUDGETS: Record<string, FleetRosterBudget> = {
     idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,
     maxIterations: 3000,
     maxToolCalls: 8000,
+    maxTokens: 96_000,
+    maxCostUsd: 0.5,
+  },
+  'chaos-monkey': {
+    // A mutation pass is many short apply/run/restore cycles — per-mutant
+    // work is tiny, but a large plan (25 mutants/file × N files) needs
+    // headroom. Idle-based reaping covers a stalled pass.
+    idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,
+    maxIterations: 2000,
+    maxToolCalls: 6000,
     maxTokens: 96_000,
     maxCostUsd: 0.5,
   },
