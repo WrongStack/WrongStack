@@ -19,10 +19,10 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
-import { ExtensionRegistry } from '../../src/extension/registry.js';
-import type { AgentExtension } from '../../src/extension/extension-points.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
+import type { AgentExtension } from '../../src/extension/extension-points.js';
+import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { Container } from '../../src/kernel/container.js';
@@ -177,7 +177,9 @@ async function buildRecoveringAgent(
 describe('agent-loop provider recovery → self_healing_retry journal entry', () => {
   let cleanupDirs: string[] = [];
   afterEach(async () => {
-    for (const dir of cleanupDirs) await fs.rm(dir, { recursive: true, force: true });
+    for (const dir of cleanupDirs) {
+      await fs.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 });
+    }
     cleanupDirs = [];
   });
 
