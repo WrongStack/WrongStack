@@ -60,6 +60,14 @@ const PATTERNS: Pattern[] = [
     anchor: 'sk-ant-',
   },
   { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g, anchor: 'sk-' },
+  {
+    // `xai` is a first-class provider in this codebase, but its key shape was
+    // absent here — so the one credential format WrongStack itself hands users
+    // was the one the scrubber could not recognize (audit 2026-08-20).
+    type: 'xai_key',
+    regex: /(?<![A-Za-z0-9])xai-[A-Za-z0-9]{20,}(?![A-Za-z0-9])/g,
+    anchor: 'xai-',
+  },
   { type: 'github_pat', regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g, anchor: 'ghp_' },
   { type: 'github_pat_v2', regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g, anchor: 'github_pat_' },
   { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g, anchor: 'AKIA' },
@@ -151,8 +159,8 @@ const PATTERNS: Pattern[] = [
     // replacement so the separator between adjacent secrets is preserved
     // rather than collapsed. Capture groups are therefore: 1=leading
     // delimiter, 2=key name, 3=value.
-    regex: /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
-    anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD'],
+    regex: /(^|\s)([A-Z_]{4,}(?:KEY|TOKEN|SECRET|PASSWORD|PWD|PASSPHRASE))\s*[:=]\s*['"]?([A-Za-z0-9_/+=-]{20,512})['"]?(?=\s|$)/g,
+    anchor: ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'PWD', 'PASSPHRASE'],
   },
   {
     type: 'json_credential_key',

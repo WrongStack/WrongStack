@@ -189,6 +189,31 @@ function keyFileNeedsHardening(
  * problem and the TOCTOU gap where the key file sits with inherited ACLs until
  * the event loop ticks.
  */
+/**
+ * Create the directory holding the vault key file, owner-only.
+ *
+ * `mkdirSync(..., { recursive: true })` applies the default mode, so on POSIX
+ * the directory holding the key-encryption key landed at `0755` — world-
+ * readable. The key FILE is created `0o600`, so the key itself was never
+ * exposed, but a readable parent directory lets another local account enumerate
+ * it and, worse, means any file written there by a path that does not set its
+ * own mode inherits a permissive default. `restrictDirPermissions` was written
+ * for exactly this and had no production call site (audit 2026-08-20).
+ *
+ * Sync because both callers sit on the vault's synchronous key-load path.
+ * Best-effort: a failure here must never stop the agent from booting.
+ */
+function mkdirSecretDirSync(dir: string): void {
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  if (process.platform === 'win32') return;
+  try {
+    // `mode` on mkdir is masked by the process umask, so set it explicitly.
+    fs.chmodSync(dir, 0o700);
+  } catch {
+    // Best-effort — an unwritable mode is not a reason to fail boot.
+  }
+}
+
 function writeKeyFileAtomicSync(keyFile: string, content: Buffer): void {
   const tmp = `${keyFile}.${randomBytes(4).toString('hex')}.tmp`;
   const fd = fs.openSync(tmp, 'w', 0o600);
@@ -367,7 +392,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
     const newKey = randomBytes(KEY_BYTES);
     const newVersion = oldVersion + 1;
 
-    fs.mkdirSync(path.dirname(this.keyFile), { recursive: true });
+    mkdirSecretDirSync(path.dirname(this.keyFile));
     const passphrase = getVaultPassphrase();
     if (passphrase) {
       // Keep the rotated key passphrase-wrapped (v3) so rotation never
@@ -482,7 +507,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
     }
     // Create a fresh key. Use sync APIs so the constructor-free getter
     // remains synchronous from the caller's perspective.
-    fs.mkdirSync(path.dirname(this.keyFile), { recursive: true });
+    mkdirSecretDirSync(path.dirname(this.keyFile));
     const key = randomBytes(KEY_BYTES);
     // When a passphrase is configured, a brand-new key is written wrapped (v3)
     // from the start; otherwise the legacy raw-32-byte format is preserved.

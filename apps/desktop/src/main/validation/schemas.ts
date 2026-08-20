@@ -2,6 +2,8 @@
  * Zod schemas for IPC message validation.
  * These schemas validate incoming data from the renderer to ensure type safety.
  */
+import { statSync } from 'node:fs';
+import * as path from 'node:path';
 import { z } from 'zod';
 
 // ============================================================================
@@ -14,6 +16,34 @@ const RUNTIME_ID_PATTERN = /^[a-zA-Z0-9._:-]{3,120}$/;
 export const runtimeIdSchema = z.string().regex(RUNTIME_ID_PATTERN, 'Invalid runtime ID format');
 
 export const pathSchema = z.string().min(1).max(10000);
+
+/**
+ * A filesystem path that will become a spawned agent's working directory.
+ *
+ * `pathSchema` is a LENGTH check, not a path check — it accepts any string. The
+ * value reaches `openProject` / `registerProject` and ends up as an agent `cwd`,
+ * so a renderer compromise could point the agent at an arbitrary location
+ * (audit 2026-08-20). Requiring the path to resolve to a real directory removes
+ * the arbitrary-string class without constraining where a user may legitimately
+ * open a project — this is a local single-user app, and the directory has to
+ * exist for the session to be meaningful anyway.
+ *
+ * Deliberately not a containment check: there is no root to contain to.
+ */
+export const projectRootSchema = pathSchema
+  .refine((value) => !value.includes('\0'), {
+    message: 'path must not contain a NUL byte',
+  })
+  .refine(
+    (value) => {
+      try {
+        return statSync(path.resolve(value)).isDirectory();
+      } catch {
+        return false;
+      }
+    },
+    { message: 'path must be an existing directory' },
+  );
 
 export const booleanSchema = z.boolean();
 

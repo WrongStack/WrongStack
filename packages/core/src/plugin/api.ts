@@ -316,7 +316,59 @@ export class DefaultPluginAPI implements PluginAPI {
       list: () => pr.list(),
     };
 
-    this.mcp = init.mcpRegistry ?? noopMcp;
+    // MCP servers this plugin started.
+    //
+    // Scope note, so this is not mistaken for more than it is: an external
+    // plugin is in-process Node code and can spawn a child process directly, so
+    // gating `start` would not be a security boundary. What this DOES prevent is
+    // one plugin reaching across and stopping, restarting or re-targeting a
+    // server another plugin (or the host) owns — an in-architecture action with no equivalent
+    // outside the API, and the same shape already guarded on `tools`,
+    // `providers` and `slashCommands`.
+    const mcpRegistry = init.mcpRegistry;
+    if (!mcpRegistry) {
+      this.mcp = noopMcp;
+    } else {
+      const mcpServersIStarted = new Set<string>();
+      const assertOwnsMcpServer = (name: string, op: string): void => {
+        if (isOfficial) return;
+        if (mcpServersIStarted.has(name)) return;
+        if (!mcpRegistry.list().some((s) => s.name === name)) return; // unknown → let it no-op
+        throw new Error(
+          `Plugin "${owner}" may not ${op} MCP server "${name}" — it was not started by this plugin.`,
+        );
+      };
+      this.mcp = {
+        start: async (cfg: unknown) => {
+          const name = (cfg as { name?: unknown } | null)?.name;
+          // A start() naming an EXISTING server is not a registration: with
+          // `enabled: false` MCPRegistry.start() stops that slot BEFORE any
+          // duplicate-name validation, and otherwise the duplicate check
+          // rejects it. Both act on a server this plugin may not own, so they
+          // go through the same ownership check as stop/restart. Fresh names
+          // skip the check — registering new servers is the tool's purpose.
+          if (typeof name === 'string' && mcpRegistry.list().some((s) => s.name === name)) {
+            assertOwnsMcpServer(name, 'start');
+          }
+          await mcpRegistry.start(cfg);
+          if (typeof name === 'string') mcpServersIStarted.add(name);
+        },
+        stop: async (name: string) => {
+          assertOwnsMcpServer(name, 'stop');
+          // Ownership is NOT released here: MCPRegistry.stop() retains the
+          // slot (state 'disconnected', still listed), and a later start()
+          // with the same name is rejected as a duplicate — releasing the
+          // claim would permanently lock this plugin out of restarting its
+          // own server while granting nobody else the ability to take over.
+          await mcpRegistry.stop(name);
+        },
+        restart: async (name: string) => {
+          assertOwnsMcpServer(name, 'restart');
+          await mcpRegistry.restart(name);
+        },
+        list: () => mcpRegistry.list(),
+      };
+    }
 
     const scr = init.slashCommandRegistry;
     const official = init.official === true;

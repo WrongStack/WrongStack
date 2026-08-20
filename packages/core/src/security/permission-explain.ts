@@ -1,9 +1,5 @@
 import type { Context } from '../core/context.js';
-import type {
-  PermissionTrace,
-  PermissionTraceStep,
-  TrustPolicy,
-} from '../types/permission.js';
+import type { PermissionTrace, PermissionTraceStep, TrustPolicy } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { matchGlob } from '../utils/glob-match.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
@@ -28,7 +24,7 @@ export function explainPermissionTrace(
   input: unknown,
   ctx: Context,
 ): PermissionTrace {
-  const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
+  const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
   const steps: PermissionTraceStep[] = [];
   let winnerIndex = -1;
 
@@ -280,13 +276,7 @@ export function explainPermissionTrace(
         },
       };
     }
-    add(
-      'yolo',
-      true,
-      'auto',
-      'yolo',
-      'YOLO mode is active — auto-approving every non-denied call',
-    );
+    add('yolo', true, 'auto', 'yolo', 'YOLO mode is active — auto-approving every non-denied call');
     winnerIndex = steps.length - 1;
     return {
       toolName: tool.name,
@@ -348,12 +338,7 @@ export function explainPermissionTrace(
   const hasConfigCap = hasCapability(tool, ToolCapabilities.CONFIG_MUTATE);
   const hasSubagentCap = hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN);
   const isMutating =
-    tool.mutating ||
-    hasWriteCap ||
-    hasShellCap ||
-    hasInstallCap ||
-    hasConfigCap ||
-    hasSubagentCap;
+    tool.mutating || hasWriteCap || hasShellCap || hasInstallCap || hasConfigCap || hasSubagentCap;
   if (tool.permission === 'auto' && !isMutating) {
     add(
       'safe default auto',

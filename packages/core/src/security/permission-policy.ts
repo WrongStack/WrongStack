@@ -17,7 +17,11 @@ import { subjectForToolInput } from '../utils/tool-subject.js';
 import { hasCapability, ToolCapabilities } from './capabilities.js';
 import { explainPermissionTrace } from './permission-explain.js';
 import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
-import { getInputString, isClearlyDestructiveBashCommand } from './yolo-risk.js';
+import {
+  attachesWellKnownCredential,
+  getInputString,
+  isClearlyDestructiveBashCommand,
+} from './yolo-risk.js';
 
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
 export {
@@ -151,6 +155,12 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     if (!this.yolo || this.yoloDestructive) return false;
     if (this.hasAgentStateWriteTarget(tool, input, ctx)) return true;
 
+    // Binding a well-known third-party credential to a provider endpoint is an
+    // exfiltration primitive, not a shell command — so the shell-surface check
+    // below never saw it and YOLO auto-approved it. The `baseUrl` has no host
+    // allowlist, and prompt injection can reach the tool.
+    if (attachesWellKnownCredential(input)) return true;
+
     const isShellSurface =
       tool.name === 'bash' ||
       tool.name === 'exec' ||
@@ -262,7 +272,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     // for bash. Deny patterns from both levels always apply; the permissive
     // fields come from the more specific entry.
     const entry = mergeTrustEntries(this.policy[tool.name], namespaceEntry);
-    const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
+    const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
     const evalKey = `${cacheKey}::${permissionFingerprint(tool)}`;
 

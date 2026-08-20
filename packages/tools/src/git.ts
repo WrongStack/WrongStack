@@ -88,6 +88,12 @@ export const gitTool: Tool<GitInput, GitOutput> = {
   // The git subcommand (status/commit/push) is what a trust rule needs to
   // distinguish; `git status` and `git push --force` must not share a subject.
   subjectKey: 'command',
+  // `command` is an enum subcommand, so on its own it rendered the subject
+  // `"push"` — and one "always allow" then covered every push, to any branch,
+  // with or without `--force`. These are the fields that change what the call
+  // actually does, so the stored trust rule is as specific as the invocation
+  // the user approved.
+  subjectFields: ['branch', 'force', 'worktreeAction', 'worktreePath', 'newBranch'],
   mutating: true,
   capabilities: ['fs.write', 'shell.restricted'],
   timeoutMs: TIMEOUT_MS,

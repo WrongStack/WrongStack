@@ -134,6 +134,21 @@ export interface Tool<I = unknown, O = unknown> {
    * fall back to the heuristic.
    */
   subjectKey?: string | undefined;
+  /**
+   * Extra input fields folded into the permission subject, after `subjectKey`.
+   *
+   * For a shell-style tool the subject is the whole command line, so the trust
+   * rule is as specific as the invocation. A tool whose parameters are NAMED
+   * FIELDS rather than an argv array has no such luck: `git` sets
+   * `subjectKey: 'command'`, whose value is an enum subcommand, so every
+   * `git push` — any branch, `force` or not — rendered to the subject `"push"`
+   * and one "always allow" covered them all (audit 2026-08-20).
+   *
+   * List the fields that change what the call actually does. Absent fields are
+   * skipped, so adding a field only narrows existing rules (they degrade to a
+   * confirm prompt) and never silently widens one.
+   */
+  subjectFields?: readonly string[] | undefined;
   maxOutputBytes?: number | undefined;
   timeoutMs?: number | undefined;
   /**

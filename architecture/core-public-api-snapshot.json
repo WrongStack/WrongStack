@@ -1190,7 +1190,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17810
+      "sourceLines": 17811
     },
     {
       "directory": "extension",
@@ -1267,7 +1267,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2296
+      "sourceLines": 2348
     },
     {
       "directory": "plugins",
@@ -1302,7 +1302,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 19,
-      "sourceLines": 6143
+      "sourceLines": 6281
     },
     {
       "directory": "session-catalog",
@@ -1344,14 +1344,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 11056
+      "sourceLines": 11071
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10608
+      "sourceLines": 10629
     },
     {
       "directory": "worktree",

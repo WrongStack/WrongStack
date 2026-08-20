@@ -45,13 +45,35 @@ const HIGH_IMPACT_PATTERNS: RegExp[] = [
 // nested subdirectory *inside* one of these is NOT catastrophic — only the root
 // directory itself.
 const CATASTROPHIC_POSIX_ROOTS = new Set([
-  '/etc', '/usr', '/bin', '/sbin', '/lib', '/lib64', '/var', '/boot', '/dev',
-  '/sys', '/proc', '/opt', '/root', '/home', '/srv', '/run',
-  '/system', '/library', '/applications', '/users',
+  '/etc',
+  '/usr',
+  '/bin',
+  '/sbin',
+  '/lib',
+  '/lib64',
+  '/var',
+  '/boot',
+  '/dev',
+  '/sys',
+  '/proc',
+  '/opt',
+  '/root',
+  '/home',
+  '/srv',
+  '/run',
+  '/system',
+  '/library',
+  '/applications',
+  '/users',
 ]);
 const CATASTROPHIC_WIN_SUBDIRS = new Set([
-  'windows', 'system32', 'winnt', 'program files', 'program files (x86)',
-  'programdata', 'users',
+  'windows',
+  'system32',
+  'winnt',
+  'program files',
+  'program files (x86)',
+  'programdata',
+  'users',
 ]);
 
 const SHELL_OPERATORS = new Set(['&&', '||', '|', ';', '>', '>>', '<', '2>', '2>>']);
@@ -74,7 +96,9 @@ export function pathLooksInsideProject(rawPath: string, projectRoot: string | un
 }
 
 function tokenizeShell(command: string): string[] {
-  return command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? [];
+  return (
+    command.match(/"[^"]*"|'[^']*'|\S+/g)?.map((token) => token.replace(/^['"]|['"]$/g, '')) ?? []
+  );
 }
 
 function commandSegment(tokens: string[], start: number): string[] {
@@ -133,7 +157,9 @@ function hasRecursiveForceDelete(command: string, projectRoot: string | undefine
     if (token === 'rd' || token === 'rmdir') {
       const args = commandSegment(tokens, i + 1).map((arg) => arg.toLowerCase());
       if (args.includes('/s')) {
-        const targets = args.filter((arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg));
+        const targets = args.filter(
+          (arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg),
+        );
         if (targets.length === 0) return true;
         if (targets.some(isCatastrophicDeleteTarget)) return true;
         if (targets.some((target) => !pathLooksInsideProject(target, projectRoot))) return true;
@@ -148,13 +174,18 @@ function hasGitHistoryRewrite(command: string): boolean {
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i] !== 'git') continue;
     const args = commandSegment(tokens, i + 1);
-    if (args.includes('reset') && args.some((arg) => arg === '--hard' || arg.startsWith('--hard='))) {
+    if (
+      args.includes('reset') &&
+      args.some((arg) => arg === '--hard' || arg.startsWith('--hard='))
+    ) {
       return true;
     }
     const cleanIdx = args.indexOf('clean');
     if (cleanIdx >= 0) {
       const cleanArgs = args.slice(cleanIdx + 1);
-      if (cleanArgs.some((arg) => arg === '-f' || arg === '--force' || /^-[a-z]*f[a-z]*$/i.test(arg))) {
+      if (
+        cleanArgs.some((arg) => arg === '-f' || arg === '--force' || /^-[a-z]*f[a-z]*$/i.test(arg))
+      ) {
         return true;
       }
     }
@@ -184,7 +215,10 @@ function hasExternalPublish(command: string): boolean {
     const cmd = tokens[i];
     if (!cmd) continue;
     const args = commandSegment(tokens, i + 1);
-    if (['npm', 'pnpm', 'yarn', 'bun'].includes(cmd) && (args.includes('publish') || args.includes('deploy'))) {
+    if (
+      ['npm', 'pnpm', 'yarn', 'bun'].includes(cmd) &&
+      (args.includes('publish') || args.includes('deploy'))
+    ) {
       return true;
     }
     if (cmd === 'cargo' && (args.includes('publish') || args.includes('yank'))) return true;
@@ -220,7 +254,8 @@ function isCatastrophicDeleteTarget(rawTarget: string): boolean {
   const t = rawTarget.replace(/^['"]|['"]$/g, '').trim();
   if (!t) return false;
   // Wipe the current directory wholesale.
-  if (t === '*' || t === '.' || t === './' || t === '.\\' || t === './*' || t === '.\\*') return true;
+  if (t === '*' || t === '.' || t === './' || t === '.\\' || t === './*' || t === '.\\*')
+    return true;
   // Strip a trailing `/*` / `\*` glob and any trailing separators so `/etc/`,
   // `/etc/*`, `~/`, `C:\*` collapse onto their root form. An all-separators
   // target ("/", "/*") collapses to '' → the filesystem root.
@@ -245,7 +280,11 @@ function hasCatastrophicDelete(command: string): boolean {
     if (token === 'rm') {
       const args = tokens.slice(i + 1);
       const recursiveOrForce = args.some(
-        (arg) => /^-[^-]*[rf]/i.test(arg) || arg === '--recursive' || arg === '--force' || arg === '--no-preserve-root',
+        (arg) =>
+          /^-[^-]*[rf]/i.test(arg) ||
+          arg === '--recursive' ||
+          arg === '--force' ||
+          arg === '--no-preserve-root',
       );
       if (!recursiveOrForce) continue;
       const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
@@ -272,13 +311,17 @@ function hasCatastrophicDelete(command: string): boolean {
       const args = tokens.slice(i + 1);
       const recursive = args.some((arg) => arg.toLowerCase() === '/s');
       if (!recursive) continue;
-      const targets = args.filter((arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg));
+      const targets = args.filter(
+        (arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg),
+      );
       if (targets.some(isCatastrophicDeleteTarget)) return true;
     }
 
     if (token === 'del' || token === 'erase') {
       const args = tokens.slice(i + 1);
-      const targets = args.filter((arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg));
+      const targets = args.filter(
+        (arg) => !arg.startsWith('-') && !arg.startsWith('/') && !SHELL_OPERATORS.has(arg),
+      );
       if (targets.some(isCatastrophicDeleteTarget)) return true;
     }
   }
@@ -391,4 +434,71 @@ export function isClearlyDestructiveBashCommand(
   if (CATASTROPHIC_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   if (HIGH_IMPACT_PATTERNS.some((pattern) => pattern.test(trimmed))) return true;
   return false;
+}
+
+/**
+ * Environment variables that hold a credential for some OTHER service.
+ *
+ * Not a general "looks like a secret" list — `MYLLM_API_KEY` must stay usable,
+ * because naming the env var that supplies a provider's key is the entire point
+ * of `provider_manage`. These are the well-known names where attaching them to
+ * a NEW provider means pointing an existing credential at a new destination.
+ */
+const WELL_KNOWN_CREDENTIAL_ENV_VARS: ReadonlySet<string> = new Set([
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'OPENAI_API_KEY',
+  'AZURE_OPENAI_API_KEY',
+  'GEMINI_API_KEY',
+  'GOOGLE_API_KEY',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+  'GOOGLE_GENERATIVE_AI_API_KEY',
+  'GROQ_API_KEY',
+  'MISTRAL_API_KEY',
+  'COHERE_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
+  'OPENROUTER_API_KEY',
+  'PERPLEXITY_API_KEY',
+  'TOGETHER_API_KEY',
+  'FIREWORKS_API_KEY',
+  'HUGGINGFACE_API_KEY',
+  'HF_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_TOKEN',
+  'NPM_TOKEN',
+  'AWS_ACCESS_KEY_ID',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_SESSION_TOKEN',
+  'AZURE_CLIENT_SECRET',
+  'GITLAB_TOKEN',
+  'SLACK_TOKEN',
+  'STRIPE_SECRET_KEY',
+  'TELEGRAM_BOT_TOKEN',
+  'WRONGSTACK_VAULT_PASSPHRASE',
+]);
+
+/**
+ * True when a tool call would bind a well-known third-party credential to a
+ * provider endpoint.
+ *
+ * `provider_manage` lets the model create a provider, choose its `baseUrl`
+ * (validated for scheme only — no host allowlist) and name the environment
+ * variables its key is read from. Nothing claims `ANTHROPIC_API_KEY` on a stock
+ * install, so `rejectBorrowedEnvVars` — which only rejects names another
+ * provider already lists — let it through. Combined with the sibling
+ * `fallback_chain_manage` / `leader_model_set` tools in the same bundle, that is
+ * a complete "send my real key to a host I chose" primitive, reachable by
+ * prompt injection.
+ *
+ * The tool stays usable: this only forces the decision back to the human rather
+ * than letting YOLO auto-approve it.
+ */
+export function attachesWellKnownCredential(input: unknown): boolean {
+  if (!input || typeof input !== 'object') return false;
+  const envVars = (input as Record<string, unknown>)['envVars'];
+  if (!Array.isArray(envVars)) return false;
+  return envVars.some(
+    (name) => typeof name === 'string' && WELL_KNOWN_CREDENTIAL_ENV_VARS.has(name.toUpperCase()),
+  );
 }

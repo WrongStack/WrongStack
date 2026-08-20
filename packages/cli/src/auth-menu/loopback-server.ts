@@ -53,7 +53,35 @@ export interface LoopbackCallback {
  * `openBrowser` is deliberately different — it detaches and registers the pid
  * as protected because it launches a browser the session must outlive.)
  */
+/**
+ * cmd.exe metacharacters plus the scheme check, kept in sync with
+ * `webui-server/src/server/open-browser.ts`.
+ *
+ * This copy matters more than that one: its callers include the GitHub Copilot
+ * device-code flow, which passes `device.verification_uri` straight from an HTTP
+ * response body after checking only that it is truthy. A compromised or
+ * MITM'd OAuth response could therefore choose the string handed to
+ * `cmd /c start`, and Node only quotes spawn arguments containing whitespace —
+ * so a space-free `&command` is a live cmd.exe separator (verified 2026-08-20).
+ */
+const URL_METACHAR_REGEX = /[&|;<>(){}^"'`%\n\r\0]/;
+
+function isSafeBrowserUrl(url: string): boolean {
+  if (URL_METACHAR_REGEX.test(url)) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function openBrowser(url: string): void {
+  if (!isSafeBrowserUrl(url)) {
+    // Refuse rather than sanitize — the URL is always printed for the user to
+    // open manually, so nothing is lost by declining a suspicious one.
+    return;
+  }
   try {
     const platform = process.platform;
     const { command, args } =

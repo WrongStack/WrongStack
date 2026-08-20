@@ -95,7 +95,7 @@ export function hasShellSubject(tool: Tool): boolean {
  * cannot be honoured.
  */
 export function alwaysAllowUnavailableReason(tool: Tool, input: unknown): string | undefined {
-  const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
+  const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
   if (subject !== undefined) return undefined;
   return (
     `"always allow" needs a subject to remember, and ${tool.name} calls do not carry one ` +

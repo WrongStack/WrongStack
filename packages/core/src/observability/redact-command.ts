@@ -23,7 +23,7 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
   // redaction function (false positive = cosmetic noise; false negative = leak).
   /(?<![-\w])-(?:password|p|a)(?:[=\s]+)?[^\s,-]+/gi,
   // env var–style secrets: TOKEN=x, API_KEY=y, etc.
-  /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD)\s*[=:]\s*[^\s,]+/gi,
+  /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE)\s*[=:]\s*[^\s,]+/gi,
   // Generic high-entropy look: base64 strings >32 chars or hex strings >32 digits — but only
   // when preceded by a flag name (e.g. --github-token=EyJ...). Global flag so
   // every such flag in the command line is redacted, not just the first.

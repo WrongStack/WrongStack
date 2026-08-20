@@ -1,0 +1,58 @@
+{
+  "bash/tree-sitter-bash.wasm": {
+    "sha256": "ff6c76b12cb42f20cd9ec7de6123345d4765aca7600d34a7f27e5a02efbd6b78",
+    "bytes": 1359986
+  },
+  "c/tree-sitter-c.wasm": {
+    "sha256": "f973cfc555fcedc0681826b6cf2546919aad4ee464c69874796b20b2ea42839a",
+    "bytes": 626238
+  },
+  "c_sharp/tree-sitter-c_sharp.wasm": {
+    "sha256": "900d526a2b4abb59799bb2740b6d42b6dc97df9b55f051a7bef47571562fdcad",
+    "bytes": 5329095
+  },
+  "cpp/tree-sitter-cpp.wasm": {
+    "sha256": "dfd7e00ac6dd9cd6036d6b09570b089b97b680ed417942f62ae17e5c79550916",
+    "bytes": 3455448
+  },
+  "elixir/tree-sitter-elixir.wasm": {
+    "sha256": "ee888f00f0fac05f40083fc0babfc579713ac2a7ab0ff8282ced1a73e5470c81",
+    "bytes": 1566447
+  },
+  "go/tree-sitter-go.wasm": {
+    "sha256": "3812ba07b7e39bf572902e4fc7158c13911996d758c74304b3e3628cdcfe9cec",
+    "bytes": 217568
+  },
+  "java/tree-sitter-java.wasm": {
+    "sha256": "9f9ee1cca02ba2966a71447cb3b73f4e0d4264506d8e51db59cd75d4f1aafbe1",
+    "bytes": 419402
+  },
+  "kotlin/tree-sitter-kotlin.wasm": {
+    "sha256": "7f493f0913268703c49c852d0b5745e059df8ee34c9ec775f2f1342a86d2d87e",
+    "bytes": 4066934
+  },
+  "php/tree-sitter-php.wasm": {
+    "sha256": "3cdda1a5c88405870822cdf29e8c9d52d62ecae1b8922a59eb156601a2b8b1e9",
+    "bytes": 1060608
+  },
+  "python/tree-sitter-python.wasm": {
+    "sha256": "fa16de5f853ef7c5361930979d7c4b91f266a7decfcad3125eebc19e2ecb895b",
+    "bytes": 457855
+  },
+  "ruby/tree-sitter-ruby.wasm": {
+    "sha256": "385fe22a8a98e0423ae2cecc7867fe2ba61d975b9713dc7940eab941e02e947e",
+    "bytes": 2121041
+  },
+  "rust/tree-sitter-rust.wasm": {
+    "sha256": "d677eb7681451def98039d32495d075f51f32bbd4b332231b6812c36a405f20e",
+    "bytes": 1112779
+  },
+  "swift/tree-sitter-swift.wasm": {
+    "sha256": "db63fc123bbe08f6baf303f4d757400df2441cc677b0377c5d91e9ee44878800",
+    "bytes": 3318094
+  },
+  "tree-sitter-runtime.wasm": {
+    "sha256": "ba5c7a539603f251f380e4d6ce26ee954ffca7bda8b2e13744dc4c87d6ce6041",
+    "bytes": 201104
+  }
+}

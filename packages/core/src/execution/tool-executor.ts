@@ -212,7 +212,8 @@ export class ToolExecutor {
         const suggestedPattern =
           boundary.decision === 'confirm'
             ? `kanban-boundary:${boundary.path ?? tool.name}`
-            : (subjectForToolInput(tool.name, use.input, tool.subjectKey) ?? tool.name);
+            : (subjectForToolInput(tool.name, use.input, tool.subjectKey, tool.subjectFields) ??
+              tool.name);
         if (this.opts.confirmAwaiter) {
           const awaiter = this.opts.confirmAwaiter;
           const choice = await new Promise<'yes' | 'no' | 'always' | 'deny' | 'abort'>(

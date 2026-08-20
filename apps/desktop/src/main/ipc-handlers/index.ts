@@ -10,6 +10,7 @@ import { createValidationLogger, validate, validateOrDefault } from '../validati
 import {
   booleanSchema,
   pathSchema,
+  projectRootSchema,
   runtimeIdSchema,
   setLocaleSchema,
   webuiCommandAckSchema,
@@ -59,13 +60,15 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     return ctx.openProjectSession(validated);
   });
 
+  // projectRootSchema, not pathSchema: this value becomes a spawned agent's
+  // working directory, and pathSchema only bounds the string's length.
   ipcMain.handle(IPC.openProject, async (_event, requestedRoot: unknown) => {
-    const validated = validateOptional(pathSchema, requestedRoot);
+    const validated = validateOptional(projectRootSchema, requestedRoot);
     return ctx.openProject(validated);
   });
 
   ipcMain.handle(IPC.registerProject, async (_event, requestedRoot: unknown) => {
-    const validated = validateOptional(pathSchema, requestedRoot);
+    const validated = validateOptional(projectRootSchema, requestedRoot);
     return ctx.registerProject(validated);
   });
 
@@ -103,7 +106,10 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
       validationLogger.log(`sendMessage (id): ${idResult.error}`);
       return ctx.sendMessage('', '', '');
     }
-    const contentResult = validate(pathSchema.transform(() => String(content ?? '')), content);
+    const contentResult = validate(
+      pathSchema.transform(() => String(content ?? '')),
+      content,
+    );
     const safeContent = contentResult.success ? contentResult.data : String(content ?? '');
     return ctx.sendMessage(
       idResult.data,
@@ -169,25 +175,28 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
     });
   });
 
-  ipcMain.on(IPC.webuiCommandAck, (event, requestId: unknown, handled: unknown, _message?: unknown) => {
-    const entry = ctx.findWebuiEntryBySenderId(event.sender.id);
-    if (!entry) return;
+  ipcMain.on(
+    IPC.webuiCommandAck,
+    (event, requestId: unknown, handled: unknown, _message?: unknown) => {
+      const entry = ctx.findWebuiEntryBySenderId(event.sender.id);
+      if (!entry) return;
 
-    const result = validate(webuiCommandAckSchema, {
-      requestId,
-      handled,
-      message: _message,
-    });
+      const result = validate(webuiCommandAckSchema, {
+        requestId,
+        handled,
+        message: _message,
+      });
 
-    if (!result.success) {
-      validationLogger.log(`webuiCommandAck: ${result.error}`);
-      return;
-    }
+      if (!result.success) {
+        validationLogger.log(`webuiCommandAck: ${result.error}`);
+        return;
+      }
 
-    const pending = ctx.getPendingWebuiCommandAcks().get(result.data.requestId);
-    if (!pending || pending.runtimeId !== entry.runtimeId) return;
-    ctx.settlePendingWebuiCommandAck(result.data.requestId, result.data.handled);
-  });
+      const pending = ctx.getPendingWebuiCommandAcks().get(result.data.requestId);
+      if (!pending || pending.runtimeId !== entry.runtimeId) return;
+      ctx.settlePendingWebuiCommandAck(result.data.requestId, result.data.handled);
+    },
+  );
 
   // Locale handlers
   ipcMain.on(IPC.setLocale, (_event, locale: unknown) => {
@@ -206,7 +215,10 @@ export function registerIpcHandlers(ctx: IpcHandlerContext): void {
 /**
  * Validate optional value with schema.
  */
-function validateOptional<T>(schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: unknown } }, value: unknown): T | undefined {
+function validateOptional<T>(
+  schema: { safeParse: (v: unknown) => { success: boolean; data?: T; error?: unknown } },
+  value: unknown,
+): T | undefined {
   if (value === undefined || value === null) return undefined;
   const result = schema.safeParse(value);
   return result.success ? result.data : undefined;

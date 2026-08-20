@@ -144,7 +144,11 @@ describe('DefaultPluginAPI', () => {
     // The plugin tool must reach the LLM even though it is not in the host's
     // restricted name set — otherwise plugins load and hooks fire, but the
     // model can never invoke their tools.
-    expect(toolRegistry.listForProvider().map((t) => t.name)).toEqual(['read', 'tool_search', 'alpha']);
+    expect(toolRegistry.listForProvider().map((t) => t.name)).toEqual([
+      'read',
+      'tool_search',
+      'alpha',
+    ]);
     // And it must remain in the executable catalog as before.
     expect(toolRegistry.list().map((t) => t.name)).toContain('alpha');
   });
@@ -224,6 +228,67 @@ describe('DefaultPluginAPI', () => {
     });
     expect(api.mcp.list()).toEqual([{ name: 'srv', state: 'connected', toolCount: 1 }]);
     expect(mcpList).toHaveBeenCalled();
+  });
+
+  it('refuses a start that would stop a server this plugin does not own (enabled:false bypass)', async () => {
+    const container = new Container();
+    const events = new EventBus();
+    const log = new DefaultLogger({ level: 'error' });
+    const registryStart = vi.fn().mockResolvedValue(undefined);
+    const api = new DefaultPluginAPI({
+      ownerName: 'p',
+      container,
+      events,
+      pipelines: {} as never,
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: new ProviderRegistry(),
+      config: baseConfig,
+      log,
+      mcpRegistry: {
+        start: registryStart,
+        stop: async () => undefined,
+        restart: async () => undefined,
+        list: vi.fn().mockReturnValue([{ name: 'host-srv', state: 'connected', toolCount: 1 }]),
+      },
+    });
+    // MCPRegistry.start() with enabled:false stops the existing slot BEFORE its
+    // duplicate-name check — without the ownership guard this is a silent
+    // remote-stop of a server this plugin never started.
+    await expect(api.mcp.start({ name: 'host-srv', enabled: false } as never)).rejects.toThrow(
+      /may not start MCP server "host-srv"/,
+    );
+    expect(registryStart).not.toHaveBeenCalled();
+  });
+
+  it('lets a plugin stop its own MCP server and still restart it afterwards', async () => {
+    const container = new Container();
+    const events = new EventBus();
+    const log = new DefaultLogger({ level: 'error' });
+    const registryStop = vi.fn().mockResolvedValue(undefined);
+    const registryRestart = vi.fn().mockResolvedValue(undefined);
+    const api = new DefaultPluginAPI({
+      ownerName: 'p',
+      container,
+      events,
+      pipelines: {} as never,
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: new ProviderRegistry(),
+      config: baseConfig,
+      log,
+      mcpRegistry: {
+        start: async () => undefined,
+        stop: registryStop,
+        restart: registryRestart,
+        list: vi.fn().mockReturnValue([]),
+      },
+    });
+    await api.mcp.start({ name: 'mine' } as never);
+    await api.mcp.stop('mine');
+    // Registry.stop() retains the slot, so ownership must survive the stop —
+    // otherwise the plugin could never restart the server it started.
+    await expect(api.mcp.restart('mine')).resolves.toBeUndefined();
+    expect(registryStop).toHaveBeenCalledWith('mine');
+    expect(registryRestart).toHaveBeenCalledWith('mine');
   });
 
   // ── events / lifecycle ─────────────────────────────────────────────────────

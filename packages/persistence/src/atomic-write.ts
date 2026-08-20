@@ -143,10 +143,24 @@ export function createPersistencePrimitives(
     const tmp = tempPathFor(targetPath);
 
     try {
+      // `mode` at CREATION, not only via the chmod in commitTemp. Without it the
+      // temp file exists at the umask default (typically 0644) for the whole
+      // write, and only tightens afterwards — a window on multi-user POSIX hosts
+      // during which HQ bearer tokens and encrypted config sat world-readable
+      // (audit 2026-08-20). The chmod in commitTemp still runs: it also handles
+      // intersecting with an existing target's mode.
+      const createMode = opts.mode;
       if (typeof content === 'string') {
-        await fs.writeFile(tmp, content, { flag: 'wx', encoding: opts.encoding ?? 'utf8' });
+        await fs.writeFile(tmp, content, {
+          flag: 'wx',
+          encoding: opts.encoding ?? 'utf8',
+          ...(createMode !== undefined ? { mode: createMode } : {}),
+        });
       } else {
-        await fs.writeFile(tmp, content, { flag: 'wx' });
+        await fs.writeFile(tmp, content, {
+          flag: 'wx',
+          ...(createMode !== undefined ? { mode: createMode } : {}),
+        });
       }
       await commitTemp(tmp, targetPath, opts);
     } catch (error) {
@@ -175,7 +189,8 @@ export function createPersistencePrimitives(
     const tmp = tempPathFor(targetPath);
 
     try {
-      const handle = await fs.open(tmp, 'wx');
+      // Same creation-mode reasoning as the buffered path above.
+      const handle = await fs.open(tmp, 'wx', opts.mode);
       let result: T;
       try {
         result = await write(handle);

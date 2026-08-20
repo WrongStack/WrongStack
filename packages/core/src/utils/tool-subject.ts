@@ -38,13 +38,34 @@ function renderCommandLine(command: string, args: unknown): string {
   return [command, ...rendered].join(' ');
 }
 
+/**
+ * Render extra named fields for the subject, in the order the tool declared
+ * them. Absent, empty and `false` values are skipped so the common invocation
+ * keeps a short, readable subject and only the fields that were actually
+ * supplied narrow the rule.
+ */
+function renderSubjectFields(obj: Record<string, unknown>, fields: readonly string[]): string {
+  const parts: string[] = [];
+  for (const field of fields) {
+    const value = obj[field];
+    if (value === undefined || value === null || value === '' || value === false) continue;
+    const str = String(value);
+    parts.push(`${field}=${/\s/.test(str) ? `"${str.replace(/"/g, '\\"')}"` : str}`);
+  }
+  return parts.join(' ');
+}
+
 export function subjectForToolInput(
   toolName: string,
   input: unknown,
   subjectKey?: string,
+  subjectFields?: readonly string[],
 ): string | undefined {
   if (!input || typeof input !== 'object') return undefined;
   const obj = input as Record<string, unknown>;
+  const extra =
+    subjectFields && subjectFields.length > 0 ? renderSubjectFields(obj, subjectFields) : '';
+  const withExtra = (base: string): string => (extra ? `${base} ${extra}` : base);
 
   if (subjectKey) {
     const value = obj[subjectKey];
@@ -75,9 +96,9 @@ export function subjectForToolInput(
         // exec/bash have no `dry_run` flag, so this only matches
         // `git commit --dry-run`.
         if (value === 'commit' && obj['dry_run'] === true) {
-          return `${escapeGlobSubject(rendered)}:dry-run`;
+          return `${escapeGlobSubject(withExtra(rendered))}:dry-run`;
         }
-        return escapeGlobSubject(rendered);
+        return escapeGlobSubject(withExtra(rendered));
       }
       // A dry-run patch must not share a subject with a real patch on the same
       // directory: trusting a preview would otherwise silently authorize the

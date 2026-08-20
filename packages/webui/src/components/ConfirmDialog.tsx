@@ -32,13 +32,7 @@ function pickToolIcon(toolName: string) {
  * dump and show a proper diff. For shell-like tools we surface the
  * command as a single mono line. Everything else falls back to JSON.
  */
-function SmartInputPreview({
-  toolName,
-  input,
-}: {
-  toolName: string;
-  input: unknown;
-}) {
+function SmartInputPreview({ toolName, input }: { toolName: string; input: unknown }) {
   const { t } = useAppTranslation();
   const diff = diffFromToolInput(toolName, input);
   if (diff) {
@@ -55,6 +49,18 @@ function SmartInputPreview({
     const obj = input as Record<string, unknown>;
     const cmd = (obj.command ?? obj.cmd ?? obj.script) as string | undefined;
     if (typeof cmd === 'string' && cmd.trim().length > 0) {
+      // Everything the command line does NOT already show. This block used to
+      // be missing and the branch returned early, so `exec`'s separate `args`
+      // array was invisible: `exec({command:"node", args:["-e","<payload>"]})`
+      // rendered as just `node`. Same for `git`, whose parameters are named
+      // fields rather than an argv array. The permission SUBJECT was computed
+      // correctly from the full invocation — only this preview was lossy — but
+      // an approval prompt that hides what it is approving is the one thing it
+      // must never do.
+      const consumed = new Set(['command', 'cmd', 'script']);
+      const rest = Object.entries(obj).filter(
+        ([k, v]) => !consumed.has(k) && v !== undefined && v !== null && v !== '',
+      );
       return (
         <div className="rounded-lg border bg-background/40 overflow-hidden">
           <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b bg-muted/40 flex items-center gap-1.5">
@@ -64,6 +70,13 @@ function SmartInputPreview({
           <pre className="px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
             {cmd}
           </pre>
+          {rest.length > 0 && (
+            <pre className="px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto border-t bg-muted/20">
+              {rest
+                .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+                .join('\n')}
+            </pre>
+          )}
         </div>
       );
     }
@@ -228,9 +241,7 @@ export function ConfirmDialog() {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
               <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <div className="text-sm min-w-0">
-                <div className="font-medium text-warning">
-                  {t('confirm.trustSuggestionTitle')}
-                </div>
+                <div className="font-medium text-warning">{t('confirm.trustSuggestionTitle')}</div>
                 <div className="font-mono text-xs mt-1 break-all">
                   {confirmInfo.suggestedPattern}
                 </div>
@@ -270,7 +281,8 @@ export function ConfirmDialog() {
             onClick={() => handleConfirm('deny')}
             title={t('confirm.denyAlwaysTitle')}
           >
-            {t('confirm.denyAlways')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">d</kbd>
+            {t('confirm.denyAlways')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">d</kbd>
           </Button>
           <Button
             variant="outline"
@@ -278,7 +290,8 @@ export function ConfirmDialog() {
             onClick={() => handleConfirm('no')}
             title={t('confirm.noTitle')}
           >
-            {t('action.no')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">n</kbd>
+            {t('action.no')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">n</kbd>
           </Button>
           <Button
             variant="outline"
@@ -286,14 +299,12 @@ export function ConfirmDialog() {
             onClick={() => handleConfirm('always')}
             title={t('confirm.alwaysTitle')}
           >
-            {t('action.always')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">a</kbd>
+            {t('action.always')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">a</kbd>
           </Button>
-          <Button
-            size="sm"
-            onClick={() => handleConfirm('yes')}
-            title={t('confirm.yesTitle')}
-          >
-            {t('action.yes')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">y</kbd>
+          <Button size="sm" onClick={() => handleConfirm('yes')} title={t('confirm.yesTitle')}>
+            {t('action.yes')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">y</kbd>
           </Button>
         </DialogFooter>
       </DialogContent>
