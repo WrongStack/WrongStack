@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-19T13:41:20.284Z",
+  "generatedAt": "2026-08-20T15:49:05.880Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,21 @@
   },
   "summary": {
     "packages": 33,
-    "sourceFiles": 3279,
-    "testFiles": 2829,
-    "sourceLines": 780062,
+    "sourceFiles": 3283,
+    "testFiles": 2840,
+    "sourceLines": 782268,
     "workspaceEdges": 106,
-    "moduleEdges": 10125,
+    "moduleEdges": 10146,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 804
+    "testOnlyExports": 806
   },
-  "errors": [],
+  "errors": [
+    "packages/core/src/coordination/subagent-budget.ts: hotspot grew from 822 to 828 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -140,8 +142,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 455,
-      "testFiles": 421,
+      "sourceFiles": 456,
+      "testFiles": 423,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +179,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 421
+          "testFiles": 423
         }
       ]
     },
@@ -207,8 +209,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 752,
-      "testFiles": 626,
+      "sourceFiles": 755,
+      "testFiles": 631,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence"
@@ -222,7 +224,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 626
+          "testFiles": 631
         }
       ]
     },
@@ -446,7 +448,7 @@
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
       "sourceFiles": 58,
-      "testFiles": 52,
+      "testFiles": 53,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -459,7 +461,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 52
+          "testFiles": 53
         }
       ]
     },
@@ -772,7 +774,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 459,
-      "testFiles": 332,
+      "testFiles": 335,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -795,7 +797,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 332
+          "testFiles": 335
         }
       ]
     },
@@ -1952,6 +1954,12 @@
       },
       {
         "file": "packages/cli/tests/chimera-cascade-evidence.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/chimera-cascade-graceful-finish.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3343,6 +3351,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/slash-commands/effort.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/slash-commands/kanban-prune.test.ts",
         "projects": [
           "root-node"
@@ -4309,6 +4323,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/mailbox-send-prose.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/mcp-token-env.test.ts",
         "projects": [
           "root-node"
@@ -4843,6 +4863,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/director-mutation-test-tool.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/director-prompts.test.ts",
         "projects": [
           "root-node"
@@ -5125,6 +5151,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/mutation-engine.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/mutation-test-integration.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
         "projects": [
           "root-node"
@@ -5264,6 +5302,12 @@
       },
       {
         "file": "packages/core/tests/coordination/subagent-error-classification.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/subagent-graceful-finish.test.ts",
         "projects": [
           "root-node"
         ]
@@ -9740,6 +9784,12 @@
       },
       {
         "file": "packages/providers/tests/decoupled.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/providers/tests/effort-vocabulary.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16129,6 +16179,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/agent-settings-effort.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/agents-page.test.ts",
         "projects": [
           "webui-jsdom"
@@ -16526,6 +16582,12 @@
       },
       {
         "file": "packages/webui/tests/components/model-list-schema-editor-render.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/next-steps-bar-autonomy-cancel.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -17821,6 +17883,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/auto-submit-streak-autonomy-leave.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/auto-submit-streak-cap.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -18205,8 +18273,13 @@
     },
     {
       "file": "packages/cli/src/slash-commands/settings-mutations.ts",
-      "lines": 894,
+      "lines": 897,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/cli/src/subcommands/handlers/providers-models.ts",
+      "lines": 800,
+      "relativeImports": 5
     },
     {
       "file": "packages/core/src/boot.ts",
@@ -18235,12 +18308,12 @@
     },
     {
       "file": "packages/core/src/coordination/director-tools.ts",
-      "lines": 831,
-      "relativeImports": 13
+      "lines": 839,
+      "relativeImports": 15
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 861,
+      "lines": 873,
       "relativeImports": 39
     },
     {
@@ -18250,8 +18323,8 @@
     },
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 972,
-      "relativeImports": 10
+      "lines": 1022,
+      "relativeImports": 11
     },
     {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
@@ -18262,6 +18335,11 @@
       "file": "packages/core/src/coordination/sqlite-mailbox.ts",
       "lines": 852,
       "relativeImports": 15
+    },
+    {
+      "file": "packages/core/src/coordination/subagent-budget.ts",
+      "lines": 828,
+      "relativeImports": 3
     },
     {
       "file": "packages/core/src/core/context.ts",
@@ -18315,7 +18393,7 @@
     },
     {
       "file": "packages/core/src/index.ts",
-      "lines": 1020,
+      "lines": 1021,
       "relativeImports": 154
     },
     {
@@ -18332,6 +18410,11 @@
       "file": "packages/core/src/storage/session-store.ts",
       "lines": 821,
       "relativeImports": 38
+    },
+    {
+      "file": "packages/core/src/types/provider.ts",
+      "lines": 837,
+      "relativeImports": 7
     },
     {
       "file": "packages/core/src/utils/tool-output-serializer.ts",
@@ -18530,7 +18613,7 @@
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1000,
+      "lines": 1007,
       "relativeImports": 4
     },
     {
@@ -18761,14 +18844,19 @@
       "relativeImports": 1
     },
     {
-      "file": "packages/mcp/src/client.ts",
-      "lines": 1021,
-      "relativeImports": 10
+      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
+      "lines": 1022,
+      "relativeImports": 11
     },
     {
       "file": "packages/core/src/index.ts",
-      "lines": 1020,
+      "lines": 1021,
       "relativeImports": 154
+    },
+    {
+      "file": "packages/mcp/src/client.ts",
+      "lines": 1021,
+      "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",
@@ -18801,6 +18889,11 @@
       "relativeImports": 48
     },
     {
+      "file": "packages/tui/src/components/settings-picker-model.ts",
+      "lines": 1007,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/core/src/coordination/delegate-tool.ts",
       "lines": 1006,
       "relativeImports": 9
@@ -18814,11 +18907,6 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1000,
-      "relativeImports": 4
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
@@ -18894,11 +18982,6 @@
       "file": "packages/webui/src/stores/viz-store.ts",
       "lines": 974,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 972,
-      "relativeImports": 10
     },
     {
       "file": "packages/sage/src/tools/memory-tools.ts",
@@ -19709,6 +19792,10 @@
     {
       "file": "packages/core/src/coordination/mailbox-codecs.ts",
       "name": "parseMailboxRegistrationInput"
+    },
+    {
+      "file": "packages/core/src/coordination/mailbox-codecs.ts",
+      "name": "SEND_ALLOWED_FIELDS"
     },
     {
       "file": "packages/core/src/coordination/mailbox-credential-store.ts",
@@ -20569,6 +20656,10 @@
     {
       "file": "packages/providers/src/oauth/index.ts",
       "name": "OAUTH_PROVIDER_IDS"
+    },
+    {
+      "file": "packages/providers/src/openai-shared.ts",
+      "name": "OPENAI_EFFORT_ACCEPT"
     },
     {
       "file": "packages/providers/src/opencode.ts",

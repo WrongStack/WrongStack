@@ -6,7 +6,6 @@ import type {
   Config,
   ModelsRegistry,
   ReasoningEffort,
-  SessionWriter,
 } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildEffortCommand } from '../../src/slash-commands/effort.js';

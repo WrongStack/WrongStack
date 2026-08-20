@@ -287,7 +287,14 @@ describe('OpenAIProvider', () => {
         messages: [{ role: 'user', content: 'hi' }],
         maxTokens: 100,
         reasoning: { effort: 'medium' },
-        tools: [{ name: 'read', description: 'Read a file', inputSchema: { type: 'object', properties: {} } }],
+        tools: [{
+          name: 'read',
+          description: 'Read a file',
+          inputSchema: { type: 'object', properties: {} },
+          permission: 'auto',
+          mutating: false,
+          async execute() {},
+        }],
       },
       { signal: new AbortController().signal },
     );

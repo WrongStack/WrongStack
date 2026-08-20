@@ -99,7 +99,7 @@ describe('makeMailSendTool', () => {
       ok: true,
       to: 'other-agent',
     });
-    expect(result.summary).toContain('other-agent');
+    expect(result).toMatchObject({ summary: expect.stringContaining('other-agent') });
 
     // Verify the message landed in the mailbox
     const messages = await mailbox.query({ to: 'other-agent' });
@@ -115,7 +115,7 @@ describe('makeMailSendTool', () => {
       mockContext(),
     );
     expect(result).toMatchObject({ ok: true, to: '*' });
-    expect(result.summary).toContain('all agents');
+    expect(result).toMatchObject({ summary: expect.stringContaining('all agents') });
   });
 
   it('normalizes "all" to "*"', async () => {

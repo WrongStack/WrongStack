@@ -467,7 +467,7 @@ describe('OpenAICompatibleProvider', () => {
       baseUrl: 'https://gateway.example.com/v1',
       fetchImpl: spy,
     });
-    const tools = [{ name: 'read', description: 'Read', inputSchema: {} }];
+    const tools = toolList(['read']);
 
     // Verbatim-level effort: dropped under tools.
     await p.complete(
@@ -517,7 +517,7 @@ describe('OpenAICompatibleProvider', () => {
         messages: [{ role: 'user', content: 'hi' }],
         maxTokens: 1,
         reasoning: { enabled: true, effort: 'medium' },
-        tools: [{ name: 'read', description: 'Read', inputSchema: {} }],
+        tools: toolList(['read']),
       },
       { signal: new AbortController().signal },
     );

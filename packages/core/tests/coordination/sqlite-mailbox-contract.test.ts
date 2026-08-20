@@ -944,7 +944,7 @@ describe('mail_send + mail_inbox tools', () => {
       ctxA as never,
     );
     expect(sent.ok).toBe(true);
-    expect(sent.from).toBe(`coder@${mailboxSessionTag('default')}`);
+    expect(sent).toMatchObject({ from: `coder@${mailboxSessionTag('default')}` });
 
     const got = await inbox.execute({}, ctxB as never);
     expect(got.ok).toBe(true);
@@ -1047,7 +1047,7 @@ describe('recipient "all" normalizes to the broadcast address', () => {
       mockCtx({ meta: { agentId: 'coder' } }) as never,
     );
     expect(res.ok).toBe(true);
-    expect(res.to).toBe('*');
+    expect(res).toMatchObject({ to: '*' });
 
     const got = await inbox.execute({}, mockCtx({ meta: { agentId: 'reviewer' } }) as never);
     expect(got.count).toBe(1);
