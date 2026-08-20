@@ -177,6 +177,12 @@ export function makeMutationTestTool(
       );
       const attempts: StrengthenAttempt[] = [];
       let current = survivors;
+      // Mutants skipped/unreported in ANY re-verify pass — unverified
+      // leftovers that must count against a clean 'pass' verdict. They
+      // drop out of `current` (only 'survived' continues the loop), so
+      // without this ledger the final gate would never see them and
+      // could claim 'pass' with no evidence those mutants were killed.
+      const rerunUnknowns: MutantOutcome[] = [];
 
       // ── Strengthen loop: repair → re-verify SURVIVORS ONLY ────────────
       while (current.length > 0 && attempts.length < maxAttempts && i.repairSubagentId) {
@@ -217,6 +223,12 @@ export function makeMutationTestTool(
         const [rerunResult] = await director.awaitTasks([rerunTaskId]);
         const passN = collectOutcomes(rerunResult, survivorPlan);
         const stillSurviving = passN.filter((m) => m.status === 'survived' || m.status === 'skipped');
+        // Rerun-skipped mutants are UNVERIFIED, not dead: the final
+        // verdict must not treat a vacuously-empty `current` as success.
+        const rerunSkipped = passN.filter((m) => m.status === 'skipped');
+        for (const m of rerunSkipped) {
+          if (!rerunUnknowns.some((u) => u.id === m.id)) rerunUnknowns.push(m);
+        }
 
         attempts.push({
           attempt: attemptNo,
@@ -237,17 +249,22 @@ export function makeMutationTestTool(
       const finalSurvivors = current;
       const verifiedCount = pass1.filter((m) => m.status !== 'skipped').length;
       const skippedCount = pass1.filter((m) => m.status === 'skipped').length;
+      // Unknowns from re-verify passes count against a clean pass exactly
+      // like first-pass skips: a mutant that was never re-tested was never
+      // killed, whatever `finalSurvivors` being empty implies.
+      const rerunUnknownCount = rerunUnknowns.length;
       const score =
         plan.length === 0 ? 0 : pass1.filter((m) => m.status === 'killed').length / plan.length;
-      // Honest verdicts: a pass requires zero survivors AND zero unknowns.
-      // A failed/failed-to-parse chaos pass is 'inconclusive' — claiming a
-      // green gate without evidence is exactly the failure mode this tool
-      // exists to catch.
+      // Honest verdicts: a pass requires zero survivors AND zero unknowns
+      // (first-pass skips AND re-verify skips alike). A failed/failed-to-
+      // parse chaos pass is 'inconclusive' — claiming a green gate
+      // without evidence is exactly the failure mode this tool exists
+      // to catch.
       const verdict =
         verifiedCount === 0
           ? 'inconclusive'
           : finalSurvivors.length === 0
-            ? skippedCount > 0
+            ? skippedCount > 0 || rerunUnknownCount > 0
               ? 'partial'
               : 'pass'
             : score >= 0.8
@@ -267,8 +284,12 @@ export function makeMutationTestTool(
         strengthenAttempts: attempts.length,
         attempts,
         chaosTaskId,
+        // Unverified leftovers from the strengthen loop: surfaced so the
+        // caller can see WHICH mutants lack kill evidence, and counted by
+        // the verdict gate above.
+        unverifiedFromRerun: rerunUnknowns.map((m) => ({ id: m.id, file: m.file, kind: m.kind })),
         nextAction:
-          finalSurvivors.length === 0
+          finalSurvivors.length === 0 && rerunUnknownCount === 0
             ? 'accept'
             : attempts.length >= maxAttempts && i.repairSubagentId
               ? 'manual_review_survivors'

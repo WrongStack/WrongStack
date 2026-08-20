@@ -415,9 +415,11 @@ describe('makeMutationTestTool', () => {
     // skipped mutant is an unknown, not equivalent code — labeling it
     // suspectedEquivalent would dismiss a real test gap.
     let chaosPasses = 0;
+    let survivorKind = '';
     const { director } = makeFakeDirector({
       chaos: (task) => {
         chaosPasses++;
+        if (chaosPasses === 1) survivorKind = task.mutants[0]!.kind;
         // Pass 1: first mutant survives. Rerun (pass 2): report nothing
         // for the survivor — collectOutcomes marks it skipped via the
         // partial-report padding.
@@ -448,6 +450,69 @@ describe('makeMutationTestTool', () => {
     expect(out['strengthenAttempts']).toBe(1);
     const equivalent = out['suspectedEquivalent'] as string[];
     expect(equivalent).toHaveLength(0); // the pre-peer-fix bug: ['…#1#…'] here
+
+    // Verdict honesty (regression): this exact scenario — survivors in
+    // pass 1, all-skipped re-verify — used to yield verdict 'pass' and
+    // nextAction 'accept', because the rerun's skipped outcomes dropped
+    // out of `current` and the gate counted only first-pass skips. The
+    // unverified mutant must block a clean pass.
+    expect(out['verdict']).toBe('partial');
+    expect(out['passed']).toBe(false);
+    expect(out['nextAction']).not.toBe('accept');
+    const unverified = out['unverifiedFromRerun'] as Array<{ id: string; kind: string }>;
+    expect(unverified).toHaveLength(1);
+    expect(unverified[0]!.kind).toBe(survivorKind);
+  });
+
+  it('yields partial (never pass/accept) when a re-verify pass is partial — some killed, one unverified', async () => {
+    // Pass 1: both mutants survive. Strengthen succeeds. Rerun reports
+    // the first mutant killed but never reports the second → skipped
+    // unknown. One legitimate kill among survivors must NOT launder the
+    // unverified one into a clean pass.
+    let chaosPasses = 0;
+    let firstKind = '';
+    const { director } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        if (chaosPasses === 1) {
+          firstKind = task.mutants[0]!.kind;
+          return JSON.stringify({
+            summary: 'both survive',
+            mutants: task.mutants.map((m) => ({ ...m, status: 'survived' as const })),
+          });
+        }
+        // Rerun: report ONLY the first mutant as killed; the second is
+        // never reported → collectOutcomes marks it skipped.
+        return JSON.stringify({
+          summary: 'partial rerun',
+          mutants: task.mutants
+            .slice(0, 1)
+            .map((m) => ({ ...m, status: 'killed' as const, evidence: 'assert failed' })),
+        });
+      },
+      strengthen: () => 'strengthened',
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 2,
+        repairSubagentId: 'repair-sub',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    expect(chaosPasses).toBe(2);
+    expect(out['strengthenAttempts']).toBe(1);
+    expect(out['verdict']).toBe('partial');
+    expect(out['passed']).toBe(false);
+    expect(out['nextAction']).not.toBe('accept');
+    const unverified = out['unverifiedFromRerun'] as Array<{ id: string; kind: string }>;
+    expect(unverified).toHaveLength(1);
+    expect(unverified[0]!.kind).not.toBe(firstKind); // the OTHER mutant is the unverified one
+    expect((out['finalSurvivors'] as unknown[]).length).toBe(0);
   });
 
   it('breaks the strengthen loop when the repair task fails', async () => {
