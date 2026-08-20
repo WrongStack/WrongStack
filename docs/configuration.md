@@ -1113,9 +1113,10 @@ See [`/chimera`](slash/chimera.md) for full usage. The Chimera plugin runs a rea
 
 #### Graceful-finish lifecycle (built-in, not configurable)
 
-Chimera reviewers and cascade agents are never killed by a timeout. They run
-under a **graceful-finish** lifecycle that replaces the watchdog's deadline
-kill with a notification, so a mid-review agent always completes its own turn:
+Chimera reviewers and cascade agents are not killed outright when their
+wall-clock budget runs out. They run under a **graceful-finish** lifecycle
+that replaces the watchdog's silent deadline kill with a notification plus a
+grace window, so a mid-review agent can complete its own turn:
 
 1. **Deadline crossing → notification, not kill.** When the review subagent's
    wall-clock budget is exhausted, the coordinator emits an in-band

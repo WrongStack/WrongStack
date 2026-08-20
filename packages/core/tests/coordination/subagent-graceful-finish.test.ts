@@ -81,6 +81,8 @@ describe('SubagentBudget.notifyFinish', () => {
 
     expect(budget.notifyFinish('wall-clock budget of 1s reached', { graceMs: 2_000 })).toBe(true);
     expect(seen).toHaveLength(1);
+    const deadlineAfterFirstGrant = budget.finishDeadlineMs;
+    expect(deadlineAfterFirstGrant).toBeGreaterThan(Date.now());
     expect(seen[0]!.reason).toContain('wall-clock');
     expect(seen[0]!.notice).toContain('The leader agent has finished its work.');
     expect(seen[0]!.notice).toContain('end your turn');
@@ -90,10 +92,14 @@ describe('SubagentBudget.notifyFinish', () => {
     expect(budget.limits.timeoutMs).toBeGreaterThanOrEqual(2_000);
     expect(budget.limits.timeoutMs).toBeLessThan(3_000);
 
-    // Idempotent: a second call neither re-emits nor double-grants.
+    // Idempotent: a second call neither re-emits nor double-grants. Asserted
+    // through the public surface only — SubagentBudget exposes no startTime,
+    // so the deadline is pinned by capture rather than reconstructed.
     expect(budget.notifyFinish('leader session ended', { graceMs: 9_999 })).toBe(false);
     expect(seen).toHaveLength(1);
-    expect(budget.finishDeadlineMs).toBe(budget.startTime! + budget.limits.timeoutMs!);
+    expect(budget.finishDeadlineMs).toBe(deadlineAfterFirstGrant);
+    // The refused 9_999s grant never touched the ceiling either.
+    expect(budget.limits.timeoutMs).toBeLessThan(3_000);
   });
 
   it('notify-only keeps the existing time budget (no grace grant)', () => {
