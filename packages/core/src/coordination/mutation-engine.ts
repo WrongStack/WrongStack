@@ -58,6 +58,17 @@ interface TokenPattern {
   regex: RegExp;
   /** Builds the replacement for a matched token. */
   replace: (match: string) => string;
+  /**
+   * When true, BOTH the token's start AND its terminating character must
+   * sit in code ranges. For the return-null family the token spans the
+   * whole `return <expr>;` match, which may legitimately cross masked
+   * template text between the endpoints — but a lazy match whose
+   * terminating `;` falls inside a string, template, or regex literal is
+   * a partial-token match, and splicing its replacement produces
+   * syntactically invalid code whose compile failure would be falsely
+   * recorded as a kill.
+   */
+  endpointsInCode?: boolean;
 }
 
 const TOKEN_PATTERNS: readonly TokenPattern[] = [
@@ -96,6 +107,7 @@ const TOKEN_PATTERNS: readonly TokenPattern[] = [
     // `return <expr>;` where expr is not already null/undefined/void.
     regex: /(?<indent>\breturn\b)(?<expr>\s+[^;{}\n]+?)\s*;/g,
     replace: () => 'return null;',
+    endpointsInCode: true,
   },
 ];
 
@@ -138,7 +150,9 @@ export function planMutations(
     // expression — replacing it with `return null;` is still valid,
     // meaningful code. Operator tokens are 1-2 chars, so start-anchoring
     // loses nothing there; a token beginning inside template text,
-    // string, or comment remains masked.
+    // string, or comment remains masked. For families flagged
+    // `endpointsInCode`, the LAST character must also sit in code —
+    // see the TokenPattern doc for why return-null needs both ends.
     const inCode = (start: number): boolean => codeRanges.some(([s, e]) => start >= s && start < e);
 
     for (const pattern of TOKEN_PATTERNS) {
@@ -149,6 +163,11 @@ export function planMutations(
         const tokenStart = m.index + m[0].indexOf(token);
         // Only mutate tokens that begin in real code.
         if (!inCode(tokenStart)) continue;
+        // And for endpoint-checked families (return-null), tokens whose
+        // terminating character sits in masked content — a lazy match
+        // that stopped at a semicolon inside a string/template — are
+        // partial-token matches: never plan them.
+        if (pattern.endpointsInCode && !inCode(tokenStart + token.length - 1)) continue;
         const original = line.slice(tokenStart, tokenStart + token.length);
         const replacement = pattern.replace(token);
         if (replacement === original) continue;

@@ -705,3 +705,55 @@ describe('planMutations — regex-literal masking', () => {
     expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
   });
 });
+
+// ── return-null endpoint containment ────────────────────────────────
+// Review follow-up (chimera finding 2 of 2): the return-null regex is
+// lazy — `[^;{}\n]+?` stops at the FIRST semicolon, which can sit
+// inside string or template text. Start-anchored containment let that
+// partial-token match through, and applyMutation spliced `return null;`
+// mid-string, producing syntactically invalid code whose compile
+// failure could be falsely recorded as a kill. The family is now
+// flagged `endpointsInCode`: BOTH the token's first and last
+// characters must sit in code ranges.
+
+describe('planMutations — return-null endpoint containment', () => {
+  it('never plans a return-null whose terminating semicolon is inside a string', () => {
+    const source = [
+      'export function quote(): string {',
+      "  return 'a;b';",
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/e1.ts', source);
+    // Old behavior: token `return 'a;` planned; splicing it produced
+    // `return null;b';` — invalid code, false kill risk.
+    expect(plan.filter((m) => m.kind === 'return-null')).toEqual([]);
+  });
+
+  it('still plans a clean return whose terminating semicolon is code', () => {
+    const source = [
+      'export function id(s: string): string {',
+      '  return s;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/e2.ts', source);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 2)).toBe(true);
+  });
+
+  it('skips a return-null call whose first semicolon hides in a string argument', () => {
+    const source = [
+      'export function pick2(): string {',
+      "  return pick('x;', 'y');",
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/e3.ts', source);
+    // The lazy match is `return pick('x;` — terminating `;` masked.
+    expect(plan.filter((m) => m.kind === 'return-null')).toEqual([]);
+  });
+
+  it('skips a return-null whose terminating semicolon is inside template text', () => {
+    const source = ['export function doc2(): string {', '  return `a;b`;', '}'].join('\n');
+    const plan = planMutations('src/e4.ts', source);
+    // Match is `return `a;` — the `;` lives in template text (masked).
+    expect(plan.filter((m) => m.kind === 'return-null')).toEqual([]);
+  });
+});
