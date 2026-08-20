@@ -19,6 +19,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { ERROR_CODES, WrongStackError } from '../types/errors.js';
 import type { SkillEntry, SkillLoader } from '../types/skill.js';
+import { buildWin32CmdShimInvocation } from '../utils/win32-cmd.js';
 import { isValidSkillNameFormat, parseSkillFrontmatter, validateSkillName } from './frontmatter.js';
 import { SKILL_LIMITS } from './limits.js';
 
@@ -236,16 +237,33 @@ export async function openInEditor(
       context: { filePath },
     });
   }
-  const child = spawn(parts[0] as string, [...parts.slice(1), filePath], {
-    stdio: 'ignore',
-    detached: true,
-    shell,
-    // `shell` routes through cmd.exe on win32, which flashes a console window
-    // before the editor appears. A GUI editor is unaffected by the flag; the
-    // shell wrapper is what it suppresses. Repo convention — see
-    // `core/tests/architecture/spawn-convention.test.ts`.
-    windowsHide: true,
-  });
+  const editorArgs = [...parts.slice(1), filePath];
+
+  // On win32 an editor is usually a `.cmd` shim, which Node refuses to spawn
+  // without a shell (CVE-2024-27980). `shell: true` used to supply that — but it
+  // hands the whole line to cmd.exe, where `&` separates commands. `filePath`
+  // derives from a skill DIRECTORY name, and `<projectRoot>/.wrongstack/skills`
+  // is repo-committed, so an untrusted repo controlled that string: a directory
+  // named `x&<payload>&` executed the payload here. Build an explicit quoted
+  // `cmd /d /c call` line instead, which refuses metacharacters outright.
+  const child = shell
+    ? (() => {
+        const inv = buildWin32CmdShimInvocation(parts[0] as string, editorArgs);
+        return spawn(inv.command, inv.args, {
+          stdio: 'ignore',
+          detached: true,
+          windowsVerbatimArguments: inv.windowsVerbatimArguments,
+          // Suppresses the console flash the cmd.exe wrapper would otherwise
+          // show before the editor appears. Repo convention — see
+          // `core/tests/architecture/spawn-convention.test.ts`.
+          windowsHide: true,
+        });
+      })()
+    : spawn(parts[0] as string, editorArgs, {
+        stdio: 'ignore',
+        detached: true,
+        windowsHide: true,
+      });
   child.unref();
 }
 

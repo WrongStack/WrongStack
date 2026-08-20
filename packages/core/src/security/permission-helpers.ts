@@ -214,8 +214,34 @@ function unescapeGlobSubject(value: string): string {
 }
 
 /** Normalize a path for prefix comparison: forward slashes, case-folded on Windows. */
+/**
+ * Drop an NTFS alternate-data-stream suffix from the final path segment.
+ *
+ * On Windows `fs` resolves `.env::$DATA` to the *same file* as `.env` — reading
+ * it returns the contents, and writing through `config.json::$DATA` overwrites
+ * `config.json`. Every pattern in {@link SENSITIVE_READ_PATHS} and
+ * {@link AGENT_STATE_SENSITIVE_BASENAMES} is `$`-anchored, so the suffix made
+ * them all miss: `read` is `permission: 'auto'`, which turned
+ * `{"path": ".env::$DATA"}` into a silent credential read, and it likewise
+ * slipped past the YOLO agent-state write guard.
+ *
+ * Only the last segment is trimmed, and only past the first colon in it, so a
+ * `C:/...` drive letter (its own leading segment) is untouched.
+ */
+function stripAdsSuffix(forwardSlashPath: string): string {
+  const cut = forwardSlashPath.lastIndexOf('/');
+  const dir = cut === -1 ? '' : forwardSlashPath.slice(0, cut + 1);
+  const base = cut === -1 ? forwardSlashPath : forwardSlashPath.slice(cut + 1);
+  const colon = base.indexOf(':');
+  // `cut === -1 && colon === 1` is a bare drive spec like `C:` — leave it.
+  if (colon === -1 || (cut === -1 && colon === 1 && base.length <= 2)) return forwardSlashPath;
+  return dir + base.slice(0, colon);
+}
+
 function normalizeForCompare(value: string): string {
-  const forward = unescapeGlobSubject(value).replace(/\\/g, '/').replace(/\/+$/, '');
+  const forward = stripAdsSuffix(
+    unescapeGlobSubject(value).replace(/\\/g, '/').replace(/\/+$/, ''),
+  );
   return process.platform === 'win32' ? forward.toLowerCase() : forward;
 }
 
@@ -289,7 +315,9 @@ export function isProtectedAgentStatePath(absPath: string): boolean {
 }
 
 function pathLooksSensitive(rawPath: string): boolean {
-  const normalized = stripShellQuotes(rawPath).replace(/\\/g, '/');
+  // ADS strip before matching — see stripAdsSuffix. `.env::$DATA` reads `.env`,
+  // but every pattern below is `$`-anchored and would miss it.
+  const normalized = stripAdsSuffix(stripShellQuotes(rawPath).replace(/\\/g, '/'));
   if (SENSITIVE_READ_PATHS.some((pattern) => pattern.test(normalized))) return true;
   // `config.json` alone is far too common to put in SENSITIVE_READ_PATHS — it
   // would fire on nearly every project. Anchoring it to the global root keeps
@@ -319,4 +347,35 @@ export function shellCommandReadsSensitivePath(command: string): boolean {
     if (rest.some((arg) => pathLooksSensitive(arg))) return true;
   }
   return false;
+}
+
+/**
+ * True when `tool` + `input` amount to reading a credential-bearing path.
+ *
+ * Shared by both permission policies. It lived as a private method on
+ * `DefaultPermissionPolicy`, so `AutoApprovePermissionPolicy` — the policy
+ * subagents run under — had no way to apply it, and a delegated read of
+ * `~/.aws/credentials` was auto-approved where the leader would have prompted.
+ * Keeping one implementation here means widening the sensitive-path list
+ * protects the leader and its subagents in the same edit.
+ */
+export function isSensitiveReadCall(tool: Tool, input: unknown): boolean {
+  const isReadTool =
+    hasCapability(tool, ToolCapabilities.FS_READ) ||
+    tool.name === 'read' ||
+    tool.name === 'grep' ||
+    tool.name === 'glob' ||
+    tool.name === 'tree';
+  if (isReadTool && inputPathLooksSensitive(input)) return true;
+
+  const hasShellCap = hasCapability(tool, [
+    ToolCapabilities.SHELL_ARBITRARY,
+    ToolCapabilities.SHELL_RESTRICTED,
+    ToolCapabilities.SHELL_EXEC,
+  ]);
+  if (!hasShellCap && tool.name !== 'bash' && tool.name !== 'shell' && tool.name !== 'exec') {
+    return false;
+  }
+  const command = shellCommandLineFromInput(input);
+  return command ? shellCommandReadsSensitivePath(command) : false;
 }

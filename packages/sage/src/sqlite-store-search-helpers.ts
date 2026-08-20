@@ -87,7 +87,12 @@ export function ftsPrefixTerms(query: string): string[] {
       // Drop pure-numeric noise and single-character tokens that explode
       // the prefix index without improving recall.
       if (token.length < 2) continue;
-      terms.push(`${token}*`);
+      // Quoted, like the sibling builder in codebase-index/writer-search.ts.
+      // FTS5 has BAREWORD operators — `AND`, `OR`, `NOT`, `NEAR` — so an
+      // unquoted token emitted `… AND* …`, which is a hard `fts5: syntax error`
+      // rather than a no-match. The tokenizer above strips quotes already; the
+      // replaceAll is belt-and-braces so a quote can never escape the literal.
+      terms.push(`"${token.replaceAll('"', '')}"*`);
       if (terms.length >= MAX_FTS_PREFIX_TERMS) return terms;
     }
   }

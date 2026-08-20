@@ -1,7 +1,14 @@
 import { alwaysAllowUnavailableReason } from '@wrongstack/core/security';
 import type { InputReader, Tool } from '@wrongstack/core/types';
-import { color, truncate, unifiedDiff, writeOut } from '@wrongstack/core/utils';
-import { renderDiff } from './diff-renderer.js';
+import {
+  color,
+  sanitizeTerminalPreview,
+  sanitizeTerminalText,
+  truncate,
+  unifiedDiff,
+  writeOut,
+} from '@wrongstack/core/utils';
+import { diffLineStyle } from './diff-renderer.js';
 import { theme } from './theme.js';
 
 export type PromptDecision = 'yes' | 'no' | 'always' | 'deny';
@@ -50,9 +57,13 @@ export function makePromptDelegate(reader: InputReader) {
       ...(noAlwaysReason ? [] : [{ key: 'a', label: 'always', value: 'always' }]),
       { key: 'd', label: 'deny', value: 'deny' },
     ];
+    // `suggestedPattern` is derived from tool input, so it reaches the terminal
+    // carrying whatever the model put there. `escapeGlobSubject` neutralizes
+    // CSI/OSC only incidentally (it escapes `[` and `]`); two-character forms
+    // like `ESC c` — a full terminal reset — pass straight through.
     const alwaysHint = noAlwaysReason
       ? ''
-      : `  ${theme.bold('[a]')}lways allow (${suggestedPattern})`;
+      : `  ${theme.bold('[a]')}lways allow (${sanitizeTerminalText(suggestedPattern)})`;
     const answer = await reader.readKey(
       `${theme.bold('[y]')}es  ${theme.bold('[n]')}o${alwaysHint}  ${theme.bold('[d]')}eny: `,
       options,
@@ -76,26 +87,53 @@ export function makeConfirmAwaiter(reader: InputReader): ConfirmAwaiter {
 function stringifyInput(input: unknown): string {
   if (!input || typeof input !== 'object') return '';
   const obj = input as Record<string, unknown>;
-  return Object.entries(obj)
-    .filter(([k]) => k !== 'content' && k !== 'new_string')
-    .map(([k, v]) => `${k}: ${truncate(JSON.stringify(v), 80)}`)
-    .join('  ');
+  return (
+    Object.entries(obj)
+      .filter(([k]) => k !== 'content' && k !== 'new_string')
+      // JSON.stringify escapes ESC/CR/LF but NOT bidi or zero-width controls, so
+      // it is not sufficient on its own to keep the rendered value honest.
+      .map(([k, v]) => `${k}: ${truncate(sanitizeTerminalText(JSON.stringify(v)), 80)}`)
+      .join('  ')
+  );
 }
 
 /**
  * Longest payload preview shown before an approval. A cap is unavoidable for a
  * terminal prompt, but a SILENT cap would recreate the bug being fixed, so the
  * renderer always states how much it withheld.
+ *
+ * The character cap matters as much as the line cap: a line limit alone is not
+ * a bound, because a single 200,000-character line satisfies it and can still
+ * scroll this prompt off the screen.
  */
 const PREVIEW_MAX_LINES = 40;
+const PREVIEW_MAX_CHARS = 8_000;
 
-function clipPreview(body: string): string {
-  const lines = body.split('\n');
-  if (lines.length <= PREVIEW_MAX_LINES) return body;
-  const hidden = lines.length - PREVIEW_MAX_LINES;
-  return `${lines.slice(0, PREVIEW_MAX_LINES).join('\n')}\n${color.dim(
-    `… ${hidden} more line${hidden === 1 ? '' : 's'} not shown — review the file before approving`,
-  )}`;
+/**
+ * Sanitize and clip untrusted preview text, then colorize it line by line.
+ *
+ * Order is load-bearing. The text arrives from the model, so it is sanitized
+ * FIRST — before any of our own escape sequences are added — otherwise the
+ * sanitizer would strip the colors we just applied. `decorate` therefore only
+ * ever sees text that can no longer move the cursor or repaint the screen.
+ */
+function clipPreview(body: string, decorate: (line: string) => string = (l) => l): string {
+  const safe = sanitizeTerminalText(body);
+  const { text, truncated } = sanitizeTerminalPreview(body, {
+    maxLines: PREVIEW_MAX_LINES,
+    maxChars: PREVIEW_MAX_CHARS,
+  });
+  const rendered = text.split('\n').map(decorate).join('\n');
+  if (!truncated) return rendered;
+
+  // Say what was withheld, in the dimension that actually did the withholding.
+  // A silent cap would recreate the class of bug this preview exists to fix.
+  const hiddenLines = safe.split('\n').length - text.split('\n').length;
+  const detail =
+    hiddenLines > 0
+      ? `${hiddenLines} more line${hiddenLines === 1 ? '' : 's'} not shown`
+      : `${safe.length - text.length} more characters not shown`;
+  return `${rendered}\n${color.dim(`… ${detail} — review the file before approving`)}`;
 }
 
 /**
@@ -126,21 +164,16 @@ function renderPayloadPreview(input: unknown): string {
       toFile: 'after',
       context: 2,
     });
-    return diff ? clipPreview(renderDiff(diff)) : color.dim('(replacement is identical)');
+    return diff ? clipPreview(diff, diffLineStyle) : color.dim('(replacement is identical)');
   }
 
   const content = obj['content'];
   if (typeof content === 'string') {
     if (content === '') return color.dim('(writes an empty file)');
-    return clipPreview(
-      content
-        .split('\n')
-        .map((line) => color.dim('│ ') + line)
-        .join('\n'),
-    );
+    return clipPreview(content, (line) => color.dim('│ ') + line);
   }
 
   // A caller that genuinely supplies a prebuilt diff still renders.
   const diff = obj['diff'];
-  return typeof diff === 'string' && diff ? clipPreview(renderDiff(diff)) : '';
+  return typeof diff === 'string' && diff ? clipPreview(diff, diffLineStyle) : '';
 }

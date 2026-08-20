@@ -38,9 +38,8 @@ import {
   alwaysAllowUnavailableReason,
   permissionFingerprint,
   shellCommandLineFromInput,
-  inputPathLooksSensitive,
-  shellCommandReadsSensitivePath,
   isInsideAgentStateRoot,
+  isSensitiveReadCall,
 } from './permission-helpers.js';
 
 function fsWriteTargetPaths(input: unknown): string[] {
@@ -70,6 +69,30 @@ function fsWriteTargetPaths(input: unknown): string[] {
     }
   }
   return out;
+}
+
+/**
+ * Combine an exact-name trust entry with the wildcard entry that also matched.
+ *
+ * Deny is the union of both levels — a narrow "always allow" must never be able
+ * to drop a broad guardrail. Everything permissive (allow / auto / trustWorkdir
+ * / denyPrivate) comes from the more specific entry when it says anything, so
+ * exact-name rules still win where they are meant to.
+ */
+export function mergeTrustEntries(
+  exact: TrustPolicy[string] | undefined,
+  wildcard: TrustPolicy[string] | undefined,
+): TrustPolicy[string] | undefined {
+  if (!exact) return wildcard;
+  if (!wildcard) return exact;
+
+  const deny = [...(wildcard.deny ?? []), ...(exact.deny ?? [])];
+  const merged: TrustPolicy[string] = {
+    ...wildcard,
+    ...exact,
+  };
+  if (deny.length > 0) merged.deny = [...new Set(deny)];
+  return merged;
 }
 
 export interface PermissionPolicyOptions {
@@ -233,7 +256,12 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     }
 
     const namespaceEntry = this.findNamespaceEntry(tool.name);
-    const entry = this.policy[tool.name] ?? namespaceEntry;
+    // Merge rather than select. An exact-name entry used to replace the wildcard
+    // entry wholesale, so a single "always allow" on `bash git status` wrote
+    // policy["bash"] and silently destroyed every {"*": {deny: [...]}} guardrail
+    // for bash. Deny patterns from both levels always apply; the permissive
+    // fields come from the more specific entry.
+    const entry = mergeTrustEntries(this.policy[tool.name], namespaceEntry);
     const subject = subjectForToolInput(tool.name, input, tool.subjectKey);
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
     const evalKey = `${cacheKey}::${permissionFingerprint(tool)}`;
@@ -254,16 +282,6 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       return decision;
     }
 
-    if (this.sessionAllowed.has(cacheKey)) {
-      this.sessionAllowed.delete(cacheKey);
-      const decision: PermissionDecision = {
-        permission: 'auto',
-        source: 'trust',
-        reason: 'session one-shot allow (user pressed yes)',
-      };
-      return decision;
-    }
-
     if (entry?.deny && subject && matchesTrust(entry.deny, subject)) {
       this._logDeny(tool.name, subject, 'matched deny pattern');
       const decision: PermissionDecision = {
@@ -274,6 +292,19 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       this._evalCache.set(evalKey, decision);
       return decision;
     }
+
+    // Deliberately below the deny branch. A stale one-shot allow must never
+    // override a deny rule the user added after granting it.
+    if (this.sessionAllowed.has(cacheKey)) {
+      this.sessionAllowed.delete(cacheKey);
+      const decision: PermissionDecision = {
+        permission: 'auto',
+        source: 'trust',
+        reason: 'session one-shot allow (user pressed yes)',
+      };
+      return decision;
+    }
+
     if (tool.permission === 'deny') {
       this._logDeny(tool.name, subject, 'tool default deny');
       const decision: PermissionDecision = {
@@ -285,6 +316,12 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       return decision;
     }
 
+    // A deny list we could not evaluate is not an absent deny list. Without a
+    // subject the deny branch above is skipped, so taking the permissive
+    // shortcuts here would auto-approve exactly the call the user tried to
+    // block. Fall through to a confirm instead.
+    const denyUnevaluated = Boolean(entry?.deny?.length) && subject === undefined;
+
     const allowMatches = hasShellSubject(tool) ? matchesCommandTrust : matchesTrust;
     if (entry?.allow && subject && allowMatches(entry.allow, subject)) {
       const decision: PermissionDecision = {
@@ -295,7 +332,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       this._evalCache.set(evalKey, decision);
       return decision;
     }
-    if (entry?.auto) {
+    if (entry?.auto && !denyUnevaluated) {
       const decision: PermissionDecision = { permission: 'auto', source: 'trust' };
       this._evalCache.set(evalKey, decision);
       return decision;
@@ -407,25 +444,10 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     return { permission: 'confirm', source: 'default' };
   }
 
+  // Delegates to the shared helper so the subagent policy applies the exact
+  // same rule — see `isSensitiveReadCall` in ./permission-helpers.ts.
   private isSensitiveReadCall(tool: Tool, input: unknown): boolean {
-    const isReadTool =
-      hasCapability(tool, ToolCapabilities.FS_READ) ||
-      tool.name === 'read' ||
-      tool.name === 'grep' ||
-      tool.name === 'glob' ||
-      tool.name === 'tree';
-    if (isReadTool && inputPathLooksSensitive(input)) return true;
-
-    const hasShellCap = hasCapability(tool, [
-      ToolCapabilities.SHELL_ARBITRARY,
-      ToolCapabilities.SHELL_RESTRICTED,
-      ToolCapabilities.SHELL_EXEC,
-    ]);
-    if (!hasShellCap && tool.name !== 'bash' && tool.name !== 'shell' && tool.name !== 'exec') {
-      return false;
-    }
-    const command = shellCommandLineFromInput(input);
-    return command ? shellCommandReadsSensitivePath(command) : false;
+    return isSensitiveReadCall(tool, input);
   }
 
   async trust(rule: { tool: string; pattern: string }): Promise<void> {

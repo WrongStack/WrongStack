@@ -255,13 +255,14 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
           }
         }
 
-        // Soft allow/deny for session-scoped retry prevention
-        if (decision === 'yes') {
-          const p = a.permission as never as {
-            allowOnce?(r: { tool: string; pattern: string }): void;
-          };
-          p.allowOnce?.({ tool: tool.name, pattern: result.suggestedPattern });
-        } else if (decision === 'no') {
+        // Soft deny for session-scoped retry prevention.
+        //
+        // There is deliberately no matching `allowOnce` on 'yes'. The re-run
+        // below executes unconditionally and never calls permission.evaluate(),
+        // so a one-shot grant issued here would not be consumed by the run it
+        // authorizes — it would sit in sessionAllowed and silently approve the
+        // NEXT identical call. One approval must mean one execution.
+        if (decision === 'no') {
           const p = a.permission as never as {
             denyOnce?(r: { tool: string; pattern: string }): void;
           };

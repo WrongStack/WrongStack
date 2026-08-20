@@ -101,8 +101,13 @@ export function resolvePowerShell(cmd: string): string {
  * Windows file paths (which use `:` `\` `/` `.` `-` `_` space `(` `)`) never
  * contain these, so the guard is false-positive-free. Double quotes are also
  * rejected because cmd.exe quote toggling can break argument grouping.
+ *
+ * `%` is included because cmd.exe expands `%VAR%` even inside double quotes: an
+ * argument of `%X%` passes a check that omits it and is then replaced by the
+ * variable's value, which may contain `"` and `&` and break out of the quoting.
+ * Kept in sync with `core/src/utils/win32-cmd.ts`.
  */
-const WIN32_SHELL_META = /[&|<>"\r\n\0]/;
+const WIN32_SHELL_META = /[&|<>"%\r\n\0]/;
 
 export interface Win32CmdShimInvocation {
   command: string;
@@ -119,7 +124,7 @@ export function assertSafeWin32ShellArgs(args: readonly unknown[]): void {
     if (typeof arg === 'string' && WIN32_SHELL_META.test(arg)) {
       throw new Error(
         'win32 cmd shim spawn: argument contains a shell metacharacter ' +
-          '(one of & | < > ", or a newline) that could enable command injection ' +
+          '(one of & | < > " %, or a newline) that could enable command injection ' +
           'through the .cmd/.bat wrapper - refusing to run. Offending argument: ' +
           JSON.stringify(arg),
       );

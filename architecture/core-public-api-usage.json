@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 135,
+      "files": 136,
       "typeOnly": 26,
-      "runtimeOrMixed": 112
+      "runtimeOrMixed": 113
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 973,
-      "typeOnly": 898,
+      "files": 974,
+      "typeOnly": 899,
       "runtimeOrMixed": 242
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -8198,6 +8198,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/webui-server/src/server/techstack-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/webui-server/src/server/terminal-ws-handler.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11039,6 +11045,12 @@
       "file": "packages/cli/tests/openai-codex-oauth.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/permission-prompt-spoofing.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",

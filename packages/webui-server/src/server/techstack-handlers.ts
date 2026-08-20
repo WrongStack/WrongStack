@@ -15,6 +15,7 @@
 
 import { randomUUID } from 'node:crypto';
 import type * as http from 'node:http';
+import { sanitizeApiError } from '@wrongstack/core/security';
 import type { Provider } from '@wrongstack/core/types';
 import type {
   PackageOperation,
@@ -113,8 +114,18 @@ export function handleTechStackSnapshot(
   }
 }
 
+/**
+ * Client-facing error text.
+ *
+ * Every caller sends the result to the browser, so it goes through the project's
+ * shared sanitizer (WS-066) rather than echoing `err.message`. The raw messages
+ * here carry absolute database paths and, on the research routes, provider
+ * transport errors — detail that belongs in the server log, not in a response
+ * body. This helper previously returned the raw message and was the one place
+ * in the file that bypassed `sanitizeApiError`.
+ */
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return sanitizeApiError(error);
 }
 
 function requireJobDeps(

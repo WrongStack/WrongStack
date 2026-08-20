@@ -82,7 +82,7 @@ const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = 
   {
     key: 'fallbackMaxLastResortCandidates',
     reason:
-      'Bounds how many of the user\'s OTHER configured providers may be swept in as last-resort failover. Setting it to 0 from a repo-committed config would silently strip that depth during an outage. It was already stripped in practice (absent from the allow-list) but was missing from the key registry, so this gate never checked it.',
+      "Bounds how many of the user's OTHER configured providers may be swept in as last-resort failover. Setting it to 0 from a repo-committed config would silently strip that depth during an outage. It was already stripped in practice (absent from the allow-list) but was missing from the key registry, so this gate never checked it.",
   },
 ];
 
@@ -229,6 +229,18 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
     path: 'features.mailboxBridge',
     reason:
       'Enables the mailbox bridge, whose CLI-entry resolution walks up from the project root — a repo-supplied packages/cli/dist/index.js would be spawned on WebUI boot.',
+  },
+  {
+    // `plugins` is already denied above, so a repo cannot ADD a plugin. This
+    // closes the other half: a repo could previously ship
+    // `{"features":{"pluginsTrust":false}}` and switch off the integrity gate
+    // for plugins the user had ALREADY installed globally — disarming the
+    // trust-on-first-use pin that exists to catch a supply-chain update
+    // rewriting a plugin's entry file. Same operator-owned class as the
+    // switches above.
+    path: 'features.pluginsTrust',
+    reason:
+      'Disables the plugin trust-on-first-use integrity gate, re-trusting changed code in already-installed global plugins.',
   },
 ];
 

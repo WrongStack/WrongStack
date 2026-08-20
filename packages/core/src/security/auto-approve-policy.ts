@@ -20,13 +20,10 @@
  *
  * Extracted from permission-policy.ts.
  */
-import type {
-  PermissionDecision,
-  PermissionPolicy,
-  PermissionTrace,
-} from '../types/permission.js';
+import type { PermissionDecision, PermissionPolicy, PermissionTrace } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { getDangerousCapabilities, ToolCapabilities } from './capabilities.js';
+import { isSensitiveReadCall } from './permission-helpers.js';
 
 export class AutoApprovePermissionPolicy implements PermissionPolicy {
   private readonly allowedCapabilities: readonly string[];
@@ -43,7 +40,22 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
     return name.startsWith('mcp__');
   }
 
-  async evaluate(tool: Tool): Promise<PermissionDecision> {
+  async evaluate(tool: Tool, input?: unknown): Promise<PermissionDecision> {
+    // `input` used to be absent from this signature entirely, so the sensitive
+    // read check the leader applies could not run here. A subagent therefore
+    // read `~/.aws/credentials` unprompted where the leader would have asked —
+    // and a subagent has no `confirmAwaiter`, so there is no prompt to fall back
+    // on. Deny outright instead: the director can request the file itself if it
+    // genuinely needs it, which puts the decision back in front of the user.
+    if (input !== undefined && isSensitiveReadCall(tool, input)) {
+      return {
+        permission: 'deny',
+        source: 'subagent_guard',
+        reason:
+          'subagents may not read credential-bearing paths — the leader must perform this read so the user can approve it',
+      };
+    }
+
     const caps = tool.capabilities ?? [];
     const hasAllowedCap = caps.some((c) => this.allowedCapabilities.includes(c));
     const isMcp = AutoApprovePermissionPolicy.isMcpTool(tool.name);
@@ -103,8 +115,8 @@ export class AutoApprovePermissionPolicy implements PermissionPolicy {
   allowOnce(): void {
     // No-op: subagent decisions are ephemeral.
   }
-  async explain(tool: Tool): Promise<PermissionTrace> {
-    const decision = await this.evaluate(tool);
+  async explain(tool: Tool, input?: unknown): Promise<PermissionTrace> {
+    const decision = await this.evaluate(tool, input);
     return {
       toolName: tool.name,
       subject: null,

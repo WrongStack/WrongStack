@@ -149,6 +149,17 @@ export class DefaultSkillLoader implements SkillLoader {
         );
         for (const e of entries) {
           if (!(await entryIsDirectory(dir, e))) continue;
+          // The DIRECTORY name — not just the frontmatter name — becomes part of
+          // manifest.path, which downstream consumers hand to editors and other
+          // child processes. `<projectRoot>/.wrongstack/skills` is repo-committed,
+          // so an untrusted repo controls this string. NTFS permits `&` in a
+          // filename, which is a cmd.exe command separator. Hold the directory
+          // name to the same agentskills.io charset as the frontmatter name, so
+          // no shell metacharacter can ever reach a spawn argument this way.
+          if (!isValidSkillNameFormat(e.name)) {
+            this.skipped.push({ dir, entry: e.name, reason: 'invalid-name-format' });
+            continue;
+          }
           const skillFile = path.join(dir, e.name, 'SKILL.md');
           let raw: string;
           try {

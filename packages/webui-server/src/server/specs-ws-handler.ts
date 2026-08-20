@@ -4,6 +4,20 @@ import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types'
 import { SpecStore, TaskGraphStore } from '@wrongstack/sdd';
 import { sendSerialized } from './ws-utils.js';
 
+/**
+ * Runtime guard for the `TaskStatus` union in `@wrongstack/core/types`. Kept as
+ * a literal set rather than derived, so widening the union is a deliberate
+ * two-line change here and cannot silently admit a new status over the wire.
+ */
+const VALID_TASK_STATUSES: ReadonlySet<string> = new Set([
+  'pending',
+  'in_progress',
+  'blocked',
+  'failed',
+  'review',
+  'completed',
+]);
+
 interface WSClient {
   ws: WebSocket;
   id: string;
@@ -89,6 +103,16 @@ export class SpecsWebSocketHandler {
           taskId: string;
           status: TaskNode['status'];
         };
+        // The cast above is a compile-time assertion only — this payload comes
+        // off the wire. Without the check a caller could flip a task straight to
+        // `completed` (skipping a gating run) or write an entirely
+        // out-of-union value into persisted state.
+        if (!VALID_TASK_STATUSES.has(status as string)) {
+          throw new Error(`Invalid task status: ${JSON.stringify(status)}`);
+        }
+        if (typeof graphId !== 'string' || typeof taskId !== 'string') {
+          throw new Error('specs.taskStatus requires string graphId and taskId');
+        }
         await this.updateTaskStatus(graphId, taskId, status);
         break;
       }

@@ -630,7 +630,7 @@ jobs:
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, manifests, test, e2e, tui-smoke, tui-heap-soak, audit]
+    needs: [lint, typecheck, build, manifests, plugin-guards, test, e2e, tui-smoke, tui-heap-soak, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -643,6 +643,7 @@ jobs:
           echo "  typecheck:     ${{ needs.typecheck.result }}"
           echo "  build:         ${{ needs.build.result }}"
           echo "  manifests:     ${{ needs.manifests.result }}"
+          echo "  plugin-guards: ${{ needs.plugin-guards.result }}"
           echo "  test:          ${{ needs.test.result }}"
           echo "  e2e:           ${{ needs.e2e.result }}"
           echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"

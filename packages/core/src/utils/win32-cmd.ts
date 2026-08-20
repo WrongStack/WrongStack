@@ -17,7 +17,12 @@
  * MCP servers, whose `command`/`args` come from user or WebUI-supplied config.
  */
 
-const WIN32_CMD_META = /[&|<>"\r\n\0]/;
+// `%` is here because of the expansion note above: an argument of `%X%` passes a
+// metacharacter check that omits it, and cmd.exe then substitutes the variable's
+// value — which may itself contain `"` and `&`, breaking out of the quoting this
+// module relies on. Refusing `%` outright is the only complete defence, and real
+// Windows paths and flags do not contain it.
+const WIN32_CMD_META = /[&|<>"%\r\n\0]/;
 
 export interface Win32CmdShimInvocation {
   command: string;

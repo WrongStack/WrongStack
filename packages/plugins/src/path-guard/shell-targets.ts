@@ -352,8 +352,23 @@ export function stripLauncherAtBoundary(
  * the writer was never inspected (probe-verified 2026-08-17, chimera
  * review). Value-consuming options are enumerated explicitly so a flag-only
  * `-0` never swallows the writer command as its value.
+ *
+ * The value is `[^\s-][^\s]*` — NOT `[^\s]+` — and that single character is
+ * load-bearing for availability, not just correctness. With `[^\s]+` both
+ * alternatives match a token like `-I`: the first consumes it as an option
+ * plus the FOLLOWING token as that option's value, while the second consumes
+ * it alone as a flag. Every token then forks the parse, so an input of
+ * repeated `-I ` costs exponential time in a regex that runs synchronously on
+ * the main thread over a model-supplied command (measured before this fix:
+ * 731 ms at 110 characters, 19.7 s at 128, 52 s at 134). Requiring the value
+ * not to begin with `-` makes the branches mutually exclusive and collapses
+ * the search: 0.2 ms at the same 128-character input, 0.6 ms at 20,000.
+ *
+ * Refusing a `-`-leading value is also the safe direction semantically — such
+ * a token is treated as another flag, so scanning continues toward the writer
+ * rather than swallowing it as an option value.
  */
-const XARGS_OPTIONS = String.raw`(?:\s+(?:(?:-[InLsPjeE]|--(?:arg-file|replace|max-args|max-lines|max-chars|max-procs))\s+[^\s]+|-[^\s]+))*`;
+const XARGS_OPTIONS = String.raw`(?:\s+(?:(?:-[InLsPjeE]|--(?:arg-file|replace|max-args|max-lines|max-chars|max-procs))\s+[^\s-][^\s]*|-[^\s]+))*`;
 
 /**
  * Command-start boundary shared by every destructive-writer rule. All writer
@@ -450,7 +465,10 @@ export function executableCommandSubstitutions(command: string): string[] {
 
     const commandSubstitution = char === '\x24' && command[index + 1] === '(';
     const processSubstitution = (char === '>' || char === '<') && command[index + 1] === '(';
-    if ((!commandSubstitution && !processSubstitution) || (commandSubstitution && command[index + 2] === '('))
+    if (
+      (!commandSubstitution && !processSubstitution) ||
+      (commandSubstitution && command[index + 2] === '(')
+    )
       continue;
     let depth = 1;
     let innerQuote: "'" | '"' | null = null;
@@ -777,20 +795,14 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     c = copy.exec(normalizedCommand);
   }
 
-  const tee = new RegExp(
-    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(tee)\s+([^;&|\r\n]+)`,
-    'gi',
-  );
+  const tee = new RegExp(String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(tee)\s+([^;&|\r\n]+)`, 'gi');
   let t: RegExpExecArray | null = tee.exec(normalizedCommand);
   while (t !== null) {
     if (!tokenIsQuoted(t, t[1] ?? '')) targets.push(...shellArgs(t[2] ?? ''));
     t = tee.exec(normalizedCommand);
   }
 
-  const dd = new RegExp(
-    String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(dd)\s+([^;&|\r\n]+)`,
-    'gi',
-  );
+  const dd = new RegExp(String.raw`${COMMAND_BOUNDARY}(?:sudo\s+)?(dd)\s+([^;&|\r\n]+)`, 'gi');
   let d: RegExpExecArray | null = dd.exec(normalizedCommand);
   while (d !== null) {
     if (!tokenIsQuoted(d, d[1] ?? '')) {

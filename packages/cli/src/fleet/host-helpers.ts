@@ -178,7 +178,19 @@ export function resolveSubagentCapabilities(
     ]).granted;
   }
   const allow = subCfg.tools;
-  if (!allow || allow.length === 0) return WIDE_SUBAGENT_CAPABILITIES;
+  // Absent and empty are NOT the same request, and conflating them inverted the
+  // default in the worst direction: on the director/kanban path `subCfg` is
+  // model output, so an injected turn emitting `tools: []` — which reads as
+  // "grant nothing" to every human — received WIDE_SUBAGENT_CAPABILITIES,
+  // including `shell.arbitrary` and `package.install`.
+  //
+  // Absent still means "no constraint expressed" and keeps the wide default.
+  // An explicit empty list now grants the floor: the subagent can report its
+  // result back (otherwise the dispatch silently hangs) and nothing else.
+  if (allow && allow.length === 0) {
+    return clampSubagentCapabilities([ToolCapabilities.COORDINATION_RESULT_SUBMIT]).granted;
+  }
+  if (!allow) return WIDE_SUBAGENT_CAPABILITIES;
   const caps = new Set<string>(WIDE_SUBAGENT_CAPABILITIES);
   for (const tool of toolsForAllow([...allow])) {
     for (const capability of tool.capabilities ?? []) caps.add(capability);

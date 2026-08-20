@@ -472,6 +472,7 @@
         "export { mergeCustomModelDefs } from './merge-custom-models.js';",
         "export { mergeModelsPayload } from './merge-models-payload.js';",
         "export { readBundledInstructionText, renderInstructionTemplate } from './instruction-file.js';",
+        "export { sanitizeTerminalPreview, sanitizeTerminalText } from './terminal-sanitize.js';",
         "export { sessionScopedPath } from './session-scoped-path.js';",
         "export { slugify } from './slug.js';",
         "export { toErrorMessage } from './error.js';",
@@ -1168,7 +1169,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11376
+      "sourceLines": 11377
     },
     {
       "directory": "defaults",
@@ -1189,7 +1190,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17799
+      "sourceLines": 17810
     },
     {
       "directory": "extension",
@@ -1266,7 +1267,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2233
+      "sourceLines": 2296
     },
     {
       "directory": "plugins",
@@ -1301,7 +1302,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 19,
-      "sourceLines": 6038
+      "sourceLines": 6143
     },
     {
       "directory": "session-catalog",
@@ -1315,14 +1316,14 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2323
+      "sourceLines": 2341
     },
     {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 87,
-      "sourceLines": 18683
+      "sourceLines": 18695
     },
     {
       "directory": "tasking",
@@ -1349,8 +1350,8 @@
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 66,
-      "sourceLines": 10504
+      "sourceFiles": 67,
+      "sourceLines": 10608
     },
     {
       "directory": "worktree",

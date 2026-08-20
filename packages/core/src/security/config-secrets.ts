@@ -72,8 +72,20 @@ function walk<T>(node: T, vault: SecretVault, transform: (s: string, key: string
  * Use a named field with `isSecret: false` annotation if you must opt out —
  * see `NON_SECRET_OVERRIDES` below.
  */
+/*
+ * Hyphenated spellings are included deliberately. `apiKey` and `api_key` were
+ * recognized but `api-key` was not — which is exactly the HTTP header spelling,
+ * and `ProviderConfig.headers` / `MCPServerConfig.headers` are a documented,
+ * first-class place to put credentials (`Authorization: Bearer <token>`). The
+ * config walker recurses into `headers` and copied non-matching keys through
+ * verbatim, so a file could show `apiKey: "enc:v1:…"` beside a plaintext
+ * `Authorization` header. The danger is not the file mode — it is that the
+ * config *looks* encrypted and is therefore treated as safe to back up, paste
+ * or sync. `cloud-config-sync/sanitize.ts` already documents that `headers`
+ * carries values; this predicate had not caught up.
+ */
 const SECRET_KEY_PATTERN =
-  /(?:apikey|api_key|authtoken|auth_token|bearer|secret|password|passwd|pwd|refreshtoken|refresh_token|sessionkey|session_key|access[_-]?token|private[_-]?key|token\b)/i;
+  /(?:api[-_]?key|auth[-_]?token|authorization|proxy-authorization|cookie|bearer|secret|password|passwd|pwd|refresh[-_]?token|session[-_]?key|access[_-]?token|private[_-]?key|token\b)/i;
 
 // Field names that contain the literal substring "key" but are not secrets.
 // Keep this list short; the substring rule itself is intentionally narrow.

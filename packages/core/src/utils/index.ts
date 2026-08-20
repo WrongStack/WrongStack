@@ -146,6 +146,7 @@ export {
   writeErr,
   writeOut,
 } from './term.js';
+export { sanitizeTerminalPreview, sanitizeTerminalText } from './terminal-sanitize.js';
 export * from './todos-format.js';
 export {
   computeMessageTokens,

@@ -277,9 +277,41 @@ export class DefaultPluginAPI implements PluginAPI {
     };
 
     const pr = init.providerRegistry;
+
+    // Provider types this plugin itself introduced. `ProviderRegistry` does not
+    // track ownership (its `register` is a documented replace, which `registerAll`
+    // and the CLI flags rely on), so ownership is tracked here at the untrusted
+    // boundary instead.
+    const providerTypesIOwn = new Set<string>();
+
+    // The tools surface has `assertCanMutateTool`; providers had no equivalent,
+    // even though the blast radius is larger. `pr.register` is a silent
+    // `Map.set`, so an external plugin could call
+    // `providers.register({type: 'anthropic', ...})` and put every prompt, every
+    // API key, and every model response — which in turn drives tool execution —
+    // through its own factory. Replacing a provider you did not introduce now
+    // requires being an official (first-party) plugin.
+    const assertCanMutateProvider = (type: string, op: string): void => {
+      if (isOfficial) return;
+      if (providerTypesIOwn.has(type)) return;
+      if (!pr.has(type)) return; // introducing a new type is fine
+      throw new Error(
+        `Plugin "${owner}" may not ${op} provider "${type}" — it was not registered by this plugin. ` +
+          `Replacing an existing provider would route prompts and credentials through plugin code.`,
+      );
+    };
+
     this.providers = {
-      register: (f: ProviderFactory) => pr.register(f),
-      unregister: (type: string) => pr.unregister(type),
+      register: (f: ProviderFactory) => {
+        assertCanMutateProvider(f.type, 'replace');
+        pr.register(f);
+        providerTypesIOwn.add(f.type);
+      },
+      unregister: (type: string) => {
+        assertCanMutateProvider(type, 'unregister');
+        providerTypesIOwn.delete(type);
+        return pr.unregister(type);
+      },
       create: (cfg) => pr.create(cfg as { type: string }),
       list: () => pr.list(),
     };
@@ -288,10 +320,41 @@ export class DefaultPluginAPI implements PluginAPI {
 
     const scr = init.slashCommandRegistry;
     const official = init.official === true;
+    // Commands this plugin registered. `register` is owner-tagged, but
+    // `unregister` takes only a name and deletes every key pointing at that
+    // command — so without this an external plugin could remove another
+    // plugin's command, or an official/built-in one, and silently substitute
+    // its own.
+    const commandsIOwn = new Set<string>();
+
     this.slashCommands = scr
       ? {
-          register: (cmd) => scr.register(cmd, owner, { official }),
-          unregister: (name) => scr.unregister(name),
+          register: (cmd) => {
+            scr.register(cmd, owner, { official });
+            // The registry indexes a plugin command under its bare name, its
+            // `owner:name` namespaced form, and every alias in both forms —
+            // and callers legitimately unregister by any of them. Record all
+            // of them so the ownership check below matches whichever is used.
+            for (const key of [cmd.name, ...(cmd.aliases ?? [])]) {
+              commandsIOwn.add(key);
+              commandsIOwn.add(`${owner}:${key}`);
+            }
+          },
+          unregister: (name) => {
+            if (!official && !commandsIOwn.has(name) && scr.get(name) !== undefined) {
+              throw new Error(
+                `Plugin "${owner}" may not unregister slash command "${name}" — it was not registered by this plugin.`,
+              );
+            }
+            for (const key of [
+              name,
+              `${owner}:${name}`,
+              name.startsWith(`${owner}:`) ? name.slice(owner.length + 1) : name,
+            ]) {
+              commandsIOwn.delete(key);
+            }
+            return scr.unregister(name);
+          },
           get: (name) => scr.get(name),
           list: () => scr.list(),
         }

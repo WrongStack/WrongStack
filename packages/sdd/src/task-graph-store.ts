@@ -122,8 +122,26 @@ export class TaskGraphStore implements TaskStore {
     await this.delete(id);
   }
 
+  /**
+   * Resolve a graph id to its file, refusing anything that escapes `baseDir`.
+   *
+   * `id` arrives straight from a WebSocket payload (`specs.taskStatus` casts it
+   * with no validation), and this used to be a bare `path.join` — so
+   * `../../../Users/me/secret` resolved outside the store and `load()` returned
+   * its contents to the caller. Mirrors the containment `kanban/storage.ts`
+   * already applies to board ids.
+   */
   private filePath(id: string): string {
-    return path.join(this.baseDir, `${id}.json`);
+    if (typeof id !== 'string' || id.length === 0 || id.length > 200 || /[\0]/.test(id)) {
+      throw new Error(`Invalid task-graph id: ${JSON.stringify(id)}`);
+    }
+    const dir = path.resolve(this.baseDir);
+    const resolved = path.resolve(dir, `${id}.json`);
+    const rel = path.relative(dir, resolved);
+    if (rel.startsWith('..') || path.isAbsolute(rel) || rel.includes(path.sep)) {
+      throw new Error(`Invalid task-graph id: ${JSON.stringify(id)}`);
+    }
+    return resolved;
   }
 
   private async readIndex(): Promise<TaskGraphIndex> {
