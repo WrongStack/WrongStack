@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-20T22:20:23.934Z
+**Generated:** 2026-08-20T22:28:56.885Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 33 |
 | Production source files | 3284 |
-| Production source lines | 783598 |
+| Production source lines | 783575 |
 | Test files | 2850 |
 | Workspace dependency edges | 106 |
-| Relative module edges | 10148 |
+| Relative module edges | 10151 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 16 |
@@ -21,10 +21,7 @@
 
 ## Verification result
 
-- packages/core/src/plugin/api.ts: new 887-line hotspot is not in architecture/hotspots.json
-- packages/core/src/security/secret-vault.ts: hotspot grew from 828 to 853 lines; review and update the ratchet in the same change
-- packages/plugins/src/path-guard/shell-targets.ts: hotspot grew from 1036 to 1048 lines; review and update the ratchet in the same change
-- packages/core/src/security/permission-policy.ts: "mergeTrustEntries" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

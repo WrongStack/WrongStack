@@ -486,6 +486,9 @@
       "buildSkillUpdateCommand",
       "resolveImportSourceDir"
     ],
+    "packages/core/src/security/permission-policy.ts": [
+      "mergeTrustEntries"
+    ],
     "packages/core/src/security/totp.ts": [
       "hotp"
     ],

@@ -80,7 +80,7 @@
     },
     "@wrongstack/core/kernel": {
       "files": 238,
-      "typeOnly": 125,
+      "typeOnly": 126,
       "runtimeOrMixed": 124
     },
     "@wrongstack/core/kernel/events.js": {
@@ -155,7 +155,7 @@
     },
     "@wrongstack/core/types": {
       "files": 974,
-      "typeOnly": 899,
+      "typeOnly": 900,
       "runtimeOrMixed": 242
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -5145,7 +5145,7 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/cli-execute-builder.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -10503,7 +10503,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/cli-execute-builder.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {

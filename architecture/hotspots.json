@@ -126,8 +126,12 @@
       "lines": 1021,
       "relativeImports": 154
     },
+    "packages/core/src/plugin/api.ts": {
+      "lines": 887,
+      "relativeImports": 21
+    },
     "packages/core/src/security/secret-vault.ts": {
-      "lines": 828,
+      "lines": 853,
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
@@ -179,7 +183,7 @@
       "relativeImports": 10
     },
     "packages/plugins/src/path-guard/shell-targets.ts": {
-      "lines": 1036,
+      "lines": 1048,
       "relativeImports": 1
     },
     "packages/plugins/src/prompt-firewall/index.ts": {
