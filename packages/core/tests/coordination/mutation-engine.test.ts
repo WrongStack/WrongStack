@@ -606,3 +606,102 @@ describe('planMutations — template & block-comment masking', () => {
     expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 5)).toBe(true);
   });
 });
+
+// ── Regex-literal masking ───────────────────────────────────────────
+// Review follow-up: the scanner had no regex-literal awareness, so a
+// regex containing braces inside a template interpolation corrupted the
+// interpolation depth counter — `/\{/` inflated depth (interpolation
+// never closed; template text mutated as code) and `/}/` popped it
+// early (real interpolation code masked). A regex whose body contained
+// `/*` could even mimic a block-comment opener and swallow following
+// lines. Regex literals are now skipped wholesale via a prev-token
+// heuristic: a `/` starts a regex when the previous significant token
+// cannot END an operand.
+
+describe('planMutations — regex-literal masking', () => {
+  it('keeps a { inside an interpolation regex from inflating the depth counter', () => {
+    // Old failure: `/\{/g` incremented depth, the interpolation's real
+    // closing `}` was consumed as an object-literal close, and the
+    // template tail ` > b` mutated as if it were code — while the real
+    // `return t;` after the template was swallowed by a phantom frame.
+    const source = [
+      'export function f(s: string): string {',
+      '  const t = `a ${s.replace(/\\{/g, "")} > b`;',
+      '  return t;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/r1.ts', source);
+    // No mutants from the template text tail (the ` > b` is not code).
+    expect(plan.filter((m) => m.line === 2)).toEqual([]);
+    // The scanner resynced: the return after the template is live code.
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('keeps a } inside an interpolation regex from closing the interpolation early', () => {
+    // Old failure: `/}/g` popped the interpolation frame at the regex's
+    // `}`, so the REAL code after it (`|| n > 1`) was masked as template
+    // text and its comparison never planned.
+    const source = [
+      'export function g(s: string, n: number): string {',
+      '  const u = `x ${s.replace(/}/g, "") || n > 1} + y`;',
+      '  return u;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/r2.ts', source);
+    // `n > 1` lives in the interpolation → its boundary mutant is planned.
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 2)).toBe(true);
+    // The template tail ` + y` is still masked — no arithmetic mutant.
+    expect(plan.filter((m) => m.kind === 'arith-plus-to-minus' && m.line === 2)).toEqual([]);
+  });
+
+  it('does not let a regex character class mimic a block-comment opener', () => {
+    // Old failure: `/[/*]{2}/g` — the `/*` inside the class opened a
+    // phantom block comment with no `*/` closer, masking every
+    // following line until one appeared.
+    const source = [
+      'export function h(s: string): boolean {',
+      '  const clean = s.replace(/[/*]{2}/g, "");',
+      '  return clean.length > 1;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/r3.ts', source);
+    // The regex body itself yields nothing…
+    expect(plan.filter((m) => m.line === 2)).toEqual([]);
+    // …and the following line stays plannable (no phantom comment).
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 3)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('consumes escaped slashes inside a regex literal and keeps trailing code live', () => {
+    // The `> c` sits INSIDE the regex body, after the escaped slash. An
+    // implementation that wrongly terminates the regex at `\/` would
+    // treat it as code and plan a relax-boundary mutant there — so this
+    // fixture actually detects premature termination. Only the `>` in
+    // `n > 2` (after the real closing slash) may be planned.
+    const source = [
+      'export function k(s: string, n: number): boolean {',
+      '  const ok = /a\\/b > c/.test(s) && n > 2;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/r4.ts', source);
+    const relax = plan.filter((m) => m.kind === 'relax-boundary' && m.line === 2);
+    expect(relax).toHaveLength(1); // only the `n > 2` boundary
+    expect(relax[0]!.column).toBe(38); // positioned after the real regex close
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+
+  it('treats a slash after an identifier as division, not a regex literal', () => {
+    // Over-masking division would swallow the rest of the line as a
+    // phantom regex and drop its mutants.
+    const source = [
+      'export function d(total: number): boolean {',
+      '  const ok = total / 2 > 1;',
+      '  return ok;',
+      '}',
+    ].join('\n');
+    const plan = planMutations('src/r5.ts', source);
+    expect(plan.some((m) => m.kind === 'relax-boundary' && m.line === 2)).toBe(true);
+    expect(plan.some((m) => m.kind === 'return-null' && m.line === 3)).toBe(true);
+  });
+});

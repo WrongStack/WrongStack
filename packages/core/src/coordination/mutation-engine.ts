@@ -197,9 +197,15 @@ export function applyMutation(
  * mask can never see them.
  *
  * Heuristic scanner, deliberately not a parser (same trade-off as the rest
- * of the engine): regex literals are not distinguished from division or
- * comments. Over-masking is safe for planning; the failure mode this exists
- * to prevent is planning mutants inside string, comment, or template text.
+ * of the engine). Regex literals ARE recognized heuristically — a `/`
+ * starts a regex when the previous significant token cannot end an operand
+ * (identifier vs operand-expecting keyword, `)`/`]`/`.`/quote-close vs
+ * operator) — so their braces, brackets and slashes neither corrupt the
+ * interpolation depth counter nor mimic comment openers. Genuinely
+ * ambiguous contexts (a `/` right after `}`) lean toward "regex" because
+ * over-masking is safe for planning; the failure mode this exists to
+ * prevent is planning mutants inside string, comment, or template text
+ * (or losing whole regions of real code to a corrupted frame stack).
  */
 function computeLineMasks(source: string): Array<Array<[number, number]>> {
   const lines = source.split('\n');
@@ -283,6 +289,21 @@ function computeLineMasks(source: string): Array<Array<[number, number]>> {
         i = close + 2;
         continue;
       }
+      // A lone `/` is a regex literal or division. It starts a regex
+      // when the previous significant token cannot END an operand
+      // (identifier vs operand-expecting keyword, `)`/`]`/`.`/quote
+      // close vs operator); a `/` right after `}` leans regex because
+      // over-masking is safe for planning. Skipping the literal
+      // wholesale keeps its braces, brackets and slashes away from the
+      // interpolation depth counter and the comment detectors.
+      if (c === '/') {
+        const prev = prevSignificantToken(line, i);
+        if (prev === null || !tokenCanEndOperand(prev)) {
+          closeRun(i);
+          i = skipRegexLiteral(line, i);
+          continue;
+        }
+      }
       if (c === '{') {
         top.depth++;
       } else if (c === '}') {
@@ -300,6 +321,95 @@ function computeLineMasks(source: string): Array<Array<[number, number]>> {
     closeRun(line.length);
   }
   return masks;
+}
+
+/** Keywords that EXPECT an operand after them — a `/` following one is a regex. */
+const KEYWORDS_BEFORE_REGEX = new Set([
+  'return',
+  'typeof',
+  'instanceof',
+  'in',
+  'of',
+  'new',
+  'delete',
+  'void',
+  'throw',
+  'case',
+  'do',
+  'else',
+  'yield',
+  'await',
+]);
+
+/**
+ * Last significant (non-whitespace) token before `end` on `line`.
+ * Returns the full identifier/keyword when the char is a word char,
+ * otherwise the single punctuation char; null when nothing precedes.
+ */
+function prevSignificantToken(line: string, end: number): string | null {
+  let j = end - 1;
+  while (j >= 0) {
+    const ch = line[j]!;
+    if (ch === ' ' || ch === '\t' || ch === '\r') {
+      j--;
+      continue;
+    }
+    if (/[\w$]/.test(ch)) {
+      let k = j;
+      while (k >= 0 && /[\w$]/.test(line[k]!)) k--;
+      return line.slice(k + 1, j + 1);
+    }
+    return ch;
+  }
+  return null;
+}
+
+/**
+ * Whether `token` can END an operand — if it can, a following `/` is
+ * division, not a regex literal. `}` is deliberately NOT here: it is
+ * ambiguous (block close vs object-literal close) and leaning "regex"
+ * only over-masks, which is safe for planning.
+ */
+function tokenCanEndOperand(token: string | null): boolean {
+  if (token === null) return false;
+  if (/^[\w$]+$/.test(token)) return !KEYWORDS_BEFORE_REGEX.has(token);
+  return token === ')' || token === ']' || token === '.' || token === '"' || token === "'" || token === '`';
+}
+
+/**
+ * Skip a regex literal starting at the opening `/` on `line`: consumes
+ * escapes, one character class `[...]`, the closing `/`, and any trailing
+ * flag letters. Stops at end of line when unterminated (masks the rest of
+ * the line — over-masking is safe for planning).
+ */
+function skipRegexLiteral(line: string, start: number): number {
+  let i = start + 1;
+  let inClass = false;
+  while (i < line.length) {
+    const ch = line[i]!;
+    if (ch === '\\') {
+      i += 2;
+      continue;
+    }
+    if (inClass) {
+      if (ch === ']') inClass = false;
+      i++;
+      continue;
+    }
+    if (ch === '[') {
+      inClass = true;
+      i++;
+      continue;
+    }
+    if (ch === '/') {
+      i++;
+      break;
+    }
+    if (ch === '\n' || ch === '\r') return start + 1; // not a regex — resync
+    i++;
+  }
+  while (i < line.length && /[a-z]/.test(line[i]!)) i++; // flags
+  return i;
 }
 
 /**
