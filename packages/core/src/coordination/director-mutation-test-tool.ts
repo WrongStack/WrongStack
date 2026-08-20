@@ -388,15 +388,35 @@ function buildChaosTask(
 }
 
 function buildStrengthenTask(survivors: MutantOutcome[], i: MutationTestInput, attempt: number): string {
-  return [
-    `Strengthen the tests so these SURVIVING mutants die (attempt ${attempt}).`,
-    '',
-    'Each survivor below was a deliberate sabotage of production code that the current suite did NOT catch:',
-    ...survivors.map((s) => `- ${s.id} | ${s.file}:${s.line} | ${s.kind}${s.evidence ? ` | ${s.evidence}` : ''}`),
-    '',
-    `Test command that must fail under each mutant: ${i.testCommand}`,
-    '',
-    'For each survivor add or tighten exactly one assertion that pins the sabotaged boundary/behavior. Do not change production code. Do not weaken other tests. Run the suite green on clean code before finishing.',
+  // The worklist carries two kinds of rows under retry semantics, and
+    // lying about either wastes the repair agent's effort: a skipped row
+    // was never demonstrated to survive, so it must NOT be presented as a
+    // confirmed gap. The repair agent should re-establish the sabotage
+    // before writing assertions for it.
+    const confirmed = survivors.filter((s) => s.status === 'survived');
+    const unverified = survivors.filter((s) => s.status === 'skipped');
+    const row = (s: MutantOutcome): string =>
+      `- ${s.id} | ${s.file}:${s.line} | ${s.kind}${s.evidence ? ` | ${s.evidence}` : ''}`;
+    return [
+      `Strengthen the tests so the mutants below die (attempt ${attempt}).`,
+      '',
+      ...(confirmed.length > 0
+        ? [
+            'CONFIRMED SURVIVORS — each was a deliberate sabotage of production code that the current suite did NOT catch:',
+            ...confirmed.map(row),
+            '',
+          ]
+        : []),
+      ...(unverified.length > 0
+        ? [
+            'UNVERIFIED — these mutations were never actually re-tested (the re-verify pass skipped or did not report them). Do NOT assume the suite misses them: first apply each mutation, run the tests, and confirm it really survives; if the tests already fail, report that instead of writing new assertions.',
+            ...unverified.map(row),
+            '',
+          ]
+        : []),
+      `Test command that must fail under each CONFIRMED mutant: ${i.testCommand}`,
+      '',
+      'For each CONFIRMED survivor add or tighten exactly one assertion that pins the sabotaged boundary/behavior. Do not change production code. Do not weaken other tests. Run the suite green on clean code before finishing.',
   ].join('\n');
 }
 

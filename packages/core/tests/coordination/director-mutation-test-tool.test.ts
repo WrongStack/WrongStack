@@ -577,6 +577,75 @@ describe('makeMutationTestTool', () => {
     expect((out['finalSurvivors'] as unknown[]).length).toBe(0);
   });
 
+  it('describes skipped/unverified mutants honestly in the strengthen task — never as confirmed survivors', async () => {
+    // Regression: buildStrengthenTask rendered EVERY worklist row as a
+    // "SURVIVING mutant ... the current suite did NOT catch" — including
+    // rows whose latest re-verify outcome was 'skipped' (never actually
+    // tested). The repair agent was then sent hunting for a test gap
+    // that was never demonstrated. Skipped rows must be presented as
+    // UNVERIFIED, with instructions to confirm the survival first.
+    let chaosPasses = 0;
+    const { director, assigns } = makeFakeDirector({
+      chaos: (task) => {
+        chaosPasses++;
+        const first = task.mutants[0]!;
+        if (chaosPasses === 1) {
+          // Pass 1: first mutant survives, the other is killed.
+          return JSON.stringify({
+            mutants: task.mutants.map((m) => ({
+              ...m,
+              status: m.id === first.id ? ('survived' as const) : ('killed' as const),
+            })),
+          });
+        }
+        if (chaosPasses === 2) {
+          // First re-verify: empty report — the survivor is unreported
+          // (→ skipped), so round 2's strengthen task sees it as
+          // unverified, not confirmed.
+          return JSON.stringify({ mutants: [] });
+        }
+        // Second re-verify: the retry kills it — loop ends clean.
+        return JSON.stringify({ mutants: [{ ...first, status: 'killed' as const }] });
+      },
+      strengthen: () => 'strengthened',
+    });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const out = (await tool.execute(
+      {
+        targets: [TARGET_FILE],
+        testCommand: 'pnpm test',
+        maxPerFile: 2,
+        repairSubagentId: 'repair-sub',
+      },
+      { projectRoot: process.cwd() } as never,
+      { signal: new AbortController().signal },
+    )) as Record<string, unknown>;
+
+    const strengthenDescs = assigns
+      .filter((a) => a.subagentId === 'repair-sub')
+      .map((a) => a.description);
+    // Two strengthen rounds: round 1 for the confirmed survivor, round 2
+    // retrying the skipped/unverified one.
+    expect(strengthenDescs).toHaveLength(2);
+
+    // Round 1: pass-1 evidence backs "confirmed survivor" — that wording
+    // is honest here.
+    expect(strengthenDescs[0]).toContain('CONFIRMED SURVIVORS');
+    expect(strengthenDescs[0]).not.toContain('UNVERIFIED');
+
+    // Round 2: the same mutant's latest outcome is 'skipped' — it must
+    // NOT be presented as a confirmed survivor, and the description must
+    // still carry its row so the repair agent can re-establish it.
+    expect(strengthenDescs[1]).toContain('UNVERIFIED');
+    expect(strengthenDescs[1]).not.toContain('CONFIRMED SURVIVORS');
+    expect(/^- [\w-]+#\d+#\d+ \| /m.test(strengthenDescs[1]!)).toBe(true);
+
+    // Sanity: the retry still resolves — once the second re-verify kills
+    // the mutant, the pass ends clean.
+    expect(out['verdict']).toBe('pass');
+    expect(out['nextAction']).toBe('accept');
+  });
+
   it('breaks the strengthen loop when the repair task fails', async () => {
     // Use a custom Director port so we can return a literal `'failed'`
     // status for the repair subagent — the shared `makeFakeDirector`
