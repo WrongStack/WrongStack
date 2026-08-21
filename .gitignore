@@ -82,6 +82,7 @@ AGENTS.md
 .claude/
 .editorconfig
 .antigravitycli/
+.commandcode/
 
 # ---------------------------------------------------------------------------
 # Repo-root scratch / debug / test-output files.

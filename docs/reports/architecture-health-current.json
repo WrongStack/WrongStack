@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-20T22:40:31.346Z",
+  "generatedAt": "2026-08-21T08:55:18.446Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 33,
     "sourceFiles": 3284,
-    "testFiles": 2850,
-    "sourceLines": 783622,
+    "testFiles": 2851,
+    "sourceLines": 783981,
     "workspaceEdges": 106,
-    "moduleEdges": 10150,
+    "moduleEdges": 10152,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
@@ -141,7 +141,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 456,
-      "testFiles": 424,
+      "testFiles": 425,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +177,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 424
+          "testFiles": 425
         }
       ]
     },
@@ -3350,6 +3350,12 @@
       },
       {
         "file": "packages/cli/tests/slash-commands/commit.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/slash-commands/dev.test.ts",
         "projects": [
           "root-node"
         ]
