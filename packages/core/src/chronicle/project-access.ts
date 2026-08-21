@@ -242,6 +242,12 @@ const EMPTY_JOURNAL_STATS: ChronicleJournalStats = {
   partitionRolls: 0,
 };
 
+/**
+ * Days of journal to keep open. Yesterday stays available because events can
+ * still arrive for it right after midnight; anything older can only accumulate.
+ */
+const MAX_OPEN_JOURNAL_DAYS = 2;
+
 class InlineChronicleProjectAccess implements ChronicleProjectAccess {
   readonly mode = 'inline' as const;
   private readonly journals = new Map<string, ChronicleJournal>();
@@ -374,6 +380,30 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
     return path.join(this.options.projectDir, 'chronicle');
   }
 
+  /**
+   * Drop journals for days we will not write to again.
+   *
+   * Mirrors the daemon's `pruneJournals` in `project-server.ts`: without a cap
+   * an inline access object that lives across midnight kept one open
+   * `ChronicleJournal` (with its write buffer and file handle) per day, forever.
+   */
+  private pruneJournals(currentDay: string): void {
+    if (this.journals.size <= MAX_OPEN_JOURNAL_DAYS) return;
+    const keep = new Set(
+      [...this.journals.keys()].sort().reverse().slice(0, MAX_OPEN_JOURNAL_DAYS),
+    );
+    keep.add(currentDay);
+    for (const [day, journal] of this.journals) {
+      if (keep.has(day)) continue;
+      this.journals.delete(day);
+      // Flush what is still buffered before letting it go. Detached, so a slow
+      // disk cannot stall an append — but never unhandled.
+      void journal.flush().catch(() => {
+        /* best-effort: this day is being dropped either way */
+      });
+    }
+  }
+
   private journalForToday(): ChronicleJournal {
     const now = new Date();
     const day = now.toISOString().slice(0, 10);
@@ -390,6 +420,7 @@ class InlineChronicleProjectAccess implements ChronicleProjectAccess {
         retentionDays: this.options.retentionDays,
       });
       this.journals.set(day, journal);
+      this.pruneJournals(day);
     }
     return journal;
   }

@@ -68,6 +68,8 @@ export class CollaborationWebSocketHandler {
    */
   private readonly lastStateFingerprints = new Map<string, string>();
   private readonly offs: Array<() => void> = [];
+  /** Per-socket disconnect removers so dispose() can detach still-live sockets. */
+  private readonly socketOffs = new Map<WebSocket, () => void>();
 
   constructor(
     private readonly events: EventBus,
@@ -114,6 +116,16 @@ export class CollaborationWebSocketHandler {
     this.clients.add(ws);
     this.ensureBroadcast();
     const onDisconnect = () => this.handleDisconnect(ws);
+    const detach = (): void => {
+      if (typeof ws.off === 'function') {
+        ws.off('close', onDisconnect);
+        ws.off('error', onDisconnect);
+      } else if (typeof ws.removeListener === 'function') {
+        ws.removeListener('close', onDisconnect);
+        ws.removeListener('error', onDisconnect);
+      }
+      this.socketOffs.delete(ws);
+    };
     if (typeof ws.once === 'function') {
       ws.once('close', onDisconnect);
       ws.once('error', onDisconnect);
@@ -121,6 +133,7 @@ export class CollaborationWebSocketHandler {
       ws.on('close', onDisconnect);
       ws.on('error', onDisconnect);
     }
+    this.socketOffs.set(ws, detach);
   }
 
   /** True while at least one collaboration participant is attached to a session. */
@@ -132,6 +145,11 @@ export class CollaborationWebSocketHandler {
     for (const off of this.offs) off();
     this.offs.length = 0;
     this.stopBroadcast();
+    // Detach close/error listeners from still-live sockets before clearing
+    // the set: otherwise each socket retains this disposed handler closure
+    // (and its bus references) until the socket itself closes.
+    for (const detach of this.socketOffs.values()) detach();
+    this.socketOffs.clear();
     this.clients.clear();
     this.bySession.clear();
   }
@@ -276,6 +294,10 @@ export class CollaborationWebSocketHandler {
 
   private handleDisconnect(ws: WebSocket): void {
     this.clients.delete(ws);
+    // Invoke the remover, not just drop it: an explicit `collab.leave` keeps
+    // the socket open, so its close/error listeners must come off now —
+    // otherwise they stack on re-add and dispose() can no longer find them.
+    this.socketOffs.get(ws)?.();
     // Remove from every session bucket the WS may have joined (a single
     // WS is in at most one bucket in Phase 1, but the loop is cheap and
     // future-proofs multi-session observers).
@@ -310,7 +332,11 @@ export class CollaborationWebSocketHandler {
         }
       }
     }
-    if (this.bySession.size === 0) this.stopBroadcast();
+    // Stop once there is nothing left to broadcast to — either no session
+    // has participants or no socket remains attached at all. Without the
+    // second condition an attached observer that never joined kept this
+    // interval alive forever.
+    if (this.bySession.size === 0 || this.clients.size === 0) this.stopBroadcast();
   }
 
   // ── Annotation flow (Phase 2) ───────────────────────────────────────────
