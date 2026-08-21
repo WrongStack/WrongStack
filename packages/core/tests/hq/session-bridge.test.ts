@@ -85,6 +85,9 @@ describe('session telemetry bridge', () => {
       projectName: 'demo',
       globalRoot,
       startedAt: '2026-06-23T11:00:00Z',
+      // Pin the clock just after the fixture's last activity so the agent is
+      // fresh — this test pins pass-through of initialAgents, not staleness.
+      now: () => '2026-06-23T11:01:05Z',
       snapshotIntervalMs: 10_000,
       transcriptIntervalMs: 10_000,
       initialAgents: [
@@ -114,6 +117,75 @@ describe('session telemetry bridge', () => {
           ctxPct: 33,
           partialText: 'working',
         },
+      ],
+    });
+
+    dispose();
+  });
+
+  it('downgrades stale busy agent statuses to idle in published snapshots', async () => {
+    // Ghost-agent regression: a live publisher keeps republishing its
+    // last-known agent list (keepalive tick, initialAgents after a resume).
+    // If the terminal agents_updated event for a finished/crashed agent was
+    // never observed, its status stayed `running` forever and the HQ topology
+    // rendered it as active even though nothing was running.
+    const sessionId = '2026-06-23/11-00-00Z_test_ghost';
+    await writeSessionLog(sessionId, []);
+
+    const calls: Calls = { snapshots: [], transcripts: [], ended: [] };
+    const dispose = startSessionTelemetryBridge({
+      publisher: fakePublisher(calls),
+      sessionId,
+      projectRoot,
+      projectName: 'demo',
+      globalRoot,
+      startedAt: '2026-06-23T11:00:00Z',
+      now: () => '2026-06-23T11:10:00Z', // 9 min after any fixture activity
+      snapshotIntervalMs: 10_000,
+      transcriptIntervalMs: 10_000,
+      initialAgents: [
+        {
+          id: 'leader',
+          name: 'leader',
+          status: 'running',
+          iterations: 5,
+          toolCalls: 12,
+          lastActivityAt: '2026-06-23T11:01:00Z', // stale: > 5 min before now
+        },
+        {
+          id: 'worker-1',
+          name: 'worker-1',
+          status: 'streaming',
+          iterations: 1,
+          toolCalls: 0,
+          lastActivityAt: '2026-06-23T11:09:30Z', // fresh: within the window
+        },
+        {
+          id: 'worker-2',
+          name: 'worker-2',
+          status: 'waiting_user', // idle-ish BY DESIGN — never downgraded
+          iterations: 2,
+          toolCalls: 3,
+          lastActivityAt: '2026-06-23T11:00:30Z', // stale
+        },
+        {
+          id: 'worker-3',
+          name: 'worker-3',
+          status: 'error', // must stay visible — never downgraded
+          iterations: 1,
+          toolCalls: 1,
+          lastActivityAt: '2026-06-23T11:00:20Z', // stale
+        },
+      ],
+    });
+
+    expect(calls.snapshots[0]).toMatchObject({
+      status: 'active', // worker-1 is still genuinely busy
+      agents: [
+        { id: 'leader', status: 'idle' }, // stale busy → downgraded
+        { id: 'worker-1', status: 'streaming' }, // fresh → untouched
+        { id: 'worker-2', status: 'waiting_user' }, // preserved
+        { id: 'worker-3', status: 'error' }, // preserved
       ],
     });
 

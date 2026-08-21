@@ -124,6 +124,32 @@ function deriveSessionStatus(agents: readonly HqSessionAgentSummary[]): HqSessio
 }
 
 /**
+ * Downgrade "busy" statuses whose last activity is older than the HQ stale
+ * window to `idle`. A live publisher keeps republishing its last-known agent
+ * list (keepalive tick, `initialAgents` after a session resume) — if the
+ * terminal `agents_updated` event for a finished/crashed agent was never
+ * observed, its status would otherwise stay `running` forever and the HQ
+ * topology would render a ghost agent as active (F3/fleet_status read live
+ * coordinator state, so they correctly show nothing). No activity for a full
+ * stale window is by definition not running.
+ */
+function downgradeStaleAgentStatuses(
+  agents: readonly HqSessionAgentSummary[],
+  nowMs: number,
+): HqSessionAgentSummary[] {
+  const cutoff = nowMs - HQ_STALE_SNAPSHOT_WINDOW_MS;
+  return agents.map((agent) => {
+    // Only execution states can become ghosts. `waiting_user` is idle-ish
+    // BY DESIGN (a human prompt is expected) and `error` must stay visible,
+    // so neither is eligible for expiry.
+    if (agent.status !== 'running' && agent.status !== 'streaming') return agent;
+    const lastActivityAt = Date.parse(agent.lastActivityAt);
+    if (!Number.isFinite(lastActivityAt) || lastActivityAt >= cutoff) return agent;
+    return { ...agent, status: 'idle' as const };
+  });
+}
+
+/**
  * Start streaming this surface's session telemetry to HQ. Returns a disposer
  * that stops both streams and publishes a final `session.ended`.
  */
@@ -150,6 +176,10 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   let disposed = false;
 
   function buildSnapshot(): HqSessionSnapshotPayload {
+    // Snapshot-build time is the single choke point both the keepalive tick
+    // and bus updates flow through — downgrading here means a stale `running`
+    // corrects itself on the next publish without waiting for a bus event.
+    const effectiveAgents = downgradeStaleAgentStatuses(agents, Date.parse(now()));
     return {
       sessionId: opts.sessionId,
       clientKind: identity.kind,
@@ -157,11 +187,11 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
       projectId: project.projectId,
       projectName: opts.projectName ?? project.projectName,
       projectRoot: opts.projectRoot,
-      status: deriveSessionStatus(agents),
+      status: deriveSessionStatus(effectiveAgents),
       startedAt,
       lastActivityAt,
-      agentCount: agents.length,
-      agents,
+      agentCount: effectiveAgents.length,
+      agents: effectiveAgents,
       ...(identity.hostname !== undefined ? { hostname: identity.hostname } : {}),
       ...(identity.pid !== undefined ? { pid: identity.pid } : {}),
       ...(opts.gitBranch !== undefined ? { gitBranch: opts.gitBranch } : {}),
