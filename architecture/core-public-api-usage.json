@@ -156,7 +156,7 @@
     "@wrongstack/core/types": {
       "files": 974,
       "typeOnly": 900,
-      "runtimeOrMixed": 242
+      "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -9970,7 +9970,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/dev.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
