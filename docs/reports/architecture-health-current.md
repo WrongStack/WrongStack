@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-21T08:55:18.446Z
+**Generated:** 2026-08-21T11:29:10.027Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 33 |
 | Production source files | 3284 |
-| Production source lines | 783981 |
-| Test files | 2851 |
+| Production source lines | 784331 |
+| Test files | 2852 |
 | Workspace dependency edges | 106 |
 | Relative module edges | 10152 |
 | Non-command slash imports | 0 |
@@ -56,7 +56,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 187 | 192 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
 | @wrongstack/tui | 331 | 317 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
-| @wrongstack/webui | 459 | 335 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
+| @wrongstack/webui | 459 | 336 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-server |
 | @wrongstack/webui-server | 190 | 152 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory |
 | wrongstack | 1 | 0 | @wrongstack/cli |
@@ -91,6 +91,7 @@ None.
 | Lines | File |
 |---:|---|
 | 1108 | `packages/tui/src/components/sidebar-content.tsx` |
+| 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1050 | `packages/sage/src/sqlite-store.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
@@ -127,7 +128,6 @@ None.
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 970 | `packages/kanban/src/types.ts` |
 | 970 | `packages/webui-server/src/server/collaboration-ws-handler.ts` |
-| 965 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
@@ -143,7 +143,7 @@ None.
 
 ## Exports only tests reference
 
-- 807 runtime exports are referenced by tests and by no other production file.
+- 808 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

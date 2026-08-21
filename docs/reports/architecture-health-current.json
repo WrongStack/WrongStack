@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-21T08:55:18.446Z",
+  "generatedAt": "2026-08-21T11:29:10.027Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 33,
     "sourceFiles": 3284,
-    "testFiles": 2851,
-    "sourceLines": 783981,
+    "testFiles": 2852,
+    "sourceLines": 784331,
     "workspaceEdges": 106,
     "moduleEdges": 10152,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 807
+    "testOnlyExports": 808
   },
   "errors": [],
   "packageCycles": [],
@@ -772,7 +772,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 459,
-      "testFiles": 335,
+      "testFiles": 336,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -795,7 +795,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 335
+          "testFiles": 336
         }
       ]
     },
@@ -16231,6 +16231,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/agent-office-lane.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/agent-office-model.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18712,7 +18718,7 @@
     },
     {
       "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 965,
+      "lines": 1089,
       "relativeImports": 5
     },
     {
@@ -18886,6 +18892,11 @@
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "lines": 1108,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/webui/src/components/AgentOfficeView.tsx",
+      "lines": 1089,
+      "relativeImports": 5
     },
     {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
@@ -19066,11 +19077,6 @@
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
       "lines": 970,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/webui/src/components/AgentOfficeView.tsx",
-      "lines": 965,
-      "relativeImports": 5
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
@@ -21853,6 +21859,10 @@
     {
       "file": "packages/webui/src/components/activity-bar/index.tsx",
       "name": "splitDesktopActivityBarItems"
+    },
+    {
+      "file": "packages/webui/src/components/AgentOfficeView.tsx",
+      "name": "AgentLane"
     },
     {
       "file": "packages/webui/src/components/AgentsPage.tsx",
