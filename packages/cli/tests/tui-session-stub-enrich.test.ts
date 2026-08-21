@@ -89,7 +89,11 @@ describe('enrichStubSummaries', () => {
 
   it('rejects session ids that escape the sessions directory', () => {
     expect(containedJsonlPath(dir, '../../../etc/passwd')).toBeUndefined();
-    expect(containedJsonlPath(dir, '/absolute/path')).toBeUndefined();
+    // An absolute-id escape on the *host* OS: path.resolve treats `/x` as
+    // absolute on POSIX and as a drive-rooted path on Windows; either way it
+    // must not resolve inside the sessions directory.
+    const hostAbsolute = path.resolve(path.sep, 'etc', 'passwd');
+    expect(containedJsonlPath(dir, hostAbsolute)).toBeUndefined();
     // Well-formed shard-relative ids still resolve.
     expect(containedJsonlPath(dir, '2026-08-21/sess_OK')).toMatch(/sess_OK\.jsonl$/);
   });
@@ -101,12 +105,14 @@ describe('enrichStubSummaries', () => {
   });
 
   it('strips control characters and ANSI escapes from derived title/preview', async () => {
+    // Single event with embedded C0 + ANSI so the title reflects the stripped
+    // event content faithfully; a second event drives the preview path.
     await writeJsonl('2026-08-21/sess_CTRL', [
-      writeUserInput('2026-08-21T17:00:45Z', '\u0000\u001b[31mhello\u001b[0m\u0007 world\u001b[1m text\u001b[0m'),
+      writeUserInput('2026-08-21T17:00:45Z', '\u0000\u001b[31mhello\u001b[0m\u0007 world'),
       writeUserInput('2026-08-21T17:00:50Z', 'follow-up \u0002text'),
     ]);
     const [out] = await enrichStubSummaries([stubSummary('2026-08-21/sess_CTRL')], dir);
-    expect(out.title).toBe('hello world text');
+    expect(out.title).toBe('hello world');
     expect(out.lastUserMessage).toBe('follow-up text');
   });
 
