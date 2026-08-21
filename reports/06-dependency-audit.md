@@ -61,7 +61,17 @@ Whether `dependency-vulnerability-gate` is wired into the pipeline — **verifie
 
 1. ~~**Fail-open on execution errors**~~ **Fixed (2026-08-21)**: when `runAudit` returns `null` (timeout or unparseable output), the hook now increments `audit_errors`, logs a warning (`api.log.warn`), and injects `additionalContext` telling the operator the dependencies were NOT vetted — see `packages/plugins/src/dependency-vulnerability-gate/index.ts:388-403` and the timeout/unparseable-output tests in `packages/plugins/tests/dependency-vulnerability-gate.test.ts` (17/17 passing).
 2. **Post-hoc blocking**: the hook is `PostToolUse`, so with `block: true` the install has already completed when the block decision fires — it stops the turn, not the install.
-3. `severityThreshold: 'high'` (default) lets `moderate` findings pass silently; lower it to `moderate` if the workspace risk profile warrants it.
+3. ~~`severityThreshold: 'high'` (default) lets `moderate` findings pass silently~~ **Resolved (2026-08-21)**: threshold stays `high`, but sub-threshold findings are no longer silent — the hook now injects an informational `additionalContext` (max severity + counts) whenever the audit finds any vulnerabilities below the threshold, and stays silent only on a fully clean audit. See `packages/plugins/src/dependency-vulnerability-gate/index.ts:415-430` and the "does not block moderate severity when threshold is high" / "stays fully silent when audit is clean" tests (18/18 passing).
+
+## Design decisions (2026-08-21)
+
+**1. Enable `dependency-vulnerability-gate` by default? — No (stays opt-in).**
+
+Rationale: the repo's plugin governance is deliberately risk-based — the audit catalog declares this plugin `risk: 'high'` / `defaultState: 'inactive'` (`packages/plugins/src/audit/index.ts:347-353`) because it runs synchronous audits (up to 120s timeout) on the PostToolUse path and can block turns. Making a blocking, latency-adding hook default-active would contradict the governance model, require catalog/wiring-test/docs changes, and put default security coverage in the wrong layer. Default coverage belongs in CI (a scheduled/lockfile-triggered `pnpm audit --audit-level high` gate); the in-session hook remains available via `wstack plugin enable dependency-vulnerability-gate` for operators who want install-time enforcement.
+
+**2. Lower `severityThreshold` from `high` to `moderate`? — No (stays `high`), with sub-threshold visibility added instead.**
+
+Rationale: with `block: true`, a `moderate` threshold would block frequent agent-driven installs on noisy advisories that often cannot be fixed without major version upgrades — friction that trains operators to disable the gate. The genuine defect was that sub-threshold findings were *fully silent*; that is now fixed (informational context injected, nothing blocked). If the workspace later wants stricter enforcement, the supported path is config: `extensions["dependency-vulnerability-gate"].severityThreshold = "moderate"` — no code change needed.
 
 No action is required for the current tree.
 
