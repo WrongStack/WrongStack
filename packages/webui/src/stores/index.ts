@@ -46,7 +46,12 @@ export type { MailboxAgent, MailboxMessage } from './mailbox-store.js';
 export { selectUnreadCount, useMailboxStore } from './mailbox-store.js';
 export type { ClientCounts, CurrentSessionStats, MailActivity } from './monitor-store.js';
 export { useMonitorStore } from './monitor-store.js';
-export { type BackgroundStyle, useOfficeMapStore } from './office-map-store.js';
+export {
+  type BackgroundStyle,
+  DEFAULT_WAIT_THRESHOLD_MS,
+  useOfficeMapStore,
+  WAIT_THRESHOLD_PRESETS,
+} from './office-map-store.js';
 export {
   type ProviderHealthEntry,
   type ProviderHealthState,

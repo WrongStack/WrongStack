@@ -8,6 +8,7 @@ import {
   agentVisualRole,
   clientOfficeStats,
   deskPersonality,
+  deskWaitState,
   fallbackLogCalls,
   formatUptime,
   mergeCalls,
@@ -597,5 +598,110 @@ describe('mergeMail', () => {
     expect(out).toHaveLength(12);
     expect(out[0].id).toBe('m19');
     expect(out.at(-1)?.id).toBe('m8');
+  });
+});
+
+// ── deskWaitState ───────────────────────────────────────────────────────────
+
+describe('deskWaitState', () => {
+  const now = 1_000_000;
+
+  it('is not waiting when the agent is idle/offline', () => {
+    const state = deskWaitState(
+      model({ agent: agent({ status: 'idle' }), history: [call({ completedAt: now - 500_000 })] }),
+      now,
+    );
+    expect(state.waiting).toBe(false);
+  });
+
+  it('is not waiting while a tool call is running', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active' }),
+        current: call({ id: 'running', startedAt: now - 500_000, completedAt: undefined }),
+      }),
+      now,
+    );
+    expect(state.waiting).toBe(false);
+  });
+
+  it('is not waiting before the threshold elapses', () => {
+    const state = deskWaitState(
+      model({ agent: agent({ status: 'active' }), history: [call({ completedAt: now - 10_000 })] }),
+      now,
+    );
+    expect(state.waiting).toBe(false);
+  });
+
+  it('reports telemetry when an active agent has no calls and no todos', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active', toolCalls: 0 }),
+        client: client({ todos: undefined }),
+      }),
+      now,
+    );
+    expect(state.waiting).toBe(true);
+    expect(state.reason).toBe('telemetry');
+    expect(state.idleMs).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('reports mail-reply when the newest outgoing mail is unanswered', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active', toolCalls: 3 }),
+        client: client({ todos: [{ text: 'x', status: 'pending' }] }),
+        history: [call({ completedAt: now - 400_000 })],
+        mail: [
+          mail({ id: 'out', direction: 'outgoing', timestampMs: now - 300_000, subject: 'review?' }),
+          mail({ id: 'in', direction: 'incoming', timestampMs: now - 350_000 }),
+        ],
+      }),
+      now,
+    );
+    expect(state.waiting).toBe(true);
+    expect(state.reason).toBe('mail-reply');
+    expect(state.anchor).toBe('review?');
+  });
+
+  it('falls back to no-work when there is nothing actionable to wait on', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active', toolCalls: 5, currentTask: 'refactor X' }),
+        client: client({ todos: [{ text: 'x', status: 'in_progress' }] }),
+        history: [call({ completedAt: now - 400_000, summary: 'edit model.ts' })],
+      }),
+      now,
+    );
+    expect(state.waiting).toBe(true);
+    expect(state.reason).toBe('no-work');
+    expect(state.anchor).toBe('refactor X');
+  });
+
+  it('uses the last history summary as anchor when no current task exists', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active', toolCalls: 2, currentTask: '' }),
+        client: client({ todos: [{ text: 'x', status: 'in_progress' }] }),
+        history: [call({ completedAt: now - 400_000, summary: 'last thing' })],
+      }),
+      now,
+    );
+    expect(state.reason).toBe('no-work');
+    expect(state.anchor).toBe('last thing');
+  });
+
+  it('treats incoming mail as activity that resets the idle clock', () => {
+    const state = deskWaitState(
+      model({
+        agent: agent({ status: 'active', toolCalls: 2 }),
+        client: client({ todos: [{ text: 'x', status: 'pending' }] }),
+        history: [call({ completedAt: now - 400_000 })],
+        mail: [mail({ direction: 'incoming', timestampMs: now - 5_000 })],
+      }),
+      now,
+    );
+    expect(state.waiting).toBe(false);
+    expect(state.idleMs).toBe(5_000);
   });
 });

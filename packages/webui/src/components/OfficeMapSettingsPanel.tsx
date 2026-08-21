@@ -7,11 +7,16 @@
  * useOfficeMapStore and the canvas reacts to them.
  */
 
-import { Activity, Bot, Cpu, Users, Zap } from 'lucide-react';
+import { Activity, Bot, Clock3, Cpu, Users, Zap } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
-import { type BackgroundStyle, useMonitorStore, useOfficeMapStore } from '@/stores';
+import {
+  type BackgroundStyle,
+  useMonitorStore,
+  useOfficeMapStore,
+  WAIT_THRESHOLD_PRESETS,
+} from '@/stores';
 
 function Toggle({
   label,
@@ -64,12 +69,14 @@ export function OfficeMapSettingsPanel() {
     showControls,
     animateEdges,
     background,
+    waitThresholdMs,
     setShowHud,
     setShowLegend,
     setShowMinimap,
     setShowControls,
     setAnimateEdges,
     setBackground,
+    setWaitThresholdMs,
   } = useOfficeMapStore(
     useShallow((s) => ({
       showHud: s.showHud,
@@ -78,12 +85,14 @@ export function OfficeMapSettingsPanel() {
       showControls: s.showControls,
       animateEdges: s.animateEdges,
       background: s.background,
+      waitThresholdMs: s.waitThresholdMs,
       setShowHud: s.setShowHud,
       setShowLegend: s.setShowLegend,
       setShowMinimap: s.setShowMinimap,
       setShowControls: s.setShowControls,
       setAnimateEdges: s.setAnimateEdges,
       setBackground: s.setBackground,
+      setWaitThresholdMs: s.setWaitThresholdMs,
     })),
   );
 
@@ -185,6 +194,39 @@ export function OfficeMapSettingsPanel() {
           ))}
         </div>
       </div>
+      {/* Waiting-desk threshold */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-1.5 px-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <Clock3 className="h-3 w-3" />
+          {t('activity:officeMap.waitThresholdHeading')}
+        </div>
+        <p className="mb-1.5 px-2 text-[11px] text-muted-foreground">
+          {t('activity:officeMap.waitThresholdHint')}
+        </p>
+        <div className="flex flex-wrap gap-1 px-2">
+          {WAIT_THRESHOLD_PRESETS.map((ms) => (
+            <button
+              key={ms}
+              type="button"
+              onClick={() => setWaitThresholdMs(ms)}
+              className={cn(
+                'px-2 py-1 text-xs rounded transition-colors font-mono',
+                waitThresholdMs === ms
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent',
+              )}
+            >
+              {formatThreshold(ms)}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
+}
+
+/** `30_000` → "30s", `120_000` → "2m", `600_000` → "10m". */
+function formatThreshold(ms: number): string {
+  const seconds = ms / 1000;
+  return seconds % 60 === 0 && seconds >= 60 ? `${seconds / 60}m` : `${seconds}s`;
 }

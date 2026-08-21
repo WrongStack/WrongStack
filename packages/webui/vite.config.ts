@@ -82,6 +82,12 @@ export default defineConfig({
     },
   },
   build: {
+    // Monaco (ts.worker alone is ~4.4 MB minified) and the other heavy
+    // lazy-loaded chunks trip Vite's default 500 kB warning. All of these
+    // are intentionally split via manualChunks below and only fetched when
+    // the corresponding view is opened (React.lazy), so the raw size is
+    // expected — raise the threshold instead of silencing per-chunk.
+    chunkSizeWarningLimit: 4500,
     rollupOptions: {
       output: {
         // Split heavy libraries into separate cacheable chunks. These pair

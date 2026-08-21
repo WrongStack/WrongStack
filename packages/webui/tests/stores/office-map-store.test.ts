@@ -27,6 +27,30 @@ describe('office map store', () => {
     expect(store()).toMatchObject(DEFAULTS);
   });
 
+  it('defaults the waiting threshold to 2 minutes', () => {
+    expect(store().waitThresholdMs).toBe(120_000);
+  });
+
+  it('setWaitThresholdMs accepts positive finite values', () => {
+    store().setWaitThresholdMs(30_000);
+    expect(store().waitThresholdMs).toBe(30_000);
+    store().setWaitThresholdMs(600_000);
+    expect(store().waitThresholdMs).toBe(600_000);
+  });
+
+  it.each([0, -5_000, Number.NaN, Number.POSITIVE_INFINITY])(
+    'setWaitThresholdMs rejects %s and falls back to the default',
+    (bad) => {
+      store().setWaitThresholdMs(bad);
+      expect(store().waitThresholdMs).toBe(120_000);
+    },
+  );
+
+  it('setWaitThresholdMs rounds fractional values to whole milliseconds', () => {
+    store().setWaitThresholdMs(45_500.7);
+    expect(store().waitThresholdMs).toBe(45_501);
+  });
+
   it('persists under a stable storage key so preferences survive a reload', () => {
     expect(useOfficeMapStore.persist.getOptions().name).toBe('wrongstack-officemap');
   });

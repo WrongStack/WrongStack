@@ -30,6 +30,8 @@ interface OfficeMapState {
   showFeed: boolean;
   /** Background grid style. */
   background: BackgroundStyle;
+  /** Idle time (ms) before an active desk is flagged as waiting. */
+  waitThresholdMs: number;
 
   setViewMode: (v: OfficeViewMode) => void;
   setShowHud: (v: boolean) => void;
@@ -39,7 +41,13 @@ interface OfficeMapState {
   setAnimateEdges: (v: boolean) => void;
   setShowFeed: (v: boolean) => void;
   setBackground: (v: BackgroundStyle) => void;
+  setWaitThresholdMs: (v: number) => void;
 }
+
+/** Presets offered in the settings panel; values in ms. */
+export const WAIT_THRESHOLD_PRESETS = [30_000, 60_000, 120_000, 300_000, 600_000] as const;
+
+export const DEFAULT_WAIT_THRESHOLD_MS = 120_000;
 
 export const useOfficeMapStore = create<OfficeMapState>()(
   persist(
@@ -52,6 +60,7 @@ export const useOfficeMapStore = create<OfficeMapState>()(
       animateEdges: true,
       showFeed: true,
       background: 'dots',
+      waitThresholdMs: DEFAULT_WAIT_THRESHOLD_MS,
 
       setViewMode: (v) => set({ viewMode: v }),
       setShowHud: (v) => set({ showHud: v }),
@@ -61,6 +70,8 @@ export const useOfficeMapStore = create<OfficeMapState>()(
       setAnimateEdges: (v) => set({ animateEdges: v }),
       setShowFeed: (v) => set({ showFeed: v }),
       setBackground: (v) => set({ background: v }),
+      setWaitThresholdMs: (v) =>
+        set({ waitThresholdMs: Number.isFinite(v) && v > 0 ? Math.round(v) : DEFAULT_WAIT_THRESHOLD_MS }),
     }),
     { name: 'wrongstack-officemap' },
   ),

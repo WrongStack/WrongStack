@@ -158,6 +158,104 @@ export function shortPath(value: string | undefined, max = 46): string | undefin
   return tail.length <= max ? `…/${tail}` : `…${value.slice(-(max - 1))}`;
 }
 
+export interface DeskWaitState {
+  /** True when the agent is alive but has produced no tool/mail work for a while. */
+  waiting: boolean;
+  /** Milliseconds since the last observable activity (tool call or mail). */
+  idleMs: number;
+  /** What the agent most plausibly waits for, for the tooltip. */
+  reason: 'no-work' | 'telemetry' | 'mail-reply';
+  /** Human label for the last known anchor point, shown in the tooltip. */
+  anchor: string;
+  /** Mail id the `mail-reply` reason refers to — used to suppress the flyby. */
+  anchorId: string | undefined;
+  anchorAt: number | undefined;
+}
+
+/**
+ * A desk is "waiting" when it is active but silent: no running tool call and
+ * nothing new for WAIT_THRESHOLD_MS. The reason distinguishes the three cases
+ * a supervisor actually needs to tell apart — no assigned work, missing
+ * telemetry, or a sent mail that nobody answered yet.
+ */
+export function deskWaitState(
+  model: OfficeAgentModel,
+  now: number,
+  thresholdMs = 120_000,
+): DeskWaitState {
+  const { agent, client, current, history, mail } = model;
+  const active = agent.status === 'active' || agent.status === 'streaming';
+
+  const lastToolAt = current?.startedAt ?? history[0]?.completedAt ?? history[0]?.startedAt;
+  const lastMailAt = mail[0]?.timestampMs;
+  const candidates = [lastToolAt, lastMailAt].filter((value): value is number => value !== undefined);
+  // The session start bounds the idle clock from below: a client that spun up
+  // 20s ago cannot have been "waiting for 10 minutes", no matter how empty the
+  // caches are. Without this floor every brand-new desk flags immediately.
+  const startedMs = Date.parse(client.startedAt ?? '');
+  const floor = Number.isFinite(startedMs) ? startedMs : 0;
+  const lastActivityAt =
+    candidates.length > 0
+      ? Math.max(...candidates, floor)
+      : floor > 0
+        ? floor
+        : undefined;
+  const idleMs = lastActivityAt === undefined ? Number.POSITIVE_INFINITY : Math.max(0, now - lastActivityAt);
+
+  if (!active || current !== undefined || idleMs < thresholdMs) {
+    return {
+      waiting: false,
+      idleMs,
+      reason: 'no-work',
+      anchor: '',
+      anchorId: undefined,
+      anchorAt: lastActivityAt,
+    };
+  }
+
+  if (client.todos === undefined && agent.toolCalls === 0) {
+    return {
+      waiting: true,
+      idleMs,
+      reason: 'telemetry',
+      anchor: agent.currentTask ?? '',
+      anchorId: undefined,
+      anchorAt: lastActivityAt,
+    };
+  }
+
+  // Only the *newest* mail counts as awaiting a reply: anything older has been
+  // answered (an incoming message landed after it) or superseded by tool work.
+  const newest = mail[0];
+  const pendingReply =
+    newest !== undefined &&
+    newest.direction === 'outgoing' &&
+    (lastToolAt === undefined || newest.timestampMs > lastToolAt)
+      ? newest
+      : undefined;
+  if (pendingReply !== undefined) {
+    return {
+      waiting: true,
+      idleMs,
+      reason: 'mail-reply',
+      anchor: pendingReply.subject,
+      anchorId: pendingReply.id,
+      anchorAt: lastActivityAt,
+    };
+  }
+
+  return {
+    waiting: true,
+    idleMs,
+    reason: 'no-work',
+    // Empty string means "not reported" everywhere else in the view — treat it
+    // as absent here too so the last completed action becomes the anchor.
+    anchor: agent.currentTask || history[0]?.summary || '',
+    anchorId: undefined,
+    anchorAt: lastActivityAt,
+  };
+}
+
 export function relativeTime(timestamp: number, now: number): string {
   const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
   if (seconds < 5) return 'now';

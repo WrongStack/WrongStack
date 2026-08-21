@@ -297,6 +297,9 @@ export const useMonitorStore = create<MonitorState>()((set) => ({
             aa[j]!.iterations !== ba[j]!.iterations ||
             aa[j]!.toolCalls !== ba[j]!.toolCalls ||
             aa[j]!.ctxPct !== ba[j]!.ctxPct ||
+            aa[j]!.tokensIn !== ba[j]!.tokensIn ||
+            aa[j]!.tokensOut !== ba[j]!.tokensOut ||
+            aa[j]!.costUsd !== ba[j]!.costUsd ||
             aa[j]!.recentTools?.[0]?.id !== ba[j]!.recentTools?.[0]?.id ||
             aa[j]!.recentMail?.[0]?.id !== ba[j]!.recentMail?.[0]?.id ||
             aa[j]!.activity?.reads !== ba[j]!.activity?.reads ||
