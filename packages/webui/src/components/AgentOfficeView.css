@@ -403,6 +403,9 @@
   animation: agent-office-brief-arrive 1.1s ease-out 1;
 }
 
+/* Compositor-only: translateX % resolves against the 24%-wide pseudo-element,
+   so 617% ≈ the original -30%→118% sweep across the parent. */
+
 .agent-office__prompt-card.is-waiting,
 .agent-office__todo-board.is-waiting {
   border-style: dashed;
@@ -871,6 +874,140 @@
   white-space: nowrap;
 }
 
+/* --- Waiting badge: alive but silent desk --- */
+.agent-office__wait-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding: 3px 7px;
+  border: 1px solid hsl(var(--warning) / 0.35);
+  border-radius: 999px;
+  color: hsl(var(--warning));
+  background: hsl(var(--warning) / 0.08);
+  cursor: pointer;
+  font: 500 9px / 1.3 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.agent-office__wait-badge svg {
+  width: 11px;
+  height: 11px;
+}
+
+.agent-office__wait-badge:hover {
+  border-color: hsl(var(--warning) / 0.6);
+  background: hsl(var(--warning) / 0.14);
+}
+
+/* Waiting on an unanswered mail — the supervisor can act on this one. */
+.agent-office__wait-badge.is-mail-reply {
+  border-color: hsl(var(--info) / 0.4);
+  color: hsl(var(--info));
+  background: hsl(var(--info) / 0.08);
+}
+
+.agent-office__wait-badge.is-mail-reply:hover {
+  border-color: hsl(var(--info) / 0.65);
+  background: hsl(var(--info) / 0.14);
+}
+
+/* No telemetry — italicized hint rather than a state claim. */
+.agent-office__wait-badge.is-telemetry {
+  border-style: dashed;
+}
+
+.agent-office__lane.is-waiting .agent-office__status-dot {
+  background: hsl(var(--warning));
+}
+
+.agent-office__lane.is-waiting .agent-office__window span {
+  animation-play-state: paused;
+  opacity: 0.6;
+}
+
+/* --- Per-desk metrics strip: tokens / cost / context / current action --- */
+.agent-office__desk-metrics {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin: 0 9px 8px;
+  padding: 4px 2px 0;
+  border-top: 1px solid var(--office-line);
+  color: hsl(var(--muted-foreground));
+  font: 500 9.5px / 1.2 var(--font-mono);
+}
+
+.agent-office__metric {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 12px 3px 0;
+  margin-right: 12px;
+  border-right: 1px solid var(--office-line);
+  white-space: nowrap;
+}
+
+.agent-office__metric:last-child {
+  border-right: none;
+}
+
+.agent-office__metric strong {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+
+.agent-office__metric small {
+  letter-spacing: 0.08em;
+  font-size: 8.5px;
+}
+
+.agent-office__metric svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
+}
+
+/* Context meter: thin bar under the CTX value. */
+.agent-office__ctx-bar {
+  position: relative;
+  overflow: hidden;
+  width: 34px;
+  height: 3px;
+  border-radius: 999px;
+  background: hsl(var(--border) / 0.6);
+}
+
+.agent-office__ctx-bar b {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: hsl(var(--primary) / 0.55);
+  transition: width 400ms ease;
+}
+
+.agent-office__ctx-bar.is-high b {
+  background: hsl(var(--destructive) / 0.7);
+}
+
+/* Current-action one-liner takes the remaining width and truncates. */
+.agent-office__metric-action {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  padding-right: 0;
+}
+
+.agent-office__metric-action small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+  color: hsl(var(--foreground) / 0.72);
+}
+
 .agent-office__identity-mail {
   display: flex;
   width: 100%;
@@ -974,6 +1111,7 @@
     hsl(var(--primary) / 0.04)
   );
   animation: agent-office-window-glow 8s ease-in-out infinite alternate;
+  box-shadow: inset 0 0 8px hsl(var(--info) / 0.14);
 }
 
 .agent-office__window span:nth-child(2) {
@@ -2858,10 +2996,10 @@ button.agent-office__parcel:hover {
 }
 @keyframes agent-office-brief-arrive {
   from {
-    left: -30%;
+    transform: skewX(-18deg) translateX(0);
   }
   to {
-    left: 118%;
+    transform: skewX(-18deg) translateX(617%);
   }
 }
 @keyframes agent-office-sync-line {
@@ -2894,7 +3032,6 @@ button.agent-office__parcel:hover {
   }
   to {
     opacity: 1;
-    box-shadow: inset 0 0 8px hsl(var(--info) / 0.14);
   }
 }
 @keyframes agent-office-plant-sway {
@@ -3044,13 +3181,11 @@ button.agent-office__parcel:hover {
   0%,
   72%,
   100% {
-    height: 2px;
-    transform: scale(1);
+    transform: scaleY(1);
   }
   80%,
   88% {
-    height: 7px;
-    transform: scale(1.15);
+    transform: scaleY(3.5);
   }
 }
 @keyframes agent-office-idle-stretch {
