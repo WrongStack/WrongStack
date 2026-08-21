@@ -329,6 +329,81 @@ const SCRUB_CHUNK_BYTES = 64 * 1024;
 const SCRUB_OVERLAP_BYTES = 1024;
 
 /**
+ * Marker + shape for the one multi-line credential pattern (`private_key`).
+ *
+ * The whitespace-snap invariant above does NOT hold for this pattern: a PEM
+ * block is newline-delimited throughout its body, so the first whitespace at
+ * or after the nominal cut inside a PEM is a `\n` *within the key*. Snapping
+ * there splits `-----BEGIN …` from `… -----END -----` across two chunks;
+ * neither half matches the pattern and both halves leak verbatim (SEC-003).
+ * {@link extendChunkBoundaryPastPem} moves such a boundary past the block's
+ * closing marker instead.
+ */
+const PEM_PRIVATE_KEY_BEGIN_RE = /-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----/;
+const PEM_END_MARKER = '-----END';
+/**
+ * Hard bound on how far a chunk boundary may extend to keep a PEM block
+ * inside one chunk. Real PEMs are ≤ a few KB (a 16 KB certificate at 64
+ * chars/line is ~250 lines); anything longer than this is pathological or
+ * hostile, and we fall back to the hard cut rather than growing unboundedly.
+ */
+const MAX_PEM_BLOCK_BYTES = 64 * 1024;
+
+/**
+ * Tolerance on the END-marker position check. A block whose length sits just
+ * past {@link MAX_PEM_BLOCK_BYTES} (END starting in (cap, cap+64]) would
+ * otherwise be rejected knife-edge style even though extending past its
+ * closing line is bounded by one line (~31 bytes). Blocks whose END starts
+ * beyond this are pathological/hostile — hard cut.
+ */
+const PEM_END_LINE_TOLERANCE = 64;
+
+/**
+ * Move a proposed chunk boundary past a PEM private-key block that the cut
+ * would otherwise split. Pure: returns `proposedEnd` unchanged unless the
+ * chunk `[chunkStart, proposedEnd)` ends strictly inside an opened
+ * `-----BEGIN … PRIVATE KEY-----` block whose closing marker exists within
+ * {@link MAX_PEM_BLOCK_BYTES} of the opening one.
+ *
+ * Marker-line cuts (chimera follow-up to SEC-003): the marker test must run
+ * against the FULL text, not the head — a cut landing inside the BEGIN or
+ * END marker line itself leaves only a prefix of the marker in the head, and
+ * a head-only match test would miss the block and leak both halves. Never
+ * shrinks a boundary: when the block already ends inside the head, the
+ * whitespace-snapped boundary is kept as-is.
+ */
+function extendChunkBoundaryPastPem(
+  text: string,
+  chunkStart: number,
+  proposedEnd: number,
+): number {
+  const head = text.slice(chunkStart, proposedEnd);
+  const lastBegin = head.lastIndexOf('-----BEGIN ');
+  if (lastBegin === -1) return proposedEnd;
+  const fromBegin = text.slice(chunkStart + lastBegin);
+  const marker = PEM_PRIVATE_KEY_BEGIN_RE.exec(fromBegin);
+  // A stray "-----BEGIN " in prose that never completes into a private-key
+  // marker must not grow the chunk.
+  if (!marker || marker.index !== 0) return proposedEnd;
+  const bodyStart = marker[0].length;
+  const cap = Math.min(text.length, chunkStart + lastBegin + MAX_PEM_BLOCK_BYTES);
+  const closeIdx = fromBegin.indexOf(PEM_END_MARKER, bodyStart);
+  // END must START within cap + one marker line; then the boundary extends
+  // past the closing line unclamped (worst-case overshoot ~31 bytes).
+  if (closeIdx === -1 || chunkStart + lastBegin + closeIdx >= cap + PEM_END_LINE_TOLERANCE) {
+    return proposedEnd;
+  }
+  // The END marker starts within the cap — extend past its closing line even
+  // when that overshoots `cap` by one line (~31 bytes). Clamping to `cap`
+  // here could cut mid-`-----END` (block length in (cap-30, cap] window),
+  // which fails the pattern's END tail and re-leaks the whole key body
+  // (review follow-up to SEC-003). Worst-case overshoot is one marker line.
+  const lineEnd = fromBegin.indexOf('\n', closeIdx);
+  const end = lineEnd === -1 ? text.length : chunkStart + lastBegin + lineEnd + 1;
+  return Math.max(proposedEnd, end);
+}
+
+/**
  * Quick pre-scan: check if the text contains any substring that MUST be
  * present for a credential pattern to match. If none are found, the text
  * is guaranteed clean — skip all regex passes (2 total: 16-pattern combined + high_entropy_env).
@@ -428,6 +503,11 @@ export class DefaultSecretScrubber implements SecretScrubber {
         // cut (an unbroken >1 KB run with no whitespace can't be a bounded
         // secret anyway — those are all ≤ ~560 chars and whitespace-free).
         end = safe === -1 ? end : safe + 1;
+        // The whitespace snap assumes whitespace-free secrets. A PEM private
+        // key is multi-line: when the cut lands inside one, the snap above
+        // splits it and both halves leak (SEC-003). Move the boundary past
+        // the block's closing marker instead — bounded by MAX_PEM_BLOCK_BYTES.
+        end = extendChunkBoundaryPastPem(text, i, end);
       }
       out.push(this.scrubOne(text.slice(i, end)));
       i = end;

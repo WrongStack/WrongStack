@@ -18,6 +18,14 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
+
+/**
+ * Module-level scrubber instance (SEC-004). One per process is enough — the
+ * scrubber is stateless per call, and sharing it here matches the singleton
+ * usage in `hq/redaction.ts` and `session-store.ts`.
+ */
+const defaultScrubber = new DefaultSecretScrubber();
 
 export type PromptCategory =
   | 'raw_user' // Direct, unedited user prompt
@@ -166,7 +174,25 @@ export async function recordPromptJournalEntry(
   const sessionId = opts.sessionId && opts.sessionId.trim() ? opts.sessionId.trim() : 'general';
   const id = `pmt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-  const content = opts.content ?? '';
+  // SEC-004: the journal persists raw user input (`raw_user`/`rawContent`)
+  // and provider error text (`self_healing_retry` journals toErrorMessage) —
+  // both are credential-bearing content classes. Scrub BEFORE the entry is
+  // built: every write artifact (session JSONL + MD, daily summary, root
+  // catalog) serializes `entry`, so this one gate covers all four. Same
+  // mandatory-scrubbing contract as InputHistoryStore — a pasted credential
+  // must never reach disk.
+  const content = defaultScrubber.scrub(opts.content ?? '');
+  const rawContent =
+    typeof opts.rawContent === 'string' && opts.rawContent.length > 0
+      ? defaultScrubber.scrub(opts.rawContent)
+      : opts.rawContent;
+  // decisionReason carries provider/retry context strings (and error-derived
+  // text from the self-healing path) — same credential-bearing class as
+  // content, same mandatory scrub (chimera follow-up to SEC-004).
+  const decisionReason =
+    typeof opts.decisionReason === 'string' && opts.decisionReason.length > 0
+      ? defaultScrubber.scrub(opts.decisionReason)
+      : opts.decisionReason;
   const lines = content.split('\n');
   const characterCount = content.length;
   const lineCount = lines.length;
@@ -181,7 +207,7 @@ export async function recordPromptJournalEntry(
     role: opts.role ?? (opts.category === 'system_prompt' ? 'system' : 'user'),
     category: opts.category,
     content,
-    rawContent: opts.rawContent,
+    rawContent,
     metadata: {
       model: opts.model,
       provider: opts.provider,
@@ -192,7 +218,7 @@ export async function recordPromptJournalEntry(
       activeTools: opts.activeTools,
       contextFiles: opts.contextFiles,
       durationMs: opts.durationMs,
-      decisionReason: opts.decisionReason,
+      decisionReason,
       tags: opts.tags,
     },
   };

@@ -70,6 +70,101 @@ describe('SecretScrubber', () => {
     }
   });
 
+  it('redacts a multi-line PEM private key straddling the 64KB chunk boundary (SEC-003)', () => {
+    // A PEM block is the one multi-line credential pattern. The whitespace
+    // snap used to break on a \n INSIDE the key when the 64KB cut landed in
+    // the block body, splitting BEGIN from END so neither half matched and
+    // both leaked verbatim. The boundary now extends past the closing marker.
+    const CHUNK = 64 * 1024;
+    const pemLines = ['-----BEGIN RSA PRIVATE KEY-----'];
+    for (let i = 0; i < 40; i++) pemLines.push(`MIIEowIBAAKCAQEA${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVWXYZab`);
+    pemLines.push('-----END RSA PRIVATE KEY-----');
+    const pem = pemLines.join('\n');
+    const pemBodySample = 'MIIEowIBAAKCAQEA000';
+    expect(pem.includes('\n')).toBe(true); // genuinely multi-line
+
+    // Control: the same PEM fully inside one chunk is redacted.
+    const intact = s.scrub(`x\n${pem}\ny`);
+    expect(intact).toContain('[REDACTED:private_key]');
+    expect(intact).not.toContain(pemBodySample);
+
+    // Defect case: PEM starts just before the 64KB cut so the old snap broke
+    // on a newline inside the block body.
+    for (const offset of [100, 500, 2000]) {
+      const blob = `${'a'.repeat(CHUNK - offset)}\n${pem}\n${'b'.repeat(70_000)}`;
+      const out = s.scrub(blob);
+      expect(out, `offset=${offset}`).toContain('[REDACTED:private_key]');
+      expect(out, `offset=${offset}`).not.toContain('-----BEGIN RSA PRIVATE KEY-----');
+      expect(out, `offset=${offset}`).not.toContain(pemBodySample);
+    }
+  });
+
+  it('redacts a PEM whose 64KB cut lands inside a BEGIN or END marker line (SEC-003 follow-up)', () => {
+    // The boundary helper used to test the private-key marker against the
+    // chunk HEAD only. A cut landing inside a marker line leaves a truncated
+    // marker in the head: an "-----END" prefix in the head made the helper
+    // treat the block as complete (boundary not moved) and the split PEM
+    // leaked. The helper now validates the marker against the full text and
+    // never shrinks the boundary. Sweep the cut across the entire PEM —
+    // body (already covered), BEGIN line, and END line.
+    const CHUNK = 64 * 1024;
+    const pemLines = ['-----BEGIN EC PRIVATE KEY-----'];
+    for (let i = 0; i < 30; i++) pemLines.push(`MHcCAQEEII${String(i).padStart(3, '0')}ABCDEFGHIJKLMNOPQRSTUVabcdefghijklmnopqrstuvwxyz`);
+    pemLines.push('-----END EC PRIVATE KEY-----');
+    const pem = pemLines.join('\n');
+    const bodySample = 'MHcCAQEEII007';
+
+    // Control: intact PEM redacts.
+    expect(s.scrub(`x\n${pem}\ny`)).toContain('[REDACTED:private_key]');
+
+    for (let offset = 0; offset <= pem.length; offset += 7) {
+      const blob = `${'a'.repeat(CHUNK - offset)}\n${pem}\n${'b'.repeat(70_000)}`;
+      const out = s.scrub(blob);
+      expect(out, `offset=${offset}`).toContain('[REDACTED:private_key]');
+      expect(out, `offset=${offset}`).not.toContain('-----BEGIN EC PRIVATE KEY-----');
+      expect(out, `offset=${offset}`).not.toContain('-----END EC PRIVATE KEY-----');
+      expect(out, `offset=${offset}`).not.toContain(bodySample);
+    }
+  });
+
+  it('redacts a PEM whose END marker starts inside the cap but finishes past it (SEC-003 follow-up)', () => {
+    // The pre-fix bug lived in one exact window: the guard accepted the block
+    // (-----END STARTS before MAX_PEM_BLOCK_BYTES) but the boundary was
+    // clamped back to the cap, cutting mid-`-----END`, failing the pattern's
+    // END tail and re-leaking the whole key body. Build the fixture with
+    // exact byte arithmetic so the END marker starts 10 bytes BEFORE the cap
+    // and finishes 19 bytes past it — not a rounded 64-byte-step length,
+    // which silently lands in a different window (review finding).
+    const CAP = 64 * 1024; // mirrors MAX_PEM_BLOCK_BYTES
+    const CHUNK = 64 * 1024;
+    const begin = '-----BEGIN RSA PRIVATE KEY-----';
+    const end = '-----END RSA PRIVATE KEY-----';
+    // prefix = begin + \n + body + \n ; END must start exactly at CAP - 10.
+    const joinTarget = CAP - 10 - (begin.length + 1) - 1; // body.join('\n') length
+    const bodyLines: string[] = [];
+    // 63-char lines join to 64n - 1 bytes; fill with full lines, then one
+    // exact-length tail line so the total is precise, not stepped.
+    const fullLines = Math.floor((joinTarget + 1) / 64);
+    for (let i = 0; i < fullLines; i++) bodyLines.push(`AA${'x'.repeat(60)}${String(i % 10)}`);
+    bodyLines.push('B'.repeat(joinTarget - (fullLines * 64 - 1) - 1));
+    const pem = `${begin}\n${bodyLines.join('\n')}\n${end}`;
+    // The two conditions this fixture exists to hold — asserted, not assumed.
+    expect(begin.length + 1 + bodyLines.join('\n').length + 1).toBe(CAP - 10); // END starts inside cap
+    expect(CAP - 10 + end.length).toBeGreaterThan(CAP); // …and finishes past it
+    const bodySample = bodyLines[500]!.slice(0, 20);
+
+    // Control: intact oversized PEM redacts through the chunked path.
+    expect(s.scrub(`x\n${pem}\ny`)).toContain('[REDACTED:private_key]');
+
+    for (let offset = 0; offset <= pem.length; offset += 2048) {
+      const blob = `${'a'.repeat(CHUNK - offset)}\n${pem}\n${'b'.repeat(70_000)}`;
+      const out = s.scrub(blob);
+      expect(out, `offset=${offset}`).toContain('[REDACTED:private_key]');
+      expect(out, `offset=${offset}`).not.toContain('-----END RSA PRIVATE KEY-----');
+      expect(out, `offset=${offset}`).not.toContain(bodySample);
+    }
+  });
+
   it('redacts a high-entropy env secret straddling the chunk boundary', () => {
     const CHUNK = 64 * 1024;
     const v = 'A'.repeat(40);

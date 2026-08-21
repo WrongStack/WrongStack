@@ -1281,7 +1281,7 @@
       "classification": "product feature",
       "intendedOwner": "plugin/runtime implementation",
       "sourceFiles": 4,
-      "sourceLines": 602
+      "sourceLines": 628
     },
     {
       "directory": "registry",
@@ -1302,7 +1302,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 19,
-      "sourceLines": 6281
+      "sourceLines": 6361
     },
     {
       "directory": "session-catalog",

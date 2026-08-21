@@ -9,6 +9,62 @@ import {
 } from '../src/index.js';
 
 describe('Hierarchical Prompt Journal & Trace Logger', () => {
+  it('never persists secrets: content and rawContent are scrubbed in every write artifact (SEC-004)', async () => {
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-scrub-'));
+    const today = new Date().toISOString().slice(0, 10);
+    const month = today.slice(0, 7);
+    // Fake credentials, built dynamically so no plaintext secret shape is
+    // committed to this file (same convention as the scrubber boundary tests).
+    const secretKey = `sk-ant-api3-${'a'.repeat(20)}`;
+    const dbPassword = ['postgres', '://admin:Hunter2Secret@db.internal:5432/prod'].join('');
+
+    try {
+      const entry = await recordPromptJournalEntry({
+        projectRoot: tempDir,
+        sessionId: 'sess_secret',
+        category: 'refined_user',
+        rawContent: `Please deploy with this key: ${secretKey}`,
+        content: `Deploy now. Connection: ${dbPassword}`,
+        decisionReason: `self-healing retry after 429; provider echoed key ${secretKey}`,
+      });
+
+      // The returned entry must already be scrubbed — callers may hand it to
+      // other sinks before the disk writes are even inspected.
+      expect(JSON.stringify(entry)).not.toContain(secretKey);
+      expect(JSON.stringify(entry)).not.toContain('Hunter2Secret');
+      expect(entry.content).toContain('[REDACTED:postgres_uri]');
+      expect(entry.rawContent).toContain('[REDACTED:anthropic_key]');
+      // decisionReason carries provider/retry error text — scrubbed too.
+      expect(JSON.stringify(entry.metadata.decisionReason)).not.toContain(secretKey);
+
+      // Every on-disk artifact under .wrongstack/prompts/ must be free of the
+      // secrets: session JSONL, session Markdown, daily summary, root catalog.
+      const base = path.join(tempDir, '.wrongstack', 'prompts');
+      const artifacts = [
+        path.join(base, month, today, 'session-sess_secret.jsonl'),
+        path.join(base, month, today, 'session-sess_secret.md'),
+        path.join(base, month, today, 'daily-summary.md'),
+        path.join(base, 'index.json'),
+        path.join(base, 'index.md'),
+      ];
+      for (const artifact of artifacts) {
+        const raw = await fs.readFile(artifact, 'utf8');
+        expect(raw, artifact).not.toContain(secretKey);
+        expect(raw, artifact).not.toContain('Hunter2Secret');
+      }
+      const jsonl = await fs.readFile(artifacts[0]!, 'utf8');
+      expect(jsonl).toContain('[REDACTED:anthropic_key]');
+      expect(jsonl).toContain('[REDACTED:postgres_uri]');
+      // The Markdown artifact renders rawContent + content in fenced blocks —
+      // both must carry the redaction markers, not only the JSONL.
+      const markdown = await fs.readFile(artifacts[1]!, 'utf8');
+      expect(markdown).toContain('[REDACTED:anthropic_key]');
+      expect(markdown).toContain('[REDACTED:postgres_uri]');
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  });
+
   it('automatically adds .wrongstack/ to .gitignore if not present', async () => {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pj-git-'));
     const gitignorePath = path.join(tempDir, '.gitignore');
