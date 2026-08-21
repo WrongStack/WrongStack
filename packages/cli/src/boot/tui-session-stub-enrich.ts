@@ -30,10 +30,26 @@ function isStubSummary(s: SessionSummary): boolean {
   return !s.title && !s.endedAt;
 }
 
-function jsonlPath(sessionsDir: string, id: string): string {
-  // Session ids are shard-relative ("2026-08-21/sess_…"); the JSONL sits at
-  // <sessionsDir>/<shard>/<id>.jsonl.
-  return path.join(sessionsDir, `${id}.jsonl`);
+/** Resolve `<sessionsDir>/<id>.jsonl`, rejecting ids that escape the store
+ * directory (path traversal via crafted shard-relative session ids). Returns
+ * undefined instead of throwing so callers treat it as "not enrichable". */
+export function containedJsonlPath(sessionsDir: string, id: string): string | undefined {
+  const root = path.resolve(sessionsDir);
+  const file = path.resolve(root, `${id}.jsonl`);
+  if (file !== root && !file.startsWith(root + path.sep)) return undefined;
+  return file;
+}
+
+/** Strip C0/C1 control characters and ANSI escape sequences from derived
+ * display text — transcript content is untrusted picker input. */
+function stripControlChars(text: string): string {
+  // eslint-disable-next-line no-control-regex
+  return text.replaceAll(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)|[\u0000-\u001f\u007f-\u009f]/g, '');
+}
+
+function truncate(text: string): string {
+  const oneLine = stripControlChars(text).replaceAll(/\s+/g, ' ').trim();
+  return oneLine.length > MAX_TITLE_CHARS ? `${oneLine.slice(0, MAX_TITLE_CHARS - 1)}…` : oneLine;
 }
 
 /** Extract displayable text from a user_input event's content. */
@@ -120,9 +136,29 @@ async function lastUserInput(file: string): Promise<UserInputHit | undefined> {
   }
 }
 
-function truncate(text: string): string {
-  const oneLine = text.replaceAll(/\s+/g, ' ').trim();
-  return oneLine.length > MAX_TITLE_CHARS ? `${oneLine.slice(0, MAX_TITLE_CHARS - 1)}…` : oneLine;
+/** Effective recency of a summary — the same COALESCE order the store uses. */
+function effectiveLastActivity(s: SessionSummary): string {
+  return s.lastActivityAt ?? s.endedAt ?? s.startedAt ?? '';
+}
+
+/**
+ * Build the /resume picker list from an over-fetched store pool.
+ *
+ * Enrichment can *raise* a stub's lastActivityAt to its real kill time, so
+ * ordering must happen after enrichment — otherwise stale-ordered stubs crowd
+ * richer sessions out of the top-N window. Fetch a pool ~3x the requested
+ * limit, enrich, re-sort most-recent-first (store COALESCE order), slice.
+ */
+export async function selectPickerSessions(
+  storeList: (limit: number) => Promise<SessionSummary[]>,
+  sessionsDir: string,
+  limit: number,
+): Promise<SessionSummary[]> {
+  const poolSize = Math.min(200, Math.max(limit, limit * 3));
+  const enriched = await enrichStubSummaries(await storeList(poolSize), sessionsDir);
+  return enriched
+    .sort((a, b) => effectiveLastActivity(b).localeCompare(effectiveLastActivity(a)))
+    .slice(0, limit);
 }
 
 /**
@@ -136,7 +172,9 @@ export async function enrichStubSummaries(
   return Promise.all(
     summaries.map(async (s) => {
       if (!isStubSummary(s)) return s;
-      const file = jsonlPath(sessionsDir, s.id);
+      // Crafted shard-relative ids must not escape the sessions directory.
+      const file = containedJsonlPath(sessionsDir, s.id);
+      if (!file) return s;
       try {
         const stat = await fs.stat(file);
         const [first, last] = await Promise.all([firstUserInput(file), lastUserInput(file)]);
