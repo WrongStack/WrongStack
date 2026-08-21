@@ -13,6 +13,10 @@
 
 - `parseNextSteps` and `stripNextStepsBlock` belong to `@wrongstack/tools/next-steps`. `packages/webui/src/components/NextStepsBar.tsx` only re-exports them for back-compat — a UI-component import path does not mean the parser logic lives there or should be edited there. Check the `@wrongstack/tools` package first when the parser itself needs changing.
 
+## Repo Documentation Conventions
+
+- Treat `reports/*.md` files as standalone audit documents with no code exports or programmatic callers. Before editing one, verify its evidence claims (counts, file paths) with a fresh search rather than assuming they are still current.
+
 ## Environment and Tooling Warnings
 
 - Brace globs (`{a,b}.ts`) in grep return false zero-match results in this environment. Filter by exact file path or run one grep per file; never conclude a file has "no handling" based on a brace-glob search.

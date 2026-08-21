@@ -9,3 +9,9 @@
 - `packages/webui/**` is excluded at the root; its jsdom suites run only via `pnpm --filter webui test`.
 - `packages/cli/tests/hq-dashboard.test.ts` runs only via `pnpm --filter @wrongstack/cli test:hqdash`, which uses `packages/cli/vitest.hqdash.config.ts`.
 - Only report a test surface as verified when the command you named actually executes that suite.
+
+- When probing a leader's in-progress todo, first check whether the session todo store is materialized on disk (`glob .wrongstack/**/*todo*`) — in WrongStack it is runtime state with no file backing, so the probe must fall back to mtime-ordered `glob` over `packages/*/src` plus `git diff HEAD` as ground truth; treat the auto-mined `.wrongstack/domain-terms.md` jargon list as boilerplate present in every request, never as signal about the leader's current work. (anchors: `glob .wrongstack/**/*todo*`, `glob`, `packages/*/src`, `git diff HEAD`, `.wrongstack/domain-terms.md`) [applied 40×, 40 ok]
+- When probing a WrongStack "run tests / capture proof" todo, derive the verification surface from three anchors before reporting commands: `.reports/release-check-matrix/*.log` (the repo's existing proof-artifact convention — check its filenames for where captured output belongs), the `test`/`typecheck` scripts in the touched package's `package.json` (they define the narrowest legitimate filter), and the `exclude` list in root `vitest.config.ts` (a green bare `vitest run` may simply have skipped webui, hq-dashboard, and status-bar suites). (anchors: `.reports/release-check-matrix/*.log`, `test`, `typecheck`, `package.json`, `exclude`, `vitest.config.ts`, `vitest run`) [applied 82×, 82 ok]
+
+---
+*Distilled 2026-08-21T12:26:51.245Z · 2 new directives*

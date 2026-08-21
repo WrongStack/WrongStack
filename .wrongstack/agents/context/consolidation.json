@@ -1,14 +1,13 @@
 {
-  "consolidatedAt": "2026-08-20T18:09:32.432Z",
+  "consolidatedAt": "2026-08-21T12:28:22.427Z",
   "sourceEntryCount": 0,
   "sourceBytes": 385,
-  "consolidatedBytes": 2129,
-  "trigger": "automatic",
-  "model": "glm-5.3",
+  "consolidatedBytes": 2403,
+  "trigger": "manual",
+  "model": "stealth/ox-alpha",
   "pruned": true,
-  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\context\\archive\\learned-2026-08-20T18-09-32-432Z.md",
+  "archivePath": "D:\\Codebox\\PROJECTS\\WrongStack\\.wrongstack\\agents\\context\\archive\\learned-2026-08-21T12-28-22-427Z.md",
   "skills": [
-    "output-standards",
-    "audit-log"
+    "output-standards"
   ]
 }
