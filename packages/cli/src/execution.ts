@@ -35,6 +35,7 @@ import {
   onSDDOutput as onSDDOutputExtracted,
 } from './boot/tui-sdd-callback.js';
 import { resumeSession } from './boot/tui-session-resume.js';
+import { enrichStubSummaries } from './boot/tui-session-stub-enrich.js';
 import { createSettingsAdapter } from './boot/tui-settings-adapter.js';
 import { createThemeAdapter } from './boot/tui-theme-adapter.js';
 import { createBrainPanelHost } from './brain-menu/panel-service.js';
@@ -557,7 +558,11 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           restoredEvents,
           listSessions: async (limit = 20) => {
             if (!activeSessionStore) return [];
-            const summaries = await activeSessionStore.list(limit);
+            const raw = await activeSessionStore.list(limit);
+            // Killed sessions leave create-time stub summaries (empty title,
+            // lastActivityAt == startedAt). Repair picker-facing fields from
+            // their intact JSONL transcripts so /resume shows real titles.
+            const summaries = await enrichStubSummaries(raw, wpaths.projectSessions);
             const currentId = agent.ctx.session?.id ?? session.id;
             return summaries.map((s) => ({
               id: s.id,
