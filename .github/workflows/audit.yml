@@ -1,0 +1,55 @@
+# Dependency vulnerability audit gate — closes remediation #1 in
+# reports/06-dependency-audit.md: default-coverage for known CVEs belongs
+# in CI, not in the opt-in in-session dependency-vulnerability-gate plugin.
+#
+# Runs `pnpm audit --audit-level high` (fails non-zero on high/critical)
+# whenever a lockfile or manifest changes, plus a weekly pass so advisories
+# published against already-locked versions are caught without a lockfile
+# change. No `pnpm install`: pnpm audit reads the lockfile directly.
+
+name: Dependency Audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'apps/*/package.json'
+      - 'packages/*/package.json'
+      - 'website/package.json'
+      - '.github/workflows/audit.yml'
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'apps/*/package.json'
+      - 'packages/*/package.json'
+      - 'website/package.json'
+      - '.github/workflows/audit.yml'
+  schedule:
+    # Weekly, Mondays 03:23 UTC (odd minute avoids top-of-hour contention).
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: pnpm audit (high+)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        # Version comes from the `packageManager` field in package.json.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Audit dependencies (high and above fail the build)
+        run: pnpm audit --audit-level high

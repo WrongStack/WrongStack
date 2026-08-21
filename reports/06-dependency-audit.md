@@ -41,7 +41,7 @@ Raw audit output (exit code 0):
 
 ## Proposed remediation (preventive)
 
-1. Add `pnpm audit --audit-level high` as a CI gate — see wiring verification below: the shipped gate plugin exists but is **opt-in (inactive by default)**, so it does not cover default sessions.
+1. ~~Add `pnpm audit --audit-level high` as a CI gate~~ **Closed (2026-08-21)**: `.github/workflows/audit.yml` runs `pnpm audit --audit-level high` on push/PR touching any lockfile/manifest (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, per-package manifests) plus a weekly scheduled pass and manual dispatch. No install step — pnpm audit reads the lockfile directly; pnpm version comes from the `packageManager` field via `pnpm/action-setup@v4`.
 2. Schedule a periodic (e.g. weekly) audit run so newly published advisories against already-locked versions are caught without a lockfile change.
 3. Consider `pnpm outdated` / renovate-style automation for security-driven version bumps.
 
