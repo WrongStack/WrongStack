@@ -13,7 +13,7 @@
   - *How:* `packages/**/*.{ts,tsx}`
   - *How:* `glob`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-20T13:34:20.444Z; applied=84; wins=84 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-20T13:34:20.444Z; applied=87; wins=87 -->
 - **Always trace WrongStack core consumption via subpath specifiers (`@wrongstack/core/kernel`, `/coordination`, `/types`), never via the bare `@wrongstack/core` root barrel — `packages/core/src/index.ts` is a ~1,000-line pure re-export compat surface for external npm consumers, and grep for the bare specifier returns almost only doc comments. Also remember `packages/webui/src/lib/core-browser-shim.ts` intercepts the bare specifier for webui's Vite browser build, so browser-side "imports of core" resolve to that shim, not the real barrel.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `@wrongstack/core/kernel`
@@ -38,7 +38,7 @@
   - *How:* `director-mutation-test-tool.test.ts`
   - *How:* `.wrongstack/agents/**/learned.md`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-20T07:19:49.670Z; skill=node-modern; applied=36; wins=36 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-20T07:19:49.670Z; skill=node-modern; applied=40; wins=40 -->
 - **When probing a leader's in-progress todo, first check whether the session todo store is materialized on disk (`glob .wrongstack/**/*todo*`) — in WrongStack it is runtime state with no file backing, so the probe must fall back to mtime-ordered `glob` over `packages/*/src` plus `git diff HEAD` as ground truth; treat the auto-mined `.wrongstack/domain-terms.md` jargon list as boilerplate present in every request, never as signal about the leader's current work.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `glob .wrongstack/**/*todo*`
@@ -47,7 +47,7 @@
   - *How:* `git diff HEAD`
   - *How:* `.wrongstack/domain-terms.md`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-20T22:01:18.489Z; applied=3; wins=3 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-20T22:01:18.489Z; applied=5; wins=5 -->
 - **When probing theme/styling in `packages/tui`, treat `packages/tui/src/theme.ts` as a facade over `theme-presets.ts`/`theme-types.ts`/`theme-utils.ts` plus a live mutable singleton: `export const theme` is mutated in place by `setActiveTheme()` (delete-then-assign keys), so theme switching propagates to all ~75 importers without React context — never look for a ThemeProvider there.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/tui`
@@ -60,19 +60,19 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-20T08:26:43.047Z; applied=108; wins=108 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-20T08:26:43.047Z; applied=127; wins=127 -->
 - **When `submit_result` rejects with "summary/findings/... are required" despite all fields being valid ASCII, shorten finding *text length*, not just finding *count* — a 7-finding report with multi-line findings still fails; the passing shape is ~4 findings of 1–2 short lines each plus a single `files_examined` entry. Always draft the compact version first rather than iterating down from the full report.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
   - *How:* `files_examined`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-20T07:09:51.163Z; applied=41; wins=41 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-20T07:09:51.163Z; applied=45; wins=45 -->
 - **When pre-mapping the file surface for a leader's in-progress todo, always read the cited source and check whether the described change already exists in the working tree before reporting it as pending — a flipped-to-in_progress todo often means the edit is partially or fully made. Anchor: `read` the primary file, then recommend a `git diff` against HEAD plus the narrowest test filter as the leader's verification step.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `read`
   - *How:* `git diff`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-20T08:15:01.225Z; skill=node-modern; applied=80; wins=80 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-20T08:15:01.225Z; skill=node-modern; applied=82; wins=82 -->
 - **When probing a WrongStack "run tests / capture proof" todo, derive the verification surface from three anchors before reporting commands: `.reports/release-check-matrix/*.log` (the repo's existing proof-artifact convention — check its filenames for where captured output belongs), the `test`/`typecheck` scripts in the touched package's `package.json` (they define the narrowest legitimate filter), and the `exclude` list in root `vitest.config.ts` (a green bare `vitest run` may simply have skipped webui, hq-dashboard, and status-bar suites).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `.reports/release-check-matrix/*.log`
