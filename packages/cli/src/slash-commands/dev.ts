@@ -279,7 +279,11 @@ export function runCommand(
         stdout,
         stderr,
         exitCode,
-        killed: diedBySignal,
+        // Contract (DevCommandResult.killed): true when the process died
+        // from a signal — timeout kill OR foreign. `diedBySignal` alone
+        // excludes our own timeout kill and reported killed:false on every
+        // TIMEOUT (chimera finding).
+        killed: timedOut || diedBySignal,
         spawnFailed: code === null && signal === null,
         ...(signal !== null ? { signalName: signal } : {}),
         ...(timedOut ? { timedOut: true } : {}),

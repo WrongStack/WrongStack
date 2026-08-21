@@ -122,6 +122,16 @@ describe('/dev runCommand (BIZ-001/BIZ-002 regression)', () => {
     expect(result.exitCode).not.toBe(0);
     expect(result.exitCode).toBe(124);
     expect(result.timedOut).toBe(true);
+    // Contract regression (chimera): DevCommandResult.killed must be true
+    // for a timeout kill too ("died from a signal — timeout kill or
+    // foreign"), not only for foreign-signal deaths.
+    expect(result.killed).toBe(true);
+    // Boundary-race guard (dev.ts close handler): `timedOut` requires
+    // `child.killed && code !== 0`, so a successful exit reaped right after
+    // the timer fired can never be mislabeled 124/TIMEOUT. That exact race
+    // is not deterministically reproducible with real children; the guard
+    // is pinned here by the non-zero-code invariant above plus the
+    // foreign-signal test below (signal death without kill → no TIMEOUT).
   });
 
   it('distinguishes a foreign signal death from a timeout kill (chimera regression)', async () => {
