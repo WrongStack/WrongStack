@@ -13,8 +13,14 @@ import {
 } from '../src/token-store.js';
 
 const temporaryDirectories: string[] = [];
+const activeVaults: DefaultSecretVault[] = [];
 
 afterEach(async () => {
+  // Drain pending icacls key-hardening promises BEFORE deleting the temp dirs:
+  // a hardening warning firing during teardown leaves the onUserConsoleLog RPC
+  // pending and fails the run with EnvironmentTeardownError (see the core
+  // secret-vault tests for the original occurrence of this).
+  await Promise.all(activeVaults.splice(0).map((vault) => vault.flushHardening()));
   await Promise.all(
     temporaryDirectories
       .splice(0)
@@ -564,6 +570,7 @@ async function createFixture(): Promise<{
   temporaryDirectories.push(directory);
   const storePath = path.join(directory, 'mcp-auth.json');
   const vault = new DefaultSecretVault({ keyFile: path.join(directory, '.key') });
+  activeVaults.push(vault);
   return { directory, storePath, vault, store: new MCPVaultTokenStore(storePath, vault) };
 }
 
