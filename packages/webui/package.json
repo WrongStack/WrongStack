@@ -63,7 +63,7 @@
     "@radix-ui/react-scroll-area": "^1.2.18",
     "@radix-ui/react-slot": "^1.3.3",
     "@radix-ui/react-tabs": "^1.1.21",
-    "@tanstack/react-virtual": "^3.14.9",
+    "@tanstack/react-virtual": "^3.14.10",
     "@uiw/react-textarea-code-editor": "^3.1.1",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
@@ -78,7 +78,7 @@
     "clsx": "^2.1.1",
     "i18next": "^26.3.6",
     "i18next-resources-to-backend": "^1.2.3",
-    "lucide-react": "^1.31.0",
+    "lucide-react": "^1.33.0",
     "monaco-editor": "^0.56.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
@@ -88,7 +88,7 @@
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.6.0",
-    "virtua": "^0.50.1",
+    "virtua": "^0.50.2",
     "zustand": "^5.0.15"
   },
   "optionalDependencies": {
@@ -104,13 +104,13 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/ws": "^8.18.1",
-    "@vitejs/plugin-react": "^6.0.5",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "@wrongstack/sdd": "workspace:*",
     "jsdom": "^30.0.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

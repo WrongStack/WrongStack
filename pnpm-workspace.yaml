@@ -108,4 +108,8 @@ onlyBuiltDependencies:
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - electron@43.0.0
+  - "@agentclientprotocol/sdk@1.4.0"
+  - "@datadog/pprof@5.18.1"
+  - "ai@7.0.73"
+  - "@ai-sdk/gateway@4.0.59"
 patchedDependencies: { ink@7.1.1: patches/ink@7.1.1.patch }

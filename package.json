@@ -72,11 +72,11 @@
     "postinstall": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.8",
+    "@biomejs/biome": "2.5.9",
     "@playwright/test": "^1.62.1",
     "@types/node": "^26.2.0",
-    "@vitest/coverage-istanbul": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-istanbul": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.11",
     "@wrongstack/tools": "workspace:*",
     "cross-env": "^10.1.0",
     "esbuild": "^0.28.2",
@@ -84,6 +84,6 @@
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "undici-types": "^8.10.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }

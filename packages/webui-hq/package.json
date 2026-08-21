@@ -23,24 +23,24 @@
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "@xyflow/react": "^12.11.3",
-    "lucide-react": "^1.31.0",
+    "lucide-react": "^1.33.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "virtua": "^0.50.1",
+    "virtua": "^0.50.2",
     "zustand": "5.0.15"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1",
-    "vitest": "4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "files": [
     "dist",
