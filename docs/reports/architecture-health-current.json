@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T15:00:27.335Z",
+  "generatedAt": "2026-08-22T15:15:25.569Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3319,
+    "sourceFiles": 3320,
     "testFiles": 2870,
-    "sourceLines": 789647,
+    "sourceLines": 789725,
     "workspaceEdges": 119,
-    "moduleEdges": 10279,
+    "moduleEdges": 10280,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 812
+    "testOnlyExports": 813
   },
   "errors": [],
   "packageCycles": [],
@@ -140,7 +140,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 458,
+      "sourceFiles": 459,
       "testFiles": 426,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -18375,8 +18375,8 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 952,
-      "relativeImports": 32
+      "lines": 876,
+      "relativeImports": 33
     },
     {
       "file": "packages/cli/src/goal-host.ts",
@@ -19171,11 +19171,6 @@
       "relativeImports": 18
     },
     {
-      "file": "packages/cli/src/cli-main.ts",
-      "lines": 952,
-      "relativeImports": 32
-    },
-    {
       "file": "packages/tui/src/components/history/utils.tsx",
       "lines": 950,
       "relativeImports": 17
@@ -19194,6 +19189,11 @@
       "file": "apps/desktop/src/renderer/src/renderer.ts",
       "lines": 944,
       "relativeImports": 8
+    },
+    {
+      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
+      "lines": 938,
+      "relativeImports": 10
     }
   ],
   "testOnlyExports": [
@@ -21136,6 +21136,10 @@
     {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "name": "setIndexReady"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/binary-frame.ts",
+      "name": "encodeJsonFrame"
     },
     {
       "file": "packages/tools/src/codebase-index/content-hash.ts",

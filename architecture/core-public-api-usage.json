@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 983,
-      "typeOnly": 908,
+      "files": 984,
+      "typeOnly": 909,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -10727,6 +10727,12 @@
       "file": "packages/cli/src/wiring/tools.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/vector-memory-setup.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",

@@ -7,8 +7,8 @@
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 952,
-      "relativeImports": 32
+      "lines": 876,
+      "relativeImports": 33
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 930,

@@ -35,15 +35,6 @@ import {
 import { setupProviderRuntime } from './wiring/provider-runtime-setup.js';
 import { setupProviderStatus } from './wiring/provider-status.js';
 import {
-  TransformersEmbeddingProvider,
-  VectorMemoryStore,
-  wrapMemoryPortWithVectorRecall,
-} from '@wrongstack/vector-memory';
-import {
-  startFirstBootSageSync,
-  subscribeVectorMemoryToSage,
-} from '@wrongstack/vector-memory';
-import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
@@ -51,6 +42,7 @@ import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSession } from './wiring/session.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
+import { setupVectorMemory } from './wiring/vector-memory-setup.js';
 
 export { CLI_VERSION };
 
@@ -106,86 +98,18 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // alongside the rest. Run in LIFO order on shutdown.
   const teardownHandlers: Array<() => void> = [];
 
-  // Vector memory is an additional, optional sibling to SAGE — embed
-  // locally via @huggingface/transformers, persist to its own SQLite
-  // file. The model cache lives under `.wrongstack/cache/transformers-models`
-  // (outside the store's data directory) so a future store-side cleanup
-  // never sweeps cached model files. Constructor failures (read-only
-  // filesystem, unwritable project root, corrupt SQLite parent) fall
-  // back to `undefined` so the CLI still boots on the SAGE-only surface.
-  let vectorMemoryStore: VectorMemoryStore | undefined;
-  const vectorMemoryModelCacheDir = path.join(
+  const {
+    memoryStore: vectorWrappedMemoryStore,
+    vectorMemoryStore,
+    vectorMemoryModelCacheDir,
+  } = await setupVectorMemory({
     projectRoot,
-    '.wrongstack',
-    'cache',
-    'transformers-models',
-  );
-  try {
-    vectorMemoryStore = new VectorMemoryStore({
-      provider: new TransformersEmbeddingProvider({
-        cacheDir: vectorMemoryModelCacheDir,
-      }),
-      projectRoot,
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.warn(
-      `vector memory store disabled: ${message} — CLI will run with the SAGE-only surface.`,
-    );
-    vectorMemoryStore = undefined;
-  }
-
-  // First boot per project: mirror the active SAGE corpus into the vector
-  // store so semantic search starts warm instead of empty. Fire-and-forget
-  // — the first run pays the ONNX model download, and boot must not block
-  // on it. Skips instantly once the sage-sync marker says complete.
-  if (vectorMemoryStore) {
-    void startFirstBootSageSync({
-      store: vectorMemoryStore,
-      memoryStore,
-      logger,
-    });
-    // Wire the vector store into SAGE's `searchSage` so every retrieval
-    // call fuses lexical + semantic recall transparently. The wrapper
-    // preserves the underlying port's identity (so DI consumers that
-    // cached the original reference keep working) but routes the read-
-    // side capability methods through the vector-augmented path. The
-    // surface capability (memory manager UI, hygiene) is also wrapped
-    // so explicit operator searches get the same boost.
-    memoryStore = wrapMemoryPortWithVectorRecall(memoryStore, {
-      store: vectorMemoryStore,
-      weight: 0.3,
-    });
-    // Live event mirror: every SAGE write that follows is auto-vectorized
-    // without an operator running a re-sync. The first-boot marker plus
-    // this listener together cover the full corpus — past + future —
-    // without any background polling.
-    const mirrorHandle = subscribeVectorMemoryToSage({
-      store: vectorMemoryStore,
-      memoryStore,
-      logger,
-    });
-    teardownHandlers.push(() => mirrorHandle.dispose());
-
-    // Operator flag: `--vector-sync` forces a full re-sync regardless of
-    // the existing `complete` marker. Use after a model change, schema
-    // migration, or when the operator wants to backfill new metadata.
-    // Runs synchronously here (not fire-and-forget) so the operator sees
-    // the indexed/skipped/failed counts in the boot log.
-    if (flags['vector-sync'] === true) {
-      const forced = await startFirstBootSageSync({
-        store: vectorMemoryStore,
-        memoryStore,
-        logger,
-        force: true,
-      });
-      logger.info(
-        forced.synced
-          ? `vector-memory forced re-sync complete (${forced.marker?.indexed ?? 0} new)`
-          : `vector-memory forced re-sync skipped: ${forced.reason}`,
-      );
-    }
-  }
+    flags,
+    logger,
+    memoryStore,
+    teardownHandlers,
+  });
+  memoryStore = vectorWrappedMemoryStore;
 
   const skillLoader = container.resolve(TOKENS.SkillLoader);
   const promptLoader = container.resolve(TOKENS.PromptLoader);

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T15:00:27.335Z
+**Generated:** 2026-08-22T15:15:25.569Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 35 |
-| Production source files | 3319 |
-| Production source lines | 789647 |
+| Production source files | 3320 |
+| Production source lines | 789725 |
 | Test files | 2870 |
 | Workspace dependency edges | 119 |
-| Relative module edges | 10279 |
+| Relative module edges | 10280 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -29,7 +29,7 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 458 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/cli | 459 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/core | 756 | 644 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -130,15 +130,15 @@ None.
 | 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
-| 952 | `packages/cli/src/cli-main.ts` |
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 944 | `apps/desktop/src/renderer/src/renderer.ts` |
+| 938 | `packages/core/src/execution/auto-compaction-middleware.ts` |
 
 ## Exports only tests reference
 
-- 812 runtime exports are referenced by tests and by no other production file.
+- 813 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
