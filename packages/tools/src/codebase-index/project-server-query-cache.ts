@@ -28,9 +28,6 @@ import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.j
 import { GenerationLruCache } from './project-server-cache.js';
 import type { CodeMapGraph, IndexStats, SearchResult } from './schema.js';
 
-/** A cached answer with the stale marker the server may attach. */
-export type WithStale<T> = T & { stale?: boolean | undefined };
-
 /** The error the server answers a read it cannot serve with. */
 export function indexRefreshInProgressError(currentFile: number, totalFiles: number): Error {
   const error = new Error(
