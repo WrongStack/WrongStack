@@ -96,7 +96,14 @@ function normalizeUndefined(value: unknown): unknown {
   // string), Map/Set encode sparsely (JSON delivers {}), Error loses all
   // diagnostics. RegExp/URL stringify to their canonical source/href form;
   // Buffer converts via toJSON() — byte-identical with JSON framing.
-  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Date) {
+    // An invalid Date (NaN time) stringifies as null in JSON framing; the
+    // binary path must agree — toISOString() throws "Invalid time value"
+    // where JSON.stringify silently delivers null. Neither framing may
+    // crash the daemon on a payload the other framing accepts.
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : value.toISOString();
+  }
   if (value instanceof Map) return normalizeUndefined(Object.fromEntries(value));
   if (value instanceof Set) return normalizeUndefined([...value]);
   if (value instanceof Error) {
@@ -143,7 +150,13 @@ export function decodeBinaryFrame(payload: Uint8Array): unknown {
 /**
  * Encode a message as a JSON text frame, terminated by `\n`.
  * This is the original wire format — kept for fallback and handshake.
+ *
+ * Parity invariant (bf-2): both framings deliver the SAME normalized tree.
+ * JSON.stringify alone silently loses Map/Set/Error/RegExp payloads (`{}`
+ * on the wire); routing through the shared normalizer makes a payload's
+ * delivered shape independent of which framing carried it. A client that
+ * negotiates binary — or fails to — sees identical data.
  */
 export function encodeJsonFrame(message: unknown): string {
-  return `${JSON.stringify(message)}\n`;
+  return `${JSON.stringify(normalizeUndefined(message))}\n`;
 }

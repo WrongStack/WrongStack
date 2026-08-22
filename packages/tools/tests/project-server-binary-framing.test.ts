@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import {
   encodeBinaryFrame,
+  encodeJsonFrame,
   isBinaryFrame,
   MAX_INBOUND_BINARY_FRAME_BYTES,
 } from '../src/codebase-index/binary-frame.js';
@@ -366,6 +367,68 @@ describe('encodeBinaryFrame null values (unit, audit follow-up)', () => {
     expect(decoded['kept']).toBeNull();
     // Parity oracle: identical shape to the JSON framing of the same payload.
     expect(decoded).toEqual(JSON.parse(JSON.stringify(payload)));
+  });
+});
+
+describe('framing parity: both framings deliver the same normalized tree (bf-2)', () => {
+  // The daemon answers in the client's framing, so a payload's delivered
+  // shape must not depend on which framing carried it. Before bf-2 the
+  // framings diverged in both directions: JSON.stringify silently lost
+  // Map/Set/Error/RegExp payloads entirely (`{}`), while the binary
+  // normalizer threw on invalid Dates where JSON delivered null.
+  const parityCases: Array<[string, unknown]> = [
+    [
+      'Map',
+      new Map([
+        ['a', 1],
+        ['b', 2],
+      ]),
+    ],
+    ['Set', new Set([1, 2])],
+    ['Error', new Error('boom')],
+    ['Date valid', new Date('2026-08-22T10:00:00.000Z')],
+    ['Date invalid (NaN)', new Date('not-a-date')],
+    ['RegExp', /ab+c/gi],
+    ['URL', new URL('https://x.example/p?q=1')],
+    ['Buffer', Buffer.from([1, 2, 3])],
+    ['nested map/set/date', { m: new Map([['k', 1]]), s: new Set([9]), d: new Date(0) }],
+  ];
+
+  // Error stacks vary per run, but BOTH framings serialize the SAME Error
+  // instance within one comparison, so the stack text is identical on both
+  // sides — the per-case equality check is deterministic.
+
+  for (const [name, value] of parityCases) {
+    it(`${name}: decode(binary) equals JSON.parse(json)`, () => {
+      const binaryDecoded = binaryFrameModule.decodeBinaryFrame(
+        encodeBinaryFrame({ v: value }).subarray(5),
+      ) as Record<string, unknown>;
+      const jsonDecoded = JSON.parse(encodeJsonFrame({ v: value })) as Record<string, unknown>;
+      expect(binaryDecoded).toEqual(jsonDecoded);
+    });
+  }
+
+  it('Map and Set payloads carry data in BOTH framings (no silent {} loss)', () => {
+    const jsonDecoded = JSON.parse(encodeJsonFrame({ m: new Map([['k', 1]]), s: new Set([9]) }));
+    // The bf-1 dump showed plain JSON.stringify delivering {} here — the
+    // normalizer must preserve the data on the JSON path too.
+    expect(jsonDecoded).toEqual({ m: { k: 1 }, s: [9] });
+  });
+
+  it('invalid Date never throws in either framing', () => {
+    expect(() => encodeBinaryFrame({ d: new Date('not-a-date') })).not.toThrow();
+    expect(JSON.parse(encodeJsonFrame({ d: new Date('not-a-date') })).d).toBeNull();
+  });
+
+  it('undefined-stripping is identical across framings', () => {
+    const payload = { a: undefined, b: 1, inner: { c: undefined, d: null } };
+    const binaryDecoded = binaryFrameModule.decodeBinaryFrame(
+      encodeBinaryFrame(payload).subarray(5),
+    ) as Record<string, unknown>;
+    const jsonDecoded = JSON.parse(encodeJsonFrame(payload)) as Record<string, unknown>;
+    expect(binaryDecoded).toEqual(jsonDecoded);
+    expect('a' in binaryDecoded).toBe(false);
+    expect((binaryDecoded['inner'] as Record<string, unknown>)['d']).toBeNull();
   });
 });
 
