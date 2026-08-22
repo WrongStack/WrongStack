@@ -32,11 +32,27 @@ import {
 const REBUILD_MARKER_KEY = `${SQLITE_SOURCE_PREFIX}rebuild_done`;
 
 export class ChronicleMetricsIngester {
+  /**
+   * Prepared-statement cache for the per-event ingest hot paths. Preparing
+   * the same SQL on every event was the dominant ingest cost; node:sqlite
+   * statements are reusable, so each distinct SQL string is prepared once.
+   */
+  private stmtCache = new Map<string, ReturnType<DatabaseSync['prepare']>>();
+
   constructor(
     private readonly db: DatabaseSync,
     private readonly directory: string,
     private readonly dbPath: string,
   ) {}
+
+  private stmt(sql: string): ReturnType<DatabaseSync['prepare']> {
+    let s = this.stmtCache.get(sql);
+    if (!s) {
+      s = this.db.prepare(sql);
+      this.stmtCache.set(sql, s);
+    }
+    return s;
+  }
 
   async refresh(): Promise<ChronicleMetricsRefreshResult> {
     const result: ChronicleMetricsRefreshResult = {
@@ -373,34 +389,31 @@ export class ChronicleMetricsIngester {
 
   private ingestDailyCounters(event: ChronicleEvent): void {
     const day = eventDay(event);
-    this.db.prepare('INSERT OR IGNORE INTO daily_counters (day) VALUES (?)').run(day);
+    this.stmt('INSERT OR IGNORE INTO daily_counters (day) VALUES (?)').run(day);
     const bump = (sql: string, ...params: Array<string | number>) =>
-      this.db.prepare(`UPDATE daily_counters SET ${sql} WHERE day = ?`).run(...params, day);
+      this.stmt(`UPDATE daily_counters SET ${sql} WHERE day = ?`).run(...params, day);
 
     const family = signalFamily(event);
     const failed = isTerminalFailure(event) ? 1 : 0;
-    this.db
-      .prepare(
-        `INSERT INTO family_daily (day, family, count, failure_count) VALUES (?, ?, 1, ?)
+    this.stmt(
+      `INSERT INTO family_daily (day, family, count, failure_count) VALUES (?, ?, 1, ?)
        ON CONFLICT(day, family) DO UPDATE SET count = count + 1, failure_count = failure_count + excluded.failure_count`,
-      )
-      .run(day, family, failed);
+    ).run(day, family, failed);
     if (failed) bump('failures = failures + 1');
     if (event.outcome === 'cancelled' || event.outcome === 'abandoned')
       bump('cancellations = cancellations + 1');
     if (family === 'agent') bump('agent_events = agent_events + 1');
 
     if (event.correlation.logicalRequestId) {
-      this.db
-        .prepare(
-          'INSERT OR IGNORE INTO logical_request_daily (day, logical_request_id) VALUES (?, ?)',
-        )
-        .run(day, event.correlation.logicalRequestId);
+      this.stmt(
+        'INSERT OR IGNORE INTO logical_request_daily (day, logical_request_id) VALUES (?, ?)',
+      ).run(day, event.correlation.logicalRequestId);
     }
     if (event.scope.agentId) {
-      this.db
-        .prepare('INSERT OR IGNORE INTO agent_daily (day, agent_id) VALUES (?, ?)')
-        .run(day, event.scope.agentId);
+      this.stmt('INSERT OR IGNORE INTO agent_daily (day, agent_id) VALUES (?, ?)').run(
+        day,
+        event.scope.agentId,
+      );
     }
 
     const type = event.eventType;
@@ -424,9 +437,10 @@ export class ChronicleMetricsIngester {
     if (event.resource?.kind === 'file' || type.startsWith('file.')) {
       bump('file_events_all = file_events_all + 1');
       if (event.resource?.path) {
-        this.db
-          .prepare('INSERT OR IGNORE INTO file_seen_daily (day, path_key) VALUES (?, ?)')
-          .run(day, normalizePathKey(event.resource.path));
+        this.stmt('INSERT OR IGNORE INTO file_seen_daily (day, path_key) VALUES (?, ?)').run(
+          day,
+          normalizePathKey(event.resource.path),
+        );
       }
     }
   }
@@ -440,15 +454,13 @@ export class ChronicleMetricsIngester {
     const modelId =
       event.runtime?.modelId ?? asString(readPath(event.attributes ?? {}, 'from.model')) ?? '';
     if (!providerId && !modelId) return;
-    this.db
-      .prepare('INSERT OR IGNORE INTO provider_daily (day, provider_id, model_id) VALUES (?, ?, ?)')
-      .run(day, providerId, modelId);
+    this.stmt(
+      'INSERT OR IGNORE INTO provider_daily (day, provider_id, model_id) VALUES (?, ?, ?)',
+    ).run(day, providerId, modelId);
     const update = (sql: string, ...params: Array<string | number>) =>
-      this.db
-        .prepare(
-          `UPDATE provider_daily SET ${sql} WHERE day = ? AND provider_id = ? AND model_id = ?`,
-        )
-        .run(...params, day, providerId, modelId);
+      this.stmt(
+        `UPDATE provider_daily SET ${sql} WHERE day = ? AND provider_id = ? AND model_id = ?`,
+      ).run(...params, day, providerId, modelId);
     const duration = durationMs(event);
     switch (event.eventType) {
       case 'provider.attempt.started':
@@ -492,16 +504,14 @@ export class ChronicleMetricsIngester {
     if (typeof cost !== 'number' || !Number.isFinite(cost)) return;
     const scopeKey = `${event.scope.projectId ?? ''}\0${event.scope.sessionId ?? ''}\0${event.scope.agentId ?? ''}`;
     const occurredAt = event.occurredAt ?? event.observedAt;
-    this.db
-      .prepare(
-        `INSERT INTO token_cost (scope_key, day, occurred_at, sequence, cost) VALUES (?, ?, ?, ?, ?)
+    this.stmt(
+      `INSERT INTO token_cost (scope_key, day, occurred_at, sequence, cost) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(scope_key) DO UPDATE SET
          day = excluded.day, occurred_at = excluded.occurred_at,
          sequence = excluded.sequence, cost = excluded.cost
        WHERE excluded.occurred_at > token_cost.occurred_at
           OR (excluded.occurred_at = token_cost.occurred_at AND excluded.sequence > token_cost.sequence)`,
-      )
-      .run(scopeKey, eventDay(event), occurredAt, event.sequence, cost);
+    ).run(scopeKey, eventDay(event), occurredAt, event.sequence, cost);
   }
 
   private ingestTask(event: ChronicleEvent): void {
@@ -509,9 +519,9 @@ export class ChronicleMetricsIngester {
     const taskId = event.scope.taskId ?? stringAt(attributes, 'taskId');
     if (!taskId) return;
     const occurredAt = event.occurredAt ?? event.observedAt;
-    this.db.prepare('INSERT OR IGNORE INTO task_outcomes (task_id) VALUES (?)').run(taskId);
+    this.stmt('INSERT OR IGNORE INTO task_outcomes (task_id) VALUES (?)').run(taskId);
     const set = (sql: string, ...params: Array<string | number>) =>
-      this.db.prepare(`UPDATE task_outcomes SET ${sql} WHERE task_id = ?`).run(...params, taskId);
+      this.stmt(`UPDATE task_outcomes SET ${sql} WHERE task_id = ?`).run(...params, taskId);
     const lineage: Array<[string, string | undefined]> = [
       ['run_id', stringAt(attributes, 'runId')],
       ['board_id', event.scope.kanbanBoardId ?? stringAt(attributes, 'boardId')],
@@ -559,15 +569,13 @@ export class ChronicleMetricsIngester {
     if (!operation || operation === 'read') return;
     const filePath = event.resource?.path ?? stringAt(attributes, 'filePath');
     if (!filePath) return;
-    this.db
-      .prepare(
-        `INSERT OR IGNORE INTO file_lineage
+    this.stmt(
+      `INSERT OR IGNORE INTO file_lineage
         (event_id, path, path_key, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
          tool_name, provider_id, model_id, logical_request_id, prompt_manifest_id,
          provenance_confidence, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
+    ).run(
         event.eventId,
         normalizeKey(filePath),
         normalizePathKey(filePath),
