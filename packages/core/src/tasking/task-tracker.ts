@@ -28,6 +28,8 @@ export interface TaskTrackerOptions {
 }
 
 export interface TaskTransition {
+  /** The task the transition applies to — required for per-task filtering. */
+  nodeId: string;
   from: TaskNode['status'];
   to: TaskNode['status'];
   timestamp: number;
@@ -49,6 +51,13 @@ export class TaskTracker {
   private graph: TaskGraph | null = null;
   private transitions: TaskTransition[] = [];
   private listeners: TaskTrackerListener[] = [];
+  /**
+   * Re-entrancy guard for status cascades: true while an auto-block /
+   * auto-unblock cascade is running. Listener-driven mutations during a
+   * cascade still record their own primary transition — only their
+   * cascading is skipped (prevents unbounded recursion).
+   */
+  private cascading = false;
   private static readonly MAX_TRANSITIONS = 10_000;
 
   constructor(private readonly opts: TaskTrackerOptions) {}
@@ -139,6 +148,36 @@ export class TaskTracker {
         message: 'No graph loaded',
         code: ERROR_CODES.SDD_INVALID_STATE,
       });
+
+    // BIZ-004: `addEdge` used to accept anything, so a typo'd endpoint or a
+    // cycle silently produced a graph whose `canStart()` stayed false forever.
+    // Validate here and fail loudly; `addDependency` remains the
+    // boolean-returning soft wrapper for agent-declared references.
+    if (!this.graph.nodes.has(from) || !this.graph.nodes.has(to)) {
+      throw new SddError({
+        message: `Cannot add ${type} edge ${from} -> ${to}: endpoint task is not in the graph`,
+        code: ERROR_CODES.SDD_NOT_READY,
+        context: { from, to, type },
+      });
+    }
+    if (from === to) {
+      throw new SddError({
+        message: `Cannot add ${type} edge: self-loop on task ${from}`,
+        code: ERROR_CODES.SDD_INVALID_STATE,
+        context: { nodeId: from, type },
+      });
+    }
+    // Exact duplicate — idempotent no-op (mirrors addDependency's contract).
+    if (this.graph.edges.some((e) => e.from === from && e.to === to && e.type === type)) return;
+    // Cycle guard for dependency edges: adding `from -> to` (to depends on
+    // from) closes a loop when `from` already (transitively) depends on `to`.
+    if (type === 'depends_on' && this.dependsOnTransitively(from, to, new Set())) {
+      throw new SddError({
+        message: `Cannot add depends_on edge ${from} -> ${to}: it would create a dependency cycle`,
+        code: ERROR_CODES.SDD_INVALID_STATE,
+        context: { from, to },
+      });
+    }
 
     this.graph.edges.push({
       id: crypto.randomUUID(),
@@ -261,17 +300,18 @@ export class TaskTracker {
       node.startedAt = now;
     }
 
-    this.transitions.push({ from, to: status, timestamp: now, reason });
+    this.transitions.push({ nodeId: id, from, to: status, timestamp: now, reason });
     if (this.transitions.length > TaskTracker.MAX_TRANSITIONS) {
       this.transitions.splice(0, this.transitions.length - TaskTracker.MAX_TRANSITIONS);
     }
 
-    // Auto-unblock dependents
+    // Auto-unblock / auto-block cascades. Re-entrancy is guarded inside the
+    // helpers (flag set around their work): a listener notified mid-cascade
+    // may mutate statuses but cannot re-enter the cascade itself.
     if (status === 'completed') {
       this.unblockDependents(id);
     }
 
-    // Auto-block blockers
     if (status === 'in_progress') {
       this.checkAndBlockIfNeeded(id);
     }
@@ -282,7 +322,7 @@ export class TaskTracker {
       type: 'status_changed',
       nodeId: id,
       node,
-      transition: { from, to: status, timestamp: now, reason },
+      transition: { nodeId: id, from, to: status, timestamp: now, reason },
     });
   }
 
@@ -399,16 +439,58 @@ export class TaskTracker {
     return computeTaskProgress(this.graph);
   }
 
-  getTransitions(_taskId?: string): TaskTransition[] {
-    return [...this.transitions];
+  /**
+   * Recorded transitions in insertion order (oldest first — the array is
+   * trimmed from the front). With `taskId`, only that task's transitions are
+   * returned, still oldest-first; a consumer wanting newest-first reverses
+   * the result. Per-task filtering is possible because every TaskTransition
+   * carries `nodeId` (BIZ-005).
+   */
+  getTransitions(taskId?: string): TaskTransition[] {
+    return taskId === undefined
+      ? [...this.transitions]
+      : this.transitions.filter((t) => t.nodeId === taskId);
+  }
+
+  /**
+   * Record a cascade-driven status change (BIZ-003): mutate the node, push a
+   * TaskTransition, persist, and notify subscribers — the same effects an
+   * explicit updateNodeStatus produces — so the board projector's live
+   * snapshot and the transition log observe auto-block/auto-unblock.
+   */
+  private recordCascadeStatusChange(
+    nodeId: string,
+    node: TaskNode,
+    to: TaskNode['status'],
+    reason: string,
+  ): void {
+    const from = node.status;
+    if (from === to) return; // no-op transitions are not recorded
+    const now = Date.now();
+    node.status = to;
+    node.updatedAt = now;
+    if (this.graph) this.graph.updatedAt = now;
+    this.transitions.push({ nodeId, from, to, timestamp: now, reason });
+    if (this.transitions.length > TaskTracker.MAX_TRANSITIONS) {
+      this.transitions.splice(0, this.transitions.length - TaskTracker.MAX_TRANSITIONS);
+    }
+    this.persist();
+    this.notifyChange({
+      type: 'status_changed',
+      nodeId,
+      node,
+      transition: { nodeId, from, to, timestamp: now, reason },
+    });
   }
 
   private unblockDependents(completedId: string): void {
-    if (!this.graph) return;
-    const dependents = this.getDependents(completedId);
-    for (const depId of dependents) {
-      const dep = this.graph.nodes.get(depId);
-      if (dep?.status === 'blocked') {
+    if (!this.graph || this.cascading) return;
+    this.cascading = true;
+    try {
+      const dependents = this.getDependents(completedId);
+      for (const depId of dependents) {
+        const dep = this.graph.nodes.get(depId);
+        if (dep?.status !== 'blocked') continue;
         // Check if all blockers are now completed
         const remainingBlockers = this.getBlockers(depId);
         const allUnblocked = remainingBlockers.every((id) => {
@@ -416,28 +498,43 @@ export class TaskTracker {
           return blocker?.status === 'completed' || blocker?.status === 'failed';
         });
         if (allUnblocked) {
-          dep.status = 'pending';
-          dep.updatedAt = Date.now();
+          this.recordCascadeStatusChange(
+            depId,
+            dep,
+            'pending',
+            `auto-unblocked: blocker ${completedId} reached a terminal state`,
+          );
         }
       }
+    } finally {
+      this.cascading = false;
     }
   }
 
   private checkAndBlockIfNeeded(taskId: string): void {
-    if (!this.graph) return;
-    const blockers = this.getBlockers(taskId);
-    const someBlocked = blockers.some((id) => {
-      const blocker = this.graph?.nodes.get(id);
-      // A task is only blocked by incomplete blockers that haven't failed.
-      // Failed tasks should not block their dependents.
-      return blocker?.status !== 'completed' && blocker?.status !== 'failed';
-    });
-    if (someBlocked) {
-      const node = this.graph.nodes.get(taskId);
-      if (node) {
-        node.status = 'blocked';
-        node.updatedAt = Date.now();
+    if (!this.graph || this.cascading) return;
+    this.cascading = true;
+    try {
+      const blockers = this.getBlockers(taskId);
+      const incomplete = blockers.filter((id) => {
+        const blocker = this.graph?.nodes.get(id);
+        // A task is only blocked by incomplete blockers that haven't failed.
+        // Failed tasks should not block their dependents.
+        return blocker?.status !== 'completed' && blocker?.status !== 'failed';
+      });
+      if (incomplete.length > 0) {
+        const node = this.graph.nodes.get(taskId);
+        if (node) {
+          this.recordCascadeStatusChange(
+            taskId,
+            node,
+            'blocked',
+            `auto-blocked: incomplete blocker(s) ${incomplete.join(', ')}`,
+          );
+        }
       }
+    } finally {
+      this.cascading = false;
     }
   }
 

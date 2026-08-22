@@ -416,3 +416,196 @@ describe('TaskTracker — getChildren', () => {
     expect(makeTracker().getChildren('x')).toEqual([]);
   });
 });
+
+// ── BIZ-003 / BIZ-004 / BIZ-005 regressions ────────────────────────────────
+
+describe('TaskTracker — cascade observability (BIZ-003)', () => {
+  it('auto-unblock records a transition and notifies subscribers', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id); // n2 depends on n1
+    t.updateNodeStatus(n2.id, 'in_progress'); // auto-blocked: n1 incomplete
+    expect(t.getNode(n2.id)?.status).toBe('blocked');
+
+    const changes: Array<{ type: string; nodeId: string }> = [];
+    t.subscribe((change) => changes.push({ type: change.type, nodeId: change.nodeId }));
+
+    t.updateNodeStatus(n1.id, 'completed'); // cascade: n2 blocked -> pending
+
+    expect(t.getNode(n2.id)?.status).toBe('pending');
+    // The cascade change was observable, not just silently mutated.
+    expect(changes).toContainEqual({ type: 'status_changed', nodeId: n2.id });
+    // The cascade was logged with both endpoints and a machine-readable reason.
+    const unblock = t.getTransitions(n2.id).find((tr) => tr.to === 'pending');
+    expect(unblock).toBeDefined();
+    expect(unblock?.from).toBe('blocked');
+    expect(unblock?.nodeId).toBe(n2.id);
+    expect(unblock?.reason).toContain('auto-unblocked');
+    expect(unblock?.reason).toContain(n1.id);
+  });
+
+  it('auto-block records a transition and notifies subscribers', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id);
+
+    const changes: Array<{ type: string; nodeId: string }> = [];
+    t.subscribe((change) => changes.push({ type: change.type, nodeId: change.nodeId }));
+
+    t.updateNodeStatus(n2.id, 'in_progress'); // n1 still pending -> blocked
+
+    expect(t.getNode(n2.id)?.status).toBe('blocked');
+    expect(changes).toContainEqual({ type: 'status_changed', nodeId: n2.id });
+    const block = t.getTransitions(n2.id).find((tr) => tr.to === 'blocked');
+    expect(block).toBeDefined();
+    // The explicit update set 'in_progress' first; the cascade then blocked it.
+    expect(block?.from).toBe('in_progress');
+    expect(block?.reason).toContain('auto-blocked');
+    expect(block?.reason).toContain(n1.id);
+  });
+
+  it('persists the graph when a cascade changes a status (isolated from the primary write)', async () => {
+    const store = makeStore();
+    const t = await withGraph(makeTracker(store));
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id);
+    t.updateNodeStatus(n2.id, 'in_progress'); // auto-blocked: n1 incomplete
+    const saves = () => (store.saveGraph as ReturnType<typeof vi.fn>).mock.calls.length;
+    const before = saves();
+    // Primary write (n1 completed) + cascade write (n2 unblocked) = exactly 2.
+    // A regression that drops persist() from the cascade leaves only 1.
+    t.updateNodeStatus(n1.id, 'completed');
+    expect(saves() - before).toBe(2);
+  });
+
+  it('suppresses a nested cascade triggered by a mid-cascade listener mutation', async () => {
+    const t = await withGraph();
+    const a = t.addNode(makeNode());
+    const b = t.addNode(makeNode());
+    const c = t.addNode(makeNode());
+    const d = t.addNode(makeNode());
+    t.addEdge(a.id, c.id); // c blocked on a alone — completing a WILL cascade
+    t.addEdge(b.id, d.id); // d blocked on b
+    t.updateNodeStatus(c.id, 'in_progress'); // -> blocked
+    t.updateNodeStatus(d.id, 'in_progress'); // -> blocked
+
+    let notifications = 0;
+    const unsubscribe = t.subscribe((change) => {
+      notifications += 1;
+      if (notifications > 50) throw new Error('runaway cascade');
+      // On c's CASCADE notification (guard active), mutate b. Without the
+      // guard this completion would cascade d -> pending here; with it, the
+      // nested cascade is suppressed and d stays blocked.
+      if (change.type === 'status_changed' && change.nodeId === c.id && change.node.status === 'pending') {
+        t.updateNodeStatus(b.id, 'completed');
+      }
+    });
+
+    t.updateNodeStatus(a.id, 'completed'); // cascade: c blocked -> pending
+    unsubscribe();
+
+    expect(t.getNode(c.id)?.status).toBe('pending'); // primary cascade ran
+    expect(t.getNode(b.id)?.status).toBe('completed'); // listener mutation recorded…
+    expect(t.getNode(d.id)?.status).toBe('blocked'); // …but its nested cascade was suppressed
+
+    // The guard resets after the cascade: a later completion cascades again.
+    const e = t.addNode(makeNode());
+    t.addEdge(e.id, d.id);
+    t.updateNodeStatus(e.id, 'completed');
+    expect(t.getNode(d.id)?.status).toBe('pending');
+    expect(notifications).toBeLessThanOrEqual(50);
+  });
+
+  it('no-op cascade (already pending) records no transition', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id);
+    // n2 never became blocked, so completing n1 triggers no state change.
+    t.updateNodeStatus(n1.id, 'completed');
+    const n2Transitions = t.getTransitions(n2.id);
+    expect(n2Transitions).toHaveLength(0);
+  });
+});
+
+describe('TaskTracker — addEdge validation (BIZ-004)', () => {
+  it('throws when an endpoint task does not exist', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    expect(() => t.addEdge(n1.id, 'nonexistent-id')).toThrow(/not in the graph/);
+    expect(() => t.addEdge('nonexistent-id', n1.id)).toThrow(/not in the graph/);
+    expect(t.getDependents(n1.id)).toHaveLength(0);
+  });
+
+  it('throws on a self-loop', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    expect(() => t.addEdge(n1.id, n1.id)).toThrow(/self-loop/);
+  });
+
+  it('is idempotent for an exact duplicate edge', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id);
+    expect(() => t.addEdge(n1.id, n2.id)).not.toThrow();
+    // Still exactly one dependency edge between the two nodes.
+    expect(t.getDependents(n1.id)).toEqual([n2.id]);
+  });
+
+  it('throws when the edge would close a dependency cycle', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id); // n2 depends on n1
+    // n1 already depends on n2 transitively? Not yet — but adding
+    // n2 -> n1 after n1 -> n2 closes a 2-cycle.
+    expect(() => t.addEdge(n2.id, n1.id)).toThrow(/cycle/);
+  });
+
+  it('addDependency still returns false instead of throwing for the same cases', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    // addDependency is the boolean wrapper: unknown ids / self / cycles -> false.
+    expect(t.addDependency('missing', n1.id)).toBe(false);
+    expect(t.addDependency(n1.id, n1.id)).toBe(false);
+    const n2 = t.addNode(makeNode());
+    t.addEdge(n1.id, n2.id);
+    expect(t.addDependency(n2.id, n1.id)).toBe(false); // would close a cycle
+  });
+});
+
+describe('TaskTracker — transition identity and filtering (BIZ-005)', () => {
+  it('records nodeId on every transition', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.updateNodeStatus(n1.id, 'in_progress');
+    t.updateNodeStatus(n2.id, 'completed');
+    for (const tr of t.getTransitions()) {
+      expect([n1.id, n2.id]).toContain(tr.nodeId);
+    }
+  });
+
+  it('getTransitions(taskId) returns only that task, oldest first', async () => {
+    const t = await withGraph();
+    const n1 = t.addNode(makeNode());
+    const n2 = t.addNode(makeNode());
+    t.updateNodeStatus(n1.id, 'in_progress');
+    t.updateNodeStatus(n2.id, 'in_progress');
+    t.updateNodeStatus(n1.id, 'completed');
+
+    const only1 = t.getTransitions(n1.id);
+    expect(only1).toHaveLength(2);
+    expect(only1.every((tr) => tr.nodeId === n1.id)).toBe(true);
+    expect(only1[0]?.to).toBe('in_progress'); // oldest first
+    expect(only1[1]?.to).toBe('completed');
+
+    const all = t.getTransitions();
+    expect(all).toHaveLength(3); // unfiltered returns everything
+    expect(t.getTransitions('unknown-id')).toHaveLength(0);
+  });
+});
