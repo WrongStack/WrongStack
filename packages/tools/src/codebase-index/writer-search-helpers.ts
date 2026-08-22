@@ -55,7 +55,9 @@ export function buildWriterSearchWhere(
   const values: unknown[] = [];
 
   let effectiveKind: SymbolKind | undefined = filter?.kind;
-  if (filter?.lspKind !== undefined) {
+  // `!= null`: binary-framed (MessagePack) clients deliver a missing lspKind
+  // as null; absent and null mean the same thing here.
+  if (filter?.lspKind != null) {
     const mapped = lspKindToInternalKind(filter.lspKind);
     if (mapped !== null) {
       effectiveKind = mapped;

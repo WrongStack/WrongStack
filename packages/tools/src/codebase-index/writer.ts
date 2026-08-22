@@ -16,13 +16,16 @@ import type {
 } from './schema.js';
 import { SCHEMA_VERSION } from './schema.js';
 import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
+import { embedText, encodeVector, vectorEmbeddingEnabled } from './vector-search.js';
 import {
   getAllFileMetasWithStatement,
   getAllIndexableWithStatement,
   getFileMetaWithStatement,
+  getIndexSummaryWithStatement,
   getMaxSymbolIdWithStatement,
   getMetadataWithStatement,
   getStatsWithStatement,
+  type IndexSummary,
 } from './writer-admin.js';
 import {
   type BulkSymbolRow,
@@ -44,7 +47,7 @@ import {
   getPackageGraphWithStatement,
   getSymbolGraphWithStatement,
 } from './writer-graph-reader.js';
-import { resolveIndexDir } from './writer-helpers.js';
+import { inListChunks, padToInBucket, placeholders, resolveIndexDir } from './writer-helpers.js';
 import { commitBatchWithStatement } from './writer-mutations.js';
 import { applyIndexStorePragmas } from './writer-pragmas.js';
 import {
@@ -69,12 +72,12 @@ import {
   SYMBOL_VECTORS_TABLE_SQL,
   SYMBOLS_FTS_SQL,
 } from './writer-schema.js';
-import type { WriterSearchFilter } from './writer-search-helpers.js';
 import {
   countSearchWithStatement,
   searchRankedWithStatement,
   searchWithStatement,
 } from './writer-search.js';
+import type { WriterSearchFilter } from './writer-search-helpers.js';
 import { StorePool } from './writer-store-pool.js';
 
 export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
@@ -260,7 +263,22 @@ export class IndexStore {
       );
       if (symbolCount !== ftsCount) {
         this.db.exec('DELETE FROM symbols_fts');
-        if (this.vectorsAvailable) this.db.exec('DELETE FROM symbol_vectors');
+        // NB: vectorsAvailable is not yet assigned here (the vector init block
+        // below runs later in initSchema) — gate on the env source of truth.
+        // Guard the purge: on a same-version DB where vectors were just
+        // enabled, symbol_vectors may not exist yet (the vector init below
+        // creates it). An unguarded DELETE would throw, and this whole block
+        // sits inside the FTS try — the broad catch would then flip
+        // ftsAvailable=false, silently disabling FTS because a *vector* table
+        // was missing.
+        if (
+          vectorEmbeddingEnabled() &&
+          (this.stmt(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='symbol_vectors'",
+          ).get() as { '1'?: number } | undefined) !== undefined
+        ) {
+          this.db.exec('DELETE FROM symbol_vectors');
+        }
         const rows = this.stmt(
           'SELECT id, name, signature, doc_comment FROM symbols ORDER BY id',
         ).all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
@@ -279,9 +297,19 @@ export class IndexStore {
       this.ftsAvailable = false;
     }
 
+    // P4.11: the vector layer is opt-in (WRONGSTACK_INDEX_VECTORS=1).
+    // Default off — see vectorEmbeddingEnabled(). When off, a legacy database
+    // may still carry symbol_vectors; dropping it returns those pages to the
+    // free list instead of carrying ~1.5KB/symbol of dead BLOBs forever.
+    // Re-enabling + a force reindex repopulates it.
     try {
-      this.db.exec(SYMBOL_VECTORS_TABLE_SQL);
-      this.vectorsAvailable = true;
+      if (vectorEmbeddingEnabled()) {
+        this.db.exec(SYMBOL_VECTORS_TABLE_SQL);
+        this.vectorsAvailable = true;
+      } else {
+        this.db.exec('DROP TABLE IF EXISTS symbol_vectors');
+        this.vectorsAvailable = false;
+      }
     } catch {
       this.vectorsAvailable = false;
     }
@@ -323,16 +351,24 @@ export class IndexStore {
 
   private invalidateIncomingRefsForFiles(files: readonly string[]): Set<string> {
     if (files.length === 0) return new Set();
-    const placeholders = files.map(() => '?').join(',');
-    const names = (
-      this.stmt(`SELECT DISTINCT name FROM symbols WHERE file IN (${placeholders})`).all(
-        ...files,
-      ) as Array<{ name: string }>
-    ).map((row) => row.name);
-    this.stmt(
-      `UPDATE refs SET to_id = NULL
-       WHERE to_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-    ).run(...files);
+    // P4.12: bucketed chunks — a fitting list stays ONE statement pair (IN
+    // duplicates are set semantics); an oversized list ladders within budget.
+    const names: string[] = [];
+    let cursor = 0;
+    for (const take of inListChunks(files.length, IndexStore.MAX_SQL_VARS)) {
+      const bucket = padToInBucket(files.slice(cursor, cursor + take));
+      cursor += take;
+      const ph = placeholders(bucket.length);
+      for (const row of this.stmt(`SELECT DISTINCT name FROM symbols WHERE file IN (${ph})`).all(
+        ...bucket,
+      ) as Array<{ name: string }>) {
+        names.push(row.name);
+      }
+      this.stmt(
+        `UPDATE refs SET to_id = NULL
+         WHERE to_id IN (SELECT id FROM symbols WHERE file IN (${ph}))`,
+      ).run(...bucket);
+    }
     return new Set(names);
   }
 
@@ -369,6 +405,14 @@ export class IndexStore {
           if (this.ftsAvailable) {
             ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
           }
+          if (this.vectorsAvailable) {
+            vectorRows.push({
+              id,
+              vector: encodeVector(
+                embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+              ),
+            });
+          }
           result.push({ ...s, id });
         }
         bulkInsertSymbolsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, bulk);
@@ -403,15 +447,15 @@ export class IndexStore {
         const affectedNames = this.invalidateIncomingRefsForFiles([file]);
         if (this.ftsAvailable) {
           this.stmt(
-            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(file);
         }
         if (this.vectorsAvailable) {
           this.stmt(
-            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(file);
         }
-        this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
+        this.stmt('DELETE FROM symbols WHERE file = ?').run(file);
         this.resolveRefsForNamesUnsafe(affectedNames);
         this.commitWriteTransaction(ownsTransaction);
       } catch (error) {
@@ -429,18 +473,18 @@ export class IndexStore {
         const affectedNames = this.invalidateIncomingRefsForFiles([file]);
         if (this.ftsAvailable) {
           this.stmt(
-            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(file);
         }
         if (this.vectorsAvailable) {
           this.stmt(
-            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(file);
         }
-        this.stmt(
-          'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
-        ).run(file);
-        this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
+        this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
+          file,
+        );
+        this.stmt('DELETE FROM symbols WHERE file = ?').run(file);
         this.stmt('DELETE FROM files WHERE file = ?').run(file);
         this.resolveRefsForNamesUnsafe(affectedNames);
         this.commitWriteTransaction(ownsTransaction);
@@ -575,6 +619,11 @@ export class IndexStore {
     return getStatsWithStatement((sql) => this.stmt(sql), this.indexDir);
   }
 
+  /** P2.5: minimal summary for search-response piggyback (see writer-admin). */
+  getIndexSummary(): IndexSummary {
+    return getIndexSummaryWithStatement((sql) => this.stmt(sql));
+  }
+
   setLastIndexed(ts: number): void {
     this.runWithRetry(() => {
       this.stmt("INSERT OR REPLACE INTO metadata(key, value) VALUES('last_indexed', ?)").run(
@@ -697,18 +746,18 @@ export class IndexStore {
         const affectedNames = this.invalidateIncomingRefsForFiles([meta.file]);
         if (this.ftsAvailable) {
           this.stmt(
-            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(meta.file);
         }
         if (this.vectorsAvailable) {
           this.stmt(
-            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+            'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(meta.file);
         }
-        this.stmt(
-          'DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
-        ).run(meta.file);
-        this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(meta.file);
+        this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
+          meta.file,
+        );
+        this.stmt('DELETE FROM symbols WHERE file = ?').run(meta.file);
         this.stmt(
           `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
            VALUES (?, ?, ?, ?, ?, ?)
@@ -740,6 +789,32 @@ export class IndexStore {
       this.db.exec('PRAGMA optimize');
     } catch {
       /* optional */
+    }
+  }
+
+  /**
+   * P4.14: best-effort WAL checkpoint for idle-time maintenance.
+   *
+   * `wal_autocheckpoint` is PASSIVE and only attempts work after a COMMIT —
+   * once writes stop, nothing fires again, so the WAL keeps whatever frames
+   * the last burst left. This probes with PASSIVE first (never blocks; busy=1
+   * means readers still hold WAL snapshots) and only issues the TRUNCATE —
+   * which resets index.db-wal to zero bytes — when the checkpointer can
+   * proceed immediately. Callers run this on the daemon's single thread, so
+   * never wait on readers here: busy means "retry at the next idle window".
+   */
+  checkpointWal(): boolean {
+    try {
+      const probe = this.db.prepare('PRAGMA wal_checkpoint(PASSIVE)').get() as
+        | { busy?: number }
+        | undefined;
+      if (Number(probe?.busy ?? 1) !== 0) return false;
+      const done = this.db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get() as
+        | { busy?: number }
+        | undefined;
+      return Number(done?.busy ?? 1) === 0;
+    } catch {
+      return false;
     }
   }
 

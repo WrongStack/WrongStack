@@ -34,9 +34,8 @@ export const CORE_TABLES_SQL = `
     signature TEXT NOT NULL DEFAULT '',
     doc_comment TEXT NOT NULL DEFAULT '',
     scope TEXT NOT NULL DEFAULT '',
-    text TEXT NOT NULL DEFAULT '',
-    file_fk TEXT NOT NULL
-  );
+    text TEXT NOT NULL DEFAULT ''
+    );
 `;
 
 export const FILE_INDEX_SQL = [
@@ -49,7 +48,6 @@ export const SYMBOL_INDEX_SQL = [
   'CREATE INDEX IF NOT EXISTS idx_s_lang ON symbols(lang)',
   'CREATE INDEX IF NOT EXISTS idx_s_file ON symbols(file)',
   'CREATE INDEX IF NOT EXISTS idx_s_lang_kind ON symbols(lang, kind)',
-  'CREATE INDEX IF NOT EXISTS idx_s_file_fk ON symbols(file_fk)',
   'CREATE INDEX IF NOT EXISTS idx_s_name_id ON symbols(name, id)',
 ] as const;
 

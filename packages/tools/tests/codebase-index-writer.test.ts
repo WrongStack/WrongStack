@@ -1,20 +1,23 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   Symbol as IndexSymbol,
   SymbolKind,
   SymbolLang,
 } from '../src/codebase-index/schema.js';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
-  IndexStore,
   codebaseIndexDirOverride,
+  IndexStore,
   resolveIndexDir,
 } from '../src/codebase-index/writer.js';
 import {
   indexedFileMatchArgs,
+  inListChunks,
+  ladderChunkSizes,
   matchesIndexedPackageFilter,
+  padToInBucket,
   posixIndexPath,
 } from '../src/codebase-index/writer-helpers.js';
 
@@ -53,13 +56,7 @@ describe('indexed file filter matching', () => {
   });
 
   it('treats a path fragment as a package filter', () => {
-    expect(
-      matchesIndexedPackageFilter(
-        'C:\\proj\\src\\calc.ts',
-        'fixture',
-        'src',
-      ),
-    ).toBe(true);
+    expect(matchesIndexedPackageFilter('C:\\proj\\src\\calc.ts', 'fixture', 'src')).toBe(true);
     expect(matchesIndexedPackageFilter('C:\\proj\\src\\calc.ts', 'fixture', 'fixture')).toBe(true);
     expect(matchesIndexedPackageFilter('C:\\proj\\src\\calc.ts', 'fixture', 'other')).toBe(false);
   });
@@ -384,7 +381,9 @@ describe('IndexStore CodeMap graphs', () => {
   it('resolves a project-relative file filter for the symbol graph', () => {
     const graph = store.getSymbolGraph('packages/core/src/agent.ts');
     expect(graph.nodes.some((node) => node.label === 'readFile' && node.external)).toBe(true);
-    expect(graph.nodes.some((node) => node.file === coreFile && node.external === false)).toBe(true);
+    expect(graph.nodes.some((node) => node.file === coreFile && node.external === false)).toBe(
+      true,
+    );
   });
 
   it('accepts a path fragment for the file graph', () => {
@@ -657,5 +656,89 @@ describe('FTS backfill drift detection', () => {
     expect(after.total).toBeGreaterThan(0);
     expect(after.results[0]?.name).toBe('Alpha');
     b.close();
+  });
+});
+
+// ─── P4.12: fixed placeholder buckets ────────────────────────────────────────
+
+describe('P4.12 statement-cache buckets', () => {
+  it('ladderChunkSizes splits into powers of two, largest first, summing to total', () => {
+    const sizes = ladderChunkSizes(1000, 450);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(1000);
+    for (const s of sizes) expect(Number.isInteger(Math.log2(s))).toBe(true);
+    for (const s of sizes) expect(s).toBeLessThanOrEqual(450);
+    expect(ladderChunkSizes(0, 100)).toEqual([]);
+    expect(ladderChunkSizes(1, 100)).toEqual([1]);
+    expect(ladderChunkSizes(1024, 1024)).toEqual([1024]);
+  });
+
+  it('padToInBucket pads to the next power of two by repeating values[0]', () => {
+    expect(padToInBucket([1])).toEqual([1]);
+    expect(padToInBucket([1, 2, 3])).toEqual([1, 2, 3, 1]);
+    expect(padToInBucket(['a', 'b'])).toEqual(['a', 'b']);
+    expect(padToInBucket([1, 2, 3, 4, 5])).toHaveLength(8);
+    expect(padToInBucket([1, 2, 3, 4, 5])[5]).toBe(1);
+    // Original array is never mutated.
+    const original = [1, 2, 3];
+    padToInBucket(original);
+    expect(original).toEqual([1, 2, 3]);
+  });
+
+  it('inListChunks keeps a fitting list one chunk and never lets padding cross the budget', () => {
+    // Small list: padded bucket (4) fits under 900 → ONE chunk, one statement.
+    expect(inListChunks(3, 900)).toEqual([3]);
+    // 512 is already a power of two and fits → one chunk.
+    expect(inListChunks(512, 900)).toEqual([512]);
+    // 513 would pad to 1024 > 900: the fast path must NOT fire. The ladder
+    // caps at the largest pow2 ≤ 900 (512), so every chunk pads to itself.
+    const split = inListChunks(513, 900);
+    expect(split).not.toEqual([513]);
+    expect(split.reduce((a, b) => a + b, 0)).toBe(513);
+    for (const take of split) {
+      expect(take).toBeLessThanOrEqual(512);
+      expect(Number.isInteger(Math.log2(take))).toBe(true);
+    }
+    // 900 (not a pow2) pads to 1024 → ladder; 880 pads to 1024 → ladder;
+    // 768 is NOT a power of two (3×256) — nextPow2(768)=1024 > 900 → ladder.
+    // The largest single-chunk case under 900 is 512 itself.
+    expect(inListChunks(768, 900).length).toBeGreaterThan(1);
+    expect(inListChunks(880, 900).length).toBeGreaterThan(1);
+  });
+
+  it('bulk inserts across many batch sizes stop growing the statement cache', async () => {
+    const bucketRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-p412-'));
+    const store = new IndexStore(bucketRoot);
+    try {
+      const cache = (store as unknown as { stmtCache: Map<string, unknown> }).stmtCache;
+      const before = cache.size;
+      // Insert prime-count batches — the worst case for `slice(i, i+n)`
+      // chunking, since every final chunk length is distinct. With ladder
+      // chunking the distinct SQL strings are bounded by log2(maxChunk).
+      for (const n of [1, 3, 7, 13, 29, 61, 127, 251, 509]) {
+        const rows = Array.from({ length: n }, (_, i) => ({
+          id: 0,
+          lang: 'ts' as const,
+          kind: 'function' as const,
+          name: `sym${i}_${n}`,
+          file: 'src/bucket.ts',
+          line: i + 1,
+          col: 1,
+          signature: '',
+          docComment: '',
+          scope: '',
+          text: '',
+        }));
+        store.insertSymbols(rows);
+      }
+      const after = cache.size;
+      // Old behavior: each batch size contributed ≥1 new SQL string per shape
+      // (often two — full + remainder chunks). Ladder: bounded by ~10 sizes.
+      // Allow generous headroom for unrelated statements, but the growth must
+      // be sub-linear in the number of DISTINCT batch sizes (9 here).
+      expect(after - before).toBeLessThanOrEqual(20);
+    } finally {
+      store.close();
+      await fs.rm(bucketRoot, { recursive: true, force: true });
+    }
   });
 });

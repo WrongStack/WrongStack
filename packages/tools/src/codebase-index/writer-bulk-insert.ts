@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { Ref } from './schema.js';
+import { ladderChunkSizes } from './writer-helpers.js';
 
 type Statement = ReturnType<DatabaseSync['prepare']>;
 type PrepareStatement = (sql: string) => Statement;
@@ -24,12 +25,17 @@ export function bulkInsertSymbolsWithStatement(
   rows: BulkSymbolRow[],
 ): void {
   if (rows.length === 0) return;
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 12));
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
-    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+  // P4.12: ladder chunking (powers of two) keeps distinct SQL strings ≤
+  // log2(max)+1 so the statement cache stabilizes. Read via cursor — never
+  // mutate the caller's array.
+  const ladder = ladderChunkSizes(rows.length, Math.max(1, Math.floor(maxSqlVars / 12)));
+  let cursor = 0;
+  for (const take of ladder) {
+    const chunk = rows.slice(cursor, cursor + take);
+    cursor += take;
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
     const insert = stmt(
-      `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text, file_fk)
+      `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text)
        VALUES ${placeholders}`,
     );
     const binds: (string | number)[] = [];
@@ -46,7 +52,6 @@ export function bulkInsertSymbolsWithStatement(
         r.docComment,
         r.scope,
         r.text,
-        r.file,
       );
     }
     insert.run(...binds);
@@ -60,9 +65,11 @@ export function bulkInsertFtsWithStatement(
   rows: Array<{ id: number; text: string }>,
 ): void {
   if (!ftsAvailable || rows.length === 0) return;
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 2));
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
+  const ladder = ladderChunkSizes(rows.length, Math.max(1, Math.floor(maxSqlVars / 2)));
+  let cursor = 0;
+  for (const take of ladder) {
+    const chunk = rows.slice(cursor, cursor + take);
+    cursor += take;
     const placeholders = chunk.map(() => '(?, ?)').join(', ');
     const insert = stmt(`INSERT INTO symbols_fts(rowid, text) VALUES ${placeholders}`);
     const binds: (string | number)[] = [];
@@ -82,9 +89,11 @@ export function bulkInsertVectorsWithStatement(
   rows: BulkVectorRow[],
 ): void {
   if (rows.length === 0) return;
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 2));
-  for (let i = 0; i < rows.length; i += chunkSize) {
-    const chunk = rows.slice(i, i + chunkSize);
+  const ladder = ladderChunkSizes(rows.length, Math.max(1, Math.floor(maxSqlVars / 2)));
+  let cursor = 0;
+  for (const take of ladder) {
+    const chunk = rows.slice(cursor, cursor + take);
+    cursor += take;
     const placeholders = chunk.map(() => '(?, ?)').join(', ');
     const insert = stmt(`INSERT INTO symbol_vectors(symbol_id, vector) VALUES ${placeholders}`);
     const binds: (number | Uint8Array)[] = [];
@@ -99,9 +108,11 @@ export function bulkInsertRefsWithStatement(
   refs: Ref[],
 ): void {
   if (refs.length === 0) return;
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 8));
-  for (let i = 0; i < refs.length; i += chunkSize) {
-    const chunk = refs.slice(i, i + chunkSize);
+  const ladder = ladderChunkSizes(refs.length, Math.max(1, Math.floor(maxSqlVars / 8)));
+  let cursor = 0;
+  for (const take of ladder) {
+    const chunk = refs.slice(cursor, cursor + take);
+    cursor += take;
     const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
     const insert = stmt(
       `INSERT INTO refs(from_id, to_name, to_id, call_type, line, lang, module, to_file)

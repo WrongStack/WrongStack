@@ -140,6 +140,13 @@ export interface SearchResult {
 
 /** Result of a full reindex. */
 export interface IndexResult {
+  /**
+   * Files actually parsed and committed with one or more symbols this run
+   * (P5.15: exactly `fileOutcomes.parsed`). Skipped (mtime/hash-unchanged),
+   * empty, and failed files are reported separately in `fileOutcomes` —
+   * historically they inflated this number, misreading incremental runs as
+   * doing full work.
+   */
   filesIndexed: number;
   /** Outcome detail for this run. Optional for compatibility with older project daemons. */
   fileOutcomes?:
@@ -275,6 +282,12 @@ export interface GraphEdge {
 export interface CodeMapGraph {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  /**
+   * True when the project server served a previous generation's cached
+   * answer while a refresh was publishing (stale-read serving). Never set
+   * by the worker/inline path, which refuses reads during a refresh.
+   */
+  stale?: boolean | undefined;
 }
 
 // ─── Schema version ───────────────────────────────────────────────────────────
@@ -289,4 +302,4 @@ export interface CodeMapGraph {
 // A version mismatch on open drops & rebuilds the index (it is derived data).
 // Non-structural CodeMap relation migrations use `relation_graph_version`
 // metadata so older running processes sharing the DB cannot downgrade it.
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;

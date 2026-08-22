@@ -10,7 +10,12 @@ import {
   bulkInsertSymbolsWithStatement,
   bulkInsertVectorsWithStatement,
 } from './writer-bulk-insert.js';
-import { assignRefsToSymbols } from './writer-helpers.js';
+import {
+  assignRefsToSymbols,
+  inListChunks,
+  padToInBucket,
+  placeholders,
+} from './writer-helpers.js';
 
 export function commitBatchWithStatement(
   stmtFn: (sql: string) => ReturnType<DatabaseSync['prepare']>,
@@ -40,24 +45,31 @@ export function commitBatchWithStatement(
     for (const ref of entry.refs) affectedNames.add(ref.toName);
   }
   if (options.deleteForFiles && options.deleteForFiles.length > 0) {
-    const placeholders = options.deleteForFiles.map(() => '?').join(',');
+    // P4.12: bucketed chunks — a fitting list stays ONE statement set (IN
+    // duplicates are set semantics); an oversized list ladders within budget.
     for (const name of invalidateIncomingRefsForFiles(options.deleteForFiles)) {
       affectedNames.add(name);
     }
-    if (ftsAvailable) {
+    let cursor = 0;
+    for (const take of inListChunks(options.deleteForFiles.length, Math.floor(maxSqlVars / 4))) {
+      const bucket = padToInBucket(options.deleteForFiles.slice(cursor, cursor + take));
+      cursor += take;
+      const ph = placeholders(bucket.length);
+      if (ftsAvailable) {
+        stmtFn(
+          `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${ph}))`,
+        ).run(...bucket);
+      }
+      if (vectorsAvailable) {
+        stmtFn(
+          `DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file IN (${ph}))`,
+        ).run(...bucket);
+      }
       stmtFn(
-        `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-      ).run(...options.deleteForFiles);
+        `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${ph}))`,
+      ).run(...bucket);
+      stmtFn(`DELETE FROM symbols WHERE file IN (${ph})`).run(...bucket);
     }
-    if (vectorsAvailable) {
-      stmtFn(
-        `DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-      ).run(...options.deleteForFiles);
-    }
-    stmtFn(
-      `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
-    ).run(...options.deleteForFiles);
-    stmtFn(`DELETE FROM symbols WHERE file IN (${placeholders})`).run(...options.deleteForFiles);
   }
 
   const totalSymbols = entries.reduce((n, e) => n + e.symbols.length, 0);
@@ -92,12 +104,14 @@ export function commitBatchWithStatement(
           text: buildIndexableText(s.name, s.signature, s.docComment),
         });
       }
-      vectorRows.push({
-        id,
-        vector: encodeVector(
-          embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
-        ),
-      });
+      if (vectorsAvailable) {
+        vectorRows.push({
+          id,
+          vector: encodeVector(
+            embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+          ),
+        });
+      }
       const inserted = { ...s, id };
       allInserted.push(inserted);
       insertedForEntry.push(inserted);
@@ -149,19 +163,19 @@ export function replaceEmptyFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([meta.file]);
   if (ftsAvailable) {
-    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)').run(
       meta.file,
     );
   }
   if (vectorsAvailable) {
     stmtFn(
-      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
     ).run(meta.file);
   }
-  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
     meta.file,
   );
-  stmtFn('DELETE FROM symbols WHERE file_fk = ?').run(meta.file);
+  stmtFn('DELETE FROM symbols WHERE file = ?').run(meta.file);
   stmtFn(
     `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
      VALUES (?, ?, ?, ?, 0, ?)
@@ -207,12 +221,14 @@ export function insertSymbolsWithStatement(
     if (ftsAvailable) {
       ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
     }
-    vectorRows.push({
-      id,
-      vector: encodeVector(
-        embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
-      ),
-    });
+    if (vectorsAvailable) {
+      vectorRows.push({
+        id,
+        vector: encodeVector(
+          embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+        ),
+      });
+    }
     result.push({ ...s, id });
   }
   bulkInsertSymbolsWithStatement((sql) => stmtFn(sql), maxSqlVars, bulk);
@@ -233,16 +249,16 @@ export function deleteSymbolsForFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([file]);
   if (ftsAvailable) {
-    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)').run(
       file,
     );
   }
   if (vectorsAvailable) {
     stmtFn(
-      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
     ).run(file);
   }
-  stmtFn('DELETE FROM symbols WHERE file_fk = ?').run(file);
+  stmtFn('DELETE FROM symbols WHERE file = ?').run(file);
   resolveRefsForNamesUnsafe(affectedNames);
 }
 
@@ -256,17 +272,17 @@ export function deleteFileWithStatement(
 ): void {
   const affectedNames = invalidateIncomingRefsForFiles([file]);
   if (ftsAvailable) {
-    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)').run(
+    stmtFn('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file = ?)').run(
       file,
     );
   }
   if (vectorsAvailable) {
     stmtFn(
-      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file_fk = ?)',
+      'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
     ).run(file);
   }
-  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file_fk = ?)').run(file);
-  stmtFn('DELETE FROM symbols WHERE file_fk = ?').run(file);
+  stmtFn('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(file);
+  stmtFn('DELETE FROM symbols WHERE file = ?').run(file);
   stmtFn('DELETE FROM files WHERE file = ?').run(file);
   resolveRefsForNamesUnsafe(affectedNames);
 }
@@ -301,64 +317,4 @@ export function setFilePackagesWithStatement(
   if (entries.size === 0) return;
   const update = stmtFn('UPDATE files SET package = ? WHERE file = ?');
   for (const [file, label] of entries) update.run(label, file);
-}
-
-export function applyImportResolutionsWithStatement(
-  db: DatabaseSync,
-  stmtFn: (sql: string) => ReturnType<DatabaseSync['prepare']>,
-  maxSqlVars: number,
-  resolutions: ReadonlyArray<{ fromFile: string; lang: string; module: string; toFile: string }>,
-): number {
-  if (resolutions.length === 0) return 0;
-  db.exec('DROP TABLE IF EXISTS temp.import_resolution');
-  db.exec(
-    `CREATE TEMP TABLE import_resolution (
-       from_file TEXT NOT NULL,
-       lang TEXT NOT NULL,
-       module TEXT NOT NULL,
-       to_file TEXT NOT NULL
-     )`,
-  );
-  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 4));
-  for (let i = 0; i < resolutions.length; i += chunkSize) {
-    const chunk = resolutions.slice(i, i + chunkSize);
-    const placeholders = chunk.map(() => '(?, ?, ?, ?)').join(', ');
-    const binds: string[] = [];
-    for (const entry of chunk) {
-      binds.push(entry.fromFile, entry.lang, entry.module, entry.toFile);
-    }
-    stmtFn(
-      `INSERT INTO temp.import_resolution(from_file, lang, module, to_file)
-       VALUES ${placeholders}`,
-    ).run(...binds);
-  }
-  db.exec(
-    `CREATE INDEX IF NOT EXISTS temp.idx_ir
-       ON import_resolution(module, lang, from_file)`,
-  );
-
-  const result = stmtFn(
-    `UPDATE refs
-        SET to_file = (
-          SELECT ir.to_file
-            FROM temp.import_resolution ir
-            JOIN symbols s ON s.id = refs.from_id
-           WHERE ir.module = refs.module
-             AND ir.lang = refs.lang
-             AND ir.from_file = s.file
-           LIMIT 1
-        )
-      WHERE refs.call_type = 'import'
-        AND refs.module IS NOT NULL
-        AND EXISTS (
-          SELECT 1
-            FROM temp.import_resolution ir
-            JOIN symbols s ON s.id = refs.from_id
-           WHERE ir.module = refs.module
-             AND ir.lang = refs.lang
-             AND ir.from_file = s.file
-        )`,
-  ).run() as { changes?: number };
-  db.exec('DROP TABLE IF EXISTS temp.import_resolution');
-  return result.changes ?? 0;
 }

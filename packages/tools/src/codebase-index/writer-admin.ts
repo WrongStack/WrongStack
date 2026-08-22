@@ -64,6 +64,28 @@ export function getMetadataWithStatement(stmt: PrepareStatement, key: string): s
   return rows[0]?.value;
 }
 
+/**
+ * P2.5: minimal index summary for search responses. Carries exactly the two
+ * fields the search tool's zero-hit heuristic consumes (`totalFiles`,
+ * `lastIndexed`) — NOT the full IndexStats — so a zero-hit query answers
+ * "is there a persisted index at all?" without a second stats IPC round trip.
+ */
+export interface IndexSummary {
+  totalFiles: number;
+  lastIndexed: number | null;
+}
+
+export function getIndexSummaryWithStatement(stmt: PrepareStatement): IndexSummary {
+  const fileRows = stmt('SELECT COUNT(*) AS n FROM files').all() as { n: number }[];
+  const lastRows = stmt("SELECT value FROM metadata WHERE key = 'last_indexed'").all() as {
+    value: string;
+  }[];
+  return {
+    totalFiles: fileRows[0] ? Number(fileRows[0].n) : 0,
+    lastIndexed: lastRows.length ? Number(lastRows[0]?.value) : null,
+  };
+}
+
 export function getFileMetaWithStatement(stmt: PrepareStatement, file: string): FileMeta | null {
   const rows = stmt(
     'SELECT file, lang, mtime_ms, symbol_count, last_indexed, content_hash FROM files WHERE file = ?',

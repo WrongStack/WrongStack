@@ -84,7 +84,10 @@ export function searchRankedWithStatement(
   }
 
   let effectiveKind: SymbolKind | undefined = filter?.kind;
-  if (filter?.lspKind !== undefined) {
+  // `!= null` (not `!== undefined`): a MessagePack wire client encodes a
+  // missing lspKind as nil, which arrives here as null. Absent and null mean
+  // the same thing — no LSP-kind filter.
+  if (filter?.lspKind != null) {
     const mapped = lspKindToInternalKind(filter.lspKind);
     if (mapped === null) return { results: [], total: 0 };
     effectiveKind = mapped;
@@ -126,16 +129,22 @@ export function searchRankedWithStatement(
   }
   const where = conditions.join(' AND ');
 
-  const countRows = stmtFn(
-    `SELECT COUNT(*) AS n FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid WHERE ${where}`,
-  ).all(...values) as { n: number }[];
-  const total = countRows[0] ? Number(countRows[0].n) : 0;
-  if (total === 0) return { results: [], total: 0 };
-
+  // P2.5: one statement, not two. The total rides in an uncorrelated scalar
+  // subquery — SQLite evaluates it once per statement — so there is no second
+  // prepared/execute round trip and the count can never disagree with the
+  // fetched page. (A `COUNT(*) OVER()` window column is NOT usable here: the
+  // window forces a separate evaluation pass and FTS5 auxiliary functions
+  // like bm25()/snippet() are rejected there — "unable to use function bm25
+  // in the requested context". The inner `s` alias shadows the outer one, so
+  // the same WHERE fragment binds in both contexts.)
   const bm25Rows = stmtFn(
     `SELECT s.id, s.lang, s.kind, s.name, s.file, s.line, s.col, s.signature, s.doc_comment,
             -bm25(symbols_fts) AS score,
-            snippet(symbols_fts, 0, '', '', '…', 12) AS snippet
+            snippet(symbols_fts, 0, '', '', '…', 12) AS snippet,
+            -- Keep this uncorrelated: referencing outer columns turns it into
+            -- a per-row subquery and defeats the one-count-per-statement win.
+            (SELECT COUNT(*) FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid
+              WHERE ${where}) AS total_count
      FROM symbols_fts JOIN symbols s ON s.id = symbols_fts.rowid
      WHERE ${where}
      ORDER BY
@@ -144,7 +153,7 @@ export function searchRankedWithStatement(
             ELSE 2 END,
        bm25(symbols_fts), lower(s.name), s.file, s.line, s.col, s.id
      LIMIT ?`,
-  ).all(...values, query.trim(), `${escapeLike(query.trim())}%`, safeLimit) as {
+  ).all(...values, ...values, query.trim(), `${escapeLike(query.trim())}%`, safeLimit) as {
     id: number;
     lang: string;
     kind: string;
@@ -156,9 +165,13 @@ export function searchRankedWithStatement(
     doc_comment: string;
     score: number;
     snippet: string;
+    total_count: number;
   }[];
 
-  if (vectorsAvailable && bm25Rows.length > 0) {
+  if (bm25Rows.length === 0) return { results: [], total: 0 };
+  const total = Number(bm25Rows[0]?.total_count ?? 0);
+
+  if (vectorsAvailable) {
     const queryVec = embedText(query);
     const candidateIds = bm25Rows.map((r) => r.id);
     const placeholders = candidateIds.map(() => '?').join(',');

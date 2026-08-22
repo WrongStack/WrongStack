@@ -8,17 +8,21 @@
  *  - encode/decode round-trips a Float32Array through a Buffer losslessly
  */
 
-import { describe, expect, it } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
-  RRF_K,
-  VECTOR_DIMENSIONS,
   buildRankMap,
   cosineSimilarity,
   decodeVector,
   embedText,
   encodeVector,
+  RRF_K,
   reciprocalRankFusion,
+  VECTOR_DIMENSIONS,
 } from '../src/codebase-index/vector-search.js';
+import { IndexStore } from '../src/codebase-index/writer.js';
 
 describe('embedText', () => {
   it('produces a fixed-length 384-dimensional vector', () => {
@@ -132,5 +136,199 @@ describe('reciprocalRankFusion', () => {
     for (let i = 1; i < scores.length; i++) {
       expect(scores[i]).toBeLessThanOrEqual(scores[i - 1]!);
     }
+  });
+});
+
+// ─── P4.11 store-level gate tests ────────────────────────────────────────────
+
+const storeRoots: string[] = [];
+
+afterAll(() => {
+  for (const root of storeRoots.splice(0)) {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function makeStore(): { store: IndexStore; dbPath: () => string } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wstack-vector-gate-'));
+  storeRoots.push(root);
+  const indexDir = path.join(root, '.idx');
+  return {
+    store: new IndexStore(root, { indexDir }),
+    dbPath: () => path.join(indexDir, 'index.db'),
+  };
+}
+
+/** Raw connection for schema assertions — never reach into IndexStore privates. */
+function listTables(dbPath: string): string[] {
+  const { DatabaseSync } = require('node:sqlite') as {
+    DatabaseSync: new (
+      p: string,
+    ) => {
+      prepare: (sql: string) => { all: () => unknown[] };
+      close: () => void;
+    };
+  };
+  const db = new DatabaseSync(dbPath);
+  try {
+    return (
+      db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as Array<{
+        name: string;
+      }>
+    ).map((t) => t.name);
+  } finally {
+    db.close();
+  }
+}
+
+function symbolRow(overrides: Partial<Parameters<IndexStore['insertSymbols']>[0][number]>) {
+  return {
+    id: 0,
+    lang: 'ts' as const,
+    kind: 'function' as const,
+    name: 'placeholder',
+    file: 'src/placeholder.ts',
+    line: 1,
+    col: 1,
+    signature: '',
+    docComment: '',
+    scope: '',
+    text: '',
+    ...overrides,
+  };
+}
+
+describe('P4.11 vector gate (WRONGSTACK_INDEX_VECTORS)', () => {
+  describe('default off', () => {
+    beforeAll(() => {
+      delete process.env['WRONGSTACK_INDEX_VECTORS'];
+    });
+
+    it('does not create the symbol_vectors table and never writes vectors', () => {
+      const { store, dbPath } = makeStore();
+      const inserted = store.insertSymbols([
+        symbolRow({ name: 'alpha' }),
+        symbolRow({ name: 'beta' }),
+      ]);
+      expect(inserted.length).toBe(2);
+      expect(listTables(dbPath())).not.toContain('symbol_vectors');
+      store.close();
+    });
+
+    it('drops a legacy symbol_vectors table on open', () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wstack-vector-legacy-'));
+      storeRoots.push(root);
+      const indexDir = path.join(root, '.idx');
+      // Open once with the gate ON to create and populate the table…
+      process.env['WRONGSTACK_INDEX_VECTORS'] = '1';
+      try {
+        const seeded = new IndexStore(root, { indexDir });
+        seeded.insertSymbols([symbolRow({ name: 'legacyOne' })]);
+        seeded.close();
+      } finally {
+        delete process.env['WRONGSTACK_INDEX_VECTORS'];
+      }
+      // …then reopen with the gate OFF: the legacy table must be dropped.
+      const reopened = new IndexStore(root, { indexDir });
+      reopened.close();
+      expect(listTables(path.join(indexDir, 'index.db'))).not.toContain('symbol_vectors');
+    });
+
+    it('search still returns ranked results without the vector layer', () => {
+      const { store } = makeStore();
+      store.insertSymbols([
+        symbolRow({ name: 'verifySessionToken' }),
+        symbolRow({ name: 'unrelatedThing' }),
+      ]);
+      const result = store.searchRanked('verify', undefined, 5);
+      expect(result.results.length).toBeGreaterThan(0);
+      expect(result.results[0]!.name).toBe('verifySessionToken');
+      store.close();
+    });
+  });
+
+  describe('opt-in (WRONGSTACK_INDEX_VECTORS=1)', () => {
+    beforeAll(() => {
+      process.env['WRONGSTACK_INDEX_VECTORS'] = '1';
+    });
+    afterAll(() => {
+      delete process.env['WRONGSTACK_INDEX_VECTORS'];
+    });
+
+    it('creates the table, writes vectors, and keeps search working', () => {
+      const { store, dbPath } = makeStore();
+      store.insertSymbols([symbolRow({ name: 'alphaOne' }), symbolRow({ name: 'betaTwo' })]);
+      expect(listTables(dbPath())).toContain('symbol_vectors');
+      const { DatabaseSync } = require('node:sqlite') as {
+        DatabaseSync: new (
+          p: string,
+        ) => {
+          prepare: (sql: string) => { all: () => unknown[] };
+          close: () => void;
+        };
+      };
+      const raw = new DatabaseSync(dbPath());
+      try {
+        const rows = raw.prepare('SELECT symbol_id, vector FROM symbol_vectors').all() as Array<{
+          symbol_id: number;
+          vector: Uint8Array;
+        }>;
+        expect(rows.length).toBe(2);
+        expect(rows[0]!.vector.byteLength).toBe(384 * 4);
+      } finally {
+        raw.close();
+      }
+      const result = store.searchRanked('alpha', undefined, 5);
+      expect(result.results[0]!.name).toBe('alphaOne');
+      store.close();
+    });
+
+    // Regression (Chimera, post-P4.11): on a same-version DB where vectors
+    // were JUST enabled, symbol_vectors does not exist yet when the FTS
+    // drift-repair block runs. The purge there must not throw — the FTS try's
+    // broad catch would flip ftsAvailable=false, silently disabling FTS
+    // because a vector table was missing. Prove FTS survives the drift repair.
+    it('keeps FTS available when FTS drift repairs with no symbol_vectors table', () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wstack-vector-drift-'));
+      storeRoots.push(root);
+      const indexDir = path.join(root, '.idx');
+      const dbPath = path.join(indexDir, 'index.db');
+
+      // Seed with the gate OFF: symbols + FTS exist, symbol_vectors does not.
+      delete process.env['WRONGSTACK_INDEX_VECTORS'];
+      const seeded = new IndexStore(root, { indexDir });
+      seeded.insertSymbols([symbolRow({ name: 'driftMarker' })]);
+      seeded.close();
+      expect(listTables(dbPath)).not.toContain('symbol_vectors');
+
+      // Now enable vectors and corrupt FTS (delete rows without touching
+      // symbols) so the drift-repair branch fires on reopen.
+      process.env['WRONGSTACK_INDEX_VECTORS'] = '1';
+      const { DatabaseSync } = require('node:sqlite') as {
+        DatabaseSync: new (
+          p: string,
+        ) => {
+          exec: (sql: string) => void;
+          close: () => void;
+        };
+      };
+      const corruptor = new DatabaseSync(dbPath);
+      try {
+        corruptor.exec('DELETE FROM symbols_fts');
+      } finally {
+        corruptor.close();
+      }
+
+      // Reopen: drift repair runs (ftsCount 0 !== symbolCount 1), vector table
+      // still absent at that moment. FTS must remain functional after open.
+      const reopened = new IndexStore(root, { indexDir });
+      try {
+        const result = reopened.searchRanked('drift', undefined, 5);
+        expect(result.results.length).toBeGreaterThan(0);
+        expect(result.results[0]!.name).toBe('driftMarker');
+      } finally {
+        reopened.close();
+      }
+    });
   });
 });

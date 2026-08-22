@@ -19,6 +19,21 @@
 /** The constant k in the RRF formula — the standard value from the literature. */
 export const RRF_K = 60;
 
+/**
+ * P4.11: opt-in gate for the vector embedding layer. Default OFF.
+ *
+ * The 384-dim char-trigram embedding is lexical similarity — it duplicates
+ * what the FTS5 trigram tokenizer already provides — while costing ~1.5 KB
+ * of BLOB per symbol on every insert and an embedText() pass per symbol even
+ * when the table is unavailable. With the gate off, ranking is BM25/FTS-only
+ * (identical result set; the vector layer only re-ordered FTS candidates).
+ * Set WRONGSTACK_INDEX_VECTORS=1 to restore the hybrid RRF path; a force
+ * reindex repopulates the table for pre-existing symbols.
+ */
+export function vectorEmbeddingEnabled(): boolean {
+  return process.env['WRONGSTACK_INDEX_VECTORS'] === '1';
+}
+
 /** Fixed vector dimensionality. 384 matches the proposal's spec. */
 export const VECTOR_DIMENSIONS = 384;
 

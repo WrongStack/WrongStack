@@ -46,11 +46,18 @@ describe('ref-resolution fallback bind counts', () => {
     const result = resolveRefsForNamesUnsafe(stmtFn, 999, ['alpha', 'beta', 'gamma']);
     expect(result).toBe(0);
     expect(calls).toHaveLength(1);
+    // P4.12: the IN-list is padded to the next power-of-two bucket by
+    // repeating values[0] ('alpha') — set semantics make the duplicate a
+    // no-op for resolution, and the bucket is what stabilizes the SQL string
+    // in the statement cache. The invariant under test is unchanged: every
+    // `?` receives exactly one bind, in SQL order FAMILY → IN → FAMILY
+    // (asserted generically by fallbackHarness's placeholder count check).
     expect(calls[0]!.binds).toEqual([
       LANG_FAMILY_WILDCARD,
       'alpha',
       'beta',
       'gamma',
+      'alpha',
       LANG_FAMILY_WILDCARD,
     ]);
   });

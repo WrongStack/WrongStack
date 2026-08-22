@@ -1,3 +1,4 @@
+import { inListChunks, ladderChunkSizes, padToInBucket, placeholders } from './writer-helpers.js';
 import { LANG_FAMILY_WILDCARD } from './writer-schema.js';
 
 export const FAMILY_MATCH_SQL = `(
@@ -47,11 +48,13 @@ export function getUnresolvedImportsWithStatement(
     return stmtFn(base).all() as Array<{ fromFile: string; lang: string; module: string }>;
   }
   const out: Array<{ fromFile: string; lang: string; module: string }> = [];
-  for (let i = 0; i < onlyFiles.length; i += maxSqlVars) {
-    const chunk = onlyFiles.slice(i, i + maxSqlVars);
-    const placeholders = chunk.map(() => '?').join(',');
+  // P4.12: ladder + padded buckets — distinct SQL strings ≤ log2(max)+1.
+  let cursor = 0;
+  for (const take of inListChunks(onlyFiles.length, maxSqlVars)) {
+    const chunk = padToInBucket(onlyFiles.slice(cursor, cursor + take));
+    cursor += take;
     out.push(
-      ...(stmtFn(`${base} AND s.file IN (${placeholders})`).all(...chunk) as Array<{
+      ...(stmtFn(`${base} AND s.file IN (${placeholders(chunk.length)})`).all(...chunk) as Array<{
         fromFile: string;
         lang: string;
         module: string;
@@ -158,16 +161,20 @@ export function applyImportResolutionsWithStatement(
        )`,
     );
     const chunkSize = Math.max(1, Math.floor(maxSqlVars / 4));
-    for (let i = 0; i < resolutions.length; i += chunkSize) {
-      const chunk = resolutions.slice(i, i + chunkSize);
-      const placeholders = chunk.map(() => '(?, ?, ?, ?)').join(', ');
+    // P4.12: ladder chunking so the INSERT INTO temp.import_resolution
+    // statement resolves to ≤ log2(chunkSize)+1 distinct SQL strings.
+    let cursor = 0;
+    for (const take of ladderChunkSizes(resolutions.length, chunkSize)) {
+      const chunk = resolutions.slice(cursor, cursor + take);
+      cursor += take;
+      const valuesPh = chunk.map(() => '(?, ?, ?, ?)').join(', ');
       const binds: string[] = [];
       for (const entry of chunk) {
         binds.push(entry.fromFile, entry.lang, entry.module, entry.toFile);
       }
       stmtFn(
         `INSERT INTO temp.import_resolution(from_file, lang, module, to_file)
-         VALUES ${placeholders}`,
+         VALUES ${valuesPh}`,
       ).run(...binds);
     }
     db.exec(
@@ -210,9 +217,15 @@ export function resolveRefsForNamesUnsafe(
   const list = [...names].filter((name) => name.length > 0);
   if (list.length === 0) return 0;
   let total = 0;
-  for (let i = 0; i < list.length; i += maxSqlVars) {
-    const chunk = list.slice(i, i + maxSqlVars);
-    const placeholders = chunk.map(() => '?').join(',');
+  // P4.12: ladder + padded buckets. One padded array feeds EVERY IN-list in
+  // both statements (primary uses it 3×, fallback 1× between two FAMILY
+  // binds) — placeholder count and bind count stay in lockstep by
+  // construction, which the FAMILY_MATCH_SQL contract requires.
+  let cursor = 0;
+  for (const take of inListChunks(list.length, maxSqlVars)) {
+    const chunk = padToInBucket(list.slice(cursor, cursor + take));
+    cursor += take;
+    const ph = placeholders(chunk.length);
     try {
       const result = stmtFn(
         `UPDATE refs
@@ -221,16 +234,16 @@ export function resolveRefsForNamesUnsafe(
                SELECT sym.name AS name, lf.family AS family, MIN(sym.id) AS id
                  FROM symbols sym
                  JOIN lang_family lf ON lf.lang = sym.lang
-                WHERE sym.name IN (${placeholders})
+                WHERE sym.name IN (${ph})
                 GROUP BY sym.name, lf.family
                UNION ALL
                SELECT sym.name AS name, '${LANG_FAMILY_WILDCARD}' AS family, MIN(sym.id) AS id
                  FROM symbols sym
-                WHERE sym.name IN (${placeholders})
+                WHERE sym.name IN (${ph})
                 GROUP BY sym.name
              ) AS s,
              lang_family AS rf
-         WHERE refs.to_name IN (${placeholders})
+         WHERE refs.to_name IN (${ph})
            AND rf.lang = refs.lang
            AND s.name = refs.to_name
            AND s.family = rf.family`,
@@ -242,7 +255,7 @@ export function resolveRefsForNamesUnsafe(
            SELECT sym.id FROM symbols sym
             WHERE sym.name = refs.to_name AND ${FAMILY_MATCH_SQL}
             ORDER BY sym.id LIMIT 1
-         ) WHERE refs.to_name IN (${placeholders})
+         ) WHERE refs.to_name IN (${ph})
            AND EXISTS (
              SELECT 1 FROM symbols sym
               WHERE sym.name = refs.to_name AND ${FAMILY_MATCH_SQL}

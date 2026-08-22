@@ -17,9 +17,9 @@ import { DatabaseSync } from 'node:sqlite';
 import type { Context } from '@wrongstack/core/agent';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { extractImports } from '../src/codebase-index/import-extractor.js';
+import { runIndexer } from '../src/codebase-index/indexer.js';
 import { ModuleResolver } from '../src/codebase-index/module-resolver.js';
 import { assignPackageLabels, detectModuleRoots } from '../src/codebase-index/module-roots.js';
-import { runIndexer } from '../src/codebase-index/indexer.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
 
 const ctx = {} as Context;
@@ -250,12 +250,15 @@ describe('module resolution', () => {
 });
 
 describe('schema self-repair', () => {
-  /** Tables in the shape an older build creates, with no v4 columns. */
+  /** Tables in the shape an older build creates, with no v5 columns. */
   const LEGACY_TABLES = [
     'CREATE TABLE files (file TEXT PRIMARY KEY, lang TEXT NOT NULL, mtime_ms INTEGER NOT NULL, symbol_count INTEGER NOT NULL DEFAULT 0, last_indexed INTEGER NOT NULL)',
-    "CREATE TABLE symbols (id INTEGER PRIMARY KEY, lang TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL, line INTEGER NOT NULL, col INTEGER NOT NULL, signature TEXT NOT NULL DEFAULT '', doc_comment TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', file_fk TEXT NOT NULL)",
+    "CREATE TABLE symbols (id INTEGER PRIMARY KEY, lang TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL, line INTEGER NOT NULL, col INTEGER NOT NULL, signature TEXT NOT NULL DEFAULT '', doc_comment TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '')",
     'CREATE TABLE refs (id INTEGER PRIMARY KEY, from_id INTEGER NOT NULL, to_name TEXT NOT NULL, to_id INTEGER, call_type TEXT NOT NULL, line INTEGER NOT NULL)',
   ];
+  /** The v4 shape: symbols carried a redundant file_fk column + index. */
+  const V4_SYMBOLS =
+    "CREATE TABLE symbols (id INTEGER PRIMARY KEY, lang TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, file TEXT NOT NULL, line INTEGER NOT NULL, col INTEGER NOT NULL, signature TEXT NOT NULL DEFAULT '', doc_comment TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '', text TEXT NOT NULL DEFAULT '', file_fk TEXT NOT NULL)";
 
   function legacyIndex(version: string | null): { projectRoot: string; indexDir: string } {
     const projectRoot = mkdtempSync(path.join(os.tmpdir(), 'ws-legacy-'));
@@ -277,7 +280,7 @@ describe('schema self-repair', () => {
   // version check never fires again and every query for a new column fails
   // with `no such column: package` — permanently, reindexing included.
   it.each([
-    ['the stored version already matches', '4'],
+    ['the stored version already matches', '5'],
     ['the stored version is missing entirely', null],
   ])('adds columns an older build left out when %s', (_label, version) => {
     const { projectRoot, indexDir } = legacyIndex(version);
@@ -294,7 +297,7 @@ describe('schema self-repair', () => {
   });
 
   it('preserves existing rows rather than rebuilding the index', () => {
-    const { projectRoot, indexDir } = legacyIndex('4');
+    const { projectRoot, indexDir } = legacyIndex('5');
     const db = new DatabaseSync(path.join(indexDir, 'index.db'));
     db.prepare(
       'INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed) VALUES (?,?,?,?,?)',
@@ -308,6 +311,60 @@ describe('schema self-repair', () => {
       expect(store.getFilePackages().size).toBe(0);
     } finally {
       store.close();
+    }
+  });
+
+  // P4.13: v4 DBs carried symbols.file_fk (a redundant duplicate of file) and
+  // idx_s_file_fk. A version mismatch wipes and rebuilds the derived index,
+  // so opening a v4 DB must leave a v5-shaped symbols table with no file_fk
+  // column or index — writes and searches work through `file` alone.
+  it('rebuilds a v4 database with file_fk into the v5 shape', () => {
+    const projectRoot = mkdtempSync(path.join(os.tmpdir(), 'ws-legacy-v4-'));
+    const indexDir = path.join(projectRoot, '.idx');
+    mkdirSync(indexDir, { recursive: true });
+    const db = new DatabaseSync(path.join(indexDir, 'index.db'));
+    db.exec('CREATE TABLE metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    db.prepare('INSERT INTO metadata(key, value) VALUES (?, ?)').run('version', '4');
+    db.exec(
+      'CREATE TABLE files (file TEXT PRIMARY KEY, lang TEXT NOT NULL, mtime_ms INTEGER NOT NULL, symbol_count INTEGER NOT NULL DEFAULT 0, last_indexed INTEGER NOT NULL)',
+    );
+    db.exec(V4_SYMBOLS);
+    db.exec('CREATE INDEX idx_s_file_fk ON symbols(file_fk)');
+    db.prepare(
+      "INSERT INTO symbols(id, lang, kind, name, file, line, col, file_fk) VALUES (1, 'ts', 'function', 'stale', '/repo/old.ts', 1, 1, '/repo/old.ts')",
+    ).run();
+    db.close();
+
+    const store = new IndexStore(projectRoot, { indexDir });
+    store.close();
+    // Schema assertions over a raw connection — never reach into store.db
+    // (private); the shape is identical before and after close.
+    const raw = new DatabaseSync(path.join(indexDir, 'index.db'));
+    try {
+      const columns = (
+        raw.prepare('PRAGMA table_info(symbols)').all() as Array<{ name?: unknown }>
+      ).flatMap((row) => (typeof row.name === 'string' ? [row.name] : []));
+      expect(columns).not.toContain('file_fk');
+      const indexes = (
+        raw
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'symbols'")
+          .all() as Array<{ name?: unknown }>
+      ).flatMap((row) => (typeof row.name === 'string' ? [row.name] : []));
+      expect(indexes).not.toContain('idx_s_file_fk');
+      const version = raw.prepare("SELECT value FROM metadata WHERE key = 'version'").get() as {
+        value?: unknown;
+      };
+      expect(String(version.value)).toBe('5');
+    } finally {
+      raw.close();
+    }
+    // Wiped, not carried over: the stale v4 row must be gone from a freshly
+    // reopened store (also proves the rebuilt index is queryable).
+    const verify = new IndexStore(projectRoot, { indexDir });
+    try {
+      expect(verify.searchRanked('stale', undefined, 10).total).toBe(0);
+    } finally {
+      verify.close();
     }
   });
 });

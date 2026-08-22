@@ -15,7 +15,10 @@ import {
 import {
   indexedFileMatchArgs,
   indexedFileMatchSql,
+  inListChunks,
   matchesIndexedPackageFilter,
+  padToInBucket,
+  placeholders,
 } from './writer-helpers.js';
 import { mapWriterRefRow, type WriterRefRow } from './writer-ref-mapper.js';
 
@@ -33,6 +36,10 @@ const MAX_SQL_VARS = 900;
  * Applying LIMIT per-chunk would silently cap results at the chunk boundary
  * rather than the caller's ceiling. Callers must slice the returned array
  * to enforce their own limit after merge.
+ *
+ * P4.12: chunk sizes and each chunk's placeholder count come from a
+ * powers-of-two ladder + padToInBucket, so `buildSql` resolves to a small
+ * fixed set of SQL strings instead of one per distinct id count.
  */
 function chunkedIdQuery(
   stmt: PrepareStatement,
@@ -41,10 +48,10 @@ function chunkedIdQuery(
   extraArgs: readonly (string | number)[] = [],
 ): unknown[] {
   const results: unknown[] = [];
-  for (let start = 0; start < ids.length; start += MAX_SQL_VARS) {
-    const chunk = ids.slice(start, start + MAX_SQL_VARS);
-    const placeholders = chunk.map(() => '?').join(',');
-    const sql = buildSql(placeholders);
+  for (const take of inListChunks(ids.length, MAX_SQL_VARS)) {
+    const chunk = padToInBucket(ids.slice(0, take));
+    ids = ids.slice(take);
+    const sql = buildSql(placeholders(chunk.length));
     results.push(...(stmt(sql).all(...chunk, ...extraArgs) as unknown[]));
   }
   return results;
@@ -58,10 +65,10 @@ function chunkedIdScalar(
   extraArgs: readonly (string | number)[] = [],
 ): number {
   let total = 0;
-  for (let start = 0; start < ids.length; start += MAX_SQL_VARS) {
-    const chunk = ids.slice(start, start + MAX_SQL_VARS);
-    const placeholders = chunk.map(() => '?').join(',');
-    const sql = buildSql(placeholders);
+  for (const take of inListChunks(ids.length, MAX_SQL_VARS)) {
+    const chunk = padToInBucket(ids.slice(0, take));
+    ids = ids.slice(take);
+    const sql = buildSql(placeholders(chunk.length));
     const rows = stmt(sql).all(...chunk, ...extraArgs) as Array<{ n: number }>;
     total += rows[0]?.n ?? 0;
   }
@@ -115,18 +122,29 @@ function resolveSymbolIds(
   file: string | undefined,
 ): number[] {
   if (!file) {
-    const rows = stmt('SELECT id FROM symbols WHERE name = ? ORDER BY id').all(symbolName) as Array<{
+    const rows = stmt('SELECT id FROM symbols WHERE name = ? ORDER BY id').all(
+      symbolName,
+    ) as Array<{
       id: number;
     }>;
     return rows.map((r) => r.id);
   }
   const indexedFiles = resolveIndexedFiles(stmt, file);
   if (indexedFiles.length === 0) return [];
-  const placeholders = indexedFiles.map(() => '?').join(',');
-  const rows = stmt(
-    `SELECT id FROM symbols WHERE name = ? AND file IN (${placeholders}) ORDER BY id`,
-  ).all(symbolName, ...indexedFiles) as Array<{ id: number }>;
-  return rows.map((r) => r.id);
+  // P4.12: bucketed chunks — one statement when the padded bucket fits,
+  // ladder within budget otherwise. The leading name=? bind rides outside
+  // the chunking (each chunk repeats the full filter).
+  const ids: number[] = [];
+  let cursor = 0;
+  for (const take of inListChunks(indexedFiles.length, MAX_SQL_VARS)) {
+    const files = padToInBucket(indexedFiles.slice(cursor, cursor + take));
+    cursor += take;
+    const rows = stmt(
+      `SELECT id FROM symbols WHERE name = ? AND file IN (${placeholders(files.length)}) ORDER BY id`,
+    ).all(symbolName, ...files) as Array<{ id: number }>;
+    ids.push(...rows.map((r) => r.id));
+  }
+  return ids;
 }
 
 /**
