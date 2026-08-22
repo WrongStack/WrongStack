@@ -317,3 +317,39 @@ describe.skipIf(!distReady)('project-server binary IPC framing (built dist)', ()
     expect(allowed.message['ok']).toBe(true);
   });
 });
+
+describe('encodeBinaryFrame null-prototype normalization (unit)', () => {
+  it('strips undefined inside Object.create(null) wrappers — JSON/binary shape parity', () => {
+    // JSON.parse and Object.assign(Object.create(null), …) both produce
+    // null-prototype records. Before the isPlainObject fix these skipped the
+    // undefined-stripping recursion, so the SAME payload shape-shifted
+    // between framings: JSON dropped the key, MessagePack delivered null.
+    const nested = Object.assign(Object.create(null), {
+      lspKind: undefined,
+      name: 'keep',
+      inner: Object.assign(Object.create(null), { gone: undefined, kept: 2 }),
+    });
+    const frame = encodeBinaryFrame({ type: 'ping', payload: nested });
+    // Strip the 5-byte header (magic + uint32 BE length) to get the payload.
+    const decoded = binaryFrameModule.decodeBinaryFrame(frame.subarray(5)) as {
+      payload: { name: string; inner: Record<string, unknown> };
+    };
+    expect('lspKind' in decoded.payload).toBe(false);
+    expect(decoded.payload['name']).toBe('keep');
+    expect('gone' in decoded.payload['inner']).toBe(false);
+    expect(decoded.payload['inner']['kept']).toBe(2);
+  });
+
+  it('still passes class instances through untouched (no structural conversion)', () => {
+    const stamp = new Date(0);
+    const frame = encodeBinaryFrame({ at: stamp });
+    // Date is NOT a plain object: normalization must not touch it —
+    // class-instance handling is card #14 territory, asserted out of scope.
+    const decoded = binaryFrameModule.decodeBinaryFrame(frame.subarray(5)) as { at: unknown };
+    // The invariant is that the Date survives as a Date with its value —
+    // toHaveProperty alone would pass even if normalization had gutted it
+    // to an empty plain object.
+    expect(decoded.at).toBeInstanceOf(Date);
+    expect((decoded.at as Date).getTime()).toBe(stamp.getTime());
+  });
+});

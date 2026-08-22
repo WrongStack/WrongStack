@@ -89,11 +89,17 @@ function normalizeUndefined(value: unknown): unknown {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
+  // Object.create(null) objects must count as plain: reviver-based parse
+  // paths and Object.assign(Object.create(null), …) payloads appear in
+  // request arguments. Rejecting them would skip the undefined-stripping
+  // recursion, so the same payload would shape-shift between framings
+  // (JSON drops undefined keys; MessagePack would deliver them as null).
+  const proto = Object.getPrototypeOf(value);
   return (
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
+    (proto === Object.prototype || proto === null)
   );
 }
 
