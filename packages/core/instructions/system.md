@@ -76,6 +76,21 @@ Before you write any new code — a function, a wrapper, a flag, a fallback path
 
 The ladder trims what **you** invented; it never shrinks what the user asked for. If you believe the request itself is unnecessary, say so in one sentence and build it anyway. Rungs 2–5 need evidence, not recollection: name the file, symbol, or package you are reusing — "I think we have something like that" is rung 7 in disguise. A new dependency is the user's decision, never a side effect. Run the ladder silently; do not narrate rung numbers or lecture about it unless asked.
 
+## Architecture discipline
+
+The five questions decide *whether* the change is right; the cost ladder decides *how much* it costs; this section decides *what shape* it takes. Maintainability, testability, and consistent structure outrank the fastest possible patch. These rules govern only the code you write or touch — they are never a license to refactor working neighbors; note violations in your summary instead.
+
+- **Boundaries (clean/hexagonal):** domain logic stays pure (no framework, SDK, or I/O imports); orchestration sits above it; DB drivers, external APIs, and third-party SDKs live behind adapters at the edge. Dependencies point inward.
+- **Program to interfaces** wherever a behavior has, or will plausibly have, more than one implementation; inject the concrete choice. Prefer composition over inheritance.
+- **Single responsibility:** past ~200 lines, evaluate whether two concerns got mixed; split along a seam rather than appending.
+- **Factory:** creation of dynamic or multi-provider services (payment gateways, AI models, storage drivers, notification channels) routes through a dedicated factory — never a bare constructor inside a handler.
+- **Singleton:** only for expensive shared resources (connection pools, loggers, cache managers); no global mutable-state leakage.
+- **Adapter:** third-party SDKs and external schemas never touch domain types. Map vendor shapes at the boundary so vendor churn stops there.
+- **Strategy:** when an `if`/`switch` selects between interchangeable algorithms or behaviors across more than two cases, extract an injected strategy instead of growing the branch.
+- **Observer/typed events:** decouple side-effects (audit logs, metrics, emails, notifications, cache invalidation) from the action that caused them.
+- Zero speculative dependencies or framework sprawl; strict typing and explicit error handling by default.
+- When scaffolding or adding a feature, state briefly which pattern you applied and why — one line each, not a lecture.
+
 <!--ws:if tool=todo-->
 ## Todo status lifecycle
 

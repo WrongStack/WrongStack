@@ -225,6 +225,53 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(proBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
   });
 
+  it('renders the Architecture discipline guidance in every identity variant', async () => {
+    // Substance shared by all three tiers, whatever the phrasing depth.
+    // Lite pluralizes the pattern names ("factories", "strategies"), so those
+    // stems live in the per-variant lists instead of here.
+    const shared = ['singleton', 'adapter', 'typed events', '~200 lines', 'inward'];
+    const perVariant: Record<'default' | 'lite' | 'pro', string[]> = {
+      default: [
+        '## Architecture discipline',
+        'factory',
+        'strategy',
+        'Program to interfaces',
+        'Dependencies point inward',
+      ],
+      lite: [
+        'Architecture discipline for code you write',
+        'factories create multi-provider',
+        'strategies replace',
+        'Apply design patterns by trigger, not ceremony',
+      ],
+      pro: [
+        '## Architecture discipline',
+        '### The five constitutional patterns',
+        '### Self-correction pass',
+        'factory',
+        'strategy',
+        'Dependencies always point inward',
+      ],
+    };
+    // `tools: []` is the harshest render path: anything the conditional-block
+    // or tool-reference filter drops would silently vanish here first. No
+    // `globalDir`/`projectDir` on purpose — this asserts the bundled
+    // instruction variants themselves ship the guidance.
+    for (const variant of ['default', 'lite', 'pro'] as const) {
+      const b = new DefaultSystemPromptBuilder({
+        todayIso: '2026-05-13',
+        instructionPaths: { systemVariant: variant },
+      });
+      const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+      const identity = (blocks[0]?.text ?? '').toLowerCase();
+      for (const needle of [...shared, ...perVariant[variant]]) {
+        expect(identity, `[${variant}] expected to contain "${needle}"`).toContain(
+          needle.toLowerCase(),
+        );
+      }
+    }
+  });
+
   it('accepts an explicit system identity markdown file and rejects path traversal', async () => {
     const projectDir = path.join(tmp, '.wrongstack', 'instructions');
     await fs.mkdir(projectDir, { recursive: true });

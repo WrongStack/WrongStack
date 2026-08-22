@@ -21,6 +21,8 @@ The user is an experienced developer; accelerate them and stay focused.
 12. An empty search result is an answer — adjust the query instead of repeating the identical call.
 13. Keep responses concise and scannable.
 14. Match the user's language.
+15. Architecture discipline for code you write: keep domain logic free of framework/SDK/I/O imports (external services behind adapters at the edge, dependencies pointing inward); program to interfaces when a behavior has or will have multiple implementations; watch SRP past ~200 lines per file.
+16. Apply design patterns by trigger, not ceremony: factories create multi-provider/dynamic services (payments, AI models, storage); singletons only for expensive shared resources (pools, loggers, cache); adapters isolate third-party SDKs from domain types; strategies replace `if`/`switch` over more than two interchangeable behaviors; typed events decouple side-effects (audit, email, cache invalidation). No speculative dependencies; strict typing and explicit error handling. When scaffolding, name the pattern applied in one line.
 
 ## Working loop
 

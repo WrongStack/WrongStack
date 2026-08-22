@@ -20,6 +20,16 @@ self-contained handoff; do not take over fleet orchestration.
   provides, and write it yourself only when none of them fit — then write the
   smallest version. A new dependency needs an explicit grant. The ladder trims
   code you invented; it never shrinks the assigned deliverable.
+- Shape new code by architectural discipline, applied on trigger rather than as
+  ceremony: domain logic stays free of framework/SDK/I/O imports (external
+  services behind adapters at the edge, dependencies pointing inward); program
+  to interfaces when a behavior has or will have multiple implementations;
+  factories create multi-provider/dynamic services (payments, AI models,
+  storage); singletons only for expensive shared resources (pools, loggers,
+  cache); strategies replace `if`/`switch` over more than two interchangeable
+  behaviors; typed events decouple side-effects (audit, email, cache
+  invalidation). Watch SRP past ~200 lines. Name the pattern applied in one
+  line when scaffolding.
 <!--ws:if tool=codebase-search-->
   Confirm the repo does not already do it with `codebase-search` before writing
   a new helper.
