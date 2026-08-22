@@ -513,9 +513,12 @@ EOF`,
     "cat <<'EOF' > fix.sh\nrm .env\nEOF\nchmod +x fix.sh\n./fix.sh",
     "cat <<'EOF' >> fix.sh\nrm .env\nEOF\nbash ./fix.sh",
     "cat <<'EOF' >| scripts/fix.sh\nrm .env\nEOF\n./scripts/./fix.sh",
-  ])('inspects a generated heredoc script through equivalent path spellings: %s', async (command) => {
-    expect(destructiveTargets(command)).toContain('.env');
-  });
+  ])(
+    'inspects a generated heredoc script through equivalent path spellings: %s',
+    async (command) => {
+      expect(destructiveTargets(command)).toContain('.env');
+    },
+  );
 
   it.each([
     "printf x | tee /tmp/out | sh <<'EOF'\nrm .env\nEOF",
@@ -779,14 +782,13 @@ describe('path-guard plugin', () => {
     'find db -exec rm -rf {} +',
     '{ find . -delete; }',
     'xargs -n 1 rm -rf db',
-  ])(
-    'blocks recursive find deletion scopes: %s',
-    async (command) => {
-      const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
-      pathGuardPlugin.setup(api as never);
-      expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
-    },
-  );
+  ])('blocks recursive find deletion scopes: %s', async (command) => {
+    const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
+    pathGuardPlugin.setup(api as never);
+    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe(
+      'block',
+    );
+  });
 
   it('blocks destructive commands in process substitutions', async () => {
     const api = makeApi();
@@ -848,16 +850,30 @@ describe('path-guard plugin', () => {
     ]) {
       expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
-    expect(await hook({ toolName: 'bash', toolInput: { command: 'git stash list' } })).toBeUndefined();
-    expect(await hook({ toolName: 'bash', toolInput: { command: 'git stash show' } })).toBeUndefined();
-    expect((await hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } }))?.decision).toBe(
-      'block',
-    );
     expect(
-      (await hook({ toolName: 'bash', toolInput: { command: 'git --attr-source HEAD clean -fdx' } }))?.decision,
+      await hook({ toolName: 'bash', toolInput: { command: 'git stash list' } }),
+    ).toBeUndefined();
+    expect(
+      await hook({ toolName: 'bash', toolInput: { command: 'git stash show' } }),
+    ).toBeUndefined();
+    expect(
+      (await hook({ toolName: 'bash', toolInput: { command: 'git reset --hard' } }))?.decision,
     ).toBe('block');
     expect(
-      (await hook({ toolName: 'bash', toolInput: { command: 'git --attr-source=HEAD reset --hard' } }))?.decision,
+      (
+        await hook({
+          toolName: 'bash',
+          toolInput: { command: 'git --attr-source HEAD clean -fdx' },
+        })
+      )?.decision,
+    ).toBe('block');
+    expect(
+      (
+        await hook({
+          toolName: 'bash',
+          toolInput: { command: 'git --attr-source=HEAD reset --hard' },
+        })
+      )?.decision,
     ).toBe('block');
   });
 
@@ -883,9 +899,9 @@ describe('path-guard plugin', () => {
     expect((await hook({ toolName: 'bash', toolInput: { command: 'rm -f .env' } }))?.decision).toBe(
       'block',
     );
-    expect((await hook({ toolName: 'bash', toolInput: { command: 'rm -rf .git' } }))?.decision).toBe(
-      'block',
-    );
+    expect(
+      (await hook({ toolName: 'bash', toolInput: { command: 'rm -rf .git' } }))?.decision,
+    ).toBe('block');
     expect(
       (await hook({ toolName: 'bash', toolInput: { command: 'echo secret >& .env' } }))?.decision,
     ).toBe('block');
@@ -906,28 +922,34 @@ describe('path-guard plugin', () => {
       }),
     ).toBeUndefined();
     expect(
-      (await hook({
-        toolName: 'exec',
-        toolInput: { command: 'rm -f .env' },
-        toolCapabilities: ['shell.restricted', 'fs.write'],
-        toolMutating: true,
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'exec',
+          toolInput: { command: 'rm -f .env' },
+          toolCapabilities: ['shell.restricted', 'fs.write'],
+          toolMutating: true,
+        })
+      )?.decision,
     ).toBe('block');
     expect(
-      (await hook({
-        toolName: 'exec',
-        toolInput: { command: 'rm', args: ['-f', '.env'] },
-        toolCapabilities: ['shell.restricted'],
-        toolMutating: true,
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'exec',
+          toolInput: { command: 'rm', args: ['-f', '.env'] },
+          toolCapabilities: ['shell.restricted'],
+          toolMutating: true,
+        })
+      )?.decision,
     ).toBe('block');
     expect(
-      (await hook({
-        toolName: 'exec',
-        toolInput: { command: 'rm', args: ['-rf', '.'] },
-        toolCapabilities: ['shell.restricted'],
-        toolMutating: true,
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'exec',
+          toolInput: { command: 'rm', args: ['-rf', '.'] },
+          toolCapabilities: ['shell.restricted'],
+          toolMutating: true,
+        })
+      )?.decision,
     ).toBe('block');
   });
 
@@ -959,10 +981,12 @@ describe('path-guard plugin', () => {
       expect((await hook({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
     }
     expect(
-      (await hook({
-        toolName: 'bash',
-        toolInput: { command: 'git --work-tree=sub restore secrets/key' },
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'bash',
+          toolInput: { command: 'git --work-tree=sub restore secrets/key' },
+        })
+      )?.decision,
     ).toBe('block');
   });
 
@@ -1070,9 +1094,9 @@ describe('path-guard plugin', () => {
     const hook = getHook(api);
 
     expect(await hook({ toolName: 'bash', toolInput: { command: 'rm .env' } })).toBeUndefined();
-    expect((await hook({ toolName: 'bash', toolInput: { command: 'rm .env.local' } }))?.decision).toBe(
-      'block',
-    );
+    expect(
+      (await hook({ toolName: 'bash', toolInput: { command: 'rm .env.local' } }))?.decision,
+    ).toBe('block');
   });
 
   it('allows destructive shell commands on unprotected concrete paths under defaults', async () => {
@@ -1101,7 +1125,9 @@ describe('path-guard plugin', () => {
   ])('blocks destructive commands glued to launcher option values: %s', async (command) => {
     const api = makeApi({ extensions: { 'path-guard': { protect: ['db/**', '.env'] } } });
     pathGuardPlugin.setup(api as never);
-    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
+    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe(
+      'block',
+    );
   });
 
   it.each(['env --unknown rm .env', 'env -a', 'env --argv0'])(
@@ -1139,7 +1165,9 @@ describe('path-guard plugin', () => {
   ])('blocks recursive deletion through launcher wrappers: %s', async (command) => {
     const api = makeApi({ extensions: { 'path-guard': { protect: ['db/migrations/**'] } } });
     pathGuardPlugin.setup(api as never);
-    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
+    expect((await getHook(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe(
+      'block',
+    );
   });
 
   it('allows concrete files but blocks directory writer scopes that may contain defaults', async () => {
@@ -1149,18 +1177,22 @@ describe('path-guard plugin', () => {
 
     expect(await hook({ toolName: 'write', toolInput: { path: 'src/index.ts' } })).toBeUndefined();
     expect(
-      (await hook({
-        toolName: 'format',
-        toolInput: { files: 'src', check: false },
-        toolCapabilities: ['fs.write'],
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'format',
+          toolInput: { files: 'src', check: false },
+          toolCapabilities: ['fs.write'],
+        })
+      )?.decision,
     ).toBe('block');
     expect(
-      (await hook({
-        toolName: 'scaffold',
-        toolInput: { template: 'npm-package', cwd: 'packages/example', name: 'example' },
-        toolCapabilities: ['fs.write'],
-      }))?.decision,
+      (
+        await hook({
+          toolName: 'scaffold',
+          toolInput: { template: 'npm-package', cwd: 'packages/example', name: 'example' },
+          toolCapabilities: ['fs.write'],
+        })
+      )?.decision,
     ).toBe('block');
   });
 
@@ -1744,20 +1776,23 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     { cwdInput: { cwd: 'db' }, hookCwd: undefined },
     { cwdInput: {}, hookCwd: 'db' },
-  ])('rebases relative list targets against the effective cwd: %j', async ({ cwdInput, hookCwd }) => {
-    const api = makeApi({
-      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
-    });
-    pathGuardPlugin.setup(api as never);
-    const result = await hookOf(api)({
-      toolName: 'format',
-      cwd: hookCwd,
-      toolInput: { ...cwdInput, files: ['migrations'], check: false },
-      toolCapabilities: ['fs.write'],
-    });
-    expect(result?.decision).toBe('block');
-    expect(result?.reason).toContain('db/migrations');
-  });
+  ])(
+    'rebases relative list targets against the effective cwd: %j',
+    async ({ cwdInput, hookCwd }) => {
+      const api = makeApi({
+        extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+      });
+      pathGuardPlugin.setup(api as never);
+      const result = await hookOf(api)({
+        toolName: 'format',
+        cwd: hookCwd,
+        toolInput: { ...cwdInput, files: ['migrations'], check: false },
+        toolCapabilities: ['fs.write'],
+      });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('db/migrations');
+    },
+  );
 
   it('rebases relative scalar targets against the effective cwd', async () => {
     const api = makeApi({
@@ -2150,20 +2185,23 @@ describe('path-guard covers any tool that declares a write', () => {
   it.each([
     { cwdInput: { cwd: 'db' }, hookCwd: undefined },
     { cwdInput: {}, hookCwd: 'db' },
-  ])('rebases protected move sources against the effective cwd: %j', async ({ cwdInput, hookCwd }) => {
-    const api = makeApi({
-      extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
-    });
-    pathGuardPlugin.setup(api as never);
-    const result = await hookOf(api)({
-      toolName: 'file_rename',
-      cwd: hookCwd,
-      toolInput: { ...cwdInput, from: 'migrations/001.sql', destination: 'archive/001.sql' },
-      toolCapabilities: ['fs.write'],
-    });
-    expect(result?.decision).toBe('block');
-    expect(result?.reason).toContain('db/migrations/001.sql');
-  });
+  ])(
+    'rebases protected move sources against the effective cwd: %j',
+    async ({ cwdInput, hookCwd }) => {
+      const api = makeApi({
+        extensions: { 'path-guard': { protect: ['db/migrations/**'] } },
+      });
+      pathGuardPlugin.setup(api as never);
+      const result = await hookOf(api)({
+        toolName: 'file_rename',
+        cwd: hookCwd,
+        toolInput: { ...cwdInput, from: 'migrations/001.sql', destination: 'archive/001.sql' },
+        toolCapabilities: ['fs.write'],
+      });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('db/migrations/001.sql');
+    },
+  );
 
   it('recognizes camelCase move and rename tool names', async () => {
     const api = makeApi();
@@ -2479,9 +2517,9 @@ describe('path-guard covers any tool that declares a write', () => {
     // against a host older than the capability fields.
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    expect((await hookOf(api)({ toolName: 'write', toolInput: { path: '.env.local' } }))?.decision).toBe(
-      'block',
-    );
+    expect(
+      (await hookOf(api)({ toolName: 'write', toolInput: { path: '.env.local' } }))?.decision,
+    ).toBe('block');
     expect(
       (
         await hookOf(api)({
@@ -2523,7 +2561,9 @@ describe('path-guard covers any tool that declares a write', () => {
   ])('blocks protected paths through shell parser hardening: %s', async (command) => {
     const api = makeApi();
     pathGuardPlugin.setup(api as never);
-    expect((await hookOf(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe('block');
+    expect((await hookOf(api)({ toolName: 'bash', toolInput: { command } }))?.decision).toBe(
+      'block',
+    );
   });
 
   it.each(['git rm --cached .env', 'git restore --staged .env', 'git clean -nd'])(
@@ -2577,5 +2617,38 @@ describe('path-guard covers any tool that declares a write', () => {
     pathGuardPlugin.setup(api as never);
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).not.toHaveBeenCalled();
+  });
+
+  // Audit T-03 (2026-08-22): pin the full no-leak contract beyond the first
+  // release — teardown must free the hook the CURRENT setup registered (not
+  // the stale first one), and a second host's setup/teardown must never
+  // disturb the first host's handles.
+  it('teardown after re-setup releases the CURRENT hook; other hosts are isolated (audit T-03)', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const api = makeApi();
+    api.registerHook.mockReturnValueOnce(first).mockReturnValueOnce(second);
+    pathGuardPlugin.setup(api as never);
+    pathGuardPlugin.setup(api as never);
+
+    const other = makeApi();
+    const otherOff = vi.fn();
+    other.registerHook.mockReturnValueOnce(otherOff);
+    pathGuardPlugin.setup(other as never);
+    // Only the SAME api's re-setup released its own previous hook.
+    expect(first).toHaveBeenCalledTimes(1);
+    expect(otherOff).not.toHaveBeenCalled();
+
+    // Teardown releases the live (second) registration exactly once.
+    pathGuardPlugin.teardown(api as never);
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).toHaveBeenCalledTimes(1);
+
+    // The other host is untouched and released by its own teardown.
+    pathGuardPlugin.teardown(other as never);
+    expect(otherOff).toHaveBeenCalledTimes(1);
+
+    // A second teardown after state deletion is a safe no-op.
+    expect(() => pathGuardPlugin.teardown(api as never)).not.toThrow();
   });
 });

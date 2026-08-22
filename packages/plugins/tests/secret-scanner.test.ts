@@ -476,7 +476,9 @@ describe('secret_scanner_test tool', () => {
   it('shares the same pattern ids as prompt-firewall (no table drift)', async () => {
     const { cloneCredentialPatterns } = await import('../src/runtime/credential-patterns.js');
     const { KIND_ALIASES } = await import('../src/prompt-firewall/index.js');
-    const shared = cloneCredentialPatterns().map((p) => KIND_ALIASES[p.type] ?? p.type).sort();
+    const shared = cloneCredentialPatterns()
+      .map((p) => KIND_ALIASES[p.type] ?? p.type)
+      .sort();
     expect(shared).toContain('aws-access-key');
     expect(shared).toContain('github-token');
     const canonical = cloneCredentialPatterns().map((p) => p.type);
@@ -920,5 +922,76 @@ describe('ReDoS protection', () => {
     // The scanner should find the GitHub PAT in the short `data` field.
     expect(result?.decision).toBe('block');
     expect(result?.reason).toContain('github_pat');
+  });
+});
+
+// Audit T-03 (2026-08-22): pin the full no-leak hook-lifecycle contract.
+// secret-scanner registers TWO hooks per setup() (PreToolUse + PostToolUse),
+// so re-setup must release both of the previous registration's handles, and
+// teardown must free the CURRENT pair — never a stale one.
+describe('hook lifecycle: re-setup releases handles, hosts are isolated (audit T-03)', () => {
+  interface RegisteredOff {
+    pre: ReturnType<typeof vi.fn>;
+    post: ReturnType<typeof vi.fn>;
+  }
+
+  function setupOnce(off: RegisteredOff): MockApi {
+    const api = makeApi();
+    api.registerHook.mockImplementationOnce(() => off.pre).mockImplementationOnce(() => off.post);
+    secretScannerPlugin.setup(api as any);
+    return api;
+  }
+
+  it('setup() twice releases BOTH previous handles exactly once', () => {
+    const first: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
+    const second: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
+    const api = makeApi();
+    api.registerHook
+      .mockImplementationOnce(() => first.pre)
+      .mockImplementationOnce(() => first.post)
+      .mockImplementationOnce(() => second.pre)
+      .mockImplementationOnce(() => second.post);
+
+    secretScannerPlugin.setup(api as any);
+    secretScannerPlugin.setup(api as any);
+
+    expect(first.pre).toHaveBeenCalledTimes(1);
+    expect(first.post).toHaveBeenCalledTimes(1);
+    expect(second.pre).not.toHaveBeenCalled();
+    expect(second.post).not.toHaveBeenCalled();
+  });
+
+  it('teardown after re-setup releases the CURRENT pair; other hosts are isolated', () => {
+    const first: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
+    const second: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
+    const api = makeApi();
+    api.registerHook
+      .mockImplementationOnce(() => first.pre)
+      .mockImplementationOnce(() => first.post)
+      .mockImplementationOnce(() => second.pre)
+      .mockImplementationOnce(() => second.post);
+    secretScannerPlugin.setup(api as any);
+    secretScannerPlugin.setup(api as any);
+
+    // A second host's setup must not disturb the first host's handles.
+    const otherOff: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
+    const other = setupOnce(otherOff);
+    expect(otherOff.pre).not.toHaveBeenCalled();
+    expect(first.pre).toHaveBeenCalledTimes(1); // only its own re-setup fired
+
+    // Teardown frees the live (second) pair exactly once.
+    secretScannerPlugin.teardown(api as any);
+    expect(second.pre).toHaveBeenCalledTimes(1);
+    expect(second.post).toHaveBeenCalledTimes(1);
+    expect(first.pre).toHaveBeenCalledTimes(1);
+    expect(first.post).toHaveBeenCalledTimes(1);
+
+    // The other host's pair is freed by its own teardown.
+    secretScannerPlugin.teardown(other as any);
+    expect(otherOff.pre).toHaveBeenCalledTimes(1);
+    expect(otherOff.post).toHaveBeenCalledTimes(1);
+
+    // Repeat teardown after state deletion is a safe no-op.
+    expect(() => secretScannerPlugin.teardown(api as any)).not.toThrow();
   });
 });
