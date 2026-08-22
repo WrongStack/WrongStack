@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T15:18:57.000Z",
+  "generatedAt": "2026-08-22T15:30:32.601Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3321,
-    "testFiles": 2870,
-    "sourceLines": 789779,
+    "sourceFiles": 3322,
+    "testFiles": 2872,
+    "sourceLines": 789896,
     "workspaceEdges": 119,
-    "moduleEdges": 10282,
+    "moduleEdges": 10286,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 813
+    "testOnlyExports": 812
   },
   "errors": [],
   "packageCycles": [],
@@ -140,8 +140,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 460,
-      "testFiles": 426,
+      "sourceFiles": 461,
+      "testFiles": 428,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -179,7 +179,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 426
+          "testFiles": 428
         }
       ]
     },
@@ -3802,6 +3802,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/teardown-registrar-lifo.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/telegram-pairing.test.ts",
         "projects": [
           "root-node"
@@ -4151,6 +4157,12 @@
       },
       {
         "file": "packages/cli/tests/wiring-slash-commands.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/wiring-teardown-registrar.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18375,7 +18387,7 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 868,
+      "lines": 832,
       "relativeImports": 34
     },
     {
@@ -21136,10 +21148,6 @@
     {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
       "name": "setIndexReady"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/binary-frame.ts",
-      "name": "encodeJsonFrame"
     },
     {
       "file": "packages/tools/src/codebase-index/content-hash.ts",

@@ -79,9 +79,9 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 239,
+      "files": 240,
       "typeOnly": 128,
-      "runtimeOrMixed": 124
+      "runtimeOrMixed": 125
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 541,
+      "files": 542,
       "typeOnly": 60,
-      "runtimeOrMixed": 508
+      "runtimeOrMixed": 509
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -5294,6 +5294,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/session-establishment.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/session-registry.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8438,12 +8444,6 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/cli/src/cli-main.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8567,6 +8567,12 @@
       "file": "packages/cli/src/wiring/runtime-controller-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/wiring/session-establishment.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -16731,6 +16737,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/session-command-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/session-establishment.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

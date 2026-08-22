@@ -1,10 +1,8 @@
 /** Top-level CLI phase orchestrator. */
-import * as path from 'node:path';
 import { FLEET_ROSTER, mailboxSessionTag } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
-import { getSessionRegistry } from '@wrongstack/core/storage';
 import type { SystemPromptBuilder } from '@wrongstack/core/types';
-import { addFatalSalvageHook, writeErr } from '@wrongstack/core/utils';
+import { writeErr } from '@wrongstack/core/utils';
 import { wireEventWiring } from './boot/event-wiring.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import type { CliContext } from './cli-context.js';
@@ -40,7 +38,7 @@ import {
 } from './wiring/provider-utility-tools.js';
 import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
-import { setupSession } from './wiring/session.js';
+import { setupSessionEstablishment } from './wiring/session-establishment.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
 import { setupTeardownRegistrar } from './wiring/teardown-registrar.js';
 import { setupVectorMemory } from './wiring/vector-memory-setup.js';
@@ -198,46 +196,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     onlineAgents,
   });
 
-  const sessionStore = container.resolve(TOKENS.SessionStore);
-  const tokenCounter = container.resolve(TOKENS.TokenCounter);
-  tokenCounter.setSessionId?.(() => sessionRef.current?.id);
-  const sessionRegistry = getSessionRegistry(wpaths.globalRoot);
-  const sessResult = await setupSession({
-    config: { model: config.model, provider: config.provider },
-    wpaths,
-    projectRoot,
-    cwd,
-    sessionStore,
-    systemPrompt,
-    provider,
-    tokenCounter,
-    renderer,
-    flags,
-    events,
-    logger,
-    claimSession: async (sessionId) => {
-      const claim = await sessionRegistry.reserveResume({
-        sessionId,
-        projectSlug: wpaths.projectSlug,
-        projectRoot,
-      });
-      return {
-        rollback: () => claim.cancel(),
-        activate: () =>
-          claim.activate({
-            sessionId,
-            projectSlug: wpaths.projectSlug,
-            projectRoot,
-            projectName: path.basename(projectRoot),
-            workingDir: cwd,
-            clientType: flags.webui || flags.simpleui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli',
-            pid: process.pid,
-            startedAt: new Date().toISOString(),
-          }),
-      };
-    },
-  });
   const {
+    sessionStore,
+    tokenCounter,
     context,
     planPath,
     session,
@@ -245,19 +206,22 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     queueStore,
     detachTodosCheckpoint,
     priorFleetState,
-  } = sessResult;
-  context.meta['promptOnlineAgents'] = onlineAgents;
-  sessionRef.current = session;
-  // P0 kill-safety: fatal paths (crash-shield error-storm exit, top-level
-  // main rejection, 'exit' listeners) drain the writer synchronously via
-  // this hook. It reads sessionRef LIVE, so /resume writer swaps stay
-  // covered without re-registration.
-  addFatalSalvageHook(() => {
-    try {
-      sessionRef.current?.flushSync?.();
-    } catch {
-      // best-effort — process is dying anyway
-    }
+    sessResult,
+  } = await setupSessionEstablishment({
+    container,
+    config,
+    wpaths,
+    projectRoot,
+    cwd,
+    systemPrompt,
+    provider,
+    renderer,
+    flags,
+    events,
+    logger,
+    sessionRef,
+    onlineAgents,
+    tuiOwnsScreen,
   });
 
   const { governanceHandle } = await setupReplayAndGovernance({
