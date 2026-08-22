@@ -261,6 +261,11 @@ export interface HqAuthFile {
    */
   totpRecoveryCodes?: string[];
   /**
+   * Highest TOTP time-step counter already spent on a successful login
+   * (SEC-002: persisted to prevent replay after restart).
+   */
+  totpLastUsedCounter?: number;
+  /**
    * Operator-configured alert-rule thresholds. When present, these override
    * the built-in defaults for the alert engine (cost ceiling, stale-machine
    * window, concurrency limit). Live-reloaded with the rest of the file.
@@ -329,6 +334,9 @@ export function hqAuthContentHash(file: HqAuthFile): string | undefined {
       ...(file.totpPendingSecret !== undefined ? { totpPendingSecret: REDACTED } : {}),
       ...(file.totpRecoveryCodes !== undefined
         ? { totpRecoveryCodes: file.totpRecoveryCodes.map(() => REDACTED) }
+        : {}),
+      ...(file.totpLastUsedCounter !== undefined
+        ? { totpLastUsedCounter: file.totpLastUsedCounter }
         : {}),
       ...(file.alertRules !== undefined ? { alertRules: file.alertRules } : {}),
     };

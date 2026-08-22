@@ -442,4 +442,26 @@ describe('HQ server — optional browser password login', () => {
     const correctButLocked = await login(handle, 'secret123');
     expect(correctButLocked.res.status).toBe(429);
   });
+
+  it('keeps cred: entries in memory and does not persist password hashes to login-attempts.json (SEC-001)', async () => {
+    await seedAuthFile({ password: 'secret123' });
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+
+    // Fail login with a specific candidate password
+    const badPass = 'MyWrongPassword456!';
+    const fail = await login(handle, badPass);
+    expect(fail.res.status).toBe(401);
+
+    await handle.close();
+    handle = null;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+
+    // Verify disk content
+    const lockoutFile = path.join(dataDir, 'login-attempts.json');
+    const raw = await fs.readFile(lockoutFile, 'utf8');
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+    // IP entries exist on disk, but NO cred: entries exist on disk
+    expect(Object.keys(parsed).some((k) => k.startsWith('cred:'))).toBe(false);
+  });
 });

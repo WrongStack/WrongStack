@@ -194,7 +194,11 @@ export class LoginAttemptStore {
     const obj: Record<string, LoginAttemptEntry> = {};
     for (const [key, entry] of this.store) {
       if (entry.lastAttempt > cutoff) {
-        obj[key] = entry;
+        // SEC-001: cred: (per-password) entries are kept in memory only so
+        // candidate password hashes are never persisted to disk.
+        if (!key.startsWith('cred:')) {
+          obj[key] = entry;
+        }
       } else {
         this.store.delete(key);
       }

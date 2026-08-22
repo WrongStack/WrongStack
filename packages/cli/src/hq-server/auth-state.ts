@@ -70,6 +70,7 @@ export function projectAuthFile(mutableAuth: HqRouterMutableAuth, next: HqAuthFi
   mutableAuth.totpSecret = next.totpSecret;
   mutableAuth.totpPendingSecret = next.totpPendingSecret;
   mutableAuth.totpRecoveryCodes = next.totpRecoveryCodes;
+  mutableAuth.totpLastUsedCounter = next.totpLastUsedCounter;
   mutableAuth.alertRules = next.alertRules;
 }
 

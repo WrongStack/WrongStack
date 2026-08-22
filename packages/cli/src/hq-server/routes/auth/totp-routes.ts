@@ -133,6 +133,15 @@ export async function handleApiLoginVerify(
       return;
     }
     mutableAuth.totpLastUsedCounter = matchedCounter;
+    try {
+      const next = await mutateHqAuthFile(dataDir, (current) => ({
+        ...current,
+        totpLastUsedCounter: matchedCounter,
+      }));
+      applyAuthFile(next);
+    } catch {
+      // Best-effort write — mutableAuth already updated in memory
+    }
     loginAttempts.clearOnSuccess(clientIp);
     sessions.delete(sessionId);
     const fullSessionId = randomUUID();

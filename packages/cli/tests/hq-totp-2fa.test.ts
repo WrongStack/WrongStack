@@ -6,6 +6,7 @@ import {
   hashHqPassword,
   mintHqCookieSecret,
   mutateHqAuthFile,
+  readHqAuthFile,
   writeHqAuthFile,
 } from '@wrongstack/core/hq';
 import {
@@ -382,5 +383,24 @@ describe('HQ server — TOTP 2FA', () => {
     expect(okBody.loggedIn).toBe(true);
     const conflictBody = (await conflict.json()) as { error: { code: string } };
     expect(conflictBody.error.code).toBe('RECOVERY_CODE_ALREADY_USED');
+  });
+
+  it('persists totpLastUsedCounter to auth.json on successful TOTP verification (SEC-002)', async () => {
+    await seedPasswordAuth();
+    const secret = generateTotpSecret();
+    await mutateHqAuthFile(dataDir, (cur) => ({ ...cur, totpSecret: secret }));
+    handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
+
+    const { cookie } = await login(PASSWORD);
+    expect(cookie).not.toBeNull();
+
+    const validCode = generateTotp(secret);
+    const verifyRes = await loginAndVerify(validCode, cookie!);
+    expect(verifyRes.status).toBe(200);
+
+    // Verify counter was written to disk in auth.json
+    const updated = await readHqAuthFile(dataDir);
+    expect(typeof updated.totpLastUsedCounter).toBe('number');
+    expect(updated.totpLastUsedCounter).toBeGreaterThan(0);
   });
 });
