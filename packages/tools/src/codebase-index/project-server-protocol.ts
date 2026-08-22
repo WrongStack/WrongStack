@@ -1,3 +1,4 @@
+import { encodeJsonFrame } from './binary-frame.js';
 import type { OpName, OpShapes } from './worker-protocol.js';
 
 /** Hard ceiling for one newline-delimited IPC message (measured as JS characters). */
@@ -104,5 +105,10 @@ export type ProjectServerMessage =
   | { type: 'progress'; id: number; current: number; total: number };
 
 export function encodeProjectServerMessage(message: object): string {
-  return `${JSON.stringify(message)}\n`;
+  // Parity (prod fix): delegate to the shared normalized encoder so REAL
+  // wire traffic gets the same Map/Set/Error/RegExp/invalid-Date treatment
+  // as the binary framing. Raw JSON.stringify here silently delivered `{}`
+  // for Map/Set payloads — the exact divergence the parity tests pin.
+  // binary-frame.ts imports nothing local, so this cannot cycle.
+  return encodeJsonFrame(message);
 }

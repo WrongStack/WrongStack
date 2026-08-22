@@ -23,7 +23,10 @@ import {
   MAX_INBOUND_BINARY_FRAME_BYTES,
 } from '../src/codebase-index/binary-frame.js';
 import { projectIndexServerEndpoint } from '../src/codebase-index/project-server-endpoint.js';
-import type { ProjectIndexServerMetadata } from '../src/codebase-index/project-server-protocol.js';
+import {
+  encodeProjectServerMessage,
+  type ProjectIndexServerMetadata,
+} from '../src/codebase-index/project-server-protocol.js';
 
 const distServer = fileURLToPath(
   new URL('../dist/codebase-index/project-server.js', import.meta.url),
@@ -429,6 +432,31 @@ describe('framing parity: both framings deliver the same normalized tree (bf-2)'
     expect(binaryDecoded).toEqual(jsonDecoded);
     expect('a' in binaryDecoded).toBe(false);
     expect((binaryDecoded['inner'] as Record<string, unknown>)['d']).toBeNull();
+  });
+
+  it('PRODUCTION encoder: encodeProjectServerMessage delivers normalized data', () => {
+    // prod fix pin: the server and client write JSON frames through
+    // encodeProjectServerMessage, NOT through encodeJsonFrame. When it used
+    // raw JSON.stringify, Map/Set/Error/RegExp data was silently lost on
+    // the real wire even though the helper-level parity tests were green —
+    // the gap Chimera caught after the bf-2 commit. This test fails if the
+    // production encoder ever stops delegating to the shared normalizer.
+    const decoded = JSON.parse(
+      encodeProjectServerMessage({ type: 'response', id: 1, ok: true, m: new Map([['k', 7]]) }),
+    ) as Record<string, unknown>;
+    expect(decoded['m']).toEqual({ k: 7 }); // data, not {}
+    expect(decoded['ok']).toBe(true);
+
+    // Frame terminator preserved (the reader splits on newline).
+    expect(encodeProjectServerMessage({ type: 'ping' }).endsWith('\n')).toBe(true);
+
+    // And it matches the binary framing of the identical payload.
+    const binaryDecoded = binaryFrameModule.decodeBinaryFrame(
+      encodeBinaryFrame({ type: 'ping', m: new Map([['k', 7]]) }).subarray(5),
+    ) as Record<string, unknown>;
+    expect(
+      JSON.parse(encodeProjectServerMessage({ type: 'ping', m: new Map([['k', 7]]) })),
+    ).toEqual(binaryDecoded);
   });
 });
 
