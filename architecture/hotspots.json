@@ -255,15 +255,15 @@
       "relativeImports": 6
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 977,
-      "relativeImports": 8
+      "lines": 1013,
+      "relativeImports": 9
     },
     "packages/tools/src/codebase-index/writer-graph-reader.ts": {
       "lines": 829,
       "relativeImports": 5
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 937,
+      "lines": 963,
       "relativeImports": 19
     },
     "packages/tools/src/json.ts": {

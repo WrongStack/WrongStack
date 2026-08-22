@@ -155,7 +155,7 @@
     },
     "@wrongstack/core/types": {
       "files": 976,
-      "typeOnly": 902,
+      "typeOnly": 901,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -4598,7 +4598,7 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-server/src/protocol/projections.ts",
+      "file": "packages/webui-protocol/src/projections.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11451,7 +11451,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/mcp/src/registry.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -14432,7 +14432,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui-server/src/protocol/replay-payload.ts",
+      "file": "packages/webui-protocol/src/replay-payload.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15104,7 +15104,7 @@
     },
     {
       "specifier": "@wrongstack/core/types/session-markers",
-      "file": "packages/webui-server/src/protocol/replay-payload.ts",
+      "file": "packages/webui-protocol/src/replay-payload.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
