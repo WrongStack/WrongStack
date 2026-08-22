@@ -11,6 +11,12 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
+  // Serial execution — every worker talks to the ONE WebUI server spawned
+  // by global-setup (single port, single shared session env), and each
+  // page load triggers a session replay that can be huge. Parallel workers
+  // starve latency-sensitive WS round-trips (e.g. the files.tree fetch)
+  // behind 12 concurrent replays, which is what rotted this suite before.
+  workers: 1,
   timeout: 30_000,
   expect: { timeout: 10_000 },
   reporter: [['list'], ['html', { open: 'never' }]],

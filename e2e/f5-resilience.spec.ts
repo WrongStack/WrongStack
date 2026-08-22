@@ -89,12 +89,15 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    // ── 3. Open the verifier ──
-    await openVerifier(page);
+    // ── 3. Persisted UI — currentView must round-trip as "sessions" ──
+    // The verifier reads *live* store state (by the time we open it the
+    // view is refresh-debug), so assert the round-trip where it is
+    // observable: the app must land back on the sessions workspace.
+    const workspace = page.getByTestId('sessions-workspace');
+    await expect(workspace).toBeVisible({ timeout: 15_000 });
 
-    // ── 4. Every contract line item must be green ──
-    // The verifier renders a CardRow per row; "ok" tiles have
-    // border-green class, "warn" tiles have border-amber.
+    // ── 4. Open the verifier and check every contract line item ──
+    await openVerifier(page);
 
     // Active session pointer (we can't assert a specific id because the
     // session is owned by the server side, but a session *must* exist).
@@ -130,10 +133,6 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     expect(bleed.ok).toBe(true);
     // Body text must reference the "binds to the active session" wording.
     expect(bleed.text ?? '').toMatch(/transcript binds/i);
-
-    // Persisted UI — currentView must round-trip as "sessions" from the
-    // localStorage stamp we wrote before the reload.
-    await expect(page.getByText('sessions').first()).toBeVisible();
 
     // The verifier view itself must be visible regardless of round-trip.
     await expect(page.getByText(/F5 Resilience Verifier/i)).toBeVisible();

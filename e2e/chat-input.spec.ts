@@ -86,12 +86,14 @@ test.describe('ChatInput', () => {
 
     // SlashCommandPopup renders above the composer with a keyboard-hint
     // header and one button per matching command (see
-    // packages/webui/src/components/ChatInput/slash-popup.tsx).
-    const popup = page.locator('div[class*="bottom-full"]').first();
-    await expect(popup).toBeVisible({ timeout: 5000 });
-    await expect(popup.getByText(/Tab complete/)).toBeVisible();
-    // At least one command entry is offered (e.g. the always-registered
-    // /help) — the command name renders in a font-mono span.
+    // packages/webui/src/components/ChatInput/slash-popup.tsx). Anchor on
+    // the unique hint text, then scope to its popup container — other
+    // `bottom-full`-anchored elements exist in the DOM.
+    const hint = page.getByText(/Tab complete/);
+    await expect(hint).toBeVisible({ timeout: 5000 });
+    const popup = hint.locator('xpath=ancestor::div[contains(@class,"bottom-full")][1]');
+    // At least one command entry is offered — the command name renders in
+    // a font-mono span.
     await expect(popup.locator('button span.font-mono').first()).toBeVisible();
   });
 

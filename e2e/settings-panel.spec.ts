@@ -132,9 +132,12 @@ test.describe('WebUI Settings Panel', () => {
       // The tab becomes selected and its content panel renders without
       // crashing (the content area is visible).
       await expect(tab).toHaveAttribute('aria-selected', 'true');
-      await expect(page.locator('[role="tabpanel"]').first()).toBeVisible({
-        timeout: 5000,
-      });
+      // The tab's content panel renders without crashing. Scope by the
+      // tab's accessible name — some tabs (e.g. Integrations) host nested
+      // Tabs, so a bare [role=tabpanel] selector is ambiguous.
+      await expect(
+        page.getByRole('tabpanel', { name: tabName, exact: true }),
+      ).toBeVisible({ timeout: 5000 });
     }
   });
 

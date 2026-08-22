@@ -73,12 +73,26 @@ test.describe('WebUI File Explorer', () => {
 
     await openFilesView(page);
 
-    // The side panel's file tree renders one treeitem per visible entry
-    // (folders and files — see FileExplorer/TreeRow.tsx, role="treeitem").
+    // The side panel's file tree loads over the WebSocket and renders one
+    // treeitem per visible entry (FileExplorer/TreeRow.tsx,
+    // role="treeitem"). Under full-suite parallel load the initial
+    // files.tree round-trip can be dropped or clobbered by another page's
+    // session broadcasts — the same race that rotted the original spec.
+    // Retry once via the real user affordance (switch panel away and back,
+    // which re-fires the fetch in SidePanel) before giving up.
     const treeItems = page.getByRole('treeitem');
-    await expect(treeItems.first()).toBeVisible({ timeout: 10_000 });
-    const count = await treeItems.count();
-    expect(count, 'file tree should list more than one entry').toBeGreaterThan(1);
+    const countOrRetry = async (): Promise<number> => {
+      const count = await treeItems.count();
+      if (count > 0) return count;
+      const sessionBtn = page.getByRole('button', { name: /^Session/ });
+      const filesBtn = page.getByRole('button', { name: /^Files/ });
+      await sessionBtn.click();
+      await filesBtn.click();
+      return treeItems.count();
+    };
+    await expect
+      .poll(countOrRetry, { timeout: 25_000 })
+      .toBeGreaterThan(1);
   });
 
   test('opening a file shows its content in the editor', async ({ page }) => {
