@@ -339,17 +339,70 @@ describe('encodeBinaryFrame null-prototype normalization (unit)', () => {
     expect('gone' in decoded.payload['inner']).toBe(false);
     expect(decoded.payload['inner']['kept']).toBe(2);
   });
+});
 
-  it('still passes class instances through untouched (no structural conversion)', () => {
+describe('encodeBinaryFrame class-instance allowlist (unit)', () => {
+  function roundTrip(payload: object): Record<string, unknown> {
+    return binaryFrameModule.decodeBinaryFrame(encodeBinaryFrame(payload).subarray(5)) as Record<
+      string,
+      unknown
+    >;
+  }
+
+  it('converts Date to its JSON-framing shape — ISO string, exact parity', () => {
     const stamp = new Date(0);
-    const frame = encodeBinaryFrame({ at: stamp });
-    // Date is NOT a plain object: normalization must not touch it —
-    // class-instance handling is card #14 territory, asserted out of scope.
-    const decoded = binaryFrameModule.decodeBinaryFrame(frame.subarray(5)) as { at: unknown };
-    // The invariant is that the Date survives as a Date with its value —
-    // toHaveProperty alone would pass even if normalization had gutted it
-    // to an empty plain object.
-    expect(decoded.at).toBeInstanceOf(Date);
-    expect((decoded.at as Date).getTime()).toBe(stamp.getTime());
+    const decoded = roundTrip({ at: stamp });
+    expect(decoded['at']).toBe(stamp.toISOString());
+    // Parity oracle: the JSON framing of the very same payload.
+    expect(decoded).toEqual(JSON.parse(JSON.stringify({ at: stamp })));
+  });
+
+  it('converts Map to a plain object and Set to an array, recursively', () => {
+    const payload = {
+      map: new Map([
+        ['keep', 1],
+        [
+          'inner',
+          new Map([
+            ['gone', undefined],
+            ['kept', 2],
+          ]),
+        ],
+      ]),
+      set: new Set(['x', 'y']),
+    };
+    const decoded = roundTrip(payload) as {
+      map: Record<string, unknown>;
+      set: unknown[];
+    };
+    expect(decoded.map['keep']).toBe(1);
+    const inner = decoded.map['inner'] as Record<string, unknown>;
+    expect('gone' in inner).toBe(false);
+    expect(inner['kept']).toBe(2);
+    expect(decoded.set).toEqual(['x', 'y']);
+  });
+
+  it('converts Error to { name, message, stack }', () => {
+    const decoded = roundTrip({ err: new TypeError('boom') }) as {
+      err: { name: string; message: string; stack: string | undefined };
+    };
+    expect(decoded.err.name).toBe('TypeError');
+    expect(decoded.err.message).toBe('boom');
+    expect(typeof decoded.err.stack).toBe('string');
+  });
+
+  it('converts RegExp to its source string and URL to its href (toJSON parity)', () => {
+    const payload = { re: /ab+c/gi, url: new URL('https://example.com/x?y=1') };
+    const decoded = roundTrip(payload) as { re: string; url: string };
+    expect(decoded.re).toBe('/ab+c/gi');
+    expect(decoded.url).toBe('https://example.com/x?y=1');
+    expect(decoded.url).toBe(JSON.parse(JSON.stringify(payload)).url);
+  });
+
+  it('converts Buffer to the JSON-framing shape { type: "Buffer", data: [...] }', () => {
+    const payload = { buf: Buffer.from([1, 2, 3]) };
+    const decoded = roundTrip(payload);
+    expect(decoded['buf']).toEqual({ type: 'Buffer', data: [1, 2, 3] });
+    expect(decoded).toEqual(JSON.parse(JSON.stringify(payload)));
   });
 });

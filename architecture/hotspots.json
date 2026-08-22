@@ -247,7 +247,7 @@
       "relativeImports": 7
     },
     "packages/tools/src/codebase-index/indexer.ts": {
-      "lines": 979,
+      "lines": 986,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/project-server-client.ts": {

@@ -65,7 +65,9 @@ export function isBinaryFrame(firstByte: number): boolean {
  * would encode them as `nil` (arriving as `null`), while the JSON framing
  * drops them entirely — callers must not observe a different payload shape
  * just because they negotiated binary. Plain objects are normalized
- * recursively; arrays and class instances pass through untouched.
+ * recursively, and a small allowlist of well-known class instances is
+ * converted to deterministic JSON-framing shapes (see normalizeUndefined)
+ * so the same payload does not shape-shift between framings.
  */
 export function encodeBinaryFrame(message: unknown): Buffer {
   const payload = encode(normalizeUndefined(message));
@@ -76,6 +78,21 @@ export function encodeBinaryFrame(message: unknown): Buffer {
 }
 
 function normalizeUndefined(value: unknown): unknown {
+  // Well-known class instances convert to the shapes clients expect instead
+  // of MessagePack's native encodings, which shape-shift against JSON
+  // framing: Date arrives as an ext-timestamp object (JSON delivers an ISO
+  // string), Map/Set encode sparsely (JSON delivers {}), Error loses all
+  // diagnostics. RegExp/URL stringify to their canonical source/href form;
+  // Buffer converts via toJSON() — byte-identical with JSON framing.
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof Map) return normalizeUndefined(Object.fromEntries(value));
+  if (value instanceof Set) return normalizeUndefined([...value]);
+  if (value instanceof Error) {
+    return normalizeUndefined({ name: value.name, message: value.message, stack: value.stack });
+  }
+  if (value instanceof RegExp) return String(value);
+  if (value instanceof URL) return value.toJSON();
+  if (Buffer.isBuffer(value)) return { type: 'Buffer', data: [...value] };
   // Arrays of plain objects are the standard response shape (`SearchResult[]`
   // carries `lspKind: undefined`) — recurse element-wise, preserving the array.
   if (Array.isArray(value)) return value.map((entry) => normalizeUndefined(entry));
@@ -89,18 +106,18 @@ function normalizeUndefined(value: unknown): unknown {
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
+  // Guards FIRST: Object.getPrototypeOf(null/undefined) throws TypeError, and
+  // null values reach normalizeUndefined on every ping response
+  // (updatedAt: null / lastError: null). Hoisting the proto lookup above
+  // these guards crashed the daemon on its first authorized binary reply.
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   // Object.create(null) objects must count as plain: reviver-based parse
   // paths and Object.assign(Object.create(null), …) payloads appear in
   // request arguments. Rejecting them would skip the undefined-stripping
   // recursion, so the same payload would shape-shift between framings
   // (JSON drops undefined keys; MessagePack would deliver them as null).
   const proto = Object.getPrototypeOf(value);
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    (proto === Object.prototype || proto === null)
-  );
+  return proto === Object.prototype || proto === null;
 }
 
 /**

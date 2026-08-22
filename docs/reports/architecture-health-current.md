@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T14:06:39.802Z
+**Generated:** 2026-08-22T14:15:19.834Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 34 |
 | Production source files | 3316 |
-| Production source lines | 789784 |
+| Production source lines | 789828 |
 | Test files | 2870 |
 | Workspace dependency edges | 112 |
 | Relative module edges | 10277 |
@@ -113,6 +113,7 @@ None.
 | 996 | `packages/tui/src/input-validation.ts` |
 | 993 | `packages/sage/src/types.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
+| 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 986 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
@@ -120,7 +121,6 @@ None.
 | 980 | `packages/tui/src/kanban-slash.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 979 | `packages/kanban/src/manager/assignment.ts` |
-| 979 | `packages/tools/src/codebase-index/indexer.ts` |
 | 974 | `packages/webui/src/stores/viz-store.ts` |
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 968 | `packages/kanban/src/types.ts` |
