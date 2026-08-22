@@ -6,10 +6,6 @@
       "lines": 851,
       "relativeImports": 19
     },
-    "packages/cli/src/cli-main.ts": {
-      "lines": 832,
-      "relativeImports": 34
-    },
     "packages/cli/src/goal-host.ts": {
       "lines": 930,
       "relativeImports": 1

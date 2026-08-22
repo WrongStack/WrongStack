@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 292,
-      "typeOnly": 234,
+      "files": 293,
+      "typeOnly": 235,
       "runtimeOrMixed": 75
     },
     "@wrongstack/core/agent-catalog": {
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 186,
-      "typeOnly": 80,
-      "runtimeOrMixed": 156
+      "files": 187,
+      "typeOnly": 81,
+      "runtimeOrMixed": 157
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -114,8 +114,8 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/registry": {
-      "files": 107,
-      "typeOnly": 52,
+      "files": 108,
+      "typeOnly": 53,
       "runtimeOrMixed": 56
     },
     "@wrongstack/core/replay": {
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 984,
-      "typeOnly": 909,
+      "files": 985,
+      "typeOnly": 910,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -639,6 +639,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/src/wiring/session-command-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/src/wiring/session-runtime.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -2524,6 +2530,12 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/dep-watcher.ts",
       "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/wiring/director-announcement.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -6932,6 +6944,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/src/wiring/director-announcement.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9550,7 +9568,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/cli-main.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10715,6 +10733,12 @@
       "file": "packages/cli/src/wiring/session-command-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/session-runtime.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

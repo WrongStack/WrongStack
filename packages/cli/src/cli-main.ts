@@ -1,5 +1,5 @@
 /** Top-level CLI phase orchestrator. */
-import { FLEET_ROSTER, mailboxSessionTag } from '@wrongstack/core/coordination';
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { writeErr } from '@wrongstack/core/utils';
@@ -9,8 +9,6 @@ import type { CliContext } from './cli-context.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { loadOnlineAgentsForPrompt } from './cli-main-helpers.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
-import { wireSessionEvents } from './session-event-wiring.js';
-import { SessionStats } from './session-stats.js';
 import { CLI_VERSION } from './version.js';
 import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
 import { runCliExecution } from './wiring/cli-execute-builder.js';
@@ -19,13 +17,13 @@ import { setupCliSlashCommands } from './wiring/cli-slash-commands-setup.js';
 import { setupCommandHostState } from './wiring/command-host-state.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
+import { ensureDirectorAndAnnounce } from './wiring/director-announcement.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
 import { setupCliHeapWatchdog } from './wiring/heap-watchdog-setup.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { registerCliManagementTools } from './wiring/management-tools.js';
 import { setupMetrics } from './wiring/metrics.js';
-import { setupPipelines } from './wiring/pipeline.js';
 import {
   buildProviderForId as buildProviderForIdRuntime,
   resolveProviderCfg as resolveProviderCfgRuntime,
@@ -40,6 +38,7 @@ import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSessionEstablishment } from './wiring/session-establishment.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
+import { setupSessionRuntime } from './wiring/session-runtime.js';
 import { setupTeardownRegistrar } from './wiring/teardown-registrar.js';
 import { setupVectorMemory } from './wiring/vector-memory-setup.js';
 
@@ -249,52 +248,37 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     events,
   });
 
-  const { errorRing, sessionBridge, disposeChronicle } = wireSessionEvents({
+  const {
+    errorRing,
+    sessionBridge,
+    stats,
+    pipelines,
+    refreshActiveReasoningConfig,
+    getActiveReasoningConfig,
+    disposeChronicle,
+  } = setupSessionRuntime({
     evOn,
     events,
-    config: config as unknown as Record<string, unknown>,
-    context: context as unknown as Record<string, unknown>,
+    config,
+    context,
     session,
     sessionRef,
     wpaths,
     projectRoot,
     renderer,
     tuiOwnsScreen,
+    tokenCounter,
+    modelsRegistry,
+    configStore,
+    provider,
+    logger,
+    governanceHandle,
   });
+  // Composition root owns process-level lifecycle hooks (chimera review:
+  // reusable wiring modules must not install them).
   process.once('beforeExit', () => {
     void disposeChronicle();
   });
-
-  const stats = new SessionStats(events, tokenCounter);
-
-  let activeReasoningConfig: import('@wrongstack/core/types').ReasoningConfig | undefined;
-  const warnedRuntimeMessages = new Set<string>();
-  const refreshActiveReasoningConfig = async (providerId: string, modelId: string) => {
-    warnedRuntimeMessages.clear();
-    try {
-      const resolved = await modelsRegistry.getModel(providerId, modelId);
-      activeReasoningConfig = resolved?.capabilities.reasoningConfig;
-    } catch {
-      activeReasoningConfig = undefined;
-    }
-  };
-  void refreshActiveReasoningConfig(config.provider, config.model);
-
-  const pipelines = setupPipelines({
-    events,
-    logger,
-    modelRuntime: {
-      getSettings: () => configStore.get().modelRuntime,
-      getReasoningConfig: () => activeReasoningConfig,
-      getCapabilities: () => provider.capabilities,
-      onWarning: (message) => {
-        if (warnedRuntimeMessages.has(message)) return;
-        warnedRuntimeMessages.add(message);
-        logger.warn(`model-runtime: ${message}`);
-      },
-    },
-  });
-  governanceHandle?.installToolBoundary(pipelines);
 
   const {
     autoCompactor,
@@ -506,40 +490,17 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     projectRoot,
   });
 
-  director = await multiAgentHost.ensureDirector();
-  if (director) {
-    if (priorFleetState) director.setCheckpointState(priorFleetState);
-    for (const tool of director.tools(FLEET_ROSTER)) {
-      toolRegistry.register(tool);
-    }
-    const browserSurface = flags.webui === true || flags.simpleui === true;
-    if (browserSurface) {
-      renderer.writeInfo(
-        `Director mode enabled (${Object.keys(FLEET_ROSTER).length} roles) → ${fleetRoot}`,
-      );
-    } else {
-      renderer.writeInfo(`Director mode enabled. Roster: ${Object.keys(FLEET_ROSTER).join(', ')}`);
-      renderer.writeInfo(`  fleet root → ${fleetRoot}`);
-      renderer.writeInfo(`  manifest   → ${manifestPath}`);
-      renderer.writeInfo(`  scratchpad → ${sharedScratchpadPath}`);
-      renderer.writeInfo(`  subagents  → ${subagentSessionsRoot}`);
-    }
-    if (priorFleetState) {
-      const budget = multiAgentHost.budgetView();
-      const fmt = (n: number) => (Number.isFinite(n) ? String(n) : '∞');
-      renderer.writeInfo(
-        `  fleet budget → ${budget.usedSpawns}/${fmt(budget.maxSpawns)} spawns used` +
-          ` (${fmt(budget.remainingSpawns)} remaining; maxConcurrent ${budget.maxConcurrent})`,
-      );
-      if (budget.ceilingMismatch && budget.checkpointMaxSpawns !== undefined) {
-        renderer.writeInfo(
-          `  ⚠ checkpoint maxSpawns was ${budget.checkpointMaxSpawns}; live ceiling is ${fmt(budget.maxSpawns)}`,
-        );
-      }
-    }
-  } else {
-    renderer.writeInfo(`Running without Director — fleet orchestration tools disabled.`);
-  }
+  director = await ensureDirectorAndAnnounce({
+    multiAgentHost,
+    priorFleetState,
+    renderer,
+    toolRegistry,
+    flags,
+    fleetRoot,
+    manifestPath,
+    sharedScratchpadPath,
+    subagentSessionsRoot,
+  });
 
   const {
     fleetStreamController,
@@ -786,7 +747,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     onPanelOpen,
     interruptController,
     enhanceController,
-    activeReasoningConfig,
+    activeReasoningConfig: getActiveReasoningConfig(),
     configRef,
     buildProviderForModel,
     statuslineHiddenItems,
