@@ -32,9 +32,21 @@ import { decode, encode } from '@msgpack/msgpack';
 export const BINARY_FRAME_MAGIC = 0x57;
 
 /**
- * Hard cap on one binary frame's declared payload length. A malformed or
- * hostile peer could claim a 4 GiB frame and stall the reader; this bound is
- * far above any legitimate IPC response.
+ * Hard cap on one binary frame's declared payload length for the CLIENT
+ * reader (project-server-client.ts). A malformed or hostile peer could
+ * claim a 4 GiB frame and stall the reader; this bound is far above any
+ * legitimate IPC response.
+ *
+ * Direction split is deliberate, not an oversight: the server enforces a
+ * much tighter inbound cap (MAX_INBOUND_BINARY_FRAME_BYTES, 64 Mi) because
+ * requests are small by construction and readable before auth; the client
+ * accepts larger frames because server responses (search results, symbol
+ * graphs) are the big direction. The two constants are intentionally
+ * separate — do not "unify" them: raising the server's inbound ceiling to
+ * match would widen the unauthenticated write surface, and lowering the
+ * client's read ceiling to match would reject legitimate large responses.
+ * Both directions also cap JSON text frames at their own ceilings, so
+ * neither framing offers the larger write than the other on its side.
  */
 export const MAX_BINARY_FRAME_BYTES = 256 * 1024 * 1024;
 

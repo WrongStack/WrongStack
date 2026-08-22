@@ -38,9 +38,16 @@ beats the pure-JavaScript msgpack codec roughly 3:1, and the wire savings do
 not recover the codec cost. The capability is kept for runtimes or payloads
 where that balance flips.
 
-Frame ceilings protect both sides: JSON frames are capped at 64 Mi
-characters; binary frames at 256 MiB outbound and a tighter inbound bound for
-requests (they are small by construction), rejected from the 5-byte header
+Frame ceilings protect both sides, and the caps are split by direction —
+deliberately, not by omission: JSON frames are capped at 64 Mi characters;
+binary frames at 256 MiB on the client's reader (`MAX_BINARY_FRAME_BYTES`
+— responses are the big direction) and a tighter 64 Mi inbound bound for
+requests (`MAX_INBOUND_BINARY_FRAME_BYTES`, matching the JSON request
+ceiling — requests are small by construction and readable before the auth
+check). The two binary constants are intentionally separate: unifying
+them would either widen the server's unauthenticated write surface or
+make the client reject legitimate large responses. Oversized requests
+are rejected from the 5-byte header
 before the server waits on or accumulates the declared payload. A garbage or
 oversized frame destroys the socket. MessagePack normalizes `undefined` away
 before encoding (`nil` would arrive as `null` and change payload shape
