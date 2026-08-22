@@ -1,22 +1,21 @@
-import { describe, expect, it } from 'vitest';
 import {
   estimateContextBreakdown,
   estimateTokens,
   stringifyContent,
 } from '@wrongstack/webui-server';
+import { describe, expect, it } from 'vitest';
 
 /**
  * The per-section token breakdown behind `context.debug`. Pure maths, so these
- * pin the 4-chars-per-token heuristic and the per-block accounting that used to
- * be an inline closure in `index.ts`.
+ * pin the shared 3.5-chars-per-token heuristic and the per-block accounting.
  */
 
 describe('estimateTokens', () => {
-  it('rounds up at 4 chars per token', () => {
+  it('rounds up at 3.5 chars per token', () => {
     expect(estimateTokens('')).toBe(0);
-    expect(estimateTokens('abcd')).toBe(1);
-    expect(estimateTokens('abcde')).toBe(2); // ceil(5/4)
-    expect(estimateTokens('a'.repeat(40))).toBe(10);
+    expect(estimateTokens('abcd')).toBe(2);
+    expect(estimateTokens('abcde')).toBe(2); // ceil(5/3.5)
+    expect(estimateTokens('a'.repeat(40))).toBe(12);
   });
 });
 
@@ -35,18 +34,18 @@ describe('stringifyContent', () => {
 describe('estimateContextBreakdown', () => {
   it('sums system prompt, tool schema, and message tokens', () => {
     const out = estimateContextBreakdown({
-      systemPrompt: [{ text: 'a'.repeat(40) }, { text: 'b'.repeat(8) }], // 10 + 2 = 12
+      systemPrompt: [{ text: 'a'.repeat(40) }, { text: 'b'.repeat(8) }], // 12 + 3 = 15
       tools: [{ name: 'read', description: 'reads', inputSchema: { type: 'object' } }],
-      messages: [{ role: 'user', content: 'a'.repeat(20) }], // 5
+      messages: [{ role: 'user', content: 'a'.repeat(20) }], // 6
     });
 
-    expect(out.systemPrompt).toBe(12);
-    // tool: estimate('read'=4 →1) + estimate('reads'=5 →2) + estimate('{"type":"object"}'=17 →5) = 8
-    expect(out.tools.total).toBe(8);
+    expect(out.systemPrompt).toBe(15);
+    // tool: estimate('read'=4 →2) + estimate('reads'=5 →2) + estimate('{"type":"object"}'=17 →5) = 9
+    expect(out.tools.total).toBe(9);
     expect(out.tools.count).toBe(1);
-    expect(out.tools.breakdown[0]).toEqual({ name: 'read', tokens: 8 });
-    expect(out.messages.total).toBe(5);
-    expect(out.total).toBe(12 + 8 + 5);
+    expect(out.tools.breakdown[0]).toEqual({ name: 'read', tokens: 9 });
+    expect(out.messages.total).toBe(6);
+    expect(out.total).toBe(15 + 9 + 6);
   });
 
   it('accounts for each block type in array message content', () => {
@@ -57,16 +56,16 @@ describe('estimateContextBreakdown', () => {
         {
           role: 'assistant',
           content: [
-            { type: 'text', text: 'a'.repeat(40) }, // 10
+            { type: 'text', text: 'a'.repeat(40) }, // 12
             { type: 'tool_use', name: 'grep', input: { q: 'x' } }, // estimate('{"q":"x"}'=9 →3)
-            { type: 'tool_result', content: 'a'.repeat(8) }, // 2
+            { type: 'tool_result', content: 'a'.repeat(8) }, // 3
           ],
         },
       ],
     });
-    expect(out.messages.breakdown[0]?.tokens).toBe(10 + 3 + 2);
-    expect(out.messages.total).toBe(15);
-    expect(out.total).toBe(15);
+    expect(out.messages.breakdown[0]?.tokens).toBe(12 + 3 + 3);
+    expect(out.messages.total).toBe(18);
+    expect(out.total).toBe(18);
   });
 
   it('builds previews per block type and truncates to 60 chars', () => {

@@ -7,6 +7,8 @@ import { spawn } from 'node:child_process';
  */
 export interface KillableChild {
   readonly pid?: number | undefined;
+  /** Non-null once Node has observed that the child exited. */
+  readonly exitCode?: number | null | undefined;
   kill(signal?: NodeJS.Signals | number): boolean | void;
 }
 
@@ -81,6 +83,9 @@ export function treeKill(child: KillableChild, opts: TreeKillOptions = {}): void
     /* already gone */
   }
   setTimeout(() => {
+    // Do not signal by a stale PID after Node has observed the child exit. On a
+    // busy host that PID may already belong to an unrelated process.
+    if (child.exitCode !== undefined && child.exitCode !== null) return;
     try {
       child.kill('SIGKILL');
     } catch {

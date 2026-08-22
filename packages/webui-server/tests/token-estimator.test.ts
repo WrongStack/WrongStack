@@ -9,7 +9,7 @@ import {
 
 /**
  * Since card #5 (slice 5g) the estimator delegates to core's calibrated
- * basis (3.5 chars/token, min 1 — see core/src/utils/token-estimate.ts
+ * basis (3.5 chars/token — see core/src/utils/token-estimate.ts
  * `RoughTokenEstimate`). The old /4 exact-arithmetic fixtures below were
  * updated to the shared basis: 'abcd' → ceil(4/3.5) = 2, not 1. Delegation
  * is the point — these tests pin the WebUI view to the same numbers the
@@ -17,13 +17,11 @@ import {
  */
 
 describe('estimateTokens', () => {
-  it('delegates to the shared 3.5-chars/token basis (min 1)', () => {
+  it('delegates non-empty text to the shared 3.5-chars/token basis', () => {
     expect(estimateTokens('abcd')).toBe(2); // ceil(4/3.5) = 2
     expect(estimateTokens('abcde')).toBe(2); // ceil(5/3.5) = 2
-    // Math.max(1, ...) — core's basis floors EVERYTHING at 1, including the
-    // empty string (old private /4 estimator returned 0 here). The shift is
-    // intentional: a block that exists costs at least one token.
-    expect(estimateTokens('')).toBe(1);
+    // Empty presentation fields carry no text and therefore no token cost.
+    expect(estimateTokens('')).toBe(0);
   });
 
   it('handles longer strings on the shared basis', () => {
@@ -102,8 +100,7 @@ describe('messageTokens', () => {
 
   it('handles text blocks with missing text', () => {
     const content = [{ type: 'text' }];
-    // text ?? '' is an empty string, and the shared basis floors it at 1.
-    expect(messageTokens(content)).toBe(1);
+    expect(messageTokens(content)).toBe(0);
   });
 
   it('handles tool_use blocks via the canonical tool-input estimator', () => {
@@ -222,8 +219,7 @@ describe('estimateContextBreakdown', () => {
       tools: [],
       messages: [],
     });
-    // text ?? '' floors at 1 under the shared basis.
-    expect(result.systemPrompt).toBe(1);
+    expect(result.systemPrompt).toBe(0);
   });
 
   it('includes tool breakdown with schema and description', () => {

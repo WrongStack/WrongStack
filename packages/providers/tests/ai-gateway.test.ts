@@ -44,9 +44,7 @@ function request(overrides: Partial<Request> = {}): Request {
   };
 }
 
-async function* parts(
-  values: TextStreamPart<ToolSet>[],
-): AsyncIterable<TextStreamPart<ToolSet>> {
+async function* parts(values: TextStreamPart<ToolSet>[]): AsyncIterable<TextStreamPart<ToolSet>> {
   yield* values;
 }
 
@@ -376,9 +374,9 @@ describe('AiGatewayProvider', () => {
       })) as never,
     });
 
-    await expect(
-      provider.complete(request(), { signal: controller.signal }),
-    ).rejects.toMatchObject({ name: 'AbortError', message: 'cancelled' });
+    await expect(provider.complete(request(), { signal: controller.signal })).rejects.toMatchObject(
+      { name: 'AbortError', message: 'cancelled' },
+    );
   });
 
   it('normalizes AI SDK API errors for WrongStack fallback policy', async () => {
@@ -531,6 +529,10 @@ describe('AiGatewayProvider', () => {
 });
 
 describe('AI Gateway wire base URL', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('drops the Vercel Gateway model-list base so the SDK keeps its wire default', () => {
     // The catalog preset — and therefore many saved configs — carries `/v1`,
     // which is the model-list endpoint, not the wire endpoint.
@@ -560,6 +562,11 @@ describe('AI Gateway wire base URL', () => {
       throw new Error('stop after URL capture');
     });
     vi.stubGlobal('fetch', fetchSpy);
+    // The failing fetch surfaces through AI SDK streamText's default onError
+    // handler, which console.errors the wrapped GatewayResponseError. Silence
+    // it (restoreMocks re-enables it for later tests) so expected-failure
+    // noise doesn't bury real failures in test output.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const provider = createAiGatewayProviderFactory().create({
       type: 'ai-gateway',
@@ -588,7 +595,9 @@ describe('AI Gateway catalog capability overlay', () => {
   function registryFor(providers: Record<string, unknown>, models: Record<string, unknown>) {
     return {
       getProvider: vi.fn(async (id: string) => providers[id]),
-      getModel: vi.fn(async (providerId: string, modelId: string) => models[`${providerId}/${modelId}`]),
+      getModel: vi.fn(
+        async (providerId: string, modelId: string) => models[`${providerId}/${modelId}`],
+      ),
       listProviders: vi.fn().mockResolvedValue([]),
     } as never as ModelsRegistry;
   }
@@ -642,13 +651,19 @@ describe('AI Gateway catalog capability overlay', () => {
 
     // The `unsupported` family baseline would report tools: false and
     // streaming: false, silently disabling every tool call on the session.
-    expect(overlaid.capabilities).toMatchObject({ tools: true, streaming: true, systemPrompt: true });
+    expect(overlaid.capabilities).toMatchObject({
+      tools: true,
+      streaming: true,
+      systemPrompt: true,
+    });
   });
 
   it('leaves non-gateway providers on their own catalog id', async () => {
     const registry = registryFor(
       { vercel: { id: 'vercel', family: 'unsupported', models: [] } },
-      { 'vercel/anthropic/claude-sonnet-5': { capabilities: { tools: true, maxContext: 200_000 } } },
+      {
+        'vercel/anthropic/claude-sonnet-5': { capabilities: { tools: true, maxContext: 200_000 } },
+      },
     );
 
     await capabilitiesFor(registry, 'my-custom', 'anthropic/claude-sonnet-5');
@@ -669,9 +684,9 @@ describe('AI SDK conversion helpers', () => {
   });
 
   it('converts compacted system history into accepted user context', () => {
-    expect(convertMessages([{ role: 'system', content: '[prior_turns_digest: summary]' }])).toEqual([
-      { role: 'user', content: '[system context]\n[prior_turns_digest: summary]' },
-    ]);
+    expect(convertMessages([{ role: 'system', content: '[prior_turns_digest: summary]' }])).toEqual(
+      [{ role: 'user', content: '[system context]\n[prior_turns_digest: summary]' }],
+    );
   });
 
   it('keeps tool results adjacent to the assistant call that produced them', () => {

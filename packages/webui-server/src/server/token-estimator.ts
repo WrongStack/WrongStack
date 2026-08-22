@@ -30,7 +30,7 @@ import {
 
 /** Calibrated token estimate for a string — delegates to the shared basis. */
 export function estimateTokens(s: string): number {
-  return estimateTextTokens(s);
+  return s.length === 0 ? 0 : estimateTextTokens(s);
 }
 
 /** Stringify arbitrary content for length estimation (JSON, with fallbacks). */
