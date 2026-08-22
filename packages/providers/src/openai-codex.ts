@@ -20,6 +20,8 @@
  * path share one definition instead of three that had to be kept in step by hand.
  */
 
+import { createRequire } from 'node:module';
+
 import {
   type Capabilities,
   classifyProviderError,
@@ -57,8 +59,33 @@ import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh (shared protocol — see ./oauth/codex-protocol.ts) ──────────
 
+const req = createRequire(import.meta.url);
+
 const DEFAULT_CODEX_BASE = CODEX_BASE_URL;
-const CODEX_MODELS_CLIENT_VERSION = 'wrongstack';
+
+/**
+ * Version advertised to the ChatGPT backend's `/codex/models` catalog via the
+ * `client_version` query param. Unlike `CODEX_ORIGINATOR` (free-form), the
+ * backend validates this as a semver string and rejects anything else with
+ * `{"detail":"Invalid client_version format"}` — the official Codex client
+ * sends its own crate version. It also gates models whose
+ * `minimal_client_version` exceeds it, so it must track the real package
+ * version, not a branding tag.
+ */
+const CODEX_MODELS_CLIENT_VERSION = readOwnVersion();
+
+function readOwnVersion(): string {
+  for (const rel of ['../package.json', '../../package.json']) {
+    try {
+      const pkg = req(rel) as { version?: unknown | undefined };
+      if (typeof pkg.version === 'string' && pkg.version.length > 0) return pkg.version;
+    } catch {
+      // try next
+    }
+  }
+  return '0.0.0';
+}
+
 const CODEX_MODELS_FAILURE_COOLDOWN_MS = 5_000;
 const CODEX_MODELS_TIMEOUT_MS = 3_000;
 /**

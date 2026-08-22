@@ -129,7 +129,9 @@ describe('OpenAICodexProvider live context limit', () => {
       provider.refreshContextLimit('gpt-5.6-sol', { signal: new AbortController().signal }),
     ).resolves.toEqual({ maxContext: 255_616, source: 'provider' });
 
-    expect(calls[0]?.url).toContain('/codex/models?client_version=wrongstack');
+    // The backend rejects non-semver values with "Invalid client_version
+    // format" — the param must always carry a real package version.
+    expect(calls[0]?.url).toMatch(/\/codex\/models\?client_version=\d+\.\d+\.\d+$/);
     expect(new Headers(calls[1]?.headers).get('if-none-match')).toBe('"ctx-v1"');
   });
 
