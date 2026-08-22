@@ -1,5 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+// The no-diff detector (postHook → gitDiffFingerprint) shells out to
+// `git diff` with a 1s timeout and fails open on timeout/error. Under a
+// full parallel suite run the git spawn can exceed that budget, the
+// fingerprint comes back null, the no-diff streak never advances, and the
+// test flakes at the `warn?.additionalContext` assertion. Mocking the
+// spawn keeps this file on the streak logic it exists to cover; git's
+// own performance is not under test.
+vi.mock('node:child_process', () => ({
+  execFile: vi.fn(
+    (
+      _file: unknown,
+      _args: unknown,
+      _options: unknown,
+      callback: (error: Error | null, stdout: string) => void,
+    ) => {
+      // Empty diff — the target file is clean and stays clean.
+      callback(null, '');
+      return { unref: vi.fn() } as never;
+    },
+  ),
+}));
+
 const loopBreakerPlugin = (await import('../src/loop-breaker')).default;
 
 interface MockApi {

@@ -56,7 +56,7 @@ describe('KnowledgeGraph + ConsensusProtocol Integration', () => {
         { agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' },
         { agentId: 'voter-2', agentName: 'Bob', weight: 1, role: 'architect' },
       ],
-      rules: { quorumFraction: 0, vetoRoles: [], approvalFraction: 0.6 },
+      rules: { quorumFraction: 1, vetoRoles: [], approvalFraction: 0.6 },
     });
 
     // Propose a change for the vote
@@ -82,9 +82,11 @@ describe('KnowledgeGraph + ConsensusProtocol Integration', () => {
     const result1 = await protocol.castVote(changeId.id, 'voter-1', 'approve');
     const result2 = await protocol.castVote(changeId.id, 'voter-2', 'approve');
 
-    // Check consensus reached
-    expect(result1.quorumMet).toBe(true);
-    expect(result1.outcome).toBe('approved');
+    // Check consensus reached — the first vote leaves the ballot open
+    // (1/2 quorum); the second is the deciding vote.
+    expect(result1.quorumMet).toBe(false);
+    expect(result1.outcome).toBe('quorum_not_met');
+    expect(result2.quorumMet).toBe(true);
     expect(result2.outcome).toBe('approved');
 
     // Retrieve fact from graph
@@ -102,7 +104,9 @@ describe('KnowledgeGraph + ConsensusProtocol Integration', () => {
         { agentId: 'voter-1', agentName: 'Alice', weight: 1, role: 'reviewer' },
         { agentId: 'voter-2', agentName: 'Bob', weight: 1, role: 'reviewer' },
       ],
-      rules: { quorumFraction: 0, vetoRoles: [], approvalFraction: 0.6 },
+      // quorumFraction: 1 → both voters must cast before the ballot can
+      // resolve, so the first reject leaves it open and the second decides.
+      rules: { quorumFraction: 1, vetoRoles: [], approvalFraction: 0.6 },
     });
 
     // Propose a minor change
@@ -126,8 +130,11 @@ describe('KnowledgeGraph + ConsensusProtocol Integration', () => {
     const result1 = await protocol.castVote(changeId.id, 'voter-1', 'reject');
     const result2 = await protocol.castVote(changeId.id, 'voter-2', 'reject');
 
-    expect(result1.quorumMet).toBe(true);
-    expect(result1.outcome).toBe('rejected');
+    // The first reject leaves the ballot open (1/2 quorum); the second
+    // rejects it — no vote is cast after resolution.
+    expect(result1.quorumMet).toBe(false);
+    expect(result1.outcome).toBe('quorum_not_met');
+    expect(result2.quorumMet).toBe(true);
     expect(result2.outcome).toBe('rejected');
   });
 });
@@ -519,13 +526,15 @@ describe('Full Coordination Workflow', () => {
     // Initiate vote
     consensus.initiateVote(changeId.id);
 
-    // Cast votes - castVote returns ConsensusResult directly
-    const _result1 = await consensus.castVote(changeId.id, 'senior-dev', 'approve');
-    const _result2 = await consensus.castVote(changeId.id, 'architect', 'approve');
-    const result3 = await consensus.castVote(changeId.id, 'junior-dev', 'approve');
+    // Cast votes - castVote returns ConsensusResult directly. With
+    // quorumFraction 0.6 (quorum = 2 of 3), the second vote reaches
+    // quorum and approves — no vote is cast after resolution.
+    const result1 = await consensus.castVote(changeId.id, 'senior-dev', 'approve');
+    const result2 = await consensus.castVote(changeId.id, 'architect', 'approve');
 
     // Check consensus result
-    expect(result3.quorumMet).toBe(true);
-    expect(result3.outcome).toBe('approved');
+    expect(result1.outcome).toBe('quorum_not_met');
+    expect(result2.quorumMet).toBe(true);
+    expect(result2.outcome).toBe('approved');
   });
 });
