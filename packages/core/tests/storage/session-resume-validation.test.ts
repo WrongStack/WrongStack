@@ -15,7 +15,7 @@ vi.mock('node:fs/promises', async () => {
   const real = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
   return {
     ...real,
-    realpath: vi.fn(async (p: string) => p),
+    realpath: vi.fn(async (p: Parameters<typeof real.realpath>[0]) => String(p)),
     stat: vi.fn(),
     readFile: vi.fn(),
   };
@@ -261,9 +261,10 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks deleted when realpath itself fails with ENOENT', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => {
-      if (p === testFile1) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      return p;
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => {
+      const resolved = String(p);
+      if (resolved === testFile1) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return resolved;
     });
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('deleted');
@@ -271,9 +272,10 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when realpath fails with a non-ENOENT error', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => {
-      if (p === testFile1) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
-      return p;
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => {
+      const resolved = String(p);
+      if (resolved === testFile1) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return resolved;
     });
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('unreadable');
@@ -281,9 +283,10 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when realpath throws a non-object value', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => {
-      if (p === testFile1) throw 'network string error';
-      return p;
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => {
+      const resolved = String(p);
+      if (resolved === testFile1) throw 'network string error';
+      return resolved;
     });
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('unreadable');
@@ -291,9 +294,10 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks outside_project when realpath resolves through a symlink outside root', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => {
-      if (p === testFile1) return outsideFile;
-      return p;
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => {
+      const resolved = String(p);
+      if (resolved === testFile1) return outsideFile;
+      return resolved;
     });
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('outside_project');
@@ -302,7 +306,7 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when stat returns a non-file entry', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => p);
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => false, size: 100 } as any);
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('unreadable');
@@ -311,7 +315,7 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks deleted when readFile fails with ENOENT after stat succeeds', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => p);
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
     vi.mocked(fsp.readFile).mockRejectedValue(
       Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
@@ -322,7 +326,7 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when readFile fails with a non-ENOENT error', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => p);
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
     vi.mocked(fsp.readFile).mockRejectedValue(
       Object.assign(new Error('EIO'), { code: 'EIO' }),
@@ -333,9 +337,10 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('falls back to the lexical root when realpath of the root fails', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: string) => {
-      if (p === testRoot) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      return p;
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => {
+      const resolved = String(p);
+      if (resolved === testRoot) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      return resolved;
     });
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
     vi.mocked(fsp.readFile).mockResolvedValue('file content');

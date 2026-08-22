@@ -82,6 +82,7 @@ describe('P2.5 zero-hit indexSummary piggyback (searchService)', () => {
         projectRoot,
         indexDir,
         query: 'nothing_matches_this',
+        limit: 20,
       });
       expect(miss.total).toBe(0);
       expect(miss.results).toEqual([]);
@@ -110,7 +111,7 @@ describe('P2.5 zero-hit indexSummary piggyback (searchService)', () => {
         ],
         { deleteForFiles: ['src/file_1.ts'] },
       );
-      const hit = await searchService({ projectRoot, indexDir, query: 'resolver' });
+      const hit = await searchService({ projectRoot, indexDir, query: 'resolver', limit: 20 });
       expect(hit.total).toBeGreaterThan(0);
       expect(hit.indexSummary).toBeUndefined();
     } finally {
@@ -122,7 +123,7 @@ describe('P2.5 zero-hit indexSummary piggyback (searchService)', () => {
     const { projectRoot, indexDir } = makeIndex();
     const store = new IndexStore(projectRoot, { indexDir });
     try {
-      const miss = await searchService({ projectRoot, indexDir, query: 'anything' });
+      const miss = await searchService({ projectRoot, indexDir, query: 'anything', limit: 20 });
       expect(miss.total).toBe(0);
       expect(miss.indexSummary).toEqual({ totalFiles: 0, lastIndexed: null });
     } finally {

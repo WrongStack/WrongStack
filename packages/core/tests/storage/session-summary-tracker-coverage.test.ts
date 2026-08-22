@@ -7,13 +7,11 @@ import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const ts = '2026-01-01T00:00:00.000Z';
 const baseMeta: SessionMetadata = {
-  id: 's1', startedAt: ts, promptIndex: 0, model: 'gpt-4', provider: 'openai',
-  gitBranch: undefined, gitCommit: undefined, gitWorkdir: undefined, gitRemote: undefined,
+  id: 's1', startedAt: ts, model: 'gpt-4', provider: 'openai',
 };
 
-const ev = <T extends SessionEvent['type']>(
-  partial: Omit<Extract<SessionEvent, { type: T }>, 'ts'>,
-): Extract<SessionEvent, { type: T }> => ({ ts, ...partial } as never);
+const ev = (partial: { type: SessionEvent['type'] } & Record<string, unknown>): SessionEvent =>
+  ({ ts, ...partial }) as SessionEvent;
 
 describe('SessionSummaryTracker — coverage', () => {
   let dir: string;

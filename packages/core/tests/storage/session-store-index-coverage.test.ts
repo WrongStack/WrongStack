@@ -135,7 +135,7 @@ describe('readIndexFile', () => {
       ino: st.ino,
       birthtimeMs: 0,
       summaries: [],
-      byId: new Map<string, unknown>(),
+      byId: new Map(),
       deleted: new Set<string>(),
     };
 

@@ -270,6 +270,9 @@ describe('batch script temp-path security', () => {
     fsSync.rmSync(probeB, { recursive: true, force: true });
 
     // The script exists inside the private dir.
+    expect(go).not.toBeNull();
+    expect(py).not.toBeNull();
+    if (go === null || py === null) throw new Error('batch parser scripts were not initialized');
     expect(fsSync.existsSync(go)).toBe(true);
     expect(fsSync.existsSync(py)).toBe(true);
   });

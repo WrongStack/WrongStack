@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { buildKanbanWorkbench } from '../src/test-support.js';
 import type {
   KanbanBoardSummary,
-  KanbanOrchestrationSnapshot,
-  KanbanSearchResult,
   KanbanTask,
 } from '../src/types.js';
+import type { KanbanOrchestrationSnapshot, KanbanSearchResult } from '../src/types-operations.js';
 
 const NOW = '2026-08-09T12:00:00.000Z';
 

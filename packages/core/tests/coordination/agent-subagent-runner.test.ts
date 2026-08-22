@@ -145,8 +145,18 @@ describe('makeAgentSubagentRunner', () => {
 
   it('bridges task-correlated tool telemetry and stamps file-event context', async () => {
     const hostEvents = new EventBus();
-    const bridged: Array<{ taskId?: string; runId?: string; name: string; input?: unknown }> = [];
-    const bridgedFiles: Array<{ taskId?: string; boardId?: string; runId?: string; scope: string }> = [];
+    const bridged: Array<{
+      taskId?: string | undefined;
+      runId?: string | undefined;
+      name: string;
+      input?: unknown;
+    }> = [];
+    const bridgedFiles: Array<{
+      taskId?: string | undefined;
+      boardId?: string | undefined;
+      runId?: string | undefined;
+      scope: string;
+    }> = [];
     hostEvents.on('subagent.tool_executed', (event) => bridged.push(event));
     hostEvents.on('file.event', (event) => bridgedFiles.push(event));
     const setCurrentKanbanTask = vi.fn();

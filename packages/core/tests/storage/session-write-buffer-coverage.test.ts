@@ -9,16 +9,35 @@ vi.mock('node:fs', async (importActual) => {
   };
 });
 
-import { closeSync, fsyncSync, openSync, writeSync } from 'node:fs';
+import { closeSync, openSync, writeSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SessionWriteBuffer } from '../../src/storage/session-write-buffer.js';
+import {
+  SessionWriteBuffer as ProductionSessionWriteBuffer,
+  type SessionWriteBufferOptions,
+} from '../../src/storage/session-write-buffer.js';
 import type { SessionEvent } from '../../src/types/session.js';
 import type { EventBus } from '../../src/kernel/events.js';
 
 const now = () => new Date().toISOString();
+
+type PublicSessionWriteBuffer = {
+  [Key in keyof InstanceType<typeof ProductionSessionWriteBuffer>]: InstanceType<
+    typeof ProductionSessionWriteBuffer
+  >[Key];
+};
+
+const SessionWriteBuffer = ProductionSessionWriteBuffer as unknown as {
+  new (opts: SessionWriteBufferOptions): PublicSessionWriteBuffer & {
+    flushBufferOnce(isClosed: boolean): Promise<void>;
+  };
+  readonly FLUSH_INTERVAL_MS: number;
+  readonly FLUSH_SIZE: number;
+  readonly WRITE_BUFFER_MAX_EVENTS: number;
+  readonly WRITE_BUFFER_MAX_BYTES: number;
+};
 
 function makeEvent(): SessionEvent {
   return {
@@ -53,7 +72,7 @@ describe('SessionWriteBuffer — coverage', () => {
       events?: EventBus | undefined;
       getTraceId?: () => string | undefined;
     } = {},
-  ) {
+  ): SessionWriteBufferOptions {
     const filePath = overrides.filePath ?? path.join(tmp, 'sess.jsonl');
     const handle = overrides.handle ?? {
       appendFile: vi.fn().mockResolvedValue(undefined),
@@ -69,8 +88,8 @@ describe('SessionWriteBuffer — coverage', () => {
         close: handle.close,
       } as unknown as fs.FileHandle),
       setHandle: () => undefined,
-      events: overrides.events,
-      getTraceId: overrides.getTraceId,
+      ...(overrides.events === undefined ? {} : { events: overrides.events }),
+      ...(overrides.getTraceId === undefined ? {} : { getTraceId: overrides.getTraceId }),
     };
   }
 
@@ -86,7 +105,7 @@ describe('SessionWriteBuffer — coverage', () => {
       ts: now(),
       content: 'ok',
       circular: undefined as unknown,
-    } as unknown as SessionEvent;
+    } as unknown as SessionEvent & { circular?: unknown };
     event.circular = event; // circular reference → JSON.stringify throws
     expect(buffer.push(event as never)).toBe(false);
   });
@@ -398,11 +417,11 @@ describe('SessionWriteBuffer — coverage', () => {
 
   it('flushSync keeps the buffer when writeSync throws after open', () => {
     const filePath = path.join(tmp, 'sync-write-fail.jsonl');
-    openSync.mockImplementationOnce(() => 42);
-    writeSync.mockImplementationOnce(() => {
+    vi.mocked(openSync).mockImplementationOnce(() => 42);
+    vi.mocked(writeSync).mockImplementationOnce(() => {
       throw new Error('write failed');
     });
-    closeSync.mockImplementationOnce(() => undefined);
+    vi.mocked(closeSync).mockImplementationOnce(() => undefined);
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
@@ -422,11 +441,11 @@ describe('SessionWriteBuffer — coverage', () => {
 
   it('flushSync swallows closeSync errors in the finally block', () => {
     const filePath = path.join(tmp, 'sync-close-fail.jsonl');
-    openSync.mockImplementationOnce(() => 99);
-    writeSync.mockImplementationOnce(() => {
+    vi.mocked(openSync).mockImplementationOnce(() => 99);
+    vi.mocked(writeSync).mockImplementationOnce(() => {
       throw new Error('write failed');
     });
-    closeSync.mockImplementationOnce(() => {
+    vi.mocked(closeSync).mockImplementationOnce(() => {
       throw new Error('close failed');
     });
     const buffer = new SessionWriteBuffer({
@@ -451,6 +470,11 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer(makeOpts({ handle, events: eventBus, getTraceId: () => 'trace-456' }));
     buffer.push(makeEvent());
     await buffer.flushBufferOnce(false);
-    expect(emitCalls.some((c) => (c as unknown[])[0] === 'storage.write' && (c as Record<string, unknown>)[1]?.traceId === 'trace-456')).toBe(true);
+    expect(
+      emitCalls.some((call) => {
+        const [name, payload] = call as [unknown, { traceId?: string }?];
+        return name === 'storage.write' && payload?.traceId === 'trace-456';
+      }),
+    ).toBe(true);
   });
 });

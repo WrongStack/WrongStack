@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it, vi } from 'vitest';
+import type { Ref } from '../src/codebase-index/schema.js';
 import { WalMaintenance } from '../src/codebase-index/wal-maintenance.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
 
@@ -143,16 +144,16 @@ describe('IndexStore.checkpointWal (P4.14)', () => {
         scope: '',
         text: `symbol_${n}`,
       });
-      const ref = (n: number) => ({
+      const ref = (n: number): Ref => ({
         id: 0,
         fromId: 0,
         toName: `symbol_${(n + 1) % 250}`,
-        toId: null as number | null,
+        toId: undefined,
         callType: 'call' as const,
         line: n,
         lang: 'ts',
-        module: null as string | null,
-        toFile: null as string | null,
+        module: undefined,
+        toFile: undefined,
       });
       for (let batch = 0; batch < 5; batch++) {
         const entries = Array.from({ length: 50 }, (_, i) => {

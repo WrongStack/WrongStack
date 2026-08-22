@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import { coreAliases } from '../../scripts/vitest-core-aliases.mjs';
-import { getVitestMaxWorkers } from '../../vitest.workers.ts';
+import { getVitestMaxWorkers } from '../../vitest.workers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 

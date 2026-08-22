@@ -478,11 +478,11 @@ describe('encodeBinaryFrame class-instance allowlist (unit)', () => {
 
   it('converts Map to a plain object and Set to an array, recursively', () => {
     const payload = {
-      map: new Map([
+      map: new Map<string, unknown>([
         ['keep', 1],
         [
           'inner',
-          new Map([
+          new Map<string, number | undefined>([
             ['gone', undefined],
             ['kept', 2],
           ]),

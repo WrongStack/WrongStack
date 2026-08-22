@@ -54,7 +54,7 @@ describe('setupTeardownRegistrar LIFO ordering (Chimera cli-extraction follow-up
   it('a throwing store.close does not abort the teardown chain', () => {
     const order: string[] = [];
     const teardownHandlers: Array<() => void> = [() => order.push('mirror-dispose')];
-    const store = storeWithOrder(order);
+    const store = storeWithOrder(order)!;
     store.close = vi.fn(() => {
       throw new Error('already closed');
     });

@@ -2635,22 +2635,23 @@ describe('path-guard covers any tool that declares a write', () => {
     const otherOff = vi.fn();
     other.registerHook.mockReturnValueOnce(otherOff);
     pathGuardPlugin.setup(other as never);
+    expect(pathGuardPlugin.teardown).toBeTypeOf('function');
     // Only the SAME api's re-setup released its own previous hook.
     expect(first).toHaveBeenCalledTimes(1);
     expect(otherOff).not.toHaveBeenCalled();
 
     // Teardown releases the live (second) registration exactly once — and
     // MUST NOT touch the other host's handle (cross-host isolation).
-    pathGuardPlugin.teardown(api as never);
+    pathGuardPlugin.teardown!(api as never);
     expect(second).toHaveBeenCalledTimes(1);
     expect(first).toHaveBeenCalledTimes(1);
     expect(otherOff).not.toHaveBeenCalled();
 
     // The other host is untouched and released by its own teardown.
-    pathGuardPlugin.teardown(other as never);
+    pathGuardPlugin.teardown!(other as never);
     expect(otherOff).toHaveBeenCalledTimes(1);
 
     // A second teardown after state deletion is a safe no-op.
-    expect(() => pathGuardPlugin.teardown(api as never)).not.toThrow();
+    expect(() => pathGuardPlugin.teardown!(api as never)).not.toThrow();
   });
 });

@@ -161,7 +161,7 @@ describe('P3.9 follow-ups: aliases, modifiers, qualified heritage, C++ call form
     const imports = refs.get('import') ?? [];
     expect(imports.some((r) => r.module === 'java.util.Collections.emptyList')).toBe(true);
     expect(imports.some((r) => r.toName === 'emptyList')).toBe(true);
-    expect(imports.every((r) => !r.module.startsWith('static'))).toBe(true);
+    expect(imports.every((r) => !r.module?.startsWith('static'))).toBe(true);
   });
 
   it('C#: using static and using alias resolve the original target', async () => {

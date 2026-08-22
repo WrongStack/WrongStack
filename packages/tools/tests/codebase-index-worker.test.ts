@@ -109,6 +109,7 @@ interface DistIndexApi {
   runStartupIndex(opts: {
     projectRoot: string;
     indexDir?: string;
+    force?: boolean;
     timeoutMs?: number;
   }): Promise<{ filesIndexed: number; symbolsIndexed: number; errors: string[] }>;
   searchCodebaseIndex(args: {

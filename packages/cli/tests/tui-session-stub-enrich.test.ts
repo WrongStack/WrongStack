@@ -56,7 +56,7 @@ describe('enrichStubSummaries', () => {
       killTime,
     );
 
-    const [out] = await enrichStubSummaries([stubSummary('2026-08-21/sess_KILLED1')], dir);
+    const out = (await enrichStubSummaries([stubSummary('2026-08-21/sess_KILLED1')], dir))[0]!;
     expect(out.title).toBe('Fix the flaky resume picker test');
     expect(out.lastUserMessage).toBe('follow-up question');
     expect(out.lastActivityAt).toBe(killTime.toISOString());
@@ -83,7 +83,7 @@ describe('enrichStubSummaries', () => {
       writeUserInput('2026-08-21T17:00:45Z', 'hello world'),
       '{"type":"user_input","ts":"2026-08-21T17:',
     ]);
-    const [out] = await enrichStubSummaries([stubSummary('2026-08-21/sess_TRUNC')], dir);
+    const out = (await enrichStubSummaries([stubSummary('2026-08-21/sess_TRUNC')], dir))[0]!;
     expect(out.title).toBe('hello world');
   });
 
@@ -111,7 +111,7 @@ describe('enrichStubSummaries', () => {
       writeUserInput('2026-08-21T17:00:45Z', '\u0000\u001b[31mhello\u001b[0m\u0007 world'),
       writeUserInput('2026-08-21T17:00:50Z', 'follow-up \u0002text'),
     ]);
-    const [out] = await enrichStubSummaries([stubSummary('2026-08-21/sess_CTRL')], dir);
+    const out = (await enrichStubSummaries([stubSummary('2026-08-21/sess_CTRL')], dir))[0]!;
     expect(out.title).toBe('hello world');
     expect(out.lastUserMessage).toBe('follow-up text');
   });

@@ -99,7 +99,7 @@ describe('fatal salvage hooks', () => {
     expect(exit).toHaveBeenCalledWith(1);
     // Salvage ran BEFORE the fatal exit decision consumed the storm.
     expect(salvaged).toHaveBeenCalled();
-    expect(salvaged.mock.invocationCallOrder[0]).toBeLessThan(exit.mock.invocationCallOrder[0]);
+    expect(salvaged.mock.invocationCallOrder[0]!).toBeLessThan(exit.mock.invocationCallOrder[0]!);
 
     off();
     cleanupShield();

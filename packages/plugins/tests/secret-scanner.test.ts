@@ -974,19 +974,20 @@ describe('hook lifecycle: re-setup releases handles, hosts are isolated (audit T
     // A second host's setup must not disturb the first host's handles.
     const other = trackedApi();
     secretScannerPlugin.setup(other.api as any);
+    expect(secretScannerPlugin.teardown).toBeTypeOf('function');
     for (const off of other.handles) expect(off).not.toHaveBeenCalled();
     for (const off of firstBatch) expect(off).toHaveBeenCalledTimes(1);
 
     // Teardown frees the live (second) registration's handles exactly once.
-    secretScannerPlugin.teardown(api as any);
+    secretScannerPlugin.teardown!(api as any);
     for (const off of secondBatch) expect(off).toHaveBeenCalledTimes(1);
     for (const off of firstBatch) expect(off).toHaveBeenCalledTimes(1);
 
     // The other host's handles are freed by its own teardown — never earlier.
-    secretScannerPlugin.teardown(other.api as any);
+    secretScannerPlugin.teardown!(other.api as any);
     for (const off of other.handles) expect(off).toHaveBeenCalledTimes(1);
 
     // Repeat teardown after state deletion is a safe no-op.
-    expect(() => secretScannerPlugin.teardown(api as any)).not.toThrow();
+    expect(() => secretScannerPlugin.teardown!(api as any)).not.toThrow();
   });
 });

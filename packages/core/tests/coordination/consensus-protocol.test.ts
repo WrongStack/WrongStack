@@ -102,7 +102,7 @@ describe('ConsensusProtocol', () => {
         voters: defaultVoters(),
         graph,
       });
-      const _change = createChangeNode(graph, 'change-1');
+      createChangeNode(graph, 'change-1');
 
       await protocol.initiateVote('change-1');
 
@@ -340,7 +340,7 @@ describe('ConsensusProtocol', () => {
         graph,
         rules: { quorumFraction: 0.5, approvalFraction: 0.5, vetoRoles: [] },
       });
-      const change = createChangeNode(graph, 'change-closed', { status: 'approved' });
+      createChangeNode(graph, 'change-closed', { status: 'approved' });
 
       await expect(protocol.castVote('change-closed', 'voter-1', 'reject')).rejects.toThrow(
         /ballot is closed/,
