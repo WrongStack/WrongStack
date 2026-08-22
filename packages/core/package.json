@@ -191,6 +191,7 @@
   "dependencies": {
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
+    "@wrongstack/primitives": "workspace:*",
     "zod": "4.4.3"
   },
   "devDependencies": {

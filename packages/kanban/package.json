@@ -53,7 +53,8 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@wrongstack/persistence": "workspace:*"
+    "@wrongstack/persistence": "workspace:*",
+    "@wrongstack/primitives": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

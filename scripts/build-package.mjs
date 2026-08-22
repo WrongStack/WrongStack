@@ -222,6 +222,9 @@ const profiles = {
     external: [],
   },
   '@wrongstack/persistence': standard(),
+  // Dependency leaf (card #5): kanban sits below core/tools, so the shared
+  // regex guard lives here where every tier can import it.
+  '@wrongstack/primitives': standard(),
   '@wrongstack/vector-memory': standard(['@wrongstack/core', '@wrongstack/sage']),
   '@wrongstack/governance': {
     entries: {

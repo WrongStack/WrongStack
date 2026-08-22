@@ -257,6 +257,9 @@ importers:
       '@wrongstack/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -289,6 +292,9 @@ importers:
       '@wrongstack/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -428,6 +434,15 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.2.0)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
+
+  packages/primitives:
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   packages/providers:
     dependencies:
@@ -693,6 +708,9 @@ importers:
       '@wrongstack/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       tree-sitter-wasm:
         specifier: 1.1.4
         version: 1.1.4

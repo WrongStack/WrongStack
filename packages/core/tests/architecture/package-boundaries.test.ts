@@ -30,6 +30,9 @@ const ALLOWED_SELF_IMPORTS = new Set([
   // appear here — core reaches it only via lazy createRequire in goal/.
   '@wrongstack/kanban',
   '@wrongstack/persistence',
+  // Dependency-leaf primitives (regex guard et al.) sit below everything;
+  // core re-exports the canonical regex guard from it (card #5).
+  '@wrongstack/primitives',
 ]);
 
 /**
@@ -590,10 +593,7 @@ describe('core bidirectional coupling', () => {
  */
 describe('P0/P1 manifest regression (PR-08 + PR-10)', () => {
   it('core does not declare forbidden workspace dependencies in package.json', async () => {
-    const pkgRaw = await fs.readFile(
-      path.resolve(REPO_ROOT, 'packages/core/package.json'),
-      'utf8',
-    );
+    const pkgRaw = await fs.readFile(path.resolve(REPO_ROOT, 'packages/core/package.json'), 'utf8');
     const pkg = JSON.parse(pkgRaw) as {
       dependencies?: Record<string, string>;
       optionalDependencies?: Record<string, string>;

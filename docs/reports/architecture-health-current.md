@@ -1,18 +1,18 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T14:18:45.324Z
+**Generated:** 2026-08-22T14:33:42.192Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
 
 | Measure | Value |
 |---|---:|
-| Workspace packages | 34 |
-| Production source files | 3316 |
-| Production source lines | 789840 |
+| Workspace packages | 35 |
+| Production source files | 3318 |
+| Production source lines | 789716 |
 | Test files | 2870 |
-| Workspace dependency edges | 112 |
-| Relative module edges | 10277 |
+| Workspace dependency edges | 115 |
+| Relative module edges | 10279 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -31,10 +31,10 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 458 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 756 | 644 | @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/core | 756 | 644 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | — |
-| @wrongstack/kanban | 86 | 63 | @wrongstack/persistence |
+| @wrongstack/kanban | 86 | 63 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 37 | 32 | @wrongstack/core |
@@ -42,6 +42,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/plug-lsp | 42 | 28 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 1 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugins | 86 | 122 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/tools |
+| @wrongstack/primitives | 2 | 0 | — |
 | @wrongstack/providers | 58 | 53 | @wrongstack/core |
 | @wrongstack/requirement-intake | 16 | 9 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
@@ -53,7 +54,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 93 | 61 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/telegram | 21 | 29 | @wrongstack/core |
-| @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 332 | 318 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
 | @wrongstack/webui | 463 | 338 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -126,6 +127,7 @@ None.
 | 968 | `packages/kanban/src/types.ts` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
+| 963 | `packages/tools/src/codebase-index/tree-sitter/queries.ts` |
 | 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
@@ -133,7 +135,6 @@ None.
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
-| 944 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 

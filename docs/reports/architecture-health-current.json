@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T14:18:45.324Z",
+  "generatedAt": "2026-08-22T14:33:42.192Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -11,12 +11,12 @@
     ]
   },
   "summary": {
-    "packages": 34,
-    "sourceFiles": 3316,
+    "packages": 35,
+    "sourceFiles": 3318,
     "testFiles": 2870,
-    "sourceLines": 789840,
-    "workspaceEdges": 112,
-    "moduleEdges": 10277,
+    "sourceLines": 789716,
+    "workspaceEdges": 115,
+    "moduleEdges": 10279,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -211,7 +211,8 @@
       "testFiles": 644,
       "workspaceDependencies": [
         "@wrongstack/kanban",
-        "@wrongstack/persistence"
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
       ],
       "tsconfigs": [
         {
@@ -275,7 +276,8 @@
       "sourceFiles": 86,
       "testFiles": 63,
       "workspaceDependencies": [
-        "@wrongstack/persistence"
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
       ],
       "tsconfigs": [
         {
@@ -440,6 +442,20 @@
           "path": "packages/plugins/tsconfig.test.json",
           "error": null,
           "testFiles": 122
+        }
+      ]
+    },
+    {
+      "name": "@wrongstack/primitives",
+      "dir": "packages/primitives",
+      "sourceFiles": 2,
+      "testFiles": 0,
+      "workspaceDependencies": [],
+      "tsconfigs": [
+        {
+          "path": "packages/primitives/tsconfig.json",
+          "error": null,
+          "testFiles": 0
         }
       ]
     },
@@ -702,7 +718,8 @@
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
-        "@wrongstack/persistence"
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
       ],
       "tsconfigs": [
         {
@@ -18669,8 +18686,8 @@
     },
     {
       "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
-      "lines": 811,
-      "relativeImports": 1
+      "lines": 963,
+      "relativeImports": 2
     },
     {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
@@ -19135,6 +19152,11 @@
       "relativeImports": 3
     },
     {
+      "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
+      "lines": 963,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/tools/src/codebase-index/writer.ts",
       "lines": 963,
       "relativeImports": 19
@@ -19168,11 +19190,6 @@
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 949,
       "relativeImports": 1
-    },
-    {
-      "file": "apps/desktop/src/renderer/src/renderer.ts",
-      "lines": 944,
-      "relativeImports": 8
     }
   ],
   "testOnlyExports": [

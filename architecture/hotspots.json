@@ -259,8 +259,8 @@
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {
-      "lines": 811,
-      "relativeImports": 1
+      "lines": 963,
+      "relativeImports": 2
     },
     "packages/tools/src/codebase-index/writer-graph-reader.ts": {
       "lines": 829,
