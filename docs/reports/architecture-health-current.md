@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-21T13:56:08.418Z
+**Generated:** 2026-08-22T08:40:48.665Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 33 |
-| Production source files | 3284 |
-| Production source lines | 784331 |
-| Test files | 2852 |
+| Production source files | 3289 |
+| Production source lines | 786364 |
+| Test files | 2863 |
 | Workspace dependency edges | 106 |
-| Relative module edges | 10152 |
+| Relative module edges | 10161 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 16 |
@@ -21,7 +21,15 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/cli/src/cli-main.ts: hotspot grew from 941 to 952 lines; review and update the ratchet in the same change
+- packages/core/src/storage/file-session-writer.ts: new 1023-line hotspot is not in architecture/hotspots.json
+- packages/core/src/storage/session-store.ts: hotspot grew from 821 to 1021 lines; review and update the ratchet in the same change
+- packages/security-scanner/src/orchestrator.ts: hotspot grew from 804 to 808 lines; review and update the ratchet in the same change
+- packages/telegram/src/bot.ts: hotspot grew from 836 to 854 lines; review and update the ratchet in the same change
+- packages/webui-server/src/server/collaboration-ws-handler.ts: hotspot grew from 970 to 996 lines; review and update the ratchet in the same change
+- packages/webui-server/src/server/provider-handlers.ts: hotspot grew from 820 to 827 lines; review and update the ratchet in the same change
+- packages/cli/src/boot/tui-session-stub-enrich.ts: "containedJsonlPath" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- packages/cli/src/boot/tui-session-stub-enrich.ts: "enrichStubSummaries" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -29,9 +37,9 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 41 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 456 | 425 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
+| @wrongstack/cli | 457 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 756 | 637 | @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/core | 756 | 644 | @wrongstack/kanban, @wrongstack/persistence |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | — |
 | @wrongstack/kanban | 86 | 63 | @wrongstack/persistence |
@@ -54,9 +62,9 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/telegram | 21 | 29 | @wrongstack/core |
 | @wrongstack/tools | 187 | 192 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
-| @wrongstack/tui | 331 | 317 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 332 | 318 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
-| @wrongstack/webui | 459 | 336 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
+| @wrongstack/webui | 462 | 338 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-server |
 | @wrongstack/webui-server | 190 | 152 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory |
 | wrongstack | 1 | 0 | @wrongstack/cli |
@@ -97,8 +105,10 @@ None.
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1038 | `packages/webui/src/lib/ws-client.ts` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
+| 1023 | `packages/core/src/storage/file-session-writer.ts` |
 | 1022 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1021 | `packages/core/src/index.ts` |
+| 1021 | `packages/core/src/storage/session-store.ts` |
 | 1021 | `packages/mcp/src/client.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/tui/src/theme-presets.ts` |
@@ -114,6 +124,7 @@ None.
 | 998 | `packages/tui/src/app.tsx` |
 | 998 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 996 | `packages/tui/src/input-validation.ts` |
+| 996 | `packages/webui-server/src/server/collaboration-ws-handler.ts` |
 | 993 | `packages/sage/src/types.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
@@ -127,23 +138,20 @@ None.
 | 974 | `packages/webui/src/stores/viz-store.ts` |
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 970 | `packages/kanban/src/types.ts` |
-| 970 | `packages/webui-server/src/server/collaboration-ws-handler.ts` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
+| 952 | `packages/cli/src/cli-main.ts` |
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 944 | `apps/desktop/src/renderer/src/renderer.ts` |
-| 941 | `packages/cli/src/cli-main.ts` |
 | 938 | `packages/core/src/execution/auto-compaction-middleware.ts` |
-| 938 | `packages/webui/src/types/server-message.ts` |
-| 936 | `packages/tui/src/components/context-panel.tsx` |
 
 ## Exports only tests reference
 
-- 808 runtime exports are referenced by tests and by no other production file.
+- 810 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

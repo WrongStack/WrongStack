@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-21T13:56:08.418Z",
+  "generatedAt": "2026-08-22T08:40:48.665Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,29 @@
   },
   "summary": {
     "packages": 33,
-    "sourceFiles": 3284,
-    "testFiles": 2852,
-    "sourceLines": 784331,
+    "sourceFiles": 3289,
+    "testFiles": 2863,
+    "sourceLines": 786364,
     "workspaceEdges": 106,
-    "moduleEdges": 10152,
+    "moduleEdges": 10161,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 16,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 808
+    "testOnlyExports": 810
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/cli-main.ts: hotspot grew from 941 to 952 lines; review and update the ratchet in the same change",
+    "packages/core/src/storage/file-session-writer.ts: new 1023-line hotspot is not in architecture/hotspots.json",
+    "packages/core/src/storage/session-store.ts: hotspot grew from 821 to 1021 lines; review and update the ratchet in the same change",
+    "packages/security-scanner/src/orchestrator.ts: hotspot grew from 804 to 808 lines; review and update the ratchet in the same change",
+    "packages/telegram/src/bot.ts: hotspot grew from 836 to 854 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/collaboration-ws-handler.ts: hotspot grew from 970 to 996 lines; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/provider-handlers.ts: hotspot grew from 820 to 827 lines; review and update the ratchet in the same change",
+    "packages/cli/src/boot/tui-session-stub-enrich.ts: \"containedJsonlPath\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/cli/src/boot/tui-session-stub-enrich.ts: \"enrichStubSummaries\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -140,8 +150,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 456,
-      "testFiles": 425,
+      "sourceFiles": 457,
+      "testFiles": 426,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +187,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 425
+          "testFiles": 426
         }
       ]
     },
@@ -208,7 +218,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 756,
-      "testFiles": 637,
+      "testFiles": 644,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence"
@@ -222,7 +232,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 637
+          "testFiles": 644
         }
       ]
     },
@@ -718,8 +728,8 @@
     {
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
-      "sourceFiles": 331,
-      "testFiles": 317,
+      "sourceFiles": 332,
+      "testFiles": 318,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -742,7 +752,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 317
+          "testFiles": 318
         }
       ]
     },
@@ -771,8 +781,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 459,
-      "testFiles": 336,
+      "sourceFiles": 462,
+      "testFiles": 338,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -795,7 +805,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 336
+          "testFiles": 338
         }
       ]
     },
@@ -3920,6 +3930,12 @@
       },
       {
         "file": "packages/cli/tests/tui-session-resume.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/tui-session-stub-enrich.test.ts",
         "projects": [
           "root-node"
         ]
@@ -7213,6 +7229,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/index-reader-close-fail.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/index-reader-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/input-history-store.test.ts",
         "projects": [
           "root-node"
@@ -7387,6 +7415,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-recovery-plan.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-recovery.test.ts",
         "projects": [
           "root-node"
@@ -7459,6 +7493,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-store-index-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-store-search-events.test.ts",
         "projects": [
           "root-node"
@@ -7483,7 +7523,25 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-summary-tracker-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-write-buffer-coverage.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-write-buffer-flush-sync.test.ts",
         "projects": [
           "root-node"
         ]
@@ -14197,6 +14255,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/run-tui-teardown.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/run-tui-title-controller.test.ts",
         "projects": [
           "root-node"
@@ -16891,6 +16955,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/subagent-chat-tabs.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/task-activity-timeline.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -17012,6 +17082,12 @@
       },
       {
         "file": "packages/webui/tests/hooks/use-kanban-meta.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/hooks/use-live-context-debug.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -18318,7 +18394,7 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 941,
+      "lines": 952,
       "relativeImports": 32
     },
     {
@@ -18482,8 +18558,13 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/core/src/storage/file-session-writer.ts",
+      "lines": 1023,
+      "relativeImports": 10
+    },
+    {
       "file": "packages/core/src/storage/session-store.ts",
-      "lines": 821,
+      "lines": 1021,
       "relativeImports": 38
     },
     {
@@ -18588,7 +18669,7 @@
     },
     {
       "file": "packages/security-scanner/src/orchestrator.ts",
-      "lines": 804,
+      "lines": 808,
       "relativeImports": 9
     },
     {
@@ -18603,7 +18684,7 @@
     },
     {
       "file": "packages/telegram/src/bot.ts",
-      "lines": 836,
+      "lines": 854,
       "relativeImports": 3
     },
     {
@@ -18833,7 +18914,7 @@
     },
     {
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
-      "lines": 970,
+      "lines": 996,
       "relativeImports": 2
     },
     {
@@ -18858,7 +18939,7 @@
     },
     {
       "file": "packages/webui-server/src/server/provider-handlers.ts",
-      "lines": 820,
+      "lines": 827,
       "relativeImports": 6
     },
     {
@@ -18924,6 +19005,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/core/src/storage/file-session-writer.ts",
+      "lines": 1023,
+      "relativeImports": 10
+    },
+    {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 1022,
       "relativeImports": 11
@@ -18932,6 +19018,11 @@
       "file": "packages/core/src/index.ts",
       "lines": 1021,
       "relativeImports": 154
+    },
+    {
+      "file": "packages/core/src/storage/session-store.ts",
+      "lines": 1021,
+      "relativeImports": 38
     },
     {
       "file": "packages/mcp/src/client.ts",
@@ -19009,6 +19100,11 @@
       "relativeImports": 13
     },
     {
+      "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
+      "lines": 996,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/sage/src/types.ts",
       "lines": 993,
       "relativeImports": 0
@@ -19074,11 +19170,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
-      "lines": 970,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/webui/src/components/ChatInput.tsx",
       "lines": 965,
       "relativeImports": 17
@@ -19097,6 +19188,11 @@
       "file": "packages/tui/src/app-key-handler.ts",
       "lines": 953,
       "relativeImports": 18
+    },
+    {
+      "file": "packages/cli/src/cli-main.ts",
+      "lines": 952,
+      "relativeImports": 32
     },
     {
       "file": "packages/tui/src/components/history/utils.tsx",
@@ -19119,24 +19215,9 @@
       "relativeImports": 8
     },
     {
-      "file": "packages/cli/src/cli-main.ts",
-      "lines": 941,
-      "relativeImports": 32
-    },
-    {
       "file": "packages/core/src/execution/auto-compaction-middleware.ts",
       "lines": 938,
       "relativeImports": 10
-    },
-    {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 938,
-      "relativeImports": 10
-    },
-    {
-      "file": "packages/tui/src/components/context-panel.tsx",
-      "lines": 936,
-      "relativeImports": 6
     }
   ],
   "testOnlyExports": [
@@ -19387,6 +19468,14 @@
     {
       "file": "packages/cli/src/boot/system-prompt-menu.ts",
       "name": "SYSTEM_PROMPT_VARIANTS"
+    },
+    {
+      "file": "packages/cli/src/boot/tui-session-stub-enrich.ts",
+      "name": "containedJsonlPath"
+    },
+    {
+      "file": "packages/cli/src/boot/tui-session-stub-enrich.ts",
+      "name": "enrichStubSummaries"
     },
     {
       "file": "packages/cli/src/boot/webui-session-child.ts",
