@@ -7,6 +7,8 @@ export interface ToolEventMap {
   'tool.started': {
     sessionId?: string | undefined;
     traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
     agentId?: string | undefined;
     agentName?: string | undefined;
     name: string;
@@ -30,6 +32,8 @@ export interface ToolEventMap {
     id: string;
     sessionId: string;
     traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
     agentId: string;
     durationMs: number;
     outputChars: number;
@@ -42,6 +46,8 @@ export interface ToolEventMap {
     id: string;
     sessionId: string;
     traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
     agentId: string;
     durationMs: number;
     category: ToolErrorCategory;
@@ -83,6 +89,8 @@ export interface ToolEventMap {
   'permission.evaluated': {
     sessionId?: string | undefined;
     traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
     agentId?: string | undefined;
     name: string;
     id: string;
@@ -185,6 +193,8 @@ export interface ToolEventMap {
   'tool.executed': {
     sessionId?: string | undefined;
     traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
     agentId?: string | undefined;
     agentName?: string | undefined;
     /**

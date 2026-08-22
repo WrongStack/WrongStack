@@ -1,5 +1,5 @@
 import { projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
-import { projectToolMessage } from '@wrongstack/webui-server/protocol';
+import { projectToolMessage } from '@wrongstack/webui-protocol';
 import type { ToolCallInfo, ServerMessage } from '../types.js';
 
 /** Structured <nextsteps> tool input produced by `projectNextStepsToolInput`. */

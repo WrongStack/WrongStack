@@ -32,10 +32,7 @@ export function shouldOfferClearFromSaved(sp: SavedProvider): boolean {
  * providers are returned by reference. Returns a new top-level
  * array; the targeted provider is a new object.
  */
-export function applyClearModels(
-  providers: SavedProvider[],
-  providerId: string,
-): SavedProvider[] {
+export function applyClearModels(providers: SavedProvider[], providerId: string): SavedProvider[] {
   let touched = false;
   const next = providers.map((sp) => {
     if (sp.id !== providerId) return sp;

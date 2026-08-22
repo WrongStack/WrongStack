@@ -1,11 +1,11 @@
 import type {
   KanbanBoard,
   KanbanLifecycleStage,
-  KanbanSearchResult,
   KanbanTask,
   KanbanTaskQueueBucket,
   KanbanTaskQueueClassification,
 } from '../types.js';
+import type { KanbanSearchResult } from '../types-operations.js';
 import { areDependenciesMet } from './task-readiness.js';
 
 export interface ClassifyTaskForQueueOptions {

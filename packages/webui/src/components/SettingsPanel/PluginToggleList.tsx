@@ -1,5 +1,5 @@
-import { Puzzle } from 'lucide-react';
 import { PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/plugin-audit-catalog';
+import { Puzzle } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -82,8 +82,7 @@ export function PluginToggleList() {
       {SORTED_PLUGINS.map((entry) => {
         const labelKey = PLUGIN_LABEL_KEYS[entry.name];
         const label = labelKey ? t(labelKey) : displayName(entry.name);
-        const enabled =
-          localPrefs.pluginsEnabled?.[entry.name] ?? (entry.defaultState === 'active');
+        const enabled = localPrefs.pluginsEnabled?.[entry.name] ?? entry.defaultState === 'active';
         return (
           <PreferenceToggle
             key={entry.name}

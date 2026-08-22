@@ -45,7 +45,7 @@ import {
   planConnectionReconnect,
   type SurfaceConnectionState,
   stopConnection,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import { resolveHqToken } from './auth.js';
 import { HQ_BROWSER_PEER_RESUME_CLIENT_ID } from './peer-resume-id.js';
 

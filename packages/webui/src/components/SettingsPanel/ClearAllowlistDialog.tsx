@@ -75,7 +75,12 @@ export function ClearAllowlistDialog({
   }, [open, onConfirm, onCancel]);
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
+    >
       <DialogContent
         className="sm:max-w-md border-warning/50"
         ref={contentRef}
@@ -104,7 +109,8 @@ export function ClearAllowlistDialog({
             title={t('settings:allowlist.keepTitle')}
             data-action="cancel"
           >
-            {t('common:action.cancel')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">Esc</kbd>
+            {t('common:action.cancel')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">Esc</kbd>
           </Button>
           <Button
             variant="destructive"
@@ -113,7 +119,8 @@ export function ClearAllowlistDialog({
             title={t('settings:allowlist.clearTitle')}
             data-action="confirm"
           >
-            {t('settings:allowlist.clear')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">↵</kbd>
+            {t('settings:allowlist.clear')}{' '}
+            <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">↵</kbd>
           </Button>
         </DialogFooter>
       </DialogContent>

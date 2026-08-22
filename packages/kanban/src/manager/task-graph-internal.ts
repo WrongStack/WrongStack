@@ -1,12 +1,7 @@
 import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
 import type { TaskEdge, TaskGraph, TaskNode, TaskStatus, TaskType } from '../types/task-graph.js';
-import type {
-  CreateKanbanTaskInput,
-  KanbanBoard,
-  KanbanBoundaryPolicy,
-  KanbanTask,
-  KanbanTaskStatus,
-} from '../types.js';
+import type { KanbanBoard, KanbanBoundaryPolicy, KanbanTask, KanbanTaskStatus } from '../types.js';
+import type { CreateKanbanTaskInput } from '../types-operations.js';
 import {
   isoFromTimestamp,
   parseIsoTimestamp,

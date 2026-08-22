@@ -1,4 +1,15 @@
-import { Bot, CheckCircle2, Code2, ExternalLink, Loader2, Plus, RefreshCw, Sparkles, User, XCircle } from 'lucide-react';
+import {
+  Bot,
+  CheckCircle2,
+  Code2,
+  ExternalLink,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  User,
+  XCircle,
+} from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { toast } from '@/components/Toaster';
 import { i18n, useAppTranslation } from '@/i18n';
@@ -101,7 +112,9 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
       const p = msg.payload as { kind: OAuthKind; phase: OAuthPhase } & OAuthState;
       setStates((prev) => ({ ...prev, [p.kind]: { ...p } }));
       if (p.phase === 'success') {
-        toast.success(p.message ?? i18n.t('settings:oauth.signedInToast', { provider: p.providerId ?? p.kind }));
+        toast.success(
+          p.message ?? i18n.t('settings:oauth.signedInToast', { provider: p.providerId ?? p.kind }),
+        );
         setShowPaste(null);
         setPasteValue('');
         setNewAccountFor(null);
@@ -177,9 +190,7 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
   return (
     <div className="space-y-3">
       <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
-        <p className="text-xs leading-5 text-warning">
-          {t('settings:oauth.termsWarning')}
-        </p>
+        <p className="text-xs leading-5 text-warning">{t('settings:oauth.termsWarning')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
@@ -267,197 +278,206 @@ export function OAuthLoginSection({ ws, savedByKind }: OAuthLoginSectionProps) {
                 </div>
               )}
 
-            {st.phase === 'awaiting_code' && (
-              <div className="mt-3 space-y-2 border-t pt-3">
-                <p className="text-sm text-muted-foreground">
-                  {t('settings:oauth.enterCode')}
-                </p>
-                <div className="font-mono text-2xl font-bold tracking-widest">
-                  {st.userCode ?? '…'}
+              {st.phase === 'awaiting_code' && (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  <p className="text-sm text-muted-foreground">{t('settings:oauth.enterCode')}</p>
+                  <div className="font-mono text-2xl font-bold tracking-widest">
+                    {st.userCode ?? '…'}
+                  </div>
+                  {st.verificationUri && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        window.open(st.verificationUri, '_blank', 'noopener,noreferrer')
+                      }
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      {t('settings:oauth.openVerification')}
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{t('settings:oauth.waitingCode')}</span>
+                  </div>
                 </div>
-                {st.verificationUri && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open(st.verificationUri, '_blank', 'noopener,noreferrer')}
-                  >
-                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                    {t('settings:oauth.openVerification')}
-                  </Button>
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>{t('settings:oauth.waitingCode')}</span>
-                </div>
-              </div>
-            )}
+              )}
 
-            {(st.phase === 'exchanging' || st.phase === 'fetching_models') && (
-              <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <span>{st.phase === 'exchanging' ? t('settings:oauth.exchanging') : t('settings:oauth.fetchingModels')}</span>
-              </div>
-            )}
-
-            {st.phase === 'success' && (
-              <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-success">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>{st.message ?? t('settings:oauth.signedIn')}</span>
-              </div>
-            )}
-
-            {st.phase === 'error' && st.message && (
-              <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-destructive">
-                <XCircle className="h-4 w-4" />
-                <span>{st.message}</span>
-              </div>
-            )}
-
-            {/* Existing accounts — shown below the card when not busy */}
-            {accountCount > 0 && !busy && (
-              <div className="mt-3 border-t pt-3">
-                <button
-                  type="button"
-                  onClick={() => setExpandedKind(expanded ? null : meta.kind)}
-                  className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <span className="inline-flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5" />
-                    <span>
-                      {t('settings:oauth.accountCount', { count: accountCount })}
-                    </span>
+              {(st.phase === 'exchanging' || st.phase === 'fetching_models') && (
+                <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <span>
+                    {st.phase === 'exchanging'
+                      ? t('settings:oauth.exchanging')
+                      : t('settings:oauth.fetchingModels')}
                   </span>
-                  <span className="text-[10px]">{expanded ? '▲' : '▼'}</span>
-                </button>
+                </div>
+              )}
 
-                {expanded && kindProfiles && (
-                  <div className="mt-2 space-y-1.5">
-                    {kindProfiles.map((profile) => (
-                      <div
-                        key={profile.id}
-                        className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5"
-                      >
-                        <span className="min-w-0 truncate font-mono text-xs">{profile.id}</span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          {profile.hasActiveKey ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-success">
-                              <CheckCircle2 className="h-3 w-3" />
-                              {t('settings:oauth.active')}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground">
-                              {t('settings:oauth.inactive')}
-                            </span>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => retryLogin(meta.kind, profile.id)}
-                            className="h-6 px-1.5 text-[11px]"
-                            title={t('settings:oauth.retryLogin')}
-                          >
-                            <RefreshCw className="h-3 w-3 mr-0.5" />
-                            {t('settings:oauth.retry')}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+              {st.phase === 'success' && (
+                <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-success">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{st.message ?? t('settings:oauth.signedIn')}</span>
+                </div>
+              )}
 
-                    {/* New account button */}
-                    <div className="pt-1">
-                      {newAccountFor === meta.kind ? (
-                        <div className="flex gap-2">
-                          <Input
-                            autoFocus
-                            placeholder={t('settings:oauth.aliasPlaceholder', {
-                              default: meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
-                            })}
-                            value={newAccountAlias}
-                            onChange={(e) => setNewAccountAlias(e.target.value)}
-                            className="text-xs font-mono"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') startNewAccount(meta.kind);
-                            }}
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => startNewAccount(meta.kind)}
-                            disabled={!newAccountAlias.trim()}
-                          >
-                            {t('settings:oauth.signIn')}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => { setNewAccountFor(null); setNewAccountAlias(''); }}
-                          >
-                            {t('common:action.cancel')}
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setNewAccountFor(meta.kind)}
-                          className="w-full text-xs"
-                        >
-                          <Plus className="h-3.5 w-3.5 mr-1" />
-                          {t('settings:oauth.newAccount')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              {st.phase === 'error' && st.message && (
+                <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-destructive">
+                  <XCircle className="h-4 w-4" />
+                  <span>{st.message}</span>
+                </div>
+              )}
 
-            {/* When no accounts yet, show a single "New account" button */}
-            {accountCount === 0 && !busy && (
-              <div className="mt-3 border-t pt-3">
-                {newAccountFor === meta.kind ? (
-                  <div className="flex gap-2">
-                    <Input
-                      autoFocus
-                      placeholder={t('settings:oauth.aliasPlaceholder', {
-                        default: meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
-                      })}
-                      value={newAccountAlias}
-                      onChange={(e) => setNewAccountAlias(e.target.value)}
-                      className="text-xs font-mono"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') startNewAccount(meta.kind);
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      onClick={() => startNewAccount(meta.kind)}
-                      disabled={!newAccountAlias.trim()}
-                    >
-                      {t('settings:oauth.signIn')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => { setNewAccountFor(null); setNewAccountAlias(''); }}
-                    >
-                      {t('common:action.cancel')}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setNewAccountFor(meta.kind)}
-                    className="w-full text-xs"
+              {/* Existing accounts — shown below the card when not busy */}
+              {accountCount > 0 && !busy && (
+                <div className="mt-3 border-t pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedKind(expanded ? null : meta.kind)}
+                    className="flex w-full items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Plus className="h-3.5 w-3.5 mr-1" />
-                    {t('settings:oauth.newAccount')}
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-        );
+                    <span className="inline-flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5" />
+                      <span>{t('settings:oauth.accountCount', { count: accountCount })}</span>
+                    </span>
+                    <span className="text-[10px]">{expanded ? '▲' : '▼'}</span>
+                  </button>
+
+                  {expanded && kindProfiles && (
+                    <div className="mt-2 space-y-1.5">
+                      {kindProfiles.map((profile) => (
+                        <div
+                          key={profile.id}
+                          className="flex items-center justify-between rounded-md border border-border/60 bg-muted/20 px-2.5 py-1.5"
+                        >
+                          <span className="min-w-0 truncate font-mono text-xs">{profile.id}</span>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {profile.hasActiveKey ? (
+                              <span className="inline-flex items-center gap-1 text-[11px] text-success">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {t('settings:oauth.active')}
+                              </span>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground">
+                                {t('settings:oauth.inactive')}
+                              </span>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => retryLogin(meta.kind, profile.id)}
+                              className="h-6 px-1.5 text-[11px]"
+                              title={t('settings:oauth.retryLogin')}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-0.5" />
+                              {t('settings:oauth.retry')}
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* New account button */}
+                      <div className="pt-1">
+                        {newAccountFor === meta.kind ? (
+                          <div className="flex gap-2">
+                            <Input
+                              autoFocus
+                              placeholder={t('settings:oauth.aliasPlaceholder', {
+                                default:
+                                  meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
+                              })}
+                              value={newAccountAlias}
+                              onChange={(e) => setNewAccountAlias(e.target.value)}
+                              className="text-xs font-mono"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') startNewAccount(meta.kind);
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => startNewAccount(meta.kind)}
+                              disabled={!newAccountAlias.trim()}
+                            >
+                              {t('settings:oauth.signIn')}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setNewAccountFor(null);
+                                setNewAccountAlias('');
+                              }}
+                            >
+                              {t('common:action.cancel')}
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setNewAccountFor(meta.kind)}
+                            className="w-full text-xs"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            {t('settings:oauth.newAccount')}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* When no accounts yet, show a single "New account" button */}
+              {accountCount === 0 && !busy && (
+                <div className="mt-3 border-t pt-3">
+                  {newAccountFor === meta.kind ? (
+                    <div className="flex gap-2">
+                      <Input
+                        autoFocus
+                        placeholder={t('settings:oauth.aliasPlaceholder', {
+                          default: meta.kind === 'chatgpt' ? 'openai-codex-1' : `${meta.kind}-2`,
+                        })}
+                        value={newAccountAlias}
+                        onChange={(e) => setNewAccountAlias(e.target.value)}
+                        className="text-xs font-mono"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') startNewAccount(meta.kind);
+                        }}
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => startNewAccount(meta.kind)}
+                        disabled={!newAccountAlias.trim()}
+                      >
+                        {t('settings:oauth.signIn')}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setNewAccountFor(null);
+                          setNewAccountAlias('');
+                        }}
+                      >
+                        {t('common:action.cancel')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setNewAccountFor(meta.kind)}
+                      className="w-full text-xs"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      {t('settings:oauth.newAccount')}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
         })}
       </div>
     </div>

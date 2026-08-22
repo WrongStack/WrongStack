@@ -206,9 +206,9 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         ? (this.db
             .prepare('SELECT payload FROM kanban_board_history WHERE board_id = ? ORDER BY seq')
             .all(boardId) as Array<{ payload: string }>)
-        : (this.db
-            .prepare('SELECT payload FROM kanban_board_history ORDER BY seq')
-            .all() as Array<{ payload: string }>);
+        : (this.db.prepare('SELECT payload FROM kanban_board_history ORDER BY seq').all() as Array<{
+            payload: string;
+          }>);
       return rows.map((row) => JSON.parse(row.payload) as KanbanBoardHistoryEntry);
     });
   }

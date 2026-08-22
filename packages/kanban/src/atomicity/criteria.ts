@@ -66,8 +66,7 @@ export function resolveAtomicityConfig(config?: AtomicityRuleSetConfig): Resolve
     maxDependencies: config?.maxDependencies ?? DEFAULT_ATOMICITY_CONFIG.maxDependencies,
     maxScopeMarkers: config?.maxScopeMarkers ?? DEFAULT_ATOMICITY_CONFIG.maxScopeMarkers,
     atomicThreshold: config?.atomicThreshold ?? DEFAULT_ATOMICITY_CONFIG.atomicThreshold,
-    decomposeThreshold:
-      config?.decomposeThreshold ?? DEFAULT_ATOMICITY_CONFIG.decomposeThreshold,
+    decomposeThreshold: config?.decomposeThreshold ?? DEFAULT_ATOMICITY_CONFIG.decomposeThreshold,
     weights: config?.weights ?? {},
   };
 }

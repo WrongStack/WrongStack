@@ -1,8 +1,8 @@
+import { listBoardSummaries } from '../storage.js';
 import type { KanbanBoard } from '../types.js';
 import type { BoardKindFilter } from './board-kind-filter.js';
 import { boardPassesKindFilter, resolveKindFilter } from './board-kind-filter.js';
 import { getBoard } from './boards.js';
-import { listBoardSummaries } from '../storage.js';
 
 /**
  * Read-only board collection kept outside the mutation helper layer.

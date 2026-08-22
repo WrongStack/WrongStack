@@ -16,8 +16,8 @@
  * than inventing a verdict.
  */
 import type { KanbanBackingRef, KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 /** Option ids the panel votes between. Stable — the mapping below keys on them. */
 export const COUNCIL_CHECK_PASS_OPTION = 'criterion_met';
@@ -159,7 +159,11 @@ export class CouncilVerifierPlugin implements VerifierPlugin {
     };
     const backingRefs = toBackingRefs(changed);
 
-    if (outcome.status === 'abstained' || outcome.status === 'failed' || outcome.status === 'cancelled') {
+    if (
+      outcome.status === 'abstained' ||
+      outcome.status === 'failed' ||
+      outcome.status === 'cancelled'
+    ) {
       return {
         ...base,
         status: 'error',
@@ -226,7 +230,12 @@ export class CouncilVerifierPlugin implements VerifierPlugin {
 function buildEvidenceBlock(
   check: KanbanCheck,
   context: VerificationContext,
-  changed: ReadonlyArray<{ path: string; operation: string; linesAdded: number; linesRemoved: number }>,
+  changed: ReadonlyArray<{
+    path: string;
+    operation: string;
+    linesAdded: number;
+    linesRemoved: number;
+  }>,
 ): string {
   const parts: string[] = [`Task: ${context.task.title}`];
   const trimmedNotes = check.notes?.trim();
@@ -237,9 +246,7 @@ function buildEvidenceBlock(
       : 'Changed files: none observed since the verification snapshot.',
   );
   for (const file of changed) {
-    parts.push(
-      `- ${file.path} (${file.operation}, +${file.linesAdded}/-${file.linesRemoved})`,
-    );
+    parts.push(`- ${file.path} (${file.operation}, +${file.linesAdded}/-${file.linesRemoved})`);
   }
   parts.push(
     'Judge the criterion against these observed changes only. Do not assume work',
@@ -252,7 +259,12 @@ function buildEvidenceBlock(
 }
 
 function toBackingRefs(
-  changed: ReadonlyArray<{ path: string; operation: string; linesAdded: number; linesRemoved: number }>,
+  changed: ReadonlyArray<{
+    path: string;
+    operation: string;
+    linesAdded: number;
+    linesRemoved: number;
+  }>,
 ): KanbanBackingRef[] {
   return changed.map((file) => ({
     kind: 'diff' as const,

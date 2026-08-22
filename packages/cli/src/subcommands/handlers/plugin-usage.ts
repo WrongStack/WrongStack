@@ -1,7 +1,7 @@
 import { runPluginManagementCommand } from '../../plugin-management.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
+import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandHandler } from '../index.js';
 
 export const pluginCmd: SubcommandHandler = async (args, deps) => {
   // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SessionEvent } from '../../src/types/session.js';
 import { SessionWriteBuffer } from '../../src/storage/session-write-buffer.js';
 
@@ -94,5 +94,76 @@ describe('SessionWriteBuffer.flushSync', () => {
     expect(text.indexOf('"queued"')).toBeLessThan(text.indexOf('"tail"'));
     expect(text).not.toContain('ASYNC:');
     expect(handleWrites).toBe(0);
+  });
+
+  it('reports a failed sync append instead of dropping events silently', () => {
+    const filePath = path.join(tmp, 'missing-dir', 'sess.jsonl');
+    const buffer = new SessionWriteBuffer({
+      sessionId: 'sess-warn',
+      filePath,
+      getHandle: () => {
+        throw new Error('no handle');
+      },
+      setHandle: () => undefined,
+    });
+    expect(buffer.push(toolResult('unwritten'))).toBe(true);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let calls: unknown[][] = [];
+    try {
+      buffer.flushSync();
+      // mockRestore() also clears mock.calls, so snapshot before restoring.
+      calls = warn.mock.calls.map((call) => [...call]);
+    } finally {
+      warn.mockRestore();
+    }
+    const payloads = calls
+      .map((call) => {
+        try {
+          return JSON.parse(String(call[0])) as Record<string, unknown>;
+        } catch {
+          return null;
+        }
+      })
+      .filter((p): p is Record<string, unknown> => p?.event === 'session.flush_sync_failed');
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({
+      sessionId: 'sess-warn',
+      filePath,
+      pendingEvents: 1,
+      hadInFlightBatch: false,
+    });
+    // The warning describes a pending write, not a lost one: the events are
+    // still buffered for the next flush.
+    expect(buffer.length).toBe(1);
+  });
+
+  it('hands a stolen batch back to the async chain when the sync append fails', async () => {
+    const asyncTarget = path.join(tmp, 'async.jsonl');
+    await fs.writeFile(asyncTarget, '');
+    // openSync fails (parent directory does not exist) while the fake handle
+    // still writes successfully, isolating the rollback path.
+    const filePath = path.join(tmp, 'missing-dir', 'sess.jsonl');
+    const handle = {
+      appendFile: async (data: string) => {
+        await fs.appendFile(asyncTarget, data);
+      },
+      datasync: async () => undefined,
+    };
+    const buffer = new SessionWriteBuffer({
+      sessionId: 's',
+      filePath,
+      getHandle: () => handle as never,
+      setHandle: () => undefined,
+    });
+    expect(buffer.push(toolResult('stolen then returned'))).toBe(true);
+    const flushing = buffer.flushBuffer();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      buffer.flushSync();
+    } finally {
+      warn.mockRestore();
+    }
+    await flushing.catch(() => undefined);
+    expect(await fs.readFile(asyncTarget, 'utf8')).toContain('"stolen then returned"');
   });
 });

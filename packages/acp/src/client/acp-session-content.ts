@@ -1,7 +1,4 @@
-import type {
-  ContentBlock,
-  StopReason,
-} from '../types/acp-v1.js';
+import type { ContentBlock, StopReason } from '../types/acp-v1.js';
 import type { ACPSessionRunResult } from './acp-session-types.js';
 
 /**

@@ -32,7 +32,7 @@ import {
   serveStdio,
 } from '@wrongstack/mcp';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
-import type { SubcommandDeps } from './subcommands/index.js';
+import type { SubcommandDeps } from './subcommands/contracts.js';
 
 /** `--yolo` policy: auto-approve everything (inherits the rest of the contract). */
 class AllowAllPermissionPolicy extends AutoApprovePermissionPolicy {

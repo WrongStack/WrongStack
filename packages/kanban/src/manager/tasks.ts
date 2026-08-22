@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EVENT_LOG_TRIM_TO, mutateBoard, readBoard, readKanbanEvents } from '../storage.js';
 import type {
-  AddKanbanGoalMetricInput,
-  CopyKanbanTaskOptions,
-  CreateKanbanTaskInput,
   KanbanBoard,
   KanbanCheck,
   KanbanCheckStatus,
@@ -15,9 +12,14 @@ import type {
   KanbanTask,
   KanbanTaskFileActivityInput,
   RecordKanbanTaskActivityInput,
+} from '../types.js';
+import type {
+  AddKanbanGoalMetricInput,
+  CopyKanbanTaskOptions,
+  CreateKanbanTaskInput,
   UpdateKanbanGoalMetricInput,
   UpdateKanbanTaskInput,
-} from '../types.js';
+} from '../types-operations.js';
 import {
   applyTaskPatch,
   cloneTaskForBoard,

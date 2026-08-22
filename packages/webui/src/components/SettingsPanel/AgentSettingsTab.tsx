@@ -1,6 +1,6 @@
+import type { ReasoningEffort } from '@wrongstack/core/types';
 import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
-import type { ReasoningEffort } from '@wrongstack/core/types';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
@@ -195,7 +195,8 @@ export function AgentSettingsTab({
                     {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? [])
                       .slice(0, 2)
                       .join(' → ')}
-                    {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []).length > 2
+                    {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []).length >
+                    2
                       ? ' …'
                       : ''}
                   </span>

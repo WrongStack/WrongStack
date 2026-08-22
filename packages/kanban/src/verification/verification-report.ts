@@ -66,16 +66,14 @@ export function buildVerificationReport(
   // direct builder callers that hand-construct partial counts.
   const hasFailedSubtasks = input.subtasks !== undefined && input.subtasks.failed > 0;
   const hasIncompleteSubtasks =
-    input.subtasks &&
-    (input.subtasks.completed + input.subtasks.failed < input.subtasks.total);
+    input.subtasks && input.subtasks.completed + input.subtasks.failed < input.subtasks.total;
   // A file-scope mismatch means the worker changed files outside its declared
   // expectedFileChanges set, or failed to change an expected file. That is a
   // real defect regardless of whether the acceptance criteria happened to pass:
   // the card's stated contract was not honoured. Previously scopeMatches was
   // computed and rendered in the Markdown report but never consulted by the
   // verdict, so a task could score `passed` while touching unrelated files.
-  const hasFileScopeMismatch =
-    input.fileScope !== undefined && !input.fileScope.scopeMatches;
+  const hasFileScopeMismatch = input.fileScope !== undefined && !input.fileScope.scopeMatches;
 
   let verdict: Verdict;
   if (hasFailed || hasFailedSubtasks || hasFileScopeMismatch) verdict = 'failed';
@@ -167,9 +165,7 @@ function statusIcon(status: string): string {
 }
 
 /** Render the full verification report as Markdown. */
-export function renderVerificationReportMarkdown(
-  input: MarkdownRenderInput,
-): string {
+export function renderVerificationReportMarkdown(input: MarkdownRenderInput): string {
   const lines: string[] = [];
   const verdictEmoji =
     input.verdict === 'passed'
@@ -257,9 +253,7 @@ export function renderVerificationReportMarkdown(
     if (check.backingRefs?.length) {
       lines.push('- **Proof References**:');
       for (const ref of check.backingRefs) {
-        lines.push(
-          `  - \`[${ref.kind}]\` \`${ref.path}\`: ${ref.summary}`,
-        );
+        lines.push(`  - \`[${ref.kind}]\` \`${ref.path}\`: ${ref.summary}`);
       }
     }
 

@@ -122,16 +122,19 @@ export function tryParseTestJson(
         typeof numPassedTestsValue === 'number'
           ? numPassedTestsValue
           : typeof successValue === 'boolean'
-            ? (successValue ? 1 : 0)
+            ? successValue
+              ? 1
+              : 0
             : 0;
       const numFailed =
         typeof numFailedTestsValue === 'number'
           ? numFailedTestsValue
           : typeof successValue === 'boolean'
-            ? (successValue ? 0 : 1)
+            ? successValue
+              ? 0
+              : 1
             : 0;
-      const numSkipped =
-        typeof numSkippedTestsValue === 'number' ? numSkippedTestsValue : 0;
+      const numSkipped = typeof numSkippedTestsValue === 'number' ? numSkippedTestsValue : 0;
       return {
         testPattern: pattern,
         passed: numPassed,

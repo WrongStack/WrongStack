@@ -4,8 +4,8 @@
  * Produces evidence: { testPattern, passed, failed, skipped, durationMs, failureOutput }.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class TestPlugin implements VerifierPlugin {
   readonly id = 'test';

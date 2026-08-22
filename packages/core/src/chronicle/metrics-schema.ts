@@ -4,7 +4,7 @@ import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning
 import type { ChronicleSignalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const READ_CHUNK_BYTES = 1024 * 1024;
 export const SQLITE_SOURCE_PREFIX = 'sqlite:';
 export const SQLITE_INGEST_BATCH = 2_000;
@@ -72,6 +72,9 @@ export interface ChronicleFileLineageRow {
   toolName: string;
   providerId: string;
   modelId: string;
+  logicalRequestId: string;
+  promptManifestId: string;
+  provenanceConfidence: 'explicit' | 'correlated' | 'inferred' | 'unknown';
   source: string;
 }
 
@@ -174,6 +177,9 @@ export function ensureMetricsSchema(db: DatabaseSync): void {
       tool_name TEXT NOT NULL DEFAULT '',
       provider_id TEXT NOT NULL DEFAULT '',
       model_id TEXT NOT NULL DEFAULT '',
+      logical_request_id TEXT NOT NULL DEFAULT '',
+      prompt_manifest_id TEXT NOT NULL DEFAULT '',
+      provenance_confidence TEXT NOT NULL DEFAULT 'unknown',
       source TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_file_lineage_path ON file_lineage(path_key, occurred_at);

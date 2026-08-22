@@ -1,6 +1,4 @@
-import type { SubcommandHandler } from './contracts.js';
-
-export type { SubcommandDeps, SubcommandHandler } from './contracts.js';
+export type { SubcommandDeps } from './contracts.js';
 
 /**
  * Subcommand handlers are loaded on invocation, not at boot.
@@ -23,7 +21,7 @@ export type { SubcommandDeps, SubcommandHandler } from './contracts.js';
  * dynamically itself. See `tools/src/codebase-index/ts-parser.ts` for that
  * pattern and why it is the only boundary that survives bundling.
  */
-type SubcommandLoader = () => Promise<SubcommandHandler>;
+type SubcommandLoader = () => Promise<unknown>;
 
 const loaders: Record<string, SubcommandLoader> = {
   acp: async () => (await import('./handlers/acp.js')).acpCmd,
@@ -65,12 +63,15 @@ const loaders: Record<string, SubcommandLoader> = {
  * existence checks (`subcommands[name]`) and direct invocation both behave
  * exactly as before; the handler module is imported on first call.
  */
-export const subcommands: Record<string, SubcommandHandler> = Object.fromEntries(
-  Object.entries(loaders).map(([name, load]): [string, SubcommandHandler] => [
-    name,
-    async (args, deps) => (await load())(args, deps),
-  ]),
-);
+export const subcommands = Object.fromEntries(
+  Object.entries(loaders).map(
+    ([name, load]): [string, (args: string[], deps: unknown) => Promise<number>] => [
+      name,
+      async (args, deps) =>
+        ((await load()) as (a: string[], d: unknown) => Promise<number>)(args, deps),
+    ],
+  ),
+) as Record<string, (args: string[], deps: unknown) => Promise<number>>;
 
 /** Every registered subcommand name, resolvable without loading a handler. */
 export const subcommandNames: readonly string[] = Object.keys(loaders);

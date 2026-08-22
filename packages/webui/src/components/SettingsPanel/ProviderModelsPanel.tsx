@@ -18,16 +18,16 @@ import type { WSServerMessage } from '../../types';
 import { toast } from '../Toaster';
 import { Button } from '../ui/button';
 import { ClearAllowlistDialog } from './ClearAllowlistDialog';
+import { ModelListEditor } from './ModelListEditor';
 import {
-  type RefreshState,
   formatClearAllowlistToast,
   formatProbeResult,
   initialRefreshState,
   projectProbe,
+  type RefreshState,
   shouldFireUndoToast,
   shouldOfferClear,
 } from './ProviderModelsPanel.filter';
-import { ModelListEditor } from './ModelListEditor';
 import { resolveUndoSend } from './undo-send-decision';
 
 export interface ProviderModelsPanelProps {
@@ -43,19 +43,26 @@ export interface ProviderModelsPanelProps {
    */
   savedModels?: string[] | undefined;
   /** Per-model metadata from customModels (display name, context, output, capabilities, modelsDev). */
-  savedCustomModels?: Record<string, {
-    name?: string | undefined;
-    maxOutput?: number | undefined;
-    capabilities?: {
-      maxContext?: number | undefined;
-      tools?: boolean | undefined;
-      vision?: boolean | undefined;
-      reasoning?: boolean | undefined;
-      streaming?: boolean | undefined;
-      jsonMode?: boolean | undefined;
-    } | undefined;
-    modelsDev?: Record<string, unknown> | undefined;
-  }> | undefined;
+  savedCustomModels?:
+    | Record<
+        string,
+        {
+          name?: string | undefined;
+          maxOutput?: number | undefined;
+          capabilities?:
+            | {
+                maxContext?: number | undefined;
+                tools?: boolean | undefined;
+                vision?: boolean | undefined;
+                reasoning?: boolean | undefined;
+                streaming?: boolean | undefined;
+                jsonMode?: boolean | undefined;
+              }
+            | undefined;
+          modelsDev?: Record<string, unknown> | undefined;
+        }
+      >
+    | undefined;
   /** WebSocket client used to send `provider.probe` and listen for the reply. */
   ws: WrongStackWebSocketClient;
   /**
@@ -85,9 +92,7 @@ export interface ProviderModelsPanelProps {
    * need a custom undo (e.g. routing through a different store)
    * can override this.
    */
-  onUndoClear?:
-    | ((providerId: string, previousModels: string[]) => void)
-    | undefined;
+  onUndoClear?: ((providerId: string, previousModels: string[]) => void) | undefined;
 }
 
 const PROBE_TIMEOUT_MS = 3_000;
@@ -200,10 +205,7 @@ export function ProviderModelsPanel({
           return;
       }
     };
-    toast.undoable(
-      formatClearAllowlistToast(providerId, previousModels.length),
-      undo,
-    );
+    toast.undoable(formatClearAllowlistToast(providerId, previousModels.length), undo);
   }, [onClearModels, onUndoClear, ws, providerId, savedModels]);
 
   // Header "Using" selection: user click (state.picked) > saved picked >
@@ -215,10 +217,7 @@ export function ProviderModelsPanel({
     [state.picked, savedPickedModelId, savedModels],
   );
   const formatted = useMemo(() => formatProbeResult(state), [state]);
-  const offerClear = useMemo(
-    () => shouldOfferClear(savedModels),
-    [savedModels],
-  );
+  const offerClear = useMemo(() => shouldOfferClear(savedModels), [savedModels]);
 
   return (
     <div
@@ -239,7 +238,9 @@ export function ProviderModelsPanel({
             )}
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">{t('activity:providerModels.using')}</span>
+            <span className="text-xs text-muted-foreground">
+              {t('activity:providerModels.using')}
+            </span>
             {pickedId ? (
               <span className="max-w-full truncate rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
                 {pickedId}
@@ -265,7 +266,9 @@ export function ProviderModelsPanel({
             ) : (
               <RefreshCw className="h-3.5 w-3.5" />
             )}
-            {state.inFlight ? t('activity:providerModels.probing') : t('activity:providerModels.refresh')}
+            {state.inFlight
+              ? t('activity:providerModels.probing')
+              : t('activity:providerModels.refresh')}
           </Button>
           {offerClear && (
             <Button

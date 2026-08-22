@@ -1,9 +1,9 @@
 import { Send, Server } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import { Input } from '@/components/ui/input';
-import { PreferenceToggle } from './PreferenceToggle';
 import { MCPSection } from './MCPSection';
+import { PreferenceToggle } from './PreferenceToggle';
 
 interface IntegrationsSectionProps {
   /** Push a pref change locally + to the server. */
@@ -67,7 +67,9 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             <Server className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold">{t('activity:integrationsSection.mcpServers')}</h3>
+            <h3 className="text-sm font-semibold">
+              {t('activity:integrationsSection.mcpServers')}
+            </h3>
           </div>
         </div>
         {!localPrefs.featureMcp ? (
@@ -111,9 +113,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
                 ms: localPrefs.tgLongToolMs,
               })}
               value={localPrefs.tgLongToolMs > 0}
-              onChange={() =>
-                syncPref('tgLongToolMs', localPrefs.tgLongToolMs > 0 ? 0 : 30_000)
-              }
+              onChange={() => syncPref('tgLongToolMs', localPrefs.tgLongToolMs > 0 ? 0 : 30_000)}
             />
             <p className="text-xs text-muted-foreground">
               {t('settings:integrations.telegramChangesApply')}

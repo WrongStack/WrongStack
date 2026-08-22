@@ -9,7 +9,7 @@ import {
   planConnectionReconnect,
   type SurfaceConnectionState,
   stopConnection,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import type { ServerMessage } from '../types.js';
 
 /**
@@ -194,11 +194,7 @@ export async function exchangeAuthCookie(url: URL): Promise<URL> {
       const stored = storedToken();
       if (response.status === 401) {
         consecutive401s += 1;
-        if (
-          isCookiePathProven() &&
-          consecutive401s >= MAX_CONSECUTIVE_401S &&
-          stored === token
-        ) {
+        if (isCookiePathProven() && consecutive401s >= MAX_CONSECUTIVE_401S && stored === token) {
           clearStoredToken();
         }
       }

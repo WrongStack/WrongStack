@@ -1,23 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
+import type {
+  KanbanBoard,
+  KanbanCheck,
+  KanbanColumn,
+  KanbanGoalMetric,
+  KanbanTask,
+  KanbanTaskPriority,
+} from '../types.js';
 import {
   type CopyKanbanTaskOptions,
   type CreateKanbanTaskInput,
   DEFAULT_COLUMNS,
-  type KanbanBoard,
-  type KanbanCheck,
-  type KanbanColumn,
-  type KanbanGoalMetric,
-  type KanbanTask,
-  type KanbanTaskPriority,
   type UpdateKanbanTaskInput,
-} from '../types.js';
-import {
-  nowIso,
-  requireNonBlank,
-  statusForColumn,
-  uniqueStrings,
-} from './basic-helpers.js';
+} from '../types-operations.js';
+import { nowIso, requireNonBlank, statusForColumn, uniqueStrings } from './basic-helpers.js';
+import { normalizeChainMetadata, normalizeDependencyIds } from './task-chain-internal.js';
 import {
   applyCompletedAtForStatus,
   existingColumnId,
@@ -26,7 +24,6 @@ import {
   placeTaskInColumn,
   syncTaskColumnForStatus,
 } from './task-column-helpers.js';
-import { normalizeChainMetadata, normalizeDependencyIds } from './task-chain-internal.js';
 
 export function normalizeColumns(_columns: KanbanColumn[] | undefined): KanbanColumn[] {
   return DEFAULT_COLUMNS.map((column) => ({ ...column }));

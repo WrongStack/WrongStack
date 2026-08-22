@@ -19,20 +19,20 @@ import {
   WRONGSTACK_VERSION,
 } from './protocol-contract.js';
 import {
+  handleSessionForkOp,
+  handleSessionLoadOp,
+  handleSessionNewOp,
+  handleSessionPromptOp,
+  handleSetConfigOptionOp,
+  handleSetModeOp,
+  type ProtocolSessionContext,
+} from './protocol-session-management.js';
+import {
   buildInitializeResult,
   DEFAULT_MAX_SESSIONS,
   DEFAULT_MODES,
   errorToJsonRpc,
 } from './protocol-session-ops.js';
-import {
-  handleSetConfigOptionOp,
-  handleSessionForkOp,
-  handleSessionLoadOp,
-  handleSessionNewOp,
-  handleSessionPromptOp,
-  handleSetModeOp,
-  type ProtocolSessionContext,
-} from './protocol-session-management.js';
 
 export type {
   AgentCapabilities,

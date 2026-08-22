@@ -33,8 +33,8 @@ import {
 } from './sqlite-journal-quota.js';
 import {
   CHRONICLE_SQLITE_FILE,
-  LEGACY_JSONL_BOUNDARY_KEY,
   ensureChronicleSchema,
+  LEGACY_JSONL_BOUNDARY_KEY,
   LEGACY_JSONL_MIGRATION_KEY,
   LEGACY_JSONL_QUARANTINE_KEY,
   loadDatabaseSync,
@@ -311,6 +311,7 @@ export class ChronicleSqliteJournal {
           row.taskId,
           row.traceId,
           row.logicalRequestId,
+          row.promptManifestId,
           row.resourceKind,
           row.resourceId,
           row.resourcePath,
@@ -514,9 +515,9 @@ export class ChronicleSqliteJournal {
     const insert = this.db.prepare(
       `INSERT INTO events (
          day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
-         project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
+         project_id, session_id, agent_id, task_id, trace_id, logical_request_id, prompt_manifest_id,
          resource_kind, resource_id, resource_path, duration_ns, payload
-       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     );
     const checkpoint = this.db.prepare(
       `INSERT INTO chain_checkpoint (day, sequence, hash) VALUES (?, ?, ?)
@@ -546,6 +547,7 @@ export class ChronicleSqliteJournal {
             row.taskId,
             row.traceId,
             row.logicalRequestId,
+            row.promptManifestId,
             row.resourceKind,
             row.resourceId,
             row.resourcePath,
@@ -653,9 +655,9 @@ export class ChronicleSqliteJournal {
       insert: this.db.prepare(
         `INSERT INTO events (
            day, sequence, event_id, hash, previous_hash, occurred_at, event_type, outcome,
-           project_id, session_id, agent_id, task_id, trace_id, logical_request_id,
+           project_id, session_id, agent_id, task_id, trace_id, logical_request_id, prompt_manifest_id,
            resource_kind, resource_id, resource_path, duration_ns, payload
-         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       ),
       trimBoundary: this.db.prepare(
         'SELECT day, sequence, hash FROM events ORDER BY day, sequence LIMIT 1 OFFSET ?',

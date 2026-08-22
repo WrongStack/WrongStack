@@ -12,6 +12,7 @@ export interface ChronicleQuery {
   eventTypes?: string[]; outcomes?: ChronicleOutcome[]; from?: string; to?: string;
   projectId?: string; sessionId?: string; agentId?: string; taskId?: string;
   providerId?: string; modelId?: string; traceId?: string; logicalRequestId?: string;
+  promptManifestId?: string;
   attemptId?: string; toolCallId?: string; resourceKind?: ChronicleResourceRef['kind'];
   resourceId?: string; path?: string; line?: number; tags?: Record<string, string>;
   attributes?: Record<string, unknown>; text?: string; order?: 'asc' | 'desc';
@@ -701,7 +702,12 @@ export function relationKeys(event: ChronicleEvent): Array<{ key: string; kind: 
   add('attempt', event.correlation.attemptId, 'explicit');
   add('decision', event.attributes?.decisionId, 'explicit');
   add('network_request', event.attributes?.requestId, 'explicit');
-  add('prompt_manifest', (event.attributes?.promptManifest as Record<string, unknown> | undefined)?.manifestId, 'explicit');
+  add(
+    'prompt_manifest',
+    event.correlation.promptManifestId ??
+      (event.attributes?.promptManifest as Record<string, unknown> | undefined)?.manifestId,
+    'explicit',
+  );
   add('resource_lineage', event.resource?.id, 'inferred');
   // tool.resource.observed is windowed into one metrics.rollup event per
   // tool call (rollup-adapter.ts) carrying a bounded `resources` list rather
@@ -729,6 +735,7 @@ export function matches(event: ChronicleEvent, query: ChronicleQuery): boolean {
   if (!equal(query.agentId, event.scope.agentId) || !equal(query.taskId, event.scope.taskId)) return false;
   if (!equal(query.providerId, event.runtime?.providerId) || !equal(query.modelId, event.runtime?.modelId)) return false;
   if (!equal(query.traceId, event.correlation.traceId) || !equal(query.logicalRequestId, event.correlation.logicalRequestId)) return false;
+  if (!equal(query.promptManifestId, event.correlation.promptManifestId)) return false;
   if (!equal(query.attemptId, event.correlation.attemptId) || !equal(query.toolCallId, event.correlation.toolCallId)) return false;
   if (!equal(query.resourceKind, event.resource?.kind) || !equal(query.resourceId, event.resource?.id)) return false;
   if (query.path && normalize(event.resource?.path) !== normalize(query.path)) return false;
@@ -871,7 +878,7 @@ function isChronicleEvent(value: unknown): value is ChronicleEvent {
       'iterationId', 'agentId', 'goalId', 'planId', 'taskId', 'kanbanBoardId',
     ]) && typeof value.correlation.traceId === 'string' &&
     typeof value.correlation.spanId === 'string' && optionalStrings(value.correlation, [
-      'parentSpanId', 'logicalRequestId', 'attemptId', 'toolCallId',
+      'parentSpanId', 'logicalRequestId', 'promptManifestId', 'attemptId', 'toolCallId',
     ]) && isRuntime(value.runtime) && isResource(value.resource) &&
     (value.attributes === undefined || isRecord(value.attributes)) &&
     (value.tags === undefined || isStringRecord(value.tags));

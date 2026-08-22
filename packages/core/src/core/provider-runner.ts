@@ -54,6 +54,10 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
   const { provider, request, signal, ctx, events, retry, logger, tracer } = opts;
   const logicalRequestId = randomUUID();
   const promptManifest = createChroniclePromptManifest(request);
+  // Keep the request identity alive after the provider response returns: the
+  // following tool calls are the materialized effects of this exact prompt.
+  ctx.activeLogicalRequestId = logicalRequestId;
+  ctx.activePromptManifestId = promptManifest.manifestId;
   let attempt = 0;
   for (;;) {
     const attemptId = randomUUID();
@@ -64,6 +68,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
       ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
       logicalRequestId,
+      promptManifestId: promptManifest.manifestId,
       attemptId,
       attempt,
       providerId: provider.id,

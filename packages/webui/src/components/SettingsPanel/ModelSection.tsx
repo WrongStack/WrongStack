@@ -1,9 +1,9 @@
 import { Cpu, Loader2, RefreshCw } from 'lucide-react';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConfigStore } from '@/stores';
-import { useAppTranslation } from '@/i18n';
-import { PickerCardList } from '../ui/PickerCardList';
 import { Button } from '../ui/button';
+import { PickerCardList } from '../ui/PickerCardList';
 
 interface CatalogModel {
   id: string;

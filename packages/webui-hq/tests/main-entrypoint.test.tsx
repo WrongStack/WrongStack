@@ -44,7 +44,7 @@ vi.mock('../src/lib/auth.js', () => ({
 }));
 vi.mock('../src/lib/hq-ws-client.js', () => ({ getHqClient: mocks.getHqClient }));
 vi.mock('../src/store.js', () => ({ fetchJson: mocks.fetchJson, useHqStore }));
-vi.mock('@wrongstack/webui-server/protocol', () => ({
+vi.mock('@wrongstack/webui-protocol', () => ({
   projectHqAlertMessage: mocks.projectAlert,
   projectHqCommandStatusMessage: mocks.projectCommand,
   projectHqEventMessage: mocks.projectEvent,

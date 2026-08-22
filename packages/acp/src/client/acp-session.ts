@@ -20,27 +20,7 @@ import {
   type SessionInfo,
   type StopReason,
 } from '../types/acp-v1.js';
-import { emptyRunResult } from './acp-session-content.js';
-import { FileServer } from './file-server.js';
-import { type PermissionPolicy, readOnlyPermissionPolicy } from './permission.js';
-import { TerminalServer } from './terminal-server.js';
-import { makeTrustBoundaryPermissionPolicy } from './trust-boundary-permission.js';
-import {
-  WebSocketClientTransport,
-  type WebSocketClientTransportOptions,
-} from './websocket-transport.js';
-import type {
-  ACPProgressEvent,
-  ACPProgressHandler,
-  ACPSessionOptions,
-  ACPSessionRunResult,
-} from './acp-session-types.js';
-import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
-import {
-  createSessionScratch,
-  handleAcpSessionUpdate,
-  type ACPSessionScratch,
-} from './acp-session-updates.js';
+import { isBestEffortAckMethod } from './acp-message-routing.js';
 import {
   type ACPCallbackOptions,
   type ACPResponseSender,
@@ -48,7 +28,8 @@ import {
   handleAcpPermissionRequest,
   handleAcpTerminalRequest,
 } from './acp-session-callbacks.js';
-import { isBestEffortAckMethod } from './acp-message-routing.js';
+import { emptyRunResult } from './acp-session-content.js';
+import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
 import {
   type ACPSessionOpContext,
   executeCreateSession,
@@ -64,7 +45,28 @@ import {
   executeSetMode,
   executeSetProvider,
 } from './acp-session-ops.js';
+import type {
+  ACPProgressEvent,
+  ACPProgressHandler,
+  ACPSessionOptions,
+  ACPSessionRunResult,
+} from './acp-session-types.js';
+import {
+  type ACPSessionScratch,
+  createSessionScratch,
+  handleAcpSessionUpdate,
+} from './acp-session-updates.js';
+import { FileServer } from './file-server.js';
+import { type PermissionPolicy, readOnlyPermissionPolicy } from './permission.js';
+import { TerminalServer } from './terminal-server.js';
+import { makeTrustBoundaryPermissionPolicy } from './trust-boundary-permission.js';
+import {
+  WebSocketClientTransport,
+  type WebSocketClientTransportOptions,
+} from './websocket-transport.js';
 
+export { audioContent, imageContent, textContent } from './acp-session-content.js';
+export { ACPSessionError } from './acp-session-errors.js';
 export type {
   ACPCapturedDiff,
   ACPCapturedToolCall,
@@ -74,8 +76,6 @@ export type {
   ACPSessionOptions,
   ACPSessionRunResult,
 } from './acp-session-types.js';
-export { ACPSessionError } from './acp-session-errors.js';
-export { audioContent, imageContent, textContent } from './acp-session-content.js';
 
 interface PendingRequest {
   method: string;

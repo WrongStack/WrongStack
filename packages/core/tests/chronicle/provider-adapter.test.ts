@@ -33,6 +33,7 @@ describe('wireProviderAttemptsToChronicle', () => {
       sessionId: 'session',
       agentId: 'leader',
       logicalRequestId: 'request-1',
+      promptManifestId: 'prompt_request_1',
       attemptId: 'attempt-1',
       attempt: 0,
       providerId: 'openai',
@@ -46,6 +47,7 @@ describe('wireProviderAttemptsToChronicle', () => {
       sessionId: 'session',
       agentId: 'leader',
       logicalRequestId: 'request-1',
+      promptManifestId: 'prompt_request_1',
       attemptId: 'attempt-1',
       attempt: 0,
       providerId: 'openai',
@@ -64,6 +66,7 @@ describe('wireProviderAttemptsToChronicle', () => {
       sessionId: 'session',
       agentId: 'leader',
       logicalRequestId: 'request-1',
+      promptManifestId: 'prompt_request_1',
       attemptId: 'attempt-2',
       attempt: 1,
       providerId: 'openai',
@@ -86,6 +89,9 @@ describe('wireProviderAttemptsToChronicle', () => {
       'provider.attempt.completed',
     ]);
     expect(recorded.every((event) => event.correlation.logicalRequestId === 'request-1')).toBe(true);
+    expect(
+      recorded.every((event) => event.correlation.promptManifestId === 'prompt_request_1'),
+    ).toBe(true);
     expect(recorded[1]?.attributes).toMatchObject({ failureKind: 'rate_limit', retryDelayMs: 2000 });
     expect(recorded[2]?.durationNs).toBe('1500000000');
     expect(recorded[2]?.runtime).toEqual({ providerId: 'openai', modelId: 'model-a' });

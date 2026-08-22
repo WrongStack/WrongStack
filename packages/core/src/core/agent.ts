@@ -233,6 +233,8 @@ export class Agent {
     const sessionId = sessionWriter.id;
     this.ctx.activeRunSessionWriter = sessionWriter;
     this.ctx.activeRunSessionId = sessionId;
+    this.ctx.activeLogicalRequestId = undefined;
+    this.ctx.activePromptManifestId = undefined;
     controller.onAbort(() => this.ctx.drainAbortHooks());
     // Abort durability: drain the buffered session writer the moment the run
     // is cancelled. The loop's `finally` clears the in-flight marker, but the
@@ -367,6 +369,8 @@ export class Agent {
       } finally {
         this.ctx.activeRunSessionId = undefined;
         this.ctx.activeRunSessionWriter = undefined;
+        this.ctx.activeLogicalRequestId = undefined;
+        this.ctx.activePromptManifestId = undefined;
         this._runInProgress = false;
       }
     }

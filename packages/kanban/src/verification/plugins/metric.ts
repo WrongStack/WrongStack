@@ -4,8 +4,8 @@
  * Produces evidence: { metrics: [{ name, target, current, met }], allMet }.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class MetricPlugin implements VerifierPlugin {
   readonly id = 'metric';
@@ -42,8 +42,7 @@ export class MetricPlugin implements VerifierPlugin {
       // latency, open-bug count — anything where lower is better).
       const direction = m.direction ?? 'at_least';
       const numeric = !Number.isNaN(target) && !Number.isNaN(current);
-      const met =
-        numeric && (direction === 'at_most' ? current <= target : current >= target);
+      const met = numeric && (direction === 'at_most' ? current <= target : current >= target);
       return { ...m, target, current, direction, met };
     });
 

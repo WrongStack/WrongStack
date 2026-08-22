@@ -3,28 +3,27 @@ import type {
   KanbanBoard,
   KanbanLifecycleStage,
   KanbanLifecycleTransition,
-  KanbanLifecycleValidationIssue,
   KanbanTask,
+} from '../../types.js';
+import type {
+  KanbanLifecycleValidationIssue,
   KanbanTaskTransitionInput,
   KanbanTaskTransitionResult,
-} from '../../types.js';
-import {
-  applyTaskPatch,
-  findTask,
-  nowIso,
-} from '../_internal.js';
+} from '../../types-operations.js';
 import {
   clearGateRefusals,
   isBudgetedRefusal,
   recordCompletionRefusal,
 } from '../../verification/completion-park.js';
+import { applyTaskPatch, findTask, nowIso } from '../_internal.js';
+import { KanbanLifecycleError } from '../lifecycle-error.js';
+import { dependencyIncompleteMessage, getDependencyReadinessIssues } from '../task-readiness.js';
 import {
   hasText,
   requireDetail,
   validateDoneEvidence,
   validateTickChecks,
 } from './definition-of-done.js';
-import { KanbanLifecycleError } from '../lifecycle-error.js';
 import {
   currentManagedStage,
   isManagedTombstone,
@@ -32,10 +31,6 @@ import {
   STATUS_BY_STAGE,
   validateManagedLifecyclePolicy,
 } from './stage-helpers.js';
-import {
-  dependencyIncompleteMessage,
-  getDependencyReadinessIssues,
-} from '../task-readiness.js';
 
 export function validateManagedTaskTransition(
   board: KanbanBoard,
@@ -122,9 +117,7 @@ function validateDestinationWipLimit(
   if (!column) return;
   const limit = column.wipLimit ?? 0;
   if (limit <= 0) return;
-  const occupants = board.tasks.filter(
-    (t) => t.columnId === columnId && t.id !== task.id,
-  ).length;
+  const occupants = board.tasks.filter((t) => t.columnId === columnId && t.id !== task.id).length;
   if (occupants >= limit) {
     issues.push({
       code: 'wip-limit-exceeded',
@@ -345,4 +338,3 @@ function validateReviewEvidence(task: KanbanTask, issues: KanbanLifecycleValidat
     });
   }
 }
-

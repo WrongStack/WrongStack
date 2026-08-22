@@ -4,14 +4,14 @@
  * to keep the default path LLM-free.
  */
 import { VerifierRegistry } from '../verifier-registry.js';
+import { AgentVerifierPlugin } from './agent.js';
+import { CommandPlugin } from './command.js';
+import { type CouncilVerifierOptions, CouncilVerifierPlugin } from './council.js';
 import { FileExistsPlugin } from './file-exists.js';
 import { FileMatchesPlugin } from './file-matches.js';
-import { CommandPlugin } from './command.js';
-import { TestPlugin } from './test.js';
 import { GitDiffPlugin } from './git-diff.js';
 import { MetricPlugin } from './metric.js';
-import { AgentVerifierPlugin } from './agent.js';
-import { CouncilVerifierPlugin, type CouncilVerifierOptions } from './council.js';
+import { TestPlugin } from './test.js';
 
 /**
  * Create a VerifierRegistry pre-loaded with all deterministic plugins.

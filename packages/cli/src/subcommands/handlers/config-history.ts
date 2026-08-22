@@ -5,7 +5,7 @@ import {
   restoreFromHistory,
   restoreLast,
 } from '../../config-history.js';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 /**
  * `wrongstack config history` — list history entries or show details.
  */

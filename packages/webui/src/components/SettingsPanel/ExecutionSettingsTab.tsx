@@ -1,7 +1,7 @@
 import { CalendarClock, Shield, Zap } from 'lucide-react';
+import type { ModelCandidate } from '@/hooks/useProviderModels';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import type { ModelCandidate } from '@/hooks/useProviderModels';
 import { AvailabilityCalendarEditor } from '../AvailabilityCalendarEditor';
 import { PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -95,9 +95,7 @@ export function ExecutionSettingsTab({
             <CalendarClock className="h-5 w-5" />
           </span>
           <div>
-            <h3 className="text-sm font-semibold">
-              {t('settings:execution.availabilityHeading')}
-            </h3>
+            <h3 className="text-sm font-semibold">{t('settings:execution.availabilityHeading')}</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {t('settings:execution.availabilityHint')}
             </p>

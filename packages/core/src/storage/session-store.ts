@@ -234,7 +234,12 @@ export class DefaultSessionStore implements SessionStore {
     // Refuse creation over an ID another process still holds live BEFORE any
     // destructive step (registry/lease check mirrors the delete-path guard).
     const inUseBy = this.isSessionInUse ? await this.isSessionInUse(id) : null;
-    if (inUseBy !== null && inUseBy !== undefined && inUseBy !== '') {
+    // Truthiness, deliberately matching assertSessionCanBeDeleted
+    // (session-store/delete-session-guards.ts): both gates read the same
+    // callback, so they must agree on what counts as a reason. An
+    // empty-string reason means "no reason" on BOTH paths —
+    // diverging here would let an id be deleted but not recreated.
+    if (inUseBy) {
       throw new Error(`Refusing to create session ${id}: in use (${inUseBy}).`);
     }
     const t0 = Date.now();
@@ -298,13 +303,26 @@ export class DefaultSessionStore implements SessionStore {
     // the control row lands CONFIRMED.
     try {
       await withFileLock(this.indexFile, async () => {
-        await fsp.appendFile(this.indexFile, `${JSON.stringify({ action: 'create', id })}\n`, {
-          encoding: 'utf8',
-          mode: 0o600,
-        });
+        try {
+          await fsp.appendFile(this.indexFile, `${JSON.stringify({ action: 'create', id })}\n`, {
+            encoding: 'utf8',
+            mode: 0o600,
+          });
+        } finally {
+          // Drop the parsed snapshot whether or not the append reported
+          // success. A rejection does not prove nothing landed (a short write,
+          // or an error raised while closing after the bytes were already
+          // durable), and a cache predating a create row would keep serving a
+          // view in which this id is still tombstoned. Invalidation only costs
+          // a re-parse, so it is unconditional.
+          this._indexCache = null;
+        }
+        // The in-memory undelete stays on the SUCCESS path only: evicting the
+        // tombstone without a durable {action:'create'} row would make the id
+        // look live to this process while every other reader — and this one
+        // after a restart — still sees it deleted.
         this._manualTombstones.delete(id);
         this._indexDeletedIds.delete(id);
-        this._indexCache = null;
       });
     } catch (cause) {
       throw new Error(
@@ -650,6 +668,12 @@ export class DefaultSessionStore implements SessionStore {
    * compactIndex() below and the appendToIndexStrict compaction hook);
    * readIndex() inside reads that same locked file, so no second lock may
    * be taken here (non-reentrant → deadlock).
+   *
+   * That same lock is what makes the _indexFileDeletedIds snapshot safe to
+   * pass across the await below: writeTombstone() appends under the identical
+   * non-reentrant indexFile lock, so no tombstone can land between our
+   * readIndex() and the snapshot handed to the helper. Compaction would
+   * otherwise be racing a delete it cannot see.
    */
   private async compactIndexInner(): Promise<void> {
     const entries = await this.readIndex();
@@ -702,6 +726,17 @@ export class DefaultSessionStore implements SessionStore {
       .slice(0, limit);
   }
 
+  /**
+   * Rebuild the index from what is actually on disk.
+   *
+   * @returns the number of healthy, live entries in the rebuilt index. Both
+   * backends report that same quantity: ids whose summary could not be derived
+   * are excluded (the catalog counts them as `damaged`; the local scan drops
+   * them when `summaryFor` rejects), and ids carrying a surviving tombstone are
+   * excluded (the catalog rebuilds only from live files; the local branch skips
+   * them explicitly). It is NOT a count of rows written to the file — tombstone
+   * rows are persisted but never counted.
+   */
   async rebuildIndex(): Promise<number> {
     if (this.catalogClient) {
       const result = await this.catalogClient.call('rebuild_catalog', {}, { timeoutMs: 120_000 });
@@ -716,10 +751,13 @@ export class DefaultSessionStore implements SessionStore {
       const summaries = await Promise.all(ids.map((id) => this.summaryFor(id).catch(() => null)));
       const valid = summaries.filter((s): s is SessionSummary => s !== null);
       const parts: string[] = [];
-      let resurrectable = 0;
+      // Scanned-but-tombstoned ids: their files still exist so the scan finds
+      // them, but writing a summary row would undelete them. Counted only to
+      // subtract from the documented return value.
+      let tombstoned = 0;
       for (const s of valid) {
         if (this._indexDeletedIds.has(s.id)) {
-          resurrectable++;
+          tombstoned++;
           continue;
         }
         parts.push(JSON.stringify(s));
@@ -730,7 +768,7 @@ export class DefaultSessionStore implements SessionStore {
       const lines = parts.join('\n') + '\n';
       await atomicWrite(this.indexFile, lines, { mode: 0o600 });
       this._indexCache = null;
-      return valid.length - resurrectable;
+      return valid.length - tombstoned;
     });
   }
 

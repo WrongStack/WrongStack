@@ -87,6 +87,9 @@ export function wireDomainEventsToChronicle(options: ChronicleDomainAdapterOptio
         ...(stringField(record, 'logicalRequestId')
           ? { logicalRequestId: stringField(record, 'logicalRequestId') }
           : {}),
+        ...(stringField(record, 'promptManifestId')
+          ? { promptManifestId: stringField(record, 'promptManifestId') }
+          : {}),
       },
       outcome: inferOutcome(eventName, record),
       runtime: {

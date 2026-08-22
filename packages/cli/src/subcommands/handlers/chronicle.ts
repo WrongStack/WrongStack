@@ -9,7 +9,7 @@ import {
   createChronicleProjectAccess,
   resolveChronicleProjectServerOptions,
 } from '@wrongstack/core/chronicle';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 const facets = new Set<ChronicleFacet>([
   'eventType',

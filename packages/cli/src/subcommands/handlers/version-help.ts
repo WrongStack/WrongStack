@@ -1,7 +1,7 @@
 import * as os from 'node:os';
 import { color } from '@wrongstack/core/utils';
 import { API_VERSION, CLI_VERSION } from '../../version.js';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 export const versionCmd: SubcommandHandler = async (_args, deps) => {
   deps.renderer.write(

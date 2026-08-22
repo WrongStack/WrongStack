@@ -4,8 +4,9 @@
  * the SubagentBudget machinery. This is the shared engine behind
  * `wstack acp spawn` and `/acp <id> <task>`.
  */
-import type { SubagentRunContext } from '@wrongstack/core/types';
+
 import { SubagentBudget } from '@wrongstack/core/coordination';
+import type { SubagentRunContext } from '@wrongstack/core/types';
 import type { ACPProgressHandler } from '../client/acp-session.js';
 import type { PermissionPolicy } from '../client/permission.js';
 import { makeACPSubagentRunnerWithStop } from './acp-subagent-runner.js';
@@ -37,9 +38,7 @@ export interface RunOneAcpTaskResult {
  * process, runs one prompt turn, and tears everything down. Throws a
  * structured `SubagentError` on failure (spawn/init/prompt).
  */
-export async function runOneAcpTask(
-  opts: RunOneAcpTaskOptions,
-): Promise<RunOneAcpTaskResult> {
+export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneAcpTaskResult> {
   const role = opts.role ?? 'acp';
   const timeoutMs = opts.timeoutMs ?? 5 * 60_000;
   const { runner, stop } = await makeACPSubagentRunnerWithStop({

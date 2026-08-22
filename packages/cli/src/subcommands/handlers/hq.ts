@@ -36,8 +36,8 @@ import {
 } from '@wrongstack/core/hq';
 import { expectDefined } from '@wrongstack/core/utils';
 import { resolveAuditActor } from '../../hq-server/audit-actor.js';
-import type { HqServerHandle } from '../../hq-server.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { HqServerHandle } from '../../hq-server/handle-types.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 export { resolveAuditActor } from '../../hq-server/audit-actor.js';
 
@@ -733,12 +733,18 @@ function printTokenHelp(deps: SubcommandDeps): void {
   deps.renderer.write(
     `  wstack hq token create --client [label] [--ttl <dur>] Mint a client token (/ws/client).\n`,
   );
-  deps.renderer.write(`  wstack hq token list                                 List issued browser tokens (alias: ls).\n`);
-  deps.renderer.write(`  wstack hq token list --client                         List issued client tokens.\n`);
+  deps.renderer.write(
+    `  wstack hq token list                                 List issued browser tokens (alias: ls).\n`,
+  );
+  deps.renderer.write(
+    `  wstack hq token list --client                         List issued client tokens.\n`,
+  );
   deps.renderer.write(
     `  wstack hq token revoke <id>                           Revoke a browser token (id prefix match).\n`,
   );
-  deps.renderer.write(`  wstack hq token revoke --client <id>                  Revoke a client token.\n`);
+  deps.renderer.write(
+    `  wstack hq token revoke --client <id>                  Revoke a client token.\n`,
+  );
   deps.renderer.write('\n');
   deps.renderer.write(`The token secret is printed once at create time and cannot be recovered\n`);
   deps.renderer.write(`from auth.json (only its SHA-256 verifier is persisted). Tokens live in\n`);
@@ -748,7 +754,9 @@ function printTokenHelp(deps: SubcommandDeps): void {
   deps.renderer.write(
     `  --data-dir <path>   Override HQ data directory (default ~/.wrongstack/hq).\n`,
   );
-  deps.renderer.write(`  --client, -c        Operate on client tokens instead of browser tokens.\n`);
+  deps.renderer.write(
+    `  --client, -c        Operate on client tokens instead of browser tokens.\n`,
+  );
   deps.renderer.write(
     `  --capabilities <csv>  Comma-separated capability grants (browser: control.enqueue; client: telemetry.publish,control.execute).\n`,
   );

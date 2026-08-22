@@ -88,6 +88,13 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
         input({
           eventType: 'file.event',
           scope: { ...scope, taskId: 'task-1', kanbanBoardId: 'board-1', agentId: 'worker-1' },
+          correlation: {
+            traceId: 'trace-1',
+            spanId: 'span-1',
+            logicalRequestId: 'request-1',
+            promptManifestId: 'prompt_request_1',
+            toolCallId: 'tool-1',
+          },
           resource: { kind: 'file', id: 'path:src/app.ts', path: 'src/app.ts' },
           attributes: {
             operation: 'update',
@@ -96,6 +103,7 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
             model: 'model-a',
             runId: 'run-1',
             source: 'tool',
+            provenanceConfidence: 'explicit',
           },
         }),
       ),
@@ -161,6 +169,9 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
         toolName: 'edit',
         providerId: 'openai',
         modelId: 'model-a',
+        logicalRequestId: 'request-1',
+        promptManifestId: 'prompt_request_1',
+        provenanceConfidence: 'explicit',
         source: 'tool',
       });
 
@@ -227,6 +238,7 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry
         ['src/a.ts', 'delete'],
         ['SRC/B.TS', 'create'],
       ]);
+      expect(rows.every((row) => row.provenanceConfidence === 'unknown')).toBe(true);
     } finally {
       store.close();
     }

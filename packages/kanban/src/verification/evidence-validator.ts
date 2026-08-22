@@ -43,10 +43,7 @@ export class EvidenceValidator {
   }
 
   /** Update a specific rule. */
-  setRule<K extends keyof BackingEvidenceRules>(
-    key: K,
-    value: BackingEvidenceRules[K],
-  ): void {
+  setRule<K extends keyof BackingEvidenceRules>(key: K, value: BackingEvidenceRules[K]): void {
     this.rules[key] = value;
   }
 
@@ -54,9 +51,7 @@ export class EvidenceValidator {
    * Validate a check result's backing evidence.
    * Returns { valid: true } when the result has sufficient concrete proof.
    */
-  validate(
-    result: KanbanVerificationCheckResult,
-  ): { valid: boolean; reasons: string[] } {
+  validate(result: KanbanVerificationCheckResult): { valid: boolean; reasons: string[] } {
     const reasons: string[] = [];
     const refs = result.backingRefs ?? [];
 
@@ -64,7 +59,7 @@ export class EvidenceValidator {
     if (this.rules.rejectBareVerdict && refs.length === 0) {
       reasons.push(
         'No concrete file, test, command, or diff references provided. ' +
-        'Agent/council verdict must cite specific evidence paths.',
+          'Agent/council verdict must cite specific evidence paths.',
       );
     }
 
@@ -78,13 +73,11 @@ export class EvidenceValidator {
     // Required reference kinds
     if (this.rules.requiredRefKinds?.length) {
       const kinds = new Set(refs.map((r) => r.kind));
-      const missing = this.rules.requiredRefKinds.filter(
-        (k) => !kinds.has(k),
-      );
+      const missing = this.rules.requiredRefKinds.filter((k) => !kinds.has(k));
       if (missing.length) {
         reasons.push(
           `Missing required evidence kinds: ${missing.join(', ')}. ` +
-          `Found: ${[...kinds].join(', ') || 'none'}.`,
+            `Found: ${[...kinds].join(', ') || 'none'}.`,
         );
       }
     }
@@ -95,7 +88,7 @@ export class EvidenceValidator {
         if (VAGUE_PATTERNS.some((pattern) => pattern.test(ref.summary.trim()))) {
           reasons.push(
             `Vague evidence summary for "${ref.kind}:${ref.path}": "${ref.summary}". ` +
-            `Use a specific description (e.g., "Added login handler at src/routes/login.ts (47 lines)").`,
+              `Use a specific description (e.g., "Added login handler at src/routes/login.ts (47 lines)").`,
           );
         }
       }

@@ -1,20 +1,17 @@
 import { mutateBoard } from '../../storage.js';
 import type {
-  AdoptManagedLifecycleInput,
   KanbanBoard,
   KanbanBoardLifecyclePolicy,
   KanbanLifecycleTransition,
+} from '../../types.js';
+import type {
+  AdoptManagedLifecycleInput,
   KanbanTaskTransitionResult,
   RepairManagedProjectionInput,
-} from '../../types.js';
-import {
-  createBoardHistoryEntry,
-  emitBoardHistoryEvent,
-  findTask,
-  nowIso,
-} from '../_internal.js';
-import { hasText } from './definition-of-done.js';
+} from '../../types-operations.js';
+import { createBoardHistoryEntry, emitBoardHistoryEvent, findTask, nowIso } from '../_internal.js';
 import { KanbanLifecycleError } from '../lifecycle-error.js';
+import { hasText } from './definition-of-done.js';
 import {
   isManagedTombstone,
   lifecycleStageForColumn,

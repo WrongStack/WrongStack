@@ -251,6 +251,10 @@ export class Context implements RunEnv {
    * so storage operations can include it in `storage.*` events.
    */
   traceId: string | undefined;
+  /** Logical provider request whose response produced the current tool calls. */
+  activeLogicalRequestId: string | undefined = undefined;
+  /** Content-addressed prompt composition for {@link activeLogicalRequestId}. */
+  activePromptManifestId: string | undefined = undefined;
 
   /**
    * Session id pinned to the currently-executing run. Set by `Agent.run()`
@@ -847,6 +851,14 @@ export class Context implements RunEnv {
           ? (this.provider as { id: string }).id
           : String(this.provider),
       model: this.model,
+      ...(this.activeLogicalRequestId
+        ? { logicalRequestId: this.activeLogicalRequestId }
+        : {}),
+      ...(this.activePromptManifestId
+        ? { promptManifestId: this.activePromptManifestId }
+        : {}),
+      provenanceConfidence:
+        this.activeLogicalRequestId && this.activePromptManifestId ? 'explicit' : 'unknown',
       toolName: input.toolName,
       toolUseId: input.toolUseId,
       scope,
@@ -881,6 +893,9 @@ export class Context implements RunEnv {
         agentName: this.agentName,
         provider: record.provider,
         model: record.model,
+        ...(record.logicalRequestId ? { logicalRequestId: record.logicalRequestId } : {}),
+        ...(record.promptManifestId ? { promptManifestId: record.promptManifestId } : {}),
+        provenanceConfidence: record.provenanceConfidence,
         toolName: input.toolName,
         toolUseId: input.toolUseId,
         scope,

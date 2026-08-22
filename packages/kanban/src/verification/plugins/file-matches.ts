@@ -3,10 +3,11 @@
  * The pattern is stored in check.notes as a JSON object { file, pattern, flags }.
  * Produces evidence: { path, pattern, matched, lineNumbers[] }.
  */
-import { capSubject, compileSafeRegex } from '../safe-regex.js';
+
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
+import { capSubject, compileSafeRegex } from '../safe-regex.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class FileMatchesPlugin implements VerifierPlugin {
   readonly id = 'file_matches';

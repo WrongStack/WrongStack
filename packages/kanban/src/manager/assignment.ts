@@ -2,26 +2,28 @@ import { randomUUID } from 'node:crypto';
 import { evaluateContractGraph, evaluateContractGraphReadiness } from '../contract-graph.js';
 import { mutateBoard, summarizeBoard } from '../storage.js';
 import type {
-  AssignKanbanTaskInput,
-  ClaimKanbanTaskInput,
-  HeartbeatKanbanTaskAssignmentInput,
   KanbanAgentAssignment,
   KanbanAgentRunStatus,
   KanbanBoard,
   KanbanBoardKind,
   KanbanEvent,
   KanbanEventContext,
+  KanbanRecoveryMode,
+  KanbanTask,
+} from '../types.js';
+import type {
+  AssignKanbanTaskInput,
+  ClaimKanbanTaskInput,
+  HeartbeatKanbanTaskAssignmentInput,
   KanbanOrchestrationSnapshot,
   KanbanQueueHealth,
-  KanbanRecoveryMode,
   KanbanSearchInput,
   KanbanSearchResult,
-  KanbanTask,
   ReconcileKanbanBoardResult,
   RecoverStaleKanbanAssignmentsInput,
   RecoverStaleKanbanAssignmentsResult,
   ReleaseKanbanTaskClaimInput,
-} from '../types.js';
+} from '../types-operations.js';
 import { resolveGateEnforcement } from '../verification/completion-gate.js';
 import {
   assignmentEventType,
@@ -531,8 +533,7 @@ export async function recoverStaleTaskAssignments(
       // Claimable-again means: the assignment was released (gone), or it was
       // re-queued for another attempt ('assigned'). Anything else stays in
       // Running for a human.
-      const requeueable =
-        task.assignment === undefined || task.assignment.status === 'assigned';
+      const requeueable = task.assignment === undefined || task.assignment.status === 'assigned';
       if (isManaged && requeueable && task.lifecycle?.currentStage === 'running') {
         managedNeedingRequeue.push({ taskId: task.id, mode });
       }

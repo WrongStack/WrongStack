@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { TerminalRenderer } from '../../renderer.js';
 import { checkForUpdate, type UpdatePackageName } from '../../update-check.js';
 import { buildWin32CmdShimInvocation } from '../../utils/win32-cmd.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 

@@ -16,11 +16,7 @@ import * as fsPromises from 'node:fs/promises';
 import * as net from 'node:net';
 import * as path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-  atomicWrite,
-  bindProjectEndpoint,
-  restrictFilePermissions,
-} from '@wrongstack/persistence';
+import { atomicWrite, bindProjectEndpoint, restrictFilePermissions } from '@wrongstack/persistence';
 import { KANBAN_DOMAIN_OPERATIONS } from '../domain-operations.js';
 import { StaleWriteError } from '../manager/lifecycle-error.js';
 import * as kanban from '../manager.js';
@@ -419,14 +415,11 @@ defineMethod('storageReadEvents', async ({ boardRef }: { boardRef: string }) => 
   if (!boardRef) invalid('storageReadEvents requires boardRef');
   return ownerStorage().readEvents(boardRef);
 });
-defineMethod(
-  'storageAppendBoardHistory',
-  async ({ entry }: { entry: KanbanBoardHistoryEntry }) => {
-    if (!entry) invalid('storageAppendBoardHistory requires entry');
-    await ownerStorage().appendBoardHistory(entry);
-    return { appended: true };
-  },
-);
+defineMethod('storageAppendBoardHistory', async ({ entry }: { entry: KanbanBoardHistoryEntry }) => {
+  if (!entry) invalid('storageAppendBoardHistory requires entry');
+  await ownerStorage().appendBoardHistory(entry);
+  return { appended: true };
+});
 defineMethod('storageReadBoardHistory', async ({ boardId }: { boardId?: string }) => {
   return ownerStorage().readBoardHistory(boardId);
 });

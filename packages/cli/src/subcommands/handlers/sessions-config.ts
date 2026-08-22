@@ -6,8 +6,8 @@ import {
   restoreLast,
 } from '../../config-history.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 import { redactKeys } from './helpers.js';
 import { sessionsFleetCmd } from './sessions-fleet.js';
 export const sessionsCmd: SubcommandHandler = async (args, deps) => {

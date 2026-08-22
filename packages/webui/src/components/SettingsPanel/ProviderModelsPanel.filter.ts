@@ -114,8 +114,7 @@ export function formatProbeResult(state: RefreshState): {
       tone: 'muted',
     };
   }
-  const elapsed =
-    last.elapsedMs !== undefined ? ` (${last.elapsedMs}ms)` : '';
+  const elapsed = last.elapsedMs !== undefined ? ` (${last.elapsedMs}ms)` : '';
   switch (last.status) {
     case 'ok': {
       const count = last.modelCount ?? last.modelIds?.length ?? 0;
@@ -143,9 +142,7 @@ export function formatProbeResult(state: RefreshState): {
     }
     case 'invalid_response':
       return {
-        text: last.detail
-          ? `unexpected response — ${last.detail}`
-          : 'unexpected response shape',
+        text: last.detail ? `unexpected response — ${last.detail}` : 'unexpected response shape',
         tone: 'warning',
       };
     case 'no_provider':
@@ -165,15 +162,8 @@ export function formatProbeResult(state: RefreshState): {
  *   2. The saved `models` allowlist
  *   3. Empty array
  */
-export function selectModelList(
-  state: RefreshState,
-  savedModels: string[] | undefined,
-): string[] {
-  if (
-    state.last?.ok &&
-    state.last.modelIds &&
-    state.last.modelIds.length > 0
-  ) {
+export function selectModelList(state: RefreshState, savedModels: string[] | undefined): string[] {
+  if (state.last?.ok && state.last.modelIds && state.last.modelIds.length > 0) {
     return state.last.modelIds;
   }
   return savedModels ?? [];
@@ -184,10 +174,7 @@ export function selectModelList(
  * shows when the latest probe succeeded with at least one id AND
  * the probed list differs from the saved list.
  */
-export function shouldOfferSave(
-  state: RefreshState,
-  savedModels: string[] | undefined,
-): boolean {
+export function shouldOfferSave(state: RefreshState, savedModels: string[] | undefined): boolean {
   if (!state.last?.ok) return false;
   const probed = state.last.modelIds;
   if (!probed || probed.length === 0) return false;
@@ -232,10 +219,7 @@ export function formatClearAllowlistToast(providerId: string, count: number): st
  * vs. "models" by `count`. The providerId is always shown in mono
  * (caller wraps it in a `<span class="font-mono">`).
  */
-export function formatClearAllowlistDialogBody(
-  providerId: string,
-  count: number,
-): string {
+export function formatClearAllowlistDialogBody(providerId: string, count: number): string {
   return `This will remove the ${count} pinned model${count === 1 ? '' : 's'} for ${providerId}. The model picker will fall back to the models.dev catalog.`;
 }
 

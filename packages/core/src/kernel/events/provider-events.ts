@@ -10,6 +10,7 @@ export interface ProviderEventMap {
     traceId?: string | undefined;
     agentId?: string | undefined;
     logicalRequestId: string;
+    promptManifestId?: string | undefined;
     attemptId: string;
     attempt: number;
     providerId: string;
@@ -30,6 +31,7 @@ export interface ProviderEventMap {
     traceId?: string | undefined;
     agentId?: string | undefined;
     logicalRequestId: string;
+    promptManifestId?: string | undefined;
     attemptId: string;
     attempt: number;
     providerId: string;
@@ -50,6 +52,7 @@ export interface ProviderEventMap {
     traceId?: string | undefined;
     agentId?: string | undefined;
     logicalRequestId: string;
+    promptManifestId?: string | undefined;
     attemptId: string;
     attempt: number;
     providerId: string;

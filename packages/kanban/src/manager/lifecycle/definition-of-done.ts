@@ -1,10 +1,8 @@
+import type { KanbanBoard, KanbanTask, KanbanVerificationReport } from '../../types.js';
 import type {
-  KanbanBoard,
   KanbanLifecycleValidationIssue,
-  KanbanTask,
   KanbanTaskTransitionInput,
-  KanbanVerificationReport,
-} from '../../types.js';
+} from '../../types-operations.js';
 import { nowIso } from '../_internal.js';
 
 export function hasText(value: unknown): value is string {
@@ -37,8 +35,11 @@ export function validateDefinitionOfDone(
     `${check.description}\u0001${check.type ?? ''}`;
   const reportFingerprint = new Map<string, string>();
   const reportedChecks =
-    (effectiveReport as { checks?: Array<{ checkId?: string; description: string; type?: string }> } | undefined)
-      ?.checks ?? [];
+    (
+      effectiveReport as
+        | { checks?: Array<{ checkId?: string; description: string; type?: string }> }
+        | undefined
+    )?.checks ?? [];
   for (const reported of reportedChecks) {
     if (reported.checkId) {
       reportFingerprint.set(reported.checkId, checkFingerprint(reported));
@@ -232,8 +233,7 @@ export function preflightManagedTransition(
         });
       }
       const incompleteChildren = board.tasks.filter(
-        (entry) =>
-          task.childTaskIds!.includes(entry.id) && entry.status !== 'completed',
+        (entry) => task.childTaskIds!.includes(entry.id) && entry.status !== 'completed',
       );
       if (incompleteChildren.length > 0) {
         const ids = incompleteChildren.map((entry) => entry.id).join(', ');

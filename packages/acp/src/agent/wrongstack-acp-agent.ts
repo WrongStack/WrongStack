@@ -176,9 +176,7 @@ export class WrongStackACPServer {
         // credential — a footgun with no upside.
         const queryToken = url.searchParams.get('token');
         const queryOk =
-          queryToken !== null &&
-          isLoopbackPeer(req) &&
-          timingSafeTokenEqual(queryToken, authToken);
+          queryToken !== null && isLoopbackPeer(req) && timingSafeTokenEqual(queryToken, authToken);
         // WS-110: this was `supplied !== authToken`. Every sibling auth surface
         // in this repo compares credentials in constant time (HQ's
         // `timingSafeTokenMatch`, the WebUI's `tokenMatches`, the mailbox and
@@ -374,9 +372,8 @@ function isLoopbackHost(host: string): boolean {
   const normalized = host.trim().toLowerCase();
   if (normalized === 'localhost') return true;
 
-  const literal = normalized.startsWith('[') && normalized.endsWith(']')
-    ? normalized.slice(1, -1)
-    : normalized;
+  const literal =
+    normalized.startsWith('[') && normalized.endsWith(']') ? normalized.slice(1, -1) : normalized;
   const version = isIP(literal);
   if (version === 4) return literal.startsWith('127.');
   if (version !== 6) return false;

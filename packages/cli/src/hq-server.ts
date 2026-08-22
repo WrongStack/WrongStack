@@ -13,9 +13,7 @@ import * as fs from 'node:fs/promises';
 import type { Server as HttpServer } from 'node:http';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import {
-  getSharedProjectMailbox,
-} from '@wrongstack/core/coordination';
+import { getSharedProjectMailbox } from '@wrongstack/core/coordination';
 import {
   assessHqExposure,
   createHqPersistence,
@@ -58,10 +56,7 @@ import {
 } from './hq-server/routes.js';
 import { createHqServerShutdown } from './hq-server/server-lifecycle.js';
 import * as HqServerSnapshot from './hq-server/snapshot.js';
-import {
-  writeHqRuntimeMarker,
-  writeHqStartupInfo,
-} from './hq-server/startup.js';
+import { writeHqRuntimeMarker, writeHqStartupInfo } from './hq-server/startup.js';
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './hq-server/types.js';
 import { handleHqConnection, handleHqUpgrade } from './hq-server/upgrade-handler.js';
 import * as HqServerWs from './hq-server/ws.js';
@@ -111,28 +106,16 @@ export interface HqServerOptions {
   trustedProxyHops?: number;
 }
 
-export interface HqStartupConnectionInfo {
-  dataDir: string;
-  browserUrl: string;
-  clientUrl: string;
-  clientEnv: {
-    WRONGSTACK_HQ_URL: string;
-    WRONGSTACK_HQ_TOKEN?: string;
-  };
-  createdAuth: boolean;
-  browserTokenMode: boolean;
-  passwordMode: boolean;
-}
+// Public HQ server handle types live in a dedicated leaf module so callers (notably
+// `subcommands/handlers/hq.ts`) can depend on the public types without pulling in
+// the HQ server implementation. See `./hq-server/handle-types.ts`.
+import type { HqServerHandle, HqStartupConnectionInfo } from './hq-server/handle-types.js';
 
-export type HqFirstRunSetup = HqStartupConnectionInfo;
-
-export interface HqServerHandle {
-  host: string;
-  port: number;
-  firstRunSetup?: HqFirstRunSetup;
-  trustPublicOrigin(origin: string): void;
-  close(): Promise<void>;
-}
+export type {
+  HqFirstRunSetup,
+  HqServerHandle,
+  HqStartupConnectionInfo,
+} from './hq-server/handle-types.js';
 
 // ── Server entry points ────────────────────────────────────────────────────
 

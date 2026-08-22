@@ -1,36 +1,29 @@
 import { assessAtomicity, candidateFromKanbanTask } from '../atomicity/assess.js';
 import { mutateBoard } from '../storage.js';
 import type {
-  AssignKanbanTaskInput,
-  ClaimKanbanTaskInput,
   KanbanAgentAssignment,
   KanbanBoard,
   KanbanEvent,
-  KanbanSearchInput,
   KanbanTask,
   KanbanTaskPriority,
 } from '../types.js';
+import type {
+  AssignKanbanTaskInput,
+  ClaimKanbanTaskInput,
+  KanbanSearchInput,
+} from '../types-operations.js';
+import { nowIso, statusForColumn } from './basic-helpers.js';
+import { createKanbanEvent, emitKanbanEvent } from './board-events.js';
 // Leaf import: task-classifier.ts pulls only types and task-readiness, so this
 // direction cannot cycle back into _internal.
 import { missingManagedDispatchDetails } from './task-classifier.js';
-import { findTask } from './task-lookup.js';
-import { areDependenciesMet } from './task-readiness.js';
 import {
   applyCompletedAtForStatus,
   normalizeColumnTaskOrders,
   syncTaskColumnForStatus,
 } from './task-column-helpers.js';
-import { nowIso, statusForColumn } from './basic-helpers.js';
-import { createKanbanEvent, emitKanbanEvent } from './board-events.js';
-
-export { findTask } from './task-lookup.js';
-
-export {
-  assertNoDependencyCycles,
-  hasDependencyPath,
-  remapIdList,
-  remapTaskReferences,
-} from './dependency-helpers.js';
+import { findTask } from './task-lookup.js';
+import { areDependenciesMet } from './task-readiness.js';
 
 export {
   isoFromTimestamp,
@@ -43,11 +36,35 @@ export {
   uniqueStrings,
 } from './basic-helpers.js';
 export {
+  assignmentEventType,
+  createBoardHistoryEntry,
+  createKanbanEvent,
+  emitBoardHistoryEvent,
+  emitKanbanEvent,
+} from './board-events.js';
+export {
+  assertNoDependencyCycles,
+  hasDependencyPath,
+  remapIdList,
+  remapTaskReferences,
+} from './dependency-helpers.js';
+export {
   isAssignmentHeartbeatDue,
   later,
   msUntilExpiry,
   selectRecoveryMode,
 } from './recovery.js';
+export {
+  addDependencyToTask,
+  findGoalMetric,
+  normalizeChainMetadata,
+  normalizeDependencyIds,
+  resolveTaskRefs,
+  rewireDependents,
+  setChainMetadata,
+  tasksInChain,
+  uniqueColumnId,
+} from './task-chain-internal.js';
 export {
   applyCompletedAtForStatus,
   clampOrder,
@@ -58,6 +75,18 @@ export {
   placeTaskInColumn,
   syncTaskColumnForStatus,
 } from './task-column-helpers.js';
+
+export {
+  applyTaskPatch,
+  cloneChecks,
+  cloneGoalMetrics,
+  cloneTaskForBoard,
+  createTaskObject,
+  highestPriority,
+  mergedTaskDescription,
+  normalizeColumns,
+  optionalArray,
+} from './task-factory.js';
 export {
   applyGraphNodeToTask,
   applyTaskGraphRelationships,
@@ -72,38 +101,7 @@ export {
   taskInputFromGraphNode,
   taskToTaskGraphNode,
 } from './task-graph-internal.js';
-
-export {
-  applyTaskPatch,
-  cloneChecks,
-  cloneGoalMetrics,
-  cloneTaskForBoard,
-  createTaskObject,
-  highestPriority,
-  mergedTaskDescription,
-  normalizeColumns,
-  optionalArray,
-} from './task-factory.js';
-
-export {
-  addDependencyToTask,
-  findGoalMetric,
-  normalizeChainMetadata,
-  normalizeDependencyIds,
-  resolveTaskRefs,
-  rewireDependents,
-  setChainMetadata,
-  tasksInChain,
-  uniqueColumnId,
-} from './task-chain-internal.js';
-
-export {
-  assignmentEventType,
-  createBoardHistoryEntry,
-  createKanbanEvent,
-  emitBoardHistoryEvent,
-  emitKanbanEvent,
-} from './board-events.js';
+export { findTask } from './task-lookup.js';
 
 export function buildAssignment(input: AssignKanbanTaskInput): KanbanAgentAssignment {
   return {

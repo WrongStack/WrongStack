@@ -1,11 +1,8 @@
 import type { projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
-import { projectSessionMessage } from '@wrongstack/webui-server/protocol';
+import { projectSessionMessage } from '@wrongstack/webui-protocol';
 import type { MessageHandlerDeps } from './message-handler-deps.js';
 import type { ServerMessage } from '../types.js';
-import {
-  parseAgentSessionReplays,
-  LEADER_AGENT_ID,
-} from './agent-model.js';
+import { parseAgentSessionReplays, LEADER_AGENT_ID } from './agent-model.js';
 import { replayToMessages } from './chat-model.js';
 
 /** Structured <nextsteps> tool input produced by `projectNextStepsToolInput`. */

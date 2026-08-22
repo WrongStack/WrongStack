@@ -39,11 +39,7 @@ import {
   SHELL_OPERATOR_RE,
   validateCommand,
 } from './command-security.js';
-import {
-  parseGitNameStatus,
-  parseGitNumstat,
-  tryParseTestJson,
-} from './test-output-parser.js';
+import { parseGitNameStatus, parseGitNumstat, tryParseTestJson } from './test-output-parser.js';
 
 export {
   BoundedProcessOutput,
@@ -54,10 +50,11 @@ export {
   MAX_PROCESS_OUTPUT_BYTES,
   normalizeBaseCommand,
   parseCommandArguments,
+  parseGitNameStatus,
+  parseGitNumstat,
   SHELL_OPERATOR_RE,
   validateCommand,
 };
-export { parseGitNameStatus, parseGitNumstat };
 
 // ─── Tree / Diff / Result Types ────────────────────────────────────────────
 
@@ -191,8 +188,20 @@ export class VerificationContext {
     try {
       const currentTree = await this.captureWorktreeTree();
       const [numstat, nameStatus] = await Promise.all([
-        this.runGitCommand(['diff', '--no-renames', '--numstat', useSnapshot.treeHash, currentTree]),
-        this.runGitCommand(['diff', '--no-renames', '--name-status', useSnapshot.treeHash, currentTree]),
+        this.runGitCommand([
+          'diff',
+          '--no-renames',
+          '--numstat',
+          useSnapshot.treeHash,
+          currentTree,
+        ]),
+        this.runGitCommand([
+          'diff',
+          '--no-renames',
+          '--name-status',
+          useSnapshot.treeHash,
+          currentTree,
+        ]),
       ]);
       return parseGitNumstat(numstat.stdout, parseGitNameStatus(nameStatus.stdout));
     } catch {
@@ -227,9 +236,7 @@ export class VerificationContext {
       const { stdout } = await this.runGitCommand(['status', '--porcelain']);
       const lines = stdout.split('\n').filter((l) => l.trim());
       const untracked = lines.filter((l) => l.startsWith('??')).length;
-      const unstaged = lines.filter(
-        (l) => /^.[^ ]/.test(l) && !l.startsWith('??'),
-      ).length;
+      const unstaged = lines.filter((l) => /^.[^ ]/.test(l) && !l.startsWith('??')).length;
       const staged = lines.filter((l) => /^[^ ]/.test(l) && !l.startsWith('??')).length;
       const files = lines.map((l) => l.slice(3).trim()).filter(Boolean);
       return {
@@ -275,9 +282,7 @@ export class VerificationContext {
   }
 
   /** Stat a file (size, mtime). */
-  async fileStat(
-    filePath: string,
-  ): Promise<{ exists: boolean; size: number; mtime: string }> {
+  async fileStat(filePath: string): Promise<{ exists: boolean; size: number; mtime: string }> {
     const resolved = await this.resolveProjectPath(filePath);
     if (!resolved) return { exists: false, size: 0, mtime: '' };
     try {
@@ -331,7 +336,11 @@ export class VerificationContext {
     }
 
     if (opts?.cwd && path.resolve(opts.cwd) !== path.resolve(this.projectRoot)) {
-      return this.rejectedCommand(command, start, 'Verifier commands must run at the project root.');
+      return this.rejectedCommand(
+        command,
+        start,
+        'Verifier commands must run at the project root.',
+      );
     }
 
     const tokens = parseCommandArguments(command);
@@ -353,7 +362,8 @@ export class VerificationContext {
       }
       try {
         const stat = await fsp.stat(resolved);
-        const matches = tokens[1] === '-e' || (tokens[1] === '-f' ? stat.isFile() : stat.isDirectory());
+        const matches =
+          tokens[1] === '-e' || (tokens[1] === '-f' ? stat.isFile() : stat.isDirectory());
         return {
           command,
           exitCode: matches ? 0 : 1,
@@ -370,7 +380,9 @@ export class VerificationContext {
     const isConfiguredCommand =
       this.cmdAllowAll ||
       (this.cmdAllow.has(normalizedBase) &&
-        !DEFAULT_ALLOWED_COMMANDS.some((allowed) => normalizeBaseCommand(allowed) === normalizedBase));
+        !DEFAULT_ALLOWED_COMMANDS.some(
+          (allowed) => normalizeBaseCommand(allowed) === normalizedBase,
+        ));
     if (isConfiguredCommand) {
       const [executable, ...args] = tokens;
       if (!executable) return this.rejectedCommand(command, start, 'Empty command.');
@@ -696,9 +708,7 @@ export class VerificationContext {
           bin?: string | Record<string, string>;
         };
         const relativeBin =
-          typeof packageJson.bin === 'string'
-            ? packageJson.bin
-            : packageJson.bin?.[runner];
+          typeof packageJson.bin === 'string' ? packageJson.bin : packageJson.bin?.[runner];
         if (!relativeBin || path.isAbsolute(relativeBin)) continue;
         const packageDir = path.dirname(packageJsonPath);
         const entry = path.resolve(packageDir, relativeBin);
@@ -712,4 +722,3 @@ export class VerificationContext {
     return null;
   }
 }
-

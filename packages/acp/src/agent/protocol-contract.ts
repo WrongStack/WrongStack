@@ -17,14 +17,21 @@ import {
 import { ACP_PACKAGE_VERSION } from '../version.js';
 import type { AgentServerTransport } from './stdio-transport.js';
 
-export { ACP_PROTOCOL_VERSION };
 export type { ACPMessage, ContentBlock, RequestPermissionOutcome };
+export { ACP_PROTOCOL_VERSION };
 
 // Transport's `send` is typed `ACPMessage` which predates v1 and
 // doesn't carry a `jsonrpc` field. The runtime is fine — the
 // transport just `JSON.stringify`s the message — so cast at the
 // boundary.
-type WireMessage = { jsonrpc?: '2.0'; id?: string | number; method?: string; params?: unknown; result?: unknown; error?: unknown };
+type WireMessage = {
+  jsonrpc?: '2.0';
+  id?: string | number;
+  method?: string;
+  params?: unknown;
+  result?: unknown;
+  error?: unknown;
+};
 export function toWire(msg: WireMessage): ACPMessage {
   return msg as never as ACPMessage;
 }
@@ -171,14 +178,18 @@ export interface ProtocolHandlerOptions {
    * stream back to the client before the load response. Wired from
    * `makeACPServerAgentTurn(...).replay`.
    */
-  replayFor?: ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>) | undefined;
+  replayFor?:
+    | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
+    | undefined;
   /**
    * Optional hook to prime the turn engine's session history on cold
    * `session/load` (server restart). Wired from `makeACPServerAgentTurn(...).seed`
    * — it re-feeds the persisted conversation into the next-created Agent so
    * the model resumes, not just the client UI.
    */
-  seedFor?: ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void) | undefined;
+  seedFor?:
+    | ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void)
+    | undefined;
   /** Release per-session agent/history resources after close, delete, or handler teardown. */
   disposeFor?: ((sessionId: string) => void) | undefined;
   /** Maximum sessions retained concurrently by one protocol handler. Default 64. */
@@ -201,7 +212,9 @@ export interface SessionPersistence {
   load(
     sessionId: string,
   ): Promise<
-    | (Partial<SessionState> & { history?: Array<{ sessionUpdate: string; content: unknown }> | undefined })
+    | (Partial<SessionState> & {
+        history?: Array<{ sessionUpdate: string; content: unknown }> | undefined;
+      })
     | null
   >;
 }

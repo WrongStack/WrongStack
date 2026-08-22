@@ -337,6 +337,9 @@ export type SessionEvent =
       agentName: string;
       provider: string;
       model: string;
+      logicalRequestId?: string | undefined;
+      promptManifestId?: string | undefined;
+      provenanceConfidence?: 'explicit' | 'correlated' | 'inferred' | 'unknown' | undefined;
       toolName: string;
       toolUseId: string;
       scope: 'project' | 'session' | 'task';

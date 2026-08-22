@@ -33,6 +33,8 @@ export interface ChronicleCorrelation {
   spanId: string;
   parentSpanId?: string | undefined;
   logicalRequestId?: string | undefined;
+  /** Content-addressed identity of the exact provider-visible prompt composition. */
+  promptManifestId?: string | undefined;
   attemptId?: string | undefined;
   toolCallId?: string | undefined;
 }

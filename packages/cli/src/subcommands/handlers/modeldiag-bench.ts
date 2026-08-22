@@ -6,15 +6,9 @@
 
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import type { makeProviderFromConfig } from '@wrongstack/providers';
-import type { SubcommandDeps } from '../index.js';
+import type { SubcommandDeps } from '../contracts.js';
 import { createProviderForId, type ModelDiagConfig } from './modeldiag-eval.js';
-import {
-  type CacheProvider,
-  fmtMs,
-  rankModels,
-  roleCat,
-  scoreBar,
-} from './modeldiag-profiles.js';
+import { type CacheProvider, fmtMs, rankModels, roleCat, scoreBar } from './modeldiag-profiles.js';
 
 export async function runModeldiagBench(
   args: string[],

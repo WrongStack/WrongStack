@@ -41,10 +41,7 @@ export interface FileServerOptions {
 
 export interface FileServerOperations {
   stat(file: string): Promise<{ size: number }>;
-  readFile(
-    file: string,
-    options: { encoding: 'utf8'; signal: AbortSignal },
-  ): Promise<string>;
+  readFile(file: string, options: { encoding: 'utf8'; signal: AbortSignal }): Promise<string>;
   writeFile(
     file: string,
     content: string,

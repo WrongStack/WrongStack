@@ -1,13 +1,13 @@
+import type { KanbanTask } from '../types.js';
 import type {
   GetKanbanWorkbenchInput,
   KanbanOrchestrationSnapshot,
   KanbanSearchResult,
-  KanbanTask,
   KanbanWorkbenchAlert,
   KanbanWorkbenchItem,
   KanbanWorkbenchLane,
   KanbanWorkbenchSnapshot,
-} from '../types.js';
+} from '../types-operations.js';
 import { getKanbanOrchestrationSnapshot } from './assignment.js';
 
 const DEFAULT_LANE_LIMIT = 8;

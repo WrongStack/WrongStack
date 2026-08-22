@@ -5,8 +5,8 @@ import {
   SessionCatalogProjectClient,
 } from '@wrongstack/core/storage';
 import { color, expectDefined, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
+import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandHandler } from '../index.js';
 
 interface RewindFlags {
   all?: boolean | undefined;

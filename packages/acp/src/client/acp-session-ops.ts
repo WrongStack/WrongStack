@@ -1,9 +1,4 @@
-import type {
-  AgentCapabilities,
-  McpServer,
-  SessionId,
-  SessionInfo,
-} from '../types/acp-v1.js';
+import type { AgentCapabilities, McpServer, SessionId, SessionInfo } from '../types/acp-v1.js';
 import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
@@ -93,11 +88,7 @@ export async function executeResumeSession(
     mcpServers: servers,
   });
   if (isJsonRpcError(result)) {
-    throw new ACPSessionError(
-      'prompt_failed',
-      `session/resume failed: ${result.message}`,
-      result,
-    );
+    throw new ACPSessionError('prompt_failed', `session/resume failed: ${result.message}`, result);
   }
   ctx.setSessionId(sessionId);
 }
@@ -145,11 +136,7 @@ export async function executeDeleteSession(
   const id = ctx.allocId();
   const result = await ctx.sendRequest(id, 'session/delete', { sessionId });
   if (isJsonRpcError(result)) {
-    throw new ACPSessionError(
-      'prompt_failed',
-      `session/delete failed: ${result.message}`,
-      result,
-    );
+    throw new ACPSessionError('prompt_failed', `session/delete failed: ${result.message}`, result);
   }
 
   if (ctx.sessionId === sessionId) {
@@ -228,11 +215,7 @@ export async function executeListProviders(
   const id = ctx.allocId();
   const result = await ctx.sendRequest(id, 'providers/list', {});
   if (isJsonRpcError(result)) {
-    throw new ACPSessionError(
-      'prompt_failed',
-      `providers/list failed: ${result.message}`,
-      result,
-    );
+    throw new ACPSessionError('prompt_failed', `providers/list failed: ${result.message}`, result);
   }
   const r = result as { providers?: unknown[]; currentProviderId?: string | null };
   return { providers: r.providers ?? [], currentProviderId: r.currentProviderId ?? null };

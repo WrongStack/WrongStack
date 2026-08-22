@@ -8,17 +8,15 @@ import {
   readBoardHistory,
   writeBoard,
 } from '../storage.js';
+import type { KanbanBoard, KanbanBoardHistoryEntry, KanbanColumn } from '../types.js';
 import type {
   CreateKanbanBoardInput,
   CreateKanbanColumnInput,
   DuplicateKanbanBoardInput,
-  KanbanBoard,
-  KanbanBoardHistoryEntry,
-  KanbanColumn,
   RemoveKanbanColumnOptions,
   UpdateKanbanBoardInput,
   UpdateKanbanColumnInput,
-} from '../types.js';
+} from '../types-operations.js';
 import {
   cloneTaskForBoard,
   createBoardHistoryEntry,
@@ -172,11 +170,15 @@ export async function updateBoard(
     if (input.description !== undefined) changed.description = updated.board.description ?? null;
     if (input.tags !== undefined) changed.tags = updated.board.tags ?? [];
     if (input.completedAt !== undefined) changed.completedAt = updated.board.completedAt ?? null;
-    if (input.supervisor !== undefined) changed.supervisor = updated.board.supervisor ? 'set' : 'cleared';
-    if (input.lifecycle !== undefined) changed.lifecycle = updated.board.lifecycle ? 'set' : 'cleared';
+    if (input.supervisor !== undefined)
+      changed.supervisor = updated.board.supervisor ? 'set' : 'cleared';
+    if (input.lifecycle !== undefined)
+      changed.lifecycle = updated.board.lifecycle ? 'set' : 'cleared';
     if (input.boundary !== undefined) changed.boundary = updated.board.boundary ? 'set' : 'cleared';
-    if (input.atomicity !== undefined) changed.atomicity = updated.board.atomicity ? 'set' : 'cleared';
-    if (input.completionGate !== undefined) changed.completionGate = updated.board.completionGate ? 'set' : 'cleared';
+    if (input.atomicity !== undefined)
+      changed.atomicity = updated.board.atomicity ? 'set' : 'cleared';
+    if (input.completionGate !== undefined)
+      changed.completionGate = updated.board.completionGate ? 'set' : 'cleared';
     await emitBoardHistoryEvent(
       projectRoot,
       createBoardHistoryEntry(updated.board.id, updated.board.title, 'board.updated', {

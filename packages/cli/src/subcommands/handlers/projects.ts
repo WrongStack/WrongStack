@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 export const projectsCmd: SubcommandHandler = async (_args, deps) => {
   const projectsRoot = path.join(deps.paths.globalRoot, 'projects');

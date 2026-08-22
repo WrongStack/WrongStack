@@ -1,4 +1,4 @@
-import type { ExactServerMessageType } from '@wrongstack/webui-server/protocol';
+import type { ExactServerMessageType } from '@wrongstack/webui-protocol';
 
 export type ConnectionState = 'connecting' | 'open' | 'closed';
 

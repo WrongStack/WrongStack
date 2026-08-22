@@ -4,8 +4,8 @@
  * Produces evidence: { filesChanged, added, removed, modified, deleted, diffStats[] }.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class GitDiffPlugin implements VerifierPlugin {
   readonly id = 'git_diff';
@@ -23,7 +23,11 @@ export class GitDiffPlugin implements VerifierPlugin {
     let config: { expectedFiles?: string[]; minChanges?: number; maxChanges?: number } = {};
     try {
       if (check.notes?.trim()) {
-        config = JSON.parse(check.notes) as { expectedFiles?: string[]; minChanges?: number; maxChanges?: number };
+        config = JSON.parse(check.notes) as {
+          expectedFiles?: string[];
+          minChanges?: number;
+          maxChanges?: number;
+        };
       }
     } catch {
       // not JSON

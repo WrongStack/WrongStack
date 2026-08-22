@@ -6,16 +6,15 @@ import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.j
 import { getProductionKanbanStorage } from './server/remote-storage.js';
 import { getInstalledKanbanStorageBackend } from './storage-backend.js';
 import { isInProcessTestMode } from './test-mode.js';
-import {
-  CURRENT_KANBAN_VERSION,
-  DEFAULT_COLUMNS,
-  type KanbanBoard,
-  type KanbanBoardKind,
-  type KanbanBoardMeta,
-  type KanbanBoardSummary,
-  type KanbanBoardHistoryEntry,
-  type KanbanEvent,
+import type {
+  KanbanBoard,
+  KanbanBoardHistoryEntry,
+  KanbanBoardKind,
+  KanbanBoardMeta,
+  KanbanBoardSummary,
+  KanbanEvent,
 } from './types.js';
+import { CURRENT_KANBAN_VERSION, DEFAULT_COLUMNS } from './types-operations.js';
 import { atomicWrite, withFileLock } from './utils/atomic-write.js';
 
 const KANBANS_DIR = 'kanbans';
@@ -326,10 +325,9 @@ async function trimKanbanEventLog(filePath: string, appendedBytes: number): Prom
     // The cache-entry delete above means the next append retries trimming from
     // scratch, so this fires once per failed trim, not once per append.
     const msg = error instanceof Error ? error.message : String(error);
-    process.emitWarning(
-      `Kanban event log trim failed for ${filePath}: ${msg}`,
-      { code: 'WRONGSTACK_KANBAN_EVENT_LOG_TRIM_FAILED' },
-    );
+    process.emitWarning(`Kanban event log trim failed for ${filePath}: ${msg}`, {
+      code: 'WRONGSTACK_KANBAN_EVENT_LOG_TRIM_FAILED',
+    });
   }
 }
 

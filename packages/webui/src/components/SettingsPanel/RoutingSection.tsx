@@ -1,13 +1,13 @@
 import { Layers } from 'lucide-react';
 import { useCallback, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
 import {
   formatModelMatrixRouteLabel,
   MODEL_MATRIX_DEFAULT_ROUTE,
   MODEL_MATRIX_KNOWN_ROUTES,
   MODEL_MATRIX_ROUTE_GROUPS,
 } from '@/lib/model-matrix-routes';
-import { useAppTranslation } from '@/i18n';
-import { useLocalPrefs, type LocalPrefs } from '@/stores/local-prefs';
+import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import { Button } from '../ui/button';
 
 type ModelRouteEntry = LocalPrefs['modelMatrix'][string];
@@ -90,8 +90,7 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
 
   const [newRouteKey, setNewRouteKey] = useState(MODEL_MATRIX_DEFAULT_ROUTE);
   const [newRouteTarget, setNewRouteTarget] = useState('');
-  const [newRouteReasoningMode, setNewRouteReasoningMode] =
-    useState<RouteReasoningModeControl>('');
+  const [newRouteReasoningMode, setNewRouteReasoningMode] = useState<RouteReasoningModeControl>('');
   const [newRouteReasoningEffort, setNewRouteReasoningEffort] =
     useState<RouteReasoningEffortControl>('');
   const [newRoutePreserve, setNewRoutePreserve] = useState<RoutePreserveControl>('');
@@ -104,7 +103,11 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
   const addModelRoute = useCallback(() => {
     const key = newRouteKey.trim();
     const target = newRouteTarget.trim();
-    const runtime = buildRouteRuntime(newRouteReasoningMode, newRouteReasoningEffort, newRoutePreserve);
+    const runtime = buildRouteRuntime(
+      newRouteReasoningMode,
+      newRouteReasoningEffort,
+      newRoutePreserve,
+    );
     if (!key || (!target && !runtime)) return;
     const entry: ModelRouteEntry = target
       ? localPrefs.fallbackProfiles[target]
@@ -181,7 +184,8 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
   );
 
   const formatRouteTarget = (entry: (typeof localPrefs.modelMatrix)[string]) => {
-    const modelRef = entry.provider && entry.model ? `${entry.provider}/${entry.model}` : entry.model;
+    const modelRef =
+      entry.provider && entry.model ? `${entry.provider}/${entry.model}` : entry.model;
     const reasoning = entry.modelRuntime?.reasoning;
     return [
       modelRef ?? (!entry.fallbackProfile && reasoning ? t('settings:agent.leaderModel') : ''),
@@ -224,7 +228,10 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
             ))}
           </optgroup>
           {MODEL_MATRIX_ROUTE_GROUPS.map((group) => (
-            <optgroup key={group.phase} label={t('settings:agent.routingRolesGroup', { label: group.label })}>
+            <optgroup
+              key={group.phase}
+              label={t('settings:agent.routingRolesGroup', { label: group.label })}
+            >
               {group.roles.map((role) => (
                 <option key={role.role} value={role.role}>
                   {formatModelMatrixRouteLabel(role.role)}
@@ -288,7 +295,9 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
         <select
           aria-label={t('settings:agent.routingReasoningEffortAria')}
           value={newRouteReasoningEffort}
-          onChange={(e) => setNewRouteReasoningEffort(e.target.value as RouteReasoningEffortControl)}
+          onChange={(e) =>
+            setNewRouteReasoningEffort(e.target.value as RouteReasoningEffortControl)
+          }
           className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
         >
           {ROUTE_REASONING_EFFORTS.map((opt) => (
@@ -312,9 +321,7 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
       </div>
       <div className="mt-3 space-y-1.5">
         {Object.keys(localPrefs.modelMatrix).length === 0 ? (
-          <p className="text-xs text-muted-foreground">
-            {t('settings:agent.noRoutes')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('settings:agent.noRoutes')}</p>
         ) : (
           Object.entries(localPrefs.modelMatrix)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -347,7 +354,11 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
                     aria-label={t('settings:agent.routingReasoningModeFor', { key })}
                     value={entry.modelRuntime?.reasoning?.mode ?? ''}
                     onChange={(e) =>
-                      updateModelRouteReasoning(key, 'mode', e.target.value as RouteReasoningModeControl)
+                      updateModelRouteReasoning(
+                        key,
+                        'mode',
+                        e.target.value as RouteReasoningModeControl,
+                      )
                     }
                     className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
                   >
@@ -361,7 +372,11 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
                     aria-label={t('settings:agent.routingReasoningEffortFor', { key })}
                     value={entry.modelRuntime?.reasoning?.effort ?? ''}
                     onChange={(e) =>
-                      updateModelRouteReasoning(key, 'effort', e.target.value as RouteReasoningEffortControl)
+                      updateModelRouteReasoning(
+                        key,
+                        'effort',
+                        e.target.value as RouteReasoningEffortControl,
+                      )
                     }
                     className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
                   >
@@ -381,7 +396,11 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
                           : 'off'
                     }
                     onChange={(e) =>
-                      updateModelRouteReasoning(key, 'preserve', e.target.value as RoutePreserveControl)
+                      updateModelRouteReasoning(
+                        key,
+                        'preserve',
+                        e.target.value as RoutePreserveControl,
+                      )
                     }
                     className="h-8 min-w-0 rounded-md border bg-background px-2 text-xs"
                   >

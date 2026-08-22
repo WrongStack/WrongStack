@@ -177,6 +177,12 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     a.events.emit('tool.executed', {
       sessionId: resolveEventSessionId(a.ctx),
       ...(a.ctx.traceId ? { traceId: a.ctx.traceId } : {}),
+      ...(a.ctx.activeLogicalRequestId
+        ? { logicalRequestId: a.ctx.activeLogicalRequestId }
+        : {}),
+      ...(a.ctx.activePromptManifestId
+        ? { promptManifestId: a.ctx.activePromptManifestId }
+        : {}),
       agentId: a.ctx.agentId,
       agentName: a.ctx.agentName,
       id: toolUseId,

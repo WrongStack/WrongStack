@@ -41,7 +41,7 @@ import {
 } from '../../acp-registry-cache.js';
 import { AcpServerConfigError, buildAcpServerAgentFactory } from '../../acp-server-agent.js';
 import { createGracefulShutdown } from '../../shutdown-cleanup.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 import { createAcpConnectionGate } from './acp-connection-gate.js';
 
 /** User-config ACP command overrides (never sourced from in-project config). */

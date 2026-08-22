@@ -22,11 +22,18 @@ export interface ProtocolSessionContext {
   modes: readonly SessionMode[];
   configOptions: readonly SessionConfigOption[];
   store: SessionPersistence | undefined;
-  replayFor: ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>) | undefined;
-  seedFor: ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void) | undefined;
+  replayFor:
+    | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
+    | undefined;
+  seedFor:
+    | ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void)
+    | undefined;
   onSessionNew: (state: SessionState) => void;
   allocId: () => string;
-  persist: (state: SessionState, history?: Array<{ sessionUpdate: string; content: unknown }>) => Promise<void>;
+  persist: (
+    state: SessionState,
+    history?: Array<{ sessionUpdate: string; content: unknown }>,
+  ) => Promise<void>;
   sendNotification: (params: unknown) => Promise<void>;
   sendError: (id: string | number, code: number, message: string, data?: unknown) => Promise<void>;
   sendResult: (id: string | number, result: unknown) => Promise<void>;
@@ -260,10 +267,8 @@ export async function handleSessionPromptOp(
   const onCancel = (): void => turnSignal.abort();
   session.abort.signal.addEventListener('abort', onCancel, { once: true });
 
-  const api = createRunTurnApi(
-    sessionId,
-    ctx.clientCapabilities ?? {},
-    (method, req) => ctx.request(method, req),
+  const api = createRunTurnApi(sessionId, ctx.clientCapabilities ?? {}, (method, req) =>
+    ctx.request(method, req),
   );
 
   let result: RunTurnResult;

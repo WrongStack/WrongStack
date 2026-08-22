@@ -30,7 +30,7 @@ import {
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
-import type { SubcommandDeps } from './subcommands/index.js';
+import type { SubcommandDeps } from './subcommands/contracts.js';
 import { setupProvider } from './wiring/provider.js';
 
 /**

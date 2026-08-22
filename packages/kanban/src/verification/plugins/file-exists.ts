@@ -3,8 +3,8 @@
  * Produces evidence: { path, exists, size, mtime }.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class FileExistsPlugin implements VerifierPlugin {
   readonly id = 'file_exists';

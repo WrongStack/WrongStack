@@ -15,19 +15,17 @@ export interface BoardKindFilter {
  * The default exclusion set: session mirrors and archived boards are hidden
  * from global queue operations unless explicitly requested.
  */
-export const DEFAULT_EXCLUDED_KINDS: readonly KanbanBoardKind[] = [
-  'session_mirror',
-  'archive',
-];
+export const DEFAULT_EXCLUDED_KINDS: readonly KanbanBoardKind[] = ['session_mirror', 'archive'];
 
 /**
  * Resolve effective include/exclude sets from a filter. When neither is
  * provided, the default excluded set is applied. When `includeBoardKinds` is
  * provided, it takes priority and `excludeBoardKinds` is ignored.
  */
-export function resolveKindFilter(
-  filter: BoardKindFilter | undefined,
-): { include: Set<KanbanBoardKind> | undefined; exclude: Set<KanbanBoardKind> } {
+export function resolveKindFilter(filter: BoardKindFilter | undefined): {
+  include: Set<KanbanBoardKind> | undefined;
+  exclude: Set<KanbanBoardKind>;
+} {
   if (filter?.includeBoardKinds?.length) {
     return {
       include: new Set(filter.includeBoardKinds),

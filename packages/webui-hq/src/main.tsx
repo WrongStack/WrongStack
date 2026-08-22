@@ -9,7 +9,7 @@ import {
   projectHqCommandStatusMessage,
   projectHqEventMessage,
   projectHqFleetMessage,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { HqApp } from './app.js';

@@ -18,6 +18,7 @@ import {
   ChronicleSqliteJournal,
   ChronicleStorageQuotaError,
 } from '../../src/chronicle/sqlite-journal.js';
+import { ensureChronicleSchema } from '../../src/chronicle/sqlite-journal-schema.js';
 import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 let dir: string;
@@ -44,6 +45,33 @@ afterEach(async () => {
 });
 
 describe('ChronicleSqliteJournal', () => {
+  it('migrates a v2 journal to the indexed prompt-manifest projection', () => {
+    const legacy = new DatabaseSync(':memory:');
+    try {
+      legacy.exec(`
+        CREATE TABLE events (
+          day TEXT NOT NULL, sequence INTEGER NOT NULL, event_id TEXT NOT NULL UNIQUE,
+          hash TEXT NOT NULL, previous_hash TEXT NOT NULL, occurred_at TEXT NOT NULL,
+          event_type TEXT NOT NULL, outcome TEXT, project_id TEXT, session_id TEXT,
+          agent_id TEXT, task_id TEXT, trace_id TEXT, logical_request_id TEXT,
+          resource_kind TEXT, resource_id TEXT, resource_path TEXT, duration_ns TEXT,
+          payload TEXT NOT NULL, PRIMARY KEY (day, sequence)
+        );
+        PRAGMA user_version = 2;
+      `);
+
+      ensureChronicleSchema(legacy);
+
+      const columns = legacy.prepare('PRAGMA table_info(events)').all() as Array<{ name: string }>;
+      expect(columns.map((column) => column.name)).toContain('prompt_manifest_id');
+      expect(
+        (legacy.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
+      ).toBe(3);
+    } finally {
+      legacy.close();
+    }
+  });
+
   it('anchors the first event at genesis and chains subsequent ones', async () => {
     const first = await journal.append(input());
     const second = await journal.append(input({ eventType: 'tool.started' }));

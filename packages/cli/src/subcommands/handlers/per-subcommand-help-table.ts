@@ -353,7 +353,10 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       { name: 'list', description: 'List available ACP agents from the cache.' },
       { name: 'sync', description: 'Sync the official ACP agent registry into local cache.' },
       { name: 'spawn <id> <task>', description: 'Spawn an ACP agent and wait for results.' },
-      { name: 'parallel <csv> <task>', description: 'Fan a task out to multiple ACP agents in parallel.' },
+      {
+        name: 'parallel <csv> <task>',
+        description: 'Fan a task out to multiple ACP agents in parallel.',
+      },
       { name: 'probe [csv]', description: 'Handshake-test installed ACP agents.' },
       { name: 'bench [csv] [--fs]', description: 'End-to-end benchmark and grade ACP agents.' },
     ],
@@ -445,10 +448,14 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     description:
       'Start the HQ server — a web dashboard for monitoring sessions, fleet ' +
       'status, and agent activity across projects — or manage browser and client authentication tokens.',
-    usage: 'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--open] | wstack hq token [create|list|revoke]',
+    usage:
+      'wstack hq [serve] [--port <n>] [--password <secret>] [--tunnel] [--open] | wstack hq token [create|list|revoke]',
     subcommands: [
       { name: 'serve', description: 'Start the HQ dashboard server (default).' },
-      { name: 'token create [label]', description: 'Mint a browser or client authentication token.' },
+      {
+        name: 'token create [label]',
+        description: 'Mint a browser or client authentication token.',
+      },
       { name: 'token list', description: 'List active HQ authentication tokens.' },
       { name: 'token revoke <id>', description: 'Revoke an issued HQ authentication token.' },
     ],
@@ -476,7 +483,7 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'Side-effect-free permission decision explainer. Evaluates the effective ' +
       'permission rules for a tool and input arguments without prompting, ' +
       'modifying trust files, or mutating state.',
-    usage: 'wstack permissions explain <tool> [--input \'<json>\'] [--json]',
+    usage: "wstack permissions explain <tool> [--input '<json>'] [--json]",
     subcommands: [
       {
         name: 'explain <tool>',
@@ -524,8 +531,14 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       { name: 'query [field=value ...]', description: 'Query recorded provenance events.' },
       { name: 'status', description: 'Check the Chronicle daemon and pipeline status.' },
       { name: 'facet <field>', description: 'Group and count events across a facet.' },
-      { name: 'metrics [providers|tasks|files|summary]', description: 'Query aggregated metrics from metrics.db.' },
-      { name: 'prune [--days N] [--dry-run]', description: 'Purge journal entries older than N days.' },
+      {
+        name: 'metrics [providers|tasks|files|summary]',
+        description: 'Query aggregated metrics from metrics.db.',
+      },
+      {
+        name: 'prune [--days N] [--dry-run]',
+        description: 'Purge journal entries older than N days.',
+      },
       { name: 'compact', description: 'Defragment and compact SQLite ledger.' },
     ],
     seeAlso: 'wstack audit (per-session audit log); wstack usage (cost summary)',

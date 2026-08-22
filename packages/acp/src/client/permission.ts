@@ -22,9 +22,7 @@ export interface PermissionRequest {
 }
 
 /** A permission policy decides how to respond to a request. */
-export type PermissionPolicy = (
-  req: PermissionRequest,
-) => Promise<RequestPermissionOutcome>;
+export type PermissionPolicy = (req: PermissionRequest) => Promise<RequestPermissionOutcome>;
 
 /**
  * Default policy: pick the safest-looking allow option if the signal
@@ -37,9 +35,7 @@ export type PermissionPolicy = (
  * Real WrongStack permission UIs replace this; the contract is the
  * `PermissionPolicy` function type, not the implementation.
  */
-function pickAllow(
-  options: readonly PermissionOption[],
-): RequestPermissionOutcome {
+function pickAllow(options: readonly PermissionOption[]): RequestPermissionOutcome {
   const ranked = [...options].sort((a, b) => {
     const score = (k: PermissionOption['kind']): number => {
       if (k === 'allow_once') return 0; // prefer once over always — least standing grant
@@ -56,12 +52,8 @@ function pickAllow(
   return { outcome: 'selected', optionId: chosen.optionId };
 }
 
-function pickReject(
-  options: readonly PermissionOption[],
-): RequestPermissionOutcome {
-  const reject = options.find(
-    (o) => o.kind === 'reject_once' || o.kind === 'reject_always',
-  );
+function pickReject(options: readonly PermissionOption[]): RequestPermissionOutcome {
+  const reject = options.find((o) => o.kind === 'reject_once' || o.kind === 'reject_always');
   return reject ? { outcome: 'selected', optionId: reject.optionId } : { outcome: 'cancelled' };
 }
 

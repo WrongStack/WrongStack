@@ -23,7 +23,6 @@
  * p95 are semantics, not arithmetic.
  */
 import type { DatabaseSync } from 'node:sqlite';
-import type { ChronicleEvent } from './types.js';
 import {
   type ChronicleFacet,
   type ChronicleFacetResults,
@@ -40,6 +39,7 @@ import {
   relationKeys,
   updateSummary,
 } from './query.js';
+import type { ChronicleEvent } from './types.js';
 
 /** Hard ceiling mirroring `ChronicleQueryEngine.query`. */
 const MAX_LIMIT = 10_000;
@@ -101,6 +101,7 @@ function pushDown(query: ChronicleQuery): PushedDown {
   eq('task_id', query.taskId);
   eq('trace_id', query.traceId);
   eq('logical_request_id', query.logicalRequestId);
+  eq('prompt_manifest_id', query.promptManifestId);
   eq('resource_kind', query.resourceKind);
   eq('resource_id', query.resourceId);
 

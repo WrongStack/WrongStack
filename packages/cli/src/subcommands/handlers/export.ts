@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { DefaultSessionReader } from '@wrongstack/core/storage';
 import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
+import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandHandler } from '../index.js';
 export const exportCmd: SubcommandHandler = async (args, deps) => {
   // `parseArgs` strips these before the dispatcher calls us — see restoreFlags.
   // Without them `export s1 --format json --out r.json` dumped markdown to

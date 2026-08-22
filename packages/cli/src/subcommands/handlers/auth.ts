@@ -15,8 +15,8 @@ import {
   mutateConfigProviders,
   normalizeKeys,
 } from '../../provider-config-utils.js';
+import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandHandler } from '../index.js';
 import { renderAuthLocalHelpToString, wantsLocalHelp } from './auth-local-help.js';
 
 export const authCmd: SubcommandHandler = async (args, deps) => {

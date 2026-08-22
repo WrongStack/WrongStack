@@ -12,7 +12,7 @@ import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
 import { mutateConfigProviders } from '../../provider-config-utils.js';
 import { visibleModelIds } from '../../provider-helpers.js';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 export const providersCmd: SubcommandHandler = async (args, deps) => {
   // This file DOCUMENTS the stripped-flag problem and ships `subcommandFlags`
   // for it (below), yet this handler still scanned `args` directly — so
@@ -582,12 +582,12 @@ async function modelsCaps(args: string[], deps: Parameters<SubcommandHandler>[1]
     );
     deps.renderer.write(
       '    effort:     ' +
-      (rc.effortSupported === undefined
-        ? 'not enumerated (model reasons; any level forwarded)'
-        : rc.effortSupported
-          ? rc.effortLevels.join(', ')
-          : 'unsupported') +
-      '\n',
+        (rc.effortSupported === undefined
+          ? 'not enumerated (model reasons; any level forwarded)'
+          : rc.effortSupported
+            ? rc.effortLevels.join(', ')
+            : 'unsupported') +
+        '\n',
     );
     deps.renderer.write('    preserve:   ' + rc.preserveThinking + '\n');
   } else if (caps.reasoning) {

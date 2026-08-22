@@ -4,8 +4,8 @@
  * Produces evidence: { command, exitCode, stdout, stderr, durationMs }.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../../types.js';
-import type { VerifierPlugin } from '../verifier-plugin.js';
 import type { VerificationContext } from '../verification-context.js';
+import type { VerifierPlugin } from '../verifier-plugin.js';
 
 export class CommandPlugin implements VerifierPlugin {
   readonly id = 'command';

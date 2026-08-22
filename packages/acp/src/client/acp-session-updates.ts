@@ -7,12 +7,12 @@ import type {
   ToolKind,
   UsageCost,
 } from '../types/acp-v1.js';
+import { extractText, isRecord } from './acp-session-content.js';
 import type {
   ACPCapturedDiff,
   ACPCapturedToolCall,
   ACPProgressEvent,
 } from './acp-session-types.js';
-import { extractText, isRecord } from './acp-session-content.js';
 
 export interface ACPSessionScratch {
   text: string;

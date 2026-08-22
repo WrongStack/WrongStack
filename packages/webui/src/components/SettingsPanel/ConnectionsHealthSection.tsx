@@ -19,11 +19,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useConfigStore } from '@/stores';
-import type {
-  ConnectionHealthService,
-  ConnectionsHealthReport,
-  WSServerMessage,
-} from '@/types';
+import type { ConnectionHealthService, ConnectionsHealthReport, WSServerMessage } from '@/types';
 import { Button } from '../ui/button';
 
 const REFRESH_INTERVAL_MS = 15_000;
@@ -37,7 +33,10 @@ export function ConnectionsHealthSection() {
   const [error, setError] = useState<string | null>(null);
   const [pendingActions, setPendingActions] = useState<Set<string>>(new Set());
   const [actionFeedback, setActionFeedback] = useState<
-    Record<string, { success: boolean; message: string; tone?: 'success' | 'destructive' | 'neutral' } | null>
+    Record<
+      string,
+      { success: boolean; message: string; tone?: 'success' | 'destructive' | 'neutral' } | null
+    >
   >({});
   const [autoHealing, setAutoHealing] = useState<Set<string>>(new Set());
   // Per-service feedback timers, cleared on unmount — a `client.on` handler's
@@ -330,11 +329,13 @@ function ServiceCard({
   onAction?: (serviceId: string, action: 'shutdown' | 'restart') => void;
   actionPending?: boolean;
   autoRestarting?: boolean;
-  feedback?: {
-    success: boolean;
-    message: string;
-    tone?: 'success' | 'destructive' | 'neutral' | undefined;
-  } | undefined;
+  feedback?:
+    | {
+        success: boolean;
+        message: string;
+        tone?: 'success' | 'destructive' | 'neutral' | undefined;
+      }
+    | undefined;
 }) {
   const { t } = useAppTranslation();
   const isWebui = service.id === 'webui';

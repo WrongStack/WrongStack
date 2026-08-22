@@ -1,4 +1,4 @@
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 /**
  * `wrongstack quick` — launch directly into the TUI with sensible defaults.

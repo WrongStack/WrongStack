@@ -13,7 +13,7 @@ import {
   createConnectionLifecycle,
   verifyClient as verifyWsClient,
 } from '@wrongstack/webui-server';
-import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-server/protocol';
+import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './contracts.js';
 

@@ -1,7 +1,8 @@
 import { createBoardObject, mutateBoard, readBoard, writeBoard } from '../storage.js';
 import type { PhaseGraph, PhaseNode } from '../types/phase-graph.js';
 import type { TaskGraph, TaskNode } from '../types/task-graph.js';
-import { DEFAULT_COLUMNS, type KanbanBoard } from '../types.js';
+import type { KanbanBoard } from '../types.js';
+import { DEFAULT_COLUMNS } from '../types-operations.js';
 import type {
   CreateKanbanBoardFromTaskGraphOptions,
   SyncKanbanBoardFromTaskGraphOptions,

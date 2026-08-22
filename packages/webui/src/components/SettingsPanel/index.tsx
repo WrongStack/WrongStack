@@ -479,10 +479,7 @@ export function SettingsPanel() {
               </TabsContent>
 
               <TabsContent value="execution" className="mt-0 space-y-6">
-                <ExecutionSettingsTab
-                  syncPref={syncPref}
-                  fallbackCandidates={fallbackCandidates}
-                />
+                <ExecutionSettingsTab syncPref={syncPref} fallbackCandidates={fallbackCandidates} />
               </TabsContent>
 
               <TabsContent value="fallbacks" className="mt-0">

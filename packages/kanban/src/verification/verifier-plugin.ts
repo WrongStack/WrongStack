@@ -30,8 +30,5 @@ export interface VerifierPlugin {
    * Deterministic plugins must never call an LLM.
    * Escalation plugins must populate `backingRefs` with concrete proof.
    */
-  verify(
-    check: KanbanCheck,
-    context: VerificationContext,
-  ): Promise<KanbanVerificationCheckResult>;
+  verify(check: KanbanCheck, context: VerificationContext): Promise<KanbanVerificationCheckResult>;
 }

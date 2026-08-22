@@ -43,12 +43,14 @@ export interface ModelRowData {
   modelsDev?: Record<string, unknown> | undefined;
   /** Legacy derived fields. */
   maxOutput?: number | undefined;
-  capabilities?: {
-    maxContext?: number | undefined;
-    tools?: boolean | undefined;
-    vision?: boolean | undefined;
-    reasoning?: boolean | undefined;
-  } | undefined;
+  capabilities?:
+    | {
+        maxContext?: number | undefined;
+        tools?: boolean | undefined;
+        vision?: boolean | undefined;
+        reasoning?: boolean | undefined;
+      }
+    | undefined;
   /** "catalog" = from models.dev, "custom" = user-defined, "overridden" = catalog+user edits. */
   source: 'catalog' | 'custom' | 'overridden';
 }
@@ -56,12 +58,17 @@ export interface ModelRowData {
 export interface ModelListEditorProps {
   providerId: string;
   models: string[];
-  customModels?: Record<string, {
-    name?: string | undefined;
-    maxOutput?: number | undefined;
-    capabilities?: Record<string, unknown> | undefined;
-    modelsDev?: Record<string, unknown> | undefined;
-  }> | undefined;
+  customModels?:
+    | Record<
+        string,
+        {
+          name?: string | undefined;
+          maxOutput?: number | undefined;
+          capabilities?: Record<string, unknown> | undefined;
+          modelsDev?: Record<string, unknown> | undefined;
+        }
+      >
+    | undefined;
   ws: WrongStackWebSocketClient;
   /**
    * The currently pinned/picked model id (derived from `models[0]`).
@@ -89,7 +96,9 @@ export function deriveRows(
       modelId,
       name: (md?.['name'] as string | undefined) ?? cm?.name ?? modelId,
       modelsDev: md,
-      maxOutput: cm?.maxOutput ?? (md?.['limit'] as Record<string, unknown> | undefined)?.['output'] as number | undefined,
+      maxOutput:
+        cm?.maxOutput ??
+        ((md?.['limit'] as Record<string, unknown> | undefined)?.['output'] as number | undefined),
       capabilities: cm?.capabilities as ModelRowData['capabilities'],
       // A model with an override entry is "overridden"; without any entry it
       // is a plain catalog model. (The editor does not distinguish user-created
@@ -153,8 +162,7 @@ export function ModelListEditor({
     if (!q) return rows;
     return rows.filter(
       (row) =>
-        row.modelId.toLowerCase().includes(q) ||
-        (row.name?.toLowerCase().includes(q) ?? false),
+        row.modelId.toLowerCase().includes(q) || (row.name?.toLowerCase().includes(q) ?? false),
     );
   }, [rows, filter]);
 
@@ -229,180 +237,222 @@ export function ModelListEditor({
               <thead>
                 <tr className="border-b border-border/70 bg-muted/30 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                   <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModel')}</th>
-                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colContext')}</th>
-                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colOutput')}</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('settings:providerModels.colContext')}
+                  </th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('settings:providerModels.colOutput')}
+                  </th>
                   <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCost')}</th>
-                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colModalities')}</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('settings:providerModels.colModalities')}
+                  </th>
                   <th className="px-3 py-2 font-medium">{t('settings:providerModels.colCaps')}</th>
-                  <th className="px-3 py-2 font-medium">{t('settings:providerModels.colSource')}</th>
+                  <th className="px-3 py-2 font-medium">
+                    {t('settings:providerModels.colSource')}
+                  </th>
                   <th className="px-3 py-2" aria-label={t('settings:providerModels.colActions')} />
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row) => {
-                const ctx = formatContext(row.modelsDev);
-                const maxOutputValue =
-                  (row.maxOutput ??
-                  ((row.modelsDev?.['limit'] as Record<string, unknown> | undefined)?.['output'] as
-                    | number
-                    | undefined));
-                const out = typeof maxOutputValue === 'number' ? maxOutputValue.toLocaleString() : undefined;
-                const cost = formatCost(row.modelsDev);
-                const mods = getModalities(row.modelsDev);
-                const caps = row.capabilities;
-                const isEditing = editingModel === row.modelId;
-                return (
-                  <Fragment key={row.modelId}>
-                    <tr
-                      className="border-b border-border/40 transition-colors hover:bg-muted/20"
-                    >
-                      <td className="px-3 py-2">
-                        <div className="flex flex-col">
-                          <span className="font-mono text-xs font-medium text-foreground">
-                            {row.modelId}
-                          </span>
-                          {row.name && row.name !== row.modelId && (
-                            <span className="text-[11px] text-muted-foreground">{row.name}</span>
+                  const ctx = formatContext(row.modelsDev);
+                  const maxOutputValue =
+                    row.maxOutput ??
+                    ((row.modelsDev?.['limit'] as Record<string, unknown> | undefined)?.[
+                      'output'
+                    ] as number | undefined);
+                  const out =
+                    typeof maxOutputValue === 'number'
+                      ? maxOutputValue.toLocaleString()
+                      : undefined;
+                  const cost = formatCost(row.modelsDev);
+                  const mods = getModalities(row.modelsDev);
+                  const caps = row.capabilities;
+                  const isEditing = editingModel === row.modelId;
+                  return (
+                    <Fragment key={row.modelId}>
+                      <tr className="border-b border-border/40 transition-colors hover:bg-muted/20">
+                        <td className="px-3 py-2">
+                          <div className="flex flex-col">
+                            <span className="font-mono text-xs font-medium text-foreground">
+                              {row.modelId}
+                            </span>
+                            {row.name && row.name !== row.modelId && (
+                              <span className="text-[11px] text-muted-foreground">{row.name}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {ctx ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {ctx}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
-                        {ctx ? (
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {ctx}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground">
-                        {out ? <span>{out}</span> : <span className="text-muted-foreground/40">—</span>}
-                      </td>
-                      <td className="px-3 py-2 text-xs">
-                        {cost.input || cost.output ? (
-                          <span className="inline-flex items-center gap-1 text-muted-foreground">
-                            <DollarSign className="h-3 w-3" />
-                            {cost.input && cost.output ? `${cost.input}/${cost.output}` : cost.input ?? cost.output}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-1">
-                          {mods.input.map((m) => {
-                            const Icon = MODALITY_ICONS[m] ?? FileText;
-                            return (
+                        </td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {out ? (
+                            <span>{out}</span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-xs">
+                          {cost.input || cost.output ? (
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <DollarSign className="h-3 w-3" />
+                              {cost.input && cost.output
+                                ? `${cost.input}/${cost.output}`
+                                : (cost.input ?? cost.output)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-1">
+                            {mods.input.map((m) => {
+                              const Icon = MODALITY_ICONS[m] ?? FileText;
+                              return (
+                                <span
+                                  key={`in-${m}`}
+                                  className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary"
+                                  title={`input: ${m}`}
+                                >
+                                  <Icon className="h-2.5 w-2.5" />
+                                  {m}
+                                </span>
+                              );
+                            })}
+                            {mods.output.map((m) => (
                               <span
-                                key={`in-${m}`}
-                                className="inline-flex items-center gap-0.5 rounded bg-primary/10 px-1 py-0.5 text-[10px] text-primary"
-                                title={`input: ${m}`}
+                                key={`out-${m}`}
+                                className="inline-flex items-center gap-0.5 rounded bg-secondary/20 px-1 py-0.5 text-[10px] text-secondary-foreground"
+                                title={`output: ${m}`}
                               >
-                                <Icon className="h-2.5 w-2.5" />
                                 {m}
                               </span>
-                            );
-                          })}
-                          {mods.output.map((m) => (
-                            <span
-                              key={`out-${m}`}
-                              className="inline-flex items-center gap-0.5 rounded bg-secondary/20 px-1 py-0.5 text-[10px] text-secondary-foreground"
-                              title={`output: ${m}`}
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-1">
+                            {caps?.tools && (
+                              <Wrench
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                aria-label={t('activity:modelListEditor.tools')}
+                              />
+                            )}
+                            {caps?.reasoning && (
+                              <Brain
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                aria-label={t('activity:modelListEditor.reasoning')}
+                              />
+                            )}
+                            {caps?.vision && (
+                              <Eye
+                                className="h-3.5 w-3.5 text-muted-foreground"
+                                aria-label={t('activity:modelListEditor.vision')}
+                              />
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span
+                            className={cn(
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
+                              row.source === 'custom' && 'bg-warning/10 text-warning',
+                              row.source === 'catalog' && 'bg-info/10 text-info',
+                              row.source === 'overridden' && 'bg-primary/10 text-primary',
+                            )}
+                          >
+                            {row.source}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex justify-end gap-1">
+                            {onPickModel &&
+                              (row.modelId === pickedModelId ? (
+                                <span
+                                  className="inline-flex items-center rounded p-1 text-primary"
+                                  title={t('settings:providerModels.usingModel', {
+                                    model: row.modelId,
+                                  })}
+                                  role="img"
+                                  aria-label={t('settings:providerModels.usingModel', {
+                                    model: row.modelId,
+                                  })}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => onPickModel(providerId, row.modelId)}
+                                  className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
+                                  aria-label={t('settings:providerModels.useModel', {
+                                    model: row.modelId,
+                                  })}
+                                  title={t('settings:providerModels.useModel', {
+                                    model: row.modelId,
+                                  })}
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                              ))}
+                            <button
+                              type="button"
+                              onClick={() => setEditingModel(isEditing ? null : row.modelId)}
+                              className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                              aria-label={t('settings:providerModels.editModel', {
+                                model: row.modelId,
+                              })}
                             >
-                              {m}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex gap-1">
-                          {caps?.tools && <Wrench className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.tools')} />}
-                          {caps?.reasoning && <Brain className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.reasoning')} />}
-                          {caps?.vision && <Eye className="h-3.5 w-3.5 text-muted-foreground" aria-label={t('activity:modelListEditor.vision')} />}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium',
-                            row.source === 'custom' && 'bg-warning/10 text-warning',
-                            row.source === 'catalog' && 'bg-info/10 text-info',
-                            row.source === 'overridden' && 'bg-primary/10 text-primary',
-                          )}
-                        >
-                          {row.source}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex justify-end gap-1">
-                          {onPickModel && (
-                            row.modelId === pickedModelId ? (
-                              <span
-                                className="inline-flex items-center rounded p-1 text-primary"
-                                title={t('settings:providerModels.usingModel', { model: row.modelId })}
-                                role="img"
-                                aria-label={t('settings:providerModels.usingModel', { model: row.modelId })}
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => onPickModel(providerId, row.modelId)}
-                                className="rounded p-1 text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary"
-                                aria-label={t('settings:providerModels.useModel', { model: row.modelId })}
-                                title={t('settings:providerModels.useModel', { model: row.modelId })}
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </button>
-                            )
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => setEditingModel(isEditing ? null : row.modelId)}
-                            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                            aria-label={t('settings:providerModels.editModel', { model: row.modelId })}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRemove(row.modelId)}
-                            className="rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                            aria-label={t('settings:providerModels.removeModel', { model: row.modelId })}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {isEditing && (
-                      <tr key={`${row.modelId}-edit`} className="border-b border-border/40 bg-muted/10">
-                        <td colSpan={8} className="p-3">
-                          <ModelSchemaEditor
-                            providerId={providerId}
-                            modelId={row.modelId}
-                            initialModelsDev={row.modelsDev ?? {}}
-                            onSave={handleSave}
-                            onCancel={() => setEditingModel(null)}
-                          />
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemove(row.modelId)}
+                              className="rounded p-1 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                              aria-label={t('settings:providerModels.removeModel', {
+                                model: row.modelId,
+                              })}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                      {isEditing && (
+                        <tr
+                          key={`${row.modelId}-edit`}
+                          className="border-b border-border/40 bg-muted/10"
+                        >
+                          <td colSpan={8} className="p-3">
+                            <ModelSchemaEditor
+                              providerId={providerId}
+                              modelId={row.modelId}
+                              initialModelsDev={row.modelsDev ?? {}}
+                              onSave={handleSave}
+                              onCancel={() => setEditingModel(null)}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
       {rows.length === 0 && (
         <div className="rounded-lg border border-dashed border-border/50 p-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            {t('settings:providerModels.emptyState')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings:providerModels.emptyState')}</p>
         </div>
       )}
 
@@ -429,7 +479,11 @@ export function ModelListEditor({
               <h3 className="text-sm font-semibold">
                 {t('settings:providerModels.addCustomTitle')}
               </h3>
-              <button type="button" onClick={() => setShowCustomEditor(false)} className="text-muted-foreground hover:text-foreground">
+              <button
+                type="button"
+                onClick={() => setShowCustomEditor(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>

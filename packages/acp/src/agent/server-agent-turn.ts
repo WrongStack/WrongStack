@@ -39,18 +39,8 @@
  * `{stopReason: 'cancelled'}`.
  */
 import type { Agent, AgentInput } from '@wrongstack/core/agent';
-import type {
-  ContentBlock,
-  PlanEntry,
-  StopReason,
-  ToolKind,
-  UsageCost,
-} from '../types/acp-v1.js';
-import type {
-  RunTurn,
-  RunTurnApi,
-  RunTurnResult,
-} from './protocol-handler.js';
+import type { ContentBlock, PlanEntry, StopReason, ToolKind, UsageCost } from '../types/acp-v1.js';
+import type { RunTurn, RunTurnApi, RunTurnResult } from './protocol-handler.js';
 
 export interface ACPServerAgentTurnOptions {
   /**
@@ -65,11 +55,7 @@ export interface ACPServerAgentTurnOptions {
    * client-backed permission policy and ACP-backed fs/terminal tools
    * instead of silently auto-approving against the local disk.
    */
-  agentFor: (
-    sessionId: string,
-    cwd: string,
-    api?: RunTurnApi,
-  ) => Promise<Agent> | Agent;
+  agentFor: (sessionId: string, cwd: string, api?: RunTurnApi) => Promise<Agent> | Agent;
   /**
    * Hard wall-clock cap for one turn. The agent's own provider
    * timeout is layered under this; this cap is a safety belt.
@@ -93,7 +79,11 @@ interface SessionReplayUpdate {
  * server can replay it on `session/load`.
  */
 export interface ACPServerAgentTurn {
-  (input: Parameters<RunTurn>[0], emit: Parameters<RunTurn>[1], api?: Parameters<RunTurn>[2]): Promise<RunTurnResult>;
+  (
+    input: Parameters<RunTurn>[0],
+    emit: Parameters<RunTurn>[1],
+    api?: Parameters<RunTurn>[2],
+  ): Promise<RunTurnResult>;
   /** Recorded user/agent text turns for a session, in order. */
   replay(sessionId: string): SessionReplayUpdate[];
   /**
@@ -102,7 +92,10 @@ export interface ACPServerAgentTurn {
    * primed with the prior conversation as model context — not just the
    * client UI. Call before the first post-load `session/prompt`.
    */
-  seed(sessionId: string, history: ReadonlyArray<{ sessionUpdate: string; content: unknown }>): void;
+  seed(
+    sessionId: string,
+    history: ReadonlyArray<{ sessionUpdate: string; content: unknown }>,
+  ): void;
   /** Drop the session's Agent, timers, seed marker, and in-memory replay history. */
   dispose(sessionId: string): void;
 }
@@ -115,9 +108,7 @@ export interface ACPServerAgentTurn {
  * text so the server can replay history on `session/load` (see
  * `.replay(sessionId)`).
  */
-export function makeACPServerAgentTurn(
-  opts: ACPServerAgentTurnOptions,
-): ACPServerAgentTurn {
+export function makeACPServerAgentTurn(opts: ACPServerAgentTurnOptions): ACPServerAgentTurn {
   const agents = new Map<string, Agent>();
   const timeouts = new Map<string, ReturnType<typeof setTimeout>>();
   const history = new Map<string, SessionReplayUpdate[]>();
@@ -193,9 +184,7 @@ export function makeACPServerAgentTurn(
             status: e.ok ? 'completed' : 'failed',
             ...(e.output !== undefined
               ? {
-                  content: [
-                    { type: 'content', content: { type: 'text', text: e.output } },
-                  ],
+                  content: [{ type: 'content', content: { type: 'text', text: e.output } }],
                 }
               : {}),
           });
@@ -288,9 +277,7 @@ export function makeACPServerAgentTurn(
     }
   };
 
-  const replay = (sessionId: string): SessionReplayUpdate[] => [
-    ...(history.get(sessionId) ?? []),
-  ];
+  const replay = (sessionId: string): SessionReplayUpdate[] => [...(history.get(sessionId) ?? [])];
 
   const seed = (
     sessionId: string,
@@ -323,9 +310,7 @@ export function makeACPServerAgentTurn(
 }
 
 function finitePositiveLimit(value: number | undefined, fallback: number): number {
-  return Number.isFinite(value) && (value as number) > 0
-    ? Math.floor(value as number)
-    : fallback;
+  return Number.isFinite(value) && (value as number) > 0 ? Math.floor(value as number) : fallback;
 }
 
 function trimHistory(
@@ -355,7 +340,8 @@ function seedAgentContext(
   agent: Agent,
   history: ReadonlyArray<{ sessionUpdate: string; content: unknown }>,
 ): void {
-  const state = (agent as { ctx?: { state?: { appendMessage?: (m: unknown) => void } } }).ctx?.state;
+  const state = (agent as { ctx?: { state?: { appendMessage?: (m: unknown) => void } } }).ctx
+    ?.state;
   if (!state?.appendMessage) return;
   for (const u of history) {
     const text = (u.content as { text?: unknown } | undefined)?.text;
@@ -369,17 +355,23 @@ function seedAgentContext(
 function toolNameToKind(name: string): ToolKind {
   const n = name.toLowerCase();
   if (n.includes('read') || n.includes('cat')) return 'read';
-  if (n.includes('write') || n.includes('edit') || n.includes('apply') || n.includes('patch')) return 'edit';
-  if (
-    n.includes('delete') ||
-    n === 'rm' ||
-    n.startsWith('rm_') ||
-    n.endsWith('_rm')
-  ) return 'delete';
+  if (n.includes('write') || n.includes('edit') || n.includes('apply') || n.includes('patch'))
+    return 'edit';
+  if (n.includes('delete') || n === 'rm' || n.startsWith('rm_') || n.endsWith('_rm'))
+    return 'delete';
   if (n.includes('move') || n.includes('rename') || n.includes('mv')) return 'move';
-  if (n.includes('grep') || n.includes('glob') || n.includes('search') || n.includes('find')) return 'search';
-  if (n.includes('bash') || n.includes('shell') || n.includes('exec') || n.includes('run') || n.includes('terminal')) return 'execute';
-  if (n.includes('fetch') || n.includes('http') || n.includes('web') || n.includes('url')) return 'fetch';
+  if (n.includes('grep') || n.includes('glob') || n.includes('search') || n.includes('find'))
+    return 'search';
+  if (
+    n.includes('bash') ||
+    n.includes('shell') ||
+    n.includes('exec') ||
+    n.includes('run') ||
+    n.includes('terminal')
+  )
+    return 'execute';
+  if (n.includes('fetch') || n.includes('http') || n.includes('web') || n.includes('url'))
+    return 'fetch';
   if (n.includes('think') || n.includes('plan')) return 'think';
   return 'other';
 }
@@ -442,12 +434,10 @@ function promptToAgentInput(blocks: readonly ContentBlock[]): AgentInput {
  * server's `close()` should call this so child connections don't
  * outlive the server.
  */
-export function disposeACPServerAgentTurn(
-  opts: { agents: Map<string, Agent> },
-): Promise<void> {
-  return Promise.allSettled(
-    Array.from(opts.agents.values()).map((agent) => agent.teardown()),
-  ).then(() => undefined);
+export function disposeACPServerAgentTurn(opts: { agents: Map<string, Agent> }): Promise<void> {
+  return Promise.allSettled(Array.from(opts.agents.values()).map((agent) => agent.teardown())).then(
+    () => undefined,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -537,7 +527,9 @@ function extractPlan(result: unknown): PlanEntry[] {
     // Agent provided a plan array
     return r.plan.filter(
       (e: unknown) =>
-        typeof e === 'object' && e !== null && typeof (e as { content?: unknown }).content === 'string',
+        typeof e === 'object' &&
+        e !== null &&
+        typeof (e as { content?: unknown }).content === 'string',
     ) as PlanEntry[];
   }
   return [];

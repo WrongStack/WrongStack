@@ -26,7 +26,7 @@ import {
 } from '@wrongstack/bench';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
 import { CLI_VERSION } from '../../version.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 /**
  * `wstack bench` — run model-independent agentic benchmarks (local manifests,

@@ -8,7 +8,7 @@ export const LEGACY_JSONL_MIGRATION_KEY = 'legacy-jsonl-v1';
 export const LEGACY_JSONL_QUARANTINE_KEY = 'legacy-jsonl-v1:quarantine';
 export const LEGACY_JSONL_BOUNDARY_KEY = 'legacy-jsonl-v1:boundary';
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 let Ctor: typeof DatabaseSync | null | undefined;
 
@@ -40,6 +40,7 @@ export interface ProjectedRow {
   taskId: string | null;
   traceId: string | null;
   logicalRequestId: string | null;
+  promptManifestId: string | null;
   resourceKind: string | null;
   resourceId: string | null;
   resourcePath: string | null;
@@ -57,6 +58,7 @@ export function projectEvent(event: ChronicleEvent): ProjectedRow {
     taskId: event.scope.taskId ?? null,
     traceId: event.correlation?.traceId ?? null,
     logicalRequestId: event.correlation?.logicalRequestId ?? null,
+    promptManifestId: event.correlation?.promptManifestId ?? null,
     resourceKind: event.resource?.kind ?? null,
     resourceId: event.resource?.id ?? null,
     resourcePath: event.resource?.path ?? null,
@@ -83,6 +85,7 @@ export function ensureChronicleSchema(db: DatabaseSync): void {
       task_id            TEXT,
       trace_id           TEXT,
       logical_request_id TEXT,
+      prompt_manifest_id TEXT,
       resource_kind      TEXT,
       resource_id        TEXT,
       resource_path      TEXT,
@@ -110,6 +113,10 @@ export function ensureChronicleSchema(db: DatabaseSync): void {
   if (version < 2) {
     db.exec('DROP INDEX IF EXISTS events_resource_path');
   }
+  if (version > 0 && version < 3) {
+    db.exec('ALTER TABLE events ADD COLUMN prompt_manifest_id TEXT');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS events_prompt_manifest ON events(prompt_manifest_id)');
   if (version !== SCHEMA_VERSION) {
     db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
   }

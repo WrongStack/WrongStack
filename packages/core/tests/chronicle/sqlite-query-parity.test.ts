@@ -83,7 +83,12 @@ function attempt(
   return {
     eventType: outcome === 'success' ? 'provider.attempt.completed' : 'provider.attempt.failed',
     scope: { installationId: 'inst', machineId: 'mach', sessionId: 'sess-a', agentId: 'agent-1' },
-    correlation: { traceId: 'trace-a', spanId: 'span-a', logicalRequestId: 'lr-1' },
+    correlation: {
+      traceId: 'trace-a',
+      spanId: 'span-a',
+      logicalRequestId: 'lr-1',
+      promptManifestId: 'prompt_1',
+    },
     runtime: { providerId, modelId },
     outcome,
     durationNs: String(durationMs * 1_000_000),
@@ -137,6 +142,7 @@ const QUERIES: Array<[string, ChronicleQuery]> = [
   ['by model (not a column)', { modelId: 'gpt-5' }],
   ['by trace', { traceId: 'trace-b' }],
   ['by logical request', { logicalRequestId: 'lr-1' }],
+  ['by prompt manifest', { promptManifestId: 'prompt_1' }],
   ['by resource path (not a column)', { path: 'src/a.ts' }],
   ['by tag (lives in the payload)', { tags: { tool: 'read' } }],
   ['by date range', { from: '2026-03-03T00:00:00.000Z' }],

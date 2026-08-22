@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 /**
  * `wrongstack sessions fleet [runId]`

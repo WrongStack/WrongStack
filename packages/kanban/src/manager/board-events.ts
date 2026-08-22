@@ -45,7 +45,9 @@ export function createBoardHistoryEntry(
   boardId: string,
   boardTitle: string,
   type: string,
-  details: Partial<Omit<KanbanBoardHistoryEntry, 'id' | 'boardId' | 'boardTitle' | 'type' | 'ts'>> = {},
+  details: Partial<
+    Omit<KanbanBoardHistoryEntry, 'id' | 'boardId' | 'boardTitle' | 'type' | 'ts'>
+  > = {},
 ): KanbanBoardHistoryEntry {
   return {
     id: randomUUID(),

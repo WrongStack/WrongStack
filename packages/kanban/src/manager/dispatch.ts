@@ -27,17 +27,17 @@ import type {
   KanbanRetryPolicy,
   KanbanTask,
 } from '../types.js';
+import type { KanbanLifecycleValidationIssue } from '../types-operations.js';
 import type { CompletionGateResult } from '../verification/completion-gate.js';
+import { finalizeTaskCompletion } from '../verification/completion-gate.js';
+import { createKanbanEvent, emitKanbanEvent } from './_internal.js';
 import {
   claimReadyTask,
   heartbeatTaskAssignment,
   releaseTaskClaim,
   updateTaskAssignment,
 } from './assignment.js';
-import { createKanbanEvent, emitKanbanEvent } from './_internal.js';
 import { transitionTask } from './lifecycle.js';
-import type { KanbanLifecycleValidationIssue } from '../types-operations.js';
-import { finalizeTaskCompletion } from '../verification/completion-gate.js';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -223,9 +223,7 @@ async function recordLifecycleTransitionFailure(
   }
   const payload: DispatchLifecycleError = { message, issues };
 
-  process.stderr.write(
-    `[kanban] ${operation}: lifecycle transition failed: ${message}\n`,
-  );
+  process.stderr.write(`[kanban] ${operation}: lifecycle transition failed: ${message}\n`);
   try {
     await emitKanbanEvent(
       projectRoot,
@@ -271,18 +269,12 @@ export async function reserveKanbanDispatch(
     ...(r?.fallbackModels !== undefined ? { fallbackModels: r.fallbackModels } : {}),
     ...(r?.skills !== undefined ? { skills: r.skills } : {}),
     ...(r?.tools !== undefined ? { tools: r.tools } : {}),
-    ...(r?.allowedCapabilities !== undefined
-      ? { allowedCapabilities: r.allowedCapabilities }
-      : {}),
+    ...(r?.allowedCapabilities !== undefined ? { allowedCapabilities: r.allowedCapabilities } : {}),
     ...(input.budget?.costCeilingUsd !== undefined
       ? { costCeilingUsd: input.budget.costCeilingUsd }
       : {}),
-    ...(input.budget?.retryPolicy !== undefined
-      ? { retryPolicy: input.budget.retryPolicy }
-      : {}),
-    ...(input.budget?.maxAttempts !== undefined
-      ? { maxAttempts: input.budget.maxAttempts }
-      : {}),
+    ...(input.budget?.retryPolicy !== undefined ? { retryPolicy: input.budget.retryPolicy } : {}),
+    ...(input.budget?.maxAttempts !== undefined ? { maxAttempts: input.budget.maxAttempts } : {}),
     leaseId: lease.leaseId,
     claimedAt: lease.claimedAt,
     heartbeatAt: lease.heartbeatAt,
@@ -364,7 +356,11 @@ export async function startKanbanDispatch(
         );
         const task = updated.tasks.find((t) => t.id === input.taskId);
         return task
-          ? { board: updated, task, ...(lifecycleTransitionError ? { lifecycleTransitionError } : {}) }
+          ? {
+              board: updated,
+              task,
+              ...(lifecycleTransitionError ? { lifecycleTransitionError } : {}),
+            }
           : null;
       }
     }

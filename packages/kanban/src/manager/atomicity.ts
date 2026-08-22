@@ -4,8 +4,8 @@
  * Automatic stamping at creation/split time lives in _internal.stampAtomicityAssessment.
  */
 
-import { mutateBoard } from '../storage.js';
 import { assessAtomicity, candidateFromKanbanTask } from '../atomicity/assess.js';
+import { mutateBoard } from '../storage.js';
 import type {
   AtomicityRuleSetConfig,
   KanbanAtomicityAssessment,

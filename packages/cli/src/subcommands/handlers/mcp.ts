@@ -9,8 +9,8 @@ import {
 } from '@wrongstack/core/utils';
 import { serveMcpStdio } from '../../mcp-serve.js';
 import { activeProfileConfigPath } from '../../profile-config-path.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
 const BUILT_IN_MCP = allServers();
 

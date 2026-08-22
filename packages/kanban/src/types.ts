@@ -912,7 +912,7 @@ export interface KanbanBoard {
   /** Completion-gate policy; defaults resolved by resolveGateEnforcement(). */
   completionGate?: KanbanCompletionGatePolicy | undefined;
   /** Goodhart-safe objective/impact/guardrail/evidence graph for autonomous work. */
-  contractGraph?: import('./types-operations.js').KanbanContractGraph | undefined;
+  contractGraph?: import('./types-contract-graph.js').KanbanContractGraph | undefined;
   /** Sessions and agents that recently read or mutated this board. */
   presence?: KanbanBoardPresence[] | undefined;
   version: number;
@@ -965,5 +965,3 @@ export type KanbanBoardSummary = Pick<
   completedTaskCount: number;
   lastActivity?: string | undefined;
 };
-
-export * from './types-operations.js';

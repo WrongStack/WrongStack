@@ -65,10 +65,12 @@ export interface Implementation {
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface ClientCapabilities {
-  fs?: {
-    readTextFile?: boolean | undefined;
-    writeTextFile?: boolean | undefined;
-  } | undefined;
+  fs?:
+    | {
+        readTextFile?: boolean | undefined;
+        writeTextFile?: boolean | undefined;
+      }
+    | undefined;
   terminal?: boolean | undefined;
 }
 
@@ -122,11 +124,11 @@ export interface AuthenticateRequest {
   methodId: string;
 }
 
-export type AuthenticateResponse = {}
+export type AuthenticateResponse = {};
 
-export type LogoutRequest = {}
+export type LogoutRequest = {};
 
-export type LogoutResponse = {}
+export type LogoutResponse = {};
 
 // ────────────────────────────────────────────────────────────────────────────
 // MCP server configuration — sent in session lifecycle requests
@@ -199,7 +201,7 @@ export interface CloseSessionRequest {
   sessionId: SessionId;
 }
 
-export type CloseSessionResponse = {}
+export type CloseSessionResponse = {};
 
 export interface ListSessionsRequest {
   cursor?: string | undefined;
@@ -215,7 +217,7 @@ export interface DeleteSessionRequest {
   sessionId: SessionId;
 }
 
-export type DeleteSessionResponse = {}
+export type DeleteSessionResponse = {};
 
 // ────────────────────────────────────────────────────────────────────────────
 // Session config options
@@ -422,11 +424,7 @@ export interface SessionModeState {
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Reserved spec categories. Underscore-prefixed names are free for custom use. */
-export type ConfigOptionCategory =
-  | 'mode'
-  | 'model'
-  | 'thought_level'
-  | `_${string}`;
+export type ConfigOptionCategory = 'mode' | 'model' | 'thought_level' | `_${string}`;
 
 export type ConfigOptionType = 'select' | string;
 
@@ -481,11 +479,7 @@ export interface UsageUpdate {
 // Permission requests
 // ────────────────────────────────────────────────────────────────────────────
 
-export type PermissionOptionKind =
-  | 'allow_once'
-  | 'allow_always'
-  | 'reject_once'
-  | 'reject_always';
+export type PermissionOptionKind = 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
 
 export interface PermissionOption {
   optionId: string;
@@ -668,7 +662,5 @@ export interface SessionUpdateNotification {
  * without updating the consumer.
  */
 export function assertNeverSessionUpdate(x: never): never {
-  throw new Error(
-    `Unhandled sessionUpdate: ${JSON.stringify(x)}`,
-  );
+  throw new Error(`Unhandled sessionUpdate: ${JSON.stringify(x)}`);
 }

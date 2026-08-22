@@ -1,5 +1,5 @@
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 export const toolsCmd: SubcommandHandler = async (_args, deps) => {
   const reg = deps.toolRegistry;

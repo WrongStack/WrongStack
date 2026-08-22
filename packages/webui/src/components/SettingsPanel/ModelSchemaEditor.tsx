@@ -5,15 +5,13 @@
  * Client-side validation via the ME-1 zod schema (modelsDevModelSchema).
  * Optional raw-JSON advanced tab.
  */
+
+import { MODELS_DEV_MODALITY_VALUES, modelsDevModelSchema } from '@wrongstack/core/models';
 import { Check, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
-import {
-  MODELS_DEV_MODALITY_VALUES,
-  modelsDevModelSchema,
-} from '@wrongstack/core/models';
 
 export interface ModelSchemaEditorProps {
   providerId: string;
@@ -91,17 +89,35 @@ export function buildPayload(
 
   // Limits — deep-merge so untouched sub-fields survive.
   const limit: Record<string, number> = {};
-  if (fs.limitContext) { const n = Number(fs.limitContext); if (Number.isFinite(n) && n >= 0) limit['context'] = n; }
-  if (fs.limitOutput) { const n = Number(fs.limitOutput); if (Number.isFinite(n) && n >= 0) limit['output'] = n; }
-  if (fs.limitInput) { const n = Number(fs.limitInput); if (Number.isFinite(n) && n >= 0) limit['input'] = n; }
+  if (fs.limitContext) {
+    const n = Number(fs.limitContext);
+    if (Number.isFinite(n) && n >= 0) limit['context'] = n;
+  }
+  if (fs.limitOutput) {
+    const n = Number(fs.limitOutput);
+    if (Number.isFinite(n) && n >= 0) limit['output'] = n;
+  }
+  if (fs.limitInput) {
+    const n = Number(fs.limitInput);
+    if (Number.isFinite(n) && n >= 0) limit['input'] = n;
+  }
   if (Object.keys(limit).length > 0) {
-    out['limit'] = { ...((initial['limit'] as Record<string, unknown> | undefined) ?? {}), ...limit };
+    out['limit'] = {
+      ...((initial['limit'] as Record<string, unknown> | undefined) ?? {}),
+      ...limit,
+    };
   }
 
   // Pricing — deep-merge so cache_read/cache_write/tiers survive.
   const cost: Record<string, number> = {};
-  if (fs.costInput) { const n = Number(fs.costInput); if (Number.isFinite(n) && n >= 0) cost['input'] = n; }
-  if (fs.costOutput) { const n = Number(fs.costOutput); if (Number.isFinite(n) && n >= 0) cost['output'] = n; }
+  if (fs.costInput) {
+    const n = Number(fs.costInput);
+    if (Number.isFinite(n) && n >= 0) cost['input'] = n;
+  }
+  if (fs.costOutput) {
+    const n = Number(fs.costOutput);
+    if (Number.isFinite(n) && n >= 0) cost['output'] = n;
+  }
   if (Object.keys(cost).length > 0) {
     out['cost'] = { ...((initial['cost'] as Record<string, unknown> | undefined) ?? {}), ...cost };
   }
@@ -163,12 +179,9 @@ export function ModelSchemaEditor({
   );
   const [rawError, setRawError] = useState<string | null>(null);
 
-  const update = useCallback(
-    <K extends keyof FormState>(key: K, value: FormState[K]) => {
-      setForm((prev) => ({ ...prev, [key]: value }));
-    },
-    [],
-  );
+  const update = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }, []);
 
   const toggleModality = useCallback(
     (direction: 'inputModalities' | 'outputModalities', value: string) => {
@@ -214,7 +227,8 @@ export function ModelSchemaEditor({
 
   const inputStyle =
     'h-8 w-full rounded-md border border-border bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring';
-  const labelStyle = 'mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
+  const labelStyle =
+    'mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground';
 
   return (
     <div className="space-y-4">
@@ -225,7 +239,9 @@ export function ModelSchemaEditor({
           onClick={() => setShowRaw(false)}
           className={cn(
             'border-b-2 px-3 py-1 text-xs font-medium transition-colors',
-            !showRaw ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+            !showRaw
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground',
           )}
         >
           {t('settings:providerModels.tabForm')}
@@ -235,7 +251,9 @@ export function ModelSchemaEditor({
           onClick={() => setShowRaw(true)}
           className={cn(
             'border-b-2 px-3 py-1 text-xs font-medium transition-colors',
-            showRaw ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
+            showRaw
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground',
           )}
         >
           {t('settings:providerModels.tabRawJson')}
@@ -251,7 +269,9 @@ export function ModelSchemaEditor({
             </legend>
             {!modelId && (
               <div>
-                <label className={labelStyle} htmlFor="mse-id">ID</label>
+                <label className={labelStyle} htmlFor="mse-id">
+                  ID
+                </label>
                 <input
                   id="mse-id"
                   className={inputStyle}
@@ -262,16 +282,37 @@ export function ModelSchemaEditor({
               </div>
             )}
             <div>
-              <label className={labelStyle} htmlFor="mse-name">{t('settings:providerModels.fieldName')}</label>
-              <input id="mse-name" className={inputStyle} value={form.name} onChange={(e) => update('name', e.target.value)} />
+              <label className={labelStyle} htmlFor="mse-name">
+                {t('settings:providerModels.fieldName')}
+              </label>
+              <input
+                id="mse-name"
+                className={inputStyle}
+                value={form.name}
+                onChange={(e) => update('name', e.target.value)}
+              />
             </div>
             <div>
-              <label className={labelStyle} htmlFor="mse-desc">{t('settings:providerModels.fieldDescription')}</label>
-              <input id="mse-desc" className={inputStyle} value={form.description} onChange={(e) => update('description', e.target.value)} />
+              <label className={labelStyle} htmlFor="mse-desc">
+                {t('settings:providerModels.fieldDescription')}
+              </label>
+              <input
+                id="mse-desc"
+                className={inputStyle}
+                value={form.description}
+                onChange={(e) => update('description', e.target.value)}
+              />
             </div>
             <div>
-              <label className={labelStyle} htmlFor="mse-family">{t('settings:providerModels.fieldFamily')}</label>
-              <input id="mse-family" className={inputStyle} value={form.family} onChange={(e) => update('family', e.target.value)} />
+              <label className={labelStyle} htmlFor="mse-family">
+                {t('settings:providerModels.fieldFamily')}
+              </label>
+              <input
+                id="mse-family"
+                className={inputStyle}
+                value={form.family}
+                onChange={(e) => update('family', e.target.value)}
+              />
             </div>
           </fieldset>
 
@@ -282,16 +323,40 @@ export function ModelSchemaEditor({
             </legend>
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className={labelStyle} htmlFor="mse-ctx">{t('settings:providerModels.fieldContext')}</label>
-                <input id="mse-ctx" type="number" className={inputStyle} value={form.limitContext} onChange={(e) => update('limitContext', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-ctx">
+                  {t('settings:providerModels.fieldContext')}
+                </label>
+                <input
+                  id="mse-ctx"
+                  type="number"
+                  className={inputStyle}
+                  value={form.limitContext}
+                  onChange={(e) => update('limitContext', e.target.value)}
+                />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="mse-out">{t('settings:providerModels.fieldOutput')}</label>
-                <input id="mse-out" type="number" className={inputStyle} value={form.limitOutput} onChange={(e) => update('limitOutput', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-out">
+                  {t('settings:providerModels.fieldOutput')}
+                </label>
+                <input
+                  id="mse-out"
+                  type="number"
+                  className={inputStyle}
+                  value={form.limitOutput}
+                  onChange={(e) => update('limitOutput', e.target.value)}
+                />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="mse-inlim">{t('settings:providerModels.fieldInputLimit')}</label>
-                <input id="mse-inlim" type="number" className={inputStyle} value={form.limitInput} onChange={(e) => update('limitInput', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-inlim">
+                  {t('settings:providerModels.fieldInputLimit')}
+                </label>
+                <input
+                  id="mse-inlim"
+                  type="number"
+                  className={inputStyle}
+                  value={form.limitInput}
+                  onChange={(e) => update('limitInput', e.target.value)}
+                />
               </div>
             </div>
           </fieldset>
@@ -303,12 +368,30 @@ export function ModelSchemaEditor({
             </legend>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={labelStyle} htmlFor="mse-costin">{t('settings:providerModels.fieldCostInput')}</label>
-                <input id="mse-costin" type="number" step="0.01" className={inputStyle} value={form.costInput} onChange={(e) => update('costInput', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-costin">
+                  {t('settings:providerModels.fieldCostInput')}
+                </label>
+                <input
+                  id="mse-costin"
+                  type="number"
+                  step="0.01"
+                  className={inputStyle}
+                  value={form.costInput}
+                  onChange={(e) => update('costInput', e.target.value)}
+                />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="mse-costout">{t('settings:providerModels.fieldCostOutput')}</label>
-                <input id="mse-costout" type="number" step="0.01" className={inputStyle} value={form.costOutput} onChange={(e) => update('costOutput', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-costout">
+                  {t('settings:providerModels.fieldCostOutput')}
+                </label>
+                <input
+                  id="mse-costout"
+                  type="number"
+                  step="0.01"
+                  className={inputStyle}
+                  value={form.costOutput}
+                  onChange={(e) => update('costOutput', e.target.value)}
+                />
               </div>
             </div>
           </fieldset>
@@ -319,7 +402,9 @@ export function ModelSchemaEditor({
               {t('settings:providerModels.sectionModalities')}
             </legend>
             <div>
-              <span className={labelStyle}>{t('settings:providerModels.fieldInputModalities')}</span>
+              <span className={labelStyle}>
+                {t('settings:providerModels.fieldInputModalities')}
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {MODELS_DEV_MODALITY_VALUES.map((m) => {
                   const active = form.inputModalities.includes(m);
@@ -342,7 +427,9 @@ export function ModelSchemaEditor({
               </div>
             </div>
             <div>
-              <span className={labelStyle}>{t('settings:providerModels.fieldOutputModalities')}</span>
+              <span className={labelStyle}>
+                {t('settings:providerModels.fieldOutputModalities')}
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {MODELS_DEV_MODALITY_VALUES.map((m) => {
                   const active = form.outputModalities.includes(m);
@@ -393,12 +480,28 @@ export function ModelSchemaEditor({
             </legend>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={labelStyle} htmlFor="mse-release">{t('settings:providerModels.fieldReleaseDate')}</label>
-                <input id="mse-release" type="date" className={inputStyle} value={form.releaseDate} onChange={(e) => update('releaseDate', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-release">
+                  {t('settings:providerModels.fieldReleaseDate')}
+                </label>
+                <input
+                  id="mse-release"
+                  type="date"
+                  className={inputStyle}
+                  value={form.releaseDate}
+                  onChange={(e) => update('releaseDate', e.target.value)}
+                />
               </div>
               <div>
-                <label className={labelStyle} htmlFor="mse-updated">{t('settings:providerModels.fieldLastUpdated')}</label>
-                <input id="mse-updated" type="date" className={inputStyle} value={form.lastUpdated} onChange={(e) => update('lastUpdated', e.target.value)} />
+                <label className={labelStyle} htmlFor="mse-updated">
+                  {t('settings:providerModels.fieldLastUpdated')}
+                </label>
+                <input
+                  id="mse-updated"
+                  type="date"
+                  className={inputStyle}
+                  value={form.lastUpdated}
+                  onChange={(e) => update('lastUpdated', e.target.value)}
+                />
               </div>
             </div>
           </fieldset>
@@ -407,7 +510,9 @@ export function ModelSchemaEditor({
           {errors.length > 0 && (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2">
               <ul className="space-y-0.5 text-xs text-destructive">
-                {errors.map((e, i) => <li key={i}>{e}</li>)}
+                {errors.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
               </ul>
             </div>
           )}
@@ -428,7 +533,13 @@ export function ModelSchemaEditor({
 
       {/* Actions */}
       <div className="flex items-center justify-end gap-2 border-t border-border/50 pt-3">
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel} className="h-8 gap-1.5 text-xs">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={onCancel}
+          className="h-8 gap-1.5 text-xs"
+        >
           <X className="h-3.5 w-3.5" />
           {t('common:action.cancel')}
         </Button>

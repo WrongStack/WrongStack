@@ -22,7 +22,13 @@ import type {
   KanbanEventContext,
   KanbanTask,
 } from '../types.js';
-import { createKanbanEvent, emitKanbanEvent, findTask, hasDependencyPath, nowIso } from './_internal.js';
+import {
+  createKanbanEvent,
+  emitKanbanEvent,
+  findTask,
+  hasDependencyPath,
+  nowIso,
+} from './_internal.js';
 import { splitTask } from './dependencies.js';
 
 export interface ProposeTaskDecompositionInput {
@@ -165,9 +171,7 @@ export async function proposeTaskDecomposition(
         mode: resolvedMode,
         subtasks: seeded.result.proposal.proposedSubtasks.map((subtask) => ({
           title: subtask.title,
-          ...(subtask.successCriteria?.length
-            ? { successCriteria: subtask.successCriteria }
-            : {}),
+          ...(subtask.successCriteria?.length ? { successCriteria: subtask.successCriteria } : {}),
         })),
         ...(input.rationale !== undefined ? { rationale: input.rationale } : {}),
       },

@@ -42,6 +42,8 @@ function makeFileEventCtx(overrides: Record<string, unknown> = {}) {
     meta: {},
     session: { id: 'sess-file-events' },
     traceId: undefined,
+    activeLogicalRequestId: 'request-file-events',
+    activePromptManifestId: 'prompt_file_events',
     agentId: 'test-agent',
     agentName: 'Test Agent',
     projectRoot,
@@ -163,6 +165,9 @@ describe('ToolExecutor — file event auto-emission', () => {
     expect(busArg.sessionId).toBe('sess-file-events');
     expect(busArg.provider).toBe('test-provider');
     expect(busArg.model).toBe('test-model');
+    expect(busArg.logicalRequestId).toBe('request-file-events');
+    expect(busArg.promptManifestId).toBe('prompt_file_events');
+    expect(busArg.provenanceConfidence).toBe('explicit');
     expect(busArg.scope).toBe('session'); // no kanban task set
   });
 

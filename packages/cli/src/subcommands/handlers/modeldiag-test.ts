@@ -15,7 +15,7 @@ import {
   normalizeKeys,
   writeKeysBack,
 } from '../../provider-config-utils.js';
-import type { SubcommandDeps } from '../index.js';
+import type { SubcommandDeps } from '../contracts.js';
 import {
   buildModelSmokeTargets,
   type ModelSmokeResult,
@@ -89,9 +89,7 @@ export async function runModeldiagTest(
       }
       writeLine();
       writeLine(
-        color.dim(
-          `${targets.length} request(s) would run sequentially. Remove --plan to execute.`,
-        ),
+        color.dim(`${targets.length} request(s) would run sequentially. Remove --plan to execute.`),
       );
     }
     return targets.length > 0 ? 0 : 2;
@@ -101,9 +99,7 @@ export async function runModeldiagTest(
     const message =
       'No provider/model targets matched. Check the active profile or remove filters.';
     if (smokeOptions.json) {
-      writeLine(
-        JSON.stringify({ results: [], summary: { passed: 0, failed: 0 }, error: message }),
-      );
+      writeLine(JSON.stringify({ results: [], summary: { passed: 0, failed: 0 }, error: message }));
     } else {
       writeLine(color.amber(message));
     }
@@ -184,7 +180,9 @@ export async function runModeldiagTest(
       targets,
       options: smokeOptions,
       createProvider: async (providerId) => {
-        const saved = (config.providers as Record<string, ProviderConfig> | undefined)?.[providerId];
+        const saved = (config.providers as Record<string, ProviderConfig> | undefined)?.[
+          providerId
+        ];
         const resolved =
           (await deps.modelsRegistry.getProvider(providerId).catch(() => undefined)) ??
           (saved?.type && saved.type !== providerId

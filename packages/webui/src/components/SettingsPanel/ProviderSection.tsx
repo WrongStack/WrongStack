@@ -13,17 +13,17 @@ import {
   XCircle,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
 import { toast } from '@/components/Toaster';
+import { useFieldKeyboardNav } from '@/hooks/useFieldKeyboardNav';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { WrongStackWebSocketClient } from '@/lib/ws-client';
 import type { WSServerMessage } from '@/types';
+import { ModelEditor, type ModelEntry } from '../SetupScreen/ModelEditor';
 import { ApiKeyDisplay } from '../ui/api-key-display';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { useFieldKeyboardNav } from '@/hooks/useFieldKeyboardNav';
 import { LOCAL_PRESET_FAMILY, LOCAL_SERVER_PRESETS } from './local-presets';
-import { ModelEditor, type ModelEntry } from '../SetupScreen/ModelEditor';
 import { OAuthLoginSection } from './OAuthLoginSection';
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 
@@ -46,18 +46,25 @@ export interface SavedProvider {
   /** Saved model allowlist, in the order the user pinned them. */
   models?: string[] | undefined;
   /** Per-model metadata (display name, output limits, capability overrides). */
-  customModels?: Record<string, {
-    name?: string | undefined;
-    maxOutput?: number | undefined;
-    capabilities?: {
-      maxContext?: number | undefined;
-      tools?: boolean | undefined;
-      vision?: boolean | undefined;
-      reasoning?: boolean | undefined;
-      streaming?: boolean | undefined;
-      jsonMode?: boolean | undefined;
-    } | undefined;
-  }> | undefined;
+  customModels?:
+    | Record<
+        string,
+        {
+          name?: string | undefined;
+          maxOutput?: number | undefined;
+          capabilities?:
+            | {
+                maxContext?: number | undefined;
+                tools?: boolean | undefined;
+                vision?: boolean | undefined;
+                reasoning?: boolean | undefined;
+                streaming?: boolean | undefined;
+                jsonMode?: boolean | undefined;
+              }
+            | undefined;
+        }
+      >
+    | undefined;
   /** First entry of `models`, surfaced for the panel's "Using" line. */
   pickedModelId?: string | undefined;
   apiKeys: Array<{
@@ -103,7 +110,16 @@ export interface ProviderSectionProps {
     baseUrl?: string | undefined,
     apiKey?: string,
     models?: string[] | undefined,
-    customModels?: Record<string, { name?: string | undefined; maxOutput?: number | undefined; capabilities?: Record<string, unknown> | undefined }> | undefined,
+    customModels?:
+      | Record<
+          string,
+          {
+            name?: string | undefined;
+            maxOutput?: number | undefined;
+            capabilities?: Record<string, unknown> | undefined;
+          }
+        >
+      | undefined,
   ) => void;
   /** Called to remove a saved provider. */
   onRemoveProvider: (providerId: string) => void;
@@ -177,7 +193,12 @@ export function ProviderSection({
       newProviderModels.length > 0
         ? Object.fromEntries(
             newProviderModels
-              .filter((m) => m.name || m.maxOutput || (m.capabilities && Object.keys(m.capabilities).length > 0))
+              .filter(
+                (m) =>
+                  m.name ||
+                  m.maxOutput ||
+                  (m.capabilities && Object.keys(m.capabilities).length > 0),
+              )
               .map((m) => [
                 m.id,
                 {
@@ -197,7 +218,14 @@ export function ProviderSection({
     setNewProviderApiKey('');
     setNewProviderModels([]);
     setShowAddProviderForm(false);
-  }, [onAddProvider, newProviderId, newProviderFamily, newProviderBaseUrl, newProviderApiKey, newProviderModels]);
+  }, [
+    onAddProvider,
+    newProviderId,
+    newProviderFamily,
+    newProviderBaseUrl,
+    newProviderApiKey,
+    newProviderModels,
+  ]);
 
   /**
    * Pre-fill the Add Provider form from a local-server preset (OmniRoute /
@@ -205,16 +233,13 @@ export function ProviderSection({
    * `wstack auth local` quick-pick. Keyless (noAuth) presets clear the key
    * field; keyed ones leave whatever the user already typed.
    */
-  const handlePickLocalPreset = useCallback(
-    (preset: (typeof LOCAL_SERVER_PRESETS)[number]) => {
-      setNewProviderId(preset.id);
-      setNewProviderFamily(LOCAL_PRESET_FAMILY);
-      setNewProviderBaseUrl(preset.defaultBaseUrl);
-      if (preset.noAuth) setNewProviderApiKey('');
-      setNewProviderModels([]);
-    },
-    [],
-  );
+  const handlePickLocalPreset = useCallback((preset: (typeof LOCAL_SERVER_PRESETS)[number]) => {
+    setNewProviderId(preset.id);
+    setNewProviderFamily(LOCAL_PRESET_FAMILY);
+    setNewProviderBaseUrl(preset.defaultBaseUrl);
+    if (preset.noAuth) setNewProviderApiKey('');
+    setNewProviderModels([]);
+  }, []);
 
   // ── Inline catalog keying + save-time probe ──
   const [inlineKeyFor, setInlineKeyFor] = useState<string | null>(null);
@@ -326,9 +351,7 @@ export function ProviderSection({
           <Globe className="h-4 w-4 text-muted-foreground" />
           {t('settings:provider.apiKeysHeading')}
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t('settings:provider.apiKeysBody')}
-        </p>
+        <p className="text-xs text-muted-foreground mb-3">{t('settings:provider.apiKeysBody')}</p>
       </div>
 
       {/* Provider source toggle */}
@@ -355,7 +378,9 @@ export function ProviderSection({
       {providerTab === 'catalog' && (
         <div className="space-y-4">
           <Input
-            placeholder={t('settings:provider.searchPlaceholder', { count: catalogProviders.length })}
+            placeholder={t('settings:provider.searchPlaceholder', {
+              count: catalogProviders.length,
+            })}
             value={catalogQuery}
             onChange={(e) => setCatalogQuery(e.target.value)}
             className="text-sm"
@@ -363,7 +388,9 @@ export function ProviderSection({
           {isLoadingCatalog && catalogProviders.length === 0 ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">{t('settings:provider.loadingCatalog')}</span>
+              <span className="ml-2 text-muted-foreground">
+                {t('settings:provider.loadingCatalog')}
+              </span>
             </div>
           ) : filteredCatalog.length === 0 && catalogQuery ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
@@ -453,7 +480,9 @@ export function ProviderSection({
                                     <Input
                                       autoFocus
                                       type={inlineKeyReveal ? 'text' : 'password'}
-                                      placeholder={t('settings:provider.keyPlaceholder', { name: p.name })}
+                                      placeholder={t('settings:provider.keyPlaceholder', {
+                                        name: p.name,
+                                      })}
                                       value={inlineKeyValue}
                                       onChange={(e) => setInlineKeyValue(e.target.value)}
                                       className="text-sm"
@@ -716,7 +745,9 @@ export function ProviderSection({
                   <div className="rounded-lg border border-border/70 bg-background/75 p-3 shadow-sm shadow-black/[0.02]">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <span className="text-sm font-semibold">{t('settings:provider.apiKeysLabel')}</span>
+                        <span className="text-sm font-semibold">
+                          {t('settings:provider.apiKeysLabel')}
+                        </span>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {t('settings:provider.keyCount', { count: sp.apiKeys.length })}
                         </p>
@@ -751,9 +782,7 @@ export function ProviderSection({
                               </span>
                               <div className="min-w-0">
                                 <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                  <span className="truncate text-sm font-medium">
-                                    {key.label}
-                                  </span>
+                                  <span className="truncate text-sm font-medium">{key.label}</span>
                                   {key.isActive && (
                                     <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
                                       {t('settings:provider.active')}
@@ -829,7 +858,9 @@ export function ProviderSection({
                             onClick={() => handleAddKey(sp.id)}
                             disabled={!newKeyLabel.trim() || !newKeyValue.trim()}
                             ref={addKeyNav.setFieldRef(2)}
-                            onKeyDown={(e) => addKeyNav.handleKeyDown(e, 2, () => handleAddKey(sp.id))}
+                            onKeyDown={(e) =>
+                              addKeyNav.handleKeyDown(e, 2, () => handleAddKey(sp.id))
+                            }
                           >
                             {t('settings:provider.saveKey')}
                           </Button>

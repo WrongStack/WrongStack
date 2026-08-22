@@ -34,12 +34,12 @@ import type {
   KanbanCompletionGateEnforcement,
   KanbanEvent,
   KanbanEventContext,
-  KanbanLifecycleValidationIssue,
   KanbanTask,
   KanbanVerificationReport,
 } from '../types.js';
-import { verifyTaskCompletion } from './completion-protocol.js';
+import type { KanbanLifecycleValidationIssue } from '../types-operations.js';
 import { applyGateRefusal, clearGateRefusals } from './completion-park.js';
+import { verifyTaskCompletion } from './completion-protocol.js';
 import type { VerifierRegistry } from './verifier-registry.js';
 
 export interface CompletionGateOptions {

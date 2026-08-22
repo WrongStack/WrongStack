@@ -1,7 +1,7 @@
 import { ReplayLogStore } from '@wrongstack/core/storage';
 import { color, resolveWstackPaths } from '@wrongstack/core/utils';
+import type { SubcommandHandler } from '../contracts.js';
 import { restoreFlags } from '../flags.js';
-import type { SubcommandHandler } from '../index.js';
 
 /**
  * `wstack replay <sessionId>` — convenience wrapper around

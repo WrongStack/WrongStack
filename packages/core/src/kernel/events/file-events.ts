@@ -38,6 +38,12 @@ export interface FileEventMap {
     provider: string;
     /** LLM model id */
     model: string;
+    /** Logical provider request that produced the mutating tool call. */
+    logicalRequestId?: string | undefined;
+    /** Content-addressed provider-visible prompt identity. */
+    promptManifestId?: string | undefined;
+    /** Strength of the prompt-to-file attribution edge. */
+    provenanceConfidence?: 'explicit' | 'correlated' | 'inferred' | 'unknown' | undefined;
     /** Tool name */
     toolName: string;
     /** Tool-use block correlation ID */

@@ -41,6 +41,12 @@ export interface FileEventRecord {
   provider: string;
   /** LLM model id (e.g. "claude-sonnet-4-20250514") */
   model: string;
+  /** Logical provider request that produced the mutating tool call. */
+  logicalRequestId?: string | undefined;
+  /** Content-addressed provider-visible prompt identity. */
+  promptManifestId?: string | undefined;
+  /** Strength of the prompt-to-file attribution edge. */
+  provenanceConfidence: 'explicit' | 'correlated' | 'inferred' | 'unknown';
 
   /** Tool that performed the operation (e.g. "read", "write", "edit") */
   toolName: string;

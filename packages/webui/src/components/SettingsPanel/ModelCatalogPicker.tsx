@@ -126,7 +126,11 @@ export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPicker
           <h3 className="text-sm font-semibold">
             {t('settings:providerModels.catalogSearchTitle')}
           </h3>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -168,7 +172,9 @@ export function ModelCatalogPicker({ ws, onSelect, onClose }: ModelCatalogPicker
                   </span>
                 </div>
                 {match.description && (
-                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{match.description}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                    {match.description}
+                  </p>
                 )}
                 <div className="mt-1 flex flex-wrap gap-1.5">
                   {match.contextWindow ? (

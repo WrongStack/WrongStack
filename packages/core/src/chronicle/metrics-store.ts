@@ -197,7 +197,8 @@ export class ChronicleMetricsStore {
     const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
     params.push(clampLimit(options.limit, 200));
     const projection = `path, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
-       tool_name, provider_id, model_id, source`;
+       tool_name, provider_id, model_id, logical_request_id, prompt_manifest_id,
+       provenance_confidence, source`;
     const sql = options.latestPerPath
       ? `SELECT ${projection} FROM (
            SELECT ${projection}, ROW_NUMBER() OVER (
@@ -220,6 +221,9 @@ export class ChronicleMetricsStore {
       toolName: row.tool_name!,
       providerId: row.provider_id!,
       modelId: row.model_id!,
+      logicalRequestId: row.logical_request_id!,
+      promptManifestId: row.prompt_manifest_id!,
+      provenanceConfidence: row.provenance_confidence as ChronicleFileLineageRow['provenanceConfidence'],
       source: row.source!,
     }));
   }

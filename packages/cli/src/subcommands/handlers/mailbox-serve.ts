@@ -82,7 +82,7 @@ import {
 } from '@wrongstack/core/coordination';
 import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { type CliHqConnection, startCliHqConnection } from '../../hq-publisher.js';
-import type { SubcommandDeps, SubcommandHandler } from '../index.js';
+import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 7788;

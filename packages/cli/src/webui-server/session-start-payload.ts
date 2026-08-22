@@ -12,7 +12,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { ModelsRegistry } from '@wrongstack/core/types';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
-import { protocolAdvertisement } from '@wrongstack/webui-server/protocol';
+import { protocolAdvertisement } from '@wrongstack/webui-protocol';
 import type { UpdateInfo } from '../update-check.js';
 import { getCostRates } from './cost-helpers.js';
 

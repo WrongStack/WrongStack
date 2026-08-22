@@ -20,7 +20,7 @@ describe('ChronicleQueryEngine', () => {
     const journal = new ChronicleJournal({ filePath: partition });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' }, 'trace');
     await journal.append({ eventType: 'tool.executed', scope: context.scope,
-      correlation: { ...context.correlation, toolCallId: 'tc-1' }, runtime: { providerId: 'openai', modelId: 'gpt-x' },
+      correlation: { ...context.correlation, promptManifestId: 'prompt_1', toolCallId: 'tc-1' }, runtime: { providerId: 'openai', modelId: 'gpt-x' },
       resource: { kind: 'file', id: 'file:a', path: 'src/a.ts', lineStart: 10, lineEnd: 20 },
       outcome: 'success', occurredAt: '2026-07-18T10:00:00.000Z', attributes: { tool: { name: 'read' } } });
     await journal.append({ eventType: 'provider.attempt.failed', scope: context.scope,
@@ -39,6 +39,7 @@ describe('ChronicleQueryEngine', () => {
       { value: 'tool.executed', count: 1 },
     ]);
     expect(engine.diagnostics.invalidLines).toBe(1);
+    expect((await engine.query({ promptManifestId: 'prompt_1' })).events).toHaveLength(1);
   });
 
   it('discovers rolled partitions and preserves their numeric order', async () => {
@@ -377,13 +378,14 @@ describe('ChronicleQueryEngine', () => {
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
     const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace-a');
-    await journal.append({ eventType: 'decision.requested', scope: context.scope, correlation: context.correlation,
+    await journal.append({ eventType: 'decision.requested', scope: context.scope,
+      correlation: { ...context.correlation, promptManifestId: 'prompt_graph' },
       attributes: { decisionId: 'decision-1' }, occurredAt: '2026-07-18T10:00:00.000Z' });
     await journal.append({ eventType: 'tool.executed', scope: context.scope,
-      correlation: { ...context.correlation, toolCallId: 'tool-1' }, attributes: { decisionId: 'decision-1' },
+      correlation: { ...context.correlation, promptManifestId: 'prompt_graph', toolCallId: 'tool-1' }, attributes: { decisionId: 'decision-1' },
       resource: { kind: 'file', id: 'file:a', path: 'a.ts' }, occurredAt: '2026-07-18T10:00:01.000Z' });
     await journal.append({ eventType: 'file.edited', scope: context.scope,
-      correlation: { ...context.correlation, toolCallId: 'tool-1' }, resource: { kind: 'file', id: 'file:a', path: 'a.ts' },
+      correlation: { ...context.correlation, promptManifestId: 'prompt_graph', toolCallId: 'tool-1' }, resource: { kind: 'file', id: 'file:a', path: 'a.ts' },
       occurredAt: '2026-07-18T10:00:02.000Z' });
     const engine = await ChronicleQueryEngine.fromDirectory(dir);
     const graph = await engine.graph({ eventTypes: ['decision.requested'] });
@@ -391,6 +393,7 @@ describe('ChronicleQueryEngine', () => {
     expect(graph.edges).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'decision', confidence: 'explicit' }),
       expect.objectContaining({ kind: 'tool_call', confidence: 'explicit' }),
+      expect.objectContaining({ kind: 'prompt_manifest', confidence: 'explicit' }),
       expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
     ]));
   });

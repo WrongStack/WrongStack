@@ -1,12 +1,12 @@
 import type {
   KanbanBoard,
   KanbanLifecycleStage,
-  KanbanLifecycleValidationIssue,
   KanbanTask,
   KanbanTaskStatus,
 } from '../../types.js';
-import { hasText, requireDetail } from './definition-of-done.js';
+import type { KanbanLifecycleValidationIssue } from '../../types-operations.js';
 import { KanbanLifecycleError } from '../lifecycle-error.js';
+import { hasText, requireDetail } from './definition-of-done.js';
 
 export const KANBAN_AGENT_STAGES: readonly KanbanLifecycleStage[] = [
   'backlog',

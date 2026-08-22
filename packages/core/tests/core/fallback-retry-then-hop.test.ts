@@ -113,6 +113,12 @@ describe('retry MODEL_RETRIES times, then the next model in the chain', () => {
     expect(calls[budget]).toBe('p2/m2');
     expect(calls[budget * 2]).toBe('p3/m3');
     expect(ctx.model).toBe('m3');
+    expect((ctx as { activeLogicalRequestId?: string }).activeLogicalRequestId).toMatch(
+      /^[0-9a-f-]{36}$/,
+    );
+    expect((ctx as { activePromptManifestId?: string }).activePromptManifestId).toMatch(
+      /^prompt_[0-9a-f]{64}$/,
+    );
   });
 
   it('gives every chain entry its full budget before surfacing the failure', async () => {

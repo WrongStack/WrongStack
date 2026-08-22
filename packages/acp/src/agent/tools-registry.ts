@@ -6,9 +6,9 @@
  */
 import type { Tool } from '@wrongstack/core/types';
 import type {
+  ACPInputSchema,
   ACPToolDefinition,
   ACPToolList,
-  ACPInputSchema,
   ACPToolResult,
   ContentBlock,
 } from '../types/acp-messages.js';
@@ -54,9 +54,7 @@ export class ACPToolsRegistry {
   /** Build the ACP tools/list payload from registered tools. */
   buildToolList(): ACPToolList {
     return {
-      tools: Array.from(this.tools.values()).map((t) =>
-        toACPToolDefinition(t, this.owner),
-      ),
+      tools: Array.from(this.tools.values()).map((t) => toACPToolDefinition(t, this.owner)),
     };
   }
 
@@ -80,7 +78,7 @@ export class ACPToolsRegistry {
       return toACPToolResult(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      return {content: [{type: 'text', text: msg}], isError: true} satisfies ACPToolResult;
+      return { content: [{ type: 'text', text: msg }], isError: true } satisfies ACPToolResult;
     }
   }
 }
@@ -133,18 +131,18 @@ function toACPToolResult(result: unknown): ACPToolResult {
   const blocks: ContentBlock[] = [];
 
   if (result === undefined || result === null) {
-    return {content: [{type: 'text', text: 'ok'}]};
+    return { content: [{ type: 'text', text: 'ok' }] };
   }
 
   if (typeof result === 'string') {
-    blocks.push({type: 'text', text: result});
+    blocks.push({ type: 'text', text: result });
   } else if (typeof result === 'object') {
-    blocks.push({type: 'text', text: JSON.stringify(result, null, 2)});
+    blocks.push({ type: 'text', text: JSON.stringify(result, null, 2) });
   } else {
-    blocks.push({type: 'text', text: String(result)});
+    blocks.push({ type: 'text', text: String(result) });
   }
 
-  return {content: blocks};
+  return { content: blocks };
 }
 
 function toolToPriority(tool: Tool): 'high' | 'medium' | 'low' {

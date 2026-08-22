@@ -4,11 +4,7 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
-export function LogsSettingsTab({
-  syncPref,
-}: {
-  syncPref: (key: string, value: unknown) => void;
-}) {
+export function LogsSettingsTab({ syncPref }: { syncPref: (key: string, value: unknown) => void }) {
   const { t } = useAppTranslation();
   const localPrefs = useLocalPrefs();
 

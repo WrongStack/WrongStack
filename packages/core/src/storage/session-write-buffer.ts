@@ -30,9 +30,14 @@ export interface FlushBufferOptions {
   datasync?: boolean;
 }
 
+/**
+ * A single append handed to the write chain. It carries only what the chain
+ * and `flushSync` actually read. The drained batch's events/bytes stay local
+ * to `flushBufferOnce` (which owns the rollback) so no future reader can
+ * mistake an `enqueueWrite` flight — which never has events — for a buffer
+ * batch and silently get an empty array.
+ */
 interface InFlightBatch {
-  events: SessionEvent[];
-  bytes: number;
   data: string;
   stolen: boolean;
   started: boolean;
@@ -111,13 +116,7 @@ export class SessionWriteBuffer {
   }
 
   enqueueWrite(data: string): Promise<void> {
-    return this.enqueueFlight({
-      events: [],
-      bytes: 0,
-      data,
-      stolen: false,
-      started: false,
-    });
+    return this.enqueueFlight({ data, stolen: false, started: false });
   }
 
   private enqueueFlight(flight: InFlightBatch): Promise<void> {
@@ -201,13 +200,7 @@ export class SessionWriteBuffer {
     const batch = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
     this.writeBuffer = [];
     this.writeBufferBytes = 0;
-    const flight: InFlightBatch = {
-      events,
-      bytes: eventBytes,
-      data: batch,
-      stolen: false,
-      started: false,
-    };
+    const flight: InFlightBatch = { data: batch, stolen: false, started: false };
     this.inFlight = flight;
     const t0 = Date.now();
     let outcome: 'success' | 'failure' = 'success';
@@ -278,6 +271,17 @@ export class SessionWriteBuffer {
     await this.flushPromise?.catch(() => undefined);
   }
 
+  /**
+   * Last-gasp synchronous append (SIGKILL/SIGTERM traps, `process.on('exit')`).
+   *
+   * Failure contract: nothing is discarded before the write is known to have
+   * landed. Buffered events stay in `writeBuffer` — it is cleared only after
+   * `fsyncSync` returns — and a stolen in-flight batch is handed back to the
+   * async write chain, so a survivable failure (EACCES, ENOSPC, EMFILE) loses
+   * nothing. Failure is never silent: a structured `session.flush_sync_failed`
+   * warning names exactly what was still pending, which is what SIGKILL-trap
+   * tests assert against.
+   */
   flushSync(): void {
     if (!this.opts.filePath) return;
     this.cancelTimer();
@@ -285,7 +289,10 @@ export class SessionWriteBuffer {
     const flight = this.inFlight;
     // Steal a batch that is queued but has not started writing so this
     // sync append is the only writer and preserves order (in-flight first).
-    if (flight && !flight.started && !flight.stolen) {
+    // `started` cannot flip while this synchronous method runs (it is set in a
+    // microtask), so `stole` stays an accurate record for the rollback below.
+    const stole = flight !== null && !flight.started && !flight.stolen;
+    if (stole && flight) {
       flight.stolen = true;
       chunks.push(flight.data);
     }
@@ -303,10 +310,26 @@ export class SessionWriteBuffer {
         this.writeBuffer = [];
         this.writeBufferBytes = 0;
       }
-    } catch {
-      if (flight?.stolen && !flight.started) {
-        flight.stolen = false;
-      }
+    } catch (err) {
+      // Give the stolen batch back to the async chain: if the process survives
+      // this failure, `enqueueFlight` still writes it. `writeBuffer` was never
+      // swapped, so the buffered events need no restoration — they are already
+      // where the next flush looks. Report the window so a dying process is
+      // not silent about what it could not persist.
+      if (stole && flight) flight.stolen = false;
+      console.warn(
+        JSON.stringify({
+          level: 'error',
+          event: 'session.flush_sync_failed',
+          sessionId: this.opts.sessionId,
+          filePath: this.opts.filePath,
+          message: toErrorMessage(err),
+          pendingEvents: events.length,
+          pendingBytes: this.writeBufferBytes,
+          hadInFlightBatch: stole,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     } finally {
       if (fd !== undefined) {
         try {

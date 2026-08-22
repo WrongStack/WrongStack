@@ -8,9 +8,9 @@
  * plugins (agent, council) are registered only when explicitly configured.
  */
 import type { KanbanCheck, KanbanVerificationCheckResult } from '../types.js';
+import { DEFAULT_EVIDENCE_RULES, EvidenceValidator } from './evidence-validator.js';
 import type { VerificationContext } from './verification-context.js';
 import type { VerifierPlugin } from './verifier-plugin.js';
-import { EvidenceValidator, DEFAULT_EVIDENCE_RULES } from './evidence-validator.js';
 
 export class VerifierRegistry {
   /** Registered plugins keyed by id. */
@@ -61,9 +61,11 @@ export class VerifierRegistry {
   ): Promise<KanbanVerificationCheckResult> {
     // Escalation mode overrides the normal type-based resolution.
     const effectiveType =
-      check.escalation === 'agent' ? 'agent'
-      : check.escalation === 'council' ? 'council'
-      : check.type;
+      check.escalation === 'agent'
+        ? 'agent'
+        : check.escalation === 'council'
+          ? 'council'
+          : check.type;
 
     const plugin = this.resolve(effectiveType);
     if (!plugin) {
@@ -72,9 +74,11 @@ export class VerifierRegistry {
       // failed manual check flows through as-is; anything unresolved is
       // 'skipped' so the report stays honest about what was actually verified.
       const passThrough =
-        check.status === 'passed' ? ('passed' as const)
-        : check.status === 'failed' ? ('failed' as const)
-        : ('skipped' as const);
+        check.status === 'passed'
+          ? ('passed' as const)
+          : check.status === 'failed'
+            ? ('failed' as const)
+            : ('skipped' as const);
       return {
         checkId: check.id,
         description: check.description,

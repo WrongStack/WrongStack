@@ -5,8 +5,8 @@ import {
   taskContractEndpoint,
 } from '../contract-graph.js';
 import { mutateBoard, readBoard } from '../storage.js';
+import type { KanbanBoard, KanbanEvent, KanbanTask } from '../types.js';
 import type {
-  KanbanBoard,
   KanbanContractEdge,
   KanbanContractEdgeType,
   KanbanContractEnforcement,
@@ -17,9 +17,7 @@ import type {
   KanbanContractNodeKind,
   KanbanContractNodeState,
   KanbanContractWaiver,
-  KanbanEvent,
-  KanbanTask,
-} from '../types.js';
+} from '../types-operations.js';
 import {
   createKanbanEvent,
   emitKanbanEvent,

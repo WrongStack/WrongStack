@@ -112,9 +112,7 @@ export function candidateFromKanbanTask(task: KanbanTask): AtomicityCandidate {
     dependencyCount: task.dependsOn?.length ?? 0,
     expectedFileChangeCount: task.expectedFileChanges?.length,
     successCriteriaCount: successCriteria.length,
-    hasVerifiableOutput: successCriteria.some((check) =>
-      DETERMINISTIC_CHECK_TYPES.has(check.type),
-    ),
+    hasVerifiableOutput: successCriteria.some((check) => DETERMINISTIC_CHECK_TYPES.has(check.type)),
     childCount: task.childTaskIds?.length ?? 0,
   };
 }

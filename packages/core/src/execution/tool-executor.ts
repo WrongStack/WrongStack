@@ -179,6 +179,8 @@ export class ToolExecutor {
       this.opts.events?.emit('permission.evaluated', {
         sessionId: resolveEventSessionId(ctx),
         ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+        ...(ctx.activeLogicalRequestId ? { logicalRequestId: ctx.activeLogicalRequestId } : {}),
+        ...(ctx.activePromptManifestId ? { promptManifestId: ctx.activePromptManifestId } : {}),
         ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
         name: tool.name,
         id: use.id,
@@ -368,6 +370,14 @@ export class ToolExecutor {
                 ? (ctx.provider as { id: string }).id
                 : String(ctx.provider),
             model: ctx.model,
+            ...(ctx.activeLogicalRequestId
+              ? { logicalRequestId: ctx.activeLogicalRequestId }
+              : {}),
+            ...(ctx.activePromptManifestId
+              ? { promptManifestId: ctx.activePromptManifestId }
+              : {}),
+            provenanceConfidence:
+              ctx.activeLogicalRequestId && ctx.activePromptManifestId ? 'explicit' : 'unknown',
             toolName: tool.name,
             toolUseId: use.id,
             scope: ctx.currentKanbanTaskId ? 'task' : 'session',
@@ -530,6 +540,8 @@ export class ToolExecutor {
     this.opts.events?.emit('tool.started', {
       sessionId: resolveEventSessionId(ctx),
       ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+      ...(ctx.activeLogicalRequestId ? { logicalRequestId: ctx.activeLogicalRequestId } : {}),
+      ...(ctx.activePromptManifestId ? { promptManifestId: ctx.activePromptManifestId } : {}),
       agentId: ctx.agentId,
       agentName: ctx.agentName,
       name: tool.name,

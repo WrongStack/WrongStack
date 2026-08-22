@@ -57,7 +57,9 @@ class RemoteKanbanStorage implements KanbanStorageBackend {
   }
 
   readBoardHistory(boardId?: string): Promise<KanbanBoardHistoryEntry[]> {
-    return this.request('storageReadBoardHistory', { ...(boardId !== undefined ? { boardId } : {}) });
+    return this.request('storageReadBoardHistory', {
+      ...(boardId !== undefined ? { boardId } : {}),
+    });
   }
 
   readMetadata(key: string): Promise<string | null> {

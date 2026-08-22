@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import type { ModelMatrixEntry } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 import { runModeldiagBench } from './modeldiag-bench.js';
 import { type ModelDiagConfig, runModeldiagEval } from './modeldiag-eval.js';
 import {

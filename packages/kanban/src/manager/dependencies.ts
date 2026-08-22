@@ -1,16 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import { mutateBoard, readBoard } from '../storage.js';
+import type { KanbanBoard, KanbanBoundaryPolicy, KanbanEvent, KanbanTask } from '../types.js';
 import type {
-  KanbanBoard,
-  KanbanBoundaryPolicy,
-  KanbanEvent,
   KanbanSearchInput,
   KanbanSearchResult,
-  KanbanTask,
   MergeKanbanTasksInput,
   SetKanbanTaskChainInput,
   SplitKanbanTaskInput,
-} from '../types.js';
+} from '../types-operations.js';
 import {
   addDependencyToTask,
   cloneChecks,
@@ -37,6 +34,7 @@ import {
 } from './_internal.js';
 import { archiveManagedTask, initializeAndValidateManagedTask } from './lifecycle.js';
 import { searchKanban } from './serialization.js';
+
 export {
   areDependenciesMet,
   getDependencyReadinessIssues,
@@ -81,7 +79,8 @@ export async function splitTask(
     const requestedColumnId = input.columnId ?? parent.columnId;
     const columnId = existingColumnId(board, requestedColumnId);
     if (!columnId) throw new Error(`Column not found: ${requestedColumnId}`);
-    const childColumnId = board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
+    const childColumnId =
+      board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
     const children: KanbanTask[] = [];
     const startOrder = nextTaskOrder(board, childColumnId);
     for (let index = 0; index < titles.length; index++) {
@@ -179,7 +178,8 @@ export async function mergeTasks(
     const requestedColumnId = input.targetColumnId ?? sourceTasks[0]?.columnId;
     const columnId = existingColumnId(board, requestedColumnId);
     if (!columnId) throw new Error(`Column not found: ${input.targetColumnId ?? ''}`);
-    const mergedColumnId = board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
+    const mergedColumnId =
+      board.lifecycle?.mode === 'managed' ? board.lifecycle.columns.backlog : columnId;
     const dependencies = uniqueStrings(
       sourceTasks.flatMap((task) => task.dependsOn ?? []).filter((depId) => !sourceIds.has(depId)),
     );

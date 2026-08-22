@@ -3,7 +3,11 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
 import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
-import { CHRONICLE_SQLITE_FILE, LEGACY_JSONL_BOUNDARY_KEY, LEGACY_JSONL_MIGRATION_KEY } from './sqlite-journal.js';
+import {
+  CHRONICLE_SQLITE_FILE,
+  LEGACY_JSONL_BOUNDARY_KEY,
+  LEGACY_JSONL_MIGRATION_KEY,
+} from './sqlite-journal.js';
 import type { ChronicleEvent } from './types.js';
 import {
   asString,
@@ -73,7 +77,7 @@ export class ChronicleMetricsIngester {
             let base: number;
             if (!migrated) {
               base = offsets.get(key) ?? 0;
-            } else if (boundary !== null && boundary.has(key)) {
+            } else if (boundary?.has(key)) {
               // Migrated file: bytes up to its import boundary are in SQLite —
               // fold only post-migration appends (the jsonl-store fallback).
               base = Math.max(offsets.get(key) ?? 0, boundary.get(key)!);
@@ -559,8 +563,9 @@ export class ChronicleMetricsIngester {
       .prepare(
         `INSERT OR IGNORE INTO file_lineage
         (event_id, path, path_key, operation, occurred_at, session_id, agent_id, task_id, board_id, run_id,
-         tool_name, provider_id, model_id, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         tool_name, provider_id, model_id, logical_request_id, prompt_manifest_id,
+         provenance_confidence, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         event.eventId,
@@ -576,7 +581,19 @@ export class ChronicleMetricsIngester {
         stringAt(attributes, 'toolName') ?? '',
         event.runtime?.providerId ?? stringAt(attributes, 'provider') ?? '',
         event.runtime?.modelId ?? stringAt(attributes, 'model') ?? '',
+        event.correlation.logicalRequestId ?? stringAt(attributes, 'logicalRequestId') ?? '',
+        event.correlation.promptManifestId ?? stringAt(attributes, 'promptManifestId') ?? '',
+        provenanceConfidence(attributes),
         stringAt(attributes, 'source') ?? (event.eventType === 'file.event' ? 'tool' : 'external'),
       );
   }
+}
+
+function provenanceConfidence(
+  attributes: Record<string, unknown>,
+): 'explicit' | 'correlated' | 'inferred' | 'unknown' {
+  const value = attributes['provenanceConfidence'];
+  return value === 'explicit' || value === 'correlated' || value === 'inferred'
+    ? value
+    : 'unknown';
 }

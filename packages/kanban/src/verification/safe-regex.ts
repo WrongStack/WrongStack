@@ -146,9 +146,7 @@ export function capSubject(subject: string): string {
   return subject.length > MAX_SUBJECT_LEN ? subject.slice(0, MAX_SUBJECT_LEN) : subject;
 }
 
-export type SafeRegexResult =
-  | { ok: true; regex: RegExp }
-  | { ok: false; reason: string };
+export type SafeRegexResult = { ok: true; regex: RegExp } | { ok: false; reason: string };
 
 /** Compile `pattern`, refusing anything over-long or obviously catastrophic. */
 export function compileSafeRegex(pattern: string, flags = ''): SafeRegexResult {

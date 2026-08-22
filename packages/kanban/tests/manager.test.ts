@@ -49,8 +49,9 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
-import { CURRENT_KANBAN_VERSION, type KanbanBoard } from '../src/types.js';
+import type { KanbanBoard } from '../src/types.js';
 import type { ClaimKanbanTaskInput } from '../src/types-operations.js';
+import { CURRENT_KANBAN_VERSION } from '../src/types-operations.js';
 import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 
 // hoisted: makes _internal.js exports mockable so vi.spyOn intercepts
@@ -278,9 +279,7 @@ describe('managed Kanban Agent lifecycle', () => {
     expect(copied?.task.lifecycle?.history.map((entry) => entry.to)).toEqual(['backlog']);
     // Columns are locked — removeColumn always throws (formerly it threw only
     // for managed lifecycle columns; now it throws for all columns).
-    await expect(removeColumn(tmpDir, target.id, 'backlog')).rejects.toThrow(
-      /Columns are locked/,
-    );
+    await expect(removeColumn(tmpDir, target.id, 'backlog')).rejects.toThrow(/Columns are locked/);
   });
 
   it('keeps legacy boards compatible with direct moves', async () => {

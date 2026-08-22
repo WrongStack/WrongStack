@@ -1,5 +1,5 @@
+import type { KanbanBoard, KanbanTask } from './types.js';
 import type {
-  KanbanBoard,
   KanbanContractGraph,
   KanbanContractGraphEnforcement,
   KanbanContractGraphEvaluation,
@@ -7,8 +7,7 @@ import type {
   KanbanContractNode,
   KanbanContractNodeState,
   KanbanContractReadinessEvaluation,
-  KanbanTask,
-} from './types.js';
+} from './types-operations.js';
 
 const TASK_ENDPOINT_PREFIX = 'task:';
 

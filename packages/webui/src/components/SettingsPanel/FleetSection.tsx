@@ -1,4 +1,4 @@
-import { Layers, } from 'lucide-react';
+import { Layers } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { PreferenceSlider } from './PreferenceControls';

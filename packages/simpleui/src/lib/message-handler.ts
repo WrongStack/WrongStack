@@ -12,11 +12,11 @@
  *   );
  */
 
-import { isFinalTurnStopReason, type projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import {
-  projectChatMessage,
-  projectFleetMessage,
-} from '@wrongstack/webui-server/protocol';
+  isFinalTurnStopReason,
+  type projectNextStepsToolInput,
+} from '@wrongstack/tools/next-steps';
+import { projectChatMessage, projectFleetMessage } from '@wrongstack/webui-protocol';
 import type { MessageHandlerDeps } from './message-handler-deps.js';
 import { handleSessionStartMessage } from './message-handler-session-start.js';
 import {

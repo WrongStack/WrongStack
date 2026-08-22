@@ -39,8 +39,8 @@ export {
   getTaskChain,
   heartbeatKanbanDispatch,
   heartbeatTaskAssignment,
-  listBoards,
   listBoardHistory,
+  listBoards,
   listKanbanEvents,
   listReadyTasks,
   listTaskActivity,
@@ -55,9 +55,9 @@ export {
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
+  removeCheckFromTask,
   removeContractEdge,
   removeContractNode,
-  removeCheckFromTask,
   removeTask,
   repairManagedTaskProjection,
   reserveKanbanDispatch,
@@ -98,9 +98,6 @@ export {
   KANBAN_PROJECT_SERVER_PROTOCOL_VERSION,
 } from './server/client.js';
 export { kanbanProjectServerEndpoint } from './server/endpoint.js';
-// Daemon inventory surfaces need the metadata filename to read the owner's
-// pid without importing the daemon entry, which would start one.
-export { KANBAN_PROJECT_SERVER_METADATA_FILE } from './server/protocol.js';
 export * from './server/kanban-store.js';
 export {
   type BridgeOptions,
@@ -120,6 +117,9 @@ export type {
   KanbanWorkflowCommand,
   KanbanWorkflowState,
 } from './server/protocol.js';
+// Daemon inventory surfaces need the metadata filename to read the owner's
+// pid without importing the daemon entry, which would start one.
+export { KANBAN_PROJECT_SERVER_METADATA_FILE } from './server/protocol.js';
 export {
   appendKanbanEvent,
   deleteBoard,
@@ -134,6 +134,7 @@ export {
   writeKanbanMetadata,
 } from './storage.js';
 export * from './types.js';
+export * from './types-operations.js';
 // Exported so `packages/tools/tests/regex-guard-parity.test.ts` can hold this
 // copy to the same verdicts as the canonical guard in `tools/src/_regex.ts`.
 // Kanban sits below tools in the layer DAG and cannot import it directly.

@@ -64,6 +64,7 @@ function persist(
       ...context.correlation,
       ...(event.traceId ? { traceId: event.traceId } : {}),
       logicalRequestId: event.logicalRequestId,
+      ...(event.promptManifestId ? { promptManifestId: event.promptManifestId } : {}),
       attemptId: event.attemptId,
     },
     runtime: { providerId: event.providerId, modelId: event.model },
@@ -77,7 +78,8 @@ function providerAttributes(
   seenToolManifests?: Set<string>,
 ): Record<string, unknown> {
   const { sessionId: _sessionId, traceId: _traceId, agentId: _agentId, providerId: _providerId,
-    model: _model, logicalRequestId: _logicalRequestId, attemptId: _attemptId, ...rest } = event;
+    model: _model, logicalRequestId: _logicalRequestId, promptManifestId: _promptManifestId,
+    attemptId: _attemptId, ...rest } = event;
   const attributes = rest as Record<string, unknown>;
   if (seenToolManifests && isManifest(attributes['promptManifest'])) {
     // Never mutate the bus payload — other subscribers observe the same object.

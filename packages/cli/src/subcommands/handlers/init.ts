@@ -1,5 +1,5 @@
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandHandler } from '../index.js';
+import type { SubcommandHandler } from '../contracts.js';
 
 /**
  * @deprecated Use `wstack auth` instead. The auth command handles provider setup,

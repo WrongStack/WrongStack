@@ -32,7 +32,7 @@ export class CollabDispatcher {
   dispatch(ctx: CollabContext, ws: WebSocket, msg: CollabInboundMessage): boolean {
     const feature = this.byType.get(msg.type);
     if (!feature) return false;
-    feature.handle(ctx, ws, msg.payload);
+    void feature.handle(ctx, ws, msg.payload);
     return true;
   }
 }

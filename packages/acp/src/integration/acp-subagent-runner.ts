@@ -15,18 +15,18 @@ import type {
   SubagentError,
   SubagentErrorKind,
   SubagentRunContext,
-  SubagentRunOutcome,
   SubagentRunner,
+  SubagentRunOutcome,
   TaskSpec,
 } from '@wrongstack/core/types';
+import type { ACPSessionErrorKind } from '../client/acp-session.js';
 import {
+  type ACPProgressEvent,
+  type ACPProgressHandler,
   ACPSession,
   ACPSessionError,
   textContent,
-  type ACPProgressEvent,
-  type ACPProgressHandler,
 } from '../client/acp-session.js';
-import type { ACPSessionErrorKind } from '../client/acp-session.js';
 import type { PermissionPolicy } from '../client/permission.js';
 import { findAgentDescriptor } from '../registry/agents.catalog.js';
 import type { McpServer } from '../types/acp-v1.js';
@@ -199,11 +199,7 @@ export async function makeACPSubagentRunnerWithStop(
     };
 
     try {
-      const result = await session.prompt(
-        [textContent(task.description)],
-        ctx.signal,
-        onProgress,
-      );
+      const result = await session.prompt([textContent(task.description)], ctx.signal, onProgress);
       // Surface the real tool-call count captured from the stream. A
       // text-less turn is a soft signal (an ACP agent may legitimately
       // end with no message), not an error.
@@ -254,10 +250,7 @@ export async function makeACPSubagentRunnerWithStop(
  * classify and act on. Unknown error shapes get `kind: 'unknown'` —
  * they shouldn't crash the parent.
  */
-function acpErrorToSubagentError(
-  err: unknown,
-  subagentId: string,
-): SubagentError {
+function acpErrorToSubagentError(err: unknown, subagentId: string): SubagentError {
   if (err instanceof ACPSessionError) {
     const kind = mapACPKind(err.kind);
     return {
@@ -463,8 +456,7 @@ export async function probeAcpAgent(
     live?: AcpLiveCatalog | undefined;
   },
 ): Promise<AcpProbeResult> {
-  const id =
-    typeof idOrCmd === 'string' ? idOrCmd : (idOrCmd.role ?? idOrCmd.command);
+  const id = typeof idOrCmd === 'string' ? idOrCmd : (idOrCmd.role ?? idOrCmd.command);
   const cmd =
     typeof idOrCmd === 'string'
       ? resolveAcpAgentCommand(idOrCmd, opts?.overrides, opts?.live)
@@ -532,9 +524,7 @@ export interface ProbeAcpAgentsOptions {
  * their handshake window. Bounding the fan-out (and giving npx/uvx a longer
  * timeout) is what makes a mixed install probe reliably.
  */
-export async function probeAcpAgents(
-  opts: ProbeAcpAgentsOptions,
-): Promise<AcpProbeResult[]> {
+export async function probeAcpAgents(opts: ProbeAcpAgentsOptions): Promise<AcpProbeResult[]> {
   const localTimeout = opts.timeoutMs ?? 20_000;
   const pkgTimeout = opts.packageTimeoutMs ?? 90_000;
   const ids = opts.agentIds;
@@ -556,7 +546,11 @@ export async function probeAcpAgents(
     else local.push(id);
   }
 
-  const runPhase = async (phaseIds: string[], concurrency: number, timeoutMs: number): Promise<void> => {
+  const runPhase = async (
+    phaseIds: string[],
+    concurrency: number,
+    timeoutMs: number,
+  ): Promise<void> => {
     let next = 0;
     const workerCount = Math.min(Math.max(1, concurrency), Math.max(1, phaseIds.length));
     const workers: Promise<void>[] = [];

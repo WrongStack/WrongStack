@@ -4,9 +4,9 @@
  * @module subcommands/handlers/modeldiag-eval
  */
 
-import { makeProviderFromConfig } from '@wrongstack/providers';
 import { color } from '@wrongstack/core/utils';
-import type { SubcommandDeps } from '../index.js';
+import { makeProviderFromConfig } from '@wrongstack/providers';
+import type { SubcommandDeps } from '../contracts.js';
 import {
   type CacheProvider,
   EVAL_CATEGORIES,
@@ -26,7 +26,11 @@ export type ModelDiagConfig = {
 
 export function createProviderForId(
   providerId: string,
-  cfg: { providers?: Record<string, import('@wrongstack/core/types').ProviderConfig>; apiKey?: string; baseUrl?: string },
+  cfg: {
+    providers?: Record<string, import('@wrongstack/core/types').ProviderConfig>;
+    apiKey?: string;
+    baseUrl?: string;
+  },
 ): ReturnType<typeof makeProviderFromConfig> | undefined {
   const savedCfg = cfg.providers?.[providerId];
   const cfgWithType = Object.assign(
@@ -259,9 +263,7 @@ export async function runModeldiagEval(
             {
               model: c.model,
               system: [{ type: 'text' as const, text: 'Be thorough and correct.' }],
-              messages: [
-                { role: 'user', content: [{ type: 'text' as const, text: task.prompt }] },
-              ],
+              messages: [{ role: 'user', content: [{ type: 'text' as const, text: task.prompt }] }],
               maxTokens: 1024,
             },
             { signal: AbortSignal.timeout(45_000) },

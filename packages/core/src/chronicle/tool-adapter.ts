@@ -112,6 +112,8 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
 type ToolCorrelationEvent = {
   sessionId?: string | undefined;
   traceId?: string | undefined;
+  logicalRequestId?: string | undefined;
+  promptManifestId?: string | undefined;
   agentId?: string | undefined;
   id?: string | undefined;
   name: string;
@@ -140,6 +142,8 @@ function persist(
     correlation: {
       ...context.correlation,
       ...(event.traceId ? { traceId: event.traceId } : {}),
+      ...(event.logicalRequestId ? { logicalRequestId: event.logicalRequestId } : {}),
+      ...(event.promptManifestId ? { promptManifestId: event.promptManifestId } : {}),
       ...(event.id ? { toolCallId: event.id } : {}),
     },
     ...(event.provider || event.model
