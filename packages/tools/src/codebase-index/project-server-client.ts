@@ -1,10 +1,43 @@
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as net from 'node:net';
-import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
+import {
+  decodeBinaryFrame,
+  encodeBinaryFrame,
+  isBinaryFrame,
+  MAX_BINARY_FRAME_BYTES,
+} from './binary-frame.js';
 import { IndexTimeoutError } from './circuit-breaker.js';
-import { encodeBinaryFrame, isBinaryFrame, decodeBinaryFrame } from './binary-frame.js';
+import {
+  CONNECT_ATTEMPT_TIMEOUT_MS,
+  cancellationError,
+  connectionStates,
+  delay,
+  getProjectIndexServerConnectionState,
+  isProjectIndexServerAvailable,
+  isProjectIndexServerHealth,
+  latestConnectionState,
+  onProjectIndexServerConnectionStateChange,
+  type PendingRequest,
+  type ProjectIndexDaemonAvailability,
+  type ProjectIndexServerClientHealth,
+  type ProjectIndexServerConnectionState,
+  type ProjectIndexServerConnectionStatus,
+  type ProjectIndexServerShutdownResult,
+  type ProjectServerCallOptions,
+  projectIndexServerExpectedBuildId,
+  publishConnectionState,
+  remoteError,
+  resolveProjectIndexDaemonAvailability,
+  resolveProjectServerUrl,
+  SERVER_CONTROL_TIMEOUT_MS,
+  SERVER_HEALTH_TIMEOUT_MS,
+  SERVER_HEARTBEAT_INTERVAL_MS,
+  SERVER_START_TIMEOUT_MS,
+  StaleProjectIndexServerError,
+  setLatestConnectionState,
+} from './project-server-client-state.js';
 import {
   PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
   projectIndexServerEndpoint,
@@ -20,57 +53,29 @@ import {
 } from './project-server-protocol.js';
 import type { OpName, OpShapes } from './worker-protocol.js';
 
-import {
-  CONNECT_ATTEMPT_TIMEOUT_MS,
-  SERVER_START_TIMEOUT_MS,
-  SERVER_CONTROL_TIMEOUT_MS,
-  SERVER_HEALTH_TIMEOUT_MS,
-  SERVER_HEARTBEAT_INTERVAL_MS,
-  StaleProjectIndexServerError,
-  type PendingRequest,
-  type ProjectServerCallOptions,
-  type ProjectIndexServerShutdownResult,
-  type ProjectIndexServerConnectionStatus,
-  type ProjectIndexServerClientHealth,
-  type ProjectIndexServerConnectionState,
-  type ProjectIndexDaemonAvailability,
-  resolveProjectIndexDaemonAvailability,
-  resolveProjectServerUrl,
-  projectIndexServerExpectedBuildId,
-  isProjectIndexServerAvailable,
-  publishConnectionState,
-  getProjectIndexServerConnectionState,
-  onProjectIndexServerConnectionStateChange,
-  remoteError,
-  isProjectIndexServerHealth,
-  delay,
-  cancellationError,
-  connectionStates,
-  latestConnectionState,
-  setLatestConnectionState,
-} from './project-server-client-state.js';
-
 export {
-  type ProjectServerCallOptions,
-  type ProjectIndexServerShutdownResult,
-  type ProjectIndexServerConnectionStatus,
+  getProjectIndexServerConnectionState,
+  isProjectIndexServerAvailable,
+  onProjectIndexServerConnectionStateChange,
+  type ProjectIndexDaemonAvailability,
   type ProjectIndexServerClientHealth,
   type ProjectIndexServerConnectionState,
-  type ProjectIndexDaemonAvailability,
-  resolveProjectIndexDaemonAvailability,
+  type ProjectIndexServerConnectionStatus,
+  type ProjectIndexServerShutdownResult,
+  type ProjectServerCallOptions,
   projectIndexServerExpectedBuildId,
-  isProjectIndexServerAvailable,
-  getProjectIndexServerConnectionState,
-  onProjectIndexServerConnectionStateChange,
+  resolveProjectIndexDaemonAvailability,
 };
 
 class ProjectServerConnection {
   private socket: net.Socket | null = null;
-  private buffer = '';
-  /** P6: binary frame buffer — accumulates raw bytes when in binary mode. */
-  private binaryBuffer: Buffer[] = [];
-  /** P6: StringDecoder for safe UTF-8 multibyte handling in JSON mode. */
-  private textDecoder: StringDecoder | null = null;
+  /**
+   * Raw inbound bytes for the unified per-frame reader. Frames are sniffed
+   * individually — JSON text (newline-terminated) or binary (magic 0x57) —
+   * instead of latching a read mode, so a JSON broadcast between binary
+   * frames cannot desynchronize the reader.
+   */
+  private readBuffer: Buffer = Buffer.alloc(0);
   /** P6: true once the server advertises binary support and client accepts. */
   private useBinary = false;
   private info: ProjectIndexServerInfo | null = null;
@@ -260,7 +265,7 @@ class ProjectServerConnection {
     this.activity = null;
     this.health = null;
     this.useBinary = false;
-    this.binaryBuffer = [];
+    this.readBuffer = Buffer.alloc(0);
     this.connectReject?.(new Error('codebase-index client disconnected'));
     this.connectResolve = null;
     this.connectReject = null;
@@ -421,13 +426,11 @@ class ProjectServerConnection {
     this.info = null;
     this.activity = null;
     this.health = null;
-    this.buffer = '';
-    // P6: reset binary mode state on reconnect — the server re-negotiates
-    // via the hello frame, so stale binaryBuffer/useBinary from the prior
-    // connection must not leak into the new one.
-    this.binaryBuffer = [];
+    // Reset frame state on reconnect — the server re-negotiates via the
+    // hello frame, so stale useBinary/readBuffer from the prior connection
+    // must not leak into the new one.
+    this.readBuffer = Buffer.alloc(0);
     this.useBinary = false;
-    this.textDecoder = null;
 
     return new Promise<void>((resolve, reject) => {
       const socket = net.createConnection(this.endpoint);
@@ -462,25 +465,50 @@ class ProjectServerConnection {
     });
   }
 
+  /**
+   * Unified per-frame reader. Each frame is sniffed by its first byte:
+   * `0x57` ('W') → length-prefixed MessagePack binary, anything else →
+   * newline-delimited JSON text. Sniffing per frame (instead of latching a
+   * mode) is what makes mixed streams work: the server may interleave a JSON
+   * `index-state` broadcast between binary responses, and an old JSON-only
+   * server stays readable while `useBinary` is armed.
+   *
+   * Multibyte UTF-8 in JSON frames is safe: raw `0x0a` only occurs as the
+   * JSON delimiter (inside JSON strings `\n` is escaped), so a complete line
+   * is always complete UTF-8.
+   */
   private onData(socket: net.Socket, chunk: Buffer): void {
     if (socket !== this.socket) return;
-
-    // P6: Only parse binary frames when this socket has negotiated binary mode
-    // (after seeing binarySupported in the hello frame). Pre-negotiation chunks
-    // are always JSON text — a byte 0x57 ('W') is just an ASCII character.
-    if (this.useBinary) {
-      this.onBinaryData(socket, chunk);
-      return;
-    }
-
-    // JSON mode: use StringDecoder to safely handle multibyte UTF-8 chars
-    // that may be split across chunk boundaries (doc comments, non-ASCII names).
-    if (!this.textDecoder) this.textDecoder = new StringDecoder('utf8');
-    this.buffer += this.textDecoder.write(chunk);
+    this.readBuffer =
+      this.readBuffer.length === 0 ? chunk : Buffer.concat([this.readBuffer, chunk]);
     while (true) {
-      const newline = this.buffer.indexOf('\n');
+      if (this.readBuffer.length === 0) return;
+      if (this.useBinary && isBinaryFrame(this.readBuffer[0]!)) {
+        if (this.readBuffer.length < 5) return; // header not fully received yet
+        const frameLen = this.readBuffer.readUInt32BE(1);
+        // Reject implausible frame lengths — a malicious or buggy server
+        // could claim a 4 GiB payload and hang the client waiting for it.
+        if (frameLen > MAX_BINARY_FRAME_BYTES) {
+          socket.destroy();
+          this.transition('offline', { error: 'binary frame length exceeds the IPC limit' });
+          return;
+        }
+        if (this.readBuffer.length < 5 + frameLen) return; // payload incomplete
+        const payload = this.readBuffer.subarray(5, 5 + frameLen);
+        this.readBuffer = this.readBuffer.subarray(5 + frameLen);
+        let message: ProjectServerMessage;
+        try {
+          message = decodeBinaryFrame(payload) as ProjectServerMessage;
+        } catch {
+          socket.destroy(new Error('invalid binary codebase-index server response'));
+          return;
+        }
+        this.onMessage(message);
+        continue;
+      }
+      const newline = this.readBuffer.indexOf(0x0a);
       if (newline < 0) {
-        if (this.buffer.length > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
+        if (this.readBuffer.length > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
           socket.destroy(new Error('codebase-index server response exceeds the IPC limit'));
         }
         return;
@@ -489,8 +517,8 @@ class ProjectServerConnection {
         socket.destroy(new Error('codebase-index server response exceeds the IPC limit'));
         return;
       }
-      const line = this.buffer.slice(0, newline);
-      this.buffer = this.buffer.slice(newline + 1);
+      const line = this.readBuffer.subarray(0, newline).toString('utf8');
+      this.readBuffer = this.readBuffer.subarray(newline + 1);
       if (!line) continue;
       let message: ProjectServerMessage;
       try {
@@ -501,54 +529,6 @@ class ProjectServerConnection {
       }
       this.onMessage(message);
     }
-  }
-
-  /**
-   * P6: Parse binary frames from the raw buffer.
-   *
-   * Each frame is: [1 byte magic 0x57] [4 bytes uint32 BE length] [payload].
-   * The magic byte distinguishes binary from JSON — a JSON frame's first byte
-   * is `{` (0x7B), so there is no ambiguity even in a mixed-mode buffer.
-   */
-  private onBinaryData(socket: net.Socket, chunk: Buffer): void {
-    this.binaryBuffer.push(chunk);
-    const all = Buffer.concat(this.binaryBuffer);
-    let offset = 0;
-
-    while (offset + 5 <= all.length) {
-      if (!isBinaryFrame(all[offset]!)) {
-        // Not a binary frame — could be leftover JSON. Fall back to text path
-        // and reset useBinary so subsequent chunks parse as text, not binary.
-        this.useBinary = false;
-        this.buffer += all.subarray(offset).toString('utf8');
-        this.binaryBuffer = [];
-        return;
-      }
-      const frameLen = all.readUInt32BE(offset + 1);
-      // P6: Reject implausible frame lengths — a malicious or buggy server
-      // could claim a 4 GiB payload and hang the client waiting for it.
-      // 256 MB is far above any legitimate IPC response.
-      if (frameLen > 256 * 1024 * 1024) {
-        socket.destroy();
-        this.transition('offline', { error: 'binary frame length exceeds 256MB limit' });
-        return;
-      }
-      const totalLen = 5 + frameLen;
-      if (offset + totalLen > all.length) break; // incomplete frame, wait for more data
-
-      const payload = all.subarray(offset + 5, offset + 5 + frameLen);
-      try {
-        const message = decodeBinaryFrame(payload) as ProjectServerMessage;
-        this.onMessage(message);
-      } catch {
-        socket.destroy(new Error('invalid binary codebase-index server response'));
-        return;
-      }
-      offset += totalLen;
-    }
-
-    // Keep the remainder for the next chunk.
-    this.binaryBuffer = offset < all.length ? [all.subarray(offset)] : [];
   }
 
   private onMessage(message: ProjectServerMessage): void {
@@ -570,10 +550,13 @@ class ProjectServerConnection {
       }
       this.info = message;
       this.markResponsive();
-      // P6: If the server supports binary framing, switch this socket to binary
-      // mode. The next write() call sends binary frames; the server detects the
-      // magic byte and switches its read path.
-      if (message.binarySupported) this.useBinary = true;
+      // P6: binary framing is opt-in (WRONGSTACK_INDEX_BINARY=1). The server
+      // advertises the capability, but benchmarks (2026-08, Windows named
+      // pipe, 100-result search) show MessagePack round-trips ~1.9× slower
+      // than NDJSON — V8's native JSON beats the pure-JS msgpack codec — for
+      // only 8.3% wire savings. Default traffic stays NDJSON; the env var
+      // flips this socket to binary on the next write.
+      if (message.binarySupported && binaryFramingEnabled()) this.useBinary = true;
       this.transition('connected', { pid: message.pid });
       ensureHeartbeatLoop();
       this.connectResolve?.();
@@ -711,6 +694,16 @@ class ProjectServerConnection {
 const connections = new Map<string, ProjectServerConnection>();
 const MAX_CACHED_CONNECTIONS = 8;
 let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
+
+/**
+ * Binary IPC framing is opt-in: `WRONGSTACK_INDEX_BINARY=1` makes the client
+ * adopt MessagePack frames when the server advertises `binarySupported`.
+ * Default is NDJSON — see the hello handler for the benchmark rationale.
+ */
+function binaryFramingEnabled(): boolean {
+  const flag = process.env['WRONGSTACK_INDEX_BINARY'];
+  return flag === '1' || flag === 'true';
+}
 
 function forgetConnection(endpoint: string, connection: ProjectServerConnection): void {
   if (connections.get(endpoint) === connection) connections.delete(endpoint);

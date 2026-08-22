@@ -5,8 +5,8 @@
  * Errors cross the boundary as strings and are re-wrapped by the host.
  */
 
+import type { IncomingCallsResult, OutgoingCallsResult } from './worker-protocol/contracts.js';
 import type { CodeMapGraph, IndexResult, IndexStats, SearchResult } from './schema.js';
-import type { IncomingCallsResult, OutgoingCallsResult } from './index-service.js';
 
 // ─── Operation arguments ─────────────────────────────────────────────────────
 
@@ -54,6 +54,19 @@ export interface CallRefsOpArgs extends StatsOpArgs {
 export interface SearchOpResult {
   results: SearchResult[];
   total: number;
+  /**
+   * P2.5: present only on zero-hit responses. Minimal summary (files indexed,
+   * last_indexed) so the search tool can distinguish "index exists but nothing
+   * matched" from "no persisted index at all" without a separate stats round
+   * trip over IPC.
+   */
+  indexSummary?: { totalFiles: number; lastIndexed: number | null } | undefined;
+  /**
+   * True when the project server served a previous generation's cached
+   * answer while a refresh was publishing (stale-read serving). Never set by
+   * the worker/inline path, which refuses reads during a refresh instead.
+   */
+  stale?: boolean | undefined;
 }
 
 /** Map of op name → { args, result } so host and worker stay in lockstep. */

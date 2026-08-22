@@ -14,7 +14,6 @@
 
 import { runIndexerWithStore } from './indexer.js';
 import type {
-  CallSite,
   CodeMapGraph,
   IndexResult,
   IndexStats,
@@ -61,7 +60,7 @@ export async function indexService(
 export function searchService(args: SearchOpArgs): SearchOpResult {
   const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
   try {
-    return store.searchRanked(
+    const result = store.searchRanked(
       args.query,
       {
         kind: args.kind as SymbolKind | undefined,
@@ -71,6 +70,14 @@ export function searchService(args: SearchOpArgs): SearchOpResult {
       },
       args.limit,
     );
+    // P2.5: piggyback the minimal index summary on zero-hit responses so the
+    // search tool can answer "is there a persisted index?" without a second
+    // stats IPC round trip. Hit responses omit it — they already prove the
+    // index exists and the extra payload would ride every search.
+    if (result.total === 0) {
+      return { ...result, indexSummary: store.getIndexSummary() };
+    }
+    return result;
   } finally {
     indexStorePool.release(store);
   }
@@ -118,25 +125,8 @@ export function symbolGraphService(args: StatsOpArgs & { fileFilter: string }): 
   }
 }
 
-/** Result of an incoming calls query. */
-export interface IncomingCallsResult {
-  calls: CallSite[];
-  symbolFound: boolean;
-  /** True when `file` was scoped but the name is ambiguous (other files define it too). */
-  ambiguous: boolean;
-  /** Total matching call sites before the limit was applied. */
-  totalMatches: number;
-}
-
-/** Result of an outgoing calls query. */
-export interface OutgoingCallsResult {
-  calls: CallSite[];
-  symbolFound: boolean;
-  /** Number of refs whose target could not be resolved (to_id IS NULL). */
-  unresolvedCount: number;
-  /** Total matching call sites before the limit was applied. */
-  totalMatches: number;
-}
+import type { IncomingCallsResult, OutgoingCallsResult } from './worker-protocol/contracts.js';
+export type { IncomingCallsResult, OutgoingCallsResult };
 
 /** Incoming call sites for a named symbol (who calls/uses this symbol?). */
 export function incomingCallsService(args: CallRefsOpArgs): IncomingCallsResult {

@@ -17,16 +17,94 @@ process and its SQLite index.
 - `WRONGSTACK_INDEX_INLINE=1` or `WRONGSTACK_INDEX_SERVER=0` disables the
   detached service and retains the worker/inline fallback.
 
+## Transport
+
+The default wire framing is newline-delimited JSON (NDJSON). The server also
+speaks a binary framing — `[0x57][uint32 BE length][MessagePack payload]` —
+read per frame by sniffing the first byte, never by a latched mode: the
+reader accepts JSON and binary frames interleaved on the same socket, so a
+JSON broadcast between binary responses cannot desynchronize it. The server
+advertises the capability as `binarySupported` in its `hello` frame and
+answers each request in the framing it arrived in; note that the server's
+**outbound** framing latches to binary after the first binary request on a
+connection (later JSON-framed requests still get binary responses) — the
+per-frame sniffing applies to inbound traffic on both sides.
+
+Client adoption is **opt-in** via `WRONGSTACK_INDEX_BINARY=1`. The default
+stays NDJSON because the measured trade-off is poor: on a Windows named pipe
+(2026-08 benchmark, 100-result search response) MessagePack frames were 8.3%
+smaller but ~1.9× slower round-trip — V8's native `JSON.stringify`/`parse`
+beats the pure-JavaScript msgpack codec roughly 3:1, and the wire savings do
+not recover the codec cost. The capability is kept for runtimes or payloads
+where that balance flips.
+
+Frame ceilings protect both sides: JSON frames are capped at 64 Mi
+characters; binary frames at 256 MiB outbound and a tighter inbound bound for
+requests (they are small by construction), rejected from the 5-byte header
+before the server waits on or accumulates the declared payload. A garbage or
+oversized frame destroys the socket. MessagePack normalizes `undefined` away
+before encoding (`nil` would arrive as `null` and change payload shape
+between framings), and the search readers treat a `null` filter field as
+absent.
+
 ## Concurrency
 
 - Read operations may run concurrently.
 - SQLite writes are serialized through one server-owned queue.
+- Idle-time WAL maintenance: after every write run the daemon arms a sliding
+  30s idle timer (override with `WRONGSTACK_INDEX_WAL_IDLE_MS`). When it fires
+  — and no reader holds the WAL — the server checkpoints and truncates
+  `index.db-wal`, and every 8th fire runs `PRAGMA optimize` to refresh planner
+  statistics. Maintenance timers are unref'd, so they never delay the
+  daemon's own idle exit.
 - Identical unforced full-index requests share one active indexing job and
   receive the same progress stream.
 - External file watching is owned and debounced by the server, so opening more
   clients does not multiply project watchers. Ownership is tracked per client;
   the last owner disconnecting closes the watcher and clears its debounce
   timers and pending-file sets.
+
+## Reads during a refresh
+
+While an index refresh is publishing, reads are served from the previous
+generation's query caches instead of failing, and the response carries
+`stale: true` so callers know the answer predates the run in flight. This
+applies to `search`, `packageGraph`, `fileGraph`, `symbolGraph`,
+`incomingCalls`, and `outgoingCalls`. A read with no cached answer still fails
+with `IndexRefreshInProgressError`: read operations share the server's single
+pooled SQLite connection with the in-flight write transaction, so loading
+fresh mid-run would read uncommitted rows. `stats` always refuses during a
+refresh — it is the progress poll, and a cached pre-run answer would read as
+"finished" with old numbers.
+
+The `stale` flag is additive on the wire (`SearchOpResult`,
+`IncomingCallsResult`, `OutgoingCallsResult`, and graph results). The read
+tools (`codebase-search`, `codebase-incoming-calls`, `codebase-outgoing-calls`)
+attempt the query during a refresh rather than refusing upfront, surface
+`stale` on their output, and degrade a cache-miss refusal to an advisory
+status. The worker/inline fallback path (no server-side cache layer) still
+refuses reads for the whole refresh.
+
+Cache preservation across runs: a targeted run (an explicit file list —
+per-edit and watcher reindexes, not forced) keeps the query caches on both
+success and failure; anything that can reshape the whole index (full scans,
+`force` rebuilds, `langs`/`ignore`-filtered runs) clears them on completion
+and on failure alike. Preserved entries are generation-tagged, so idle reads
+never see them — they only surface, flagged `stale`, inside the next
+refresh's window, and only while they lag the publishing generation by at
+most two completions (`MAX_STALE_GENERATION_LAG`); an older entry is refused
+like a cache miss rather than served as an increasingly outdated answer.
+
+## Vector layer (P4.11)
+
+The 384-dim char-trigram embedding layer is **opt-in** via
+`WRONGSTACK_INDEX_VECTORS=1`; the default is off. Measured on a 3000-symbol
+corpus (2026-08): recall@10 and MRR are identical with the layer off — the
+trigram embedding duplicated the FTS5 trigram tokenizer's lexical ranking —
+while the index database is ~55% smaller and full indexing ~2.2× faster.
+Opening a legacy database with the gate off drops `symbol_vectors` (its pages
+return to the free list); re-enabling plus a force reindex repopulates it.
+The RRF fusion path in `searchRanked` remains available when the gate is on.
 
 ## Health and control
 
@@ -66,10 +144,15 @@ Symbols are extracted by per-language parser modules loaded lazily by
 file of its language is encountered — the TypeScript compiler API, for instance,
 is never loaded for a Go-only project.
 
-Parser worker threads (`parser-worker.ts`, `parser-worker-pool.ts`) were removed
-in 2026-07 — the lazy dynamic import + `Promise.allSettled` on the main thread
-provides adequate parallel parsing, and the detached project server already runs
-parsing off the main event loop.
+Parser worker threads (`parser-worker-pool.ts`, `parser-worker-script.ts`)
+parallelize bulk parsing: when a run holds at least 500 candidate files on a
+non-frugal perf profile, file contents — already read on the main thread for
+the content-hash check — are distributed across up to four worker threads
+(cores − 1, clamped) that parse without touching SQLite; all writes stay on
+the server thread through one `commitBatch` transaction per outer batch.
+Smaller runs, frugal profiles, and pool-spawn failures fall back to inline
+parsing on the server's event loop, which is already off every client's main
+thread.
 
 ## Compatibility and recovery
 
@@ -77,5 +160,6 @@ The protocol begins with a versioned handshake. Health payloads are validated at
 runtime; a server from an older compatible build may still be reported healthy
 without process metrics. Stale Unix sockets and metadata are replaced only
 after a direct connection fails, and metadata is removed only by its owning
-process. Newline-delimited IPC frames have a 64 Mi-character ceiling so a
+process. IPC frames are bounded in both framings — 64 Mi characters for
+NDJSON, the header-checked binary caps described under Transport — so a
 malformed or runaway peer cannot grow an input buffer without bound.

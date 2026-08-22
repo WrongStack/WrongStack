@@ -69,14 +69,6 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
   },
   async execute(input, ctx) {
     const state = getIndexState();
-    if (state.indexing) {
-      return {
-        symbol: input.symbol,
-        calls: [],
-        total: 0,
-        indexStatus: `Index refresh in progress (${state.currentFile}/${state.totalFiles} files) — retry after the completed generation is published.`,
-      };
-    }
     if (state.lastError) {
       const circuit = state.circuit;
       const retryHint =
@@ -96,6 +88,9 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     // Degrade infrastructure failures (daemon down, invalid endpoint, index
     // read timeout) to the empty-results + indexStatus contract instead of a
     // raw throw — mirrors codebase-search-tool.ts / codebase-stats-tool.ts.
+    // A refresh in progress is NOT a failure: the project server serves
+    // previous-generation answers flagged `stale`, and only refuses when it
+    // has no cached answer for this query.
     let serviced: Awaited<ReturnType<typeof outgoingCallsService>>;
     try {
       serviced = await outgoingCallsService({
@@ -107,6 +102,14 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
         transitive,
       });
     } catch (err) {
+      if ((err as { name?: string }).name === 'IndexRefreshInProgressError') {
+        return {
+          symbol: input.symbol,
+          calls: [],
+          total: 0,
+          indexStatus: `Index refresh in progress (${state.currentFile}/${state.totalFiles} files); this symbol has no cached answer yet — retry after the completed generation is published.`,
+        };
+      }
       return {
         symbol: input.symbol,
         calls: [],
@@ -114,7 +117,7 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
         indexStatus: `Index query failed: ${toErrorMessage(err)}. Fall back to grep for this lookup.`,
       };
     }
-    const { calls, symbolFound, unresolvedCount, totalMatches } = serviced;
+    const { calls, symbolFound, unresolvedCount, totalMatches, stale } = serviced;
 
     if (!symbolFound) {
       // Process-local readiness resets on launch while the SQLite index may
@@ -161,11 +164,17 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
         `${unresolvedCount} unresolved reference(s) not shown — their targets could not be resolved during indexing.`,
       );
     }
+    if (stale) {
+      notes.push(
+        `Index refresh in progress (${state.currentFile}/${state.totalFiles} files); callees served from the previous generation — call sites in files being indexed may lag.`,
+      );
+    }
 
     return {
       symbol: input.symbol,
       calls,
       total: calls.length,
+      ...(stale ? { stale: true } : {}),
       ...(notes.length > 0 ? { note: notes.join(' ') } : {}),
     };
   },
@@ -184,6 +193,12 @@ interface OutgoingCallsOutput {
   symbol: string;
   calls: CallSite[];
   total: number;
+  /**
+   * True when the project server served a previous generation's cached
+   * answer during a refresh. Results are internally consistent but may lag
+   * the files currently being indexed.
+   */
+  stale?: boolean | undefined;
   /** Non-empty when the index blocked the query (not ready, indexing, failed). */
   indexStatus?: string | undefined;
   /** Advisory note when the symbol was not found, or unresolved refs exist. */

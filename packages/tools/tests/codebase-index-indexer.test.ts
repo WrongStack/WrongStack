@@ -44,8 +44,10 @@ describe('runIndexer', () => {
     expect(first.symbolsIndexed).toBeGreaterThan(0);
 
     // Second run: nothing changed → files counted from cached meta (incremental).
+    // P5.15: skipped files no longer inflate filesIndexed — the headline is
+    // files parsed this run; reuse lives in fileOutcomes.skipped.
     const second = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
-    expect(second.filesIndexed).toBe(2);
+    expect(second.filesIndexed).toBe(0);
     expect(second.fileOutcomes).toEqual({ parsed: 0, skipped: 2, empty: 0, failed: 0 });
 
     // Force: clears and rebuilds.
@@ -145,7 +147,9 @@ describe('runIndexer', () => {
     await fs.rm(path.join(dir, 'tracked.ts'));
     const deleted = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
     expect(deleted.errors).toEqual([]);
-    expect(deleted.filesIndexed).toBe(1);
+    // P5.15: nothing was parsed (one file pruned as stale, the rest skipped) —
+    // the prune is validated by the search result below, not the counter.
+    expect(deleted.filesIndexed).toBe(0);
     const deletedStore = new IndexStore(dir, { indexDir: indexDir() });
     try {
       expect(deletedStore.searchRanked('trackedUpdated', {}, 10).results).toHaveLength(0);
@@ -226,7 +230,9 @@ describe('runIndexer', () => {
   it('records a file with zero symbols', async () => {
     await fs.writeFile(path.join(dir, 'empty.ts'), '\n\n');
     const res = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
-    expect(res.filesIndexed).toBe(1);
+    // P5.15: empty files are indexed (file row written, searchable absence)
+    // but don't count toward the parsed headline — see fileOutcomes.empty.
+    expect(res.filesIndexed).toBe(0);
     expect(res.symbolsIndexed).toBe(0);
     expect(res.fileOutcomes).toEqual({ parsed: 0, skipped: 0, empty: 1, failed: 0 });
   });
@@ -240,7 +246,11 @@ describe('runIndexer', () => {
 
     await fs.rm(gone);
     const second = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
-    expect(second.filesIndexed).toBe(1); // gone.ts pruned on the stale sweep
+    // P5.15: gone.ts was pruned as stale and stay.ts was skipped (unchanged) —
+    // nothing parsed. The prune itself is validated by the store checks in the
+    // targeted-reindex test; this assertion pins the new counter semantics.
+    expect(second.filesIndexed).toBe(0);
+    expect(second.fileOutcomes?.skipped).toBe(1);
   });
 
   it('returns no files when the project root does not exist', async () => {

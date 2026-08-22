@@ -27,7 +27,7 @@ import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
 import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { ModuleResolver } from './module-resolver.js';
 import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
-import { parseFileContent } from './parser-dispatch.js';
+import { type parseFileContent, parseFilesContent } from './parser-dispatch.js';
 import { getParserPool, WORKER_POOL_THRESHOLD } from './parser-worker-pool.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
@@ -441,6 +441,10 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
   const startMs = Date.now();
   const errors: string[] = [];
   const langStats: Record<string, number> = {};
+  // P5.15: filesIndexed counts ONLY files parsed and committed with symbols
+  // (mirrors filesParsed). Skips/empties live in fileOutcomes. Invariant:
+  // exactly one counter (filesIndexed/filesParsed, filesSkipped, filesEmpty,
+  // filesFailed) bumps per file outcome — filesIndexed is the parsed branch.
   let filesIndexed = 0;
   let filesParsed = 0;
   let filesSkipped = 0;
@@ -522,7 +526,8 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
       if (!meta || !trustedUnchanged.has(file)) return true;
       langStats[meta.lang] = (langStats[meta.lang] ?? 0) + meta.symbolCount;
       symbolsIndexed += meta.symbolCount;
-      filesIndexed++;
+      // P5.15: skipped files no longer count toward filesIndexed — the
+      // headline is files actually parsed this run (see fileOutcomes).
       filesSkipped++;
       filesPreSkipped++;
       return false;
@@ -727,27 +732,25 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
       // Inline fallback (or when pool wasn't available). Parse in parallel
       // — this is the same parallelism the pre-refactor code had via the
       // single Promise.allSettled callback. Sequential parsing would
-      // regress incremental indexing latency.
+      // regress incremental indexing latency. P3.8: one call for the whole
+      // slice, so Go/Python files inside it share one toolchain child
+      // process per chunk instead of one spawn per file.
       if (!pool) {
-        await Promise.all(
-          toParse.map(async (item) => {
-            try {
-              const parsed = await parseFileContent(item.file, item.content, item.lang);
-              const settled = statReadParse[item.index]!;
-              if (settled.status === 'fulfilled') {
-                settled.value.parsed = parsed;
-              }
-            } catch (e) {
-              // Parse error — record it so the commit loop reports it
-              // instead of treating the file as successfully indexed with
-              // zero symbols.
-              const settled = statReadParse[item.index]!;
-              if (settled.status === 'fulfilled') {
-                settled.value.error = `parse error: ${e instanceof Error ? e.message : String(e)}`;
-              }
-            }
-          }),
+        const parsedAll = await parseFilesContent(
+          toParse.map((p) => ({ file: p.file, content: p.content, lang: p.lang })),
         );
+        for (let pi2 = 0; pi2 < parsedAll.length && pi2 < toParse.length; pi2++) {
+          const settled = statReadParse[toParse[pi2]!.index]!;
+          if (settled.status !== 'fulfilled') continue;
+          const slot = parsedAll[pi2]!;
+          if (slot.result) {
+            settled.value.parsed = slot.result;
+          } else {
+            // A throwing parser no longer aborts the run — parseFilesContent
+            // contains it and carries the message (P3.8 fix; P2.5 surfaces it).
+            settled.value.error = `parse error: ${slot.error ?? `no result for ${toParse[pi2]!.file}`}`;
+          }
+        }
       }
     }
 
@@ -797,7 +800,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
       if (result.skippedMeta) {
         langStats[lang] = (langStats[lang] ?? 0) + result.skippedMeta.symbolCount;
         symbolsIndexed += result.skippedMeta.symbolCount;
-        filesIndexed++;
+        // P5.15: content-hash skips don't count toward filesIndexed.
         filesSkipped++;
         // Content-hash short-circuit (Phase 2): mtime changed but content
         // didn't. Persist the new mtime so the next run's fast path hits
@@ -826,7 +829,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
             lastIndexed: Date.now(),
             contentHash: result.contentHash ?? '',
           });
-          filesIndexed++;
+          // P5.15: empty files don't count toward filesIndexed.
           filesEmpty++;
         }
         continue;
@@ -843,7 +846,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
           lastIndexed: Date.now(),
           contentHash: result.contentHash ?? '',
         });
-        filesIndexed++;
+        // P5.15: empty files don't count toward filesIndexed.
         filesEmpty++;
         continue;
       }
@@ -953,6 +956,7 @@ async function runIndexerAtomic(store: IndexStore, opts: IndexerOptions): Promis
     store.setMetadata(GIT_SNAPSHOT_METADATA_KEY, errors.length === 0 ? discoverySnapshotKey : '');
   }
   // Planner refresh belongs to full/bulk runs, not the edit watcher hot path.
+  // P5.15: gate on actual work (parsed files), not the inflated legacy count.
   if (!opts.files || filesIndexed >= 50) store.optimize();
 
   store.setLastIndexed(Date.now());

@@ -98,7 +98,9 @@ describe('runIndexer defensive branches', () => {
     parserCfg.throw = true;
     const second = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir(), files: [f] });
 
-    expect(second.filesIndexed).toBe(1);
+    // P5.15: the mtime changed but content matched, so the file was
+    // content-hash SKIPPED — not parsed. filesIndexed no longer counts it.
+    expect(second.filesIndexed).toBe(0);
     expect(second.errors).toEqual([]);
     expect(mockedFs.readFile).toHaveBeenCalledWith(f, expect.anything());
   });

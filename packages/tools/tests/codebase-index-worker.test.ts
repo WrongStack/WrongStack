@@ -56,6 +56,20 @@ function processExists(pid: number): boolean {
   }
 }
 
+/** Poll `cond` until it holds or the budget is spent. Returns its final value. */
+async function until(
+  cond: () => boolean | Promise<boolean>,
+  budgetMs = 30_000,
+  stepMs = 15,
+): Promise<boolean> {
+  const deadline = Date.now() + budgetMs;
+  while (Date.now() < deadline) {
+    if (await cond()) return true;
+    await new Promise((resolve) => setTimeout(resolve, stepMs));
+  }
+  return cond();
+}
+
 interface DistIndexApi {
   getIndexState(): {
     server: {
@@ -105,6 +119,8 @@ interface DistIndexApi {
   }): Promise<{
     results: Array<{ name: string; file: string; snippet: string; score: number }>;
     total: number;
+    /** True when the project server served a previous generation's cached answer mid-refresh. */
+    stale?: boolean;
   }>;
   codebaseIndexStats(args: {
     projectRoot: string;
@@ -482,4 +498,121 @@ describe.skipIf(!distReady)('index host (project-server mode, built dist)', () =
       await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
     }
   }, 90_000);
+
+  it('serves stale cached answers over real IPC while a refresh publishes', async () => {
+    const staleApi = (await import(
+      /* @vite-ignore */ `file://${distEntry.replace(/\\/g, '/')}`
+    )) as DistIndexApi;
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-stale-'));
+    const indexDir = path.join(tmpDir, '.codebase-index');
+    const primeQuery = { projectRoot: tmpDir, indexDir, query: 'alphaMethod', limit: 5 };
+    const uncachedQuery = { projectRoot: tmpDir, indexDir, query: 'zetaNeverPrimed', limit: 5 };
+    const search = (args: typeof primeQuery) =>
+      settleIndexRead(() => staleApi.searchCodebaseIndex(args));
+
+    try {
+      await fs.writeFile(
+        path.join(tmpDir, 'alpha.ts'),
+        'export class AlphaService { alphaMethod(): void {} }',
+      );
+      // A filler corpus large enough that a force rebuild holds the refresh
+      // window open for many polling iterations.
+      await Promise.all(
+        Array.from({ length: 260 }, (_, i) =>
+          fs.writeFile(path.join(tmpDir, `filler-${i}.ts`), `export const filler${i} = ${i};\n`),
+        ),
+      );
+
+      const first = await staleApi.runStartupIndex({
+        projectRoot: tmpDir,
+        indexDir,
+        timeoutMs: 120_000,
+      });
+      expect(first.errors).toHaveLength(0);
+
+      // Prime the query cache at the current generation (fresh, not stale).
+      const primed = await search(primeQuery);
+      expect(primed?.stale).toBeUndefined();
+      expect(primed?.results.some((r) => r.name === 'alphaMethod')).toBe(true);
+
+      // Force rebuild = whole-index scope: caches clear on completion. During
+      // the window the primed query must be served flagged `stale`, and a
+      // never-primed query must be refused (IndexRefreshInProgressError →
+      // settleIndexRead yields undefined).
+      let rebuildDone = false;
+      let sawStaleHit = false;
+      let sawUncachedRefusal = false;
+      const rebuild = staleApi
+        .runStartupIndex({ projectRoot: tmpDir, indexDir, force: true, timeoutMs: 120_000 })
+        .finally(() => {
+          rebuildDone = true;
+        });
+      while (!rebuildDone) {
+        if (staleApi.getIndexState().server.activity?.indexing) {
+          const hit = await search(primeQuery);
+          if (hit?.stale === true && hit.results.some((r) => r.name === 'alphaMethod')) {
+            sawStaleHit = true;
+          }
+          if ((await search(uncachedQuery)) === undefined) sawUncachedRefusal = true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await rebuild;
+      expect(sawStaleHit).toBe(true);
+      expect(sawUncachedRefusal).toBe(true);
+
+      // Completion of the forced run cleared the caches: the next read is
+      // fresh (recomputed), never stale-flagged.
+      const fresh = await search(primeQuery);
+      expect(fresh?.stale).toBeUndefined();
+      expect(fresh?.results.some((r) => r.name === 'alphaMethod')).toBe(true);
+
+      // Targeted (watcher) runs preserve the caches: prime again at
+      // generation G, run a targeted reindex (generation G+1, caches kept),
+      // then prove the primed entry survives as the stale answer inside the
+      // NEXT force rebuild's window.
+      await staleApi.ensureCodebaseIndexServer({
+        projectRoot: tmpDir,
+        indexDir,
+        watchExternal: true,
+        debounceMs: 20,
+      });
+      await fs.writeFile(
+        path.join(tmpDir, 'targeted.ts'),
+        'export function targetedSentinel(): void {}\n',
+      );
+      const targetedFound = await until(async () => {
+        const hit = await search({
+          projectRoot: tmpDir,
+          indexDir,
+          query: 'targeted sentinel',
+          limit: 5,
+        });
+        return hit?.results.some((r) => r.name === 'targetedSentinel') ?? false;
+      });
+      expect(targetedFound).toBe(true);
+
+      let secondDone = false;
+      let preservedStaleHit = false;
+      const second = staleApi
+        .runStartupIndex({ projectRoot: tmpDir, indexDir, force: true, timeoutMs: 120_000 })
+        .finally(() => {
+          secondDone = true;
+        });
+      while (!secondDone) {
+        if (staleApi.getIndexState().server.activity?.indexing) {
+          if ((await search(primeQuery))?.stale === true) preservedStaleHit = true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await second;
+      expect(preservedStaleHit).toBe(true);
+    } finally {
+      await staleApi
+        .shutdownCodebaseIndexServer(tmpDir, indexDir, 'stale-test-teardown')
+        .catch(() => {});
+      await staleApi.shutdownCodebaseIndexHost();
+      await fs.rm(tmpDir, { recursive: true, force: true, maxRetries: 20, retryDelay: 50 });
+    }
+  }, 120_000);
 });

@@ -34,6 +34,41 @@ const statsValue = {
 };
 let circuitSnapshot: Circuit = { state: 'closed', cooldownRemainingMs: 0 };
 
+/** Configurable search answer so stale-serve / refusal paths can be simulated. */
+let searchError: Error | undefined;
+let searchValue: { results: never[]; total: number; stale?: boolean } = {
+  results: [],
+  total: 0,
+};
+
+/** Same configurability for the call-graph services. */
+let incomingError: Error | undefined;
+let incomingValue: {
+  calls: never[];
+  symbolFound: boolean;
+  ambiguous: boolean;
+  totalMatches: number;
+  stale?: boolean;
+} = {
+  calls: [],
+  symbolFound: true,
+  ambiguous: false,
+  totalMatches: 0,
+};
+let outgoingError: Error | undefined;
+let outgoingValue: {
+  calls: never[];
+  symbolFound: boolean;
+  unresolvedCount: number;
+  totalMatches: number;
+  stale?: boolean;
+} = {
+  calls: [],
+  symbolFound: true,
+  unresolvedCount: 0,
+  totalMatches: 0,
+};
+
 vi.mock('../src/codebase-index/background-indexer.js', () => ({
   getIndexState: () => state,
   isIndexing: () => isIndexingValue,
@@ -42,19 +77,18 @@ vi.mock('../src/codebase-index/background-indexer.js', () => ({
     if (statsError) throw statsError;
     return statsValue;
   },
-  searchCodebaseIndex: async () => ({ results: [], total: 0 }),
-  incomingCallsService: async () => ({
-    calls: [],
-    symbolFound: true,
-    ambiguous: false,
-    totalMatches: 0,
-  }),
-  outgoingCallsService: async () => ({
-    calls: [],
-    symbolFound: true,
-    unresolvedCount: 0,
-    totalMatches: 0,
-  }),
+  searchCodebaseIndex: async () => {
+    if (searchError) throw searchError;
+    return searchValue;
+  },
+  incomingCallsService: async () => {
+    if (incomingError) throw incomingError;
+    return incomingValue;
+  },
+  outgoingCallsService: async () => {
+    if (outgoingError) throw outgoingError;
+    return outgoingValue;
+  },
   runStartupIndex: async () => ({
     filesIndexed: 1,
     symbolsIndexed: 1,
@@ -94,6 +128,12 @@ beforeEach(() => {
   statsValue.totalSymbols = 5;
   statsValue.totalFiles = 2;
   statsValue.lastIndexed = 1;
+  searchError = undefined;
+  searchValue = { results: [], total: 0 };
+  incomingError = undefined;
+  incomingValue = { calls: [], symbolFound: true, ambiguous: false, totalMatches: 0 };
+  outgoingError = undefined;
+  outgoingValue = { calls: [], symbolFound: true, unresolvedCount: 0, totalMatches: 0 };
 });
 afterEach(() => vi.restoreAllMocks());
 
@@ -207,22 +247,57 @@ describe('codebase-search tool gates', () => {
     expect(out.indexStatus).toBeUndefined();
   });
 
-  it('reports indexing-in-progress when not ready but indexing', async () => {
+  it('reports refresh-in-progress when the first build has no cached answer yet', async () => {
+    // First build: nothing was ever indexed, so the server has no cached
+    // answer to serve stale and refuses with IndexRefreshInProgressError.
     state.ready = false;
     state.indexing = true;
     state.currentFile = 0;
     state.totalFiles = 0;
+    searchError = new Error(
+      'Codebase index refresh in progress (0/0 files); retry after the completed generation is published.',
+    );
+    searchError.name = 'IndexRefreshInProgressError';
     const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
-    // The first build still surfaces a clear "not ready" status so callers
-    // know to retry rather than read a misleading zero-result snapshot.
     expect(out.indexStatus).toMatch(/Index refresh in progress/);
+    expect(out.indexStatus).toMatch(/no cached answer yet/);
+    expect(out.results).toEqual([]);
   });
 
-  it('refuses to search a partially published refresh generation', async () => {
+  it('refuses gracefully when a refresh has no cached answer for this query', async () => {
     state.ready = true;
     state.indexing = true;
+    state.currentFile = 4;
+    state.totalFiles = 9;
+    searchError = new Error(
+      'Codebase index refresh in progress (4/9 files); retry after the completed generation is published.',
+    );
+    searchError.name = 'IndexRefreshInProgressError';
     const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
+    expect(out.indexStatus).toMatch(/Index refresh in progress \(4\/9 files\)/);
     expect(out.indexStatus).toMatch(/completed generation is published/);
+  });
+
+  it('serves a stale previous-generation answer during a refresh instead of refusing', async () => {
+    state.ready = true;
+    state.indexing = true;
+    state.currentFile = 4;
+    state.totalFiles = 9;
+    searchValue = { results: [], total: 3, stale: true };
+    const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
+    expect(out.stale).toBe(true);
+    expect(out.total).toBe(3);
+    expect(out.indexStatus).toMatch(/previous generation/);
+    expect(out.indexStatus).toMatch(/\(4\/9 files\)/);
+  });
+
+  it('does not flag staleness on a fresh answer', async () => {
+    state.ready = true;
+    state.indexing = true;
+    searchValue = { results: [], total: 1 };
+    const out = await codebaseSearchTool.execute({ query: 'q' }, ctx(), opts());
+    expect(out.stale).toBeUndefined();
+    expect(out.indexStatus).toBeUndefined();
   });
 
   it('reports a build failure with a circuit-open retry hint', async () => {
@@ -240,12 +315,82 @@ describe('codebase-search tool gates', () => {
 });
 
 describe('codebase call-graph tool gates', () => {
-  it('refuses incoming and outgoing reads during a refresh', async () => {
+  function refreshRefusal(): Error {
+    const error = new Error(
+      'Codebase index refresh in progress (4/9 files); retry after the completed generation is published.',
+    );
+    error.name = 'IndexRefreshInProgressError';
+    return error;
+  }
+
+  it('degrades a refresh refusal to a friendly status for both tools', async () => {
+    state.ready = true;
+    state.indexing = true;
+    state.currentFile = 4;
+    state.totalFiles = 9;
+    incomingError = refreshRefusal();
+    outgoingError = refreshRefusal();
+    const incoming = await codebaseIncomingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    const outgoing = await codebaseOutgoingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    expect(incoming.indexStatus).toMatch(/Index refresh in progress \(4\/9 files\)/);
+    expect(incoming.indexStatus).toMatch(/no cached answer yet/);
+    expect(outgoing.indexStatus).toMatch(/Index refresh in progress \(4\/9 files\)/);
+    expect(outgoing.indexStatus).toMatch(/no cached answer yet/);
+    expect(incoming.calls).toEqual([]);
+    expect(outgoing.calls).toEqual([]);
+  });
+
+  it('serves stale previous-generation callers/callees during a refresh instead of refusing', async () => {
+    state.ready = true;
+    state.indexing = true;
+    state.currentFile = 4;
+    state.totalFiles = 9;
+    incomingValue = {
+      calls: [],
+      symbolFound: true,
+      ambiguous: false,
+      totalMatches: 5,
+      stale: true,
+    };
+    outgoingValue = {
+      calls: [],
+      symbolFound: true,
+      unresolvedCount: 0,
+      totalMatches: 3,
+      stale: true,
+    };
+    const incoming = await codebaseIncomingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    const outgoing = await codebaseOutgoingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    expect(incoming.stale).toBe(true);
+    expect(incoming.note).toMatch(/previous generation/);
+    expect(outgoing.stale).toBe(true);
+    expect(outgoing.note).toMatch(/previous generation/);
+  });
+
+  it('appends the stale note after cap/ambiguity notes rather than clobbering them', async () => {
+    state.ready = true;
+    state.indexing = true;
+    incomingValue = {
+      calls: [],
+      symbolFound: true,
+      ambiguous: true,
+      totalMatches: 500, // > default limit 50 → cap note
+      stale: true,
+    };
+    const out = await codebaseIncomingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
+    expect(out.note).toMatch(/Results capped at 50 of 500/);
+    expect(out.note).toMatch(/exists in multiple files/);
+    expect(out.note).toMatch(/previous generation/);
+  });
+
+  it('does not flag staleness on fresh call-graph answers', async () => {
     state.ready = true;
     state.indexing = true;
     const incoming = await codebaseIncomingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
     const outgoing = await codebaseOutgoingCallsTool.execute({ symbol: 'Target' }, ctx(), opts());
-    expect(incoming.indexStatus).toMatch(/completed generation is published/);
-    expect(outgoing.indexStatus).toMatch(/completed generation is published/);
+    expect(incoming.stale).toBeUndefined();
+    expect(outgoing.stale).toBeUndefined();
+    expect(incoming.note).toBeUndefined();
+    expect(outgoing.note).toBeUndefined();
   });
 });
