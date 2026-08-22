@@ -992,6 +992,9 @@
       "isLspKind",
       "LSPSymbolKind"
     ],
+    "packages/tools/src/codebase-index/parser-batch.ts": [
+      "__batchScriptPathsForTest"
+    ],
     "packages/tools/src/codebase-index/parser-worker-pool.ts": [
       "ParserWorkerPool"
     ],

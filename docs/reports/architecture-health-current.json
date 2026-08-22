@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T13:38:25.003Z",
+  "generatedAt": "2026-08-22T13:49:46.966Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 34,
     "sourceFiles": 3316,
     "testFiles": 2870,
-    "sourceLines": 789739,
+    "sourceLines": 789773,
     "workspaceEdges": 112,
     "moduleEdges": 10277,
     "nonCommandSlashImports": 0,
@@ -22,7 +22,7 @@
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 811
+    "testOnlyExports": 812
   },
   "errors": [],
   "packageCycles": [],
@@ -21147,6 +21147,10 @@
     {
       "file": "packages/tools/src/codebase-index/lsp-kind.ts",
       "name": "LSPSymbolKind"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/parser-batch.ts",
+      "name": "__batchScriptPathsForTest"
     },
     {
       "file": "packages/tools/src/codebase-index/parser-worker-pool.ts",
