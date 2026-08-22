@@ -50,7 +50,7 @@ export class Poller {
    * consecutive conflicts this instance backs off to a slow poll and warns
    * once; any successful poll resets to the normal cadence.
    */
-  private conflictStreak = 0;
+  private _conflictStreak = 0;
   private static readonly CONFLICT_BACKOFF_AFTER = 3;
   private static readonly CONFLICT_POLL_MS = 60_000;
 
@@ -101,6 +101,12 @@ export class Poller {
   /** True when polling is started but waiting for the poll lock. */
   get standby(): boolean {
     return this.pollActive && this.lock !== undefined && !this.lock.held;
+  }
+
+  /** Consecutive HTTP 409 responses at last poll — observability for the
+   * 60s backoff threshold (public getter, not a private-field seam). */
+  get conflictStreak(): number {
+    return this._conflictStreak;
   }
 
   /** Start polling for updates. Idempotent. */
@@ -172,7 +178,7 @@ export class Poller {
     // Lost the poll lock mid-flight — the standby retry loop owns recovery.
     if (this.lock && !this.lock.held) return;
     const delay =
-      this.conflictStreak >= Poller.CONFLICT_BACKOFF_AFTER
+      this._conflictStreak >= Poller.CONFLICT_BACKOFF_AFTER
         ? Poller.CONFLICT_POLL_MS
         : this.pollIntervalMs;
     this.pollTimer = setTimeout(() => {
@@ -188,7 +194,7 @@ export class Poller {
         deadlineMs: 15_000,
         signal: this.controller.signal,
       });
-      this.conflictStreak = 0;
+      this._conflictStreak = 0;
 
       for (const upd of updates) {
         // Telegram normally honors `offset`, but a proxy/replay or a test
@@ -227,8 +233,8 @@ export class Poller {
     } catch (err) {
       if (err instanceof TelegramNetworkError && err.aborted) return;
       if (err instanceof TelegramBotApiError && err.errorCode === 409) {
-        this.conflictStreak++;
-        if (this.conflictStreak === Poller.CONFLICT_BACKOFF_AFTER) {
+        this._conflictStreak++;
+        if (this._conflictStreak === Poller.CONFLICT_BACKOFF_AFTER) {
           this.log.warn(
             this.lock
               ? 'Telegram: another consumer outside this machine is polling this bot token (HTTP 409) — backing off to 60s polls. Check other machines/bots using this token, or a registered webhook (deleteWebhook).'

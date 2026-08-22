@@ -368,7 +368,7 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     // Each poll records the conflict and advances the backoff streak.
     const conflictCalls = server.calls.filter((c) => c.method === 'getUpdates').length;
     expect(conflictCalls).toBe(3);
-    expect(bot['poller']['conflictStreak']).toBe(3);
+    expect(bot.poller.conflictStreak).toBe(3);
   });
 
   // ------------------------------------------------------------------
