@@ -363,6 +363,17 @@ describe('Chimera mediums: generic type arguments, grouped imports, namespaced c
     expect(imports[0]!.toName).toBe('List');
     expect(imports[0]!.module).toBe('System.Collections.Generic.List<int, string>');
   });
+
+  it('C#: comma in a non-generic alias target does not split (the = guard)', async () => {
+    // `using Pair = (int, string);` has NO `<`, so only the `=` guard keeps
+    // this single clause out of the PHP multi-clause split. Dropping the `=`
+    // check would emit two junk fragments (`(int` / `string)`). The pin is
+    // the count: exactly one import ref, never two.
+    const refs = await refsFor('csharp', 'using Pair = (int, string);\n');
+    const imports = refs.get('import') ?? [];
+    expect(imports.length).toBe(1);
+    expect(imports.some((r) => r.toName === '(int' || r.toName === 'string)')).toBe(false);
+  });
 });
 
 describe('incoming/outgoing calls through the index (Java via tree-sitter)', () => {
