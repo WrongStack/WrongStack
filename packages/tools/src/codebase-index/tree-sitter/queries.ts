@@ -179,6 +179,13 @@ const heritageExtractor: NonNullable<RefRule['nameExtractor']> = (node) => {
   const SKIP_SUBTREES = new Set([
     'type_arguments',
     'type_argument_list',
+    // tree-sitter-cpp names its argument subtree template_argument_list —
+    // verified AST: (base_class_clause (template_type name:
+    // (type_identifier) arguments: (template_argument_list
+    // (type_descriptor type: (type_identifier))))). Without this entry
+    // `class D : Base<Foo>` recurses into the descriptor and emits Foo as a
+    // phantom inherit ref.
+    'template_argument_list',
     'type_parameter_list',
     'type_projection',
     'value_arguments',
@@ -273,6 +280,9 @@ function heritageLeaf(node: import('web-tree-sitter').Node, depth: number): stri
     if (
       c.type === 'type_arguments' ||
       c.type === 'type_argument_list' ||
+      // cpp: (template_type arguments: (template_argument_list …)) — the
+      // descriptor's type_identifier inside it is never the declared base.
+      c.type === 'template_argument_list' ||
       c.type === 'type_parameter_list' ||
       c.type === 'type_projection' ||
       c.type === 'value_arguments'

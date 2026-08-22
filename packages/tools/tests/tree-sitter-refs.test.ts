@@ -273,6 +273,18 @@ describe('Chimera mediums: generic type arguments, grouped imports, namespaced c
     expect(inherit.some((r) => r.toName === 'string')).toBe(false);
   });
 
+  it('C++: template base emits Base, never the template argument Foo', async () => {
+    // tree-sitter-cpp heritage: (base_class_clause (template_type name:
+    // (type_identifier) arguments: (template_argument_list (type_descriptor
+    // type: (type_identifier))))). The argument subtree type is DISTINCT
+    // from java/c#/kotlin's type_argument_list — without its own skip
+    // entry, Foo leaks as a phantom inherit ref.
+    const refs = await refsFor('cpp', 'class D : Base<Foo> {};\n');
+    const inherit = refs.get('inherit') ?? [];
+    expect(inherit.some((r) => r.toName === 'Base')).toBe(true);
+    expect(inherit.some((r) => r.toName === 'Foo')).toBe(false);
+  });
+
   it('Kotlin: generic delegation specifier emits Handler, not Event', async () => {
     const refs = await refsFor('kotlin', 'class D : Handler<Event> {}\n');
     const inherit = refs.get('inherit') ?? [];
