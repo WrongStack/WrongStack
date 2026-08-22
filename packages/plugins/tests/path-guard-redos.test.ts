@@ -73,12 +73,22 @@ describe('the fix did not weaken xargs writer detection', () => {
  * linearity fails loudly here.
  */
 describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
-  const BUDGET_MS = 2_000;
-
-  function timed(fn: () => void): number {
-    const t0 = performance.now();
+  // CPU time, not wall-clock: these pins flaked under full-suite parallel
+  // load, where scheduler preemption inflated wall time past the budget
+  // while the actual regex work was unchanged. CPU time removes scheduling
+  // noise, but NOTE: cache/memory-bandwidth contention from parallel
+  // workers still inflates CPU cycles for the same work (measured >2s CPU
+  // under load vs ~1.3s idle), so the budget carries headroom for that.
+  // The pin's discrimination is exponential-vs-polynomial: the old xargs
+  // ReDoS cost 52s at 134 chars — at this sweep's scale a reintroduced
+  // exponential shape is minutes, so 5s still fails loudly on regression
+  // while tolerating parallel-load contention on the healthy path.
+  const BUDGET_MS = 5_000;
+  function cpuTimed(fn: () => void): number {
+    const start = process.cpuUsage();
     fn();
-    return performance.now() - t0;
+    const used = process.cpuUsage(start);
+    return (used.user + used.system) / 1_000;
   }
 
   it('compiles pathological glob shapes in bounded time', () => {
@@ -90,10 +100,10 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
       '?'.repeat(200),
       `${'**/'.repeat(200)}package-lock.json`,
     ];
-    const ms = timed(() => {
+    const ms = cpuTimed(() => {
       for (const glob of pathological) compilePathGlob(glob);
     });
-    // Measured: 0.2ms for the whole set. Budget is generous for CI noise.
+    // Measured: 0.2ms CPU for the whole set.
     expect(ms).toBeLessThan(BUDGET_MS);
   });
 
@@ -114,8 +124,8 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
     // The full 20-combination sweep measured ~1.3s (≈65ms per pair) on this
     // scale — bounded polynomial (linear per start position), NOT the
     // exponential blowup ReDoS means (the old xargs bug: 52s at 134 chars).
-    const ms = timed(() => {
-      for (const re of patterns) for (const path of hostile) re.test(path);
+    const ms = cpuTimed(() => {
+      for (const re of patterns) for (const p of hostile) re.test(p);
     });
     expect(ms).toBeLessThan(BUDGET_MS);
   });
