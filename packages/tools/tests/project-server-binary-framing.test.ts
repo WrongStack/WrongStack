@@ -341,6 +341,34 @@ describe('encodeBinaryFrame null-prototype normalization (unit)', () => {
   });
 });
 
+describe('encodeBinaryFrame null values (unit, audit follow-up)', () => {
+  // Chimera Medium: the null-prototype tests covered undefined-stripping,
+  // but nothing pinned bare null VALUES — the exact payload of the first
+  // authorized binary ping response (updatedAt: null / lastError: null)
+  // that crashed the daemon when isPlainObject's prototype lookup ran
+  // before its null guard.
+  it('encodes the ping-response shape without throwing and preserves nulls', () => {
+    const decoded = binaryFrameModule.decodeBinaryFrame(
+      encodeBinaryFrame({ type: 'ping', ok: true, updatedAt: null, lastError: null }).subarray(5),
+    ) as Record<string, unknown>;
+    expect(decoded['ok']).toBe(true);
+    expect(decoded['updatedAt']).toBeNull();
+    expect(decoded['lastError']).toBeNull();
+  });
+
+  it('distinguishes null from undefined exactly as the JSON framing does', () => {
+    const payload = { dropped: undefined, kept: null } as Record<string, unknown>;
+    const decoded = binaryFrameModule.decodeBinaryFrame(
+      encodeBinaryFrame(payload).subarray(5),
+    ) as Record<string, unknown>;
+    // undefined is stripped (JSON.stringify drops the key); null survives.
+    expect('dropped' in decoded).toBe(false);
+    expect(decoded['kept']).toBeNull();
+    // Parity oracle: identical shape to the JSON framing of the same payload.
+    expect(decoded).toEqual(JSON.parse(JSON.stringify(payload)));
+  });
+});
+
 describe('encodeBinaryFrame class-instance allowlist (unit)', () => {
   function roundTrip(payload: object): Record<string, unknown> {
     return binaryFrameModule.decodeBinaryFrame(encodeBinaryFrame(payload).subarray(5)) as Record<
