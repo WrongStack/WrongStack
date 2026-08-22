@@ -8,10 +8,17 @@
  */
 import { execFile } from 'node:child_process';
 import * as fsSync from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { describe, expect, it } from 'vitest';
 import type { BatchFile } from '../src/codebase-index/parser-batch.js';
-import { chunkBatchFiles, runGoBatch, runPyBatch } from '../src/codebase-index/parser-batch.js';
+import {
+  __batchScriptPathsForTest,
+  chunkBatchFiles,
+  runGoBatch,
+  runPyBatch,
+} from '../src/codebase-index/parser-batch.js';
 import { parseFilesContent } from '../src/codebase-index/parser-dispatch.js';
 import { parseParserBatchOutput } from '../src/codebase-index/parser-output.js';
 import { resolvePythonBinary } from '../src/codebase-index/py-parser.js';
@@ -228,6 +235,54 @@ describe('parseFilesContent dispatcher', () => {
       else process.env['WRONGSTACK_TOOLCHAIN_BATCH'] = previous;
     }
   }, 90_000);
+});
+
+// Security regression (Chimera High): batch scripts must live in an
+// unpredictable mkdtemp directory, never the legacy predictable path.
+// Runs unconditionally — ensureScriptPath creates + caches the script path
+// BEFORE any toolchain spawn, so bogus binaries keep this toolchain-free.
+describe('batch script temp-path security', () => {
+  it('writes scripts to an unpredictable private dir, never the legacy fixed path', async () => {
+    await runGoBatch([goFile(0)], 'definitely-not-a-real-go-binary-xyz');
+    await runPyBatch([pyFile(0)], 'definitely-not-a-real-python-binary-xyz');
+
+    const { go, py } = __batchScriptPathsForTest();
+    expect(go).toBeTruthy();
+    expect(py).toBeTruthy();
+
+    const goDir = path.dirname(go!);
+    const pyDir = path.dirname(py!);
+    // Never the predictable legacy location an attacker could pre-create.
+    expect(goDir).not.toBe(path.join(os.tmpdir(), 'ws-go-parse'));
+    expect(pyDir).not.toBe(path.join(os.tmpdir(), 'ws-py-parse'));
+
+    // mkdtemp randomness: Node appends exactly 6 random chars directly to
+    // the prefix (no separator), and two fresh mkdtemp dirs with the same
+    // prefix are never equal — the property that makes pre-creation
+    // impossible.
+    expect(goDir).toMatch(/ws-go-parse.{6,}$/);
+    expect(pyDir).toMatch(/ws-py-parse.{6,}$/);
+    const probeA = fsSync.mkdtempSync(path.join(os.tmpdir(), 'ws-go-parse'));
+    const probeB = fsSync.mkdtempSync(path.join(os.tmpdir(), 'ws-go-parse'));
+    expect(probeA).not.toBe(probeB);
+    expect(probeA).not.toBe(goDir);
+    fsSync.rmSync(probeA, { recursive: true, force: true });
+    fsSync.rmSync(probeB, { recursive: true, force: true });
+
+    // The script exists inside the private dir.
+    expect(fsSync.existsSync(go)).toBe(true);
+    expect(fsSync.existsSync(py)).toBe(true);
+  });
+
+  it('refuses to overwrite an existing script file (O_EXCL — never follows a pre-existing symlink)', async () => {
+    const { go } = __batchScriptPathsForTest();
+    expect(go).toBeTruthy();
+    // 'wx' must refuse the already-existing script: an attacker-supplied
+    // file at that name could never be followed or replaced.
+    await expect(
+      fsSync.promises.writeFile(go!, 'evil payload', { encoding: 'utf8', flag: 'wx' }),
+    ).rejects.toThrow();
+  });
 });
 
 // Sanity: the test harness itself can see the toolchains it gates on.

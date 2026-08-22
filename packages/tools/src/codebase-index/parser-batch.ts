@@ -17,6 +17,7 @@
  */
 
 import { type ChildProcess, spawn } from 'node:child_process';
+import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -544,17 +545,50 @@ main()
 let _goBatchScriptPath: string | null = null;
 let _pyBatchScriptPath: string | null = null;
 
+/**
+ * Test-only: the cached batch-script paths. The security regression test
+ * observes WHERE the scripts were written without needing a toolchain —
+ * a missing binary still leaves the (already-created) path cached.
+ */
+export function __batchScriptPathsForTest(): { go: string | null; py: string | null } {
+  return { go: _goBatchScriptPath, py: _pyBatchScriptPath };
+}
+
+/**
+ * Write the toolchain batch script to a PRIVATE, UNPREDICTABLE directory.
+ *
+ * Security (Chimera High): the previous fixed path — `os.tmpdir()/ws-go-parse`
+ * via `mkdir(recursive)` + `writeFile` — was predictable. A local attacker
+ * could pre-create the directory and symlink `batch.go`/`batch.py` to a
+ * victim-writable file; our `writeFile` would follow the link and overwrite
+ * the target, and `go run`/`python` would execute whatever the attacker left
+ * at the path. `fs.mkdtemp` creates the directory with a random,
+ * attacker-unpredictable suffix (0700 on POSIX), so neither pre-creation nor
+ * symlink planting is possible. The directory is per-process (the module
+ * caches one path), so concurrent wstack processes never share it.
+ */
 async function ensureScriptPath(
   cached: string | null,
-  dirName: string,
+  prefix: string,
   fileName: string,
   script: string,
 ): Promise<{ path: string; wrote: boolean }> {
   if (cached) return { path: cached, wrote: false };
-  const dir = path.join(os.tmpdir(), dirName);
-  await fs.mkdir(dir, { recursive: true });
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
   const scriptPath = path.join(dir, fileName);
-  await fs.writeFile(scriptPath, script, 'utf8');
+  // 'x' (O_EXCL): fail if the file somehow already exists — never follow a
+  // pre-existing symlink, even inside our own private directory.
+  await fs.writeFile(scriptPath, script, { encoding: 'utf8', flag: 'wx' });
+  // Hygiene (Chimera medium): each process creates its own random dir; without
+  // an exit hook those accumulate in tmp across invocations. Best-effort — a
+  // SIGKILL leaves the dir behind, which the OS temp sweep eventually reaps.
+  process.once('exit', () => {
+    try {
+      fsSync.rmSync(dir, { recursive: true, force: true });
+    } catch {
+      /* best-effort cleanup */
+    }
+  });
   return { path: scriptPath, wrote: true };
 }
 
