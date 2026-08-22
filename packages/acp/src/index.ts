@@ -117,8 +117,8 @@ export {
 } from './registry/acp-registry-fetch.js';
 // Discovery — the catalog + registry (added in feat/acp-ensemble).
 export { AGENTS_CATALOG, findAgentDescriptor } from './registry/agents.catalog.js';
+export type { ACPAgentDescriptor } from './registry/contracts.js';
 export type {
-  ACPAgentDescriptor,
   ACPAgentVendor,
   ACPIntegration,
   DetectedAgent,

@@ -7,7 +7,7 @@ import {
   type MCPAuthorizationProvider,
   parseMcpBearerChallenge,
 } from './authorization.js';
-import type { ConnectionState, MCPTool } from './client.js';
+import type { ConnectionState, MCPTool } from './contracts.js';
 import type { MCPServerMetadata } from './protocol.js';
 import { isTlsUnsafeAllowed, validateTransportUrl } from './transport-security.js';
 
@@ -172,7 +172,13 @@ export abstract class BaseHTTPTransport {
       let hopHeaders = headers;
       for (let hop = 0; hop < MAX_TRANSPORT_REDIRECTS; hop++) {
         const res = await fetch(currentUrl, { ...init, headers: hopHeaders, redirect: 'manual' });
-        if (res.status !== 301 && res.status !== 302 && res.status !== 303 && res.status !== 307 && res.status !== 308) {
+        if (
+          res.status !== 301 &&
+          res.status !== 302 &&
+          res.status !== 303 &&
+          res.status !== 307 &&
+          res.status !== 308
+        ) {
           return res;
         }
         const location = res.headers.get('location');

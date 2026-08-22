@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { ToolError } from '@wrongstack/core/types';
-import type { JsonRpcResponse, ToolCallResult } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
+import type { JsonRpcResponse, ToolCallResult } from './contracts.js';
 import { parseServerMetadata } from './protocol.js';
 import { readBodyCapped } from './read-body.js';
 import { SSEReader } from './sse-reader.js';

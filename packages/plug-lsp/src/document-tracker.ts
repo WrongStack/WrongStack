@@ -4,8 +4,8 @@ import type { EventBus, EventMap } from '@wrongstack/core/kernel';
 import type { Logger } from '@wrongstack/core/types';
 import type { TextDocumentItem } from 'vscode-languageserver-protocol';
 import { languageIdFor } from './language-detect.js';
-import type { LSPRegistry } from './registry.js';
 import type { LSPServer } from './server/lsp-server.js';
+import type { ServerLister } from './shared-types.js';
 import type { TrackedDocument } from './types.js';
 import { pathToUri } from './utils/uri.js';
 
@@ -36,7 +36,7 @@ export class DocumentTracker {
   private cwd: string;
 
   constructor(
-    private readonly registry: () => LSPRegistry,
+    private readonly registry: () => ServerLister,
     private readonly log: Logger,
     cwd: string,
     private readonly events?: EventBus | undefined,
@@ -202,7 +202,9 @@ export class DocumentTracker {
   /** Drop least-recently-used documents until back inside both budgets. */
   private enforceBudget(): void {
     if (this.docs.size <= MAX_TRACKED_DOCS && this.trackedBytes <= MAX_TRACKED_BYTES) return;
-    const order = [...this.docs.keys()].sort((a, b) => this.lastUsed.get(a)! - this.lastUsed.get(b)!);
+    const order = [...this.docs.keys()].sort(
+      (a, b) => this.lastUsed.get(a)! - this.lastUsed.get(b)!,
+    );
     for (const absPath of order) {
       if (this.docs.size <= MAX_TRACKED_DOCS && this.trackedBytes <= MAX_TRACKED_BYTES) break;
       // Keep at least one document so the most recent read stays usable.

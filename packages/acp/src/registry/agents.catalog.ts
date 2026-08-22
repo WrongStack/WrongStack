@@ -35,7 +35,7 @@
  * a non-empty stdout line is considered installed. Probes that time out
  * or print nothing are treated as not-installed.
  */
-import type { ACPAgentDescriptor } from './ensemble-registry.js';
+import type { ACPAgentDescriptor } from './contracts.js';
 
 /**
  * The catalog. Order is significant for the TUI render — most-requested
@@ -279,8 +279,6 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
 ] as const;
 
 /** O(1) lookup by id. Returns `undefined` for unknown ids. */
-export function findAgentDescriptor(
-  id: string,
-): ACPAgentDescriptor | undefined {
+export function findAgentDescriptor(id: string): ACPAgentDescriptor | undefined {
   return AGENTS_CATALOG.find((a) => a.id === id);
 }

@@ -1,7 +1,7 @@
 import type {
   CanonicalClientMessageType,
   CanonicalServerMessageType,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import type { WSClientMessageCore, WSServerMessage } from './types.js';
 
 type AssertNever<T extends never> = T;

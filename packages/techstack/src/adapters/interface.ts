@@ -8,21 +8,7 @@
  * @see docs/specs/techstack-sdd.md §3.2, §6
  */
 
-import type {
-  DependencyObservation,
-  EcosystemId,
-  Evidence,
-  Workspace,
-} from '../types.js';
-
-export {
-  fileExists,
-  fileExistsAsync,
-  lockfileEvidence,
-  manifestEvidence,
-  resolveIn,
-  workspaceRoot,
-} from './paths.js';
+import type { DependencyObservation, EcosystemId, Evidence, Workspace } from '../types.js';
 
 /**
  * Options passed to inventory() controlling what data the adapter collects.

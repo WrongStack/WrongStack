@@ -15,7 +15,7 @@ import {
   resetConnection,
   type SurfaceConnectionState,
   stopConnection,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import WebSocket from 'ws';
 import type {
   DesktopConversationMessage,

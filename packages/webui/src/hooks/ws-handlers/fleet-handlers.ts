@@ -1,4 +1,4 @@
-import { projectFleetMessage } from '@wrongstack/webui-server/protocol';
+import { projectFleetMessage } from '@wrongstack/webui-protocol';
 import type { SubagentEvent } from '@/stores';
 import { useFleetStore, useMonitorStore, useWorktreeStore } from '@/stores';
 import type { LiveSession } from '@/stores/monitor-store';

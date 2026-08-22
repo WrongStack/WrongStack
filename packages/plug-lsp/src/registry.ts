@@ -2,10 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Logger } from '@wrongstack/core/types';
-import type { DocumentTracker } from './document-tracker.js';
 import { languageIdFor } from './language-detect.js';
 import { nextReconnectDelay } from './server/lifecycle.js';
 import { LSPServer } from './server/lsp-server.js';
+import type { ReopenableTracker } from './shared-types.js';
 import type { AutoStartMode, PlugLSPConfig } from './types.js';
 import { LSPError, LSPErrorCode } from './types.js';
 import { findWorkspaceRoot } from './workspace-root.js';
@@ -26,7 +26,7 @@ export class LSPRegistry {
 
   constructor(
     private readonly cfg: PlugLSPConfig,
-    private readonly tracker: DocumentTracker,
+    private readonly tracker: ReopenableTracker,
     private readonly ctx: RegistryContext,
   ) {
     this.cwd = ctx.cwd;

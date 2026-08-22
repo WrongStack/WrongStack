@@ -9,22 +9,16 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
-import {
-  fileExists,
-  lockfileEvidence,
-  manifestEvidence,
-  workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { fileExists, lockfileEvidence, manifestEvidence, workspaceRoot } from './paths.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -41,7 +35,7 @@ interface ComposerLockPackage {
   readonly name: string;
   readonly version: string;
   readonly type?: string;
-  readonly 'require'?: Record<string, string>;
+  readonly require?: Record<string, string>;
   readonly 'require-dev'?: Record<string, string>;
 }
 
@@ -71,14 +65,17 @@ function parseComposerLock(content: string): Map<string, string> {
  */
 function statusForComposerSpec(spec: string): DependencyObservation['status'] {
   if (spec.startsWith('file:') || spec.startsWith('path:')) return 'local_path';
-  if (spec.startsWith('git@') || spec.startsWith('git:') || spec.startsWith('http')) return 'git_dependency';
+  if (spec.startsWith('git@') || spec.startsWith('git:') || spec.startsWith('http'))
+    return 'git_dependency';
   return 'current';
 }
 
 /**
  * Determine sourceType from version constraint.
  */
-function sourceTypeForComposerSpec(spec: string): Exclude<DependencyObservation['sourceType'], undefined> {
+function sourceTypeForComposerSpec(
+  spec: string,
+): Exclude<DependencyObservation['sourceType'], undefined> {
   if (spec.startsWith('file:') || spec.startsWith('path:')) return 'path';
   if (spec.startsWith('git@') || spec.startsWith('git:') || spec.startsWith('http')) return 'git';
   return 'registry';
@@ -98,8 +95,9 @@ export class PhpAdapter implements EcosystemAdapter {
     const seen = new Set<string>();
 
     // Find composer.json
-    const composerJsonPath = workspace.manifests.find((m) => m.includes('composer.json'))
-      || (fileExists(join(root, 'composer.json')) ? join(root, 'composer.json') : undefined);
+    const composerJsonPath =
+      workspace.manifests.find((m) => m.includes('composer.json')) ||
+      (fileExists(join(root, 'composer.json')) ? join(root, 'composer.json') : undefined);
     if (!composerJsonPath) return [];
 
     let content: string;
@@ -148,11 +146,12 @@ export class PhpAdapter implements EcosystemAdapter {
         const sourceType = sourceTypeForComposerSpec(constraint);
         const isRegistry = sourceType === 'registry';
 
-        const purl = isRegistry && locked
-          ? buildPurl({ type: 'php', name, version: locked })
-          : isRegistry
-            ? buildPurl({ type: 'php', name })
-            : undefined;
+        const purl =
+          isRegistry && locked
+            ? buildPurl({ type: 'php', name, version: locked })
+            : isRegistry
+              ? buildPurl({ type: 'php', name })
+              : undefined;
 
         const evidence: Evidence[] = [manifestEv];
         if (lockEv && locked) evidence.push(lockEv);
@@ -176,7 +175,6 @@ export class PhpAdapter implements EcosystemAdapter {
 
     return observations;
   }
-
 }
 
 /**

@@ -1,12 +1,8 @@
 import type { MCPServerConfig, Tool } from '@wrongstack/core/types';
-import type { ConnectionState, MCPClient } from './client.js';
-import type {
-  MCPPrompt,
-  MCPResource,
-  MCPResourceTemplate,
-  MCPServerMetadata,
-} from './protocol.js';
+import type { MCPClient } from './client.js';
+import type { ConnectionState } from './contracts.js';
 import type { MCPServerOperationState } from './operations.js';
+import type { MCPPrompt, MCPResource, MCPResourceTemplate, MCPServerMetadata } from './protocol.js';
 
 export interface ServerSlot {
   cfg: MCPServerConfig;

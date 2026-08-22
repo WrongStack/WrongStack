@@ -32,6 +32,7 @@
     "@fontsource/ibm-plex-mono": "^5.3.0",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/tools": "workspace:*",
+    "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "lucide-react": "^1.33.0",
     "react": "^19.2.8",

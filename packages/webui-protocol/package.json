@@ -1,0 +1,53 @@
+{
+  "name": "@wrongstack/webui-protocol",
+  "version": "0.309.1",
+  "license": "MIT",
+  "description": "Wire-protocol contracts shared between the @wrongstack/webui + @wrongstack/simpleui frontends and the @wrongstack/webui-server backend. Browser-safe: depends only on @wrongstack/core types (no ws, no node-only APIs). Extracted in 2026-08 to remove the webui/simpleui -> webui-server transitive dependency (see docs/reports/modularity-assessment-2026-08-22.md §2.2).",
+  "keywords": [
+    "wrongstack",
+    "webui",
+    "websocket",
+    "protocol"
+  ],
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/webui-protocol"
+  },
+  "bugs": {
+    "url": "https://github.com/WrongStack/WrongStack/issues"
+  },
+  "author": "ECOSTACK TECHNOLOGY OÜ",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map"
+  ],
+  "scripts": {
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "dependencies": {
+    "@wrongstack/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

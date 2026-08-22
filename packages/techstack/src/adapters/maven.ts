@@ -9,19 +9,11 @@
  */
 
 import { readFileSync } from 'node:fs';
-import type {
-  DependencyObservation,
-  DependencyScope,
-  EcosystemId,
-  Workspace,
-} from '../types.js';
-import {
-  manifestEvidence,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
 import { buildPurl } from '../registry/purl.js';
+import type { DependencyObservation, DependencyScope, EcosystemId, Workspace } from '../types.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
 import { xmlTagValue } from './parse-utils.js';
+import { manifestEvidence } from './paths.js';
 
 interface MavenDependency {
   readonly groupId: string;
@@ -59,7 +51,8 @@ function parsePomDependencies(xml: string): MavenDependency[] {
   }
 
   const managed = new Map<string, string>();
-  const managementBlock = /<dependencyManagement>([\s\S]*?)<\/dependencyManagement>/.exec(xml)?.[1] ?? '';
+  const managementBlock =
+    /<dependencyManagement>([\s\S]*?)<\/dependencyManagement>/.exec(xml)?.[1] ?? '';
   const managementRegex = /<dependency>\s*([\s\S]*?)<\/dependency>/g;
   for (const managementMatch of managementBlock.matchAll(managementRegex)) {
     const block = managementMatch[1];
@@ -76,8 +69,13 @@ function parsePomDependencies(xml: string): MavenDependency[] {
     const block = match[1]!;
     const groupId = xmlTagValue(block, 'groupId');
     const artifactId = xmlTagValue(block, 'artifactId');
-    const rawVersion = xmlTagValue(block, 'version') ?? (groupId && artifactId ? managed.get(`${groupId}:${artifactId}`) : undefined);
-    const version = rawVersion?.replace(/\$\{([^}]+)\}/g, (_whole, key: string) => properties.get(key) ?? `\${${key}}`);
+    const rawVersion =
+      xmlTagValue(block, 'version') ??
+      (groupId && artifactId ? managed.get(`${groupId}:${artifactId}`) : undefined);
+    const version = rawVersion?.replace(
+      /\$\{([^}]+)\}/g,
+      (_whole, key: string) => properties.get(key) ?? `\${${key}}`,
+    );
     const scope = xmlTagValue(block, 'scope');
     if (groupId && artifactId) {
       deps.push({ groupId, artifactId, version, scope });
@@ -88,11 +86,16 @@ function parsePomDependencies(xml: string): MavenDependency[] {
 
 function mavenScopeToScope(scope: string | undefined): DependencyScope {
   switch (scope) {
-    case 'test': return 'development';
-    case 'provided': return 'optional';
-    case 'runtime': return 'runtime';
-    case 'compile': return 'runtime';
-    default: return 'runtime';
+    case 'test':
+      return 'development';
+    case 'provided':
+      return 'optional';
+    case 'runtime':
+      return 'runtime';
+    case 'compile':
+      return 'runtime';
+    default:
+      return 'runtime';
   }
 }
 

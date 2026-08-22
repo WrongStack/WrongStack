@@ -52,9 +52,7 @@ export function buildReplayPayload(source: ReplaySource): ReplayPayloadFields {
   const messages = source.messages;
   if (messages.length > 0) {
     out.replayMessages =
-      messages.length > REPLAY_MESSAGE_CAP
-        ? messages.slice(-REPLAY_MESSAGE_CAP)
-        : [...messages];
+      messages.length > REPLAY_MESSAGE_CAP ? messages.slice(-REPLAY_MESSAGE_CAP) : [...messages];
   }
 
   if (source.events && source.events.length > 0) {
@@ -63,10 +61,7 @@ export function buildReplayPayload(source: ReplaySource): ReplayPayloadFields {
   }
 
   const usage = source.usage;
-  if (
-    usage &&
-    usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) > 0
-  ) {
+  if (usage && usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) > 0) {
     out.replayUsage = {
       input: usage.input,
       output: usage.output,

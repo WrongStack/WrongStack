@@ -1,7 +1,8 @@
 import { ToolCapabilities } from '@wrongstack/core/security';
 import type { Permission, Tool } from '@wrongstack/core/types';
 import { mcpQualifiedToolName } from '@wrongstack/core/utils';
-import type { MCPClient, MCPTool } from './client.js';
+import type { MCPClient } from './client.js';
+import type { MCPTool } from './contracts.js';
 
 /**
  * Keywords that indicate a mutating operation.

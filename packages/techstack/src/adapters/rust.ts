@@ -8,24 +8,23 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { parseTomlKeyValue } from './parse-utils.js';
 import {
   fileExists,
   lockfileEvidence,
   manifestEvidence,
   resolveIn,
   workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
-import { parseTomlKeyValue } from './parse-utils.js';
+} from './paths.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -84,7 +83,11 @@ function extractTomlDeps(sectionLines: string[]): Array<{
       const inner = tableMatch[1];
       if (inner === undefined) continue;
       const versionMatch = inner.match(/version\s*=\s*"([^"]+)"/);
-      const sourceType = /\bgit\s*=/.test(inner) ? 'git' : /\bpath\s*=/.test(inner) ? 'path' : 'registry';
+      const sourceType = /\bgit\s*=/.test(inner)
+        ? 'git'
+        : /\bpath\s*=/.test(inner)
+          ? 'path'
+          : 'registry';
       deps.push({ name, version: versionMatch?.[1], sourceType });
       continue;
     }
@@ -179,8 +182,9 @@ export class RustAdapter implements EcosystemAdapter {
     const seen = new Set<string>();
 
     // Find manifests
-    const cargoTomlPath = workspace.manifests.find((m) => m.includes('Cargo.toml'))
-      || (fileExists(resolveIn(root, 'Cargo.toml')) ? 'Cargo.toml' : undefined);
+    const cargoTomlPath =
+      workspace.manifests.find((m) => m.includes('Cargo.toml')) ||
+      (fileExists(resolveIn(root, 'Cargo.toml')) ? 'Cargo.toml' : undefined);
 
     if (!cargoTomlPath) return [];
 
@@ -235,20 +239,22 @@ export class RustAdapter implements EcosystemAdapter {
         const locked = lockVersions.get(dep.name) || dep.version;
         const isRegistry = dep.sourceType === 'registry';
 
-        const purl = isRegistry && locked
-          ? buildPurl({ type: 'rust', name: dep.name, version: locked })
-          : isRegistry
-            ? buildPurl({ type: 'rust', name: dep.name })
-            : undefined;
+        const purl =
+          isRegistry && locked
+            ? buildPurl({ type: 'rust', name: dep.name, version: locked })
+            : isRegistry
+              ? buildPurl({ type: 'rust', name: dep.name })
+              : undefined;
 
         const evidence: Evidence[] = [manifestEv];
         if (lockEv && locked && lockVersions.has(dep.name)) evidence.push(lockEv);
 
-        const status: DependencyObservation['status'] = dep.sourceType === 'git'
-          ? 'git_dependency'
-          : dep.sourceType === 'path'
-            ? 'local_path'
-            : 'current';
+        const status: DependencyObservation['status'] =
+          dep.sourceType === 'git'
+            ? 'git_dependency'
+            : dep.sourceType === 'path'
+              ? 'local_path'
+              : 'current';
 
         observations.push({
           id: `dep-${workspace.id}-${dep.name}`,
@@ -289,7 +295,6 @@ export class RustAdapter implements EcosystemAdapter {
 
     return observations;
   }
-
 }
 
 /**

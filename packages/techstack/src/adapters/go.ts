@@ -8,23 +8,22 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
 import {
   fileExists,
   lockfileEvidence,
   manifestEvidence,
   resolveIn,
   workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+} from './paths.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -118,7 +117,8 @@ function parseGoReplacements(content: string): Map<string, 'path' | 'git'> {
     const modulePath = match[1];
     const target = match[2];
     if (!modulePath || !target) continue;
-    const local = target.startsWith('.') || target.startsWith('/') || /^[A-Za-z]:[\\/]/.test(target);
+    const local =
+      target.startsWith('.') || target.startsWith('/') || /^[A-Za-z]:[\\/]/.test(target);
     replacements.set(modulePath, local ? 'path' : 'git');
   }
   return replacements;
@@ -176,8 +176,9 @@ export class GoAdapter implements EcosystemAdapter {
     const seen = new Set<string>();
 
     // Find go.mod
-    const goModPath = workspace.manifests.find((m) => m.includes('go.mod'))
-      || (fileExists(resolveIn(root, 'go.mod')) ? 'go.mod' : undefined);
+    const goModPath =
+      workspace.manifests.find((m) => m.includes('go.mod')) ||
+      (fileExists(resolveIn(root, 'go.mod')) ? 'go.mod' : undefined);
     if (!goModPath) return [];
 
     const fullManifestPath = resolveIn(root, goModPath);
@@ -244,18 +245,18 @@ export class GoAdapter implements EcosystemAdapter {
         scope,
         requested: req.version,
         ...(locked ? { locked } : {}),
-        status: replacement === 'path'
-          ? 'local_path'
-          : replacement === 'git'
-            ? 'git_dependency'
-            : 'current',
+        status:
+          replacement === 'path'
+            ? 'local_path'
+            : replacement === 'git'
+              ? 'git_dependency'
+              : 'current',
         evidence,
       });
     }
 
     return observations;
   }
-
 }
 
 /**

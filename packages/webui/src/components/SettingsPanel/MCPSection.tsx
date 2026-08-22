@@ -13,9 +13,9 @@ import {
   Trash2,
 } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useState } from 'react';
-import { useAppTranslation, i18n } from '@/i18n';
 import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { i18n, useAppTranslation } from '@/i18n';
 import type { WSServerMessage } from '@/types';
 import { confirmModal } from '../ConfirmModal';
 import { Badge } from '../ui/badge';
@@ -54,18 +54,9 @@ export interface MCPServer {
   };
 }
 
-export interface MCPServerConfig {
-  name: string;
-  transport: string;
-  description?: string;
-  enabled?: boolean;
-  command?: string;
-  args?: string[];
-  env?: Record<string, string>;
-  allowedTools?: string[];
-  url?: string;
-  lazy?: boolean;
-}
+import type { MCPServerConfig } from './contracts.js';
+
+export type { MCPServerConfig };
 
 /** Map server status to a human-readable label and color */
 function statusInfo(status: MCPServer['status']): { color: string } {
@@ -116,14 +107,21 @@ function ServerCard({
   return (
     <div className="rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
       <div className="flex items-center justify-between">
-        <button type="button"
+        <button
+          type="button"
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          )}
           <StatusDot status={server.status} />
           <span className="min-w-0 truncate font-medium">{server.name}</span>
-          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-xs text-muted-foreground">{server.transport}</span>
+          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-xs text-muted-foreground">
+            {server.transport}
+          </span>
           {!server.enabled && (
             <Badge variant="outline" className="text-xs">
               {t('settings:mcp.disabled')}
@@ -137,12 +135,22 @@ function ServerCard({
             </Button>
           )}
           {(server.status === 'connected' || server.status === 'connecting') && (
-            <Button variant="ghost" size="sm" onClick={onSleep} title={t('settings:mcp.sleepTitle')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onSleep}
+              title={t('settings:mcp.sleepTitle')}
+            >
               <Moon className="w-4 h-4" />
             </Button>
           )}
           {(server.status === 'stopped' || server.status === 'sleeping') && (
-            <Button variant="ghost" size="sm" onClick={onDiscover} title={t('settings:mcp.discoverTitle')}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDiscover}
+              title={t('settings:mcp.discoverTitle')}
+            >
               <Search className="w-4 h-4" />
             </Button>
           )}
@@ -191,24 +199,34 @@ function ServerCard({
             )}
             {server.health && (
               <>
-                <span className="text-muted-foreground">{t('activity:mCPSection.operationalHealth')}</span>
+                <span className="text-muted-foreground">
+                  {t('activity:mCPSection.operationalHealth')}
+                </span>
                 <span>{server.health.healthState}</span>
-                <span className="text-muted-foreground">{t('activity:mCPSection.failuresTransportProtocolTool')}</span>
+                <span className="text-muted-foreground">
+                  {t('activity:mCPSection.failuresTransportProtocolTool')}
+                </span>
                 <span>
                   {server.health.failures.transport}/{server.health.failures.protocol}/
                   {server.health.failures.tool}
                 </span>
-                <span className="text-muted-foreground">{t('activity:mCPSection.callLatencyP50P95')}</span>
+                <span className="text-muted-foreground">
+                  {t('activity:mCPSection.callLatencyP50P95')}
+                </span>
                 <span>
                   {server.health.callLatency.p50Ms ?? '-'}ms /{' '}
                   {server.health.callLatency.p95Ms ?? '-'}ms
                 </span>
-                <span className="text-muted-foreground">{t('activity:mCPSection.reconnectWakeSleep')}</span>
+                <span className="text-muted-foreground">
+                  {t('activity:mCPSection.reconnectWakeSleep')}
+                </span>
                 <span>
                   {server.health.reconnectCount} / {server.health.wakeCount} /{' '}
                   {server.health.sleepCount}
                 </span>
-                <span className="text-muted-foreground">{t('activity:mCPSection.callsInFlightPeak')}</span>
+                <span className="text-muted-foreground">
+                  {t('activity:mCPSection.callsInFlightPeak')}
+                </span>
                 <span>
                   {server.health.inFlightCalls} / {server.health.peakInFlightCalls}
                 </span>
@@ -217,7 +235,9 @@ function ServerCard({
           </div>
           {server.tools && server.tools.length > 0 && (
             <div>
-              <span className="text-muted-foreground">{t('settings:mcp.toolsLabel', { count: server.tools.length })}</span>
+              <span className="text-muted-foreground">
+                {t('settings:mcp.toolsLabel', { count: server.tools.length })}
+              </span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {server.tools.map((tool) => (
                   <Badge key={tool} variant="secondary" className="text-xs">
@@ -350,7 +370,11 @@ function ServerDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? t('settings:mcp.dialogTitleEdit') : isPrefill ? t('settings:mcp.dialogTitleAdd') : t('settings:mcp.dialogTitleAddCustom')}
+            {isEdit
+              ? t('settings:mcp.dialogTitleEdit')
+              : isPrefill
+                ? t('settings:mcp.dialogTitleAdd')
+                : t('settings:mcp.dialogTitleAddCustom')}
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -401,7 +425,10 @@ function ServerDialog({
               </div>
               <div className="space-y-2">
                 <span className="text-sm font-medium">
-                  {t('settings:mcp.fieldArgs')} <span className="text-muted-foreground font-normal">{t('settings:mcp.fieldArgsHint')}</span>
+                  {t('settings:mcp.fieldArgs')}{' '}
+                  <span className="text-muted-foreground font-normal">
+                    {t('settings:mcp.fieldArgsHint')}
+                  </span>
                 </span>
                 <Input
                   value={args}
@@ -415,7 +442,9 @@ function ServerDialog({
           <div className="space-y-2">
             <span className="text-sm font-medium">
               {t('settings:mcp.fieldEnv')}{' '}
-              <span className="text-muted-foreground font-normal">{t('settings:mcp.fieldEnvHint')}</span>
+              <span className="text-muted-foreground font-normal">
+                {t('settings:mcp.fieldEnvHint')}
+              </span>
             </span>
             <textarea
               className="w-full h-20 px-3 py-2 rounded-md border border-input bg-background text-sm font-mono resize-none"
@@ -466,7 +495,9 @@ function ServerDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t('common:action.cancel')}
           </Button>
-          <Button onClick={handleSave}>{isEdit ? t('settings:mcp.saveChanges') : t('settings:mcp.addServer')}</Button>
+          <Button onClick={handleSave}>
+            {isEdit ? t('settings:mcp.saveChanges') : t('settings:mcp.addServer')}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -578,7 +609,9 @@ export function MCPSection(): ReactElement {
           ),
         );
         setPendingOp(null);
-        toast.success(i18n.t('settings:mcp.toastDiscovered', { count: p.tools.length, name: p.name }));
+        toast.success(
+          i18n.t('settings:mcp.toastDiscovered', { count: p.tools.length, name: p.name }),
+        );
       }
     };
 
@@ -786,7 +819,11 @@ export function MCPSection(): ReactElement {
           <h2 className="text-base font-semibold">{t('settings:mcp.heading')}</h2>
           {servers.length > 0 && (
             <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
-              {t('settings:mcp.summary', { connected: connectedCount, sleeping: sleepingCount, total: servers.length })}
+              {t('settings:mcp.summary', {
+                connected: connectedCount,
+                sleeping: sleepingCount,
+                total: servers.length,
+              })}
             </span>
           )}
         </div>
@@ -820,9 +857,7 @@ export function MCPSection(): ReactElement {
 
         {/* Recommended tab — official MCP servers from the community */}
         <TabsContent value="recommended" className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {t('settings:mcp.recommendedBody')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings:mcp.recommendedBody')}</p>
           <div className="grid gap-2">
             {OFFICIAL_SERVERS.map((server) => (
               <OfficialServerCard
@@ -846,9 +881,7 @@ export function MCPSection(): ReactElement {
             <div className="text-center py-8 text-muted-foreground">
               <Server className="w-10 h-10 mx-auto mb-2 opacity-50" />
               <p>{t('settings:mcp.noServers')}</p>
-              <p className="text-sm">
-                {t('settings:mcp.noServersHint')}
-              </p>
+              <p className="text-sm">{t('settings:mcp.noServersHint')}</p>
             </div>
           ) : (
             servers.map((server) => (
@@ -869,9 +902,7 @@ export function MCPSection(): ReactElement {
         <TabsContent value="add">
           <div className="text-sm text-muted-foreground">
             <p>{t('settings:mcp.addCustomBody')}</p>
-            <p className="mt-1">
-              {t('settings:mcp.addCustomBodyHint')}
-            </p>
+            <p className="mt-1">{t('settings:mcp.addCustomBodyHint')}</p>
           </div>
         </TabsContent>
       </Tabs>

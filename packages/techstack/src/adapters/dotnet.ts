@@ -7,23 +7,13 @@
  * @see docs/specs/techstack-sdd.md §6 Tier A
  */
 
-import { readFile, readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type {
-  DependencyObservation,
-  Evidence,
-  EcosystemId,
-  Workspace,
-} from '../types.js';
-import {
-  lockfileEvidence,
-  manifestEvidence,
-  workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
 import { buildPurl } from '../registry/purl.js';
+import type { DependencyObservation, EcosystemId, Evidence, Workspace } from '../types.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
 import { parseXmlAttributes, xmlTagValue } from './parse-utils.js';
+import { lockfileEvidence, manifestEvidence, workspaceRoot } from './paths.js';
 
 // ── Minimal XML parser for .csproj ────────────────────────────────────────
 

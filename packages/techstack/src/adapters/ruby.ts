@@ -8,20 +8,16 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
-import {
-  lockfileEvidence,
-  manifestEvidence,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { lockfileEvidence, manifestEvidence } from './paths.js';
 
 /**
  * Parse Gemfile for direct `gem 'name'` and `gem 'name', 'version'` calls.
@@ -43,7 +39,11 @@ function parseGemfile(content: string): Array<{
     if (name === 'rails' || name === 'ruby') continue;
     const tail = match[2] ?? '';
     const version = /^\s*,\s*['"]([^'"]+)['"]/.exec(tail)?.[1];
-    const sourceType = /\b(?:git|github):/.test(tail) ? 'git' : /\bpath:/.test(tail) ? 'path' : 'registry';
+    const sourceType = /\b(?:git|github):/.test(tail)
+      ? 'git'
+      : /\bpath:/.test(tail)
+        ? 'path'
+        : 'registry';
     gems.push({ name, version, sourceType });
   }
   return gems;
@@ -58,9 +58,18 @@ function parseGemfileLock(content: string): Map<string, string> {
   const lines = content.split('\n');
   let inSpecs = false;
   for (const line of lines) {
-    if (/^(?:GEM|GIT|PATH)$/.test(line.trim())) { inSpecs = false; continue; }
-    if (/^\s{2}specs:\s*$/.test(line)) { inSpecs = true; continue; }
-    if (inSpecs && /^[A-Z]/.test(line) && !line.startsWith(' ')) { inSpecs = false; continue; }
+    if (/^(?:GEM|GIT|PATH)$/.test(line.trim())) {
+      inSpecs = false;
+      continue;
+    }
+    if (/^\s{2}specs:\s*$/.test(line)) {
+      inSpecs = true;
+      continue;
+    }
+    if (inSpecs && /^[A-Z]/.test(line) && !line.startsWith(' ')) {
+      inSpecs = false;
+      continue;
+    }
     if (!inSpecs) continue;
     const match = /^\s{4,}([\w-]+)\s+\(([^)]+)\)/.exec(line);
     if (match) {
@@ -113,11 +122,12 @@ export class RubyAdapter implements EcosystemAdapter {
 
       const locked = lockVersions.get(gem.name);
       const version = locked ?? gem.version;
-      const purl = gem.sourceType === 'registry' && version
-        ? buildPurl({ type: 'gem', name: gem.name, version })
-        : gem.sourceType === 'registry'
-          ? buildPurl({ type: 'gem', name: gem.name })
-          : undefined;
+      const purl =
+        gem.sourceType === 'registry' && version
+          ? buildPurl({ type: 'gem', name: gem.name, version })
+          : gem.sourceType === 'registry'
+            ? buildPurl({ type: 'gem', name: gem.name })
+            : undefined;
 
       const evidence: Evidence[] = [manifestEv];
       if (lockEv && locked) evidence.push(lockEv);
@@ -133,11 +143,12 @@ export class RubyAdapter implements EcosystemAdapter {
         scope: 'runtime' as DependencyScope,
         ...(gem.version ? { requested: gem.version } : {}),
         ...(locked ? { locked } : {}),
-        status: gem.sourceType === 'git'
-          ? 'git_dependency'
-          : gem.sourceType === 'path'
-            ? 'local_path'
-            : 'current',
+        status:
+          gem.sourceType === 'git'
+            ? 'git_dependency'
+            : gem.sourceType === 'path'
+              ? 'local_path'
+              : 'current',
         evidence,
       });
     }

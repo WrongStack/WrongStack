@@ -8,20 +8,16 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
-import {
-  lockfileEvidence,
-  manifestEvidence,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { lockfileEvidence, manifestEvidence } from './paths.js';
 
 /**
  * Parse mix.exs `defp deps do` block for `{:name, "version"}` tuples.
@@ -104,11 +100,12 @@ export class ElixirAdapter implements EcosystemAdapter {
 
       const locked = lockVersions.get(dep.name);
       const version = locked ?? dep.version;
-      const purl = dep.sourceType === 'registry' && version
-        ? buildPurl({ type: 'hex', name: dep.name, version })
-        : dep.sourceType === 'registry'
-          ? buildPurl({ type: 'hex', name: dep.name })
-          : undefined;
+      const purl =
+        dep.sourceType === 'registry' && version
+          ? buildPurl({ type: 'hex', name: dep.name, version })
+          : dep.sourceType === 'registry'
+            ? buildPurl({ type: 'hex', name: dep.name })
+            : undefined;
 
       const evidence: Evidence[] = [manifestEv];
       if (lockEv && locked) evidence.push(lockEv);
@@ -124,11 +121,12 @@ export class ElixirAdapter implements EcosystemAdapter {
         scope: 'runtime' as DependencyScope,
         ...(dep.version ? { requested: dep.version } : {}),
         ...(locked ? { locked } : {}),
-        status: dep.sourceType === 'git'
-          ? 'git_dependency'
-          : dep.sourceType === 'path'
-            ? 'local_path'
-            : 'current',
+        status:
+          dep.sourceType === 'git'
+            ? 'git_dependency'
+            : dep.sourceType === 'path'
+              ? 'local_path'
+              : 'current',
         evidence,
       });
     }

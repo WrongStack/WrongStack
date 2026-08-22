@@ -15,10 +15,7 @@ export interface RegistryIdleContext {
   removeCatalogListeners: (client: MCPClient) => void;
 }
 
-export async function sleepIdleSlot(
-  ctx: RegistryIdleContext,
-  slot: ServerSlot,
-): Promise<void> {
+export async function sleepIdleSlot(ctx: RegistryIdleContext, slot: ServerSlot): Promise<void> {
   slot.reconnectPending = false;
   if (slot.reconnectTimer) {
     clearTimeout(slot.reconnectTimer);
@@ -40,9 +37,7 @@ export async function sleepIdleSlot(
   ctx.events.emit('mcp.server.disconnected', { name: slot.cfg.name, reason: 'idle-sleep' });
 }
 
-export async function sweepIdleSlots(
-  ctx: RegistryIdleContext,
-): Promise<boolean> {
+export async function sweepIdleSlots(ctx: RegistryIdleContext): Promise<boolean> {
   if (ctx.idleTimeoutMs <= 0) return false;
   const now = Date.now();
   for (const slot of ctx.servers.values()) {

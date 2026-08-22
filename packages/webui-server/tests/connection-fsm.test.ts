@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   createSurfaceConnectionState,
   DEFAULT_SURFACE_CONNECTION_CONFIG,
@@ -8,7 +7,8 @@ import {
   markConnectionOpen,
   planConnectionReconnect,
   stopConnection,
-} from '../src/protocol/index.js';
+} from '@wrongstack/webui-protocol';
+import { describe, expect, it } from 'vitest';
 
 describe('surface connection FSM', () => {
   it('plans deterministic capped exponential reconnects', () => {

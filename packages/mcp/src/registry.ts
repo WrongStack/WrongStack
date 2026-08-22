@@ -1,14 +1,13 @@
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger } from '@wrongstack/core/types';
-import type { MCPServerConfig } from '@wrongstack/core/types';
+import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import type {
   MCPAuthorizationManager,
   MCPAuthorizationStartResult,
   MCPAuthorizationStatus,
 } from './authorization-manager.js';
-import type { ConnectionState, MCPClient, MCPTool } from './client.js';
+import type { MCPClient } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
 import {
   type MCPInsertionPolicy,
@@ -17,10 +16,8 @@ import {
   preparePromptInsertion,
   prepareResourceInsertion,
 } from './content-selection.js';
-import {
-  manifestConfigHash,
-  readCapabilityManifest,
-} from './manifest-cache.js';
+import type { ConnectionState, MCPTool } from './contracts.js';
+import { manifestConfigHash, readCapabilityManifest } from './manifest-cache.js';
 import {
   createMCPServerOperationState,
   type MCPFailureKind,
@@ -28,34 +25,6 @@ import {
   type MCPOperationListener,
   type MCPServerOperationalHealth,
 } from './operations.js';
-import {
-  cloneCatalogRecords,
-  collectCatalogPages,
-  registryCatalogSnapshot,
-} from './registry-catalog.js';
-import { buildRegistryOperationalHealth } from './registry-health.js';
-import {
-  beginRegistryAuthorization,
-  completeRegistryAuthorization,
-  requireAuthorizationManager,
-  requireHttpServerConfig,
-} from './registry-authorization.js';
-import type { ServerSlot } from './registry-slots.js';
-import type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
-import {
-  recordRegistryFailure,
-  recordRegistryOperation,
-  recordRegistrySuccess,
-} from './registry-operations.js';
-import { markLazySlotDormant, resetDisconnectedSlotTools } from './registry-disconnect.js';
-import { scheduleRegistryReconnect } from './registry-reconnect.js';
-import {
-  type RegistryConnectContext,
-  applySlotTools,
-  attemptConnectSlot,
-  persistSlotCapabilityManifest,
-} from './registry-connect-loop.js';
-import { type RegistryIdleContext, sweepIdleSlots } from './registry-idle.js';
 import type {
   MCPGetPromptResult,
   MCPPrompt,
@@ -63,6 +32,35 @@ import type {
   MCPResource,
   MCPResourceTemplate,
 } from './protocol.js';
+import {
+  beginRegistryAuthorization,
+  completeRegistryAuthorization,
+  requireAuthorizationManager,
+  requireHttpServerConfig,
+} from './registry-authorization.js';
+import {
+  cloneCatalogRecords,
+  collectCatalogPages,
+  registryCatalogSnapshot,
+} from './registry-catalog.js';
+import {
+  applySlotTools,
+  attemptConnectSlot,
+  persistSlotCapabilityManifest,
+  type RegistryConnectContext,
+} from './registry-connect-loop.js';
+import { markLazySlotDormant, resetDisconnectedSlotTools } from './registry-disconnect.js';
+import { buildRegistryOperationalHealth } from './registry-health.js';
+import { type RegistryIdleContext, sweepIdleSlots } from './registry-idle.js';
+import {
+  recordRegistryFailure,
+  recordRegistryOperation,
+  recordRegistrySuccess,
+} from './registry-operations.js';
+import { scheduleRegistryReconnect } from './registry-reconnect.js';
+import type { ServerSlot } from './registry-slots.js';
+import type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
+
 export type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
 
 export class MCPRegistry {
@@ -118,13 +116,7 @@ export class MCPRegistry {
     signal?: AbortSignal | undefined,
   ): Promise<MCPAuthorizationStatus> {
     const cfg = this.requireHttpServerConfig(name);
-    return completeRegistryAuthorization(
-      this.authorizationManager,
-      cfg,
-      name,
-      callbackUrl,
-      signal,
-    );
+    return completeRegistryAuthorization(this.authorizationManager, cfg, name, callbackUrl, signal);
   }
 
   async authorizationStatus(name: string): Promise<MCPAuthorizationStatus> {
@@ -728,7 +720,8 @@ export class MCPRegistry {
       maxReconnectCycles: MCPRegistry.MAX_RECONNECT_CYCLES,
       baseReconnectDelayMs: MCPRegistry.BASE_RECONNECT_DELAY_MS,
       maxReconnectDelayMs: MCPRegistry.MAX_RECONNECT_DELAY_MS,
-      recordReconnectExhausted: (target) => this.recordFailure(target, 'transport', 'reconnect-exhausted'),
+      recordReconnectExhausted: (target) =>
+        this.recordFailure(target, 'transport', 'reconnect-exhausted'),
       attemptReconnect: (target) => this.attemptReconnect(target),
     });
   }
@@ -777,4 +770,3 @@ export class MCPRegistry {
     return attemptConnectSlot(this.connectContext(), slot);
   }
 }
-

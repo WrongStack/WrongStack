@@ -23,10 +23,8 @@
  * `wstack acp sync` / `/acp sync`, the result is cached, and resolution falls
  * back to the static catalog when no cache exists.
  */
-import type {
-  ACPAgentDescriptor,
-  ACPAgentVendor,
-} from './ensemble-registry.js';
+import type { ACPAgentDescriptor } from './contracts.js';
+import type { ACPAgentVendor } from './ensemble-registry.js';
 
 /** Canonical CDN endpoint for the latest registry snapshot. */
 export const ACP_REGISTRY_URL =
@@ -76,12 +74,7 @@ export function currentPlatformKey(
   platform: NodeJS.Platform = process.platform,
   architecture: string = process.arch,
 ): string {
-  const os =
-    platform === 'win32'
-      ? 'windows'
-      : platform === 'darwin'
-        ? 'darwin'
-        : 'linux';
+  const os = platform === 'win32' ? 'windows' : platform === 'darwin' ? 'darwin' : 'linux';
   const arch =
     architecture === 'arm64' ? 'aarch64' : architecture === 'x64' ? 'x86_64' : architecture;
   return `${os}-${arch}`;

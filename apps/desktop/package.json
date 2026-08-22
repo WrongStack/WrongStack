@@ -41,6 +41,7 @@
   "dependencies": {
     "@wrongstack/core": "workspace:*",
     "@wrongstack/webui": "workspace:*",
+    "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "electron": "^43.4.1",
     "ws": "^8.21.3",

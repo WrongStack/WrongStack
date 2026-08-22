@@ -11,5 +11,6 @@
  * canonical barrel. Consumers (CLI, future cross-package code) should
  * import from this file (the package root) for forward-compat.
  */
+
+export * from '@wrongstack/webui-protocol';
 export * from './server/index.js';
-export * from './protocol/index.js';

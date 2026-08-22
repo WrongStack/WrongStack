@@ -1,19 +1,11 @@
-import type { ConnectionState } from './client.js';
-import type {
-  MCPPrompt,
-  MCPResource,
-  MCPResourceTemplate,
-  MCPServerMetadata,
-} from './protocol.js';
+import type { ConnectionState } from './contracts.js';
+import type { MCPPrompt, MCPResource, MCPResourceTemplate, MCPServerMetadata } from './protocol.js';
 import type { MCPRegistryCatalog } from './registry-types.js';
 
 const MAX_CATALOG_PAGES = 100;
 const MAX_CATALOG_ITEMS = 10_000;
 
-export async function collectCatalogPages<
-  Page extends { nextCursor?: string | undefined },
-  Item,
->(
+export async function collectCatalogPages<Page extends { nextCursor?: string | undefined }, Item>(
   load: (cursor?: string | undefined) => Promise<Page>,
   select: (page: Page) => Item[],
 ): Promise<Item[]> {

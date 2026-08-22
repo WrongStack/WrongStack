@@ -28,10 +28,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
-    "./protocol": {
-      "types": "./dist/protocol/index.d.ts",
-      "import": "./dist/protocol/index.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -56,6 +52,7 @@
     "@wrongstack/techstack": "workspace:*",
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/vector-memory": "workspace:*",
+    "@wrongstack/webui-protocol": "workspace:*",
     "ws": "^8.21.3"
   },
   "devDependencies": {

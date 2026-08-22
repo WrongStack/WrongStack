@@ -1,6 +1,4 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it, vi } from 'vitest';
-import type { WebSocket } from 'ws';
 import {
   CLIENT_MESSAGE_TYPES,
   decodeProtocolFrame,
@@ -9,7 +7,9 @@ import {
   protocolAdvertisement,
   SERVER_MESSAGE_TYPES,
   SURFACE_PROTOCOL_VERSION,
-} from '../src/protocol/index.js';
+} from '@wrongstack/webui-protocol';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import type { IntrospectionRouteContext } from '../src/server/introspection-routes.js';
 import {
   createRouteFamilyDispatcher,

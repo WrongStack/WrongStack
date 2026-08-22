@@ -21,6 +21,7 @@
     "@types/qrcode": "^1.5.6",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/tools": "workspace:*",
+    "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "@xyflow/react": "^12.11.3",
     "lucide-react": "^1.33.0",

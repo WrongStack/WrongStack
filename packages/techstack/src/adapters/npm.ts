@@ -11,23 +11,17 @@
 
 import { access, readFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve } from 'node:path';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
   DependencyStatus,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
-import {
-  lockfileEvidence,
-  manifestEvidence,
-  resolveIn,
-  workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { lockfileEvidence, manifestEvidence, resolveIn, workspaceRoot } from './paths.js';
 
 // ── Lockfile types ───────────────────────────────────────────────────────
 
@@ -79,7 +73,9 @@ async function detectLockfile(workspaceDir: string, stopAt?: string): Promise<Lo
       try {
         await access(candidate);
         return { kind: c.kind, path: candidate };
-      } catch { /* absent */ }
+      } catch {
+        /* absent */
+      }
     }
     if (ceiling && dir === ceiling) break;
     const parent = dirname(dir);
@@ -375,11 +371,12 @@ export class NpmAdapter implements EcosystemAdapter {
         const locked = resolvedVersions.get(name);
 
         // Build PURL for registry deps
-        const purl = isRegistry && locked
-          ? buildPurl({ type: 'npm', name, version: locked })
-          : isRegistry
-            ? buildPurl({ type: 'npm', name })
-            : undefined;
+        const purl =
+          isRegistry && locked
+            ? buildPurl({ type: 'npm', name, version: locked })
+            : isRegistry
+              ? buildPurl({ type: 'npm', name })
+              : undefined;
 
         const evidence: Evidence[] = [manifestEv];
         if (lockEv && locked) evidence.push(lockEv);
@@ -390,11 +387,7 @@ export class NpmAdapter implements EcosystemAdapter {
           ...(purl ? { purl } : {}),
           ecosystem: 'npm' as const,
           name,
-          sourceType: isRegistry
-            ? 'registry'
-            : status === 'local_path'
-              ? 'path'
-              : 'git',
+          sourceType: isRegistry ? 'registry' : status === 'local_path' ? 'path' : 'git',
           direct: true,
           scope,
           requested,

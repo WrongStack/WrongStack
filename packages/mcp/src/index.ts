@@ -36,14 +36,11 @@ export {
   type MCPAuthorizationStatus,
 } from './authorization-manager.js';
 export {
-  type ConnectionState,
   MCPClient,
   type MCPClientOptions,
   type MCPListChangedListener,
   type MCPPageOptions,
   type MCPRequestOptions,
-  type MCPTool,
-  type ToolCallResult,
   type Transport,
 } from './client.js';
 export { MCP_CONSTANTS } from './constants.js';
@@ -57,6 +54,12 @@ export {
   preparePromptInsertion,
   prepareResourceInsertion,
 } from './content-selection.js';
+export type {
+  ConnectionState,
+  JsonRpcResponse,
+  MCPTool,
+  ToolCallResult,
+} from './contracts.js';
 export {
   addMcp,
   disableMcp,

@@ -16,8 +16,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Config, ModelsRegistry } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { protocolAdvertisement } from '@wrongstack/webui-protocol';
 import { type WebSocket, WebSocketServer } from 'ws';
-import { protocolAdvertisement } from '../protocol/index.js';
 import { createHttpServer } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
 import { registerShutdownHandlers } from './lifecycle.js';
@@ -433,7 +433,9 @@ export function startHttpServer(opts: {
    * 503 — a non-CLI webui-server host stays on its existing surface with
    * zero behavior change.
    */
-  getVectorMemoryStore?: (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined) | undefined;
+  getVectorMemoryStore?:
+    | (() => import('@wrongstack/vector-memory').VectorMemoryStore | undefined)
+    | undefined;
   /** Model cache directory for the vector-memory provider. */
   vectorMemoryModelCacheDir?: string | undefined;
 }): import('node:http').Server {

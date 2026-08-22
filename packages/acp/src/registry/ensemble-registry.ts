@@ -13,54 +13,21 @@
  * per-process cache (`cachedAt`) keeps the common case cheap and the
  * fresh case correct.
  */
-import { spawn } from 'node:child_process';
+
 import type { ChildProcess } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { treeKill } from '@wrongstack/core/utils/tree-kill';
-import { AGENTS_CATALOG } from './agents.catalog.js';
 import { buildWin32CmdShimInvocation } from '../win32-cmd.js';
+import { AGENTS_CATALOG } from './agents.catalog.js';
 
-/** Vendor classification — used to filter the catalog by family. */
-export type ACPAgentVendor =
-  | 'anthropic'
-  | 'google'
-  | 'openai'
-  | 'github'
-  | 'moonshot'
-  | 'community';
+// Re-exported for backwards compatibility: these two types moved to
+// ./contracts.js (the dependency leaf) when ARCH-CYCLE-TYPE-02 was fixed;
+// existing consumers import them from here.
+export type { ACPAgentVendor, ACPIntegration } from './contracts.js';
 
-/** How the agent is integrated into ACP. */
-export type ACPIntegration =
-  /** Agent ships with a documented ACP entry flag. */
-  | 'native'
-  /** Runs through Zed's SDK adapter or similar wrapper. */
-  | 'adapter'
-  /** Community-maintained wrapper (e.g. @agentify/cline, bub-acp-server). */
-  | 'community'
-  /** Listed by ACP but no public ACP entry yet; may not work. */
-  | 'experimental';
+import type { ACPAgentDescriptor } from './contracts.js';
 
-/** Static metadata for a known agent. */
-export interface ACPAgentDescriptor {
-  /** Stable identifier used as the spawn key. Lowercase, hyphenated. */
-  id: string;
-  /** Display name shown in the TUI / WebUI / CLI. */
-  displayName: string;
-  vendor: ACPAgentVendor;
-  /** argv to detect installation. Exits 0 with stdout on success. */
-  probe: { command: string; args?: readonly string[] };
-  /** argv to start the agent in ACP mode. */
-  acp: { command: string; args?: readonly string[]; env?: Record<string, string> };
-  /** Capability hints — used to fail fast when the binary predates ACP. */
-  supports: {
-    loadSession: boolean;
-    promptImages: boolean;
-    terminal: boolean;
-    fs: boolean;
-  };
-  integration: ACPIntegration;
-  /** Documentation URL — shown in `wstack acp list` and the ensemble UI. */
-  docs: string;
-}
+export type { ACPAgentDescriptor };
 
 /** A descriptor with its runtime detection result attached. */
 export interface DetectedAgent extends ACPAgentDescriptor {
@@ -186,9 +153,8 @@ export async function defaultProbe(
     let child: ChildProcess;
     try {
       const probeArgs = [...(desc.probe.args ?? [])];
-      const shim = platform === 'win32'
-        ? buildWin32CmdShimInvocation(desc.probe.command, probeArgs)
-        : null;
+      const shim =
+        platform === 'win32' ? buildWin32CmdShimInvocation(desc.probe.command, probeArgs) : null;
       child = spawnProcess(shim?.command ?? desc.probe.command, shim?.args ?? probeArgs, {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
@@ -233,8 +199,7 @@ export async function defaultProbe(
       // as not-installed. The literal string is locale-stable for
       // Windows cmd.exe English (the only locale we ship in CI).
       const isWindowsShellMiss =
-        platform === 'win32' &&
-        out.toLowerCase().includes('is not recognized');
+        platform === 'win32' && out.toLowerCase().includes('is not recognized');
 
       if (isWindowsShellMiss) {
         finish({
@@ -300,11 +265,7 @@ export class EnsembleRegistry {
     if (this.cache && Date.now() - this.cache.at < PROBE_CACHE_MS) {
       return this.cache.result;
     }
-    const result = await probeWithBound(
-      this.catalog,
-      (d) => this.detect(d),
-      MAX_PARALLEL_PROBES,
-    );
+    const result = await probeWithBound(this.catalog, (d) => this.detect(d), MAX_PARALLEL_PROBES);
     this.cache = { at: Date.now(), result };
     return result;
   }

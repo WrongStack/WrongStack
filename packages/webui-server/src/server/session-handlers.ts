@@ -23,8 +23,8 @@ import {
   resolveContextWindowPolicy,
 } from '@wrongstack/core/types';
 import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
+import { buildReplayPayload } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
-import { buildReplayPayload } from '../protocol/index.js';
 import {
   applyContextEditorProposal,
   buildContextEditorSnapshot,

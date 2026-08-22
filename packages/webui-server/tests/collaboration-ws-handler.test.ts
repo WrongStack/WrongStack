@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { CollaborationBus } from '@wrongstack/core/coordination';
 import { EventBus } from '@wrongstack/core/kernel';
 import { CollaborationWebSocketHandler } from '@wrongstack/webui-server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** Minimal ws stub capturing sent JSON messages. */
 function fakeWs() {
@@ -57,15 +57,14 @@ describe('CollaborationWebSocketHandler', () => {
       payload: { sessionId: 'sess-dispose', role: 'observer' },
     });
     const internal = handler as unknown as {
-      clients: Set<unknown>;
-      bySession: Map<string, Set<unknown>>;
+      registry: { clients: Set<unknown>; sessionIds(): string[] };
     };
-    expect(internal.clients.size).toBe(1);
-    expect(internal.bySession.size).toBe(1);
+    expect(internal.registry.clients.size).toBe(1);
+    expect(internal.registry.sessionIds()).toHaveLength(1);
 
     handler.dispose();
-    expect(internal.clients.size).toBe(0);
-    expect(internal.bySession.size).toBe(0);
+    expect(internal.registry.clients.size).toBe(0);
+    expect(internal.registry.sessionIds()).toHaveLength(0);
   });
 
   it('joins as observer, receives state snapshot, mirrors live events', () => {
@@ -231,9 +230,9 @@ describe('CollaborationWebSocketHandler', () => {
         payload: { sessionId: 'sess-6', role: 'observer' },
       });
       const internal = handler as unknown as {
-        broadcastInterval: ReturnType<typeof setInterval> | null;
+        scheduler: { interval: ReturnType<typeof setInterval> | null };
       };
-      expect(internal.broadcastInterval).not.toBeNull();
+      expect(internal.scheduler.interval).not.toBeNull();
 
       // The join already pushed a fresh state; with no membership change the
       // 2s tick must not republish (change detection).
@@ -243,7 +242,7 @@ describe('CollaborationWebSocketHandler', () => {
 
       // Disconnect → broadcast loop stops. No more state messages after another 2s.
       ws.fire('close');
-      expect(internal.broadcastInterval).toBeNull();
+      expect(internal.scheduler.interval).toBeNull();
       ws.sent.length = 0;
       vi.advanceTimersByTime(2100);
       expect(ws.sent).toHaveLength(0);
@@ -737,13 +736,25 @@ describe('CollaborationWebSocketHandler', () => {
     });
     h.handleMessage(ws, {
       type: 'collab.inject_tool',
-      payload: { sessionId: 'sess-23', toolUseId: 'tu-1', content: 'a', isError: false, reason: 'r' },
+      payload: {
+        sessionId: 'sess-23',
+        toolUseId: 'tu-1',
+        content: 'a',
+        isError: false,
+        reason: 'r',
+      },
     });
     await new Promise((r) => setImmediate(r));
     ws.sent.length = 0;
     h.handleMessage(ws, {
       type: 'collab.inject_tool',
-      payload: { sessionId: 'sess-23', toolUseId: 'tu-1', content: 'b', isError: false, reason: 'r' },
+      payload: {
+        sessionId: 'sess-23',
+        toolUseId: 'tu-1',
+        content: 'b',
+        isError: false,
+        reason: 'r',
+      },
     });
     await new Promise((r) => setImmediate(r));
     const err = lastOfType(ws, 'error');
@@ -760,7 +771,10 @@ describe('CollaborationWebSocketHandler', () => {
     const b = fakeWs(); // observer (grantee)
     h.addClient(a);
     h.addClient(b);
-    h.handleMessage(a, { type: 'collab.join', payload: { sessionId: 'sess-g', role: 'controller' } });
+    h.handleMessage(a, {
+      type: 'collab.join',
+      payload: { sessionId: 'sess-g', role: 'controller' },
+    });
     h.handleMessage(b, { type: 'collab.join', payload: { sessionId: 'sess-g', role: 'observer' } });
 
     // Discover the observer's participantId from the latest state snapshot.
@@ -797,7 +811,10 @@ describe('CollaborationWebSocketHandler', () => {
     const { h } = makeWithBus();
     const ws = fakeWs();
     h.addClient(ws);
-    h.handleMessage(ws, { type: 'collab.join', payload: { sessionId: 'sess-g2', role: 'observer' } });
+    h.handleMessage(ws, {
+      type: 'collab.join',
+      payload: { sessionId: 'sess-g2', role: 'observer' },
+    });
     ws.sent.length = 0;
     h.handleMessage(ws, {
       type: 'collab.grant_control',
@@ -817,7 +834,10 @@ describe('CollaborationWebSocketHandler', () => {
     const b = fakeWs(); // observer
     h.addClient(a);
     h.addClient(b);
-    h.handleMessage(a, { type: 'collab.join', payload: { sessionId: 'sess-c', role: 'controller' } });
+    h.handleMessage(a, {
+      type: 'collab.join',
+      payload: { sessionId: 'sess-c', role: 'controller' },
+    });
     h.handleMessage(b, { type: 'collab.join', payload: { sessionId: 'sess-c', role: 'observer' } });
     const controllerId = lastOfType(a, 'collab.state').payload.participants.find(
       (p: { role: string; participantId: string }) => p.role === 'controller',
@@ -849,7 +869,10 @@ describe('CollaborationWebSocketHandler', () => {
     const { h } = makeWithBus();
     const a = fakeWs();
     h.addClient(a);
-    h.handleMessage(a, { type: 'collab.join', payload: { sessionId: 'sess-g3', role: 'controller' } });
+    h.handleMessage(a, {
+      type: 'collab.join',
+      payload: { sessionId: 'sess-g3', role: 'controller' },
+    });
     a.sent.length = 0;
     h.handleMessage(a, {
       type: 'collab.grant_control',
@@ -864,13 +887,7 @@ describe('CollaborationWebSocketHandler', () => {
 
   it('rejects a self-selected controller without explicit server authorization', () => {
     const bus = new CollaborationBus();
-    const h = new CollaborationWebSocketHandler(
-      events,
-      noopLogger,
-      undefined,
-      undefined,
-      bus,
-    );
+    const h = new CollaborationWebSocketHandler(events, noopLogger, undefined, undefined, bus);
     const ws = fakeWs();
     h.addClient(ws);
 
@@ -969,7 +986,21 @@ function makeWithBus() {
 // touch the filesystem. Mirrors only the surface the handler uses:
 // `add()` and `resolve()`.
 function makeMemoryAnnotationsStore() {
-  const bySession = new Map<string, Array<{ id: string; text: string; resolved: boolean; resolvedAt?: string; resolvedBy?: string; createdAt: string; atEventIndex: number; authorId: string; authorRole: 'annotator'; sessionId: string }>>();
+  const bySession = new Map<
+    string,
+    Array<{
+      id: string;
+      text: string;
+      resolved: boolean;
+      resolvedAt?: string;
+      resolvedBy?: string;
+      createdAt: string;
+      atEventIndex: number;
+      authorId: string;
+      authorRole: 'annotator';
+      sessionId: string;
+    }>
+  >();
   let nextId = 1;
   return {
     async add(input: { sessionId: string; atEventIndex: number; authorId: string; text: string }) {

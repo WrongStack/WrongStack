@@ -149,6 +149,10 @@ const toolEntries = entryMap([
   'src/codebase-index/index.ts',
   'src/codebase-index/worker.ts',
   'src/codebase-index/project-server.ts',
+  // Emitted standalone so the parser pool can spawn it from dist — without
+  // this entry the pool's script probe finds nothing in built installs and
+  // bulk parsing silently falls back to inline.
+  'src/codebase-index/parser-worker-script.ts',
 ]);
 
 function pluginEntries() {
@@ -324,8 +328,10 @@ const profiles = {
     target: 'es2022',
     platform: 'browser',
     clean: false,
+    external: ['@wrongstack/core', '@wrongstack/webui-protocol'],
   },
   '@wrongstack/telegram': standard(['@wrongstack/core']),
+  '@wrongstack/webui-protocol': standard(['@wrongstack/core']),
   '@wrongstack/tools': {
     entries: toolEntries,
     external: [
@@ -347,6 +353,7 @@ const profiles = {
       'server/entry': 'src/server/entry.ts',
       'server/handlers': 'src/server/handlers/index.ts',
     },
+    external: ['@wrongstack/core', '@wrongstack/webui-protocol'],
     postBuild: prependServerShebang,
   },
   '@wrongstack/webui': {
@@ -359,6 +366,7 @@ const profiles = {
       'react-dom',
       '@wrongstack/core',
       '@wrongstack/tools',
+      '@wrongstack/webui-protocol',
       '@wrongstack/webui-server',
       'tailwindcss',
       './index.css',

@@ -3,13 +3,8 @@ import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { Logger, MCPServerConfig } from '@wrongstack/core/types';
 import type { MCPAuthorizationProvider } from './authorization.js';
 import type { MCPAuthorizationManager } from './authorization-manager.js';
-import type { ConnectionState } from './client.js';
-import type {
-  MCPPrompt,
-  MCPResource,
-  MCPResourceTemplate,
-  MCPServerMetadata,
-} from './protocol.js';
+import type { ConnectionState } from './contracts.js';
+import type { MCPPrompt, MCPResource, MCPResourceTemplate, MCPServerMetadata } from './protocol.js';
 
 export interface MCPRegistryOptions {
   toolRegistry: ToolRegistry;

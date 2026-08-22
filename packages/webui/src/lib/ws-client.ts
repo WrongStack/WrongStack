@@ -11,7 +11,7 @@ import {
   resetConnection,
   type SurfaceConnectionState,
   stopConnection,
-} from '@wrongstack/webui-server/protocol';
+} from '@wrongstack/webui-protocol';
 import { safeId } from '@/lib/utils';
 import type {
   WSClientMessage,
@@ -23,7 +23,10 @@ import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
-import { installWsClientDomainMethods, type WsClientDomainMethods } from './ws-client-domain-methods';
+import {
+  installWsClientDomainMethods,
+  type WsClientDomainMethods,
+} from './ws-client-domain-methods';
 import type { WSSendOptions } from './ws-client-contracts';
 import {
   buildClearModelsMessage,

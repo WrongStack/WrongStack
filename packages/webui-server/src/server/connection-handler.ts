@@ -1,11 +1,11 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { Message, SessionEvent, TokenCounter, Usage } from '@wrongstack/core/types';
-import type { WebSocket } from 'ws';
 import {
   buildReplayPayload,
   decodeProtocolFrame,
   protocolAdvertisement,
-} from '../protocol/index.js';
+} from '@wrongstack/webui-protocol';
+import type { WebSocket } from 'ws';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { createConnectionLifecycle } from './connection-lifecycle.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
@@ -70,7 +70,9 @@ const DEFAULT_WS_RATE_LIMIT = 600;
 const rawRateLimit = process.env['WEBUI_RATE_LIMIT'];
 const parsedRateLimit = rawRateLimit ? Number.parseInt(rawRateLimit, 10) : DEFAULT_WS_RATE_LIMIT;
 const RATE_LIMIT_MESSAGES =
-  Number.isFinite(parsedRateLimit) && parsedRateLimit >= 0 ? parsedRateLimit : DEFAULT_WS_RATE_LIMIT;
+  Number.isFinite(parsedRateLimit) && parsedRateLimit >= 0
+    ? parsedRateLimit
+    : DEFAULT_WS_RATE_LIMIT;
 
 /**
  * When true, rejection/parse-failure logs include per-connection context

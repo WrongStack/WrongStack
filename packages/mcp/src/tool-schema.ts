@@ -1,4 +1,4 @@
-import type { MCPTool } from './client.js';
+import type { MCPTool } from './contracts.js';
 
 export function normalizeMCPTools(value: unknown): MCPTool[] {
   if (!Array.isArray(value)) return [];

@@ -1,6 +1,6 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { parseNextSteps, projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
-import { projectChatMessage, projectToolMessage } from '@wrongstack/webui-server/protocol';
+import { projectChatMessage, projectToolMessage } from '@wrongstack/webui-protocol';
 import { toWireImages } from '@/components/ChatInput/image-attachments';
 import { toast } from '@/components/Toaster';
 import { playCompletionChime, playPermissionChime } from '@/lib/chime';
@@ -227,12 +227,16 @@ export function handleRunResult(msg: WSServerMessage) {
     iterations?: number;
     finalText?: string;
     error?: { code?: string; message: string; recoverable: boolean };
-  }>(msg, { status: 'string' }, {
-    requestId: 'string',
-    iterations: 'number',
-    finalText: 'string',
-    error: 'object',
-  });
+  }>(
+    msg,
+    { status: 'string' },
+    {
+      requestId: 'string',
+      iterations: 'number',
+      finalText: 'string',
+      error: 'object',
+    },
+  );
   if (!payload) return;
   // iterations is optional on the wire (some server builds omit it on
   // early-exit paths); default to 1 so downstream math + copy stays sane.

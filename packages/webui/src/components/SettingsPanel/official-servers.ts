@@ -1,4 +1,4 @@
-import type { MCPServerConfig } from './MCPSection';
+import type { MCPServerConfig } from './contracts.js';
 
 export interface OfficialServer {
   name: string;

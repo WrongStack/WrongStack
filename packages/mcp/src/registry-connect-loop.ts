@@ -2,8 +2,9 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { Logger } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
-import { type ConnectionState, MCPClient, type MCPTool } from './client.js';
+import { MCPClient } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
+import type { ConnectionState, MCPTool } from './contracts.js';
 import { manifestConfigHash, writeCapabilityManifest } from './manifest-cache.js';
 import {
   MCP_OPERATION_LIMITS,
@@ -72,11 +73,7 @@ export function applySlotTools(
       },
       onFinish: ({ durationMs, ok }) => {
         slot.operations.inFlightCalls = Math.max(0, slot.operations.inFlightCalls - 1);
-        pushBounded(
-          slot.operations.callSamples,
-          durationMs,
-          MCP_OPERATION_LIMITS.LATENCY_SAMPLES,
-        );
+        pushBounded(slot.operations.callSamples, durationMs, MCP_OPERATION_LIMITS.LATENCY_SAMPLES);
         if (ok) {
           ctx.recordSuccess(slot);
           ctx.recordOperation(slot, 'call', 'ok', undefined, durationMs, false);

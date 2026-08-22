@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest';
 import {
   projectChatMessage,
   projectFleetMessage,
@@ -8,7 +7,8 @@ import {
   projectHqFleetMessage,
   projectSessionMessage,
   projectToolMessage,
-} from '../src/protocol/index.js';
+} from '@wrongstack/webui-protocol';
+import { describe, expect, it } from 'vitest';
 
 describe('surface semantic projections', () => {
   it('normalizes session identity and replay metadata', () => {
@@ -262,9 +262,15 @@ describe('surface semantic projections', () => {
       kind: 'hq-alert',
       alert: validAlert,
     });
-    expect(projectHqAlertMessage({ type: 'hq.alert', severity: 'fatal', message: 'x', timestamp: 't' })).toBeNull();
-    expect(projectHqAlertMessage({ type: 'hq.alert', severity: 'warn', message: 123, timestamp: 't' })).toBeNull();
-    expect(projectHqAlertMessage({ type: 'hq.alert', severity: 'warn', message: 'x', timestamp: 99 })).toBeNull();
+    expect(
+      projectHqAlertMessage({ type: 'hq.alert', severity: 'fatal', message: 'x', timestamp: 't' }),
+    ).toBeNull();
+    expect(
+      projectHqAlertMessage({ type: 'hq.alert', severity: 'warn', message: 123, timestamp: 't' }),
+    ).toBeNull();
+    expect(
+      projectHqAlertMessage({ type: 'hq.alert', severity: 'warn', message: 'x', timestamp: 99 }),
+    ).toBeNull();
   });
 
   it('projects valid HQ command status messages and rejects malformed ones', () => {
@@ -276,7 +282,9 @@ describe('surface semantic projections', () => {
       enqueuedAt: '2026-07-21T00:00:00.000Z',
       status: 'delivered',
     };
-    expect(projectHqCommandStatusMessage({ type: 'hq.command_status', command: validCommand })).toEqual({
+    expect(
+      projectHqCommandStatusMessage({ type: 'hq.command_status', command: validCommand }),
+    ).toEqual({
       kind: 'hq-command-status',
       command: validCommand,
     });

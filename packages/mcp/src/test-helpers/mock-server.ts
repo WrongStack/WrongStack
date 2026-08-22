@@ -15,7 +15,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { MCPTool } from '../client.js';
+import type { MCPTool } from '../contracts.js';
 
 export interface MockToolResponse {
   content: unknown;

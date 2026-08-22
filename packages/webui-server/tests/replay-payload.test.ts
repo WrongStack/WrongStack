@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
 import type { Message, SessionEvent } from '@wrongstack/core/types';
-import { buildReplayPayload, REPLAY_MESSAGE_CAP } from '../src/protocol/replay-payload.js';
+import { buildReplayPayload, REPLAY_MESSAGE_CAP } from '@wrongstack/webui-protocol';
+import { describe, expect, it } from 'vitest';
 
 const TS = '2026-07-25T10:00:00.000Z';
 

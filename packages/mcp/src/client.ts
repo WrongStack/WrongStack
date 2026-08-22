@@ -49,26 +49,9 @@ export interface MCPClientOptions {
   passthroughEnv?: string[] | undefined;
 }
 
-export type ConnectionState =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'disconnected'
-  | 'reconnecting'
-  | 'failed'
-  /** Lazy server: registered from a cached manifest, process not spawned. */
-  | 'dormant';
+import type { ConnectionState, JsonRpcResponse, MCPTool, ToolCallResult } from './contracts.js';
 
-export interface MCPTool {
-  name: string;
-  description?: string | undefined;
-  inputSchema: Record<string, unknown>;
-}
-
-export interface ToolCallResult {
-  content: unknown;
-  isError: boolean;
-}
+export type { ConnectionState, JsonRpcResponse, MCPTool, ToolCallResult };
 
 export interface MCPRequestOptions {
   signal?: AbortSignal | undefined;
@@ -83,13 +66,6 @@ interface JsonRpcRequest {
   id: number;
   method: string;
   params?: unknown | undefined;
-}
-
-export interface JsonRpcResponse {
-  jsonrpc: '2.0';
-  id: number;
-  result?: unknown | undefined;
-  error?: { code: number | undefined; message: string; data?: unknown | undefined } | undefined;
 }
 
 type JsonRpcServerRequest = {

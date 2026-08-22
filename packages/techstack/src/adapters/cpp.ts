@@ -8,17 +8,10 @@
  */
 
 import { readFileSync } from 'node:fs';
-import type {
-  DependencyObservation,
-  EcosystemId,
-  Workspace,
-} from '../types.js';
-import {
-  manifestEvidence,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
 import { buildPurl } from '../registry/purl.js';
+import type { DependencyObservation, EcosystemId, Workspace } from '../types.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { manifestEvidence } from './paths.js';
 
 /**
  * Parse conanfile.txt `[requires]` section.
@@ -48,7 +41,9 @@ function parseConanTxt(content: string): Array<{ name: string; version?: string 
 function parseVcpkgJson(content: string): Array<{ name: string; version?: string | undefined }> {
   const deps: Array<{ name: string; version?: string | undefined }> = [];
   try {
-    const json = JSON.parse(content) as { dependencies?: Array<string | { name: string; version?: string }> };
+    const json = JSON.parse(content) as {
+      dependencies?: Array<string | { name: string; version?: string }>;
+    };
     for (const dep of json.dependencies ?? []) {
       if (typeof dep === 'string') {
         deps.push({ name: dep });

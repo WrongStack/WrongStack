@@ -16,7 +16,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { MCPTool } from './client.js';
+import type { MCPTool } from './contracts.js';
 import {
   type MCPPrompt,
   type MCPResource,

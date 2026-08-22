@@ -68,6 +68,9 @@ importers:
       '@wrongstack/webui':
         specifier: workspace:*
         version: link:../../packages/webui
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../../packages/webui-protocol
       '@wrongstack/webui-server':
         specifier: workspace:*
         version: link:../../packages/webui-server
@@ -592,6 +595,9 @@ importers:
       '@wrongstack/tools':
         specifier: workspace:*
         version: link:../tools
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../webui-protocol
       '@wrongstack/webui-server':
         specifier: workspace:*
         version: link:../webui-server
@@ -844,6 +850,9 @@ importers:
       '@wrongstack/tools':
         specifier: workspace:*
         version: link:../tools
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../webui-protocol
       '@wrongstack/webui-server':
         specifier: workspace:*
         version: link:../webui-server
@@ -984,6 +993,9 @@ importers:
       '@wrongstack/tools':
         specifier: workspace:*
         version: link:../tools
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../webui-protocol
       '@wrongstack/webui-server':
         specifier: workspace:*
         version: link:../webui-server
@@ -1040,6 +1052,19 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.2.0)(@vitest/coverage-istanbul@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12))
 
+  packages/webui-protocol:
+    dependencies:
+      '@wrongstack/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
+
   packages/webui-server:
     dependencies:
       '@wrongstack/core':
@@ -1075,6 +1100,9 @@ importers:
       '@wrongstack/vector-memory':
         specifier: workspace:*
         version: link:../vector-memory
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../webui-protocol
       ws:
         specifier: ^8.21.3
         version: 8.21.3

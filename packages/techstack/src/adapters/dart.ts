@@ -9,22 +9,16 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { buildPurl } from '../registry/purl.js';
 import type {
   DependencyObservation,
   DependencyScope,
-  Evidence,
   EcosystemId,
+  Evidence,
   Workspace,
 } from '../types.js';
-import {
-  fileExists,
-  lockfileEvidence,
-  manifestEvidence,
-  workspaceRoot,
-  type EcosystemAdapter,
-  type InventoryOptions,
-} from './interface.js';
-import { buildPurl } from '../registry/purl.js';
+import type { EcosystemAdapter, InventoryOptions } from './interface.js';
+import { fileExists, lockfileEvidence, manifestEvidence, workspaceRoot } from './paths.js';
 
 // ── Minimal YAML parser (line-based, sufficient for pubspec.yaml) ────────
 
@@ -151,8 +145,9 @@ export class DartAdapter implements EcosystemAdapter {
     const seen = new Set<string>();
 
     // Find pubspec.yaml
-    const pubspecPath = workspace.manifests.find((m) => m.includes('pubspec.yaml'))
-      || (fileExists(join(root, 'pubspec.yaml')) ? join(root, 'pubspec.yaml') : undefined);
+    const pubspecPath =
+      workspace.manifests.find((m) => m.includes('pubspec.yaml')) ||
+      (fileExists(join(root, 'pubspec.yaml')) ? join(root, 'pubspec.yaml') : undefined);
     if (!pubspecPath) return [];
 
     let content: string;
@@ -195,7 +190,8 @@ export class DartAdapter implements EcosystemAdapter {
         seen.add(name);
 
         // Skip sdk dependencies (they are the Dart SDK itself)
-        if (constraint === '*' || constraint === 'sdk:flutter' || constraint.startsWith('{')) continue;
+        if (constraint === '*' || constraint === 'sdk:flutter' || constraint.startsWith('{'))
+          continue;
 
         const locked = lockVersions.get(name);
 
@@ -217,11 +213,16 @@ export class DartAdapter implements EcosystemAdapter {
 
         const isRegistry = sourceType === 'registry';
         // Strip caret/tilde/>= for PURL — use locked if available
-        const purl = isRegistry && (locked || constraint)
-          ? buildPurl({ type: 'dart', name, version: locked || constraint.replace(/^[\^~>=<\s]+/, '') })
-          : isRegistry
-            ? buildPurl({ type: 'dart', name })
-            : undefined;
+        const purl =
+          isRegistry && (locked || constraint)
+            ? buildPurl({
+                type: 'dart',
+                name,
+                version: locked || constraint.replace(/^[\^~>=<\s]+/, ''),
+              })
+            : isRegistry
+              ? buildPurl({ type: 'dart', name })
+              : undefined;
 
         const evidence: Evidence[] = [manifestEv];
         if (lockEv && locked) evidence.push(lockEv);
@@ -245,7 +246,6 @@ export class DartAdapter implements EcosystemAdapter {
 
     return observations;
   }
-
 }
 
 /**
