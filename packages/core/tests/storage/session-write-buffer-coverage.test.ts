@@ -14,12 +14,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { EventBus } from '../../src/kernel/events.js';
 import {
+  type FlushBufferOptions,
   SessionWriteBuffer as ProductionSessionWriteBuffer,
   type SessionWriteBufferOptions,
 } from '../../src/storage/session-write-buffer.js';
 import type { SessionEvent } from '../../src/types/session.js';
-import type { EventBus } from '../../src/kernel/events.js';
 
 const now = () => new Date().toISOString();
 
@@ -30,8 +31,10 @@ type PublicSessionWriteBuffer = {
 };
 
 const SessionWriteBuffer = ProductionSessionWriteBuffer as unknown as {
-  new (opts: SessionWriteBufferOptions): PublicSessionWriteBuffer & {
-    flushBufferOnce(isClosed: boolean): Promise<void>;
+  new (
+    opts: SessionWriteBufferOptions,
+  ): PublicSessionWriteBuffer & {
+    flushBufferOnce(isClosed: boolean, opts?: FlushBufferOptions): Promise<void>;
   };
   readonly FLUSH_INTERVAL_MS: number;
   readonly FLUSH_SIZE: number;
@@ -82,11 +85,12 @@ describe('SessionWriteBuffer — coverage', () => {
     return {
       sessionId: 's',
       filePath,
-      getHandle: () => ({
-        appendFile: handle.appendFile,
-        datasync: handle.datasync,
-        close: handle.close,
-      } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({
+          appendFile: handle.appendFile,
+          datasync: handle.datasync,
+          close: handle.close,
+        }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
       ...(overrides.events === undefined ? {} : { events: overrides.events }),
       ...(overrides.getTraceId === undefined ? {} : { getTraceId: overrides.getTraceId }),
@@ -148,7 +152,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     await buffer.enqueueWrite('data\n');
@@ -182,7 +186,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -207,7 +211,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -287,7 +291,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -309,7 +313,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -357,7 +361,7 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ ...handle } as unknown as fs.FileHandle),
+      getHandle: () => ({ ...handle }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -381,7 +385,8 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.flushSync();
@@ -391,7 +396,8 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath: '',
-      getHandle: () => ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -405,7 +411,8 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -425,7 +432,8 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
       getTraceId: () => 'trace-123',
     });
@@ -451,7 +459,8 @@ describe('SessionWriteBuffer — coverage', () => {
     const buffer = new SessionWriteBuffer({
       sessionId: 's',
       filePath,
-      getHandle: () => ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() } as unknown as fs.FileHandle),
+      getHandle: () =>
+        ({ appendFile: vi.fn(), datasync: vi.fn(), close: vi.fn() }) as unknown as fs.FileHandle,
       setHandle: () => undefined,
     });
     buffer.push(makeEvent());
@@ -466,8 +475,14 @@ describe('SessionWriteBuffer — coverage', () => {
       close: vi.fn().mockResolvedValue(undefined),
     };
     const emitCalls: unknown[] = [];
-    const eventBus = { emit: vi.fn((...args: unknown[]) => { emitCalls.push(args); }) } as unknown as EventBus;
-    const buffer = new SessionWriteBuffer(makeOpts({ handle, events: eventBus, getTraceId: () => 'trace-456' }));
+    const eventBus = {
+      emit: vi.fn((...args: unknown[]) => {
+        emitCalls.push(args);
+      }),
+    } as unknown as EventBus;
+    const buffer = new SessionWriteBuffer(
+      makeOpts({ handle, events: eventBus, getTraceId: () => 'trace-456' }),
+    );
     buffer.push(makeEvent());
     await buffer.flushBufferOnce(false);
     expect(
