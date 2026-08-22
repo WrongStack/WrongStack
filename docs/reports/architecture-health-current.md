@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T12:39:35.418Z
+**Generated:** 2026-08-22T12:57:17.811Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 34 |
-| Production source files | 3297 |
-| Production source lines | 788934 |
-| Test files | 2868 |
+| Production source files | 3298 |
+| Production source lines | 789228 |
+| Test files | 2869 |
 | Workspace dependency edges | 112 |
-| Relative module edges | 10216 |
+| Relative module edges | 10218 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -53,7 +53,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 93 | 61 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/telegram | 21 | 29 | @wrongstack/core |
-| @wrongstack/tools | 190 | 197 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/tools | 191 | 198 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
 | @wrongstack/tui | 332 | 318 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
 | @wrongstack/webui | 463 | 338 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -100,6 +100,7 @@ None.
 | 1019 | `packages/tui/src/theme-presets.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
+| 1013 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1007 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1007 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1006 | `packages/core/src/coordination/delegate-tool.ts` |
@@ -121,19 +122,18 @@ None.
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 979 | `packages/kanban/src/manager/assignment.ts` |
 | 979 | `packages/tools/src/codebase-index/indexer.ts` |
-| 977 | `packages/tools/src/codebase-index/project-server.ts` |
 | 974 | `packages/webui/src/stores/viz-store.ts` |
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 968 | `packages/kanban/src/types.ts` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
+| 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
 | 952 | `packages/cli/src/cli-main.ts` |
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
-| 944 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 

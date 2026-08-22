@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T12:39:35.418Z",
+  "generatedAt": "2026-08-22T12:57:17.811Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 34,
-    "sourceFiles": 3297,
-    "testFiles": 2868,
-    "sourceLines": 788934,
+    "sourceFiles": 3298,
+    "testFiles": 2869,
+    "sourceLines": 789228,
     "workspaceEdges": 112,
-    "moduleEdges": 10216,
+    "moduleEdges": 10218,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -697,8 +697,8 @@
     {
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
-      "sourceFiles": 190,
-      "testFiles": 197,
+      "sourceFiles": 191,
+      "testFiles": 198,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -713,7 +713,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 197
+          "testFiles": 198
         }
       ]
     },
@@ -13021,6 +13021,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/wal-maintenance.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/wasm-provenance.test.ts",
         "projects": [
           "root-node"
@@ -18652,8 +18658,8 @@
     },
     {
       "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 977,
-      "relativeImports": 8
+      "lines": 1013,
+      "relativeImports": 9
     },
     {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
@@ -18662,7 +18668,7 @@
     },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
-      "lines": 937,
+      "lines": 963,
       "relativeImports": 19
     },
     {
@@ -18998,6 +19004,11 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "lines": 1013,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1007,
       "relativeImports": 48
@@ -19103,11 +19114,6 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 977,
-      "relativeImports": 8
-    },
-    {
       "file": "packages/webui/src/stores/viz-store.ts",
       "lines": 974,
       "relativeImports": 0
@@ -19131,6 +19137,11 @@
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 964,
       "relativeImports": 3
+    },
+    {
+      "file": "packages/tools/src/codebase-index/writer.ts",
+      "lines": 963,
+      "relativeImports": 19
     },
     {
       "file": "packages/core/src/execution/eternal-autonomy.ts",
@@ -19161,11 +19172,6 @@
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 949,
       "relativeImports": 1
-    },
-    {
-      "file": "apps/desktop/src/renderer/src/renderer.ts",
-      "lines": 944,
-      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
