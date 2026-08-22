@@ -2639,10 +2639,12 @@ describe('path-guard covers any tool that declares a write', () => {
     expect(first).toHaveBeenCalledTimes(1);
     expect(otherOff).not.toHaveBeenCalled();
 
-    // Teardown releases the live (second) registration exactly once.
+    // Teardown releases the live (second) registration exactly once — and
+    // MUST NOT touch the other host's handle (cross-host isolation).
     pathGuardPlugin.teardown(api as never);
     expect(second).toHaveBeenCalledTimes(1);
     expect(first).toHaveBeenCalledTimes(1);
+    expect(otherOff).not.toHaveBeenCalled();
 
     // The other host is untouched and released by its own teardown.
     pathGuardPlugin.teardown(other as never);

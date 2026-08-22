@@ -926,70 +926,65 @@ describe('ReDoS protection', () => {
 });
 
 // Audit T-03 (2026-08-22): pin the full no-leak hook-lifecycle contract.
-// secret-scanner registers TWO hooks per setup() (PreToolUse + PostToolUse),
-// so re-setup must release both of the previous registration's handles, and
-// teardown must free the CURRENT pair — never a stale one.
+// Count-AGNOSTIC by design (Chimera medium): every registerHook call gets its
+// own recorded handle, and assertions ask "were ALL handles from setup #1
+// released?" — a future third registration per setup() must not silently
+// shift a positional mock chain and turn a leak into a confusing failure.
 describe('hook lifecycle: re-setup releases handles, hosts are isolated (audit T-03)', () => {
-  interface RegisteredOff {
-    pre: ReturnType<typeof vi.fn>;
-    post: ReturnType<typeof vi.fn>;
+  interface TrackedApi {
+    api: MockApi;
+    /** One unregister spy per registerHook call, in call order. */
+    handles: Array<ReturnType<typeof vi.fn>>;
   }
 
-  function setupOnce(off: RegisteredOff): MockApi {
+  function trackedApi(): TrackedApi {
     const api = makeApi();
-    api.registerHook.mockImplementationOnce(() => off.pre).mockImplementationOnce(() => off.post);
-    secretScannerPlugin.setup(api as any);
-    return api;
+    const handles: Array<ReturnType<typeof vi.fn>> = [];
+    api.registerHook.mockImplementation(() => {
+      const off = vi.fn();
+      handles.push(off);
+      return off;
+    });
+    return { api, handles };
   }
 
-  it('setup() twice releases BOTH previous handles exactly once', () => {
-    const first: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
-    const second: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
-    const api = makeApi();
-    api.registerHook
-      .mockImplementationOnce(() => first.pre)
-      .mockImplementationOnce(() => first.post)
-      .mockImplementationOnce(() => second.pre)
-      .mockImplementationOnce(() => second.post);
+  it('setup() twice releases EVERY previous handle exactly once', () => {
+    const { api, handles } = trackedApi();
+    secretScannerPlugin.setup(api as any);
+    const firstBatch = [...handles];
+    expect(firstBatch.length).toBeGreaterThanOrEqual(2); // Pre + Post today
 
     secretScannerPlugin.setup(api as any);
-    secretScannerPlugin.setup(api as any);
+    const secondBatch = handles.slice(firstBatch.length);
 
-    expect(first.pre).toHaveBeenCalledTimes(1);
-    expect(first.post).toHaveBeenCalledTimes(1);
-    expect(second.pre).not.toHaveBeenCalled();
-    expect(second.post).not.toHaveBeenCalled();
+    // Every handle from the FIRST registration was released exactly once —
+    // no matter how many hooks setup() registers.
+    for (const off of firstBatch) expect(off).toHaveBeenCalledTimes(1);
+    // No handle from the live registration was disturbed.
+    for (const off of secondBatch) expect(off).not.toHaveBeenCalled();
   });
 
-  it('teardown after re-setup releases the CURRENT pair; other hosts are isolated', () => {
-    const first: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
-    const second: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
-    const api = makeApi();
-    api.registerHook
-      .mockImplementationOnce(() => first.pre)
-      .mockImplementationOnce(() => first.post)
-      .mockImplementationOnce(() => second.pre)
-      .mockImplementationOnce(() => second.post);
+  it('teardown after re-setup releases the CURRENT handles; other hosts are isolated', () => {
+    const { api, handles } = trackedApi();
     secretScannerPlugin.setup(api as any);
+    const firstBatch = [...handles];
     secretScannerPlugin.setup(api as any);
+    const secondBatch = handles.slice(firstBatch.length);
 
     // A second host's setup must not disturb the first host's handles.
-    const otherOff: RegisteredOff = { pre: vi.fn(), post: vi.fn() };
-    const other = setupOnce(otherOff);
-    expect(otherOff.pre).not.toHaveBeenCalled();
-    expect(first.pre).toHaveBeenCalledTimes(1); // only its own re-setup fired
+    const other = trackedApi();
+    secretScannerPlugin.setup(other.api as any);
+    for (const off of other.handles) expect(off).not.toHaveBeenCalled();
+    for (const off of firstBatch) expect(off).toHaveBeenCalledTimes(1);
 
-    // Teardown frees the live (second) pair exactly once.
+    // Teardown frees the live (second) registration's handles exactly once.
     secretScannerPlugin.teardown(api as any);
-    expect(second.pre).toHaveBeenCalledTimes(1);
-    expect(second.post).toHaveBeenCalledTimes(1);
-    expect(first.pre).toHaveBeenCalledTimes(1);
-    expect(first.post).toHaveBeenCalledTimes(1);
+    for (const off of secondBatch) expect(off).toHaveBeenCalledTimes(1);
+    for (const off of firstBatch) expect(off).toHaveBeenCalledTimes(1);
 
-    // The other host's pair is freed by its own teardown.
-    secretScannerPlugin.teardown(other as any);
-    expect(otherOff.pre).toHaveBeenCalledTimes(1);
-    expect(otherOff.post).toHaveBeenCalledTimes(1);
+    // The other host's handles are freed by its own teardown — never earlier.
+    secretScannerPlugin.teardown(other.api as any);
+    for (const off of other.handles) expect(off).toHaveBeenCalledTimes(1);
 
     // Repeat teardown after state deletion is a safe no-op.
     expect(() => secretScannerPlugin.teardown(api as any)).not.toThrow();
