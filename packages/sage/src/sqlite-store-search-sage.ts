@@ -1,6 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import { hybridRerankMemories } from './retrieval/hybrid-rerank.js';
+import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { escapeLikePattern } from './sqlite-store-pagination.js';
 import {
   buildSessionClause as buildSharedSessionClause,
@@ -156,4 +157,75 @@ export function searchSqliteSage(
     data: string;
   }>;
   return maybeRerank(query, sqliteRowsToMemories(rows).filter(audienceFilter), opts);
+}
+
+export interface MaterializeSageContext {
+  stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
+}
+
+/**
+ * Build the vector-only materializer for `augmentLexicalWithVectorRecall`.
+ *
+ * Resolves a SAGE memory by id for the vector channel's semantic-only hits —
+ * the recall path the lexical (FTS/BM25) channel missed. Every visibility
+ * rule of `searchSqliteSage` is mirrored exactly, so a vector-only hit can
+ * never admit a memory the lexical channel would have been forbidden to
+ * return:
+ *  - status filter: `includeStatuses ?? ['active']`
+ *  - audience: excluded when `includeAudienceScoped === false` (SQL level,
+ *    same `audience IS NULL` clause)
+ *  - contextPolicy `never`: excluded for automatic-context calls (same JSON
+ *    clause — the lexical channel applies it, so the materializer must too)
+ *  - session ownership: same `buildSessionClause`, same precedence
+ *    (`includeAllSessions` wins, then `sessionId`, then unowned-only)
+ *  - scope filter, when the caller pinned one
+ *
+ * Returns `undefined` for unknown ids, ids filtered out of visibility, and
+ * corrupt rows (decode failures are swallowed like search's row decoding) —
+ * the fusion treats all of these as a plain drop.
+ *
+ * Kept beside `searchSqliteSage` (same module, same clause vocabulary) so the
+ * two visibility implementations cannot drift apart unnoticed.
+ */
+export function materializeSageByIdFactory(
+  ctx: MaterializeSageContext,
+  opts?: SageSearchOptions,
+): (sageId: string) => Sage | undefined {
+  const statusFilter = opts?.includeStatuses ?? ['active'];
+  const placeholders = statusFilter.map(() => '?').join(',');
+  const scopeFilter = opts?.scope;
+  const scopeClause = scopeFilter ? ' AND scope = ?' : '';
+  const scopeParams = scopeFilter ? [scopeFilter] : [];
+  const includeAudienceScoped = opts?.includeAudienceScoped !== false;
+  const audienceSqlClause = includeAudienceScoped ? '' : ' AND audience IS NULL';
+  const session = buildSessionClause(opts);
+  // `includeStatuses === undefined` means "automatic context" in
+  // searchSqliteSage — the same call shape that excludes contextPolicy
+  // 'never' rows there must exclude them here.
+  const neverInjectClause =
+    opts?.includeStatuses === undefined
+      ? ` AND CASE
+            WHEN json_valid(data)
+            THEN COALESCE(json_extract(data, '$.contextPolicy') != 'never', 1)
+            ELSE 1
+          END`
+      : '';
+  const sql = `SELECT data FROM memories
+         WHERE id = ? AND status IN (${placeholders})${scopeClause}${session.clause}${audienceSqlClause}${neverInjectClause}
+         LIMIT 1`;
+  const params = [...scopeParams, ...session.params];
+
+  return (sageId: string): Sage | undefined => {
+    const row = ctx.stmt(sql).get(sageId, ...statusFilter, ...params) as
+      | { data: string }
+      | undefined;
+    if (!row) return undefined;
+    try {
+      return sqliteRowToMemory(row);
+    } catch {
+      // Corrupt row: same advisory contract as sqliteRowsToMemories —
+      // the hit is dropped rather than crashing the fusion.
+      return undefined;
+    }
+  };
 }

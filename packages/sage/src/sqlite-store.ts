@@ -52,7 +52,7 @@ import {
 } from './sqlite-store-codec.js';
 import { retrieveSqliteSageForPath } from './sqlite-store-retrieve-path.js';
 import { initializeSqliteSageStore } from './sqlite-store-initialize.js';
-import { searchSqliteSage } from './sqlite-store-search-sage.js';
+import { searchSqliteSage, materializeSageByIdFactory } from './sqlite-store-search-sage.js';
 import { executeUnifiedSearch } from './sqlite-store-search.js';
 import { augmentLexicalWithVectorRecall } from './retrieval/vector-augment.js';
 import type { VectorAugmentHit } from './retrieval/vector-augment.js';
@@ -554,6 +554,13 @@ export class SqliteSageStore implements MemoryStore {
     // (any backend error falls through to the lexical list).
     const fused = await augmentLexicalWithVectorRecall(query, lexical, {
       vectorRecall: opts.vectorRecall,
+      // Vector-only hits (semantically close but lexically missed) are
+      // materialized by id under the SAME visibility rules as the lexical
+      // channel — see materializeSageByIdFactory.
+      materializeVectorOnly: materializeSageByIdFactory(
+        { stmt: (sql) => this.stmt(sql) },
+        opts,
+      ),
       ...(opts.vectorRecallWeight !== undefined
         ? { vectorWeight: opts.vectorRecallWeight }
         : {}),
@@ -601,6 +608,12 @@ export class SqliteSageStore implements MemoryStore {
     }
     return augmentLexicalWithVectorRecall(query, lexical, {
       vectorRecall: opts.vectorRecall,
+      // Same vector-only materialization contract as searchSage —
+      // visibility-respecting, fail-open on unknown ids.
+      materializeVectorOnly: materializeSageByIdFactory(
+        { stmt: (sql) => this.stmt(sql) },
+        opts,
+      ),
       ...(opts.vectorRecallWeight !== undefined
         ? { vectorWeight: opts.vectorRecallWeight }
         : {}),

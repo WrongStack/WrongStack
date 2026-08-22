@@ -141,3 +141,113 @@ describe('augmentLexicalWithVectorRecall', () => {
     expect(result[0]!.finalScore).toBeGreaterThanOrEqual(result[1]!.finalScore);
   });
 });
+
+describe('augmentLexicalWithVectorRecall — vector-only materialization', () => {
+  it('materializes a high-threshold vector-only hit when a materializer is supplied', async () => {
+    const lexical = [fakeSage('a', 'apple')];
+    const hidden = fakeSage('z', 'zurek soup recipe from the family archive');
+    const provider = fakeProvider([{ id: 'vz', score: 0.9, text: 'zurek', sageId: 'z' }]);
+    const result = await augmentLexicalWithVectorRecall('apple', lexical, {
+      vectorRecall: provider,
+      vectorOnlyThreshold: 0.8,
+      materializeVectorOnly: (id) => (id === 'z' ? hidden : undefined),
+    });
+    const zHit = result.find((r) => r.memory.id === 'z');
+    expect(zHit).toBeDefined();
+    expect(zHit!.source).toBe('vector');
+    expect(zHit!.vectorScore).toBe(0.9);
+    expect(zHit!.lexicalScore).toBeNull();
+    // The candidate is the callback's object — the fusion never fabricates a
+    // Sage from the provider hit.
+    expect(zHit!.memory).toBe(hidden);
+  });
+
+  it('keeps the reorder-only contract when no materializer is supplied', async () => {
+    // Historical semantics: without a materializer there is no way to
+    // materialize a Sage for a vector-only hit, so it is dropped regardless
+    // of score or threshold.
+    const provider = fakeProvider([{ id: 'vz', score: 0.99, text: 'zurek', sageId: 'z' }]);
+    const result = await augmentLexicalWithVectorRecall('apple', [], {
+      vectorRecall: provider,
+      vectorOnlyThreshold: 0,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('drops vector-only hits below vectorOnlyThreshold even with a materializer', async () => {
+    const hidden = fakeSage('z', 'zurek');
+    const provider = fakeProvider([{ id: 'vz', score: 0.5, text: 'zurek', sageId: 'z' }]);
+    const result = await augmentLexicalWithVectorRecall('apple', [fakeSage('a', 'apple')], {
+      vectorRecall: provider,
+      vectorOnlyThreshold: 0.8,
+      materializeVectorOnly: () => hidden,
+    });
+    expect(result.map((r) => r.memory.id)).toEqual(['a']);
+    expect(result.every((r) => r.source !== 'vector')).toBe(true);
+  });
+
+  it('applies a conservative default floor (0.62) when a materializer is present and no threshold is set', async () => {
+    const hidden = fakeSage('z', 'zurek');
+    const provider = (score: number) =>
+      fakeProvider([{ id: 'vz', score, text: 'zurek', sageId: 'z' }]);
+    const weak = await augmentLexicalWithVectorRecall('apple', [], {
+      vectorRecall: provider(0.5),
+      materializeVectorOnly: () => hidden,
+    });
+    expect(weak).toEqual([]);
+    const strong = await augmentLexicalWithVectorRecall('apple', [], {
+      vectorRecall: provider(0.7),
+      materializeVectorOnly: () => hidden,
+    });
+    expect(strong.map((r) => r.memory.id)).toEqual(['z']);
+  });
+
+  it('drops the hit when the materializer returns undefined (visibility policy)', async () => {
+    const provider = fakeProvider([{ id: 'vz', score: 0.95, text: 'zurek', sageId: 'z' }]);
+    const result = await augmentLexicalWithVectorRecall('apple', [fakeSage('a', 'apple')], {
+      vectorRecall: provider,
+      vectorOnlyThreshold: 0.6,
+      materializeVectorOnly: () => undefined,
+    });
+    expect(result.map((r) => r.memory.id)).toEqual(['a']);
+  });
+
+  it('drops the hit when the materializer throws (fail-open)', async () => {
+    const provider = fakeProvider([{ id: 'vz', score: 0.95, text: 'zurek', sageId: 'z' }]);
+    const result = await augmentLexicalWithVectorRecall('apple', [fakeSage('a', 'apple')], {
+      vectorRecall: provider,
+      vectorOnlyThreshold: 0.6,
+      materializeVectorOnly: () => {
+        throw new Error('db closed');
+      },
+    });
+    expect(result.map((r) => r.memory.id)).toEqual(['a']);
+  });
+
+  it('does not let an unresolved vector-only hit consume a vector rank', async () => {
+    const lexical = [fakeSage('a', 'apple')];
+    // Provider order: the dead vector-only hit FIRST, then the boost for
+    // 'a'. If the dead entry consumed a rank before being dropped, 'a'
+    // would silently receive a worse RRF weight than in the control call.
+    const withDeadHit = fakeProvider([
+      { id: 'vz', score: 0.95, text: 'zurek', sageId: 'z' },
+      { id: 'va', score: 0.9, text: 'apple', sageId: 'a' },
+    ]);
+    const withoutDeadHit = fakeProvider([{ id: 'va', score: 0.9, text: 'apple', sageId: 'a' }]);
+    const materialize = (id: string) => (id === 'z' ? undefined : fakeSage(id, 'x'));
+    const withDead = await augmentLexicalWithVectorRecall('apple', lexical, {
+      vectorRecall: withDeadHit,
+      vectorOnlyThreshold: 0.6,
+      materializeVectorOnly: materialize,
+    });
+    const withoutDead = await augmentLexicalWithVectorRecall('apple', lexical, {
+      vectorRecall: withoutDeadHit,
+      vectorOnlyThreshold: 0.6,
+      materializeVectorOnly: materialize,
+    });
+    const aWith = withDead.find((r) => r.memory.id === 'a')!;
+    const aWithout = withoutDead.find((r) => r.memory.id === 'a')!;
+    expect(aWith.finalScore).toBe(aWithout.finalScore);
+    expect(withDead.some((r) => r.memory.id === 'z')).toBe(false);
+  });
+});
