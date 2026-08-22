@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T15:15:25.569Z",
+  "generatedAt": "2026-08-22T15:18:57.000Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3320,
+    "sourceFiles": 3321,
     "testFiles": 2870,
-    "sourceLines": 789725,
+    "sourceLines": 789779,
     "workspaceEdges": 119,
-    "moduleEdges": 10280,
+    "moduleEdges": 10282,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -140,7 +140,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 459,
+      "sourceFiles": 460,
       "testFiles": 426,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -18375,8 +18375,8 @@
     },
     {
       "file": "packages/cli/src/cli-main.ts",
-      "lines": 876,
-      "relativeImports": 33
+      "lines": 868,
+      "relativeImports": 34
     },
     {
       "file": "packages/cli/src/goal-host.ts",

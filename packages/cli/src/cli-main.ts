@@ -9,7 +9,7 @@ import { wireEventWiring } from './boot/event-wiring.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import type { CliContext } from './cli-context.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
-import { createTeardownEventRegistrar, loadOnlineAgentsForPrompt } from './cli-main-helpers.js';
+import { loadOnlineAgentsForPrompt } from './cli-main-helpers.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
@@ -42,6 +42,7 @@ import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSession } from './wiring/session.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
+import { setupTeardownRegistrar } from './wiring/teardown-registrar.js';
 import { setupVectorMemory } from './wiring/vector-memory-setup.js';
 
 export { CLI_VERSION };
@@ -161,22 +162,13 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     config: { provider: config.provider, model: config.model },
   });
 
-  const tuiOwnsScreen = flags.tui === true && flags['no-tui'] !== true;
-  const evOn = createTeardownEventRegistrar(events, teardownHandlers);
-  // Close the vector memory SQLite handle on shutdown — keeps the WAL
-  // frame file consistent and mirrors the SAGE dispose contract.
-  if (vectorMemoryStore) {
-    const store = vectorMemoryStore;
-    teardownHandlers.push(() => {
-      try {
-        store.close();
-      } catch (error) {
-        logger.debug?.(
-          `vector memory close failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-      }
-    });
-  }
+  const { tuiOwnsScreen, evOn } = setupTeardownRegistrar({
+    flags,
+    events,
+    logger,
+    teardownHandlers,
+    vectorMemoryStore,
+  });
 
   const eventWiring = wireEventWiring({
     evOn,
