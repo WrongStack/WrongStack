@@ -28,8 +28,8 @@
  */
 
 import type { Node, Tree } from 'web-tree-sitter';
-import type { Symbol as IndexSymbol, SymbolKind, SymbolLang } from '../schema.js';
-import type { NodeQueries } from './queries.js';
+import type { Symbol as IndexSymbol, Ref, SymbolKind, SymbolLang } from '../schema.js';
+import type { NodeQueries, RefEmission, RefRule } from './queries.js';
 import {
   lineColAt,
   newlineOffsets,
@@ -40,6 +40,7 @@ import {
 /** Result of walking one parsed file. */
 export interface VisitResult {
   symbols: IndexSymbol[];
+  refs: Ref[];
 }
 
 /**
@@ -68,10 +69,60 @@ export function visitTree(
       : content;
   const nlOffsets = newlineOffsets(boundedContent);
   const symbols: IndexSymbol[] = [];
+  const refs: Ref[] = [];
+  // Ref identity: same target, kind, line and module collapses to one row —
+  // mirrors parser-output.ts's dedupe for the Go/Python child processes.
+  const seenRefs = new Set<string>();
   // Mutable scope stack — `push` / `splice` is O(1). Each recursion that
   // pushes a scope tracks its slice length so siblings see the same parent
   // scope without a copy.
   const scopeStack: string[] = [];
+
+  /** P3.9 ref emitter — inner so it closes over refs/seenRefs/nlOffsets. */
+  function emitRefsForNode(node: Node, rule: RefRule): void {
+    const emissions = rule.nameExtractor?.(node) ?? defaultRefTarget(node, rule);
+    if (!emissions) return;
+    const { line } = lineColAt(nlOffsets, node.startIndex);
+    for (const emission of emissions) {
+      if (!emission.toName) continue;
+      const callType = emission.callType ?? rule.callType;
+      // Dedupe key includes the SOURCE NODE position: within one node,
+      // identical emissions collapse (a heritage list naming Bar twice), but
+      // two different statements on the SAME line never collapse here —
+      // owner-based dedupe in assignRefsToSymbols (writer-helpers) is the
+      // authoritative one once fromId is known, and pre-dropping a ref could
+      // lose a different owner's edge (e.g. two one-line class declarations
+      // both extending Bar).
+      const key = `${emission.toName}:${callType}:${line}:${emission.module ?? ''}:${node.startIndex}`;
+      if (seenRefs.has(key)) continue;
+      seenRefs.add(key);
+      refs.push({
+        fromId: 0, // assignRefsToSymbols attaches owners after insertion
+        toName: emission.toName.slice(0, 200),
+        callType,
+        line,
+        lang,
+        module: emission.module,
+      });
+    }
+  }
+
+  /** Field-based default: leaf segment of the rule's field text. */
+  function defaultRefTarget(node: Node, rule: RefRule): ReadonlyArray<RefEmission> | null {
+    if (!rule.field) return null;
+    const field = node.childForFieldName(rule.field);
+    if (!field) return null;
+    // `a.b.c()` → `c`; `foo(...)` → `foo`. Also PHP namespace separators
+    // (`App\Util\greet` → `greet`) and C++-style `::` scopes. Matches the
+    // leaf-name convention the Go/Python/Ruby extractors already use.
+    const leaf = field.text
+      .split(/[.:\\]/)
+      .filter(Boolean)
+      .pop()
+      ?.split(/[<(]/)[0];
+    if (!leaf) return null;
+    return [{ toName: leaf.trim() }];
+  }
 
   function visit(node: Node, depth: number): void {
     if (symbols.length >= TREE_SITTER_MAX_SYMBOLS) return;
@@ -94,6 +145,11 @@ export function visitTree(
         );
         if (emitted) symbols.push(emitted);
       }
+      // P3.9: refs fire on every node with a matching rule, INCLUDING nodes
+      // that also emitted a symbol (a `call` node can be an Elixir def) —
+      // the two lists are independent by design.
+      const refRule = queries.refRules?.[node.type];
+      if (refRule) emitRefsForNode(node, refRule);
     }
 
     // Push scope for nodes that should not be re-emitted by descendants.
@@ -120,7 +176,7 @@ export function visitTree(
 
   visit(tree.rootNode, 0);
 
-  return { symbols };
+  return { symbols, refs };
 }
 
 /**

@@ -1,4 +1,7 @@
 import { extractImports, hasImportPatterns } from './import-extractor.js';
+import type { BatchFile } from './parser-batch.js';
+import { chunkBatchFiles, runGoBatch, runPyBatch } from './parser-batch.js';
+import { resolvePythonBinary } from './py-parser.js';
 import type { FileSymbols, Ref, SymbolLang } from './schema.js';
 
 /**
@@ -13,6 +16,111 @@ export async function parseFileContent(
 ): Promise<FileSymbols> {
   const parsed = await dispatch(file, content, lang);
   return withRelations(parsed, content, lang);
+}
+
+/**
+ * Parse a mixed-language batch of files (P3.8).
+ *
+ * Go and Python files are grouped and handed to ONE child process per chunk
+ * (`runGoBatch` / `runPyBatch`) instead of one spawn per file; every other
+ * language goes through `parseFileContent` as before. Files the batch
+ * parsers could not produce (per-file error inside the envelope, or the
+ * whole chunk failing) fall back to the single-file parser, which owns the
+ * per-language fallback semantics — so output is identical to the per-file
+ * path in every case, only faster.
+ *
+ * Results are returned in input order (index-aligned), matching what callers
+ * expected from N parallel `parseFileContent` calls.
+ *
+ * Opt out with `WRONGSTACK_TOOLCHAIN_BATCH=0` to restore per-file spawning
+ * everywhere (bisecting a toolchain issue, exotic environments).
+ */
+/**
+ * One file's parse outcome. `result` is null only when the parser THREW —
+ * batch-invalid files still come back with the fallback parser's own
+ * zero-symbol semantics. `error` carries the throw's message so callers can
+ * record something actionable instead of a bare "no result".
+ */
+export interface ParseSlot {
+  result: FileSymbols | null;
+  error?: string | undefined;
+}
+
+export async function parseFilesContent(
+  files: ReadonlyArray<{ file: string; content: string; lang: SymbolLang }>,
+): Promise<ParseSlot[]> {
+  if (files.length === 0) return [];
+  const slots: ParseSlot[] = files.map(() => ({ result: null }));
+
+  const batchingEnabled = process.env['WRONGSTACK_TOOLCHAIN_BATCH'] !== '0';
+
+  if (batchingEnabled) {
+    const goFiles: Array<BatchFile & { index: number }> = [];
+    const pyFiles: Array<BatchFile & { index: number }> = [];
+    files.forEach((f, index) => {
+      if (f.lang === 'go') goFiles.push({ ...f, index });
+      else if (f.lang === 'py') pyFiles.push({ ...f, index });
+    });
+
+    // Run the two toolchains' batches sequentially: the spawn gate serializes
+    // them anyway, and this keeps peak memory to one chunk's sources.
+    if (goFiles.length > 0) {
+      await applyBatchResults(slots, goFiles, (chunks) => runGoBatch(chunks), 'go');
+    }
+    if (pyFiles.length > 0) {
+      const pyBinary = await resolvePythonBinary();
+      if (pyBinary) {
+        await applyBatchResults(slots, pyFiles, (chunks) => runPyBatch(chunks, pyBinary), 'py');
+      }
+    }
+  }
+
+  // Everything not covered by a successful batch entry parses per-file, in
+  // PARALLEL — this restores the pre-P3.8 Promise.all parallelism; the
+  // sequential loop regressed incremental-index latency for mixed batches.
+  // Per-slot error containment: a parser that THROWS leaves result null and
+  // captures its message; the caller records it as a parse error, exactly
+  // like the pool path does for files absent from worker results.
+  const jobs: Promise<void>[] = [];
+  for (let i = 0; i < files.length; i++) {
+    if (slots[i]!.result !== null) continue;
+    const { file, content, lang } = files[i]!;
+    const slot = slots[i]!;
+    jobs.push(
+      (async () => {
+        try {
+          slot.result = await parseFileContent(file, content, lang);
+        } catch (err) {
+          slot.error = err instanceof Error ? err.message : String(err);
+        }
+      })(),
+    );
+  }
+  await Promise.all(jobs);
+  return slots;
+}
+
+/** Fill `slots` from a batch parser; mark covered indexes, leave misses. */
+async function applyBatchResults(
+  slots: ParseSlot[],
+  batchFiles: ReadonlyArray<BatchFile & { index: number }>,
+  runBatch: (chunk: BatchFile[]) => Promise<Map<string, FileSymbols>>,
+  lang: 'go' | 'py',
+): Promise<void> {
+  for (const chunk of chunkBatchFiles(batchFiles)) {
+    let byFile: Map<string, FileSymbols> | null = null;
+    try {
+      byFile = await runBatch(chunk);
+    } catch {
+      byFile = null; // whole-chunk failure → per-file fallback for the chunk
+    }
+    if (!byFile) continue;
+    for (const item of chunk) {
+      const parsed = byFile.get(item.file);
+      if (!parsed) continue; // per-file failure → per-file fallback
+      slots[item.index] = { result: withRelations(parsed, item.content, lang) };
+    }
+  }
 }
 
 async function dispatch(file: string, content: string, lang: SymbolLang): Promise<FileSymbols> {

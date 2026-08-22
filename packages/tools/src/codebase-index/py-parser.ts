@@ -7,14 +7,14 @@
  * Extracts: class, function, async function, const, var, import, import_from
  */
 
-import { spawn, type ChildProcess } from 'node:child_process';
+import { type ChildProcess, spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { resolveWin32Command } from '../_win32-resolve.js';
-import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { parseGeneric } from './generic-parser.js';
 import { parseParserOutput } from './parser-output.js';
+import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { withSpawnGate } from './spawn-gate.js';
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -414,6 +414,15 @@ function spawnPyParser(
 // or re-resolve on every file.
 let _cachedScriptPath: string | null = null;
 let cachedPyBinary: Promise<string | null> | undefined;
+
+/**
+ * The resolved Python binary (or null when no runtime is available).
+ * Shared with the P3.8 batch parser so both paths run the same interpreter.
+ */
+export function resolvePythonBinary(): Promise<string | null> {
+  cachedPyBinary ??= resolvePython();
+  return cachedPyBinary;
+}
 
 /**
  * Run the real Python AST parser.

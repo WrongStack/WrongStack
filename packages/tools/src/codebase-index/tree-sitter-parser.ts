@@ -196,13 +196,13 @@ export async function parseSymbols(opts: {
       return { file, lang, symbols: [], mtimeMs: Date.now() };
     }
 
-    // Day 2-3: the universal visitor walks the parsed tree using per-language
-    // node queries and emits indexed symbols. Refs (`call`, `type_ref`,
-    // `inherit`, `import`) land alongside the C-family tests on Day 4.
-    const { symbols } = visitTree(tree, content, file, lang, getQueries(lang));
+    // P3.9: the visitor now emits call/import/heritage refs alongside
+    // symbols (per-language refRules in tree-sitter/queries.ts). Refs flow
+    // through withRelations like every other parser's.
+    const { symbols, refs } = visitTree(tree, content, file, lang, getQueries(lang));
     parser.delete();
     tree.delete();
-    return { file, lang, symbols, refs: [], mtimeMs: Date.now() };
+    return { file, lang, symbols, refs, mtimeMs: Date.now() };
   } catch {
     // Any failure — missing WASM, runtime mismatch, parse crash on
     // pathological input — returns empty so the dispatch can fall through

@@ -103,6 +103,56 @@ export function parseParserOutput(stdout: string, lang: SymbolLang): ParsedParse
 }
 
 /**
+ * Decode a BATCH parser child process's stdout (P3.8): one envelope with a
+ * per-file results array. Per-file entries carry an optional `error` (the
+ * file failed inside the batch; the caller falls back to the single-file
+ * parser). Never throws — a malformed envelope yields [].
+ */
+export interface BatchFileOutput {
+  file: string;
+  /** Set when this file failed inside the batch (e.g. syntax error). */
+  error?: string | undefined;
+  symbols: RawParsedSymbol[];
+  refs: Ref[];
+}
+
+export function parseParserBatchOutput(stdout: string, lang: SymbolLang): BatchFileOutput[] {
+  const trimmed = stdout.trim();
+  if (!trimmed) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object') return [];
+  const results = (parsed as { results?: unknown }).results;
+  if (!Array.isArray(results)) return [];
+
+  return results.flatMap((entry): BatchFileOutput[] => {
+    // Guard before dereference: a null/primitive entry (`{"results":[null]}`)
+    // must be rejected, not thrown on — the decoder's contract is never-throw.
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return [];
+    const candidate = entry as {
+      file?: unknown;
+      error?: unknown;
+      symbols?: unknown;
+      refs?: unknown;
+    };
+    if (typeof candidate.file !== 'string' || !candidate.file) return [];
+    return [
+      {
+        file: candidate.file,
+        error: typeof candidate.error === 'string' && candidate.error ? candidate.error : undefined,
+        symbols: coerceSymbols(candidate.symbols),
+        refs: dedupeRefs(coerceRefs(candidate.refs, lang)),
+      },
+    ];
+  });
+}
+
+/**
  * Collapse refs that repeat the same target on the same line. A single Go or
  * Python statement can produce several identical AST nodes (chained calls,
  * grouped imports) and each would otherwise add weight to the same graph edge.

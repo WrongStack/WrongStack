@@ -14,10 +14,9 @@
  * message. If the parent port closes unexpectedly, the worker exits.
  */
 
-import { parentPort, type MessagePort } from 'node:worker_threads';
-import { parseFileContent } from './parser-dispatch.js';
-import type { FileSymbols } from './schema.js';
-import type { SymbolLang } from './schema.js';
+import { type MessagePort, parentPort, threadId } from 'node:worker_threads';
+import { parseFilesContent } from './parser-dispatch.js';
+import type { FileSymbols, SymbolLang } from './schema.js';
 
 if (!parentPort) {
   throw new Error('parser-worker-script must be started as a worker thread');
@@ -36,6 +35,10 @@ export interface ParserWorkerRequest {
 export interface ParserWorkerResponse {
   type: 'result';
   id: number;
+  /** Identity of the responding worker (`threadId`) — lets the pool free
+   *  exactly the worker that answered, and detect which chunk is orphaned
+   *  when a worker dies mid-batch. */
+  workerId: number;
   results: FileSymbols[];
   errors: ReadonlyArray<{ file: string; error: string }>;
 }
@@ -47,30 +50,23 @@ export interface ParserWorkerShutdown {
 export type ParserWorkerInbound = ParserWorkerRequest | ParserWorkerShutdown;
 
 /**
- * Parse a batch of files. Reads each file from disk, dispatches to the
- * appropriate parser, and collects results + errors.
- *
- * Errors are per-file — a single parse failure doesn't abort the batch.
- * The main thread decides what to do with errored files (fall back, skip, etc.).
+ * Parse a batch of files. P3.8: routes through `parseFilesContent`, which
+ * hands Go/Python files to one toolchain child process per chunk and every
+ * other language to the per-file dispatch. A file absent from the results
+ * failed everywhere (batch + per-file fallback) and is reported as an error
+ * so the main thread's commit loop records it instead of silently indexing
+ * an empty file.
  */
 async function parseBatch(
   files: ReadonlyArray<{ file: string; content: string; lang: SymbolLang }>,
 ): Promise<{ results: FileSymbols[]; errors: { file: string; error: string }[] }> {
+  const slots = await parseFilesContent(files);
   const results: FileSymbols[] = [];
   const errors: { file: string; error: string }[] = [];
-
-  for (const { file, content, lang } of files) {
-    try {
-      const parsed = await parseFileContent(file, content, lang);
-      results.push(parsed);
-    } catch (err) {
-      errors.push({
-        file,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
+  slots.forEach((slot, i) => {
+    if (slot.result) results.push(slot.result);
+    else errors.push({ file: files[i]!.file, error: slot.error ?? 'parse produced no result' });
+  });
   return { results, errors };
 }
 
@@ -85,6 +81,7 @@ port.on('message', async (msg: ParserWorkerInbound) => {
     const response: ParserWorkerResponse = {
       type: 'result',
       id: msg.id,
+      workerId: threadId,
       results,
       errors,
     };
@@ -95,6 +92,7 @@ port.on('message', async (msg: ParserWorkerInbound) => {
     const response: ParserWorkerResponse = {
       type: 'result',
       id: msg.id,
+      workerId: threadId,
       results: [],
       errors: msg.files.map((f) => ({
         file: f.file,

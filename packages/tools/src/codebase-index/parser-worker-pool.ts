@@ -3,22 +3,31 @@
  *
  * Spawns N worker threads (N = CPU cores - 1, clamped to [1, 4]) that share
  * the file-parsing load during startup/full reindex passes. Each worker runs
- * `parser-worker-script.ts`, reads files from disk, parses them via
- * `parseFileContent`, and returns `FileSymbols[]`.
+ * `parser-worker-script.ts`, parses file content supplied by the main thread
+ * via `parseFileContent`, and returns `FileSymbols[]`.
  *
- * The main thread distributes files in round-robin batches, collects results,
+ * The main thread distributes files in round-robin chunks, collects results,
  * and performs all SQLite writes via `commitBatch`. Workers never touch the
  * database — single-writer WAL semantics are preserved.
+ *
+ * Failover (P3.7): every response carries the responding worker's
+ * `workerId` (threadId), so busy-tracking is identity-based and a batch
+ * knows exactly which chunk each worker owes. When a worker dies mid-batch,
+ * its orphaned chunk is re-parsed inline on this thread instead of waiting
+ * for a response that never arrive — a partial pool death previously hung
+ * the batch until the outer 60s/240s watchdog. Only when every worker dies
+ * does the batch reject, letting the indexer's existing inline fallback
+ * take over.
  *
  * The pool is created lazily on first use and terminated on shutdown. Workers
  * are `unref()`'d so they don't keep the process alive.
  */
 
-import { Worker } from 'node:worker_threads';
-import { fileURLToPath } from 'node:url';
 import * as fs from 'node:fs';
-import type { FileSymbols, SymbolLang } from './schema.js';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { Worker } from 'node:worker_threads';
 import type { ParserWorkerResponse } from './parser-worker-script.js';
+import type { FileSymbols, SymbolLang } from './schema.js';
 
 /** Minimum number of files before the pool is worth spawning. */
 export const WORKER_POOL_THRESHOLD = 500;
@@ -27,12 +36,22 @@ interface PendingBatch {
   resolve: (results: FileSymbols[]) => void;
   reject: (err: unknown) => void;
   accumulated: FileSymbols[];
-  expectedWorkers: number;
-  completedWorkers: number;
+  /** Workers this batch still expects a result from (workerId → chunk). */
+  pendingChunks: Map<number, { file: string; content: string; lang: SymbolLang }[]>;
+  /**
+   * Terminal-signal claim: exactly one of resolve/reject may fire. Worker
+   * deaths, shutdown, and late salvages race on the same batch; a settled
+   * batch ignores every later terminal path (double-reject is silently
+   * swallowed by native promises, but resolve-after-reject and stale
+   * accumulation are real logic hazards).
+   */
+  settled: boolean;
 }
 
 interface PoolWorker {
   worker: Worker;
+  /** `threadId` — the identity responses carry back. */
+  workerId: number;
   busy: boolean;
 }
 
@@ -82,7 +101,11 @@ export class ParserWorkerPool {
           w.unref();
           w.on('message', (msg: ParserWorkerResponse) => this.handleMessage(msg));
           w.on('error', (err) => this.handleError(err, w));
-          this.workers.push({ worker: w, busy: false });
+          // Not every death raises an `error` event (process abort, stack
+          // overflow in native code) — `exit` is the reliable backstop.
+          // retireByReference is idempotent, so double-firing is safe.
+          w.on('exit', () => this.retireByReference(w));
+          this.workers.push({ worker: w, workerId: w.threadId, busy: false });
         } catch {
           // If we can't spawn all workers, use what we got.
           if (this.workers.length === 0) {
@@ -100,7 +123,7 @@ export class ParserWorkerPool {
 
   /**
    * Parse files in parallel across the worker pool. Returns a flat
-   * `FileSymbols[]` in completion order (caller sorts if needed).
+   * `FileSymbols[]` in completion order (caller matches by file path).
    *
    * Content is pre-read by the main thread (for the content-hash check)
    * and passed to workers to avoid a second disk read. Files are
@@ -117,8 +140,9 @@ export class ParserWorkerPool {
     const batchId = this.nextBatchId++;
     const workerCount = Math.min(this.workers.length, files.length);
 
-    // Round-robin distribute files across workers.
-    const chunks: { file: string; lang: SymbolLang }[][] = Array.from(
+    // Round-robin distribute files across workers, recording each worker's
+    // chunk so a mid-batch death knows exactly which files were orphaned.
+    const chunks: { file: string; content: string; lang: SymbolLang }[][] = Array.from(
       { length: workerCount },
       () => [],
     );
@@ -127,22 +151,23 @@ export class ParserWorkerPool {
     }
 
     return new Promise<FileSymbols[]>((resolve, reject) => {
+      const pendingChunks = new Map<
+        number,
+        { file: string; content: string; lang: SymbolLang }[]
+      >();
       this.pending.set(batchId, {
         resolve,
         reject,
         accumulated: [],
-        expectedWorkers: workerCount,
-        completedWorkers: 0,
+        pendingChunks,
+        settled: false,
       });
 
       for (let i = 0; i < workerCount; i++) {
         const pw = this.workers[i]!;
         pw.busy = true;
-        pw.worker.postMessage({
-          type: 'parse',
-          id: batchId,
-          files: chunks[i],
-        });
+        pendingChunks.set(pw.workerId, chunks[i]!);
+        pw.worker.postMessage({ type: 'parse', id: batchId, files: chunks[i]! });
       }
     });
   }
@@ -152,6 +177,16 @@ export class ParserWorkerPool {
     const workers = this.workers.map((w) => w.worker);
     this.workers = [];
     this.unavailable = false;
+
+    // Claim and reject pending batches BEFORE waiting on graceful worker
+    // exits: a result still in flight during the wait could otherwise
+    // resolve a batch this shutdown is about to reject.
+    for (const [, p] of this.pending) {
+      if (p.settled) continue;
+      p.settled = true;
+      p.reject(new Error('ParserWorkerPool shut down'));
+    }
+    this.pending.clear();
 
     for (const w of workers) {
       try {
@@ -175,42 +210,148 @@ export class ParserWorkerPool {
         }),
       ),
     );
-
-    // Reject any pending batches.
-    for (const [, p] of this.pending) p.reject(new Error('ParserWorkerPool shut down'));
-    this.pending.clear();
   }
 
   private handleMessage(msg: ParserWorkerResponse): void {
     const batch = this.pending.get(msg.id);
     if (!batch) return; // Late response from a terminated worker.
 
+    // Identity-based busy tracking (P3.7): free exactly the worker that
+    // answered. The old code freed "the first busy worker" by elimination,
+    // which mis-attributed completion when several workers were in flight.
+    const worker = this.workers.find((w) => w.workerId === msg.workerId);
+    if (worker) worker.busy = false;
+    batch.pendingChunks.delete(msg.workerId);
+
     batch.accumulated.push(...msg.results);
-    batch.completedWorkers++;
+    // Per-file errors (msg.errors) stay ABSENT from results on purpose: the
+    // indexer's commit loop records absent files as `parse error: worker
+    // returned no result` — converting them to zero-symbol rows here would
+    // silently turn failures into "successfully indexed, empty".
 
-    // Mark the worker that sent this as free (match by elimination).
-    // Workers don't carry their own ID in the response, so we find a
-    // busy worker and mark it free. This is safe because each batch has
-    // a fixed set of workers, and responses arrive one-per-worker.
-    const freeWorker = this.workers.find((w) => w.busy);
-    if (freeWorker) freeWorker.busy = false;
-
-    if (batch.completedWorkers >= batch.expectedWorkers) {
+    if (batch.pendingChunks.size === 0) {
+      if (batch.settled) return;
+      batch.settled = true;
       this.pending.delete(msg.id);
       batch.resolve(batch.accumulated);
     }
   }
 
-  private handleError(err: unknown, source: Worker): void {
-    // Remove the dead worker from the pool.
-    this.workers = this.workers.filter((w) => w.worker !== source);
+  /**
+   * Remove a worker from the pool and salvage any chunk it still owed.
+   *
+   * Idempotent by workerId — `error` and `exit` can both fire for one
+   * death, and a worker may die while no batch references it. When the
+   * dead worker owed files to an in-flight batch and other workers remain,
+   * those files are re-parsed inline on this thread (one fewer worker
+   * should cost latency, not correctness). When it was the last worker,
+   * every remaining batch rejects so the indexer's existing inline
+   * fallback takes over the whole batch.
+   */
+  private retireWorker(workerId: number): void {
+    const entry = this.workers.find((w) => w.workerId === workerId);
+    if (!entry) return;
+    this.workers = this.workers.filter((w) => w.workerId !== workerId);
 
-    // If all workers die, reject all pending batches.
-    if (this.workers.length === 0) {
-      for (const [, p] of this.pending) p.reject(err);
-      this.pending.clear();
-      this.unavailable = true;
+    for (const [batchId, batch] of [...this.pending]) {
+      const orphaned = batch.pendingChunks.get(workerId);
+      if (!orphaned) continue;
+
+      if (this.workers.length === 0) {
+        // Pool empty — nothing to salvage with. Reject; the indexer's
+        // catch-block re-parses the entire batch inline.
+        this.pending.delete(batchId);
+        this.unavailable = true;
+        if (!batch.settled) {
+          batch.settled = true;
+          batch.reject(new Error('ParserWorkerPool: all workers died mid-batch'));
+        }
+        continue;
+      }
+
+      // Salvage: re-parse the orphaned chunk inline. The chunk STAYS in
+      // pendingChunks (still keyed by the dead workerId) until the salvage
+      // completes — otherwise a fast surviving worker could resolve the
+      // batch before the salvaged files land. reparseInline deletes the
+      // entry (and resolves, if last) when it finishes.
+      void this.reparseInline(batch, orphaned, workerId);
     }
+  }
+
+  /**
+   * Salvage path: re-parse an orphaned chunk on this thread. Files that
+   * fail here stay absent from the results — same contract as a per-file
+   * error inside a live worker (see handleMessage).
+   */
+  private async reparseInline(
+    batch: PendingBatch,
+    orphaned: ReadonlyArray<{ file: string; content: string; lang: SymbolLang }>,
+    workerId: number,
+  ): Promise<void> {
+    // Every exit path must release the pending-marker and resolve-if-last:
+    // the marker is what keeps the batch from resolving before this salvage
+    // lands, so a failure between `retireWorker` and the tail below would
+    // otherwise re-create the watchdog hang P3.7 exists to kill.
+    try {
+      const { parseFileContent } = await import('./parser-dispatch.js');
+      for (const item of orphaned) {
+        // The batch may have been settled (rejected) while this salvage was
+        // importing or yielding — stop parsing; its promise already ended.
+        if (batch.settled) return;
+        try {
+          const parsed = await parseFileContent(item.file, item.content, item.lang);
+          batch.accumulated.push(parsed);
+        } catch {
+          // Absent on purpose — see handleMessage.
+        }
+        // Yield between salvaged files so a large orphaned chunk cannot
+        // starve the event loop the surviving workers also use.
+        await new Promise<void>((resolve) => setImmediate(resolve));
+      }
+    } finally {
+      this.finishSalvage(batch, workerId);
+    }
+  }
+
+  /**
+   * Terminal tail of a salvage — runs on every exit path. Kept free of
+   * control flow inside a `finally` (noUnsafeFinally): releases the
+   * pending-marker and resolves the batch if this was its last chunk.
+   */
+  private finishSalvage(batch: PendingBatch, workerId: number): void {
+    batch.pendingChunks.delete(workerId);
+    if (batch.pendingChunks.size === 0) {
+      // Resolve only if still tracked — a concurrent reject (e.g. the last
+      // worker died while salvaging) must win.
+      for (const [batchId, tracked] of this.pending) {
+        if (tracked === batch) {
+          if (batch.settled) return;
+          batch.settled = true;
+          this.pending.delete(batchId);
+          batch.resolve(batch.accumulated);
+          return;
+        }
+      }
+    }
+  }
+
+  /**
+   * Retire by worker object rather than threadId. `threadId` is -1 before
+   * the worker emits `online`, so a death during script load would make a
+   * threadId-keyed lookup silently no-op and leak the entry (with its
+   * pending chunk) — reference identity is correct in every case.
+   */
+  private retireByReference(source: Worker): void {
+    // Only a tracked worker can owe a pending chunk; an untracked source
+    // (already retired via its other death event) needs no action.
+    const entry = this.workers.find((w) => w.worker === source);
+    if (entry) this.retireWorker(entry.workerId);
+  }
+
+  private handleError(err: unknown, source: Worker): void {
+    // The error object itself is not needed beyond diagnosis logging.
+    void err;
+    this.retireByReference(source);
   }
 }
 
@@ -228,14 +369,24 @@ function defaultWorkerCount(): number {
  * Locate the compiled worker script. The bundler outputs it alongside the
  * main codebase-index bundle. From source (vitest) the file doesn't exist,
  * so the pool reports unavailable and the indexer falls back to inline.
+ *
+ * `WRONGSTACK_PARSER_WORKER_SCRIPT` (absolute path) overrides the probe —
+ * used by dist-gated tests to drive the source pool class with the built
+ * worker, and usable in exotic packaging layouts where the script lands
+ * somewhere the relative probe cannot reach.
  */
 function resolveWorkerScriptUrl(): URL | null {
+  const override = process.env['WRONGSTACK_PARSER_WORKER_SCRIPT'];
+  // pathToFileURL, not manual interpolation: override paths may contain
+  // URL-reserved characters (#, %) that a hand-built file:/// URL would
+  // silently reinterpret as fragment/escape.
+  if (override) return pathToFileURL(override);
   for (const rel of ['./parser-worker-script.js', './codebase-index/parser-worker-script.js']) {
     try {
       const url = new URL(rel, import.meta.url);
       if (url.protocol === 'file:' && fs.existsSync(fileURLToPath(url))) return url;
     } catch {
-      /* try next candidate */
+      /* try the next candidate */
     }
   }
   return null;
