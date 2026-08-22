@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T16:48:26.167Z",
+  "generatedAt": "2026-08-22T22:51:57.531Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3326,
-    "testFiles": 2872,
-    "sourceLines": 790189,
+    "sourceFiles": 3327,
+    "testFiles": 2873,
+    "sourceLines": 790703,
     "workspaceEdges": 119,
-    "moduleEdges": 10295,
+    "moduleEdges": 10302,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -24,7 +24,11 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 812
   },
-  "errors": [],
+  "errors": [
+    "packages/core/src/hq/auth-store.ts: hotspot grew from 825 to 837 lines; review and update the ratchet in the same change",
+    "packages/providers/src/openai-codex.ts: new 817-line hotspot is not in architecture/hotspots.json",
+    "packages/sage/src/sqlite-store.ts: hotspot grew from 1050 to 1063 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -556,7 +560,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 103,
-      "testFiles": 77,
+      "testFiles": 78,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -571,7 +575,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 77
+          "testFiles": 78
         }
       ]
     },
@@ -696,7 +700,7 @@
     {
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
-      "sourceFiles": 23,
+      "sourceFiles": 24,
       "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -10552,6 +10556,12 @@
         ]
       },
       {
+        "file": "packages/sage/tests/retrieval/vector-materialize-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage/tests/sage-heading-contract.test.ts",
         "projects": [
           "root-node"
@@ -18512,7 +18522,7 @@
     },
     {
       "file": "packages/core/src/hq/auth-store.ts",
-      "lines": 825,
+      "lines": 837,
       "relativeImports": 7
     },
     {
@@ -18626,13 +18636,18 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/providers/src/openai-codex.ts",
+      "lines": 817,
+      "relativeImports": 13
+    },
+    {
       "file": "packages/sage/src/domain-term-extractor.ts",
       "lines": 873,
       "relativeImports": 1
     },
     {
       "file": "packages/sage/src/sqlite-store.ts",
-      "lines": 1050,
+      "lines": 1063,
       "relativeImports": 43
     },
     {
@@ -18958,6 +18973,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/sage/src/sqlite-store.ts",
+      "lines": 1063,
+      "relativeImports": 43
+    },
+    {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
       "lines": 1063,
       "relativeImports": 2
@@ -18966,11 +18986,6 @@
       "file": "packages/core/src/storage/session-store.ts",
       "lines": 1059,
       "relativeImports": 38
-    },
-    {
-      "file": "packages/sage/src/sqlite-store.ts",
-      "lines": 1050,
-      "relativeImports": 43
     },
     {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",

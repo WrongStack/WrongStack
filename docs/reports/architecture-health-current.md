@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T16:48:26.167Z
+**Generated:** 2026-08-22T22:51:57.531Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 35 |
-| Production source files | 3326 |
-| Production source lines | 790189 |
-| Test files | 2872 |
+| Production source files | 3327 |
+| Production source lines | 790703 |
+| Test files | 2873 |
 | Workspace dependency edges | 119 |
-| Relative module edges | 10295 |
+| Relative module edges | 10302 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,7 +21,9 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/core/src/hq/auth-store.ts: hotspot grew from 825 to 837 lines; review and update the ratchet in the same change
+- packages/providers/src/openai-codex.ts: new 817-line hotspot is not in architecture/hotspots.json
+- packages/sage/src/sqlite-store.ts: hotspot grew from 1050 to 1063 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -47,13 +49,13 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/requirement-intake | 16 | 9 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 12 | 15 | @wrongstack/core, @wrongstack/governance, @wrongstack/sage, @wrongstack/tools, @wrongstack/vector-memory |
-| @wrongstack/sage | 103 | 77 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/sage | 103 | 78 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/sage-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 38 | 36 | @wrongstack/core, @wrongstack/kanban, @wrongstack/requirement-intake |
 | @wrongstack/security-scanner | 15 | 26 | @wrongstack/core |
 | @wrongstack/simpleui | 93 | 61 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/tools |
-| @wrongstack/telegram | 23 | 29 | @wrongstack/core |
+| @wrongstack/telegram | 24 | 29 | @wrongstack/core |
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 332 | 318 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
@@ -87,9 +89,9 @@ None.
 |---:|---|
 | 1108 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
+| 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1059 | `packages/core/src/storage/session-store.ts` |
-| 1050 | `packages/sage/src/sqlite-store.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1041 | `packages/webui/src/lib/ws-client.ts` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
