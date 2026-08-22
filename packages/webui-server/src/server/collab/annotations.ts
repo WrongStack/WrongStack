@@ -8,6 +8,14 @@ import type { CollabFeature } from './dispatcher.js';
  * Annotation flow, Phase 2 (6A-2). Moved verbatim from
  * CollaborationWebSocketHandler: store-availability guard, annotator role
  * gate, payload validation, session pinning, and the broadcast payloads.
+ *
+ * Deliberate invariant: neither flow calls scheduler.record(). The periodic
+ * 2s collab.state tick only re-sends when the participant-set fingerprint
+ * changes (join/leave), and annotations do not alter that set — so a record()
+ * here would write back the identical fingerprint and change nothing.
+ * Annotation payloads are event-stream messages delivered by the direct
+ * broadcast plus the replay ring buffer, not collab.state. Do not "fix" this
+ * asymmetry without first widening what stateFingerprint covers.
  */
 export class AnnotateFeature implements CollabFeature {
   readonly type = 'collab.annotate';
