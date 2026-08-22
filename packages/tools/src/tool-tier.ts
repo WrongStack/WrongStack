@@ -8,6 +8,24 @@ function toolNameSet(tools: readonly (Tool | null | undefined)[]): Set<string> {
 }
 
 /**
+ * Live count of tools each concrete token-saving tier exposes to the provider.
+ * This is the runtime source of truth — `off` counts every registered tool,
+ * the other tiers count the result of `selectBuiltinToolsForTier(tier, …)`.
+ *
+ * Website (`website/src/pages/ToolsPage.tsx`) and any other consumer that
+ * wants to render tier counts without actually loading the catalog should
+ * mirror this map. When `TIER1_TOOLS` / `TIER2_TOOLS` / `TIER3_TOOLS` change,
+ * regenerate these numbers from a smoke test (or update both together).
+ */
+export const BUILTIN_TIER_COUNTS: Readonly<Record<ConcreteTokenSavingTier, number>> = {
+  off: builtinToolsPack.tools?.length ?? 0,
+  minimal: TIER1_TOOLS.length,
+  light: TIER1_TOOLS.length,
+  medium: TIER1_TOOLS.length + TIER2_TOOLS.length,
+  aggressive: TIER1_TOOLS.length,
+};
+
+/**
  * Select built-in tools for a concrete token-saving tier while preserving the
  * order and instances supplied by the caller.
  */

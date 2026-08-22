@@ -27,6 +27,28 @@ const CONFIRM_COUNT = toolCatalog.filter((t) => t.permission === 'confirm').leng
 const READONLY_COUNT = toolCatalog.filter((t) => !t.mutating).length;
 const MUTATING_COUNT = toolCatalog.filter((t) => t.mutating).length;
 
+/**
+ * Tool count exposed to the provider for each token-saving tier. These values
+ * mirror `packages/tools/src/tool-tier.ts` (`BUILTIN_TIER_COUNTS`) exactly so
+ * the marketing page never disagrees with the runtime. Update both together if
+ * the tier sets change — regenerate the numbers by importing
+ * `BUILTIN_TIER_COUNTS` from packages/tools/src/tool-tier.ts and reading its
+ * values (current: off=70, minimal/light/aggressive=23, medium=43).
+ *
+ *   off       → every registered tool
+ *   minimal   → TIER1 only (23)
+ *   light     → TIER1 only (23) — same membership as minimal, different guidance
+ *   medium    → TIER1 ∪ TIER2 (23 + 20 = 43)
+ *   aggressive → TIER1 only (23) — narrowest surface
+ */
+const TOOL_TIER_COUNTS = {
+  off: TOOL_COUNT,
+  minimal: 23,
+  light: 23,
+  medium: 43,
+  aggressive: 23,
+} as const;
+
 type ToolScope = 'all' | 'auto' | 'confirm' | 'read-only' | 'mutating';
 
 const scopeOptions: Array<{ value: ToolScope; label: string }> = [
@@ -281,21 +303,21 @@ export function ToolsPage() {
         />
         <div className="mt-12 overflow-hidden rounded-2xl border border-line">
           {[
-            ['off', String(TOOL_COUNT), 'The complete built-in registry, including browser and E2E tools.'],
+            ['off', String(TOOL_TIER_COUNTS.off), 'The complete built-in registry, including browser and E2E tools.'],
             [
               'minimal / light',
-              '13',
+              String(TOOL_TIER_COUNTS.minimal),
               'Core read, edit, search, shell and patch primitives. Light changes guidance, not membership.',
             ],
             [
               'medium',
-              '32',
+              String(TOOL_TIER_COUNTS.medium),
               'Adds project state, Git, quality, language, dependency and design operations.',
             ],
             [
               'aggressive',
-              '40',
-              'Broad working set without the task tool; current runtime membership is shown exactly as implemented.',
+              String(TOOL_TIER_COUNTS.aggressive),
+              'Narrowest surface — tier-1 only — for maximum token savings.',
             ],
           ].map(([tier, count, body], index) => (
             <div
