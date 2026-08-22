@@ -169,6 +169,14 @@ async function startHqServerWithAuth(
   });
   const { mutableAuth } = authState;
 
+  // Chimera/SEC: load lockout state BEFORE the server starts listening. The
+  // old fire-and-forget `void load()` inside the executor below let requests
+  // race the disk read on restart — a locked-out IP could slip logins in
+  // during the gap. Awaiting here is cheap (single small JSON read) and makes
+  // "server is answering" imply "lockout state is live".
+  const loginAttempts = new LoginAttemptStore(dataDir);
+  await loginAttempts.load();
+
   if (!mutableAuth.cookieSecret && mutableAuth.browserTokens.size > 0) {
     const secret = mintHqCookieSecret();
     const next = await mutateHqAuthFile(dataDir, (current) => ({
@@ -221,9 +229,6 @@ async function startHqServerWithAuth(
       mutableAuth,
       sessions,
     });
-
-    const loginAttempts = new LoginAttemptStore(dataDir);
-    void loginAttempts.load();
 
     const HQ_SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
     const HQ_SESSION_IDLE_TIMEOUT_MS = 30 * 60_000;

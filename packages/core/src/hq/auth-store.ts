@@ -261,8 +261,12 @@ export interface HqAuthFile {
    */
   totpRecoveryCodes?: string[];
   /**
-   * Highest TOTP time-step counter already spent on a successful login
-   * (SEC-002: persisted to prevent replay after restart).
+   * Highest TOTP time-step counter already consumed by a successful 2FA
+   * verification (SEC-002: persisted to prevent replay after restart).
+   * Written by the 2FA verification route (`totp-routes.ts`) — not the
+   * initial password check — and read there to reject any counter <= this
+   * value, so an observed code cannot be replayed within its validity
+   * window even across a server restart.
    */
   totpLastUsedCounter?: number;
   /**

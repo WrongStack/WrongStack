@@ -43,20 +43,34 @@ export class LoginAttemptStore {
   /**
    * Load persisted state from disk and prune stale entries.
    * Safe to call once at startup; subsequent calls reload from disk.
+   *
+   * SEC-001: legacy `cred:` entries (per-password hashes persisted by the
+   * pre-fix version) are skipped here, not just on write — re-seeding them
+   * would keep the hashes in memory and on disk. When any are found, a
+   * debounced rewrite scrubs them from the file.
    */
   async load(): Promise<void> {
+    let legacyCredEntries = 0;
     try {
       const raw = await fs.readFile(this.filePath, 'utf8');
       const parsed = JSON.parse(raw) as Record<string, LoginAttemptEntry>;
       const cutoff = Date.now() - this.retentionMs;
       for (const [key, entry] of Object.entries(parsed)) {
+        // SEC-001: cred: (per-password) entries are memory-only. Skip any
+        // legacy persisted copy and schedule a scrub write below.
+        if (key.startsWith('cred:')) {
+          legacyCredEntries++;
+          continue;
+        }
         if (entry && typeof entry.lastAttempt === 'number' && entry.lastAttempt > cutoff) {
           this.store.set(key, entry);
         }
       }
     } catch {
       // ENOENT or parse error — start fresh.
+      return;
     }
+    if (legacyCredEntries > 0) this.scheduleWrite();
   }
 
   get(key: string): LoginAttemptEntry | undefined {

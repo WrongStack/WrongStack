@@ -47,7 +47,6 @@ export function createHqServerShutdown(params: HqServerShutdownParams): () => Pr
       clearInterval(params.timeseriesFlushTimer);
       clearInterval(params.sessionCleanupTimer);
 
-      void params.loginAttempts.flush();
       params.stopAlertEngine();
       params.authWatcher.close();
       params.snapshotBroadcaster.close();
@@ -74,6 +73,11 @@ export function createHqServerShutdown(params: HqServerShutdownParams): () => Pr
 
         void Promise.all([
           ...mailboxCloses,
+          // Chimera/race: flush the login-attempt store INSIDE the awaited
+          // shutdown set — the old fire-and-forget `void flush()` let close()
+          // resolve before the debounced write landed, so persistence tests
+          // had to sleep past it (and restarts could miss lockout state).
+          params.loginAttempts.flush(),
           params.persistence.eventLog.drain(),
           params.persistence.snapshotStore.drain(),
           params.persistence.timeseries.drain(),

@@ -413,12 +413,10 @@ describe('HQ server — optional browser password login', () => {
     expect(locked.res.status).toBe(429);
     expect(locked.res.headers.get('retry-after')).not.toBeNull();
 
-    // Close the server — the lockout state must survive in login-attempts.json.
+    // Close the server — close() flushes the login-attempt store inside its
+    // awaited shutdown set, so the lockout state is on disk when it resolves.
     await handle.close();
     handle = null;
-
-    // The LoginAttemptStore has a 500ms debounced write; allow it to flush.
-    await new Promise((resolve) => setTimeout(resolve, 600));
 
     // Verify the persistence file exists and has a non-expired entry.
     const lockoutFile = path.join(dataDir, 'login-attempts.json');
@@ -427,11 +425,9 @@ describe('HQ server — optional browser password login', () => {
     const anyBlocked = Object.values(parsed).some((e) => e.blockedUntil > Date.now());
     expect(anyBlocked).toBe(true);
 
-    // Restart with the same dataDir.
+    // Restart with the same dataDir. Startup awaits the store load before
+    // listening, so lockout state is live as soon as the handle resolves.
     handle = await startHqServer({ host: '127.0.0.1', port: 0, dataDir });
-
-    // Give the store a moment to load from disk (fire-and-forget on startup).
-    await new Promise((resolve) => setTimeout(resolve, 200));
 
     // Same IP should still be locked out — the lockout survived the restart.
     const stillLocked = await login(handle, 'wrong');
@@ -454,7 +450,7 @@ describe('HQ server — optional browser password login', () => {
 
     await handle.close();
     handle = null;
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    // close() flushes the store inside its awaited shutdown set.
 
     // Verify disk content
     const lockoutFile = path.join(dataDir, 'login-attempts.json');
