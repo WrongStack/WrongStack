@@ -1,3 +1,14 @@
+/**
+ * Shim-integrity pin (card #5) — retired from drift duty.
+ *
+ * Historically this suite guarded three INDEPENDENT implementations against
+ * drift; since 07577d9f8 all three entry points (@wrongstack/core/utils,
+ * @wrongstack/tools/_regex, @wrongstack/kanban verification/safe-regex)
+ * re-export one canonical implementation in @wrongstack/primitives. The
+ * suite is kept deliberately: if any shim is ever reverted to a local copy,
+ * these assertions fail again. It no longer proves parity of distinct code
+ * — it pins the delegation wiring itself.
+ */
 import {
   MAX_SUBJECT_LEN as CORE_MAX_SUBJECT,
   capSubject as coreCapSubject,
