@@ -146,13 +146,16 @@ is never loaded for a Go-only project.
 
 Parser worker threads (`parser-worker-pool.ts`, `parser-worker-script.ts`)
 parallelize bulk parsing: when a run holds at least 500 candidate files on a
-non-frugal perf profile, file contents — already read on the main thread for
-the content-hash check — are distributed across up to four worker threads
+non-frugal perf profile — the default threshold, overridable via
+`WRONGSTACK_INDEX_WORKER_THRESHOLD` (`0` disables the worker path entirely;
+unparsable or negative values fall back to the 500 default) — file contents,
+already read on the main thread for the content-hash check, are distributed
+across up to four worker threads
 (cores − 1, clamped) that parse without touching SQLite; all writes stay on
 the server thread through one `commitBatch` transaction per outer batch.
-Smaller runs, frugal profiles, and pool-spawn failures fall back to inline
-parsing on the server's event loop, which is already off every client's main
-thread.
+Smaller runs, frugal profiles, a `0` threshold, and pool-spawn failures fall
+back to inline parsing on the server's event loop, which is already off every
+client's main thread.
 
 ## Compatibility and recovery
 
