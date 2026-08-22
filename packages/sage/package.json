@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/primitives": "workspace:*",
     "@wrongstack/persistence": "workspace:*"
   },
   "devDependencies": {

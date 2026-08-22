@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T14:48:20.030Z",
+  "generatedAt": "2026-08-22T14:54:57.755Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3318,
+    "sourceFiles": 3319,
     "testFiles": 2870,
-    "sourceLines": 789641,
-    "workspaceEdges": 115,
-    "moduleEdges": 10278,
+    "sourceLines": 789647,
+    "workspaceEdges": 119,
+    "moduleEdges": 10279,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -152,6 +152,7 @@
         "@wrongstack/persistence",
         "@wrongstack/plug-lsp",
         "@wrongstack/plugins",
+        "@wrongstack/primitives",
         "@wrongstack/providers",
         "@wrongstack/requirement-intake",
         "@wrongstack/runtime",
@@ -166,6 +167,7 @@
         "@wrongstack/vector-memory",
         "@wrongstack/webui",
         "@wrongstack/webui-hq",
+        "@wrongstack/webui-protocol",
         "@wrongstack/webui-server"
       ],
       "tsconfigs": [
@@ -430,6 +432,7 @@
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/plugin-sdk",
+        "@wrongstack/primitives",
         "@wrongstack/tools"
       ],
       "tsconfigs": [
@@ -448,7 +451,7 @@
     {
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
-      "sourceFiles": 2,
+      "sourceFiles": 3,
       "testFiles": 0,
       "workspaceDependencies": [],
       "tsconfigs": [
@@ -556,7 +559,8 @@
       "testFiles": 77,
       "workspaceDependencies": [
         "@wrongstack/core",
-        "@wrongstack/persistence"
+        "@wrongstack/persistence",
+        "@wrongstack/primitives"
       ],
       "tsconfigs": [
         {

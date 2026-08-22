@@ -352,7 +352,6 @@ const profiles = {
   '@wrongstack/webui-server': {
     entries: {
       index: 'src/index.ts',
-      'protocol/index': 'src/protocol/index.ts',
       'server/entry': 'src/server/entry.ts',
       'server/handlers': 'src/server/handlers/index.ts',
     },

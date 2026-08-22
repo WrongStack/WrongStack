@@ -161,6 +161,9 @@ importers:
       '@wrongstack/plugins':
         specifier: workspace:*
         version: link:../plugins
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@wrongstack/providers':
         specifier: workspace:*
         version: link:../providers
@@ -203,6 +206,9 @@ importers:
       '@wrongstack/webui-hq':
         specifier: workspace:*
         version: link:../webui-hq
+      '@wrongstack/webui-protocol':
+        specifier: workspace:*
+        version: link:../webui-protocol
       '@wrongstack/webui-server':
         specifier: workspace:*
         version: link:../webui-server
@@ -421,6 +427,9 @@ importers:
       '@wrongstack/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@wrongstack/tools':
         specifier: workspace:*
         version: link:../tools
@@ -531,6 +540,9 @@ importers:
       '@wrongstack/persistence':
         specifier: workspace:*
         version: link:../persistence
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
     devDependencies:
       '@types/node':
         specifier: ^26.2.0

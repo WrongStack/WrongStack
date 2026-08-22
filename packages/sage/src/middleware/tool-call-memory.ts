@@ -36,8 +36,8 @@ import {
 } from './tool-call-memory-trace.js';
 import {
   didMutate,
-  enrichPathQuery,
   type ExtractedTriggerContext,
+  enrichPathQuery,
   extractPatchPaths,
   extractResultPaths,
   extractTrigger,
@@ -50,20 +50,20 @@ import {
 } from './tool-call-memory-triggers.js';
 
 export {
+  containsMemoryText,
+  type RetrievedMemory,
+} from './tool-call-memory-retrieval.js';
+export {
   computeInjectionProof,
   contextualInjectionScore,
   DEFAULT_MIN_IMPORTANCE,
   DEFAULT_MIN_SCORE,
   MIN_RELATION_STRENGTH,
 } from './tool-call-memory-scoring.js';
-export {
-  type ExtractedTriggerContext,
-  type MemoryToolTrigger,
+export type {
+  ExtractedTriggerContext,
+  MemoryToolTrigger,
 } from './tool-call-memory-triggers.js';
-export {
-  containsMemoryText,
-  type RetrievedMemory,
-} from './tool-call-memory-retrieval.js';
 
 export interface SageToolCallMiddlewareOptions {
   memory: SageRetrieverLike;
@@ -126,9 +126,7 @@ export interface SageRetrieverLike {
       vectorRecallThreshold?: number | undefined;
       vectorRecallMinScore?: number | undefined;
     },
-  ): Promise<
-    import('../retrieval/vector-augment.js').VectorAugmentHit[]
-  >;
+  ): Promise<import('../retrieval/vector-augment.js').VectorAugmentHit[]>;
   findRelatedSage?(
     memoryIds: string[],
     opts?: {
@@ -155,9 +153,7 @@ const DEFAULT_MAX_CHARS = 2800;
 const DEFAULT_REPEAT_COOLDOWN_MS = 0;
 const MAX_REJECTED_DETAIL = 20;
 
-function nowIso(): string {
-  return new Date().toISOString();
-}
+import { nowIso } from '@wrongstack/primitives';
 
 export function createSageToolCallMiddleware(
   opts: SageToolCallMiddlewareOptions,

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T14:48:20.030Z
+**Generated:** 2026-08-22T14:54:57.755Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 35 |
-| Production source files | 3318 |
-| Production source lines | 789641 |
+| Production source files | 3319 |
+| Production source lines | 789647 |
 | Test files | 2870 |
-| Workspace dependency edges | 115 |
-| Relative module edges | 10278 |
+| Workspace dependency edges | 119 |
+| Relative module edges | 10279 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -29,7 +29,7 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 458 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-server |
+| @wrongstack/cli | 458 | 426 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
 | @wrongstack/core | 756 | 644 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -41,13 +41,13 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/persistence | 5 | 4 | — |
 | @wrongstack/plug-lsp | 42 | 28 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/plugin-sdk | 11 | 1 | @wrongstack/core, @wrongstack/tools |
-| @wrongstack/plugins | 86 | 122 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/tools |
-| @wrongstack/primitives | 2 | 0 | — |
+| @wrongstack/plugins | 86 | 122 | @wrongstack/core, @wrongstack/plugin-sdk, @wrongstack/primitives, @wrongstack/tools |
+| @wrongstack/primitives | 3 | 0 | — |
 | @wrongstack/providers | 58 | 53 | @wrongstack/core |
 | @wrongstack/requirement-intake | 16 | 9 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 12 | 15 | @wrongstack/core, @wrongstack/governance, @wrongstack/sage, @wrongstack/tools, @wrongstack/vector-memory |
-| @wrongstack/sage | 103 | 77 | @wrongstack/core, @wrongstack/persistence |
+| @wrongstack/sage | 103 | 77 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/sage-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 38 | 36 | @wrongstack/core, @wrongstack/kanban, @wrongstack/requirement-intake |
 | @wrongstack/security-scanner | 15 | 26 | @wrongstack/core |

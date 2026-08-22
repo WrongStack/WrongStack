@@ -168,9 +168,7 @@ export interface HeartbeatDispatchInput {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function nowIso(): string {
-  return new Date().toISOString();
-}
+import { nowIso } from '@wrongstack/primitives';
 
 function buildLease(ttlMs: number): DispatchLease {
   const now = nowIso();

@@ -14,3 +14,4 @@ export {
   compileUserRegex,
   MAX_SUBJECT_LEN,
 } from './regex-guard.js';
+export { nowIso } from './time.js';

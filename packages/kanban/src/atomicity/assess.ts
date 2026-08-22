@@ -27,9 +27,7 @@ const DETERMINISTIC_CHECK_TYPES = new Set([
   'metric',
 ]);
 
-function nowIso(): string {
-  return new Date().toISOString();
-}
+import { nowIso } from '@wrongstack/primitives';
 
 export function hashAtomicityConfig(config?: AtomicityRuleSetConfig): string {
   const resolved = resolveAtomicityConfig(config);

@@ -51,6 +51,7 @@
     "@wrongstack/acp": "workspace:*",
     "@wrongstack/bench": "workspace:*",
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/primitives": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/mcp": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
@@ -70,6 +71,7 @@
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-hq": "workspace:*",
+    "@wrongstack/webui-protocol": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
     "ws": "^8.21.3"
   },

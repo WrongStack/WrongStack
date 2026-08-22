@@ -134,10 +134,7 @@ export function maskedKey(key: string): string {
   return `${color.dim(head + '…')}${tail}`;
 }
 
-/** ISO-8601 timestamp for key `createdAt` fields. */
-export function nowIso(): string {
-  return new Date().toISOString();
-}
+export { nowIso } from '@wrongstack/primitives';
 
 /* ------------------------------------------------------------------ */
 /*  Config file I/O — load / mutate `providers` atomically            */

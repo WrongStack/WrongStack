@@ -27,8 +27,9 @@
  *                             built-in `todo` tool
  *   - todo_tracker_status   : Counters + last update timestamp
  */
-import * as fsp from 'node:fs/promises';
+
 import { randomUUID } from 'node:crypto';
+import * as fsp from 'node:fs/promises';
 import type { Plugin } from '@wrongstack/core/types';
 import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
@@ -71,16 +72,19 @@ interface TodoTrackerFile {
 // the wiring layer. If neither is set, the plugin no-ops with a
 // warning — there is no sensible default for a per-project file.
 
-function deriveFilePath(api: {
-  config: { extensions?: Record<string, unknown> };
-}): { filePath: string | null; projectSlug: string | null } {
-  const raw = api.config.extensions?.['todo-tracker'] as
-    | Record<string, unknown>
-    | undefined;
+function deriveFilePath(api: { config: { extensions?: Record<string, unknown> } }): {
+  filePath: string | null;
+  projectSlug: string | null;
+} {
+  const raw = api.config.extensions?.['todo-tracker'] as Record<string, unknown> | undefined;
   const explicit = typeof raw?.['filePath'] === 'string' ? (raw['filePath'] as string) : null;
   if (explicit) {
     // The projectSlug is the file's basename (without extension).
-    const base = explicit.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? 'tracker';
+    const base =
+      explicit
+        .replace(/[\\/]+$/, '')
+        .split(/[\\/]/)
+        .pop() ?? 'tracker';
     return { filePath: explicit, projectSlug: base };
   }
   return { filePath: null, projectSlug: null };
@@ -149,9 +153,7 @@ const state = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function nowIso(): string {
-  return new Date().toISOString();
-}
+import { nowIso } from '@wrongstack/primitives';
 
 function ensureFile(): TodoTrackerFile {
   if (!state.file) {
@@ -199,8 +201,7 @@ function notConfiguredError(): { ok: false; error: string } {
 const plugin: Plugin = {
   name: 'todo-tracker',
   version: '0.1.0',
-  description:
-    'Persistent, project-scoped todo backlog that survives across sessions',
+  description: 'Persistent, project-scoped todo backlog that survives across sessions',
   apiVersion: '^0.1.10',
   capabilities: { tools: true },
   defaultConfig: {
@@ -264,7 +265,8 @@ const plugin: Plugin = {
           status: {
             type: 'string',
             enum: ['pending', 'in_progress', 'completed', 'dropped', 'all'],
-            description: "Filter by status. 'all' returns every item; default is pending+in_progress.",
+            description:
+              "Filter by status. 'all' returns every item; default is pending+in_progress.",
           },
           priority: { type: 'string', enum: ['low', 'normal', 'high'] },
           tag: { type: 'string', description: 'Filter by exact tag match' },
@@ -337,7 +339,9 @@ const plugin: Plugin = {
           ? (input['tags'] as unknown[]).filter((t): t is string => typeof t === 'string')
           : [];
         const sourceSessionId =
-          typeof input['sourceSessionId'] === 'string' ? (input['sourceSessionId'] as string) : null;
+          typeof input['sourceSessionId'] === 'string'
+            ? (input['sourceSessionId'] as string)
+            : null;
         const notes = typeof input['notes'] === 'string' ? (input['notes'] as string) : null;
 
         const now = nowIso();
@@ -505,7 +509,7 @@ const plugin: Plugin = {
           items,
           hint:
             'These are persistent items. To work on them this session, ' +
-            "register each one with the built-in `todo` tool. Mark them " +
+            'register each one with the built-in `todo` tool. Mark them ' +
             '`completed` via todo_tracker_complete when done.',
         };
       },

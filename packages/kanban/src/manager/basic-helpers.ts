@@ -35,9 +35,7 @@ export function isoFromTimestamp(value: number | undefined, fallback: string): s
   return new Date(value).toISOString();
 }
 
-export function nowIso(): string {
-  return new Date().toISOString();
-}
+export { nowIso } from '@wrongstack/primitives';
 
 export function uniqueIdFromSet(usedIds: Set<string>, requested: string): string {
   const base = requested || 'item';
