@@ -76,8 +76,12 @@ describe('searchSage vector-only materialization (store wiring)', () => {
       'warm fruit dessert baked under buttery pastry with caramel drizzle',
     );
     const control = await store.searchSage('apple crumble oven');
-    expect(control.map((m) => m.id)).toContain(lexicalHit.id);
-    expect(control.map((m) => m.id)).not.toContain(paraphrase.id);
+    // Assert the outcome, not the dispatch: exactly the lexical hit returns.
+    // (`length === 1` + identity holds under FTS or the LIKE fallback alike —
+    // a `not.toContain(paraphrase.id)` here would pass even if the channel
+    // were broken, and couples the pin to FTS/LIKE internals.)
+    expect(control).toHaveLength(1);
+    expect(control[0]?.id).toBe(lexicalHit.id);
 
     const results = await store.searchSage('apple crumble oven', {
       vectorRecall: scriptedProvider([{ sageId: paraphrase.id, score: 0.88 }]),

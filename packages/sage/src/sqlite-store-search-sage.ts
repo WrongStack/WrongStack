@@ -184,6 +184,13 @@ export interface MaterializeSageContext {
  * corrupt rows (decode failures are swallowed like search's row decoding) —
  * the fusion treats all of these as a plain drop.
  *
+ * Deliberately NOT mirrored: `searchSqliteSage`'s FTS-unavailable LIKE
+ * fallback. That fallback only changes how the lexical CHANNEL dispatches
+ * its text match; this materializer resolves by primary key (`id = ?`), so
+ * FTS availability cannot affect it and mirroring the dispatch would be
+ * meaningless. Every VISIBILITY rule above is mirrored; the recall-path
+ * dispatch difference is intentional.
+ *
  * Kept beside `searchSqliteSage` (same module, same clause vocabulary) so the
  * two visibility implementations cannot drift apart unnoticed.
  */

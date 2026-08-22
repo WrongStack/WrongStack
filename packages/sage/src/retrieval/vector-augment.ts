@@ -72,6 +72,8 @@ export interface VectorAugmentOptions {
    * concepts). The callback owns ALL visibility policy (status,
    * contextPolicy, audience, scope, session ownership); returning
    * `undefined` or throwing drops the hit without failing the fusion.
+   * Callbacks are invoked CONCURRENTLY (one call per classified hit, via
+   * `Promise.all`) — an implementation must be safe for parallel calls.
    * Omit to keep the historical reorder-only contract, where the vector
    * channel could only boost memories the lexical channel already found.
    */
