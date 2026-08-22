@@ -129,30 +129,76 @@ function importFromText(prefixes: readonly string[]): NonNullable<RefRule['nameE
     // App\{foo}`) but before the trailing-`;}` strip (the group's closing
     // brace is load-bearing there).
     if (text.includes('{')) return parseGroupedUse(text);
-    // Trailing `;`/`}` BEFORE alias handling — the alias regex is
-    // `$`-anchored and PHP writes `use App\Models\User as U;`.
-    text = text.replace(/[;}]+$/g, '').trim();
-    // Alias imports — `use App\Models\User as U`, `import com.example.Foo
-    // as Bar`, `using Txt = System.Text`. The alias is the LOCAL name; the
-    // ref must target the ORIGINAL (pre-alias) symbol so resolution binds
-    // to its declaration, not to the aliasing file. PHP's `AS` is
-    // case-insensitive, like every PHP keyword.
-    const aliasMatch = /\s+as\s+([A-Za-z_]\w*)\s*$/i.exec(text);
-    if (aliasMatch) text = text.slice(0, aliasMatch.index).trim();
-    const eqMatch = /^([A-Za-z_]\w*)\s*=\s*(.+)$/.exec(text);
-    if (eqMatch) text = eqMatch[2]!.trim();
-    if (!text) return null;
-    // Java/C# wildcard imports (`a.b.*`) bind the package, not a symbol.
-    if (text.endsWith('*')) text = text.slice(0, -1).replace(/[.]$/, '');
-    if (!text) return null;
-    const module = text;
-    const toName = module
-      .split(/[.\\/]/)
-      .filter(Boolean)
-      .pop();
-    if (!toName) return null;
-    return [{ toName, callType: 'import', module }];
+    // PHP multi-clause use — `use A\B, C\D;` and `use function App\foo,
+    // const App\BAR;` bind EACH clause (verified AST:
+    // namespace_use_declaration carries multiple namespace_use_clause
+    // children; the refRule fires on the declaration node whose text
+    // spans them all). Without this split the clauses fuse into one
+    // bogus module (`App\foo, const App\BAR`) and every clause but the
+    // last loses its binding.
+    //   Comma guard: C# using-aliases may contain commas inside generic
+    // argument lists (`using L = List<int, string>;`) AND in non-generic
+    // alias targets (`using Pair = (int, string);`, `using M = int[,]`)
+    // and must NOT split. PHP use clauses can never contain `<` — and
+    // PHP aliases are written `as`, never `=` — so either marker exempts
+    // the text from the split.
+    if (text.includes(',') && !text.includes('<') && !text.includes('=')) {
+      const out: RefEmission[] = [];
+      for (const clause of text.split(',')) {
+        const one = oneImportClause(clause.trim());
+        if (one) out.push(one);
+      }
+      return out.length ? out : null;
+    }
+    // oneImportClause yields ONE emission; the visitor iterates an ARRAY —
+    // a bare object here throws at the first import node and aborts every
+    // ref for the file (caught by the P3.9 suite: files with imports lost
+    // their call refs too).
+    const single = oneImportClause(text);
+    return single ? [single] : null;
   };
+}
+
+/** Resolve one comma-free import clause to its `{toName, module}` emission. */
+function oneImportClause(rawClause: string): RefEmission | null {
+  let text = rawClause;
+  // Per-clause modifier strip — mixed clauses carry their own kind:
+  // `use function App\foo, const App\BAR;`.
+  text = text
+    .replace(
+      /^(static|final|type|class|struct|enum|protocol|var|func|let|typealias|function|const)\s+/i,
+      '',
+    )
+    .trim();
+  // Trailing `;`/`}` BEFORE alias handling — the alias regex is
+  // `$`-anchored and PHP writes `use App\Models\User as U;`.
+  text = text.replace(/[;}]+$/g, '').trim();
+  // Alias imports — `use App\Models\User as U`, `import com.example.Foo
+  // as Bar`, `using Txt = System.Text`. The alias is the LOCAL name; the
+  // ref must target the ORIGINAL (pre-alias) symbol so resolution binds
+  // to its declaration, not to the aliasing file. PHP's `AS` is
+  // case-insensitive, like every PHP keyword.
+  const aliasMatch = /\s+as\s+([A-Za-z_]\w*)\s*$/i.exec(text);
+  if (aliasMatch) text = text.slice(0, aliasMatch.index).trim();
+  const eqMatch = /^([A-Za-z_]\w*)\s*=\s*(.+)$/.exec(text);
+  if (eqMatch) text = eqMatch[2]!.trim();
+  if (!text) return null;
+  // Java/C# wildcard imports (`a.b.*`) bind the package, not a symbol.
+  if (text.endsWith('*')) text = text.slice(0, -1).replace(/[.]$/, '');
+  if (!text) return null;
+  const module = text;
+  // Strip a generic-argument tail from the LEAF before name resolution:
+  // `using L = System.Collections.Generic.List<int, string>` resolves by
+  // NAME to the `List` declaration — `List<int, string>` would never match.
+  // (heritageLeaf's text fallback strips the same tail for the same reason.)
+  const toName = module
+    .split(/[.\\/]/)
+    .filter(Boolean)
+    .pop()
+    ?.replace(/<.*>$/s, '');
+  if (!toName) return null;
+
+  return { toName, callType: 'import', module };
 }
 
 /**

@@ -329,6 +329,40 @@ describe('Chimera mediums: generic type arguments, grouped imports, namespaced c
     expect((refs.get('call') ?? []).some((r) => r.toName === 'User')).toBe(true);
     expect((refs.get('call') ?? []).some((r) => r.toName === 'App\\Model\\User')).toBe(false);
   });
+
+  it('PHP: multi-clause use binds EACH clause, never a fused module', async () => {
+    // Verified AST: namespace_use_declaration carries multiple
+    // namespace_use_clause children; the refRule fires on the declaration
+    // node whose text spans them all. Before the split this fused into ONE
+    // bogus module and dropped every clause but the last.
+    const refs = await refsFor('php', '<?php\nuse App\\Foo, App\\Bar;\n');
+    const imports = refs.get('import') ?? [];
+    expect(imports.some((r) => r.module === 'App\\Foo' && r.toName === 'Foo')).toBe(true);
+    expect(imports.some((r) => r.module === 'App\\Bar' && r.toName === 'Bar')).toBe(true);
+    expect(imports.some((r) => (r.module ?? '').includes(','))).toBe(false);
+  });
+
+  it('PHP: mixed multi-clause use strips per-clause modifiers', async () => {
+    const refs = await refsFor('php', '<?php\nuse function App\\foo, const App\\BAR;\n');
+    const imports = refs.get('import') ?? [];
+    expect(imports.some((r) => r.module === 'App\\foo' && r.toName === 'foo')).toBe(true);
+    expect(imports.some((r) => r.module === 'App\\BAR' && r.toName === 'BAR')).toBe(true);
+    expect(imports.some((r) => (r.module ?? '').startsWith('function'))).toBe(false);
+    expect(imports.some((r) => (r.module ?? '').includes('const'))).toBe(false);
+  });
+
+  it('C#: comma inside generic arguments does not split a using-alias', async () => {
+    // `using L = List<int, string>;` is ONE clause whose generic argument
+    // list contains a comma — the split's `<` guard must exempt it.
+    const refs = await refsFor(
+      'csharp',
+      'using L = System.Collections.Generic.List<int, string>;\n',
+    );
+    const imports = refs.get('import') ?? [];
+    expect(imports.length).toBe(1);
+    expect(imports[0]!.toName).toBe('List');
+    expect(imports[0]!.module).toBe('System.Collections.Generic.List<int, string>');
+  });
 });
 
 describe('incoming/outgoing calls through the index (Java via tree-sitter)', () => {
