@@ -119,6 +119,10 @@
       "SYSTEM_PROMPT_OPTIONS",
       "SYSTEM_PROMPT_VARIANTS"
     ],
+    "packages/cli/src/boot/tui-session-stub-enrich.ts": [
+      "containedJsonlPath",
+      "enrichStubSummaries"
+    ],
     "packages/cli/src/boot/webui-session-child.ts": [
       "WEBUI_SESSION_CHILD_PROTOCOL_VERSION"
     ],
@@ -987,6 +991,9 @@
     "packages/tools/src/codebase-index/lsp-kind.ts": [
       "isLspKind",
       "LSPSymbolKind"
+    ],
+    "packages/tools/src/codebase-index/parser-worker-pool.ts": [
+      "ParserWorkerPool"
     ],
     "packages/tools/src/codebase-index/project-server-endpoint.ts": [
       "projectIndexServerKey"

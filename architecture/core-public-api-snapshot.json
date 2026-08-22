@@ -1155,7 +1155,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 9319
+      "sourceLines": 9374
     },
     {
       "directory": "coordination",
@@ -1169,7 +1169,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11377
+      "sourceLines": 11407
     },
     {
       "directory": "defaults",
@@ -1190,7 +1190,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17811
+      "sourceLines": 17827
     },
     {
       "directory": "extension",
@@ -1232,7 +1232,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3645
+      "sourceLines": 3664
     },
     {
       "directory": "middleware",
@@ -1323,7 +1323,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 87,
-      "sourceLines": 19512
+      "sourceLines": 19573
     },
     {
       "directory": "tasking",
@@ -1344,7 +1344,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 11071
+      "sourceLines": 11080
     },
     {
       "directory": "utils",
