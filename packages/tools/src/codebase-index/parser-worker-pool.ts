@@ -32,6 +32,26 @@ import type { FileSymbols, SymbolLang } from './schema.js';
 /** Minimum number of files before the pool is worth spawning. */
 export const WORKER_POOL_THRESHOLD = 500;
 
+/**
+ * Effective pool threshold for this run (audit T-04): the documented
+ * {@link WORKER_POOL_THRESHOLD} default unless `WRONGSTACK_INDEX_WORKER_THRESHOLD`
+ * overrides it. Re-resolved on every call — like `resolveParallelBatch` — so
+ * profile changes (and tests) apply per index run without a process restart.
+ *
+ * - unset / unparsable / negative → the 500 default
+ * - `0` → disables the worker path (per the `WRONGSTACK_*=0` opt-out
+ *   convention, e.g. `WRONGSTACK_TOOLCHAIN_BATCH=0`): no candidate count can
+ *   satisfy `>= 0 && parseBatchCount > 1` gate semantics with an explicit
+ *   disable, so the gate checks the disable first.
+ */
+export function resolveWorkerPoolThreshold(): number {
+  const raw = process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'];
+  if (raw === undefined) return WORKER_POOL_THRESHOLD;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 0) return WORKER_POOL_THRESHOLD;
+  return parsed;
+}
+
 interface PendingBatch {
   resolve: (results: FileSymbols[]) => void;
   reject: (err: unknown) => void;

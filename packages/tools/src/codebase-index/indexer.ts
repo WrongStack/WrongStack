@@ -28,7 +28,7 @@ import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { ModuleResolver } from './module-resolver.js';
 import { assignPackageLabels, detectModuleRoots } from './module-roots.js';
 import { type parseFileContent, parseFilesContent } from './parser-dispatch.js';
-import { getParserPool, WORKER_POOL_THRESHOLD } from './parser-worker-pool.js';
+import { getParserPool, resolveWorkerPoolThreshold } from './parser-worker-pool.js';
 import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
 
@@ -52,12 +52,19 @@ export function resolveParallelBatch(): number {
  * Pool startup is amortized across the complete index run, not one outer
  * batch. Balanced batches are capped at 40 files, so comparing the per-batch
  * parse count with the 500-file threshold made the worker path unreachable.
+ *
+ * Threshold is env-configurable (audit T-04): `WRONGSTACK_INDEX_WORKER_THRESHOLD`
+ * overrides the default, `0` disables the worker path entirely.
  */
 export function shouldUseParserWorkerPool(
   candidateFileCount: number,
   parseBatchCount: number,
 ): boolean {
-  return !isFrugalPerf() && candidateFileCount >= WORKER_POOL_THRESHOLD && parseBatchCount > 1;
+  const threshold = resolveWorkerPoolThreshold();
+  // 0 = explicit opt-out: no candidate count (not even 0 itself, which would
+  // satisfy >= 0) may take the worker path.
+  if (threshold === 0) return false;
+  return !isFrugalPerf() && candidateFileCount >= threshold && parseBatchCount > 1;
 }
 
 function yieldEventLoop(): Promise<void> {

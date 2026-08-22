@@ -34,6 +34,44 @@ describe('runIndexer', () => {
     }
   });
 
+  // Audit T-04: the threshold is env-configurable via
+  // WRONGSTACK_INDEX_WORKER_THRESHOLD, default-preserving, with 0 as an
+  // explicit opt-out (the WRONGSTACK_*=0 convention) and garbage falling
+  // back to the documented 500 default rather than disabling or exploding.
+  it('pool threshold is env-configurable with a preserved default (audit T-04)', () => {
+    const prevProfile = process.env['WRONGSTACK_PERF_PROFILE'];
+    const prevThreshold = process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'];
+    process.env['WRONGSTACK_PERF_PROFILE'] = 'balanced';
+    try {
+      // Default preserved when unset.
+      delete process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'];
+      expect(shouldUseParserWorkerPool(499, 40)).toBe(false);
+      expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
+
+      // Explicit override moves the gate.
+      process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = '10';
+      expect(shouldUseParserWorkerPool(9, 2)).toBe(false);
+      expect(shouldUseParserWorkerPool(10, 2)).toBe(true);
+
+      // 0 disables the worker path outright — even a huge run.
+      process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = '0';
+      expect(shouldUseParserWorkerPool(100_000, 40)).toBe(false);
+
+      // Unparsable / negative values fall back to the default, never disable.
+      process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = 'not-a-number';
+      expect(shouldUseParserWorkerPool(499, 2)).toBe(false);
+      expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
+      process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = '-5';
+      expect(shouldUseParserWorkerPool(499, 2)).toBe(false);
+      expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
+    } finally {
+      if (prevProfile === undefined) delete process.env['WRONGSTACK_PERF_PROFILE'];
+      else process.env['WRONGSTACK_PERF_PROFILE'] = prevProfile;
+      if (prevThreshold === undefined) delete process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'];
+      else process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = prevThreshold;
+    }
+  });
+
   it('indexes a project, supports force reindex, and skips unchanged files incrementally', async () => {
     await fs.writeFile(path.join(dir, 'a.ts'), 'export class Alpha {}');
     await fs.writeFile(path.join(dir, 'b.ts'), 'export function beta() {}');
