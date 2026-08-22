@@ -107,7 +107,7 @@
       "relativeImports": 8
     },
     "packages/core/src/hq/auth-store.ts": {
-      "lines": 825,
+      "lines": 837,
       "relativeImports": 7
     },
     "packages/core/src/hq/protocol/core.ts": {
@@ -198,12 +198,16 @@
       "lines": 861,
       "relativeImports": 1
     },
+    "packages/providers/src/openai-codex.ts": {
+      "lines": 817,
+      "relativeImports": 13
+    },
     "packages/sage/src/domain-term-extractor.ts": {
       "lines": 873,
       "relativeImports": 1
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 1050,
+      "lines": 1063,
       "relativeImports": 43
     },
     "packages/sage/src/tools/memory-tools.ts": {

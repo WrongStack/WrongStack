@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T22:51:57.531Z
+**Generated:** 2026-08-22T22:52:34.634Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,9 +21,7 @@
 
 ## Verification result
 
-- packages/core/src/hq/auth-store.ts: hotspot grew from 825 to 837 lines; review and update the ratchet in the same change
-- packages/providers/src/openai-codex.ts: new 817-line hotspot is not in architecture/hotspots.json
-- packages/sage/src/sqlite-store.ts: hotspot grew from 1050 to 1063 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
