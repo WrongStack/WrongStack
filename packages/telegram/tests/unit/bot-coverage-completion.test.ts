@@ -20,12 +20,21 @@ interface BotInternals {
     getUpdates: ReturnType<typeof vi.fn>;
     answerCallbackQuery: ReturnType<typeof vi.fn>;
   };
-  pollActive: boolean;
-  conflictStreak: number;
-  acquireAndPoll(): void;
-  handleLockLost(): void;
-  schedulePoll(): void;
-  poll(): Promise<void>;
+  /**
+   * Poll-loop owner moved to ./poller.ts in card 7A-3 — white-box pins
+   * reach the real owner through the bot's public readonly `poller`
+   * (same pattern as `approvals` in 7A-2).
+   */
+  poller: {
+    pollActive: boolean;
+    conflictStreak: number;
+    acquireAndPoll(): void;
+    handleLockLost(): void;
+    schedulePoll(): void;
+    poll(): Promise<void>;
+    loadOffset(): Promise<void>;
+    saveOffset(): Promise<void>;
+  };
   processMessage(message: TelegramApiMessage & { text: string }): void;
   settleApproval(
     requestId: string,
@@ -34,8 +43,6 @@ interface BotInternals {
   ): boolean;
   dispatchCallback(callback: TelegramApiCallbackQuery): Promise<void>;
   answerCallback(callbackQueryId: string, text: string, showAlert: boolean): Promise<void>;
-  loadOffset(): Promise<void>;
-  saveOffset(): Promise<void>;
 }
 
 const bots: TelegramBot[] = [];
@@ -185,7 +192,7 @@ describe('TelegramBot lifecycle completion', () => {
     await vi.advanceTimersByTimeAsync(5);
     bot.stop();
     lock.onLost?.();
-    internals(bot).acquireAndPoll();
+    internals(bot).poller.acquireAndPoll();
   });
 
   it('does not schedule when inactive or when the lock is not held', () => {
@@ -197,10 +204,10 @@ describe('TelegramBot lifecycle completion', () => {
     const bot = makeBot({ lock });
     const inner = internals(bot);
 
-    inner.schedulePoll();
-    inner.pollActive = true;
-    inner.schedulePoll();
-    inner.pollActive = false;
+    inner.poller.schedulePoll();
+    inner.poller.pollActive = true;
+    inner.poller.schedulePoll();
+    inner.poller.pollActive = false;
   });
 });
 
@@ -328,7 +335,7 @@ describe('TelegramBot polling completion', () => {
       { update_id: 4 },
     ] satisfies TelegramApiUpdate[]);
 
-    await inner.poll();
+    await inner.poller.poll();
     await Promise.resolve();
     expect(dispatch).toHaveBeenCalledOnce();
     expect(log.debug).toHaveBeenCalledWith('Callback dispatch failed: callback failure');
@@ -338,7 +345,7 @@ describe('TelegramBot polling completion', () => {
     api.getUpdates.mockResolvedValueOnce([
       { update_id: 5, callback_query: callback('missing-again') },
     ] satisfies TelegramApiUpdate[]);
-    await inner.poll();
+    await inner.poller.poll();
     await Promise.resolve();
     expect(log.debug).toHaveBeenCalledWith('Callback dispatch failed: callback error');
   });
@@ -350,19 +357,19 @@ describe('TelegramBot polling completion', () => {
     const inner = internals(bot);
 
     api.getUpdates.mockRejectedValueOnce(new TelegramNetworkError('getUpdates', 'aborted', true));
-    await inner.poll();
+    await inner.poller.poll();
     const conflict = new TelegramBotApiError('getUpdates', {
       errorCode: 409,
       description: 'conflict',
     });
     api.getUpdates.mockRejectedValue(conflict);
-    await inner.poll();
-    await inner.poll();
-    await inner.poll();
+    await inner.poller.poll();
+    await inner.poller.poll();
+    await inner.poller.poll();
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('another instance'));
 
     api.getUpdates.mockRejectedValueOnce(new Error('ordinary failure'));
-    await inner.poll();
+    await inner.poller.poll();
     expect(log.debug).toHaveBeenCalledWith('Telegram poll error: ordinary failure');
   });
 
@@ -384,12 +391,12 @@ describe('TelegramBot polling completion', () => {
       }),
     );
 
-    await inner.poll();
-    await inner.poll();
-    await inner.poll();
+    await inner.poller.poll();
+    await inner.poller.poll();
+    await inner.poller.poll();
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('outside this machine'));
-    inner.pollActive = true;
-    inner.schedulePoll();
+    inner.poller.pollActive = true;
+    inner.poller.schedulePoll();
     bot.stop();
   });
 
@@ -544,8 +551,8 @@ describe('TelegramBot approval completion', () => {
 describe('TelegramBot persistence and truncation completion', () => {
   it('handles absent and failing offset stores', async () => {
     const plain = makeBot();
-    await internals(plain).loadOffset();
-    await internals(plain).saveOffset();
+    await internals(plain).poller.loadOffset();
+    await internals(plain).poller.saveOffset();
 
     const log = makeLog();
     const store = {
@@ -557,8 +564,8 @@ describe('TelegramBot persistence and truncation completion', () => {
       }),
     } as unknown as OffsetStore;
     const persisted = makeBot({ log, offsetStore: store });
-    await internals(persisted).loadOffset();
-    await internals(persisted).saveOffset();
+    await internals(persisted).poller.loadOffset();
+    await internals(persisted).poller.saveOffset();
     expect(log.debug).toHaveBeenCalledWith(expect.stringContaining('disk full'));
   });
 

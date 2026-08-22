@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 986,
-      "typeOnly": 911,
+      "files": 987,
+      "typeOnly": 912,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -13227,6 +13227,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/src/poll-lock.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/poller.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

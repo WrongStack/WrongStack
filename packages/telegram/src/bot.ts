@@ -14,6 +14,7 @@ import {
 } from './approval-flow.js';
 import type { OffsetStore } from './offset-store.js';
 import type { PollLock } from './poll-lock.js';
+import { Poller } from './poller.js';
 
 export interface TelegramBotResponse<T> {
   ok: true;
@@ -79,34 +80,13 @@ export interface TelegramBotOptions {
 
 export class TelegramBot {
   private readonly api: TelegramApiClient;
-  private readonly pollIntervalMs: number;
   private readonly allowedUsers: Set<string>;
   private readonly allowedChats: Set<string>;
   private readonly log: Logger;
   private readonly onMessage: (msg: TelegramIncomingMessage) => void;
-  private readonly controller = new AbortController();
-  private pollTimer: ReturnType<typeof setTimeout> | null = null;
-  private pollActive = false;
-  private offset = 0;
-  /**
-   * Consecutive HTTP 409 ("another getUpdates in flight") responses. Two
-   * wstack instances polling the same bot token used to fight at full poll
-   * speed forever, erroring on every cycle. After CONFLICT_BACKOFF_AFTER
-   * consecutive conflicts this instance backs off to a slow poll and warns
-   * once; any successful poll resets to the normal cadence.
-   */
-  private conflictStreak = 0;
-  private static readonly CONFLICT_BACKOFF_AFTER = 3;
-  private static readonly CONFLICT_POLL_MS = 60_000;
-  private _startedAt: number | null = null;
-  /** Typed offset store for atomic polling-cursor persistence. */
-  private readonly offsetStore?: OffsetStore | undefined;
   /** Single-poller election across wstack instances sharing this token. */
   private readonly lock?: PollLock | undefined;
-  private readonly standbyRetryMs: number;
   private readonly getParseMode?: (() => '' | 'HTML' | 'MarkdownV2' | undefined) | undefined;
-  private standbyTimer: ReturnType<typeof setTimeout> | null = null;
-  private standbyAnnounced = false;
 
   // Circular buffer for incoming messages
   private readonly bufferMax: number;
@@ -120,31 +100,49 @@ export class TelegramBot {
    */
   readonly approvals: ApprovalFlow;
 
+  /**
+   * Polling loop owner (card 7A-3): standby/lock retry, 409 conflict
+   * backoff, and the P1.6 offset cursor. Public readonly so the white-box
+   * suites (bot-coverage-completion, p3-fault-injection) pin the real
+   * owner via `bot.poller` instead of type-asserting past `private`.
+   */
+  readonly poller: Poller;
+
   constructor(opts: TelegramBotOptions) {
     this.api = new TelegramApiClient({ token: opts.token });
-    this.pollIntervalMs = opts.pollIntervalSec * 1000;
     this.allowedUsers = opts.allowedUsers;
     this.allowedChats = opts.allowedChats;
     this.bufferMax = opts.bufferSize;
     this.log = opts.log;
     this.onMessage = opts.onMessage;
-    this.offsetStore = opts.offsetStore;
     this.lock = opts.lock;
-    this.standbyRetryMs = opts.standbyRetryMs ?? 15_000;
     this.getParseMode = opts.getParseMode;
     this.approvals = new ApprovalFlow({
       log: this.log,
       api: () => this.api,
       inboundDenialReason: (userId, chatId) => this.inboundDenialReason(userId, chatId),
     });
-    if (this.lock) {
-      this.lock.onLost = () => this.handleLockLost();
-    }
-
-    // Restore persisted offset so a crash/restart doesn't cause message replay.
-    if (this.offsetStore) {
-      void this.loadOffset();
-    }
+    // Poll loop (card 7A-3). Live api accessor — NOT captured — so tests that
+    // Object.assign a mock onto `bot.api` after construction are observed.
+    this.poller = new Poller({
+      api: () => this.api,
+      pollIntervalMs: opts.pollIntervalSec * 1000,
+      log: this.log,
+      controller: new AbortController(),
+      offsetStore: opts.offsetStore,
+      lock: opts.lock,
+      standbyRetryMs: opts.standbyRetryMs ?? 15_000,
+      onCallbackQuery: (cq) => {
+        void this.approvals
+          .dispatchCallback(cq)
+          .catch((err) =>
+            this.log.debug(
+              `Callback dispatch failed: ${err instanceof Error ? err.message : String(err)}`,
+            ),
+          );
+      },
+      onMessageUpdate: (msg) => this.processMessage({ ...msg, text: msg.text! }),
+    });
   }
 
   // ------------------------------------------------------------------
@@ -153,24 +151,12 @@ export class TelegramBot {
 
   /** Start polling for updates. Idempotent. */
   start(): void {
-    if (this.pollActive) return;
-    this.pollActive = true;
-    this._startedAt = Date.now();
-    this.acquireAndPoll();
+    this.poller.start();
   }
 
   /** Stop polling and cancel all in-flight requests. */
   stop(): void {
-    this.pollActive = false;
-    this.controller.abort();
-    if (this.pollTimer) {
-      clearTimeout(this.pollTimer);
-      this.pollTimer = null;
-    }
-    if (this.standbyTimer) {
-      clearTimeout(this.standbyTimer);
-      this.standbyTimer = null;
-    }
+    this.poller.stop();
     // Reject any pending approval requests so the host doesn't hang.
     this.approvals.cancelAll('shutdown');
     this.lock?.release();
@@ -179,56 +165,15 @@ export class TelegramBot {
 
   /** True when the bot is started but waiting for the poll lock. */
   get standby(): boolean {
-    return this.pollActive && this.lock !== undefined && !this.lock.held;
-  }
-
-  /**
-   * Acquire the poll lock (when configured) and start the poll loop, or
-   * stand by and retry until the current holder releases it.
-   */
-  private acquireAndPoll(): void {
-    if (!this.pollActive) return;
-    if (this.lock && !this.lock.tryAcquire()) {
-      if (!this.standbyAnnounced) {
-        this.standbyAnnounced = true;
-        this.log.info(
-          'Telegram: another wstack instance is already polling this bot token — standing by; will take over when it stops.',
-        );
-      }
-      this.standbyTimer = setTimeout(() => this.acquireAndPoll(), this.standbyRetryMs);
-      this.standbyTimer.unref?.();
-      return;
-    }
-    if (this.standbyAnnounced) {
-      this.standbyAnnounced = false;
-      this.log.info('Telegram: poll lock acquired — taking over polling.');
-    } else {
-      this.log.info(`Telegram bot polling started (${this.api.safeBaseUrl})`);
-    }
-    this.schedulePoll();
-  }
-
-  /** The lock was stolen while we held it — pause polling and stand by. */
-  private handleLockLost(): void {
-    if (!this.pollActive) return;
-    if (this.pollTimer) {
-      clearTimeout(this.pollTimer);
-      this.pollTimer = null;
-    }
-    this.log.warn(
-      'Telegram: poll lock lost to another instance — pausing polling and standing by.',
-    );
-    this.standbyAnnounced = true; // acquireAndPoll already announced via this warn
-    this.standbyTimer = setTimeout(() => this.acquireAndPoll(), this.standbyRetryMs);
-    this.standbyTimer.unref?.();
+    return this.poller.standby;
   }
 
   get startedAt(): number | null {
-    return this._startedAt;
+    return this.poller.startedAt;
   }
 
   get running(): boolean {
-    return this.pollActive;
+    return this.poller.active;
   }
 
   // ------------------------------------------------------------------
@@ -383,89 +328,9 @@ export class TelegramBot {
   }
 
   // ------------------------------------------------------------------
-  // Polling
+  // Polling — moved to ./poller.ts in card 7A-3 (standby/lock retry, 409
+  // conflict backoff, and the P1.6 cursor live there verbatim).
   // ------------------------------------------------------------------
-
-  private schedulePoll(): void {
-    if (!this.pollActive) return;
-    // Lost the poll lock mid-flight — the standby retry loop owns recovery.
-    if (this.lock && !this.lock.held) return;
-    const delay =
-      this.conflictStreak >= TelegramBot.CONFLICT_BACKOFF_AFTER
-        ? TelegramBot.CONFLICT_POLL_MS
-        : this.pollIntervalMs;
-    this.pollTimer = setTimeout(() => {
-      void this.poll().finally(() => this.schedulePoll());
-    }, delay);
-  }
-
-  private async poll(): Promise<void> {
-    try {
-      const updates = await this.api.getUpdates({
-        offset: this.offset,
-        timeoutSeconds: 10,
-        deadlineMs: 15_000,
-        signal: this.controller.signal,
-      });
-      this.conflictStreak = 0;
-
-      for (const upd of updates) {
-        // Telegram normally honors `offset`, but a proxy/replay or a test
-        // transport can return an already-processed update. Keep the cursor as
-        // the local idempotency boundary instead of dispatching duplicates.
-        if (upd.update_id < this.offset) continue;
-        if (upd.callback_query) {
-          void this.approvals
-            .dispatchCallback(upd.callback_query)
-            .catch((err) =>
-              this.log.debug(
-                `Callback dispatch failed: ${err instanceof Error ? err.message : String(err)}`,
-              ),
-            );
-          this.offset = upd.update_id + 1;
-          continue;
-        }
-
-        const raw = upd.message ?? upd.edited_message;
-        if (!raw?.text) {
-          this.offset = upd.update_id + 1;
-          continue;
-        }
-        try {
-          this.processMessage({ ...raw, text: raw.text });
-          this.offset = upd.update_id + 1;
-        } catch (err) {
-          this.log.debug(
-            `Telegram processMessage failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          // Do not advance the cursor — Telegram will resend this update.
-          // Stop the batch so later ids are not skipped while this one retries.
-          break;
-        }
-      }
-
-      // P1.6: commit the cursor only after processing. An empty poll or a
-      // 0 -> 0 idle tick MUST NOT trigger a write. Require updates.length > 0
-      // so a successful but empty poll leaves the persisted offset
-      // unchanged — preserves the replay dedup boundary on restart.
-      if (this.offsetStore && updates.length > 0) void this.saveOffset();
-    } catch (err) {
-      if (err instanceof TelegramNetworkError && err.aborted) return;
-      if (err instanceof TelegramBotApiError && err.errorCode === 409) {
-        this.conflictStreak++;
-        if (this.conflictStreak === TelegramBot.CONFLICT_BACKOFF_AFTER) {
-          this.log.warn(
-            this.lock
-              ? 'Telegram: another consumer outside this machine is polling this bot token (HTTP 409) — backing off to 60s polls. Check other machines/bots using this token, or a registered webhook (deleteWebhook).'
-              : 'Telegram: another instance is polling this bot token (HTTP 409) — backing off to 60s polls until it stops.',
-          );
-        }
-        this.log.debug(`Telegram getUpdates failed: ${err.description}`);
-        return;
-      }
-      this.log.debug(`Telegram poll error: ${(err as Error).message}`);
-    }
-  }
 
   /**
    * Apply the inbound identity policy to every update type. A non-empty set is
@@ -552,28 +417,6 @@ export class TelegramBot {
 
   cancelApproval(requestId: string, fromUser = 'cancelled'): boolean {
     return this.approvals.cancelApproval(requestId, fromUser);
-  }
-
-  private async loadOffset(): Promise<void> {
-    if (!this.offsetStore) return;
-    try {
-      const saved = this.offsetStore.read();
-      if (saved !== null) {
-        this.offset = saved;
-        this.log.debug(`Telegram polling offset restored: ${this.offset}`);
-      }
-    } catch {
-      // Best-effort — a corrupt or missing file starts from 0.
-    }
-  }
-
-  private async saveOffset(): Promise<void> {
-    if (!this.offsetStore) return;
-    try {
-      this.offsetStore.write(this.offset);
-    } catch (err) {
-      this.log.debug(`Failed to persist Telegram offset: ${err}`);
-    }
   }
 }
 

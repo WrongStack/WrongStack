@@ -9,15 +9,15 @@
 // leaves no process, port, or file locks behind.
 // ---------------------------------------------------------------------------
 
+import type { Logger } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   TelegramApiClient,
   TelegramBotApiError,
   TelegramResponseParseError,
 } from '../../src/api-client.js';
-import { FakeTelegramServer } from '../helpers/fake-telegram-server.js';
 import { TelegramBot, type TelegramIncomingMessage } from '../../src/bot.js';
-import type { Logger } from '@wrongstack/core/types';
+import { FakeTelegramServer } from '../helpers/fake-telegram-server.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -109,13 +109,15 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
   // ------------------------------------------------------------------
 
   it('returns TelegramBotApiError on HTTP 403 and does not retry', async () => {
-    server.on('sendMessage', () => FakeTelegramServer.error(403, 'Forbidden: bot was blocked by the user'));
+    server.on('sendMessage', () =>
+      FakeTelegramServer.error(403, 'Forbidden: bot was blocked by the user'),
+    );
     const client = new TelegramApiClient({ token: TOKEN, apiRoot: server.baseUrl });
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
     await expect(client.sendMessage(TEST_CHAT, 'test')).rejects.toThrow(TelegramBotApiError);
     // Only the one call — no retry for 4xx (except 429/409)
-    expect(server.calls.filter(c => c.method === 'sendMessage').length).toBe(1);
+    expect(server.calls.filter((c) => c.method === 'sendMessage').length).toBe(1);
 
     fetchSpy.mockRestore();
   });
@@ -146,8 +148,14 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     let attempts = 0;
     server.on('sendMessage', () => {
       attempts++;
-      if (attempts === 1) return FakeTelegramServer.error(429, 'Too Many Requests', { retry_after: 1 });
-      return { envelope: { ok: true, result: { message_id: 42, chat: { id: TEST_CHAT, type: 'private' }, date: 1_700_000_000 } } };
+      if (attempts === 1)
+        return FakeTelegramServer.error(429, 'Too Many Requests', { retry_after: 1 });
+      return {
+        envelope: {
+          ok: true,
+          result: { message_id: 42, chat: { id: TEST_CHAT, type: 'private' }, date: 1_700_000_000 },
+        },
+      };
     });
 
     const bot = testBot(server);
@@ -200,8 +208,30 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
   it('deduplicates updates with same update_id via polling loop', async () => {
     // Queue two batches: first has {update_id:1}, second also has {update_id:1} (duplicate)
     server.enqueueUpdates(
-      [{ update_id: 1, message: { message_id: 10, from: { id: TEST_USER, is_bot: false, first_name: 'Allowed' }, chat: { id: TEST_CHAT, type: 'private' }, date: 1_700_000_000, text: 'first' } }],
-      [{ update_id: 1, message: { message_id: 10, from: { id: TEST_USER, is_bot: false, first_name: 'Allowed' }, chat: { id: TEST_CHAT, type: 'private' }, date: 1_700_000_000, text: 'first' } }],
+      [
+        {
+          update_id: 1,
+          message: {
+            message_id: 10,
+            from: { id: TEST_USER, is_bot: false, first_name: 'Allowed' },
+            chat: { id: TEST_CHAT, type: 'private' },
+            date: 1_700_000_000,
+            text: 'first',
+          },
+        },
+      ],
+      [
+        {
+          update_id: 1,
+          message: {
+            message_id: 10,
+            from: { id: TEST_USER, is_bot: false, first_name: 'Allowed' },
+            chat: { id: TEST_CHAT, type: 'private' },
+            date: 1_700_000_000,
+            text: 'first',
+          },
+        },
+      ],
     );
     // Override getUpdates to dispense from queue
     server.on('getUpdates', () => {
@@ -215,8 +245,8 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     });
 
     // Process the update once, then replay the same update_id on the next poll.
-    await (bot as unknown as { poll(): Promise<void> }).poll();
-    await (bot as unknown as { poll(): Promise<void> }).poll();
+    await (bot as unknown as { poller: { poll(): Promise<void> } }).poller.poll();
+    await (bot as unknown as { poller: { poll(): Promise<void> } }).poller.poll();
     expect(messages.length).toBe(1); // Only the first instance
   });
 
@@ -237,9 +267,7 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     // Actually, the server is down so the API call will get a connection refused
     // Let's recreate the server on the same port... but we can't guarantee same port.
     // Instead, test that the client throws on an unreachable endpoint.
-    await expect(
-      client.getMe(),
-    ).rejects.toThrow(); // Will be some error (connection refused or timeout)
+    await expect(client.getMe()).rejects.toThrow(); // Will be some error (connection refused or timeout)
 
     // Restart: create a new server
     const server2 = new FakeTelegramServer();
@@ -296,7 +324,16 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     server.on('sendMessage', (body) => {
       const msgId = Number(body.message_id ?? 0) || 100 + callOrder.length;
       callOrder.push(msgId);
-      return { envelope: { ok: true, result: { message_id: msgId, chat: { id: TEST_CHAT, type: 'private' }, date: 1_700_000_000 } } };
+      return {
+        envelope: {
+          ok: true,
+          result: {
+            message_id: msgId,
+            chat: { id: TEST_CHAT, type: 'private' },
+            date: 1_700_000_000,
+          },
+        },
+      };
     });
 
     const client = new TelegramApiClient({ token: TOKEN, apiRoot: server.baseUrl });
@@ -323,15 +360,15 @@ describe('P3.3 — Deterministic Bot API fault-injection', () => {
     });
 
     const bot = testBot(server);
-    const poll = () => (bot as unknown as { poll(): Promise<void> }).poll();
+    const poll = () => (bot as unknown as { poller: { poll(): Promise<void> } }).poller.poll();
     await poll();
     await poll();
     await poll();
 
     // Each poll records the conflict and advances the backoff streak.
-    const conflictCalls = server.calls.filter(c => c.method === 'getUpdates').length;
+    const conflictCalls = server.calls.filter((c) => c.method === 'getUpdates').length;
     expect(conflictCalls).toBe(3);
-    expect(bot['conflictStreak']).toBe(3);
+    expect(bot['poller']['conflictStreak']).toBe(3);
   });
 
   // ------------------------------------------------------------------
