@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 985,
-      "typeOnly": 910,
+      "files": 986,
+      "typeOnly": 911,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -13179,6 +13179,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/techstack/tests/research/llm.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/approval-flow.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

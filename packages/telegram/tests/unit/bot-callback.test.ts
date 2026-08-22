@@ -93,7 +93,7 @@ describe('TelegramBot awaitApproval', () => {
     data?: string;
   }) {
     return (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: typeof cq): Promise<void>;
       }
     ).dispatchCallback(cq);
@@ -271,7 +271,7 @@ describe('TelegramBot allowlist on callback_query', () => {
     data?: string;
   }) {
     return (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: typeof cq): Promise<void>;
       }
     ).dispatchCallback(cq);

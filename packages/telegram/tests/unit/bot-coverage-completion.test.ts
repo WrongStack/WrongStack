@@ -318,8 +318,9 @@ describe('TelegramBot polling completion', () => {
     const bot = makeBot({ log, offsetStore: store });
     const api = installApi(bot);
     const inner = internals(bot);
-    const dispatch = vi.fn().mockRejectedValue('callback failure');
-    Object.assign(inner, { dispatchCallback: dispatch });
+    const dispatch = vi
+      .spyOn(bot.approvals, 'dispatchCallback')
+      .mockRejectedValue('callback failure');
     api.getUpdates.mockResolvedValue([
       { update_id: 1, callback_query: callback('missing') },
       { update_id: 2, edited_message: { ...message(), text: 'edited' } },
@@ -422,7 +423,7 @@ describe('TelegramBot approval completion', () => {
     const pending = approval(bot, 'duplicate');
     expect(() => approval(bot, 'duplicate')).toThrow('already pending');
     expect(
-      internals(bot).settleApproval('missing', 'cancelled', {
+      bot.approvals.settleApproval('missing', 'cancelled', {
         approved: false,
         fromUser: 'none',
       }),
@@ -451,7 +452,7 @@ describe('TelegramBot approval completion', () => {
 
     const expired = approval(bot, 'expired', { expiresAt: Date.now() - 1 });
     bot.bindApprovalPrompt('expired', 10);
-    await internals(bot).dispatchCallback(callback('expired'));
+    await bot.approvals.dispatchCallback(callback('expired'));
     await expect(expired).resolves.toMatchObject({ fromUser: 'timeout' });
 
     const cases: Array<[string, Partial<TelegramApiCallbackQuery>]> = [
@@ -464,7 +465,7 @@ describe('TelegramBot approval completion', () => {
     for (const [requestId, overrides] of cases) {
       const pending = approval(bot, requestId);
       bot.bindApprovalPrompt(requestId, 10);
-      await internals(bot).dispatchCallback(callback(requestId, overrides));
+      await bot.approvals.dispatchCallback(callback(requestId, overrides));
       bot.cancelApproval(requestId);
       await pending;
     }
@@ -476,12 +477,12 @@ describe('TelegramBot approval completion', () => {
 
     const firstName = approval(bot, 'first-name');
     bot.bindApprovalPrompt('first-name', 10);
-    await internals(bot).dispatchCallback(callback('first-name'));
+    await bot.approvals.dispatchCallback(callback('first-name'));
     await expect(firstName).resolves.toMatchObject({ fromUser: 'Ada' });
 
     const idFallback = approval(bot, 'id-fallback');
     bot.bindApprovalPrompt('id-fallback', 10);
-    await internals(bot).dispatchCallback(
+    await bot.approvals.dispatchCallback(
       callback('id-fallback', {
         from: { id: 1, is_bot: false } as TelegramApiCallbackQuery['from'],
       }),
@@ -490,11 +491,14 @@ describe('TelegramBot approval completion', () => {
 
     const racing = approval(bot, 'race');
     bot.bindApprovalPrompt('race', 10);
-    const inner = internals(bot);
-    const originalSettle = inner.settleApproval.bind(bot);
-    Object.assign(inner, { settleApproval: vi.fn(() => false) });
-    await inner.dispatchCallback(callback('race'));
-    Object.assign(inner, { settleApproval: originalSettle });
+    const flow = bot.approvals as unknown as {
+      settleApproval: (typeof bot.approvals)['settleApproval'];
+      dispatchCallback: (typeof bot.approvals)['dispatchCallback'];
+    };
+    const originalSettle = flow.settleApproval.bind(flow);
+    Object.assign(flow, { settleApproval: vi.fn(() => false) });
+    await flow.dispatchCallback(callback('race'));
+    Object.assign(flow, { settleApproval: originalSettle });
     bot.cancelApproval('race');
     await racing;
   });
@@ -504,32 +508,34 @@ describe('TelegramBot approval completion', () => {
     const bot = makeBot({ log });
     const api = installApi(bot);
     api.answerCallbackQuery.mockRejectedValueOnce('ack failed');
-    await internals(bot).dispatchCallback(callback('none', { data: undefined }));
+    await bot.approvals.dispatchCallback(callback('none', { data: undefined }));
     expect(log.debug).toHaveBeenCalledWith('answerCallbackQuery failed: undefined');
 
     expect(bot.bindApprovalPrompt('missing', 1)).toBe(false);
     const pending = approval(bot, 'replay');
-    await internals(bot).dispatchCallback(callback('replay'));
-    const inner = internals(bot);
-    const originalDispatch = inner.dispatchCallback.bind(bot);
-    Object.assign(inner, { dispatchCallback: vi.fn().mockRejectedValue('replay failed') });
+    await bot.approvals.dispatchCallback(callback('replay'));
+    const flow = bot.approvals as unknown as {
+      dispatchCallback: (typeof bot.approvals)['dispatchCallback'];
+    };
+    const originalDispatch = flow.dispatchCallback.bind(flow);
+    Object.assign(flow, { dispatchCallback: vi.fn().mockRejectedValue('replay failed') });
     expect(bot.bindApprovalPrompt('replay', 10)).toBe(true);
     await Promise.resolve();
     expect(log.debug).toHaveBeenCalledWith('Callback dispatch failed: replay failed');
     expect(bot.bindApprovalPrompt('replay', 11)).toBe(false);
-    Object.assign(inner, { dispatchCallback: originalDispatch });
+    Object.assign(flow, { dispatchCallback: originalDispatch });
     bot.cancelApproval('replay');
     await pending;
 
     const errorReplay = approval(bot, 'error-replay');
-    await inner.dispatchCallback(callback('error-replay'));
-    Object.assign(inner, {
+    await flow.dispatchCallback(callback('error-replay'));
+    Object.assign(flow, {
       dispatchCallback: vi.fn().mockRejectedValue(new Error('replay error')),
     });
     expect(bot.bindApprovalPrompt('error-replay', 10)).toBe(true);
     await Promise.resolve();
     expect(log.debug).toHaveBeenCalledWith('Callback dispatch failed: replay error');
-    Object.assign(inner, { dispatchCallback: originalDispatch });
+    Object.assign(flow, { dispatchCallback: originalDispatch });
     bot.cancelApproval('error-replay');
     await errorReplay;
   });

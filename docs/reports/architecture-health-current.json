@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T16:09:26.593Z",
+  "generatedAt": "2026-08-22T16:48:26.167Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3325,
+    "sourceFiles": 3326,
     "testFiles": 2872,
-    "sourceLines": 790088,
+    "sourceLines": 790189,
     "workspaceEdges": 119,
-    "moduleEdges": 10292,
+    "moduleEdges": 10295,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -696,7 +696,7 @@
     {
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
-      "sourceFiles": 22,
+      "sourceFiles": 23,
       "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/core"

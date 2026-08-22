@@ -171,7 +171,7 @@ describe('telegram_approve tool', () => {
     vi.spyOn(bot, 'sendMessageWithKeyboard').mockImplementation(async (chatId, _text, buttons) => {
       const yesKey = buttons[0]!.callback_data;
       await (
-        bot as unknown as {
+        bot.approvals as unknown as {
           dispatchCallback(cq: {
             id: string;
             from: { id: number; username: string };
@@ -307,7 +307,7 @@ describe('telegram_approve tool', () => {
     const yesKey = yesMatch![1]!;
 
     await (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from?: { id: number; username?: string; first_name?: string };
@@ -382,7 +382,7 @@ describe('telegram_approve with bot allowlist', () => {
     const yesKey = yesMatch![1]!;
 
     await (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from?: { id: number; username?: string };
@@ -414,7 +414,7 @@ describe('telegram_approve with bot allowlist', () => {
     const yesKey = prompt.match(/"callback_data":"(approve:[^"]+:yes)"/)![1]!;
 
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -422,7 +422,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
     await dispatch({
       id: 'cb-hijack',
       from: { id: 2, username: 'mallory' },
@@ -450,7 +450,7 @@ describe('telegram_approve with bot allowlist', () => {
     const prompt = sentBodies.find((b) => b.includes('Cross-chat?'))!;
     const yesKey = prompt.match(/"callback_data":"(approve:[^"]+:yes)"/)![1]!;
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -458,7 +458,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
 
     await dispatch({
       id: 'cb-cross-chat',
@@ -486,7 +486,7 @@ describe('telegram_approve with bot allowlist', () => {
     const prompt = sentBodies.find((b) => b.includes('Identity-bound?'))!;
     const yesKey = prompt.match(/"callback_data":"(approve:[^"]+:yes)"/)![1]!;
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -494,7 +494,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
 
     await dispatch({
       id: 'cb-wrong-allowlisted-user',
@@ -522,7 +522,7 @@ describe('telegram_approve with bot allowlist', () => {
     const prompt = sentBodies.find((b) => b.includes('Message-bound?'))!;
     const yesKey = prompt.match(/"callback_data":"(approve:[^"]+:yes)"/)![1]!;
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -530,7 +530,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
 
     await dispatch({
       id: 'cb-wrong-message',
@@ -595,7 +595,7 @@ describe('telegram_approve with bot allowlist', () => {
     const prompt = sentBodies.find((b) => b.includes('Deny-bot?'))!;
     const noKey = prompt.match(/"callback_data":"(approve:[^"]+:no)"/)![1]!;
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -603,7 +603,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
 
     await dispatch({
       id: 'cb-deny-hijack',
@@ -630,7 +630,7 @@ describe('telegram_approve with bot allowlist', () => {
     const prompt = sentBodies.find((b) => b.includes('Race?'))!;
     const yesKey = prompt.match(/"callback_data":"(approve:[^"]+:yes)"/)![1]!;
     const dispatch = (
-      bot as unknown as {
+      bot.approvals as unknown as {
         dispatchCallback(cq: {
           id: string;
           from: { id: number; username?: string };
@@ -638,7 +638,7 @@ describe('telegram_approve with bot allowlist', () => {
           data: string;
         }): Promise<void>;
       }
-    ).dispatchCallback.bind(bot);
+    ).dispatchCallback.bind(bot.approvals);
 
     await dispatch({
       id: 'cb-unauthorized',
