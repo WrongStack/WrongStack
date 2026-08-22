@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T12:57:17.811Z",
+  "generatedAt": "2026-08-22T13:38:25.003Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 34,
-    "sourceFiles": 3298,
-    "testFiles": 2869,
-    "sourceLines": 789228,
+    "sourceFiles": 3316,
+    "testFiles": 2870,
+    "sourceLines": 789739,
     "workspaceEdges": 112,
-    "moduleEdges": 10218,
+    "moduleEdges": 10277,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -698,7 +698,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 191,
-      "testFiles": 198,
+      "testFiles": 199,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -713,7 +713,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 198
+          "testFiles": 199
         }
       ]
     },
@@ -845,7 +845,7 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 174,
+      "sourceFiles": 192,
       "testFiles": 152,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -12391,6 +12391,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/index-service-piggyback.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/install.test.ts",
         "projects": [
           "root-node"
@@ -18662,6 +18668,11 @@
       "relativeImports": 9
     },
     {
+      "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
+      "lines": 811,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
       "lines": 829,
       "relativeImports": 5
@@ -18867,11 +18878,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
-      "lines": 996,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/webui-server/src/server/context-editor.ts",
       "lines": 1020,
       "relativeImports": 1
@@ -18890,11 +18896,6 @@
       "file": "packages/webui-server/src/server/kanban-routes.ts",
       "lines": 982,
       "relativeImports": 10
-    },
-    {
-      "file": "packages/webui-server/src/server/provider-handlers.ts",
-      "lines": 827,
-      "relativeImports": 6
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
@@ -19059,11 +19060,6 @@
       "relativeImports": 13
     },
     {
-      "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
-      "lines": 996,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/sage/src/types.ts",
       "lines": 993,
       "relativeImports": 0
@@ -19172,6 +19168,11 @@
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 949,
       "relativeImports": 1
+    },
+    {
+      "file": "apps/desktop/src/renderer/src/renderer.ts",
+      "lines": 944,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [

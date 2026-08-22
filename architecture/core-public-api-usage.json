@@ -19,8 +19,8 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 184,
-      "typeOnly": 78,
+      "files": 186,
+      "typeOnly": 80,
       "runtimeOrMixed": 156
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -79,8 +79,8 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 238,
-      "typeOnly": 127,
+      "files": 239,
+      "typeOnly": 128,
       "runtimeOrMixed": 124
     },
     "@wrongstack/core/kernel/events.js": {
@@ -139,8 +139,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 103,
-      "typeOnly": 30,
+      "files": 104,
+      "typeOnly": 31,
       "runtimeOrMixed": 107
     },
     "@wrongstack/core/tasking": {
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 976,
-      "typeOnly": 901,
+      "files": 983,
+      "typeOnly": 908,
       "runtimeOrMixed": 241
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 536,
+      "files": 539,
       "typeOnly": 60,
-      "runtimeOrMixed": 503
+      "runtimeOrMixed": 506
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -3089,6 +3089,18 @@
       "file": "packages/webui-server/src/server/client-presence.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/collab/collab-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/collab/injection.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -6086,6 +6098,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/collab/mirror.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -6488,13 +6506,13 @@
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/webui-server/src/server/provider-handlers.ts",
+      "file": "packages/webui-server/src/server/provider-routes.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/models",
-      "file": "packages/webui-server/src/server/provider-routes.ts",
+      "file": "packages/webui-server/src/server/provider/catalog.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8168,14 +8186,14 @@
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/webui-server/src/server/provider-handlers.ts",
-      "typeOnly": 0,
+      "file": "packages/webui-server/src/server/provider-store.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
-      "file": "packages/webui-server/src/server/provider-store.ts",
-      "typeOnly": 1,
+      "file": "packages/webui-server/src/server/provider/projection.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -8840,6 +8858,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/collab/collab-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9230,7 +9254,7 @@
     },
     {
       "specifier": "@wrongstack/core/tools",
-      "file": "packages/webui-server/src/server/provider-handlers.ts",
+      "file": "packages/webui-server/src/server/provider/keys.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14474,6 +14498,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/collab/collab-context.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/collaboration-ws-handler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -14745,6 +14775,42 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/provider-store.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/catalog.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/custom-models.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/keys.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/mutations.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/oauth.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider/projection.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -18147,6 +18213,24 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/codebase-indexing.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/collab/annotations.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/collab/membership.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/collab/replay.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -258,6 +258,10 @@
       "lines": 1013,
       "relativeImports": 9
     },
+    "packages/tools/src/codebase-index/tree-sitter/queries.ts": {
+      "lines": 811,
+      "relativeImports": 1
+    },
     "packages/tools/src/codebase-index/writer-graph-reader.ts": {
       "lines": 829,
       "relativeImports": 5
@@ -422,10 +426,6 @@
       "lines": 895,
       "relativeImports": 2
     },
-    "packages/webui-server/src/server/collaboration-ws-handler.ts": {
-      "lines": 996,
-      "relativeImports": 2
-    },
     "packages/webui-server/src/server/context-editor.ts": {
       "lines": 1020,
       "relativeImports": 1
@@ -441,10 +441,6 @@
     "packages/webui-server/src/server/kanban-routes.ts": {
       "lines": 982,
       "relativeImports": 10
-    },
-    "packages/webui-server/src/server/provider-handlers.ts": {
-      "lines": 827,
-      "relativeImports": 6
     },
     "packages/webui-server/src/server/session-handlers.ts": {
       "lines": 807,

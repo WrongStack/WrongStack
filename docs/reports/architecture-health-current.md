@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T12:57:17.811Z
+**Generated:** 2026-08-22T13:38:25.003Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 34 |
-| Production source files | 3298 |
-| Production source lines | 789228 |
-| Test files | 2869 |
+| Production source files | 3316 |
+| Production source lines | 789739 |
+| Test files | 2870 |
 | Workspace dependency edges | 112 |
-| Relative module edges | 10218 |
+| Relative module edges | 10277 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -53,13 +53,13 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/simpleui | 93 | 61 | @wrongstack/kanban, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/tools |
 | @wrongstack/telegram | 21 | 29 | @wrongstack/core |
-| @wrongstack/tools | 191 | 198 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
+| @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence |
 | @wrongstack/tui | 332 | 318 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/sage |
 | @wrongstack/webui | 463 | 338 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 0 | @wrongstack/core |
-| @wrongstack/webui-server | 174 | 152 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol |
+| @wrongstack/webui-server | 192 | 152 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol |
 | wrongstack | 1 | 0 | @wrongstack/cli |
 
 ## Module cycles
@@ -111,7 +111,6 @@ None.
 | 998 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
 | 996 | `packages/tui/src/input-validation.ts` |
-| 996 | `packages/webui-server/src/server/collaboration-ws-handler.ts` |
 | 993 | `packages/sage/src/types.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
@@ -134,6 +133,7 @@ None.
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
+| 944 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 
