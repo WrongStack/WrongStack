@@ -71,6 +71,19 @@ describe('parseSSE', () => {
     expect(events).toEqual([{ event: 'x', data: 'y' }]);
   });
 
+  it('handles CRLF line endings split across chunk boundaries (BIZ-008)', async () => {
+    // \r is the last byte of chunk 1, \n is the first byte of chunk 2
+    const body = bodyFrom([
+      'event: message_stop\r',
+      '\ndata: {"stop":true}\r',
+      '\n\r',
+      '\n',
+    ]);
+    const events = [];
+    for await (const msg of parseSSE(body)) events.push(msg);
+    expect(events).toEqual([{ event: 'message_stop', data: '{"stop":true}' }]);
+  });
+
   it('parseSSE handles trailing content after final event with no blank line', async () => {
     // Lines 114-116: after the loop, if buffer has content it should be flushed.
     // A trailing data: line (even without a trailing \n in that chunk) still

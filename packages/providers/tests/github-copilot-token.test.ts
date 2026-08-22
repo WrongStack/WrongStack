@@ -37,6 +37,22 @@ describe('copilotBaseUrlFromToken', () => {
       'https://api.individual.githubcopilot.com',
     );
   });
+
+  it('rejects backslash suffix bypass attempts (SEC-005) and falls back to default', () => {
+    const token = 'proxy-ep=api.evil.com\\x.githubcopilot.com';
+    expect(copilotBaseUrlFromToken(token)).toBe(
+      'https://api.individual.githubcopilot.com',
+    );
+  });
+
+  it('rejects userinfo, query params and path injection in proxy-ep', () => {
+    expect(copilotBaseUrlFromToken('proxy-ep=user:pass@api.individual.githubcopilot.com')).toBe(
+      'https://api.individual.githubcopilot.com',
+    );
+    expect(copilotBaseUrlFromToken('proxy-ep=api.individual.githubcopilot.com/evil')).toBe(
+      'https://api.individual.githubcopilot.com',
+    );
+  });
 });
 
 describe('refreshCopilotToken', () => {

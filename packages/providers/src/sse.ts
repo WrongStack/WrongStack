@@ -141,8 +141,11 @@ export async function* parseSSE(
       const isCr = i > lineStart && chunk[i - 1] === 0x0d;
       const lineEnd = isCr ? i - 1 : i;
       const lineBytes = chunk.subarray(lineStart, lineEnd);
-      const completeLine =
+      let completeLine =
         pending.length === 0 ? lineBytes : concatBytes(pending, lineBytes);
+      if (completeLine.length > 0 && completeLine[completeLine.length - 1] === 0x0d) {
+        completeLine = completeLine.subarray(0, completeLine.length - 1);
+      }
       pending = new Uint8Array(0);
       lineStart = i + 1;
       const msg = processLine(decodeLine(completeLine));
@@ -283,7 +286,10 @@ export function createSseLineFoldingTransform(
           const isCr = i > chunkStart && value[i - 1] === 0x0d;
           const lineEnd = isCr ? i - 1 : i;
           const lineTail = value.subarray(chunkStart, lineEnd);
-          const line = lineBuf.length === 0 ? Uint8Array.from(lineTail) : concatBytes(lineBuf, lineTail);
+          let line = lineBuf.length === 0 ? Uint8Array.from(lineTail) : concatBytes(lineBuf, lineTail);
+          if (line.length > 0 && line[line.length - 1] === 0x0d) {
+            line = line.subarray(0, line.length - 1);
+          }
           lineBuf = new Uint8Array(0);
           emitLine(controller, line);
           emittedThisChunk = true;

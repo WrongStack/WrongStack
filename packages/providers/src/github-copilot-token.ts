@@ -28,9 +28,23 @@ export function copilotBaseUrlFromToken(token: string | undefined): string {
   if (token) {
     const m = token.match(/proxy-ep=([^;]+)/);
     if (m?.[1]) {
-      const hostname = m[1].replace(/^proxy\./, 'api.');
-      if (SAFE_PROXY_EP_SUFFIXES.some((s) => hostname.endsWith(s)) && !hostname.includes(':')) {
-        return `https://${hostname}`;
+      const raw = m[1].replace(/^proxy\./, 'api.');
+      try {
+        const u = new URL(`https://${raw}`);
+        const hostname = u.hostname.toLowerCase();
+        if (
+          SAFE_PROXY_EP_SUFFIXES.some((s) => hostname.endsWith(s)) &&
+          !hostname.includes(':') &&
+          !u.port &&
+          (u.pathname === '/' || u.pathname === '') &&
+          !u.search &&
+          !u.username &&
+          !u.password
+        ) {
+          return u.origin;
+        }
+      } catch {
+        // invalid URL
       }
       // Unknown or private hostname — fall back to default rather than follow.
     }
