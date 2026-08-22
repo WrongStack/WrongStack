@@ -57,13 +57,17 @@ describe('runIndexer', () => {
       process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = '0';
       expect(shouldUseParserWorkerPool(100_000, 40)).toBe(false);
 
-      // Unparsable / negative values fall back to the default, never disable.
+      // Malformed values fall back to the default, never disable or
+      // parse-prefix (Chimera follow-up: parseInt('0junk') === 0 silently
+      // disabled the worker path; parseInt('10foo') === 10 honored junk).
       process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = 'not-a-number';
       expect(shouldUseParserWorkerPool(499, 2)).toBe(false);
       expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
-      process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = '-5';
-      expect(shouldUseParserWorkerPool(499, 2)).toBe(false);
-      expect(shouldUseParserWorkerPool(500, 2)).toBe(true);
+      for (const junk of ['0junk', '10foo', '1.5', '1e3', '-5', '']) {
+        process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'] = junk;
+        expect(shouldUseParserWorkerPool(499, 2), `junk=${junk}`).toBe(false);
+        expect(shouldUseParserWorkerPool(500, 2), `junk=${junk}`).toBe(true);
+      }
     } finally {
       if (prevProfile === undefined) delete process.env['WRONGSTACK_PERF_PROFILE'];
       else process.env['WRONGSTACK_PERF_PROFILE'] = prevProfile;

@@ -47,9 +47,13 @@ export const WORKER_POOL_THRESHOLD = 500;
 export function resolveWorkerPoolThreshold(): number {
   const raw = process.env['WRONGSTACK_INDEX_WORKER_THRESHOLD'];
   if (raw === undefined) return WORKER_POOL_THRESHOLD;
-  const parsed = Number.parseInt(raw, 10);
-  if (!Number.isFinite(parsed) || parsed < 0) return WORKER_POOL_THRESHOLD;
-  return parsed;
+  // Full-value validation (Chimera follow-up): parseInt parses the PREFIX,
+  // so '0junk' → 0 silently DISABLED the worker path and '10foo' → 10
+  // honored a malformed value. Only an all-digits value counts; anything
+  // else ('1.5', '1e3', trailing junk, empty, negative) falls back to the
+  // documented default rather than guessing intent from a prefix.
+  if (!/^\d+$/.test(raw)) return WORKER_POOL_THRESHOLD;
+  return Number.parseInt(raw, 10);
 }
 
 interface PendingBatch {
