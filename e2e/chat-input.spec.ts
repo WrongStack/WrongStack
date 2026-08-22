@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * ChatInput E2E tests — verify the chat input renders, accepts text,
@@ -16,7 +16,8 @@ import { test, expect } from '@playwright/test';
  */
 
 /** The chat input locator — matches textarea or input with message-like attributes. */
-const chatInput = 'textarea[placeholder*="message" i], textarea[placeholder*="input" i], input[placeholder*="message" i], input[placeholder*="input" i], textarea[data-testid="chat-input"]';
+const chatInput =
+  'textarea[placeholder*="message" i], textarea[placeholder*="input" i], input[placeholder*="message" i], input[placeholder*="input" i], textarea[data-testid="chat-input"]';
 
 /** The setup screen locator — shown when no provider/model is configured. */
 const setupScreen = '[data-testid="setup-screen"], [class*="setup"], [class*="Setup"]';
@@ -29,10 +30,12 @@ async function waitForReadyState(page: import('@playwright/test').Page): Promise
   const inputLocator = page.locator(chatInput).first();
   const setupLocator = page.locator(setupScreen).first();
 
-  await expect.poll(
-    async () => (await inputLocator.isVisible()) || (await setupLocator.isVisible()),
-    { timeout: 10_000, message: 'Neither chat input nor setup screen appeared' },
-  ).toBe(true);
+  await expect
+    .poll(async () => (await inputLocator.isVisible()) || (await setupLocator.isVisible()), {
+      timeout: 10_000,
+      message: 'Neither chat input nor setup screen appeared',
+    })
+    .toBe(true);
 
   if (await inputLocator.isVisible()) return 'chat';
   return 'setup';
@@ -73,9 +76,7 @@ test.describe('ChatInput', () => {
     await expect(sendBtn).toBeEnabled();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('slash command menu appears on /', async ({ page }) => {
+  test('slash command menu appears on /', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state, 'chat input should be visible when provider is configured').toBe('chat');
 
@@ -83,25 +84,30 @@ test.describe('ChatInput', () => {
     await input.focus();
     await input.fill('/');
 
-    // Slash command menu should appear.
-    const menu = page.locator('[role="listbox"], [role="menu"], [class*="slash"]').first();
-    await expect(menu).toBeVisible({ timeout: 3000 });
+    // SlashCommandPopup renders above the composer with a keyboard-hint
+    // header and one button per matching command (see
+    // packages/webui/src/components/ChatInput/slash-popup.tsx).
+    const popup = page.locator('div[class*="bottom-full"]').first();
+    await expect(popup).toBeVisible({ timeout: 5000 });
+    await expect(popup.getByText(/Tab complete/)).toBeVisible();
+    // At least one command entry is offered (e.g. the always-registered
+    // /help) — the command name renders in a font-mono span.
+    await expect(popup.locator('button span.font-mono').first()).toBeVisible();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('character counter shows when near limit', async ({ page }) => {
+  test('draft token counter shows for long input', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state, 'chat input should be visible when provider is configured').toBe('chat');
 
     const input = page.locator(chatInput).first();
-    // Fill with enough text to trigger counter.
-    const longText = 'A'.repeat(200);
-    await input.fill(longText);
+    // DraftTokenCounter appears from the first character and switches to
+    // token estimates at >= 400 chars (4-char heuristic) — see
+    // packages/webui/src/components/ChatInput/draft-token-counter.tsx.
+    await input.fill('B'.repeat(450));
 
-    // Counter should appear for long inputs — strict assertion.
-    const counter = page.locator('[class*="char-count"], [class*="counter"]').first();
+    const counter = page.locator('span[title*="tokens" i]').first();
     await expect(counter).toBeVisible({ timeout: 3000 });
+    await expect(counter).toContainText('450');
   });
 
   test('abort button is attached to DOM', async ({ page }) => {
@@ -110,21 +116,27 @@ test.describe('ChatInput', () => {
 
     // The abort button may be hidden without an active request, but it
     // should be present in the DOM.
-    const abortBtn = page.locator('[aria-label*="abort" i], button:has(svg[class*="square"])').first();
+    const abortBtn = page
+      .locator('[aria-label*="abort" i], button:has(svg[class*="square"])')
+      .first();
     await expect(abortBtn).toBeAttached({ timeout: 3000 });
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('refine panel toggle is accessible', async ({ page }) => {
+  test('refine panel toggle is accessible', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state, 'chat input should be visible when provider is configured').toBe('chat');
 
-    const refineToggle = page.getByRole('button', { name: /refine/i }).first();
-    await expect(refineToggle).toBeVisible({ timeout: 3000 });
+    // The enhance/refine toggle sits in the composer button bar and
+    // exposes its state via title (chat:input.refineEnabledTitle /
+    // refineDisabledTitle in packages/webui/src/i18n/locales/en/chat.json).
+    const refineToggle = page.locator('button[title*="Refining" i]').first();
+    await expect(refineToggle).toBeVisible({ timeout: 5000 });
     await refineToggle.click();
-    // Panel should toggle — the button should still be attached.
-    await expect(refineToggle).toBeAttached();
+    // The toggle flips state — the title attribute swaps between the
+    // enabled/disabled wording.
+    await expect(refineToggle).toHaveAttribute('title', /refining/i, { timeout: 5000 });
+    // Click back to restore the original state.
+    await refineToggle.click();
   });
 
   test('file attach button is present', async ({ page }) => {

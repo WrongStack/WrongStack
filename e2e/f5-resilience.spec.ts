@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 
 /**
  * F5 resilience — the contract this test guards:
@@ -29,9 +29,7 @@ async function openVerifier(page: Page): Promise<void> {
   // RefreshDebugView reads the persisted state on first render.
   await page.goto('/refresh-debug');
   // Wait for the heading to ensure the React tree has mounted.
-  await page
-    .getByText(/F5 Resilience Verifier/i)
-    .waitFor({ state: 'visible', timeout: 15_000 });
+  await page.getByText(/F5 Resilience Verifier/i).waitFor({ state: 'visible', timeout: 15_000 });
 }
 
 async function readCardRow(
@@ -44,15 +42,27 @@ async function readCardRow(
   const card = page.locator('div.rounded-lg').filter({ hasText: label }).first();
   await card.waitFor({ state: 'visible', timeout: 5_000 });
   const extra = await card.locator('div.text-xs.font-mono').innerText();
-  // tone is reflected in the border-amber vs border-green class
+  // tone is reflected in the border-success vs border-warning/border class
+  // (CardRow in RefreshDebugView.tsx: ok → border-success/40, warn →
+  // border-warning/40, neutral → border-border).
   const classAttr = (await card.getAttribute('class')) ?? '';
-  const ok = classAttr.includes('border-green');
+  const ok = classAttr.includes('border-success');
   return { ok, text: extra };
 }
 
+/** Read a DataTile (persisted-env / UI-workspace value tiles) by its
+ *  uppercase label (e.g. "projectName"). Returns the rendered value. */
+async function readDataTile(page: Page, label: string): Promise<string> {
+  const tile = page
+    .locator('div.rounded-lg')
+    .filter({ has: page.locator('p', { hasText: label }) })
+    .first();
+  await tile.waitFor({ state: 'visible', timeout: 5_000 });
+  return tile.innerText();
+}
+
 test.describe('F5 resilience — round-trip via /refresh-debug', () => {
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-  test.fixme('session + env + view + transcript all survive page reload', async ({ page }) => {
+  test('session + env + view + transcript all survive page reload', async ({ page }) => {
     // ── 1. Land on chat, send a prompt so the chat store populates ──
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -69,8 +79,9 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     // it round-trips through the verifier view. We use evaluate rather
     // than clicking ActivityBar tabs so the test stays deterministic.
     await page.evaluate(() => {
-      const next = { state: { currentView: 'sessions' }, version: 5 };
-      // Stamp the v5 shape that the ui-store migrate accepts.
+      // Stamp the v6 shape that the ui-store migrate accepts ('sessions'
+      // is a valid currentView — see VIEWS in stores/ui-store.ts).
+      const next = { state: { currentView: 'sessions' }, version: 6 };
       localStorage.setItem('wrongstack-ui', JSON.stringify(next));
     });
 
@@ -98,11 +109,11 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     expect(session.text).not.toBe('null');
 
     // Persisted env — we know we filled "What is the capital of France?"
-    // but projectName/cwd come from the server handshake. We assert the
-    // tile rendered (text may be empty on a fresh project, but ok must
-    // be true because the persisted env fields ARE in localStorage).
-    const projectName = await readCardRow(page, /projectName/i);
-    expect(projectName.text).toBeTruthy();
+    // but projectName/cwd come from the server handshake. The env fields
+    // render as DataTiles (not CardRows); assert the projectName tile
+    // renders a non-empty value (the handshake populates it).
+    const projectTile = await readDataTile(page, 'projectName');
+    expect(projectTile).toBeTruthy();
 
     // The "no session has been started" wording is the *empty* state of
     // the Active session pointer card. After we've typed a message and
@@ -125,9 +136,7 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     await expect(page.getByText('sessions').first()).toBeVisible();
 
     // The verifier view itself must be visible regardless of round-trip.
-    await expect(
-      page.getByText(/F5 Resilience Verifier/i),
-    ).toBeVisible();
+    await expect(page.getByText(/F5 Resilience Verifier/i)).toBeVisible();
   });
 
   test('verifier view surfaces corrupted-session shape as null migrate', async ({ page }) => {
@@ -154,9 +163,7 @@ test.describe('F5 resilience — round-trip via /refresh-debug', () => {
     expect(session.text).toBeTruthy();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('localStorage round-trip survives two reloads in a row', async ({ page }) => {
+  test('localStorage round-trip survives two reloads in a row', async ({ page }) => {
     // Two reloads in a row is the worst case — the second reload runs
     // with the localStorage that the first reload's persist writes
     // produced. If our beforeunload/pagehide flush isn't working, the

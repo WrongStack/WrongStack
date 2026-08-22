@@ -1,14 +1,19 @@
-import { test, expect } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 
 /**
  * Settings panel E2E tests — verify the settings panel opens, tabs navigate,
  * provider/model switching UI is interactive, and preference toggles work.
  *
  * These tests run against the live WebUI server.
+ *
+ * The panel's tab list is kept in sync with TABS in
+ * packages/webui/src/components/SettingsPanel/index.tsx (14 tabs as of
+ * 2026-08-22; the old appearance/features tabs became General/Context).
  */
 
 /** The chat input locator — matches textarea or input with message-like attributes. */
-const chatInput = 'textarea[placeholder*="message" i], textarea[placeholder*="input" i], input[placeholder*="message" i], input[placeholder*="input" i], textarea[data-testid="chat-input"]';
+const chatInput =
+  'textarea[placeholder*="message" i], textarea[placeholder*="input" i], input[placeholder*="message" i], input[placeholder*="input" i], textarea[data-testid="chat-input"]';
 
 /** The setup screen locator — shown when no provider/model is configured. */
 const setupScreen = '[data-testid="setup-screen"], [class*="setup"], [class*="Setup"]';
@@ -21,17 +26,32 @@ async function waitForReadyState(page: import('@playwright/test').Page): Promise
   const inputLocator = page.locator(chatInput).first();
   const setupLocator = page.locator(setupScreen).first();
 
-  await expect.poll(
-    async () => {
-      const inputVisible = await inputLocator.isVisible().catch(() => false);
-      const setupVisible = await setupLocator.isVisible().catch(() => false);
-      return inputVisible || setupVisible;
-    },
-    { timeout: 10_000, message: 'Neither chat input nor setup screen appeared' },
-  ).toBe(true);
+  await expect
+    .poll(
+      async () => {
+        const inputVisible = await inputLocator.isVisible().catch(() => false);
+        const setupVisible = await setupLocator.isVisible().catch(() => false);
+        return inputVisible || setupVisible;
+      },
+      { timeout: 10_000, message: 'Neither chat input nor setup screen appeared' },
+    )
+    .toBe(true);
 
   const inputVisible = await inputLocator.isVisible().catch(() => false);
   return inputVisible ? 'chat' : 'setup';
+}
+
+/** Open the settings view from the activity bar and wait for the panel. */
+async function openSettings(page: import('@playwright/test').Page): Promise<void> {
+  const settingsButton = page
+    .locator(
+      '[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)',
+    )
+    .first();
+  await settingsButton.click();
+  await expect(page.locator('h1, h2, h3').filter({ hasText: /settings/i })).toBeVisible({
+    timeout: 5000,
+  });
 }
 
 test.describe('WebUI Settings Panel', () => {
@@ -43,108 +63,121 @@ test.describe('WebUI Settings Panel', () => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Click the settings icon in the activity bar (gear icon)
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
-
-    // The settings panel should be visible with a "Settings" heading
-    await expect(page.locator('h1, h2, h3').filter({ hasText: /settings/i })).toBeVisible({ timeout: 5000 });
+    await openSettings(page);
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('provider tab is the default and shows provider/model sections', async ({ page }) => {
+  test('general tab is the default and shows theme controls', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Open settings
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
+    await openSettings(page);
 
-    // The "Provider" tab trigger should be visible and active
-    const providerTab = page.locator('[role="tab"], button').filter({ hasText: /provider/i }).first();
+    // The "General" tab trigger should be visible and active (the panel's
+    // default tab — appearance/language/display preferences).
+    const generalTab = page.getByRole('tab', { name: /^General$/ });
+    await expect(generalTab).toBeVisible({ timeout: 5000 });
+    await expect(generalTab).toHaveAttribute('aria-selected', 'true');
+
+    // The General tab content shows the theme section heading.
+    await expect(page.getByRole('heading', { name: /theme/i }).first()).toBeVisible({
+      timeout: 5000,
+    });
+  });
+
+  test('provider tab shows provider and model sections', async ({ page }) => {
+    const state = await waitForReadyState(page);
+    expect(state).toBe('chat');
+
+    await openSettings(page);
+
+    const providerTab = page.getByRole('tab', { name: /^Provider$/ });
     await expect(providerTab).toBeVisible({ timeout: 5000 });
+    await providerTab.click();
+    await expect(providerTab).toHaveAttribute('aria-selected', 'true');
 
-    // The "Model" label should be visible in the provider tab content
-    await expect(page.locator('label, span, h3').filter({ hasText: /^model$/i })).toBeVisible({ timeout: 5000 });
+    // The provider tab lists saved providers under the API-key section and
+    // surfaces the "Model" heading (the active model picker).
+    await expect(page.getByRole('heading', { name: /API key providers/i })).toBeVisible({
+      timeout: 5000,
+    });
+    await expect(page.getByRole('heading', { name: /^Model$/ })).toBeVisible({ timeout: 5000 });
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('all settings tabs are clickable and switch content', async ({ page }) => {
+  test('all settings tabs are clickable and switch content', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Open settings
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
+    await openSettings(page);
 
-    // Wait for settings to render
-    await expect(page.locator('[role="tab"], button').filter({ hasText: /provider/i })).toBeVisible({ timeout: 5000 });
-
-    // Click through each tab
-    const tabs = ['appearance', 'connection', 'agent', 'features'];
-    for (const tabName of tabs) {
-      const tab = page.locator('[role="tab"], button').filter({ hasText: new RegExp(tabName, 'i') }).first();
+    // Click through every tab in the current panel.
+    const tabNames = [
+      'General',
+      'Provider',
+      'Connections',
+      'Agent',
+      'Execution',
+      'Fallbacks',
+      'Routing',
+      'Fleet',
+      'Integrations',
+      'Chimera',
+      'Context',
+      'Logs',
+      'Security',
+      'Display',
+    ];
+    for (const tabName of tabNames) {
+      const tab = page.getByRole('tab', { name: new RegExp(`^${tabName}$`) });
       await tab.click();
-      // Give the tab content a moment to render
-      await page.waitForTimeout(200);
-      // The tab should still be visible (content area didn't crash)
-      await expect(tab).toBeVisible();
+      // The tab becomes selected and its content panel renders without
+      // crashing (the content area is visible).
+      await expect(tab).toHaveAttribute('aria-selected', 'true');
+      await expect(page.locator('[role="tabpanel"]').first()).toBeVisible({
+        timeout: 5000,
+      });
     }
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('appearance tab shows theme toggle buttons', async ({ page }) => {
+  test('general tab shows theme toggle buttons', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Open settings
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
+    await openSettings(page);
 
-    // Navigate to the Appearance tab
-    const appearanceTab = page.locator('[role="tab"], button').filter({ hasText: /appearance/i }).first();
-    await appearanceTab.click();
-    await page.waitForTimeout(300);
+    // General is the default tab and carries the theme controls
+    // (Light / Dark / System).
+    const lightBtn = page.getByRole('button', { name: /^Light$/ });
+    const darkBtn = page.getByRole('button', { name: /^Dark$/ });
+    const systemBtn = page.getByRole('button', { name: /^System$/ });
+    await expect(lightBtn).toBeVisible({ timeout: 5000 });
+    await expect(darkBtn).toBeVisible({ timeout: 5000 });
+    await expect(systemBtn).toBeVisible({ timeout: 5000 });
 
-    // Theme toggle buttons should be visible (Light, Dark, System)
-    await expect(page.locator('button').filter({ hasText: /light/i })).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('button').filter({ hasText: /dark/i })).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('button').filter({ hasText: /system/i })).toBeVisible({ timeout: 5000 });
+    // Clicking a theme does not crash the panel.
+    await darkBtn.click();
+    await expect(darkBtn).toBeVisible();
   });
 
-  // FIXME(2026-08-17): rotten spec — times out in CI against current UI (run 31978025696); repair before re-enabling.
-
-  test.fixme('features tab shows preference toggles', async ({ page }) => {
+  test('context tab shows feature flags', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Open settings
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
+    await openSettings(page);
 
-    // Navigate to the Features tab
-    const featuresTab = page.locator('[role="tab"], button').filter({ hasText: /features/i }).first();
-    await featuresTab.click();
-    await page.waitForTimeout(300);
-
-    // At least one feature toggle label should be visible (e.g., "Skills", "Memory")
-    const toggleLabel = page.locator('label, span').filter({ hasText: /skills|memory|models registry/i }).first();
-    await expect(toggleLabel).toBeVisible({ timeout: 5000 });
+    // The Context tab owns feature flags (the successor of the old
+    // "features" tab), compactor strategy, and per-plugin controls.
+    const contextTab = page.getByRole('tab', { name: /^Context$/ });
+    await contextTab.click();
+    await expect(page.getByRole('heading', { name: /feature flags/i })).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test('close button returns to chat view', async ({ page }) => {
     const state = await waitForReadyState(page);
     expect(state).toBe('chat');
 
-    // Open settings
-    const settingsButton = page.locator('[data-testid="settings-button"], button[title*="settings" i], button:has(svg.lucide-settings)').first();
-    await settingsButton.click();
-
-    // Wait for settings panel to appear
-    await expect(page.locator('h1, h2, h3').filter({ hasText: /settings/i })).toBeVisible({ timeout: 5000 });
+    await openSettings(page);
 
     // Click the close/back button (X icon or ghost button)
     const closeButton = page.locator('button:has(svg.lucide-x), button[variant="ghost"]').first();

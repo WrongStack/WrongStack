@@ -272,6 +272,26 @@
       "fingerprint": "e9dd96a56b23b9cb"
     },
     {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "49f2952817ccabdf"
+    },
+    {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "5d73d6f64f8c803c"
+    },
+    {
+      "file": "packages/tools/tests/parser-batch.test.ts",
+      "kind": "runIf",
+      "fingerprint": "d6ab49a134965756"
+    },
+    {
+      "file": "packages/tools/tests/parser-worker-pool-failover.test.ts",
+      "kind": "runIf",
+      "fingerprint": "afe17d1aea5b792d"
+    },
+    {
       "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
       "kind": "skipIf",
       "fingerprint": "69d4b3efe347daa8"
@@ -280,6 +300,11 @@
       "file": "packages/tools/tests/project-server-auth-gate.test.ts",
       "kind": "skipIf",
       "fingerprint": "2fd8a1e841259023"
+    },
+    {
+      "file": "packages/tools/tests/project-server-binary-framing.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d8ee4737d1b868a2"
     },
     {
       "file": "packages/tools/tests/project-server-idle.test.ts",
