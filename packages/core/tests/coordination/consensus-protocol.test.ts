@@ -306,6 +306,49 @@ describe('ConsensusProtocol', () => {
       // Verify graph.update was called
       expect(graph.update).toHaveBeenCalled();
     });
+
+    it('passes when heavy proposer is excluded from totalWeight denominator (BIZ-006)', async () => {
+      const protocol = new ConsensusProtocol({
+        voters: [
+          { agentId: 'proposer', agentName: 'Heavy Proposer', role: 'architect', weight: 10 },
+          { agentId: 'voter-1', agentName: 'Alice', role: 'reviewer', weight: 1 },
+          { agentId: 'voter-2', agentName: 'Bob', role: 'reviewer', weight: 1 },
+        ],
+        graph,
+        rules: {
+          quorumFraction: 0.5,
+          approvalFraction: 0.5,
+          vetoRoles: [],
+          approvalWeightFraction: 0.5,
+        },
+      });
+      createChangeNode(graph, 'change-heavy', { proposedBy: 'proposer' });
+
+      await protocol.castVote('change-heavy', 'voter-1', 'approve');
+      const res = await protocol.castVote('change-heavy', 'voter-2', 'approve');
+
+      expect(res.outcome).toBe('approved');
+      expect(res.approvalMet).toBe(true);
+    });
+
+    it('refuses late votes on already-resolved changes (BIZ-007)', async () => {
+      const protocol = new ConsensusProtocol({
+        voters: [
+          { agentId: 'voter-1', agentName: 'Alice', role: 'reviewer', weight: 1 },
+          { agentId: 'voter-2', agentName: 'Bob', role: 'reviewer', weight: 1 },
+        ],
+        graph,
+        rules: { quorumFraction: 0.5, approvalFraction: 0.5, vetoRoles: [] },
+      });
+      const change = createChangeNode(graph, 'change-closed', { status: 'approved' });
+
+      await expect(protocol.castVote('change-closed', 'voter-1', 'reject')).rejects.toThrow(
+        /ballot is closed/,
+      );
+      await expect(protocol.initiateVote('change-closed')).rejects.toThrow(
+        /already resolved/,
+      );
+    });
   });
 
   describe('resolveNow', () => {

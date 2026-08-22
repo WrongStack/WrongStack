@@ -105,6 +105,11 @@ export class ConsensusProtocol {
     if (change?.type !== 'change') {
       throw new Error(`ConsensusProtocol: no change found with id "${changeId}"`);
     }
+    if (change.status === 'approved' || change.status === 'rejected') {
+      throw new Error(
+        `ConsensusProtocol: cannot initiate vote on already resolved change "${changeId}" (status: "${change.status}")`,
+      );
+    }
     await this.graph.update(changeId, { status: 'proposed', votes: [] });
     const eligible = this._eligibleVoters(change);
     this._notifyVoters(change, eligible, 'vote_initiated');
@@ -123,6 +128,12 @@ export class ConsensusProtocol {
     const change = this.graph.get(changeId) as ChangeNode | undefined;
     if (change?.type !== 'change') {
       throw new Error(`ConsensusProtocol: no change found for "${changeId}"`);
+    }
+
+    if (change.status !== 'proposed') {
+      throw new Error(
+        `ConsensusProtocol: cannot cast vote on change "${changeId}" with status "${change.status}" (ballot is closed)`,
+      );
     }
 
     const voter = this.voters.get(voterId);
@@ -226,8 +237,8 @@ export class ConsensusProtocol {
       (sum, v) => sum + (this.voters.get(v.agentId)?.weight ?? 1),
       0,
     );
-    const totalWeight = Array.from(this.voters.values()).reduce(
-      (sum, v) => sum + v.weight,
+    const totalWeight = eligible.reduce(
+      (sum, id) => sum + (this.voters.get(id)?.weight ?? 1),
       0,
     );
 
