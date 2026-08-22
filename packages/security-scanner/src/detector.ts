@@ -247,7 +247,10 @@ export class TechStackDetector {
   private findMatchingManifest(manifests: string[], files: string[]): string | null {
     for (const manifest of manifests) {
       if (manifest.includes('*')) {
-        const regex = new RegExp('^' + manifest.replace('*', '.*') + '$');
+        const escaped = manifest
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*');
+        const regex = new RegExp(`^${escaped}$`);
         const match = files.find((f) => regex.test(f));
         if (match) return match;
       } else if (files.includes(manifest)) {

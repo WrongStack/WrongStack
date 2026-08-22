@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
-import { getVitestMaxWorkers } from '../../vitest.workers';
+import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 /**
  * Development-only Vite plugin that injects a `<meta name="wrongstack-ws-url">`

@@ -2,7 +2,7 @@
 
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
-import { getVitestMaxWorkers } from '../../vitest.workers';
+import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 // HQ dashboard — offline React app served by the HQ server (port 3499).
 // No CDN dependencies; everything bundles into dist/ for LAN/offline use.

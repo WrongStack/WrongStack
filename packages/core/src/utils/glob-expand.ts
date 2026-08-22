@@ -99,60 +99,67 @@ export async function expandGlob(pattern: string): Promise<string[]> {
   const relPat = base === '.' ? pattern : pattern.slice(base.length + 1);
 
   async function walk(dir: string, pat: string): Promise<void> {
-    let entries: string[];
+    let entries: import('node:fs').Dirent[];
     try {
-      entries = await fsp.readdir(dir);
+      entries = await fsp.readdir(dir, { withFileTypes: true });
     } catch {
       return;
     }
 
-    const firstGlob = pat.search(/[*?[[]/);
+    if (pat.startsWith('**/')) {
+      const rest = pat.slice(3);
+      // Try matching files in the current dir with the pattern after **/
+      await walk(dir, rest);
+      // Recurse into all subdirectories with the same **/ pattern
+      for (const e of entries) {
+        if (e.isDirectory()) {
+          const subDir = `${dir}${SEP}${e.name}`;
+          await walk(subDir, pat);
+        }
+      }
+      return;
+    }
 
-    if (firstGlob < 0) {
+    if (pat === '**') {
+      for (const e of entries) {
+        const full = `${dir}${SEP}${e.name}`;
+        results.add(abs ? resolve(full) : full);
+        if (e.isDirectory()) {
+          await walk(full, '**');
+        }
+      }
+      return;
+    }
+
+    const firstSlash = pat.indexOf('/');
+    if (firstSlash < 0) {
+      // Leaf segment (e.g. *.ts or ?.js)
       const re = globToRegex(pat);
       for (const e of entries) {
-        if (re.test(e)) {
-          const full = `${dir}${SEP}${e}`;
+        if (re.test(e.name)) {
+          const full = `${dir}${SEP}${e.name}`;
           results.add(abs ? resolve(full) : full);
         }
       }
       return;
     }
 
-    const before = pat.slice(0, firstGlob);
-    const rest = pat.slice(firstGlob);
+    const currentSeg = pat.slice(0, firstSlash);
+    const remainingPat = pat.slice(firstSlash + 1);
 
-    if (before.endsWith('**')) {
-      // Match at current dir then recurse into subdirs
-      await walk(dir, rest);
+    if (isGlob(currentSeg)) {
+      const re = globToRegex(currentSeg);
       for (const e of entries) {
-        const full = `${dir}${SEP}${e}`;
-        try {
-          const stat = await fsp.stat(full);
-          if (stat.isDirectory()) await walk(full, rest);
-        } catch {
-          /* skip inaccessible */
-        }
-      }
-    } else if (before === '') {
-      // Pattern starts with a glob char — match files in current dir only
-      const re = globToRegex(rest);
-      for (const e of entries) {
-        if (re.test(e)) {
-          const full = `${dir}${SEP}${e}`;
-          results.add(abs ? resolve(full) : full);
+        if (e.isDirectory() && re.test(e.name)) {
+          const subDir = `${dir}${SEP}${e.name}`;
+          await walk(subDir, remainingPat);
         }
       }
     } else {
-      // Literal segment(s) before the glob — descend into matching subdir
-      const seg = before.replace(/[*?[\]]/g, '').replace(/\/$/, '');
-      if (entries.includes(seg)) {
-        const full = `${dir}${SEP}${seg}`;
-        try {
-          const stat = await fsp.stat(full);
-          if (stat.isDirectory()) await walk(full, rest);
-        } catch {
-          /* skip */
+      for (const e of entries) {
+        if (e.isDirectory() && e.name === currentSeg) {
+          const subDir = `${dir}${SEP}${e.name}`;
+          await walk(subDir, remainingPat);
         }
       }
     }

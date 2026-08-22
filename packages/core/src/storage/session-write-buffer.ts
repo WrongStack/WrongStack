@@ -18,6 +18,26 @@ export interface SessionWriteBufferOptions {
   getTraceId?: () => string | undefined;
 }
 
+/**
+ * Options for explicit (immediate-path) flushes.
+ */
+export interface FlushBufferOptions {
+  /**
+   * fsync-level durability after the append lands: disk-durable rather than
+   * only page-cache durable (SIGKILL survives page cache; power loss does
+   * not). Best-effort — a failed datasync never fails the flush itself.
+   */
+  datasync?: boolean;
+}
+
+interface InFlightBatch {
+  events: SessionEvent[];
+  bytes: number;
+  data: string;
+  stolen: boolean;
+  started: boolean;
+}
+
 export class SessionWriteBuffer {
   private static readonly FLUSH_INTERVAL_MS = 500;
   private static readonly FLUSH_SIZE = 50;
@@ -34,6 +54,12 @@ export class SessionWriteBuffer {
 
   private writeChain: Promise<void> = Promise.resolve();
   private flushPromise: Promise<void> | null = null;
+  /**
+   * Batch currently inside enqueueWrite. `flushSync` may steal it if the
+   * async append has not started, so a dying process writes in-flight +
+   * remaining buffer as one ordered append instead of racing a second fd.
+   */
+  private inFlight: InFlightBatch | null = null;
 
   constructor(private readonly opts: SessionWriteBufferOptions) {}
 
@@ -85,14 +111,27 @@ export class SessionWriteBuffer {
   }
 
   enqueueWrite(data: string): Promise<void> {
+    return this.enqueueFlight({
+      events: [],
+      bytes: 0,
+      data,
+      stolen: false,
+      started: false,
+    });
+  }
+
+  private enqueueFlight(flight: InFlightBatch): Promise<void> {
     const write = this.writeChain.then(async () => {
+      if (flight.stolen) return;
+      flight.started = true;
+      if (flight.stolen) return;
       try {
-        return await this.opts.getHandle().appendFile(data, 'utf8');
+        return await this.opts.getHandle().appendFile(flight.data, 'utf8');
       } catch (err: unknown) {
         if (isClosedHandleError(err)) {
           const reloaded = await fsp.open(this.opts.filePath, 'a', 0o600);
           this.opts.setHandle(reloaded);
-          return await reloaded.appendFile(data, 'utf8');
+          return await reloaded.appendFile(flight.data, 'utf8');
         }
         throw err;
       }
@@ -119,10 +158,34 @@ export class SessionWriteBuffer {
     }
   }
 
-  async flushBuffer(isClosed = false): Promise<void> {
-    if (this.flushPromise) return this.flushPromise;
+  async flushBuffer(isClosed = false, opts: FlushBufferOptions = {}): Promise<void> {
+    if (this.flushPromise) {
+      const joined = this.flushPromise;
+      // A join can land after the in-flight loop has already drained its
+      // snapshot. Events pushed in that window (including critical ones
+      // that cancelled the timer) would otherwise sit unflushed. Always
+      // continue if the buffer is still dirty once the owner settles.
+      const continueIfDirty = (): Promise<void> => {
+        if (this.writeBuffer.length === 0) return Promise.resolve();
+        return this.flushBuffer(isClosed, opts);
+      };
+      if (opts.datasync === true) {
+        // Durability upgrade on join: the in-flight timer batch may already
+        // be written page-cache-only, so sync the handle once it settles
+        // (merging into the running loop cannot retroactively sync bytes
+        // flushed before the upgrade arrived).
+        return joined.then(() =>
+          this.opts
+            .getHandle()
+            .datasync()
+            .catch(() => undefined)
+            .then(continueIfDirty),
+        );
+      }
+      return joined.then(continueIfDirty);
+    }
     const flush = (async () => {
-      while (this.writeBuffer.length > 0) await this.flushBufferOnce(isClosed);
+      while (this.writeBuffer.length > 0) await this.flushBufferOnce(isClosed, opts);
     })().finally(() => {
       if (this.flushPromise === flush) this.flushPromise = null;
     });
@@ -130,7 +193,7 @@ export class SessionWriteBuffer {
     return flush;
   }
 
-  private async flushBufferOnce(isClosed: boolean): Promise<void> {
+  private async flushBufferOnce(isClosed: boolean, opts?: FlushBufferOptions): Promise<void> {
     if (this.writeBuffer.length === 0) return;
     const events = this.writeBuffer;
     const eventCount = events.length;
@@ -138,12 +201,34 @@ export class SessionWriteBuffer {
     const batch = events.map((e) => JSON.stringify(e)).join('\n') + '\n';
     this.writeBuffer = [];
     this.writeBufferBytes = 0;
+    const flight: InFlightBatch = {
+      events,
+      bytes: eventBytes,
+      data: batch,
+      stolen: false,
+      started: false,
+    };
+    this.inFlight = flight;
     const t0 = Date.now();
     let outcome: 'success' | 'failure' = 'success';
     let errorMsg: string | undefined;
     try {
-      await this.enqueueWrite(batch);
+      await this.enqueueFlight(flight);
+      if (flight.stolen) {
+        return;
+      }
+      // Disk-durability upgrade when the caller marks this flush critical:
+      // bytes are already on disk at this point, so a datasync failure is
+      // best-effort — page-cache durability still holds for SIGKILL, and the
+      // next flush retries the sync.
+      if (opts?.datasync === true) {
+        await this.opts
+          .getHandle()
+          .datasync()
+          .catch(() => undefined);
+      }
     } catch (err) {
+      if (flight.stolen) return;
       outcome = 'failure';
       errorMsg = toErrorMessage(err);
       const newer = this.writeBuffer;
@@ -181,6 +266,7 @@ export class SessionWriteBuffer {
         ...(eventCount !== undefined ? { eventCount } : {}),
         ...(this.opts.getTraceId?.() ? { traceId: this.opts.getTraceId()! } : {}),
       });
+      if (this.inFlight === flight) this.inFlight = null;
     }
   }
 
@@ -193,18 +279,34 @@ export class SessionWriteBuffer {
   }
 
   flushSync(): void {
-    if (this.writeBuffer.length === 0 || !this.opts.filePath) return;
+    if (!this.opts.filePath) return;
     this.cancelTimer();
-    const batch = this.writeBuffer.map((e) => JSON.stringify(e)).join('\n') + '\n';
-    this.writeBuffer = [];
-    this.writeBufferBytes = 0;
+    const chunks: string[] = [];
+    const flight = this.inFlight;
+    // Steal a batch that is queued but has not started writing so this
+    // sync append is the only writer and preserves order (in-flight first).
+    if (flight && !flight.started && !flight.stolen) {
+      flight.stolen = true;
+      chunks.push(flight.data);
+    }
+    const events = this.writeBuffer;
+    if (events.length > 0) {
+      chunks.push(events.map((e) => JSON.stringify(e)).join('\n') + '\n');
+    }
+    if (chunks.length === 0) return;
     let fd: number | undefined;
     try {
       fd = openSync(this.opts.filePath, 'a');
-      writeSync(fd, batch, null, 'utf8');
+      writeSync(fd, chunks.join(''), null, 'utf8');
       fsyncSync(fd);
+      if (this.writeBuffer === events) {
+        this.writeBuffer = [];
+        this.writeBufferBytes = 0;
+      }
     } catch {
-      // best-effort
+      if (flight?.stolen && !flight.started) {
+        flight.stolen = false;
+      }
     } finally {
       if (fd !== undefined) {
         try {

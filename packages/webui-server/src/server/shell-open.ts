@@ -101,7 +101,10 @@ export async function handleShellOpen(
   options: ShellOpenOptions,
 ): Promise<ShellOpenResult> {
   try {
-    const resolved = path.resolve(req.path);
+    const root = path.resolve(options.projectRoot);
+    const resolved = path.isAbsolute(req.path)
+      ? path.normalize(req.path)
+      : path.resolve(root, req.path);
 
     // ── Layer 1: Metacharacter guard on the lexical path ──
     //
@@ -117,7 +120,6 @@ export async function handleShellOpen(
     // canonical root in the other lets a symlinked root (worktree, junction,
     // sandbox mount) produce inconsistent verdicts, and widens a TOCTOU
     // window where the root itself could be swapped between checks.
-    const root = path.resolve(options.projectRoot);
     const realProjectRoot = await fs.realpath(root);
 
     // ── Layer 2: Project-root containment (early reject) ──

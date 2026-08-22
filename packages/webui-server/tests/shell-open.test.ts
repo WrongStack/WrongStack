@@ -152,5 +152,20 @@ describe('shell-open', () => {
       );
       expect(result.success).toBe(false);
     });
+
+    it('correctly resolves relative paths against options.projectRoot rather than process.cwd()', async () => {
+      mockAccess.mockResolvedValue(undefined);
+      mockSpawn.mockReturnValue({ on: vi.fn().mockReturnThis(), unref: vi.fn() });
+      const customRoot = path.resolve('/var/my-custom-project-root');
+      mockRealpath.mockImplementation((p: string) => Promise.resolve(p));
+
+      const result = await handleShellOpen(
+        { path: 'src/components', target: 'terminal' },
+        logger as any,
+        { projectRoot: customRoot },
+      );
+      expect(result.success).toBe(true);
+    });
   });
 });
+

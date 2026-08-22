@@ -10,6 +10,7 @@
 
 import type { WebSocket } from 'ws';
 import nodePath from 'node:path';
+import { isPathInside } from './path-containment.js';
 import { send } from './ws-utils.js';
 
 /**
@@ -225,16 +226,45 @@ export async function handleGitDiff(
     let newText = '';
     try {
       const abs = cwd ? join(cwd, path) : path;
-      const buf = await readFile(abs);
-      if (buf.includes(0)) {
-        reply({ oldText: '', newText: '', binary: true });
-        return;
+      let readPath = abs;
+      if (cwd) {
+        const { realpath } = await import('node:fs/promises');
+        const realRoot = await realpath(cwd).catch(() => nodePath.resolve(cwd));
+        try {
+          readPath = await realpath(abs);
+        } catch (err) {
+          // ENOENT: deleted in the working tree — lexical containment only.
+          // Never readFile(abs): that would follow a dangling-or-escaping symlink.
+          // Any other realpath failure is fail-closed (no unresolved fallback).
+          if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+            if (!isPathInside(nodePath.resolve(cwd), nodePath.resolve(abs))) {
+              reply({ oldText: '', newText: '', error: 'path outside project root' });
+              return;
+            }
+            newText = '';
+            readPath = '';
+          } else {
+            reply({ oldText: '', newText: '', error: 'path outside project root' });
+            return;
+          }
+        }
+        if (readPath && !isPathInside(realRoot, readPath)) {
+          reply({ oldText: '', newText: '', error: 'path outside project root' });
+          return;
+        }
       }
-      if (buf.length > MAX_DIFF_BYTES) {
-        reply({ oldText: '', newText: '', tooLarge: true });
-        return;
+      if (readPath) {
+        const buf = await readFile(readPath);
+        if (buf.includes(0)) {
+          reply({ oldText: '', newText: '', binary: true });
+          return;
+        }
+        if (buf.length > MAX_DIFF_BYTES) {
+          reply({ oldText: '', newText: '', tooLarge: true });
+          return;
+        }
+        newText = buf.toString('utf8');
       }
-      newText = buf.toString('utf8');
     } catch {
       newText = '';
     }

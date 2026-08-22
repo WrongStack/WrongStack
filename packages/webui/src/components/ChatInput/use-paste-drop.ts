@@ -8,6 +8,7 @@ import {
   MAX_ATTACHED_IMAGES,
   processImageFile,
 } from './image-attachments.js';
+import { useUIStore } from '@/stores';
 
 export interface PasteHintState {
   chars: number;
@@ -38,12 +39,18 @@ export function usePasteDrop({ input, textareaRef, setInput, errorText }: UsePas
   /** Images attached for the next message (pasted, dropped, or picked).
    *  Cleared after each submit so they aren't re-sent accidentally. The ref
    *  stays the submit-time source of truth; the state mirror drives the
-   *  attachment chips. */
-  const pendingImagesRef = useRef<ImageAttachment[]>([]);
-  const [pendingImages, setPendingImagesState] = useState<ImageAttachment[]>([]);
+   *  attachment chips. Seeded from / synced to ui-store.draftImages so a
+   *  mid-compose switch to a subagent transcript doesn't silently discard
+   *  attachments while the draft text survives (same contract as
+   *  draftInput). */
+  const pendingImagesRef = useRef<ImageAttachment[]>(useUIStore.getState().draftImages);
+  const [pendingImages, setPendingImagesState] = useState<ImageAttachment[]>(() =>
+    useUIStore.getState().draftImages,
+  );
   const setPendingImages = (next: ImageAttachment[]) => {
     pendingImagesRef.current = next;
     setPendingImagesState(next);
+    useUIStore.getState().setDraftImages(next);
   };
 
   /** Latest errorText without re-subscribing the paste listener on every

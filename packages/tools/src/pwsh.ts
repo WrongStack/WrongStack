@@ -1,7 +1,5 @@
 import { spawn } from 'node:child_process';
-import * as fs from 'node:fs';
 import * as os from 'node:os';
-import * as path from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import {
   emitProcessCompleted,
@@ -11,7 +9,7 @@ import {
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
-import { normalizeCommandOutput } from './_util.js';
+import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
 import { detectDanger } from './_danger-detect.js';
@@ -184,14 +182,24 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     const stdinBody = wrapPwshCommand(input.command);
 
     const env = buildChildEnv(ctx.session?.id);
-    let targetCwd = ctx.workingDir ?? ctx.projectRoot;
-    if (input.workdir) {
-      const resolved = path.isAbsolute(input.workdir)
-        ? input.workdir
-        : path.resolve(ctx.projectRoot, input.workdir);
-      if (fs.existsSync(resolved)) {
-        targetCwd = resolved;
-      }
+    let targetCwd: string;
+    try {
+      targetCwd = await safeResolveReal(
+        input.workdir ?? ctx.workingDir ?? ctx.projectRoot,
+        ctx,
+      );
+    } catch (err) {
+      yield {
+        type: 'final',
+        output: {
+          output: '',
+          exit_code: 1,
+          timed_out: false,
+          pid: null,
+          error: `pwsh: ${(err as Error).message}`,
+        },
+      };
+      return;
     }
 
     const startedAt = Date.now();

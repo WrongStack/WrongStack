@@ -65,6 +65,18 @@ describe('treeTool', () => {
     expect(result.tree).toContain('keep.txt');
   });
 
+  it('matches directory-prefixed globs against a POSIX-relative path', async () => {
+    await fs.mkdir(path.join(tmpDir, 'src'));
+    await fs.writeFile(path.join(tmpDir, 'src', 'a.ts'), '');
+    await fs.writeFile(path.join(tmpDir, 'src', 'b.js'), '');
+    await fs.writeFile(path.join(tmpDir, 'root.ts'), '');
+    const ctx = makeCtx();
+    const result = await treeTool.execute({ path: tmpDir, glob: 'src/*.ts' }, ctx, makeOpts());
+    expect(result.tree).toContain('a.ts');
+    expect(result.tree).not.toContain('b.js');
+    expect(result.tree).not.toContain('root.ts');
+  });
+
   it('counts direct children of the root in total_files/total_dirs', async () => {
     // Regression: a `depth > 0` guard in walkDir excluded the root's own
     // entries from the totals — a flat directory always reported 0/0.
@@ -184,4 +196,15 @@ describe('treeTool', () => {
     expect(result.total_files).toBe(0);
     expect(result.total_dirs).toBe(0);
   });
+
+  it('filters files by glob pattern', async () => {
+    await fs.writeFile(path.join(tmpDir, 'a.ts'), 'ts');
+    await fs.writeFile(path.join(tmpDir, 'b.txt'), 'txt');
+    const ctx = makeCtx();
+    const result = await treeTool.execute({ path: tmpDir, glob: '*.ts' }, ctx, makeOpts());
+    expect(result.tree).toContain('a.ts');
+    expect(result.tree).not.toContain('b.txt');
+    expect(result.total_files).toBe(1);
+  });
 });
+

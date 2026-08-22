@@ -370,10 +370,15 @@ function parseDuckDuckGo(html: string, num: number): SearchResult[] {
   return results;
 }
 
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function getHtmlAttr(attrs: string, name: string): string | undefined {
-  const quoted = new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(attrs);
+  const escaped = escapeRegex(name);
+  const quoted = new RegExp(`\\b${escaped}\\s*=\\s*(["'])(.*?)\\1`, 'i').exec(attrs);
   if (quoted?.[2]) return decodeHtmlEntities(quoted[2]);
-  const unquoted = new RegExp(`\\b${name}\\s*=\\s*([^\\s>]+)`, 'i').exec(attrs);
+  const unquoted = new RegExp(`\\b${escaped}\\s*=\\s*([^\\s>]+)`, 'i').exec(attrs);
   return unquoted?.[1] ? decodeHtmlEntities(unquoted[1]) : undefined;
 }
 

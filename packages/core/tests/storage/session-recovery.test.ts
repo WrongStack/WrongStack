@@ -300,4 +300,84 @@ describe('SessionRecovery.recover', () => {
     expect(plan).not.toBeNull();
     expect(plan!.stale).toBe(true);
   });
+
+  it('skips non-object events parsed from JSON (numbers, null, strings)', async () => {
+    await fs.writeFile(
+      path.join(dir, 's-nonobj.jsonl'),
+      [
+        JSON.stringify({ type: 'checkpoint', ts: '2026-01-01T00:00:00Z', promptIndex: 0, promptPreview: 'x' }),
+        '42',
+        'null',
+        '"a plain string"',
+      ].join('\n') + '\n',
+      'utf8',
+    );
+    const plan = await recovery.recover('s-nonobj');
+    expect(plan).not.toBeNull();
+    expect(plan!.pendingEvents).toHaveLength(0);
+  });
+
+  it('skips oversized events that exceed MAX_PENDING_BYTES', async () => {
+    const big = 'x'.repeat(17 * 1024 * 1024);
+    await writeLog('s-oversized', [
+      { type: 'checkpoint', ts: '2026-01-01T00:00:00Z', promptIndex: 0, promptPreview: 'x' },
+      { type: 'user_input', ts: '2026-01-01T00:00:01Z', text: big },
+      { type: 'in_flight_start', ts: '2026-01-01T00:00:02Z', context: 'after big' },
+    ]);
+    const plan = await recovery.recover('s-oversized');
+    expect(plan).not.toBeNull();
+    expect(plan!.pendingEvents).toHaveLength(1);
+  });
+
+  it('evicts oldest post-checkpoint events when the log exceeds MAX_PENDING_EVENTS', async () => {
+    const events: unknown[] = [
+      { type: 'checkpoint', ts: '2026-01-01T00:00:00Z', promptIndex: 0, promptPreview: 'x' },
+    ];
+    for (let i = 0; i < 10_002; i++) {
+      events.push({ type: 'user_input', ts: '2026-01-01T00:00:01Z', text: `ev${i}` });
+    }
+    await writeLog('s-evict', events);
+    const plan = await recovery.recover('s-evict');
+    expect(plan).not.toBeNull();
+    expect(plan!.pendingEvents.length).toBeLessThanOrEqual(10_000);
+  });
+});
+
+describe('SessionRecovery.recover — session id resolution', () => {
+  it('throws when the session id is ambiguous (multiple matches with the same leaf)', async () => {
+    await fs.mkdir(path.join(dir, '2026-01-01'), { recursive: true });
+    await fs.mkdir(path.join(dir, '2026-02-02'), { recursive: true });
+    await writeLog('2026-01-01/amb', [
+      { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'a' },
+    ]);
+    await writeLog('2026-02-02/amb', [
+      { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'b' },
+    ]);
+    await expect(recovery.recover('amb')).rejects.toThrow(/Ambiguous/i);
+  });
+
+  it('throws when detectStale is called with an ambiguous id', async () => {
+    await fs.mkdir(path.join(dir, '2026-01-01'), { recursive: true });
+    await fs.mkdir(path.join(dir, '2026-02-02'), { recursive: true });
+    await writeLog('2026-01-01/amb2', [
+      { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'a' },
+    ]);
+    await writeLog('2026-02-02/amb2', [
+      { type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'b' },
+    ]);
+    await expect(recovery.detectStale('amb2')).rejects.toThrow(/Ambiguous/i);
+  });
+});
+
+describe('SessionRecovery.detectStale — whitespace handling', () => {
+  it('treats whitespace-only lines as non-events during reverse scan', async () => {
+    await fs.writeFile(
+      path.join(dir, 's-ws.jsonl'),
+      JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'ws' }) + '\n   \n',
+      'utf8',
+    );
+    const stale = await recovery.detectStale('s-ws');
+    expect(stale).not.toBeNull();
+    expect(stale!.context).toBe('ws');
+  });
 });

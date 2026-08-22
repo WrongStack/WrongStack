@@ -9,6 +9,7 @@ import { App } from './app.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
 import { createRunTuiClientRegistration } from './run-tui-client-registration.js';
 import type { RunTuiOptions } from './run-tui-options.js';
+import { createDurableTeardown } from './run-tui-teardown.js';
 import { createRunTuiTitleController } from './run-tui-title-controller.js';
 import { BRACKETED_PASTE_OFF, BRACKETED_PASTE_ON } from './terminal-modes.js';
 import { silenceTerminal, unsilenceTerminal } from './terminal-silence.js';
@@ -205,6 +206,33 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     }
   };
 
+  // ── Durable teardown ─────────────────────────────────────────────────────
+  // Single owner for kill-safety on every TUI exit path: synchronous
+  // flushSync salvage first (survives any concurrent hard exit), bounded
+  // await of the async close, then exit. Wired into the SIGINT/SIGTERM/
+  // SIGHUP/SIGBREAK handlers, the rapid-Ctrl+C escape hatch, the 'exit'
+  // listener, and the natural settle() path below.
+  let resolveRun: ((code: number) => void) | undefined;
+  let runExitCode = 0;
+  const finishRun = (code: number): void => {
+    detachListeners();
+    if (!resolveRun) return;
+    const resolve = resolveRun;
+    resolveRun = undefined;
+    resolve(code);
+  };
+
+  const durableTeardown = createDurableTeardown({
+    getSession: () => opts.agent.ctx.session,
+    killChildren: () =>
+      getProcessRegistry().killAll({ force: true, preserveBackground: true }),
+    cleanup,
+    // Resolve the host instead of process.exit so CLI teardown (plugin
+    // stop, Telegram lock.release, vector-memory close) still runs.
+    // Rapid Ctrl+C and the hung-unmount timer still hard-exit.
+    exit: (code) => finishRun(code),
+  });
+
   // ── Rapid Ctrl+C force-exit ─────────────────────────────────────────────
   // Tracks consecutive SIGINT signals. When the user presses Ctrl+C twice
   // within RAPID_EXIT_WINDOW_MS, we force-exit immediately instead of going
@@ -230,11 +258,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     // Hard exit skips every async teardown path, including the session
     // writer's buffered flush — drain it synchronously so the last events
     // of the aborted run survive on disk.
-    try {
-      opts.agent.ctx.session.flushSync?.();
-    } catch {
-      // best-effort — exiting either way
-    }
+    durableTeardown.salvageSync();
     // Synchronous and idempotent: disables input modes, exits alternate screen,
     // restores raw mode/cursor/style, and unsilences terminal output.
     cleanup();
@@ -253,13 +277,18 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // is a safety net for when Ink's unmount itself hangs.
   const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGHUP', 'SIGINT'];
   const signalHandler = () => {
+    runExitCode = 143;
     inkInstance?.unmount();
-    cleanup();
-    // If Ink's unmount hangs, force-exit after 5s.
-    const sig = setTimeout(() => process.exit(143), 5_000);
-    sig.unref();
+    // Durable teardown: salvage + bounded close, then resolve the host
+    // (not process.exit) so CLI teardown still runs.
+    void durableTeardown.shutdownViaSignal(143);
   };
-  const exitHandler = () => cleanup();
+  const exitHandler = () => {
+    // 'exit' runs in a sync-only context — async close work can never finish
+    // here, so only the synchronous drain counts.
+    durableTeardown.salvageSync();
+    cleanup();
+  };
 
   // SIGINT (Ctrl+C) gets special treatment: track rapid presses.
   const sigintHandler = (): void => {
@@ -275,13 +304,12 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       return;
     }
     // First or second press — clean shutdown via Ink unmount. The unmount
-    // restores terminal state and resolves waitUntilExit(). If Ink hangs,
-    // the 5s deadline in signalHandler's pattern fires — but sigintHandler
-    // is separate so we replicate the safety net here.
+    // restores terminal state and resolves waitUntilExit(); the durable
+    // teardown then salvages synchronously and awaits close under its own
+    // bounded budget before exiting.
+    runExitCode = 130;
     inkInstance?.unmount();
-    cleanup();
-    const sig = setTimeout(() => process.exit(130), 5_000);
-    sig.unref();
+    void durableTeardown.shutdownViaSignal(130);
   };
 
   process.on('SIGINT', sigintHandler);
@@ -344,10 +372,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   void tuiClientRegistration.register();
 
   return new Promise<number>((resolve) => {
-    let exitCode = 0;
+    resolveRun = resolve;
     let hardExitTimer: ReturnType<typeof setTimeout> | null = null;
     const onExit = (code: number) => {
-      exitCode = code;
+      runExitCode = code;
     };
     const settle = (code: number) => {
       // The unmount completed normally — cancel the hang fallback. Leaving it
@@ -357,9 +385,14 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         clearTimeout(hardExitTimer);
         hardExitTimer = null;
       }
-      cleanup();
-      detachListeners();
-      resolve(code);
+      // Natural exit is durable too: salvage + bounded close BEFORE resolving,
+      // so the host's post-TUI grace period never cuts the datasync/sidecar
+      // write short. cleanup() runs inside awaitDurableClose (terminal state
+      // is restored before resolve); resolve is deferred until durability.
+      void durableTeardown.awaitDurableClose().then(
+        () => finishRun(code),
+        () => finishRun(code),
+      );
     };
 
     /**
@@ -376,7 +409,15 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // Hard-exit ONLY if Ink's unmount hangs (settle() cancels this timer
       // on the normal path).
       inkInstance?.unmount();
-      hardExitTimer = setTimeout(() => process.exit(code), 5_000);
+      hardExitTimer = setTimeout(() => {
+        durableTeardown.salvageSync();
+        try {
+          getProcessRegistry().killAll({ force: true, preserveBackground: true });
+        } catch {
+          // best-effort — exiting either way
+        }
+        process.exit(code);
+      }, 5_000);
       hardExitTimer.unref();
     };
 
@@ -600,7 +641,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       .waitUntilExit()
       .then(() => {
         detachResize?.();
-        settle(exitCode);
+        settle(runExitCode);
       })
       .catch(() => {
         detachResize?.();

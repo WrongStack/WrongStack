@@ -510,6 +510,11 @@ export async function handleApiRoutes(
   }
 
   if (url.pathname === '/api/deadcode/scan' && req.method === 'POST') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
     if (!deps.projectRoot) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Project root not configured' }));
@@ -602,6 +607,11 @@ export async function handleApiRoutes(
   }
 
   if (url.pathname === '/api/deadcode/action-plan' && req.method === 'POST') {
+    if (requireAccessToken && !accessTokenOk) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Unauthorized' }));
+      return true;
+    }
     await handleDeadCodeActionPlan(
       res,
       {

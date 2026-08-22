@@ -438,19 +438,32 @@ export class TelegramBot {
         // transport can return an already-processed update. Keep the cursor as
         // the local idempotency boundary instead of dispatching duplicates.
         if (upd.update_id < this.offset) continue;
-        this.offset = upd.update_id + 1;
         if (upd.callback_query) {
           void this.dispatchCallback(upd.callback_query).catch((err) =>
             this.log.debug(
               `Callback dispatch failed: ${err instanceof Error ? err.message : String(err)}`,
             ),
           );
+          this.offset = upd.update_id + 1;
           continue;
         }
 
         const raw = upd.message ?? upd.edited_message;
-        if (!raw?.text) continue;
-        this.processMessage({ ...raw, text: raw.text });
+        if (!raw?.text) {
+          this.offset = upd.update_id + 1;
+          continue;
+        }
+        try {
+          this.processMessage({ ...raw, text: raw.text });
+          this.offset = upd.update_id + 1;
+        } catch (err) {
+          this.log.debug(
+            `Telegram processMessage failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          // Do not advance the cursor — Telegram will resend this update.
+          // Stop the batch so later ids are not skipped while this one retries.
+          break;
+        }
       }
 
       // P1.6: commit the cursor only after processing. An empty poll or a
@@ -789,42 +802,47 @@ export function truncateForTelegram(text: string, maxLen = 4000): string {
   const cutoff = effectiveMaxLen - 30;
   if (cutoff <= 0) return `${text.slice(0, effectiveMaxLen - 1)}…`;
 
-  const searchEnd = Math.min(text.length, effectiveMaxLen);
-
-  // 1. Paragraph boundary (double newline)
-  const paraIdx = text.lastIndexOf('\n\n', searchEnd);
+  // 1. Paragraph boundary (double newline, suffix "\n\n…" is 3 chars)
+  const paraSearchEnd = effectiveMaxLen - 3;
+  const paraIdx = text.lastIndexOf('\n\n', paraSearchEnd);
   if (paraIdx > cutoff) {
     return `${text.slice(0, paraIdx)}\n\n…`;
   }
 
-  // 2. Single newline boundary
-  const nlIdx = text.lastIndexOf('\n', searchEnd);
+  // 2. Single newline boundary (suffix "\n…" is 2 chars)
+  const nlSearchEnd = effectiveMaxLen - 2;
+  const nlIdx = text.lastIndexOf('\n', nlSearchEnd);
   if (nlIdx > cutoff) {
     return `${text.slice(0, nlIdx)}\n…`;
   }
 
-  // 3. Sentence boundary (. ! ? followed by space or newline)
+  // 3. Sentence boundary (. ! ? followed by space or newline, suffix "…" is 1 char)
+  const sentenceSearchEnd = effectiveMaxLen - 1;
   const sentenceRe = /[.!?](?=\s)/g;
   let match: RegExpExecArray | null;
   let sentenceIdx = -1;
   match = sentenceRe.exec(text);
   while (match !== null) {
-    if (match.index >= searchEnd) break;
-    if (match.index > cutoff) sentenceIdx = match.index + 1;
+    if (match.index + 1 > sentenceSearchEnd) break;
+    if (match.index + 1 > cutoff) sentenceIdx = match.index + 1;
     match = sentenceRe.exec(text);
   }
   if (sentenceIdx > cutoff) {
     return `${text.slice(0, sentenceIdx)}…`;
   }
 
-  // 4. Word boundary (space)
-  const spaceIdx = text.lastIndexOf(' ', searchEnd);
+  // 4. Word boundary (space, suffix " …" is 2 chars)
+  const spaceSearchEnd = effectiveMaxLen - 2;
+  const spaceIdx = text.lastIndexOf(' ', spaceSearchEnd);
   if (spaceIdx > cutoff) {
     return `${text.slice(0, spaceIdx)} …`;
   }
 
-  // 5. Hard cut
-  return `${text.slice(0, effectiveMaxLen - 20)}…[+${text.length - effectiveMaxLen + 20} chars]`;
+  // 5. Hard cut bounded strictly
+  const hardSlice = text.slice(0, effectiveMaxLen - 20);
+  const hardResult = `${hardSlice}…[+${text.length - hardSlice.length} chars]`;
+  if (hardResult.length <= effectiveMaxLen) return hardResult;
+  return `${text.slice(0, effectiveMaxLen - 1)}…`;
 }
 
 /**

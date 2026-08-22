@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   fsyncSync,
@@ -99,7 +99,7 @@ export class OffsetStore {
 
     mkdirSync(dirname(this.path), { recursive: true });
 
-    const tmp = `${this.path}.${process.pid}.tmp`;
+    const tmp = `${this.path}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
     // Write to a temp file, fsync it to durable storage, then atomically rename
     // over the target. fsync before rename guarantees the bytes are on disk on
     // both POSIX and Windows before the rename makes them visible.

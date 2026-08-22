@@ -7,12 +7,12 @@
  * - Configuration block (provider, model, description, taskId)
  */
 
-import { Check, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, ExternalLink, MessageSquare, RotateCcw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { EMPTY_AGENT_TRANSCRIPT, useFleetStore } from '@/stores';
+import { EMPTY_AGENT_TRANSCRIPT, useFleetStore, useUIStore } from '@/stores';
 import { fmtDuration } from '@/lib/agent-status';
 import { AgentTranscript } from '@/components/AgentTranscript';
 
@@ -258,17 +258,35 @@ export function AgentDetailSection({
           </div>
         )}
 
-        {/* ── Open in Inspector ── */}
-        {onOpenInspector && (
+        {/* ── Quick actions ── */}
+        <div className="flex flex-wrap items-center gap-3">
+          {onOpenInspector && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onOpenInspector(); }}
+              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
+            >
+              <ExternalLink className="h-2.5 w-2.5" />
+              {t('activity:agents.openInspector')}
+            </button>
+          )}
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onOpenInspector(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              // The leader already owns the main chat pane — ignore stray
+              // open-chat clicks on its own roster card.
+              if (useFleetStore.getState().leaderId === agent.id) return;
+              const ui = useUIStore.getState();
+              ui.setSubagentChatFocus(agent.id);
+              ui.setCurrentView('chat');
+            }}
             className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
           >
-            <ExternalLink className="h-2.5 w-2.5" />
-            {t('activity:agents.openInspector')}
+            <MessageSquare className="h-2.5 w-2.5" />
+            {t('activity:agents.openChat')}
           </button>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -68,6 +68,7 @@
     "release:packages": "node scripts/list-publishable-packages.mjs",
     "prepublishOnly": "pnpm test:guard",
     "test:guard": "vitest run packages/plugins/tests/catalog.test.ts packages/plugins/tests/plugin-teardown.test.ts packages/plugins/tests/smoke.test.ts",
+    "ci:local": "node scripts/release-check-matrix.mjs --profile local",
     "setup:hooks": "git config core.hooksPath .githooks",
     "postinstall": "git config core.hooksPath .githooks"
   },

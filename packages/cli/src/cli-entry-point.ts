@@ -61,7 +61,7 @@ function installSqliteWarningFilter(): void {
 
 installSqliteWarningFilter();
 
-import { installCrashShield, writeErr } from '@wrongstack/core/utils';
+import { installCrashShield, runFatalSalvageSync, writeErr } from '@wrongstack/core/utils';
 
 const isMain =
   import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` ||
@@ -101,6 +101,7 @@ export function installBrokenPipeHandlers(options: BrokenPipeHandlerOptions = {}
     if (!isBrokenOutputConsumer(error)) throw error;
     if (handled) return;
     handled = true;
+    runFatalSalvageSync();
     exit(0);
   };
 
@@ -119,6 +120,10 @@ export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
   // job; the shield deliberately ignores broken-consumer errors. This call was
   // present, regressed to zero call sites, and is re-armed here (WS-076).
   installCrashShield();
+  // Every process.exit / natural drain hits this; hooks are sync and idempotent.
+  process.on('exit', () => {
+    runFatalSalvageSync();
+  });
   mainFn(process.argv.slice(2)).then(
     (c) => {
       // Set exitCode and let Node drain async handles (undici TLS, log file
@@ -132,6 +137,10 @@ export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
       setTimeout(() => process.exit(c), 500).unref();
     },
     (err) => {
+      // Salvage durability-critical state synchronously before reporting —
+      // the unref'd force-exit below gives only ~500ms of drain, which a
+      // datasync or sidecar write can exceed on slow disks.
+      runFatalSalvageSync();
       writeErr((err instanceof Error ? err.stack : String(err)) + '\n');
       process.exitCode = 1;
       setTimeout(() => process.exit(1), 500).unref();

@@ -28,6 +28,28 @@ function isClosedHandleError(err: unknown): boolean {
 }
 
 /**
+ * Event types that must reach disk without waiting for FLUSH_SIZE /
+ * FLUSH_INTERVAL_MS. Losing one of these to a SIGKILL makes a resumed
+ * transcript lie about what actually happened: the user's prompt or the
+ * assistant's response vanishes, or a dangling marker hides crash state
+ * from recovery. Everything else keeps riding the batched buffer.
+ */
+const CRITICAL_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
+  'user_input',
+  'llm_response',
+  'checkpoint',
+  'in_flight_start',
+  'in_flight_end',
+]);
+
+function isCriticalEvent(event: SessionEvent): boolean {
+  return CRITICAL_EVENT_TYPES.has(event.type);
+}
+
+/** Default throttle for mid-session metadata checkpoints (sidecar + index refresh). */
+const METADATA_CHECKPOINT_INTERVAL_MS = 10_000;
+
+/**
  * Append-mode JSONL session writer with batched writes, write serialization,
  * and enriched summary tracking.
  *
@@ -78,6 +100,17 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppendBatch = cb;
   }
   private readonly onCloseCb?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
+  /** Mid-session metadata checkpoint throttle. 0 disables checkpointing. */
+  private readonly metadataCheckpointMs: number;
+  /** One-shot guard for the "interval set but no sink" warning below. */
+  private _checkpointNoSinkWarned = false;
+  private readonly onMetadataCheckpointCb?:
+    | ((summary: SessionSummary) => void | Promise<void>)
+    | undefined;
+  /** Set whenever summary counters changed since the last metadata checkpoint. */
+  private metadataDirty = false;
+  private metadataTimer: ReturnType<typeof setTimeout> | null = null;
+  private metadataCheckpointInFlight: Promise<void> | null = null;
   /** Implements SessionWriter.traceId — propagated from ContextInit.traceId. */
   traceId: string | undefined;
 
@@ -120,6 +153,8 @@ export class FileSessionWriter implements SessionWriter {
     // bypass scrubbing merely because they cannot await the writer.
     const appendEvent = scrubSessionWriterEvent(event, this.secretScrubber);
     this.summaryTracker.observe(appendEvent);
+    this.metadataDirty = true;
+    this.scheduleMetadataCheckpoint();
     // Fire the onAppend callback so synchronous observations reach the HQ
     // bridge without a disk read-back. The scrubbed event is pushed to the
     // JSONL buffer so secrets never persist at rest, matching append().
@@ -128,17 +163,38 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
+    const critical = isCriticalEvent(appendEvent);
     if (!this.buffer.push(appendEvent)) {
+      // Buffer rejected the event (overflow). Drain what is there and
+      // re-push; a CRITICAL event must not wait out the 500ms window just
+      // because its first push lost the race against a full buffer.
       this.buffer.cancelTimer();
       void this.buffer
-        .flushBuffer(this.closed)
+        .flushBuffer(this.closed, { datasync: true })
         .catch(() => undefined)
         .then(() => {
-          this.buffer.push(appendEvent);
+          if (this.buffer.push(appendEvent)) {
+            if (!critical) return;
+            this.buffer.cancelTimer();
+            void this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => undefined);
+            return;
+          }
+          // Buffer refilled faster than we could reclaim space: write the
+          // CRITICAL event through the serialized chain directly rather than
+          // dropping it (enqueueWrite preserves ordering; appendEvent is
+          // already scrubbed above).
+          void this.buffer
+            .drainWriteChain()
+            .then(() => this.buffer.enqueueWrite(`${JSON.stringify(appendEvent)}\n`))
+            .then(() => {
+              if (!critical) return;
+              return this.handle.datasync().catch(() => undefined);
+            })
+            .catch(() => undefined);
         });
-    } else if (this.buffer.shouldFlushNow()) {
+    } else if (critical || this.buffer.shouldFlushNow()) {
       this.buffer.cancelTimer();
-      void this.buffer.flushBuffer(this.closed).catch(() => {
+      void this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => {
         // Retained at the head of writeBuffer for the boundary retry.
       });
     } else {
@@ -257,6 +313,22 @@ export class FileSessionWriter implements SessionWriter {
       onClose?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
       /** Reconcile an explicit name changed while this writer remained open. */
       resolveName?: (() => Promise<Pick<SessionSummary, 'name'> | null>) | undefined;
+      /**
+       * Mid-session metadata checkpoint throttle (ms). While the session is
+       * live and dirty, the summary sidecar + index row are refreshed at most
+       * this often, so a SIGKILLed process still leaves accurate listing
+       * metadata instead of its create-time stub. 0 disables checkpointing —
+       * killed sessions then stay visible through the store's list()-union
+       * scan, but only with analyzer-derived metadata rather than tracked
+       * counters. Default 10_000.
+       */
+      metadataCheckpointMs?: number | undefined;
+      /**
+       * Persists a mid-session summary snapshot (store-level index row /
+       * catalog upsert). The sidecar file itself is written by the writer
+       * under its manifest lock; this callback covers the index side.
+       */
+      onMetadataCheckpoint?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
     } = {},
     traceId?: string | undefined,
   ) {
@@ -271,6 +343,8 @@ export class FileSessionWriter implements SessionWriter {
     this._onAppend = opts.onAppend;
     this._onAppendBatch = opts.onAppendBatch;
     this.onCloseCb = opts.onClose;
+    this.onMetadataCheckpointCb = opts.onMetadataCheckpoint;
+    this.metadataCheckpointMs = opts.metadataCheckpointMs ?? METADATA_CHECKPOINT_INTERVAL_MS;
     this.summaryTracker = new SessionSummaryTracker({
       id,
       startedAt,
@@ -313,6 +387,104 @@ export class FileSessionWriter implements SessionWriter {
     });
   }
 
+  /**
+   * Arm the mid-session metadata checkpoint timer if it is not already armed.
+   * Called after every observed event; the timer itself is unref'd so an idle
+   * session never keeps the process alive for a cosmetic sidecar refresh.
+   */
+  private scheduleMetadataCheckpoint(): void {
+    if (this.closed || this.metadataTimer) return;
+    if (this.metadataCheckpointMs <= 0) return;
+    if (!this.onMetadataCheckpointCb && !this.manifestFile) {
+      // One-time diagnostic: an interval was configured but nothing can
+      // consume checkpoints, so arming a timer would be a silent no-op
+      // (chimera HIGH — foot-gun where callers believe durability exists).
+      if (!this._checkpointNoSinkWarned) {
+        this._checkpointNoSinkWarned = true;
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'session.metadata_checkpoint_no_sink',
+            sessionId: this.id,
+            message:
+              'metadataCheckpointMs set but neither onMetadataCheckpoint nor manifestFile configured; mid-session checkpoints disabled.',
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+      return;
+    }
+    this.metadataTimer = setTimeout(() => {
+      this.metadataTimer = null;
+      void this.runMetadataCheckpoint();
+    }, this.metadataCheckpointMs);
+    this.metadataTimer.unref?.();
+  }
+
+  /**
+   * Persist a mid-session summary snapshot: the `.summary.json` sidecar under
+   * the manifest lock, then the store-level index row / catalog upsert via
+   * `onMetadataCheckpoint`. Runs at most once per throttle interval and only
+   * when summary counters changed since the last checkpoint; a failed
+   * checkpoint stays dirty and retries on the next armed tick.
+   */
+  private runMetadataCheckpoint(): Promise<void> {
+    if (this.closed || !this.metadataDirty) return Promise.resolve();
+    if (this.metadataCheckpointInFlight) return this.metadataCheckpointInFlight;
+    // Snapshot BEFORE any await so events observed during the write land in
+    // the NEXT checkpoint instead of racing this one. snapshot() materializes
+    // every live counter — currentSummary alone leaves counters stale until
+    // finalize().
+    // Resumed sessions seed the tracker from the PRIOR run's manifest, so
+    // snapshot() would carry stale endedAt/outcome:'completed' into live
+    // sidecar/catalog rows — making a running or SIGKILLed session look
+    // cleanly ended with a pre-resume timestamp. Strip terminal fields here;
+    // close-time finalize() re-stamps the real values.
+    const {
+      endedAt: _priorEndedAt,
+      outcome: _priorOutcome,
+      ...snapshot
+    } = this.summaryTracker.snapshot();
+    const run = (async () => {
+      const t0 = Date.now();
+      let outcome: 'success' | 'failure' = 'success';
+      let errorMsg: string | undefined;
+      try {
+        if (this.manifestFile) {
+          await withFileLock(this.manifestFile, async () => {
+            await atomicWrite(this.manifestFile, JSON.stringify(snapshot), { mode: 0o600 });
+          });
+        }
+        // Sidecar reached disk: clear dirty only NOW. A SIGKILL during the
+        // write leaves the flag true so the next observation re-arms instead
+        // of silently losing the counter mutation.
+        this.metadataDirty = false;
+        await this.onMetadataCheckpointCb?.(snapshot);
+        // Events observed while persisting re-arm the next tick.
+        if (this.metadataDirty && !this.closed) this.scheduleMetadataCheckpoint();
+      } catch (err) {
+        outcome = 'failure';
+        errorMsg = toErrorMessage(err);
+        this.metadataDirty = true;
+        this.scheduleMetadataCheckpoint();
+      } finally {
+        this.metadataCheckpointInFlight = null;
+        this.events?.emit('storage.write', {
+          sessionId: this.id,
+          store: 'session',
+          filePath: this.manifestFile || this.filePath,
+          operation: 'metadata_checkpoint',
+          outcome,
+          durationMs: Date.now() - t0,
+          ...(errorMsg !== undefined ? { error: errorMsg } : {}),
+          ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
+        });
+      }
+    })();
+    this.metadataCheckpointInFlight = run;
+    return run;
+  }
+
   async append(event: SessionEvent): Promise<void> {
     if (this.closed) return;
     await this.ensureInit();
@@ -325,6 +497,8 @@ export class FileSessionWriter implements SessionWriter {
     // and the session index. Deferring observation to flush time would leave
     // the summary stale if close() fires before the next timer tick.
     this.summaryTracker.observe(scrubbed);
+    this.metadataDirty = true;
+    this.scheduleMetadataCheckpoint();
     // Fire the onAppend callback with the scrubbed event so the HQ bridge
     // can stream it without reading it back from disk. Synchronous and
     // best-effort — the callback must not throw.
@@ -333,17 +507,33 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
-    if (!this.buffer.push(scrubbed)) {
+    let pushed = this.buffer.push(scrubbed);
+    if (!pushed) {
       this.buffer.cancelTimer();
-      await this.buffer.flushBuffer(this.closed).catch(() => undefined);
-      this.buffer.push(scrubbed);
+      await this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => undefined);
+      pushed = this.buffer.push(scrubbed);
+      if (!pushed) {
+        // Serialized direct-write fallback (mirrors bufferSynchronousEvent /
+        // appendBatch): never silently drop an event after an overflow flush.
+        // Critical events sync here too — the empty-buffer flush below cannot
+        // datasync bytes that bypassed the buffer (>16MiB push failure).
+        await this.buffer
+          .drainWriteChain()
+          .then(() => this.buffer.enqueueWrite(`${JSON.stringify(scrubbed)}\n`))
+          .then(() => {
+            if (!isCriticalEvent(scrubbed)) return;
+            return this.handle.datasync().catch(() => undefined);
+          })
+          .catch(() => undefined);
+      }
     }
 
-    if (this.buffer.shouldFlushNow()) {
-      // Buffer full — flush immediately. Cancel any pending timer so we
+    if (isCriticalEvent(scrubbed) || this.buffer.shouldFlushNow()) {
+      // Critical events (user_input/llm_response/checkpoint/in_flight_*) and
+      // buffer-full both flush immediately. Cancel any pending timer so we
       // don't double-flush on the next tick.
       this.buffer.cancelTimer();
-      await this.buffer.flushBuffer(this.closed).catch(() => {
+      await this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => {
         // append() is intentionally best-effort. The failed batch remains at
         // the front of writeBuffer; an explicit boundary flush can surface the
         // error while ordinary audit appends do not abort the agent loop.
@@ -367,12 +557,30 @@ export class FileSessionWriter implements SessionWriter {
       } catch {
         /* best-effort */
       }
-      if (!this.buffer.push(scrubbed)) {
+      let pushed = this.buffer.push(scrubbed);
+      if (!pushed) {
         this.buffer.cancelTimer();
-        await this.buffer.flushBuffer(this.closed).catch(() => undefined);
-        this.buffer.push(scrubbed);
+        await this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => undefined);
+        pushed = this.buffer.push(scrubbed);
+        if (!pushed) {
+          // Serialized direct-write fallback (mirrors bufferSynchronousEvent):
+          // never silently drop an event after an overflow flush. Batch-level
+          // critical handling below supplies datasync when applicable.
+          await this.buffer
+            .drainWriteChain()
+            .then(() => this.buffer.enqueueWrite(`${JSON.stringify(scrubbed)}\n`))
+            .then(() => {
+              if (!isCriticalEvent(scrubbed)) return;
+              return this.handle.datasync().catch(() => undefined);
+            })
+            .catch(() => undefined);
+        }
       }
       scrubbedBatch.push(scrubbed);
+    }
+    if (scrubbedBatch.length > 0) {
+      this.metadataDirty = true;
+      this.scheduleMetadataCheckpoint();
     }
     // Fire the batch callback with all scrubbed events so the HQ bridge
     // can stream them without reading them back from disk.
@@ -381,9 +589,12 @@ export class FileSessionWriter implements SessionWriter {
     } catch {
       /* best-effort */
     }
-    if (this.buffer.shouldFlushNow()) {
+    // One critical event makes the whole batch durable immediately — flushing
+    // only part of it would strand earlier events behind the 500ms timer.
+    const hasCritical = scrubbedBatch.some(isCriticalEvent);
+    if (hasCritical || this.buffer.shouldFlushNow()) {
       this.buffer.cancelTimer();
-      await this.buffer.flushBuffer(this.closed).catch(() => {
+      await this.buffer.flushBuffer(this.closed, { datasync: true }).catch(() => {
         // Same best-effort append contract as append(); batch is retained.
       });
     } else {
@@ -393,8 +604,10 @@ export class FileSessionWriter implements SessionWriter {
 
   /**
    * Flush buffered events to disk immediately. Critical events
-   * (user_input, llm_response) call this so they survive SIGKILL/crash
-   * instead of sitting in the in-memory buffer for up to 500ms.
+   * (user_input, llm_response, checkpoint, in_flight_*) already flush
+   * themselves inside append()/appendBatch(), so calling this matters for
+   * non-critical tails that would otherwise sit in the in-memory buffer
+   * for up to 500ms.
    *
    * Idempotent — cancels any pending timer, writes whatever has accumulated,
    * then asks the OS to synchronize the file data before resolving. Even an
@@ -403,7 +616,7 @@ export class FileSessionWriter implements SessionWriter {
   async flush(): Promise<void> {
     if (this.closed) return;
     this.buffer.cancelTimer();
-    await this.buffer.flushBuffer(this.closed);
+    await this.buffer.flushBuffer(this.closed, { datasync: true });
     await this.buffer.drainWriteChain();
     try {
       await this.handle.datasync();
@@ -422,8 +635,9 @@ export class FileSessionWriter implements SessionWriter {
    * Last-gasp synchronous drain for hard-exit paths (process.exit after
    * rapid Ctrl+C). The async write chain cannot be awaited when the process
    * is about to die, but whatever still sits in the in-memory buffer CAN be
-   * saved with a blocking append. Best-effort: an in-flight async write may
-   * be cut off by the exit regardless; errors here are swallowed.
+   * saved with a blocking append. A failed sync append leaves the buffer
+   * intact so a subsequent close()/flush() can retry. An in-flight async
+   * write may still be cut off by a hard exit.
    */
   flushSync(): void {
     this.buffer.flushSync();
@@ -434,18 +648,42 @@ export class FileSessionWriter implements SessionWriter {
     // promise, so nobody proceeds (e.g. to tear down the session directory)
     // while the first close is still flushing.
     if (this.closePromise) return this.closePromise;
-    this.closePromise = this.doClose().catch((err) => {
+    this.closePromise = this.doClose().catch(async (err) => {
+      // Reconcile mid-session checkpointing: an armed timer scheduled against
+      // the closing state must not survive as a phantom. Any in-flight
+      // checkpoint is legitimate (the writer is still open after this
+      // rollback) and finishes on its own.
+      if (this.metadataTimer) {
+        clearTimeout(this.metadataTimer);
+        this.metadataTimer = null;
+      }
+      await this.metadataCheckpointInFlight?.catch(() => undefined);
       // A failed durable drain must not permanently brick the writer. Keep the
       // handle open and allow the timer or a later close() call to retry.
       this.closed = false;
       this.closePromise = null;
       if (this.buffer.length > 0) this.buffer.scheduleFlush(this.closed);
+      // Re-arm metadata checkpointing ONLY when counters are actually dirty:
+      // an unconditional arm would leave an idle session with a hot 10s timer
+      // until the next unrelated event (chimera MED).
+      if (this.metadataDirty) this.scheduleMetadataCheckpoint();
       throw err;
     });
     return this.closePromise;
   }
 
   private async doClose(): Promise<void> {
+    // Stop mid-session metadata checkpointing FIRST so nothing re-arms while
+    // we materialize. Pending file snapshots still require an OPEN writer —
+    // writeFileSnapshot delegates to append(), whose closed guard would
+    // silently drop them — so `closed` flips only after they are written,
+    // followed by a second metadata stop for anything the snapshot appends
+    // re-armed.
+    if (this.metadataTimer) {
+      clearTimeout(this.metadataTimer);
+      this.metadataTimer = null;
+    }
+    await this.metadataCheckpointInFlight?.catch(() => undefined);
     // Session creation opens the transcript eagerly, but its lifecycle
     // preamble is lazy. Materialize it even for an otherwise idle session so
     // a valid JSONL never becomes a zero-byte/headerless transcript.
@@ -455,13 +693,19 @@ export class FileSessionWriter implements SessionWriter {
       this.pendingFileSnapshots = [];
       this.pendingFileSnapshotBytes = 0;
     }
+    // Flip closed only after every write that requires an open writer.
     this.closed = true;
+    if (this.metadataTimer) {
+      clearTimeout(this.metadataTimer);
+      this.metadataTimer = null;
+    }
+    await this.metadataCheckpointInFlight?.catch(() => undefined);
     // Flush any buffered events before finalizing. The summary counters
     // (toolCallCount, tokenIn/Out, outcome) are already up to date because
     // observeForSummary runs synchronously on every append, but the JSONL
     // must have all events on disk before we write the .summary.json sidecar.
     this.buffer.cancelTimer();
-    await this.buffer.flushBuffer(this.closed);
+    await this.buffer.flushBuffer(this.closed, { datasync: true });
     // Drain any write enqueued outside flushBuffer (e.g. the lazy
     // session_start record) before the handle is closed.
     await this.buffer.drainWriteChain();
@@ -599,12 +843,31 @@ export class FileSessionWriter implements SessionWriter {
     // events that haven't hit the JSONL yet would be invisible to the
     // truncation logic and would be silently dropped by the rewrite.
     this.buffer.cancelTimer();
-    await this.buffer.flushBuffer(this.closed);
+    await this.buffer.flushBuffer(this.closed, { datasync: true });
     // Drain the write chain so no in-flight write straddles the close/rename/reopen.
     await this.buffer.drainWriteChain();
+    // Stop mid-session metadata checkpointing across the file rewrite: the
+    // summary counters are recomputed from disk below, and an armed timer or
+    // in-flight checkpoint could write pre-rewind state over them.
+    if (this.metadataTimer) {
+      clearTimeout(this.metadataTimer);
+      this.metadataTimer = null;
+    }
+    await this.metadataCheckpointInFlight?.catch(() => undefined);
 
-    const plan = await findSessionCheckpointTruncatePlan(this.filePath, targetPromptIndex);
-    if (!plan) return 0;
+    const plan = await findSessionCheckpointTruncatePlan(this.filePath, targetPromptIndex).catch(
+      (err) => {
+        // Lookup failed: re-arm live checkpointing so dirty metadata is not
+        // stranded until the next unrelated event.
+        this.scheduleMetadataCheckpoint();
+        throw err;
+      },
+    );
+    if (!plan) {
+      // No matching checkpoint: same re-arm obligation as the error path.
+      this.scheduleMetadataCheckpoint();
+      return 0;
+    }
 
     // Windows EPERM fix: close the append-mode handle before replacing the
     // file. Windows rejects rename() when the destination still has an open
@@ -623,6 +886,10 @@ export class FileSessionWriter implements SessionWriter {
       /* v8 ignore start -- defensive: close/rename/reopen of a just-written temp file */
     } catch (err) {
       this.handle = await fsp.open(this.filePath, 'a', 0o600).catch(() => this.handle);
+      // Re-arm live checkpointing so a failed rewrite does not strand dirty
+      // metadata until the next unrelated event (mirrors the lookup / no-plan
+      // exits above, which both re-arm before returning).
+      this.scheduleMetadataCheckpoint();
       throw err;
     }
     /* v8 ignore stop */
@@ -667,6 +934,14 @@ export class FileSessionWriter implements SessionWriter {
     // Let any in-flight append land first — otherwise it would re-append
     // stale events AFTER the reset record below.
     await this.buffer.drainWriteChain();
+    // Same for an in-flight metadata checkpoint: stop the timer and drain it
+    // BEFORE the transcript is rewritten, so pre-reset summary state can
+    // never land on top of the freshly cleared files.
+    if (this.metadataTimer) {
+      clearTimeout(this.metadataTimer);
+      this.metadataTimer = null;
+    }
+    await this.metadataCheckpointInFlight?.catch(() => undefined);
     const resetAt = new Date().toISOString();
     const record = `${JSON.stringify({
       type: 'session_start',
@@ -682,8 +957,17 @@ export class FileSessionWriter implements SessionWriter {
     // atomicWrite (tmp + rename) — so we do NOT reopen here. The handle is
     // lazily reopened in enqueueWrite on the next append.
     await this.handle.close();
-    await fsp.writeFile(this.filePath, record, 'utf8');
+    // Atomic replace (tmp + rename): a crash mid-write must never leave a
+    // torn transcript behind — /clear is destructive by intent, not by
+    // accident. Matches clearHistory's durability discipline above.
+    await atomicWrite(this.filePath, record, { mode: 0o600 });
     this.summaryTracker.reset(resetAt);
+    // Mark dirty and re-arm immediately: if a SIGKILL lands before the next
+    // observed append, the sidecar still holds PRE-reset counters while the
+    // JSONL is already clean — the scheduled checkpoint heals them (~10s).
+    // (No trailing dirty-clear here: it would self-cancel the armed timer.)
+    this.metadataDirty = true;
+    this.scheduleMetadataCheckpoint();
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;

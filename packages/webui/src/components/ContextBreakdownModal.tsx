@@ -1,4 +1,3 @@
-import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useSessionStore } from '@/stores';
 import { fmtTok } from '@/components/ChatView/utils';
 import {
@@ -13,22 +12,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppTranslation, i18n } from '@/i18n';
+import { useAppTranslation } from '@/i18n';
+import { useLiveContextDebug } from '@/hooks/useLiveContextDebug';
 import { cn } from '@/lib/utils';
-
-/** Debug payload from context.debug WS response. */
-interface ContextDebugPayload {
-  total: number;
-  mode?: string | undefined;
-  policy?: unknown | undefined;
-  systemPrompt: number;
-  tools: { total: number; count: number; breakdown: Array<{ name: string; tokens: number }> };
-  messages: {
-    total: number;
-    count: number;
-    breakdown: Array<{ index: number; role: string; tokens: number; preview: string }>;
-  };
-}
 
 interface ContextBreakdownModalProps {
   open: boolean;
@@ -71,68 +57,25 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
   );
   const { t } = useAppTranslation();
 
-  const [data, setData] = useState<ContextDebugPayload | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [animateIn, setAnimateIn] = useState(false);
-  // Increment to restart the debug-data fetch (refresh button).
-  const [refreshGen, setRefreshGen] = useState(0);
+  // Subscribe-and-poll the server's `context.debug` payload for the
+  // lifetime of the open modal. The hook owns the WS subscription,
+  // visibility-paused polling cadence, and refresh-button lifecycle;
+  // cacheStats / lastInputTokens / maxContext flow in reactively from
+  // useSessionStore (the /stats slash command and provider.response
+  // events keep those store fields fresh).
+  const { data, loading, error, refresh } = useLiveContextDebug(wsUrl, { active: open });
 
-  // Fetch debug data when modal opens or refresh is requested
+  const [animateIn, setAnimateIn] = useState(false);
+
+  // Stagger entrance animation only on the open transition, not on a
+  // refresh that bumps the hook's internal generation counter.
   useEffect(() => {
     if (!open) {
-      setData(null);
-      setError(null);
       setAnimateIn(false);
-      setRefreshGen(0);
       return;
     }
-
-    // Stagger entrance animation (only on open, not on refresh)
-    if (refreshGen === 0) {
-      requestAnimationFrame(() => requestAnimationFrame(() => setAnimateIn(true)));
-    }
-
-    setLoading(true);
-    setError(null);
-    setData(null);
-
-    const ws = getWSClient(wsUrl);
-    if (!ws?.send) {
-      setError(i18n.t('activity:context.wsNotConnected'));
-      setLoading(false);
-      return;
-    }
-
-    ws.send({ type: 'context.debug' }, { echoToChat: false });
-
-    let cancelled = false;
-
-    const handler = (msg: { type: string; payload?: unknown }) => {
-      if (cancelled) return;
-      if (msg.type === 'context.debug') {
-        cancelled = true;
-        setData(msg.payload as ContextDebugPayload);
-        setLoading(false);
-      }
-    };
-
-    const unsubscribe = ws.on('context.debug', handler);
-
-    const timeout = setTimeout(() => {
-      if (cancelled) return;
-      cancelled = true;
-      setLoading(false);
-      setError(i18n.t('activity:context.noData'));
-      unsubscribe();
-    }, 5000);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-      unsubscribe();
-    };
-  }, [open, wsUrl, refreshGen]);
+    requestAnimationFrame(() => requestAnimationFrame(() => setAnimateIn(true)));
+  }, [open]);
 
   // Close on Escape
   useEffect(() => {
@@ -231,7 +174,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setRefreshGen((g) => g + 1)}
+              onClick={refresh}
               className="p-1.5 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
               title={t('activity:ctxBreakdown.refresh')}
             >

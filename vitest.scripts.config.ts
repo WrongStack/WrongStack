@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import { getVitestMaxWorkers } from './vitest.workers';
+import { getVitestMaxWorkers } from './vitest.workers.ts';
 
 export default defineConfig({
   test: {

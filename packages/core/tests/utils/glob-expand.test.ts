@@ -69,9 +69,10 @@ describe('expandGlob', () => {
     expect(Array.isArray(await expandGlob('[ab^].ts'))).toBe(true); // non-leading caret
   });
 
-  it('matches the current directory for a leading globstar pattern', async () => {
+  it('matches the current directory and nested subdirectories for a leading globstar pattern', async () => {
     const out = (await expandGlob('**/*.ts')).map(base).sort();
     expect(out).toContain('a.ts');
     expect(out).toContain('b.ts');
+    expect(out).toContain('d.ts');
   });
 });

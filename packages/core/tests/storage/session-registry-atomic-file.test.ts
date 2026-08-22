@@ -99,4 +99,22 @@ describe('session-registry advisory lock primitives', () => {
     await backdate(11_000);
     expect(await breakStaleLock(lockPath)).toBe(true);
   });
+
+  it('prunes stale temp files when there are fewer than MAX_STALE_TMP_FILES', async () => {
+    const registryPath = path.join(dir, 'session-registry.json');
+    const tmp1 = path.join(dir, 'session-registry.json.1.tmp');
+    const tmp2 = path.join(dir, 'session-registry.json.2.tmp');
+    await fsp.writeFile(tmp1, 'tmp1');
+    await fsp.writeFile(tmp2, 'tmp2');
+    const old = new Date(Date.now() - 70_000);
+    await fsp.utimes(tmp1, old, old);
+    await fsp.utimes(tmp2, old, old);
+
+    const { pruneStaleTempFiles } = await import('../../src/session-registry-atomic-file.js');
+    await pruneStaleTempFiles(registryPath);
+
+    const remaining = await fsp.readdir(dir);
+    expect(remaining.filter((f) => f.endsWith('.tmp'))).toEqual([]);
+  });
 });
+

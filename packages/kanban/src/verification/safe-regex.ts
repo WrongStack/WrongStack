@@ -44,7 +44,7 @@ const DANGEROUS_PATTERNS: ReadonlyArray<RegExp> = [
   // Quantifier on alternation with length 2+
   /\([^|)]+\|[^)]+\)[+*][+*]/,
   // Greedy quantifier inside lookahead/lookbehind — (?!.*a+)
-  /[([][^)\]]*[+*][^)\]]*[)\]][^)]*\?\??/,
+  /\(\?<?[!=][^)]*[+*][^)]*\)/,
 ];
 
 /**

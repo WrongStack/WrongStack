@@ -324,7 +324,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
     ctx.recordRead(absPath, written.mtimeMs, 'write', sha256hex(newFile));
 
     // Record for session rewind
-    ctx.session.recordFileChange({
+    ctx.session?.recordFileChange?.({
       path: absPath,
       action: 'modified',
       before: original,

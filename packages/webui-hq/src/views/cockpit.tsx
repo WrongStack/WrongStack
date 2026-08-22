@@ -573,17 +573,17 @@ export function CockpitView(): React.ReactElement {
                   value={systemHealth.status}
                   accent={systemHealth.status === 'healthy' ? 'green' : 'error'}
                 />
-                <Stat label="event log" value={systemHealth.uptime.eventLogSize} />
-                <Stat label="connections" value={systemHealth.connections.total} />
+                <Stat label="event log" value={systemHealth.uptime?.eventLogSize ?? 0} />
+                <Stat label="connections" value={systemHealth.connections?.total ?? 0} />
                 <Stat
                   label="active"
-                  value={systemHealth.connections.active}
-                  accent={systemHealth.connections.active > 0 ? 'green' : undefined}
+                  value={systemHealth.connections?.active ?? 0}
+                  accent={(systemHealth.connections?.active ?? 0) > 0 ? 'green' : undefined}
                 />
                 <Stat
                   label="stale"
-                  value={systemHealth.connections.stale}
-                  accent={systemHealth.connections.stale > 3 ? 'warn' : undefined}
+                  value={systemHealth.connections?.stale ?? 0}
+                  accent={(systemHealth.connections?.stale ?? 0) > 3 ? 'warn' : undefined}
                 />
               </div>
             ) : null}

@@ -381,6 +381,13 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     },
   ): Promise<boolean> {
     try {
+      if (payload.baseUrl !== undefined && payload.baseUrl !== '') {
+        const invalid = validateProviderBaseUrl(payload.baseUrl);
+        if (invalid) {
+          sendOperationResult(ws, false, invalid);
+          return false;
+        }
+      }
       const providers = await loadConfigProviders();
       const result = addProviderRecord(providers, payload, new Date().toISOString());
       if (result.ok) {

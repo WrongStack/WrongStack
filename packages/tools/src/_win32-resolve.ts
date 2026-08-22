@@ -77,10 +77,10 @@ export function resolvePowerShell(cmd: string): string {
     return resolveWin32Command(cmd);
   }
   // Prefer the requested edition, fall back to the other one.
-  const primary = lower.startsWith('pwsh') ? 'pwsh.exe' : 'powershell.exe';
-  const fallback = lower.startsWith('pwsh') ? 'powershell.exe' : 'pwsh.exe';
+  const primary = lower.startsWith('pwsh') ? 'pwsh' : 'powershell';
+  const fallback = lower.startsWith('pwsh') ? 'powershell' : 'pwsh';
   const resolved = resolveWin32Command(primary);
-  if (resolved !== primary) {
+  if (resolved === primary) {
     // resolveWin32Command returns the original string when not found.
     const fb = resolveWin32Command(fallback);
     return fb === fallback ? cmd : fb;

@@ -9,11 +9,13 @@ import { FileSessionWriter } from '../file-session-writer.js';
 import type { SessionCheckpointCas } from '../session-checkpoint-cas.js';
 import { sessionContentText } from '../session-helpers.js';
 import {
+  formatCrashRecoveryNotice,
   formatInterruptedToolNotice,
   formatResumeValidationNotice,
   isResumeNoticeMessage,
   validateResumeFileObservations,
 } from '../session-resume-validation.js';
+import { extractInterruptedTools, SessionRecovery } from '../session-recovery.js';
 import { emitSessionStoreError, emitSessionStoreWrite } from './events.js';
 import { summarizeSessionEvents, summarizeSessionFile } from './summary-builder.js';
 
@@ -35,6 +37,8 @@ export interface ResumeSessionParams {
   ) => Promise<Array<{ event: SessionEvent }>>;
   persistCatalogSummary: (summary: SessionSummary) => Promise<void>;
   logWarn: (msg: string, ctx?: Record<string, unknown>) => void;
+  /** Store root used to rescan the full transcript when load() dropped events. */
+  sessionsDir?: string | undefined;
 }
 
 export async function executeResumeSession(params: ResumeSessionParams): Promise<ResumedSession> {
@@ -52,6 +56,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
     searchEvents,
     persistCatalogSummary,
     logWarn,
+    sessionsDir,
   } = params;
 
   const t0 = Date.now();
@@ -76,6 +81,37 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
     ...derivedSummary,
     ...(persistedSummary?.name !== undefined ? { name: persistedSummary.name } : {}),
   };
+
+  // Crash-aware resume (P2): heal a dangling in_flight boundary over the
+  // already-loaded events. Synthesized error results pair with the dangling
+  // tool_use ids; the resumed writer appends them plus an
+  // in_flight_end(reason='recovered') marker so detectStale()/listResumable()
+  // report a clean file afterward.
+  // load() may drop the oldest events under a byte budget. Stale detection
+  // that only looks at the retained tail can miss an in_flight_start that
+  // still sits on disk, leaving detectStale() stuck after a "successful"
+  // resume. Rescan the file when events were dropped.
+  let recoveryPlan = SessionRecovery.buildRecoveryPlan(data.events, canonicalId);
+  if (eventsDropped > 0 && sessionsDir) {
+    const fromDisk = await new SessionRecovery(sessionsDir).recover(canonicalId);
+    if (fromDisk) recoveryPlan = fromDisk;
+  }
+  const interruptedTools = recoveryPlan.stale ? extractInterruptedTools(recoveryPlan) : [];
+  const synthesizedResults: SessionEvent[] = interruptedTools.flatMap((tool) =>
+    typeof tool.id === 'string'
+      ? [
+          {
+            type: 'tool_result',
+            ts: new Date().toISOString(),
+            id: tool.id,
+            content:
+              '[interrupted] No result was recorded — the previous process stopped before this call completed. Re-run it if still needed.',
+            isError: true,
+          } as SessionEvent,
+        ]
+      : [],
+  );
+  if (synthesizedResults.length > 0) data.events.push(...synthesizedResults);
 
   const noticeMessages: Message[] = [];
   let resumeValidation: import('../../types/session.js').ResumeValidation | undefined;
@@ -111,11 +147,24 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
     }
   }
 
-  const interruptedNotice = formatInterruptedToolNotice(data.pendingToolUseCount ?? 0);
+  // When the run crashed mid-iteration the dedicated crash-recovery notice
+  // below lists every interrupted call explicitly; the generic count notice
+  // would only duplicate it.
+  const interruptedNotice = recoveryPlan.stale
+    ? null
+    : formatInterruptedToolNotice(data.pendingToolUseCount ?? 0);
   if (interruptedNotice) {
     noticeMessages.push({
       role: 'system',
       content: interruptedNotice,
+      ts: new Date().toISOString(),
+    });
+  }
+  const crashNotice = formatCrashRecoveryNotice(interruptedTools, recoveryPlan.context);
+  if (crashNotice) {
+    noticeMessages.push({
+      role: 'system',
+      content: crashNotice,
       ts: new Date().toISOString(),
     });
   }
@@ -166,8 +215,24 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
             : { name: sessionContentText(secretScrubber.scrub(current.name)) };
         },
         onClose: (s) => persistCatalogSummary(s),
+        // Resumed sessions checkpoint their index/catalog metadata mid-flight
+        // too, so a kill during a resumed session still leaves fresh listing
+        // state behind.
+        onMetadataCheckpoint: (s) => persistCatalogSummary(s),
       },
     );
+    // Heal the journal BEFORE announcing success: synthesized results land
+    // durably and the stale in_flight boundary gets its closing marker.
+    // appendBatch/append swallow flush errors (buffer retained); flush()
+    // surfaces them so resume cannot report success against a still-stale file.
+    if (synthesizedResults.length > 0) {
+      await writer.appendBatch(synthesizedResults);
+      await writer.flush();
+    }
+    if (recoveryPlan.stale) {
+      await writer.clearInFlightMarker('recovered');
+      await writer.flush();
+    }
     emitSessionStoreWrite(events, canonicalId, file, 'resume', 'success', Date.now() - t0);
     return { writer, data: resumedData };
   } catch (err) {

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { QueuedItem, QueueMode } from './chat-store';
 import type { MailboxMessage } from './mailbox-store';
+import { MAX_ATTACHED_IMAGES } from '../components/ChatInput/image-attachments.js';
+import type { ImageAttachment } from '../components/ChatInput/image-attachments.js';
 
 // ============================================
 // UI Store
@@ -187,6 +189,11 @@ interface UIState {
   inspectorTab: InspectorTab;
   /** Agent ID to focus when opening the inspector on the agents tab. Cleared on read. */
   inspectorFocusedAgentId: string | null;
+  /** Subagent whose full transcript currently replaces the main chat pane
+   *  (agent tabs above the transcript). Null = leader chat. Transient — never
+   *  persisted; ChatView auto-clears it when the focused agent leaves the
+   *  fleet roster (removed, cleared, session stop). */
+  subagentChatFocusId: string | null;
   /** Process Monitor overlay — triggered by /kill slash command. */
   processMonitorOpen: boolean;
   /** Queue Panel overlay — triggered by /queue slash command. */
@@ -208,7 +215,12 @@ interface UIState {
    *  is intentionally NOT persisted to localStorage, so it does not reappear on a
    *  fresh page load or when starting a new session. */
   draftInput: string;
+  /** Pending image attachments mirroring the input draft (see draftInput):
+   *  survives view navigation into a subagent transcript, never persisted,
+   *  cleared on submit via clearPendingImages → setDraftImages([]). */
+  draftImages: ImageAttachment[];
   setDraftInput: (text: string) => void;
+  setDraftImages: (images: ImageAttachment[]) => void;
   setProcessMonitorOpen: (open: boolean) => void;
   setQueuePanelOpen: (open: boolean) => void;
   setCronJobsOpen: (open: boolean) => void;
@@ -350,6 +362,7 @@ interface UIState {
   setInspectorOpen: (open: boolean) => void;
   setInspectorTab: (tab: InspectorTab) => void;
   setInspectorFocusedAgentId: (id: string | null) => void;
+  setSubagentChatFocus: (id: string | null) => void;
   toggleInspector: () => void;
 }
 
@@ -383,6 +396,7 @@ function homeNavigationStatePatch(
     inspectorOpen: false,
     inspectorTab: 'fleet',
     inspectorFocusedAgentId: null,
+    subagentChatFocusId: null,
     terminalOpen: false,
     paletteOpen: false,
     shortcutsOpen: false,
@@ -432,6 +446,7 @@ export const useUIStore = create<UIState>()(
       inspectorOpen: false,
       inspectorTab: 'fleet',
       inspectorFocusedAgentId: null,
+      subagentChatFocusId: null,
       processMonitorOpen: false,
       queuePanelOpen: false,
       cronJobsOpen: false,
@@ -441,6 +456,7 @@ export const useUIStore = create<UIState>()(
       settingsActiveTab: 'general',
       scrollPositions: {},
       draftInput: '',
+      draftImages: [],
       sideContextBreakdownOpen: false,
       selectedMailMessage: null,
       skillsState: {
@@ -556,6 +572,7 @@ export const useUIStore = create<UIState>()(
         set({ inspectorOpen: open, ...(open ? { dockSection: null } : {}) }),
       setInspectorTab: (tab: InspectorTab) => set({ inspectorTab: tab }),
       setInspectorFocusedAgentId: (id: string | null) => set({ inspectorFocusedAgentId: id }),
+      setSubagentChatFocus: (id: string | null) => set({ subagentChatFocusId: id }),
       toggleInspector: () =>
         set((s) => ({
           inspectorOpen: !s.inspectorOpen,
@@ -574,6 +591,10 @@ export const useUIStore = create<UIState>()(
       setScrollPosition: (view: string, scrollTop: number) =>
         set((s) => ({ scrollPositions: { ...s.scrollPositions, [view]: scrollTop } })),
       setDraftInput: (text: string) => set({ draftInput: text }),
+      setDraftImages: (images) =>
+        // Trust boundary: data URLs are heavy — enforce the same per-message
+        // cap the composer enforces so no caller can bloat memory.
+        set({ draftImages: images.slice(-MAX_ATTACHED_IMAGES) }),
       setSideContextBreakdownOpen: (open: boolean) => set({ sideContextBreakdownOpen: open }),
       setSkillsState: (state) => set({ skillsState: state }),
       setSelectedMailMessage: (msg) => set({ selectedMailMessage: msg }),

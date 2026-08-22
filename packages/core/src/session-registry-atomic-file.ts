@@ -263,9 +263,9 @@ export async function pruneStaleTempFiles(filePath: string): Promise<void> {
       if (now - stat.mtimeMs > STALE_TMP_MS) stale.push({ name, mtimeMs: stat.mtimeMs });
     }
 
-    stale.sort((a, b) => b.mtimeMs - a.mtimeMs);
+    stale.sort((a, b) => a.mtimeMs - b.mtimeMs);
     await Promise.all(
-      stale.slice(MAX_STALE_TMP_FILES).map(async ({ name }) => {
+      stale.slice(0, MAX_STALE_TMP_FILES).map(async ({ name }) => {
         /* v8 ignore start -- best-effort temp removal; .catch only fires if the temp vanished */
         await fs.unlink(path.join(dir, name)).catch(() => undefined);
         /* v8 ignore stop */

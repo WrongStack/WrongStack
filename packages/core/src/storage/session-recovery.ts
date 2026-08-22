@@ -52,6 +52,8 @@ export interface RecoveryPlan {
 }
 
 export interface InterruptedToolDetail {
+  /** Tool_use id — lets callers synthesize a matching error tool_result. */
+  id?: string | undefined;
   name: string;
   argsSummary?: string | undefined;
   ts?: string | undefined;
@@ -62,7 +64,15 @@ export interface InterruptedToolDetail {
  */
 export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDetail[] {
   const tools: InterruptedToolDetail[] = [];
-  const openCalls = new Map<string, { name: string; args?: unknown; ts?: string }>();
+  const openCalls = new Map<
+    string,
+    { id?: string | undefined; name: string; args?: unknown; ts?: string }
+  >();
+  // Id-less calls cannot share a map key (the coalesced name would collapse
+  // N distinct interrupted calls into one); suffix them so each keeps its
+  // own slot. Their stored id stays undefined — consumers must not synthesize
+  // results for them, but the crash notice still counts each individually.
+  let anonymousSeq = 0;
 
   for (const ev of plan.pendingEvents) {
     if (
@@ -70,8 +80,15 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
       typeof (ev as { name?: string }).name === 'string'
     ) {
       const toolName = (ev as { name: string }).name;
-      const callId = (ev as { id?: string }).id ?? toolName;
+      // Deliberate coalescing (NOT the #seq scheme used by the content-block
+      // sites below): legacy id-less top-level tool_use events are keyed by
+      // bare toolName so their id-less tool_results can still resolve and
+      // delete them via the name-fallback deletion path below. Suffixing here
+      // would strand those entries as permanently "interrupted".
+      const rawId = (ev as { id?: string }).id;
+      const callId = rawId ?? toolName;
       openCalls.set(callId, {
+        id: rawId,
         name: toolName,
         args:
           (ev as { input?: unknown; args?: unknown }).input ??
@@ -99,8 +116,11 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
         }
       ).content) {
         if (block && block.type === 'tool_use' && typeof block.name === 'string') {
-          const callId = block.id ?? block.name;
+          // Raw id (possibly undefined) — same contract as site 1 above.
+          const rawId = block.id;
+          const callId = rawId ?? `${block.name}#${++anonymousSeq}`;
           openCalls.set(callId, {
+            id: rawId,
             name: block.name,
             args: block.input,
             ts: ev.ts,
@@ -121,8 +141,11 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
           tool_use_id?: string;
         }>) {
           if (block && block.type === 'tool_use' && typeof block.name === 'string') {
-            const callId = block.id ?? block.name;
+            // Raw id (possibly undefined) — see site 1 note above.
+            const rawId = block.id;
+            const callId = rawId ?? `${block.name}#${++anonymousSeq}`;
             openCalls.set(callId, {
+              id: rawId,
               name: block.name,
               args: block.input,
               ts: ev.ts,
@@ -147,6 +170,7 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
       }
     }
     tools.push({
+      id: call.id,
       name: call.name,
       argsSummary,
       ts: call.ts,
@@ -168,6 +192,64 @@ export function extractInterruptedTools(plan: RecoveryPlan): InterruptedToolDeta
 export class SessionRecovery {
   private static readonly MAX_PENDING_EVENTS = 10_000;
   private static readonly MAX_PENDING_BYTES = 16 * 1024 * 1024;
+
+  /**
+   * Build a recovery plan from ALREADY-LOADED events without touching disk.
+   * executeResumeSession uses this because load() has already paid for the
+   * transcript read; recover()'s file scan would duplicate it.
+   */
+  static buildRecoveryPlan(
+    events: readonly SessionEvent[],
+    /** Canonical session id — threaded through so RecoveryPlan stays complete. */
+    sessionId: string,
+  ): RecoveryPlan {
+    const pendingEvents: SessionEvent[] = [];
+    const pendingSizes: number[] = [];
+    let pendingBytes = 0;
+    let lastCheckpoint: SessionEvent | null = null;
+    let latestBoundary: LifecycleBoundary | null = null;
+    for (const event of events) {
+      if (!event || typeof event !== 'object' || typeof event.type !== 'string') continue;
+      if (event.type === 'checkpoint') {
+        lastCheckpoint = event;
+        pendingEvents.length = 0;
+        pendingSizes.length = 0;
+        pendingBytes = 0;
+        continue;
+      }
+      // Capture the lifecycle marker BEFORE budget eviction can drop it — an
+      // in_flight_start at the very tail is what justifies the recovery path.
+      // Mirrors recover(): boundaries are ALWAYS observed, even when the
+      // event itself is oversized and skipped from the pending tail.
+      if (isLifecycleBoundary(event)) latestBoundary = event;
+      // Same budget contract as recover(): cap the post-checkpoint tail at
+      // MAX_PENDING_EVENTS / MAX_PENDING_BYTES, evicting oldest-first. A
+      // single oversized event is skipped outright — otherwise the eviction
+      // loop below could never satisfy its budget condition.
+      const bytes = Buffer.byteLength(JSON.stringify(event), 'utf8');
+      if (bytes > SessionRecovery.MAX_PENDING_BYTES) continue;
+      while (
+        pendingEvents.length >= SessionRecovery.MAX_PENDING_EVENTS ||
+        pendingBytes + bytes > SessionRecovery.MAX_PENDING_BYTES
+      ) {
+        pendingBytes -= pendingSizes.shift()!;
+        pendingEvents.shift();
+      }
+      pendingEvents.push(event);
+      pendingSizes.push(bytes);
+      pendingBytes += bytes;
+    }
+    const inFlightStart =
+      latestBoundary?.type === 'in_flight_start' ? latestBoundary : null;
+    return {
+      sessionId,
+      stale: inFlightStart !== null,
+      lastCheckpoint,
+      pendingEvents,
+      inFlightStart,
+      context: inFlightStart?.context ?? null,
+    };
+  }
   /**
    * Scan a session log and return a `StaleSession` if and only if the newest
    * lifecycle boundary is an `in_flight_start` without a later
@@ -201,9 +283,9 @@ export class SessionRecovery {
     let stat;
     try {
       stat = await fs.stat(fp);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      /* v8 ignore next -- defensive: any other stat failure is also non-recoverable */
+    } catch {
+      // Any stat failure means the session is not resumable.
+      /* v8 ignore next -- defensive */
       return null;
     }
     if (stat.size === 0) return null;
@@ -270,7 +352,7 @@ export class SessionRecovery {
               pendingBytes + bytes > SessionRecovery.MAX_PENDING_BYTES
             ) {
               pendingEvents.shift();
-              pendingBytes = Math.max(0, pendingBytes - (pendingSizes.shift() ?? 0));
+              pendingBytes = Math.max(0, pendingBytes - (pendingSizes.shift()!));
             }
             pendingEvents.push(event);
             pendingSizes.push(bytes);
@@ -279,9 +361,9 @@ export class SessionRecovery {
         }
         if (isLifecycleBoundary(event)) latestBoundary = event;
       }
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      /* v8 ignore next -- defensive: any other read failure is also non-recoverable */
+    } catch {
+      // Stream read failure means we cannot recover this session.
+      /* v8 ignore next -- defensive */
       return null;
     } finally {
       lines.close();

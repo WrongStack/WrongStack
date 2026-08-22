@@ -185,7 +185,7 @@ async function finishWrite(
   ctx.recordRead(prepared.absPath, stat.mtimeMs, 'write', sha256hex(content));
 
   // Record for session rewind
-  ctx.session.recordFileChange({
+  ctx.session?.recordFileChange?.({
     path: prepared.absPath,
     action: prepared.existed ? 'modified' : 'created',
     before: prepared.existed ? prepared.prev : null,

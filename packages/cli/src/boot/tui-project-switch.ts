@@ -204,12 +204,12 @@ export async function switchProjectInPlace(
       modeStore,
       modeId: modeId ?? 'default',
       modePrompt: switchMode?.prompt ?? '',
-      tokenSavingMode: config.features.tokenSavingMode,
+      tokenSavingMode: config.features?.tokenSavingMode,
       modelCapabilities: {
-        maxContextTokens: context.provider.capabilities.maxContext,
-        supportsTools: !!context.provider.capabilities.tools,
-        supportsVision: !!context.provider.capabilities.vision,
-        supportsReasoning: !!context.provider.capabilities.reasoning,
+        maxContextTokens: context.provider?.capabilities?.maxContext,
+        supportsTools: !!context.provider?.capabilities?.tools,
+        supportsVision: !!context.provider?.capabilities?.vision,
+        supportsReasoning: !!context.provider?.capabilities?.reasoning,
       },
       instructionPaths: {
         globalDir: nextWpaths.globalInstructions,
@@ -220,12 +220,17 @@ export async function switchProjectInPlace(
     context.systemPrompt = await switchBuilder.build({
       cwd: resolved,
       projectRoot: resolved,
-      tools: agent.tools.listForProvider(),
-      catalogTools: agent.tools.list(),
+      tools:
+        typeof agent.tools?.listForProvider === 'function'
+          ? agent.tools.listForProvider()
+          : typeof agent.tools?.list === 'function'
+            ? agent.tools.list()
+            : [],
+      catalogTools: typeof agent.tools?.list === 'function' ? agent.tools.list() : [],
       provider: (context.provider as { id?: string }).id,
       model: context.model,
     });
-    if (agent.container.has(TOKENS.SystemPromptBuilder)) {
+    if (agent.container?.has?.(TOKENS.SystemPromptBuilder)) {
       agent.container.override(TOKENS.SystemPromptBuilder, () => switchBuilder, {
         owner: 'tui-project-switch',
       });

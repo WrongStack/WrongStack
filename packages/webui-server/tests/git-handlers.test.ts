@@ -155,6 +155,29 @@ describe('git change-set handlers', () => {
       expect(p.error).toBe('invalid path');
     });
 
+    it('rejects a working-tree symlink that escapes the project root', async () => {
+      const outside = fsSync.mkdtempSync(
+        path.join(process.env.TEMP || '/tmp', `gittest-out-${randomBytes(4).toString('hex')}`),
+      );
+      fsSync.writeFileSync(path.join(outside, 'secret.txt'), 'nope\n');
+      const link = path.join(repo, 'escape-link.txt');
+      try {
+        fsSync.symlinkSync(path.join(outside, 'secret.txt'), link);
+      } catch {
+        fsSync.rmSync(outside, { recursive: true, force: true });
+        return;
+      }
+      try {
+        const ws = createMockWs();
+        await handleGitDiff(ws, repo, 'escape-link.txt');
+        const p = ws.sent[0]?.payload as { error?: string; newText?: string };
+        expect(p.error).toBe('path outside project root');
+        expect(p.newText ?? '').not.toContain('nope');
+      } finally {
+        fsSync.rmSync(outside, { recursive: true, force: true });
+      }
+    });
+
     it('flags a binary file', async () => {
       fsSync.writeFileSync(path.join(repo, 'bin.dat'), Buffer.from([0, 1, 2, 0, 3]));
       const ws = createMockWs();

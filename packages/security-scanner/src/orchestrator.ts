@@ -138,15 +138,19 @@ export class SecurityScannerOrchestrator {
       );
 
       await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(resolve, delay);
-        abortController.signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timer);
-            reject(new Error('Retry backoff aborted'));
-          },
-          { once: true },
-        );
+        if (abortController.signal.aborted) {
+          reject(new Error('Retry backoff aborted'));
+          return;
+        }
+        const onAbort = () => {
+          clearTimeout(timer);
+          reject(new Error('Retry backoff aborted'));
+        };
+        const timer = setTimeout(() => {
+          abortController.signal.removeEventListener('abort', onAbort);
+          resolve();
+        }, delay);
+        abortController.signal.addEventListener('abort', onAbort, { once: true });
       });
       return this.completeWithRetry(provider, request, abortController, attempt + 1);
     }

@@ -59,6 +59,7 @@ import { executeClearSessionHistory } from './session-store/session-store-clear.
 import {
   appendToIndexStrict,
   COMPACT_EVERY,
+  compactIndexInner,
   readIndexFile,
   writeTombstone,
 } from './session-store/session-store-index.js';
@@ -75,6 +76,9 @@ import type {
 } from './session-store/types.js';
 import { compareSessionSummaries, matchesSessionFilter } from './session-summary.js';
 import { mapWithConcurrency } from './storage-concurrency.js';
+
+/** Upper bound for filtered-listing candidate pools (bounds pathological dirs). */
+const SESSION_FILTER_POOL_LIMIT = 10_000;
 
 export type { SessionStoreOptions } from './session-store/types.js';
 
@@ -104,6 +108,28 @@ export class DefaultSessionStore implements SessionStore {
   >();
   private readonly loadCache = new SessionLoadCache(this._loadCache);
   private _indexCache: IndexCacheEntry | null = null;
+  /**
+   * Tombstoned ids — hidden even if their JSONL remains on disk.
+   * Convention: readIndex() REASSIGNS this set from the parsed index file
+   * MERGED with _manualTombstones; writeTombstone() adds in-place immediately
+   * so an incremental cache rebuild can never resurrect a just-deleted
+   * session.
+   */
+  private _indexDeletedIds = new Set<string>();
+  /**
+   * Tombstones added by THIS store between reads. Merged into every fresh
+   * snapshot so a read racing writeTombstone cannot drop an in-flight
+   * deletion; entries are pruned once the parsed index file itself carries
+   * them.
+   */
+  private readonly _manualTombstones = new Set<string>();
+  /**
+   * File-truth tombstones from the last readIndex() parse (EXCLUDES
+   * _manualTombstones additions). compactIndexInner persists THIS snapshot so
+   * concurrent writeTombstones that landed after the parse are not written
+   * prematurely — they persist through their own append path instead.
+   */
+  private _indexFileDeletedIds: ReadonlySet<string> = new Set<string>();
   private readonly shardManifestCache = new Map<string, CachedShardManifest>();
   private static readonly LIST_SCAN_CONCURRENCY = 32;
   private indexAppendCount = 0;
@@ -189,19 +215,118 @@ export class DefaultSessionStore implements SessionStore {
     return ensureSessionShardDir(this.dir, id);
   }
 
+  /**
+   * Create a fresh session writer.
+   *
+   * @threadSafety Failure-prone steps (manifest invalidation, sidecar
+   * removal, catalog upsert, the durable `{action:'create'}` index row)
+   * run BEFORE the truncating `'w'` open, so no rejection path can destroy
+   * prior bytes. Ordinary index summary rows never undelete a tombstone
+   * (the parser only honors `{action:'create'}`), so a swallowed create-row
+   * would leave a live writer whose id stays hidden forever — that append
+   * is therefore required, not best-effort.
+   */
   async create(meta: Omit<SessionMetadata, 'startedAt'>): Promise<SessionWriter> {
     const startedAt = new Date().toISOString();
     const id = meta.id && meta.id.length > 0 ? meta.id : generateSessionId(startedAt);
     const shardDir = await this.ensureShardDir(id);
     const file = this.sessionPath(id, '.jsonl');
+    // Refuse creation over an ID another process still holds live BEFORE any
+    // destructive step (registry/lease check mirrors the delete-path guard).
+    const inUseBy = this.isSessionInUse ? await this.isSessionInUse(id) : null;
+    if (inUseBy !== null && inUseBy !== undefined && inUseBy !== '') {
+      throw new Error(`Refusing to create session ${id}: in use (${inUseBy}).`);
+    }
     const t0 = Date.now();
+    // Failure-prone steps run BEFORE the truncating 'w' open below: once the
+    // transcript is created/truncated, a later rejection could never restore
+    // a prior session's bytes. Manifest invalidation therefore aborts
+    // creation up-front (nothing has been destroyed yet); after the open it
+    // degrades to best-effort because staleness self-heals via stat mismatch.
+    try {
+      await this.invalidateShardManifestBySessionId(id);
+    } catch (cause) {
+      throw new Error(
+        `Failed to invalidate stale shard manifest for ${id}: ${toErrorMessage(cause)}`,
+        { cause },
+      );
+    }
+    // Fresh-session hygiene: drop any stale sidecar from a prior session
+    // under this id so list() cannot publish old metadata before the first
+    // checkpoint/close. Transcript cleanliness is guaranteed by the 'w'
+    // open below (create-or-truncate).
+    const sidecar = path.join(shardDir, `${path.basename(id)}.summary.json`);
+    try {
+      await fsp.rm(sidecar, { force: true });
+    } catch (cause) {
+      emitSessionStoreError(this.events, id, sidecar, 'create', toErrorMessage(cause), true);
+      // A surviving sidecar would be published as THIS session's summary
+      // after the transcript is truncated. Only continue when the file is
+      // actually gone (ENOENT after a racing unlink).
+      try {
+        await fsp.access(sidecar);
+        throw new Error(
+          `Failed to remove stale session sidecar for ${id}: ${toErrorMessage(cause)}`,
+          { cause },
+        );
+      } catch (accessErr) {
+        if ((accessErr as NodeJS.ErrnoException).code !== 'ENOENT') throw accessErr;
+      }
+    }
+    // Catalog stub upsert BEFORE the truncating 'w' open below: fallible
+    // remote IO must reject while prior bytes are still intact rather than
+    // destroying a transcript and then failing.
+    if (this.catalogClient) {
+      await this.catalogClient.call('upsert_summary', {
+        summary: {
+          id,
+          title: meta.title ?? '',
+          startedAt,
+          model: meta.model ?? '',
+          provider: meta.provider ?? '',
+          tokenTotal: 0,
+          lastActivityAt: startedAt,
+        },
+        transcriptRelativePath: `${id}.jsonl`,
+        summaryRelativePath: `${id}.summary.json`,
+      });
+    }
+    // A deliberate new session with a reused id overrides any prior
+    // tombstone — durably, and BEFORE the truncating open: the parser only
+    // undeletes on `{action:'create'}`, so a failed row would otherwise
+    // hide a live writer forever. In-memory eviction happens only after
+    // the control row lands CONFIRMED.
+    try {
+      await withFileLock(this.indexFile, async () => {
+        await fsp.appendFile(this.indexFile, `${JSON.stringify({ action: 'create', id })}\n`, {
+          encoding: 'utf8',
+          mode: 0o600,
+        });
+        this._manualTombstones.delete(id);
+        this._indexDeletedIds.delete(id);
+        this._indexCache = null;
+      });
+    } catch (cause) {
+      throw new Error(
+        `Failed to record session create in the index for ${id}: ${toErrorMessage(cause)}`,
+        { cause },
+      );
+    }
     let handle: fsp.FileHandle;
     try {
-      handle = await fsp.open(file, 'a', 0o600);
+      // 'w' (create-or-truncate): fresh sessions must never inherit bytes
+      // from a surviving transcript under a reused id. Append-mode ('a')
+      // would preserve them AND cannot be truncated later on Windows
+      // (EPERM — append handles lack FILE_WRITE_DATA).
+      handle = await fsp.open(file, 'w', 0o600);
     } catch (err) {
       emitSessionStoreError(this.events, id, file, 'create', toErrorMessage(err), false);
       throw new Error(`Failed to open session file: ${toErrorMessage(err)}`, { cause: err });
     }
+    // Re-invalidate AFTER the open/hygiene: a concurrent list() between the
+    // first invalidation and here could have rebuilt the manifest from the
+    // prior session's artifacts.
+    await this.invalidateShardManifestBySessionId(id).catch(() => undefined);
     try {
       const writer = new FileSessionWriter(id, handle, startedAt, meta, this.events, {
         dir: shardDir,
@@ -218,22 +343,10 @@ export class DefaultSessionStore implements SessionStore {
             : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
         },
         onClose: (s) => this.persistCatalogSummary(s),
+        // Mid-session metadata checkpoints reuse the same sink as close so
+        // killed sessions leave accurate index rows / catalog entries behind.
+        onMetadataCheckpoint: (s) => this.persistCatalogSummary(s),
       });
-      if (this.catalogClient) {
-        await this.catalogClient.call('upsert_summary', {
-          summary: {
-            id,
-            title: meta.title ?? '',
-            startedAt,
-            model: meta.model ?? '',
-            provider: meta.provider ?? '',
-            tokenTotal: 0,
-            lastActivityAt: startedAt,
-          },
-          transcriptRelativePath: `${id}.jsonl`,
-          summaryRelativePath: `${id}.summary.json`,
-        });
-      }
       emitSessionStoreWrite(this.events, id, file, 'create', 'success', Date.now() - t0);
       return writer;
     } catch (err) {
@@ -303,6 +416,7 @@ export class DefaultSessionStore implements SessionStore {
       searchEvents: (searchId, pred) => this.searchEvents(searchId, pred),
       persistCatalogSummary: (sum) => this.persistCatalogSummary(sum),
       logWarn: (msg, ctx) => this.logWarn(msg, ctx),
+      sessionsDir: this.dir,
     });
   }
 
@@ -391,11 +505,19 @@ export class DefaultSessionStore implements SessionStore {
       return this.scrubSummaries(records);
     }
     try {
-      const indexed = await this.readIndex();
-      if (indexed.length > 0) {
-        return this.scrubSummaries(indexed.slice(0, limit));
-      }
-      return this.scrubSummaries(await this.listFromDirectoryScan(limit));
+      // Union of close-time index rows and live JSONL transcripts. A process
+      // killed before close() never gets an index row, so an index-only read
+      // made killed sessions invisible (or left them as create-time stubs) in
+      // /resume whenever any older session had closed cleanly. Scanned
+      // metadata wins per id — it is derived from the transcript itself.
+      const [indexed, scanned] = await Promise.all([
+        this.readIndex(),
+        // Wide scan bound: mergeIndexWithScan slices to `limit`, so killed
+        // sessions deep in history stay visible instead of being dropped by
+        // the user-facing page size before the union runs.
+        this.listFromDirectoryScan(SESSION_FILTER_POOL_LIMIT).catch(() => [] as SessionSummary[]),
+      ]);
+      return this.scrubSummaries(this.mergeIndexWithScan(indexed, scanned, limit));
     } catch {
       return [];
     }
@@ -419,15 +541,23 @@ export class DefaultSessionStore implements SessionStore {
       return this.scrubSummaries(records);
     }
     try {
-      const indexed = await this.readIndex();
-      if (indexed.length === 0) {
-        const raw = await this.list(Math.max(limit, 100));
-        return raw.filter((s) => matchesSessionFilter(s, criteria)).slice(0, limit);
-      }
-      const filtered = this.scrubSummaries(indexed).filter((s) =>
-        matchesSessionFilter(s, criteria),
-      );
-      return filtered.slice(0, limit);
+      // Filter BEFORE slicing over a wide merged pool: capping the pool at
+      // `limit` would silently drop matches older than the window (the old
+      // index-only path filtered the entire index). The 10k bound covers any
+      // realistic history while bounding pathological directories.
+      const [indexed, scanned] = await Promise.all([
+        this.readIndex(),
+        // Same best-effort contract as list(): scan failures enrich nothing
+        // but must not blank the filtered result set.
+        this.listFromDirectoryScan(SESSION_FILTER_POOL_LIMIT).catch(() => [] as SessionSummary[]),
+      ]);
+      const pool = this.mergeIndexWithScan(indexed, scanned, SESSION_FILTER_POOL_LIMIT);
+      // Scrub BEFORE filtering: matchesSessionFilter compares raw titles,
+      // while callers display scrubbed ones — filtering first leaked secrets
+      // into match decisions (match-oracle) and desynced hit highlighting.
+      return this.scrubSummaries(pool)
+        .filter((s) => matchesSessionFilter(s, criteria))
+        .slice(0, limit);
     } catch {
       return [];
     }
@@ -473,6 +603,13 @@ export class DefaultSessionStore implements SessionStore {
       id,
       (sid) => this.invalidateShardManifestBySessionId(sid),
       () => {
+        // Immediate in-memory adds: belt-and-braces so a concurrent
+        // incremental cache rebuild cannot resurrect the deleted id even if
+        // it rebuilds from a base snapshot that predates this tombstone.
+        // _manualTombstones survives readIndex() snapshot merges until the
+        // parsed file itself carries the row.
+        this._manualTombstones.add(id);
+        this._indexDeletedIds.add(id);
         this._indexCache = null;
         this.indexAppendCount++;
       },
@@ -502,18 +639,67 @@ export class DefaultSessionStore implements SessionStore {
     }
   }
 
+  /**
+   * Compact the local index in place.
+   *
+   * Contract carried into the shared compactIndexInner helper
+   * (session-store-index.ts): `entries` MUST already exclude tombstoned ids,
+   * and the deleted-set argument is persisted VERBATIM — neither the helper
+   * nor its callers may resurrect filtered rows or invent deletions.
+   * Locking: callers MUST already hold the indexFile lock (both do:
+   * compactIndex() below and the appendToIndexStrict compaction hook);
+   * readIndex() inside reads that same locked file, so no second lock may
+   * be taken here (non-reentrant → deadlock).
+   */
   private async compactIndexInner(): Promise<void> {
     const entries = await this.readIndex();
-    if (entries.length === 0) return;
-    const lines = entries.map((s) => JSON.stringify(s)).join('\n') + '\n';
-    await atomicWrite(this.indexFile, lines, { mode: 0o600 });
+    // Persist the FILE-TRUTH tombstone snapshot (not the post-merge view):
+    // tombstones that landed after our last parse belong to writeTombstone's
+    // own durable path and must not be written prematurely by compaction.
+    await compactIndexInner(this.indexFile, entries, this._indexFileDeletedIds);
     this._indexCache = null;
   }
 
   private async readIndex(): Promise<readonly SessionSummary[]> {
-    const { summaries, cache } = await readIndexFile(this.indexFile, this._indexCache);
+    const { summaries, deletedIds, cache } = await readIndexFile(this.indexFile, this._indexCache);
     this._indexCache = cache;
+    // Merge manual tombstones so a read whose snapshot predates a concurrent
+    // writeTombstone cannot erase the in-flight deletion; prune entries the
+    // parsed file already carries (prune-source = file snapshot, never the
+    // set being mutated).
+    const merged = new Set(deletedIds);
+    for (const manual of this._manualTombstones) {
+      merged.add(manual);
+      if (deletedIds.has(manual)) this._manualTombstones.delete(manual);
+    }
+    this._indexFileDeletedIds = deletedIds;
+    this._indexDeletedIds = merged;
     return summaries;
+  }
+
+  /**
+   * Merge close-time index rows with directory-scan results, keyed by id.
+   * Scanned entries win — their metadata is re-derived from the transcript,
+   * so it reflects mid-session activity that index rows (written on close)
+   * cannot know about. Indexed-only ids fill gaps; duplicates within the
+   * index resolve last-wins, matching append order.
+   */
+  private mergeIndexWithScan(
+    indexed: readonly SessionSummary[],
+    scanned: readonly SessionSummary[],
+    limit: number,
+  ): SessionSummary[] {
+    const byId = new Map<string, SessionSummary>();
+    for (const row of indexed) byId.set(row.id, row);
+    // Scanned entries fill gaps and refresh known ids with live metadata;
+    // tombstone filtering happens ONCE against the merged map below so a
+    // stale close-time row cannot survive a concurrent deletion either
+    // (asymmetric filtering would leak it).
+    for (const row of scanned) byId.set(row.id, row);
+    return [...byId.values()]
+      .filter((row) => !this._indexDeletedIds.has(row.id))
+      .sort(compareSessionSummaries)
+      .slice(0, limit);
   }
 
   async rebuildIndex(): Promise<number> {
@@ -521,17 +707,31 @@ export class DefaultSessionStore implements SessionStore {
       const result = await this.catalogClient.call('rebuild_catalog', {}, { timeoutMs: 120_000 });
       return result.indexed;
     }
-    const ids = await this.collectSessionIds(this.dir);
-    const summaries = await Promise.all(
-      ids.map((id) => this.summaryFor(id).catch(() => null)),
-    );
-    const valid = summaries.filter((s): s is SessionSummary => s !== null);
-    const lines = valid.map((s) => JSON.stringify(s)).join('\n') + '\n';
-    await withFileLock(this.indexFile, async () => {
+    // Snapshot + write under the same lock so a concurrent writeTombstone
+    // or create-row cannot land between the read and the atomic replace
+    // (that hole resurrected deleted ids or dropped a just-created row).
+    return withFileLock(this.indexFile, async () => {
+      await this.readIndex();
+      const ids = await this.collectSessionIds(this.dir);
+      const summaries = await Promise.all(ids.map((id) => this.summaryFor(id).catch(() => null)));
+      const valid = summaries.filter((s): s is SessionSummary => s !== null);
+      const parts: string[] = [];
+      let resurrectable = 0;
+      for (const s of valid) {
+        if (this._indexDeletedIds.has(s.id)) {
+          resurrectable++;
+          continue;
+        }
+        parts.push(JSON.stringify(s));
+      }
+      for (const id of this._indexDeletedIds) {
+        parts.push(JSON.stringify({ action: 'delete', id }));
+      }
+      const lines = parts.join('\n') + '\n';
       await atomicWrite(this.indexFile, lines, { mode: 0o600 });
       this._indexCache = null;
+      return valid.length - resurrectable;
     });
-    return valid.length;
   }
 
   private async listFromDirectoryScan(limit: number): Promise<SessionSummary[]> {

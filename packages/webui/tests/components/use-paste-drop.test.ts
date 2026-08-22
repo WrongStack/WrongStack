@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePasteDrop } from '../../src/components/ChatInput/use-paste-drop.js';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store.js';
+import { useUIStore } from '../../src/stores/ui-store.js';
 
 // Mock autoFenceCode so we can control when code-fencing triggers
 vi.mock('../../src/components/ChatInput/code-detect.js', () => ({
@@ -84,6 +85,7 @@ describe('usePasteDrop', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useFileReferenceStore.setState({ refs: [] });
+    useUIStore.setState({ draftImages: [] });
   });
 
   describe('initial state', () => {
@@ -413,6 +415,7 @@ describe('usePasteDrop — native clipboard interception', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    useUIStore.setState({ draftImages: [] });
   });
 
   it('attaches a pasted image and swallows the event', async () => {
@@ -515,6 +518,7 @@ describe('usePasteDrop — attachment cap and failures', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     vi.clearAllMocks();
+    useUIStore.setState({ draftImages: [] });
   });
 
   it('stops at the per-message cap and reports it once', async () => {

@@ -549,7 +549,7 @@ describe('lock resilience', () => {
     const temps = (await fs.readdir(root)).filter(
       (name) => name.startsWith('session-registry.json.') && name.endsWith('.tmp'),
     );
-    expect(temps).toHaveLength(20);
+    expect(temps).toHaveLength(5);
   });
 
   it('fails closed when an ownership claim cannot acquire the registry lock', async () => {

@@ -1,7 +1,40 @@
 # Learned instructions for `context`
 
 > Project-specific learning data for the `context` agent. Each entry is a directive — read it as an instruction, not a journal entry. Entries are re-derived on every capture, so this file is always a current, structured snapshot of what this agent has learned.
-_No learned entries yet._
+
+## What to avoid
+
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=1; wins=1 -->
+- **Always verify React component wiring in `packages/webui/src` with an exact-text grep of the component name — never from `codebase-incoming-calls` returning zero or a `codebase-skeleton` import block, because JSX render edges are invisible to both (verified: AgentTabs showed 0 incoming calls while `ChatView/index.tsx` imported it at L21 and rendered it at L102). Key takeaway: the map shows a feature that is ~90% landed — the real remaining work is tests and polish, and any consumer must treat exact line numbers as perishable while a peer edits concurrently.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `packages/webui/src`
+  - *How:* `codebase-incoming-calls`
+  - *How:* `codebase-skeleton`
+  - *How:* `ChatView/index.tsx`
+
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z -->
+- **Treat files under `packages/webui/tests/**` as vitest entry points: confirm discovery and environment by reading the package's `vitest.config.ts` inline `projects` blocks (include globs + `globals: true`), never by searching for code importers. When a webui test uses hooks like `beforeEach` without importing them from `vitest`, check `test.globals: true` before flagging it as a bug — but note bare-hook usage only works inside projects with globals enabled, not root-config suites.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `packages/webui/tests/**`
+  - *How:* `vitest.config.ts`
+  - *How:* `projects`
+  - *How:* `globals: true`
+  - *How:* `beforeEach`
+  - *How:* `vitest`
+  - *How:* `test.globals: true`
+
+## What to do
+
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=1; wins=1 -->
+- **Treat the exports map in `packages/webui/package.json` as packaging metadata, not a live API: no workspace code imports `@wrongstack/webui` or `@wrongstack/webui/types`; only `packages/cli` and `apps/desktop` declare it, as a presence pin. Its real delivery path is the Vite bundle from `packages/webui/src/main.tsx` served by `@wrongstack/webui-server`, so probing "who imports this package" must grep import statements, not just dependency declarations.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `packages/webui/package.json`
+  - *How:* `@wrongstack/webui`
+  - *How:* `@wrongstack/webui/types`
+  - *How:* `packages/cli`
+  - *How:* `apps/desktop`
+  - *How:* `packages/webui/src/main.tsx`
+  - *How:* `@wrongstack/webui-server`
 
 ---
-*Last capture: 2026-08-21T12:28:22.427Z · 0 entries*
+*Last capture: 2026-08-21T19:09:12.562Z · 3 entries*

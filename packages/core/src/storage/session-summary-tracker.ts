@@ -72,6 +72,30 @@ export class SessionSummaryTracker {
     return this.summary;
   }
 
+  /**
+   * Non-destructive materialization of every live counter into a summary
+   * snapshot. Unlike finalize(), it stamps no endedAt, applies no final
+   * outcome, and resolves no name — mid-session metadata checkpoints use it
+   * so a killed process leaves accurate listing metadata behind without
+   * pretending the session ended cleanly.
+   */
+  snapshot(): SessionSummary {
+    const { lastUserMessage: _lastUserMessage, ...rest } = this.summary;
+    return {
+      ...rest,
+      messageCount: this.messageCount,
+      ...(this.lastUserMessage !== undefined ? { lastUserMessage: this.lastUserMessage } : {}),
+      iterationCount: this.iterationCount,
+      toolCallCount: this.toolCallCount,
+      toolErrorCount: this.toolErrorCount,
+      fileChangeCount: this.fileChangeCount,
+      compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
+      toolBreakdown: { ...this.toolBreakdown },
+      lastActivityAt: this.lastActivityAt,
+      ...(this.outcome !== undefined ? { outcome: this.outcome } : {}),
+    };
+  }
+
   get pendingToolUses(): string[] {
     return Array.from(this.openToolUses);
   }

@@ -7,7 +7,12 @@ export * from './config-backup.js';
 export * from './config-json.js';
 export { checkConnectivity, resetConnectivityCache } from './connectivity.js';
 export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';
-export { type CrashShieldOptions, installCrashShield } from './crash-shield.js';
+export {
+  addFatalSalvageHook,
+  runFatalSalvageSync,
+  type CrashShieldOptions,
+  installCrashShield,
+} from './crash-shield.js';
 export {
   buildCompletedWorkLedgerBlock,
   buildContextEvidenceDigest,

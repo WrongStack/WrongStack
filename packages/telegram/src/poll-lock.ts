@@ -88,9 +88,12 @@ export class PollLock {
       this.startHeartbeat();
       return true;
     } catch (err) {
-      // Only proceed to stale takeover if the file already exists (EEXIST).
-      // Any other I/O error or write failure fails closed.
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+      // Exclusive create of an existing file is EEXIST on POSIX. Windows
+      // reports EPERM/EACCES/EBUSY for the same contention (sharing/AV),
+      // matching withFileLock — treat those as "file exists" so a leftover
+      // lock from a killed holder can still enter the stale-takeover path.
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'EEXIST' && code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY') {
         return false;
       }
     }
@@ -163,7 +166,7 @@ export class PollLock {
       this.onLost?.();
       return;
     }
-    const tmp = `${this.lockPath}.${process.pid}.tmp`;
+    const tmp = `${this.lockPath}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`;
     try {
       const payload: LockFilePayload = { ...current, heartbeatAt: Date.now() };
       // Write via temp + rename so a reader never sees a half-written file.

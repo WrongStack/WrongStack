@@ -20,8 +20,18 @@ export function applySessionIndexLines(
         byId.delete(entry.id);
         continue;
       }
+      if (entry.action === 'create' && entry.id) {
+        // Tombstone-control record only: it un-deletes the id but must NOT
+        // enter byId as a SessionSummary — it carries no title/tokens, and a
+        // malformed row would crash scrubbing and blank list(). The real
+        // summary arrives via the writer's first checkpoint or close.
+        deleted.delete(entry.id);
+        byId.delete(entry.id);
+        continue;
+      }
       if (entry.id && !deleted.has(entry.id)) {
-        // Keep the latest entry for each session (multiple appends on resume).
+        // Ordinary rows NEVER override tombstones: a metadata checkpoint or
+        // close racing a delete() must not re-publish the deleted session.
         byId.set(entry.id, entry as SessionSummary);
       }
     } catch {

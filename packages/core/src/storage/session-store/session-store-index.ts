@@ -8,6 +8,9 @@ import type { IndexCacheEntry } from './types.js';
 
 export const COMPACT_EVERY = 30;
 
+/** Shared empty set for files that cannot contain tombstones (missing/unreadable). */
+const NO_DELETED_IDS: ReadonlySet<string> = new Set<string>();
+
 export async function appendToIndexStrict(
   dir: string,
   indexFile: string,
@@ -53,13 +56,17 @@ export async function writeTombstone(
 export async function readIndexFile(
   indexFile: string,
   currentCache: IndexCacheEntry | null,
-): Promise<{ summaries: readonly SessionSummary[]; cache: IndexCacheEntry | null }> {
+): Promise<{
+  summaries: readonly SessionSummary[];
+  deletedIds: ReadonlySet<string>;
+  cache: IndexCacheEntry | null;
+}> {
   let stat: { mtimeMs: number; size: number; ino: number; birthtimeMs: number };
   try {
     const s = await fsp.stat(indexFile);
     stat = { mtimeMs: s.mtimeMs, size: s.size, ino: s.ino, birthtimeMs: s.birthtimeMs };
   } catch {
-    return { summaries: [], cache: null };
+    return { summaries: [], deletedIds: NO_DELETED_IDS, cache: null };
   }
 
   if (
@@ -69,7 +76,11 @@ export async function readIndexFile(
     currentCache.ino === stat.ino &&
     currentCache.birthtimeMs === stat.birthtimeMs
   ) {
-    return { summaries: currentCache.summaries, cache: currentCache };
+    return {
+      summaries: currentCache.summaries,
+      deletedIds: currentCache.deleted,
+      cache: currentCache,
+    };
   }
 
   const cached = currentCache;
@@ -87,7 +98,7 @@ export async function readIndexFile(
         byId: cached.byId,
         deleted: cached.deleted,
       };
-      return { summaries, cache: nextCache };
+      return { summaries, deletedIds: cached.deleted, cache: nextCache };
     }
   }
 
@@ -95,7 +106,7 @@ export async function readIndexFile(
   try {
     raw = await fsp.readFile(indexFile, 'utf8');
   } catch {
-    return { summaries: [], cache: null };
+    return { summaries: [], deletedIds: NO_DELETED_IDS, cache: null };
   }
   const deleted = new Set<string>();
   const byId = new Map<string, SessionSummary>();
@@ -103,14 +114,25 @@ export async function readIndexFile(
   const summaries = Array.from(byId.values());
   summaries.sort(compareSessionSummaries);
   const nextCache: IndexCacheEntry = { ...stat, summaries, byId, deleted };
-  return { summaries, cache: nextCache };
+  return { summaries, deletedIds: deleted, cache: nextCache };
 }
 
 export async function compactIndexInner(
   indexFile: string,
   entries: readonly SessionSummary[],
+  deletedIds?: ReadonlySet<string>,
 ): Promise<void> {
-  if (entries.length === 0) return;
-  const lines = entries.map((s) => JSON.stringify(s)).join('\n') + '\n';
+  const parts: string[] = entries.map((s) => JSON.stringify(s));
+  if (deletedIds) {
+    // Tombstones are load-bearing: mergeIndexWithScan relies on them to keep
+    // deleted sessions hidden even when their JSONL outlives best-effort
+    // file cleanup. Dropping them here would resurrect those sessions on the
+    // next listing pass.
+    for (const id of deletedIds) {
+      parts.push(JSON.stringify({ action: 'delete', id }));
+    }
+  }
+  if (parts.length === 0) return;
+  const lines = parts.join('\n') + '\n';
   await atomicWrite(indexFile, lines, { mode: 0o600 });
 }

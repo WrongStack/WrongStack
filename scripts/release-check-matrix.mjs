@@ -29,6 +29,13 @@
  *   --list            print the gate plan (id, command, prereq) and exit
  *   --only a,b,...    run only the named gate ids (comma separated)
  *   --tail N          failure-tail length in the report (default 25)
+ *   --profile name    `release` (default, `pnpm release:check`) or `local`
+ *                     (`pnpm ci:local` / pre-push). Local is the GitHub CI
+ *                     subset that is practical on a laptop: lint, build,
+ *                     typecheck, tests, and the snapshot/architecture gates.
+ *                     It omits coverage (45m), e2e (Playwright), and audit
+ *                     (network). Override the hook with
+ *                     WRONGSTACK_PRE_PUSH_PROFILE=release for the full matrix.
  *
  * The runner deliberately does not parse or interpret gate output — it only
  * propagates exit codes. Gate semantics stay owned by each gate script.
@@ -38,7 +45,10 @@ import { createWriteStream, mkdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
-const LOG_DIR = path.resolve('.reports/release-check-matrix');
+const LOG_DIRS = {
+  release: path.resolve('.reports/release-check-matrix'),
+  local: path.resolve('.reports/local-ci'),
+};
 const ANSI_ESCAPE = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const FAILED_TESTS_HEADER = /Failed Tests? \d+/i;
 const FAILURE_SUMMARY = /^\s*(?:Test Files|Tests)\s+\d+\s+failed\b/i;
@@ -190,6 +200,71 @@ const GATES = [
   },
 ];
 
+/**
+ * Gates that belong on a laptop pre-push / `pnpm ci:local` but not on the
+ * historical release:check chain. Coverage already runs the test suite, so
+ * adding a bare `pnpm test` to `release` would double the wall time.
+ */
+const LOCAL_ONLY_GATES = [
+  { id: 'lint', label: 'Biome lint', cmd: 'pnpm lint' },
+  {
+    id: 'test',
+    label: 'Vitest + WebUI tests',
+    cmd: 'pnpm test',
+    prereq: 'build',
+  },
+  {
+    id: 'hqdash',
+    label: 'HQ dashboard tests',
+    cmd: 'pnpm --filter @wrongstack/cli test:hqdash',
+    prereq: 'build',
+  },
+  {
+    id: 'status-bar',
+    label: 'TUI status-bar overflow',
+    cmd: 'pnpm --filter @wrongstack/tui test:status-bar',
+    prereq: 'build',
+  },
+];
+
+const PROFILES = {
+  release: GATES.map((g) => g.id),
+  // Mirrors .github/workflows/ci.yml jobs that a laptop can actually run:
+  // lint, typecheck, build, manifests, tests. Omits coverage, e2e, and the
+  // artifact-lineage write/verify pair (those exist to shuttle dist/ between
+  // GitHub jobs).
+  local: [
+    'lint',
+    'build',
+    'dist-hidden',
+    'providers-catalog',
+    'plugin-manifests',
+    'package-contracts',
+    'architecture',
+    'test-inventory',
+    'test-skips',
+    'node-pty',
+    'rulebook',
+    'i18n',
+    'typecheck',
+    'test-types',
+    'test',
+    'hqdash',
+    'status-bar',
+  ],
+};
+
+function gatesForProfile(profile) {
+  const ids = PROFILES[profile];
+  if (!ids) fail(`unknown --profile "${profile}" (supported: ${Object.keys(PROFILES).join(', ')})`);
+  const byId = new Map([...GATES, ...LOCAL_ONLY_GATES].map((g) => [g.id, g]));
+  return ids.map((id) => {
+    const gate = byId.get(id);
+    if (!gate) fail(`profile "${profile}" references unknown gate id "${id}"`);
+    return gate;
+  });
+}
+
 function fail(msg) {
   console.error(`release-check-matrix: ${msg}`);
   process.exit(2);
@@ -238,6 +313,7 @@ const args = process.argv.slice(2);
 let tail = 25;
 let listOnly = false;
 let only = null;
+let profile = 'release';
 for (let i = 0; i < args.length; i++) {
   const a = args[i];
   if (a === '--list') listOnly = true;
@@ -245,22 +321,36 @@ for (let i = 0; i < args.length; i++) {
     const v = Number.parseInt(args[++i] ?? '', 10);
     if (Number.isNaN(v) || v < 0) fail(`--tail expects a non-negative integer (got ${args[i]})`);
     tail = v;
+  } else if (a === '--profile') {
+    const raw = args[++i];
+    if (!raw) fail('--profile expects a name (release | local)');
+    profile = raw;
   } else if (a === '--only') {
     const raw = args[++i];
     if (!raw) fail('--only expects a comma-separated gate id list');
-    const ids = raw
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const known = new Set(GATES.map((g) => g.id));
-    for (const id of ids) if (!known.has(id)) fail(`unknown gate id "${id}" (use --list)`);
-    only = new Set(ids);
-  } else fail(`unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>)`);
+    only = new Set(
+      raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+  } else fail(`unknown flag "${a}" (supported: --list, --only <ids>, --tail <n>, --profile <name>)`);
 }
 
+const profileGates = gatesForProfile(profile);
+const known = new Set(profileGates.map((g) => g.id));
+if (only) {
+  for (const id of only) {
+    if (!known.has(id)) fail(`unknown gate id "${id}" for --profile ${profile} (use --list)`);
+  }
+}
+
+const title = profile === 'local' ? 'local CI' : 'release:check';
+const LOG_DIR = LOG_DIRS[profile] ?? LOG_DIRS.release;
+
 if (listOnly) {
-  console.log('release:check gate matrix — plan');
-  for (const g of GATES) {
+  console.log(`${title} gate matrix — plan (--profile ${profile})`);
+  for (const g of profileGates) {
     console.log(
       `  ${g.id.padEnd(22)} ${g.prereq ? `[after ${g.prereq}] ` : '[standalone]   '} ${g.cmd}`,
     );
@@ -268,11 +358,11 @@ if (listOnly) {
   process.exit(0);
 }
 
-const selected = only ? GATES.filter((g) => only.has(g.id)) : GATES;
+const selected = only ? profileGates.filter((g) => only.has(g.id)) : profileGates;
 const results = new Map(); // id -> { status, ms, code }
 mkdirSync(LOG_DIR, { recursive: true });
 
-console.log(`release:check gate matrix — running ${selected.length} gate(s)\n`);
+console.log(`${title} gate matrix — running ${selected.length} gate(s)\n`);
 
 for (const gate of selected) {
   // Prereq handling: skip (with reason) when an earlier gate failed, or when
@@ -322,7 +412,7 @@ for (const gate of selected) {
 }
 
 // ── Matrix report ────────────────────────────────────────────────────────
-console.log('\n═══ release:check gate matrix ═══');
+console.log(`\n═══ ${title} gate matrix ═══`);
 for (const g of selected) {
   const res = results.get(g.id);
   const tag = res.status.toUpperCase();
@@ -357,8 +447,8 @@ console.log(
   `\n${failed.length} failed · ${skipped.length} skipped · ${selected.length - failed.length - skipped.length} passed`,
 );
 if (failed.length > 0) {
-  console.log('release:check: FAILED');
+  console.log(`${title}: FAILED`);
   process.exit(1);
 }
-console.log('release:check: all gates passed');
+console.log(`${title}: all gates passed`);
 process.exit(0);

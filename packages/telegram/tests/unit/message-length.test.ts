@@ -100,6 +100,19 @@ describe('truncateForTelegram — explicit cap interop with config', () => {
     expect(out.length).toBeLessThanOrEqual(TELEGRAM_HARD_CAP);
   });
 
+  it('never exceeds maxLen when a space boundary is at effectiveMaxLen - 1', () => {
+    // If text has a space at index 99, slicing at 99 and adding ' …' produces 101 chars
+    const text = `${'a'.repeat(99)} ${'b'.repeat(500)}`;
+    const out = truncateForTelegram(text, 100);
+    expect(out.length).toBeLessThanOrEqual(100);
+  });
+
+  it('never exceeds 4096 when space boundary is at 4095 with maxLen 4096', () => {
+    const text = `${'a'.repeat(4095)} ${'b'.repeat(500)}`;
+    const out = truncateForTelegram(text, 4096);
+    expect(out.length).toBeLessThanOrEqual(4096);
+  });
+
   it('clamps a caller-supplied cap above 4096 to the Telegram hard cap', () => {
     // P1.8 explicit message-length contract: the function clamps the
     // caller's maxLen at 4096 so a misconfigured caller cannot silently

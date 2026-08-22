@@ -447,6 +447,7 @@
         "export { ALLOWED_IMAGE_MEDIA_TYPES, base64DecodedBytes, buildUserContentBlocks, IncomingImageError, type IncomingImagePayload, isAllowedImageMediaType, isValidImageBase64, MAX_INCOMING_IMAGE_BYTES, MAX_INCOMING_IMAGES, parseIncomingImages, } from './incoming-images.js';",
         "export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';",
         "export { activateProjectStateGuard, type ProjectStateGuard, type ProjectStateGuardOptions, startProjectStateGuard, } from './project-state-guard.js';",
+        "export { addFatalSalvageHook, runFatalSalvageSync, type CrashShieldOptions, installCrashShield, } from './crash-shield.js';",
         "export { applyToolDescriptionModes, applyToolDescriptionModeToTool, DEFAULT_TOOL_DESCRIPTION_MODE, getToolDescriptionMode, normalizeToolDescriptionMode, resolveToolDescriptionMode, setToolDescriptionMode, simplifyToolDescription, type ToolDescriptionRegistryLike, } from './tool-description-mode.js';",
         "export { applyToolResultRenderModes, DEFAULT_TOOL_RESULT_RENDER_MODE, getToolResultRenderMode, normalizeToolResultRenderMode, resolveToolResultRenderMode, setToolResultRenderMode, type ToolResultRenderModeRegistryLike, } from './tool-result-render-mode.js';",
         "export { assertNotPrivateHost, expandIPv6, isPrivateIPv4, isPrivateIPv6 } from './ip-guard.js';",
@@ -479,7 +480,6 @@
         "export { type CoercionResult, coerceAgainstSchema, type ValidationError, type ValidationResult, validateAgainstSchema, } from './json-schema-validate.js';",
         "export { type CompactToolDefinitionForWireOptions, type CompactWireToolDefinition, compactSchemaDescriptions, compactToolDefinitionForWire, normalizeTopLevelToolSchema, type ToolWireDefinitionLike, } from './tool-wire-compact.js';",
         "export { type ContextBreakdown, getContextBreakdown } from './context-breakdown.js';",
-        "export { type CrashShieldOptions, installCrashShield } from './crash-shield.js';",
         "export { type DeepMergeOptions, deepMerge, FORBIDDEN_PROTO_KEYS, isPrimitiveArray, } from './deep-merge.js';",
         "export { type ProjectWatchEvent, type ProjectWatchSubscription, watchProjectTree, } from './project-watch.js';",
         "export { withSqliteExperimentalWarningSuppressed } from './sqlite-warning.js';"
@@ -1323,7 +1323,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 87,
-      "sourceLines": 18695
+      "sourceLines": 19512
     },
     {
       "directory": "tasking",
@@ -1351,7 +1351,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10629
+      "sourceLines": 10680
     },
     {
       "directory": "worktree",

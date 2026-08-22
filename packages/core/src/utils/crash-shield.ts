@@ -16,6 +16,43 @@ import { writeErr } from './term.js';
 const CRASH_STORM_WINDOW_MS = 60_000;
 const CRASH_STORM_LIMIT = 20;
 
+// ── Fatal-path salvage hooks ────────────────────────────────────────────────
+//
+// Registered by hosts that hold durability-critical state (e.g. the CLI
+// registers its active session writer). Invoked synchronously right before a
+// fatal exit decided by this shield (error-storm shutdown), and exported for
+// the other owners of fatal paths (top-level main rejection, 'exit'
+// listeners) so every death path shares ONE salvage sequence. Hooks must be
+// synchronous and best-effort — no async work can complete during process
+// death, which is exactly why they exist.
+
+const fatalSalvageHooks: Array<() => void> = [];
+
+/** Register a synchronous salvage hook. Returns an unregister function. */
+export function addFatalSalvageHook(hook: () => void): () => void {
+  fatalSalvageHooks.push(hook);
+  return () => {
+    const idx = fatalSalvageHooks.indexOf(hook);
+    if (idx >= 0) fatalSalvageHooks.splice(idx, 1);
+  };
+}
+
+/**
+ * Run every registered salvage hook once. Swallows individual hook failures
+ * so one broken hook cannot skip the remaining ones. Safe to call multiple
+ * times — hooks are expected to be idempotent (a drained buffer stays
+ * drained).
+ */
+export function runFatalSalvageSync(): void {
+  for (const hook of [...fatalSalvageHooks]) {
+    try {
+      hook();
+    } catch {
+      // best-effort — dying anyway
+    }
+  }
+}
+
 interface CrashShieldTarget {
   on(
     event: 'unhandledRejection' | 'uncaughtException',
@@ -73,6 +110,8 @@ export function installCrashShield(options: CrashShieldOptions = {}): () => void
             `error storm: >${CRASH_STORM_LIMIT} in ${CRASH_STORM_WINDOW_MS / 1000}s — exiting`,
           ),
         );
+        // Salvage durability-critical state synchronously before dying.
+        runFatalSalvageSync();
         exit(1);
       }
     };

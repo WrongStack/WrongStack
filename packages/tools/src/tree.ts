@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
-import { DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
+import { DEFAULT_WALK_IGNORE_DIRS, compileGlob, expectDefined } from '@wrongstack/core/utils';
 import { safeResolveReal } from './_util.js';
 
 // Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
@@ -112,7 +112,7 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
     const showDirs = input.show_dirs ?? true;
     const showHidden = input.show_hidden ?? false;
     const exclude = new Set([...DEFAULT_IGNORE, ...(input.exclude ?? [])]);
-    const filterGlob = input.glob;
+    const globRe = input.glob ? compileGlob(input.glob) : undefined;
     const maxEntries = input.max_entries ?? DEFAULT_MAX_ENTRIES;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
@@ -149,7 +149,8 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
       showFiles,
       showDirs,
       showHidden,
-      filterGlob,
+      globRe,
+      basePath,
       lines,
       prefix: '',
       isLast: true,
@@ -205,13 +206,25 @@ export const treeTool: Tool<TreeInput, TreeOutput> = {
   },
 };
 
+/** Match a tree glob against the basename and a POSIX project-relative path. */
+function matchesTreeGlob(globRe: RegExp, fileName: string, absPath: string, basePath: string): boolean {
+  if (globRe.test(fileName)) return true;
+  const rel = path.relative(basePath, absPath);
+  const posixRel =
+    !rel || rel.startsWith('..') || path.isAbsolute(rel)
+      ? absPath.split(path.sep).join('/')
+      : rel.split(path.sep).join('/');
+  return globRe.test(posixRel);
+}
+
 interface WalkOptions {
   maxDepth: number;
   exclude: Set<string>;
   showFiles: boolean;
   showDirs: boolean;
   showHidden: boolean;
-  filterGlob?: string | undefined;
+  globRe?: RegExp | undefined;
+  basePath: string;
   lines: string[];
   prefix: string;
   isLast: boolean;
@@ -238,6 +251,10 @@ async function walkDir(dir: string, depth: number, opts: WalkOptions): Promise<v
   const filtered = entries.filter((e) => {
     if (!opts.showHidden && e.name.startsWith('.')) return false;
     if (opts.exclude.has(e.name)) return false;
+    if (e.isFile() && opts.globRe) {
+      const abs = path.join(dir, e.name);
+      if (!matchesTreeGlob(opts.globRe, e.name, abs, opts.basePath)) return false;
+    }
     return true;
   });
 

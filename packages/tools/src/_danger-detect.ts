@@ -57,8 +57,8 @@ const argMatches = (args: readonly string[], re: RegExp): boolean => args.some((
 const hasShortFlags = (args: readonly string[], letters: string): boolean => {
   const seen = new Set<string>();
   for (const a of args) {
-    if (!a.startsWith('-') || a.startsWith('--')) continue;
-    for (const ch of a.replace(/^-+/, '')) seen.add(ch);
+    if (!/^-[a-zA-Z]+$/.test(a)) continue;
+    for (const ch of a.slice(1)) seen.add(ch);
   }
   return letters.split('').every((l) => seen.has(l));
 };
@@ -493,7 +493,9 @@ export function detectDanger(
     if (bypass?.has(rule.id)) continue;
     if (!rule.test(cmd, args)) continue;
     reasons.push(rule.reason);
-    matchedRule = rule.id;
+    if (matchedRule === undefined || levelRank(rule.level) >= levelRank(level)) {
+      matchedRule = rule.id;
+    }
     if (levelRank(rule.level) > levelRank(level)) {
       level = rule.level;
     }

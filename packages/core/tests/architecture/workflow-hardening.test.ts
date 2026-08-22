@@ -179,4 +179,33 @@ describe('release scripts (WS-040)', () => {
     const hook = readFileSync(join(repoRoot, '.githooks', 'pre-commit'), 'utf8');
     expect(hook).toContain('node scripts/sync-core-public-api-snapshot.mjs');
   });
+
+  it('gates git push on the local CI matrix', () => {
+    const hook = readFileSync(join(repoRoot, '.githooks', 'pre-push'), 'utf8');
+    expect(hook.startsWith('#!/bin/sh')).toBe(true);
+    expect(hook).toMatch(/^set -e$/m);
+    expect(hook).toContain('node scripts/release-check-matrix.mjs --profile');
+    expect(hook).toContain('WRONGSTACK_SKIP_PRE_PUSH');
+    expect(hook).toContain('WRONGSTACK_PRE_PUSH_PROFILE');
+    expect(scripts()['ci:local']).toBe('node scripts/release-check-matrix.mjs --profile local');
+  });
+
+  it('keeps coverage and e2e out of the laptop pre-push profile', () => {
+    const runner = readFileSync(join(repoRoot, 'scripts', 'release-check-matrix.mjs'), 'utf8');
+    expect(runner).toContain("profile === 'local' ? 'local CI' : 'release:check'");
+    expect(runner).toContain('--profile');
+    // The local id list is the source of truth for `pnpm ci:local`. It must
+    // include the test suite GitHub CI runs, and must not silently grow a
+    // 45-minute coverage gate onto every push.
+    const localBlock = runner.slice(runner.indexOf('local: [') + 'local: ['.length);
+    const localIds = localBlock.slice(0, localBlock.indexOf('],'));
+    expect(localIds).toContain("'lint'");
+    expect(localIds).toContain("'typecheck'");
+    expect(localIds).toContain("'test'");
+    expect(localIds).toContain("'hqdash'");
+    expect(localIds).toContain("'status-bar'");
+    expect(localIds).not.toContain("'coverage'");
+    expect(localIds).not.toContain("'audit'");
+    expect(localIds).not.toContain('test:e2e');
+  });
 });

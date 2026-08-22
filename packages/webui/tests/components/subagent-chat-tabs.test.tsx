@@ -1,0 +1,214 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+import {
+  AgentTabs,
+  shouldAutoClearSubagentFocus,
+} from '../../src/components/ChatView/AgentTabs.js';
+import { SubagentTranscriptView } from '../../src/components/ChatView/SubagentTranscriptView.js';
+import { AgentDetailSection } from '../../src/components/agents/AgentDetailSection.js';
+import type { AgentTranscriptEntry, SubagentView } from '../../src/stores/index.js';
+import { useFleetStore, useUIStore } from '../../src/stores/index.js';
+
+function makeAgent(id: string, overrides: Partial<{ name: string; status: string }> = {}) {
+  return {
+    id,
+    name: overrides.name ?? id,
+    status: overrides.status ?? 'running',
+    iteration: 0,
+    toolCalls: 0,
+    costUsd: 0,
+    ctxPct: 0,
+    ctxTokens: 0,
+    maxContext: 0,
+    extensions: 0,
+    startedAt: Date.now(),
+    toolLog: [],
+    sparklineBins: Array(12).fill(0),
+  } as SubagentView;
+}
+
+function entry(
+  partial: Partial<AgentTranscriptEntry> & { kind: AgentTranscriptEntry['kind'] },
+): AgentTranscriptEntry {
+  return {
+    id: `e_${Math.random().toString(36).slice(2, 8)}`,
+    subagentId: 's1',
+    agentName: 'Alpha',
+    content: partial.content ?? '',
+    kind: partial.kind,
+    iteration: partial.iteration ?? 1,
+    ts: new Date().toISOString(),
+    toolName: partial.toolName,
+    toolOk: partial.toolOk,
+  };
+}
+
+/**
+ * AgentTabs ↔ ui-store focus wiring and the read-only subagent transcript.
+ *
+ * Acceptance anchors:
+ * - Tab strip lists the leader once plus each subagent; clicking moves
+ *   `subagentChatFocusId` (null = leader).
+ * - The strip disappears when there is nothing to switch between.
+ * - SubagentTranscriptView renders every entry kind and contains NO form
+ *   controls — subagent history is strictly read-only (ChatView hides the
+ *   input area entirely in this mode).
+ */
+describe('subagent chat tabs', () => {
+  beforeEach(() => {
+    useFleetStore.setState({
+      agents: new Map(),
+      agentTranscripts: new Map(),
+      leaderId: undefined,
+      eventTimeline: [],
+      agentTimeline: [],
+    });
+    useUIStore.setState({ subagentChatFocusId: null });
+  });
+
+  afterEach(() => cleanup());
+
+  it('lists leader + subagents and routes clicks through subagentChatFocusId', () => {
+    const agents = new Map([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ['s1', makeAgent('s1', { name: 'Alpha' })],
+      ['s2', makeAgent('s2', { name: 'Beta' })],
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    render(<AgentTabs />);
+
+    // Leader appears exactly once even though it is also in the roster.
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBe(3);
+
+    fireEvent.click(screen.getByRole('tab', { name: /Beta/ }));
+    expect(useUIStore.getState().subagentChatFocusId).toBe('s2');
+
+    // First tab is the leader — selecting it returns to the normal chat.
+    fireEvent.click(screen.getAllByRole('tab')[0]!);
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
+
+    // Active state follows the focus field.
+    act(() => {
+      useUIStore.setState({ subagentChatFocusId: 's1' });
+    });
+    expect(screen.getByRole('tab', { name: /Alpha/ }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
+  });
+
+  it('does not throw when a subagent has a non-canonical status', () => {
+    const agents = new Map([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ['s1', makeAgent('s1', { name: 'Alpha', status: 'cancelled' })],
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+    expect(() => render(<AgentTabs />)).not.toThrow();
+    expect(screen.getByRole('tab', { name: /Alpha/ })).toBeTruthy();
+  });
+
+  it('renders nothing to switch when only the leader exists', () => {
+    const agents = new Map([['ldr', makeAgent('ldr', { name: 'Solo' })]]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    const { container } = render(<AgentTabs />);
+    expect(container.querySelector('[role="tablist"]')).toBeNull();
+  });
+
+  it('renders the full transcript chat-style with no input controls', async () => {
+    const agents = new Map([['s1', makeAgent('s1', { name: 'Alpha' })]]);
+    const entries = [
+      entry({ kind: 'text', content: 'Final answer with **markdown**' }),
+      entry({ kind: 'thinking', content: 'pondering the task deeply' }),
+      entry({ kind: 'tool_use', content: '{"path":"a.ts"}', toolName: 'read_file' }),
+      entry({
+        kind: 'tool_result',
+        content: 'file body',
+        toolName: 'read_file',
+        toolOk: true,
+      }),
+      entry({ kind: 'error', content: 'provider exploded' }),
+      entry({ kind: 'status', content: 'iteration 3 complete' }),
+    ];
+    useFleetStore.setState({
+      agents,
+      agentTranscripts: new Map([['s1', entries]]),
+    });
+
+    render(<SubagentTranscriptView agentId="s1" />);
+    const root = screen.getByTestId('subagent-transcript-view');
+
+    // Read-only contract: the subagent pane must never contain an editor.
+    expect(root.querySelector('textarea')).toBeNull();
+    expect(root.querySelector('input')).toBeNull();
+
+    // Every entry kind made it into the log.
+    await waitFor(() => expect(root.textContent).toContain('Final answer'));
+    expect(root.textContent).toContain('pondering the task deeply');
+    expect(root.textContent).toContain('"path":"a.ts"}');
+    expect(root.textContent).toContain('file body');
+    expect(root.textContent).toContain('provider exploded');
+    expect(root.textContent).toContain('iteration 3 complete');
+  });
+
+  it('shows the empty state for an agent without history', () => {
+    const agents = new Map([['s1', makeAgent('s1', { name: 'Alpha' })]]);
+    useFleetStore.setState({ agents });
+
+    render(<SubagentTranscriptView agentId="s1" />);
+    const root = screen.getByTestId('subagent-transcript-view');
+    expect(root.querySelector('textarea')).toBeNull();
+    expect(root.querySelector('input')).toBeNull();
+  });
+});
+
+/**
+ * ChatView consumes this predicate in its stale-focus effect: a focused
+ * subagent id may only survive while the agent still exists in the fleet
+ * roster (removed / clear-finished / session stop must fall back to the
+ * leader chat instead of rendering a dead pane).
+ */
+describe('shouldAutoClearSubagentFocus', () => {
+  it('clears only when a focused id no longer exists in the roster', () => {
+    expect(shouldAutoClearSubagentFocus('s1', true)).toBe(false);
+    expect(shouldAutoClearSubagentFocus('s1', false)).toBe(true);
+    expect(shouldAutoClearSubagentFocus(null, false)).toBe(false);
+    expect(shouldAutoClearSubagentFocus(null, true)).toBe(false);
+  });
+});
+
+/**
+ * The leader lives INSIDE the roster map, so its own detail card also
+ * renders an "Open chat" action — but focusing the leader id would swap
+ * the main pane for the leader's fleet-event transcript and hide the
+ * input. The guard must ignore the leader and focus only real subagents.
+ */
+describe('AgentDetailSection quick-open', () => {
+  beforeEach(() => {
+    useFleetStore.setState({ agents: new Map(), leaderId: undefined });
+    useUIStore.setState({ subagentChatFocusId: null });
+  });
+
+  it('ignores open-chat on the leader card', () => {
+    const agents = new Map([['ldr', makeAgent('ldr', { name: 'Main' })]]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    render(<AgentDetailSection agent={makeAgent('ldr', { name: 'Main' })} isExpanded />);
+    fireEvent.click(screen.getByRole('button', { name: /open chat/i }));
+
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
+  });
+
+  it('focuses a real subagent and jumps to the chat view', () => {
+    const agents = new Map([['s1', makeAgent('s1', { name: 'Alpha' })]]);
+    useFleetStore.setState({ agents });
+
+    render(<AgentDetailSection agent={makeAgent('s1', { name: 'Alpha' })} isExpanded />);
+    fireEvent.click(screen.getByRole('button', { name: /open chat/i }));
+
+    expect(useUIStore.getState().subagentChatFocusId).toBe('s1');
+    expect(useUIStore.getState().currentView).toBe('chat');
+  });
+});

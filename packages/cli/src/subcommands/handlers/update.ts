@@ -432,7 +432,8 @@ function environmentValue(env: NodeJS.ProcessEnv, key: string): string | undefin
 
 function isPathInsideWin32(candidate: string, parent: string): boolean {
   const normalizedCandidate = path.win32.resolve(candidate).toLowerCase();
-  const relative = path.win32.relative(parent, normalizedCandidate);
+  const normalizedParent = path.win32.resolve(parent).toLowerCase();
+  const relative = path.win32.relative(normalizedParent, normalizedCandidate);
   return (
     relative === '' ||
     (!relative.startsWith('..\\') && relative !== '..' && !path.win32.isAbsolute(relative))

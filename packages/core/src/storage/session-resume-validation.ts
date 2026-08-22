@@ -146,7 +146,35 @@ export async function validateResumeFileObservations(
 export const RESUME_NOTICE_HEADERS = [
   '[SESSION RESUME FILE VALIDATION]',
   '[SESSION RESUME INTERRUPTED WORK]',
+  '[SESSION RESUME CRASH RECOVERY]',
 ] as const;
+
+/**
+ * Build the ephemeral system message shown when the resumed session's newest
+ * lifecycle boundary was a dangling `in_flight_start` — i.e. the previous
+ * process died mid-iteration. Lists the interrupted tool calls that were
+ * stripped from the restored conversation (adjacency repair) so the model
+ * can decide whether to retry.
+ * Returns null when the session did not crash.
+ */
+export function formatCrashRecoveryNotice(
+  interruptedTools: ReadonlyArray<{ name: string; argsSummary?: string | undefined }>,
+  lastContext: string | null,
+): string | null {
+  if (interruptedTools.length === 0) return null;
+  const plural = interruptedTools.length === 1 ? 'call was' : 'calls were';
+  const lines = [
+    '[SESSION RESUME CRASH RECOVERY]',
+    `The previous run stopped mid-iteration${
+      lastContext ? ` while: ${lastContext}` : ''
+    } — ${interruptedTools.length} tool ${plural} left without a recorded result.`,
+    'Those interrupted tool calls were removed from the restored conversation and were NOT re-executed; their workspace side effects were NOT rolled back.',
+  ];
+  for (const tool of interruptedTools.slice(0, NOTICE_PATH_LIMIT)) {
+    lines.push(`- ${tool.name}${tool.argsSummary ? ` (${tool.argsSummary})` : ''}`);
+  }
+  return lines.join('\n');
+}
 
 /**
  * True for a system message this module produced on an earlier resume.

@@ -268,7 +268,9 @@ export function createPersistencePrimitives(
           await retryAfterBackoff();
           continue;
         }
-        if (code !== 'EEXIST' && code !== 'EPERM') throw error;
+        if (code !== 'EEXIST' && code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY') {
+          throw error;
+        }
 
         try {
           const stat = await fs.stat(lockPath);
@@ -437,5 +439,6 @@ async function renameWithRetry(from: string, to: string): Promise<void> {
 const defaultPrimitives = createPersistencePrimitives();
 
 export const atomicWrite = defaultPrimitives.atomicWrite;
+export const atomicReplaceWithWriter = defaultPrimitives.atomicReplaceWithWriter;
 export const ensureDir = defaultPrimitives.ensureDir;
 export const withFileLock = defaultPrimitives.withFileLock;

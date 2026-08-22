@@ -64,6 +64,41 @@ describe('FileSessionWriter', () => {
     vi.restoreAllMocks();
   });
 
+  // ── Datasync durability routing ─────────────────────────────────────
+
+  it('critical appends request disk durability via handle.datasync', async () => {
+    await writer.append({
+      type: 'user_input',
+      ts: now(),
+      content: 'durable me',
+    } as SessionEvent);
+    await vi.waitFor(() => expect(handle.datasync).toHaveBeenCalledTimes(1), {
+      timeout: 2000,
+      interval: 20,
+    });
+    // Only the immediate critical route syncs; nothing else fired here.
+    expect(handle.datasync).toHaveBeenCalledTimes(1);
+  });
+
+  it('deferred timer flushes stay page-cache only (no datasync)', async () => {
+    vi.useFakeTimers();
+    try {
+      await writer.append({
+        type: 'tool_result',
+        ts: now(),
+        id: 'tu-ds',
+        content: 'non-critical',
+        isError: false,
+      } as SessionEvent);
+      expect(handle.datasync).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(capturedWrites.some((w) => w.includes('non-critical'))).toBe(true);
+      expect(handle.datasync).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   // ── Constructor ──────────────────────────────────────────────────────
 
   it('sets id and basic properties from constructor', () => {
@@ -97,23 +132,155 @@ describe('FileSessionWriter', () => {
     expect(resumedWriter.transcriptPath).toBe('/tmp/test.jsonl');
   });
 
+  /** Parsed event types across every captured appendFile batch. */
+  const capturedTypes = (): string[] =>
+    capturedWrites
+      .flatMap((d) =>
+        d
+          .trim()
+          .split('\n')
+          .filter((l) => l.length > 0),
+      )
+      .map((l) => (JSON.parse(l) as { type: string }).type);
+
   // ── append() ──────────────────────────────────────────────────────────
 
-  it('append buffers events and does not immediately flush', async () => {
+  it('append flushes critical events (user_input) immediately', async () => {
     const event: SessionEvent = {
       type: 'user_input',
       ts: now(),
       content: 'hello',
     } as SessionEvent;
     await writer.append(event);
-    // Should have buffered session_start + user_input but not flushed yet (buffer < 50)
+    // No explicit flush()/close() — user_input is critical and must already
+    // be on disk (with the lazy session_start preamble riding along).
+    expect(capturedTypes()).toEqual(expect.arrayContaining(['session_start', 'user_input']));
+  });
+
+  it('append keeps non-critical events buffered until an explicit flush', async () => {
+    await writer.append({
+      type: 'tool_result',
+      ts: now(),
+      id: 'tu-1',
+      content: 'not critical',
+      isError: false,
+    } as SessionEvent);
+    // Nothing critical yet → nothing on disk (buffer < FLUSH_SIZE).
     expect(capturedWrites).toHaveLength(0);
+    // An explicit durable boundary flush lands it.
+    await writer.flush();
+    expect(capturedTypes()).toContain('tool_result');
+  });
+
+  it('deferred flush timer lands non-critical events without an explicit flush', async () => {
+    // Covers the FLUSH_INTERVAL_MS (500ms) batching path itself: nothing
+    // critical appended, no explicit flush — only the timer may land it.
+    vi.useFakeTimers();
+    try {
+      await writer.append({
+        type: 'tool_result',
+        ts: now(),
+        id: 'tu-deferred',
+        content: 'timer will carry me',
+        isError: false,
+      } as SessionEvent);
+      expect(capturedWrites).toHaveLength(0);
+
+      await vi.advanceTimersByTimeAsync(500);
+      expect(capturedWrites.length).toBeGreaterThan(0);
+      expect(capturedTypes()).toContain('tool_result');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('metadata checkpoints land sidecar + callback before close', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-writer-meta-'));
+    const manifestFile = path.join(dir, `${TEST_ID.split('/')[1]}.summary.json`);
+    const onCheckpoint = vi.fn();
+    const w = new FileSessionWriter(
+      TEST_ID,
+      handle as any,
+      STARTED_AT,
+      makeMeta(),
+      events as unknown as EventBus,
+      {
+        dir,
+        filePath: path.join(dir, 'session.jsonl'),
+        metadataCheckpointMs: 25,
+        onMetadataCheckpoint: onCheckpoint,
+      },
+    );
+    try {
+      await w.append({ type: 'user_input', ts: now(), content: 'checkpoint me' } as SessionEvent);
+      await vi.waitFor(() => expect(onCheckpoint).toHaveBeenCalled(), {
+        timeout: 2000,
+        interval: 20,
+      });
+      const first = onCheckpoint.mock.calls[0]?.[0];
+      expect(first.title).toContain('checkpoint me');
+      // Sidecar materialized under the manifest lock BEFORE close().
+      const raw = JSON.parse(await fsp.readFile(manifestFile, 'utf8')) as Record<string, unknown>;
+      expect(String(raw['title'])).toContain('checkpoint me');
+
+      await w.append({
+        type: 'llm_response',
+        ts: now(),
+        content: [{ type: 'text', text: 'answer' }],
+        stopReason: 'end_turn',
+        usage: { input: 7, output: 3 },
+      } as SessionEvent);
+      await vi.waitFor(
+        () => {
+          const latest = onCheckpoint.mock.calls.at(-1)?.[0];
+          expect(latest?.tokenTotal).toBe(10);
+          expect(latest?.messageCount).toBe(2);
+        },
+        { timeout: 2000, interval: 20 },
+      );
+      // Mid-session snapshots must not pretend the session ended.
+      expect(onCheckpoint.mock.calls.at(-1)?.[0].endedAt).toBeUndefined();
+    } finally {
+      await w.close();
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('append flushes llm_response immediately', async () => {
+    await writer.append({
+      type: 'llm_response',
+      ts: now(),
+      content: [{ type: 'text', text: 'answer' }],
+      stopReason: 'end_turn',
+      usage: { input: 10, output: 5 },
+    } as SessionEvent);
+    expect(capturedTypes()).toContain('llm_response');
+  });
+
+  it('writeCheckpoint flushes the checkpoint event immediately', async () => {
+    await writer.writeCheckpoint(0, 'first prompt');
+    expect(capturedTypes()).toContain('checkpoint');
+  });
+
+  it('in-flight markers flush immediately in both directions', async () => {
+    await writer.writeInFlightMarker('running tests');
+    expect(capturedTypes()).toContain('in_flight_start');
+    await writer.clearInFlightMarker('clean');
+    expect(capturedTypes()).toContain('in_flight_end');
   });
 
   it('append with many events triggers automatic flush', async () => {
-    // FLUSH_SIZE is 50 — adding 50 events should trigger a flush
+    // FLUSH_SIZE is 50. Non-critical events so the ONLY flush trigger is the
+    // size boundary — critical types (user_input/llm_response/...) flush
+    // themselves since the kill-safety fix and would mask this behavior.
     for (let i = 0; i < 50; i++) {
-      await writer.append({ type: 'user_input', ts: now(), content: `msg${i}` } as SessionEvent);
+      await writer.append({
+        type: 'tool_result',
+        ts: now(),
+        id: `tu-${i}`,
+        content: `msg${i}`,
+        isError: false,
+      } as SessionEvent);
     }
     // The flush is scheduled on the write chain; await a microtick
     await vi.waitFor(
@@ -122,6 +289,17 @@ describe('FileSessionWriter', () => {
       },
       { timeout: 2000, interval: 50 },
     );
+    // Drain the pending timer so the suite doesn't wait out the 500ms tick.
+    await writer.flush();
+  });
+
+  it('close materializes pending file snapshots recorded before any checkpoint', async () => {
+    // recordFileChange pre-checkpoint buffers into pendingFileSnapshots;
+    // close() must materialize them while the writer is still open — an
+    // earlier revision flipped `closed` first and silently dropped them.
+    writer.recordFileChange({ path: 'a.ts', action: 'modified', before: 'x', after: 'y' });
+    await writer.close();
+    expect(capturedTypes()).toContain('file_snapshot');
   });
 
   it('append does nothing after close', async () => {
@@ -141,14 +319,17 @@ describe('FileSessionWriter', () => {
 
   // ── appendBatch() ────────────────────────────────────────────────────
 
-  it('appendBatch buffers multiple events', async () => {
+  it('appendBatch flushes immediately when the batch contains critical events', async () => {
     const batch: SessionEvent[] = [
       { type: 'user_input', ts: now(), content: 'first' } as SessionEvent,
       { type: 'user_input', ts: now(), content: 'second' } as SessionEvent,
     ];
     await writer.appendBatch(batch);
-    // Should have buffered session_start (init) + 2 input events = 3 in buffer
-    expect(capturedWrites).toHaveLength(0);
+    // Every event in the batch is critical (user_input) → the whole batch,
+    // including the lazy session_start preamble, lands durably at once.
+    const types = capturedTypes();
+    expect(types).toContain('user_input');
+    expect(types.filter((t) => t === 'user_input')).toHaveLength(2);
   });
 
   // ── close() ──────────────────────────────────────────────────────────
@@ -540,7 +721,7 @@ describe('FileSessionWriter', () => {
     expect(event).toHaveProperty('path', '/project/src/index.ts');
   });
 
-  it('scrubs every synchronous event before it reaches the buffer', () => {
+  it('scrubs every synchronous event before it reaches the buffer', async () => {
     const scrubber: SecretScrubber = {
       scrub: vi.fn((value: string) => value.replace('SECRET', '***')),
       scrubObject: <T>(value: T): T => value,
@@ -557,7 +738,13 @@ describe('FileSessionWriter', () => {
     } as SessionEvent);
 
     expect(scrubber.scrub).toHaveBeenCalledWith('SECRET');
-    expect((w as any).buffer.writeBuffer.at(-1).content).toBe('***');
+    // user_input is critical: the scrubbed event no longer waits in the
+    // in-memory buffer — it is flushed straight to the write chain (async,
+    // fire-and-forget from the sync callback), so the scrubbed content
+    // becomes visible in the captured disk writes a microtask later.
+    await vi.waitFor(() => {
+      expect(capturedWrites.join('\n')).toContain('"content":"***"');
+    });
   });
 
   it('reopens after any recognized closed-handle error', async () => {

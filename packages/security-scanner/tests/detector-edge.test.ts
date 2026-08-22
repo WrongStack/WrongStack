@@ -252,4 +252,14 @@ describe('TechStackDetector - remaining uncovered paths', () => {
       internals.findWorkspaceConfigs([{ packageManager: 'future-pm' }], [], []),
     ).toEqual([]);
   });
+
+  it('does not match manifest wildcard patterns when dot is substituted with arbitrary characters', async () => {
+    const dir = await createProject({
+      'my_csproj': 'not a real csproj file',
+      'fooAcsproj': 'not a real csproj file',
+    });
+    const result = await detector.detect(dir);
+    expect(result.detectedStacks.some((s) => s.stack === 'dotnet')).toBe(false);
+  });
 });
+

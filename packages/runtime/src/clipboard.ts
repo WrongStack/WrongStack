@@ -200,7 +200,7 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
       settled = true;
       clearTimeout(timer);
       clearTimeout(killCap);
-      child.stdout.off('data', onStdoutData);
+      child.stdout?.off('data', onStdoutData);
       resolve(value);
     };
     const timer = setTimeout(() => {
@@ -284,7 +284,7 @@ function runCmdToFile(cmd: string, args: string[], outPath: string): Promise<boo
       settled = true;
       clearTimeout(timer);
       clearTimeout(killCap);
-      child.stdout.off('data', onStdoutData);
+      child.stdout?.off('data', onStdoutData);
       resolve(value);
     };
     const timer = setTimeout(() => {

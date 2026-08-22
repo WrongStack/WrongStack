@@ -4,7 +4,7 @@ import { FLEET_ROSTER, mailboxSessionTag } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { getSessionRegistry } from '@wrongstack/core/storage';
 import type { SystemPromptBuilder } from '@wrongstack/core/types';
-import { writeErr } from '@wrongstack/core/utils';
+import { addFatalSalvageHook, writeErr } from '@wrongstack/core/utils';
 import { wireEventWiring } from './boot/event-wiring.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import type { CliContext } from './cli-context.js';
@@ -332,6 +332,17 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   } = sessResult;
   context.meta['promptOnlineAgents'] = onlineAgents;
   sessionRef.current = session;
+  // P0 kill-safety: fatal paths (crash-shield error-storm exit, top-level
+  // main rejection, 'exit' listeners) drain the writer synchronously via
+  // this hook. It reads sessionRef LIVE, so /resume writer swaps stay
+  // covered without re-registration.
+  addFatalSalvageHook(() => {
+    try {
+      sessionRef.current?.flushSync?.();
+    } catch {
+      // best-effort — process is dying anyway
+    }
+  });
 
   const { governanceHandle } = await setupReplayAndGovernance({
     flags,

@@ -108,6 +108,13 @@ describe('session-recovery — extra coverage', () => {
     expect(ids.indexOf('2026-06-11/sharded-stale')).toBeLessThan(ids.indexOf('flat-stale'));
   });
 
+  it('does not recurse into subdirectories within date-shards', async () => {
+    await fs.mkdir(path.join(dir, '2026-06-11', 'nested'), { recursive: true });
+    await write('2026-06-11/nested/deep', [{ type: 'in_flight_start', ts: '2026-01-04T00:00:00.000Z' }]);
+    const stale = await rec.listResumable();
+    expect(stale.map((s) => s.sessionId)).not.toContain('2026-06-11/nested/deep');
+  });
+
   it('extractInterruptedTools extracts open tool_use without matching tool_result', () => {
     const plan = {
       sessionId: 'test',

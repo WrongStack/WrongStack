@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultSecretScrubber, DefaultSessionStore, EventBus } from '../../src/index.js';
+import { SessionRecovery } from '../../src/storage/session-recovery.js';
 import type { SessionEvent } from '../../src/types/session.js';
 
 let tmp: string;
@@ -404,15 +405,131 @@ describe('FileSessionWriter — appendBatch', () => {
 
   it('buffers a small batch and flushes immediately past FLUSH_SIZE', async () => {
     const w = await store.create({ id: 'ab1', model: 'm', provider: 'p' });
+    // Non-critical events: user_input would flush itself immediately since
+    // the kill-safety fix and mask the FLUSH_SIZE boundary being tested.
     const many: SessionEvent[] = Array.from({ length: 55 }, (_, i) => ({
-      type: 'user_input',
+      type: 'tool_result',
       ts: now(),
+      id: `tu-${i}`,
       content: `msg-${i}`,
+      isError: false,
     }));
     await w.appendBatch(many);
     await w.close();
     const data = await store.load('ab1');
-    expect(data.events.filter((e) => e.type === 'user_input')).toHaveLength(55);
+    expect(data.events.filter((e) => e.type === 'tool_result')).toHaveLength(55);
+  });
+
+  it('list() surfaces a never-closed (killed) session via the directory-scan union', async () => {
+    const closedWriter = await store.create({ id: 'p1a', model: 'm', provider: 'p' });
+    await closedWriter.append({ type: 'user_input', ts: now(), content: 'alpha closed cleanly' });
+    await closedWriter.close();
+
+    // Simulates a killed process: transcript events exist, but close() never
+    // ran — so no index row was ever appended for this session.
+    const killed = await store.create({ id: 'p1b', model: 'm', provider: 'p' });
+    await killed.append({ type: 'user_input', ts: now(), content: 'beta killed mid-flight' });
+
+    const list = await store.list(10);
+    const ids = list.map((s) => s.id);
+    expect(ids).toContain('p1a');
+    // Regression guard: index-only listing made p1b invisible whenever any
+    // older session had closed cleanly (non-empty _index.jsonl).
+    expect(ids).toContain('p1b');
+    // Most recent activity sorts first.
+    expect(ids.indexOf('p1b')).toBeLessThan(ids.indexOf('p1a'));
+
+    await killed.close(); // release the handle before afterEach cleanup
+  });
+
+  it('list() sees a fresh unclosed session even when shard manifests were primed', async () => {
+    // Prime any persisted shard-manifest caches with an earlier listing pass.
+    await store.list();
+    const fresh = await store.create({ id: 'p1c', model: 'm', provider: 'p' });
+    await fresh.append({ type: 'user_input', ts: now(), content: 'charlie unclosed' });
+
+    const ids = (await store.list(10)).map((s) => s.id);
+    expect(ids).toContain('p1c');
+
+    await fresh.close(); // release the handle before afterEach cleanup
+  });
+
+  it('resume() heals a crashed session: synthesized error results, recovered marker, detectStale clears', async () => {
+    // Simulate a kill mid-iteration: tool_use recorded, no result, dangling
+    // in_flight_start, and NO clean shutdown sequence.
+    // Fixture is written DIRECTLY as JSONL (no FileSessionWriter): the real
+    // writer would keep its handle (and unref'd timers) open across resume()
+    // and afterEach cleanup, racing both. Field shapes mirror exactly what
+    // append()/writeInFlightMarker() persist for these event types.
+    const crashLines = [
+      {
+        type: 'session_start',
+        ts: now(),
+        id: 'p2crash',
+        model: 'm',
+        provider: 'p',
+      },
+      { type: 'user_input', ts: now(), content: 'do work' },
+      {
+        type: 'llm_response',
+        ts: now(),
+        content: [{ type: 'tool_use', id: 'tu-x', name: 'write_file', input: { path: 'a.ts' } }],
+        stopReason: 'tool_use',
+        usage: { input: 5, output: 2 },
+      },
+      { type: 'in_flight_start', ts: now(), context: 'writing a.ts' },
+    ];
+    await fs.writeFile(
+      path.join(tmp, 'p2crash.jsonl'),
+      `${crashLines.map((line) => JSON.stringify(line)).join('\n')}\n`,
+    );
+    // No clearInFlightMarker / session_end — the process "died" here.
+
+    const before = await new SessionRecovery(tmp).detectStale('p2crash');
+    expect(before).not.toBeNull();
+
+    const resumed = await store.resume('p2crash');
+    expect(resumed).not.toBeNull();
+
+    // Journal healed: the synthesized result pairs with the dangling
+    // tool_use id, and the stale boundary is closed with reason='recovered'.
+    const healed = (await fs.readFile(path.join(tmp, 'p2crash.jsonl'), 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    expect(
+      healed.some(
+        (event) =>
+          event['type'] === 'tool_result' && event['id'] === 'tu-x' && event['isError'] === true,
+      ),
+    ).toBe(true);
+    expect(
+      healed.some((event) => event['type'] === 'in_flight_end' && event['reason'] === 'recovered'),
+    ).toBe(true);
+
+    // detectStale() must report a CLEAN file after recovery.
+    const after = await new SessionRecovery(tmp).detectStale('p2crash');
+    expect(after).toBeNull();
+
+    // Crash notice surfaced into restored history.
+    const sawCrashNotice = resumed!.data.messages.some(
+      (m) => typeof m.content === 'string' && m.content.includes('[SESSION RESUME CRASH RECOVERY]'),
+    );
+    expect(sawCrashNotice).toBe(true);
+    expect(
+      resumed!.data.messages.some(
+        (m) =>
+          typeof m.content === 'string' &&
+          m.content.includes('removed from the restored conversation'),
+      ),
+    ).toBe(true);
+    expect(
+      resumed!.data.messages.some(
+        (m) => typeof m.content === 'string' && m.content.includes('marked failed'),
+      ),
+    ).toBe(false);
+
+    await resumed!.writer.close(); // release handle before afterEach cleanup
   });
 
   it('ignores appendBatch after close()', async () => {
@@ -1059,8 +1176,16 @@ describe('FileSessionWriter — observeForSummary event types + scheduled flush'
 
   it('flushes buffered events via the deferred timer', async () => {
     const w = await store.create({ id: 'timer', model: 'm', provider: 'p' });
-    // A single append schedules the 500ms flush timer instead of flushing now.
-    await w.append({ type: 'user_input', ts: now(), content: 'deferred' });
+    // A single NON-CRITICAL append schedules the 500ms flush timer instead of
+    // flushing now (critical types like user_input flush themselves since the
+    // kill-safety fix and would make this test vacuous).
+    await w.append({
+      type: 'tool_result',
+      ts: now(),
+      id: 'tu-deferred',
+      content: 'deferred',
+      isError: false,
+    });
     // Wait for the timer to fire and land the event on disk (no explicit flush).
     await vi.waitFor(
       async () => {
@@ -1072,18 +1197,61 @@ describe('FileSessionWriter — observeForSummary event types + scheduled flush'
     await w.close();
   });
 
+  it('size-boundary append cancels the pending deferred timer (no late flush)', async () => {
+    vi.useFakeTimers();
+    try {
+      const w = await store.create({ id: 'timer2', model: 'm', provider: 'p' });
+      await w.append({
+        type: 'tool_result',
+        ts: now(),
+        id: 'tu-deferred',
+        content: 'deferred',
+        isError: false,
+      }); // schedules the 500ms timer; nothing written yet
+      const before = await fs.readFile(path.join(tmp, 'timer2.jsonl'), 'utf8');
+      expect(before).not.toContain('deferred');
+
+      const big: SessionEvent[] = Array.from({ length: 60 }, (_, i) => ({
+        type: 'tool_result',
+        ts: now(),
+        id: `tu-b${i}`,
+        content: `b${i}`,
+        isError: false,
+      }));
+      await w.appendBatch(big); // size boundary → cancelTimer + immediate flush
+
+      const after = await fs.readFile(path.join(tmp, 'timer2.jsonl'), 'utf8');
+      expect(after).toContain('deferred'); // drained together with the batch
+      const snapshotLength = after.length;
+      // Advancing past the original interval must produce NOTHING further:
+      // proof the pending timer was actually canceled, not left to fire.
+      await vi.advanceTimersByTimeAsync(500);
+      const post = await fs.readFile(path.join(tmp, 'timer2.jsonl'), 'utf8');
+      expect(post.length).toBe(snapshotLength);
+      await w.close();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('clears a pending flush timer when a later batch exceeds the flush size', async () => {
     const w = await store.create({ id: 'ab3', model: 'm', provider: 'p' });
-    await w.appendBatch([{ type: 'user_input', ts: now(), content: 'small' }]); // schedules timer
+    await w.appendBatch([
+      { type: 'tool_result', ts: now(), id: 'tu-s0', content: 'small', isError: false },
+    ]); // schedules timer (non-critical)
     const big: SessionEvent[] = Array.from({ length: 60 }, (_, i) => ({
-      type: 'user_input',
+      type: 'tool_result',
       ts: now(),
+      id: `tu-b${i}`,
       content: `b${i}`,
+      isError: false,
     }));
     await w.appendBatch(big); // timer pending → cleared, immediate flush
+    // Assert BEFORE close(): close() flushes on its own and would mask a
+    // broken immediate-flush path here (chimera M).
+    const raw = await fs.readFile(path.join(tmp, 'ab3.jsonl'), 'utf8');
+    expect(raw.split('\n').filter((l) => l.includes('"type":"tool_result"'))).toHaveLength(61);
     await w.close();
-    const data = await store.load('ab3');
-    expect(data.events.filter((e) => e.type === 'user_input').length).toBeGreaterThanOrEqual(61);
   });
 });
 
@@ -1304,13 +1472,17 @@ describe('DefaultSessionStore.delete — in-use protection', () => {
   });
 
   it('refuses to delete when the isSessionInUse callback reports in use', async () => {
+    let reportInUse = false;
     const guardedStore = new DefaultSessionStore({
       dir: tmp,
       isSessionInUse: async (id) =>
-        id === '2026-07-04/regn1' ? 'active in WrongStack (PID 12345)' : null,
+        reportInUse && id === '2026-07-04/regn1' ? 'active in WrongStack (PID 12345)' : null,
     });
+    // Setup runs with the flag off: creation itself is legitimate here.
     const w = await guardedStore.create({ id: '2026-07-04/regn1', model: 'm', provider: 'p' });
     await w.close();
+    // Simulate a concurrent holder appearing after creation.
+    reportInUse = true;
     await expect(guardedStore.delete('2026-07-04/regn1')).rejects.toThrow(/in use/);
     await expect(fs.access(path.join(tmp, '2026-07-04', 'regn1.jsonl'))).resolves.toBeUndefined();
     // A different session is deletable through the same guarded store.
@@ -1318,6 +1490,18 @@ describe('DefaultSessionStore.delete — in-use protection', () => {
     await w2.close();
     await guardedStore.delete('2026-07-04/regn2');
     await expect(fs.access(path.join(tmp, '2026-07-04', 'regn2.jsonl'))).rejects.toThrow();
+  });
+
+  it('create() refuses IDs another process holds live', async () => {
+    const guardedStore = new DefaultSessionStore({
+      dir: tmp,
+      isSessionInUse: async () => 'active in WrongStack (PID 99999)',
+    });
+    await expect(
+      guardedStore.create({ id: '2026-07-04/held1', model: 'm', provider: 'p' }),
+    ).rejects.toThrow(/in use/);
+    // Nothing was written under the refused id.
+    await expect(fs.access(path.join(tmp, '2026-07-04', 'held1.jsonl'))).rejects.toThrow();
   });
 
   it('still deletes when isSessionInUse resolves null', async () => {

@@ -5,11 +5,12 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useFleetStore, useUIStore } from '@/stores';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
@@ -17,6 +18,8 @@ import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
 import { ProviderWaitingRoom } from '../ProviderWaitingRoom';
 import { SearchOverlay } from '../SearchOverlay';
 import { WelcomeScreen } from '../WelcomeScreen';
+import { AgentTabs, shouldAutoClearSubagentFocus } from './AgentTabs';
+import { SubagentTranscriptView } from './SubagentTranscriptView';
 import { ChatDisplayToggles } from './ChatDisplayToggles';
 import { ChatHeader } from './ChatHeader';
 import { ChatRowView } from './ChatRowView';
@@ -32,6 +35,50 @@ const ProcessMonitor = lazy(() =>
 export function ChatView() {
   const { t } = useAppTranslation();
   const state = useChatViewState();
+
+  // ── Subagent chat focus (AgentTabs) ──────────────────────────────
+  // Selection lives in ui-store so roster cards / detail sections can jump
+  // straight into an agent's transcript. Both fleet probes are booleans —
+  // they keep this component out of per-fleet-event re-renders.
+  const focusedSubagentId = useUIStore((s) => s.subagentChatFocusId);
+  const setSubagentChatFocus = useUIStore((s) => s.setSubagentChatFocus);
+  const setSearchOpen = useUIStore((s) => s.setSearchOpen);
+  const fleetHasAgents = useFleetStore((s) => s.agents.size > 0);
+  const leaderId = useFleetStore((s) => s.leaderId);
+  const focusedAgentExists = useFleetStore((s) =>
+    focusedSubagentId != null ? s.agents.has(focusedSubagentId) : false,
+  );
+  // The leader owns the main pane — a focus pointing at it (e.g. a stray
+  // "open chat" on the leader's roster card) just means plain leader chat.
+  const subagentMode =
+    focusedSubagentId != null &&
+    focusedAgentExists &&
+    focusedSubagentId !== leaderId;
+  const showTabs = fleetHasAgents || subagentMode;
+
+  // A selected agent can vanish at any moment (removed, clear-finished,
+  // session stop), and a leader-directed focus is meaningless — both fall
+  // back to the plain leader chat.
+  useEffect(() => {
+    if (
+      shouldAutoClearSubagentFocus(focusedSubagentId, focusedAgentExists) ||
+      (focusedSubagentId != null && focusedSubagentId === leaderId)
+    ) {
+      setSubagentChatFocus(null);
+    }
+  }, [focusedSubagentId, focusedAgentExists, leaderId, setSubagentChatFocus]);
+
+  // Entering a subagent tab hides the leader composer/overlay — close any
+  // open search so the flag can't strand while its overlay is unmounted.
+  // Returning from one: the leader VList remounts fresh at the top —
+  // restore pinned-to-bottom posture and re-baseline unread accounting for
+  // messages that streamed in while the pane was swapped.
+  const wasSubagentMode = useRef(false);
+  useEffect(() => {
+    if (subagentMode) setSearchOpen(false);
+    if (wasSubagentMode.current && !subagentMode) state.scrollToBottom();
+    wasSubagentMode.current = subagentMode;
+  }, [subagentMode, state.scrollToBottom, setSearchOpen]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-[hsl(var(--surface-2)/0.45)]">
@@ -77,8 +124,14 @@ export function ChatView() {
         startTime={state.startTime}
         formatDuration={state.formatDuration}
       />
+      {showTabs && <AgentTabs />}
 
-      {/* Messages */}
+      {/* Messages — swapped for the focused subagent's read-only history */}
+      {subagentMode ? (
+        <div className="relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">
+          <SubagentTranscriptView key={focusedSubagentId} agentId={focusedSubagentId} />
+        </div>
+      ) : (
       <div className="relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">
         <SearchOverlay />
         {!state.pinnedToBottom && (
@@ -189,8 +242,10 @@ export function ChatView() {
           </VList>
         )}
       </div>
+      )}
 
-      {/* Input */}
+      {/* Input — hidden while reading a subagent's read-only transcript */}
+      {!subagentMode && (
       <div className="shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3">
         {state.inputCollapsed && state.messages.length > 0 ? (
           <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 hover:bg-card/70 hover:border-border/80 transition-colors">
@@ -243,6 +298,7 @@ export function ChatView() {
           </>
         )}
       </div>
+      )}
 
       {/* Overlays */}
       <Suspense fallback={null}>
