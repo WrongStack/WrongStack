@@ -234,10 +234,6 @@
       "lines": 1007,
       "relativeImports": 48
     },
-    "packages/telegram/src/bot.ts": {
-      "lines": 854,
-      "relativeImports": 3
-    },
     "packages/tools/src/codebase-index/background-indexer.ts": {
       "lines": 909,
       "relativeImports": 7

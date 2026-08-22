@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T15:58:50.976Z",
+  "generatedAt": "2026-08-22T16:09:26.593Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3324,
+    "sourceFiles": 3325,
     "testFiles": 2872,
-    "sourceLines": 790072,
+    "sourceLines": 790088,
     "workspaceEdges": 119,
-    "moduleEdges": 10291,
+    "moduleEdges": 10292,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -696,7 +696,7 @@
     {
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
-      "sourceFiles": 21,
+      "sourceFiles": 22,
       "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -18669,11 +18669,6 @@
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1007,
       "relativeImports": 48
-    },
-    {
-      "file": "packages/telegram/src/bot.ts",
-      "lines": 854,
-      "relativeImports": 3
     },
     {
       "file": "packages/tools/src/codebase-index/background-indexer.ts",
