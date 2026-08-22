@@ -288,7 +288,6 @@ describe('batch script temp-path security', () => {
 // Sanity: the test harness itself can see the toolchains it gates on.
 describe('toolchain availability report', () => {
   it('reports availability for the record', () => {
-    fsSync.writeFileSync;
     console.log(`[parser-batch tests] go=${goAvailable} python=${pyAvailable}`);
   });
 });
