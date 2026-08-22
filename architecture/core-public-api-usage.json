@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 539,
+      "files": 541,
       "typeOnly": 60,
-      "runtimeOrMixed": 506
+      "runtimeOrMixed": 508
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -18488,6 +18488,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/token-estimator.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/worktree-ws-handler.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18531,6 +18537,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/tests/session-swap-lifecycle.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/tests/token-estimator.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

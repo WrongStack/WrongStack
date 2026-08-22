@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T14:33:42.192Z",
+  "generatedAt": "2026-08-22T14:48:20.030Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 35,
     "sourceFiles": 3318,
     "testFiles": 2870,
-    "sourceLines": 789716,
+    "sourceLines": 789641,
     "workspaceEdges": 115,
-    "moduleEdges": 10279,
+    "moduleEdges": 10278,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -18686,8 +18686,8 @@
     },
     {
       "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
-      "lines": 963,
-      "relativeImports": 2
+      "lines": 867,
+      "relativeImports": 1
     },
     {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
@@ -19152,11 +19152,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/tools/src/codebase-index/tree-sitter/queries.ts",
-      "lines": 963,
-      "relativeImports": 2
-    },
-    {
       "file": "packages/tools/src/codebase-index/writer.ts",
       "lines": 963,
       "relativeImports": 19
@@ -19190,6 +19185,11 @@
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 949,
       "relativeImports": 1
+    },
+    {
+      "file": "apps/desktop/src/renderer/src/renderer.ts",
+      "lines": 944,
+      "relativeImports": 8
     }
   ],
   "testOnlyExports": [

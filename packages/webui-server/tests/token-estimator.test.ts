@@ -1,26 +1,50 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  estimateTokens,
-  stringifyContent,
-  messageTokens,
-  messagePreview,
   estimateContextBreakdown,
+  estimateTokens,
+  messagePreview,
+  messageTokens,
+  stringifyContent,
 } from '../src/server/token-estimator.js';
 
+/**
+ * Since card #5 (slice 5g) the estimator delegates to core's calibrated
+ * basis (3.5 chars/token, min 1 — see core/src/utils/token-estimate.ts
+ * `RoughTokenEstimate`). The old /4 exact-arithmetic fixtures below were
+ * updated to the shared basis: 'abcd' → ceil(4/3.5) = 2, not 1. Delegation
+ * is the point — these tests pin the WebUI view to the same numbers the
+ * CLI/TUI context bar and compaction decisions use.
+ */
+
 describe('estimateTokens', () => {
-  it('returns ceil(length/4) for a short string', () => {
-    expect(estimateTokens('abcd')).toBe(1); // 4/4 = 1
-    expect(estimateTokens('abcde')).toBe(2); // 5/4 = 1.25 → 2
-    expect(estimateTokens('')).toBe(0); // 0/4 = 0
+  it('delegates to the shared 3.5-chars/token basis (min 1)', () => {
+    expect(estimateTokens('abcd')).toBe(2); // ceil(4/3.5) = 2
+    expect(estimateTokens('abcde')).toBe(2); // ceil(5/3.5) = 2
+    // Math.max(1, ...) — core's basis floors EVERYTHING at 1, including the
+    // empty string (old private /4 estimator returned 0 here). The shift is
+    // intentional: a block that exists costs at least one token.
+    expect(estimateTokens('')).toBe(1);
   });
 
-  it('handles longer strings', () => {
-    expect(estimateTokens('a'.repeat(100))).toBe(25);
-    expect(estimateTokens('a'.repeat(101))).toBe(26);
+  it('handles longer strings on the shared basis', () => {
+    // Math.max(1, ceil(len/3.5)) — mirrors RoughTokenEstimate exactly.
+    expect(estimateTokens('a'.repeat(100))).toBe(Math.ceil(100 / 3.5));
+    expect(estimateTokens('a'.repeat(101))).toBe(Math.ceil(101 / 3.5));
   });
 
-  it('handles single character', () => {
-    expect(estimateTokens('x')).toBe(1);
+  it('floors single characters at 1 token', () => {
+    expect(estimateTokens('x')).toBe(1); // Math.max(1, ceil(1/3.5)) = 1
+  });
+
+  it('agrees with the canonical core estimator for mixed content', async () => {
+    // The delegation contract: same input, same number as core's public API.
+    // Importing core's estimator directly pins the cross-package equality —
+    // if the delegation below is ever severed, this fails.
+    const { estimateTextTokens } = await import('@wrongstack/core/utils');
+    const samples = ['hello world', JSON.stringify({ path: '/x', depth: 2 }), 'a'.repeat(37)];
+    for (const s of samples) {
+      expect(estimateTokens(s)).toBe(estimateTextTokens(s));
+    }
   });
 });
 
@@ -72,39 +96,33 @@ describe('messageTokens', () => {
   });
 
   it('handles text blocks', () => {
-    const content = [
-      { type: 'text', text: 'Hello, how can I help you?' },
-    ];
+    const content = [{ type: 'text', text: 'Hello, how can I help you?' }];
     expect(messageTokens(content)).toBe(estimateTokens('Hello, how can I help you?'));
   });
 
   it('handles text blocks with missing text', () => {
     const content = [{ type: 'text' }];
-    expect(messageTokens(content)).toBe(0);
+    // text ?? '' is an empty string, and the shared basis floors it at 1.
+    expect(messageTokens(content)).toBe(1);
   });
 
-  it('handles tool_use blocks', () => {
-    const content = [
-      { type: 'tool_use', name: 'read_file', input: { path: '/test.txt' } },
-    ];
+  it('handles tool_use blocks via the canonical tool-input estimator', () => {
+    const content = [{ type: 'tool_use', name: 'read_file', input: { path: '/test.txt' } }];
+    // Delegates to estimateToolInputTokens (core): strings pass through,
+    // objects go through the cached JSON basis — same 3.5 divisor.
     expect(messageTokens(content)).toBe(
-      estimateTokens(JSON.stringify({ path: '/test.txt' }))
+      Math.ceil(JSON.stringify({ path: '/test.txt' }).length / 3.5),
     );
   });
 
-  it('handles tool_result blocks', () => {
-    const content = [
-      { type: 'tool_result', content: 'file contents here' },
-    ];
-    expect(messageTokens(content)).toBe(
-      estimateTokens(JSON.stringify('file contents here'))
-    );
+  it('handles tool_result blocks via the canonical tool-result estimator', () => {
+    const content = [{ type: 'tool_result', content: 'file contents here' }];
+    // Strings pass straight through the shared basis (no JSON re-quoting).
+    expect(messageTokens(content)).toBe(Math.ceil('file contents here'.length / 3.5));
   });
 
   it('handles unknown block types gracefully', () => {
-    const content = [
-      { type: 'image', source: { url: '...' } },
-    ];
+    const content = [{ type: 'image', source: { url: '...' } }];
     // Falls through to stringifyContent of the whole block
     expect(messageTokens(content)).toBeGreaterThan(0);
   });
@@ -115,12 +133,10 @@ describe('messageTokens', () => {
       { type: 'tool_use', name: 'read', input: { file: 'x' } },
       { type: 'tool_result', content: 'result data' },
     ];
-    // For strings, stringifyContent returns them unchanged (not JSON-quoted)
-    // For objects, stringifyContent uses JSON.stringify
     const expected =
       estimateTokens('Hello') +
-      estimateTokens(stringifyContent({ file: 'x' })) +
-      estimateTokens(stringifyContent('result data'));
+      Math.ceil(JSON.stringify({ file: 'x' }).length / 3.5) +
+      Math.ceil('result data'.length / 3.5);
     expect(messageTokens(content)).toBe(expected);
   });
 });
@@ -146,9 +162,7 @@ describe('messagePreview', () => {
   });
 
   it('previews tool_use blocks', () => {
-    const content = [
-      { type: 'tool_use', name: 'read_file' },
-    ];
+    const content = [{ type: 'tool_use', name: 'read_file' }];
     expect(messagePreview(content)).toBe('[tool_use: read_file]');
   });
 
@@ -208,15 +222,14 @@ describe('estimateContextBreakdown', () => {
       tools: [],
       messages: [],
     });
-    expect(result.systemPrompt).toBe(0);
+    // text ?? '' floors at 1 under the shared basis.
+    expect(result.systemPrompt).toBe(1);
   });
 
   it('includes tool breakdown with schema and description', () => {
     const result = estimateContextBreakdown({
       systemPrompt: [],
-      tools: [
-        { name: 'read_file', inputSchema: { type: 'object' }, description: 'Read a file' },
-      ],
+      tools: [{ name: 'read_file', inputSchema: { type: 'object' }, description: 'Read a file' }],
       messages: [],
     });
     expect(result.tools.count).toBe(1);
@@ -252,27 +265,35 @@ describe('estimateContextBreakdown', () => {
 
   it('computes total as sum of all parts', () => {
     const result = estimateContextBreakdown({
-      systemPrompt: [
-        { text: 'You are a helpful assistant that can use tools.' },
-      ],
+      systemPrompt: [{ text: 'You are a helpful assistant that can use tools.' }],
       tools: [
-        { name: 'read_file', inputSchema: { type: 'object', properties: {} }, description: 'Read a file from disk' },
-        { name: 'write_file', inputSchema: { type: 'object' }, description: 'Write a file to disk' },
+        {
+          name: 'read_file',
+          inputSchema: { type: 'object', properties: {} },
+          description: 'Read a file from disk',
+        },
+        {
+          name: 'write_file',
+          inputSchema: { type: 'object' },
+          description: 'Write a file to disk',
+        },
       ],
       messages: [
         { role: 'user', content: 'Read the config file for me.' },
-        { role: 'assistant', content: [
-          { type: 'text', text: "I'll read that file now." },
-          { type: 'tool_use', name: 'read_file', input: { path: '/config.json' } },
-        ] },
-        { role: 'tool', content: [
-          { type: 'tool_result', content: JSON.stringify({ key: 'value' }) },
-        ] },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'text', text: "I'll read that file now." },
+            { type: 'tool_use', name: 'read_file', input: { path: '/config.json' } },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [{ type: 'tool_result', content: JSON.stringify({ key: 'value' }) }],
+        },
       ],
     });
-    expect(result.total).toBe(
-      result.systemPrompt + result.tools.total + result.messages.total
-    );
+    expect(result.total).toBe(result.systemPrompt + result.tools.total + result.messages.total);
     expect(result.total).toBeGreaterThan(0);
   });
 
@@ -280,10 +301,32 @@ describe('estimateContextBreakdown', () => {
     const result = estimateContextBreakdown({
       systemPrompt: [],
       tools: [],
-      messages: [
-        { role: 'system', content: 42 },
-      ],
+      messages: [{ role: 'system', content: 42 }],
     });
     expect(result.messages.breakdown[0].tokens).toBe(0);
+  });
+
+  it('WebUI estimate matches the canonical core basis (~14% divergence gone)', () => {
+    // Smoke comparison pinning the unification contract: for a representative
+    // mixed payload, the delegated figure must equal core's own public text
+    // estimator, and must read ~14% higher than the retired /4 figure.
+    const payload = JSON.stringify({
+      role: 'assistant',
+      content: [
+        { type: 'text', text: 'Reading the config and applying the schema now.' },
+        { type: 'tool_use', name: 'read_file', input: { path: '/config.json', mode: 'strict' } },
+        { type: 'tool_result', content: JSON.stringify({ key: 'value', nested: { deep: true } }) },
+      ],
+    });
+    const delegated = estimateTokens(payload);
+    const coreBasis = Math.max(1, Math.ceil(payload.length / 3.5));
+    const retiredWebUiBasis = Math.ceil(payload.length / 4);
+
+    expect(delegated).toBe(coreBasis); // exact match with canonical estimator
+    expect(delegated).toBeGreaterThan(retiredWebUiBasis); // conservative shift is real
+    // The historical ~14% divergence between surfaces: 4/3.5 ≈ 1.143.
+    const ratio = delegated / retiredWebUiBasis;
+    expect(ratio).toBeGreaterThan(1.0);
+    expect(ratio).toBeLessThanOrEqual(4 / 3.5 + 0.01);
   });
 });

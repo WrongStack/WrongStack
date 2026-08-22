@@ -1,19 +1,36 @@
 /**
  * Per-section context-window token estimate for the `context.debug` command.
  *
- * Uses the simple 4-chars-per-token heuristic — not exact, but close enough to
- * spot which section (system prompt, tool schemas, or message history) is
- * eating the context window. Tool schemas in particular are easy to overlook:
- * each tool ships its full JSON schema to the model every turn, so 20+ builtins
- * can cost 10-20k tokens on their own.
+ * Since card #5 (slice 5g) this module delegates the actual token math to
+ * the canonical calibrated estimator in `@wrongstack/core/utils`
+ * (3.5 chars/token basis + per-model-family EWM calibration — see
+ * `core/src/utils/token-estimate.ts`). Before this, the WebUI computed a
+ * private 4-chars/token estimate, so the number in the browser's context
+ * debug view diverged from what compaction and the TUI context bar were
+ * actually deciding on (~14% for typical mixed content). Delegating means
+ * the user sees the same number the system acts on.
  *
- * Extracted from `index.ts` as a pure function so the breakdown maths can be
- * unit tested without standing up a Context/ToolRegistry.
+ * User-visible shift (intentional): all token figures shown by the WebUI
+ * context breakdown now match the CLI/TUI estimator — mixed-content
+ * conversations read ~14% HIGHER than the old 4-chars/token figures
+ * (3.5 chars/token is a more conservative, over-estimating basis by
+ * design, so compaction triggers are consistent rather than optimistic).
+ * Previews, block walking, and the `ContextBreakdown` shape are unchanged.
+ *
+ * `stringifyContent` stays local: its circular-reference fallback and the
+ * duck-typed block walk below are presentation-side concerns the canonical
+ * estimator does not share (it walks typed `Message` content).
  */
 
-/** 4-chars-per-token heuristic estimate for a string. */
+import {
+  estimateTextTokens,
+  estimateToolInputTokens,
+  estimateToolResultTokens,
+} from '@wrongstack/core/utils';
+
+/** Calibrated token estimate for a string — delegates to the shared basis. */
 export function estimateTokens(s: string): number {
-  return Math.ceil(s.length / 4);
+  return estimateTextTokens(s);
 }
 
 /** Stringify arbitrary content for length estimation (JSON, with fallbacks). */
@@ -70,8 +87,8 @@ export function messageTokens(content: unknown): number {
   let tk = 0;
   for (const b of content as ContentBlock[]) {
     if (b.type === 'text') tk += estimateTokens(b.text ?? '');
-    else if (b.type === 'tool_use') tk += estimateTokens(stringifyContent(b.input));
-    else if (b.type === 'tool_result') tk += estimateTokens(stringifyContent(b.content));
+    else if (b.type === 'tool_use') tk += estimateToolInputTokens(b.input);
+    else if (b.type === 'tool_result') tk += estimateToolResultTokens(b.content);
     else tk += estimateTokens(stringifyContent(b));
   }
   return tk;

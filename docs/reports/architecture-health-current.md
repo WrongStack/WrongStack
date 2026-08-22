@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-22T14:33:42.192Z
+**Generated:** 2026-08-22T14:48:20.030Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 35 |
 | Production source files | 3318 |
-| Production source lines | 789716 |
+| Production source lines | 789641 |
 | Test files | 2870 |
 | Workspace dependency edges | 115 |
-| Relative module edges | 10279 |
+| Relative module edges | 10278 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -127,7 +127,6 @@ None.
 | 968 | `packages/kanban/src/types.ts` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
-| 963 | `packages/tools/src/codebase-index/tree-sitter/queries.ts` |
 | 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 953 | `packages/tui/src/app-key-handler.ts` |
@@ -135,6 +134,7 @@ None.
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
+| 944 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 

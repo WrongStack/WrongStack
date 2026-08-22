@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **WebUI context-breakdown token figures now match the CLI/TUI estimator.** `webui-server/src/server/token-estimator.ts` delegates to `@wrongstack/core/utils`' calibrated basis (3.5 chars/token + EWM calibration) instead of a private 4-chars/token heuristic, so the number shown in the browser's context debug view is the same number compaction and the context bar decide on. User-visible shift: mixed-content conversations read ~14% higher than before (4/3.5 ≈ 1.143), and empty blocks now floor at 1 token — both intentional conservatism. The canonical ReDoS regex guard also moved to a new dependency-leaf `@wrongstack/primitives` package, unifying three drifted copies (core/tools/kanban) that existed only because kanban sits below both in the workspace DAG. (`07577d9f8`)
+
 ## [0.309.0] — 2026-08-20
 
 ### Added
