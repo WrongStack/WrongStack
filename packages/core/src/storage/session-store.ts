@@ -275,7 +275,16 @@ export class DefaultSessionStore implements SessionStore {
           { cause },
         );
       } catch (accessErr) {
-        if ((accessErr as NodeJS.ErrnoException).code !== 'ENOENT') throw accessErr;
+        // ENOENT: the racing unlink finished — the file is gone, continue.
+        // ENAMETOOLONG: the sidecar path is unrepresentable on this
+        // filesystem (Linux NAME_MAX=255), which PROVES the file cannot
+        // exist — absence is already established, so continuing is
+        // correct. Without this branch the raw errno escapes create()
+        // unwrapped on Linux while the transcript-open failure on the
+        // same unrepresentable path wraps as `Failed to open session
+        // file` below (the documented error contract this path follows).
+        const code = (accessErr as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT' && code !== 'ENAMETOOLONG') throw accessErr;
       }
     }
     // Catalog stub upsert BEFORE the truncating 'w' open below: fallible
