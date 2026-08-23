@@ -73,11 +73,13 @@
       "members": [
         "packages/core/src/core/context.ts",
         "packages/core/src/core/conversation-state.ts",
-        "packages/core/src/core/run-env.ts",
         "packages/core/src/types/blocks.ts",
         "packages/core/src/types/compactor.ts",
+        "packages/core/src/types/context.ts",
+        "packages/core/src/types/conversation-state.ts",
         "packages/core/src/types/messages.ts",
         "packages/core/src/types/provider.ts",
+        "packages/core/src/types/run-env.ts",
         "packages/core/src/types/session.ts",
         "packages/core/src/types/token-counter.ts",
         "packages/core/src/types/tool.ts",
@@ -86,7 +88,7 @@
         "packages/core/src/utils/tool-wire-compact.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01. Membership updated 2026-08-23 as part of Roadmap 10A dependency-leaf extraction: +3 leaf modules (types/context.ts, types/conversation-state.ts, types/run-env.ts) joined the SCC because SCC members now import FROM the leaves (the transitional direction of the flip); core/run-env.ts left the SCC (now a re-export shim over types/run-env.ts). Still type-only; runtime cycles: 0. Full decoupling recipe on card 342f147e (10A close-out: mirror complete instance surface onto AgentContext, flip back-edges one pass, then delete this exception).",
       "introduced": "2026-07-21",
       "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",

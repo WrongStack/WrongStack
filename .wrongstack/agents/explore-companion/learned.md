@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=73; wins=73 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=74; wins=74 -->
 - **- Treat role-memory i18n examples as perishable: re-grep `t('ns:key')` literals against `packages/webui/src/i18n/locales/*/` fresh each probe instead of repeating a prior "zero entries" flag. - In `packages/webui`, root-level `src/components/ChatView.tsx` is a 2-line re-export shim for `src/components/ChatView/index.tsx`; always edit the directory version, and don't confuse lookalikes `components/AgentTranscript.tsx` or `components/ui/tabs.tsx` with AgentTabs. - When no shell tool is registered, use mtime-ordered `glob packages/<pkg>/src/**/*.ts*` (single-pattern `ts*` suffix, no brace expans…**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `t('ns:key')`
@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=264; wins=261 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=265; wins=262 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -31,7 +31,7 @@
   - *How:* `inherit`
   - *How:* `implement`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=102; wins=101 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=103; wins=102 -->
 - **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/components/ChatView/index.tsx`
@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-08-22T11:25:46.876Z · 8 entries*
+*Last capture: 2026-08-23T15:34:43.084Z · 8 entries*

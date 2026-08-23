@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-23T14:00:40.430Z",
+  "generatedAt": "2026-08-23T15:37:11.778Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3339,
+    "sourceFiles": 3342,
     "testFiles": 2874,
-    "sourceLines": 791262,
+    "sourceLines": 791470,
     "workspaceEdges": 123,
-    "moduleEdges": 10282,
+    "moduleEdges": 10299,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -205,7 +205,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 760,
+      "sourceFiles": 763,
       "testFiles": 644,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -985,11 +985,13 @@
         "members": [
           "packages/core/src/core/context.ts",
           "packages/core/src/core/conversation-state.ts",
-          "packages/core/src/core/run-env.ts",
           "packages/core/src/types/blocks.ts",
           "packages/core/src/types/compactor.ts",
+          "packages/core/src/types/context.ts",
+          "packages/core/src/types/conversation-state.ts",
           "packages/core/src/types/messages.ts",
           "packages/core/src/types/provider.ts",
+          "packages/core/src/types/run-env.ts",
           "packages/core/src/types/session.ts",
           "packages/core/src/types/token-counter.ts",
           "packages/core/src/types/tool.ts",
@@ -18490,8 +18492,8 @@
     },
     {
       "file": "packages/core/src/core/context.ts",
-      "lines": 1028,
-      "relativeImports": 13
+      "lines": 1016,
+      "relativeImports": 15
     },
     {
       "file": "packages/core/src/core/fallback-model.ts",
@@ -19006,11 +19008,6 @@
       "relativeImports": 161
     },
     {
-      "file": "packages/core/src/core/context.ts",
-      "lines": 1028,
-      "relativeImports": 13
-    },
-    {
       "file": "packages/core/src/storage/file-session-writer.ts",
       "lines": 1023,
       "relativeImports": 10
@@ -19039,6 +19036,11 @@
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/core/src/core/context.ts",
+      "lines": 1016,
+      "relativeImports": 15
     },
     {
       "file": "packages/cli/src/slash-commands/sdd.ts",
