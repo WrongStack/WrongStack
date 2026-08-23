@@ -213,8 +213,10 @@ AGENTS.md
 # archive stay local.
 !.wrongstack/agents/
 !.wrongstack/agents/**
+
 .wrongstack/agents/**/archive/
 .wrongstack/agents/**/skills/affinity.json
+.wrongstack/agents/**/learned.md
 .wrongstack/agents/**/quarantine.md
 
 .wrongstack/prompts/
@@ -223,3 +225,5 @@ AGENTS.md
 packages/simpleui/vitest*.txt
 packages/simpleui/vitest.log
 reports/simpleui-improvement-report.md
+
+
