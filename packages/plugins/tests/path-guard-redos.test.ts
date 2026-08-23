@@ -81,9 +81,21 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
   // under load vs ~1.3s idle), so the budget carries headroom for that.
   // The pin's discrimination is exponential-vs-polynomial: the old xargs
   // ReDoS cost 52s at 134 chars — at this sweep's scale a reintroduced
-  // exponential shape is minutes, so 5s still fails loudly on regression
-  // while tolerating parallel-load contention on the healthy path.
-  const BUDGET_MS = 5_000;
+  // exponential shape is minutes, so the split budgets below still fail
+  // loudly on regression while tolerating parallel-load contention on the
+  // healthy path.
+  // Compile-only budget: measured 0.2ms CPU for the whole set — untouched.
+  const COMPILE_BUDGET_MS = 5_000;
+  // Hostile-path sweep budget, split from the compile budget after the
+  // 2026-08-23 CI flake. Measured idle: ~1.3s CPU (≈65ms per pair). Measured
+  // on a loaded CI runner: 5.07s CPU for the SAME work — cache/memory-
+  // bandwidth contention from sibling workers inflates CPU cycles ~4x even
+  // though `cpuTimed` already removes scheduler noise. 15s keeps ~3x
+  // headroom over the worst observed CI measurement while preserving the
+  // pin's discrimination: a reintroduced exponential shape costs MINUTES at
+  // this 20-combination scale (the old xargs ReDoS: 52s at 134 chars), so
+  // exponential-vs-polynomial still fails loudly at 15s.
+  const SWEEP_BUDGET_MS = 15_000;
   function cpuTimed(fn: () => void): number {
     const start = process.cpuUsage();
     fn();
@@ -104,7 +116,7 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
       for (const glob of pathological) compilePathGlob(glob);
     });
     // Measured: 0.2ms CPU for the whole set.
-    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(ms).toBeLessThan(COMPILE_BUDGET_MS);
   });
 
   it('benign protect globs match hostile paths without catastrophic backtracking', () => {
@@ -127,7 +139,7 @@ describe('compilePathGlob adversarial-input timing (audit T-02)', () => {
     const ms = cpuTimed(() => {
       for (const re of patterns) for (const p of hostile) re.test(p);
     });
-    expect(ms).toBeLessThan(BUDGET_MS);
+    expect(ms).toBeLessThan(SWEEP_BUDGET_MS);
   });
 
   it('matchesAnyGuarded contains a hostile-config worst case and fails CLOSED', async () => {
