@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=275; wins=272 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=276; wins=273 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -31,7 +31,7 @@
   - *How:* `inherit`
   - *How:* `implement`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=104; wins=103 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=105; wins=104 -->
 - **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/components/ChatView/index.tsx`
