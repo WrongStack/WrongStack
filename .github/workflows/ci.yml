@@ -50,6 +50,14 @@ jobs:
       - name: Lint
         run: pnpm biome lint .
 
+      # F-03: fail when a file imports '../<self-area>/...' — the
+      # signature of a leftover relative path after a file was moved
+      # into a subdirectory. Catches move-leftover bugs that the type
+      # checker (type-only erased) would otherwise miss. Cheap (~50ms);
+      # no third-party action required.
+      - name: Lint (relative imports)
+        run: pnpm lint:imports
+
   typecheck:
     name: TypeCheck (tsc)
     runs-on: ubuntu-latest

@@ -13,7 +13,7 @@
  */
 
 import { UNREAD_CHECK_MIN_INTERVAL_MS } from './mailbox-constants.js';
-import type { Mailbox } from '../coordination/mailbox-types.js';
+import type { Mailbox } from './mailbox-types.js';
 
 export interface MailboxHooksOptions {
   /** The mailbox instance. */

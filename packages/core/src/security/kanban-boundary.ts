@@ -1,14 +1,7 @@
 import { realpath } from 'node:fs/promises';
 import * as path from 'node:path';
-import {
-  evaluateContractGraphReadiness,
-  evaluateKanbanBoundaryOpaque,
-  evaluateKanbanBoundaryPath,
-  type KanbanBoundaryEvaluation,
-  type KanbanContractReadinessIssue,
-  readBoard,
-  resolveKanbanBoundaryLayers,
-} from '@wrongstack/kanban';
+import type { KanbanBoundaryEvaluation, KanbanContractReadinessIssue } from '@wrongstack/kanban';
+import { kanbanGovernance } from './kanban-governance-port.js';
 import type { Context } from '../core/context.js';
 import type { Tool } from '../types/tool.js';
 
@@ -24,7 +17,7 @@ export interface ToolKanbanGovernanceOptions {
   requireGovernance?: boolean | undefined;
 }
 
-const GOVERNANCE_CONTROL_TOOLS = new Set(['kanban', 'plan', 'task', 'todo']);
+const GOVERNANCE_CONTROL_TOOLS = new Set(['kanban', 'plan', 'task', 'todo', 'nextsteps']);
 
 const PATH_KEYS = new Set([
   'path',
@@ -74,7 +67,10 @@ export async function evaluateToolKanbanBoundary(
         }
       : { decision: 'allow' };
   }
-  const board = await readBoard(identity.policyRoot ?? ctx.projectRoot, identity.boardId);
+  const board = await kanbanGovernance().readBoard(
+    identity.policyRoot ?? ctx.projectRoot,
+    identity.boardId,
+  );
   if (!board) {
     return governanceRequired
       ? {
@@ -116,27 +112,65 @@ export async function evaluateToolKanbanBoundary(
         taskId: identity.taskId,
       };
     }
-    const readiness = evaluateContractGraphReadiness(board, task.id);
+    const readiness = kanbanGovernance().evaluateContractGraphReadiness(board, task.id);
     if (!readiness.ready) {
+      // K-01 observability: the prior message ("not implementation-ready:
+      // <issues>") was opaque to operators because it never named WHICH
+      // gate fired. Lead the block message with the *category* so an
+      // operator knows immediately that the contract graph (not the
+      // lifecycle or assignment) is the cause, and emit one line per
+      // failing readiness issue so the message is grep-able in logs.
+      const issueLines = readiness.issues
+        .map((issue, index) => `  ${index + 1}. ${issue.message}`)
+        .join('\n');
       return {
         decision: 'block',
         reason:
-          'Active card is not implementation-ready: ' +
-          readiness.issues.map((issue) => issue.message).join(' | '),
+          `Active card failed contract-readiness check (${readiness.issues.length} issue(s)):\n` +
+          issueLines +
+          `\nResolve the readiness issues, then call kanban start_task to retry.`,
         boardId: board.id,
         taskId: task.id,
         readinessIssues: readiness.issues,
       };
     }
-    if (task.lifecycle?.currentStage !== 'running' || task.assignment?.status !== 'running') {
-      const lifecycleStage = task.lifecycle?.currentStage ?? 'missing';
-      const assignmentStatus = task.assignment?.status ?? 'missing';
+    // K-01 + race-condition observability: previously the message was
+    // "(lifecycle: X; assignment: Y)" regardless of which check fired.
+    // That made the automated-reassessment case (K-01 root cause) look
+    // like a never-started card. Branch on the actual cause and name
+    // it. The reassessment case is called out specifically because
+    // operators hit it most often and the previous wording sent them
+    // looking for the wrong fix.
+    const lifecycleStage = task.lifecycle?.currentStage;
+    const assignmentStatus = task.assignment?.status;
+    const lifecycleOk = lifecycleStage === 'running';
+    const assignmentOk = assignmentStatus === 'running';
+    if (!lifecycleOk || !assignmentOk) {
+      const failed: string[] = [];
+      let reassessmentNote = '';
+      if (!lifecycleOk) {
+        failed.push(`lifecycle.currentStage (got: ${lifecycleStage ?? 'missing'}; want: 'running')`);
+      }
+      if (!assignmentOk) {
+        failed.push(`assignment.status (got: ${assignmentStatus ?? 'missing'}; want: 'running')`);
+        // Reassessment-cleared case: lifecycle says running, but
+        // assignment was cleared back to 'queued' (or unset) by the
+        // automated kanban reassessment agent. The leader still owns
+        // the card; the binding was lost. Tell the operator so they
+        // don't re-issue start_task needlessly.
+        if (lifecycleOk && (assignmentStatus === 'queued' || assignmentStatus === undefined || assignmentStatus === null)) {
+          reassessmentNote =
+            '\nNote: lifecycle is still "running" but the assignment was cleared — ' +
+            'the automated kanban reassessment agent likely reset the binding. ' +
+            'Re-issue kanban start_task to re-bind the leader to this card.';
+        }
+      }
       return {
         decision: 'block',
         reason:
-          `Active card must be in Running with a live assignment before product mutation ` +
-          `(lifecycle: ${lifecycleStage}; assignment: ${assignmentStatus}). ` +
-          'Call kanban start_task after completing the required card details.',
+          `Active card failed ${failed.length} governance check(s) before product mutation:\n` +
+          failed.map((line, index) => `  ${index + 1}. ${line}`).join('\n') +
+          reassessmentNote,
         boardId: board.id,
         taskId: task.id,
       };
@@ -170,7 +204,7 @@ export async function evaluateToolKanbanBoundary(
     }
   }
 
-  const layers = resolveKanbanBoundaryLayers(board, task);
+  const layers = kanbanGovernance().resolveKanbanBoundaryLayers(board, task);
   if (layers.length === 0) return { decision: 'allow' };
 
   const caps = tool.capabilities ?? [];
@@ -185,10 +219,10 @@ export async function evaluateToolKanbanBoundary(
 
   let evaluation: KanbanBoundaryEvaluation;
   if (shellLike || (access && candidates.length === 0)) {
-    evaluation = evaluateKanbanBoundaryOpaque(layers, tool.name);
+    evaluation = kanbanGovernance().evaluateKanbanBoundaryOpaque(layers, tool.name);
   } else if (access) {
     const results = candidates.map((candidate) =>
-      evaluateKanbanBoundaryPath(layers, candidate, access),
+      kanbanGovernance().evaluateKanbanBoundaryPath(layers, candidate, access),
     );
     evaluation = results.find((result) => result.decision === 'block') ??
       results.find((result) => result.decision === 'confirm') ?? { decision: 'allow' };

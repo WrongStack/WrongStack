@@ -1,5 +1,5 @@
-import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Tool } from '../types/tool.js';
+import type { ToolResultBlock, ToolUseBlock } from './blocks.js';
+import type { Tool } from './tool.js';
 
 /** Context.meta key installed by ToolExecutor for governed calls made by meta-tools. */
 export const GOVERNED_TOOL_EXECUTOR_META_KEY = 'toolExecutor.executeGoverned';

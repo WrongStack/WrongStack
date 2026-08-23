@@ -1,8 +1,8 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
-  "description": "WrongStack core: kernel, types, defaults, and shared utilities for the WrongStack CLI agent.",
+  "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/WrongStack/WrongStack.git",
@@ -43,10 +43,6 @@
     "./core/model-ref": {
       "types": "./dist/core/model-ref.d.ts",
       "import": "./dist/core/model-ref.js"
-    },
-    "./defaults": {
-      "types": "./dist/defaults/index.d.ts",
-      "import": "./dist/defaults/index.js"
     },
     "./utils": {
       "types": "./dist/utils/index.d.ts",
@@ -195,7 +191,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^22.19.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
