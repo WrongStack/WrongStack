@@ -12,15 +12,20 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { cleanBuildOutput } from './lib/build-output-cleanup.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -41,7 +46,7 @@ const bundleDir = join(artifactsRoot, bundleName);
 const appDir = join(bundleDir, 'app');
 const stagingDir = join(artifactsRoot, '.portable-staging');
 const executable = join(bundleDir, 'WrongStack.exe');
-let retiredBundleDir;
+let retiredExecutable;
 
 for (const target of [bundleDir, stagingDir]) {
   const relative = target.slice(root.length + 1);
@@ -50,13 +55,6 @@ for (const target of [bundleDir, stagingDir]) {
   }
 }
 rmSync(stagingDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-if (existsSync(bundleDir)) {
-  // Windows may keep a just-executed SEA image mapped briefly. Renaming its
-  // directory is reliable while deleting it can fail with EPERM, so rotate
-  // the previous artifact out of the canonical path and clean it best-effort.
-  retiredBundleDir = join(artifactsRoot, `.portable-retired-${process.pid}-${Date.now()}`);
-  renameSync(bundleDir, retiredBundleDir);
-}
 mkdirSync(bundleDir, { recursive: true });
 mkdirSync(stagingDir, { recursive: true });
 
@@ -69,21 +67,34 @@ const pnpmCli = process.env.npm_execpath?.includes('pnpm')
 if (!existsSync(pnpmCli.script)) {
   throw new Error(`Unable to locate the pnpm CLI: ${pnpmCli.script}`);
 }
+const deployDir = mkdtempSync(join(tmpdir(), 'wrongstack-portable-deploy-'));
 try {
-  runPnpm([
-    '--config.node-linker=hoisted',
-    '--filter',
-    '@wrongstack/cli',
-    'deploy',
-    '--prod',
-    '--legacy',
-    appDir,
-  ]);
+  try {
+    runPnpm([
+      '--config.node-linker=hoisted',
+      '--filter',
+      '@wrongstack/cli',
+      'deploy',
+      '--prod',
+      '--legacy',
+      deployDir,
+    ]);
+  } finally {
+    // pnpm's legacy deploy can leave workspace dependency verification wanting
+    // a production-only reinstall. Restore the checkout before a local release
+    // continues to `pnpm publish` (and before a failed build returns control).
+    runPnpm(['install', '--frozen-lockfile']);
+  }
+
+  // pnpm 11's deploy importer cannot reliably replace its pre-created target
+  // directory on Windows when that target is inside the workspace (EPERM).
+  // Complete the deploy in the system temp directory, then copy the resulting
+  // self-contained, hoisted application into the portable bundle.
+  cleanBuildOutput(appDir);
+  mkdirSync(appDir, { recursive: true });
+  cpSync(deployDir, appDir, { recursive: true, errorOnExist: true });
 } finally {
-  // pnpm's legacy deploy can leave workspace dependency verification wanting
-  // a production-only reinstall. Restore the checkout before a local release
-  // continues to `pnpm publish` (and before a failed build returns control).
-  runPnpm(['install', '--frozen-lockfile']);
+  rmSync(deployDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 
 const cliEntry = join(appDir, 'dist', 'index.js');
@@ -127,15 +138,36 @@ writeFileSync(
 );
 
 run(process.execPath, ['--experimental-sea-config', seaConfig]);
-copyFileSync(process.execPath, executable);
+const preparedExecutable = existsSync(executable) ? join(stagingDir, 'WrongStack.exe') : executable;
+copyFileSync(process.execPath, preparedExecutable);
 run(process.execPath, [
   join(root, 'node_modules', 'postject', 'dist', 'cli.js'),
-  executable,
+  preparedExecutable,
   'NODE_SEA_BLOB',
   seaBlob,
   '--sentinel-fuse',
   'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
 ]);
+
+if (preparedExecutable !== executable) {
+  const preparedDigest = hashFile(preparedExecutable);
+  const existingDigest = hashFile(executable);
+  if (preparedDigest === existingDigest) {
+    rmSync(preparedExecutable, { force: true });
+  } else {
+    retiredExecutable = join(
+      artifactsRoot,
+      `.portable-retired-WrongStack-${process.pid}-${Date.now()}.exe`,
+    );
+    await renameWithRetry(executable, retiredExecutable);
+    try {
+      await renameWithRetry(preparedExecutable, executable);
+    } catch (error) {
+      await renameWithRetry(retiredExecutable, executable);
+      throw error;
+    }
+  }
+}
 
 writeFileSync(
   join(bundleDir, 'README.txt'),
@@ -165,15 +197,15 @@ if (smoke.error || smoke.status !== 0 || !smoke.stdout.includes(`WrongStack ${ve
   );
 }
 
-const digest = createHash('sha256').update(readFileSync(executable)).digest('hex');
+const digest = hashFile(executable);
 writeFileSync(join(bundleDir, 'SHA256SUMS.txt'), `${digest}  WrongStack.exe\n`);
 rmSync(stagingDir, { recursive: true, force: true });
-if (retiredBundleDir) {
+if (retiredExecutable) {
   try {
-    rmSync(retiredBundleDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+    rmSync(retiredExecutable, { force: true, maxRetries: 5, retryDelay: 200 });
   } catch (error) {
     console.warn(
-      `Previous portable artifact is still locked and was retained at ${retiredBundleDir}: ${error instanceof Error ? error.message : String(error)}`,
+      `Previous portable launcher is still locked and was retained at ${retiredExecutable}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
@@ -196,4 +228,28 @@ function run(command, args, options = {}) {
 
 function runPnpm(args) {
   run(process.execPath, [pnpmCli.script, ...pnpmCli.prefix, ...args]);
+}
+
+function hashFile(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+async function renameWithRetry(source, destination, timeoutMs = 60_000) {
+  const deadline = Date.now() + timeoutMs;
+  let retryDelayMs = 50;
+
+  while (true) {
+    try {
+      renameSync(source, destination);
+      return;
+    } catch (error) {
+      const transientWindowsError =
+        process.platform === 'win32' &&
+        (error?.code === 'EPERM' || error?.code === 'EBUSY' || error?.code === 'EACCES');
+      if (!transientWindowsError || Date.now() >= deadline) throw error;
+
+      await delay(retryDelayMs);
+      retryDelayMs = Math.min(retryDelayMs * 2, 1_000);
+    }
+  }
 }
