@@ -191,9 +191,11 @@ describe('/telegram-setup safe discovery pairing', () => {
       privateUpdate(4, 101, { text: `${TOKEN} hostile body`, username: 'hostile-name' }),
     ]);
     const { command, configPath, vault, write, readLine } = await setupRig('1');
+    const flushHardening = vi.spyOn(vault, 'flushHardening');
 
     const result = await command.run('');
 
+    expect(flushHardening).toHaveBeenCalledOnce();
     expect(readLine).toHaveBeenCalledWith('Pair candidate › ');
     const terminalText = `${write.mock.calls.flat().join('\n')}\n${result?.message ?? ''}`;
     expect(terminalText).toContain('chat_id=101 user_id=101');

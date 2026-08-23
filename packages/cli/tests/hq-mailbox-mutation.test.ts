@@ -22,8 +22,6 @@ let tempRoot: string;
 let dataDir: string;
 let handle: HqServerHandle | null = null;
 
-const getPort = (): number => 30_000 + Math.floor(Math.random() * 10_000);
-
 // Token derived from non-literal pieces so the source has no credential
 // pattern. The real value is set into the auth file once per test.
 const TOKEN = ['fixture', 'mut', 'token', 'value'].join('-');
@@ -164,7 +162,10 @@ const restartServer = async (capabilities?: string[]): Promise<void> => {
   }
   await openAuthFile(capabilities);
   handle = await startHqServer({
-    port: getPort(),
+    // Let the OS reserve an available port atomically. Randomly choosing from
+    // a fixed range collides with sibling HQ suites under full-suite load.
+    port: 0,
+    exactPort: true,
     dataDir,
   } as never);
 };
@@ -691,18 +692,23 @@ describe('HQ mailbox — staleness filter on gateway query responses', () => {
       // recipient is a different address so it doesn't pollute our query
       // assertions.
       const primeRecipient = `agent-hq-staleness-prime-${stamp}`;
-      const primeRes = await post(
-        gatewayUrl(handle!, 'mut-staleness', '/send'),
-        {
-          from: 'prime-bot',
-          to: primeRecipient,
-          type: 'note',
-          subject: 'prime',
-          body: 'prime the cache',
-        },
-        auth(),
-      );
-      expect(primeRes.status).toBe(201);
+      const primeBody = {
+        from: 'prime-bot',
+        to: primeRecipient,
+        type: 'note',
+        subject: 'prime',
+        body: 'prime the cache',
+      };
+      let primeRes = await post(gatewayUrl(handle!, 'mut-staleness', '/send'), primeBody, auth());
+      // A full-suite run can delay the detached project owner long enough for
+      // its first gateway request to lose the startup election. The route is
+      // idempotent for this fixture recipient, so retry only the transient 500
+      // shape; validation/auth/not-found responses must still fail immediately.
+      for (let attempt = 1; attempt <= 4 && primeRes.status === 500; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+        primeRes = await post(gatewayUrl(handle!, 'mut-staleness', '/send'), primeBody, auth());
+      }
+      expect(primeRes.status, `prime /send failed: ${JSON.stringify(primeRes.json)}`).toBe(201);
       // If the prime /send returned 201 the store must exist. Asserting it
       // here turns a delayed-write race into a clear "prime /send didn't
       // land" diagnostic instead of an opaque failure in the INSERT below.

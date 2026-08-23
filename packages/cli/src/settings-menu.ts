@@ -403,6 +403,10 @@ export async function persistTelegramConfig(
 
   const encrypted = encryptConfigSecrets(decrypted, deps.vault);
   await atomicWrite(targetPath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
+  // Encrypting a new secret can create the vault key and schedule Windows ACL
+  // hardening. Do not let a short-lived setup command return while that work
+  // (and any warning it emits) is still detached from the command lifecycle.
+  await deps.vault.flushHardening?.();
 
   // Also update the in-memory config store so changes are immediately visible
   deps.configStore.update({
