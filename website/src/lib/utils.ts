@@ -341,9 +341,19 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.310.0',
+    date: '2026-08-23',
+    latest: true,
+    tagline: 'Estimator parity & primitives',
+    highlights: [
+      'WebUI context-breakdown token figures now match the CLI/TUI estimator (calibrated 3.5 chars/token + EWM basis)',
+      'Canonical ReDoS regex guard moved to a new dependency-leaf @wrongstack/primitives package, unifying three drifted copies',
+      'All release surfaces aligned to 0.310.0 — manifests, both apps, README highlights, website metadata, JSON-LD, release changelog',
+    ],
+  },
+  {
     version: '0.309.0',
     date: '2026-08-20',
-    latest: true,
     tagline: 'Plugin SDK, background exploration, explicit effort, and mutation testing',
     highlights: [
       'The new @wrongstack/plugin-sdk package and trust-aware external-plugin lifecycle expose hardened extension primitives without weakening the first-party sandbox',

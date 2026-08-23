@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.310.0] — 2026-08-23
+
 ### Changed
 
 - **WebUI context-breakdown token figures now match the CLI/TUI estimator.** `webui-server/src/server/token-estimator.ts` delegates to `@wrongstack/core/utils`' calibrated basis (3.5 chars/token + EWM calibration) instead of a private 4-chars/token heuristic, so the number shown in the browser's context debug view is the same number compaction and the context bar decide on. User-visible shift: mixed-content conversations read ~14% higher than before (4/3.5 ≈ 1.143), and empty blocks now floor at 1 token — both intentional conservatism. The canonical ReDoS regex guard also moved to a new dependency-leaf `@wrongstack/primitives` package, unifying three drifted copies (core/tools/kanban) that existed only because kanban sits below both in the workspace DAG. (`07577d9f8`)
+- **All release surfaces are aligned to `0.310.0`.** The root and workspace manifests, both apps, the README highlights, and the website metadata, JSON-LD, and release changelog now match the published manifests. The interim `0.309.1` and `0.309.2` bumps are folded into this documented release.
 
 ## [0.309.0] — 2026-08-20
 

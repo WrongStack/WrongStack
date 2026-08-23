@@ -52,18 +52,18 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.308.6
+### What's new in 0.310.0
 
-- **All 24 bundled skills now follow the v2 structure.** Each skill carries an
-  explicit `## Out of scope` section (in-lane guardrail) and a `## Before returning`
-  checklist (in-lane enforcement), answering "what is this skill NOT for" and
-  "did the model stay in scope," with versions bumped and
-  `docs/SKILL-TEMPLATE.md` codifying the standard for future skill authoring.
-- **All release surfaces align to `0.308.6`.** The root and workspace manifests,
+- **WebUI context-breakdown token figures now match the CLI/TUI estimator.** The
+  browser's context debug view uses the same calibrated basis (3.5 chars/token +
+  EWM calibration) as compaction and the context bar, and the canonical ReDoS
+  regex guard moved to a new dependency-leaf `@wrongstack/primitives` package,
+  unifying three drifted copies.
+- **All release surfaces align to `0.310.0`.** The root and workspace manifests,
   both apps, the README highlights, and the website metadata, JSON-LD, and
   release changelog now match the published manifests.
 
-See the complete [0.308.6 release notes](CHANGELOG.md).
+See the complete [0.310.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -72,7 +72,7 @@ See the complete [0.308.6 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.308.6](#whats-new-in-03086)
+- [What's new in 0.310.0](#whats-new-in-03100)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
