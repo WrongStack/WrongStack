@@ -127,7 +127,12 @@ describe('OpenAIProvider.stream', () => {
   it('clears successful-read hang timers after the stream completes', async () => {
     vi.useFakeTimers();
     try {
-      const sse = ['data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}', '', 'data: [DONE]', ''].join('\n');
+      const sse = [
+        'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}',
+        '',
+        'data: [DONE]',
+        '',
+      ].join('\n');
       const provider = new OpenAIProvider({
         apiKey: 'k',
         fetchImpl: mockFetch(sseBody(sse)),
@@ -224,6 +229,23 @@ describe('OpenAIProvider.stream', () => {
       { signal: new AbortController().signal },
     );
     expect(res.usage).toEqual({ input: 200, output: 20, cacheRead: 800 });
+  });
+
+  it('keeps input_tokens as fresh input when a hybrid gateway reports cache separately', async () => {
+    const sse = [
+      'data: {"id":"x","model":"minimax-hybrid","choices":[{"index":0,"delta":{"content":"ok"}}]}',
+      '',
+      'data: {"id":"x","choices":[{"index":0,"finish_reason":"stop"}],"usage":{"input_tokens":100,"completion_tokens":20,"prompt_tokens_details":{"cached_tokens":15000}}}',
+      '',
+      'data: [DONE]',
+      '',
+    ].join('\n');
+    const provider = new OpenAIProvider({ apiKey: 'k', fetchImpl: mockFetch(sseBody(sse)) });
+    const res = await provider.complete(
+      { model: 'minimax-hybrid', messages: [{ role: 'user', content: 'hi' }], maxTokens: 100 },
+      { signal: new AbortController().signal },
+    );
+    expect(res.usage).toEqual({ input: 100, output: 20, cacheRead: 15_000 });
   });
 
   it('splits OpenAI cache write tokens out of full-rate input', async () => {

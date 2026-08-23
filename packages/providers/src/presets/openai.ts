@@ -3,17 +3,23 @@
  * as `OpenAIProvider`; the per-message body is the loop body of
  * `parseOpenAIStream` split into a stateful step.
  */
-import type { Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type {
+  Request,
+  ResponseFormat,
+  StopReason,
+  StreamEvent,
+  Usage,
+} from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
-import { applyPromptCacheKey } from '../prompt-cache-key.js';
+import { stripCacheControl } from '../object-utils.js';
 import { isOpenAIEffort } from '../openai-shared.js';
+import { applyPromptCacheKey } from '../prompt-cache-key.js';
 import { normalizeOpenAI } from '../stop-reason.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
 import { defineWireFormat } from '../wire-format.js';
-import { stripCacheControl } from '../object-utils.js';
 
 function appendArgChunk(buf: StreamingArgBuffer, chunk: string): void {
   if (chunk.length === 0) return;
@@ -211,7 +217,11 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
           state.textOpen = false;
           out.push({ type: 'tool_use_start', id: entry.id, name: entry.name });
         }
-        if (entry.emittedStart && entry.id && entry.emittedChunkIndex < entry.argBuf.chunks.length) {
+        if (
+          entry.emittedStart &&
+          entry.id &&
+          entry.emittedChunkIndex < entry.argBuf.chunks.length
+        ) {
           for (; entry.emittedChunkIndex < entry.argBuf.chunks.length; entry.emittedChunkIndex++) {
             out.push({
               type: 'tool_use_input_delta',
@@ -255,16 +265,30 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
       // `total_tokens` + `completion_tokens` with no `prompt_tokens`; derive
       // prompt = total − completion so the input count is recovered instead of
       // collapsing to 0. Ordered after the explicit prompt fields.
-      const promptTotal =
-        u.prompt_tokens ??
-        u.input_tokens ??
-        (hasDeepSeekCacheFields
+      const hasPromptTotal = u.prompt_tokens !== undefined;
+      const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
+      const reportedPromptTotal = hasPromptTotal
+        ? (u.prompt_tokens ?? 0)
+        : hasDeepSeekCacheFields
           ? (u.prompt_cache_hit_tokens ?? 0) + (u.prompt_cache_miss_tokens ?? 0)
           : u.total_tokens !== undefined
             ? Math.max(0, u.total_tokens - completion)
-            : state.usage.input + cached);
+            : state.usage.input + cached + cacheWrite;
+      // Some hybrid gateways expose Anthropic/MiniMax semantics through an
+      // OpenAI-shaped envelope: input_tokens is fresh-only and cache tokens
+      // are separate. prompt_tokens, when present, remains OpenAI's total.
+      // If a broken gateway reports cached > prompt total, preserve both
+      // counters instead of producing a >100% cache ratio.
+      const promptTotal =
+        hasPromptTotal && cached > reportedPromptTotal
+          ? reportedPromptTotal + cached
+          : reportedPromptTotal;
       const nextUsage: Usage = {
-        input: u.prompt_cache_miss_tokens ?? Math.max(0, promptTotal - cached - cacheWrite),
+        input:
+          u.prompt_cache_miss_tokens ??
+          (hasFreshInputDelta
+            ? Math.max(0, u.input_tokens ?? 0)
+            : Math.max(0, promptTotal - cached - cacheWrite)),
         output: completion,
         cacheRead: cached || state.usage.cacheRead,
       };

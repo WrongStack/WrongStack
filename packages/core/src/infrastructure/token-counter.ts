@@ -1,6 +1,6 @@
 import type { EventBus } from '../kernel/events.js';
 import type { ModelsRegistry, ResolvedModel } from '../types/models-registry.js';
-import type { Usage } from '../types/provider.js';
+import { promptCacheHitRatio, type Usage } from '../types/provider.js';
 import type { CacheStats, TokenCounter } from '../types/token-counter.js';
 
 interface PriceEntry {
@@ -142,7 +142,11 @@ export class DefaultTokenCounter implements TokenCounter {
   }
 
   currentRequestTokens(): { input: number; cacheRead: number; cacheWrite: number } {
-    return { input: this.lastInput, cacheRead: this.lastCacheRead, cacheWrite: this.lastCacheWrite };
+    return {
+      input: this.lastInput,
+      cacheRead: this.lastCacheRead,
+      cacheWrite: this.lastCacheWrite,
+    };
   }
 
   setCurrentRequestTokens(input: number, cacheRead?: number, cacheWrite?: number): void {
@@ -161,14 +165,17 @@ export class DefaultTokenCounter implements TokenCounter {
   }
 
   cacheStats(): CacheStats {
-    // Hit ratio: cacheRead / (cacheRead + input). `input` from the provider
-    // is the count of fresh-token reads, so this answers "what fraction of
-    // the prompt did we get for the cache price?"
-    const denom = this.cacheRead + this.input;
+    // Include cache-write/creation tokens in the complete prompt context.
+    // The shared helper also clamps malformed gateway telemetry to [0, 1].
     return {
       readTokens: this.cacheRead,
       writeTokens: this.cacheWrite,
-      hitRatio: denom === 0 ? 0 : this.cacheRead / denom,
+      hitRatio: promptCacheHitRatio({
+        input: this.input,
+        output: this.output,
+        cacheRead: this.cacheRead,
+        cacheWrite: this.cacheWrite,
+      }),
       savedUsd: round4(this.cacheSaved),
     };
   }
@@ -188,7 +195,11 @@ export class DefaultTokenCounter implements TokenCounter {
       ...(sessionId ? { sessionId } : {}),
       usage: this.total(),
       ...(deltaUsage ? { deltaUsage: { ...deltaUsage } } : {}),
-      cost: { input: this.costInput, output: this.costOutput, total: this.costInput + this.costOutput },
+      cost: {
+        input: this.costInput,
+        output: this.costOutput,
+        total: this.costInput + this.costOutput,
+      },
       ...(providerId ? { provider: providerId } : {}),
       ...(model ? { model } : {}),
     });
@@ -253,7 +264,8 @@ function priceFromModel(m: ResolvedModel): PriceEntry {
     cacheRead: m.cost?.cache_read,
     cacheWrite: m.cost?.cache_write,
     cacheWrite5m: m.cost?.cache_write_5m ?? m.cost?.cache_write,
-    cacheWrite1h: m.cost?.cache_write_1h ?? (m.cost?.input !== undefined ? m.cost.input * 2 : undefined),
+    cacheWrite1h:
+      m.cost?.cache_write_1h ?? (m.cost?.input !== undefined ? m.cost.input * 2 : undefined),
   };
 }
 

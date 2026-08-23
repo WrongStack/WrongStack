@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
 import { ProviderCacheLedger } from '../../src/infrastructure/provider-cache-ledger.js';
+import { EventBus } from '../../src/kernel/events.js';
 import type { Usage } from '../../src/types/provider.js';
 
 /** Emit a token.accounted event with a CUMULATIVE usage snapshot. */
@@ -28,7 +28,7 @@ describe('ProviderCacheLedger', () => {
     const anthropic = rows.find((r) => r.provider === 'anthropic')!;
     expect(anthropic.input).toBe(100);
     expect(anthropic.cacheRead).toBe(900);
-    expect(anthropic.hitRatio).toBeCloseTo(900 / 1000, 6);
+    expect(anthropic.hitRatio).toBeCloseTo(900 / 1050, 6);
 
     const openai = rows.find((r) => r.provider === 'openai')!;
     expect(openai.input).toBe(200); // delta 300 − 100

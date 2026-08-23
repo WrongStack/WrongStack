@@ -48,7 +48,7 @@ describe('TelegramBot buffer', () => {
 
   function pushMsg(bot: TelegramBot, msg: Partial<TelegramIncomingMessage>) {
     // Use internal push — we simulate what polling would do via processMessage.
-    const buf = (bot as never as { buffer: TelegramIncomingMessage[] }).buffer;
+    const buf = (bot as never as { inbox: { buffer: TelegramIncomingMessage[] } }).inbox.buffer;
     buf.push({
       messageId: msg.messageId ?? 1,
       chatId: msg.chatId ?? 123,

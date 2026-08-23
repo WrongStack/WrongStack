@@ -293,29 +293,42 @@ export async function applySessionKanbanTaskToSource(
 ): Promise<SessionKanbanSourceUpdate> {
   const originId = task.origin?.taskId;
   const graphId = task.origin?.graphId ?? '';
-  if (!originId) return { source: null };
 
-  if (task.origin?.system === 'session-todo' || graphId.startsWith('todo:')) {
-    const mappedStatus = todoStatus(task);
-    const next = options.remove
-      ? context.todos.filter((todo) => todo.id !== originId)
-      : context.todos.map((todo) =>
-          todo.id === originId
-            ? {
-                ...todo,
-                content: task.title,
-                status: mappedStatus,
-              }
-            : todo,
-        );
-    suppressedTodoMirrors.add(context);
-    try {
-      context.state.replaceTodos(next);
-    } finally {
-      suppressedTodoMirrors.delete(context);
+  const isTodoOrigin = task.origin?.system === 'session-todo' || graphId.startsWith('todo:');
+  const targetTodo = context.todos?.find(
+    (todo) =>
+      (originId !== undefined && todo.id === originId) ||
+      todo.kanbanTaskId === task.id ||
+      (todo.id === task.id && !todo.promotedFromPlan && !todo.promotedFromTask),
+  );
+
+  if (isTodoOrigin || targetTodo) {
+    const matchedId = targetTodo?.id ?? originId;
+    if (matchedId) {
+      const mappedStatus = todoStatus(task);
+      const next = options.remove
+        ? context.todos.filter((todo) => todo.id !== matchedId)
+        : context.todos.map((todo) =>
+            todo.id === matchedId
+              ? {
+                  ...todo,
+                  content: task.title,
+                  status: mappedStatus,
+                  kanbanTaskId: task.id,
+                }
+              : todo,
+          );
+      suppressedTodoMirrors.add(context);
+      try {
+        context.state.replaceTodos(next);
+      } finally {
+        suppressedTodoMirrors.delete(context);
+      }
+      return { source: 'todo', todos: [...context.todos] };
     }
-    return { source: 'todo', todos: [...context.todos] };
   }
+
+  if (!originId) return { source: null };
 
   const id = context.session?.id ?? '';
   if (task.origin?.system === 'session-plan' || graphId.startsWith('plan:')) {

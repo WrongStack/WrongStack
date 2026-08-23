@@ -27,6 +27,7 @@ import {
   verifyTaskCompletion,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from './kanban-evidence-bridge.js';
+import { applySessionKanbanTaskToSource } from './session-kanban.js';
 import { handleSplitTask } from './kanban-split-task-handler.js';
 import { assignmentInput, taskInput, taskPatch } from './kanban-task-inputs.js';
 import {
@@ -38,6 +39,19 @@ import {
 } from './kanban-tool-results.js';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
+async function syncContextTask(
+  ctx: Context,
+  task: import('@wrongstack/kanban').KanbanTask | undefined,
+  options: { remove?: boolean } = {},
+): Promise<void> {
+  if (!ctx?.state || !task) return;
+  try {
+    await applySessionKanbanTaskToSource(ctx, task, options);
+  } catch {
+    // best-effort sync
+  }
+}
+
 export async function handleKanbanLifecycleAction(
   projectRoot: string,
   input: KanbanToolInput,
@@ -48,6 +62,7 @@ export async function handleKanbanLifecycleAction(
       if (!input.boardId || !input.title) return fail('add_task requires boardId and title.');
       const result = await addTask(projectRoot, input.boardId, taskInput(input));
       if (!result) return fail('Board not found.');
+      await syncContextTask(ctx, result.task);
       return okTask(result.board, result.task, `Task added.${atomicityNudge(result.task)}`);
     }
     case 'split_task': {
@@ -213,6 +228,7 @@ export async function handleKanbanLifecycleAction(
         );
       }
       ctx.setCurrentKanbanTask(task.id, board.id);
+      await syncContextTask(ctx, task);
       return okTask(
         board,
         task,
@@ -222,6 +238,9 @@ export async function handleKanbanLifecycleAction(
     case 'update_task': {
       if (!input.boardId || !input.taskId) return fail('update_task requires boardId and taskId.');
       const board = await updateTask(projectRoot, input.boardId, input.taskId, taskPatch(input));
+      if (board) {
+        await syncContextTask(ctx, board.tasks.find((t) => t.id === input.taskId));
+      }
       return board ? okBoard(board, 'Task updated.') : fail('Task not found.');
     }
     case 'transition_task': {
@@ -276,6 +295,9 @@ export async function handleKanbanLifecycleAction(
       if (result && input.lifecycleStage === 'done' && result.task.verificationReport) {
         recordKanbanVerificationEvidence(ctx, result.task.verificationReport);
       }
+      if (result?.task) {
+        await syncContextTask(ctx, result.task);
+      }
       return result
         ? okTask(result.board, result.task, `Task advanced to ${result.transition.to}.`)
         : fail('Board or task not found.');
@@ -290,6 +312,9 @@ export async function handleKanbanLifecycleAction(
         actor: input.author,
         comment: input.transitionComment,
       });
+      if (result?.task) {
+        await syncContextTask(ctx, result.task);
+      }
       return result
         ? okTask(
             result.board,
@@ -309,13 +334,21 @@ export async function handleKanbanLifecycleAction(
         input.targetColumnId,
         input.order,
       );
+      if (board) {
+        await syncContextTask(ctx, board.tasks.find((t) => t.id === input.taskId));
+      }
       return board ? okBoard(board, 'Task moved.') : fail('Move failed.');
     }
     case 'delete_task': {
       if (!input.boardId || !input.taskId) return fail('delete_task requires boardId and taskId.');
+      const boardBefore = await getBoard(projectRoot, input.boardId);
+      const taskToDelete = boardBefore?.tasks.find((t) => t.id === input.taskId);
       const board = await removeTask(projectRoot, input.boardId, input.taskId);
       if (board && ctx.currentKanbanTaskId === input.taskId) {
         ctx.setCurrentKanbanTask?.(undefined, ctx.currentKanbanBoardId);
+      }
+      if (board && taskToDelete) {
+        await syncContextTask(ctx, taskToDelete, { remove: true });
       }
       return board ? okBoard(board, 'Task deleted.') : fail('Task not found.');
     }
@@ -440,6 +473,7 @@ export async function handleKanbanLifecycleAction(
             : finalized.gate.enforcement === 'strict'
               ? `Completion gate BLOCKED (verdict: ${finalized.gate.verdict}); task parked in review. Issues: ${gateSummary.issues.join(' | ')}`
               : `Completion gate failed softly (verdict: ${finalized.gate.verdict}); task completed with warnings. Issues: ${gateSummary.issues.join(' | ')}`;
+          await syncContextTask(ctx, finalized.task);
           return {
             ...okTask(finalized.board, finalized.task, `Assignment updated. ${gateMessage}`),
             gate: gateSummary,
@@ -556,6 +590,7 @@ export async function handleKanbanLifecycleAction(
           msgParts.push(`Card advanced to ${transitionResult.transition.to}.`);
         }
         for (const w of lifecycleWarnings) msgParts.push(`Warning: ${w}`);
+        await syncContextTask(ctx, responseTask);
         return okTask(responseBoard, responseTask, msgParts.join(' '));
       }
       return okBoard(board, 'Assignment updated.');

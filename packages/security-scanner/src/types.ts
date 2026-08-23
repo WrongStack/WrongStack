@@ -107,3 +107,40 @@ export interface GeneratedSecuritySkill {
   };
   content: GeneratedSkillContent;
 }
+
+/**
+ * Module-level re-exports — kept here so `orchestrator.ts` can import the
+ * skill / gitignore / detector result types from a single place instead
+ * of forwarding `import('./skill-generator.js').GeneratedSkill`. These are
+ * verbatim aliases of the original interfaces defined in their owning
+ * modules; no cast, no structural drift.
+ */
+export type { GeneratedSkill } from './skill-generator.js';
+
+/**
+ * Inline alias — `gitignore-updater.ts` no longer exports
+ * `GitignoreUpdateResult` directly (orchestrator.ts moved the field set
+ * inline). Re-declared here so `orchestrator.ts` can keep a single import
+ * surface. Structural shape matches the prior definition verbatim.
+ */
+export interface GitignoreUpdateResult {
+  updated: string[];
+  added: string[];
+  skipped: string[];
+  message?: string;
+}
+
+/**
+ * Inline alias — `detector.ts` no longer exports
+ * `TechStackDetectionResult` directly (orchestrator.ts moved the field
+ * set inline). Re-declared here for the same import-surface reason as
+ * `GitignoreUpdateResult` above. Structural shape matches the prior
+ * definition verbatim.
+ */
+export interface TechStackDetectionResult {
+  detectedStacks: import('./types.js').TechStackInfo[];
+  projectRoot: string;
+  durationMs: number;
+  packageManager: import('./types.js').PackageManager;
+  dependencies: import('./types.js').DetectedDependency[];
+}

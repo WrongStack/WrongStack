@@ -1,12 +1,12 @@
 import type { EventBus } from '../kernel/events.js';
-import type { Usage } from '../types/provider.js';
+import { promptCacheHitRatio, type Usage } from '../types/provider.js';
 
 export interface ProviderCacheEntry {
   provider: string;
   input: number;
   cacheRead: number;
   cacheWrite: number;
-  /** cacheRead / (cacheRead + input); 0 when nothing cached. */
+  /** cacheRead / total prompt context; clamped to [0, 1]. */
   hitRatio: number;
 }
 
@@ -87,13 +87,17 @@ export class ProviderCacheLedger {
   perProvider(): ProviderCacheEntry[] {
     const out: ProviderCacheEntry[] = [];
     for (const [provider, a] of this.byProvider) {
-      const denom = a.cacheRead + a.input;
       out.push({
         provider,
         input: a.input,
         cacheRead: a.cacheRead,
         cacheWrite: a.cacheWrite,
-        hitRatio: denom === 0 ? 0 : a.cacheRead / denom,
+        hitRatio: promptCacheHitRatio({
+          input: a.input,
+          output: 0,
+          cacheRead: a.cacheRead,
+          cacheWrite: a.cacheWrite,
+        }),
       });
     }
     return out.sort((x, y) => y.cacheRead - x.cacheRead);

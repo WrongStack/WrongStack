@@ -289,7 +289,7 @@
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, toWrongStackError, WrongStackError, } from './errors.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';",
         "export { CHAT_MARKER_SOURCES, isSystemInjectedMessage, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, SYSTEM_INJECTION_PREFIXES, sessionEventToMarker, } from './session-markers.js';",
-        "export { CONTEXT_WINDOW_MODES, CONTEXT_WINDOW_MODE_PINNED_META_KEY, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, LARGE_WINDOW_DEEP_MODE_THRESHOLD, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
+        "export { CONTEXT_WINDOW_MODE_PINNED_META_KEY, CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG, } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
         "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
@@ -298,7 +298,7 @@
         "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
         "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
         "export { ToolErrorCategory } from './tool.js';",
-        "export { classifyProviderError, effectiveInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, ProviderError, REASONING_EFFORT_LEVELS, StreamHangError, } from './provider.js';",
+        "export { classifyProviderError, effectiveInputTokens, freshInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, ProviderError, promptCacheHitRatio, REASONING_EFFORT_LEVELS, StreamHangError, } from './provider.js';",
         "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
@@ -1218,14 +1218,14 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8843
+      "sourceLines": 8844
     },
     {
       "directory": "infrastructure",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1557
+      "sourceLines": 1573
     },
     {
       "directory": "kernel",
@@ -1344,7 +1344,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 11080
+      "sourceLines": 11105
     },
     {
       "directory": "utils",

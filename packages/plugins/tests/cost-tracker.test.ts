@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import costTrackerPlugin from '../src/cost-tracker';
 
 const makeApi = () => ({
@@ -35,23 +35,14 @@ describe('cost-tracker plugin', () => {
   it('logs info on setup', () => {
     const api = makeApi();
     costTrackerPlugin.setup(api as any);
-    expect(api.log.info).toHaveBeenCalledWith(
-      'cost-tracker plugin loaded',
-      expect.any(Object),
-    );
+    expect(api.log.info).toHaveBeenCalledWith('cost-tracker plugin loaded', expect.any(Object));
   });
 
   it('subscribes to provider.response and session.ended events', () => {
     const api = makeApi();
     costTrackerPlugin.setup(api as any);
-    expect(api.onEvent).toHaveBeenCalledWith(
-      'provider.response',
-      expect.any(Function),
-    );
-    expect(api.onEvent).toHaveBeenCalledWith(
-      'session.ended',
-      expect.any(Function),
-    );
+    expect(api.onEvent).toHaveBeenCalledWith('provider.response', expect.any(Function));
+    expect(api.onEvent).toHaveBeenCalledWith('session.ended', expect.any(Function));
   });
 });
 
@@ -96,9 +87,7 @@ describe('cost_summary tool', () => {
 describe('cost_reset tool', () => {
   function getResetTool(api: ReturnType<typeof makeApi>) {
     costTrackerPlugin.setup(api as any);
-    return api.tools.register.mock.calls.find(
-      ([t]: any[]) => t.name === 'cost_reset',
-    )?.[0] as any;
+    return api.tools.register.mock.calls.find(([t]: any[]) => t.name === 'cost_reset')?.[0] as any;
   }
 
   it('returns zero previousTotals when nothing was tracked', async () => {
@@ -117,9 +106,7 @@ describe('cost_reset tool', () => {
 describe('cost_export tool', () => {
   function getExportTool(api: ReturnType<typeof makeApi>) {
     costTrackerPlugin.setup(api as any);
-    return api.tools.register.mock.calls.find(
-      ([t]: any[]) => t.name === 'cost_export',
-    )?.[0] as any;
+    return api.tools.register.mock.calls.find(([t]: any[]) => t.name === 'cost_export')?.[0] as any;
   }
 
   it('returns empty JSON when no requests tracked', async () => {
@@ -285,6 +272,30 @@ function getResponseHandler(api: ReturnType<typeof makeApi>): (payload: unknown)
 }
 
 describe('pricingOverrides', () => {
+  it('prices cached tokens at cacheRead and reports the complete prompt context', async () => {
+    const api = makeApi();
+    api.config.extensions['cost-tracker'] = {
+      pricingOverrides: {
+        'minimax-test': { input: 10, output: 20, cacheRead: 1 },
+      },
+    };
+    await costTrackerPlugin.setup(api as any);
+
+    const handler = getResponseHandler(api);
+    handler({
+      usage: { input: 100_000, output: 10_000, cacheRead: 900_000 },
+      ctx: { model: 'minimax-test' },
+    });
+
+    const summaryTool = api.tools.register.mock.calls.find(
+      ([t]: any[]) => t.name === 'cost_summary',
+    )?.[0];
+    const result = await summaryTool.execute({});
+    expect(result.usage.totalPromptTokens).toBe(1_000_000);
+    // 100k fresh @ $10/MT + 900k cached @ $1/MT + 10k output @ $20/MT.
+    expect(result.usage.totalCostUsd).toBeCloseTo(2.1, 7);
+  });
+
   it('applies a user override and uses it instead of bundled PRICING', async () => {
     const api = makeApi();
     // PRICING is "USD per 1M tokens" — so 1000 input tokens at input=10

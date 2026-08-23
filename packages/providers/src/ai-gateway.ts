@@ -1,33 +1,33 @@
 import type { ProviderFactory } from '@wrongstack/core/registry';
 import {
-  ConfigError,
-  ProviderError,
   type Capabilities,
+  ConfigError,
   type ContentBlock,
   type Message,
   type Provider,
   type ProviderConfig,
+  ProviderError,
   type Request,
   type Response,
   type StopReason,
   type StreamEvent,
-  type Tool as WrongStackTool,
   type Usage,
+  type Tool as WrongStackTool,
 } from '@wrongstack/core/types';
 import {
   APICallError,
-  Output,
   createGateway,
-  jsonSchema,
-  streamText,
-  tool,
   type FinishReason,
+  jsonSchema,
   type LanguageModel,
   type LanguageModelUsage,
   type ModelMessage,
+  Output,
   type ProviderMetadata,
+  streamText,
   type TextStreamPart,
   type ToolSet,
+  tool,
 } from 'ai';
 import { aggregateStream } from './aggregate.js';
 import { splitGatewayModelId } from './capabilities.js';
@@ -96,7 +96,15 @@ interface AiSdkStreamTextInput {
   frequencyPenalty?: number | undefined;
   presencePenalty?: number | undefined;
   seed?: number | undefined;
-  reasoning?: 'provider-default' | 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | undefined;
+  reasoning?:
+    | 'provider-default'
+    | 'none'
+    | 'minimal'
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'xhigh'
+    | undefined;
   stopSequences?: string[] | undefined;
   providerOptions?: Record<string, Record<string, unknown>> | undefined;
   output?: Output.Output | undefined;
@@ -160,8 +168,7 @@ export class AiGatewayProvider implements Provider {
       this.resolveModel = (modelId) => gateway(modelId as never);
     }
 
-    this.streamTextImpl =
-      options.streamTextImpl ?? (streamText as unknown as AiSdkStreamText);
+    this.streamTextImpl = options.streamTextImpl ?? (streamText as unknown as AiSdkStreamText);
   }
 
   async *stream(req: Request, opts: { signal: AbortSignal }): AsyncIterable<StreamEvent> {
@@ -330,8 +337,13 @@ export function convertUsage(usage: LanguageModelUsage): Usage {
   const details = usage.inputTokenDetails ?? {};
   const cacheRead = details.cacheReadTokens ?? 0;
   const cacheWrite = details.cacheWriteTokens ?? 0;
+  const reportedInput = usage.inputTokens ?? 0;
+  const separateCacheExceedsInput = cacheRead + cacheWrite > reportedInput;
   const input =
-    details.noCacheTokens ?? Math.max(0, (usage.inputTokens ?? 0) - cacheRead - cacheWrite);
+    details.noCacheTokens ??
+    (separateCacheExceedsInput
+      ? Math.max(0, reportedInput)
+      : Math.max(0, reportedInput - cacheRead - cacheWrite));
 
   return {
     input,
@@ -410,9 +422,7 @@ export function* convertAiSdkStreamPart(
         type: 'tool_use_stop',
         id: part.toolCallId,
         input: part.input,
-        ...(part.providerMetadata
-          ? { providerMeta: metadataRecord(part.providerMetadata) }
-          : {}),
+        ...(part.providerMetadata ? { providerMeta: metadataRecord(part.providerMetadata) } : {}),
       };
       break;
     case 'finish':
@@ -474,7 +484,10 @@ export function toProviderError(error: unknown, providerId = DEFAULT_GATEWAY_ID)
 }
 
 function convertSystem(req: Request): string | undefined {
-  const text = req.system?.map((block) => block.text).filter(Boolean).join('\n\n');
+  const text = req.system
+    ?.map((block) => block.text)
+    .filter(Boolean)
+    .join('\n\n');
   return text || undefined;
 }
 
@@ -529,9 +542,7 @@ export function convertProviderOptions(req: Request): Record<string, Record<stri
   return options;
 }
 
-function convertReasoning(
-  reasoning: Request['reasoning'],
-): AiSdkStreamTextInput['reasoning'] {
+function convertReasoning(reasoning: Request['reasoning']): AiSdkStreamTextInput['reasoning'] {
   if (!reasoning) return undefined;
   if (reasoning.enabled === false || reasoning.effort === 'none') return 'none';
   if (reasoning.effort === 'max') return 'xhigh';
@@ -561,9 +572,7 @@ function convertAssistantBlock(block: Exclude<ContentBlock, { type: 'tool_result
         toolCallId: block.id,
         toolName: block.name,
         input: block.input,
-        ...(block.providerMeta
-          ? { providerOptions: block.providerMeta as never }
-          : {}),
+        ...(block.providerMeta ? { providerOptions: block.providerMeta as never } : {}),
       };
     case 'image':
       return {
@@ -581,7 +590,8 @@ function convertUserBlock(block: Exclude<ContentBlock, { type: 'tool_result' }>)
     case 'image':
       return {
         type: 'image' as const,
-        image: block.source.type === 'url' ? new URL(block.source.url ?? '') : (block.source.data ?? ''),
+        image:
+          block.source.type === 'url' ? new URL(block.source.url ?? '') : (block.source.data ?? ''),
         ...(block.source.media_type ? { mediaType: block.source.media_type } : {}),
       };
     case 'thinking':

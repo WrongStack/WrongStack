@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { startCostTelemetryBridge } from '../../src/hq/cost-bridge.js';
 import type { HqUsagePayload } from '../../src/hq/protocol.js';
 import type { HqPublisher } from '../../src/hq/publisher.js';
-import { startCostTelemetryBridge } from '../../src/hq/cost-bridge.js';
 import { EventBus } from '../../src/kernel/events.js';
 
 function fakePublisher(spy: ReturnType<typeof vi.fn>): HqPublisher {
@@ -52,6 +52,8 @@ describe('startCostTelemetryBridge', () => {
     expect(payload.model).toBe('claude-sonnet-4');
     expect(payload.cacheRead).toBe(80);
     expect(payload.cacheWrite).toBe(20);
+    expect(payload.inputTokens).toBe(200);
+    expect(payload.totalTokens).toBe(250);
   });
 
   it('omits model/provider/cache when the event carries none', () => {

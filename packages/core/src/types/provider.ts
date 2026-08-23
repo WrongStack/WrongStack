@@ -53,8 +53,7 @@ export const REASONING_EFFORT_LEVELS = [
 /** Type guard for untrusted strings (CLI args, WS payloads, config files). */
 export function isReasoningEffort(value: unknown): value is ReasoningEffort {
   return (
-    typeof value === 'string' &&
-    (REASONING_EFFORT_LEVELS as readonly string[]).includes(value)
+    typeof value === 'string' && (REASONING_EFFORT_LEVELS as readonly string[]).includes(value)
   );
 }
 
@@ -123,6 +122,25 @@ export interface Usage {
  */
 export function effectiveInputTokens(usage: Usage): number {
   return usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+}
+
+/** Prompt tokens that were not served by a cache read. */
+export function freshInputTokens(usage: Usage): number {
+  return Math.max(0, effectiveInputTokens(usage) - (usage.cacheRead ?? 0));
+}
+
+/**
+ * Cache-read share of the complete prompt context, normalized to [0, 1].
+ *
+ * Keeping the clamp at the shared telemetry boundary protects every UI from
+ * malformed/hybrid gateway counters while provider adapters preserve the
+ * real total context in the disjoint Usage buckets.
+ */
+export function promptCacheHitRatio(usage: Usage): number {
+  const total = effectiveInputTokens(usage);
+  if (!Number.isFinite(total) || total <= 0) return 0;
+  const cached = Number.isFinite(usage.cacheRead) ? Math.max(0, usage.cacheRead ?? 0) : 0;
+  return Math.min(1, cached / total);
 }
 
 export interface ReasoningRequest {
@@ -741,7 +759,12 @@ export function isContextOverflowShaped(err: unknown): boolean {
   const providerErr = err as ProviderError;
   if (providerErr.kind === 'context_overflow' || providerErr.status === 413) return true;
   if (providerErr.status < 400) return false;
-  const text = [providerErr.message, providerErr.body?.message, providerErr.body?.type, providerErr.body?.raw]
+  const text = [
+    providerErr.message,
+    providerErr.body?.message,
+    providerErr.body?.type,
+    providerErr.body?.raw,
+  ]
     .filter(Boolean)
     .join('\n');
   return CONTEXT_OVERFLOW_RE.test(text);

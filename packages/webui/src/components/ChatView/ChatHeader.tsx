@@ -112,6 +112,17 @@ export function ChatHeader({
   formatDuration: (start: number | null) => string;
 }) {
   const { t } = useAppTranslation();
+  const cachedTokens = Math.max(0, totalTokens.cacheRead ?? 0);
+  const totalPromptTokens = Math.max(
+    0,
+    totalTokens.input + cachedTokens + (totalTokens.cacheWrite ?? 0),
+  );
+  const freshTokens = Math.max(0, totalPromptTokens - cachedTokens);
+  const cacheHitPct =
+    totalPromptTokens > 0
+      ? Math.min(100, Math.max(0, (cachedTokens / totalPromptTokens) * 100))
+      : 0;
+  const freshPct = totalPromptTokens > 0 ? 100 - cacheHitPct : 0;
 
   return (
     <header className="flex flex-col border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 shrink-0 sticky top-0 z-20 shadow-sm">
@@ -340,36 +351,26 @@ export function ChatHeader({
               <Wand2 className="h-3 w-3" />
               <span>{t('activity:chatView.edit')}</span>
             </button>
-            {totalTokens.input > 0 && (
+            {totalPromptTokens > 0 && (
               <>
-                <span className="flex items-center gap-1">
-                  <span className="font-medium text-foreground">{fmtTok(totalTokens.input)}</span>
-                  <span>in</span>
+                <span className="flex items-center gap-1" title="Total prompt context">
+                  <span className="font-medium text-foreground">{fmtTok(totalPromptTokens)}</span>
+                  <span>context</span>
                 </span>
-                <span className="flex items-center gap-1">
-                  <span className="font-medium text-foreground">
-                    {fmtTok(totalTokens.output)}
+                {cachedTokens > 0 && (
+                  <span className="flex items-center gap-1" title="Prompt cache reads">
+                    <span className="font-medium text-foreground">{fmtTok(cachedTokens)}</span>
+                    <span>cached ({cacheHitPct.toFixed(1)}%)</span>
                   </span>
-                  <span>out</span>
+                )}
+                <span className="flex items-center gap-1" title="Fresh/uncached prompt tokens">
+                  <span className="font-medium text-foreground">{fmtTok(freshTokens)}</span>
+                  <span>fresh ({freshPct.toFixed(1)}%)</span>
                 </span>
-                {totalTokens.cacheRead &&
-                  totalTokens.cacheRead > 0 &&
-                  (() => {
-                    const denom = (totalTokens.cacheRead ?? 0) + totalTokens.input;
-                    const pct =
-                      denom > 0 ? Math.round(((totalTokens.cacheRead ?? 0) / denom) * 100) : 0;
-                    return (
-                      <span
-                        className="flex items-center gap-1"
-                        title={`Cache hit ratio: ${pct}%`}
-                      >
-                        <span className="font-medium text-foreground">
-                          {fmtTok(totalTokens.cacheRead)}
-                        </span>
-                        <span>cache ({pct}%)</span>
-                      </span>
-                    );
-                  })()}
+                <span className="flex items-center gap-1" title="Completion tokens">
+                  <span className="font-medium text-foreground">{fmtTok(totalTokens.output)}</span>
+                  <span>completion</span>
+                </span>
                 <CostChip />
               </>
             )}

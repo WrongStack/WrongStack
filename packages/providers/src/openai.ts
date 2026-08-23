@@ -1,15 +1,22 @@
 import { randomUUID } from 'node:crypto';
-import type { Capabilities, Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type {
+  Capabilities,
+  Request,
+  ResponseFormat,
+  StopReason,
+  StreamEvent,
+  Usage,
+} from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { type BuildBodyContext, resolveMaxOutputTokens } from './model-output-limits.js';
+import { shouldEmitReasoningEffort } from './openai-shared.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { parseSSE } from './sse.js';
 import { normalizeOpenAI } from './stop-reason.js';
-import { shouldEmitReasoningEffort } from './openai-shared.js';
 import { type ConvertOptions, messagesToOpenAI, toolsToOpenAI } from './tool-format/to-openai.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
@@ -33,13 +40,15 @@ export interface OpenAIProviderOptions {
   baseUrl?: string | undefined;
   organization?: string | undefined;
   fetchImpl?: typeof fetch | undefined;
-  quirks?: ConvertOptions & {
-    parallelToolsDisabled?: boolean | undefined;
-    thinkingParam?: 'zai-glm' | 'kimi-toggle' | 'always-on' | undefined;
-    stripThinkTags?: boolean | undefined;
-    maxTools?: number | undefined;
-    tolerateMissingTerminalMarker?: boolean | undefined;
-  } | undefined;
+  quirks?:
+    | (ConvertOptions & {
+        parallelToolsDisabled?: boolean | undefined;
+        thinkingParam?: 'zai-glm' | 'kimi-toggle' | 'always-on' | undefined;
+        stripThinkTags?: boolean | undefined;
+        maxTools?: number | undefined;
+        tolerateMissingTerminalMarker?: boolean | undefined;
+      })
+    | undefined;
   id?: string | undefined;
   capabilities?: Partial<Capabilities> | undefined;
   /** Raw stream debugging and hang-detection options. */
@@ -461,7 +470,11 @@ async function* parseOpenAIStream(
           textOpen = false;
           yield { type: 'tool_use_start', id: entry.id, name: entry.name };
         }
-        if (entry.emittedStart && entry.id && entry.emittedChunkIndex < entry.argBuf.chunks.length) {
+        if (
+          entry.emittedStart &&
+          entry.id &&
+          entry.emittedChunkIndex < entry.argBuf.chunks.length
+        ) {
           for (; entry.emittedChunkIndex < entry.argBuf.chunks.length; entry.emittedChunkIndex++) {
             yield {
               type: 'tool_use_input_delta',
@@ -509,16 +522,28 @@ async function* parseOpenAIStream(
       // recovers the input count instead of leaving it stuck at 0 (which zeroed
       // the context meter and the ↑ sent-token counter). Ordered AFTER the
       // explicit prompt fields so no compliant provider regresses.
-      const promptTotal =
-        u.prompt_tokens ??
-        u.input_tokens ??
-        (hasDeepSeekCacheFields
+      const hasPromptTotal = u.prompt_tokens !== undefined;
+      const hasFreshInputDelta = !hasPromptTotal && u.input_tokens !== undefined;
+      const reportedPromptTotal = hasPromptTotal
+        ? (u.prompt_tokens ?? 0)
+        : hasDeepSeekCacheFields
           ? (u.prompt_cache_hit_tokens ?? 0) + (u.prompt_cache_miss_tokens ?? 0)
           : u.total_tokens !== undefined
             ? Math.max(0, u.total_tokens - completion)
-            : usage.input + cached);
+            : usage.input + cached + cacheWrite;
+      // Hybrid gateways sometimes use Anthropic/MiniMax delta semantics in
+      // an OpenAI-shaped usage object: input_tokens is fresh-only, while
+      // prompt_tokens (when present) is the OpenAI total including cache.
+      const promptTotal =
+        hasPromptTotal && cached > reportedPromptTotal
+          ? reportedPromptTotal + cached
+          : reportedPromptTotal;
       const nextUsage: Usage = {
-        input: u.prompt_cache_miss_tokens ?? Math.max(0, promptTotal - cached - cacheWrite),
+        input:
+          u.prompt_cache_miss_tokens ??
+          (hasFreshInputDelta
+            ? Math.max(0, u.input_tokens ?? 0)
+            : Math.max(0, promptTotal - cached - cacheWrite)),
         output: completion,
         cacheRead: cached || usage.cacheRead,
       };

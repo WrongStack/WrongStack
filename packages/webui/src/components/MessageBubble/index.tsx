@@ -598,7 +598,9 @@ export const MessageBubble = memo(function MessageBubble({
             (() => {
               const u = message.usage;
               const dollars =
-                (u.input * inputCost + u.output * outputCost + (u.cacheRead ?? 0) * cacheReadCost) /
+                ((u.input + (u.cacheWrite ?? 0)) * inputCost +
+                  u.output * outputCost +
+                  (u.cacheRead ?? 0) * cacheReadCost) /
                 1_000_000;
               const haveCost = inputCost > 0 || outputCost > 0;
               const dollarStr =
@@ -701,17 +703,20 @@ export const MessageBubble = memo(function MessageBubble({
               </span>
             </button>
           )}
-          {(isLatestAssistant || message.isError) && message.content && !message.streaming && !isLoading && (
-            <button
-              type="button"
-              onClick={regenerate}
-              title={t('activity:message.regenerateTitle')}
-              className="opacity-50 hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-            >
-              <RotateCcw className="h-3 w-3" />
-              <span>{t('activity:message.retryLabel')}</span>
-            </button>
-          )}
+          {(isLatestAssistant || message.isError) &&
+            message.content &&
+            !message.streaming &&
+            !isLoading && (
+              <button
+                type="button"
+                onClick={regenerate}
+                title={t('activity:message.regenerateTitle')}
+                className="opacity-50 hover:opacity-100 transition-opacity text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+              >
+                <RotateCcw className="h-3 w-3" />
+                <span>{t('activity:message.retryLabel')}</span>
+              </button>
+            )}
         </div>
       </div>
     </div>

@@ -747,4 +747,34 @@ describe('todosNeedingSessionMirror', () => {
     expect(todosNeedingSessionMirror(todos, undefined)).toEqual(todos);
     expect(todosNeedingSessionMirror(todos, '')).toEqual(todos);
   });
+
+  it('matches and updates todo status by kanbanTaskId when origin is not set', async () => {
+    const todos: TodoItem[] = [
+      { id: 'todo-1', content: 'Do something', status: 'pending', kanbanTaskId: 'task-xyz' },
+    ];
+    const context = {
+      todos,
+      state: {
+        replaceTodos(next: TodoItem[]) {
+          todos.length = 0;
+          todos.push(...next);
+        },
+      },
+      session: { id: 'sess-1' },
+      meta: {},
+    } as unknown as Context;
+
+    const kanbanTask = {
+      id: 'task-xyz',
+      title: 'Do something updated',
+      status: 'completed',
+      columnId: 'done',
+    } as unknown as import('@wrongstack/kanban').KanbanTask;
+
+    const result = await applySessionKanbanTaskToSource(context, kanbanTask);
+    expect(result.source).toBe('todo');
+    expect(todos[0]?.status).toBe('completed');
+    expect(todos[0]?.content).toBe('Do something updated');
+  });
 });
+

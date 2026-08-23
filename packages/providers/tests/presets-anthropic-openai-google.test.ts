@@ -697,6 +697,54 @@ describe('OpenAI preset - parseStreamEvent edge cases', () => {
 });
 
 describe('OpenAI preset - cached token usage', () => {
+  it('treats input_tokens as a fresh delta for Anthropic-shaped hybrid gateways', async () => {
+    const events = await collectFromPreset(
+      openaiWireFormat,
+      sseBody([
+        JSON.stringify({
+          model: 'minimax-hybrid',
+          choices: [{ finish_reason: 'stop' }],
+          usage: {
+            input_tokens: 100,
+            completion_tokens: 20,
+            prompt_tokens_details: { cached_tokens: 15_000 },
+          },
+        }),
+        '[DONE]',
+      ]),
+      'minimax-hybrid',
+    );
+    const stop = events.find((e) => e.type === 'message_stop');
+    expect((stop as { usage: { input: number; cacheRead: number } }).usage).toMatchObject({
+      input: 100,
+      cacheRead: 15_000,
+    });
+  });
+
+  it('preserves anomalous cached tokens above an OpenAI prompt total without overshooting 100%', async () => {
+    const events = await collectFromPreset(
+      openaiWireFormat,
+      sseBody([
+        JSON.stringify({
+          model: 'hybrid-proxy',
+          choices: [{ finish_reason: 'stop' }],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 20,
+            prompt_tokens_details: { cached_tokens: 150 },
+          },
+        }),
+        '[DONE]',
+      ]),
+      'hybrid-proxy',
+    );
+    const stop = events.find((e) => e.type === 'message_stop');
+    expect((stop as { usage: { input: number; cacheRead: number } }).usage).toMatchObject({
+      input: 100,
+      cacheRead: 150,
+    });
+  });
+
   it('extracts prompt_tokens_details.cached_tokens correctly', async () => {
     const events = await collectFromPreset(
       openaiWireFormat,

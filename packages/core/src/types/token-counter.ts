@@ -5,7 +5,7 @@ export interface CacheStats {
   readTokens: number;
   /** Tokens written into the cache (more expensive than input on first hit). */
   writeTokens: number;
-  /** Hit ratio: cacheRead / (cacheRead + input). 0 when nothing cached. */
+  /** Hit ratio: cacheRead / total prompt context. Clamped to [0, 1]. */
   hitRatio: number;
   /**
    * USD saved by cache reads: cacheRead tokens billed at the cache-read rate

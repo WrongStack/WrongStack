@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
-import { ProviderCacheLedger } from '../../src/infrastructure/provider-cache-ledger.js';
-import { EventBus } from '../../src/kernel/events.js';
 import type { ModelsRegistry, ResolvedModel } from '../../src/index.js';
+import { ProviderCacheLedger } from '../../src/infrastructure/provider-cache-ledger.js';
+import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
+import { EventBus } from '../../src/kernel/events.js';
 
 const m1: ResolvedModel = {
   providerId: 'anthropic',
@@ -40,7 +40,8 @@ describe('DefaultTokenCounter', () => {
 
   it('emits token.accounted even when pricing is unavailable', () => {
     const events = new EventBus();
-    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> = [];
+    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> =
+      [];
     events.on('token.accounted', (e) => seen.push(e.usage));
     const tc = new DefaultTokenCounter({ events });
 
@@ -102,7 +103,8 @@ describe('DefaultTokenCounter', () => {
 
   it('emits token.accounted when registry has no matching model', async () => {
     const events = new EventBus();
-    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> = [];
+    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> =
+      [];
     events.on('token.accounted', (e) => seen.push(e.usage));
     const registry = {
       getModel: vi.fn().mockResolvedValue(undefined),
@@ -129,9 +131,10 @@ describe('DefaultTokenCounter', () => {
     events.on('token.accounted', (e) => seen.push(e.sessionId));
     const registry = {
       getModel: vi.fn().mockImplementation(
-        () => new Promise<ResolvedModel | undefined>((resolve) => {
-          resolveModel = resolve;
-        }),
+        () =>
+          new Promise<ResolvedModel | undefined>((resolve) => {
+            resolveModel = resolve;
+          }),
       ),
       load: async () => ({}) as never,
       refresh: async () => ({}) as never,
@@ -140,7 +143,12 @@ describe('DefaultTokenCounter', () => {
       suggestModel: async () => undefined,
       ageSeconds: async () => 0,
     } as never as ModelsRegistry;
-    const tc = new DefaultTokenCounter({ events, registry, providerId: 'local', sessionId: () => sessionId });
+    const tc = new DefaultTokenCounter({
+      events,
+      registry,
+      providerId: 'local',
+      sessionId: () => sessionId,
+    });
 
     tc.account({ input: 1234, output: 56 }, 'custom-model');
     sessionId = 's2';
@@ -155,10 +163,12 @@ describe('DefaultTokenCounter', () => {
     const ledger = new ProviderCacheLedger(events);
     const pending = new Map<string, (value: ResolvedModel | undefined) => void>();
     const registry = {
-      getModel: vi.fn((providerId: string, _modelId: string) =>
-        new Promise<ResolvedModel | undefined>((resolve) => {
-          pending.set(providerId, resolve);
-        })),
+      getModel: vi.fn(
+        (providerId: string, _modelId: string) =>
+          new Promise<ResolvedModel | undefined>((resolve) => {
+            pending.set(providerId, resolve);
+          }),
+      ),
       load: async () => ({}) as never,
       refresh: async () => ({}) as never,
       listProviders: async () => [],
@@ -188,7 +198,8 @@ describe('DefaultTokenCounter', () => {
 
   it('reset clears tokens and cost and emits a zero snapshot', () => {
     const events = new EventBus();
-    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> = [];
+    const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> =
+      [];
     events.on('token.accounted', (e) => seen.push(e.usage));
     const tc = new DefaultTokenCounter({ events });
     tc.accountWithModel({ input: 1_000_000, output: 1_000_000, cacheRead: 50 }, m1);
@@ -252,7 +263,13 @@ describe('DefaultTokenCounter', () => {
   it('does not double-charge mixed TTL cache writes through aggregate cacheWrite', () => {
     const tc = new DefaultTokenCounter();
     tc.accountWithModel(
-      { input: 0, output: 0, cacheWrite: 2_000_000, cacheWrite5m: 1_000_000, cacheWrite1h: 1_000_000 },
+      {
+        input: 0,
+        output: 0,
+        cacheWrite: 2_000_000,
+        cacheWrite5m: 1_000_000,
+        cacheWrite1h: 1_000_000,
+      },
       m1,
     );
     expect(tc.estimateCost().input).toBeCloseTo(9.75, 4);
@@ -288,13 +305,13 @@ describe('DefaultTokenCounter', () => {
     expect(s.hitRatio).toBe(0);
   });
 
-  it('cacheStats hit ratio is cacheRead / (cacheRead + input)', () => {
+  it('cacheStats hit ratio is cacheRead / total prompt context', () => {
     const tc = new DefaultTokenCounter();
     tc.account({ input: 100, output: 0, cacheRead: 100, cacheWrite: 25 });
     const s = tc.cacheStats();
     expect(s.readTokens).toBe(100);
     expect(s.writeTokens).toBe(25);
-    expect(s.hitRatio).toBeCloseTo(0.5, 6);
+    expect(s.hitRatio).toBeCloseTo(100 / 225, 6);
   });
 
   it('cacheStats hit ratio is 1.0 when all reads are cached', () => {
@@ -310,8 +327,14 @@ describe('DefaultTokenCounter', () => {
     const s = tc.cacheStats();
     expect(s.readTokens).toBe(200);
     expect(s.writeTokens).toBe(15);
-    // 200 / (200 + 100) = 0.6666...
-    expect(s.hitRatio).toBeCloseTo(2 / 3, 6);
+    // 200 / (200 cache-read + 100 fresh + 15 cache-write)
+    expect(s.hitRatio).toBeCloseTo(200 / 315, 6);
+  });
+
+  it('clamps cache hit ratio when malformed counters cannot form a valid percentage', () => {
+    const tc = new DefaultTokenCounter();
+    tc.account({ input: -100, output: 0, cacheRead: 15_000 });
+    expect(tc.cacheStats().hitRatio).toBe(1);
   });
 
   it('swallows registry errors silently', async () => {

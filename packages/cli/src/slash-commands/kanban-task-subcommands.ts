@@ -27,6 +27,7 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { preflightManagedTransition } from '@wrongstack/kanban/manager/lifecycle';
+import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { SlashCommandContext } from './command-context.js';
 import { buildKanbanAgentPrompt, parseKanbanAgentFlags, splitCsv } from './kanban-agent-helpers.js';
 import {
@@ -44,6 +45,20 @@ import {
 
 export function extractSpawnedSubagentId(summary: string): string | undefined {
   return summary.match(/Spawned subagent\s+([^\s]+)/)?.[1];
+}
+
+async function syncTaskToContext(
+  opts: SlashCommandContext,
+  task: KanbanTask | undefined,
+  options: { remove?: boolean } = {},
+): Promise<void> {
+  const ctx = opts.context;
+  if (!ctx?.state || !task) return;
+  try {
+    await applySessionKanbanTaskToSource(ctx, task, options);
+  } catch {
+    // best-effort
+  }
 }
 
 export async function handleTaskSubcommand(
@@ -110,6 +125,7 @@ export async function handleTaskSubcommand(
       columnId: board.columns[0]?.id ?? 'backlog',
     });
     if (!result) return { message: color.red('Failed to add task') };
+    await syncTaskToContext(opts, result.task);
     return {
       message: `${color.green('✅ Task added:')} ${color.bold(result.task.title)}\n  ${color.dim(result.task.id)}`,
     };
@@ -181,6 +197,7 @@ export async function handleTaskSubcommand(
             : undefined,
         });
         if (!result) return { message: color.red('Task not found') };
+        await syncTaskToContext(opts, result.task);
         return { message: color.green(`✅ Task moved to column ${resolvedColumnId}.`) };
       } catch (err) {
         if (decodeLifecycleIssues(err).length > 0) {
@@ -192,6 +209,7 @@ export async function handleTaskSubcommand(
     const updated = await moveTask(projectRoot, boardId, taskId, resolvedColumnId);
     if (!updated)
       return { message: color.red('Failed to move task. Check board/task/column IDs.') };
+    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
     return { message: color.green('✅ Task moved.') };
   }
 
@@ -306,6 +324,8 @@ export async function handleTaskSubcommand(
             ...(tickChecks.length > 0 ? { tickChecks } : {}),
           });
         }
+        const finalBoard = await getBoard(projectRoot, boardId);
+        await syncTaskToContext(opts, finalBoard?.tasks.find((t) => t.id === taskId));
         return { message: color.green('✅ Task marked completed.') };
       } catch (err) {
         if (decodeLifecycleIssues(err).length > 0) {
@@ -322,6 +342,7 @@ export async function handleTaskSubcommand(
       ...(completedCol?.id ? { columnId: completedCol.id } : {}),
     });
     if (!updated) return { message: color.red('Task not found') };
+    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
     return {
       message: color.green('✅ Task marked completed.'),
     };
@@ -345,14 +366,19 @@ export async function handleTaskSubcommand(
     }
     const updated = await updateTask(projectRoot, boardId, taskId, { status: 'blocked' });
     if (!updated) return { message: color.red('Task not found') };
+    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
     return { message: color.yellow('🚫 Task marked blocked.') };
   }
 
   if (sub === 'remove' || sub === 'rm' || sub === 'delete') {
     const taskId = rest[0];
     if (!taskId) return { message: color.red('Usage: /kanban task remove <boardId> <taskId>') };
+    const taskToDelete = board.tasks.find((t) => t.id === taskId);
     const updated = await removeTask(projectRoot, boardId, taskId);
     if (!updated) return { message: color.red('Task not found') };
+    if (taskToDelete) {
+      await syncTaskToContext(opts, taskToDelete, { remove: true });
+    }
     return { message: color.green('✅ Task removed.') };
   }
 

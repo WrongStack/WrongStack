@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 987,
-      "typeOnly": 912,
-      "runtimeOrMixed": 241
+      "files": 994,
+      "typeOnly": 918,
+      "runtimeOrMixed": 245
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 542,
+      "files": 545,
       "typeOnly": 60,
-      "runtimeOrMixed": 509
+      "runtimeOrMixed": 512
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -13142,9 +13142,33 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/src/batch-scanner.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/src/llm-client.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 4
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/security-scanner/src/orchestrator.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/src/report-writer.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/src/skill-generator.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -13196,6 +13220,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/bot-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/src/bot.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -13203,6 +13233,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/src/config.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/inbox.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13221,6 +13257,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/src/outbound-queue.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/src/outbox.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -17564,6 +17606,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/src/batch-scanner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/security-scanner/src/file-gathering.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -17583,6 +17631,18 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/security-scanner/src/report-generator.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/src/report-writer.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/src/skill-generator.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

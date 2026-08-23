@@ -49,7 +49,7 @@
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T09:23:56.979Z; applied=13; wins=13 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T09:23:56.979Z; applied=15; wins=15 -->
 - **Always scope grep/codebase-search for `project-server-client` in the WrongStack repo by package path — the basename exists in at least two unrelated subsystems: `packages/tools/src/codebase-index/project-server-client.ts` (codebase-index daemon IPC client) and `packages/core/src/chronicle/project-server-client.ts` (Chronicle journal daemon, exported via `@wrongstack/core` as `ChronicleProjectServerClient`).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `project-server-client`

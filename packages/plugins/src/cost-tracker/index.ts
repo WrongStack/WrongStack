@@ -31,8 +31,8 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core/types';
-import { BoundedMap } from '../runtime/index.js';
 import { expectDefined } from '@wrongstack/core/utils';
+import { BoundedMap } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -50,6 +50,8 @@ export interface ModelPricing {
   input: number;
   /** Cost per 1M output (completion) tokens in USD. */
   output: number;
+  /** Cost per 1M prompt-cache read tokens; input rate is the safe fallback. */
+  cacheRead?: number | undefined;
 }
 
 interface TokenUsage {
@@ -165,7 +167,8 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
     warningThreshold: typeof raw?.['warningThreshold'] === 'number' ? raw['warningThreshold'] : 80,
     mailboxDigestEveryN:
       typeof digestEveryN === 'number' && digestEveryN >= 0 ? Math.floor(digestEveryN) : 0,
-    mailboxDigestTo: typeof digestTo === 'string' && digestTo.length > 0 ? digestTo : 'cost-tracker',
+    mailboxDigestTo:
+      typeof digestTo === 'string' && digestTo.length > 0 ? digestTo : 'cost-tracker',
   };
 }
 
@@ -214,17 +217,24 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
  * unbounded distinct keys. */
 const modelKeyCache = new BoundedMap<string, string>({ max: 256 });
 
-function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
+function estimateCost(
+  model: string,
+  freshTokens: number,
+  completionTokens: number,
+  cachedTokens = 0,
+): number {
   // Cache the lowercased key to avoid redundant .toLowerCase() calls.
   let key = modelKeyCache.get(model);
   if (!key) {
     key = model.toLowerCase();
     modelKeyCache.set(model, key);
   }
-  
+
   const pricing =
     pricingOverrides[key] ?? bundledFromRegistry[key] ?? PRICING[key] ?? DEFAULT_PRICING;
-  const inputCost = (promptTokens / 1_000_000) * pricing.input;
+  const inputCost =
+    (freshTokens / 1_000_000) * pricing.input +
+    (cachedTokens / 1_000_000) * (pricing.cacheRead ?? pricing.input);
   const outputCost = (completionTokens / 1_000_000) * pricing.output;
   return inputCost + outputCost;
 }
@@ -264,12 +274,17 @@ const plugin: Plugin = {
       pricingOverrides: {
         type: 'object',
         description:
-          'Per-model pricing overrides in USD per 1M tokens. Keys are lowercased model names; values are { input, output }. Takes precedence over the bundled PRICING table.',
+          'Per-model pricing overrides in USD per 1M tokens. Values are { input, output, cacheRead? }.',
         additionalProperties: {
           type: 'object',
           properties: {
             input: { type: 'number', minimum: 0, description: 'Cost per 1M input tokens in USD' },
             output: { type: 'number', minimum: 0, description: 'Cost per 1M output tokens in USD' },
+            cacheRead: {
+              type: 'number',
+              minimum: 0,
+              description: 'Cost per 1M prompt-cache read tokens in USD',
+            },
           },
           required: ['input', 'output'],
           additionalProperties: false,
@@ -291,7 +306,7 @@ const plugin: Plugin = {
     }
     // Clear model key cache to ensure fresh lowercasing after config changes.
     modelKeyCache.clear();
-    
+
     lastCost.usd = 0;
     lastCost.model = null;
     lastCost.at = null;
@@ -313,7 +328,12 @@ const plugin: Plugin = {
         const input = v['input'];
         const output = v['output'];
         if (typeof input !== 'number' || typeof output !== 'number') continue;
-        pricingOverrides[model.toLowerCase()] = { input, output };
+        const cacheRead = v['cacheRead'];
+        pricingOverrides[model.toLowerCase()] = {
+          input,
+          output,
+          ...(typeof cacheRead === 'number' ? { cacheRead } : {}),
+        };
       }
     }
 
@@ -341,6 +361,7 @@ const plugin: Plugin = {
               bundledFromRegistry[modelId.toLowerCase()] = {
                 input: cost.input,
                 output: cost.output,
+                ...(typeof cost.cache_read === 'number' ? { cacheRead: cost.cache_read } : {}),
               };
               hydrated += 1;
             }
@@ -374,10 +395,14 @@ const plugin: Plugin = {
       const usage = payload.usage;
       const model = payload.ctx?.model ?? 'unknown';
 
-      const promptTokens = usage.input ?? 0;
+      const cachedTokens = usage.cacheRead ?? 0;
+      // cacheWrite is uncached prompt context. The specialized core counter
+      // can price cache creation by TTL; this generic plugin uses InputPrice.
+      const freshTokens = (usage.input ?? 0) + (usage.cacheWrite ?? 0);
+      const promptTokens = freshTokens + cachedTokens;
       const completionTokens = usage.output ?? 0;
       const totalTokens = promptTokens + completionTokens;
-      const costUsd = estimateCost(model, promptTokens, completionTokens);
+      const costUsd = estimateCost(model, freshTokens, completionTokens, cachedTokens);
 
       const record: TokenUsage = {
         promptTokens,
@@ -613,7 +638,7 @@ const plugin: Plugin = {
     }
     // Clear model key cache.
     modelKeyCache.clear();
-    
+
     const finalLast = { ...lastCost };
     lastCost.usd = 0;
     lastCost.model = null;

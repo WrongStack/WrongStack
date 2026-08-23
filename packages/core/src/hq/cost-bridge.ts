@@ -16,9 +16,9 @@
  * @module hq/cost-bridge
  */
 import type { EventBus } from '../kernel/events.js';
-import type { Usage } from '../types/provider.js';
+import { effectiveInputTokens, type Usage } from '../types/provider.js';
+import { type BridgeContextOptions, createBridgeContext } from './bridge-context.js';
 import type { HqEventEnvelope, HqUsagePayload } from './protocol.js';
-import { createBridgeContext, type BridgeContextOptions } from './bridge-context.js';
 
 export interface CostTelemetryBridgeOptions extends BridgeContextOptions {
   /** Local EventBus emitting `token.accounted`. */
@@ -46,10 +46,11 @@ export function startCostTelemetryBridge(opts: CostTelemetryBridgeOptions): () =
 
   const off = events.on('token.accounted', (p: TokenAccountedEvent) => {
     const usage = p.deltaUsage ?? p.usage;
+    const totalPromptTokens = effectiveInputTokens(usage);
     const payload: HqUsagePayload = {
-      inputTokens: usage.input,
+      inputTokens: totalPromptTokens,
       outputTokens: usage.output,
-      totalTokens: usage.input + usage.output,
+      totalTokens: totalPromptTokens + usage.output,
       costUsd: p.cost.total,
     };
     // Forward the dimensions HQ needs for per-model/per-provider cost charts

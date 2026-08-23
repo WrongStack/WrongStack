@@ -35,7 +35,9 @@ interface BotInternals {
     loadOffset(): Promise<void>;
     saveOffset(): Promise<void>;
   };
-  processMessage(message: TelegramApiMessage & { text: string }): void;
+  inbox: {
+    processMessage(message: TelegramApiMessage & { text: string }): void;
+  };
   settleApproval(
     requestId: string,
     state: 'resolved' | 'expired' | 'cancelled',
@@ -404,7 +406,7 @@ describe('TelegramBot polling completion', () => {
     const log = makeLog();
     const bot = makeBot({ log, allowedUsers: ['allowed'] });
     vi.spyOn(bot, 'sendMessage').mockRejectedValue('send denied');
-    internals(bot).processMessage({
+    internals(bot).inbox.processMessage({
       ...message({ from: { id: 2, is_bot: false, first_name: 'Intruder' } }),
       text: 'hello',
     });
@@ -412,7 +414,7 @@ describe('TelegramBot polling completion', () => {
     expect(log.debug).toHaveBeenCalledWith('Failed to send denial notice: send denied');
 
     vi.spyOn(bot, 'sendMessage').mockRejectedValueOnce(new Error('blocked'));
-    internals(bot).processMessage({
+    internals(bot).inbox.processMessage({
       ...message({ from: { id: 3, is_bot: false, first_name: 'Other' } }),
       text: 'again',
     });

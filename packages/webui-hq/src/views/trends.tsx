@@ -82,22 +82,40 @@ export function TrendsView(): React.ReactElement {
     };
   }, []);
 
-  const { shown, totalCost, totalTokens, totalTools, byModel, byProvider, totalCacheRead, totalCacheWrite } =
-    useMemo(() => {
-      const cutoff = Date.now() - rangeMs;
-      const inRange = samples.filter((s) => s.ts >= cutoff);
-      const shown = inRange.length > 0 ? inRange : samples.slice(-24);
-      const totalCost = shown.reduce((s, b) => s + b.costUsd, 0);
-      const totalTokens = shown.reduce((s, b) => s + b.inputTokens + b.outputTokens, 0);
-      const totalTools = shown.reduce((s, b) => s + b.toolCalls, 0);
-      const byModel = rollup(shown, 'byModel');
-      const byProvider = rollup(shown, 'byProvider');
-      const totalCacheRead = byModel.reduce((s, e) => s + (e.entry.cacheRead ?? 0), 0);
-      const totalCacheWrite = byModel.reduce((s, e) => s + (e.entry.cacheWrite ?? 0), 0);
-      return { shown, totalCost, totalTokens, totalTools, byModel, byProvider, totalCacheRead, totalCacheWrite };
-    }, [samples, rangeMs]);
+  const {
+    shown,
+    totalCost,
+    totalTokens,
+    totalTools,
+    byModel,
+    byProvider,
+    totalCacheRead,
+    totalPromptTokens,
+  } = useMemo(() => {
+    const cutoff = Date.now() - rangeMs;
+    const inRange = samples.filter((s) => s.ts >= cutoff);
+    const shown = inRange.length > 0 ? inRange : samples.slice(-24);
+    const totalCost = shown.reduce((s, b) => s + b.costUsd, 0);
+    const totalTokens = shown.reduce((s, b) => s + b.inputTokens + b.outputTokens, 0);
+    const totalTools = shown.reduce((s, b) => s + b.toolCalls, 0);
+    const byModel = rollup(shown, 'byModel');
+    const byProvider = rollup(shown, 'byProvider');
+    const totalCacheRead = byModel.reduce((s, e) => s + (e.entry.cacheRead ?? 0), 0);
+    const totalPromptTokens = shown.reduce((s, b) => s + b.inputTokens, 0);
+    return {
+      shown,
+      totalCost,
+      totalTokens,
+      totalTools,
+      byModel,
+      byProvider,
+      totalCacheRead,
+      totalPromptTokens,
+    };
+  }, [samples, rangeMs]);
 
-  if (error !== null) return <div className="hq-empty hq-empty-ornate">Error loading trends: {error}</div>;
+  if (error !== null)
+    return <div className="hq-empty hq-empty-ornate">Error loading trends: {error}</div>;
   if (samples.length === 0) {
     return (
       <div className="hq-empty hq-empty-ornate">
@@ -108,8 +126,8 @@ export function TrendsView(): React.ReactElement {
 
   const hasModelBreakdown = byModel.length > 0;
   const cacheHitPct =
-    totalCacheRead + totalCacheWrite > 0
-      ? (totalCacheRead / (totalCacheRead + totalCacheWrite)) * 100
+    totalPromptTokens > 0 && totalCacheRead > 0
+      ? Math.min(100, Math.max(0, (totalCacheRead / totalPromptTokens) * 100))
       : null;
   const activeRange = RANGES.find((range) => range.ms === rangeMs)?.label ?? 'custom';
 
@@ -128,7 +146,9 @@ export function TrendsView(): React.ReactElement {
           <Metric label="cost" value={`$${totalCost.toFixed(4)}`} />
           <Metric label="tokens" value={fmtTokens(totalTokens)} tone="warn" />
           <Metric label="tool calls" value={totalTools.toLocaleString()} tone="ok" />
-          {cacheHitPct !== null ? <Metric label="cache hit" value={`${cacheHitPct.toFixed(0)}%`} /> : null}
+          {cacheHitPct !== null ? (
+            <Metric label="cache hit" value={`${cacheHitPct.toFixed(0)}%`} />
+          ) : null}
         </div>
       </section>
 
@@ -143,9 +163,7 @@ export function TrendsView(): React.ReactElement {
             {r.label}
           </button>
         ))}
-        <span className="hq-mono hq-row-subtle hq-ml-auto">
-          {shown.length} × 5-min buckets
-        </span>
+        <span className="hq-mono hq-row-subtle hq-ml-auto">{shown.length} × 5-min buckets</span>
       </div>
 
       <section className="hq-chart-gallery" aria-label="Trend charts">

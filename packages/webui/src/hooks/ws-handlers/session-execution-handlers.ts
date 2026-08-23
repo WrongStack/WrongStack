@@ -36,13 +36,14 @@ export function handleProviderResponse(msg: WSServerMessage) {
   const responseText = providerResponseText(payload.content);
 
   const u = payload.usage;
-  const delta = (u.input ?? 0) + (u.cacheWrite ?? 0) - (u.cacheRead ?? 0);
+  const delta = (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
   if (delta > 0) useSessionStore.setState({ lastInputTokens: delta });
 
   useSessionStore.getState().updateUsage(payload.usage);
   const { inputCost, outputCost, cacheReadCost } = useSessionStore.getState();
   const dCost =
     (payload.usage.input * inputCost +
+      (payload.usage.cacheWrite ?? 0) * inputCost +
       payload.usage.output * outputCost +
       (payload.usage.cacheRead ?? 0) * cacheReadCost) /
     1_000_000;

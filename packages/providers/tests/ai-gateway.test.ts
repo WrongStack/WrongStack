@@ -683,6 +683,18 @@ describe('AI SDK conversion helpers', () => {
     });
   });
 
+  it('preserves hybrid-gateway input deltas when separate cache exceeds input', () => {
+    expect(
+      convertUsage({
+        inputTokens: 100,
+        inputTokenDetails: { cacheReadTokens: 15_000 },
+        outputTokens: 20,
+        outputTokenDetails: {},
+        totalTokens: 15_120,
+      }),
+    ).toEqual({ input: 100, output: 20, cacheRead: 15_000 });
+  });
+
   it('converts compacted system history into accepted user context', () => {
     expect(convertMessages([{ role: 'system', content: '[prior_turns_digest: summary]' }])).toEqual(
       [{ role: 'user', content: '[system context]\n[prior_turns_digest: summary]' }],

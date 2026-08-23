@@ -290,8 +290,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     cacheReadCost: payload.cacheReadCost,
     // Always pass the key (even undefined) so the store's key-presence
     // semantics replace a previous model's list on switch.
-    reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] })
-      .reasoningEffortLevels,
+    reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] }).reasoningEffortLevels,
   });
   useConfigStore.getState().setConfig({ provider, model });
   if (isReset) {
@@ -352,15 +351,18 @@ export function handleSessionStart(msg: WSServerMessage) {
       useSessionStore.setState({
         totalTokens: { input, output, cacheRead, cacheWrite },
         cost:
-          (input * rates.inputCost + output * rates.outputCost + cacheRead * rates.cacheReadCost) /
+          ((input + cacheWrite) * rates.inputCost +
+            output * rates.outputCost +
+            cacheRead * rates.cacheReadCost) /
           1_000_000,
       });
     }
     const serverLastInput = (payload as { lastInputTokens?: number }).lastInputTokens;
     if (typeof serverLastInput === 'number' && serverLastInput > 0) {
       useSessionStore.setState({ lastInputTokens: serverLastInput });
-    } else if (usage && typeof usage.input === 'number' && usage.input > 0) {
-      useSessionStore.setState({ lastInputTokens: usage.input });
+    } else if (usage) {
+      const totalPrompt = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+      if (totalPrompt > 0) useSessionStore.setState({ lastInputTokens: totalPrompt });
     }
     if (isReset && !payload.needsSetup) {
       if (!isRoutePinnedView()) {
