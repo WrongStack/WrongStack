@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import type { SessionRegistryEntry } from '../session-registry-types.js';
+import type { SessionRegistryEntry } from './session-registry-types.js';
 
 export const SCHEMA_VERSION = 1;
 export const MAX_LEASE_MS = 120_000;

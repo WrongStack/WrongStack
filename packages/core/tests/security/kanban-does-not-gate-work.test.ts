@@ -1,11 +1,28 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { addTask, createBoard } from '@wrongstack/kanban';
+import {
+  addTask,
+  createBoard,
+  evaluateContractGraphReadiness,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  readBoard,
+  resolveKanbanBoundaryLayers,
+} from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.js';
+import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
 import type { Tool } from '../../src/types/tool.js';
+
+setKanbanGovernance({
+  readBoard,
+  resolveKanbanBoundaryLayers,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  evaluateContractGraphReadiness,
+});
 
 /**
  * A session must be able to do work.

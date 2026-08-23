@@ -10,12 +10,12 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import type { AgentEntry } from '../src/session-registry.js';
+import type { AgentEntry } from '../src/session-catalog/session-registry.js';
 import {
   getSessionRegistry,
   hasSessionRegistry,
   SessionRegistry,
-} from '../src/session-registry.js';
+} from '../src/session-catalog/session-registry.js';
 
 let tempRoot: string;
 

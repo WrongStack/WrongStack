@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/providers",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack LLM provider adapters (Anthropic, OpenAI, Google) built on declarative WireFormatConfig.",
   "repository": {
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
-    "ai": "7.0.73"
+    "ai": "7.0.77"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

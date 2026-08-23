@@ -1,8 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { updateTask } from '@wrongstack/kanban';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  addTask,
+  createBoard,
+  getBoard,
+  listBoards,
+  removeBoard,
+  updateTask,
+} from '@wrongstack/kanban';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BrainArbiter, BrainDecisionRequest } from '../../src/coordination/brain.js';
 import {
   applyGoalDeliverableCompletions,
@@ -12,6 +19,11 @@ import {
 } from '../../src/storage/goal-coordination.js';
 import { createGoalKanbanBoard, findGoalKanbanBoard } from '../../src/storage/goal-kanban.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';
+import { setBoardStorePort } from '../../src/storage/board-store-port.js';
+
+beforeAll(() => {
+  setBoardStorePort({ addTask, createBoard, getBoard, listBoards, removeBoard, updateTask });
+});
 
 describe('goal coordination', () => {
   const roots: string[] = [];

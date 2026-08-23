@@ -5,7 +5,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock @wrongstack/kanban before importing the module under test.
+// Mock handles double as the BoardStorePort wiring (production code no
+// longer imports the mocked surface; the vi.fn()s are shared handles).
 const mockCreateBoard = vi.fn();
 const mockGetBoard = vi.fn();
 const mockListBoards = vi.fn();
@@ -19,6 +20,8 @@ vi.mock('@wrongstack/kanban', () => ({
   removeBoard: (...args: unknown[]) => mockRemoveBoard(...args),
   addTask: (...args: unknown[]) => mockAddTask(...args),
 }));
+
+import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 
 import {
   createGoalKanbanBoard,
@@ -50,13 +53,29 @@ function makeGoal(overrides: Partial<GoalFile> = {}): GoalFile {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // goal-kanban resolves kanban through the BoardStorePort (roadmap #11);
+  // tests wire the port to the same mocks the CLI composition root would
+  // wire to the real package.
+  setBoardStorePort({
+    createBoard: (...args: unknown[]) =>
+      mockCreateBoard(...(args as Parameters<typeof mockCreateBoard>)),
+    listBoards: (...args: unknown[]) =>
+      mockListBoards(...(args as Parameters<typeof mockListBoards>)),
+    getBoard: (...args: unknown[]) => mockGetBoard(...(args as Parameters<typeof mockGetBoard>)),
+    removeBoard: (...args: unknown[]) =>
+      mockRemoveBoard(...(args as Parameters<typeof mockRemoveBoard>)),
+    addTask: (...args: unknown[]) => mockAddTask(...(args as Parameters<typeof mockAddTask>)),
+    updateTask: (() => {
+      throw new Error('updateTask not expected in goal-kanban tests');
+    }) as never,
+  });
   mockCreateBoard.mockResolvedValue({
     id: 'board-123',
     columns: [{ id: 'backlog' }, { id: 'todo' }, { id: 'done' }],
   });
   mockGetBoard.mockResolvedValue({ id: 'board-123', title: 'Test Board' });
   mockListBoards.mockResolvedValue([]);
-  mockRemoveBoard.mockResolvedValue(undefined);
+  mockRemoveBoard.mockResolvedValue(true);
   mockAddTask.mockResolvedValue({ task: { id: 'task-1' } });
 });
 
@@ -143,17 +162,13 @@ describe('deleteGoalKanbanBoard', () => {
 
 describe('findGoalBoardByTag', () => {
   it('finds a board by goal tag', async () => {
-    mockListBoards.mockResolvedValueOnce([
-      { id: 'board-abc', tags: ['goal:build-a-rest-api'] },
-    ]);
+    mockListBoards.mockResolvedValueOnce([{ id: 'board-abc', tags: ['goal:build-a-rest-api'] }]);
     const result = await findGoalBoardByTag('/project', makeGoal());
     expect(result).toBeDefined();
   });
 
   it('returns null when no matching board', async () => {
-    mockListBoards.mockResolvedValueOnce([
-      { id: 'board-xyz', tags: ['other-tag'] },
-    ]);
+    mockListBoards.mockResolvedValueOnce([{ id: 'board-xyz', tags: ['other-tag'] }]);
     const result = await findGoalBoardByTag('/project', makeGoal());
     expect(result).toBeNull();
   });

@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import type { ContentBlock } from '../types/blocks.js';
 import type { Logger } from '../types/logger.js';
 import { atomicWrite } from '../utils/atomic-write.js';

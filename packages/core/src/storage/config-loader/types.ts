@@ -1,4 +1,4 @@
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '../event-bus-port.js';
 import type { Config } from '../../types/config.js';
 import type { Logger } from '../../types/logger.js';
 import type { SecretVault } from '../../types/secret-vault.js';

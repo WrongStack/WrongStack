@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeFleetStatusTool } from '../../src/coordination/fleet-status-tool.js';
 import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
 import { mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
-import type { AgentEntry } from '../../src/session-registry.js';
+import type { AgentEntry } from '../../src/session-catalog/session-registry.js';
 
 function mockCtx(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { meta: {}, ...overrides };

@@ -41,6 +41,7 @@ export interface SecurityScannerOptions {
 
 export type SecurityScannerContext =
   | Context
+  | Provider
   | { provider: Provider; model?: string | undefined };
 
 export interface FullScanResult {

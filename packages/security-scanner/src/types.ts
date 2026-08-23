@@ -115,7 +115,19 @@ export interface GeneratedSecuritySkill {
  * verbatim aliases of the original interfaces defined in their owning
  * modules; no cast, no structural drift.
  */
-export type { GeneratedSkill } from './skill-generator.js';
+export type GeneratedSkill = {
+  name: string;
+  description: string;
+  version: string;
+  techStack: TechStack;
+  content: GeneratedSkillContent;
+  patterns: SecurityPattern[];
+  metadata: {
+    generatedAt: string;
+    confidence: number;
+    targetFiles: string[];
+  };
+};
 
 /**
  * Inline alias — `gitignore-updater.ts` no longer exports

@@ -1,5 +1,5 @@
 import * as fsp from 'node:fs/promises';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import type { CompletedWorkEvidence } from '../types/context-evidence.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { loadDatabaseSync } from '../coordination/sqlite-mailbox-schema.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { SessionRegistryEntry } from '../session-registry-types.js';
+import type { SessionRegistryEntry } from './session-registry-types.js';
 import type { SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';

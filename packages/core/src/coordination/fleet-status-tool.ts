@@ -17,7 +17,7 @@
 
 import type { EventBus } from '../kernel/events.js';
 import type { Context } from '../core/context.js';
-import type { AgentEntry } from '../session-registry.js';
+import type { AgentEntry } from '../session-catalog/session-registry.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { getSharedProjectMailbox } from './remote-mailbox.js';

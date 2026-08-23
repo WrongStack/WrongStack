@@ -21,14 +21,14 @@ import {
   emptyActivityTotals,
   type PendingTool,
 } from './agent-status-helpers.js';
-import type { EventBus } from './kernel/events.js';
+import type { EventBus } from '../kernel/events.js';
 import type {
   AgentEntry,
   AgentLiveStatus,
   AgentRecentMail,
   AgentRecentTool,
   AgentTodoItem,
-} from './session-registry.js';
+} from '../session-catalog/session-registry.js';
 
 interface SessionPresenceRegistry {
   updateAgents(agents: AgentEntry[]): Promise<void>;

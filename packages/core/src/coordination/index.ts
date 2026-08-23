@@ -246,7 +246,7 @@ export {
 } from './director-session.js';
 // Backward-compatible re-exports: the old per-fleet-signal tools were
 // consolidated into makeFleetTool. These aliases keep downstream imports
-// (defaults/index.ts, src/index.ts) working until they migrate.
+// from the top-level barrel working until they migrate.
 export {
   makeAskResultTool,
   makeAskTool,
@@ -593,7 +593,17 @@ export {
 export {
   collabInjectMiddleware,
   collabPauseMiddleware,
-} from '../middleware/collab-pause.js';
+} from './collab-pause.js';
+export {
+  kanbanBoundaryOps,
+  type KanbanBoundaryOpsPort,
+  setKanbanBoundaryOps,
+} from './kanban-ops-port.js';
+export {
+  kanbanDispatch,
+  type KanbanDispatchPort,
+  setKanbanDispatch,
+} from './kanban-dispatch-port.js';
 // ── Adaptive Concurrency Controller ──────────────────────────────────────────
 export {
   AdaptiveConcurrencyController,
@@ -687,3 +697,8 @@ export type {
 } from './task-dag.js';
 /** Task DAG — dependency graph with fork/join semantics */
 export { TaskDAG } from './task-dag.js';
+export {
+  AgentStatusTracker,
+  type AgentStatusTrackerOptions,
+} from './agent-status-tracker.js';
+export { FleetNotifier, type FleetNotifierOptions } from './fleet-notifier.js';

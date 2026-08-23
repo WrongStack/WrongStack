@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 
 export interface CompactRepairReport {
   removedToolUses: string[];
@@ -49,14 +49,16 @@ export interface CompactReport {
    * records whether the compacted context retained an intent anchor and path
    * trail.
    */
-  quality?: {
-    ok: boolean;
-    hasIntent: boolean;
-    hasPathTrail: boolean;
-    issues: string[];
-  } | undefined;
+  quality?:
+    | {
+        ok: boolean;
+        hasIntent: boolean;
+        hasPathTrail: boolean;
+        issues: string[];
+      }
+    | undefined;
 }
 
 export interface Compactor {
-  compact(ctx: Context, opts?: { aggressive?: boolean | undefined }): Promise<CompactReport>;
+  compact(ctx: AgentContext, opts?: { aggressive?: boolean | undefined }): Promise<CompactReport>;
 }

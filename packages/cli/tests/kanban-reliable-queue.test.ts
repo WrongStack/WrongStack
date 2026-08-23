@@ -17,7 +17,10 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { kanbanTool } from '@wrongstack/tools/kanban';
+import { wireKanbanPorts } from '@wrongstack/runtime';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+wireKanbanPorts();
 
 let tmpDir = '';
 

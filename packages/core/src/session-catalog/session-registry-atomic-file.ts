@@ -18,7 +18,7 @@ import * as fs from 'node:fs/promises';
 import { hostname } from 'node:os';
 import * as path from 'node:path';
 import type { SessionRegistryEntry } from './session-registry-types.js';
-import { isPidAlive } from './utils/pid.js';
+import { isPidAlive } from '../utils/pid.js';
 
 // A held lock is released within milliseconds; anything older is a crashed
 // owner's leftover and is safe to break so writes never wedge permanently.

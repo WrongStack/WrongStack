@@ -37,13 +37,13 @@ import { DefaultModelsRegistry, DefaultModeStore } from '@wrongstack/core/models
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import {
-  type AgentStatusTracker,
   AnnotationsStore,
   DefaultSessionReader,
   DefaultSessionStore,
   getSessionRegistry,
   PromptUsageStore,
 } from '@wrongstack/core/storage';
+import type { AgentStatusTracker } from '@wrongstack/core/coordination';
 import {
   type Config,
   type ConfigStore,

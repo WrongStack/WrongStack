@@ -9,6 +9,9 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { wireKanbanPorts } from '@wrongstack/runtime';
+
+wireKanbanPorts();
 
 vi.mock('@wrongstack/providers', () => ({
   // Fresh capabilities object per call (each provider owns its own), with the

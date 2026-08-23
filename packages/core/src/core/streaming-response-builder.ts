@@ -287,7 +287,12 @@ export async function streamProviderToResponse(
             const idVal = ev.id;
             const nameVal = ev.name;
             handleToolUseStart(state, { id: idVal, name: nameVal });
-            const emittedPayload = { sessionId, ctx, id: idVal ?? 'unknown', name: nameVal ?? 'unknown' };
+            const emittedPayload = {
+              sessionId,
+              ctx,
+              id: idVal ?? 'unknown',
+              name: nameVal ?? 'unknown',
+            };
             events.emit('provider.tool_use_start', emittedPayload);
             break;
           }

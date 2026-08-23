@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '../event-bus-port.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';

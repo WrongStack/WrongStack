@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { ERROR_CODES, WrongStackError } from '../types/errors.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';

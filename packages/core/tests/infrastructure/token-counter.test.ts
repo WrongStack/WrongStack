@@ -305,6 +305,52 @@ describe('DefaultTokenCounter', () => {
     expect(tc.estimateCost().input).toBeCloseTo(9.75, 4);
   });
 
+  it('derives the aggregate cacheWrite from TTL fields when Usage.cacheWrite is absent', () => {
+    // Regression guard for the MiniMax-on-Anthropic case. The Anthropic
+    // preset captures cache_creation.ephemeral_5m_input_tokens /
+    // ephemeral_1h_input_tokens onto state.usage.cacheWrite5m / cacheWrite1h
+    // and falls back to (5m + 1h) as the aggregate when the upstream did
+    // not emit cache_creation_input_tokens. Some hybrid adapters forward
+    // only the TTL fields with no aggregate; the counter must still surface
+    // a writeTokens figure that matches the TTL split so the panel, the
+    // status bar, and the per-request context-pressure snapshot all stay
+    // consistent. Also asserts the TTL split propagates to cacheStats()
+    // and to the per-provider aggregate so per-provider hitRatio + write
+    // totals agree with the session-level cacheStats.
+    const tc = new DefaultTokenCounter();
+    tc.account({ input: 100, output: 0, cacheWrite5m: 800, cacheWrite1h: 400 }, 'm', 'anthropic');
+    const s = tc.cacheStats();
+    // Aggregate derived from TTL fields.
+    expect(s.writeTokens).toBe(1200);
+    expect(s.readTokens).toBe(0);
+    // TTL split is surfaced because the upstream exposed it.
+    expect(s.cacheWrite5m).toBe(800);
+    expect(s.cacheWrite1h).toBe(400);
+    // Per-provider row agrees with the session-level aggregate.
+    expect(s.providers).toEqual([
+      {
+        provider: 'anthropic',
+        input: 100,
+        cacheRead: 0,
+        cacheWrite: 1200,
+        cacheWrite5m: 800,
+        cacheWrite1h: 400,
+        hitRatio: 0, // no cacheRead in this request → 0/(100+1200)
+      },
+    ]);
+    // Per-request snapshot also uses the derived aggregate (not 0).
+    expect(tc.currentRequestTokens().cacheWrite).toBe(1200);
+    // Sanity: a second request without TTL fields keeps the TTL counters
+    // at their accumulated values (the upstream-driven path) and does not
+    // double-count the aggregate on a TTL-only Usage — the invariant
+    // Chimera flagged at token-counter.ts:69.
+    tc.account({ input: 50, output: 0, cacheWrite: 500 }, 'm', 'anthropic');
+    const s2 = tc.cacheStats();
+    expect(s2.writeTokens).toBe(1700); // 1200 (TTL-derived) + 500 (explicit)
+    expect(s2.cacheWrite5m).toBe(800); // preserved, not zeroed
+    expect(s2.cacheWrite1h).toBe(400);
+  });
+
   it('uses cached price on subsequent account() calls', async () => {
     const getModel = vi.fn().mockResolvedValue(m1);
     const registry = {

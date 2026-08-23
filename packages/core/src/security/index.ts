@@ -13,6 +13,11 @@ export {
 } from './capabilities.js';
 export { decryptConfigSecrets, encryptConfigSecrets, isSecretField } from './config-secrets.js';
 export {
+  kanbanGovernance,
+  type KanbanGovernancePort,
+  setKanbanGovernance,
+} from './kanban-governance-port.js';
+export {
   DirectoryPermissionPolicy,
   type DirectoryPermissionPolicyOptions,
   matchRule,

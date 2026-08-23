@@ -455,20 +455,29 @@ export {
   type DomainGlossaryOptions,
   renderDomainGlossary,
 } from './core/system-prompt-glossary.js';
-export * from './defaults/index.js';
+export { AutoCompactionMiddleware } from './execution/auto-compaction-middleware.js';
+export { DefaultErrorHandler } from './execution/error-handler.js';
+export { DefaultSkillLoader, type SkillLoaderOptions } from './execution/skill-loader.js';
 export {
-  AutoCompactionMiddleware,
-  type CompactorOptions,
+  DefaultLogger,
+  type DefaultLoggerOptions,
+  type LogFormat,
+} from './infrastructure/logger.js';
+export { type CompactorOptions, HybridCompactor } from './execution/compactor.js';
+export {
   type CompactorStrategy,
   createStrategyCompactor,
-  HybridCompactor,
+  type StrategyCompactorOptions,
+} from './execution/strategy-compactor.js';
+export {
   IntelligentCompactor,
   type IntelligentCompactorOptions,
-  installSubagentAutoCompaction,
+} from './execution/intelligent-compactor.js';
+export { installSubagentAutoCompaction } from './execution/subagent-compaction.js';
+export {
   SelectiveCompactor,
   type SelectiveCompactorOptions,
-  type StrategyCompactorOptions,
-} from './defaults/index.js';
+} from './execution/selective-compactor.js';
 export {
   type AutonomyBrainOptions,
   type BrainAutoRisk,
@@ -685,7 +694,7 @@ export {
   collabInjectMiddleware,
   collabPauseMiddleware,
   type InjectedToolResult as CollabInjectedToolResult,
-} from './middleware/collab-pause.js';
+} from './coordination/collab-pause.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
   type NotificationChannel,
@@ -849,7 +858,7 @@ export {
 export type {
   SessionLiveStatus,
   SessionRegistryEntry,
-} from './session-registry.js';
+} from './session-catalog/session-registry.js';
 export * from './skills/index.js';
 export * from './storage/index.js';
 // Explicit re-exports for the new session audit bridge (helps some consumers
@@ -950,7 +959,7 @@ export type { FileEventRecord } from './types/file-event-record.js';
 export * from './types/index.js';
 export type { Logger, LogLevel } from './types/logger.js';
 // Explicit type re-exports keep the top-level public surface stable for types
-// that are reachable through both types/ and defaults/ export chains.
+// that are reachable through multiple export chains (types/, execution/, …).
 // Consumers (e.g. @wrongstack/providers) import these directly from '@wrongstack/core'.
 export type {
   ModelsDevModel,

@@ -25,7 +25,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { isPidAlive } from './utils/pid.js';
+import { isPidAlive } from '../utils/pid.js';
 
 const INSTANCES_FILE = 'webui-instances.json';
 const DISCOVERY_TTL_MS = 2_500;

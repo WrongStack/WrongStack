@@ -14,7 +14,7 @@
  *   formatGoalKanbanChoicePrompt()                      → string (selection screen)
  */
 
-import { addTask, createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
+import { boardStore, tryBoardStore } from './board-store-port.js';
 import { color } from '../utils/color.js';
 import type { GoalFile } from './goal-store.js';
 
@@ -40,10 +40,15 @@ export async function createGoalKanbanBoard(
 ): Promise<string | null> {
   if (!projectRoot) return null;
 
+  // Fail soft when the port is unwired (non-CLI embeddings): behave as if
+  // no kanban backend exists instead of throwing through the .catch chains.
+  const store = tryBoardStore();
+  if (!store) return null;
+
   // Reuse an existing link if the board is still alive
   const existingId = (goalFile as GoalFileWithKanban).kanbanBoardId;
   if (existingId) {
-    const existing = await getBoard(projectRoot, existingId).catch(() => null);
+    const existing = await store.getBoard(projectRoot, existingId).catch(() => null);
     if (existing) return existingId;
   }
 
@@ -51,7 +56,7 @@ export async function createGoalKanbanBoard(
   const displayGoal = (goalFile.refinedGoal || goalFile.goal).replace(/\s+/g, ' ').trim();
   const titleSuffix = displayGoal.length > 80 ? displayGoal.slice(0, 77) + '…' : displayGoal;
 
-  const board = await createBoard(projectRoot, {
+  const board = await store.createBoard(projectRoot, {
     title: `🎯 ${titleSuffix}`,
     description: `Kanban board auto-created for goal: ${displayGoal}`,
     tags: [goalTag(goalFile)],
@@ -71,18 +76,20 @@ export async function createGoalKanbanBoard(
       const d = goalFile.deliverables[index]!;
       const cleaned = d.replace(/^\[[x✓]\]|✅|\(done\)\s*/i, '').trim();
       if (cleaned) {
-        await addTask(projectRoot, board.id, {
-          title: cleaned,
-          columnId: targetColumnId,
-          description: `Deliverable for goal: ${displayGoal}`,
-          priority: 'medium',
-          origin: {
-            system: 'goal',
-            taskId: `deliverable:${index}`,
-          },
-        }).catch(() => {
-          // Best-effort: a task-add failure for one deliverable won't crash the goal
-        });
+        await store
+          .addTask(projectRoot, board.id, {
+            title: cleaned,
+            columnId: targetColumnId,
+            description: `Deliverable for goal: ${displayGoal}`,
+            priority: 'medium',
+            origin: {
+              system: 'goal',
+              taskId: `deliverable:${index}`,
+            },
+          })
+          .catch(() => {
+            // Best-effort: a task-add failure for one deliverable won't crash the goal
+          });
       }
     }
   }
@@ -100,7 +107,7 @@ export async function createGoalKanbanBoard(
 export async function findGoalKanbanBoard(projectRoot: string, boardId: string) {
   if (!projectRoot || !boardId) return null;
   try {
-    return await getBoard(projectRoot, boardId);
+    return await boardStore().getBoard(projectRoot, boardId);
   } catch {
     return null;
   }
@@ -111,7 +118,9 @@ export async function findGoalKanbanBoard(projectRoot: string, boardId: string) 
  */
 export async function deleteGoalKanbanBoard(projectRoot: string, boardId: string): Promise<void> {
   if (!projectRoot || !boardId) return;
-  await removeBoard(projectRoot, boardId).catch(() => {});
+  const store = tryBoardStore();
+  if (!store) return;
+  await store.removeBoard(projectRoot, boardId).catch(() => {});
 }
 
 /**
@@ -120,11 +129,13 @@ export async function deleteGoalKanbanBoard(projectRoot: string, boardId: string
  */
 export async function findGoalBoardByTag(projectRoot: string, goalFile: GoalFile) {
   if (!projectRoot) return null;
+  const store = tryBoardStore();
+  if (!store) return null;
   const tag = goalTag(goalFile);
-  const boards = await listBoards(projectRoot);
+  const boards = await store.listBoards(projectRoot);
   const matched = boards.find((b) => b.tags?.includes(tag));
   if (!matched) return null;
-  return getBoard(projectRoot, matched.id).catch(() => null);
+  return store.getBoard(projectRoot, matched.id).catch(() => null);
 }
 
 /**

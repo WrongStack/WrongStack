@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SessionCatalogStore } from '../../src/session-catalog/store.js';
-import type { SessionRegistryEntry } from '../../src/session-registry-types.js';
+import type { SessionRegistryEntry } from '../../src/session-catalog/session-registry-types.js';
 
 const roots: string[] = [];
 

@@ -32,6 +32,7 @@ import {
   serveStdio,
 } from '@wrongstack/mcp';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
+import { wireKanbanPorts } from '@wrongstack/runtime';
 import type { SubcommandDeps } from './subcommands/contracts.js';
 
 /** `--yolo` policy: auto-approve everything (inherits the rest of the contract). */
@@ -302,6 +303,7 @@ export async function serveMcpStdio(
   }
 
   // Reuse the subcommand's pre-populated registry; fall back to a fresh one.
+  wireKanbanPorts();
   let registry = deps.toolRegistry as ToolRegistry | undefined;
   if (!registry) {
     registry = new ToolRegistry();

@@ -2,11 +2,15 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { addTask, createBoard, getBoard, listBoards, removeBoard, updateTask } from '@wrongstack/kanban';
 import type { Agent } from '../../src/core/agent.js';
 import { EternalAutonomyEngine } from '../../src/execution/eternal-autonomy.js';
 import { EventBus } from '../../src/kernel/events.js';
 import { createGoalKanbanBoard, findGoalKanbanBoard } from '../../src/storage/goal-kanban.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';
+import { setBoardStorePort } from '../../src/storage/board-store-port.js';
+
+setBoardStorePort({ addTask, createBoard, getBoard, listBoards, removeBoard, updateTask });
 
 interface MockAgentSetup {
   todos?: Array<{ id: string; content: string; status: 'pending' | 'in_progress' | 'completed' }>;

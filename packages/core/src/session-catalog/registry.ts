@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { AgentEntry, SessionRegistryEntry } from '../session-registry-types.js';
+import type { AgentEntry, SessionRegistryEntry } from './session-registry-types.js';
 import { SessionCatalogProjectClient } from './client.js';
 import { sessionCatalogProjectServerMetadataPath } from './endpoint.js';
 import type { ResumeReservation, SessionCatalogEvent, SessionLeaseCredential } from './protocol.js';

@@ -1,4 +1,4 @@
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '../event-bus-port.js';
 import type { Logger } from '../../types/logger.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionData, SessionEvent, SessionSummary } from '../../types/session.js';

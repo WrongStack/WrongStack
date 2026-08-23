@@ -91,7 +91,62 @@ describe('ContextPanel tabs', () => {
       }),
     );
     const frame = lastFrame() ?? '';
-    expect(frame).toContain('Providers minimax 80.0% · anthropic 60.0%');
+    // Each provider now occupies its own row with the hit ratio plus the
+    // per-provider read/write token totals. We assert each piece separately
+    // because the row wraps per provider and uses different text colors.
+    expect(frame).toContain('minimax');
+    expect(frame).toContain('80.0%');
+    expect(frame).toContain('anthropic');
+    expect(frame).toContain('60.0%');
+    // Per-provider token counts must be visible — without them the panel
+    // hides the most informative numbers for Anthropic-family routing.
+    expect(frame).toContain('read');
+    expect(frame).toContain('800');
+    expect(frame).toContain('write');
+    expect(frame).toContain('100');
+    unmount();
+  });
+
+  it('renders savedUsd and the Anthropic TTL split when the upstream exposes them', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(ContextPanel, {
+        data: baseData({
+          cacheStats: {
+            readTokens: 900,
+            writeTokens: 1200,
+            cacheWrite5m: 800,
+            cacheWrite1h: 400,
+            hitRatio: 0.45,
+            savedUsd: 0.42,
+          },
+          providerCacheStats: [
+            {
+              provider: 'minimax',
+              input: 200,
+              cacheRead: 900,
+              cacheWrite: 1200,
+              cacheWrite5m: 800,
+              cacheWrite1h: 400,
+              hitRatio: 0.45,
+            },
+          ],
+        }),
+        onClose: () => {},
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    // savedUsd appears as `~ $0.42` next to the aggregate row.
+    expect(frame).toContain('saved');
+    expect(frame).toContain('$0.42');
+    // The dedicated Write TTL row breaks the 5-min / 1-hour split out of
+    // the aggregate so the user can see which tier is responsible for the
+    // write cost — the exact gap the MiniMax-on-Anthropic investigation
+    // surfaced in the cache-hit panel.
+    expect(frame).toContain('Write TTL');
+    expect(frame).toContain('5m');
+    expect(frame).toContain('800');
+    expect(frame).toContain('1h');
+    expect(frame).toContain('400');
     unmount();
   });
 

@@ -1,4 +1,4 @@
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '../event-bus-port.js';
 
 export type SessionStoreReadOperation =
   | 'load'

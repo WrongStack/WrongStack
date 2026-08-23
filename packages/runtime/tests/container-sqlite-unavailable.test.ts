@@ -11,7 +11,7 @@ vi.mock('@wrongstack/sage', async (importOriginal) => {
 import { describe, expect, it } from 'vitest';
 import { createDefaultContainer } from '../src/container.js';
 
-describe('createDefaultContainer without built-in SQLite', () => {
+describe('createDefaultContainer without synchronous SQLite', () => {
   it('fails clearly instead of silently selecting the removed JSONL backend', () => {
     expect(() =>
       createDefaultContainer({
@@ -38,6 +38,6 @@ describe('createDefaultContainer without built-in SQLite', () => {
         } as never,
         modelsRegistry: {} as never,
       }),
-    ).toThrow(/SAGE requires Node built-in SQLite/);
+    ).toThrow(/SAGE requires synchronous SQLite \(node:sqlite on Node >= 22\.5 or bun:sqlite on Bun\)/);
   });
 });

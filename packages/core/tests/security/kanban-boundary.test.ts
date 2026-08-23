@@ -12,6 +12,13 @@ import {
   writeBoard,
 } from '@wrongstack/kanban';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  evaluateContractGraphReadiness,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  resolveKanbanBoundaryLayers,
+} from '@wrongstack/kanban';
+import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus, type EventMap } from '../../src/kernel/events.js';
@@ -19,6 +26,17 @@ import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.j
 import type { Tool } from '../../src/types/tool.js';
 
 const roots: string[] = [];
+
+// Roadmap #11: the boundary now resolves kanban through the governance
+// port; wire it to the real package (this suite is an integration test
+// over real on-disk boards, so the real implementation is the point).
+setKanbanGovernance({
+  readBoard,
+  resolveKanbanBoundaryLayers,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  evaluateContractGraphReadiness,
+});
 
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
@@ -167,7 +185,7 @@ describe('tool Kanban boundary integration', () => {
         { code: 'success-criteria-missing', field: 'successCriteria' },
       ],
     });
-    expect(result.reason).toContain('Active card is not implementation-ready');
+    expect(result.reason).toContain('Active card failed contract-readiness check');
   });
 
   it('allows governed mutation on a running detailed card without a Contract Map', async () => {
@@ -232,7 +250,7 @@ describe('tool Kanban boundary integration', () => {
       ),
     ).resolves.toMatchObject({
       decision: 'block',
-      reason: expect.stringContaining('lifecycle: todo; assignment: running'),
+      reason: expect.stringContaining("lifecycle.currentStage (got: todo; want: 'running')"),
     });
 
     await transitionTask(projectRoot, board.id, taskId, {

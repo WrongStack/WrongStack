@@ -205,50 +205,50 @@ describe('RAM-leak caps (audit 2026-07-31)', () => {
   });
 
   it('core/agent-status-tracker: RECENT_TOOL_LIMIT = 12', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:RECENT_TOOL_LIMIT');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:RECENT_TOOL_LIMIT');
     expect(value, file).toBe('12');
   });
 
   it('core/agent-status-tracker: RECENT_MAIL_LIMIT = 12', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:RECENT_MAIL_LIMIT');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:RECENT_MAIL_LIMIT');
     expect(value, file).toBe('12');
   });
 
   it('core/agent-status-tracker: SEEN_MAIL_LIMIT = 10_000', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:SEEN_MAIL_LIMIT');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:SEEN_MAIL_LIMIT');
     expect(value, file).toBe('10_000');
   });
 
   it('core/agent-status-tracker: PARTIAL_TEXT_CAP = 1200', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:PARTIAL_TEXT_CAP');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PARTIAL_TEXT_CAP');
     expect(value, file).toBe('1200');
   });
 
   it('core/agent-status-tracker: TASK_TEXT_CAP = 1200', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:TASK_TEXT_CAP');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:TASK_TEXT_CAP');
     expect(value, file).toBe('1200');
   });
 
   it('core/agent-status-tracker: PROMPT_TEXT_CAP = 6000', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:PROMPT_TEXT_CAP');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PROMPT_TEXT_CAP');
     expect(value, file).toBe('6000');
   });
 
   it('core/agent-status-tracker: AGENT_REAP_MS = 30_000', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:AGENT_REAP_MS');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:AGENT_REAP_MS');
     expect(value, file).toBe('30_000');
   });
 
   it('core/agent-status-tracker: AGENT_SWEEP_INTERVAL_MS = 10_000', () => {
     const { value, file } = readConst(
       'core',
-      'agent-status-tracker.ts:AGENT_SWEEP_INTERVAL_MS',
+      'coordination/agent-status-tracker.ts:AGENT_SWEEP_INTERVAL_MS',
     );
     expect(value, file).toBe('10_000');
   });
 
   it('core/agent-status-tracker: PENDING_TOOL_TTL_MS = 300_000', () => {
-    const { value, file } = readConst('core', 'agent-status-tracker.ts:PENDING_TOOL_TTL_MS');
+    const { value, file } = readConst('core', 'coordination/agent-status-tracker.ts:PENDING_TOOL_TTL_MS');
     expect(value, file).toBe('300_000');
   });
 

@@ -67,7 +67,9 @@ vi.mock('@wrongstack/kanban', () => ({
   },
   startKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
     const board = await updateTaskAssignmentMock(
-      _projectRoot, input.boardId, input.taskId,
+      _projectRoot,
+      input.boardId,
+      input.taskId,
       {
         status: 'running',
         heartbeatAt: new Date().toISOString(),
@@ -80,7 +82,9 @@ vi.mock('@wrongstack/kanban', () => ({
     if (!board) return null;
     if (board.lifecycle?.mode === 'managed') {
       await transitionTaskMock(_projectRoot, input.boardId, input.taskId, {
-        to: 'running', actor: input.actor, comment: 'Dispatch started.',
+        to: 'running',
+        actor: input.actor,
+        comment: 'Dispatch started.',
       });
     }
     const task = board.tasks?.find((t: { id: string }) => t.id === input.taskId);
@@ -88,7 +92,9 @@ vi.mock('@wrongstack/kanban', () => ({
   },
   completeKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
     const board = await updateTaskAssignmentMock(
-      _projectRoot, input.boardId, input.taskId,
+      _projectRoot,
+      input.boardId,
+      input.taskId,
       { status: 'completed', ...(input.result !== undefined ? { lastResult: input.result } : {}) },
       { expectedLeaseId: input.leaseId },
     );
@@ -101,7 +107,9 @@ vi.mock('@wrongstack/kanban', () => ({
   },
   failKanbanDispatch: async (_projectRoot: string, input: Record<string, unknown>) => {
     return updateTaskAssignmentMock(
-      _projectRoot, input.boardId, input.taskId,
+      _projectRoot,
+      input.boardId,
+      input.taskId,
       { status: 'failed', error: input.error },
       { expectedLeaseId: input.leaseId },
     );
@@ -109,6 +117,33 @@ vi.mock('@wrongstack/kanban', () => ({
   finalizeTaskCompletion: (...a: unknown[]) => finalizeTaskCompletionMock(...a),
   transitionTask: (...a: unknown[]) => transitionTaskMock(...a),
 }));
+
+// Roadmap #11: director-tools resolves kanban dispatch through the port;
+// wire it to this suite's mocked @wrongstack/kanban surface. The factory
+// functions above compose the primitive mocks, so wiring them preserves
+// every assertion in this suite verbatim.
+import {
+  completeKanbanDispatch,
+  failKanbanDispatch,
+  getBoard,
+  heartbeatTaskAssignment,
+  listReadyTasks,
+  reserveKanbanDispatch,
+  startKanbanDispatch,
+  updateTaskAssignment,
+} from '@wrongstack/kanban';
+import { setKanbanDispatch } from '../../src/coordination/kanban-dispatch-port.js';
+
+setKanbanDispatch({
+  getBoard,
+  listReadyTasks,
+  reserveKanbanDispatch,
+  startKanbanDispatch,
+  completeKanbanDispatch,
+  failKanbanDispatch,
+  updateTaskAssignment,
+  heartbeatTaskAssignment,
+});
 
 vi.mock('../../src/coordination/dispatcher.js', () => ({
   dispatchAgent: vi.fn(),

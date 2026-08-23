@@ -1,7 +1,18 @@
 import type { ContentBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
+import type { AgentContext, TodoItem } from '../types/context.js';
+import type {
+  ConversationStateApi,
+  ReadonlyConversationState,
+  StateChange,
+} from '../types/conversation-state.js';
 import { computeMessageTokens } from '../utils/token-estimate.js';
-import type { Context, TodoItem } from './context.js';
+
+// Roadmap 10A: the type surface lives in the types/conversation-state.ts leaf
+// (dependency-safe for AgentContext); re-exported here for existing import paths.
+export type { ConversationStateApi, ReadonlyConversationState, StateChange };
+
+export type StateChangeHandler = (change: StateChange, state: ConversationState) => void;
 
 function hasToolResultBlock(message: Message | undefined): boolean {
   return (
@@ -31,40 +42,12 @@ function hasToolUseBlock(message: Message | undefined): boolean {
  * that reads `ctx.messages` directly still works — they are NOT safe for
  * external writes.
  */
-export type StateChange =
-  | { kind: 'message_appended'; message: Message }
-  | { kind: 'messages_replaced'; messages: readonly Message[] }
-  /** The oldest `count` messages were evicted; see the `messages_dropped` SessionEvent. */
-  | { kind: 'messages_dropped'; count: number }
-  | { kind: 'message_updated'; index: number; message: Message }
-  | {
-      kind: 'todos_replaced';
-      todos: readonly TodoItem[];
-      /**
-       * Final all-completed snapshot when the tactical list auto-clears.
-       * Observational mirrors use this to move cards to Done instead of
-       * interpreting the empty active list as "the work vanished".
-       */
-      completedSnapshot?: readonly TodoItem[] | undefined;
-    }
-  | { kind: 'meta_set'; key: string; value: unknown }
-  | { kind: 'meta_deleted'; key: string }
-  | { kind: 'meta_cleared' };
-
-export type StateChangeHandler = (change: StateChange, state: ConversationState) => void;
-
-export interface ReadonlyConversationState {
-  readonly messages: readonly Message[];
-  readonly todos: readonly TodoItem[];
-  readonly meta: Readonly<Record<string, unknown>>;
-}
-
 export class ConversationState {
-  private readonly ctx: Context;
+  private readonly ctx: AgentContext;
   private readonly listeners = new Set<StateChangeHandler>();
   private _revision = 0;
 
-  constructor(ctx: Context) {
+  constructor(ctx: AgentContext) {
     this.ctx = ctx;
   }
 
@@ -144,9 +127,8 @@ export class ConversationState {
 
   /**
    * How many of the oldest messages must be dropped to satisfy both retention
-   * caps — count ({@link Context.MAX_MESSAGES}) and size
-   * ({@link Context.MAX_MESSAGE_TOKENS}). Returns 0 when the history already
-   * fits, which is the overwhelmingly common case.
+   * caps — count and size (see {@link AgentContext.messageLimits}). Returns 0
+   * when the history already fits, which is the overwhelmingly common case.
    *
    * The size pass reads the per-message `_estTokens` cache populated at
    * mutation time, so it is a sum over numbers rather than a re-walk of
@@ -154,9 +136,7 @@ export class ConversationState {
    * cap determines the starting index for the sum but does not gate it.
    */
   private overflowCount(arr: readonly Message[]): number {
-    const contextClass = this.ctx.constructor as typeof Context;
-    const maxMessages = contextClass.MAX_MESSAGES;
-    const maxMessageTokens = contextClass.MAX_MESSAGE_TOKENS;
+    const { maxMessages, maxMessageTokens } = this.ctx.messageLimits;
     let drop = maxMessages > 0 ? Math.max(0, arr.length - maxMessages) : 0;
     if (maxMessageTokens <= 0) return this.protocolSafeDropCount(arr, drop);
 
@@ -344,6 +324,6 @@ export class ConversationState {
 /**
  * Convenience constructor. The wrapper holds a reference, not a copy.
  */
-export function wrapAsState(ctx: Context): ConversationState {
+export function wrapAsState(ctx: AgentContext): ConversationState {
   return new ConversationState(ctx);
 }

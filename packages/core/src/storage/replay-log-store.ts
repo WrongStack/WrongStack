@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { hashRequest } from '../replay/hash.js';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import type { Request, Response } from '../types/provider.js';

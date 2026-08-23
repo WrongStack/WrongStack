@@ -24,12 +24,14 @@ export class DefaultTokenCounter implements TokenCounter {
   private output = 0;
   private cacheRead = 0;
   private cacheWrite = 0;
+  private cacheWrite5m = 0;
+  private cacheWrite1h = 0;
   private costInput = 0;
   private costOutput = 0;
   private cacheSaved = 0;
   private readonly cacheByProvider = new Map<
     string,
-    { input: number; cacheRead: number; cacheWrite: number }
+    { input: number; cacheRead: number; cacheWrite: number; cacheWrite5m: number; cacheWrite1h: number }
   >();
   private readonly registry?: ModelsRegistry | undefined;
   private readonly providerId?: string | (() => string | undefined) | undefined;
@@ -64,12 +66,29 @@ export class DefaultTokenCounter implements TokenCounter {
     this.input += usage.input;
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
-    this.cacheWrite += usage.cacheWrite ?? 0;
-    this.recordProviderCache(usage, providerId);
+    // Anthropic-family providers (including MiniMax on the Anthropic surface)
+    // split cache-write tokens into 5-min and 1-hour TTL buckets via
+    // cache_creation.ephemeral_5m_input_tokens / ephemeral_1h_input_tokens.
+    // OpenAI-family gateways emit only the aggregate. Some hybrid adapters
+    // forward TTL fields without an aggregate — derive it here so the rest of
+    // the telemetry (writeTokens, per-provider totals, current-request
+    // snapshot, hit ratio) stays consistent with the TTL split we surface.
+    const ttlAggregate =
+      usage.cacheWrite5m !== undefined || usage.cacheWrite1h !== undefined
+        ? (usage.cacheWrite5m ?? 0) + (usage.cacheWrite1h ?? 0)
+        : 0;
+    const cacheWriteTotal = usage.cacheWrite ?? ttlAggregate;
+    this.cacheWrite += cacheWriteTotal;
+    // Mirror the TTL split. `?? undefined` preserves the "absent" signal so
+    // cacheStats() can omit the TTL row when the upstream never exposed one,
+    // instead of advertising two fabricated zeros.
+    this.cacheWrite5m += usage.cacheWrite5m ?? 0;
+    this.cacheWrite1h += usage.cacheWrite1h ?? 0;
+    this.recordProviderCache(usage, providerId, cacheWriteTotal);
     // Snapshot per-request tokens for context pressure tracking.
     this.lastInput = usage.input;
     this.lastCacheRead = usage.cacheRead ?? 0;
-    this.lastCacheWrite = usage.cacheWrite ?? 0;
+    this.lastCacheWrite = cacheWriteTotal;
 
     const priceKey = providerId && model ? `${providerId}\0${model}` : undefined;
     const price = priceKey ? this.priceCache.get(priceKey) : undefined;
@@ -122,12 +141,26 @@ export class DefaultTokenCounter implements TokenCounter {
     this.input += usage.input;
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
-    this.cacheWrite += usage.cacheWrite ?? 0;
-    this.recordProviderCache(usage, resolved.providerId);
+    // Mirror the TTL-derived aggregate in account() — see that path for the
+    // rationale (hybrid adapters may forward TTL fields without an aggregate,
+    // and the rest of the telemetry must stay consistent with the split).
+    const ttlAggregate =
+      usage.cacheWrite5m !== undefined || usage.cacheWrite1h !== undefined
+        ? (usage.cacheWrite5m ?? 0) + (usage.cacheWrite1h ?? 0)
+        : 0;
+    const cacheWriteTotal = usage.cacheWrite ?? ttlAggregate;
+    this.cacheWrite += cacheWriteTotal;
+    // Mirror the TTL split captured in `account()` for the synchronous path.
+    // When the upstream only emits an aggregate (OpenAI family), both fields
+    // are undefined and the per-TTL counters stay at zero — the aggregate
+    // writeTokens above remains the authoritative figure.
+    this.cacheWrite5m += usage.cacheWrite5m ?? 0;
+    this.cacheWrite1h += usage.cacheWrite1h ?? 0;
+    this.recordProviderCache(usage, resolved.providerId, cacheWriteTotal);
     // Snapshot per-request tokens for context pressure tracking.
     this.lastInput = usage.input;
     this.lastCacheRead = usage.cacheRead ?? 0;
-    this.lastCacheWrite = usage.cacheWrite ?? 0;
+    this.lastCacheWrite = cacheWriteTotal;
     const price = priceFromModel(resolved);
     if (this.priceCache.size >= PRICE_CACHE_MAX_SIZE) {
       const keys = [...this.priceCache.keys()];
@@ -173,9 +206,16 @@ export class DefaultTokenCounter implements TokenCounter {
   cacheStats(): CacheStats {
     // Include cache-write/creation tokens in the complete prompt context.
     // The shared helper also clamps malformed gateway telemetry to [0, 1].
+    // The 5-min / 1-hour split is surfaced when the upstream exposed it on
+    // at least one request in the session. When the provider only ever emits
+    // an aggregate (OpenAI family), both stay undefined so the UI can render
+    // a single combined "write" figure instead of misleading 5-min/1-hour
+    // sub-totals that never came from the wire.
+    const exposeTtlSplit = this.cacheWrite5m > 0 || this.cacheWrite1h > 0;
     return {
       readTokens: this.cacheRead,
       writeTokens: this.cacheWrite,
+      ...(exposeTtlSplit ? { cacheWrite5m: this.cacheWrite5m, cacheWrite1h: this.cacheWrite1h } : {}),
       hitRatio: promptCacheHitRatio({
         input: this.input,
         output: this.output,
@@ -186,7 +226,12 @@ export class DefaultTokenCounter implements TokenCounter {
       providers: [...this.cacheByProvider.entries()]
         .map(([provider, usage]) => ({
           provider,
-          ...usage,
+          input: usage.input,
+          cacheRead: usage.cacheRead,
+          cacheWrite: usage.cacheWrite,
+          ...(usage.cacheWrite5m > 0 || usage.cacheWrite1h > 0
+            ? { cacheWrite5m: usage.cacheWrite5m, cacheWrite1h: usage.cacheWrite1h }
+            : {}),
           hitRatio: promptCacheHitRatio({ ...usage, output: 0 }),
         }))
         .sort((a, b) => b.cacheRead - a.cacheRead),
@@ -233,6 +278,8 @@ export class DefaultTokenCounter implements TokenCounter {
     this.output = 0;
     this.cacheRead = 0;
     this.cacheWrite = 0;
+    this.cacheWrite5m = 0;
+    this.cacheWrite1h = 0;
     this.costInput = 0;
     this.costOutput = 0;
     this.cacheSaved = 0;
@@ -248,12 +295,19 @@ export class DefaultTokenCounter implements TokenCounter {
     });
   }
 
-  private recordProviderCache(usage: Usage, providerId?: string): void {
+  private recordProviderCache(usage: Usage, providerId: string | undefined, derivedCacheWrite: number): void {
     const key = providerId ?? 'unknown';
-    const current = this.cacheByProvider.get(key) ?? { input: 0, cacheRead: 0, cacheWrite: 0 };
+    const current =
+      this.cacheByProvider.get(key) ??
+      { input: 0, cacheRead: 0, cacheWrite: 0, cacheWrite5m: 0, cacheWrite1h: 0 };
     current.input += usage.input;
     current.cacheRead += usage.cacheRead ?? 0;
-    current.cacheWrite += usage.cacheWrite ?? 0;
+    // Use the caller-derived aggregate so per-provider cacheWrite agrees
+    // with the session-level writeTokens even when usage.cacheWrite is
+    // absent but TTL fields are present.
+    current.cacheWrite += derivedCacheWrite;
+    current.cacheWrite5m += usage.cacheWrite5m ?? 0;
+    current.cacheWrite1h += usage.cacheWrite1h ?? 0;
     this.cacheByProvider.set(key, current);
   }
 

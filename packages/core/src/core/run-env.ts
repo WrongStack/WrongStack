@@ -1,9 +1,5 @@
-import type { TextBlock } from '../types/blocks.js';
-import type { Provider } from '../types/provider.js';
-import type { SessionWriter } from '../types/session.js';
-import type { TokenCounter } from '../types/token-counter.js';
-import type { Tool } from '../types/tool.js';
 import type { Context } from './context.js';
+import type { RunEnv } from '../types/run-env.js';
 
 /**
  * Immutable run environment — the set-once dependencies for an agent run.
@@ -19,34 +15,17 @@ import type { Context } from './context.js';
  * references. The opposite direction (set things on Context) still works,
  * and `extractRunEnv` rebuilds the view if you need a snapshot.
  *
+ * Roadmap 10A: the interface itself now lives in `types/run-env.ts` (a
+ * dependency leaf that never imports `core/`), so the type module graph
+ * stays acyclic; this module keeps `extractRunEnv` and re-exports the
+ * interface for existing import paths.
+ *
  * Migration path: new APIs accept `RunEnv` instead of `Context` when they
  * only need read access. Existing APIs continue to accept `Context` until
  * a full split is scheduled.
  */
-export interface RunEnv {
-  readonly provider: Provider;
-  readonly session: SessionWriter;
-  readonly signal: AbortSignal;
-  readonly tokenCounter: TokenCounter;
-  readonly cwd: string;
-  readonly projectRoot: string;
-  /** Mutable working directory — starts as `cwd`. */
-  readonly workingDir: string;
-  readonly model: string;
-  readonly systemPrompt: readonly TextBlock[];
-  readonly tools: readonly Tool[];
-  readonly agentId: string;
-  readonly agentName: string;
-}
+export type { RunEnv } from '../types/run-env.js';
 
-/**
- * Build a `RunEnv` view from a Context. The returned object is a shallow
- * frozen view — mutations to `Context` are visible (it's the same
- * references), but the view itself can't be mutated.
- *
- * Use this in subsystems that want to declare "I only need read access to
- * the env" without rewriting their signature to accept the full Context.
- */
 export function extractRunEnv(ctx: Context): RunEnv {
   return Object.freeze({
     provider: ctx.provider,

@@ -70,7 +70,7 @@ vi.mock('node:fs/promises', async () => {
 });
 
 // Import the SUT AFTER vi.mock so it picks up the mocked fs/promises.
-const { SessionRegistry } = await import('../../src/session-registry.js');
+const { SessionRegistry } = await import('../../src/session-catalog/session-registry.js');
 
 async function mktmp(): Promise<string> {
   return fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-reg-'));

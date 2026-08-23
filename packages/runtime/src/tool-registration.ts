@@ -16,6 +16,7 @@ import {
   searchMemoryTool,
 } from '@wrongstack/tools/memory';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
+import { wireKanbanPorts } from './kanban-ports.js';
 import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';
 
 const DIRECT_LAZY_GATEWAYS = ['tool_search', 'tool_use', 'tool_help'] as const;
@@ -68,6 +69,10 @@ export interface CanonicalHostToolRegistrationResult {
 export function registerCanonicalHostTools(
   options: CanonicalHostToolRegistrationOptions,
 ): CanonicalHostToolRegistrationResult {
+  // Composition-root wiring (#11): core's kanban ports must be live before
+  // any tool can run; the governance port fires on every tool call. Idempotent,
+  // so every host boot path (CLI, WebUI, MCP, ACP) can call it safely.
+  wireKanbanPorts();
   // Keep the complete built-in catalog executable so tool_search/tool_use,
   // roster agents and runtime policy never point at an unregistered name.
   // Provider exposure is the independently bounded surface below.

@@ -1,6 +1,6 @@
-import { updateTask } from '@wrongstack/kanban';
+import { boardStore } from './board-store-port.js';
 import type { BrainArbiter } from '../coordination/brain.js';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { findGoalBoardByTag, findGoalKanbanBoard, type GoalFileWithKanban } from './goal-kanban.js';
 import { appendJournal, type GoalFile, loadGoal, recordProgress, saveGoal } from './goal-store.js';
 
@@ -240,7 +240,7 @@ async function refreshGoalKanban(
         : false;
     const titleMatch = !task.origin?.taskId && completedTitles.has(normalizeTitle(task.title));
     if (!originMatch && !titleMatch) continue;
-    const result = await updateTask(
+    const result = await boardStore().updateTask(
       projectRoot,
       board.id,
       task.id,

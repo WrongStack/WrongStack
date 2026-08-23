@@ -9,13 +9,29 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import {
+  evaluateContractGraphReadiness,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  readBoard,
+  resolveKanbanBoundaryLayers,
+} from '@wrongstack/kanban';
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus } from '../../src/kernel/events.js';
 import { AutoApprovePermissionPolicy } from '../../src/security/permission-policy.js';
+import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
 import type { ToolUseBlock } from '../../src/types/blocks.js';
 import type { Tool } from '../../src/types/tool.js';
+
+setKanbanGovernance({
+  readBoard,
+  resolveKanbanBoundaryLayers,
+  evaluateKanbanBoundaryOpaque,
+  evaluateKanbanBoundaryPath,
+  evaluateContractGraphReadiness,
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 

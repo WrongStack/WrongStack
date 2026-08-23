@@ -28,7 +28,7 @@ import type {
   SessionLiveStatus,
   SessionRegistryEntry,
 } from './session-registry-types.js';
-import { isPidAlive } from './utils/pid.js';
+import { isPidAlive } from '../utils/pid.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 

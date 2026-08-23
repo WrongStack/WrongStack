@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
 import type { Config, ConfigLoader, SyncConfig } from '../types/config.js';
 import {

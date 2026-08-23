@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { Provider, Request, Response } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
-import { defaultSkillGenerator, generateFallbackSkill, generateSkillLLM } from '../src/skill-generator.js';
+import { defaultSkillGenerator, generateFallbackSkill } from '../src/skill-generator.js';
 import { BatchScanner } from '../src/batch-scanner.js';
 import { writeReport } from '../src/report-writer.js';
 import { gatherFiles } from '../src/file-gathering.js';

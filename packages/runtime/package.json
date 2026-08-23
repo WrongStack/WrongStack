@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/runtime",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack default runtime implementations and host-level composition helpers built on @wrongstack/core.",
   "repository": {
@@ -71,6 +71,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/kanban": "workspace:*",
     "@wrongstack/governance": "workspace:*",
     "@wrongstack/sage": "workspace:*",
     "@wrongstack/tools": "workspace:*",

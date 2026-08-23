@@ -13,6 +13,9 @@ import {
   recoverStaleTaskAssignments,
 } from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { wireKanbanPorts } from '@wrongstack/runtime';
+
+wireKanbanPorts();
 
 let tmpDir = '';
 

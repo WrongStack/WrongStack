@@ -10,8 +10,11 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SessionRegistry } from '../../src/session-registry.js';
-import { lockOwnerStamp, maybeUnlinkOwnedLock } from '../../src/session-registry-atomic-file.js';
+import { SessionRegistry } from '../../src/session-catalog/session-registry.js';
+import {
+  lockOwnerStamp,
+  maybeUnlinkOwnedLock,
+} from '../../src/session-catalog/session-registry-atomic-file.js';
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();

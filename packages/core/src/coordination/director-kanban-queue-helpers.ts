@@ -1,6 +1,7 @@
-import { describeKanbanBoundary, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import { normalizeWorktreeOverride, stringArray } from './director-input-helpers.js';
+import { kanbanBoundaryOps } from './kanban-ops-port.js';
 
 export interface KanbanQueueInput {
   action?: 'dispatch_ready' | undefined;
@@ -157,8 +158,8 @@ export function buildKanbanFleetTaskPrompt(
         .join('\n')
     : '';
   const boundaries = [
-    board.boundary?.enabled ? `board: ${describeKanbanBoundary(board.boundary)}` : '',
-    task.boundary?.enabled ? `task: ${describeKanbanBoundary(task.boundary)}` : '',
+    board.boundary?.enabled ? `board: ${kanbanBoundaryOps().describeKanbanBoundary(board.boundary)}` : '',
+    task.boundary?.enabled ? `task: ${kanbanBoundaryOps().describeKanbanBoundary(task.boundary)}` : '',
     ...(board.boundary?.allow ?? []).map(
       (selector) => `board allow ${selector.access} ${selector.kind}:${selector.path}`,
     ),

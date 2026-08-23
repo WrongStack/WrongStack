@@ -1102,7 +1102,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11407
+      "sourceLines": 11359
     },
     {
       "directory": "design",
@@ -1221,7 +1221,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6456
+      "sourceLines": 6460
     },
     {
       "directory": "session-catalog",
@@ -1262,8 +1262,8 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 66,
-      "sourceLines": 11135
+      "sourceFiles": 69,
+      "sourceLines": 11387
     },
     {
       "directory": "utils",

@@ -1,4 +1,4 @@
-import type { SessionRegistryEntry } from '../session-registry-types.js';
+import type { SessionRegistryEntry } from './session-registry-types.js';
 import type { SessionSummary } from '../types/session.js';
 
 export const SESSION_CATALOG_PROTOCOL_VERSION = 1;

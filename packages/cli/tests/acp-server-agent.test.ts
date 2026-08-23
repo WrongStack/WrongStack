@@ -30,6 +30,7 @@ vi.mock('../src/wiring/provider.js', () => ({
 // stays fast and hermetic. The factory resolves TOKENS.Logger (needs .child)
 // and TOKENS.SecretScrubber from it during Agent construction.
 vi.mock('@wrongstack/runtime', () => ({
+  wireKanbanPorts: vi.fn(),
   createDefaultContainer: () => ({
     resolve: () => ({
       initialize: async () => {},

@@ -6,7 +6,7 @@ import {
   breakStaleLock,
   lockOwnerStamp,
   maybeUnlinkOwnedLock,
-} from '../../src/session-registry-atomic-file.js';
+} from '../../src/session-catalog/session-registry-atomic-file.js';
 
 describe('session-registry advisory lock primitives', () => {
   let dir: string;
@@ -110,11 +110,12 @@ describe('session-registry advisory lock primitives', () => {
     await fsp.utimes(tmp1, old, old);
     await fsp.utimes(tmp2, old, old);
 
-    const { pruneStaleTempFiles } = await import('../../src/session-registry-atomic-file.js');
+    const { pruneStaleTempFiles } = await import(
+      '../../src/session-catalog/session-registry-atomic-file.js'
+    );
     await pruneStaleTempFiles(registryPath);
 
     const remaining = await fsp.readdir(dir);
     expect(remaining.filter((f) => f.endsWith('.tmp'))).toEqual([]);
   });
 });
-

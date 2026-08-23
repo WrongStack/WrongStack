@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { SECRET_FILE_MODE } from '../security/file-permissions.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';

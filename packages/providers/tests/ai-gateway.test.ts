@@ -687,9 +687,13 @@ describe('AI SDK conversion helpers', () => {
     expect(
       convertUsage({
         inputTokens: 100,
-        inputTokenDetails: { cacheReadTokens: 15_000 },
+        inputTokenDetails: {
+          noCacheTokens: undefined,
+          cacheReadTokens: 15_000,
+          cacheWriteTokens: undefined,
+        },
         outputTokens: 20,
-        outputTokenDetails: {},
+        outputTokenDetails: { textTokens: undefined, reasoningTokens: undefined },
         totalTokens: 15_120,
       }),
     ).toEqual({ input: 100, output: 20, cacheRead: 15_000 });

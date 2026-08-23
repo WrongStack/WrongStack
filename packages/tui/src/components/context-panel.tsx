@@ -33,9 +33,23 @@ export interface ContextPanelData {
    * Surfaced in the panel so `/context` answers "how much of my spend
    * is hitting the cache" without asking the user to chase the CLI
    * `/context cache` subcommand.
+   *
+   * `savedUsd` is the gross read-discount USD figure computed by the
+   * counter (cache-read tokens × (input price − cache-read price)).
+   * `cacheWrite5m` / `cacheWrite1h` are present when the upstream exposed
+   * an Anthropic-style TTL split (Anthropic family, including MiniMax
+   * routed through the Anthropic Messages surface); OpenAI-family
+   * gateways emit only the aggregate and leave them undefined.
    */
   cacheStats?:
-    | { readTokens: number; writeTokens: number; hitRatio: number; savedUsd: number }
+    | {
+        readTokens: number;
+        writeTokens: number;
+        cacheWrite5m?: number | undefined;
+        cacheWrite1h?: number | undefined;
+        hitRatio: number;
+        savedUsd: number;
+      }
     | undefined;
   /**
    * How far the cached prefix reaches through the live request, in
@@ -50,6 +64,8 @@ export interface ContextPanelData {
         input: number;
         cacheRead: number;
         cacheWrite: number;
+        cacheWrite5m?: number | undefined;
+        cacheWrite1h?: number | undefined;
         hitRatio: number;
       }>
     | undefined;
@@ -600,6 +616,12 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
 function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement {
   const cs = data.cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
   const hasCache = cs.readTokens > 0 || cs.writeTokens > 0;
+  // Anthropic-family providers (incl. MiniMax on the Anthropic surface) expose
+  // the 5-min / 1-hour cache-write split. OpenAI-family gateways emit only
+  // the aggregate and leave both undefined, in which case the panel skips
+  // the TTL sub-row entirely instead of advertising two fabricated zeros.
+  const hasTtlSplit =
+    cs.cacheWrite5m !== undefined && cs.cacheWrite1h !== undefined;
   const coverage = Math.max(0, data.cacheCoverageTokens ?? 0);
   const max = data.ctxMaxTokens ?? 0;
   const covBarLen = 30;
@@ -619,22 +641,61 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
         <Text color={theme.textPrimary}>{cs.readTokens.toLocaleString('en-US')}</Text>
         <Text color={theme.textMuted}> · write </Text>
         <Text color={theme.textSecondary}>{cs.writeTokens.toLocaleString('en-US')}</Text>
+        {cs.savedUsd > 0 ? (
+          <>
+            <Text color={theme.textMuted}> · saved </Text>
+            <Text color={theme.success}>~${cs.savedUsd.toFixed(2)}</Text>
+          </>
+        ) : null}
       </Box>
 
+      {hasTtlSplit ? (
+        <Box>
+          <Text color={theme.textMuted}>Write TTL </Text>
+          <Text color={theme.textPrimary}>
+            5m {((cs.cacheWrite5m ?? 0)).toLocaleString('en-US')}
+          </Text>
+          <Text color={theme.textMuted}> · </Text>
+          <Text color={theme.textSecondary}>
+            1h {((cs.cacheWrite1h ?? 0)).toLocaleString('en-US')}
+          </Text>
+        </Box>
+      ) : null}
+
       {(data.providerCacheStats?.length ?? 0) > 0 ? (
-        <Text>
-          <Text color={theme.textMuted}>Providers </Text>
-          {data.providerCacheStats?.map((provider, index) => (
+        <Box flexDirection="column">
+          <Text color={theme.textMuted}>Providers</Text>
+          {data.providerCacheStats?.map((provider) => (
             <Text key={provider.provider}>
-              {index > 0 ? <Text color={theme.textMuted}> · </Text> : null}
-              <Text color={theme.textPrimary}>{provider.provider}</Text>
-              <Text color={theme.textMuted}> </Text>
+              <Text color={theme.textPrimary}> {provider.provider}</Text>
+              <Text color={theme.textMuted}> · </Text>
               <Text color={provider.cacheRead > 0 ? theme.success : theme.textMuted}>
                 {(provider.hitRatio * 100).toFixed(1)}%
               </Text>
+              <Text color={theme.textMuted}> · read </Text>
+              <Text color={theme.textPrimary}>
+                {provider.cacheRead.toLocaleString('en-US')}
+              </Text>
+              <Text color={theme.textMuted}> · write </Text>
+              <Text color={theme.textSecondary}>
+                {provider.cacheWrite.toLocaleString('en-US')}
+              </Text>
+              {provider.cacheWrite5m !== undefined && provider.cacheWrite1h !== undefined ? (
+                <>
+                  <Text color={theme.textMuted}> (</Text>
+                  <Text color={theme.textPrimary}>
+                    5m {provider.cacheWrite5m.toLocaleString('en-US')}
+                  </Text>
+                  <Text color={theme.textMuted}>, </Text>
+                  <Text color={theme.textSecondary}>
+                    1h {provider.cacheWrite1h.toLocaleString('en-US')}
+                  </Text>
+                  <Text color={theme.textMuted}>)</Text>
+                </>
+              ) : null}
             </Text>
           ))}
-        </Text>
+        </Box>
       ) : null}
 
       {coverage > 0 && max > 0 ? (

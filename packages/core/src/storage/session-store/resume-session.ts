@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../../kernel/events.js';
+import type { EventBus } from '../event-bus-port.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { ResumedSession, SessionData, SessionEvent, SessionSummary } from '../../types/session.js';

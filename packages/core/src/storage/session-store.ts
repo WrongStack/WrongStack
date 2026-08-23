@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus } from './event-bus-port.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import {
   resolveSessionCatalogProjectServerUrl,

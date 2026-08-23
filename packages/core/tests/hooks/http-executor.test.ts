@@ -1,4 +1,4 @@
-import { createServer, type Server } from 'node:http';
+import { createServer, type RequestListener, type Server } from 'node:http';
 import { afterEach, describe, expect, it } from 'vitest';
 import { runHttpHookDetailed } from '../../src/hooks/http-executor.js';
 
@@ -12,7 +12,7 @@ afterEach(async () => {
   );
 });
 
-async function listen(handler: Parameters<typeof createServer>[0]): Promise<string> {
+async function listen(handler: RequestListener): Promise<string> {
   const server = createServer(handler);
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

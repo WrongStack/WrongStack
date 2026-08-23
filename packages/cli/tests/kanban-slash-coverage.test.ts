@@ -26,6 +26,11 @@ const mockExportBoardAsMarkdown = vi.hoisted(() => vi.fn(() => '# Board'));
 const mockAddTask = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock('@wrongstack/kanban', () => ({
+  DEFAULT_COLUMNS: [
+    { id: 'backlog', name: 'Backlog' },
+    { id: 'in-progress', name: 'In Progress' },
+    { id: 'done', name: 'Done' },
+  ],
   listBoards: mockListBoards,
   createBoard: mockCreateBoard,
   getBoard: mockGetBoard,

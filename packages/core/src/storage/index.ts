@@ -1,13 +1,11 @@
 // Storage domain: sessions, memory, attachments, config, recovery, session analysis
 
 export {
-  AgentStatusTracker,
-  type AgentStatusTrackerOptions,
-} from '../agent-status-tracker.js';
-export {
-  FleetNotifier,
-  type FleetNotifierOptions,
-} from '../fleet-notifier.js';
+  type BoardStorePort,
+  boardStore,
+  setBoardStorePort,
+} from './board-store-port.js';
+
 export {
   type CatalogSessionRecord,
   type MaintenanceLease,
@@ -29,9 +27,9 @@ export type {
   SessionLiveStatus,
   SessionRegistryEntry,
   SessionWebUIEndpointHint,
-} from '../session-registry.js';
+} from '../session-catalog/session-registry.js';
 /** @deprecated Test/migration adapter; production ownership uses SessionRegistry above. */
-export { SessionRegistry as LegacySessionRegistry } from '../session-registry.js';
+export { SessionRegistry as LegacySessionRegistry } from '../session-catalog/session-registry.js';
 export type { SyncCategory, SyncConfig } from '../types/config.js';
 export type { DefaultSessionReaderOptions, SessionReader } from '../types/session-reader.js';
 export {

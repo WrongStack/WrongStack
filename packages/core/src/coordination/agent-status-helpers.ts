@@ -13,7 +13,7 @@ import type {
   AgentRecentMail,
   AgentRecentTool,
   AgentTodoItem,
-} from './session-registry.js';
+} from '../session-catalog/session-registry.js';
 
 /** Registry snapshots must stay small even when a tool receives a large patch. */
 const TOOL_TEXT_CAP = 360;

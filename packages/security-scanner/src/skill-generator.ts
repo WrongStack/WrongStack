@@ -13,7 +13,13 @@
 import * as path from 'node:path';
 
 import type { Provider, Request } from '@wrongstack/core/types';
-import type { GeneratedSkillContent, SecurityPattern, TechStack, TechStackInfo } from './types.js';
+import type {
+  GeneratedSkill,
+  GeneratedSkillContent,
+  SecurityPattern,
+  TechStack,
+  TechStackInfo,
+} from './types.js';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
@@ -32,19 +38,7 @@ import { readFileHead } from './file-gathering.js';
  * can type their skill inputs uniformly — the type was inline in
  * orchestrator.ts before the #7B extraction.
  */
-export type GeneratedSkill = {
-  name: string;
-  description: string;
-  version: string;
-  techStack: TechStack;
-  content: GeneratedSkillContent;
-  patterns: SecurityPattern[];
-  metadata: {
-    generatedAt: string;
-    confidence: number;
-    targetFiles: string[];
-  };
-};
+export type { GeneratedSkill } from './types.js';
 
 const KEY_FILE_HEAD_CHARS = 1000;
 

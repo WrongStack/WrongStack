@@ -1,14 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  completeKanbanDispatch,
-  failKanbanDispatch,
-  getBoard,
-  heartbeatTaskAssignment,
-  listReadyTasks,
-  reserveKanbanDispatch,
-  startKanbanDispatch,
-  updateTaskAssignment,
-} from '@wrongstack/kanban';
+import { kanbanDispatch } from './kanban-dispatch-port.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
@@ -352,7 +343,7 @@ export function makeKanbanQueueTool(
           ? [i.taskId]
           : i.query
             ? (
-                await listReadyTasks(projectRoot, {
+                await kanbanDispatch().listReadyTasks(projectRoot, {
                   ...(i.boardId !== undefined ? { boardId: i.boardId } : {}),
                 })
               )
@@ -391,7 +382,7 @@ export function makeKanbanQueueTool(
         if (candidateTaskId && budgetRejectedTaskIds.has(candidateTaskId)) continue;
 
         // ── Reserve: claim a ready task and seed lease via the shared dispatch service.
-        const reserved = await reserveKanbanDispatch(projectRoot, {
+        const reserved = await kanbanDispatch().reserveKanbanDispatch(projectRoot, {
           ...(i.boardId !== undefined ? { boardId: i.boardId } : {}),
           ...(candidateTaskId !== undefined ? { taskId: candidateTaskId } : {}),
           routing: {
@@ -430,7 +421,7 @@ export function makeKanbanQueueTool(
           if (remaining !== undefined && remaining < costCeiling) {
             budgetRejectedTaskIds.add(claim.task.id);
             const budgetError = `Cost ceiling ${costCeiling} exceeds remaining budget ${remaining.toFixed(4)}`;
-            await updateTaskAssignment(
+            await kanbanDispatch().updateTaskAssignment(
               projectRoot,
               claim.board.id,
               claim.task.id,
@@ -485,7 +476,7 @@ export function makeKanbanQueueTool(
           // ── Start: transition the task to Running via the shared dispatch service.
           // The service fences by leaseId, stamps the running assignment with
           // subagent/run metadata, and advances managed lifecycle todo → running.
-          const started = await startKanbanDispatch(projectRoot, {
+          const started = await kanbanDispatch().startKanbanDispatch(projectRoot, {
             boardId: claim.board.id,
             taskId: claim.task.id,
             leaseId: ourLeaseId,
@@ -539,7 +530,7 @@ export function makeKanbanQueueTool(
           // ── Fail: record the dispatch failure via the shared dispatch service.
           // The service fences by leaseId so a stale failure write is a no-op
           // when ownership was lost during spawn/assign.
-          await failKanbanDispatch(projectRoot, {
+          await kanbanDispatch().failKanbanDispatch(projectRoot, {
             boardId: claim.board.id,
             taskId: claim.task.id,
             leaseId: ourLeaseId,
@@ -644,7 +635,7 @@ export function makeKanbanQueueTool(
             // writing files. The awaitTasks below will pick up the stopped
             // result and write it back (fenced, so a no-op vs the successor).
             try {
-              const board = await getBoard(projectRoot, dispatch.boardId);
+              const board = await kanbanDispatch().getBoard(projectRoot, dispatch.boardId);
               const liveTask = board?.tasks.find((t) => t.id === dispatch.taskId);
               // Defensive guard: no assignment means the task was
               // released or recovered (e.g. mode='release') — the
@@ -672,10 +663,15 @@ export function makeKanbanQueueTool(
               // supervisor recovered and reassigned the task (changing its
               // leaseId), the heartbeat is a no-op rather than a TOCTOU gap
               // that could renew the successor's lease.
-              await heartbeatTaskAssignment(projectRoot, dispatch.boardId, dispatch.taskId, {
-                leaseExpiresAt: refreshedExpiry,
-                expectedLeaseId: dispatch.leaseId,
-              });
+              await kanbanDispatch().heartbeatTaskAssignment(
+                projectRoot,
+                dispatch.boardId,
+                dispatch.taskId,
+                {
+                  leaseExpiresAt: refreshedExpiry,
+                  expectedLeaseId: dispatch.leaseId,
+                },
+              );
             } catch {
               // Heartbeat failure is non-fatal: the next tick retries, and
               // the final status write is the source of truth. We must not
@@ -708,7 +704,7 @@ export function makeKanbanQueueTool(
           // status, runs the legacy completion gate or transitions managed
           // lifecycle running → review, and never auto-advances to Done.
           if (result.status === 'success') {
-            const completed = await completeKanbanDispatch(projectRoot, {
+            const completed = await kanbanDispatch().completeKanbanDispatch(projectRoot, {
               boardId: dispatch.boardId,
               taskId: dispatch.taskId,
               leaseId: dispatch.leaseId,
@@ -725,7 +721,7 @@ export function makeKanbanQueueTool(
               });
             }
           } else {
-            const failed = await failKanbanDispatch(projectRoot, {
+            const failed = await kanbanDispatch().failKanbanDispatch(projectRoot, {
               boardId: dispatch.boardId,
               taskId: dispatch.taskId,
               leaseId: dispatch.leaseId,
@@ -807,7 +803,7 @@ async function renewAndRevokeLease(opts: {
   // stale subagent immediately to stop it from doing more work.
   let revoked = false;
   try {
-    const board = await getBoard(projectRoot, boardId);
+    const board = await kanbanDispatch().getBoard(projectRoot, boardId);
     const liveTask = board?.tasks.find((t) => t.id === taskId);
     // Defensive guard: no assignment means the task was
     // released or recovered (e.g. mode='release') — the
@@ -830,9 +826,11 @@ async function renewAndRevokeLease(opts: {
     // safe even without the revocation check passing.
   }
   if (!revoked) {
-    await heartbeatTaskAssignment(projectRoot, boardId, taskId, {
-      leaseExpiresAt: refreshedExpiry,
-      expectedLeaseId: ourLeaseId,
-    }).catch(() => {});
+    await kanbanDispatch()
+      .heartbeatTaskAssignment(projectRoot, boardId, taskId, {
+        leaseExpiresAt: refreshedExpiry,
+        expectedLeaseId: ourLeaseId,
+      })
+      .catch(() => {});
   }
 }

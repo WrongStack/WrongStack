@@ -168,7 +168,7 @@ describe('project daemon boundary', () => {
         }
         if (!entry.isFile() || !entry.name.endsWith('.ts')) continue;
         const relative = path.relative(ROOT, full).replaceAll('\\', '/');
-        if (relative === 'packages/core/src/session-registry.ts') continue;
+        if (relative === 'packages/core/src/session-catalog/session-registry.ts') continue;
         const source = await fs.readFile(full, 'utf8');
         if (source.includes('session-registry.json')) violations.push(relative);
         if (

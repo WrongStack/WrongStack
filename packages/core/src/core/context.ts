@@ -9,34 +9,14 @@ import type { SessionEvent, SessionWriter } from '../types/session.js';
 import type { TokenCounter } from '../types/token-counter.js';
 import type { Tool } from '../types/tool.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
+import type { AgentContext, ContextMessageLimits } from '../types/context.js';
+import type { RunEnv } from '../types/run-env.js';
 import { ConversationState } from './conversation-state.js';
-import type { RunEnv } from './run-env.js';
 
-export interface TodoItem {
-  id: string;
-  content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  activeForm?: string | undefined;
-  /** When promoted from a plan item, stores the plan item's id. */
-  promotedFromPlan?: string | undefined;
-  /** When promoted from a task, stores the task's id. */
-  promotedFromTask?: string | undefined;
-  /** Durable Kanban owner when the todo row is a UI projection of a real card. */
-  kanbanBoardId?: string | undefined;
-  /** Durable Kanban card represented by this todo row. */
-  kanbanTaskId?: string | undefined;
-  /**
-   * Titles of the unfinished work this row waits on, derived from the Kanban
-   * card's dependencies. Always board-derived, never model-supplied.
-   *
-   * A blocked item is genuinely `pending` — it has not started — so this is an
-   * extra field rather than a fourth status. What was missing was never the
-   * state but the *reason*: the board computes readiness on every mutation,
-   * then the projection dropped it, leaving blocked work indistinguishable
-   * from ready work on screen and in the model's context.
-   */
-  blockedBy?: string[] | undefined;
-}
+// Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
+// (single source of truth, acyclic); re-exported here for existing import paths.
+import type { TodoItem } from '../types/context.js';
+export type { TodoItem };
 
 export interface RunOptions {
   signal?: AbortSignal | undefined;
@@ -111,7 +91,7 @@ export interface ProviderMemoryEvidence {
  * the agent and user to navigate within the project without spawning a new
  * process. All changes must stay inside `projectRoot`.
  */
-export class Context implements RunEnv {
+export class Context implements RunEnv, AgentContext {
   messages: Message[] = [];
   /**
    * Maximum number of messages retained in the conversation history.
@@ -283,13 +263,14 @@ export class Context implements RunEnv {
   }
 
   /** Callbacks fired when `setWorkingDir()` changes the working directory. */
-  private _onWorkingDirChanged: Array<(newDir: string, oldDir: string) => void> = [];
+  /** WorkingDir-change callbacks; public for structural typing (Roadmap 10A). */
+  readonly _onWorkingDirChanged: Array<(newDir: string, oldDir: string) => void> = [];
   /**
    * Serializes externally requested provider/model changes. Request creation
    * waits on this barrier so an automatic continuation cannot capture the old
    * model while a user-triggered switch is still building its provider.
    */
-  private _modelTransition: Promise<void> = Promise.resolve();
+  _modelTransition: Promise<void> = Promise.resolve();
 
   runModelTransition<T>(transition: () => T | Promise<T>): Promise<T> {
     const result = this._modelTransition.then(transition, transition);
@@ -408,14 +389,14 @@ export class Context implements RunEnv {
    * mutations that go through `state.appendMessage()` etc. fire
    * `onChange`. New code should prefer the wrapper API.
    */
-  private _state: ConversationState | null = null;
-  private readonly _conversationJournalQueue: Array<{
+  _state: ConversationState | null = null;
+  readonly _conversationJournalQueue: Array<{
     event: SessionEvent;
     bytes: number;
     writer: SessionWriter;
   }> = [];
-  private _conversationJournalBytes = 0;
-  private _conversationJournalDrain: Promise<void> | null = null;
+  _conversationJournalBytes = 0;
+  _conversationJournalDrain: Promise<void> | null = null;
   private static readonly CONVERSATION_JOURNAL_MAX_EVENTS = 256;
   private static readonly CONVERSATION_JOURNAL_MAX_BYTES = 4 * 1024 * 1024;
   private static readonly MAX_FILE_EVENTS = 1000;
@@ -438,7 +419,7 @@ export class Context implements RunEnv {
     this._conversationJournalBytes = 0;
   }
 
-  private conversationJournalBytes(event: SessionEvent): number {
+  conversationJournalBytes(event: SessionEvent): number {
     try {
       return Buffer.byteLength(JSON.stringify(event), 'utf8');
     } catch {
@@ -446,11 +427,11 @@ export class Context implements RunEnv {
     }
   }
 
-  private _journalDropCount = 0;
-  private _journalDropWarnAt = 0;
+  _journalDropCount = 0;
+  _journalDropWarnAt = 0;
 
   /** Throttled notice that a conversation event never reached the journal. */
-  private warnConversationJournalDrop(eventType: SessionEvent['type']): void {
+  warnConversationJournalDrop(eventType: SessionEvent['type']): void {
     this._journalDropCount++;
     const now = Date.now();
     if (now - this._journalDropWarnAt < 5_000) return;
@@ -470,7 +451,7 @@ export class Context implements RunEnv {
     );
   }
 
-  private enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void {
+  enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void {
     const bytes = this.conversationJournalBytes(event);
     const shouldSnapshot =
       event.type === 'messages_replaced' ||
@@ -530,7 +511,7 @@ export class Context implements RunEnv {
     this.startConversationJournalDrain();
   }
 
-  private startConversationJournalDrain(): void {
+  startConversationJournalDrain(): void {
     if (this._conversationJournalDrain) return;
     const drain = (async () => {
       while (this._conversationJournalQueue.length > 0) {
@@ -605,7 +586,17 @@ export class Context implements RunEnv {
    * For hooks that must survive across run boundaries (mailbox heartbeat,
    * awareness polling, HQ publisher), prefer `registerAgentHook` instead.
    */
-  private abortHooks = new Set<() => void | Promise<void>>();
+  /** Run-scoped abort hooks (drained by drainAbortHooks). Public for structural typing (Roadmap 10A). */
+  readonly abortHooks = new Set<() => void | Promise<void>>();
+  /** Retention limits honoring runtime subclass overrides of the statics. */
+  get messageLimits(): ContextMessageLimits {
+    const cls = this.constructor as typeof Context;
+    return Object.freeze({
+      maxMessages: cls.MAX_MESSAGES,
+      maxMessageTokens: cls.MAX_MESSAGE_TOKENS,
+    });
+  }
+
   registerAbortHook(fn: () => void | Promise<void>): () => void {
     this.abortHooks.add(fn);
     return () => this.abortHooks.delete(fn);
@@ -635,7 +626,8 @@ export class Context implements RunEnv {
    * awareness polling interval, HQ publisher connection, and auto-compaction
    * timer — resources that must survive from the first run to the last.
    */
-  private agentHooks = new Set<() => void | Promise<void>>();
+  /** Session-lifetime teardown hooks (drained by drainAgentHooks). Public for structural typing (Roadmap 10A). */
+  readonly agentHooks = new Set<() => void | Promise<void>>();
   registerAgentHook(fn: () => void | Promise<void>): () => void {
     this.agentHooks.add(fn);
     return () => this.agentHooks.delete(fn);
@@ -721,7 +713,7 @@ export class Context implements RunEnv {
    * the tool will re-stat the file and re-populate the entry. The agent
    * never fails or misbehaves; it just pays one extra stat call.
    */
-  private trimTrackedFiles(): void {
+  trimTrackedFiles(): void {
     Context.trimSet(this.readFiles, Context.MAX_TRACKED_FILES);
     Context.trimSet(this.writtenFiles, Context.MAX_TRACKED_FILES);
     Context.trimMap(this.fileMtimes, Context.MAX_TRACKED_FILES);
@@ -851,12 +843,8 @@ export class Context implements RunEnv {
           ? (this.provider as { id: string }).id
           : String(this.provider),
       model: this.model,
-      ...(this.activeLogicalRequestId
-        ? { logicalRequestId: this.activeLogicalRequestId }
-        : {}),
-      ...(this.activePromptManifestId
-        ? { promptManifestId: this.activePromptManifestId }
-        : {}),
+      ...(this.activeLogicalRequestId ? { logicalRequestId: this.activeLogicalRequestId } : {}),
+      ...(this.activePromptManifestId ? { promptManifestId: this.activePromptManifestId } : {}),
       provenanceConfidence:
         this.activeLogicalRequestId && this.activePromptManifestId ? 'explicit' : 'unknown',
       toolName: input.toolName,

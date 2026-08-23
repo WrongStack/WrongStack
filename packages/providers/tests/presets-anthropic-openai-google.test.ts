@@ -34,7 +34,7 @@ function mkFetch(body: ReadableStream<Uint8Array>): typeof fetch {
 }
 
 async function collectFromPreset(
-  format: Parameters<typeof WireFormatProvider>[0],
+  format: ConstructorParameters<typeof WireFormatProvider>[0],
   body: ReadableStream<Uint8Array>,
   model: string,
 ): Promise<StreamEvent[]> {

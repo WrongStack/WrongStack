@@ -75,6 +75,9 @@ vi.mock('../src/shutdown-cleanup.js', () => ({
 
 vi.mock('@wrongstack/core/storage', () => ({
   getSessionRegistry: t.getSessionRegistryMock,
+}));
+
+vi.mock('@wrongstack/core/coordination', () => ({
   AgentStatusTracker: t.AgentStatusTrackerMock,
   FleetNotifier: t.FleetNotifierMock,
 }));

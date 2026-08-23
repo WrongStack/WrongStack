@@ -5,8 +5,17 @@ export interface ProviderCacheStats {
   input: number;
   cacheRead: number;
   cacheWrite: number;
-  /** cacheRead / complete prompt context for this provider. */
+  /** cacheRead / complete prompt context for this provider. Clamped to [0, 1]. */
   hitRatio: number;
+  /**
+   * Tokens written into the cache by this provider, split by TTL when the
+   * upstream exposes the breakdown. Anthropic-family providers (incl.
+   * MiniMax on the Anthropic surface) emit `cache_creation` with a 5-min
+   * and a 1-hour sub-bucket; OpenAI-family gateways emit a single
+   * aggregate and leave these undefined.
+   */
+  cacheWrite5m?: number | undefined;
+  cacheWrite1h?: number | undefined;
 }
 
 export interface CacheStats {
@@ -14,6 +23,16 @@ export interface CacheStats {
   readTokens: number;
   /** Tokens written into the cache (more expensive than input on first hit). */
   writeTokens: number;
+  /**
+   * 5-minute cache-write tokens for providers that expose the TTL split
+   * (Anthropic family). Undefined when the provider only emits an aggregate.
+   */
+  cacheWrite5m?: number | undefined;
+  /**
+   * 1-hour cache-write tokens for providers that expose the TTL split
+   * (Anthropic family). Undefined when the provider only emits an aggregate.
+   */
+  cacheWrite1h?: number | undefined;
   /** Hit ratio: cacheRead / total prompt context. Clamped to [0, 1]. */
   hitRatio: number;
   /**

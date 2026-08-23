@@ -17,6 +17,7 @@
 import type { RunTurnApi } from '@wrongstack/acp/agent';
 import { Agent, Context, createDefaultPipelines } from '@wrongstack/core/agent';
 import { ToolExecutor } from '@wrongstack/core/execution';
+import { wireKanbanPorts } from '@wrongstack/runtime';
 import { DefaultLogger, DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
@@ -313,6 +314,8 @@ export function buildAcpServerAgentFactory(
     // ACP-backed versions that operate on the CLIENT's filesystem and
     // terminal — so the editor's view (incl. unsaved buffers) is the source
     // of truth. A fresh registry avoids mutating the shared builtin one.
+    // Composition-root wiring (#11): governance port fires per tool call.
+    wireKanbanPorts();
     const source = deps.toolRegistry ?? new ToolRegistry();
     const tools = source.clone();
     if (api) {

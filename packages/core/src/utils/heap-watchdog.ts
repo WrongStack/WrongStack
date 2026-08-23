@@ -19,7 +19,11 @@
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { PerformanceObserver, constants as performanceConstants } from 'node:perf_hooks';
+import {
+  type PerformanceEntry,
+  PerformanceObserver,
+  constants as performanceConstants,
+} from 'node:perf_hooks';
 import * as v8 from 'node:v8';
 import type {
   HeapDiagnosticFields,
