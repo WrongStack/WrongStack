@@ -43,7 +43,7 @@
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=111; wins=109 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=112; wins=110 -->
 - **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `noUnusedLocals: true`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-23T16:14:53.114Z · 8 entries*
+*Last capture: 2026-08-23T16:54:05.765Z · 8 entries*
