@@ -20,12 +20,78 @@ import { defineWireFormat } from '../wire-format.js';
 
 type BlockKind = 'text' | 'tool_use' | 'thinking' | 'unknown';
 
+/**
+ * Anthropic usage object as it appears on the wire (`message_start.message.usage`
+ * and `message_delta.usage`). All fields optional: different gateway shapes
+ * report different subsets, and `message_delta` canonically carries only
+ * `output_tokens`.
+ */
+type AnthropicUsageWire = {
+  input_tokens?: number | undefined;
+  output_tokens?: number | undefined;
+  cache_read_input_tokens?: number | undefined;
+  cache_creation_input_tokens?: number | undefined;
+  cache_creation?: {
+    ephemeral_5m_input_tokens?: number | undefined;
+    ephemeral_1h_input_tokens?: number | undefined;
+  } | undefined;
+};
+
+/**
+ * Merge a wire usage object into the stream state's canonical `Usage`.
+ * Present fields overwrite; absent fields keep the previously-seen value, so
+ * `message_start` + `message_delta` accumulate into one authoritative figure
+ * and late-reporting gateways never clobber earlier cache telemetry with
+ * undefined.
+ */
+function mergeAnthropicUsage(state: AnthropicStreamState, u: AnthropicUsageWire | undefined): void {
+  if (!u) return;
+  if (u.input_tokens !== undefined) state.usage.input = u.input_tokens;
+  if (u.output_tokens !== undefined) state.usage.output = u.output_tokens;
+  if (u.cache_read_input_tokens !== undefined) state.usage.cacheRead = u.cache_read_input_tokens;
+  if (u.cache_creation?.ephemeral_5m_input_tokens !== undefined) {
+    state.usage.cacheWrite5m = u.cache_creation.ephemeral_5m_input_tokens;
+  }
+  if (u.cache_creation?.ephemeral_1h_input_tokens !== undefined) {
+    state.usage.cacheWrite1h = u.cache_creation.ephemeral_1h_input_tokens;
+  }
+  // Prefer the explicit aggregate; derive it from the TTL split when only the
+  // split was reported. The derivation reads the RETAINED state, not just
+  // this event's values — a gateway may report the 5m bucket on
+  // message_start and the 1h bucket on message_delta, in which case the
+  // aggregate must be the sum of both. Once an explicit aggregate has been
+  // seen, stop deriving: a later partial split must not clobber the
+  // authoritative figure with a smaller sum. Absent buckets stay absent on
+  // the canonical Usage (never fabricated zeros — see the partial-TTL pinning
+  // test), so the split-presence signal downstream is preserved.
+  if (u.cache_creation_input_tokens !== undefined) {
+    state.usage.cacheWrite = u.cache_creation_input_tokens;
+    state.cacheWriteFromAggregate = true;
+  } else if (
+    !state.cacheWriteFromAggregate &&
+    (state.usage.cacheWrite5m !== undefined || state.usage.cacheWrite1h !== undefined)
+  ) {
+    state.usage.cacheWrite = (state.usage.cacheWrite5m ?? 0) + (state.usage.cacheWrite1h ?? 0);
+  }
+}
+
+
 export interface AnthropicStreamState {
   model: string;
   usage: Usage;
   stopReason: StopReason;
   started: boolean;
   stopped: boolean;
+  /**
+   * Provenance: true once any event supplied an explicit
+   * `cache_creation_input_tokens` aggregate. While true, the TTL-split
+   * derivation in `mergeAnthropicUsage` must not overwrite
+   * `usage.cacheWrite` — the gateway's authoritative aggregate outranks any
+   * sum derived from the (possibly partial) ephemeral buckets on later
+   * events. Optional so external constructors of this state stay valid;
+   * undefined behaves as false.
+   */
+  cacheWriteFromAggregate?: boolean | undefined;
   // `chunks` accumulates tool-call `input_json_delta` fragments; joined once at
   // content_block_stop. Array-of-chunks avoids O(n²) string concatenation for
   // large tool inputs delivered as many small deltas (mirrors presets/openai.ts).
@@ -137,31 +203,12 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
         const message = ev['message'] as
           | {
               model?: string | undefined;
-              usage?: {
-                input_tokens?: number | undefined;
-                cache_read_input_tokens?: number | undefined;
-                cache_creation_input_tokens?: number | undefined;
-                cache_creation?: {
-                  ephemeral_5m_input_tokens?: number | undefined;
-                  ephemeral_1h_input_tokens?: number | undefined;
-                } | undefined;
-              };
+              usage?: AnthropicUsageWire | undefined;
             }
           | undefined;
         if (message?.model) state.model = message.model;
-        const cacheWrite5m = message?.usage?.cache_creation?.ephemeral_5m_input_tokens;
-        const cacheWrite1h = message?.usage?.cache_creation?.ephemeral_1h_input_tokens;
-        const cacheWriteAggregate =
-          message?.usage?.cache_creation_input_tokens ??
-          ((cacheWrite5m ?? 0) + (cacheWrite1h ?? 0) || undefined);
-        state.usage = {
-          input: message?.usage?.input_tokens ?? 0,
-          output: 0,
-          cacheRead: message?.usage?.cache_read_input_tokens,
-          cacheWrite: cacheWriteAggregate,
-          cacheWrite5m,
-          cacheWrite1h,
-        };
+        state.usage = { input: 0, output: 0 };
+        mergeAnthropicUsage(state, message?.usage);
         if (!state.started) {
           state.started = true;
           out.push({ type: 'message_start', model: state.model });
@@ -226,13 +273,15 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
       }
       case 'message_delta': {
         const delta = ev['delta'] as { stop_reason?: string | null | undefined } | undefined;
-        const u = ev['usage'] as { output_tokens?: number | undefined } | undefined;
+        const u = ev['usage'] as AnthropicUsageWire | undefined;
         if (delta?.stop_reason !== undefined) {
           state.stopReason = normalizeAnthropic(delta.stop_reason);
         }
-        if (u?.output_tokens !== undefined) {
-          state.usage = { ...state.usage, output: u.output_tokens };
-        }
+        // Canonical Anthropic sends only `output_tokens` here, but
+        // Anthropic-compatible gateways may report the authoritative usage
+        // (including cache telemetry) on this final event. Merge rather than
+        // overwrite so both shapes surface their cache numbers.
+        mergeAnthropicUsage(state, u);
         break;
       }
       case 'message_stop':

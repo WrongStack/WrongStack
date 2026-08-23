@@ -48,7 +48,17 @@ export interface StatusBarRailBuildParams {
   showTokenDisplay: boolean;
   displayTokens: { input: number; output: number };
   cost?: { total: number } | undefined;
-  cache?: { hitRatio: number } | undefined;
+  cache?:
+    | {
+        hitRatio: number;
+        readTokens: number;
+        writeTokens: number;
+        savedUsd: number;
+        /** 5-min / 1-hour cache-write split; present for Anthropic-family providers. */
+        cacheWrite5m?: number | undefined;
+        cacheWrite1h?: number | undefined;
+      }
+    | undefined;
   queueCount?: number | undefined;
   hint?: string | undefined;
   breakerCountdown?: StatusBarProps['breakerCountdown'];
@@ -154,6 +164,13 @@ export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactEleme
               {hasCache ? (
                 <Text dimColor={!isNoColor}>
                   {STATUSLINE_ICONS.cache} {(cache.hitRatio * 100).toFixed(0)}%
+                  {/* Compact read/write figures — `r`/`w` prefixes distinguish
+                      cache tokens from the ↑/↓ request tokens of the tokens
+                      chip. Saved USD last, only when cache reads actually
+                      saved money (0 = no priced cache reads yet). */}
+                  <Text> r{fmtTok(cache.readTokens)}</Text>
+                  <Text> w{fmtTok(cache.writeTokens)}</Text>
+                  {cache.savedUsd > 0 ? <Text> ~${cache.savedUsd.toFixed(2)}</Text> : null}
                 </Text>
               ) : null}
             </Text>

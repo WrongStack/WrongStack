@@ -76,6 +76,14 @@ function computeMaxSidebarScroll(
   // token total + up to six composition rows + marginBottom.
   contentHeight += 14;
 
+  // Prompt cache card: header + hit line always render; with cache activity
+  // the meter, provider-hit, read and write rows appear, and Anthropic-family
+  // providers add the 5m/1h TTL split rows plus the saved-USD row; the
+  // coverage row renders when a cached prefix exists. Cache stats live in the
+  // TokenCounter (not state), so — like the mission queue below — reserve the
+  // worst case: 10 content rows + marginBottom.
+  contentHeight += 11;
+
   // System vitals card (CPU / RAM / HEAP): header + up to 3 metric rows +
   // marginBottom. Only rendered when processMemory or cpuPercent is present
   // (always available in production via useTuiActivity). Worst case 5 rows.

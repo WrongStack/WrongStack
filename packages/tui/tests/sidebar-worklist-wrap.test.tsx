@@ -291,10 +291,11 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // With the new SYSTEM vitals card (+5 rows), the total is
-    // 14 (hero) + 5 (system) + 3 (fleet: empty, header+margin) + 2 (focus)
-    // + 83 (mission) = 107, minus the 20-row viewport = 87 max.
-    expect(s.sidebarScrollOffset).toBe(87);
+    // With the SYSTEM vitals card (+5 rows) and the prompt cache card
+    // (+11 rows), the total is 14 (hero) + 11 (cache) + 5 (system)
+    // + 3 (fleet: empty, header+margin) + 2 (focus)
+    // + 83 (mission) = 118, minus the 20-row viewport = 98 max.
+    expect(s.sidebarScrollOffset).toBe(98);
   });
 
   // Regression for Medium #2 (effectiveSwarmOnSidebar dual source): when
@@ -313,9 +314,9 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
         effectiveSwarmOnSidebar: true,
       });
     }
-    // Same 87-row max as the picker-draft case (the effective boolean
+    // Same 98-row max as the picker-draft case (the effective boolean
     // produces the same content height when both report 'sidebar').
-    expect(s.sidebarScrollOffset).toBe(87);
+    expect(s.sidebarScrollOffset).toBe(98);
   });
 
   // Regression for Medium #1 (twin-row viewport subtraction): when one
@@ -342,8 +343,8 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
         effectiveSwarmOnSidebar: true,
       });
     }
-    // contentHeight 107 − viewport 12 (20−8 twin) = 95.
-    expect(s.sidebarScrollOffset).toBe(95);
+    // contentHeight 118 − viewport 12 (20−8 twin) = 106.
+    expect(s.sidebarScrollOffset).toBe(106);
   });
 
   // Mirror test for the `??` fallback in `computeMaxSidebarScroll`:
@@ -351,18 +352,18 @@ describe('sidebar scroll clamp reserves enough range for wrapped mission rows', 
   // read the picker draft (`state.settingsPicker.showAgentSwarmPanel`).
   // With the default state (picker draft = 'bottom'), the mission
   // queue reservation is absent, so the content height is the
-  // hero + system vitals + focus = 21 rows (14 + 5 + 2), viewport 20
-  // → max scroll = 1. A future flip of the `??` to a hardcoded `true`
-  // (or default `false`) would be caught by this assertion diverging
-  // from 1.
+  // hero + cache + system vitals + focus = 32 rows (14 + 11 + 5 + 2),
+  // viewport 20 → max scroll = 12. A future flip of the `??` to a
+  // hardcoded `true` (or default `false`) would be caught by this
+  // assertion diverging from 12.
   it('falls back to the picker draft when effectiveSwarmOnSidebar is omitted', () => {
     let s = createTestState();
     s = reducer(s, { type: 'toggleSidebarFocus' });
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // contentHeight 21 (14 hero + 5 system + 2 focus) − viewport 20 = 1.
-    expect(s.sidebarScrollOffset).toBe(1);
+    // contentHeight 32 (14 hero + 11 cache + 5 system + 2 focus) − viewport 20 = 12.
+    expect(s.sidebarScrollOffset).toBe(12);
   });
 
   // End-to-end regression for the dual-source `effectiveSwarmOnSidebar`

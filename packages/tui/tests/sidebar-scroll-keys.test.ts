@@ -69,10 +69,10 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // The model/context hero (13 rows) + SYSTEM vitals card (5 rows) = 18,
-    // which still fits within the default 20-row viewport without creating
-    // blank scroll space.
-    expect(s.sidebarScrollOffset).toBe(0);
+    // The model/context hero (14 rows) + prompt cache card (11 rows) + SYSTEM
+    // vitals card (5 rows) = 30, which exceeds the default 20-row viewport by
+    // 10 — the clamp allows exactly that much scroll.
+    expect(s.sidebarScrollOffset).toBe(10);
   });
 
   it('sidebarScroll allows scrolling when content exceeds viewport', () => {
@@ -93,10 +93,11 @@ describe('Sidebar focus + scroll key routing', () => {
     for (let i = 0; i < 200; i++) {
       s = reducer(s, { type: 'sidebarScroll', delta: 1 });
     }
-    // Sidebar mode reserves the 14-row model/context hero, 5-row system vitals
-    // card, grouped swarm card, and mission queue's worst-case wrapped height:
-    // 14 + 5 + 28 + 83 = 130 total, minus the 20-row viewport = 110 max.
-    expect(s.sidebarScrollOffset).toBe(110);
+    // Sidebar mode reserves the 14-row model/context hero, 11-row prompt
+    // cache card, 5-row system vitals card, grouped swarm card, and mission
+    // queue's worst-case wrapped height:
+    // 14 + 11 + 5 + 28 + 83 = 141 total, minus the 20-row viewport = 121 max.
+    expect(s.sidebarScrollOffset).toBe(121);
   });
 
   it('sidebarScrollReset sets offset to 0', () => {

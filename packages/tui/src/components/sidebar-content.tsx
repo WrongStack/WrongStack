@@ -740,6 +740,33 @@ export function SidebarContent({
                   accent={theme.warn}
                   innerWidth={bodyWidth}
                 />
+                {cs.cacheWrite5m !== undefined && cs.cacheWrite1h !== undefined ? (
+                  <>
+                    <SidebarStatRow
+                      label="write 5m"
+                      value={fmtTok(cs.cacheWrite5m)}
+                      color={theme.textSecondary}
+                      accent={theme.warn}
+                      innerWidth={bodyWidth}
+                    />
+                    <SidebarStatRow
+                      label="write 1h"
+                      value={fmtTok(cs.cacheWrite1h)}
+                      color={theme.textSecondary}
+                      accent={theme.warn}
+                      innerWidth={bodyWidth}
+                    />
+                  </>
+                ) : null}
+                {cs.savedUsd > 0 ? (
+                  <SidebarStatRow
+                    label="saved"
+                    value={`~${cs.savedUsd.toFixed(2)}`}
+                    color={theme.success}
+                    accent={theme.success}
+                    innerWidth={bodyWidth}
+                  />
+                ) : null}
               </>
             ) : null}
             {cacheCoverageTokens > 0 && contextWindow ? (

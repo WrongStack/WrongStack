@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.310.1] — 2026-08-23
+
+### Fixed
+
+- **Anthropic usage accumulation keeps cache telemetry across `message_start` → `message_delta`.** `packages/providers/src/presets/anthropic.ts` previously rebuilt `state.usage` from scratch on `message_start` (resetting cache fields to a freshly-derived aggregate), then replaced it again on `message_delta` with only `output_tokens`, silently zeroing cache read/write figures that had already arrived. Worse, the TTL-split derivation (`cacheWrite5m + cacheWrite1h`) ran unconditionally on every event, so a partial-TTL gateway that reported the 5m bucket on `message_start` and the 1h bucket on `message_delta` had the later event overwrite the prior. A new `mergeAnthropicUsage()` helper unifies both paths: present fields overwrite, absent fields keep the previously-seen value, and a new `cacheWriteFromAggregate` provenance flag (set once any event supplies the explicit `cache_creation_input_tokens` aggregate) prevents the TTL-split sum from clobbering an authoritative aggregate when only a partial split is reported later. Absent buckets stay absent on the canonical `Usage` — the split-presence signal downstream consumers rely on is preserved instead of being fabric­ated to zero. Backed by a new 195-line `presets-anthropic-openai-google.test.ts` covering message_start, message_delta, partial-TTL, mixed-shape, and authoritative-aggregate-pinning scenarios.
+- **TUI sidebar scroll clamp accounts for the new cache card.** `packages/tui/src/reducers/workspace-panels.ts` raised `computeMaxSidebarScroll`'s prompt-cache reservation by 11 rows so a sidebar with the full cache card (header + hit line + meter + provider-hit + read + write + 5m/1h TTL split + saved USD + coverage + margin) plus the system vitals card still scrolls to its last item instead of clipping the bottom row. `sidebar-scroll-keys.test.ts` and `sidebar-worklist-wrap.test.tsx` were updated to pin the new scroll maxima (110 → 121, 87 → 98, 95 → 106, 1 → 12).
+- **Anthropic-compatible gateway usage on `message_delta` is now merged, not replaced.** Gateways that send the full `usage` object on the final event (not just `output_tokens`) used to lose everything but `output_tokens` because the handler wrote `state.usage = { ...state.usage, output: u.output_tokens }` — early cache telemetry was wiped. The merge now also reads `input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, and the `ephemeral_5m_input_tokens` / `ephemeral_1h_input_tokens` split when a non-canonical gateway reports them on the final event.
+
+### Added
+
+- **TUI prompt-cache card surfaces the 5m/1h TTL split and a saved-USD row.** `packages/tui/src/components/sidebar-content.tsx` now renders `write 5m` and `write 1h` rows under the cache card when both TTL buckets are present, plus a green `saved ~$N.NN` row whenever priced cache reads have actually saved money (zero rows when they haven't — no zero-fabrication). The primary cache chip in `packages/tui/src/components/status-bar-rails.tsx` also grew compact `r<read> w<write>` figures after the hit-ratio and a `~$saved` tail when `cache.savedUsd > 0`, with the `r`/`w` prefixes chosen to distinguish cache tokens from the ↑/↓ request tokens of the tokens chip. `StatusBarRailBuildParams.cache` gained `readTokens`, `writeTokens`, `savedUsd`, and the optional `cacheWrite5m` / `cacheWrite1h` TTL split.
+
+### Changed
+
+- **All release surfaces are aligned to `0.310.1`.** The root and 33 workspace manifests, both apps, the website `package.json` + `package-lock.json`, and `website/src/lib/utils.ts` `META.version` and JSON-LD `softwareVersion` now match the published manifests.
+
 ## [0.310.0] — 2026-08-23
 
 ### Changed

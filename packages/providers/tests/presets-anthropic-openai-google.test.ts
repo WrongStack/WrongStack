@@ -518,6 +518,201 @@ describe('Anthropic preset - cache metadata', () => {
       cacheWrite1h: 100,
     });
   });
+
+  it('merges cache telemetry reported on message_delta without clobbering message_start values', async () => {
+    // Gateway shape: message_start reports the prompt-side usage, then the
+    // FINAL message_delta carries the authoritative cache totals. The old
+    // parser read only output_tokens here and silently dropped the rest.
+    const events = await collectFromPreset(
+      anthropicWireFormat,
+      sseBody([
+        JSON.stringify({
+          type: 'message_start',
+          message: {
+            model: 'c',
+            usage: { input_tokens: 120, cache_read_input_tokens: 40 },
+          },
+        }),
+        JSON.stringify({
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn' },
+          usage: {
+            output_tokens: 12,
+            cache_read_input_tokens: 900,
+            cache_creation: {
+              ephemeral_5m_input_tokens: 150,
+              ephemeral_1h_input_tokens: 50,
+            },
+          },
+        }),
+        JSON.stringify({ type: 'message_stop' }),
+      ]),
+      'c',
+    );
+    const stop = events.find((e) => e.type === 'message_stop');
+    expect(
+      (stop as {
+        usage: {
+          input: number;
+          output: number;
+          cacheRead: number;
+          cacheWrite: number;
+          cacheWrite5m: number;
+          cacheWrite1h: number;
+        };
+      }).usage,
+    ).toMatchObject({
+      input: 120, // preserved from message_start
+      output: 12, // updated by message_delta
+      cacheRead: 900, // authoritative final value wins
+      cacheWrite: 200, // derived from the TTL split
+      cacheWrite5m: 150,
+      cacheWrite1h: 50,
+    });
+  });
+
+  // Pins the partial-TTL derivation in mergeAnthropicUsage: gateways may send
+  // only one of ephemeral_5m_input_tokens / ephemeral_1h_input_tokens. The
+  // absent bucket must stay undefined (never a fabricated 0 — cacheStats()
+  // uses the split's presence to decide whether to expose the TTL row at
+  // all), and cacheWrite is derived as the defined bucket + 0. An explicit
+  // cache_creation_input_tokens aggregate, when present, takes precedence
+  // over the derivation.
+  it('derives cacheWrite from a partial TTL split without fabricating the absent bucket', async () => {
+    type StopUsage = {
+      usage: {
+        input: number;
+        output: number;
+        cacheWrite?: number | undefined;
+        cacheWrite5m?: number | undefined;
+        cacheWrite1h?: number | undefined;
+      };
+    };
+
+    // Only the 1-hour bucket is defined.
+    const oneHourOnly = (
+      await collectFromPreset(
+        anthropicWireFormat,
+        sseBody([
+          JSON.stringify({
+            type: 'message_start',
+            message: {
+              model: 'c',
+              usage: {
+                input_tokens: 50,
+                cache_creation: { ephemeral_1h_input_tokens: 80 },
+              },
+            },
+          }),
+          JSON.stringify({ type: 'message_stop' }),
+        ]),
+        'c',
+      )
+    )
+      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    expect(oneHourOnly?.usage.cacheWrite).toBe(80); // derived: (5m ?? 0) + 1h
+    expect(oneHourOnly?.usage.cacheWrite1h).toBe(80);
+    // The absent bucket must stay absent — never a fabricated 0. Downstream,
+    // cacheStats() treats "both TTL fields present" as the signal to expose
+    // the 5m/1h row, so a 0 here would fabricate a TTL split the wire never
+    // reported.
+    expect(oneHourOnly?.usage.cacheWrite5m).toBeUndefined();
+    expect(oneHourOnly?.usage).not.toHaveProperty('cacheWrite5m');
+
+    // Only the 5-minute bucket is defined.
+    const fiveMinOnly = (
+      await collectFromPreset(
+        anthropicWireFormat,
+        sseBody([
+          JSON.stringify({
+            type: 'message_start',
+            message: {
+              model: 'c',
+              usage: {
+                input_tokens: 50,
+                cache_creation: { ephemeral_5m_input_tokens: 60 },
+              },
+            },
+          }),
+          JSON.stringify({ type: 'message_stop' }),
+        ]),
+        'c',
+      )
+    )
+      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    expect(fiveMinOnly?.usage.cacheWrite).toBe(60); // derived: 5m + (1h ?? 0)
+    expect(fiveMinOnly?.usage.cacheWrite5m).toBe(60);
+    expect(fiveMinOnly?.usage.cacheWrite1h).toBeUndefined();
+    expect(fiveMinOnly?.usage).not.toHaveProperty('cacheWrite1h');
+
+    // Explicit aggregate alongside a partial split: the aggregate wins and
+    // is NOT recomputed from the partial split (80 would under-report here).
+    const aggregateWithPartialSplit = (
+      await collectFromPreset(
+        anthropicWireFormat,
+        sseBody([
+          JSON.stringify({
+            type: 'message_start',
+            message: {
+              model: 'c',
+              usage: {
+                input_tokens: 50,
+                cache_creation_input_tokens: 200,
+                cache_creation: { ephemeral_1h_input_tokens: 80 },
+              },
+            },
+          }),
+          JSON.stringify({ type: 'message_stop' }),
+        ]),
+        'c',
+      )
+    )
+      .find((e) => e.type === 'message_stop') as StopUsage | undefined;
+    // Explicit aggregate takes precedence over the TTL-derived sum.
+    expect(aggregateWithPartialSplit?.usage.cacheWrite).toBe(200);
+    expect(aggregateWithPartialSplit?.usage.cacheWrite1h).toBe(80);
+    expect(aggregateWithPartialSplit?.usage.cacheWrite5m).toBeUndefined();
+    expect(aggregateWithPartialSplit?.usage).not.toHaveProperty('cacheWrite5m');
+  });
+
+  // Regression: a gateway may split the TTL buckets across events — the 5m
+  // bucket on message_start, the 1h bucket on message_delta. The derived
+  // aggregate must be computed from the RETAINED state (150 + 80 = 230), not
+  // recomputed from only the latest event's bucket (which yielded 80 and
+  // silently dropped the message_start write from writeTokens/savedUsd).
+  it('sums TTL buckets reported across different events into the derived cacheWrite', async () => {
+    const events = await collectFromPreset(
+      anthropicWireFormat,
+      sseBody([
+        JSON.stringify({
+          type: 'message_start',
+          message: {
+            model: 'c',
+            usage: {
+              input_tokens: 100,
+              cache_creation: { ephemeral_5m_input_tokens: 150 },
+            },
+          },
+        }),
+        JSON.stringify({
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn' },
+          usage: {
+            output_tokens: 10,
+            cache_creation: { ephemeral_1h_input_tokens: 80 },
+          },
+        }),
+        JSON.stringify({ type: 'message_stop' }),
+      ]),
+      'c',
+    );
+    const stop = events.find((e) => e.type === 'message_stop') as {
+      usage: { cacheWrite: number; cacheWrite5m: number; cacheWrite1h: number };
+    } | undefined;
+    expect(stop?.usage.cacheWrite).toBe(230); // retained 5m + new 1h
+    expect(stop?.usage.cacheWrite5m).toBe(150);
+    expect(stop?.usage.cacheWrite1h).toBe(80);
+  });
 });
 
 describe('OpenAI preset - buildUrl variants', () => {
