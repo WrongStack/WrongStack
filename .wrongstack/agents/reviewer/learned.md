@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=461; wins=460 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=462; wins=461 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-22T23:44:13.928Z · 8 entries*
+*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*
