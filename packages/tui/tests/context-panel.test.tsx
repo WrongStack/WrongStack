@@ -71,6 +71,30 @@ function baseData(overrides: Partial<ContextPanelData> = {}): ContextPanelData {
 }
 
 describe('ContextPanel tabs', () => {
+  it('shows provider-specific prompt cache hit ratios on the overview', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(ContextPanel, {
+        data: baseData({
+          cacheStats: { readTokens: 1100, writeTokens: 100, hitRatio: 0.6875, savedUsd: 0 },
+          providerCacheStats: [
+            { provider: 'minimax', input: 200, cacheRead: 800, cacheWrite: 0, hitRatio: 0.8 },
+            {
+              provider: 'anthropic',
+              input: 100,
+              cacheRead: 300,
+              cacheWrite: 100,
+              hitRatio: 0.6,
+            },
+          ],
+        }),
+        onClose: () => {},
+      }),
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Providers minimax 80.0% · anthropic 60.0%');
+    unmount();
+  });
+
   it('opens on the Overview tab and does not render other tabs', () => {
     const { lastFrame, unmount } = render(
       React.createElement(ContextPanel, { data: baseData(), onClose: () => {} }),

@@ -13,14 +13,10 @@
  * Public surface: `runWebUI` plus WS message shapes.
  */
 import type { Server as HttpServer } from 'node:http';
-import { findPackageJSON } from 'node:module';
 import * as path from 'node:path';
 import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { ProviderConfig } from '@wrongstack/core/types';
-import {
-  startSharedHeapWatchdog,
-  wstackGlobalRoot,
-} from '@wrongstack/core/utils';
+import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import {
   buildWebUIAccessUrl,
@@ -31,6 +27,7 @@ import {
   type EmbeddedProviderContext,
   envFlag,
   findFreePort,
+  findInstalledPackageJson,
   isStrictPort,
   type PendingConfirm,
   resolveAuthToken,
@@ -64,9 +61,7 @@ import {
 import { startDeferredHttpListen, startIpv6LoopbackProxy } from './webui-server/listen-helpers.js';
 import { consoleLogger } from './webui-server/logger-shim.js';
 import { createPrefsSeeding, seedConfigToMeta } from './webui-server/prefs-seeding.js';
-import {
-  createProviderConfigStore,
-} from './webui-server/provider-config.js';
+import { createProviderConfigStore } from './webui-server/provider-config.js';
 import { createWebuiRouteContexts } from './webui-server/route-contexts.js';
 import { createSessionStartPayloadBuilder } from './webui-server/session-start-payload.js';
 import { createSetupEvents } from './webui-server/setup-events.js';
@@ -220,7 +215,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     distDir: opts.frontendDistDir,
     ensureDistDeps: {
       resolvePackageJson: (id) => {
-        const packageJson = findPackageJSON(id, import.meta.url);
+        const packageJson = findInstalledPackageJson(id, import.meta.url);
         if (!packageJson) throw new Error(`Package not found: ${id}`);
         return packageJson;
       },
@@ -239,9 +234,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     requireToken,
     deferListen: surface === 'simpleui',
     strictPort,
-    ...(opts.getVectorMemoryStore
-      ? { getVectorMemoryStore: opts.getVectorMemoryStore }
-      : {}),
+    ...(opts.getVectorMemoryStore ? { getVectorMemoryStore: opts.getVectorMemoryStore } : {}),
     ...(opts.vectorMemoryModelCacheDir
       ? { vectorMemoryModelCacheDir: opts.vectorMemoryModelCacheDir }
       : {}),
@@ -289,7 +282,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       server: httpServer.server,
       host,
       httpPort,
-      open: !(!opts.open),
+      open: !!opts.open,
       wsToken,
       publicUrl,
     });
@@ -400,7 +393,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     opts,
     profileConfigPath,
     broadcast,
-    broadcastSaved: (providers) => embeddedProviderOperations.broadcastSaved(providers as Record<string, ProviderConfig>),
+    broadcastSaved: (providers) =>
+      embeddedProviderOperations.broadcastSaved(providers as Record<string, ProviderConfig>),
   });
 
   const routeContexts = createWebuiRouteContexts({

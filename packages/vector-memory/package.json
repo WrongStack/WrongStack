@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@wrongstack/core": "workspace:*",
+    "@wrongstack/persistence": "workspace:*",
     "@wrongstack/sage": "workspace:*"
   },
   "optionalDependencies": {

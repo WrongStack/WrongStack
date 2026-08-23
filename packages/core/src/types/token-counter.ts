@@ -1,5 +1,14 @@
 import type { Usage } from './provider.js';
 
+export interface ProviderCacheStats {
+  provider: string;
+  input: number;
+  cacheRead: number;
+  cacheWrite: number;
+  /** cacheRead / complete prompt context for this provider. */
+  hitRatio: number;
+}
+
 export interface CacheStats {
   /** Tokens served from cache (cheaper). */
   readTokens: number;
@@ -14,6 +23,8 @@ export interface CacheStats {
    * this is the gross read discount, the figure users recognize as "saved".
    */
   savedUsd: number;
+  /** Session totals split by routed provider, most cache-read tokens first. */
+  providers?: ProviderCacheStats[] | undefined;
 }
 
 export interface TokenCounter {

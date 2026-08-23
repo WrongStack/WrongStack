@@ -22,8 +22,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
-import { getWSClient } from '@/lib/ws-client';
 import { useAppTranslation } from '@/i18n';
+import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
 import { Pagination } from './ui/pagination';
 
@@ -74,7 +74,18 @@ interface StatsPayload {
   provider: string;
   model: string;
   usage: { input: number; output: number; cacheRead?: number };
-  cache: { hits: number; misses: number; ratio: number };
+  cache: {
+    readTokens: number;
+    writeTokens: number;
+    hitRatio: number;
+    providers?: Array<{
+      provider: string;
+      input: number;
+      cacheRead: number;
+      cacheWrite: number;
+      hitRatio: number;
+    }>;
+  };
   cost: number;
   messages: number;
   readFiles: number;
@@ -466,12 +477,35 @@ export function AnalyticsDashboard() {
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
                   <span className="text-muted-foreground">{t('activity:analytics.cacheRatio')}</span>
-                  <p className="mt-0.5 tabular-nums text-foreground">{(stats.cache.ratio * 100).toFixed(1)}%</p>
+                  <p className="mt-0.5 tabular-nums text-foreground">
+                    {(stats.cache.hitRatio * 100).toFixed(1)}%
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/50 px-3 py-2">
                   <span className="text-muted-foreground">{t('activity:analytics.filesRead')}</span>
                   <p className="mt-0.5 tabular-nums text-foreground">{stats.readFiles}</p>
                 </div>
+                {(stats.cache.providers?.length ?? 0) > 0 ? (
+                  <div className="col-span-2 rounded-lg border border-border/70 bg-background/50 px-3 py-2">
+                    <span className="text-muted-foreground">Provider cache breakdown</span>
+                    <div className="mt-1.5 space-y-1">
+                      {stats.cache.providers?.map((provider) => (
+                        <div
+                          key={provider.provider}
+                          className="flex flex-wrap items-center justify-between gap-x-3 font-mono"
+                        >
+                          <span className="text-foreground">{provider.provider}</span>
+                          <span className="tabular-nums text-success">
+                            {(provider.hitRatio * 100).toFixed(1)}% hit
+                          </span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {fmtTokens(provider.cacheRead)} read · {fmtTokens(provider.cacheWrite)} write
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground">{t('activity:analytics.noSession')}</p>
@@ -498,7 +532,7 @@ export function AnalyticsDashboard() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">{t('activity:analytics.cacheHitRate')}</span>
                     <span className="tabular-nums text-success">
-                      {stats ? `${(stats.cache.ratio * 100).toFixed(1)}%` : '—'}
+                      {stats ? `${(stats.cache.hitRatio * 100).toFixed(1)}%` : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between">

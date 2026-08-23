@@ -493,12 +493,13 @@ function emitDeclarations(entries, outdir) {
 async function bundle(config, defaults) {
   const entries = typeof config.entries === 'function' ? config.entries() : config.entries;
   const outdir = config.outdir ?? defaults.outdir ?? 'dist';
+  const format = config.format ?? defaults.format ?? 'esm';
   await build({
     absWorkingDir: packageRoot,
     entryPoints: entries,
     outdir,
     bundle: true,
-    format: config.format ?? defaults.format ?? 'esm',
+    format,
     platform: config.platform ?? defaults.platform ?? 'node',
     target: config.target ?? defaults.target ?? 'es2023',
     sourcemap: config.sourcemap ?? defaults.sourcemap ?? true,
@@ -525,7 +526,31 @@ async function bundle(config, defaults) {
     logLevel: 'info',
   });
   await stripBannerFromChunks(config, defaults, outdir, entries);
-  return { entries, outdir };
+  return { entries, format, outdir };
+}
+
+function assertEsmNodeBuiltinsStayImportable({ format, outdir }) {
+  if (format !== 'esm') return;
+  const dir = join(packageRoot, outdir);
+  const invalid = [];
+  const walk = (current) => {
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const absolute = join(current, entry.name);
+      if (entry.isDirectory()) {
+        walk(absolute);
+        continue;
+      }
+      if (!entry.name.endsWith('.js')) continue;
+      const source = readFileSync(absolute, 'utf8');
+      if (/\b__require\(["']node:/u.test(source)) invalid.push(relative(packageRoot, absolute));
+    }
+  };
+  walk(dir);
+  if (invalid.length > 0) {
+    throw new Error(
+      `ESM build contains dynamic Node built-in require calls that fail at runtime:\n${invalid.map((file) => `- ${file}`).join('\n')}`,
+    );
+  }
 }
 
 /**
@@ -575,6 +600,7 @@ if (profile.clean !== false && process.env.WRONGSTACK_SKIP_CLEAN !== '1') {
 const builds = profile.builds ?? [profile];
 const emitted = [];
 for (const buildConfig of builds) emitted.push(await bundle(buildConfig, profile));
+for (const buildOutput of emitted) assertEsmNodeBuiltinsStayImportable(buildOutput);
 
 if (profile.declarations !== false) {
   const declarationBuild = emitted[0];

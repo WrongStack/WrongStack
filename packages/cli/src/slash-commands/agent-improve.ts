@@ -1,3 +1,5 @@
+import { readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   captureLearnedFromAgentOutputDetailed,
   getProjectAgentLearnStats,
@@ -39,12 +41,9 @@ export function buildAgentImproveCommand(opts: SlashCommandContext): SlashComman
 
   function listRoles(): string[] {
     try {
-      return require('node:fs')
-        .readdirSync(require('node:path').join(projectRoot, '.wrongstack', 'agents'), {
-          withFileTypes: true,
-        })
-        .filter((d: import('node:fs').Dirent) => d.isDirectory())
-        .map((d: import('node:fs').Dirent) => d.name);
+      return readdirSync(join(projectRoot, '.wrongstack', 'agents'), { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name);
     } catch {
       return [];
     }

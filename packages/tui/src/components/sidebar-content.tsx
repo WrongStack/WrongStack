@@ -476,6 +476,7 @@ export function SidebarContent({
   const cs = cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
   const hasCacheActivity = cs.readTokens > 0 || cs.writeTokens > 0;
   const cacheHitPct = Math.round(cs.hitRatio * 100);
+  const activeProviderCache = cs.providers?.find((entry) => entry.provider === provider);
   const cacheCoveragePct =
     contextWindow && contextWindow.max > 0
       ? Math.min(100, Math.round((cacheCoverageTokens / contextWindow.max) * 100))
@@ -714,6 +715,17 @@ export function SidebarContent({
                     )}
                   </Text>
                 </Box>
+                <SidebarStatRow
+                  label={`${activeProviderCache?.provider ?? provider ?? 'provider'} hit`}
+                  value={
+                    activeProviderCache
+                      ? `${(activeProviderCache.hitRatio * 100).toFixed(1)}%`
+                      : `${cacheHitPct}%`
+                  }
+                  color={theme.success}
+                  accent={theme.success}
+                  innerWidth={bodyWidth}
+                />
                 <SidebarStatRow
                   label="read"
                   value={fmtTok(cs.readTokens)}

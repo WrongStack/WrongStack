@@ -8,15 +8,15 @@
  * @module coordination/sqlite-mailbox-schema
  */
 import * as fs from 'node:fs';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
-import { GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE, GLOBAL_MAILBOX_FILE } from './global-mailbox-paths.js';
 import {
-  CREDENTIAL_STORE_FILE,
-  type MailboxCredential,
-} from './mailbox-credential-store.js';
+  GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
+  GLOBAL_MAILBOX_FILE,
+} from './global-mailbox-paths.js';
+import { CREDENTIAL_STORE_FILE, type MailboxCredential } from './mailbox-credential-store.js';
 import { parseMailboxFile } from './mailbox-parse-state.js';
 import { parseAgentRegistryEntry, parseClientRegistryEntry } from './mailbox-registry-codec.js';
 import type { MailboxMessage, MailboxMessageProjection } from './mailbox-types.js';
@@ -35,8 +35,7 @@ let DatabaseSyncCtor: typeof DatabaseSync | undefined;
 export function loadDatabaseSync(): typeof DatabaseSync {
   if (DatabaseSyncCtor) return DatabaseSyncCtor;
   return withSqliteExperimentalWarningSuppressed(() => {
-    const require = createRequire(import.meta.url);
-    DatabaseSyncCtor = (require('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
+    DatabaseSyncCtor = loadRuntimeDatabaseSync();
     return DatabaseSyncCtor;
   });
 }
@@ -220,9 +219,7 @@ export function migrateLegacyFiles(ctx: SchemaContext): void {
 
 function readLegacyMessages(projectDir: string): MailboxMessage[] {
   try {
-    return parseMailboxFile(
-      fs.readFileSync(path.join(projectDir, GLOBAL_MAILBOX_FILE), 'utf8'),
-    );
+    return parseMailboxFile(fs.readFileSync(path.join(projectDir, GLOBAL_MAILBOX_FILE), 'utf8'));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw error;

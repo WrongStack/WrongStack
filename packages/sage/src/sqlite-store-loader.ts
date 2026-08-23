@@ -1,5 +1,5 @@
-import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 
 /** Sentinel marking in-flight probe. Prevents re-entrant require(). */
 export const DATABASE_SYNC_LOADING: unique symbol = Symbol('database_sync_loading');
@@ -23,10 +23,7 @@ export function probeSqliteAvailable(load?: () => typeof DatabaseSync): boolean 
 }
 
 export function loadDatabaseSync(
-  load: () => typeof DatabaseSync = () => {
-    const req = createRequire(import.meta.url);
-    return (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
-  },
+  load: () => typeof DatabaseSync = loadRuntimeDatabaseSync,
 ): typeof DatabaseSync {
   if (DatabaseSyncCtor === DATABASE_SYNC_LOADING) {
     throw new Error('Re-entrant call to loadDatabaseSync — cycle detected.');
@@ -41,7 +38,7 @@ export function loadDatabaseSync(
   } catch (err) {
     DatabaseSyncCtor = null;
     throw new Error(
-      "SAGE SQLite store needs Node's built-in SQLite (node:sqlite), available since Node 22.5. " +
+      'SAGE SQLite store needs node:sqlite (Node >= 22.5) or bun:sqlite. ' +
         `This runtime doesn't provide it: ${(err as Error).message}`,
     );
   }

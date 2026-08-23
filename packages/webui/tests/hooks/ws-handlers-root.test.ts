@@ -723,6 +723,20 @@ describe('root ws-handler map', () => {
       expect(chat()).toContain(`**Cache:** ${n(5000)} read · ${n(1000)} write · hit ratio 83.3%`);
     });
 
+    it('stores provider-specific cache hit ratios for the WebUI surfaces', () => {
+      const providers = [
+        { provider: 'minimax', input: 200, cacheRead: 800, cacheWrite: 0, hitRatio: 0.8 },
+        { provider: 'anthropic', input: 100, cacheRead: 300, cacheWrite: 100, hitRatio: 0.6 },
+      ];
+      handleStatsGet(
+        msg('stats.get', {
+          ...stats,
+          cache: { readTokens: 1100, writeTokens: 100, hitRatio: 0.6875, providers },
+        }),
+      );
+      expect(useSessionStore.getState().cacheStats?.providers).toEqual(providers);
+    });
+
     it('appends a side-effect warning only when there are any', () => {
       handleStatsGet(msg('stats.get', stats));
       expect(chat()).not.toContain('Side effects');

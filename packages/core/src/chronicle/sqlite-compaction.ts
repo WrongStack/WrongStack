@@ -1,10 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { createRequire } from 'node:module';
-import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { isPidAlive } from '../utils/pid.js';
 import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
-
-const require = createRequire(import.meta.url);
 
 export interface ChronicleSqliteCompactionOptions {
   dbPath: string;
@@ -49,9 +46,7 @@ export function compactChronicleSqlite(
     return { beforeBytes, afterBytes: beforeBytes, reclaimedBytes: 0 };
   }
 
-  const Database = withSqliteExperimentalWarningSuppressed(
-    () => require('node:sqlite').DatabaseSync as typeof DatabaseSync,
-  );
+  const Database = withSqliteExperimentalWarningSuppressed(loadRuntimeDatabaseSync);
   const db = new Database(options.dbPath);
   try {
     db.exec('PRAGMA busy_timeout = 1');

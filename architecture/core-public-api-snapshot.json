@@ -26,7 +26,7 @@
         "export * from './types/index.js';",
         "export * from './utils/index.js';",
         "export type { AgentHeartbeatInput, AgentRegistrationInput, AutoCompactOptions, AutoCompactResult, Mailbox, MailboxAckInput, MailboxAgentStatus, MailboxAudience, MailboxMessage, MailboxMessageType, MailboxQuery, MailboxSendInput, MailboxTaskContext, ReadReceipts, RegisteredAgent, } from './coordination/mailbox-types.js';",
-        "export type { CacheStats, TokenCounter } from './types/token-counter.js';",
+        "export type { CacheStats, ProviderCacheStats, TokenCounter } from './types/token-counter.js';",
         "export type { CascadeAgentKind, ChimeraCascadeNeededPayload, ChimeraReviewCompletePayload, ChimeraReviewNeededPayload, ResolvedChimeraConfig, ReviewContextBundle, } from './plugins/chimera-plugin.js';",
         "export type { ChimeraFinding, ChimeraFindingLocation, ChimeraFindingOrigin, ChimeraFindingResolution, FindingEventType, FindingLifecycleEvent, FindingSeverity, FindingSource, FindingStatus, ResolutionOutcome, } from './plugins/review-finding-types.js';",
         "export type { Compactor, CompactReport } from './types/compactor.js';",
@@ -249,7 +249,7 @@
         "export type { AwaitAnyResult, CoordinatorEvents, CoordinatorStatus, DoneCondition, MultiAgentConfig, MultiAgentCoordinator, SpawnResult, SubagentConfig, SubagentContext, SubagentError, SubagentErrorKind, SubagentPartialResult, SubagentRunContext, SubagentRunner, SubagentRunOutcome, SubagentSpawnLineage, SubagentStructuredReport, TaskDelegation, TaskResult, TaskSpec, } from './multi-agent.js';",
         "export type { BuildContext, ModelCapabilities, SystemPromptBuilder, SystemPromptRegions, } from './system-prompt.js';",
         "export type { BuiltinPromptCategory, PromptCategory, PromptCategoryCount, PromptEntry, PromptLoader, PromptManifest, PromptManifestRef, PromptSearchOptions, PromptSource, PromptVariable, } from './prompt.js';",
-        "export type { CacheStats, TokenCounter } from './token-counter.js';",
+        "export type { CacheStats, ProviderCacheStats, TokenCounter } from './token-counter.js';",
         "export type { CacheTtl, Capabilities, JsonSchemaSpec, Provider, ProviderContextLimit, ProviderErrorBody, ProviderErrorKind, ReasoningConfig, ReasoningEffort, ReasoningRequest, Request, RequestCacheControl, Response, ResponseFormat, SafetySetting, StopReason, StreamEvent, Usage, } from './provider.js';",
         "export type { CheckpointInfo, RewindResult, RewindResultExtended, SessionRewinder, } from './session-rewinder.js';",
         "export type { Compactor, CompactReport } from './compactor.js';",
@@ -1155,14 +1155,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 9382
+      "sourceLines": 9372
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 164,
-      "sourceLines": 47493
+      "sourceLines": 47490
     },
     {
       "directory": "core",
@@ -1225,7 +1225,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1573
+      "sourceLines": 1596
     },
     {
       "directory": "kernel",
@@ -1344,14 +1344,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 66,
-      "sourceLines": 11105
+      "sourceLines": 11116
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10522
+      "sourceLines": 10530
     },
     {
       "directory": "worktree",

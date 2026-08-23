@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=462; wins=461 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=465; wins=464 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -63,7 +63,7 @@
   - *How:* `payload.bundle`
   - *How:* `packages/cli/src/execution-chimera-review.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=58; wins=56 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=60; wins=58 -->
 - **When reviewing a generated ratchet baseline such as `architecture/hotspots.json`, do not judge a metric field by a naive grep — read the generator first (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every form it counts. `relativeImports` includes static `from './x'`, bare side-effect `import './x.css'`, dynamic `import('./x')`, `require()`, and `import x = require()`, so a file whose static imports number 6 can legitimately record 20.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `architecture/hotspots.json`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-23T09:23:06.684Z · 8 entries*
+*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*

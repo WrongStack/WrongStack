@@ -138,8 +138,9 @@ memory, tools, providers, permissions, and the multi-agent runtime actually work
 
 ## Requirements
 
-- **Node.js** ≥ 22.19.0
-- **pnpm** ≥ 11.5.3 (recommended) or npm
+- **npm/pnpm install:** Node.js ≥ 22.19.0 and pnpm ≥ 11.5.3 (recommended) or npm
+- **Bun runtime:** Bun ≥ 1.3.10
+- **Windows portable ZIP:** no separate Node.js or package manager required
 
 ---
 
@@ -160,6 +161,33 @@ Then just run:
 ```bash
 wrongstack        # or the short alias: wstack
 ```
+
+From a source checkout, the same built CLI can run directly on Bun:
+
+```bash
+pnpm build
+bun run start:bun
+```
+
+`pnpm smoke:bun` verifies Bun's SQLite-backed SAGE path, heap watchdog,
+WebUI server module graph, and CLI entry point. Node continues to use
+`node:sqlite`; Bun selects `bun:sqlite` automatically.
+
+### Windows portable executable
+
+Each GitHub release also includes a `wrongstack-v*-windows-*.zip`. Extract the
+whole directory and run `WrongStack.exe`; keep the adjacent `app` directory
+beside the executable. The archive contains its own Node runtime and Electron
+desktop shell, so it does not use Bun or require a system Node.js installation.
+
+```powershell
+.\WrongStack.exe
+.\WrongStack.exe desktop
+```
+
+Release maintainers can build the same artifact locally on Windows with
+`pnpm release:portable:win`. The normal `pnpm release` gate produces the
+portable artifact before publishing the workspace packages to npm.
 
 ---
 

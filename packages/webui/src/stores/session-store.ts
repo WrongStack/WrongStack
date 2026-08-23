@@ -36,6 +36,14 @@ interface SessionState {
     readTokens: number;
     writeTokens: number;
     hitRatio: number;
+    /** Session cache telemetry split by routed provider (fallback/model switches included). */
+    providers?: Array<{
+      provider: string;
+      input: number;
+      cacheRead: number;
+      cacheWrite: number;
+      hitRatio: number;
+    }>;
     /**
      * Cached prefix of the most recent prompt, capped at `lastInputTokens`
      * so the coverage figure never overshoots the live request size.
@@ -105,7 +113,7 @@ interface SessionState {
   droppedTools: number;
 
   setSession: (session: SessionInfo | null) => void;
-  updateUsage: (usage: Usage) => void;
+  updateUsage: (usage: Usage, providerId?: string) => void;
   addCost: (cost: number) => void;
   startSession: (session: SessionInfo) => void;
   endSession: () => void;
@@ -200,19 +208,53 @@ export const useSessionStore = create<SessionState>()(
           };
         }),
 
-      updateUsage: (usage) =>
+      updateUsage: (usage, providerId) =>
         set((state) => {
           const inputDelta = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
           const cacheReadDelta = usage.cacheRead ?? 0;
           const cacheWriteDelta = usage.cacheWrite ?? 0;
+          const nextInput = state.totalTokens.input + usage.input;
+          const nextCacheRead = (state.totalTokens.cacheRead ?? 0) + cacheReadDelta;
+          const nextCacheWrite = (state.totalTokens.cacheWrite ?? 0) + cacheWriteDelta;
+          const provider = providerId ?? state.session?.provider ?? 'unknown';
+          const providers = [...(state.cacheStats?.providers ?? [])];
+          const providerIndex = providers.findIndex((entry) => entry.provider === provider);
+          const previous =
+            providerIndex >= 0
+              ? providers[providerIndex]
+              : { provider, input: 0, cacheRead: 0, cacheWrite: 0, hitRatio: 0 };
+          const providerInput = previous.input + usage.input;
+          const providerCacheRead = previous.cacheRead + cacheReadDelta;
+          const providerCacheWrite = previous.cacheWrite + cacheWriteDelta;
+          const providerTotal = providerInput + providerCacheRead + providerCacheWrite;
+          const nextProvider = {
+            provider,
+            input: providerInput,
+            cacheRead: providerCacheRead,
+            cacheWrite: providerCacheWrite,
+            hitRatio:
+              providerTotal > 0 ? Math.min(1, Math.max(0, providerCacheRead / providerTotal)) : 0,
+          };
+          if (providerIndex >= 0) providers[providerIndex] = nextProvider;
+          else providers.push(nextProvider);
+          providers.sort((a, b) => b.cacheRead - a.cacheRead);
+          const totalPrompt = nextInput + nextCacheRead + nextCacheWrite;
           return {
             totalTokens: {
-              input: state.totalTokens.input + usage.input,
+              input: nextInput,
               output: state.totalTokens.output + usage.output,
-              cacheRead: (state.totalTokens.cacheRead ?? 0) + cacheReadDelta,
-              cacheWrite: (state.totalTokens.cacheWrite ?? 0) + cacheWriteDelta,
+              cacheRead: nextCacheRead,
+              cacheWrite: nextCacheWrite,
             },
             lastInputTokens: inputDelta || state.lastInputTokens,
+            cacheStats: {
+              readTokens: nextCacheRead,
+              writeTokens: nextCacheWrite,
+              hitRatio:
+                totalPrompt > 0 ? Math.min(1, Math.max(0, nextCacheRead / totalPrompt)) : 0,
+              coverageTokens: cacheReadDelta,
+              providers,
+            },
           };
         }),
 

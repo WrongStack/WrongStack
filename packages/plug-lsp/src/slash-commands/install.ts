@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { commandExistsOnPath, resolveServerCommand } from '../utils/command-resolver.js';
@@ -227,15 +228,6 @@ function detectPackageManagerSync(cwd: string): PackageManager {
     return 'bun';
   if (existsSync(path.join(cwd, 'yarn.lock'))) return 'yarn';
   return 'npm';
-}
-
-function existsSync(filePath: string): boolean {
-  try {
-    require('node:fs').accessSync(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function runCommand(command: string, args: string[], cwd: string, label: string): Promise<void> {

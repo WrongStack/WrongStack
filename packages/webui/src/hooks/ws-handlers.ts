@@ -418,7 +418,20 @@ export function handleStatsGet(msg: WSServerMessage) {
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
     };
-    cache: { readTokens: number; writeTokens: number; hitRatio: number } | null;
+    cache:
+      | {
+          readTokens: number;
+          writeTokens: number;
+          hitRatio: number;
+          providers?: Array<{
+            provider: string;
+            input: number;
+            cacheRead: number;
+            cacheWrite: number;
+            hitRatio: number;
+          }>;
+        }
+      | null;
     currentRequest?: { input: number; cacheRead: number; cacheWrite: number } | undefined;
     cost: number;
     messages: number;
@@ -450,6 +463,7 @@ export function handleStatsGet(msg: WSServerMessage) {
           readTokens: p.cache.readTokens,
           writeTokens: p.cache.writeTokens,
           hitRatio: p.cache.hitRatio,
+          providers: p.cache.providers ?? [],
           coverageTokens: Math.max(0, Math.min(lastInputTokens, currentRequestCacheRead)),
         }
       : null,

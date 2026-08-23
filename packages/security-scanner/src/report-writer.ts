@@ -10,6 +10,7 @@
  * orchestrator drives it via `synthesizeAndWriteReport()`.
  */
 
+import { mkdir } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { Provider, Request } from '@wrongstack/core/types';
@@ -21,18 +22,9 @@ import {
 } from '@wrongstack/core/utils';
 
 import { retryProviderComplete } from './llm-client.js';
-import type { ScanResult } from './scanner.js';
 import type { ReportOptions } from './report-generator.js';
+import type { ScanResult } from './scanner.js';
 import type { TechStackInfo } from './types.js';
-
-const { mkdir } = require('node:fs/promises') as {
-  mkdir: (path: string, opts: { recursive: boolean }) => Promise<void>;
-};
-// The `require` form above is the only deviation from the orchestrator's
-// `import { mkdir, readdir } from 'node:fs/promises'` — the dynamic form
-// keeps `report-writer.ts` free of side-effectful top-level imports that
-// would defeat Vite's dependency-graph boundary checks. The function
-// interface is identical.
 
 export interface ReportWriterDeps {
   /** Provider used when callers don't have an orchestrator-injected one (CLI, scanner). */

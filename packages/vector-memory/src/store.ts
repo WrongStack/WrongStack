@@ -21,18 +21,19 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
-import { HashingEmbeddingProvider, cosineSimilarity } from '@wrongstack/sage';
+import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '@wrongstack/core/utils';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
+import { cosineSimilarity, HashingEmbeddingProvider } from '@wrongstack/sage';
 
 import {
-  VECTOR_DIMENSIONS_KEY,
-  VECTOR_PROVIDER_KEY,
   decodeVector,
   encodeVector,
   initVectorSchema,
   lookupEmbeddingCache,
   upsertEmbeddingCache,
+  VECTOR_DIMENSIONS_KEY,
+  VECTOR_PROVIDER_KEY,
 } from './schema.js';
 import type {
   SageSyncReport,
@@ -79,7 +80,8 @@ export class VectorMemoryStore {
     fs.mkdirSync(rootDir, { recursive: true });
     this.rootDir = rootDir;
     this.dbPath = path.join(rootDir, filename);
-    this.db = new DatabaseSync(this.dbPath);
+    const Database = loadRuntimeDatabaseSync();
+    this.db = new Database(this.dbPath);
     initVectorSchema(this.db);
     this.recordActiveProvider();
   }
@@ -333,9 +335,7 @@ export class VectorMemoryStore {
       | Record<string, unknown>
       | undefined;
     if (!row) return undefined;
-    const vectorRow = this.db
-      .prepare('SELECT * FROM vectors WHERE entry_id = ?')
-      .get(id) as
+    const vectorRow = this.db.prepare('SELECT * FROM vectors WHERE entry_id = ?').get(id) as
       | { provider_id: string; dimensions: number; vector: Buffer | Uint8Array }
       | undefined;
     return this.rowToEntry(row, vectorRow);
@@ -464,13 +464,7 @@ export class VectorMemoryStore {
                    dimensions = excluded.dimensions,
                    created_at = excluded.created_at`,
               )
-              .run(
-                row.id as string,
-                this.provider.id,
-                v.length,
-                encodeVector(v),
-                now,
-              );
+              .run(row.id as string, this.provider.id, v.length, encodeVector(v), now);
             // Also refresh the embedding cache so subsequent searches
             // for the same text skip the ONNX pass.
             this.cacheVector(row.text as string, v, now);
@@ -489,8 +483,9 @@ export class VectorMemoryStore {
     this.assertOpen();
     const entryCount = (this.db.prepare('SELECT COUNT(*) AS n FROM entries').get() as { n: number })
       .n;
-    const vectorCount = (this.db.prepare('SELECT COUNT(*) AS n FROM vectors').get() as { n: number })
-      .n;
+    const vectorCount = (
+      this.db.prepare('SELECT COUNT(*) AS n FROM vectors').get() as { n: number }
+    ).n;
     const providerRows = this.db
       .prepare('SELECT DISTINCT provider_id FROM vectors')
       .all() as Array<{ provider_id: string }>;
@@ -516,22 +511,24 @@ export class VectorMemoryStore {
     oldestLastUsedAt: string | null;
   } {
     this.assertOpen();
-    const entries = (this.db.prepare('SELECT COUNT(*) AS n FROM embedding_cache').get() as {
-      n: number;
-    }).n;
+    const entries = (
+      this.db.prepare('SELECT COUNT(*) AS n FROM embedding_cache').get() as {
+        n: number;
+      }
+    ).n;
     const providers = (
-      this.db
-        .prepare('SELECT COUNT(DISTINCT provider_id) AS n FROM embedding_cache')
-        .get() as { n: number }
+      this.db.prepare('SELECT COUNT(DISTINCT provider_id) AS n FROM embedding_cache').get() as {
+        n: number;
+      }
     ).n;
     const totalUseCount = (
       this.db.prepare('SELECT COALESCE(SUM(use_count), 0) AS n FROM embedding_cache').get() as {
         n: number;
       }
     ).n;
-    const oldest = this.db
-      .prepare('SELECT MIN(last_used_at) AS t FROM embedding_cache')
-      .get() as { t: string | null } | undefined;
+    const oldest = this.db.prepare('SELECT MIN(last_used_at) AS t FROM embedding_cache').get() as
+      | { t: string | null }
+      | undefined;
     return {
       entries,
       providers,
@@ -554,9 +551,9 @@ export class VectorMemoryStore {
     return withFileLock(
       this.lockPath,
       async () => {
-        const total = (this.db
-          .prepare('SELECT COUNT(*) AS n FROM embedding_cache')
-          .get() as { n: number }).n;
+        const total = (
+          this.db.prepare('SELECT COUNT(*) AS n FROM embedding_cache').get() as { n: number }
+        ).n;
         if (total <= keepMostRecent) return { removed: 0 };
         const toRemove = total - keepMostRecent;
         const stmt = this.db.prepare(
@@ -592,7 +589,7 @@ export class VectorMemoryStore {
     const entry: VectorEntryWithVector = {
       id: row.id as string,
       text: row.text as string,
-      summary: summaryValue ?? undefined as string | undefined,
+      summary: summaryValue ?? (undefined as string | undefined),
       metadata: safeParseJson(row.metadata, {}),
       tags: safeParseJson(row.tags, []),
       scope: row.scope as VectorEntry['scope'],

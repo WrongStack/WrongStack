@@ -1,6 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ContextBreakdownModal } from '../../src/components/ContextBreakdownModal.js';
+import { useSessionStore } from '../../src/stores/session-store.js';
 
 /** Subscribed handlers keyed by message type. The production modal registers
  *  one handler for `context.debug` and never unsubscribes until unmount,
@@ -37,11 +38,47 @@ beforeEach(() => {
   // Force document.hidden = false so the visibility-gated polling path
   // actually fires in the test environment.
   Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+  useSessionStore.setState({ cacheStats: null });
 });
 
 afterEach(cleanup);
 
 describe('ContextBreakdownModal', () => {
+  it('renders MiniMax and Anthropic cache hit ratios from the live stats snapshot', async () => {
+    useSessionStore.setState({
+      cacheStats: {
+        readTokens: 1100,
+        writeTokens: 100,
+        hitRatio: 0.6875,
+        coverageTokens: 800,
+        providers: [
+          { provider: 'minimax', input: 200, cacheRead: 800, cacheWrite: 0, hitRatio: 0.8 },
+          {
+            provider: 'anthropic',
+            input: 100,
+            cacheRead: 300,
+            cacheWrite: 100,
+            hitRatio: 0.6,
+          },
+        ],
+      },
+      maxContext: 200_000,
+    });
+    render(<ContextBreakdownModal open={true} onClose={() => {}} />);
+    await act(async () => {
+      emitContextDebug({
+        total: 1000,
+        systemPrompt: 200,
+        tools: { total: 300, count: 4, breakdown: [] },
+        messages: { total: 500, count: 3, breakdown: [] },
+      });
+    });
+    expect(screen.getByText('minimax')).toBeTruthy();
+    expect(screen.getByText('80.0% hit')).toBeTruthy();
+    expect(screen.getByText('anthropic')).toBeTruthy();
+    expect(screen.getByText('60.0% hit')).toBeTruthy();
+  });
+
   it('opens after initially rendering closed without changing the hook order', () => {
     const onClose = vi.fn();
     const { rerender } = render(<ContextBreakdownModal open={false} onClose={onClose} />);

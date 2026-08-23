@@ -1,6 +1,6 @@
-import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { LockError } from './circuit-breaker.js';
 
 let warningSilenced = false;
@@ -26,19 +26,18 @@ function silenceSqliteExperimentalWarning(): void {
 let DatabaseSyncCtor: typeof DatabaseSync | undefined;
 
 /**
- * Load `node:sqlite`'s `DatabaseSync` lazily. Keeping this off writer.ts top
+ * Load the active runtime's synchronous SQLite implementation lazily. Keeping this off writer.ts top
  * level lets codebase-index tools register at CLI boot without eagerly loading
- * SQLite. Runtimes without `node:sqlite` fail only when the index is used.
+ * SQLite. Runtimes without `node:sqlite` or `bun:sqlite` fail only when the index is used.
  */
 export function loadDatabaseSync(): typeof DatabaseSync {
   if (DatabaseSyncCtor) return DatabaseSyncCtor;
   silenceSqliteExperimentalWarning();
   try {
-    const req = createRequire(import.meta.url);
-    DatabaseSyncCtor = (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
+    DatabaseSyncCtor = loadRuntimeDatabaseSync();
   } catch (err) {
     throw new Error(
-      "The codebase index needs Node's built-in SQLite (node:sqlite), available since Node 22.5. " +
+      'The codebase index needs node:sqlite (Node >= 22.5) or bun:sqlite. ' +
         `This runtime doesn't provide it: ${toErrorMessage(err)}`,
     );
   }

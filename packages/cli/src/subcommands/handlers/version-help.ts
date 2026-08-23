@@ -4,8 +4,10 @@ import { API_VERSION, CLI_VERSION } from '../../version.js';
 import type { SubcommandHandler } from '../contracts.js';
 
 export const versionCmd: SubcommandHandler = async (_args, deps) => {
+  const bunVersion = (globalThis as { Bun?: { version?: string } }).Bun?.version;
+  const runtime = bunVersion ? `bun v${bunVersion}` : `node ${process.version}`;
   deps.renderer.write(
-    `WrongStack ${CLI_VERSION} (apiVersion ${API_VERSION}, node ${process.version}, ${os.platform()})\n`,
+    `WrongStack ${CLI_VERSION} (apiVersion ${API_VERSION}, ${runtime}, ${os.platform()})\n`,
   );
   return 0;
 };

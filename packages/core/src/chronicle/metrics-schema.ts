@@ -1,5 +1,5 @@
-import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning.js';
 import type { ChronicleSignalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
@@ -89,18 +89,14 @@ let Ctor: typeof DatabaseSync | null | undefined;
 
 export function loadDatabaseSync(): typeof DatabaseSync {
   if (Ctor) return Ctor;
-  if (Ctor === null) throw new Error('node:sqlite is unavailable in this runtime');
+  if (Ctor === null) throw new Error('SQLite is unavailable in this runtime');
   try {
-    Ctor = withSqliteExperimentalWarningSuppressed(
-      () =>
-        (createRequire(import.meta.url)('node:sqlite') as typeof import('node:sqlite'))
-          .DatabaseSync,
-    );
+    Ctor = withSqliteExperimentalWarningSuppressed(loadRuntimeDatabaseSync);
     return Ctor;
   } catch (error) {
     Ctor = null;
     throw new Error(
-      "Chronicle metrics need Node's built-in SQLite (node:sqlite, Node >= 22.5): " +
+      'Chronicle metrics need node:sqlite (Node >= 22.5) or bun:sqlite: ' +
         (error instanceof Error ? error.message : String(error)),
     );
   }
@@ -231,7 +227,10 @@ export function durationMs(event: ChronicleEvent): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
-export function numberOrDuration(event: ChronicleEvent, attributes: Record<string, unknown>): number {
+export function numberOrDuration(
+  event: ChronicleEvent,
+  attributes: Record<string, unknown>,
+): number {
   const explicit = attributes.durationMs;
   if (typeof explicit === 'number' && Number.isFinite(explicit)) return explicit;
   return durationMs(event);

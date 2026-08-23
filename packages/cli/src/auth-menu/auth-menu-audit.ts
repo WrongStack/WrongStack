@@ -28,6 +28,7 @@
  * belong in a dedicated audit-sink module, not here.
  */
 
+import { appendFileSync } from 'node:fs';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { SecretScrubber } from '@wrongstack/core/types';
 
@@ -138,14 +139,9 @@ function defaultStderrSink(): AuthAuditSink {
  * error so the caller can surface it.
  */
 export function fileAuditSink(path: string): AuthAuditSink {
-  // Lazy require so the test suite (which doesn't touch the
-  // file sink) doesn't pay the cost of importing `node:fs`
-  // just to read the type.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require('node:fs') as typeof import('node:fs');
   return {
     write(line: string) {
-      fs.appendFileSync(path, `${line}\n`, { encoding: 'utf8' });
+      appendFileSync(path, `${line}\n`, { encoding: 'utf8' });
     },
   };
 }

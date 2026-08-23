@@ -43,6 +43,16 @@ export interface ContextPanelData {
    * exact extent of the cache, not just a percentage.
    */
   cacheCoverageTokens?: number | undefined;
+  /** Session cache telemetry split by provider, including fallback/model switches. */
+  providerCacheStats?:
+    | Array<{
+        provider: string;
+        input: number;
+        cacheRead: number;
+        cacheWrite: number;
+        hitRatio: number;
+      }>
+    | undefined;
   /**
    * Real, measured per-category token accounting for the live request. When
    * present the Composition tab shows honest numbers; when absent (no request
@@ -610,6 +620,22 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
         <Text color={theme.textMuted}> · write </Text>
         <Text color={theme.textSecondary}>{cs.writeTokens.toLocaleString('en-US')}</Text>
       </Box>
+
+      {(data.providerCacheStats?.length ?? 0) > 0 ? (
+        <Text>
+          <Text color={theme.textMuted}>Providers </Text>
+          {data.providerCacheStats?.map((provider, index) => (
+            <Text key={provider.provider}>
+              {index > 0 ? <Text color={theme.textMuted}> · </Text> : null}
+              <Text color={theme.textPrimary}>{provider.provider}</Text>
+              <Text color={theme.textMuted}> </Text>
+              <Text color={provider.cacheRead > 0 ? theme.success : theme.textMuted}>
+                {(provider.hitRatio * 100).toFixed(1)}%
+              </Text>
+            </Text>
+          ))}
+        </Text>
+      ) : null}
 
       {coverage > 0 && max > 0 ? (
         <>

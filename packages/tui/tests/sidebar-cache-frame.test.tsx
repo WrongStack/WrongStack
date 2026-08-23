@@ -76,6 +76,51 @@ function frameRows(lines: string[]): { line: string; width: number }[] {
 describe('sidebar cache card frame integrity (real TTY)', () => {
   const COLUMNS = [80, 120, 160] as const;
 
+  it('shows the active provider cache ratio in the persistent cache card', async () => {
+    const columns = 120;
+    const sidebarWidth = computeSidebarWidth(columns);
+    const contentWidth = computeSidebarContentWidth(sidebarWidth);
+    const view = renderRealTty(
+      <Box width={columns} height={34} justifyContent="flex-end" overflowX="hidden">
+        <RightSidebar width={sidebarWidth} maxHeight={34}>
+          <SidebarContent
+            contextWindow={{ used: 48_000, max: 200_000 }}
+            cacheStats={{
+              readTokens: 800,
+              writeTokens: 0,
+              hitRatio: 0.8,
+              savedUsd: 0,
+              providers: [
+                {
+                  provider: 'minimax',
+                  input: 200,
+                  cacheRead: 800,
+                  cacheWrite: 0,
+                  hitRatio: 0.8,
+                },
+              ],
+            }}
+            cacheCoverageTokens={800}
+            entries={ENTRIES}
+            fleetCounts={{ running: 1, idle: 1, pending: 0, completed: 0 }}
+            provider="minimax"
+            model="minimax-m3"
+            width={contentWidth}
+            todos={TODOS}
+            showSwarmSection
+            processMemory={undefined}
+          />
+        </RightSidebar>
+      </Box>,
+      { columns, rows: 34 },
+    );
+    await settle();
+    const frame = view.lines().join('\n');
+    expect(frame).toContain('minimax hit');
+    expect(frame).toContain('80.0%');
+    view.unmount();
+  });
+
   for (const columns of COLUMNS) {
     it(`right side bar aligns at ${columns} columns`, { timeout: 5_000 }, async () => {
       const sidebarWidth = computeSidebarWidth(columns);

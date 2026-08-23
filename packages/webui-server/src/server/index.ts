@@ -16,19 +16,28 @@ export {
 } from './autonomy-routes.js';
 export { bootConfig, patchConfig } from './boot.js';
 export {
-  cleanupOwnerlessEmptySessions,
-  DEFAULT_EMPTY_SESSION_CLEANUP_INTERVAL_MS,
-  EMPTY_SESSION_CLEANUP_INTERVAL_ENV,
-  resolveEmptySessionCleanupInterval,
-  scheduleOwnerlessEmptySessionCleanup,
-} from './session-cleanup-scheduler.js';
-export { deleteWebUISession } from './session-deletion.js';
+  type BrainHandlerContext,
+  type BrainLogEntry,
+  type BrainTransportContext,
+  handleBrainAsk,
+  handleBrainConfigGet,
+  handleBrainConfigSet,
+  handleBrainRisk,
+  handleBrainStatus,
+} from './brain-handlers.js';
 export type { BrainRouteHandlers } from './brain-routes.js';
 export { handleBrainRoute } from './brain-routes.js';
 export {
   type ChronicleRouteContext,
   handleChronicleRoute,
 } from './chronicle-routes.js';
+export {
+  createWebuiClientPresence,
+  type WebuiClientPresence,
+  type WebuiClientPresenceDeps,
+  type WebuiHqConnection,
+  type WebuiHqConnectionOptions,
+} from './client-presence.js';
 export {
   type ClientTransportRouteHandlers,
   handleClientTransportRoute,
@@ -54,22 +63,25 @@ export {
   type LspCompletionSourceRequest,
 } from './completion-handlers.js';
 export { type CompletionRouteHandlers, handleCompletionRoute } from './completion-routes.js';
+export {
+  type ConfigDoctorDeps,
+  handleConfigDoctor,
+} from './config-doctor.js';
+export {
+  type ConnectionLifecycleOptions,
+  createConnectionLifecycle,
+} from './connection-lifecycle.js';
+export {
+  type ConnectionHealthService,
+  type ConnectionsHealthContext,
+  type ConnectionsHealthReport,
+  collectConnectionsHealth,
+  handleConnectionsHealthRoute,
+} from './connections-health-route.js';
 export { type ContentRouteContext, handleContentRoute } from './content-routes.js';
-export {
-  type ConversationRouteHandlers,
-  handleConversationRoute,
-} from './conversation-routes.js';
-export {
-  createConversationOperations,
-  type ConversationOperationsContext,
-  type ConversationRunControl,
-} from './conversation-operations.js';
 export {
   applyContextEditorProposal,
   buildContextEditorSnapshot,
-  contextEditorRevision,
-  validateContextEditorMessages,
-  validateContextEditorProposal,
   type ContextEditorAppliedResult,
   type ContextEditorBlock,
   type ContextEditorConflict,
@@ -81,18 +93,20 @@ export {
   type ContextEditorValidationError,
   type ContextEditorValidationResult,
   type ContextEditorWarning,
+  contextEditorRevision,
+  validateContextEditorMessages,
+  validateContextEditorProposal,
 } from './context-editor.js';
+export { seedContextMeta } from './context-meta.js';
 export {
-  createConnectionLifecycle,
-  type ConnectionLifecycleOptions,
-} from './connection-lifecycle.js';
+  type ConversationOperationsContext,
+  type ConversationRunControl,
+  createConversationOperations,
+} from './conversation-operations.js';
 export {
-  collectConnectionsHealth,
-  type ConnectionHealthService,
-  type ConnectionsHealthContext,
-  type ConnectionsHealthReport,
-  handleConnectionsHealthRoute,
-} from './connections-health-route.js';
+  type ConversationRouteHandlers,
+  handleConversationRoute,
+} from './conversation-routes.js';
 export {
   type CustomContextMode,
   type CustomModeStore,
@@ -109,6 +123,38 @@ export {
   handleDesignUse,
   handleDesignVerify,
 } from './design-handlers.js';
+export {
+  applyEmbeddedModelSwitch,
+  broadcastEmbeddedGoalSnapshot,
+  createEmbeddedConversationRoutes,
+  createEmbeddedProjectRoutes,
+  createEmbeddedProviderOperations,
+  createEmbeddedSessionRoutes,
+  type EmbeddedAgentConfigContext,
+  type EmbeddedConversationContext,
+  type EmbeddedHostTransport,
+  type EmbeddedProjectContext,
+  type EmbeddedProviderContext,
+  type EmbeddedProviderStore,
+  type EmbeddedSessionContext,
+  type EmbeddedSessionOptions,
+} from './embedded-host-adapters.js';
+export {
+  type AnnounceWebuiReadyParams,
+  announceWebuiReady,
+  createWebuiShutdown,
+  type RegisterWebuiInstanceDeps,
+  type RegisterWebuiInstanceParams,
+  registerWebuiInstance,
+  registerWebuiSignalHandlers,
+  type WebuiShutdownResources,
+} from './embedded-lifecycle.js';
+export {
+  createEmbeddedMessageRouter,
+  type EmbeddedMessageRouter,
+  type EmbeddedMessageRouterDeps,
+  type EmbeddedMessageRouterOptions,
+} from './embedded-message-router.js';
 export {
   createEternalSubscription,
   type EternalBroadcast,
@@ -127,6 +173,17 @@ export {
   handleFilesWrite,
 } from './file-handlers.js';
 export { isHiddenEntry, rankFiles, SKIP_DIRS } from './file-picker.js';
+export {
+  type EnsureDistDeps,
+  ensureDistDir,
+  findInstalledPackageJson,
+  type ResolveDistOptions,
+  resolveDistDir,
+  type StaticServeDeps,
+  type StaticServeHandle,
+  type StaticServeOptions,
+  startStaticServe,
+} from './frontend-static-serve.js';
 export { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
 export { handleGoalGet } from './goal-handlers.js';
 export type { GoalRouteHandlers } from './goal-routes.js';
@@ -178,6 +235,7 @@ export {
   handleIntrospectionRoute,
   type IntrospectionRouteContext,
 } from './introspection-routes.js';
+export { watchKanbanBoards } from './kanban-board-watcher.js';
 export {
   handleKanbanTaskDispatch,
   type KanbanDispatchContext,
@@ -193,12 +251,20 @@ export {
   KANBAN_CLIENT_MESSAGE_TYPES,
   paginateKanbanBoards,
 } from './kanban-routes.js';
-export { watchKanbanBoards } from './kanban-board-watcher.js';
-export { createShutdown, registerShutdownHandlers } from './lifecycle.js';
 export {
-  handleConfigDoctor,
-  type ConfigDoctorDeps,
-} from './config-doctor.js';
+  buildTaskGraphFromGoalPhase,
+  buildTaskGraphFromSddSnapshot,
+  createKanbanRunMirror,
+  type KanbanRunMirror,
+  type KanbanRunMirrorDeps,
+} from './kanban-run-mirror.js';
+export {
+  createKanbanSupervisor,
+  type KanbanSupervisor,
+  type KanbanSupervisorDeps,
+  type KanbanSupervisorDispatchOptions,
+} from './kanban-supervisor.js';
+export { createShutdown, registerShutdownHandlers } from './lifecycle.js';
 export {
   getMailboxForDeps,
   handleMailboxAgents,
@@ -256,6 +322,11 @@ export {
   type ModelOperationsContext,
   type ModelRefinePayload,
 } from './model-operations.js';
+export {
+  formatExternalAccessUrls,
+  getExternalAddresses,
+  type NetworkAddress,
+} from './network-info.js';
 export { browserOpenCommand, openBrowser } from './open-browser.js';
 export { isPathInside, resolveWorkingDirInsideProject } from './path-containment.js';
 export type { ConfirmDecision, PendingConfirm } from './pending-confirms.js';
@@ -275,66 +346,9 @@ export {
   surfaceLabel,
 } from './port-utils.js';
 export {
-  ensureDistDir,
-  resolveDistDir,
-  startStaticServe,
-  type EnsureDistDeps,
-  type ResolveDistOptions,
-  type StaticServeDeps,
-  type StaticServeHandle,
-  type StaticServeOptions,
-} from './frontend-static-serve.js';
-export {
-  announceWebuiReady,
-  createWebuiShutdown,
-  registerWebuiInstance,
-  registerWebuiSignalHandlers,
-  type AnnounceWebuiReadyParams,
-  type RegisterWebuiInstanceDeps,
-  type RegisterWebuiInstanceParams,
-  type WebuiShutdownResources,
-} from './embedded-lifecycle.js';
-export {
-  createStreamCoalescer,
-  type StreamCoalescer,
-  type StreamCoalescerDeps,
-  type ToolProgressPayload,
-} from './stream-coalescer.js';
-export {
-  createWebuiClientPresence,
-  type WebuiClientPresence,
-  type WebuiClientPresenceDeps,
-  type WebuiHqConnection,
-  type WebuiHqConnectionOptions,
-} from './client-presence.js';
-export {
-  handleBrainAsk,
-  handleBrainConfigGet,
-  handleBrainConfigSet,
-  handleBrainRisk,
-  handleBrainStatus,
-  type BrainHandlerContext,
-  type BrainLogEntry,
-  type BrainTransportContext,
-} from './brain-handlers.js';
-export {
-  buildTaskGraphFromGoalPhase,
-  buildTaskGraphFromSddSnapshot,
-  createKanbanRunMirror,
-  type KanbanRunMirror,
-  type KanbanRunMirrorDeps,
-} from './kanban-run-mirror.js';
-export {
-  createKanbanSupervisor,
-  type KanbanSupervisor,
-  type KanbanSupervisorDeps,
-  type KanbanSupervisorDispatchOptions,
-} from './kanban-supervisor.js';
-export { seedContextMeta } from './context-meta.js';
-export {
   type ConfigWriteLockHolder,
-  type PrefHelperDeps,
   PREF_KEYS,
+  type PrefHelperDeps,
   persistPrefsToConfig,
   prefSnapshot,
 } from './pref-helpers.js';
@@ -355,37 +369,10 @@ export {
   handleProcessList,
 } from './process-handlers.js';
 export { handleProcessRoute, type ProcessRouteHandlers } from './process-routes.js';
-export {
-  applyEmbeddedModelSwitch,
-  broadcastEmbeddedGoalSnapshot,
-  createEmbeddedConversationRoutes,
-  createEmbeddedProjectRoutes,
-  createEmbeddedProviderOperations,
-  createEmbeddedSessionRoutes,
-  type EmbeddedAgentConfigContext,
-  type EmbeddedConversationContext,
-  type EmbeddedHostTransport,
-  type EmbeddedProjectContext,
-  type EmbeddedProviderContext,
-  type EmbeddedProviderStore,
-  type EmbeddedSessionContext,
-  type EmbeddedSessionOptions,
-} from './embedded-host-adapters.js';
-export {
-  createEmbeddedMessageRouter,
-  type EmbeddedMessageRouter,
-  type EmbeddedMessageRouterDeps,
-  type EmbeddedMessageRouterOptions,
-} from './embedded-message-router.js';
-export {
-  createRouteFamilyDispatcher,
-  type RouteFamilyDispatcher,
-  type RouteFamilyDispatcherOptions,
-  type RouteFamilyTable,
-} from './route-family-dispatcher.js';
+export { createProjectHandlers, type ProjectHandlersContext } from './project-handlers.js';
 export type { ProjectRouteHandlers } from './project-routes.js';
 export { handleProjectRoute } from './project-routes.js';
-export { createProjectHandlers, type ProjectHandlersContext } from './project-handlers.js';
+export { startProjectWatcher } from './project-watcher.js';
 export {
   ensureProjectDataDir,
   loadManifest,
@@ -431,6 +418,12 @@ export type { ProviderMutationHandlers, ProviderRouteHandlers } from './provider
 export { handleProviderRoute } from './provider-routes.js';
 export type { ProviderStore } from './provider-store.js';
 export { createConfigWriteLock, createProviderStore } from './provider-store.js';
+export {
+  createRouteFamilyDispatcher,
+  type RouteFamilyDispatcher,
+  type RouteFamilyDispatcherOptions,
+  type RouteFamilyTable,
+} from './route-family-dispatcher.js';
 export { handleSddBoardRoute, type SddBoardRouteHandlers } from './sdd-board-routes.js';
 export { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 export { handleSddWizardRoute, type SddWizardRouteHandlers } from './sdd-wizard-routes.js';
@@ -443,13 +436,21 @@ export {
 } from './sdd-wizard-wiring.js';
 export { type SddWizardDeps, SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
 export {
+  cleanupOwnerlessEmptySessions,
+  DEFAULT_EMPTY_SESSION_CLEANUP_INTERVAL_MS,
+  EMPTY_SESSION_CLEANUP_INTERVAL_ENV,
+  resolveEmptySessionCleanupInterval,
+  scheduleOwnerlessEmptySessionCleanup,
+} from './session-cleanup-scheduler.js';
+export { deleteWebUISession } from './session-deletion.js';
+export { createSessionHandlers, type SessionHandlersContext } from './session-handlers.js';
+export {
   type SessionHistoryWireEntry,
   toSessionHistoryEntries,
   toSessionHistoryEntry,
 } from './session-history.js';
 export type { SessionRouteHandlers } from './session-routes.js';
 export { handleSessionRoute } from './session-routes.js';
-export { createSessionHandlers, type SessionHandlersContext } from './session-handlers.js';
 export { setupEvents, statusProjectHashFromWatchFilename } from './setup-events.js';
 export type { ShellGitRouteHandlers } from './shell-git-routes.js';
 export { handleShellGitRoute } from './shell-git-routes.js';
@@ -473,8 +474,13 @@ export {
 } from './skills-handlers.js';
 export { handleSpecsRoute, type SpecsRouteHandlers } from './specs-routes.js';
 export { SpecsWebSocketHandler } from './specs-ws-handler.js';
-export { startProjectWatcher } from './project-watcher.js';
 export { startWebUI } from './start-webui.js';
+export {
+  createStreamCoalescer,
+  type StreamCoalescer,
+  type StreamCoalescerDeps,
+  type ToolProgressPayload,
+} from './stream-coalescer.js';
 export { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 export {
   type ContextBreakdown,
@@ -494,9 +500,9 @@ export type {
   WSServerMessage,
 } from './types.js';
 export {
+  type CostRates,
   computeUsageCost,
   getCostRates,
-  type CostRates,
   type TokenUsage,
 } from './usage-cost.js';
 export {
@@ -555,5 +561,4 @@ export {
   sendSerialized,
   WEBUI_WS_MAX_BUFFERED_BYTES,
 } from './ws-utils.js';
-export { formatExternalAccessUrls, getExternalAddresses, type NetworkAddress } from './network-info.js';
 export { createZipBuffer, readZipEntries, type ZipEntryInput } from './zip.js';

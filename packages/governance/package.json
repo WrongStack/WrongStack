@@ -32,6 +32,9 @@
     "test": "vitest run --root ../.. packages/governance/tests",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
+  "dependencies": {
+    "@wrongstack/persistence": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "typescript": "^7.0.2",

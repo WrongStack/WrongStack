@@ -349,6 +349,7 @@ export function AppStatusRegion({
               })(),
               cacheStats: cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 },
               cacheCoverageTokens: cacheCoverageTokens ?? 0,
+              providerCacheStats: cacheStats?.providers ?? [],
               fleetEntries: Object.values(state.fleet).map((e) => ({
                 name: e.name,
                 status: e.status,

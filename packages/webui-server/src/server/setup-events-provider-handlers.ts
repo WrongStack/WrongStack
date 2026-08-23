@@ -33,6 +33,7 @@ export function registerSetupEventsProviderHandlers({
         sessionId: e.sessionId,
         content: e.content,
         usage: e.usage,
+        provider: e.ctx.provider.id,
         stopReason: e.stopReason,
         messageId: 'current',
       }),

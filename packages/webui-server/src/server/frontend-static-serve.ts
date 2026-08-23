@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { findPackageJSON } from 'node:module';
-import * as path from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
+import { createRequire } from 'node:module';
+import * as path from 'node:path';
 import { type CreateHttpServerOptions, createHttpServer } from './http-server.js';
 import { createProjectIntakeService } from './intake-service.js';
 import { listenWithRetry } from './port-utils.js';
@@ -33,6 +33,37 @@ import { listenWithRetry } from './port-utils.js';
 export interface StaticServeHandle {
   server: Server;
   port: number;
+}
+
+/** Bun-compatible replacement for Node's newer `module.findPackageJSON`. */
+export function findInstalledPackageJson(
+  specifier: string,
+  baseUrl: string | URL = import.meta.url,
+): string | undefined {
+  const withoutManifest = specifier.replace(/\/package\.json$/u, '');
+  const parts = withoutManifest.split('/');
+  const packageName = withoutManifest.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0];
+  if (!packageName) return undefined;
+
+  let current: string;
+  try {
+    current = path.dirname(createRequire(baseUrl).resolve(packageName));
+  } catch {
+    return undefined;
+  }
+  for (let depth = 0; depth < 12; depth++) {
+    const candidate = path.join(current, 'package.json');
+    try {
+      const manifest = JSON.parse(readFileSync(candidate, 'utf8')) as { name?: unknown };
+      if (manifest.name === packageName) return candidate;
+    } catch {
+      // Continue toward the package root.
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return undefined;
 }
 
 export interface StaticServeOptions {
@@ -148,7 +179,7 @@ export function resolveDistDir(input?: string | ResolveDistOptions): string | nu
   try {
     packageTarget = options.resolvePackageJson
       ? options.resolvePackageJson('@wrongstack/webui/package.json')
-      : findPackageJSON('@wrongstack/webui', import.meta.url);
+      : findInstalledPackageJson('@wrongstack/webui', import.meta.url);
   } catch {
     if (!options.resolvePackageJson) return null;
     throw new Error(
@@ -212,7 +243,7 @@ export async function ensureDistDir(
   try {
     const packageJson = deps.resolvePackageJson
       ? deps.resolvePackageJson('@wrongstack/webui/package.json')
-      : findPackageJSON('@wrongstack/webui', import.meta.url);
+      : findInstalledPackageJson('@wrongstack/webui', import.meta.url);
     if (!packageJson) throw new Error('not found');
     packageDir = path.dirname(packageJson);
   } catch {

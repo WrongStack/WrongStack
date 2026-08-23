@@ -9,8 +9,7 @@
  * @see docs/specs/techstack-sdd.md §3.2, §4.1
  */
 
-import { createRequire } from 'node:module';
-import { mkdirSync, existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import {
@@ -18,16 +17,17 @@ import {
   withSqliteExperimentalWarningSuppressed,
   wstackGlobalRoot,
 } from '@wrongstack/core/utils';
-import { applySchema } from './schema.js';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 import type {
   DeliveryOutbox,
   DeliveryStatus,
   Finding,
   Snapshot,
   TechStackJob,
-  TechStackJobStatus,
   TechStackJobProgress,
+  TechStackJobStatus,
 } from '../types.js';
+import { applySchema } from './schema.js';
 
 // ── SQLite loader ─────────────────────────────────────────────────────────
 
@@ -38,23 +38,13 @@ function loadDatabaseSync(): typeof DatabaseSync {
   if (DatabaseSyncCtor) return DatabaseSyncCtor;
   try {
     return withSqliteExperimentalWarningSuppressed(() => {
-      const require = createRequire(import.meta.url);
-      const sqliteModule: unknown = require('node:sqlite');
-      if (
-        typeof sqliteModule !== 'object' ||
-        sqliteModule === null ||
-        !('DatabaseSync' in sqliteModule) ||
-        typeof sqliteModule.DatabaseSync !== 'function'
-      ) {
-        throw new Error('node:sqlite DatabaseSync unavailable');
-      }
-      DatabaseSyncCtor = sqliteModule.DatabaseSync as typeof DatabaseSync;
+      DatabaseSyncCtor = loadRuntimeDatabaseSync();
       return DatabaseSyncCtor;
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      "TechStack SQLite store needs Node's built-in SQLite (node:sqlite), available since Node 22.5. " +
+      'TechStack SQLite store needs node:sqlite (Node >= 22.5) or bun:sqlite. ' +
         `This runtime doesn't provide it: ${message}`,
       { cause: error },
     );
@@ -249,9 +239,10 @@ export class TechStackStore {
   /** Update job status and optional progress. */
   updateJobStatus(id: string, status: TechStackJobStatus, progress?: TechStackJobProgress): void {
     const progressJson = progress ? JSON.stringify(progress) : null;
-    const completedAt = status === 'completed' || status === 'failed' || status === 'cancelled'
-      ? new Date().toISOString()
-      : null;
+    const completedAt =
+      status === 'completed' || status === 'failed' || status === 'cancelled'
+        ? new Date().toISOString()
+        : null;
 
     const stmt = this.stmt(`
       UPDATE jobs

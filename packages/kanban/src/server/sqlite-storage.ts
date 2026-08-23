@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 
 import { STALE_WRITE_PREFIX, StaleWriteError } from '../manager/lifecycle-error.js';
 import {
@@ -52,7 +53,8 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
     private readonly onMutation?: (mutation: SqliteKanbanMutation) => void,
   ) {
     this.databasePath = databasePath;
-    this.db = new DatabaseSync(databasePath);
+    const Database = loadRuntimeDatabaseSync();
+    this.db = new Database(databasePath);
   }
 
   static async open(

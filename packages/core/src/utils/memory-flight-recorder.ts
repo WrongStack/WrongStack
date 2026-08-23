@@ -251,9 +251,11 @@ export function createMemoryFlightRecorder(
   const now = options.now ?? Date.now;
   const startedAt = now();
   const root = options.diagnosticsRoot ?? path.join(wstackGlobalRoot(), 'diagnostics', 'memory');
+  const isBunRuntime = typeof (globalThis as { Bun?: unknown }).Bun !== 'undefined';
   const enabled =
     options.enabled ??
-    (process.env['WRONGSTACK_MEMORY_FLIGHT_RECORDER'] !== '0' &&
+    (!isBunRuntime &&
+      process.env['WRONGSTACK_MEMORY_FLIGHT_RECORDER'] !== '0' &&
       process.env['NODE_ENV'] !== 'test');
   const writer =
     options.captureWriter ??

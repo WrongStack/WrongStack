@@ -498,7 +498,7 @@ export type {
   TaskType,
 } from './task-graph.js';
 // ── token-counter (2 symbols) ──
-export type { CacheStats, TokenCounter } from './token-counter.js';
+export type { CacheStats, ProviderCacheStats, TokenCounter } from './token-counter.js';
 export type {
   JSONSchema,
   Permission,

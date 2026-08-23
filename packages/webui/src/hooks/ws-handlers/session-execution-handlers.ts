@@ -29,6 +29,7 @@ export function handleProviderResponse(msg: WSServerMessage) {
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
     };
+    provider?: string | undefined;
     stopReason: string;
     messageId: string;
     content?: unknown;
@@ -39,7 +40,7 @@ export function handleProviderResponse(msg: WSServerMessage) {
   const delta = (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
   if (delta > 0) useSessionStore.setState({ lastInputTokens: delta });
 
-  useSessionStore.getState().updateUsage(payload.usage);
+  useSessionStore.getState().updateUsage(payload.usage, payload.provider);
   const { inputCost, outputCost, cacheReadCost } = useSessionStore.getState();
   const dCost =
     (payload.usage.input * inputCost +

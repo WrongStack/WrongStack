@@ -1,5 +1,3 @@
-import { useConfigStore, useSessionStore } from '@/stores';
-import { fmtTok } from '@/components/ChatView/utils';
 import {
   AlertTriangle,
   BarChart3,
@@ -12,9 +10,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppTranslation } from '@/i18n';
+import { fmtTok } from '@/components/ChatView/utils';
 import { useLiveContextDebug } from '@/hooks/useLiveContextDebug';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useConfigStore, useSessionStore } from '@/stores';
 
 interface ContextBreakdownModalProps {
   open: boolean;
@@ -137,6 +137,34 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
           The first {fmtTok(cacheStats.coverageTokens)} of this prompt are served from the provider
           cache; everything past that boundary is fresh and billed at full input rate.
         </p>
+      </section>
+    ) : null;
+
+  const providerCacheSection =
+    cacheStats && (cacheStats.providers?.length ?? 0) > 0 ? (
+      <section>
+        <div className="mb-2 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-success" />
+          <span className="text-xs font-bold uppercase tracking-wider text-foreground/80">
+            Provider cache hit ratio
+          </span>
+        </div>
+        <div className="space-y-2">
+          {cacheStats.providers?.map((provider) => (
+            <div
+              key={provider.provider}
+              className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-md border border-border/70 bg-background/50 px-3 py-2 text-xs"
+            >
+              <span className="truncate font-mono text-foreground">{provider.provider}</span>
+              <span className="tabular-nums text-success">
+                {(provider.hitRatio * 100).toFixed(1)}% hit
+              </span>
+              <span className="tabular-nums text-muted-foreground">
+                {fmtTok(provider.cacheRead)} read · {fmtTok(provider.cacheWrite)} write
+              </span>
+            </div>
+          ))}
+        </div>
       </section>
     ) : null;
 
@@ -263,6 +291,8 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
               <>
                 {/* ── Cache coverage: how far the prompt cache extends ── */}
                 {cacheCoverageSection}
+
+                {providerCacheSection}
 
                 {/* ── Token allocation: composition ring + bar ── */}
                 <section>

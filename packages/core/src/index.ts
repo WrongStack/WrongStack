@@ -969,7 +969,7 @@ export {
   noOpVault,
   parseEncryptedVersion,
 } from './types/secret-vault.js';
-export type { CacheStats, TokenCounter } from './types/token-counter.js';
+export type { CacheStats, ProviderCacheStats, TokenCounter } from './types/token-counter.js';
 export { expectDefined } from './utils/expect-defined.js';
 export * from './utils/index.js';
 export {

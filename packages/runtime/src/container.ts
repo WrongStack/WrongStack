@@ -5,30 +5,33 @@ import {
   type DefaultSystemPromptBuilderOptions,
   FallbackProfileManager,
 } from '@wrongstack/core/agent';
+import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+// PR-C1 (66c4eb68): execution/ and infrastructure/ symbols come from the
+// published subpaths now that types/index.ts no longer re-exports them.
 import {
+  buildRecoveryStrategies,
   createStrategyCompactor,
   DefaultErrorHandler,
   DefaultPromptLoader,
   DefaultRetryPolicy,
   DefaultSkillLoader,
 } from '@wrongstack/core/execution';
-import { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { Container, type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModeStore } from '@wrongstack/core/models';
 import {
-  DirectoryPermissionPolicy,
   DefaultPermissionPolicy,
   DefaultSecretScrubber,
+  DirectoryPermissionPolicy,
   validateDirectoryPolicy,
 } from '@wrongstack/core/security';
-import { DefaultConfigStore, DefaultSessionStore } from '@wrongstack/core/storage';
+import {
+  DefaultConfigStore,
+  DefaultSessionStore,
+  getSessionRegistry,
+} from '@wrongstack/core/storage';
 import type { Config, Logger, ModelsRegistry, Tool } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-// PR-C1 (66c4eb68): execution/ and infrastructure/ symbols come from the
-// published subpaths now that types/index.ts no longer re-exports them.
-import { buildRecoveryStrategies } from '@wrongstack/core/execution';
-import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { getSessionRegistry } from '@wrongstack/core/storage';
 import { createProjectSageMemoryPort, isSqliteAvailable } from '@wrongstack/sage';
 
 export interface CreateContainerOptions {
@@ -150,7 +153,7 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   // ports and cannot silently open a competing writable backend.
   if (!isSqliteAvailable()) {
     throw new Error(
-      'SAGE requires Node built-in SQLite (node:sqlite; Node >= 22.5). ' +
+      'SAGE requires synchronous SQLite (node:sqlite on Node >= 22.5 or bun:sqlite on Bun). ' +
         'The JSONL compatibility fallback has been removed.',
     );
   }

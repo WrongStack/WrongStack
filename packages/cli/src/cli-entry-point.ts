@@ -61,12 +61,21 @@ function installSqliteWarningFilter(): void {
 
 installSqliteWarningFilter();
 
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { installCrashShield, runFatalSalvageSync, writeErr } from '@wrongstack/core/utils';
 
-const isMain =
-  import.meta.url === `file://${process.argv[1]?.replace(/\\/g, '/')}` ||
-  process.argv[1]?.endsWith('/cli/dist/index.js') ||
-  process.argv[1]?.endsWith('\\cli\\dist\\index.js');
+function isCliMain(moduleUrl: string, argvEntry = process.argv[1]): boolean {
+  if (!argvEntry) return false;
+  try {
+    if (moduleUrl === pathToFileURL(resolve(argvEntry)).href) return true;
+  } catch {
+    // Keep the historical suffix fallback for unusual launchers/URL-like argv values.
+  }
+  return argvEntry.endsWith('/cli/dist/index.js') || argvEntry.endsWith('\\cli\\dist\\index.js');
+}
+
+const isMain = isCliMain(import.meta.url);
 
 interface ErrorEventStream {
   on(event: 'error', listener: (error: unknown) => void): unknown;

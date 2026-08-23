@@ -47,7 +47,13 @@ export function defaultHeapLogPath(): string {
 export function takeHeapSample(): HeapSample {
   const m = process.memoryUsage();
   const heap = v8.getHeapStatistics();
-  const spaces = v8.getHeapSpaceStatistics();
+  let spaces: ReturnType<typeof v8.getHeapSpaceStatistics> = [];
+  try {
+    spaces = v8.getHeapSpaceStatistics();
+  } catch {
+    // Bun implements aggregate heap statistics but not V8 space statistics.
+    // Keep watchdog protection active with the aggregate values it provides.
+  }
   const spaceUsed = (name: string): number =>
     spaces.find((space) => space.space_name === name)?.space_used_size ?? 0;
   const limit = heap.heap_size_limit || 0;

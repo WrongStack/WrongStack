@@ -32,7 +32,21 @@ export interface WSStatsGet {
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
     };
-    cache: { readTokens: number; writeTokens: number; hitRatio: number } | null;
+    cache:
+      | {
+          readTokens: number;
+          writeTokens: number;
+          hitRatio: number;
+          providers?: Array<{
+            provider: string;
+            input: number;
+            cacheRead: number;
+            cacheWrite: number;
+            hitRatio: number;
+          }>;
+        }
+      | null;
+    currentRequest?: { input: number; cacheRead: number; cacheWrite: number } | undefined;
     cost: number;
     messages: number;
     readFiles: number;

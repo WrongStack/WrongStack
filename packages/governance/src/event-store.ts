@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync } from 'node:sqlite';
+import { loadRuntimeDatabaseSync } from '@wrongstack/persistence';
 
 import {
   applyGovernanceEvent,
@@ -242,7 +243,8 @@ export class SqliteGovernanceEventStore implements GovernanceEventStore {
   private constructor(databasePath: string, options: SqliteGovernanceEventStoreOptions) {
     this.databasePath = databasePath;
     this.now = options.now ?? (() => new Date().toISOString());
-    this.db = new DatabaseSync(databasePath);
+    const Database = loadRuntimeDatabaseSync();
+    this.db = new Database(databasePath);
     this.verificationLedger = new SqliteVerificationLedger(this.db, {
       now: this.now,
       verificationLeaseSecret: options.verificationLeaseSecret,

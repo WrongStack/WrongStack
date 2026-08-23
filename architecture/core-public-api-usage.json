@@ -46,7 +46,7 @@
     "@wrongstack/core/execution": {
       "files": 61,
       "typeOnly": 18,
-      "runtimeOrMixed": 59
+      "runtimeOrMixed": 58
     },
     "@wrongstack/core/extension": {
       "files": 7,
@@ -141,7 +141,7 @@
     "@wrongstack/core/storage": {
       "files": 104,
       "typeOnly": 31,
-      "runtimeOrMixed": 107
+      "runtimeOrMixed": 106
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -3568,7 +3568,7 @@
       "specifier": "@wrongstack/core/execution",
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/execution",
@@ -8716,7 +8716,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/container.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",

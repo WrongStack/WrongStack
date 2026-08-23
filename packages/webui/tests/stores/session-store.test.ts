@@ -146,6 +146,23 @@ describe('updateUsage', () => {
     useSessionStore.getState().updateUsage({ input: 0, output: 50, cacheRead: 0, cacheWrite: 0 });
     expect(useSessionStore.getState().lastInputTokens).toBe(prev);
   });
+
+  it('updates aggregate and per-provider cache hit ratios live', () => {
+    useSessionStore
+      .getState()
+      .updateUsage({ input: 200, output: 20, cacheRead: 800, cacheWrite: 0 }, 'minimax');
+    useSessionStore
+      .getState()
+      .updateUsage({ input: 100, output: 10, cacheRead: 300, cacheWrite: 100 }, 'anthropic');
+
+    const cache = useSessionStore.getState().cacheStats;
+    expect(cache?.hitRatio).toBeCloseTo(1100 / 1500, 6);
+    expect(cache?.coverageTokens).toBe(300);
+    expect(cache?.providers).toEqual([
+      { provider: 'minimax', input: 200, cacheRead: 800, cacheWrite: 0, hitRatio: 0.8 },
+      { provider: 'anthropic', input: 100, cacheRead: 300, cacheWrite: 100, hitRatio: 0.6 },
+    ]);
+  });
 });
 
 // ── addCost ───────────────────────────────────────────────────────

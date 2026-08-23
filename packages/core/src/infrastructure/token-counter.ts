@@ -27,6 +27,10 @@ export class DefaultTokenCounter implements TokenCounter {
   private costInput = 0;
   private costOutput = 0;
   private cacheSaved = 0;
+  private readonly cacheByProvider = new Map<
+    string,
+    { input: number; cacheRead: number; cacheWrite: number }
+  >();
   private readonly registry?: ModelsRegistry | undefined;
   private readonly providerId?: string | (() => string | undefined) | undefined;
   private readonly events?: EventBus | undefined;
@@ -61,6 +65,7 @@ export class DefaultTokenCounter implements TokenCounter {
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
     this.cacheWrite += usage.cacheWrite ?? 0;
+    this.recordProviderCache(usage, providerId);
     // Snapshot per-request tokens for context pressure tracking.
     this.lastInput = usage.input;
     this.lastCacheRead = usage.cacheRead ?? 0;
@@ -118,6 +123,7 @@ export class DefaultTokenCounter implements TokenCounter {
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
     this.cacheWrite += usage.cacheWrite ?? 0;
+    this.recordProviderCache(usage, resolved.providerId);
     // Snapshot per-request tokens for context pressure tracking.
     this.lastInput = usage.input;
     this.lastCacheRead = usage.cacheRead ?? 0;
@@ -177,6 +183,13 @@ export class DefaultTokenCounter implements TokenCounter {
         cacheWrite: this.cacheWrite,
       }),
       savedUsd: round4(this.cacheSaved),
+      providers: [...this.cacheByProvider.entries()]
+        .map(([provider, usage]) => ({
+          provider,
+          ...usage,
+          hitRatio: promptCacheHitRatio({ ...usage, output: 0 }),
+        }))
+        .sort((a, b) => b.cacheRead - a.cacheRead),
     };
   }
 
@@ -223,6 +236,7 @@ export class DefaultTokenCounter implements TokenCounter {
     this.costInput = 0;
     this.costOutput = 0;
     this.cacheSaved = 0;
+    this.cacheByProvider.clear();
     this.lastInput = 0;
     this.lastCacheRead = 0;
     this.lastCacheWrite = 0;
@@ -232,6 +246,15 @@ export class DefaultTokenCounter implements TokenCounter {
       cacheRead: 0,
       cacheWrite: 0,
     });
+  }
+
+  private recordProviderCache(usage: Usage, providerId?: string): void {
+    const key = providerId ?? 'unknown';
+    const current = this.cacheByProvider.get(key) ?? { input: 0, cacheRead: 0, cacheWrite: 0 };
+    current.input += usage.input;
+    current.cacheRead += usage.cacheRead ?? 0;
+    current.cacheWrite += usage.cacheWrite ?? 0;
+    this.cacheByProvider.set(key, current);
   }
 
   private applyPrice(usage: Usage, price: PriceEntry): void {

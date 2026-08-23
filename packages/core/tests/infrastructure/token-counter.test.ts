@@ -254,6 +254,36 @@ describe('DefaultTokenCounter', () => {
     expect(tc.cacheStats().savedUsd).toBe(0);
   });
 
+  it('reports cache hit ratios separately for Anthropic and MiniMax routes', () => {
+    const tc = new DefaultTokenCounter();
+    tc.account({ input: 100, output: 10, cacheRead: 300, cacheWrite: 100 }, 'opus', 'anthropic');
+    tc.account({ input: 200, output: 20, cacheRead: 800 }, 'minimax-m3', 'minimax');
+
+    expect(tc.cacheStats().providers).toEqual([
+      {
+        provider: 'minimax',
+        input: 200,
+        cacheRead: 800,
+        cacheWrite: 0,
+        hitRatio: 0.8,
+      },
+      {
+        provider: 'anthropic',
+        input: 100,
+        cacheRead: 300,
+        cacheWrite: 100,
+        hitRatio: 0.6,
+      },
+    ]);
+  });
+
+  it('clears provider cache telemetry on reset', () => {
+    const tc = new DefaultTokenCounter();
+    tc.account({ input: 10, output: 1, cacheRead: 90 }, 'opus', 'anthropic');
+    tc.reset();
+    expect(tc.cacheStats().providers).toEqual([]);
+  });
+
   it('prices Anthropic 1h cache writes at 2x input when no explicit 1h rate exists', () => {
     const tc = new DefaultTokenCounter();
     tc.accountWithModel({ input: 0, output: 0, cacheWrite1h: 1_000_000 }, m1);
