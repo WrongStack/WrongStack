@@ -13,7 +13,7 @@
  * controls consist of, and a textual match fails loudly on reformatting rather
  * than silently accepting a restructured file.
  */
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -180,23 +180,20 @@ describe('release scripts (WS-040)', () => {
     expect(hook).toContain('node scripts/sync-core-public-api-snapshot.mjs');
   });
 
-  it('gates git push on the local CI matrix', () => {
-    const hook = readFileSync(join(repoRoot, '.githooks', 'pre-push'), 'utf8');
-    expect(hook.startsWith('#!/bin/sh')).toBe(true);
-    expect(hook).toMatch(/^set -e$/m);
-    expect(hook).toContain('node scripts/release-check-matrix.mjs --profile');
-    expect(hook).toContain('WRONGSTACK_SKIP_PRE_PUSH');
-    expect(hook).toContain('WRONGSTACK_PRE_PUSH_PROFILE');
+  it('does not gate git push; ci:local stays an explicit command', () => {
+    // Pre-push gating was removed (2026-08): pushes are not gated locally.
+    // The same matrix stays available on demand via `pnpm ci:local`.
+    expect(existsSync(join(repoRoot, '.githooks', 'pre-push'))).toBe(false);
     expect(scripts()['ci:local']).toBe('node scripts/release-check-matrix.mjs --profile local');
   });
 
-  it('keeps coverage and e2e out of the laptop pre-push profile', () => {
+  it('keeps coverage and e2e out of the laptop local profile', () => {
     const runner = readFileSync(join(repoRoot, 'scripts', 'release-check-matrix.mjs'), 'utf8');
     expect(runner).toContain("profile === 'local' ? 'local CI' : 'release:check'");
     expect(runner).toContain('--profile');
     // The local id list is the source of truth for `pnpm ci:local`. It must
     // include the test suite GitHub CI runs, and must not silently grow a
-    // 45-minute coverage gate onto every push.
+    // 45-minute coverage gate onto every local run.
     const localBlock = runner.slice(runner.indexOf('local: [') + 'local: ['.length);
     const localIds = localBlock.slice(0, localBlock.indexOf('],'));
     expect(localIds).toContain("'lint'");

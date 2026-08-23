@@ -223,7 +223,7 @@ Skills are `SKILL.md` files (agentskills.io: YAML frontmatter `name`/`descriptio
 
 `.githooks/pre-commit` (install: `pnpm run setup:hooks`) runs `guard-against-corruption`, `lint-console-logging`, `guard-unresolved-imports`, and Core API snapshot sync. Workspace-wide typecheck is **not** in pre-commit (it would see unstaged/untracked WIP and force `--no-verify`). Run `pnpm build` once after pulling to seed local `dist/` (routes through `scripts/build.mjs`, topological sort, then `scripts/build-package.mjs` for esbuild + TypeScript declaration emit). **Never `pnpm -r build`** — alphabetical order can build a consumer before its workspace dependency, causing missing or stale declaration resolution and potentially unloadable runtime output. Stale-dist errors after pulling main → `pnpm build`.
 
-`.githooks/pre-push` runs `pnpm ci:local` (lint → build → typecheck → tests + architecture/snapshot gates) and blocks the push on failure. Docs-only pushes skip it. Coverage and Playwright e2e stay in GitHub CI. Emergency skip: `WRONGSTACK_SKIP_PRE_PUSH=1` or `--no-verify` (`release:check` is still the full maintainer gate).
+There is no pre-push hook — `git push` is not gated. Run `pnpm ci:local` (lint → build → typecheck → tests + architecture/snapshot gates) manually before pushing. Coverage and Playwright e2e stay in GitHub CI (`release:check` is still the full maintainer gate).
 
 ## Useful pointers
 

@@ -20,7 +20,7 @@ pnpm install
 pnpm build
 ```
 
-The `postinstall` script configures git hooks (`.githooks/pre-commit` and `.githooks/pre-push`) automatically.
+The `postinstall` script configures git hooks (`.githooks/pre-commit`) automatically.
 
 ## Development Workflow
 
@@ -69,17 +69,15 @@ The `.githooks/pre-commit` hook runs:
 
 These are advisory-only without `set -e`. The hook enables it. **Do not bypass with `--no-verify`** unless you understand the guards.
 
-### Pre-Push (local CI)
+### Local CI (`pnpm ci:local`)
 
-`.githooks/pre-push` runs `pnpm ci:local` before any non-docs `git push`. That is the laptop equivalent of [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, build, typecheck, Vitest + WebUI tests, HQ dashboard / TUI status-bar suites, and the snapshot/architecture gates.
+There is no pre-push hook: `git push` is not gated. Run `pnpm ci:local` yourself before pushing — it is the laptop equivalent of [`.github/workflows/ci.yml`](.github/workflows/ci.yml): lint, build, typecheck, Vitest + WebUI tests, HQ dashboard / TUI status-bar suites, and the snapshot/architecture gates.
 
-Coverage ratchets (~45 min) and Playwright e2e stay in GitHub CI. Docs-only pushes skip the matrix. A successful run is stamped at `.reports/local-ci.stamp` so a re-push of the same clean HEAD is not re-run.
+Coverage ratchets (~45 min) and Playwright e2e stay in GitHub CI. The full maintainer matrix remains available as `pnpm release:check`.
 
 ```bash
-pnpm ci:local                          # run the same matrix by hand
-WRONGSTACK_PRE_PUSH_PROFILE=release git push   # full release:check (includes coverage)
-WRONGSTACK_SKIP_PRE_PUSH=1 git push            # emergency skip
-git push --no-verify                           # same skip; use only if you know why
+pnpm ci:local          # laptop subset of GitHub CI
+pnpm release:check     # full matrix, including coverage
 ```
 
 ---
@@ -124,7 +122,7 @@ git checkout -b feat/your-feature
 ### 2. Make your changes
 
 - Keep commits focused — one logical change per commit.
-- `git push` runs `pnpm ci:local` via `.githooks/pre-push`. Fix failures locally instead of pushing a red tree.
+- Run `pnpm ci:local` before pushing — pushes are not gated by any hook. Fix failures locally instead of pushing a red tree.
 - Write tests for new functionality.
 
 ### 3. Commit message convention

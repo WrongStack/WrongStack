@@ -30,12 +30,11 @@
  *   --only a,b,...    run only the named gate ids (comma separated)
  *   --tail N          failure-tail length in the report (default 25)
  *   --profile name    `release` (default, `pnpm release:check`) or `local`
- *                     (`pnpm ci:local` / pre-push). Local is the GitHub CI
+ *                     (`pnpm ci:local`). Local is the GitHub CI
  *                     subset that is practical on a laptop: lint, build,
  *                     typecheck, tests, and the snapshot/architecture gates.
  *                     It omits coverage (45m), e2e (Playwright), and audit
- *                     (network). Override the hook with
- *                     WRONGSTACK_PRE_PUSH_PROFILE=release for the full matrix.
+ *                     (network). Run `pnpm release:check` for the full matrix.
  *
  * The runner deliberately does not parse or interpret gate output — it only
  * propagates exit codes. Gate semantics stay owned by each gate script.
@@ -201,8 +200,8 @@ const GATES = [
 ];
 
 /**
- * Gates that belong on a laptop pre-push / `pnpm ci:local` but not on the
- * historical release:check chain. Coverage already runs the test suite, so
+ * Gates that belong on a laptop `pnpm ci:local` run but not on the historical
+ * release:check chain. Coverage already runs the test suite, so
  * adding a bare `pnpm test` to `release` would double the wall time.
  */
 const LOCAL_ONLY_GATES = [
