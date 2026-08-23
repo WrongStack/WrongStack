@@ -5,7 +5,8 @@ import type { Provider, Request, Response } from '../types/provider.js';
 import { ProviderError } from '../types/provider.js';
 import { toWrongStackError } from '../types/errors.js';
 import type { RetryPolicy } from '../types/retry-policy.js';
-import { type Context, resolveEventSessionId } from './context.js';
+import { resolveEventSessionId } from './context.js';
+import type { AgentContext } from '../types/context.js';
 import { streamProviderToResponse } from './streaming-response-builder.js';
 import { createChroniclePromptManifest } from '../chronicle/prompt-manifest.js';
 import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
@@ -37,7 +38,7 @@ export interface RunProviderOptions {
   provider: Provider;
   request: Request;
   signal: AbortSignal;
-  ctx: Context;
+  ctx: AgentContext;
   events: EventBus;
   retry: RetryPolicy;
   logger: Logger;
@@ -92,12 +93,21 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
     });
     logger.debug(`Provider attempt ${attempt + 1} starting`, providerLogCtx(provider, request));
     try {
-      const res = await runWithNetworkTelemetry({ events, sessionId: resolveEventSessionId(ctx),
-        ...(ctx.traceId ? { traceId: ctx.traceId } : {}), ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
-        attemptId, initiator: 'provider', operationName: `${provider.id}.complete` }, () =>
-        provider.capabilities.streaming
-          ? streamProviderToResponse(provider, request, signal, ctx, events, logger)
-          : provider.complete(request, { signal }));
+      const res = await runWithNetworkTelemetry(
+        {
+          events,
+          sessionId: resolveEventSessionId(ctx),
+          ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+          ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
+          attemptId,
+          initiator: 'provider',
+          operationName: `${provider.id}.complete`,
+        },
+        () =>
+          provider.capabilities.streaming
+            ? streamProviderToResponse(provider, request, signal, ctx, events, logger)
+            : provider.complete(request, { signal }),
+      );
       span?.setAttribute('provider.stopReason', res.stopReason);
       span?.setAttribute('provider.usage_in', res.usage.input);
       span?.setAttribute('provider.usage_out', res.usage.output);
@@ -127,7 +137,9 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
       const errAsErr = err instanceof Error ? err : new Error(String(err));
       const canRetry = retry.shouldRetry(isProviderErr ? err : errAsErr, attempt);
-      const providerErrorBody = isProviderErr ? scrubProviderBody((err as ProviderError).body) : undefined;
+      const providerErrorBody = isProviderErr
+        ? scrubProviderBody((err as ProviderError).body)
+        : undefined;
       const description = scrubErrorText(
         isProviderErr ? (err as ProviderError).describe() : errAsErr.message,
       );
@@ -145,9 +157,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
         retryable: canRetry,
         retryScheduled: canRetry,
         ...(delay !== undefined ? { retryDelayMs: delay } : {}),
-        ...(providerErrorBody?.requestId
-          ? { providerRequestId: providerErrorBody.requestId }
-          : {}),
+        ...(providerErrorBody?.requestId ? { providerRequestId: providerErrorBody.requestId } : {}),
         ...(providerErrorBody ? { errorBody: providerErrorBody } : {}),
       });
       if (!canRetry) {
@@ -218,7 +228,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
           settled = true;
           cleanup();
           resolve();
-      }, delay!);
+        }, delay!);
         if (signal.aborted) {
           onAbort();
           return;

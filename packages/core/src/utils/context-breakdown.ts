@@ -1,5 +1,5 @@
 import { buildLiveNextStepsGateBlock } from '../core/agent-response.js';
-import type { Context } from '../core/context.js';
+import type { AgentContext } from '../types/context.js';
 import { SYSTEM_BLOCK_SOURCE, type SystemBlockSource } from '../core/system-prompt-builder.js';
 import type { TextBlock } from '../types/blocks.js';
 import type { Tool } from '../types/tool.js';
@@ -135,7 +135,7 @@ function safeBuild(
  * to keep this module free of an `execution/`/`core/` runtime dependency for
  * the denominator (the builders it already imports are the only exception).
  */
-function resolveEffectiveMaxContext(ctx: Context): number {
+function resolveEffectiveMaxContext(ctx: AgentContext): number {
   const metaLimit = ctx.meta?.['effectiveMaxContext'];
   const providerMax = ctx.provider.capabilities.maxContext;
   return typeof metaLimit === 'number' && metaLimit > 0
@@ -150,7 +150,7 @@ function resolveEffectiveMaxContext(ctx: Context): number {
  * interactively (e.g. from `/context`): it walks the full message array once, so
  * it is O(messages·blocks), not the O(1) cached path the per-turn bar uses.
  */
-export function getContextBreakdown(ctx: Context): ContextBreakdown {
+export function getContextBreakdown(ctx: AgentContext): ContextBreakdown {
   // --- System prompt: attributed per section via the builder's WeakMap tag ---
   const bySource = emptyBySource();
   let systemTotal = 0;

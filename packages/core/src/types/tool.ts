@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 
 export type Permission = 'auto' | 'confirm' | 'deny';
 
@@ -184,7 +184,7 @@ export interface Tool<I = unknown, O = unknown> {
    * Each UI maps this id to its own icon library.
    */
   icon?: ToolIconId | undefined;
-  execute(input: I, ctx: Context, opts: { signal: AbortSignal }): Promise<O>;
+  execute(input: I, ctx: AgentContext, opts: { signal: AbortSignal }): Promise<O>;
   /**
    * Optional cross-field validation hook. Called by the executor AFTER
    * JSON Schema validation passes and AFTER PreToolUse hooks may have
@@ -210,7 +210,7 @@ export interface Tool<I = unknown, O = unknown> {
    */
   executeStream?(
     input: I,
-    ctx: Context,
+    ctx: AgentContext,
     opts: { signal: AbortSignal },
   ): AsyncIterable<ToolStreamEvent<O>>;
   /**
@@ -256,7 +256,7 @@ export interface Tool<I = unknown, O = unknown> {
    * Avoid double-free by gating one on the other's effect, or pick a single
    * teardown channel per resource.
    */
-  cleanup?(input: I, ctx: Context): Promise<void>;
+  cleanup?(input: I, ctx: AgentContext): Promise<void>;
   /**
    * Optional custom output serializer. When present, the executor's output
    * serializer calls this INSTEAD of the central `renderToolObject()` switch
@@ -278,7 +278,7 @@ export interface ToolCallContext {
   tool: Tool;
   input: unknown;
   callId: string;
-  ctx: Context;
+  ctx: AgentContext;
   signal: AbortSignal;
 }
 

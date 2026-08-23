@@ -1,6 +1,6 @@
 import type { ChroniclePromptManifest } from '../../chronicle/prompt-manifest.js';
-import type { Context } from '../../core/context.js';
 import type { ContentBlock } from '../../types/blocks.js';
+import type { AgentContext } from '../../types/context.js';
 import type { ProviderErrorBody, Usage } from '../../types/provider.js';
 
 export interface ProviderEventMap {
@@ -76,23 +76,23 @@ export interface ProviderEventMap {
   };
   'provider.response': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     model: string;
     content?: ContentBlock[] | undefined;
     usage: Usage;
     stopReason: string;
   };
-  'provider.text_delta': { sessionId?: string | undefined; ctx: Context; text: string };
-  'provider.thinking_delta': { sessionId?: string | undefined; ctx: Context; text: string };
+  'provider.text_delta': { sessionId?: string | undefined; ctx: AgentContext; text: string };
+  'provider.thinking_delta': { sessionId?: string | undefined; ctx: AgentContext; text: string };
   'provider.tool_use_start': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     id: string;
     name: string;
   };
   'provider.tool_use_stop': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     id: string;
     name: string;
   };
@@ -104,7 +104,7 @@ export interface ProviderEventMap {
    */
   'provider.stream_error': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     eventType: string;
     msg: string;
   };

@@ -12,7 +12,7 @@ import { computeMessageTokens } from '../utils/token-estimate.js';
 // (dependency-safe for AgentContext); re-exported here for existing import paths.
 export type { ConversationStateApi, ReadonlyConversationState, StateChange };
 
-export type StateChangeHandler = (change: StateChange, state: ConversationState) => void;
+export type StateChangeHandler = (change: StateChange, state: ConversationStateApi) => void;
 
 function hasToolResultBlock(message: Message | undefined): boolean {
   return (
@@ -43,9 +43,11 @@ function hasToolUseBlock(message: Message | undefined): boolean {
  * external writes.
  */
 export class ConversationState {
-  private readonly ctx: AgentContext;
-  private readonly listeners = new Set<StateChangeHandler>();
-  private _revision = 0;
+  /** Owning context; public for structural typing (Roadmap 10A). */
+  readonly ctx: AgentContext;
+  /** Subscribers; public for structural typing (Roadmap 10A). */
+  readonly listeners = new Set<StateChangeHandler>();
+  _revision = 0;
 
   constructor(ctx: AgentContext) {
     this.ctx = ctx;
@@ -135,7 +137,7 @@ export class ConversationState {
    * content blocks.  It runs whenever the token cap is enabled; the count
    * cap determines the starting index for the sum but does not gate it.
    */
-  private overflowCount(arr: readonly Message[]): number {
+  overflowCount(arr: readonly Message[]): number {
     const { maxMessages, maxMessageTokens } = this.ctx.messageLimits;
     let drop = maxMessages > 0 ? Math.max(0, arr.length - maxMessages) : 0;
     if (maxMessageTokens <= 0) return this.protocolSafeDropCount(arr, drop);
@@ -166,7 +168,7 @@ export class ConversationState {
    * the minimum lossless representation; once enough newer messages exist, the
    * next eviction boundary naturally moves past both halves together.
    */
-  private protocolSafeDropCount(arr: readonly Message[], drop: number): number {
+  protocolSafeDropCount(arr: readonly Message[], drop: number): number {
     if (drop <= 0 || drop >= arr.length) return drop;
     return hasToolResultBlock(arr[drop]) && hasToolUseBlock(arr[drop - 1]) ? drop - 1 : drop;
   }
@@ -308,7 +310,7 @@ export class ConversationState {
     return () => this.listeners.delete(listener);
   }
 
-  private emit(change: StateChange): void {
+  emit(change: StateChange): void {
     this._revision++;
     for (const h of this.listeners) {
       try {

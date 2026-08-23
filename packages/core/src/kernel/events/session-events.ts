@@ -1,4 +1,4 @@
-import type { Context } from '../../core/context.js';
+import type { AgentContext } from '../../types/context.js';
 import type { Usage } from '../../types/provider.js';
 import type { WorkspaceCheckpointRef } from '../../types/session.js';
 import type { TrackedAgentSnapshot } from '../events.js';
@@ -28,8 +28,8 @@ export interface SessionEventMap {
     sessionId?: string | undefined;
     agents: readonly TrackedAgentSnapshot[];
   };
-  'iteration.started': { sessionId?: string | undefined; ctx: Context; index: number };
-  'iteration.completed': { sessionId?: string | undefined; ctx: Context; index: number };
+  'iteration.started': { sessionId?: string | undefined; ctx: AgentContext; index: number };
+  'iteration.completed': { sessionId?: string | undefined; ctx: AgentContext; index: number };
   /**
    * Fired when the agent hits its iteration limit. Listeners (CLI/TUI) can
    * call `grant(extra)` to allow more iterations, or `deny()` to stop.
@@ -75,7 +75,7 @@ export interface SessionEventMap {
   };
   'context.repaired': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     changed: boolean;
     removedToolUses: string[];
     removedToolResults: string[];

@@ -1008,7 +1008,7 @@ export class Context implements RunEnv, AgentContext {
  * tests and lightweight embedders stub Context with partial objects whose
  * `session` may be missing despite the non-optional type.
  */
-export function resolveEventSessionId(ctx: Context): string {
+export function resolveEventSessionId(ctx: AgentContext): string {
   if (ctx.activeRunSessionId) return ctx.activeRunSessionId;
   const session: SessionWriter | undefined = ctx.session;
   return session?.id ?? '';

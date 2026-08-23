@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 import type { Permission, Tool } from './tool.js';
 
 export interface TrustPolicy {
@@ -127,13 +127,13 @@ export interface DirectoryPolicy {
 }
 
 export interface PermissionPolicy {
-  evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision>;
+  evaluate(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionDecision>;
   /**
    * Side-effect-free permission evaluation trace. Returns the same
    * logical result as `evaluate()` without prompting the user,
    * writing to trust files, or mutating session state.
    */
-  explain?(tool: Tool, input: unknown, ctx: Context): Promise<PermissionTrace>;
+  explain?(tool: Tool, input: unknown, ctx: AgentContext): Promise<PermissionTrace>;
   trust(rule: { tool: string; pattern: string }): Promise<void>;
   /**
    * Persist a permanent deny rule (mirrors trust). Written to trust.json.

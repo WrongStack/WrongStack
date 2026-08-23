@@ -71,10 +71,7 @@
       "id": "ARCH-CYCLE-TYPE-12",
       "kind": "type-module-cycle",
       "members": [
-        "packages/core/src/core/context.ts",
-        "packages/core/src/core/conversation-state.ts",
         "packages/core/src/types/blocks.ts",
-        "packages/core/src/types/compactor.ts",
         "packages/core/src/types/context.ts",
         "packages/core/src/types/conversation-state.ts",
         "packages/core/src/types/messages.ts",
@@ -82,13 +79,10 @@
         "packages/core/src/types/run-env.ts",
         "packages/core/src/types/session.ts",
         "packages/core/src/types/token-counter.ts",
-        "packages/core/src/types/tool.ts",
-        "packages/core/src/utils/context-evidence.ts",
-        "packages/core/src/utils/token-estimate.ts",
-        "packages/core/src/utils/tool-wire-compact.ts"
+        "packages/core/src/types/tool.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01. Membership updated 2026-08-23 as part of Roadmap 10A dependency-leaf extraction: +3 leaf modules (types/context.ts, types/conversation-state.ts, types/run-env.ts) joined the SCC because SCC members now import FROM the leaves (the transitional direction of the flip); core/run-env.ts left the SCC (now a re-export shim over types/run-env.ts). Still type-only; runtime cycles: 0. Full decoupling recipe on card 342f147e (10A close-out: mirror complete instance surface onto AgentContext, flip back-edges one pass, then delete this exception).",
+      "reason": "Successor of the original 2026-07-21 G1 SCC. RESOLVED 2026-08-23 (Roadmap 10A close-out): the Context class module (core/context.ts), ConversationState class module, and the three utils back-edges (context-evidence, token-estimate, tool-wire-compact) left this SCC — the AgentContext/ConversationStateApi/RunEnv dependency leaves now own those types and every former back-edge imports from the leaves. What remains is a strictly smaller, types/-internal SCC: AgentContext (types/context.ts) references Tool (types/tool.ts) which references AgentContext back, with RunEnv + the shared message/provider/session/block value types in the same component. Still type-only (runtime cycles: 0); membership re-verified exact-current against the computed SCC after the flip; all six former members that left the component are verified cycle-free. Next decoupling step if desired: extract the Tool type's ctx-facing member shapes into a leaf that neither imports Tool nor AgentContext (mirrors the envelope.ts split done for ARCH-CYCLE-TYPE-13).",
       "introduced": "2026-07-21",
       "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",

@@ -44,11 +44,12 @@ export interface ReadonlyConversationState {
 }
 
 /**
- * Structural API of the ConversationState wrapper. The concrete class in
- * `core/conversation-state.ts` satisfies this interface; consumers that only
- * read/mutate through the wrapper can depend on this type instead of the
- * class module. `state` is passed to handlers as the API type — the class
- * instance is structurally assignable.
+ * Structural API of the ConversationState wrapper — the COMPLETE instance
+ * surface of the concrete class in `core/conversation-state.ts` (Roadmap
+ * 10A). The class satisfies this interface structurally (it holds no
+ * private instance members), which makes `AgentContext.state` assignable
+ * both to the API and from the class — the property that lets the
+ * CYCLE-12 back-edges flip without importing the class module.
  */
 export interface ConversationStateApi {
   readonly messages: readonly Message[];
@@ -75,4 +76,25 @@ export interface ConversationStateApi {
    * unsubscribe function.
    */
   onChange(listener: (change: StateChange, state: ConversationStateApi) => void): () => void;
+  // ── Full-surface members (Roadmap 10A close-out) ────────────────────────
+  // The class previously kept these private, sealing it nominally. They are
+  // public on the class now; mirrored here so the API covers the complete
+  // instance surface required for class→API structural assignability.
+  /** Owning context the wrapper reads/mutates. */
+  readonly ctx: import('./context.js').AgentContext;
+  /**
+   * Registered change subscribers. The concrete class and this leaf both
+   * type the handler parameter identically (`state: ConversationStateApi`),
+   * so the class's Set is assignable in both directions without the class
+   * importing anything from this leaf — and without variance escapes.
+   */
+  listeners: Set<(change: StateChange, state: ConversationStateApi) => void>;
+  /** Backing mutation counter behind the `revision` getter. */
+  _revision: number;
+  /** Retention-cap overflow computation (see class JSDoc). */
+  overflowCount(arr: readonly Message[]): number;
+  /** Protocol-safe front-eviction boundary (see class JSDoc). */
+  protocolSafeDropCount(arr: readonly Message[], drop: number): number;
+  /** Notify subscribers of a mutation and bump the revision. */
+  emit(change: StateChange): void;
 }

@@ -1102,7 +1102,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11359
+      "sourceLines": 11372
     },
     {
       "directory": "design",
@@ -1263,7 +1263,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11387
+      "sourceLines": 11501
     },
     {
       "directory": "utils",

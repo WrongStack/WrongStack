@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 import type { Response } from './provider.js';
 
 export type RecoveryDecision =
@@ -35,7 +35,7 @@ export interface ErrorHandler {
    * retry the current turn, continue with a substitute response, or fail
    * deliberately. Callers should not infer control flow from truthiness.
    */
-  recover(err: unknown, ctx: Context): Promise<RecoveryDecision | null>;
+  recover(err: unknown, ctx: AgentContext): Promise<RecoveryDecision | null>;
   classify(err: unknown): {
     kind:
       | 'rate_limit'

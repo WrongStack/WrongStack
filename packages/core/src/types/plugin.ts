@@ -4,7 +4,7 @@ import type { Notifier } from '../notifications/notifier.js';
 export type { Notifier };
 
 import type { ToolCallPipelinePayload } from '../core/agent.js';
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 import type { ExtensionRegistry } from '../extension/registry.js';
 import type { Container } from '../kernel/container.js';
 import type { EventBus, EventName, Listener } from '../kernel/events.js';
@@ -176,10 +176,10 @@ export interface PluginPipelines {
   userInput: ReadonlyPipeline<{
     content: import('./blocks.js').ContentBlock[];
     text: string;
-    ctx: Context;
+    ctx: AgentContext;
   }>;
   assistantOutput: ReadonlyPipeline<TextBlock>;
-  contextWindow: ReadonlyPipeline<Context>;
+  contextWindow: ReadonlyPipeline<AgentContext>;
   // biome-ignore lint/suspicious/noExplicitAny: plugins may extend with custom pipelines
   [k: string]: ReadonlyPipeline<any>;
 }

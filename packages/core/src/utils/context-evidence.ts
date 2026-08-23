@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { Context } from '../core/context.js';
+import type { AgentContext } from '../types/context.js';
 import { isTextBlock, type TextBlock } from '../types/blocks.js';
 import type { CompactReport } from '../types/compactor.js';
 import type {
@@ -54,7 +54,7 @@ export interface RecordToolOutputEvidenceInput {
   outputLines?: number | undefined;
 }
 
-export function recordUserIntentEvidence(ctx: Context, text: string): void {
+export function recordUserIntentEvidence(ctx: AgentContext, text: string): void {
   if (isRuntimeContextInput(text)) return;
   const intent = normalizeWhitespace(text).slice(0, MAX_USER_TURN_CHARS);
   if (!intent) return;
@@ -87,7 +87,7 @@ export function isRuntimeContextInput(text: string): boolean {
  * invalidates the cached base prompt.
  */
 export function buildConversationContinuityBlock(
-  ctx: Pick<Context, 'contextEvidence' | 'messages'>,
+  ctx: Pick<AgentContext, 'contextEvidence' | 'messages'>,
 ): TextBlock | undefined {
   const recorded = ctx.contextEvidence.recentUserTurns ?? [];
   const sourceTurns =
@@ -124,7 +124,7 @@ export function buildConversationContinuityBlock(
 }
 
 export function recordToolOutputEvidence(
-  ctx: Context,
+  ctx: AgentContext,
   input: RecordToolOutputEvidenceInput,
 ): ToolOutputMetadata {
   const state = ensureEvidence(ctx);
@@ -181,7 +181,7 @@ export function recordToolOutputEvidence(
   return metadata;
 }
 
-export function markAssistantReferencedEvidence(ctx: Context, text: string): void {
+export function markAssistantReferencedEvidence(ctx: AgentContext, text: string): void {
   const state = ensureEvidence(ctx);
   const haystack = text.toLowerCase();
   if (!haystack.trim()) return;
@@ -208,7 +208,7 @@ export function markAssistantReferencedEvidence(ctx: Context, text: string): voi
   state.updatedAt = Date.now();
 }
 
-export function buildContextEvidenceDigest(ctx: Context): string {
+export function buildContextEvidenceDigest(ctx: AgentContext): string {
   const state = ensureEvidence(ctx);
   const lines: string[] = [];
 
@@ -280,7 +280,7 @@ export function buildContextEvidenceDigest(ctx: Context): string {
   return `${digest.slice(0, MAX_DIGEST_CHARS)}... [+${digest.length - MAX_DIGEST_CHARS} chars]`;
 }
 
-export function repeatedReadPressure(ctx: Context): number {
+export function repeatedReadPressure(ctx: AgentContext): number {
   return ensureEvidence(ctx).repeatedReads.reduce((max, item) => Math.max(max, item.count), 0);
 }
 
@@ -306,7 +306,7 @@ const QUALITY_ISSUE = {
  * `injectEvidenceFloor` to actually repair a flagged loss.
  */
 export function checkCompactionQuality(
-  ctx: Context,
+  ctx: AgentContext,
   opts: {
     collapsedDigest?: string | undefined;
     evidenceDigest?: string | undefined;
@@ -339,7 +339,7 @@ export function checkCompactionQuality(
  * when it injected a block (so the caller re-estimates tokens).
  */
 export function injectEvidenceFloor(
-  ctx: Context,
+  ctx: AgentContext,
   quality: CompactReport['quality'] | undefined,
 ): boolean {
   if (!quality || quality.ok) return false;
@@ -361,7 +361,7 @@ export function injectEvidenceFloor(
   return true;
 }
 
-function ensureEvidence(ctx: Context): ContextEvidenceState {
+function ensureEvidence(ctx: AgentContext): ContextEvidenceState {
   if (!ctx.contextEvidence) {
     (ctx as never as { contextEvidence: ContextEvidenceState }).contextEvidence =
       createContextEvidenceState();
@@ -426,7 +426,7 @@ export interface RecordCompletedWorkInput {
  * prefix is never mutated here.
  */
 export function recordCompletedWorkEvidence(
-  ctx: Context,
+  ctx: AgentContext,
   input: RecordCompletedWorkInput,
 ): CompletedWorkEvidence {
   const state = ensureEvidence(ctx);
@@ -463,7 +463,7 @@ export function formatCompletedWorkLedger(items: readonly CompletedWorkEvidence[
 }
 
 /** Build the current volatile completed-work block without mutating the prompt. */
-export function buildCompletedWorkLedgerBlock(ctx: Context): TextBlock | undefined {
+export function buildCompletedWorkLedgerBlock(ctx: AgentContext): TextBlock | undefined {
   const items = ensureEvidence(ctx).completedWork;
   if (items.length === 0) return undefined;
   // Deliberately marker-free: this block changes whenever work completes, and
@@ -479,7 +479,7 @@ export function buildCompletedWorkLedgerBlock(ctx: Context): TextBlock | undefin
  * @deprecated Volatile state must be composed at request time. Kept as a
  * compatibility no-op for embedders importing the old helper.
  */
-export function syncCompletedWorkLedgerBlock(_ctx: Context): void {
+export function syncCompletedWorkLedgerBlock(_ctx: AgentContext): void {
   // Intentionally empty. Mutating ctx.systemPrompt invalidates provider prefix caches.
 }
 
@@ -502,7 +502,7 @@ function pushUniqueBounded(list: string[], value: string, max: number): void {
 }
 
 function extractFiles(
-  ctx: Context,
+  ctx: AgentContext,
   toolName: string,
   input: unknown,
   content: string,
@@ -536,7 +536,7 @@ function inputPathValues(input: unknown): string[] {
   return values;
 }
 
-function addPath(ctx: Context, out: Set<string>, raw: string): void {
+function addPath(ctx: AgentContext, out: Set<string>, raw: string): void {
   const clean = raw.trim().replace(/^["'`]+|["'`),;:]+$/g, '');
   if (!clean || clean.length > 260) return;
   let normalized = clean.replace(/\\/g, '/');

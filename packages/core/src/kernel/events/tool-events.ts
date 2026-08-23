@@ -1,4 +1,4 @@
-import type { Context } from '../../core/context.js';
+import type { AgentContext } from '../../types/context.js';
 import type { ToolOutputMetadata } from '../../types/context-evidence.js';
 import type { PermissionDecision } from '../../types/permission.js';
 import type { RiskTier, Tool, ToolErrorCategory, ToolProgressEvent } from '../../types/tool.js';
@@ -156,7 +156,7 @@ export interface ToolEventMap {
    */
   'tool.loop_detected': {
     sessionId?: string | undefined;
-    ctx: Context;
+    ctx: AgentContext;
     /** Comma-separated tool names involved in the loop, or empty string for pure message loops. */
     tools: string;
     /** Number of repeats detected (consecutive iterations, or identical calls within the window for `scope: 'call'`). */

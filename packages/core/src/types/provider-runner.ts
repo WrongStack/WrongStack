@@ -1,9 +1,9 @@
 import type { EventBus } from '../kernel/events.js';
+import type { AgentContext } from './context.js';
 import type { Logger } from './logger.js';
 import type { Tracer } from './observability.js';
 import type { Provider, Request, Response } from './provider.js';
 import type { RetryPolicy } from './retry-policy.js';
-import type { Context } from '../core/context.js';
 
 /**
  * Options passed to a ProviderRunner when calling the provider.
@@ -14,7 +14,7 @@ export interface RunProviderOptions {
   provider: Provider;
   request: Request;
   signal: AbortSignal;
-  ctx: Context;
+  ctx: AgentContext;
   events: EventBus;
   retry: RetryPolicy;
   logger: Logger;

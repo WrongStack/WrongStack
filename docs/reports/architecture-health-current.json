@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-23T15:37:11.778Z",
+  "generatedAt": "2026-08-23T16:17:45.151Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 35,
     "sourceFiles": 3342,
     "testFiles": 2874,
-    "sourceLines": 791470,
+    "sourceLines": 791597,
     "workspaceEdges": 123,
-    "moduleEdges": 10299,
+    "moduleEdges": 10303,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -983,26 +983,6 @@
       {
         "kind": "type-module-cycle",
         "members": [
-          "packages/core/src/core/context.ts",
-          "packages/core/src/core/conversation-state.ts",
-          "packages/core/src/types/blocks.ts",
-          "packages/core/src/types/compactor.ts",
-          "packages/core/src/types/context.ts",
-          "packages/core/src/types/conversation-state.ts",
-          "packages/core/src/types/messages.ts",
-          "packages/core/src/types/provider.ts",
-          "packages/core/src/types/run-env.ts",
-          "packages/core/src/types/session.ts",
-          "packages/core/src/types/token-counter.ts",
-          "packages/core/src/types/tool.ts",
-          "packages/core/src/utils/context-evidence.ts",
-          "packages/core/src/utils/token-estimate.ts",
-          "packages/core/src/utils/tool-wire-compact.ts"
-        ]
-      },
-      {
-        "kind": "type-module-cycle",
-        "members": [
           "packages/core/src/hq/protocol/client.ts",
           "packages/core/src/hq/protocol/core.ts",
           "packages/core/src/hq/protocol/fleet.ts",
@@ -1018,6 +998,20 @@
           "packages/core/src/plugins/sync-plugin.ts",
           "packages/core/src/tools/mcp-control.ts",
           "packages/core/src/tools/mcp-use.ts"
+        ]
+      },
+      {
+        "kind": "type-module-cycle",
+        "members": [
+          "packages/core/src/types/blocks.ts",
+          "packages/core/src/types/context.ts",
+          "packages/core/src/types/conversation-state.ts",
+          "packages/core/src/types/messages.ts",
+          "packages/core/src/types/provider.ts",
+          "packages/core/src/types/run-env.ts",
+          "packages/core/src/types/session.ts",
+          "packages/core/src/types/token-counter.ts",
+          "packages/core/src/types/tool.ts"
         ]
       },
       {

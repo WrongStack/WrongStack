@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import type { AgentContext } from './context.js';
 
 /**
  * A slash command registered with the CLI or available to plugins.
@@ -52,6 +52,6 @@ export interface SlashCommand {
    */
   run(
     args: string,
-    ctx?: Context | undefined,
+    ctx?: AgentContext | undefined,
   ): Promise<{ exit?: boolean | undefined; message?: string | undefined; runText?: string | undefined; metadata?: Record<string, unknown> } | void>;
 }

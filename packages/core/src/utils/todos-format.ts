@@ -1,4 +1,4 @@
-import type { TodoItem } from '../core/context.js';
+import type { TodoItem } from '../types/context.js';
 import { color } from './color.js';
 
 /**

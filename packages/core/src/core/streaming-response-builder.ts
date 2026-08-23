@@ -3,7 +3,8 @@ import type { EventBus } from '../kernel/events.js';
 import type { Logger } from '../types/logger.js';
 import type { ContentBlock, ThinkingBlock, ToolUseBlock } from '../types/blocks.js';
 import type { Provider, Request, Response } from '../types/provider.js';
-import { type Context, resolveEventSessionId } from './context.js';
+import { resolveEventSessionId } from './context.js';
+import type { AgentContext } from '../types/context.js';
 import { completePartialObject } from '../utils/json-repair.js';
 
 const STREAM_DRAIN_TIMEOUT_MS = 500;
@@ -236,7 +237,7 @@ export async function streamProviderToResponse(
   provider: Provider,
   req: Request,
   signal: AbortSignal,
-  ctx: Context,
+  ctx: AgentContext,
   events: EventBus,
   logger: Logger,
 ): Promise<Response> {
