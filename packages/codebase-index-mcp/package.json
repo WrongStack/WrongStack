@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/codebase-index-mcp",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack Codebase Index as an MCP server, backed by the existing project-scoped IPC daemon.",
   "repository": {
@@ -32,7 +32,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "echo \"Run @wrongstack/codebase-index-mcp tests from the workspace root: pnpm exec vitest run packages/codebase-index-mcp/tests\"",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },

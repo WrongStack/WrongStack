@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugin-sdk",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "description": "Authoring SDK for WrongStack plugins — the plugin contract types, definePlugin, and shared runtime helpers. Third-party plugins should depend on this package only.",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",
@@ -25,7 +25,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""

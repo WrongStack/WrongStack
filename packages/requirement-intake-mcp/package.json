@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/requirement-intake-mcp",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack Requirements Intake as a project-scoped MCP server: list intake records (read tier) and file+submit intake records (writable tier).",
   "repository": {
@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "echo \"Run @wrongstack/requirement-intake-mcp tests from the workspace root: pnpm exec vitest run packages/requirement-intake-mcp/tests\"",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },

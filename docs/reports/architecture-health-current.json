@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-22T23:43:05.794Z",
+  "generatedAt": "2026-08-23T14:00:40.430Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3327,
-    "testFiles": 2873,
-    "sourceLines": 790703,
-    "workspaceEdges": 119,
-    "moduleEdges": 10302,
+    "sourceFiles": 3339,
+    "testFiles": 2874,
+    "sourceLines": 791262,
+    "workspaceEdges": 123,
+    "moduleEdges": 10282,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 812
+    "testOnlyExports": 817
   },
   "errors": [],
   "packageCycles": [],
@@ -31,7 +31,6 @@
       "chronicle",
       "coordination",
       "core",
-      "defaults",
       "design",
       "execution",
       "extension",
@@ -40,7 +39,6 @@
       "hq",
       "infrastructure",
       "kernel",
-      "middleware",
       "models",
       "notifications",
       "observability",
@@ -63,7 +61,6 @@
       "chronicle",
       "coordination",
       "core",
-      "defaults",
       "design",
       "execution",
       "extension",
@@ -72,7 +69,6 @@
       "hq",
       "infrastructure",
       "kernel",
-      "middleware",
       "models",
       "notifications",
       "observability",
@@ -209,7 +205,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 756,
+      "sourceFiles": 760,
       "testFiles": 644,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -258,7 +254,9 @@
       "dir": "packages/governance",
       "sourceFiles": 39,
       "testFiles": 26,
-      "workspaceDependencies": [],
+      "workspaceDependencies": [
+        "@wrongstack/persistence"
+      ],
       "tsconfigs": [
         {
           "path": "packages/governance/tsconfig.json",
@@ -364,8 +362,8 @@
     {
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
-      "sourceFiles": 5,
-      "testFiles": 4,
+      "sourceFiles": 6,
+      "testFiles": 5,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -376,7 +374,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 4
+          "testFiles": 5
         }
       ]
     },
@@ -530,11 +528,12 @@
     {
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
-      "sourceFiles": 12,
+      "sourceFiles": 13,
       "testFiles": 15,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/governance",
+        "@wrongstack/kanban",
         "@wrongstack/sage",
         "@wrongstack/tools",
         "@wrongstack/vector-memory"
@@ -624,7 +623,7 @@
     {
       "name": "@wrongstack/security-scanner",
       "dir": "packages/security-scanner",
-      "sourceFiles": 15,
+      "sourceFiles": 18,
       "testFiles": 26,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -678,6 +677,7 @@
       "testFiles": 36,
       "workspaceDependencies": [
         "@wrongstack/core",
+        "@wrongstack/persistence",
         "@wrongstack/tools"
       ],
       "tsconfigs": [
@@ -696,7 +696,7 @@
     {
       "name": "@wrongstack/telegram",
       "dir": "packages/telegram",
-      "sourceFiles": 24,
+      "sourceFiles": 27,
       "testFiles": 29,
       "workspaceDependencies": [
         "@wrongstack/core"
@@ -776,6 +776,7 @@
       "testFiles": 15,
       "workspaceDependencies": [
         "@wrongstack/core",
+        "@wrongstack/persistence",
         "@wrongstack/sage"
       ],
       "tsconfigs": [
@@ -8897,6 +8898,12 @@
       },
       {
         "file": "packages/persistence/tests/socket-path.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/sqlite-runtime.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18448,8 +18455,8 @@
     },
     {
       "file": "packages/core/src/coordination/director-tools.ts",
-      "lines": 839,
-      "relativeImports": 15
+      "lines": 837,
+      "relativeImports": 16
     },
     {
       "file": "packages/core/src/coordination/director.ts",
@@ -18533,8 +18540,8 @@
     },
     {
       "file": "packages/core/src/index.ts",
-      "lines": 1021,
-      "relativeImports": 154
+      "lines": 1030,
+      "relativeImports": 161
     },
     {
       "file": "packages/core/src/plugin/api.ts",
@@ -18558,12 +18565,12 @@
     },
     {
       "file": "packages/core/src/storage/session-store.ts",
-      "lines": 1059,
+      "lines": 1068,
       "relativeImports": 38
     },
     {
       "file": "packages/core/src/types/provider.ts",
-      "lines": 837,
+      "lines": 860,
       "relativeImports": 7
     },
     {
@@ -18667,11 +18674,6 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/security-scanner/src/orchestrator.ts",
-      "lines": 808,
-      "relativeImports": 9
-    },
-    {
       "file": "packages/simpleui/src/lib/message-handler.ts",
       "lines": 810,
       "relativeImports": 22
@@ -18748,7 +18750,7 @@
     },
     {
       "file": "packages/tui/src/components/context-panel.tsx",
-      "lines": 936,
+      "lines": 1023,
       "relativeImports": 6
     },
     {
@@ -18773,7 +18775,7 @@
     },
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1108,
+      "lines": 1120,
       "relativeImports": 13
     },
     {
@@ -18878,7 +18880,7 @@
     },
     {
       "file": "packages/webui/src/hooks/ws-handlers.ts",
-      "lines": 867,
+      "lines": 881,
       "relativeImports": 7
     },
     {
@@ -18960,13 +18962,18 @@
   "hotspots": [
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1108,
+      "lines": 1120,
       "relativeImports": 13
     },
     {
       "file": "packages/webui/src/components/AgentOfficeView.tsx",
       "lines": 1089,
       "relativeImports": 5
+    },
+    {
+      "file": "packages/core/src/storage/session-store.ts",
+      "lines": 1068,
+      "relativeImports": 38
     },
     {
       "file": "packages/sage/src/sqlite-store.ts",
@@ -18977,11 +18984,6 @@
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
       "lines": 1063,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/core/src/storage/session-store.ts",
-      "lines": 1059,
-      "relativeImports": 38
     },
     {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
@@ -18999,6 +19001,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/core/src/index.ts",
+      "lines": 1030,
+      "relativeImports": 161
+    },
+    {
       "file": "packages/core/src/core/context.ts",
       "lines": 1028,
       "relativeImports": 13
@@ -19009,14 +19016,14 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/tui/src/components/context-panel.tsx",
+      "lines": 1023,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 1022,
       "relativeImports": 11
-    },
-    {
-      "file": "packages/core/src/index.ts",
-      "lines": 1021,
-      "relativeImports": 154
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",
@@ -19202,11 +19209,6 @@
       "file": "apps/desktop/src/renderer/src/renderer.ts",
       "lines": 944,
       "relativeImports": 8
-    },
-    {
-      "file": "packages/core/src/execution/auto-compaction-middleware.ts",
-      "lines": 938,
-      "relativeImports": 10
     }
   ],
   "testOnlyExports": [
@@ -20075,12 +20077,20 @@
       "name": "makeSeatCallerForVoter"
     },
     {
+      "file": "packages/core/src/execution/design-detect.ts",
+      "name": "makeDesignVerifyToolCallMiddleware"
+    },
+    {
       "file": "packages/core/src/execution/model-runtime.ts",
       "name": "resolveParametersForRequest"
     },
     {
       "file": "packages/core/src/execution/prompt-enhancer.ts",
       "name": "completeRefinerPass"
+    },
+    {
+      "file": "packages/core/src/execution/provider-runner-impl.ts",
+      "name": "DefaultProviderRunner"
     },
     {
       "file": "packages/core/src/execution/tool-error-taxonomy.ts",
@@ -20543,6 +20553,10 @@
       "name": "MockMCPServer"
     },
     {
+      "file": "packages/persistence/src/sqlite-runtime.ts",
+      "name": "isRuntimeSqliteAvailable"
+    },
+    {
       "file": "packages/plug-lsp/src/config.ts",
       "name": "mergeConfig"
     },
@@ -20913,6 +20927,14 @@
     {
       "file": "packages/security-scanner/src/redaction-diagnostic.ts",
       "name": "REDACTION_DIAGNOSTIC_RAW"
+    },
+    {
+      "file": "packages/security-scanner/src/skill-generator.ts",
+      "name": "gatherProjectInfo"
+    },
+    {
+      "file": "packages/security-scanner/src/skill-generator.ts",
+      "name": "generateFallbackSkill"
     },
     {
       "file": "packages/simpleui/src/agent-chat-pane.tsx",

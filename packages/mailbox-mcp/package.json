@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/mailbox-mcp",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack project Mailbox as an MCP server with read, management, administration, and live-watch capability tiers.",
   "repository": {
@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "echo \"Run @wrongstack/mailbox-mcp tests from the workspace root: pnpm exec vitest run packages/mailbox-mcp/tests\"",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },

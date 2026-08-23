@@ -9,7 +9,6 @@
     "chronicle": { "classification": "feature", "targetOwner": "core-review-required" },
     "coordination": { "classification": "feature-runtime", "targetOwner": "coordination" },
     "core": { "classification": "agent-domain", "targetOwner": "core" },
-    "defaults": { "classification": "compatibility", "targetOwner": "runtime-or-retire" },
     "design": { "classification": "product-feature", "targetOwner": "core-focused-facade" },
     "execution": {
       "classification": "application-runtime",
@@ -21,10 +20,6 @@
     "hq": { "classification": "feature-runtime", "targetOwner": "hq" },
     "infrastructure": { "classification": "primitive", "targetOwner": "core" },
     "kernel": { "classification": "primitive", "targetOwner": "core" },
-    "middleware": {
-      "classification": "application-runtime",
-      "targetOwner": "runtime-review-required"
-    },
     "models": { "classification": "agent-domain", "targetOwner": "core" },
     "notifications": {
       "classification": "feature-runtime",

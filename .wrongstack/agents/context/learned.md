@@ -17,7 +17,7 @@
   - *How:* `.gitignore`
   - *How:* `dist/`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=5; wins=5 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=7; wins=7 -->
 - **Always verify React component wiring in `packages/webui/src` with an exact-text grep of the component name — never from `codebase-incoming-calls` returning zero or a `codebase-skeleton` import block, because JSX render edges are invisible to both (verified: AgentTabs showed 0 incoming calls while `ChatView/index.tsx` imported it at L21 and rendered it at L102). Key takeaway: the map shows a feature that is ~90% landed — the real remaining work is tests and polish, and any consumer must treat exact line numbers as perishable while a peer edits concurrently.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src`

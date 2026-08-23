@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/kanban-mcp",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack Kanban as a project-scoped MCP server with read-only, writable, destructive, and live-watch capability tiers.",
   "repository": {
@@ -33,7 +33,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "echo \"Run @wrongstack/kanban-mcp tests from the workspace root: pnpm exec vitest run packages/kanban-mcp/tests\"",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },

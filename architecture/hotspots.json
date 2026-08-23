@@ -51,8 +51,8 @@
       "relativeImports": 9
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 839,
-      "relativeImports": 15
+      "lines": 837,
+      "relativeImports": 16
     },
     "packages/core/src/coordination/director.ts": {
       "lines": 921,
@@ -119,8 +119,8 @@
       "relativeImports": 5
     },
     "packages/core/src/index.ts": {
-      "lines": 1021,
-      "relativeImports": 154
+      "lines": 1030,
+      "relativeImports": 161
     },
     "packages/core/src/plugin/api.ts": {
       "lines": 887,
@@ -139,11 +139,11 @@
       "relativeImports": 10
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1059,
+      "lines": 1068,
       "relativeImports": 38
     },
     "packages/core/src/types/provider.ts": {
-      "lines": 837,
+      "lines": 860,
       "relativeImports": 7
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -226,10 +226,6 @@
       "lines": 801,
       "relativeImports": 3
     },
-    "packages/security-scanner/src/orchestrator.ts": {
-      "lines": 808,
-      "relativeImports": 9
-    },
     "packages/simpleui/src/lib/message-handler.ts": {
       "lines": 810,
       "relativeImports": 22
@@ -291,7 +287,7 @@
       "relativeImports": 14
     },
     "packages/tui/src/components/context-panel.tsx": {
-      "lines": 936,
+      "lines": 1023,
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
@@ -311,7 +307,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 1108,
+      "lines": 1120,
       "relativeImports": 13
     },
     "packages/tui/src/input-validation.ts": {
@@ -395,7 +391,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 867,
+      "lines": 881,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {

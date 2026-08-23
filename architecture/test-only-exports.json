@@ -415,11 +415,17 @@
     "packages/core/src/execution/council-brain.ts": [
       "makeSeatCallerForVoter"
     ],
+    "packages/core/src/execution/design-detect.ts": [
+      "makeDesignVerifyToolCallMiddleware"
+    ],
     "packages/core/src/execution/model-runtime.ts": [
       "resolveParametersForRequest"
     ],
     "packages/core/src/execution/prompt-enhancer.ts": [
       "completeRefinerPass"
+    ],
+    "packages/core/src/execution/provider-runner-impl.ts": [
+      "DefaultProviderRunner"
     ],
     "packages/core/src/execution/tool-error-taxonomy.ts": [
       "classifiedToolErrorResult",
@@ -654,6 +660,9 @@
     "packages/mcp/src/test-helpers/mock-server.ts": [
       "MockMCPServer"
     ],
+    "packages/persistence/src/sqlite-runtime.ts": [
+      "isRuntimeSqliteAvailable"
+    ],
     "packages/plug-lsp/src/config.ts": [
       "mergeConfig",
       "withPresetFallbacks"
@@ -858,6 +867,10 @@
     ],
     "packages/security-scanner/src/redaction-diagnostic.ts": [
       "REDACTION_DIAGNOSTIC_RAW"
+    ],
+    "packages/security-scanner/src/skill-generator.ts": [
+      "gatherProjectInfo",
+      "generateFallbackSkill"
     ],
     "packages/simpleui/src/agent-chat-pane.tsx": [
       "agentConversationEntries"

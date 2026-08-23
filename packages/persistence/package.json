@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/persistence",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "Dependency-free filesystem persistence primitives shared across WrongStack packages.",
   "repository": {
@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run --config vitest.config.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },

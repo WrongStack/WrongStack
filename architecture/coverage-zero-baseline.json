@@ -1,9 +1,25 @@
 {
   "schemaVersion": 1,
   "files": [
-    "packages/plugin-sdk/src/runtime/h1-state.ts",
-    "packages/plugin-sdk/src/runtime/handles.ts",
-    "packages/plugin-sdk/src/runtime/llm.ts",
-    "packages/plugin-sdk/src/runtime/redos-guard.ts"
+    "packages/cli/src/wiring/director-announcement.ts",
+    "packages/cli/src/wiring/session-establishment.ts",
+    "packages/cli/src/wiring/session-runtime.ts",
+    "packages/cli/src/wiring/vector-memory-setup.ts",
+    "packages/primitives/src/regex-guard.ts",
+    "packages/primitives/src/time.ts",
+    "packages/webui-protocol/src/client-conversation.ts",
+    "packages/webui-protocol/src/client-integrations.ts",
+    "packages/webui-protocol/src/client-operations.ts",
+    "packages/webui-protocol/src/client-workspace.ts",
+    "packages/webui-protocol/src/connection-fsm.ts",
+    "packages/webui-protocol/src/decoder.ts",
+    "packages/webui-protocol/src/projections.ts",
+    "packages/webui-protocol/src/registry.ts",
+    "packages/webui-protocol/src/replay-payload.ts",
+    "packages/webui-protocol/src/server-conversation.ts",
+    "packages/webui-protocol/src/server-integrations.ts",
+    "packages/webui-protocol/src/server-operations.ts",
+    "packages/webui-protocol/src/server-workspace.ts",
+    "packages/webui-protocol/src/version.ts"
   ]
 }

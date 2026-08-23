@@ -53,7 +53,6 @@ const coreEntries = entryMap([
   'src/core/model-ref.ts',
   'src/types/index.ts',
   'src/types/session-markers.ts',
-  'src/defaults/index.ts',
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
   'src/utils/error.ts',

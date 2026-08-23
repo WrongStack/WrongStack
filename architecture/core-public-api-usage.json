@@ -19,9 +19,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/coordination": {
-      "files": 187,
-      "typeOnly": 81,
-      "runtimeOrMixed": 157
+      "files": 190,
+      "typeOnly": 83,
+      "runtimeOrMixed": 160
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 136,
+      "files": 137,
       "typeOnly": 26,
-      "runtimeOrMixed": 113
+      "runtimeOrMixed": 114
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 104,
-      "typeOnly": 31,
-      "runtimeOrMixed": 106
+      "files": 105,
+      "typeOnly": 30,
+      "runtimeOrMixed": 107
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -2600,6 +2600,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/wiring/session-registry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/slash-commands.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2847,6 +2853,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/runtime/src/kanban-ports.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -3165,7 +3177,7 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/src/server/pre-context-services.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 2
     },
     {
@@ -3185,6 +3197,12 @@
       "file": "packages/webui-server/src/server/sdd-wizard-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/standalone-session-identity.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -8030,6 +8048,12 @@
     },
     {
       "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/src/kanban-ports.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/tests/container.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8595,7 +8619,7 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/wiring/session-registry.ts",
-      "typeOnly": 1,
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -8715,6 +8739,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/src/container.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/src/kanban-ports.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

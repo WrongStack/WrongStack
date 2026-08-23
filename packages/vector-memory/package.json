@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/vector-memory",
-  "version": "0.309.2",
+  "version": "0.310.0",
   "license": "MIT",
   "description": "WrongStack Vector Memory — an additional vector-search memory store powered by @huggingface/transformers (local ONNX embeddings), alongside the SAGE lexical memory system.",
   "repository": {
@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:integration": "WRONGSTACK_VECTOR_INTEGRATION=1 vitest run tests/integration.test.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
