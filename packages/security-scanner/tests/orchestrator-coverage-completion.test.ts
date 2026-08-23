@@ -4,31 +4,37 @@ import * as path from 'node:path';
 import type { Provider, Request, Response } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SecurityScannerOrchestrator } from '../src/orchestrator.js';
+import { defaultSkillGenerator, generateFallbackSkill, generateSkillLLM } from '../src/skill-generator.js';
+import { BatchScanner } from '../src/batch-scanner.js';
+import { writeReport } from '../src/report-writer.js';
+import { gatherFiles } from '../src/file-gathering.js';
+import type { TechStackInfo } from '../src/types.js';
 
 const response = (text: string) =>
   ({
     content: [{ type: 'text', text }],
     stopReason: 'end_turn',
-    usage: { input: 0, output: 0 },
+    usage: { inputTokens: 0, outputTokens: 0 },
   }) as never as Response;
 
 const provider = (text: string): Provider =>
   ({
     id: 'test',
-    capabilities: {},
+    capabilities: {} as never,
+    stream: (async function* () {})() as never,
     async complete() {
       return response(text);
     },
-  }) as never;
+  }) as never as Provider;
 
-const stack = (name: string) =>
+const stack = (name: string): TechStackInfo =>
   ({
     stack: name,
     packageManager: 'unknown',
     manifestFile: '',
     dependencies: [],
     projectPath: '',
-  }) as never;
+  }) as never as TechStackInfo;
 
 const skill = {
   name: 'test',
@@ -39,43 +45,6 @@ const skill = {
   patterns: [],
   metadata: { generatedAt: '', confidence: 1, targetFiles: [] },
 } as never;
-
-type Internals = {
-  completeWithRetry(
-    provider: Provider,
-    request: Request,
-    controller: AbortController,
-  ): Promise<Response>;
-  generateSkillLLM(
-    provider: Provider,
-    model: string | undefined,
-    root: string,
-    stack: never,
-    controller: AbortController,
-  ): Promise<{ name: string; description: string; patterns: unknown[]; metadata: { targetFiles: string[] } }>;
-  scanWithLLM(
-    provider: Provider,
-    model: string | undefined,
-    root: string,
-    skill: never,
-    stack: never,
-    options: never,
-    controller: AbortController,
-  ): Promise<unknown>;
-  scanFileBatchLLM(
-    provider: Provider,
-    model: string | undefined,
-    root: string,
-    files: string[],
-    skill: never,
-    stack: never,
-    concurrency: number,
-    controller: AbortController,
-  ): Promise<Array<{ file: string; category: string }>>;
-  gatherFiles(root: string, patterns: string[], depth: 'quick' | 'standard' | 'deep'): Promise<string[]>;
-  generateFallbackSkill(stack: never): { metadata: { targetFiles: string[] } };
-  writeReport(content: string, options?: never): Promise<string>;
-};
 
 let root: string;
 let previousCwd: string;
@@ -96,12 +65,15 @@ afterEach(async () => {
 describe('orchestrator branch completion', () => {
   it('normalizes non-Error provider failures before consulting retry policy', async () => {
     const retryPolicy = { shouldRetry: vi.fn().mockReturnValue(false) };
-    const orchestrator = new SecurityScannerOrchestrator(retryPolicy as never) as never as Internals;
+    const orchestrator = new SecurityScannerOrchestrator(retryPolicy as never);
     const failing = {
+      id: 'test',
+      capabilities: {} as never,
+      stream: (async function* () {})() as never,
       complete: vi.fn().mockRejectedValue('network string failure'),
-    } as never;
+    } as never as Provider;
     await expect(
-      orchestrator.completeWithRetry(
+      (orchestrator as unknown as { completeWithRetry: (p: Provider, r: Request, c: AbortController) => Promise<Response> }).completeWithRetry(
         failing,
         { model: 'm', messages: [] },
         new AbortController(),
@@ -110,8 +82,7 @@ describe('orchestrator branch completion', () => {
   });
 
   it('generates Python defaults and falls back after balanced invalid JSON', async () => {
-    const orchestrator = new SecurityScannerOrchestrator() as never as Internals;
-    const generated = await orchestrator.generateSkillLLM(
+    const generated = await defaultSkillGenerator.generateSkillLLM(
       provider('{}'),
       undefined,
       root,
@@ -125,7 +96,7 @@ describe('orchestrator branch completion', () => {
       metadata: { targetFiles: [] },
     });
 
-    const fallback = await orchestrator.generateSkillLLM(
+    const fallback = await defaultSkillGenerator.generateSkillLLM(
       provider('{invalid}'),
       'm',
       root,
@@ -136,34 +107,57 @@ describe('orchestrator branch completion', () => {
   });
 
   it('handles non-finite scan controls and all file-gathering depth fallbacks', async () => {
-    const orchestrator = new SecurityScannerOrchestrator() as never as Internals;
-    vi.spyOn(orchestrator, 'gatherFiles').mockResolvedValueOnce([]);
-    await orchestrator.scanWithLLM(
-      provider('[]'),
-      undefined,
-      root,
+    const batchScanner = new BatchScanner();
+    const result = await batchScanner.runBatchScan({
+      provider: provider('[]'),
+      model: undefined,
+      projectRoot: root,
       skill,
-      stack('python'),
-      {
-        projectRoot: root,
-        scanOptions: { llmBatchSize: Number.NaN, fileConcurrency: Number.POSITIVE_INFINITY },
-      } as never,
-      new AbortController(),
-    );
+      techStack: stack('python'),
+      depth: 'quick',
+      llmBatchSize: Number.NaN,
+      fileConcurrency: Number.POSITIVE_INFINITY,
+      abortController: new AbortController(),
+    });
+    expect(result.scannedFiles).toBeGreaterThanOrEqual(0);
 
-    expect(await orchestrator.gatherFiles(root, ['**/*'], 'quick')).toContain(
-      path.join(root, 'source.ts'),
-    );
-    expect(await orchestrator.gatherFiles(root, ['**/*'], 'deep')).toContain(
-      path.join(root, 'source.ts'),
-    );
+    const quickFiles = await gatherFiles({
+      root,
+      extensions: ['.ts'],
+      maxDepth: 2,
+      excludePatterns: [],
+    });
+    expect(quickFiles).toContain(path.join(root, 'source.ts'));
+
+    const deepFiles = await gatherFiles({
+      root,
+      extensions: ['.ts'],
+      maxDepth: 20,
+      excludePatterns: [],
+    });
+    expect(deepFiles).toContain(path.join(root, 'source.ts'));
   });
 
   it('normalizes absolute findings and rejects invalid balanced arrays safely', async () => {
-    const orchestrator = new SecurityScannerOrchestrator() as never as Internals;
+    const batchScanner = new BatchScanner();
     const absolute = path.join(root, 'source.ts');
-    const findings = await orchestrator.scanFileBatchLLM(
-      provider(
+    const scanBatch = (batchScanner as unknown as {
+      scanFileBatchLLM(opts: {
+        provider: Provider;
+        model: string | undefined;
+        projectRoot: string;
+        files: string[];
+        skill: typeof skill;
+        techStack: TechStackInfo;
+        fileConcurrency: number;
+        abortController: AbortController;
+        retryPolicy?: undefined;
+        errorHandler?: undefined;
+      }): Promise<Array<{ file: string; category: string }>>;
+    }).scanFileBatchLLM.bind(batchScanner);
+
+    const findings = await scanBatch({
+      provider: provider(
         JSON.stringify([
           {
             file: absolute,
@@ -175,38 +169,43 @@ describe('orchestrator branch completion', () => {
           },
         ]),
       ),
-      undefined,
-      root,
-      [absolute],
+      model: undefined,
+      projectRoot: root,
+      files: [absolute],
       skill,
-      stack('python'),
-      1,
-      new AbortController(),
-    );
+      techStack: stack('python'),
+      fileConcurrency: 1,
+      abortController: new AbortController(),
+    });
     expect(findings[0]).toMatchObject({ file: 'source.ts', category: 'secrets' });
 
     await expect(
-      orchestrator.scanFileBatchLLM(
-        provider('[invalid]'),
-        'm',
-        root,
-        [absolute],
+      scanBatch({
+        provider: provider('[invalid]'),
+        model: 'm',
+        projectRoot: root,
+        files: [absolute],
         skill,
-        stack('python'),
-        1,
-        new AbortController(),
-      ),
+        techStack: stack('python'),
+        fileConcurrency: 1,
+        abortController: new AbortController(),
+      }),
     ).resolves.toEqual([]);
   });
 
   it('uses report defaults and fallback extensions for Python and other stacks', async () => {
-    const orchestrator = new SecurityScannerOrchestrator() as never as Internals;
-    expect(await orchestrator.writeReport('# report')).toMatch(/security-reports/);
-    expect(orchestrator.generateFallbackSkill(stack('python')).metadata.targetFiles).toEqual([
+    expect(await writeReport('# report', root)).toMatch(/security-reports/);
+    expect(generateFallbackSkill(stack('python')).metadata.targetFiles).toEqual([
       '**/*.py',
+      '**/requirements*.txt',
+      '**/setup.py',
+      '**/pyproject.toml',
+      '**/.env*',
     ]);
-    expect(orchestrator.generateFallbackSkill(stack('go')).metadata.targetFiles).toEqual([
-      '**/*.ts',
+    expect(generateFallbackSkill(stack('go')).metadata.targetFiles).toEqual([
+      '**/*.go',
+      '**/go.mod',
+      '**/go.sum',
     ]);
   });
 });

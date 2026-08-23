@@ -18,6 +18,7 @@ import {
   sanitizeJsonString,
   toErrorMessage,
 } from '@wrongstack/core/utils';
+import type { ErrorHandler, RetryPolicy } from './_compat-types.js';
 import { DEFAULT_EXCLUDE_PATTERNS, gatherFiles, readFileHead } from './file-gathering.js';
 import type { Finding, ScanResult } from './scanner.js';
 import type { GeneratedSkill } from './skill-generator.js';
@@ -36,6 +37,8 @@ export interface BatchScannerOptions {
   fileConcurrency: number | undefined;
   abortController: AbortController;
   excludePatterns?: readonly string[] | undefined;
+  retryPolicy?: RetryPolicy | undefined;
+  errorHandler?: ErrorHandler | undefined;
 }
 
 export class BatchScanner {
@@ -87,9 +90,11 @@ export class BatchScanner {
         projectRoot: options.projectRoot,
         files: batch,
         skill: options.skill,
-        _techStack: options._techStack,
+        techStack: options.techStack,
         fileConcurrency,
         abortController: options.abortController,
+        retryPolicy: options.retryPolicy,
+        errorHandler: options.errorHandler,
       });
       if (options.abortController.signal.aborted) break;
       findings.push(...batchFindings);
@@ -127,11 +132,11 @@ export class BatchScanner {
     projectRoot: string;
     files: string[];
     skill: GeneratedSkill;
-    _techStack: TechStackInfo;
+    techStack: TechStackInfo;
     fileConcurrency: number;
     abortController: AbortController;
-    retryPolicy: import('./_compat-types.js').RetryPolicy | undefined;
-    errorHandler: import('./_compat-types.js').ErrorHandler | undefined;
+    retryPolicy?: RetryPolicy | undefined;
+    errorHandler?: ErrorHandler | undefined;
   }): Promise<Finding[]> {
     const fileContents: string[] = [];
     for (let index = 0; index < opts.files.length; index += opts.fileConcurrency) {
@@ -205,7 +210,7 @@ export class BatchScanner {
 
         return parsed.map((item, idx) => {
           const normalizedFile = (
-            isAbsolute(item.file) ? path.relative(opts.projectRoot, item.file) : item.file
+            path.isAbsolute(item.file) ? path.relative(opts.projectRoot, item.file) : item.file
           ).replace(/\\/g, '/');
           const category = validCategories.includes(item.category as Finding['category'])
             ? (item.category as Finding['category'])

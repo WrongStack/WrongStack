@@ -46,6 +46,7 @@ export {
   defaultSkillGenerator,
   type GeneratedSkill,
   SkillGenerator,
+  type SkillGeneratorDeps,
   type SkillGeneratorOptions,
 } from './skill-generator.js';
 export {

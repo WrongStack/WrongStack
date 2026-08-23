@@ -181,8 +181,10 @@ export async function writeReport(
   projectRoot: string,
   reportOptions?: Partial<ReportOptions>,
 ): Promise<string> {
-  const relativeOutputDir = reportOptions?.outputDir || 'security-reports';
-  const outputDir = path.join(projectRoot, relativeOutputDir);
+  const configuredOutputDir = reportOptions?.outputDir || 'security-reports';
+  const outputDir = path.isAbsolute(configuredOutputDir)
+    ? configuredOutputDir
+    : path.join(projectRoot, configuredOutputDir);
   const format = reportOptions?.format || 'markdown';
 
   try {

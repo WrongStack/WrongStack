@@ -158,6 +158,8 @@ export class SecurityScannerOrchestrator {
       llmBatchSize: options.scanOptions?.llmBatchSize,
       fileConcurrency: options.scanOptions?.fileConcurrency,
       abortController,
+      retryPolicy: this.retryPolicy,
+      errorHandler: this.errorHandler,
     });
 
     // Phase 4: report synthesis + write (LLM-rendered markdown with fallback).

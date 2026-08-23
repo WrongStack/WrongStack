@@ -124,23 +124,15 @@ export type { GeneratedSkill } from './skill-generator.js';
  * surface. Structural shape matches the prior definition verbatim.
  */
 export interface GitignoreUpdateResult {
-  updated: string[];
   added: string[];
-  skipped: string[];
+  existing: string[];
+  errors: string[];
+  updated?: string[];
+  skipped?: string[];
   message?: string;
 }
 
 /**
- * Inline alias — `detector.ts` no longer exports
- * `TechStackDetectionResult` directly (orchestrator.ts moved the field
- * set inline). Re-declared here for the same import-surface reason as
- * `GitignoreUpdateResult` above. Structural shape matches the prior
- * definition verbatim.
+ * Backward compatibility alias for DetectionResult.
  */
-export interface TechStackDetectionResult {
-  detectedStacks: import('./types.js').TechStackInfo[];
-  projectRoot: string;
-  durationMs: number;
-  packageManager: import('./types.js').PackageManager;
-  dependencies: import('./types.js').DetectedDependency[];
-}
+export type TechStackDetectionResult = DetectionResult;
