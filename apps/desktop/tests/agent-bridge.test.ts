@@ -648,3 +648,77 @@ describe('Status transitions', () => {
     expect(conversation.status).toBe('disconnected');
   });
 });
+
+// ============================================================================
+// run.result final-text dedup
+// ============================================================================
+// Regression test for the multi-turn finalText-drop bug in agent-bridge.ts:
+// `run.result` must decide whether to append finalText based on the CURRENT
+// run's streamed output (activeAssistantMessageId), not on whether any prior
+// run's assistant message happened to have text. This mirrors the production
+// logic in handleServerMessage's `run.result` case.
+describe('run.result final-text handling', () => {
+  function onRunResult(
+    conversation: ConversationInternal,
+    payload: { finalText?: string; status: string },
+  ): void {
+    const finalText = payload.finalText;
+    const lastMsg = conversation.messages[conversation.messages.length - 1];
+    const streamedAlready =
+      lastMsg?.role === 'assistant' && lastMsg.id === conversation.activeAssistantMessageId;
+    if (finalText && !streamedAlready) {
+      conversation.messages.push({ role: 'assistant', text: finalText, timestamp: Date.now() });
+    }
+    conversation.status = payload.status === 'failed' ? 'error' : 'connected';
+    conversation.activeAssistantMessageId = null;
+  }
+
+  it('does not drop finalText on a later run when a prior run already had assistant text', () => {
+    const conversation = createEmptyConversation('runtime-1');
+
+    // Turn 1: assistant streamed deltas into message 'assistant_1', then completed.
+    // The streaming id is tracked in activeAssistantMessageId (as appendAssistantDelta does).
+    conversation.messages.push({
+      id: 'assistant_1',
+      role: 'assistant',
+      text: 'Hello',
+      timestamp: Date.now(),
+    });
+    conversation.activeAssistantMessageId = 'assistant_1';
+    onRunResult(conversation, { finalText: 'Hello', status: 'completed' });
+
+    // Exactly one assistant message (no duplicate from the dedup).
+    expect(conversation.messages.filter((m) => m.role === 'assistant')).toHaveLength(1);
+
+    // Turn 2: new run, no text_delta streamed — output arrives only as finalText.
+    conversation.status = 'running';
+    conversation.activeAssistantMessageId = null; // sendMessage resets per-run
+    onRunResult(conversation, { finalText: '42', status: 'completed' });
+
+    const assistantTexts = conversation.messages
+      .filter((m) => m.role === 'assistant')
+      .map((m) => m.text);
+    // Prior run's text must not suppress this run's final answer.
+    expect(assistantTexts).toContain('42');
+  });
+
+  it('still dedups finalText already streamed in the current run', () => {
+    const conversation = createEmptyConversation('runtime-1');
+
+    // Current run streamed deltas into the active assistant message.
+    conversation.messages.push({
+      id: 'assistant_streaming',
+      role: 'assistant',
+      text: 'Hello',
+      timestamp: Date.now(),
+    });
+    conversation.activeAssistantMessageId = 'assistant_streaming';
+    onRunResult(conversation, { finalText: 'Hello', status: 'completed' });
+
+    const assistantMessages = conversation.messages.filter((m) => m.role === 'assistant');
+    expect(assistantMessages).toHaveLength(1);
+    expect(assistantMessages[0].text).toBe('Hello');
+    // activeAssistantMessageId reset after run.result.
+    expect(conversation.activeAssistantMessageId).toBeNull();
+  });
+});

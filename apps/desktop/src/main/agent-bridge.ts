@@ -463,7 +463,16 @@ export class DesktopAgentBridge extends EventEmitter {
       }
       case 'run.result': {
         const finalText = stringValue(payload['finalText']);
-        if (finalText && !this.lastAssistantHasText(conversation)) {
+        // Only append the final text when this run did not already stream it
+        // via text_delta into the active assistant message. Checking the
+        // current run (activeAssistantMessageId) — not the last assistant
+        // message in the whole history — avoids silently dropping a run whose
+        // output arrives only as finalText (e.g. tool-only turns) because a
+        // *prior* run's assistant message happened to have text.
+        const lastMsg = conversation.messages[conversation.messages.length - 1];
+        const streamedAlready =
+          lastMsg?.role === 'assistant' && lastMsg.id === conversation.activeAssistantMessageId;
+        if (finalText && !streamedAlready) {
           this.appendMessage(conversation, { role: 'assistant', text: finalText });
         }
         conversation.status = payload['status'] === 'failed' ? 'error' : 'connected';
@@ -511,11 +520,6 @@ export class DesktopAgentBridge extends EventEmitter {
     });
     this.trimMessages(conversation);
     this.emitChanged(conversation);
-  }
-
-  private lastAssistantHasText(conversation: ConversationInternal): boolean {
-    const lastAssistant = [...conversation.messages].reverse().find((m) => m.role === 'assistant');
-    return Boolean(lastAssistant?.text.trim());
   }
 
   private trimMessages(conversation: ConversationInternal): void {
