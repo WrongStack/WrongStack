@@ -282,13 +282,7 @@ export function ProviderHealthSection() {
   const { t } = useTranslation('settings');
   const ws = useWebSocket();
   // Provider-status methods live on the inner client, not the top-level return.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = ws as unknown as {
-    on: (type: string, handler: (e: unknown) => void) => void;
-    send: (msg: Record<string, unknown>) => void;
-    retryProviderModel: (p: string, m: string) => void;
-    clearProviderStatus: (p: string, m: string) => void;
-  };
+  const client = ws.client;
   const { entries, summary, update } = useProviderStatusStore();
 
   const entriesList = Object.values(entries);

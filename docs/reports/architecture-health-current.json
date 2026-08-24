@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T20:57:34.612Z",
+  "generatedAt": "2026-08-24T21:22:11.368Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3359,
-    "testFiles": 2893,
-    "sourceLines": 796946,
+    "testFiles": 2894,
+    "sourceLines": 796938,
     "workspaceEdges": 124,
     "moduleEdges": 10356,
     "nonCommandSlashImports": 0,
@@ -799,7 +799,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 464,
-      "testFiles": 338,
+      "testFiles": 339,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -823,7 +823,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 338
+          "testFiles": 339
         }
       ]
     },
@@ -16884,6 +16884,12 @@
       },
       {
         "file": "packages/webui/tests/components/prompt-journal-view.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/provider-health-section.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
