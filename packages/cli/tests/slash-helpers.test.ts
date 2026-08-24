@@ -42,6 +42,40 @@ describe('slash-commands/helpers — message counters', () => {
     expect(countTurnPairs(msgs)).toBe(1);
   });
 
+  it('countTurnPairs counts a single tool-using turn as one pair, not one per tool call', () => {
+    // One real user<->assistant exchange that called a tool. The tool-result
+    // frame is role:'user', so the old implementation counted 4 messages
+    // (user + assistant + tool_result + assistant) => 2 pairs. It must count
+    // the single turn: user + 2 assistant messages (tool_result excluded) => 1.
+    const msgs: Msg[] = [
+      { role: 'user', content: 'Run the failing test' } as Msg,
+      { role: 'assistant', content: 'Let me check' } as Msg,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 'tu_1', content: 'ok' }],
+      } as Msg,
+      { role: 'assistant', content: 'Done.' } as Msg,
+    ];
+    expect(countTurnPairs(msgs)).toBe(1);
+  });
+
+  it('countTurnPairs counts each normal user prompt as a pair across tool chains', () => {
+    // Two real turns, each with a tool round-trip. Tool-result frames are
+    // excluded (role:'user' but only tool_result blocks), so the two user
+    // prompts + two assistant answers are counted (4) => 2 pairs.
+    const msgs: Msg[] = [
+      { role: 'user', content: 'q1' } as Msg,
+      { role: 'assistant', content: 'a1' } as Msg,
+      {
+        role: 'user',
+        content: [{ type: 'tool_result', tool_use_id: 't1', content: 'r1' }],
+      } as Msg,
+      { role: 'user', content: 'q2' } as Msg,
+      { role: 'assistant', content: 'a2' } as Msg,
+    ];
+    expect(countTurnPairs(msgs)).toBe(2);
+  });
+
   it('countToolUses counts tool_use blocks across messages', () => {
     const msgs: Msg[] = [
       {

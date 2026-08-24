@@ -36,9 +36,24 @@ export function unknownSubcommand(cmd: string, valid: string[], name?: string): 
 export function countTurnPairs(messages: Context['messages']): number {
   let count = 0;
   for (const m of messages) {
-    if (m.role === 'user' || m.role === 'assistant') count++;
+    // Tool-result frames come back as role:'user' messages (one per tool
+    // round-trip). Counting them here would inflate the pair count by every
+    // tool call, so exclude them — a "pair" is one normal user prompt plus
+    // the assistant exchange that answers it.
+    if (m.role === 'assistant') count++;
+    else if (m.role === 'user' && !isToolResultMessage(m)) count++;
   }
   return Math.floor(count / 2);
+}
+
+/** True when a message is a tool-result frame (role 'user', only tool_result blocks). */
+function isToolResultMessage(message: Context['messages'][number]): boolean {
+  return (
+    message.role === 'user' &&
+    Array.isArray(message.content) &&
+    message.content.length > 0 &&
+    message.content.every((block) => block.type === 'tool_result')
+  );
 }
 
 export function countToolUses(messages: Context['messages']): number {
