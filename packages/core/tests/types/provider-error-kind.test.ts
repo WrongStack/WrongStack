@@ -74,7 +74,7 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(503)).toBe('server');
     expect(classifyProviderError(599)).toBe('stream_hang');
     expect(classifyProviderError(401)).toBe('auth');
-    expect(classifyProviderError(403)).toBe('auth');
+    expect(classifyProviderError(403)).toBe('auth'); // plain 403 = permission denied, not quota
     expect(classifyProviderError(413)).toBe('context_overflow');
     expect(classifyProviderError(400)).toBe('invalid_request');
     expect(classifyProviderError(404)).toBe('invalid_request');
@@ -86,6 +86,23 @@ describe('classifyProviderError', () => {
     expect(classifyProviderError(400, { type: 'overloaded_error' })).toBe('overloaded');
     expect(classifyProviderError(400, { type: 'authentication_error' })).toBe('auth');
     expect(classifyProviderError(400, { type: 'permission_error' })).toBe('auth');
+  });
+
+  it('classifies 403 with quota-usage message as quota_exhausted, not auth', () => {
+    // Chinese providers (Kimi, Z.AI, Moonshot) return 403 instead of 402 for
+    // billing-cycle quota exhaustion. The message text must route to quota_exhausted
+    // so the tracker applies the 15-minute block instead of a 5-minute auth delay.
+    expect(
+      classifyProviderError(403, undefined, 'You\'ve reached your usage limit for this billing cycle'),
+    ).toBe('quota_exhausted');
+
+    expect(
+      classifyProviderError(403, undefined, 'Usage limit reached. Quota will refresh in the next cycle'),
+    ).toBe('quota_exhausted');
+
+    // Bare 403 (no quota signal in message) = permission/auth denial — not quota.
+    expect(classifyProviderError(403)).toBe('auth');
+    expect(classifyProviderError(403, undefined, 'Access denied')).toBe('auth');
   });
 
   it('prefers an explicit transient rate-limit code over ambiguous message prose', () => {
