@@ -22,6 +22,7 @@ import {
   isSafePathSegment,
   isSafeSessionId,
   readLocalSubagentTranscript,
+  truncateHqSummary,
 } from '../src/hq-server/utils.js';
 
 describe('decodePathSegment (WS-019)', () => {
@@ -125,5 +126,37 @@ describe('readLocalSubagentTranscript containment (WS-019)', () => {
     for (const id of ['../elsewhere', '..', 'a/b', 'a\\b', '']) {
       await expect(readLocalSubagentTranscript('any-session', id)).resolves.toBeNull();
     }
+  });
+});
+
+describe('truncateHqSummary (length cap)', () => {
+  it('never returns output longer than maxLength', () => {
+    // The exact bug: the suffix was appended on top of the capped prefix, so
+    // a 281-char summary truncated to 280 came out 294 chars. The total must
+    // be <= maxLength.
+    const overBy1 = truncateHqSummary('a'.repeat(281), 280)!;
+    expect(overBy1.length).toBeLessThanOrEqual(280);
+  });
+
+  it('never grows the string beyond its original length', () => {
+    // Truncating a 10-char string "to 9" used to produce 23 chars — longer
+    // than the input. The fix must keep the result <= the input length.
+    const small = truncateHqSummary('abcdefghij', 9)!;
+    expect(small.length).toBeLessThanOrEqual(10);
+  });
+
+  it('returns the value unchanged when it already fits', () => {
+    expect(truncateHqSummary('short', 100)).toBe('short');
+  });
+
+  it('returns undefined for non-strings and empty strings', () => {
+    expect(truncateHqSummary(42, 10)).toBeUndefined();
+    expect(truncateHqSummary('', 10)).toBeUndefined();
+  });
+
+  it('falls back to a bare ellipsis when the cap cannot fit the suffix', () => {
+    // 10 chars capped at 4: the "…[truncated:6]" suffix (15 chars) doesn't
+    // fit, so a minimal ellipsis is returned rather than an oversized label.
+    expect(truncateHqSummary('abcdefghij', 4)).toBe('…');
   });
 });

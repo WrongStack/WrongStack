@@ -301,7 +301,15 @@ export function lanIPv4Addresses(): string[] {
 export function truncateHqSummary(value: unknown, maxLength: number): string | undefined {
   if (typeof value !== 'string' || value.length === 0) return undefined;
   if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}…[truncated:${value.length - maxLength}]`;
+  // Reserve the suffix's length INSIDE the cap so the total never exceeds
+  // maxLength — the old code appended "…[truncated:N]" on top of the capped
+  // prefix, so a summary could come out longer than both the cap and the
+  // original input. When the cap cannot even fit the suffix, emit a bare
+  // ellipsis rather than overflow.
+  const suffix = `…[truncated:${value.length - maxLength}]`;
+  if (maxLength <= suffix.length) return '…';
+  const prefixLen = maxLength - suffix.length;
+  return `${value.slice(0, prefixLen)}${suffix}`;
 }
 
 // ── Machine key ────────────────────────────────────────────────────────────
