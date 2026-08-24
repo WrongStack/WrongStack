@@ -142,6 +142,77 @@ describe('useQueueManager', () => {
     });
   });
 
+  it('does not clear or write an empty queue when the read restores items', async () => {
+    const refs = buildHarness();
+    const persisted = [
+      { displayText: 'msg1', blocks: [{ type: 'text' as const, text: 'hello' }] },
+    ];
+    const store = makeQueueStore({ read: vi.fn(async () => persisted) });
+    refs.queueStore = store;
+    render(React.createElement(Harness, { refs }));
+
+    // The restored item is dispatched (rehydration succeeds).
+    await vi.waitFor(() => {
+      expect(refs.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'enqueue' }),
+      );
+    });
+
+    // Regression (chimera High on the flush-after-hydration change): when the
+    // read resolves WITH items, the post-hydration flush must NOT fire with the
+    // still-empty mount queue — write([]) maps to QueueStore.clear(), which
+    // would delete the freshly-restored queue.json. The restore must not clear
+    // the store nor emit an empty snapshot.
+    expect(store.clear).not.toHaveBeenCalled();
+    expect(store.write).not.toHaveBeenCalledWith([]);
+  });
+
+  it('persists restored items plus a pre-hydration enqueue, never clearing', async () => {
+    const refs = buildHarness();
+    const persisted = [
+      { displayText: 'restored', blocks: [{ type: 'text' as const, text: 'r' }] },
+    ];
+    const store = makeQueueStore({ read: vi.fn(async () => persisted) });
+    refs.queueStore = store;
+    // The user enqueues BEFORE the read resolves (pre-hydration window) while
+    // the persisted store has items. The final persisted snapshot must contain
+    // the union (restored + early item) — never an empty array, never a clear.
+    const earlyItem = {
+      displayText: 'typed-early',
+      blocks: [{ type: 'text' as const, text: 'e' }],
+    };
+    refs.stateRef.current = { queue: [earlyItem] } as unknown as State;
+    const view = render(React.createElement(Harness, { refs }));
+
+    await vi.waitFor(() => {
+      expect(refs.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'enqueue', item: expect.objectContaining({ displayText: 'restored' }) }),
+      );
+    });
+
+    // The hydration path must never clear the store: with items restored the
+    // explicit flush is skipped (it would write [] with the still-empty mount
+    // queue), and no empty snapshot is ever emitted.
+    expect(store.clear).not.toHaveBeenCalled();
+    expect(store.write).not.toHaveBeenCalledWith([]);
+
+    // The union reaches the store reactively once the dispatches reconcile
+    // (rerender the SAME instance, as the persist effect deps change).
+    refs.stateRef.current = { queue: [persisted[0], earlyItem] } as unknown as State;
+    act(() => {
+      view.rerender(React.createElement(Harness, { refs }));
+    });
+    await vi.waitFor(() => {
+      expect(store.write).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ displayText: 'restored' }),
+          expect.objectContaining({ displayText: 'typed-early' }),
+        ]),
+      );
+    });
+    expect(store.clear).not.toHaveBeenCalled();
+  });
+
   it('skips rehydration when persisted queue is empty', async () => {
     const refs = buildHarness();
     refs.queueStore = makeQueueStore();

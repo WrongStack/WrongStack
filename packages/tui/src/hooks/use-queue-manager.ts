@@ -124,8 +124,13 @@ export function useQueueManager({
         }
         // Any queue change observed before the read resolved must be flushed
         // now (with the full current queue), or an enqueue made during the
-        // pre-hydration window would be lost.
-        if (pendingBeforeHydration.current) {
+        // pre-hydration window would be lost. This only runs when NOTHING was
+        // read: on the read-resolves-with-items path the enqueue dispatches
+        // below guarantee a post-render persist write of the restored queue
+        // (plus any pre-hydration enqueues), so flushing here with the STILL
+        // mount-empty `stateRef.current.queue` would write [] ->
+        // QueueStore.clear() -> unlink the freshly-restored file.
+        if (pendingBeforeHydration.current && items.length === 0) {
           pendingBeforeHydration.current = false;
           writeQueue(queueStore);
         }
