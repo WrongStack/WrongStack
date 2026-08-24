@@ -1301,7 +1301,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 323
+      "sourceLines": 336
     },
     {
       "directory": "worktree",

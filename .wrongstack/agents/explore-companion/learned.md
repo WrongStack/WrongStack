@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=197; wins=196 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=198; wins=197 -->
 - **- Treat role-memory i18n examples as perishable: re-grep `t('ns:key')` literals against `packages/webui/src/i18n/locales/*/` fresh each probe instead of repeating a prior "zero entries" flag. - In `packages/webui`, root-level `src/components/ChatView.tsx` is a 2-line re-export shim for `src/components/ChatView/index.tsx`; always edit the directory version, and don't confuse lookalikes `components/AgentTranscript.tsx` or `components/ui/tabs.tsx` with AgentTabs. - When no shell tool is registered, use mtime-ordered `glob packages/<pkg>/src/**/*.ts*` (single-pattern `ts*` suffix, no brace expans…**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `t('ns:key')`
@@ -31,7 +31,7 @@
   - *How:* `inherit`
   - *How:* `implement`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=231; wins=229 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=232; wins=230 -->
 - **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/components/ChatView/index.tsx`
