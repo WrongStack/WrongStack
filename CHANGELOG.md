@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **WrongTrace integration is now documented end to end.** New [`docs/wrongtrace.md`](docs/wrongtrace.md) covers the optional external daemon (`http://localhost:3444` default) and both integrations that share it: the observability guardrails (`@wrongstack/wrongtrace` adapter — discovery, the IPC → MCP → HTTP per-method routing matrix including the deliberate `lockFile` HTTP-only exception, the full REST surface, agent helpers, the CLI pre-flight gate and fail-open executor hooks) and WrongProxy provider base-URL rerouting (`tools.wrongProxy`, soft-signal health probe). Includes a test-suite map with the green-≠-live offline-skip trap, troubleshooting, and a file map. `docs/README.md` indexes the new page, `README.md` gains a package-table row for `@wrongstack/wrongtrace`, a "WrongTrace guardrails" capability subsection, and a Docs-table entry, and the website ships a matching `wrongtrace-integration` feature story with deep dive and sitemap URL.
+
 ## [0.310.1] — 2026-08-23
 
 ### Fixed

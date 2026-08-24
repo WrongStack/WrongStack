@@ -11,6 +11,7 @@ import {
   PlugZap,
   Radar,
   Route,
+  Satellite,
   ScanSearch,
   Settings2,
   ShieldCheck,
@@ -314,6 +315,21 @@ export const featureStories: Feature[] = [
     ],
     icon: Settings2,
     accent: 'green',
+  },
+  {
+    slug: 'wrongtrace-integration',
+    eyebrow: 'Optional sibling',
+    title: 'WrongTrace guardrails coordinate fleet edits without becoming a dependency',
+    summary:
+      'An optional external daemon contributes file health, edit locks, friction metrics and repository atlas signals over HTTP, IPC and MCP — and its absence never blocks an edit.',
+    details: [
+      'Mutating tools pass a fail-open lock gate on every host surface',
+      'Fragile files get a surgical-edit nudge; foreign locks deny with owner and expiry',
+      'HTTP, JSON-RPC pipe and MCP transports route per method',
+      'Optional provider traffic rerouting through the same local daemon',
+    ],
+    icon: Satellite,
+    accent: 'blue',
   },
 ];
 

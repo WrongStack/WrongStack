@@ -139,6 +139,7 @@
   <url><loc>https://wrongstack.com/features/kanban-work-queue</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/features/brain-council</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/features/customization</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/features/wrongtrace-integration</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-prompts</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-sync</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-cloud-config-sync</loc><priority>0.8</priority></url>
