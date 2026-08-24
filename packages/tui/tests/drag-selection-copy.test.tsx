@@ -753,6 +753,42 @@ describe('Regression: release-commits-copy routing', () => {
     }
   });
 
+  it('a wheel event mid-drag clears the selection: release after wheel spawns no copy', async () => {
+    writeClipboardTextMock.mockClear();
+    const onHistoryCopy = vi.fn();
+    // H2 pin: scrolling during a drag-select cancels the gesture so the
+    // copied span can't desync from the visible cards. The wheel branch in
+    // app-key-handler clears the selection (and scrollBy → applyAnchor
+    // clears independently), so the subsequent release must hit the
+    // hasSelection() short-circuit and never reach commitSelection.
+    const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
+    const handleKey = makeHandler({
+      historyScrollRef: { current: h.controller },
+      onHistoryCopy,
+    });
+    try {
+      const press = mouseKey('\x1b[<0;1;1M');
+      await handleKey(press.input, press.key);
+      const drag = mouseKey('\x1b[<32;7;1M'); // motion, button left — same as the commit test
+      await handleKey(drag.input, drag.key);
+
+      // Cb 64 = wheel up at (x=10, y=1) — inside the history band
+      // (viewportRows=1 → terminal row 1 is history row 0).
+      const wheel = mouseKey('\x1b[<64;10;1M');
+      await handleKey(wheel.input, wheel.key);
+      expect(h.controller.hasSelection()).toBe(false);
+
+      // The release now ends nothing: no clipboard write, no copy callback.
+      const release = mouseKey('\x1b[<0;7;1m');
+      await handleKey(release.input, release.key);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(writeClipboardTextMock).not.toHaveBeenCalled();
+      expect(onHistoryCopy).not.toHaveBeenCalled();
+    } finally {
+      h.unmount();
+    }
+  });
+
   it('a left-release with no begun selection spawns no copy at all', async () => {
     writeClipboardTextMock.mockClear();
     // Spy controller: hasSelection()=false must short-circuit BEFORE
