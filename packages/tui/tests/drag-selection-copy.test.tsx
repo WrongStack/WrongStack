@@ -32,8 +32,10 @@
 import { writeClipboardText } from '@wrongstack/runtime/clipboard';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
+import { createAppKeyHandler } from '../src/app-key-handler.js';
 import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
 import type { RenderGroup } from '../src/components/history/tool-group.js';
+import { type KeyEvent } from '../src/components/input.js';
 import type { HistoryEntry } from '../src/components/history.js';
 import {
   assembleSelectionText,
@@ -43,6 +45,7 @@ import {
   type MountedCardSpan,
   normalizeSelection,
   ScrollableHistory,
+  SELECTION_COPY_ID,
   type SelectionRect,
   type SelectionSlice,
   selectionHitAt,
@@ -51,6 +54,7 @@ import {
 import { EntryHeightCache } from '../src/height-cache.js';
 import { SCROLLBAR_HIT_WIDTH } from '../src/hit-test.js';
 import { parseMouseEvent } from '../src/mouse.js';
+import { createTestState } from './helpers/create-test-state.js';
 
 // Capture every clipboard write so we can assert exact text + call count.
 vi.mock('@wrongstack/runtime/clipboard', () => ({
@@ -475,6 +479,180 @@ describe('HistoryScrollController: existing copy-icon path is preserved', () => 
 describe('Regression: dummy coverage', () => {
   it('runs the unused-import sentinel so a missing export fails loudly', () => {
     expect(HELPERS_NOT_INTERNAL).toBe(true);
+  });
+});
+
+describe('Regression: release-commits-copy routing', () => {
+  // Pins the app-key-handler contract for the left-release that ends a
+  // drag-select: a release with an active selection COMMITS to the
+  // clipboard (and fires onHistoryCopy with the sentinel id), while a
+  // release with no begun selection must not even reach commitSelection —
+  // the synchronous hasSelection() gate exists precisely so a stray
+  // release (rail click, status-bar click, anything whose press never
+  // routed into beginSelection) spawns no async clipboard path.
+  //
+  // The tests drive the REAL createAppKeyHandler with SGR-shaped key
+  // events (exactly what <Input> forwards for a decoded mouse report:
+  // input='' + key.mouse), with mouseMode=false to pin that the gesture
+  // works in DEFAULT mode, not just behind --mouse.
+
+  const TERM_ROWS = 24;
+  const TERM_COLS = 80;
+  const MAIN_COLUMN_WIDTH = 80;
+
+  /** Build the KeyEvent <Input> would forward for one decoded mouse report. */
+  function mouseKey(report: string): { input: string; key: KeyEvent } {
+    const evt = parseMouseEvent(report);
+    if (!evt) throw new Error(`not a whole SGR report: ${JSON.stringify(report)}`);
+    return {
+      input: '',
+      key: {
+        upArrow: false,
+        downArrow: false,
+        leftArrow: false,
+        rightArrow: false,
+        return: false,
+        escape: false,
+        ctrl: false,
+        meta: false,
+        shift: false,
+        tab: false,
+        backspace: false,
+        delete: false,
+        pageUp: false,
+        pageDown: false,
+        home: false,
+        end: false,
+        mouse: evt,
+        ...(evt.kind === 'wheel' ? { wheelDeltaY: evt.wheel } : {}),
+      },
+    };
+  }
+
+  /** Minimal handler options: enough to reach the mouse block with no
+   *  overlay open and viewportRows=1 so terminal row 1 is history row 0. */
+  function makeHandler(opts: {
+    historyScrollRef: { current: HistoryScrollController | null };
+    onHistoryCopy?: (entryId: number) => void;
+  }) {
+    const state = createTestState({ viewportRows: 1 });
+    const options = {
+      state,
+      dispatch: vi.fn(),
+      historyScrollRef: opts.historyScrollRef,
+      runInterruptLadder: vi.fn(),
+      enhanceCancelledRef: { current: false },
+      enhanceAbortRef: { current: null },
+      inputGateRef: { current: false },
+      lastEscAtRef: { current: 0 },
+      pasteAccumRef: { current: null },
+      pasteFlushTimerRef: { current: null },
+      commitPaste: vi.fn(async () => {}),
+      tryPickerKey: vi.fn(() => false),
+      dismissedEscAtRef: { current: 0 },
+      streamingTextRef: { current: '' },
+      confirmExitRef: { current: false },
+      activeCtrlRef: { current: null },
+      clearPendingConfirms: vi.fn(),
+      liveDirector: () => null,
+      openProjectPicker: vi.fn(async () => {}),
+      loadLiveSessions: vi.fn(async () => {}),
+      openStatuslinePicker: vi.fn(),
+      statuslineHiddenItems: [],
+      getSddRun: undefined,
+      onSddLifecycle: undefined,
+      getSettings: vi.fn(() => ({})),
+      saveSettings: vi.fn(async () => null),
+      lastEnterAtRef: { current: 0 },
+      draftRef: { current: { buffer: '', cursor: 0 } },
+      setDraft: vi.fn(),
+      submit: vi.fn(),
+      mouseMode: false,
+      termRows: TERM_ROWS,
+      terminalColumns: TERM_COLS,
+      terminalRows: TERM_ROWS,
+      mainColumnWidth: MAIN_COLUMN_WIDTH,
+      overlayOpen: false,
+      effectiveSwarmOnSidebar: false,
+      sidebarTwinRowCount: 0,
+      statusBarWrapRef: { current: null },
+      belowStatusBarRef: { current: null },
+      statusBarClickMapRef: { current: null },
+      openModelPicker: vi.fn(async () => {}),
+      nextStepsAutoSubmitTimerRef: { current: undefined },
+      nextStepsAutoSubmitSuggestionRef: { current: null },
+      nextStepsAutoSubmitLabel: null,
+      setNextStepsAutoSubmitCountdown: vi.fn(),
+      setNextStepsAutoSubmitLabel: vi.fn(),
+      cancelNextStepsCountdown: vi.fn(),
+      pasteClipboardText: vi.fn(async () => {}),
+      pasteClipboardImage: vi.fn(async () => {}),
+      slashRegistry: {},
+      agent: { ctx: { session: {} } },
+      ...(opts.onHistoryCopy ? { onHistoryCopy: opts.onHistoryCopy } : {}),
+    };
+    return createAppKeyHandler(options as never);
+  }
+
+  it('a left-release ending an active selection commits to the clipboard', async () => {
+    writeClipboardTextMock.mockClear();
+    const onHistoryCopy = vi.fn();
+    // Real mounted controller: with viewportRows={1} the card sits at
+    // history row 0 = terminal row 1 (1-based SGR). The drag spans cols
+    // 1..5 (1-based) = band cols 0..4 inclusive → 'alpha' from the entry
+    // 'alpha bravo charlie'.
+    const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
+    const handleKey = makeHandler({
+      historyScrollRef: { current: h.controller },
+      onHistoryCopy,
+    });
+    try {
+      const press = mouseKey('\x1b[<0;1;1M');
+      await handleKey(press.input, press.key);
+      const drag = mouseKey('\x1b[<32;5;1M'); // Cb 32 = motion, button left
+      await handleKey(drag.input, drag.key);
+      const release = mouseKey('\x1b[<0;5;1m'); // lowercase m = release
+      await handleKey(release.input, release.key);
+      // The async clipboard write is detached inside the handler; flush it.
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(writeClipboardTextMock).toHaveBeenCalledTimes(1);
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+      expect(onHistoryCopy).toHaveBeenCalledWith(SELECTION_COPY_ID);
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('a left-release with no begun selection spawns no copy at all', async () => {
+    writeClipboardTextMock.mockClear();
+    // Spy controller: hasSelection()=false must short-circuit BEFORE
+    // commitSelection is ever called. A gateless implementation would call
+    // commitSelection on every release — this fails it.
+    const commitSelection = vi.fn(async () => true);
+    const controller = {
+      scrollBy: vi.fn(),
+      scrollPage: vi.fn(),
+      scrollToTop: vi.fn(),
+      scrollToBottom: vi.fn(),
+      scrollToTrackCell: vi.fn(),
+      isScrolled: () => false,
+      hasCopyTargetAt: () => false,
+      copyAtViewportCell: vi.fn(async () => null),
+      beginSelection: vi.fn(),
+      extendSelection: vi.fn(),
+      endSelection: vi.fn(),
+      hasSelection: () => false,
+      clearSelection: vi.fn(),
+      commitSelection,
+    };
+    const handleKey = makeHandler({
+      historyScrollRef: { current: controller as never as HistoryScrollController },
+    });
+    const release = mouseKey('\x1b[<0;5;1m');
+    await handleKey(release.input, release.key);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(commitSelection).not.toHaveBeenCalled();
+    expect(writeClipboardTextMock).not.toHaveBeenCalled();
   });
 });
 

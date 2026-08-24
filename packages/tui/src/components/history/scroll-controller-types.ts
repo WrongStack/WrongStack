@@ -65,20 +65,31 @@ export interface HistoryScrollController {
    */
   extendSelection(row: number, col: number): void;
   /**
-   * End an active drag (left-release). Does NOT write to the clipboard — the
-   * copy is performed by {@link commitSelection}, which is triggered by a
-   * separate right-click in the history band (per the drag-select-then-commit
-   * contract). If no selection is in progress, the call is a no-op.
+   * Mark an active drag as ended (left-release) WITHOUT copying. The primary
+   * release path goes straight to {@link commitSelection}; this intermediate
+   * state exists for callers that end a drag but defer the copy decision,
+   * and it pins {@link extendSelection} against stray post-release motion.
+   * If no selection is in progress, the call is a no-op.
    */
   endSelection(): void;
+  /**
+   * True while a drag-selection has been begun and not yet committed,
+   * cleared, or cancelled. Lets the key handler decide synchronously whether
+   * a left-release should trigger {@link commitSelection} — a release with
+   * no active selection must not spawn a pointless async clipboard path.
+   */
+  hasSelection(): boolean;
   /** Drop any in-progress or committed selection without copying. */
   clearSelection(): void;
   /**
-   * Commit the active selection to the system clipboard. Returns true if a
-   * non-empty selection was resolved and the write succeeded. Returns false
-   * silently when there is no selection, the selection is empty (e.g. the drag
-   * never moved), or the write fails — the caller can show a transient notice
-   * on the truthy branch and stay silent on the falsy branch.
+   * Commit the active selection to the system clipboard. Triggered by the
+   * left-button release that ends a drag (the release-commits-copy
+   * contract); a right-press in the history band commits any selection that
+   * is still pending after an unusual end. Returns true if a non-empty
+   * selection was resolved and the write succeeded. Returns false silently
+   * when there is no selection, the selection is empty (e.g. the drag never
+   * moved), or the write fails — the caller can show a transient notice on
+   * the truthy branch and stay silent on the falsy branch.
    */
   commitSelection(): Promise<boolean>;
 }

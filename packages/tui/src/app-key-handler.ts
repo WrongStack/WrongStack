@@ -675,16 +675,16 @@ export function createAppKeyHandler(
     // Wheel always drives the managed history viewport. Native terminal
     // scrollback cannot reveal virtualized rows, so gating this on full mouse
     // mode makes the wheel appear broken (especially on macOS terminals without
-    // dedicated PageUp/PageDown keys). Full mode still gates drag/clickable UI.
+    // dedicated PageUp/PageDown keys). Drag-select-copy and scrollbar scrub
+    // also work in every mode (button-drag tracking is always on); full mouse
+    // mode still gates the clickable status-bar chips.
     if (!overlayOpen) {
-      // Right-press in the history card band commits any in-progress drag
-      // selection to the clipboard. Gated on full mouse mode (managed mode
-      // never delivers the right-press the user expects here; the wheel /
-      // gutter / status-bar handlers all assume a click/wheel world). The
-      // selection gesture itself is still legal in managed mode's bookkeeping
-      // — only the *commit* trigger requires motion events to have been
-      // delivered alongside the press, which managed mode omits.
-      if (mouseMode && key.mouse?.kind === 'press' && key.mouse.button === 'right') {
+      // Right-press in the history card band commits any drag selection that
+      // is still pending (one whose release was swallowed or that ended out
+      // of band). With release-commits-copy below, a normally released
+      // selection is already committed and cleared, so this usually no-ops;
+      // it stays as the explicit fallback.
+      if (key.mouse?.kind === 'press' && key.mouse.button === 'right') {
         const region = hitRegion(
           { termRows, termCols: historyWidth, viewportRows: state.viewportRows },
           key.mouse.x,
@@ -745,13 +745,13 @@ export function createAppKeyHandler(
           return;
         }
       }
-      // Scrollbar click / drag. Managed mode already reports button presses,
-      // so a left press on the right-edge track always jumps to that absolute
-      // position. Full mouse mode additionally reports held-button motion,
-      // giving scrub-to-scroll. The track lives in the top `viewportRows`
-      // band, so the bottom region is never affected.
+      // Scrollbar click / drag. Button-drag tracking (mode 1002) reports
+      // presses and held-button motion in every mode, so a left press on the
+      // right-edge track jumps to that absolute position and dragging the
+      // track scrubs. The track lives in the top `viewportRows` band, so the
+      // bottom region is never affected.
       if (
-        (key.mouse?.kind === 'press' || (mouseMode && key.mouse?.kind === 'move')) &&
+        (key.mouse?.kind === 'press' || key.mouse?.kind === 'move') &&
         key.mouse.button === 'left'
       ) {
         const region = hitRegion(
@@ -789,16 +789,12 @@ export function createAppKeyHandler(
             .catch(() => null);
           return;
         }
-        // Drag-to-select-then-right-click-copy: gated on full mouse mode so we
-        // actually receive motion events (managed mode only emits press+release
-        // and would never carry the move inside the press/release stream). The
-        // press must land inside the history band on a non-gutter, non-icon
-        // cell — every other cell is owned by an existing handler below.
-        if (
-          mouseMode &&
-          region?.kind === 'history' &&
-          key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH
-        ) {
+        // Drag-to-select: the press must land inside the history band on a
+        // non-gutter cell; a motion event with the button still held extends
+        // the selection. Button-drag tracking (1002) delivers both in every
+        // mode, so no mouseMode gate. Cells right of the card band belong to
+        // the rail handlers below.
+        if (region?.kind === 'history' && key.mouse.x <= historyWidth - SCROLLBAR_HIT_WIDTH) {
           if (key.mouse.kind === 'press') {
             historyScrollRef.current?.beginSelection(region.row, key.mouse.x - 1);
             return;
@@ -816,14 +812,27 @@ export function createAppKeyHandler(
           return;
         }
       }
-      // Left-release after a drag-select. Routed before the existing
-      // hit-region branches because a release is meaningful only when a
-      // selection was started on the matching press; anything else falls
-      // through unchanged. The SGR decoder keeps the last-pressed button
-      // identity on release, so `button === 'left'` is the correct gate
-      // here for a primary-button drag-select.
-      if (mouseMode && key.mouse?.kind === 'release' && key.mouse.button === 'left') {
-        historyScrollRef.current?.endSelection();
+      // Left-release after a drag-select: end AND commit in one gesture —
+      // press, drag, release copies the selected text. A degenerate press
+      // without motion (anchor === head) makes commitSelection a silent
+      // no-op, so plain clicks never copy. Routed before the hit-region
+      // branches because a release is meaningful only when a selection was
+      // started on the matching press; anything else falls through
+      // unchanged. The SGR decoder keeps the last-pressed button identity
+      // on release, so `button === 'left'` is the correct gate here for a
+      // primary-button drag-select.
+      if (key.mouse?.kind === 'release' && key.mouse.button === 'left') {
+        // Only a release that ends an actual begun selection commits — a
+        // stray release (click on the rail, status bar, or anywhere a press
+        // never routed into beginSelection) must not spawn the async copy.
+        if (historyScrollRef.current?.hasSelection()) {
+          detach(
+            historyScrollRef.current?.commitSelection().then((copied) => {
+              if (copied) onHistoryCopy?.(SELECTION_COPY_ID);
+            }),
+            'Copy',
+          );
+        }
       }
       // Clickable status-bar chips. The bar is bottom-anchored above the panels
       // in belowStatusBarRef; measure both to resolve each content line's

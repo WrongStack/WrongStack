@@ -1,11 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  MOUSE_CLICK_ON,
-  MOUSE_DRAG_ON,
-  MOUSE_OFF,
-  shouldEnableMouseTracking,
-  type MouseTrackingPolicy,
-} from '../mouse.js';
+import { MOUSE_DRAG_ON, MOUSE_OFF, shouldEnableMouseTracking } from '../mouse.js';
+import type { MouseTrackingPolicy } from '../mouse.js';
 
 type MouseWritable = { write(data: string): unknown } | undefined;
 
@@ -31,11 +26,13 @@ export function useMouseTracking(input: {
     native: nativeMouse,
     protocol,
   });
-  const mouseTrackingSequence = mouseTrackingOn
-    ? mouseMode
-      ? MOUSE_DRAG_ON
-      : MOUSE_CLICK_ON
-    : MOUSE_OFF;
+  // Button-drag tracking (?1002h: click + wheel + motion-while-held) is
+  // enabled whenever tracking is on — managed default and full mode alike —
+  // because drag-to-select-and-copy in the history needs held-drag motion
+  // reports. This hook never enables free hover (?1003h). Native terminal
+  // selection is unavailable under ANY tracking mode, so escalating managed
+  // mode from click-only to drag loses nothing.
+  const mouseTrackingSequence = mouseTrackingOn ? MOUSE_DRAG_ON : MOUSE_OFF;
   const mouseWrittenRef = useRef<string | null>(null);
 
   useEffect(() => {

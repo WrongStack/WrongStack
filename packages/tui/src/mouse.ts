@@ -12,8 +12,9 @@
  * Trade-off: with ANY of these on, the terminal reports the wheel to us as
  * buttons 64/65 instead of scrolling its own scrollback. Shift+wheel (and
  * users keep access to terminal scrollback — but plain wheel events are owned
- * by the app while tracking is active. Managed history therefore keeps cheap
- * click/wheel tracking active; full pointer/drag behavior remains opt-in.
+ * by the app while tracking is active. Managed history therefore keeps
+ * button-drag tracking active (click + wheel + held-drag motion) so
+ * drag-select-copy works by default; free hover (1003) remains opt-in.
  */
 
 const ESC = String.fromCharCode(27);

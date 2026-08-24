@@ -158,10 +158,14 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         selectionRef.current = { ...cur, head: { row, col } };
       },
       endSelection: () => {
+        // Superseded by release-commits-copy: the release path goes straight
+        // to hasSelection/commitSelection. Retained only if a caller still
+        // needs the intermediate "ended but not committed" state.
         const cur = selectionRef.current;
         if (cur.anchor === null) return;
         selectionRef.current = { ...cur, inProgress: false };
       },
+      hasSelection: () => selectionRef.current.anchor !== null,
       clearSelection: () => {
         const cur = selectionRef.current;
         if (cur.anchor === null && cur.head === null) return;
