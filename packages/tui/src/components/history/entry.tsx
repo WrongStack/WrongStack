@@ -22,6 +22,7 @@ import {
 import { ToolEntry } from './tool-entry.js';
 import type { HistoryEntry } from './types.js';
 import { fmtTok } from './utils.js';
+import { INFO_PREFIX, USER_LABEL } from './wrap-geometry.js';
 
 export { councilHeadline, councilSeatLine } from './entry-helpers.js';
 
@@ -131,7 +132,7 @@ export const Entry = React.memo(function Entry({
         >
           <Text>
             <Text bold color={theme.user}>
-              {'👤 USER  '}
+              {USER_LABEL}
             </Text>
             <Text color="white">{sanitizeTerminalText(entry.text)}</Text>
             {entry.queued ? <Text dimColor>{' (queued)'}</Text> : null}
@@ -339,7 +340,7 @@ export const Entry = React.memo(function Entry({
     case 'info': {
       return (
         <Text dimColor>
-          <Text>{'ℹ '}</Text>
+          <Text>{INFO_PREFIX}</Text>
           {sanitizeTerminalText(entry.text)}
         </Text>
       );

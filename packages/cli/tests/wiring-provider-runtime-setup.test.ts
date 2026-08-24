@@ -1,4 +1,8 @@
 import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
+import {
+  applyProxyConfig,
+  __resetProxyConfigForTests,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupProviderRuntime, type ProviderRuntimeDeps } from '../src/wiring/provider-runtime-setup.js';
 
@@ -420,5 +424,87 @@ describe('setupProviderRuntime — config watchers', () => {
     const before = reloadSpy.mock.calls.length;
     reload?.(fakeConfig({ favoriteModels: ['z'] }));
     expect(reloadSpy.mock.calls.length).toBe(before + 1);
+  });
+});
+
+describe('setupProviderRuntime — WrongProxy instant-apply', () => {
+  // The instant-apply subscription lives on the CORE proxy singleton, so
+  // every state change here goes through the real applyProxyConfig.
+  beforeEach(() => __resetProxyConfigForTests());
+  afterEach(() => __resetProxyConfigForTests());
+
+  function proxyDeps() {
+    const context = {
+      provider: fakeProvider('anthropic'),
+      model: 'claude-3',
+      runModelTransition: vi.fn(async <T>(fn: () => Promise<T>) => fn()),
+    };
+    const deps = makeDeps({
+      config: fakeConfig({ baseUrl: 'https://api.example.com/v1' }),
+      context,
+    } as Partial<ProviderRuntimeDeps>);
+    return { deps, context };
+  }
+
+  it('rebuilds the live provider through the transition gate when the proxy activates', async () => {
+    const { deps, context } = proxyDeps();
+    const build = vi.fn((_opts: unknown, providerId: string) => fakeProvider(providerId));
+    deps.buildProviderForIdRuntime = build as never;
+    setupProviderRuntime(deps);
+    const originalProvider = context.provider;
+
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    await flushAsync();
+    await flushAsync();
+
+    expect(build).toHaveBeenCalledWith(expect.anything(), 'anthropic');
+    expect(context.runModelTransition).toHaveBeenCalled();
+    // The live provider object was swapped (new instance with same id).
+    expect(context.provider).not.toBe(originalProvider);
+    expect(context.provider?.id).toBe('anthropic');
+    expect(deps.logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('live provider rebuilt'),
+    );
+  });
+
+  it('does NOT rebuild when the proxy config write is value-identical (probe tick)', async () => {
+    const { deps } = proxyDeps();
+    const build = vi.fn((_opts: unknown, providerId: string) => fakeProvider(providerId));
+    deps.buildProviderForIdRuntime = build as never;
+    setupProviderRuntime(deps);
+
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    await flushAsync();
+    expect(build).toHaveBeenCalledTimes(1); // raw → rewritten flip
+
+    applyProxyConfig({ active: true }); // identical tick
+    await flushAsync();
+    expect(build).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips the swap when the live provider moved before the rebuild ran (superseded)', async () => {
+    const { deps, context } = proxyDeps();
+    setupProviderRuntime(deps);
+    // A /model switch lands between the proxy change and the rebuild.
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    context.provider = fakeProvider('openai'); // moved elsewhere
+    await flushAsync();
+    await flushAsync();
+    // runModelTransition ran but the guard prevented the stale overwrite —
+    // the provider is still the one the switch installed.
+    expect(context.provider.id).toBe('openai');
+  });
+
+  it('stops rebuilding once the teardown handler runs', async () => {
+    const { deps } = proxyDeps();
+    const build = vi.fn((_opts: unknown, providerId: string) => fakeProvider(providerId));
+    deps.buildProviderForIdRuntime = build as never;
+    setupProviderRuntime(deps);
+    const disposes = [...deps.teardownHandlers];
+    for (const dispose of disposes) dispose();
+
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    await flushAsync();
+    expect(build).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,7 @@
  * by the 42 locale chunks emitted into dist.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { i18n, installDesktopHostLocaleBridge, useAppTranslation } from '../../src/i18n';
 import { handlePrefsUpdated } from '../../src/hooks/ws-handlers/misc-handlers';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
@@ -129,10 +129,14 @@ describe('locale switching applies instantly', () => {
     render(<SettingsProbe />);
     expect(screen.getByTestId('settings-probe').textContent).toBe('Settings');
 
-    await i18n.changeLanguage('tr');
+    await act(async () => {
+      await i18n.changeLanguage('tr');
+    });
     await waitFor(() => expect(screen.getByTestId('settings-probe').textContent).toBe('Ayarlar'));
 
-    await i18n.changeLanguage('de');
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
     await waitFor(() =>
       expect(screen.getByTestId('settings-probe').textContent).toBe('Einstellungen'),
     );
@@ -144,7 +148,9 @@ describe('locale switching applies instantly', () => {
 
     // Exactly what SettingsPanel's setUiLocale does: mutate the store; the
     // useLocalPrefs.subscribe in i18n/index.ts calls i18n.changeLanguage.
-    useLocalPrefs.getState().set({ uiLocale: 'fr' });
+    act(() => {
+      useLocalPrefs.getState().set({ uiLocale: 'fr' });
+    });
 
     await waitFor(() =>
       expect(screen.getByTestId('settings-probe').textContent).toBe('Paramètres'),
@@ -157,7 +163,9 @@ describe('locale switching applies instantly', () => {
     expect(i18n.hasResourceBundle('es', 'settings')).toBe(false);
 
     render(<SettingsProbe />);
-    await i18n.changeLanguage('es');
+    await act(async () => {
+      await i18n.changeLanguage('es');
+    });
 
     await waitFor(() => expect(i18n.hasResourceBundle('es', 'settings')).toBe(true));
     await waitFor(() => expect(screen.getByTestId('settings-probe').textContent).toBe('Ajustes'));
@@ -176,7 +184,9 @@ describe('locale switching applies instantly', () => {
       'pt-BR': 'Configurações',
     };
     for (const [code, label] of Object.entries(expected)) {
-      useLocalPrefs.getState().set({ uiLocale: code });
+      act(() => {
+        useLocalPrefs.getState().set({ uiLocale: code });
+      });
       // eslint-disable-next-line no-await-in-loop
       await waitFor(() => expect(screen.getByTestId('settings-probe').textContent).toBe(label));
       expect(document.documentElement.lang).toBe(code);
@@ -187,10 +197,14 @@ describe('locale switching applies instantly', () => {
     render(<CancelProbe />);
     expect(screen.getByTestId('cancel-probe').textContent).toBe('Cancel');
 
-    useLocalPrefs.getState().set({ uiLocale: 'tr' });
+    act(() => {
+      useLocalPrefs.getState().set({ uiLocale: 'tr' });
+    });
     await waitFor(() => expect(screen.getByTestId('cancel-probe').textContent).toBe('İptal'));
 
-    useLocalPrefs.getState().set({ uiLocale: 'de' });
+    act(() => {
+      useLocalPrefs.getState().set({ uiLocale: 'de' });
+    });
     await waitFor(() => expect(screen.getByTestId('cancel-probe').textContent).toBe('Abbrechen'));
   });
 
@@ -202,7 +216,9 @@ describe('locale switching applies instantly', () => {
     render(<SettingsProbe />);
     expect(screen.getByTestId('settings-probe').textContent).toBe('Settings');
 
-    handlePrefsUpdated({ type: 'prefs.updated', payload: { uiLocale: 'es' } });
+    act(() => {
+      handlePrefsUpdated({ type: 'prefs.updated', payload: { uiLocale: 'es' } });
+    });
     await waitFor(() => expect(screen.getByTestId('settings-probe').textContent).toBe('Ajustes'));
     expect(useLocalPrefs.getState().uiLocale).toBe('es');
   });
@@ -227,14 +243,18 @@ describe('locale switching applies instantly', () => {
       expect(hostListener).toBeDefined();
 
       // The desktop shell pushes 'tr' (e.g. user picked Türkçe in the shell).
-      hostListener!('tr');
+      act(() => {
+        hostListener!('tr');
+      });
       await waitFor(() => expect(screen.getByTestId('settings-probe').textContent).toBe('Ayarlar'));
       expect(document.documentElement.lang).toBe('tr');
       expect(useLocalPrefs.getState().uiLocale).toBe('tr');
       expect(i18n.language).toBe('tr');
 
       // And the reverse: a non-English → non-English switch from the shell.
-      hostListener!('de');
+      act(() => {
+        hostListener!('de');
+      });
       await waitFor(() =>
         expect(screen.getByTestId('settings-probe').textContent).toBe('Einstellungen'),
       );
@@ -242,7 +262,9 @@ describe('locale switching applies instantly', () => {
 
       // An unknown locale normalizes to the closest supported one (so the
       // shell accidentally sending 'pt-PT' → Brazilian Portuguese here).
-      hostListener!('pt-PT');
+      act(() => {
+        hostListener!('pt-PT');
+      });
       await waitFor(() =>
         expect(screen.getByTestId('settings-probe').textContent).toBe('Configurações'),
       );

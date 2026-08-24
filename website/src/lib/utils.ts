@@ -351,6 +351,7 @@ export const changelog: ChangelogEntry[] = [
       'Anthropic-compatible gateway usage on message_delta is now merged, not replaced — reads input_tokens, cache_read/creation_input_tokens, and ephemeral_5m/1h_input_tokens when reported on the final event',
       'TUI prompt-cache card surfaces 5m/1h TTL split and saved-USD row; primary cache chip grew compact r<read> w<write> + ~$saved tail',
       '195-line presets-anthropic-openai-google.test.ts covers message_start, message_delta, partial-TTL, mixed-shape, and authoritative-aggregate-pinning scenarios',
+      'All release surfaces aligned to 0.310.1 — manifests, both apps, README highlights, website metadata, JSON-LD, release changelog',
     ],
   },
   {

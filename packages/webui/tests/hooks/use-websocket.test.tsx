@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── stubs ───────────────────────────────────────────────────────────────────
@@ -116,7 +116,9 @@ describe('useWebSocketBootstrap', () => {
   });
 
   it('does nothing when autoConnect is off', () => {
-    useConfigStore.setState({ autoConnect: false } as never);
+    act(() => {
+      useConfigStore.setState({ autoConnect: false } as never);
+    });
     renderHook(() => useWebSocketBootstrap());
     expect(installFaviconVisibilityReset).not.toHaveBeenCalled();
     expect(client.handlerCount()).toBe(0);
@@ -160,7 +162,9 @@ describe('useWebSocketBootstrap', () => {
 
   it('mirrors socket status into the config store', () => {
     const setWsStatus = vi.fn();
-    useConfigStore.setState({ setWsStatus } as never);
+    act(() => {
+      useConfigStore.setState({ setWsStatus } as never);
+    });
     renderHook(() => useWebSocketBootstrap());
     client.emitStatus('open');
     expect(setWsStatus).toHaveBeenCalledWith('open');
@@ -226,7 +230,9 @@ describe('useWebSocketBootstrap', () => {
     const { rerender } = renderHook(() => useWebSocketBootstrap());
     expect(client.handlerCount()).toBe(2);
 
-    useConfigStore.setState({ wsUrl: 'ws://localhost:9999' } as never);
+    act(() => {
+      useConfigStore.setState({ wsUrl: 'ws://localhost:9999' } as never);
+    });
     rerender();
 
     // Old handlers torn down, new ones installed — still exactly one set.

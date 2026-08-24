@@ -54,7 +54,7 @@ export function resolveProviderCfg(
   // so a saved cfg that omits one still inherits from the parent.
   const rawBaseUrl = savedCfg?.baseUrl ?? config.baseUrl;
   // When the WrongProxy/WrongTrace toggle is on and the daemon is reachable,
-  // rewrite `rawBaseUrl` through the proxy (`http://localhost:8000/proxy/<host><path>`).
+  // rewrite `rawBaseUrl` through the proxy (`http://localhost:3444/proxy/<host><path>`).
   // Excluded providers (e.g. openai-codex) flow through unchanged — the
   // rewriter itself is a no-op for them.
   const baseUrl =

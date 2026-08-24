@@ -139,7 +139,7 @@ export type Settings = {
    */
   wrongProxyEnabled?: boolean | undefined;
   /**
-   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. Mirrors
+   * WrongProxy / WrongTrace URL. Default `http://localhost:3444`. Mirrors
    * `SettingsPickerPatch.wrongProxyUrl`.
    */
   wrongProxyUrl?: string | undefined;

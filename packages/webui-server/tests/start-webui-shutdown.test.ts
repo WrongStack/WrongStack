@@ -36,6 +36,7 @@ describe('setupWebuiShutdown', () => {
     const detachTodos = vi.fn().mockResolvedValue(undefined);
     const stopHeapWatchdog = vi.fn().mockResolvedValue(undefined);
     const closeCredentialWatcher = vi.fn();
+    const disposeProxyApply = vi.fn();
     const disposeRealtimeHandlers = vi.fn();
     const governanceClose = vi.fn().mockResolvedValue({
       ok: false,
@@ -71,6 +72,7 @@ describe('setupWebuiShutdown', () => {
       todosCheckpoint: { detach: detachTodos },
       stopHeapWatchdog,
       getCredentialWatcherClose: () => closeCredentialWatcher,
+      getProxyInstantApplyDispose: () => disposeProxyApply,
       disposeRealtimeHandlers,
       governanceHandle: { close: governanceClose },
       logger,
@@ -149,6 +151,7 @@ describe('setupWebuiShutdown', () => {
       todosCheckpoint: { detach: vi.fn().mockResolvedValue(undefined) },
       stopHeapWatchdog: vi.fn().mockResolvedValue(undefined),
       getCredentialWatcherClose: () => undefined,
+      getProxyInstantApplyDispose: () => vi.fn(),
       disposeRealtimeHandlers: vi.fn(),
       governanceHandle: undefined,
       logger: { warn: vi.fn() },

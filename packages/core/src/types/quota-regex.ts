@@ -17,7 +17,7 @@
  */
 
 export const QUOTA_EXHAUSTED_RE =
-  /(?:insufficient|exhausted|depleted|exceeded|no|not enough)[-_\s]*(?:quota|credit|balance)|(?:quota|credit|balance)(?:\s+(?:has|have))?(?:\s+been)?[-_\s]*(?:exhausted|depleted|exceeded|insufficient)|billing[_\s-]*(?:hard[_\s-]*)?limit|payment required|spending limit|plan limit|usage[-_\s]*limit[-_\s]*(?:reached|exceeded)/i;
+  /(?:insufficient|exhausted|depleted|exceeded|no|not enough)[-_\s]*(?:quota|credit|balance)|(?:quota|credit|balance)(?:\s+(?:has|have))?(?:\s+been)?[-_\s]*(?:exhausted|depleted|exceeded|insufficient)|billing[_\s-]*(?:hard[_\s-]*)?limit|payment required|spending limit|plan limit|(?:usage|credit)[-_\s]*(?:quota|limit)(?![-_\w])|usage[-_\s]*(?:limit|quota)[-_\s]*(?:reached|exceeded|for)/i;
 
 export const ROUTE_SCOPED_QUOTA_RE =
   /\b(?:for|on)\s+(?:(?:this|the)\s+)?(?:route|model)\b|\b(?:route|model)(?:[-_\s]+[\w.-]+)?[-_\s]*(?:quota|limit)\b|\b(?:quota|limit).{0,24}\b(?:for|on)\s+(?:(?:this|the)\s+)?(?:route|model)\b/i;

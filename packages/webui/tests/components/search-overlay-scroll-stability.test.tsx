@@ -14,7 +14,7 @@
 // (new reference, same content) and asserting that scrollTarget.nonce
 // does NOT increment.
 
-import { render, waitFor } from '@testing-library/react';
+import { act, render, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SearchOverlay } from '../../src/components/SearchOverlay';
 import { useChatStore, useUIStore } from '../../src/stores';
@@ -83,8 +83,10 @@ describe('SearchOverlay scroll stability', () => {
     // With the old bug (dependency on `hits` array), the scroll effect
     // would re-fire here, incrementing the nonce. With the fix
     // (dependency on `activeHitId` primitive), it must NOT.
-    useChatStore.setState({
-      messages: [...initialMessages], // new array, same content
+    act(() => {
+      useChatStore.setState({
+        messages: [...initialMessages], // new array, same content
+      });
     });
 
     // Give React a tick to process the re-render + any effects.
@@ -125,9 +127,11 @@ describe('SearchOverlay scroll stability', () => {
     const input = document.querySelector('input');
     expect(input).not.toBeNull();
     // Dispatch ArrowDown keydown to step to the next hit.
-    input!.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
-    );
+    await act(async () => {
+      input!.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }),
+      );
+    });
 
     // The nonce should now increment because the active hit id changed.
     await waitFor(() => {
@@ -158,11 +162,13 @@ describe('SearchOverlay scroll stability', () => {
     // Append a new message that does NOT match the search query.
     // The messages array gets a new identity, hits recomputes (still just
     // ["hit-a"]), but activeHitId is unchanged → no re-scroll.
-    useChatStore.setState({
-      messages: [
-        ...initialMessages,
-        msg({ id: 'msg-new', content: 'totally unrelated content' }),
-      ],
+    act(() => {
+      useChatStore.setState({
+        messages: [
+          ...initialMessages,
+          msg({ id: 'msg-new', content: 'totally unrelated content' }),
+        ],
+      });
     });
 
     await waitFor(() => {

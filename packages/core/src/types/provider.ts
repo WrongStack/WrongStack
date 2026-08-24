@@ -442,11 +442,19 @@ export function classifyProviderError(
   if (status === 0) return 'network';
   if (status === 408) return 'timeout';
   if (status === 599) return 'stream_hang';
-  if (status === 402 || QUOTA_EXHAUSTED_RE.test(text)) return 'quota_exhausted';
-  // Check body.message separately for "rate limit exceeded" — this pattern
-  // should NOT match against body.raw because OpenAI's error response
-  // includes `"code":"rate_limit_exceeded"` in the JSON, which would be a
-  // false positive (it's a transient burst, not a hard limit).
+  // Belt-and-suspenders quota check FIRST. Many providers (Kimi, Z.AI,
+  // Moonshot) answer a hard billing-cycle limit with HTTP 403 and a prose
+  // message like "You've reached your usage limit for this billing cycle" or
+  // "Your quota will be refreshed in the next cycle".  We must classify these
+  // as quota_exhausted (→ 15-min blocked) rather than auth (→ 5-failure chain).
+  // The QUOTA_EXHAUSTED_RE regex catches the message text regardless of the
+  // HTTP status code, so this guard must run before the 401/403 auth branch.
+  if (QUOTA_EXHAUSTED_RE.test(text)) return 'quota_exhausted';
+  if (status === 402) return 'quota_exhausted';
+  // A 429 that carries a hard-limit message (vs a burst rate-limit) is
+  // also quota-exhausted: only check body.message so we don't false-positive
+  // on OpenAI's raw JSON (which contains "rate_limit_exceeded" in the code
+  // field even for transient 429s).
   if (
     status === 429 &&
     body?.message &&
@@ -455,9 +463,13 @@ export function classifyProviderError(
   ) {
     return 'quota_exhausted';
   }
+  // Transient rate limits and server-side overloads come before the auth guard.
   if (type === 'rate_limit_error' || status === 429) return 'rate_limit';
   if (type === 'overloaded_error' || status === 529) return 'overloaded';
   if (status >= 500) return 'server';
+  // Auth / permission failures — the 403 limb now only fires when the message
+  // was NOT a quota/retry message (the QUOTA_EXHAUSTED_RE check above already
+  // handled that case). A real 403 "permission denied" is non-retryable.
   if (
     type === 'authentication_error' ||
     type === 'permission_error' ||

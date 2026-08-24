@@ -57,20 +57,20 @@ afterEach(() => __resetProxyConfigForTests());
 
 describe('resolveSetupProvider proxy rewrite', () => {
   it('rewrites the configured provider baseUrl through the proxy when active', () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const result = resolveSetupProvider({ config: openaiConfig(), needsProvider: false, providerRegistry: registry });
     expect(result.needsSetup).toBe(false);
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
-      expect.objectContaining({ baseUrl: 'http://localhost:8000/proxy/api.openai.com/v1' }),
+      expect.objectContaining({ baseUrl: 'http://localhost:3444/proxy/api.openai.com/v1' }),
     );
     expect((result.provider as { baseUrl?: string }).baseUrl).toBe(
-      'http://localhost:8000/proxy/api.openai.com/v1',
+      'http://localhost:3444/proxy/api.openai.com/v1',
     );
   });
 
   it('keeps the raw baseUrl when active=false', () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: false });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
     const result = resolveSetupProvider({ config: openaiConfig(), needsProvider: false, providerRegistry: registry });
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
@@ -89,7 +89,7 @@ describe('resolveSetupProvider proxy rewrite', () => {
   });
 
   it('rewrites the first saved provider in Branch 2 when active', () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const config = {
       version: 1,
       provider: 'openai',
@@ -103,7 +103,7 @@ describe('resolveSetupProvider proxy rewrite', () => {
     expect(result.needsSetup).toBe(false);
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'anthropic',
-      expect.objectContaining({ baseUrl: 'http://localhost:8000/proxy/api.anthropic.com/v1' }),
+      expect.objectContaining({ baseUrl: 'http://localhost:3444/proxy/api.anthropic.com/v1' }),
     );
   });
 });

@@ -19,6 +19,7 @@ export function setupWebuiShutdown(options: {
   todosCheckpoint: { detach: () => Promise<void> };
   stopHeapWatchdog: () => Promise<void>;
   getCredentialWatcherClose: () => (() => void) | undefined;
+  getProxyInstantApplyDispose: () => () => void;
   disposeRealtimeHandlers: () => void;
   governanceHandle?:
     | { close: () => Promise<{ ok: boolean; action?: string; message?: string } | undefined> }
@@ -67,6 +68,7 @@ export function setupWebuiShutdown(options: {
       await options.todosCheckpoint.detach();
       await options.stopHeapWatchdog();
       options.getCredentialWatcherClose()?.();
+      options.getProxyInstantApplyDispose()();
       options.disposeRealtimeHandlers();
       const governanceCleanup = await options.governanceHandle?.close();
       if (governanceCleanup && !governanceCleanup.ok) {

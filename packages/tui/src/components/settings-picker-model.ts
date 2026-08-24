@@ -953,12 +953,12 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   nextStepsTool: false,
   // WrongProxy / WrongTrace. Defaults mirror the WebUI `LocalPrefs`
   // DEFAULTS in `packages/webui/src/stores/local-prefs.ts` (master
-  // switch off, URL 'http://localhost:8000'). Required keys here
+  // switch off, URL 'http://localhost:3444'). Required keys here
   // because `SettingsPickerValues` (mapped from `SettingsPickerPatch`)
   // makes every key mandatory — omitting them here breaks the type
   // contract for the entire TUI settings module. See Chimera review.
   wrongProxyEnabled: false,
-  wrongProxyUrl: 'http://localhost:8000',
+  wrongProxyUrl: 'http://localhost:3444',
 } as const);
 
 /**

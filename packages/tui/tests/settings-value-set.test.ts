@@ -311,7 +311,7 @@ describe('getSettingsFieldValue', () => {
     nextStepsTool: false,
     // WrongProxy / WrongTrace (fields 59/60).
     wrongProxyEnabled: false,
-    wrongProxyUrl: 'http://localhost:8000',
+    wrongProxyUrl: 'http://localhost:3444',
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
@@ -476,7 +476,7 @@ describe('formatAllSettingsSummary', () => {
     nextStepsTool: false,
     // WrongProxy / WrongTrace (fields 59/60).
     wrongProxyEnabled: false,
-    wrongProxyUrl: 'http://localhost:8000',
+    wrongProxyUrl: 'http://localhost:3444',
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 

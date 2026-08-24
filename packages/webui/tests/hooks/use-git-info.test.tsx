@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 const getGitInfo = vi.fn();
 let clientValue: unknown = { getGitInfo };
@@ -59,7 +59,9 @@ describe('useGitInfo', () => {
   it('re-renders when the store value changes', () => {
     const { result, rerender } = renderHook(() => useGitInfo());
     expect(result.current).toBeNull();
-    useGitInfoStore.setState({ info: { branch: 'feat/x', dirty: true } as never });
+    act(() => {
+      useGitInfoStore.setState({ info: { branch: 'feat/x', dirty: true } as never });
+    });
     rerender();
     expect(result.current).toMatchObject({ branch: 'feat/x' });
   });

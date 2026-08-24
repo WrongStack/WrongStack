@@ -373,7 +373,7 @@ export function routeSettingsOverlayKey(
     // adapter owns the read/write — see LiveSettingsInput + the
     // tui-settings-adapter.ts branch tree).
     wrongProxyEnabled: config.wrongProxyEnabled ?? false,
-    wrongProxyUrl: config.wrongProxyUrl ?? 'http://localhost:8000',
+    wrongProxyUrl: config.wrongProxyUrl ?? 'http://localhost:3444',
   });
   return true;
 }

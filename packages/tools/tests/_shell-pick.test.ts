@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type BashShell,
+  diagnoseBashism,
   looksLikePowerShell,
   looksLikePowerShellExtended,
-  wrapPowerShellScript,
-  pickShell,
   POSIX_DEFAULT,
+  pickShell,
   shellArgs,
-  diagnoseBashism,
-  type BashShell,
+  wrapPowerShellScript,
 } from '../src/_shell-pick.js';
 
 const envFrom = (vars: Record<string, string>) => ({
@@ -255,21 +255,10 @@ describe('shellArgs', () => {
   it('returns cmd-style argv for cmd', () => {
     expect(shellArgs('cmd')).toEqual(['/c']);
   });
-  it('returns PowerShell argv with stdin-flag `-` for both editions', () => {
-    expect(shellArgs('powershell')).toEqual([
-      '-NoLogo',
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      '-',
-    ]);
-    expect(shellArgs('pwsh')).toEqual([
-      '-NoLogo',
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      '-',
-    ]);
+  it('returns PowerShell argv with the encoded-command flag for both editions', () => {
+    const expected = ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand'];
+    expect(shellArgs('powershell')).toEqual(expected);
+    expect(shellArgs('pwsh')).toEqual(expected);
   });
 });
 

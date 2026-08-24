@@ -41,7 +41,7 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
             </span>
             <Input
               value={localPrefs.wrongProxyUrl}
-              placeholder="http://localhost:8000"
+              placeholder="http://localhost:3444"
               onChange={(e) => syncPref('wrongProxyUrl', e.target.value)}
             />
             <p className="text-xs text-muted-foreground">

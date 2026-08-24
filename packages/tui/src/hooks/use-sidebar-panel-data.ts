@@ -178,7 +178,7 @@ export function useSidebarWrongProxy(
         const res = await fetch(healthUrl, {
           method: 'GET',
           // 2s budget — matches the runtime probe in proxy-probe.ts so a
-          // hung localhost:8000 cannot stall the render loop. The TUI
+          // hung localhost:3444 cannot stall the render loop. The TUI
           // never sees AbortError unless the caller tears us down.
           signal: AbortSignal.timeout(2_000),
           headers: { accept: 'application/json' },

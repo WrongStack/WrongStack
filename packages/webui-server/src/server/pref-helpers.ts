@@ -112,7 +112,7 @@ export const PREF_KEYS = [
   // Fleet chat verbosity: off | full (migrated from streamFleet boolean).
   'fleetChatVerbosity',
   // WrongProxy / WrongTrace: master switch + configurable URL (default
-  // http://localhost:8000). When `wrongProxyEnabled` is true and the daemon
+  // http://localhost:3444). When `wrongProxyEnabled` is true and the daemon
   // is reachable, every provider's base URL flows through
   // `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is excluded by spec.
   'wrongProxyEnabled',

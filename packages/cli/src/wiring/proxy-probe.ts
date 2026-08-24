@@ -10,7 +10,7 @@
  *  3. Aborts in-flight probes on every state change so we never accumulate
  *     a backlog when the user toggles the proxy on/off rapidly.
  *  4. Uses a small per-call AbortController + timeout (2s) so a hung
- *     `localhost:8000` cannot stall the loop.
+ *     `localhost:3444` cannot stall the loop.
  *
  * The probe is intentionally minimal: the daemon's `/api/health` response
  * shape is small and stable, so we don't try to parse it — a 2xx is

@@ -229,7 +229,7 @@ export interface LocalPrefs {
    */
   wrongProxyEnabled: boolean;
   /**
-   * Where the local proxy daemon listens. Default `http://localhost:8000`.
+   * Where the local proxy daemon listens. Default `http://localhost:3444`.
    * User-editable via WebUI `IntegrationsSection` and TUI SettingsPicker.
    * Periodic probe targets `<wrongProxyUrl>/api/health`; 2xx → active.
    */
@@ -340,7 +340,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   // WrongProxy / WrongTrace. Master switch defaults to off so the feature
   // ships silent; URL defaults to the dev-script daemon's documented port.
   wrongProxyEnabled: false,
-  wrongProxyUrl: 'http://localhost:8000',
+  wrongProxyUrl: 'http://localhost:3444',
 };
 
 export const useLocalPrefs = create<LocalPrefs>()(
@@ -355,7 +355,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
       version: 16,
       // v16 (2026-08-24): added WrongProxy / WrongTrace toggles. The
       // master switch defaults to off (existing users see no behavior
-      // change); the URL defaults to http://localhost:8000 (the dev-script
+      // change); the URL defaults to http://localhost:3444 (the dev-script
       // daemon port documented in the WRONGTRACE dev script). The probe
       // in `proxy-probe.ts` only fires when the toggle is on, so existing
       // users pay no cost. Older stores are backfilled via DEFAULTS spread
@@ -480,7 +480,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
         // `debugStream` directly above.
         if (typeof p.wrongProxyEnabled !== 'boolean') p.wrongProxyEnabled = false;
         if (typeof p.wrongProxyUrl !== 'string' || p.wrongProxyUrl.trim().length === 0) {
-          p.wrongProxyUrl = 'http://localhost:8000';
+          p.wrongProxyUrl = 'http://localhost:3444';
         }
         // Chimera/auto-review migration — backfill with the canonical defaults
         // so persisted stores from pre-v9 don't expose `undefined` to the panel.

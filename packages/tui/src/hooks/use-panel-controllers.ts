@@ -220,7 +220,7 @@ export function usePanelControllers({
       // Same defaults as the WebUI LocalPrefs and the CLI adapter's
       // branch tree — see tui-settings-adapter.ts.
       wrongProxyEnabled: s.wrongProxyEnabled ?? false,
-      wrongProxyUrl: s.wrongProxyUrl ?? 'http://localhost:8000',
+      wrongProxyUrl: s.wrongProxyUrl ?? 'http://localhost:3444',
     });
   }, [getSettings]);
 

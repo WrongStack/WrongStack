@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { InspectorPanel, InspectorTrigger } from '../../src/components/InspectorPanel.js';
 import { useFleetStore, useSideEffectStore, useUIStore } from '../../src/stores/index.js';
@@ -30,7 +30,9 @@ describe('global inspector drawer', () => {
     // InspectorTrigger now calls openPanel('agents') which opens the Agents
     // sidebar (sidebarOpen + activeActivity='agents'), not the inspector
     // drawer. Set inspectorOpen so the drawer renders for testing.
-    useUIStore.setState({ inspectorOpen: true });
+    act(() => {
+      useUIStore.setState({ inspectorOpen: true });
+    });
 
     expect(await screen.findByTestId('inspector-drawer')).toBeDefined();
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
@@ -45,7 +47,9 @@ describe('global inspector drawer', () => {
   it('keeps the active tab in shared UI state', async () => {
     renderInspector();
     // Render the drawer so tabs are available for interaction.
-    useUIStore.setState({ inspectorOpen: true });
+    act(() => {
+      useUIStore.setState({ inspectorOpen: true });
+    });
 
     fireEvent.click(screen.getByTestId('inspector-trigger'));
 
@@ -64,7 +68,9 @@ describe('global inspector drawer', () => {
     const trigger = screen.getByTestId('inspector-trigger');
     fireEvent.click(trigger);
     // Render the drawer so the close button is available.
-    useUIStore.setState({ inspectorOpen: true });
+    act(() => {
+      useUIStore.setState({ inspectorOpen: true });
+    });
 
     fireEvent.click(await screen.findByTestId('inspector-close'));
 

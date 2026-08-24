@@ -440,24 +440,44 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
     }
   });
 
-  it('passes raw columns through for gutterless kinds (info)', async () => {
+  it('keeps info gutterless but translates the ℹ icon prefix (band col 2 = text col 0)', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([{ id: 5, kind: 'info', text: 'alpha bravo charlie' }]);
     try {
-      // info rows get NO gutter translation (gutterWidthForEntry → 0): the
-      // band column flows to the assembler unchanged. NOTE: info rows render
-      // a 2-cell 'ℹ ' icon prefix before entry.text (entry.tsx), so visible
-      // text starts at band col 2 while the naive assembler slices
-      // entry.text from band col 0 — a known 2-column visual offset
-      // documented in scroll-controller-types.ts (icon-prefix translation is
-      // the same follow-up family as the user-card label prefix). This pins
-      // the pass-through MECHANISM, not the offset's desirability.
+      // info rows get NO gutter translation (gutterWidthForEntry → 0) — the
+      // band column flows to the assembler unchanged — but the 2-cell 'ℹ '
+      // icon prefix (entry.tsx) is now translated row-aware (wrap-geometry):
+      // band cols 0-1 are the icon and CLAMP to the text start; col 2 is the
+      // first text cell. A drag from col 0 (on the icon) through col 4
+      // inclusive covers text chars 0..2 → 'alp'. The pre-translation
+      // behavior sliced 'alpha' — two columns of invisible offset; this
+      // pins the fix end-to-end.
       h.controller.beginSelection(0, 0);
-      h.controller.extendSelection(0, 4); // raw col 4 → 'alpha' directly
+      h.controller.extendSelection(0, 4);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alp');
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('translates the user-card label: a drag under the label copies the text under it', async () => {
+    writeClipboardTextMock.mockClear();
+    const h = mountHistory([{ id: 6, kind: 'user', text: 'hello world' }]);
+    try {
+      // Row 0 renders border(1) + padding(1) + '👤 USER  '(9 cells) + text.
+      // The controller subtracts the 2-cell gutter (M3); the wrap map then
+      // shifts row-0 body cols past the 9-cell label — band col 11 is the
+      // FIRST TEXT CELL and col 15 is the 'o' of 'hello'. Label cells clamp
+      // to the text start (same margin-click semantics as the gutter).
+      h.controller.beginSelection(0, 11); // border 1 + pad 1 + label 9
+      h.controller.extendSelection(0, 15); // inclusive → text chars 0..4
+      h.controller.endSelection();
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('hello');
     } finally {
       h.unmount();
     }

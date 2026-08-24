@@ -1092,11 +1092,17 @@
         "export const PROXY_EXCLUDED_PROVIDERS",
         "export function __resetProxyConfigForTests",
         "export function applyProxyConfig",
+        "export function createProxyInstantApply",
         "export function getProxyConfig",
         "export function isProxyEligible",
         "export function rewriteBaseUrl",
         "export function shouldRewriteFor",
-        "export interface ProxyConfig"
+        "export function subscribeToProxyConfig",
+        "export interface ProxyConfig",
+        "export interface ProxyInstantApplyDeps",
+        "export interface ProxyInstantApplyHandle",
+        "export interface ProxyInstantApplyLogger",
+        "export type ProxyConfigListener"
       ]
     }
   ],
@@ -1113,7 +1119,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 170,
-      "sourceLines": 48988
+      "sourceLines": 49049
     },
     {
       "directory": "core",
@@ -1281,7 +1287,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11541
+      "sourceLines": 11553
     },
     {
       "directory": "utils",
@@ -1295,7 +1301,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 154
+      "sourceLines": 323
     },
     {
       "directory": "worktree",

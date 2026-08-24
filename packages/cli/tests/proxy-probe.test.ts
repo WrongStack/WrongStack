@@ -70,7 +70,7 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('keeps active=true after a single transient non-2xx failure', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(okResponse()) // auto-poke on start
@@ -83,7 +83,7 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('deactivates only after N consecutive failures', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(okResponse()) // auto-poke
@@ -103,7 +103,7 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('recovers: a success resets the counter and re-activates immediately', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(okResponse()) // auto-poke
@@ -131,7 +131,7 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('deactivates immediately on toggle-off and does not fetch', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const fetchImpl = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(okResponse()) // auto-poke while still enabled
@@ -149,7 +149,7 @@ describe('proxy-probe soft-signal active flag', () => {
   it('counts a genuine timeout as a failure (timedOut is not an overlap abort)', async () => {
     vi.useFakeTimers();
     try {
-      applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+      applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
       const fetchImpl = hangOnAbort();
       const runner: ProbeRunner = startProxyProbe({
         ...NO_INTERVAL,
@@ -172,11 +172,11 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('does not count an overlapping-poke abort as a failure', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const hang = hangOnAbort();
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockImplementationOnce(() => hang('http://localhost:8000/api/health'))
+      .mockImplementationOnce(() => hang('http://localhost:3444/api/health'))
       .mockResolvedValueOnce(okResponse()); // explicit poke succeeds
     const runner: ProbeRunner = startProxyProbe({ ...NO_INTERVAL, fetchImpl });
 
@@ -194,7 +194,7 @@ describe('proxy-probe soft-signal active flag', () => {
   });
 
   it('clamps invalid deactivateAfterFailures values to a sane threshold', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     // NaN would make `streak >= NaN` always false (never deactivate);
     // 0/negative would deactivate on every single failure (the original flap).
     const fetchImpl = vi
