@@ -1,0 +1,297 @@
+# WrongTrace integration
+
+WrongStack integrates with **WrongTrace**, an *external, optional* local daemon, in two independent ways that share one default origin (`http://localhost:3444`):
+
+1. **WrongProxy provider routing** — automatic provider base-URL rewriting through the daemon's `/proxy/` surface (`tools.wrongProxy` config).
+2. **WrongTrace observability guardrails** — file health, symbol lineage, friction metrics, repository atlas, edit locks, and telemetry, consumed through the `@wrongstack/wrongtrace` adapter package.
+
+The daemon is **not shipped, owned, or bootstrapped by WrongStack**. Every code path treats it as optional: when it is not running, provider routing is unchanged and the guardrails degrade to no-ops. Nothing in a default WrongStack session ever *requires* the daemon.
+
+| Surface | Package / config | Default URL | Activated by |
+|---|---|---|---|
+| Provider base-URL rewriting ("WrongProxy") | `tools.wrongProxy` (`packages/core/src/types/config/tools.ts`) | `http://localhost:3444` | Opt-in toggle (`enabled: true`) |
+| Observability guardrails ("WrongTrace") | `@wrongstack/wrongtrace` (`packages/wrongtrace/`) | `WRONGTRACE_URL` env → `http://localhost:3444` | Presence of the daemon (discovery) |
+
+Both integrations probe the same canonical health endpoint — `GET <base>/api/health` — and both treat a non-2xx or unreachable daemon as a soft signal, never a hard failure.
+
+> **Port note.** The default is `3444` in *both* integrations (`packages/wrongtrace/src/discovery.ts:50` and `WrongProxyToolConfig.url`). Port `8000` is **not** a WrongStack default — if your daemon listens elsewhere, set `WRONGTRACE_URL` (guardrails) and `tools.wrongProxy.url` (provider routing) explicitly. A mismatch between a settings URL and the daemon's real port keeps the integration silently inactive (see [Troubleshooting](#troubleshooting)).
+
+---
+
+## 1. Architecture
+
+```
+                    ┌──────────────────────────────────────────┐
+                    │   WrongTrace daemon (external, optional)  │
+                    │   http://localhost:3444 (default)        │
+                    │                                          │
+                    │  /api/health      /proxy/<host><path>    │
+                    │  /api/atlas       /api/file/health       │
+                    │  /api/guardrail/* /api/symbol/history    │
+                    │  /api/metrics/friction  /api/telemetry   │
+                    │  /api/events/recent                     │
+                    │  + JSON-RPC 2.0 over named pipe / UDS    │
+                    └────────────┬──────────────┬──────────────┘
+                                 │ HTTP         │ IPC / MCP
+                 ┌───────────────┴──────────────┴─────────────┐
+                 │        @wrongstack/wrongtrace adapter      │
+                 │  discovery → IPC-first client, no-op when  │
+                 │  the daemon is absent                      │
+                 └───────────────┬─────────────────────────────┘
+                                 │
+        ┌────────────────────────┼───────────────────────────┐
+        │ CLI wiring             │ WebUI / TUI settings      │
+        │ wrongtrace-gate.ts     │ "WrongProxy / WrongTrace" │
+        │ wrongtrace-hooks.ts    │ Integrations section      │
+        └────────────────────────┴───────────────────────────┘
+```
+
+Design rules, enforced everywhere in this integration:
+
+- **Fail-open.** The daemon is a *coordination optimization*, never a hard dependency. Daemon offline → edits proceed, provider calls go direct, every API returns `null` / `[]` instead of throwing.
+- **Lazy, once.** Discovery runs a single time per process, lazily (`wrongtrace-gate.ts` `getWrongTrace()`), and the boot-time warm-up is fire-and-forget (`packages/cli/src/boot/system-prompt.ts` → `void getWrongTrace()`), so it never adds a serialization point to startup.
+- **Bounded latency.** Every network call carries an AbortController timeout (discovery 1 s, HTTP calls 4 s, IPC connect 2 s / read 5 s, WrongProxy probe 2 s).
+
+### 1.1 The adapter package (`packages/wrongtrace/`)
+
+`@wrongstack/wrongtrace` (v0.1.0, workspace-private, zero runtime dependencies beyond `undici-types`) is deliberately decoupled from every runtime package inside WrongStack — it is the "sibling" integration protocol. Import surface:
+
+```ts
+import { getWrongTraceClient } from "@wrongstack/wrongtrace";
+
+const wt = await getWrongTraceClient();
+if (wt.isAvailable) {
+  // safe to use lock/lineage/telemetry APIs — but even these
+  // return null/[] on failure, so the guard is a fast path, not a requirement
+}
+```
+
+Public surface (see `packages/wrongtrace/src/index.ts`):
+
+| Export | Kind | Purpose |
+|---|---|---|
+| `discover`, `defaultSocketPath` | function | One-shot daemon discovery over `/api/health` |
+| `createWrongTraceClient`, `getWrongTraceClient` | function | The integrated client (HTTP + IPC + MCP) |
+| `WrongTraceClient` + 15 payload types | type | Contracts for every endpoint |
+| `getCrossAgentRisk` | helper | One decision-ready 0–100 edit-risk score per file |
+| `summarizeFriction` | helper | Prompt-ready friction prose ("Top pair: A ↔ B …") |
+| `getRecentActivity` | helper | Recent actor/action events for a file |
+| `digestAtlas` | helper | Boot-prompt atlas digest (fragile files, thrash) |
+| `createIpcTransport` / `createMcpTransport` | function | Raw transports for advanced consumers |
+
+---
+
+## 2. Discovery
+
+`packages/wrongtrace/src/discovery.ts`
+
+1. HTTP `GET ${baseUrl}/api/health` with a **1 s** timeout. `baseUrl` = `opts.baseUrl` → `process.env.WRONGTRACE_URL` → `http://localhost:3444`.
+2. A 2xx response whose body says `ok: true` **or** `status: "ok"` (both daemon schema generations are accepted) marks the daemon available.
+3. The IPC path comes from the body's `socket_path` when present; otherwise platform defaults apply:
+   - Windows: `\\.\pipe\wrongtrace.sock`
+   - POSIX with home: `~/.wrongtrace/ipc.sock`
+   - POSIX fallback: `/tmp/wrongtrace.sock`
+4. Discovery **never throws** — every failure mode (offline, non-2xx, malformed JSON, no global `fetch`) collapses to `{ available: false }`, which makes it safe to call from the boot hot path.
+
+The version string from `/api/health` is surfaced on `DiscoveryResult.version` and on the client's `_discovery` field, which is how transport routing (below) knows which JSON-RPC methods the daemon's pipe answers.
+
+---
+
+## 3. Transports and routing
+
+The client (`packages/wrongtrace/src/client.ts`) speaks three transports and routes per-method:
+
+- **HTTP/REST** — the universal substrate. Every method has an HTTP path; it is always the final fallback. Per-call timeout 4 s. Structured error bodies on accepted statuses are passed through (notably lock `409` conflicts).
+- **IPC** — JSON-RPC 2.0, newline-delimited frames, over a Windows named pipe or Unix domain socket (`packages/wrongtrace/src/adapters/ipc.ts`). One request per connection; connect timeout 2 s, read timeout 5 s. Error envelopes resolve `{ result: null, error }` — callers fall back to HTTP instead of mistaking an envelope for a result. Transport failures *never* throw.
+- **MCP** — a lazily-wired tool bag (`adapters/mcp.ts`), typically populated from `mcp_control.list()` when the daemon is also exposed as an MCP server (e.g. `wrongtrace mcp`). Tool names: `check_guardrail`, `get_file_health_score`, `get_symbol_lineage`, `get_friction_matrix`, `get_atlas`, `lock_file`, `unlock_file`, `report_telemetry`.
+
+### 3.1 Per-method routing matrix
+
+| Client method | Route | Notes |
+|---|---|---|
+| `getFileHealth` | **IPC** → MCP → HTTP | `telemetry/file_health` verified on the pipe |
+| `reportTelemetry` | **IPC** → MCP → HTTP | `telemetry/report_run`; daemon `{status:"ok"}` normalized to `{ok}` |
+| `getAtlas` | **IPC** → HTTP | `get_atlas` on the pipe since daemon v0.3.3; `summary:true` keeps pipe payloads small |
+| `unlockFile` | **IPC** → MCP → HTTP | Pipe shares the daemon lock store; `{file_path,status}` shape normalized to the HTTP contract |
+| `lockFile` | MCP → **HTTP only** | Deliberate exception — see below |
+| `getSymbolLineage` | HTTP | `/api/symbol/history` |
+| `getFrictionMatrix` | HTTP | Normalizes both the bare-array and `{edges, recent_collisions}` report shapes |
+| `getRecentEvents` | HTTP | `/api/events/recent` |
+| `listLocks` | HTTP | `/api/guardrail/locks` |
+| `getHealth` | HTTP | `/api/health` |
+
+**Why `lockFile` stays HTTP-first:** the pipe answers `guardrail/lock` but does not enforce conflicts — a live probe (2026-08-24) showed an IPC lock with `force:false` silently *taking over* another owner's lock instead of rejecting with the `-32009` envelope. Routing locks through HTTP preserves the `409 + {ok:false, owner, expires_at}` conflict semantics the production guardrail depends on. Flip this only when the daemon enforces conflicts on the pipe (see the strategy header in `client.ts`).
+
+Unknown pipe methods reply `-32601`, which the transport surfaces as `{result:null}` → automatic HTTP fallback — so on older daemons the IPC layer is a no-op, not a breakage.
+
+---
+
+## 4. REST surface
+
+| Endpoint | Method | Client method | Notes |
+|---|---|---|---|
+| `/api/health` | GET | `getHealth` | `{ok\|status, version?, socket_path?}` |
+| `/api/file/health?path=` | GET | `getFileHealth` | `health_score` 0–100 (lower = fragile), `is_fragile`, `recent_thrashing_count`, lock fields |
+| `/api/symbol/history?path=[&signature=]` | GET | `getSymbolLineage` | All symbol events for a file; optional daemon-format signature (`function:file.go::Name`) narrows to one symbol. Loose names like `foo()` yield `[]` — pass the full signature or omit it |
+| `/api/metrics/friction?limit=` | GET | `getFrictionMatrix` | Model-vs-model overwriter heatmap; accepts both array and report shapes |
+| `/api/atlas?workspace=&summary=&include_symbols=&limit=&offset=` | GET | `getAtlas` | Full mode: `packages[].files[]` with health + AST symbols. Summary mode: aggregate counters per package (`file_count`, `fragile_files_count`, `avg_health_score`). `include_symbols=false` strips AST trees (~90 % size cut). Package-level pagination |
+| `/api/guardrail/lock` | POST | `lockFile` | Body: `{path, reason, owner?, owner_run_id?, ttl_seconds?, force?}`. Conflict → **409** with `{ok:false, owner, locked_at, expires_at}` passed through to the caller |
+| `/api/guardrail/unlock` | POST | `unlockFile` | `{path}` |
+| `/api/guardrail/locks` | GET | `listLocks` | Active locks with owner/TTL |
+| `/api/telemetry` | POST | `reportTelemetry` | `{run_id, agent_name, model_name, provider, prompt_tokens, completion_tokens, cost_usd, intent, …}` |
+| `/api/events/recent?limit=&since=&repo=&file_path=` | GET | `getRecentEvents` | Chronological event feed; `since` accepts ISO / SQLite datetime / Unix epoch (s or ms) |
+
+All types are declared in `packages/wrongtrace/src/types.ts`. Unknown response fields are preserved (`[extra: string]: unknown`) for forward compatibility.
+
+---
+
+## 5. Agent helpers
+
+Raw JSON is fused into decision-ready values in `packages/wrongtrace/src/agent-helpers.ts`:
+
+### `getCrossAgentRisk(wt, path)` → `{risk, band, reasons}`
+
+Combines `getFileHealth` + `getFrictionMatrix` into one score. Bands: `safe | caution | fragile | locked | unknown`. Heuristic (pinned by tests so the numbers don't drift):
+
+- `is_locked` → risk 100, band `locked`
+- `health_score < 40` → base 80, band `fragile`
+- recent thrashing → +5 per event above 3, capped at +25
+- friction: author model vs top overwriter for this file → +20 when `conflict_count ≥ 3`
+- multipliers cap at 100
+
+The path→friction join is intentionally fuzzy (the friction matrix doesn't always carry a per-file field); when no row mentions the path, only file-health signals apply — robust against daemon schema drift.
+
+### `summarizeFriction(friction)` → one prompt-ready line
+
+`"Top friction pair: MiniMax-M3 ↔ gemini-3.7-flash (3 conflicts). Cross-agent ratio: 40% of 10 collisions. Self-thrash: 60%."` — or `""` when there is no signal, so callers can drop the block without branching.
+
+### `getRecentActivity(wt, path)` → chronological `{at, actor, action, runId?}[]`
+
+Merges the friction matrix's `recent_collisions` with the events endpoint. `[]` = "no history known".
+
+### `digestAtlas(atlas)` → boot-prompt digest
+
+Workspace count, fragile-file count (`health_score < 40` or `is_fragile`), self-thrash-heavy workspaces. `null` when no atlas is available.
+
+---
+
+## 6. CLI integration
+
+### 6.1 The gate — `packages/cli/src/wiring/wrongtrace-gate.ts`
+
+Thin, never-blocking entry points over the adapter:
+
+- **`getWrongTrace()`** — lazily created singleton client; a discovery rejection resolves `{isAvailable:false}` so the singleton can never be poisoned. Warm-up is fire-and-forget at boot (`packages/cli/src/boot/system-prompt.ts`).
+- **`preflightFileEdit(path)`** → `{kind:'allow', risk} | {kind:'blocked', risk}` — locked files block; everything else — including daemon-offline — allows. Stale locks (TTL already elapsed) do not block.
+- **`withFileLock(path, reason, fn, opts?)`** — runs `fn` under the daemon lock, unlocking in `finally`. If acquisition fails for *any* transport reason, `fn` still runs — the lock is coordination, not authorization. Never steals a conflicting lock.
+- **`resetWrongTraceGate()`** — test seam for the singleton.
+
+### 6.2 The guardrail hooks — `packages/cli/src/wiring/wrongtrace-hooks.ts`
+
+In-process hooks registered on the shared Agent's `HookRunner` (wired in `packages/cli/src/wiring/lifecycle-plugins.ts` under the id `wrongtrace-gate`), which means **every mutating tool call from every host — TUI, WebUI, REPL, single-shot — passes this gate before a byte is written**.
+
+Gated tools: `edit`, `write`, `replace`, `patch`, `codebase-ast-replace` (target path resolved from `path` / `file_path` / `target` / `file` input fields).
+
+**preToolUse:**
+
+1. Run the pre-flight (`preflightFileEdit`).
+2. Locked by another owner → **deny** with owner/expiry in the reason — the model sees it and picks another file.
+3. Healthy/fragile/offline → **allow**. Fragile files additionally get a one-line `additionalContext` nudge: *"WrongTrace: <path> is fragile (…). Prefer surgical AST diffs over rewrites."*
+4. On allow, the hook **claims the lock** (`owner: wrongstack:<sessionId>`, TTL 900 s) so peers see the edit in flight. A race-lost claim (`ok:false`) still proceeds — the file was free at check time.
+
+**postToolUse:** releases the lock acquired in preToolUse (path-keyed). If the process dies between the two phases, the daemon's 15-minute TTL reaps the lock — that TTL is the leak backstop.
+
+**Failure philosophy:** fail-open, twice over. The hook itself catches everything (a slow daemon can never add latency surprises to the edit path), and the runner's fail-open policy for non-policy hooks is the second net.
+
+### 6.3 Boot wiring
+
+`packages/cli/src/boot/system-prompt.ts` seeds the WrongProxy/WrongTrace runtime singleton from persisted settings, then warms the observability gate in the background: `void getWrongTrace()`. No boot path awaits the daemon.
+
+---
+
+## 7. WrongProxy provider routing (the sibling feature)
+
+Distinct from the guardrails, and often confused with them because both default to port 3444 and both appear under one settings heading.
+
+**Config** (`tools.wrongProxy`, `packages/core/src/types/config/tools.ts`):
+
+```jsonc
+{
+  "tools": {
+    "wrongProxy": {
+      "enabled": true,           // master switch, default false
+      "url": "http://localhost:3444"  // daemon base URL
+    }
+  }
+}
+```
+
+When `enabled` is true **and** the daemon at `url` is reachable, every provider's base URL is rewritten through `${url}/proxy/<host><path>` — the daemon becomes a transparent intermediary for provider traffic. `openai-codex` is excluded by spec. The config mirrors the WebUI `LocalPrefs` shape and is persisted to the encrypted profile config.
+
+**Health probe** (`packages/cli/src/wiring/proxy-probe.ts`): runs once at boot, then every 30 s; 2 s per-request timeout. Failures are **soft signals** — `active` flips to false only after 2 consecutive failures (configurable `deactivateAfterFailures`, clamped ≥ 1); a recovered daemon re-activates on the very next successful probe. Overlapping probes abort each other, and a probe whose config was toggled mid-flight is discarded so a stale 2xx can never resurrect `active` after a toggle-off. Toggle-off deactivates immediately.
+
+**Settings surfaces:** TUI settings and the WebUI `SettingsPanel → Integrations` section expose both integrations under the "WrongProxy / WrongTrace" heading (`packages/webui/src/components/SettingsPanel/IntegrationsSection.tsx`, i18n key `wrongProxyHeading`).
+
+---
+
+## 8. Testing
+
+| Suite | What it covers |
+|---|---|
+| `packages/wrongtrace/src/__tests__/client.test.ts` | Discovery contract (both health schemas, socket fallbacks), client behavior online/offline, per-endpoint shapes — all against a stubbed `fetch` |
+| `packages/wrongtrace/src/__tests__/ipc.test.ts` | JSON-RPC 2.0 newline framing against an **in-process socket daemon**; IPC-first routing; error-envelope → HTTP fallback; the `lockFile` HTTP-first exception |
+| `packages/wrongtrace/src/__tests__/agent-helpers.test.ts` | Risk-band heuristics, friction prose, activity merging, atlas digest — pure functions |
+| `packages/cli/tests/wrongtrace-hooks.executor.test.ts` | Hook deny/allow/claim/release behavior on the executor path |
+| `packages/cli/tests/wrongtrace-gate.live.test.ts` | Live-daemon assertions — **self-skip when the daemon is offline** (see trap below) |
+| `packages/cli/tests/proxy-probe.test.ts` | Soft-signal threshold, mid-flight toggle guards, stale-probe discarding |
+| `packages/core/tests/wiring/proxy-rewrite.test.ts` | Base-URL rewrite semantics incl. the openai-codex exclusion |
+| `packages/webui-server/tests/wrongproxy-prefs-e2e.test.ts` | Settings → prefs → runtime propagation |
+
+> **Trap — green ≠ live.** The WrongTrace suites are contract tests first: when the daemon is unreachable they skip their live assertions and still exit green. A green run proves the *offline/fail-open contract*, not lock acquire/deny/release against a real daemon. Before trusting a run as live coverage, check for the `[wrongtrace-gate.live] daemon offline` skip line or probe `/api/health` yourself.
+
+---
+
+## 9. Troubleshooting
+
+**Integration silently inactive (guardrails never fire / proxy never rewrites).**
+Most common cause: URL/port mismatch. Both integrations default to `http://localhost:3444`. If your daemon listens on a different port, set `WRONGTRACE_URL` (guardrails) *and* `tools.wrongProxy.url` + `enabled:true` (provider routing). For proxy routing specifically, `active` is gated by probing the configured URL — a settings URL pointing at a Vite dev-server port (e.g. `:5173`) instead of the daemon keeps `active=false` and rewrites silently disabled; symptoms include provider responses arriving as SPA-fallback HTML.
+
+**Verify the daemon is where you think it is:**
+
+```
+curl http://localhost:3444/api/health
+```
+
+A 2xx with `ok:true` (or `status:"ok"`) is the single source of truth for both integrations.
+
+**A file edit was denied with `WrongTrace lock: …`.**
+Another owner holds the daemon lock. The deny reason carries the owner and expiry; wait for the TTL (≤ 15 min for WrongStack-held locks) or have the owner release it. WrongStack itself never force-steals a lock (`force` is only set by explicit callers).
+
+**A lock seems stuck.**
+WrongStack-held locks carry a 900 s TTL; if a session dies mid-edit the daemon reaps it. `listLocks()` (or `GET /api/guardrail/locks`) shows owner and `expires_at` for every active lock.
+
+**Edits feel slower with the daemon up.**
+Every gated edit pays one pre-flight round-trip (plus the lock claim). All timeouts are bounded (≤ 4 s HTTP, 2 s/5 s IPC), and the hooks are fail-open — worst case is one bounded timeout, never an edit lost. If latency matters, run the daemon locally so `/api/file/health` answers in single-digit milliseconds.
+
+**Tests pass but I want live coverage.**
+Start the daemon on the expected port and re-run `packages/wrongtrace` + `packages/cli` WrongTrace suites; confirm the skip line is *absent* in stderr.
+
+---
+
+## 10. File map
+
+| Concern | Path |
+|---|---|
+| Adapter package (client, discovery, transports, helpers, types) | `packages/wrongtrace/src/` |
+| Adapter unit + IPC tests | `packages/wrongtrace/src/__tests__/` |
+| CLI gate (singleton, preflight, with-file-lock) | `packages/cli/src/wiring/wrongtrace-gate.ts` |
+| CLI guardrail hooks (pre/post tool use) | `packages/cli/src/wiring/wrongtrace-hooks.ts` |
+| Hook registration | `packages/cli/src/wiring/lifecycle-plugins.ts` (`wrongtrace-gate`) |
+| Boot warm-up | `packages/cli/src/boot/system-prompt.ts` |
+| WrongProxy probe | `packages/cli/src/wiring/proxy-probe.ts` |
+| Proxy rewrite semantics | `packages/core/src/wiring/proxy-rewrite.ts` |
+| Config types (`tools.wrongProxy`) | `packages/core/src/types/config/tools.ts` |
+| WebUI settings surface | `packages/webui/src/components/SettingsPanel/IntegrationsSection.tsx` |
+| WebUI prefs propagation | `packages/webui-server/src/server/proxy-runtime.ts`, `pref-helpers.ts` |
+| Hook executor tests | `packages/cli/tests/wrongtrace-hooks.executor.test.ts` |
+| Live gate tests | `packages/cli/tests/wrongtrace-gate.live.test.ts` |

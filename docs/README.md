@@ -30,6 +30,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | Document | What it covers | When to read |
 |---|---|---|
 | [architecture.md](architecture.md) | Package layout, layer model, dependency direction, IPC contracts | **Read first** — the canonical architecture entry point |
+| [wrongtrace.md](wrongtrace.md) | WrongTrace integration: the optional external daemon, `@wrongstack/wrongtrace` adapter (HTTP/IPC/MCP), guardrail hooks, WrongProxy provider routing, testing & troubleshooting | Read when working on `packages/wrongtrace/`, the CLI guardrail hooks, or `tools.wrongProxy` |
 | [architecture-rules.md](architecture-rules.md) | Seven-layer internal runtime-import ordering with automated enforcement | Read when adding a new file to `packages/core/src/` |
 | [plans/session-catalog-project-service-2026-08.md](plans/session-catalog-project-service-2026-08.md) | Detailed project plan for daemon-owned session claims, live presence, and shared session catalog operations | Read before changing session ownership, resume, registry, session index, or cross-surface presence |
 | [webui.md](webui.md) | WebUI architecture: Vite + React 19 + WebSocket + Monaco | Read when working on `packages/webui/` |

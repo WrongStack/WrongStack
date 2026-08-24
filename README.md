@@ -436,6 +436,19 @@ bug-catching, not style nagging. Paired **fixer** agents can act on the findings
 and reviews can fan out in parallel across many changed files. Trigger it
 on-demand with `/chimera`.
 
+### WrongTrace guardrails — optional sibling daemon
+
+WrongStack can coordinate with the external **WrongTrace** daemon when it is
+running locally (default `http://localhost:3444`) — and silently does nothing
+when it is not. Two independent integrations share that origin: the
+**observability guardrails** and **provider rerouting**. Every mutating tool
+call (`edit`, `write`, `replace`, `patch`, `codebase-ast-replace`) passes a
+fail-open lock gate — a file locked by another owner denies the edit with the
+owner and TTL in the reason, fragile files get a surgical-edit nudge, and an
+offline daemon never blocks anything. The same daemon optionally rewrites
+provider base URLs through `/proxy/` when `tools.wrongProxy.enabled` is set.
+Full details: [`docs/wrongtrace.md`](docs/wrongtrace.md).
+
 ### Security & privacy
 
 Encrypted secrets at rest, a permission policy on every tool call, project-root
@@ -512,6 +525,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/webui` · `@wrongstack/webui-server` · `@wrongstack/webui-hq` · `@wrongstack/simpleui` | Browser UIs, shared backend, and HQ dashboard |
 | `@wrongstack/desktop` | Electron desktop shell |
 | `@wrongstack/plug-lsp` · `@wrongstack/telegram` | LSP and Telegram plugins |
+| `@wrongstack/wrongtrace` | Client adapter for the optional WrongTrace daemon (file locks, health, friction, atlas) — HTTP/IPC/MCP, no-op when absent |
 | `@wrongstack/plugins` | Official collection — 65 focused plugins via subpath exports |
 | `wrongstack` | Published CLI app entry (`wrongstack` / `wstack`) |
 
@@ -541,6 +555,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | [OAuth sign-in](docs/oauth-signin.md) | Subscription authentication |
 | [Plugin author guide](docs/plugin-author-guide.md) | Building a plugin |
 | [Director architecture](docs/director-architecture.md) | Fleet orchestration internals |
+| [WrongTrace integration](docs/wrongtrace.md) | Optional daemon: guardrail hooks, file locks, proxy routing |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues |
 
 ---

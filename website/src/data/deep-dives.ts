@@ -761,6 +761,47 @@ export const featureDeepDives: Record<string, FeatureDeepDive> = {
       { label: 'Governance', value: 'permissions · Brain · config allow-list' },
     ],
   },
+  'wrongtrace-integration': {
+    promise:
+      'Coordination with an external daemon should improve edit safety when present and change nothing when absent.',
+    mechanism: [
+      {
+        title: 'Discover lazily',
+        body: 'Boot probes the daemon health endpoint once, fire-and-forget, with a one-second timeout. No session startup path ever awaits the daemon.',
+        code: 'GET /api/health → { available, socketPath }',
+      },
+      {
+        title: 'Gate mutating tools',
+        body: 'In-process hooks sit in front of the shared executor: edit, write, replace, patch and AST replace pass a lock pre-flight on every host surface.',
+        code: 'preToolUse → preflightFileEdit(path)',
+      },
+      {
+        title: 'Deny or claim',
+        body: 'A file locked by another owner denies the call with owner and expiry in the reason. Allowed edits claim the lock so peers see the work in flight; fragile files get a surgical-edit nudge.',
+        code: 'lockFile(path, reason, { ttlSeconds: 900 })',
+      },
+      {
+        title: 'Release or reap',
+        body: 'The post-tool hook releases the claim; if the process dies mid-edit, the daemon TTL reaps the lock. Every failure path allows the edit — coordination, never authorization.',
+        code: 'postToolUse → unlockFile(path)',
+      },
+      {
+        title: 'Route per method',
+        body: 'Calls prefer the JSON-RPC pipe, then MCP tools, then HTTP — except lock acquisition, which stays HTTP to preserve conflict semantics.',
+        code: 'IPC → MCP → HTTP (lock: HTTP-only)',
+      },
+    ],
+    operatorNotes: [
+      'The daemon is optional everywhere: offline means no-ops, never blocked edits.',
+      'Both integrations default to port 3444; override via WRONGTRACE_URL and tools.wrongProxy.url.',
+      'Live-daemon test suites self-skip offline — a green run proves the fail-open contract, not live locks.',
+    ],
+    signals: [
+      { label: 'Transports', value: 'HTTP · IPC · MCP' },
+      { label: 'Lock TTL', value: '900s' },
+      { label: 'Daemon', value: 'optional · fail-open' },
+    ],
+  },
 };
 
 export const commandGuidance: Record<
