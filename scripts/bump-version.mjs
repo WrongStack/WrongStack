@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -32,6 +32,37 @@ function collectManifests() {
     }
   }
   return paths;
+}
+
+/**
+ * A manifest carrying git conflict markers (`<<<<<<< …`) makes JSON.parse
+ * throw an opaque SyntaxError — and via pnpm, "Invalid package.json in
+ * package.json" before this script even starts. When a stash pop or merge
+ * leaves markers behind (2026-08-24 incident: 41 files at once), fail fast
+ * and name every affected file so the fix — resolve the conflict — is
+ * obvious. `=======` alone is not checked: it is legitimate content in some
+ * file types and the outer markers are decisive on their own.
+ */
+const CONFLICT_MARKER_RE = /^(<{7}|>{7}|\|{7})/m;
+
+function assertNoConflictMarkers(paths) {
+  const affected = [];
+  for (const path of paths) {
+    let text;
+    try {
+      text = readFileSync(path, 'utf8');
+    } catch {
+      continue; // absent files are skipped by their own handling
+    }
+    // Normalize to forward slashes so diagnostics are identical across platforms.
+    if (CONFLICT_MARKER_RE.test(text)) affected.push(relative(repoRoot, path).replaceAll('\\', '/'));
+  }
+  if (affected.length === 0) return;
+  console.error(
+    `error: git conflict markers present in ${affected.length} file(s) — resolve the conflicts before bumping the version:`,
+  );
+  for (const rel of affected) console.error(`  - ${rel}`);
+  process.exit(1);
 }
 
 function writeVersion(path, version) {
@@ -116,6 +147,7 @@ function updateWebsite(version) {
 const [, , type, arg] = process.argv;
 
 const rootPath = resolve(repoRoot, 'package.json');
+assertNoConflictMarkers([rootPath]); // guards the first JSON.parse below
 const rootPkg = JSON.parse(readFileSync(rootPath, 'utf8'));
 const parts = rootPkg.version.split('.').map(Number);
 
@@ -144,6 +176,14 @@ if (type === 'patch') {
 }
 
 const manifests = collectManifests();
+// Same guard for everything parsed below: the workspace manifests plus the
+// website JSON files — a marked-up website/package.json would otherwise be
+// silently skipped by updateWebsite's catch block, leaving versions drifting.
+assertNoConflictMarkers([
+  ...manifests,
+  resolve(repoRoot, 'website', 'package.json'),
+  resolve(repoRoot, 'website', 'package-lock.json'),
+]);
 for (const path of manifests) {
   writeVersion(path, newVersion);
 }
