@@ -498,9 +498,12 @@ async function boot(): Promise<void> {
     event.preventDefault();
     bridge.closeAll();
     webuiController.disposeAll();
-    void windowStateController.save();
     quittingAfterCleanup = true;
-    app.exit(0);
+    // save() is async disk I/O (fs.mkdir + atomicWrite). Exit only after it
+    // settles — app.exit(0) immediately after a fire-and-forget save raced the
+    // write and lost the final window geometry on quit. .finally keeps the app
+    // closeable even if the write fails.
+    void windowStateController.save().finally(() => app.exit(0));
   });
 
   await restoreLastWorkspace();
