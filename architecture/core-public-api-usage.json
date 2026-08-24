@@ -59,9 +59,9 @@
       "runtimeOrMixed": 22
     },
     "@wrongstack/core/hooks": {
-      "files": 6,
-      "typeOnly": 2,
-      "runtimeOrMixed": 4
+      "files": 8,
+      "typeOnly": 3,
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/hq": {
       "files": 124,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 999,
-      "typeOnly": 922,
+      "files": 1002,
+      "typeOnly": 925,
       "runtimeOrMixed": 246
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/wiring/proxy-rewrite": {
-      "files": 11,
+      "files": 16,
       "typeOnly": 3,
-      "runtimeOrMixed": 11
+      "runtimeOrMixed": 16
     },
     "@wrongstack/core/worktree": {
       "files": 12,
@@ -3913,9 +3913,21 @@
     },
     {
       "specifier": "@wrongstack/core/hooks",
+      "file": "packages/cli/src/wiring/wrongtrace-hooks.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
       "file": "packages/cli/tests/remaining-entrypoints-smoke.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
+      "file": "packages/cli/tests/wrongtrace-hooks.executor.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hooks",
@@ -15043,6 +15055,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/start-webui-proxy-apply.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/start-webui-remediation.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15211,9 +15229,21 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/start-webui-proxy-apply.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/start-webui-vector-memory.integration.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/wrongproxy-prefs-e2e.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -18919,6 +18949,12 @@
     },
     {
       "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/src/wiring/provider-runtime-setup.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
       "file": "packages/cli/src/wiring/provider-runtime.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18943,6 +18979,12 @@
     },
     {
       "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/tests/wiring-provider-runtime-setup.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18950,6 +18992,12 @@
     {
       "specifier": "@wrongstack/core/wiring/proxy-rewrite",
       "file": "packages/webui-server/src/server/proxy-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/webui-server/src/server/start-webui-proxy-apply.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18969,6 +19017,18 @@
       "specifier": "@wrongstack/core/wiring/proxy-rewrite",
       "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/webui-server/tests/start-webui-proxy-apply.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/webui-server/tests/wrongproxy-prefs-e2e.test.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {

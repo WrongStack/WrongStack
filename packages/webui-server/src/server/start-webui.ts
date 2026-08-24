@@ -71,6 +71,7 @@ import { toSessionHistoryEntries } from './session-history.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import { setupCompanionServer } from './start-webui-companion.js';
 import { setupWebuiCredentialWatcher } from './start-webui-credential-watcher.js';
+import { setupWebuiProxyInstantApply } from './start-webui-proxy-apply.js';
 import { createPackageOperationExecutor } from './start-webui-remediation.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
@@ -719,6 +720,18 @@ export async function startWebUI(
     updateAutoCompactionMaxContext,
   });
 
+  // WrongProxy instant-apply: rebuild the live provider when the proxy
+  // toggle/URL changes (prefs handler → applyWrongProxyPrefs) or the
+  // probe flips `active`, so Settings changes take effect immediately
+  // in THIS process. Only wired in the standalone server — the CLI-hosted
+  // path gets its own instance inside setupProviderRuntime (shared agent
+  // context, exactly one rebuilder per process).
+  const proxyInstantApplyDispose = setupWebuiProxyInstantApply({
+    state,
+    deps,
+    updateAutoCompactionMaxContext,
+  });
+
   // WebUI/SimpleUI joins the process flight recorder, including standalone servers.
   const stopHeapWatchdog = startSharedHeapWatchdog({
     collectStats: () => ({
@@ -833,6 +846,7 @@ export async function startWebUI(
     todosCheckpoint,
     stopHeapWatchdog,
     getCredentialWatcherClose: () => credentialWatcherClose,
+    getProxyInstantApplyDispose: () => proxyInstantApplyDispose,
     disposeRealtimeHandlers,
     governanceHandle,
     logger,

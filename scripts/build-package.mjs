@@ -92,7 +92,10 @@ const coreEntries = entryMap([
   // `dist/wiring/proxy-rewrite.{js,d.ts}`; without an explicit entry the
   // file is part of the source graph but never lands in `dist/`, and
   // consumers (`@wrongstack/cli`, `@wrongstack/runtime`) hit
-  // ERR_PACKAGE_PATH_NOT_EXPORTED at runtime.
+  // ERR_PACKAGE_PATH_NOT_EXPORTED at runtime. The instant-apply rebuilder
+  // (`createProxyInstantApply`) lives IN this module on purpose: a sibling
+  // entry importing it relatively would be inlined per-entry, splitting
+  // the ProxyConfig singleton + subscriber set into two instances.
   'src/wiring/proxy-rewrite.ts',
 ]);
 

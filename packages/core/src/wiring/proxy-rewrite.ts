@@ -8,8 +8,8 @@
  *
  * Example:
  *   original  = "https://api.openai.com/v1"
- *   proxyUrl  = "http://localhost:8000"
- *   output    = "http://localhost:8000/proxy/api.openai.com/v1"
+ *   proxyUrl  = "http://localhost:3444"
+ *   output    = "http://localhost:3444/proxy/api.openai.com/v1"
  *
  * The host appears *without* a scheme in the path; the proxy terminates
  * TLS (or speaks plain HTTP for localhost) and forwards the original
@@ -62,7 +62,7 @@ function isProxyEligibleForRewrite(originalBaseUrl: string, proxyUrl: string): b
   if (!originalBaseUrl.includes('://')) return false;
   if (!proxyUrl.includes('://')) return false;
   // Avoid double-wrap if the user already entered a proxy-mounted URL
-  // (e.g. http://localhost:8000/proxy/api.openai.com/v1).
+  // (e.g. http://localhost:3444/proxy/api.openai.com/v1).
   const normalizedProxy = proxyUrl.replace(/\/+$/, '');
   if (originalBaseUrl.startsWith(`${normalizedProxy}${PROXY_PATH_PREFIX}`)) {
     return false;
@@ -120,9 +120,33 @@ export function getProxyConfig(): ProxyConfig {
 }
 
 /**
+ * Listener notified by `applyProxyConfig` when the resulting config
+ * MATERIALLY changed (`enabled` / `url` / `active`). The periodic probe
+ * re-writes the same healthy values every tick, so a value-identical
+ * write must NOT notify — subscribers (e.g. the instant-apply provider
+ * rebuilder) would otherwise run every probe interval.
+ */
+export type ProxyConfigListener = (next: ProxyConfig, previous: ProxyConfig) => void;
+
+const listeners = new Set<ProxyConfigListener>();
+
+/**
+ * Subscribe to material proxy-config changes. Returns an unsubscribe
+ * function. A throwing listener is isolated: it cannot break the probe
+ * loop or starve other subscribers.
+ */
+export function subscribeToProxyConfig(listener: ProxyConfigListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+/**
  * Apply a new proxy configuration. Returns the previous config so callers
  * (notably the probe) can decide whether the change requires an immediate
- * probe vs. waiting for the next tick.
+ * probe vs. waiting for the next tick. Notifies subscribers only when the
+ * merged result actually differs from the previous state.
  */
 export function applyProxyConfig(next: Partial<ProxyConfig>): ProxyConfig {
   const previous = currentConfig;
@@ -131,6 +155,20 @@ export function applyProxyConfig(next: Partial<ProxyConfig>): ProxyConfig {
     url: next.url ?? previous.url,
     active: next.active ?? previous.active,
   };
+  const materialChange =
+    currentConfig.enabled !== previous.enabled ||
+    currentConfig.url !== previous.url ||
+    currentConfig.active !== previous.active;
+  if (materialChange) {
+    for (const listener of listeners) {
+      try {
+        listener(currentConfig, previous);
+      } catch {
+        // A misbehaving subscriber must never break the probe loop or
+        // prevent the remaining subscribers from being notified.
+      }
+    }
+  }
   return previous;
 }
 
@@ -147,8 +185,139 @@ export function shouldRewriteFor(providerId: string): boolean {
 
 /**
  * Reset to defaults. Intended for tests; do NOT call from production code
- * (the singleton lives for the lifetime of the process).
+ * (the singleton lives for the lifetime of the process). Also drops all
+ * change listeners so tests never observe each other's notifications.
  */
 export function __resetProxyConfigForTests(): void {
   currentConfig = { ...DEFAULT_PROXY_CONFIG };
+  listeners.clear();
+}
+
+// ─── Instant-apply: rebuild live providers on routing changes ─────────────
+//
+// Everything above is the pure rewrite logic + the config singleton; the
+// block below consumes BOTH to close the construction-time gap: providers
+// bake their (possibly proxy-rewritten) base URL at build time, so a
+// mid-session toggle or probe deactivation would otherwise leave the LIVE
+// provider pinned to a stale URL until some other code path happened to
+// build a new one.
+//
+// Lives IN this module (not a sibling `proxy-instant-apply.ts`) because
+// the build bundles each core entry independently: a sibling importing
+// `./proxy-rewrite.js` relatively gets INLINED, duplicating this module
+// and splitting the singleton + subscriber set into two instances. Same
+// module = structurally one instance, in every consumer.
+
+/** Minimal structural logger — keeps this module dependency-free. */
+export interface ProxyInstantApplyLogger {
+  info: (message: string) => void;
+  warn: (message: string) => void;
+}
+
+export interface ProxyInstantApplyDeps {
+  /** Current active provider id — the provider whose URL is baked in. */
+  getActiveProviderId: () => string;
+  /**
+   * Raw (pre-rewrite) base URL for a provider id, exactly as
+   * `resolveProviderCfg` reads it: `savedCfg?.baseUrl ?? config.baseUrl`.
+   * The singleton holds no provider configs, so the caller — who owns the
+   * live Config — must inject this reader.
+   */
+  getRawBaseUrl: (providerId: string) => string | undefined;
+  /**
+   * Rebuild the live provider for `providerId` and swap it into the live
+   * context. Callers inject their existing path — e.g.
+   * `buildProviderForModel(providerId, model)` — which re-resolves
+   * proxy-aware config via `shouldRewriteFor` on every build. Should
+   * serialize the swap through the host's model-transition gate and
+   * re-check the live provider id inside it (superseded guard).
+   */
+  rebuildProvider: (providerId: string) => Promise<void>;
+  /** Structured logger for the rebuild decisions. */
+  logger: ProxyInstantApplyLogger;
+}
+
+export interface ProxyInstantApplyHandle {
+  /** Detach the subscription. Safe to call more than once. */
+  dispose: () => void;
+}
+
+/**
+ * Compute the base URL the active provider SHOULD be using right now.
+ * `undefined` means "provider carries no base URL" (pure catalog
+ * provider) — two `undefined` verdicts are not a routing change.
+ */
+function effectiveBaseUrl(
+  providerId: string,
+  rawBaseUrl: string | undefined,
+): string | undefined {
+  if (!rawBaseUrl) return undefined;
+  return shouldRewriteFor(providerId)
+    ? rewriteBaseUrl(rawBaseUrl, currentConfig.url)
+    : rawBaseUrl;
+}
+
+/**
+ * Subscribe to material proxy-config changes and rebuild the live
+ * provider when the routing verdict for the ACTIVE provider changes.
+ *
+ * Comparison is on the effective base URL, so:
+ *   - probe ticks that rewrite identical values never rebuild;
+ *   - a proxy URL change while enabled+active rebuilds (new target);
+ *   - deactivation rebuilds (proxy-rewritten → raw);
+ *   - toggling off while already direct does NOT rebuild;
+ *   - a provider/model switch through another path re-baselines instead
+ *     of rebuilding (that path built its provider through the
+ *     proxy-aware builder already).
+ *
+ * Rebuilds are SERIALIZED: a toggle-off immediately followed by a probe
+ * verdict must not race two async rebuilds against each other — the
+ * slower, stale build could overwrite the fresh provider swap. Each
+ * rebuild re-reads proxy state at build time, so the chain converges on
+ * the latest verdict.
+ */
+export function createProxyInstantApply(deps: ProxyInstantApplyDeps): ProxyInstantApplyHandle {
+  const { getActiveProviderId, getRawBaseUrl, rebuildProvider, logger } = deps;
+
+  let lastProviderId = getActiveProviderId();
+  let lastEffectiveUrl = effectiveBaseUrl(lastProviderId, getRawBaseUrl(lastProviderId));
+  let disposed = false;
+  let rebuildChain: Promise<void> = Promise.resolve();
+  const unsubscribe = subscribeToProxyConfig(() => {
+    if (disposed) return;
+    const providerId = getActiveProviderId();
+    const raw = getRawBaseUrl(providerId);
+    const next = effectiveBaseUrl(providerId, raw);
+    if (providerId !== lastProviderId) {
+      lastProviderId = providerId;
+      lastEffectiveUrl = next;
+      return;
+    }
+    if (next === lastEffectiveUrl) return;
+    lastEffectiveUrl = next;
+    rebuildChain = rebuildChain
+      .then(() => rebuildProvider(providerId))
+      .then(() => {
+        if (!disposed) {
+          logger.info(`WrongProxy routing changed — live provider rebuilt (${providerId})`);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!disposed) {
+          logger.warn(
+            `WrongProxy instant-apply: provider rebuild failed for ${providerId}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      });
+  });
+
+  return {
+    dispose(): void {
+      if (disposed) return;
+      disposed = true;
+      unsubscribe();
+    },
+  };
 }

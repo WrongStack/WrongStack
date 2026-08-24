@@ -17,6 +17,7 @@ import type {
   SecretVault,
 } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
+import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import { withCatalogCapabilities } from '@wrongstack/providers';
 import { getSageService } from '@wrongstack/sage';
 import { patchConfig } from '../utils.js';
@@ -242,6 +243,40 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
         return err instanceof Error ? err.message : String(err);
       }
     });
+
+  // ── WrongProxy instant-apply: rebuild live provider on routing change ──
+  // The proxy rewrite is a construction-time decision (`resolveProviderCfg`
+  // bakes the URL into the Provider at build). `createProxyInstantApply`
+  // subscribes to material proxy-config changes (Settings toggle, probe
+  // deactivate/reactivate, proxy URL change) and rebuilds the LIVE provider
+  // through the same `buildProviderForModel` path used by /model and the
+  // credential hot-reload — so a proxy toggle takes effect immediately
+  // instead of on the next incidental provider build.
+  const proxyInstantApply = createProxyInstantApply({
+    // Prefer the LIVE provider id: fallback hops swap `context.provider`
+    // without syncing `cfg.provider`, so reading cfg first would rebuild
+    // the configured primary while a fallback model is actually running.
+    // `cfg.provider` is only the boot-time fallback (context.provider is
+    // not populated until the first provider lands).
+    getActiveProviderId: () => context.provider?.id ?? cfg.provider ?? '',
+    // Mirrors `resolveProviderCfg`'s raw read: savedCfg.baseUrl ?? config.baseUrl.
+    getRawBaseUrl: (providerId) => cfg.providers?.[providerId]?.baseUrl ?? cfg.baseUrl,
+    rebuildProvider: async (providerId) => {
+      // Serialize against /model + fallback swaps through the same
+      // transition gate those paths use, and re-check the live provider
+      // inside the gate: a concurrent switch may have moved the session
+      // while this rebuild was queued, and a stale rebuild must not
+      // overwrite the newer provider (provider/model drift).
+      await context.runModelTransition(async () => {
+        if (context.provider?.id !== providerId) return; // superseded
+        // Same swap shape as the credential hot-reload below: rebuild for
+        // the model that is live right now so the capability overlay is kept.
+        context.provider = await buildProviderForModel(providerId, String(context.model ?? ''));
+      });
+    },
+    logger,
+  });
+  teardownHandlers.push(() => proxyInstantApply.dispose());
 
   // ── Multi-layer credential + routing hot-reload watcher ──────────────
   // Previously watched only `wpaths.globalConfig` and applied its raw values
