@@ -48,9 +48,9 @@ const baseRoutes = [
   'commit-workflow',
 ];
 
-const websiteRoot = fs.existsSync(path.resolve(__dirname, 'src/data/content.ts'))
-  ? __dirname
-  : path.resolve(__dirname, '..', '..');
+const websiteRoot = fs.existsSync(path.resolve(import.meta.dirname, 'src/data/content.ts'))
+  ? import.meta.dirname
+  : path.resolve(import.meta.dirname, '..', '..');
 
 function sourceSection(source: string, startMarker: string, endMarker?: string) {
   const start = source.indexOf(startMarker);
@@ -130,7 +130,7 @@ function assertSameCatalog(label: string, websiteValues: string[], runtimeValues
  * mode or fleet role without updating the corresponding operator page.
  */
 function validateProductCatalog() {
-  const repoRoot = path.resolve(__dirname, '..');
+  const repoRoot = path.resolve(import.meta.dirname, '..');
   const productSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/product-catalog.ts'), 'utf8');
 
   const modeSource = fs.readFileSync(
@@ -458,7 +458,7 @@ export default defineConfig({
         validateProductCatalog();
       },
       closeBundle() {
-        const outDir = path.resolve(__dirname, 'dist');
+        const outDir = path.resolve(import.meta.dirname, 'dist');
         const source = path.join(outDir, 'index.html');
         if (!fs.existsSync(source)) return;
         // WS-071: stamp the CSP onto the emitted HTML before it is fanned out
@@ -507,7 +507,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
 });

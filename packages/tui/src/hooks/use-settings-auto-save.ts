@@ -88,7 +88,7 @@ export function useSettingsAutoSave(
         // and the tui-settings-adapter.ts branch tree). Optional with
         // `??` fallback — older persisted configs may not have the keys.
         wrongProxyEnabled: sp.wrongProxyEnabled ?? false,
-        wrongProxyUrl: sp.wrongProxyUrl ?? 'http://localhost:8000',
+        wrongProxyUrl: sp.wrongProxyUrl ?? 'http://localhost:3444',
       }),
     ).then((err: string | null) => {
       if (err) dispatch({ type: 'settingsHint', text: err });

@@ -27,13 +27,13 @@ function mount(proxy: Parameters<typeof WrongProxyPanelSidebar>[0]['proxy']) {
 describe('WrongProxyPanelSidebar', () => {
   it('renders the URL, healthy glyph, footer hint, and "routing" mode row when the probe is healthy', () => {
     const { lastFrame } = mount({
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
       status: 'ok',
       latencyMs: 23,
     });
     const frame = lastFrame();
     expect(frame).toContain('WRONGPROXY');
-    expect(frame).toContain('http://localhost:8000');
+    expect(frame).toContain('http://localhost:3444');
     expect(frame).toContain('ENDPOINT');
     // Healthy glyph is rendered on the ENDPOINT row prefix — independent
     // of the title-row pill truncation, so the assertion is stable.
@@ -44,7 +44,7 @@ describe('WrongProxyPanelSidebar', () => {
 
   it('renders the unreachable detail and the failure glyph when the daemon is offline', () => {
     const { lastFrame } = mount({
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
       status: 'down',
       latencyMs: 2003,
       detail: 'ECONNREFUSED',

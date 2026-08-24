@@ -83,21 +83,21 @@ afterEach(() => __resetProxyConfigForTests());
 
 describe('applyEmbeddedModelSwitch proxy rewrite', () => {
   it('rewrites the switched provider baseUrl through the proxy when active', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const { ctx, agent } = makeCtx();
     await applyEmbeddedModelSwitch(ctx, 'openai', 'gpt-4o');
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
       'openai',
-      expect.objectContaining({ baseUrl: 'http://localhost:8000/proxy/api.openai.com/v1' }),
+      expect.objectContaining({ baseUrl: 'http://localhost:3444/proxy/api.openai.com/v1' }),
     );
     expect((agent.ctx.provider as { baseUrl?: string }).baseUrl).toBe(
-      'http://localhost:8000/proxy/api.openai.com/v1',
+      'http://localhost:3444/proxy/api.openai.com/v1',
     );
     expect((agent.ctx as { model: string }).model).toBe('gpt-4o');
   });
 
   it('keeps the raw baseUrl when active=false', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: false });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
     const { ctx, agent } = makeCtx();
     await applyEmbeddedModelSwitch(ctx, 'openai', 'gpt-4o');
     expect(makeProviderFromConfig).toHaveBeenCalledWith(
@@ -118,7 +118,7 @@ describe('applyEmbeddedModelSwitch proxy rewrite', () => {
   });
 
   it('persists the switched provider/model', async () => {
-    applyProxyConfig({ enabled: true, url: 'http://localhost:8000', active: true });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     const { ctx } = makeCtx();
     await applyEmbeddedModelSwitch(ctx, 'openai', 'gpt-4o');
     expect(ctx.persistPrefs).toHaveBeenCalledWith({ provider: 'openai', model: 'gpt-4o' });

@@ -463,7 +463,7 @@
     "hqRawContentHint": "Rohe Inhaltsvorschauen statt geschwärzter Vorschauen an HQ senden.",
     "wrongProxyHeading": "WrongProxy / WrongTrace",
     "wrongProxyEnabledLabel": "Basis-URLs über den lokalen Proxy leiten",
-    "wrongProxyEnabledHint": "Wenn aktiviert, wird die Basis-URL jedes Anbieters über den konfigurierten Proxy umgeschrieben (Standard http://localhost:8000/proxy/<host><path>). openai-codex ist ausgeschlossen — es kommuniziert direkt mit dem ChatGPT-Backend über ein OAuth-Token.",
+    "wrongProxyEnabledHint": "Wenn aktiviert, wird die Basis-URL jedes Anbieters über den konfigurierten Proxy umgeschrieben (Standard http://localhost:3444/proxy/<host><path>). openai-codex ist ausgeschlossen — es kommuniziert direkt mit dem ChatGPT-Backend über ein OAuth-Token.",
     "wrongProxyUrlLabel": "Proxy-URL",
     "wrongProxyUrlHint": "Wo der lokale Proxy-Daemon lauscht. Das System prüft periodisch <url>/api/health; ein nicht erreichbarer Daemon deaktiviert die Umschreibung, ohne bei jedem Tastendruck erneut zu versuchen.",
     "wrongProxyChangesApply": "Änderungen gelten sofort für nachfolgende Anfragen — kein Neustart erforderlich.",

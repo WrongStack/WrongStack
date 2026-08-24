@@ -54,7 +54,7 @@ const baseValues: SettingsPickerValues = {
   nextStepsTool: false,
   // WrongProxy / WrongTrace (fields 59/60).
   wrongProxyEnabled: false,
-  wrongProxyUrl: 'http://localhost:8000',
+  wrongProxyUrl: 'http://localhost:3444',
   panelPositions: {
     projectPicker: 'bottom',
     fleet: 'bottom',

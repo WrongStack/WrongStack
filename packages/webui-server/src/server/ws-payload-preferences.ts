@@ -83,7 +83,7 @@ const BOOLEAN_PREF_KEYS = new Set([
   'showSageMemoryInject',
   // WrongProxy / WrongTrace master switch. When on, the CLI rewrites every
   // provider's base URL through the configured proxy URL (default
-  // http://localhost:8000 → http://localhost:8000/proxy/<host><path>).
+  // http://localhost:3444 → http://localhost:3444/proxy/<host><path>).
   // Excluded providers (openai-codex) flow through unchanged.
   'wrongProxyEnabled',
 ]);
@@ -177,7 +177,7 @@ const STRING_PREF_KEYS = new Set([
   'autoReviewModel',
   'autoReviewFallbackProfile',
   // WrongProxy / WrongTrace URL. Empty = unset. Default lives in
-  // `LocalPrefs.DEFAULTS.wrongProxyUrl` ('http://localhost:8000'); users
+  // `LocalPrefs.DEFAULTS.wrongProxyUrl` ('http://localhost:3444'); users
   // can override here for non-default daemon ports / paths.
   'wrongProxyUrl',
 ]);

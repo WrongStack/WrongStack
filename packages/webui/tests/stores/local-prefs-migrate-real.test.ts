@@ -358,9 +358,9 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
 
   it('backfills wrongProxyEnabled to false and wrongProxyUrl to the daemon default', () => {
     expect(migrate({}).wrongProxyEnabled).toBe(false);
-    expect(migrate({}).wrongProxyUrl).toBe('http://localhost:8000');
+    expect(migrate({}).wrongProxyUrl).toBe('http://localhost:3444');
     expect(migrate(null).wrongProxyEnabled).toBe(false);
-    expect(migrate(null).wrongProxyUrl).toBe('http://localhost:8000');
+    expect(migrate(null).wrongProxyUrl).toBe('http://localhost:3444');
   });
 
   it('coerces non-boolean wrongProxyEnabled back to false', () => {
@@ -371,7 +371,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
 
   it('coerces non-string or blank wrongProxyUrl back to the default', () => {
     for (const v of [123, true, null, undefined, {}, '   ']) {
-      expect(migrate({ wrongProxyUrl: v }).wrongProxyUrl).toBe('http://localhost:8000');
+      expect(migrate({ wrongProxyUrl: v }).wrongProxyUrl).toBe('http://localhost:3444');
     }
   });
 
@@ -386,7 +386,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
     // pre-dates the fields must still get the defaults.
     const p = migrate({ autoCollapseInput: true }, 15);
     expect(p.wrongProxyEnabled).toBe(false);
-    expect(p.wrongProxyUrl).toBe('http://localhost:8000');
+    expect(p.wrongProxyUrl).toBe('http://localhost:3444');
   });
 
   // ── unknown keys ─────────────────────────────────────────────────────────

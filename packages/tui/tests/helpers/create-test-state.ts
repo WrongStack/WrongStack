@@ -164,7 +164,7 @@ export function createTestState(
       // WrongProxy / WrongTrace: match app-initial-state defaults (switch
       // off, daemon default URL, no edit in progress).
       wrongProxyEnabled: false,
-      wrongProxyUrl: 'http://localhost:8000',
+      wrongProxyUrl: 'http://localhost:3444',
       wrongProxyUrlEditing: false,
       wrongProxyUrlDraft: '',
       panelPositions: DEFAULT_PANEL_POSITIONS,
