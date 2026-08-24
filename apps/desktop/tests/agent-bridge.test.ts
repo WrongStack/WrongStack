@@ -72,8 +72,7 @@ describe('Reconnection logic', () => {
   describe('Exponential backoff calculation', () => {
     function calculateBackoffDelay(attempt: number): number {
       const baseDelay = Math.min(
-        RECONNECT_CONFIG.initialDelayMs *
-          RECONNECT_CONFIG.backoffMultiplier ** attempt,
+        RECONNECT_CONFIG.initialDelayMs * RECONNECT_CONFIG.backoffMultiplier ** attempt,
         RECONNECT_CONFIG.maxDelayMs,
       );
       // Add jitter (deterministic for testing)
@@ -307,7 +306,7 @@ describe('Message management', () => {
     conversation.messages.push(message);
 
     expect(conversation.messages).toHaveLength(1);
-    expect(conversation.messages[0].text).toBe('Hello');
+    expect(conversation.messages[0]!.text).toBe('Hello');
   });
 
   it('should track multiple messages', () => {
@@ -318,8 +317,8 @@ describe('Message management', () => {
     );
 
     expect(conversation.messages).toHaveLength(2);
-    expect(conversation.messages[0].role).toBe('user');
-    expect(conversation.messages[1].role).toBe('assistant');
+    expect(conversation.messages[0]!.role).toBe('user');
+    expect(conversation.messages[1]!.role).toBe('assistant');
   });
 
   it('should limit messages to MAX_MESSAGES', () => {
@@ -343,7 +342,7 @@ describe('Message management', () => {
 
     expect(conversation.messages.length).toBe(MAX_MESSAGES);
     // First message should be trimmed
-    expect(conversation.messages[0].id).toBe('msg_50');
+    expect(conversation.messages[0]!.id).toBe('msg_50');
   });
 
   it('should update streaming assistant message', () => {
@@ -366,7 +365,7 @@ describe('Message management', () => {
       msg.text += ' World';
     }
 
-    expect(conversation.messages[0].text).toBe('Hello World');
+    expect(conversation.messages[0]!.text).toBe('Hello World');
   });
 });
 
@@ -545,7 +544,8 @@ describe('Edge cases', () => {
     const config = { ...RECONNECT_CONFIG, maxAttempts: 0 };
     const conversation = createEmptyConversation('runtime-1');
 
-    const shouldReconnect = config.maxAttempts > 0 && conversation.reconnectAttempt < config.maxAttempts;
+    const shouldReconnect =
+      config.maxAttempts > 0 && conversation.reconnectAttempt < config.maxAttempts;
     expect(shouldReconnect).toBe(false);
   });
 
@@ -578,7 +578,7 @@ describe('Edge cases', () => {
       timestamp: 1,
     });
 
-    expect(conversation.messages[0].text).toBe('');
+    expect(conversation.messages[0]!.text).toBe('');
   });
 
   it('should handle very long message text', () => {
@@ -591,7 +591,7 @@ describe('Edge cases', () => {
       timestamp: 1,
     });
 
-    expect(conversation.messages[0].text.length).toBe(100000);
+    expect(conversation.messages[0]!.text.length).toBe(100000);
   });
 });
 
@@ -667,7 +667,12 @@ describe('run.result final-text handling', () => {
     const streamedAlready =
       lastMsg?.role === 'assistant' && lastMsg.id === conversation.activeAssistantMessageId;
     if (finalText && !streamedAlready) {
-      conversation.messages.push({ role: 'assistant', text: finalText, timestamp: Date.now() });
+      conversation.messages.push({
+        id: `assistant_final_${Date.now()}`,
+        role: 'assistant',
+        text: finalText,
+        timestamp: Date.now(),
+      });
     }
     conversation.status = payload.status === 'failed' ? 'error' : 'connected';
     conversation.activeAssistantMessageId = null;
@@ -717,7 +722,7 @@ describe('run.result final-text handling', () => {
 
     const assistantMessages = conversation.messages.filter((m) => m.role === 'assistant');
     expect(assistantMessages).toHaveLength(1);
-    expect(assistantMessages[0].text).toBe('Hello');
+    expect(assistantMessages[0]!.text).toBe('Hello');
     // activeAssistantMessageId reset after run.result.
     expect(conversation.activeAssistantMessageId).toBeNull();
   });

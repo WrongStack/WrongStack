@@ -75,7 +75,7 @@
       "relativeImports": 3
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
-      "lines": 852,
+      "lines": 896,
       "relativeImports": 15
     },
     "packages/core/src/coordination/subagent-budget.ts": {
@@ -147,7 +147,7 @@
       "relativeImports": 38
     },
     "packages/core/src/types/provider.ts": {
-      "lines": 860,
+      "lines": 872,
       "relativeImports": 7
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -279,7 +279,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/app-key-handler.ts": {
-      "lines": 953,
+      "lines": 962,
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
@@ -455,8 +455,8 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 854,
-      "relativeImports": 25
+      "lines": 868,
+      "relativeImports": 26
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 949,

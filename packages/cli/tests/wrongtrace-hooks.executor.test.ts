@@ -9,15 +9,13 @@
  * from @wrongstack/core, not stubs, so this proves the wiring contract.
  */
 
-import { afterAll, describe, expect, it } from 'vitest';
-
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
-
+import { afterAll, describe, expect, it } from 'vitest';
+import { getWrongTrace, resetWrongTraceGate } from '../src/wiring/wrongtrace-gate.js';
 import {
   createWrongTracePostToolUseHook,
   createWrongTracePreToolUseHook,
 } from '../src/wiring/wrongtrace-hooks.js';
-import { getWrongTrace, resetWrongTraceGate } from '../src/wiring/wrongtrace-gate.js';
 
 const PROBE = `__hook_probe_${Date.now()}__`;
 const SESSION = 'hook-focused-test';
@@ -109,7 +107,9 @@ describe('WrongTrace hooks on the real HookRunner (executor path)', () => {
     const fragilePkg = atlas?.packages?.find((p) => (p.fragile_files_count ?? 0) > 0);
     if (!fragilePkg) return; // nothing fragile right now — nothing to assert
 
-    const full = await wt.getAtlas({ workspace: fragilePkg.workspace });
+    const full = await wt.getAtlas({
+      ...(fragilePkg.workspace === undefined ? {} : { workspace: fragilePkg.workspace }),
+    });
     const fragileFile = full?.packages
       ?.flatMap((p) => p.files ?? [])
       .find((f) => f.is_fragile === true || (f.health_score ?? 100) < 40);
@@ -119,6 +119,11 @@ describe('WrongTrace hooks on the real HookRunner (executor path)', () => {
     expect(r.block).toBeFalsy();
     expect(r.additionalContext).toContain('fragile');
     // postToolUse releases whatever we claimed.
-    await runner.postToolUse('edit', { path: fragileFile.path }, { content: '', isError: false }, env);
+    await runner.postToolUse(
+      'edit',
+      { path: fragileFile.path },
+      { content: '', isError: false },
+      env,
+    );
   });
 });

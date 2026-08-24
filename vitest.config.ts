@@ -109,7 +109,11 @@ export default defineConfig({
     // `.tsx` is included explicitly: the Ink component tests in tui/ and
     // simpleui/ are .tsx, and a `*.test.ts`-only glob silently skipped all of
     // them — they passed CI by never running.
-    include: ['packages/**/tests/**/*.test.{ts,tsx}', 'apps/**/tests/**/*.test.{ts,tsx}'],
+    include: [
+      'packages/**/tests/**/*.test.{ts,tsx}',
+      'packages/**/src/**/__tests__/**/*.test.{ts,tsx}',
+      'apps/**/tests/**/*.test.{ts,tsx}',
+    ],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

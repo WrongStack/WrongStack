@@ -11,13 +11,7 @@
  *   - `provider.status.snapshot` WS push (full refresh on connect / /provider-status)
  *   - `provider.status.result`   WS push (response to our own `provider.status.get`)
  */
-import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useProviderStatusStore, type ProviderHealthEntry } from '@/stores/provider-status-store';
-import { cn } from '@/lib/utils';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
+
 import {
   AlertTriangle,
   Ban,
@@ -30,6 +24,13 @@ import {
   Wifi,
   Zap,
 } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { cn } from '@/lib/utils';
+import { type ProviderHealthEntry, useProviderStatusStore } from '@/stores/provider-status-store';
+import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 
 /** How long until a cooldown expires, formatted compactly. */
 function CooldownRemaining({ expiresAtMs }: { expiresAtMs: number }) {
@@ -38,7 +39,12 @@ function CooldownRemaining({ expiresAtMs }: { expiresAtMs: number }) {
   const secs = Math.floor(remaining / 1000);
   const mins = Math.floor(secs / 60);
   const hours = Math.floor(mins / 60);
-  if (hours > 0) return <span>{hours}h {mins % 60}m</span>;
+  if (hours > 0)
+    return (
+      <span>
+        {hours}h {mins % 60}m
+      </span>
+    );
   if (mins > 0) return <span>{mins}m</span>;
   return <span>{secs}s</span>;
 }
@@ -68,7 +74,8 @@ function StateExplanation({
   }
   if (kind === 'network') return <span>{t('connection.providerHealth.explainNetwork')}</span>;
   if (kind === 'timeout') return <span>{t('connection.providerHealth.explainTimeout')}</span>;
-  if (kind === 'stream_hang') return <span>{t('connection.providerHealth.explainStreamHang')}</span>;
+  if (kind === 'stream_hang')
+    return <span>{t('connection.providerHealth.explainStreamHang')}</span>;
   return (
     <span>
       {t('connection.providerHealth.explainUnknown', {
@@ -77,16 +84,6 @@ function StateExplanation({
       })}
     </span>
   );
-}
-
-/** Time ago in human-readable form. */
-function TimeAgo({ ms }: { ms: number }) {
-  const secs = Math.floor((Date.now() - ms) / 1000);
-  if (secs < 60) return <span>{secs}s ago</span>;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return <span>{mins}m ago</span>;
-  const hours = Math.floor(mins / 60);
-  return <span>{hours}h ago</span>;
 }
 
 /** Single model row — collapsible accordion */
@@ -113,7 +110,11 @@ function ModelRow({
         className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-muted/50 transition-colors rounded-md"
       >
         <span className="shrink-0 text-muted-foreground">
-          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          {expanded ? (
+            <ChevronDown className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
         </span>
 
         {/* State icon */}
@@ -121,8 +122,8 @@ function ModelRow({
           className={cn(
             'shrink-0',
             isBlocked && 'text-destructive',
-            isDegraded && 'text-amber-500',
-            !isBlocked && !isDegraded && 'text-emerald-500',
+            isDegraded && 'text-warning',
+            !isBlocked && !isDegraded && 'text-success',
           )}
         >
           {isBlocked ? (
@@ -147,7 +148,7 @@ function ModelRow({
           className={cn(
             'shrink-0 text-[10px]',
             isBlocked && 'bg-destructive/20 text-destructive border-destructive/40',
-            isDegraded && 'bg-amber-500/10 text-amber-600 border-amber-500/30 dark:text-amber-400',
+            isDegraded && 'bg-warning/10 text-warning border-warning/30',
           )}
         >
           {t(`connection.providerHealth.state.${entry.state}`)}
@@ -183,19 +184,24 @@ function ModelRow({
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div className="rounded bg-destructive/10 px-2 py-1 text-center">
               <div className="font-semibold text-destructive">{entry.totalFailures ?? 0}</div>
-              <div className="text-muted-foreground">{t('connection.providerHealth.statFailures')}</div>
+              <div className="text-muted-foreground">
+                {t('connection.providerHealth.statFailures')}
+              </div>
             </div>
-            <div className="rounded bg-amber-500/10 px-2 py-1 text-center">
-              <div className="font-semibold text-amber-600 dark:text-amber-400">{entry.rateLimitHits ?? 0}</div>
-              <div className="text-muted-foreground">{t('connection.providerHealth.statRateLimits')}</div>
+            <div className="rounded bg-warning/10 px-2 py-1 text-center">
+              <div className="font-semibold text-warning">{entry.rateLimitHits ?? 0}</div>
+              <div className="text-muted-foreground">
+                {t('connection.providerHealth.statRateLimits')}
+              </div>
             </div>
           </div>
 
           {/* Consecutive failures */}
           {(entry.consecutiveFailures ?? 0) > 0 && (
             <div className="text-[10px] text-muted-foreground">
-              <span className="font-medium text-destructive">{entry.consecutiveFailures}</span>
-              {' '}{t('connection.providerHealth.statConsecutive')} {t('connection.providerHealth.statFailures')}
+              <span className="font-medium text-destructive">{entry.consecutiveFailures}</span>{' '}
+              {t('connection.providerHealth.statConsecutive')}{' '}
+              {t('connection.providerHealth.statFailures')}
             </div>
           )}
 
@@ -244,7 +250,7 @@ function ModelRow({
                 }}
               >
                 <RotateCcw className="h-2.5 w-2.5" />
-                {t('connection.providerHealth.actionRetry')}
+                {t('connection.providerHealth.retryNow')}
               </Button>
             )}
             <Button
@@ -257,7 +263,7 @@ function ModelRow({
               }}
             >
               <RefreshCw className="h-2.5 w-2.5" />
-              {t('connection.providerHealth.actionClear')}
+              {t('connection.providerHealth.clear')}
             </Button>
           </div>
         </div>
@@ -277,7 +283,12 @@ export function ProviderHealthSection() {
   const ws = useWebSocket();
   // Provider-status methods live on the inner client, not the top-level return.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const client = ws as unknown as { on: (type: string, handler: (e: unknown) => void) => void; send: (msg: Record<string, unknown>) => void; retryProviderModel: (p: string, m: string) => void; clearProviderStatus: (p: string, m: string) => void };
+  const client = ws as unknown as {
+    on: (type: string, handler: (e: unknown) => void) => void;
+    send: (msg: Record<string, unknown>) => void;
+    retryProviderModel: (p: string, m: string) => void;
+    clearProviderStatus: (p: string, m: string) => void;
+  };
   const { entries, summary, update } = useProviderStatusStore();
 
   const entriesList = Object.values(entries);
@@ -331,7 +342,8 @@ export function ProviderHealthSection() {
         lastErrorMessage: ev.lastErrorMessage as string | undefined,
         lastErrorKind: ev.lastErrorKind as string | undefined,
         lastErrorStatus: ev.lastErrorStatus as number | undefined,
-        reason: (ev.reason as string | undefined) ?? (ev.lastErrorMessage as string | undefined) ?? '',
+        reason:
+          (ev.reason as string | undefined) ?? (ev.lastErrorMessage as string | undefined) ?? '',
         updatedAt: (ev.updatedAt as number | undefined) ?? Date.now(),
       });
     });
@@ -376,20 +388,19 @@ export function ProviderHealthSection() {
         <div>
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Ban className="h-4 w-4 text-destructive" />
-            {t('connection.providerHealth.title')}
+            {t('connection.providerHealth.heading')}
           </h3>
           {summary && (
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {summary.blocked} blocked · {summary.degraded} degraded · {summary.healthy} healthy
               {summary.totalFailures > 0 && (
                 <span className="ml-2">
-                  ·{' '}
-                  <span className="text-destructive">{summary.totalFailures}</span>{' '}
+                  · <span className="text-destructive">{summary.totalFailures}</span>{' '}
                   {t('connection.providerHealth.totalFailures')}
                   {summary.totalRateLimits > 0 && (
                     <>
-                      {' '}&middot;{' '}
-                      <span className="text-amber-500">{summary.totalRateLimits}</span>{' '}
+                      {' '}
+                      &middot; <span className="text-warning">{summary.totalRateLimits}</span>{' '}
                       {t('connection.providerHealth.rateLimits')}
                     </>
                   )}
@@ -398,12 +409,7 @@ export function ProviderHealthSection() {
             </p>
           )}
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 text-[11px] gap-1"
-          onClick={handleRefresh}
-        >
+        <Button size="sm" variant="ghost" className="h-7 text-[11px] gap-1" onClick={handleRefresh}>
           <RefreshCw className="h-3 w-3" />
           {t('connection.providerHealth.refresh')}
         </Button>
@@ -414,7 +420,7 @@ export function ProviderHealthSection() {
         <div className="px-3 pt-3">
           <div className="flex items-center gap-1.5 mb-2 text-[10px] font-semibold text-destructive uppercase tracking-wide">
             <Ban className="h-3 w-3" />
-            {t('connection.providerHealth.sectionBlocked')} ({blockedEntries.length})
+            {t('connection.providerHealth.blocked')} ({blockedEntries.length})
           </div>
           <div className="space-y-1">
             {blockedEntries.map((entry) => (
@@ -432,9 +438,9 @@ export function ProviderHealthSection() {
       {/* Degraded models */}
       {degradedEntries.length > 0 && (
         <div className="px-3 pt-3">
-          <div className="flex items-center gap-1.5 mb-2 mt-2 text-[10px] font-semibold text-amber-500 uppercase tracking-wide">
+          <div className="flex items-center gap-1.5 mb-2 mt-2 text-[10px] font-semibold text-warning uppercase tracking-wide">
             <AlertTriangle className="h-3 w-3" />
-            {t('connection.providerHealth.sectionDegraded')} ({degradedEntries.length})
+            {t('connection.providerHealth.degraded')} ({degradedEntries.length})
           </div>
           <div className="space-y-1">
             {degradedEntries.map((entry) => (
@@ -452,9 +458,9 @@ export function ProviderHealthSection() {
       {/* Healthy models (collapsed by default, shown only if no blocked/degraded) */}
       {healthyEntries.length > 0 && blockedEntries.length === 0 && degradedEntries.length === 0 && (
         <div className="px-3 py-3">
-          <div className="flex items-center gap-1.5 mb-2 text-[10px] font-semibold text-emerald-500 uppercase tracking-wide">
+          <div className="flex items-center gap-1.5 mb-2 text-[10px] font-semibold text-success uppercase tracking-wide">
             <ShieldCheck className="h-3 w-3" />
-            {t('connection.providerHealth.sectionHealthy')} ({healthyEntries.length})
+            {t('connection.providerHealth.state.healthy')} ({healthyEntries.length})
           </div>
           <div className="space-y-1">
             {healthyEntries.map((entry) => (
@@ -475,12 +481,7 @@ export function ProviderHealthSection() {
           <div className="flex justify-center mb-2">
             <ShieldCheck className="h-8 w-8 text-muted-foreground/40" />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {t('connection.providerHealth.empty')}
-          </p>
-          <p className="text-[11px] text-muted-foreground/60 mt-1">
-            {t('connection.providerHealth.emptyHint')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('connection.providerHealth.empty')}</p>
         </div>
       )}
     </div>

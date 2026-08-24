@@ -344,6 +344,9 @@
     "packages/cli/src/wiring/tools.ts": [
       "setupTools"
     ],
+    "packages/cli/src/wiring/wrongtrace-gate.ts": [
+      "resetWrongTraceGate"
+    ],
     "packages/core/src/boot.ts": [
       "cleanupStaleProjects"
     ],
@@ -580,7 +583,8 @@
     "packages/core/src/wiring/proxy-rewrite.ts": [
       "__resetProxyConfigForTests",
       "isProxyEligible",
-      "PROXY_EXCLUDED_PROVIDERS"
+      "PROXY_EXCLUDED_PROVIDERS",
+      "subscribeToProxyConfig"
     ],
     "packages/governance/src/daemon-launcher.ts": [
       "launchGovernanceProjectDaemonWithRuntime"
@@ -1299,6 +1303,7 @@
       "handleGatherSubcommand"
     ],
     "packages/tui/src/mouse.ts": [
+      "MOUSE_CLICK_ON",
       "MOUSE_HOVER_ON",
       "parseMouseEvent"
     ],
