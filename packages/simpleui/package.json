@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/simpleui",
-  "version": "0.310.1",
+  "version": "0.313.0",
   "license": "MIT",
   "description": "A deliberately minimal WrongStack browser chat surface.",
   "type": "module",

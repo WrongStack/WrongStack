@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/requirement-intake-mcp",
-  "version": "0.310.1",
+  "version": "0.313.0",
   "license": "MIT",
   "description": "WrongStack Requirements Intake as a project-scoped MCP server: list intake records (read tier) and file+submit intake records (writable tier).",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/persistence",
-  "version": "0.310.1",
+  "version": "0.313.0",
   "license": "MIT",
   "description": "Dependency-free filesystem persistence primitives shared across WrongStack packages.",
   "repository": {
