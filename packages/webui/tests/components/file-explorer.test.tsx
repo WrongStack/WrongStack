@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { forwardRef, useImperativeHandle } from 'react';
 import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -143,7 +143,9 @@ describe('FileExplorer (virtualized tree)', () => {
     fireEvent.click(screen.getByText('lib'));
     expect(screen.getByText('util.ts')).toBeTruthy();
     // Watcher-style refresh: same cwd, new tree objects.
-    useFileStore.getState().setTree('/proj', makeTree());
+    act(() => {
+      useFileStore.getState().setTree('/proj', makeTree());
+    });
     // User's expansion of lib should persist.
     expect(screen.getByText('util.ts')).toBeTruthy();
   });

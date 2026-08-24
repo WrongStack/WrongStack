@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
@@ -236,7 +236,9 @@ describe('live registry signals', () => {
     await mount();
     const before = urls().filter((u) => u.includes('/events')).length;
 
-    liveSession({ agents: [agent({ toolCalls: 2 })] });
+    await act(async () => {
+      liveSession({ agents: [agent({ toolCalls: 2 })] });
+    });
     await waitFor(() =>
       expect(urls().filter((u) => u.includes('/events')).length).toBeGreaterThan(before),
     );
@@ -500,11 +502,15 @@ describe('polling', () => {
     await mount();
     const before = urls().length;
 
-    Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    await act(async () => {
+      Object.defineProperty(document, 'hidden', { value: true, configurable: true });
+    });
     await vi.advanceTimersByTimeAsync(10_000);
     expect(urls()).toHaveLength(before);
 
-    Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    await act(async () => {
+      Object.defineProperty(document, 'hidden', { value: false, configurable: true });
+    });
     await vi.advanceTimersByTimeAsync(3_000);
     expect(urls().length).toBeGreaterThan(before);
   });

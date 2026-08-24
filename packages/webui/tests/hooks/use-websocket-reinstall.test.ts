@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 
 // ── Mocks ────────────────────────────────────────────────────────────────
 // We track how many times a handler for a given type is installed so the
@@ -74,7 +74,9 @@ describe('useWebSocketBootstrap — handler re-install on wsUrl change', () => {
     // the `installed` ref was already true, so the effect re-ran (tearing
     // the old handlers down via cleanup) but never re-registered — leaving
     // the socket deaf to every server message until a page reload.
-    useConfigStore.getState().setConfig({ wsUrl: 'ws://127.0.0.1:9999' });
+    act(() => {
+      useConfigStore.getState().setConfig({ wsUrl: 'ws://127.0.0.1:9999' });
+    });
 
     // Re-render so React flushes the effect with the new deps.
     rerender();

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import {
   ConfirmModalHost,
@@ -16,7 +16,9 @@ it('uses the safe cancel choice when a dialog opts into cancel as the default', 
   });
 
   expect(await screen.findByText('Start a fresh context?')).toBeDefined();
-  fireEvent.keyDown(window, { key: 'Enter' });
+  await act(async () => {
+    fireEvent.keyDown(window, { key: 'Enter' });
+  });
 
   await expect(decision).resolves.toBe('cancel');
   expect(useConfirmModalStore.getState().request).toBeNull();
