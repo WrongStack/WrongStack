@@ -56,6 +56,7 @@ import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
 import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import { createPromptJournalRecorder, createPromptJournalToolCallRecorder } from './prompt-journal-recorder.js';
+import { createWrongTracePostToolUseHook, createWrongTracePreToolUseHook } from './wrongtrace-hooks.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -193,6 +194,25 @@ export async function setupLifecycleAndPlugins(
   // submitted, and always consumes the marker.
   pipelines.userInput.use(createPromptJournalRecorder());
   pipelines.userInput.use(createUserPromptSubmitMiddleware(hookRunner));
+
+  // WrongTrace guardrail: in-process hooks on the shared executor path.
+  // preToolUse denies edits to files locked by another owner (peer agent)
+  // and claims the lock for this session; postToolUse releases it. Daemon
+  // offline → every call allows; TTL reaps locks if a process dies
+  // mid-edit. Registered AFTER the journal recorder so hook context never
+  // leaks into the journal (same ordering rationale as above).
+  hookRegistry.registerInProcess(
+    'PreToolUse',
+    'edit|write|replace|patch|codebase-ast-replace',
+    createWrongTracePreToolUseHook(() => session.id),
+    'wrongtrace-gate',
+  );
+  hookRegistry.registerInProcess(
+    'PostToolUse',
+    'edit|write|replace|patch|codebase-ast-replace',
+    createWrongTracePostToolUseHook(),
+    'wrongtrace-gate',
+  );
 
   // The toolCall recorder captures the agent-driven journal categories
   // (clarify_interaction, subagent_delegation, autonomous_next_step) from the

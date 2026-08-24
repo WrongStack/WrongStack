@@ -52,6 +52,7 @@ import { mergeCustomModelDefs } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { setupProvider } from '../wiring/provider.js';
 import { awaitFirstWrongProxyProbe, bootstrapWrongProxy } from '../wiring/proxy-wiring.js';
+import { getWrongTrace } from '../wiring/wrongtrace-gate.js';
 
 export type ModeId = string;
 export type ModePrompt = string;
@@ -138,6 +139,13 @@ export async function resolveModeAndCapabilities(
     // ~10ms of the first tick, which is fast enough that subsequent
     // request-batches see it. See proxy-rewrite.ts:51-59.
     bootstrapWrongProxy(deps.config.tools?.wrongProxy);
+    // Warm the WrongTrace observability gate in the background — fire and
+    // forget. Discovery has a 1s timeout and degrades to isAvailable:false,
+    // so it can never stall boot (and we deliberately do NOT await here:
+    // the awaitFirstWrongProxyProbe gate below is the only serialization
+    // point this path tolerates). First preflightFileEdit() call reuses the
+    // warmed singleton.
+    void getWrongTrace();
     // Close the boot race that otherwise leaves the LEADER provider on the
     // raw URL even when the toggle is on: `bootstrapWrongProxy` sets
     // `enabled`/`url` synchronously, but the probe's first `/api/health`
