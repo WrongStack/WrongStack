@@ -243,18 +243,25 @@ export interface ProxyInstantApplyHandle {
 }
 
 /**
- * Compute the base URL the active provider SHOULD be using right now.
- * `undefined` means "provider carries no base URL" (pure catalog
- * provider) — two `undefined` verdicts are not a routing change.
+ * Compute the base URL the active provider SHOULD be using under a given
+ * proxy config. `undefined` means "provider carries no base URL" (pure
+ * catalog provider) — two `undefined` verdicts are not a routing change.
  */
-function effectiveBaseUrl(
+function effectiveBaseUrlFor(
+  cfg: ProxyConfig,
   providerId: string,
   rawBaseUrl: string | undefined,
 ): string | undefined {
   if (!rawBaseUrl) return undefined;
-  return shouldRewriteFor(providerId)
-    ? rewriteBaseUrl(rawBaseUrl, currentConfig.url)
-    : rawBaseUrl;
+  const active = cfg.enabled && cfg.active && !!cfg.url && isProxyEligible(providerId);
+  return active ? rewriteBaseUrl(rawBaseUrl, cfg.url) : rawBaseUrl;
+}
+
+function effectiveBaseUrl(
+  providerId: string,
+  rawBaseUrl: string | undefined,
+): string | undefined {
+  return effectiveBaseUrlFor(currentConfig, providerId, rawBaseUrl);
 }
 
 /**
@@ -266,9 +273,12 @@ function effectiveBaseUrl(
  *   - a proxy URL change while enabled+active rebuilds (new target);
  *   - deactivation rebuilds (proxy-rewritten → raw);
  *   - toggling off while already direct does NOT rebuild;
- *   - a provider/model switch through another path re-baselines instead
- *     of rebuilding (that path built its provider through the
- *     proxy-aware builder already).
+ *   - a provider/model switch between notifications re-baselines against
+ *     the PREVIOUS config — the config the switch actually built under —
+ *     and then falls through to the verdict comparison. Seeding from the
+ *     new config instead would swallow a needed rebuild: a provider that
+ *     switched in while the proxy was on (built rewritten) must rebuild
+ *     direct when the very next change deactivates the proxy.
  *
  * Rebuilds are SERIALIZED: a toggle-off immediately followed by a probe
  * verdict must not race two async rebuilds against each other — the
@@ -283,18 +293,21 @@ export function createProxyInstantApply(deps: ProxyInstantApplyDeps): ProxyInsta
   let lastEffectiveUrl = effectiveBaseUrl(lastProviderId, getRawBaseUrl(lastProviderId));
   let disposed = false;
   let rebuildChain: Promise<void> = Promise.resolve();
-  const unsubscribe = subscribeToProxyConfig(() => {
+  const unsubscribe = subscribeToProxyConfig((next, previous) => {
     if (disposed) return;
     const providerId = getActiveProviderId();
     const raw = getRawBaseUrl(providerId);
-    const next = effectiveBaseUrl(providerId, raw);
-    if (providerId !== lastProviderId) {
-      lastProviderId = providerId;
-      lastEffectiveUrl = next;
-      return;
-    }
-    if (next === lastEffectiveUrl) return;
-    lastEffectiveUrl = next;
+    const nextUrl = effectiveBaseUrlFor(next, providerId, raw);
+    // If the active provider moved since the last notification, the
+    // switch-installed provider was built under the PREVIOUS config —
+    // that is the honest baseline, not `nextUrl`.
+    const baselineUrl =
+      providerId === lastProviderId
+        ? lastEffectiveUrl
+        : effectiveBaseUrlFor(previous, providerId, raw);
+    lastProviderId = providerId;
+    lastEffectiveUrl = nextUrl;
+    if (nextUrl === baselineUrl) return;
     rebuildChain = rebuildChain
       .then(() => rebuildProvider(providerId))
       .then(() => {

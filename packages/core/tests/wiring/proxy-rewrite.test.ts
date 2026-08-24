@@ -351,6 +351,28 @@ describe('createProxyInstantApply', () => {
     h.handle.dispose();
   });
 
+  it('rebuilds a provider that switched in under proxy-ON when the next change deactivates', async () => {
+    // Regression for the re-baseline ordering gap: the switch-installed
+    // provider was built under the PREVIOUS config (rewritten). Seeding
+    // the baseline from the NEW config swallowed this rebuild — the
+    // provider stayed pinned to the dead proxy. The honest baseline is
+    // effectiveBaseUrlFor(previous, …).
+    proxyOn();
+    const h = makeHandle({
+      getRawBaseUrl: (providerId) =>
+        providerId === 'openai' || providerId === 'openai-2' ? RAW_URL : undefined,
+    });
+    // A /model switch to a second eligible provider happens BETWEEN
+    // notifications (provider built rewritten while the proxy was on)…
+    h.setActiveProviderId('openai-2');
+    // …and the very next change deactivates the proxy.
+    applyProxyConfig({ active: false });
+    await flush();
+    expect(h.rebuildProvider).toHaveBeenCalledTimes(1);
+    expect(h.rebuildProvider).toHaveBeenCalledWith('openai-2');
+    h.handle.dispose();
+  });
+
   it('logs a warning instead of throwing when the rebuild fails', async () => {
     proxyOn();
     const h = makeHandle({
