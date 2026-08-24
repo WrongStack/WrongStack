@@ -26,7 +26,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=4; wins=4 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=5; wins=5 -->
 - **When `submit_result` returns the generic "required / confidence must be 0..1" error despite all fields present and in range, retry at most once with a compacted payload — if it still refuses, the channel-side validator is rejecting all payloads; deliver the report in the final text response instead of looping.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`

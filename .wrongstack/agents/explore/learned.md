@@ -39,12 +39,12 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=22; wins=21 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=23; wins=22 -->
 - ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=40; wins=39 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=41; wins=40 -->
 - **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
@@ -58,6 +58,12 @@
   - *How:* `@wrongstack/core`
   - *How:* `ChronicleProjectServerClient`
 
+<!-- learned-stamp: category=convention; capturedAt=2026-08-24T20:34:39.843Z; skill=research-web; applied=1; wins=1 -->
+- **Always treat `docs/README.md` in the WrongStack repo as a documentation index with zero code coupling — when asked for its "importers", the complete answer is a repo-wide grep for the path string (expect only `CHANGELOG.md` release notes), not a code-graph lookup; its real consumers are the contributing conventions that mandate updating it when maintained docs are added.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `docs/README.md`
+  - *How:* `CHANGELOG.md`
+
 <!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:11:21.015Z; applied=3; wins=3 -->
 - **To find production consumers of any builder in `packages/cli/src/slash-commands/*.ts`, trace one hop up: `slash-commands/index.ts` `buildBuiltinSlashCommands` aggregates them, then `wiring/slash-commands.ts` `buildCommandHostSlashCommands` bridges to `wiring/cli-slash-commands-setup.ts` — direct importers of the leaf module are almost always tests.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
@@ -68,6 +74,14 @@
   - *How:* `buildCommandHostSlashCommands`
   - *How:* `wiring/cli-slash-commands-setup.ts`
 
+<!-- learned-stamp: category=convention; capturedAt=2026-08-24T21:09:21.331Z; applied=1; wins=1 -->
+- **When mapping an ad-hoc script under `.temp_files/`, always run a second grep scoped **inside** `.temp_files` for the module basename — the repo-wide grep can silently skip the whole gitignored directory, and the scoped basename grep is what actually rules out sibling `.mjs` imports. Anchor: `grep <basename> .temp_files`.**
+  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
+  - *How:* `.temp_files/`
+  - *How:* `.temp_files`
+  - *How:* `.mjs`
+  - *How:* `grep <basename> .temp_files`
+
 <!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:18:09.821Z; applied=1; wins=1 -->
 - **When tracing producers/consumers of an exported factory in packages/simpleui/src/lib/ (e.g. message-handler.ts, message-handler-deps.ts, message-handler-session-start.ts), always grep the module basename with `grep <basename> packages/simpleui` BEFORE relying on `codebase-incoming-calls` — these factory exports are stripped from the symbol index and incoming-calls returns "Symbol not found" even when there is a clear caller in simple-ui-session.tsx and a test in tests/.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
@@ -75,4 +89,4 @@
   - *How:* `codebase-incoming-calls`
 
 ---
-*Last capture: 2026-08-22T10:31:12.790Z · 8 entries*
+*Last capture: 2026-08-24T21:09:21.331Z · 10 entries*
