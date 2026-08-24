@@ -124,8 +124,27 @@ describe('git_autocommit', () => {
     expect(res.error).toMatch(/Failed to stage files/);
   });
 
-  it('auto-detects and stages changed files when nothing is staged', async () => {
+  it('refuses to commit with an empty index by default instead of absorbing the tree', async () => {
+    gitHandler = (args) => {
+      const k = key(args);
+      if (k === 'diff --cached --name-only') return '';
+      if (k === 'status --porcelain') return ' M auto.ts';
+      return '';
+    };
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({ type: 'chore', message: 'auto' });
+    // Scope guard: previously this silently staged EVERY changed file — on a
+    // shared checkout that absorbed unrelated concurrently staged work into
+    // the commit. The default now refuses and explains the scoped options.
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/Nothing staged/);
+    expect(res.error).toMatch(/paths/);
+    expect(res.error).toMatch(/autoStage/);
+  });
+
+  it('autoStage=true keeps the legacy stage-everything behavior', async () => {
     let stagedCalls = 0;
+    const adds: string[][] = [];
     gitHandler = (args) => {
       const k = key(args);
       if (k === 'diff --cached --name-only') {
@@ -133,15 +152,162 @@ describe('git_autocommit', () => {
         return stagedCalls === 1 ? '' : 'auto.ts'; // empty first, staged after add
       }
       if (k === 'status --porcelain') return ' M auto.ts';
+      if (k.startsWith('add --')) {
+        adds.push(args.slice()); // capture exact add argv
+        return '';
+      }
       if (k.startsWith('commit -m')) return 'cafe01 done';
       if (k === 'diff --cached --stat') return 'stat';
       if (k === 'diff --cached') return 'diff';
       return '';
     };
-    const tools = setup();
+    const tools = setup({ 'git-autocommit': { autoStage: true } });
     const res = await tools.git_autocommit!.execute({ type: 'chore', message: 'auto' });
     expect(res.ok).toBe(true);
     expect(res.stagedFiles).toEqual(['auto.ts']);
+    // Legacy behavior = explicitly staged the changed files it found.
+    expect(adds).toEqual([['add', '--', 'auto.ts']]);
+  });
+
+  it('stages only pathspec-matching files and fences the commit with --only', async () => {
+    const staged: string[][] = [];
+    const adds: string[][] = [];
+    gitHandler = (args) => {
+      const k = key(args);
+      if (k === 'add -- **/package.json CHANGELOG.md') {
+        adds.push(args.slice()); // capture exact add argv
+        return '';
+      }
+      if (k === 'diff --cached --name-only -- **/package.json CHANGELOG.md')
+        return 'package.json\npackages/core/package.json';
+      // The paths flow also reads the FULL index after the scoped readback
+      // (for the scope-guard warning) — answer it with the same slice here.
+      if (k === 'diff --cached --name-only') return 'package.json\npackages/core/package.json';
+      // The scoped diff/readback uses the CONCRETE staged file list (the
+      // source resolves pathspecs to files first), not the glob patterns.
+      if (k === 'diff --cached --stat -- package.json packages/core/package.json') return 'stat';
+      if (k === 'diff --cached -- package.json packages/core/package.json')
+        return '+version bump';
+      if (k === 'diff --name-only -- package.json packages/core/package.json') return '';
+      if (k.startsWith('commit -m')) {
+        staged.push(args.slice()); // capture exact commit argv
+        return 'scoped1 ok';
+      }
+      return '';
+    };
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({
+      type: 'chore',
+      message: 'release bump',
+      paths: ['**/package.json', 'CHANGELOG.md'],
+    });
+    expect(res.ok).toBe(true);
+    // Reported payload is the scoped slice, not the whole index.
+    expect(res.stagedFiles).toEqual(['package.json', 'packages/core/package.json']);
+    // Staging was scoped to the pathspecs — no bare `git add .`-style call.
+    expect(adds).toEqual([['add', '--', '**/package.json', 'CHANGELOG.md']]);
+    // The preview diff carries the scoped content (mock-fed field).
+    expect(res.diff).toContain('+version bump');
+    // The commit is fenced: exactly these paths, after --only.
+    expect(staged[0]).toEqual([
+      'commit',
+      '-m',
+      'chore: release bump',
+      '--only',
+      '--',
+      'package.json',
+      'packages/core/package.json',
+    ]);
+  });
+
+  it('refuses when no changed file matches the pathspecs', async () => {
+    gitHandler = (args) => {
+      const k = key(args);
+      if (k === 'add -- website/**') return '';
+      if (k.startsWith('diff --cached --name-only --')) return '';
+      return '';
+    };
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({
+      type: 'chore',
+      message: 'website',
+      paths: ['website/**'],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/No changed files match/);
+  });
+
+  it('aborts when a scoped path drifts in the working tree after staging', async () => {
+    gitHandler = (args) => {
+      const k = key(args);
+      if (k === 'add -- a.ts') return '';
+      if (k === 'diff --cached --name-only') return 'a.ts';
+      if (k === 'diff --cached --stat -- a.ts') return 'stat';
+      if (k === 'diff --cached -- a.ts') return 'diff';
+      // The working tree moved after staging: a.ts no longer matches the index.
+      if (k === 'diff --name-only -- a.ts') return 'a.ts';
+      return '';
+    };
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({
+      type: 'fix',
+      message: 'a',
+      files: ['a.ts'],
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/Working tree changed after staging/);
+    expect(res.error).toMatch(/a\.ts/);
+  });
+
+  it('warns when foreign staged files exist outside the requested scope', async () => {
+    const commits: string[][] = [];
+    gitHandler = (args) => {
+      const k = key(args);
+      if (k === 'add -- a.ts') return '';
+      // The index holds a.ts (ours) AND b.ts (someone else's staging).
+      if (k === 'diff --cached --name-only') return 'a.ts\nb.ts';
+      if (k === 'diff --cached --stat -- a.ts') return 'stat';
+      if (k === 'diff --cached -- a.ts') return 'diff';
+      if (k === 'diff --name-only -- a.ts') return '';
+      if (k.startsWith('commit -m')) {
+        commits.push(args.slice()); // capture exact commit argv
+        return 'fenced ok';
+      }
+      return '';
+    };
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({
+      type: 'fix',
+      message: 'a',
+      files: ['a.ts'],
+    });
+    expect(res.ok).toBe(true);
+    expect(res.warning).toMatch(/Scope guard/);
+    expect(res.warning).toMatch(/b\.ts/);
+    // Payload reports only the caller's scope.
+    expect(res.stagedFiles).toEqual(['a.ts']);
+    // The commit itself is fenced: b.ts (foreign staged) is NOT on the argv.
+    expect(commits[0]).toEqual(['commit', '-m', 'fix: a', '--only', '--', 'a.ts']);
+  });
+
+  it('rejects a non-array paths input', async () => {
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({ type: 'feat', message: 'x', paths: 'a/**' });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/paths must be an array/);
+  });
+
+  it('rejects files and paths passed together instead of silently dropping files', async () => {
+    const tools = setup();
+    const res = await tools.git_autocommit!.execute({
+      type: 'feat',
+      message: 'x',
+      files: ['a.ts'],
+      paths: ['**/package.json'],
+    });
+    // Previously `files` was silently ignored whenever `paths` was present.
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/not both/);
   });
 
   it('returns "Nothing staged" when there is nothing to commit', async () => {

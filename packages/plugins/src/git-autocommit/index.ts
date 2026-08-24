@@ -3,10 +3,25 @@
  *
  * Tools registered:
  * - git_autocommit: Stage files and create a commit with AI-written conventional commit messages.
- *   Supports `files` for specific staging and `dry_run` for preview.
+ *   Supports `files` for specific staging, `paths` for scoped pathspec staging,
+ *   and `dry_run` for preview.
+ *
+ * Scope guard (2026-08): this tool previously committed the ENTIRE git index,
+ * and auto-staged every changed file in the tree when the index was empty —
+ * while its own `autoStage: false` default was never consulted. On a shared
+ * working tree that let one agent's commit absorb files another process had
+ * staged concurrently (observed: a release commit absorbed a concurrently
+ * staged workstream it never asked for). The guard:
+ *   - `files` callers commit via `git commit --only -- <files>` — exactly
+ *     those paths; anything else staged stays in the index for its owner.
+ *   - `paths` callers stage ONLY changed files matching the pathspecs (git
+ *     resolves the globs) and commit those, fenced the same way.
+ *   - With no files/paths and an empty index, the tool now honors `autoStage`
+ *     (default false) and returns an instructive error instead of silently
+ *     staging the whole tree. Set `autoStage: true` for the legacy behavior.
  *
  * Note: The former `git_autocommit` and `git_autocommit` tools have been removed.
- * - For staging: use `git_autocommit` with `files` (it stages automatically), or `bash` with `git add`.
+ * - For staging: use `git_autocommit` with `files` or `paths` (it stages automatically), or `bash` with `git add`.
  * - For status: use the built-in `git` tool with `command: "status"` or `command: "diff"`.
  */
 
@@ -93,8 +108,8 @@ async function runGit(
  * Undo git's C-style quoting of a porcelain path.
  *
  * git quotes any path containing a space, a quote, a backslash, a control
- * character, or a non-ASCII byte (unless `core.quotePath=false`). Taking
- * the raw slice left the surrounding quotes attached, so the path never
+ * character, or a non-ASCII byte (unless `core.quotePath=false`). Taking the
+ * raw slice left the surrounding quotes attached, so the path never
  * matched a real file and the change was silently dropped from the commit.
  */
 function unquotePorcelainPath(raw: string): string {
@@ -164,9 +179,24 @@ function unquotePorcelainPath(raw: string): string {
  */
 export function parsePorcelainLine(line: string): string | null {
   // XY<space>PATH — the status code is always the first two columns.
-  const body = line.slice(3);
+  // CAVEAT: `runGit` resolves with `stdout.trim()`, which eats the leading
+  // space of the FIRST porcelain line whenever the index column is blank
+  // (` M path` → `M path`). That is precisely the unstaged-modified shape
+  // the auto-stage path feeds through here, and slicing 3 off the trimmed
+  // line silently dropped the path's first character ('auto.ts' became
+  // 'uto.ts' — a file that does not exist, dropped by stageFiles' existence
+  // filter). Detect the trimmed one-column shape and parse it as XY=' M'.
+  const twoColumn = /^[MADRCUTX?! ]{2} /.test(line);
+  const oneColumnTrimmed = !twoColumn && /^[MADRCUTX?!] /.test(line);
+  if (!twoColumn && !oneColumnTrimmed) {
+    // Not a porcelain line shape we recognize — fall back to the historical
+    // 3-column slice so unknown future codes still parse positionally.
+    const bodyAny = line.slice(3);
+    return bodyAny ? unquotePorcelainPath(bodyAny.trim()) : null;
+  }
+  const body = oneColumnTrimmed ? line.slice(2) : line.slice(3);
   if (!body) return null;
-  const status = line.slice(0, 2);
+  const status = oneColumnTrimmed ? ` ${line.slice(0, 1)}` : line.slice(0, 2);
   if (status.includes('R') || status.includes('C')) {
     // `old -> new`, either side possibly quoted. Stage the destination.
     const arrow = body.lastIndexOf(' -> ');
@@ -190,25 +220,79 @@ async function getStagedFiles(cwd?: string): Promise<string[]> {
   return output ? output.split('\n').filter(Boolean) : [];
 }
 
-async function stageFiles(files: string[] | undefined, cwd?: string): Promise<void> {
-  /* v8 ignore next -- callers always pass a validated array; the guard is defensive. */
-  if (!files || !Array.isArray(files)) return;
-  // Filter to only files that exist (avoids "pathspec did not match any files" errors)
-  const existing = (files as string[]).filter((f) => {
-    try {
-      return existsSync(f);
-    } catch {
-      return false;
-    }
-  });
-  if (existing.length === 0) throw new Error('No files exist to stage');
-  // `--` terminates option parsing: without it a file named `-f` or
-  // `--force` would be read by git as a flag rather than a pathspec.
-  await runGit(['add', '--', ...existing], cwd);
+/**
+ * Staged files limited to a pathspec scope — the caller's own slice of the
+ * index, excluding anything another process staged concurrently.
+ */
+async function getScopedStagedFiles(paths: string[], cwd?: string): Promise<string[]> {
+  const output = await runGit(['diff', '--cached', '--name-only', '--', ...paths], cwd);
+  return output ? output.split('\n').filter(Boolean) : [];
 }
 
-async function commitWithMessage(message: string, cwd?: string): Promise<string> {
-  return await runGit(['commit', '-m', message], cwd, GIT_COMMIT_TIMEOUT_MS);
+/**
+ * Stage explicit file paths (filtered to files that exist) or raw git
+ * pathspecs (any pattern containing `*`, `?` or `[` — matched by git itself,
+ * e.g. all of `website/` recursively, or every package.json manifest at any
+ * depth). The existence filter cannot apply to patterns, because which
+ * files a pattern matches is git's to say.
+ */
+async function stageFiles(files: string[] | undefined, cwd?: string): Promise<void> {
+  /* v8 ignore next -- callers always pass a validated array; the guard is defensive. */
+  if (!files || !Array.isArray(files) || files.length === 0) return;
+  const hasPattern = files.some((f) => /[*?[\]]/.test(f));
+  if (!hasPattern) {
+    // Filter to only files that exist (avoids "pathspec did not match any files" errors)
+    const existing = (files as string[]).filter((f) => {
+      try {
+        return existsSync(f);
+      } catch {
+        return false;
+      }
+    });
+    if (existing.length === 0) throw new Error('No files exist to stage');
+    // `--` terminates option parsing: without it a file named `-f` or
+    // `--force` would be read by git as a flag rather than a pathspec.
+    await runGit(['add', '--', ...existing], cwd);
+    return;
+  }
+  await runGit(['add', '--', ...files], cwd);
+}
+
+async function commitWithMessage(
+  message: string,
+  cwd?: string,
+  /**
+   * Scope fence: `git commit --only -- <paths>` makes the commit contain
+   * exactly these paths and leaves anything else another process staged in
+   * the index, unabsorbed. Without it, git commits the ENTIRE index — the
+   * mechanism by which a release agent's commit absorbed a concurrently
+   * staged workstream it never asked for.
+   */
+  paths?: string[],
+): Promise<string> {
+  const scoped = paths && paths.length > 0 ? ['--only', '--', ...paths] : [];
+  return await runGit(['commit', '-m', message, ...scoped], cwd, GIT_COMMIT_TIMEOUT_MS);
+}
+
+/**
+ * Working-tree paths among `paths` whose content no longer matches the index.
+ *
+ * `git commit --only` takes the named paths' content from the WORKING TREE,
+ * not the staged index — so an edit landing between this tool's `git add`
+ * and its commit would be committed even though it never appeared in the
+ * dry-run preview or the LLM prompt. The caller aborts when this returns
+ * any path; a re-run re-stages the current content and proceeds.
+ *
+ * Fail-open on git errors: the `--only` fence still bounds the blast radius
+ * to these paths either way.
+ */
+async function scopedPathsDrifted(paths: string[], cwd?: string): Promise<string[]> {
+  try {
+    const out = await runGit(['diff', '--name-only', '--', ...paths], cwd);
+    return out ? out.split('\n').filter(Boolean) : [];
+  } catch {
+    return [];
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,6 +355,26 @@ async function getStagedDiff(cwd?: string): Promise<{ stat: string; diff: string
     const stat = await runGit(['diff', '--cached', '--stat'], cwd);
     // Limit full diff to prevent blowing up tool output
     const diff = await runGit(['diff', '--cached'], cwd);
+    const MAX_DIFF = 20_000;
+    const truncated =
+      diff.length > MAX_DIFF ? diff.slice(0, MAX_DIFF) + '\n\n... (diff truncated)' : diff;
+    return { stat: stat || '(no stat)', diff: truncated || '(clean)' };
+  } catch {
+    return { stat: '(unavailable)', diff: '(unavailable)' };
+  }
+}
+
+/**
+ * Run `git diff --cached --stat/-- <paths>` scoped to the commit's own
+ * pathspec slice, for the dry-run preview and LLM message generation.
+ */
+async function getScopedStagedDiff(
+  paths: string[],
+  cwd?: string,
+): Promise<{ stat: string; diff: string }> {
+  try {
+    const stat = await runGit(['diff', '--cached', '--stat', '--', ...paths], cwd);
+    const diff = await runGit(['diff', '--cached', '--', ...paths], cwd);
     const MAX_DIFF = 20_000;
     const truncated =
       diff.length > MAX_DIFF ? diff.slice(0, MAX_DIFF) + '\n\n... (diff truncated)' : diff;
@@ -409,7 +513,7 @@ function extractJsonObject(text: string): string {
 
 const plugin: Plugin = {
   name: 'git-autocommit',
-  version: '0.2.0',
+  version: '0.3.0',
   description: 'AI-powered git staging and conventional commit message generation',
   apiVersion: API_VERSION,
   capabilities: { tools: true, llm: true },
@@ -423,7 +527,12 @@ const plugin: Plugin = {
     type: 'object',
     properties: {
       conventionalCommits: { type: 'boolean', default: true },
-      autoStage: { type: 'boolean', default: false },
+      autoStage: {
+        type: 'boolean',
+        default: false,
+        description:
+          'When the index is empty and no files/paths were given, stage every changed file before committing (legacy whole-tree behavior). Default false: the tool returns an instructive error instead, so a commit never absorbs unrelated concurrently staged work.',
+      },
       defaultType: { type: 'string', default: 'feat' },
       useLlm: {
         type: 'boolean',
@@ -464,14 +573,21 @@ const plugin: Plugin = {
     api.tools.register({
       name: 'git_autocommit',
       description:
-        'Stage files and create a git commit with an AI-generated conventional commit message. Pass files to stage specific ones, or leave empty to auto-detect all changed files.',
+        'Stage files and create a git commit with an AI-generated conventional commit message. Pass files for exact paths, or paths (git pathspec globs like "**/package.json", "website/**") to stage only matching changed files. Commits are fenced to the staged scope — unrelated concurrently staged files are left in the index, not absorbed.',
       inputSchema: {
         type: 'object',
         properties: {
           files: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Specific files to stage. If empty, auto-detects all changed files.',
+            description:
+              'Specific files to stage and commit. The commit is fenced to exactly these paths.',
+          },
+          paths: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'Git pathspec globs limiting what this commit may include (e.g. ["**/package.json", "CHANGELOG.md", "website/**"] for a release). Only changed files matching these patterns are staged and committed.',
           },
           type: {
             type: 'string',
@@ -534,8 +650,70 @@ const plugin: Plugin = {
             files = rawFiles;
           }
 
-          // Stage files if provided.
-          if (files && files.length > 0) {
+          // Validate paths input shape early.
+          let pathspecs: string[] | undefined;
+          const rawPaths = input['paths'];
+          if (rawPaths !== undefined) {
+            if (!Array.isArray(rawPaths)) {
+              return { ok: false, error: 'paths must be an array of pathspec patterns' };
+            }
+            pathspecs = rawPaths.filter((p): p is string => typeof p === 'string' && p.length > 0);
+            if (pathspecs.length === 0) {
+              return { ok: false, error: 'paths must contain at least one non-empty pattern' };
+            }
+            // Reject the combination rather than silently dropping one side:
+            // previously `files` was ignored whenever `paths` was present.
+            if (files && files.length > 0) {
+              return {
+                ok: false,
+                error:
+                  'Pass either files (exact paths) or paths (pathspec globs), not both — the other would be silently ignored.',
+              };
+            }
+          }
+
+          // --- Scope guard: resolve what this call owns before touching git.
+          //
+          // `commitScope` is the concrete path list the commit is fenced to
+          // (via `git commit --only`). `staged` is the reported payload.
+          let commitScope: string[] | undefined;
+          let staged: string[] = [];
+
+          if (pathspecs) {
+            // Pathspec flow: stage ONLY changed files matching the patterns,
+            // then read back the concrete matching slice of the index.
+            try {
+              await stageFiles(pathspecs);
+            } catch (err: unknown) {
+              return {
+                ok: false,
+                error: `Failed to stage files matching paths: ${err instanceof Error ? err.message : String(err)}`,
+              };
+            }
+            try {
+              staged = await getScopedStagedFiles(pathspecs);
+            } catch {
+              staged = [];
+            }
+            if (staged.length === 0) {
+              return {
+                ok: false,
+                error:
+                  'No changed files match the given paths — refusing to commit anything else.',
+              };
+            }
+            commitScope = staged;
+            // Read the FULL index for the scope-guard warning below. The
+            // scoped readback alone would hide foreign staged files, making
+            // the warning permanently empty on this flow.
+            try {
+              staged = await getStagedFiles();
+            } catch {
+              staged = commitScope;
+            }
+          } else if (files && files.length > 0) {
+            // Exact-files flow: stage them; the commit below is fenced to
+            // exactly these paths.
             try {
               await stageFiles(files);
             } catch (err: unknown) {
@@ -545,38 +723,55 @@ const plugin: Plugin = {
                 error: `Failed to stage files: ${err instanceof Error ? err.message : String(err)}`,
               };
             }
-          }
-
-          // Check staged files; auto-detect and stage all changed if empty.
-          let staged: string[] = [];
-          try {
-            staged = await getStagedFiles();
-          } catch {
-            staged = [];
-          }
-          if (staged.length === 0) {
+            commitScope = files;
             try {
-              const changed = await getChangedFiles();
-              if (changed.length > 0) {
-                try {
-                  await stageFiles(changed);
-                } catch {
-                  /* ignore staging errors */
-                }
-                try {
-                  staged = await getStagedFiles();
-                } catch {
-                  staged = [];
-                }
-              }
+              staged = await getStagedFiles();
             } catch {
-              /* ignore */
+              staged = [];
             }
+          } else {
+            // Legacy flow: use whatever is already staged. With an empty
+            // index, the previous code silently staged EVERY changed file in
+            // the tree — on a shared checkout that absorbed unrelated work
+            // into this commit. That whole-tree behavior is now gated behind
+            // `autoStage` (default false); an empty index falls through to
+            // the "Nothing staged" error below with guidance instead.
+            try {
+              staged = await getStagedFiles();
+            } catch {
+              staged = [];
+            }
+            if (staged.length === 0 && opts.autoStage) {
+              try {
+                const changed = await getChangedFiles();
+                if (changed.length > 0) {
+                  try {
+                    await stageFiles(changed);
+                  } catch {
+                    /* ignore staging errors */
+                  }
+                  try {
+                    staged = await getStagedFiles();
+                  } catch {
+                    staged = [];
+                  }
+                }
+              } catch {
+                /* ignore */
+              }
+            }
+            // Unscoped legacy commit: `commitScope` stays undefined and the
+            // commit includes the full index (the pre-guard behavior, now
+            // reachable only with pre-staged content or autoStage=true).
           }
 
           // Compute the staged diff once — used for LLM generation, the
-          // dry-run preview, and the committed result's diff field.
-          const { stat, diff: stagedDiff } = await getStagedDiff();
+          // dry-run preview, and the committed result's diff field. Scoped
+          // calls see only their own slice; foreign staged files never
+          // reach the LLM prompt or the preview.
+          const { stat, diff: stagedDiff } = commitScope
+            ? await getScopedStagedDiff(commitScope)
+            : await getStagedDiff();
 
           // LLM generation from the staged diff (best-effort; needs a diff).
           let generatedByLlm = false;
@@ -628,8 +823,26 @@ const plugin: Plugin = {
           if (staged.length === 0) {
             return {
               ok: false,
-              error: 'Nothing staged. Add files with git add or provide files input.',
+              error:
+                'Nothing staged. Pass files (exact paths) or paths (pathspec globs) to scope this commit, stage with git add beforehand, or set extensions["git-autocommit"].autoStage=true to allow staging every changed file (legacy whole-tree behavior).',
             };
+          }
+
+          // Scope-guard report: when other staged files exist OUTSIDE this
+          // call's scope, say so explicitly. That content stays in the
+          // index for whoever owns it instead of riding along silently.
+          let scopeWarning: string | null = null;
+          if (commitScope) {
+            const scopedSet = new Set(commitScope);
+            const foreign = staged.filter((f) => !scopedSet.has(f));
+            if (foreign.length > 0) {
+              const preview = foreign.slice(0, 10).join(', ');
+              const suffix =
+                foreign.length > 10 ? ` and ${foreign.length - 10} more` : '';
+              scopeWarning =
+                `⚠ Scope guard: ${foreign.length} staged file(s) outside the requested scope ` +
+                `(${preview}${suffix}) were left uncommitted and remain staged for their owner.`;
+            }
           }
 
           // Build warning before committing.
@@ -649,7 +862,8 @@ const plugin: Plugin = {
               'but they indicate simultaneous edits. Review carefully.';
           }
 
-          const warning = [worktreeWarn, externalWarning].filter(Boolean).join('\n') || undefined;
+          const warning =
+            [worktreeWarn, scopeWarning, externalWarning].filter(Boolean).join('\n') || undefined;
 
           // Return early in dry run with the diff visible
           if (dryRun) {
@@ -662,21 +876,30 @@ const plugin: Plugin = {
             };
           }
 
-          // Check if we need to stage before diff (if nothing was staged yet)
-          let preCommitDiff = stagedDiff;
-          let preCommitStat = stat;
-          /* v8 ignore start -- unreachable: an empty `staged` already returned at the "Nothing staged" guard above. */
-          if (staged.length === 0) {
-            const fresh = await getStagedDiff();
-            preCommitDiff = fresh.diff;
-            preCommitStat = fresh.stat;
+          // Scoped commits take working-tree content (`--only` semantics),
+          // so verify the scoped paths still match what was staged and
+          // previewed. An in-scope edit that landed since staging aborts the
+          // commit — silently shipping it would betray the preview above.
+          if (commitScope && !dryRun) {
+            const drifted = await scopedPathsDrifted(commitScope);
+            if (drifted.length > 0) {
+              const preview = drifted.slice(0, 10).join(', ');
+              const suffix = drifted.length > 10 ? ` and ${drifted.length - 10} more` : '';
+              return {
+                ok: false,
+                error:
+                  `Working tree changed after staging for: ${preview}${suffix}. ` +
+                  'A scoped commit takes working-tree content, so committing now could include ' +
+                  'changes that were never staged or previewed. Re-run the tool to re-stage the ' +
+                  'current content.',
+              };
+            }
           }
-          /* v8 ignore stop */
 
-          // Commit
+          // Commit — fenced to the caller's scope when one exists.
           let hash = '';
           try {
-            hash = await commitWithMessage(msg);
+            hash = await commitWithMessage(msg, undefined, commitScope);
           } catch (err: unknown) {
             /* v8 ignore next -- commitWithMessage only throws Error; the String(err) branch is defensive. */
             return {
@@ -701,7 +924,7 @@ const plugin: Plugin = {
               commitType: type,
               scope: String(scope ?? ''),
               /* v8 ignore next -- staged is always an array here; the : [] fallback is defensive. */
-              files: Array.isArray(staged) ? staged : [],
+              files: Array.isArray(staged) ? (commitScope ?? staged) : [],
               warning: warning ?? null,
             });
           } catch (_err) {
@@ -712,12 +935,12 @@ const plugin: Plugin = {
             ok: true,
             hash,
             message: msg,
-            stagedFiles: staged,
+            stagedFiles: commitScope ?? staged,
             type,
             scope: scope ?? null,
             generatedByLlm,
             warning: warning ?? undefined,
-            diff: `\n## Staged diff\n\n${preCommitStat}\n\n\`\`\`diff\n${preCommitDiff}\n\`\`\``,
+            diff: `\n## Staged diff\n\n${stat}\n\n\`\`\`diff\n${stagedDiff}\n\`\`\``,
           };
           /* v8 ignore start -- top-level safety net: inner try/catches already handle the realistic failures. */
         } catch (err: unknown) {
@@ -731,7 +954,7 @@ const plugin: Plugin = {
     });
 
     api.log.info('git-autocommit plugin loaded', {
-      version: '0.2.0',
+      version: '0.3.0',
       conventionalCommits: opts.conventionalCommits,
     });
   },
@@ -745,8 +968,8 @@ const plugin: Plugin = {
     //   2. The counters reset cleanly on the next setup() — without
     //      this, a reload that skips a successful commit would leave
     //      stale counts in health().
-    // Snap the current values for the log line, then zero them so
-    // the next setup() starts fresh (matching the cron/file-watcher
+    // Snap the current values for the log line, then zero them so the
+    // next setup() starts fresh (matching the cron/file-watcher
     // pattern from the H1 audit).
     const finalCount = commitCount.value;
     const finalHash = lastCommit.hash;
