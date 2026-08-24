@@ -13,6 +13,7 @@ import { findCopyHit, resolveCopyPayload } from './copy-geometry.js';
 import type { MountedCardSpan } from './scrollbar-geometry.js';
 import { selectionHitAt } from './scrollbar-geometry.js';
 import type { HistoryScrollController } from './scroll-controller-types.js';
+import { bandFromSelection, type SelectionBandStore } from './selection-band-store.js';
 import {
   assembleSelectionText,
   isOutOfBand,
@@ -39,6 +40,10 @@ export interface UseHistoryControllerOptions {
   };
   entriesByIdRef: { current: Map<number, HistoryEntry> };
   toolStreamRef: { current: { name: string; text: string; startedAt: number } | null | undefined };
+  /** External store for the drag-selection highlight band. The controller
+   * publishes selection geometry here so the rail leaf can re-render on
+   * drag motion WITHOUT any history card re-rendering. */
+  selectionBandStore?: SelectionBandStore | undefined;
   setAnchor: (anchor: { id: number; clip: number } | null) => void;
   setMountBump: (bump: number) => void;
   controllerRef?: { current: HistoryScrollController | null } | undefined;
@@ -63,6 +68,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
     selectionRef,
     entriesByIdRef,
     toolStreamRef,
+    selectionBandStore,
     setAnchor,
     setMountBump,
     controllerRef,
@@ -75,16 +81,26 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
   const groupIdsRef = useRef(groupIds);
   groupIdsRef.current = groupIds;
 
+  const publishBand = useCallback((): void => {
+    const cur = selectionRef.current;
+    selectionBandStore?.publish(
+      cur.anchor !== null && cur.head !== null && cur.inProgress
+        ? bandFromSelection(cur.anchor, cur.head)
+        : null,
+    );
+  }, [selectionBandStore, selectionRef]);
+
   const applyAnchor = useCallback((next: ScrollAnchor | null): void => {
     const ids = groupIdsRef.current;
     const nextId = next ? ids[next.index] : undefined;
     const normalized =
       next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
     selectionRef.current = { anchor: null, head: null, inProgress: false };
+    publishBand();
     effectiveAnchorRef.current = normalized;
     setAnchor(normalized && nextId !== undefined ? { id: nextId, clip: normalized.clip } : null);
     setMountBump(0);
-  }, [selectionRef, setAnchor, setMountBump]);
+  }, [selectionRef, publishBand, setAnchor, setMountBump]);
 
   const controller = useMemo<HistoryScrollController>(
     () => ({
@@ -134,11 +150,13 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
       beginSelection: (row, col) => {
         if (isOutOfBand(col, termWidth)) {
           selectionRef.current = { anchor: null, head: null, inProgress: false };
+          publishBand();
           return;
         }
         const cardHit = selectionHitAt(row, mountedGroupSpansRef.current);
         if (cardHit === null) {
           selectionRef.current = { anchor: null, head: null, inProgress: false };
+          publishBand();
           return;
         }
         selectionRef.current = {
@@ -146,6 +164,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           head: { row, col },
           inProgress: true,
         };
+        publishBand();
       },
       extendSelection: (row, col) => {
         const cur = selectionRef.current;
@@ -153,9 +172,11 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         if (cur.inProgress === false) return;
         if (isOutOfBand(col, termWidth) || row < 0 || row >= vp) {
           selectionRef.current = { anchor: null, head: null, inProgress: false };
+          publishBand();
           return;
         }
         selectionRef.current = { ...cur, head: { row, col } };
+        publishBand();
       },
       endSelection: () => {
         // Superseded by release-commits-copy: the release path goes straight
@@ -164,18 +185,21 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         const cur = selectionRef.current;
         if (cur.anchor === null) return;
         selectionRef.current = { ...cur, inProgress: false };
+        publishBand();
       },
       hasSelection: () => selectionRef.current.anchor !== null,
       clearSelection: () => {
         const cur = selectionRef.current;
         if (cur.anchor === null && cur.head === null) return;
         selectionRef.current = { anchor: null, head: null, inProgress: false };
+        publishBand();
       },
       commitSelection: async () => {
         const cur = selectionRef.current;
         if (cur.anchor === null || cur.head === null) return false;
         if (cur.anchor.row === cur.head.row && cur.anchor.col === cur.head.col) {
           selectionRef.current = { anchor: null, head: null, inProgress: false };
+          publishBand();
           return false;
         }
         const rect = normalizeSelection(cur.anchor, cur.head, cur.inProgress);
@@ -196,6 +220,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           ...(toolGroupsByHeadId.size > 0 ? { toolGroupsByHeadId } : {}),
         });
         selectionRef.current = { anchor: null, head: null, inProgress: false };
+        publishBand();
         if (text.length === 0) return false;
         try {
           return await writeClipboardText(text);
@@ -204,7 +229,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         }
       },
     }),
-    [applyAnchor, termWidth, vp, copyHitsRef, liveToolCopyHitRef, mountedGroupSpansRef, selectionRef, entriesByIdRef, toolStreamRef],
+    [applyAnchor, publishBand, termWidth, vp, copyHitsRef, liveToolCopyHitRef, mountedGroupSpansRef, selectionRef, entriesByIdRef, toolStreamRef],
   );
 
   useEffect(() => {

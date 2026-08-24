@@ -39,6 +39,10 @@ import {
   toolStreamBoxHeight,
 } from './history.js';
 import { useHistoryController } from './history/use-history-controller.js';
+import {
+  createSelectionBandStore,
+  type SelectionBandStore,
+} from './history/selection-band-store.js';
 
 // ── Re-exports from extracted modules ────────────────────────────────────
 export type {
@@ -137,6 +141,15 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const heightCacheRef = useRef<EntryHeightCache | null>(null);
   if (heightCacheRef.current === null) heightCacheRef.current = new EntryHeightCache();
   const heightCache = heightCacheRef.current;
+  // Instance-scoped highlight-band store: survives re-renders, dies with this
+  // component (a history-gen remount gets a fresh store). The controller
+  // publishes selection geometry here; the Scrollbar subscribes. No card
+  // ever re-renders on drag motion because none subscribe.
+  const selectionBandStoreRef = useRef<SelectionBandStore | null>(null);
+  if (selectionBandStoreRef.current === null) {
+    selectionBandStoreRef.current = createSelectionBandStore();
+  }
+  const selectionBandStore = selectionBandStoreRef.current;
   const entryNodeRefs = useRef(new Map<number, DOMElement>());
   const measuredGroupIdsRef = useRef(new Set<number>());
   const copyHitsRef = useRef<CopyHit[]>([]);
@@ -289,6 +302,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     selectionRef,
     entriesByIdRef,
     toolStreamRef,
+    selectionBandStore,
     setAnchor,
     setMountBump,
     controllerRef,
@@ -541,6 +555,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         total={totalRows}
         copyHits={copyRailHits}
         copiedEntryId={copiedEntryId}
+        selectionBandStore={selectionBandStore}
       />
     </Box>
   );

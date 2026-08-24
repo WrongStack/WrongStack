@@ -293,6 +293,7 @@ interface MountedHandle {
   controller: HistoryScrollController;
   copyIconCol: number;
   entries: readonly HistoryEntry[];
+  lastFrame: () => string;
   unmount: () => void;
 }
 
@@ -331,6 +332,7 @@ function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
     controller: controllerRef.current,
     copyIconCol: Math.min(app.stdout.columns, 120) - SCROLLBAR_HIT_WIDTH,
     entries,
+    lastFrame: () => app.frames[app.frames.length - 1] ?? '',
     unmount: () => app.unmount(),
   };
 }
@@ -338,6 +340,54 @@ function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
 function textEntry(id: number, text: string): HistoryEntry {
   return { id, kind: 'assistant', text };
 }
+
+const tick = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+
+describe('Selection highlight band (external-store rail feedback)', () => {
+  // The rail occupies the last SCROLLBAR_HIT_WIDTH (3) columns of the history
+  // row: [copy icon][band/gap][track]. We assert on the last two columns —
+  // the band glyph and the untouched track cell — so the test stays robust to
+  // the icon glyph and the thumb-vs-track rendering of the third column.
+  const railTail = (frame: string): string => frame.split('\n')[0]?.slice(-2) ?? '';
+
+  it('fills the rail gap column during a drag and clears it on commit, without touching card text', async () => {
+    writeClipboardTextMock.mockClear();
+    const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
+    try {
+      const before = railTail(h.lastFrame());
+      expect(before[0]).toBe(' '); // gap column empty before the drag
+
+      h.controller.beginSelection(0, 0);
+      h.controller.extendSelection(0, 4);
+      await tick();
+
+      const during = railTail(h.lastFrame());
+      expect(during[0]).toBe('█'); // head-row band glyph in the gap column
+      expect(during[1]).toBe(before[1]); // track column untouched by the band
+      // The card body is unchanged — the band re-renders only the rail.
+      expect(h.lastFrame()).toContain('alpha bravo charlie');
+
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
+      await tick();
+
+      expect(railTail(h.lastFrame())[0]).toBe(' '); // band cleared on commit
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('shows no band when the press never starts a selection (row outside any card)', async () => {
+    const h = mountHistory([textEntry(1, 'one')]);
+    try {
+      h.controller.beginSelection(1, 0); // row 1 is blank — no card there
+      await tick();
+      expect(railTail(h.lastFrame())[0]).toBe(' ');
+    } finally {
+      h.unmount();
+    }
+  });
+});
 
 describe('HistoryScrollController: beginSelection / extendSelection / commitSelection', () => {
   it('starts a drag inside a card, extends, ends, and copies the right text', async () => {
