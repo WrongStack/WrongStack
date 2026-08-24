@@ -348,41 +348,52 @@ describe('Selection highlight band (external-store rail feedback)', () => {
   // row: [copy icon][band/gap][track]. We assert on the last two columns —
   // the band glyph and the untouched track cell — so the test stays robust to
   // the icon glyph and the thumb-vs-track rendering of the third column.
-  const railTail = (frame: string): string => frame.split('\n')[0]?.slice(-2) ?? '';
+  // The rail row is located BY THE CARD TEXT, not by output-line index: the
+  // frame's first line need not be the card's row (leading blank rows or any
+  // future layout change), but the rail always renders alongside the card's
+  // own text row, so finding the line containing the card text and taking
+  // its last two cells targets the band regardless of vertical placement.
+  const railTail = (frame: string, cardText: string): string =>
+    frame
+      .split('\n')
+      .find((line) => line.includes(cardText))
+      ?.slice(-2) ?? '';
 
   it('fills the rail gap column during a drag and clears it on commit, without touching card text', async () => {
     writeClipboardTextMock.mockClear();
-    const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
+    const card = 'alpha bravo charlie';
+    const h = mountHistory([textEntry(1, card)]);
     try {
-      const before = railTail(h.lastFrame());
+      const before = railTail(h.lastFrame(), card);
       expect(before[0]).toBe(' '); // gap column empty before the drag
 
       h.controller.beginSelection(0, 0);
       h.controller.extendSelection(0, 4);
       await tick();
 
-      const during = railTail(h.lastFrame());
+      const during = railTail(h.lastFrame(), card);
       expect(during[0]).toBe('█'); // head-row band glyph in the gap column
       expect(during[1]).toBe(before[1]); // track column untouched by the band
       // The card body is unchanged — the band re-renders only the rail.
-      expect(h.lastFrame()).toContain('alpha bravo charlie');
+      expect(h.lastFrame()).toContain(card);
 
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
       await tick();
 
-      expect(railTail(h.lastFrame())[0]).toBe(' '); // band cleared on commit
+      expect(railTail(h.lastFrame(), card)[0]).toBe(' '); // band cleared on commit
     } finally {
       h.unmount();
     }
   });
 
   it('shows no band when the press never starts a selection (row outside any card)', async () => {
-    const h = mountHistory([textEntry(1, 'one')]);
+    const card = 'one';
+    const h = mountHistory([textEntry(1, card)]);
     try {
       h.controller.beginSelection(1, 0); // row 1 is blank — no card there
       await tick();
-      expect(railTail(h.lastFrame())[0]).toBe(' ');
+      expect(railTail(h.lastFrame(), card)[0]).toBe(' ');
     } finally {
       h.unmount();
     }
