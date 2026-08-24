@@ -54,14 +54,32 @@ export interface HistoryScrollController {
    * scrollbar/copy-icon/wheel paths remain intact because they call their own
    * handlers; this only kicks in when the mouse layer explicitly routes a
    * left-press into the card band.
+   *
+   * Column contract (v1.1 M3): `col` is a HISTORY-BAND column (0-based from
+   * the band's left edge). The controller translates it to card-body-local
+   * coordinates before storing: bordered kinds (assistant/thinking/user) have
+   * a MESSAGE_PANEL_CHROME_WIDTH (2) left gutter, and gutter columns CLAMP to
+   * the card's first visible column — a press on the border/padding selects
+   * from the start of the card's visible line, mirroring standard editor
+   * margin-click behavior. Gutterless kinds (info, memory-lifecycle, tool
+   * groups, …) pass the column through unchanged.
+   *
+   * Known limitation (follow-up): user cards render the `👤 USER  ` label
+   * inline before entry.text, and the emoji's cell width is
+   * terminal-dependent — so body col 0 on a user card is the start of the
+   * LABEL, not of entry.text. Selection assembly on user cards keeps the v1
+   * naive mapping; exact user-text recovery needs row-aware prefix
+   * translation in the assembler (same machinery as the M4 wrap map).
    */
   beginSelection(row: number, col: number): void;
   /**
-   * Extend an active selection to `row`,`col`. If no selection is in progress,
-   * the call is a no-op. Crossing into the gutter or below the viewport cancels
-   * the drag internally — leaving stale viewport-relative coords around after
-   * a mid-drag escape would let the next right-click paste from the wrong
-   * card, which is the worse failure mode than the selection disappearing.
+   * Extend an active selection to `row`,`col` (history-band viewport cell,
+   * translated to body-local exactly as in {@link beginSelection}). If no
+   * selection is in progress, the call is a no-op. Columns outside the band
+   * or rows below the viewport / above 0 cancel the drag internally — leaving
+   * stale viewport-relative coords around after a mid-drag escape would let
+   * the next right-click paste from the wrong card, which is the worse
+   * failure mode than the selection disappearing.
    */
   extendSelection(row: number, col: number): void;
   /**

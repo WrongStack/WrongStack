@@ -1,4 +1,4 @@
-import { useMemo, useRef, useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { writeClipboardText } from '../../clipboard.js';
 import {
   anchorForTrackCell,
@@ -8,11 +8,12 @@ import {
   scrollAnchorBy,
   scrollAnchorToTop,
 } from '../../scroll-anchor.js';
+import { MESSAGE_PANEL_CHROME_WIDTH } from './assistant.js';
 import type { CopyHit } from './copy-geometry.js';
 import { findCopyHit, resolveCopyPayload } from './copy-geometry.js';
+import type { HistoryScrollController } from './scroll-controller-types.js';
 import type { MountedCardSpan } from './scrollbar-geometry.js';
 import { selectionHitAt } from './scrollbar-geometry.js';
-import type { HistoryScrollController } from './scroll-controller-types.js';
 import { bandFromSelection, type SelectionBandStore } from './selection-band-store.js';
 import {
   assembleSelectionText,
@@ -90,17 +91,50 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
     );
   }, [selectionBandStore, selectionRef]);
 
-  const applyAnchor = useCallback((next: ScrollAnchor | null): void => {
-    const ids = groupIdsRef.current;
-    const nextId = next ? ids[next.index] : undefined;
-    const normalized =
-      next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
-    selectionRef.current = { anchor: null, head: null, inProgress: false };
-    publishBand();
-    effectiveAnchorRef.current = normalized;
-    setAnchor(normalized && nextId !== undefined ? { id: nextId, clip: normalized.clip } : null);
-    setMountBump(0);
-  }, [selectionRef, publishBand, setAnchor, setMountBump]);
+  // ── Gutter translation (v1.1 M3) ──────────────────────────────────────
+  // Slice columns are contractually body-local, but the mouse handler passes
+  // history-band columns; a press on a bordered card's border/padding column
+  // would otherwise masquerade as text column 0..1 and skew every later
+  // offset. The controller owns the card-kind knowledge (via the mounted
+  // spans + entry map), so the translation lives here: gutter columns clamp
+  // to the text start — the standard editor behavior where a margin click
+  // selects from the line's first character.
+  const gutterWidthForEntry = (entryId: number | undefined): number => {
+    if (entryId === undefined) return 0;
+    const entry = entriesByIdRef.current.get(entryId);
+    if (!entry) return 0;
+    // Only kinds whose render shape is verified this session carry the
+    // bordered-panel gutter (entry.tsx: borderStyle single + paddingLeft 1,
+    // i.e. MESSAGE_PANEL_CHROME_WIDTH). Tool groups and the remaining kinds
+    // pass the raw column through unchanged.
+    return entry.kind === 'assistant' || entry.kind === 'thinking' || entry.kind === 'user'
+      ? MESSAGE_PANEL_CHROME_WIDTH
+      : 0;
+  };
+
+  /** Translate a history-band column to card-body-local coordinates for the
+   * card occupying `row`. Gutter columns clamp to 0 (text start); rows that
+   * are not on a card (blank gaps) pass the column through unchanged. */
+  const toBodyLocalCol = (row: number, col: number): number => {
+    const hit = selectionHitAt(row, mountedGroupSpansRef.current);
+    const gutter = gutterWidthForEntry(hit?.entryId);
+    return gutter === 0 ? col : Math.max(0, col - gutter);
+  };
+
+  const applyAnchor = useCallback(
+    (next: ScrollAnchor | null): void => {
+      const ids = groupIdsRef.current;
+      const nextId = next ? ids[next.index] : undefined;
+      const normalized =
+        next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
+      selectionRef.current = { anchor: null, head: null, inProgress: false };
+      publishBand();
+      effectiveAnchorRef.current = normalized;
+      setAnchor(normalized && nextId !== undefined ? { id: nextId, clip: normalized.clip } : null);
+      setMountBump(0);
+    },
+    [selectionRef, publishBand, setAnchor, setMountBump],
+  );
 
   const controller = useMemo<HistoryScrollController>(
     () => ({
@@ -159,9 +193,10 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           publishBand();
           return;
         }
+        const bodyCol = toBodyLocalCol(row, col);
         selectionRef.current = {
-          anchor: { row, col },
-          head: { row, col },
+          anchor: { row, col: bodyCol },
+          head: { row, col: bodyCol },
           inProgress: true,
         };
         publishBand();
@@ -175,7 +210,7 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           publishBand();
           return;
         }
-        selectionRef.current = { ...cur, head: { row, col } };
+        selectionRef.current = { ...cur, head: { row, col: toBodyLocalCol(row, col) } };
         publishBand();
       },
       endSelection: () => {
@@ -232,7 +267,18 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         }
       },
     }),
-    [applyAnchor, publishBand, termWidth, vp, copyHitsRef, liveToolCopyHitRef, mountedGroupSpansRef, selectionRef, entriesByIdRef, toolStreamRef],
+    [
+      applyAnchor,
+      publishBand,
+      termWidth,
+      vp,
+      copyHitsRef,
+      liveToolCopyHitRef,
+      mountedGroupSpansRef,
+      selectionRef,
+      entriesByIdRef,
+      toolStreamRef,
+    ],
   );
 
   useEffect(() => {

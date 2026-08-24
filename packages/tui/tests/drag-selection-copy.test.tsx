@@ -35,8 +35,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAppKeyHandler } from '../src/app-key-handler.js';
 import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
 import type { RenderGroup } from '../src/components/history/tool-group.js';
-import { type KeyEvent } from '../src/components/input.js';
 import type { HistoryEntry } from '../src/components/history.js';
+import type { KeyEvent } from '../src/components/input.js';
 import {
   assembleSelectionText,
   buildMountedCardSpans,
@@ -406,12 +406,48 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
     try {
       // With viewportRows={1} the first (and only) card mounts at row 0.
+      // The card is an assistant entry with a 2-col gutter (border+padding):
+      // band col 0 clamps to text col 0, band col 6 → text col 4.
       h.controller.beginSelection(0, 0);
-      h.controller.extendSelection(0, 4); // inclusive endpoint: 'alpha'
+      h.controller.extendSelection(0, 6); // inclusive endpoint: 'alpha'
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
       expect(writeClipboardTextMock).toHaveBeenCalledTimes(1);
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('clamps a gutter press to the text start (M3): border/padding columns select from col 0', async () => {
+    writeClipboardTextMock.mockClear();
+    const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
+    try {
+      // A press ON the gutter (band col 1 = the padding column) anchors at
+      // text col 0 exactly like a press on the text's first column.
+      h.controller.beginSelection(0, 1);
+      h.controller.extendSelection(0, 6); // band 6 → text 4 → 'alpha'
+      h.controller.endSelection();
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('passes raw columns through for gutterless kinds (info)', async () => {
+    writeClipboardTextMock.mockClear();
+    const h = mountHistory([{ id: 5, kind: 'info', text: 'alpha bravo charlie' }]);
+    try {
+      // info rows are plain Text with NO border/padding gutter: band col N
+      // IS text col N. No translation, no clamp.
+      h.controller.beginSelection(0, 0);
+      h.controller.extendSelection(0, 4); // raw col 4 → 'alpha' directly
+      h.controller.endSelection();
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
       expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
     } finally {
       h.unmount();
@@ -659,9 +695,10 @@ describe('Regression: release-commits-copy routing', () => {
     writeClipboardTextMock.mockClear();
     const onHistoryCopy = vi.fn();
     // Real mounted controller: with viewportRows={1} the card sits at
-    // history row 0 = terminal row 1 (1-based SGR). The drag spans cols
-    // 1..5 (1-based) = band cols 0..4 inclusive → 'alpha' from the entry
-    // 'alpha bravo charlie'.
+    // history row 0 = terminal row 1 (1-based SGR). The entry is an
+    // assistant card with a 2-col gutter (border+padding), so band col N
+    // maps to text col N-2 after the M3 clamp: press x=1 (band 0 → text 0)
+    // through drag x=7 (band 6 → text 4) selects 'alpha'.
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
     const handleKey = makeHandler({
       historyScrollRef: { current: h.controller },
@@ -670,9 +707,9 @@ describe('Regression: release-commits-copy routing', () => {
     try {
       const press = mouseKey('\x1b[<0;1;1M');
       await handleKey(press.input, press.key);
-      const drag = mouseKey('\x1b[<32;5;1M'); // Cb 32 = motion, button left
+      const drag = mouseKey('\x1b[<32;7;1M'); // Cb 32 = motion, button left
       await handleKey(drag.input, drag.key);
-      const release = mouseKey('\x1b[<0;5;1m'); // lowercase m = release
+      const release = mouseKey('\x1b[<0;7;1m'); // lowercase m = release
       await handleKey(release.input, release.key);
       // The async clipboard write is detached inside the handler; flush it.
       await new Promise((resolve) => setImmediate(resolve));
