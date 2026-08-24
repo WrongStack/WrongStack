@@ -79,11 +79,12 @@ export type {
   ToolResultRenderModeConfig,
   ToolsConfig,
 } from './config.js';
-// ── config (58 symbols) ──
+// ── config (59 symbols) ──
 export {
   DEFAULT_TUI_THINKING_WORD,
   FLEET_CHAT_VERBOSITY_VALUES,
   MAX_TUI_THINKING_WORD_LENGTH,
+  MAX_WRONGPROXY_URL_LENGTH,
   normalizeTokenSavingTier,
   normalizeTuiThinkingWord,
   resolveFleetChatVerbosity,

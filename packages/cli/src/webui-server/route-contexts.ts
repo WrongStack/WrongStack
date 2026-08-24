@@ -158,6 +158,7 @@ export function createWebuiRouteContexts({
     persist: persistPrefs,
     setYolo: opts.onYoloSwitch,
     setAutonomy: opts.onAutonomySwitch,
+    applyWrongProxyPrefs: opts.onWrongProxyPrefsChange,
     pendingConfirms,
     configStore: opts.agent.container?.safeResolve?.(TOKENS.ConfigStore),
     send,

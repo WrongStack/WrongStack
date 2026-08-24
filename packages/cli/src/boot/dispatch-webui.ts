@@ -446,6 +446,13 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     onYoloSwitch: (enabled: boolean) => {
       applyLiveSettings?.({ yolo: enabled });
     },
+    onWrongProxyPrefsChange: (payload: Record<string, unknown>) => {
+      // Lazy import to keep the WS server's import graph free of the
+      // probe's `setInterval` when the user never touches the toggle.
+      void import('../wiring/proxy-wiring.js').then(({ applyWrongProxyPrefs }) =>
+        applyWrongProxyPrefs(payload),
+      );
+    },
   });
   // In --webui mode, skip the full REPL — just keep the process alive
   // until the WebUI server shuts down. The WebUI WS handler listens for

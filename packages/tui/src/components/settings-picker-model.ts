@@ -204,6 +204,15 @@ export const SETTINGS_FIELD_COUNT = TOTAL_SETTINGS_FIELD_COUNT;
 export const THINKING_WORD_FIELD = 22;
 
 /**
+ * Field index of the "WrongProxy URL" row. Same rationale as
+ * {@link THINKING_WORD_FIELD}: the keyboard handler in `use-app-picker-keys.ts`
+ * dispatches `settingsWrongProxyUrlEditStart` when the user presses Enter
+ * on this row, so the constant lives next to the row definition to keep
+ * the three in sync.
+ */
+export const WRONGPROXY_URL_FIELD = 60;
+
+/**
  * Field index of the "Multi-diff summary" row. Same rationale as
  * {@link THINKING_WORD_FIELD}: the keyboard handler in app.tsx dispatches
  * `settingsFieldSet` to this index when the user presses Ctrl+M inside the
@@ -345,6 +354,13 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Coordinator placement', // 56 (P panel id index 10)
   'Kanban placement', // 57 (P panel id index 11)
   'Connections placement', // 58 (P panel id index 12)
+  // WrongProxy / WrongTrace (appended at the end so existing field
+  // indices 0–58 — including the panel-position block at 46–58 — are
+  // not shifted by the addition). The runtime probe in
+  // `packages/cli/src/wiring/proxy-probe.ts` reacts to these via the
+  // WS `prefs.update` pipeline; the picker is just the user surface.
+  'WrongProxy / WrongTrace', // 59
+  'WrongProxy URL', // 60
 ];
 
 /**
@@ -396,6 +412,9 @@ export function resolveSettingsFieldValue(
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
     [45, 'nextStepsTool'],
+    // WrongProxy / WrongTrace master switch (field 59). The companion
+    // URL field (60) is text-typed, see resolveSettingsFieldValue.
+    [59, 'wrongProxyEnabled'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
@@ -585,6 +604,25 @@ export function resolveSettingsFieldValue(
     return { ok: true, patch: { thinkingWord: word }, label, displayValue: word };
   }
 
+  // ── WrongProxy URL (text, field 60) ──
+  // Permissive validation: accept any non-empty string starting with
+  // http:// or https://. The runtime probe in
+  // `packages/cli/src/wiring/proxy-probe.ts` flips `active` to false on
+  // any malformed/4xx/5xx/timeout response, so over-permissive parsing
+  // here is harmless — the user simply sees the toggle stay inactive
+  // until the URL points at a real daemon. Mirrors how the WebUI
+  // `IntegrationsSection` Input accepts free-form text.
+  if (field === 60) {
+    const url = input.trim();
+    if (url.length === 0) {
+      return { ok: false, error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.` };
+    }
+    if (!/^https?:\/\//i.test(url)) {
+      return { ok: false, error: `"${input}" is not a valid proxy URL. Use http://host:port or https://host:port.` };
+    }
+    return { ok: true, patch: { wrongProxyUrl: url }, label, displayValue: url };
+  }
+
   // Per-panel position rows (45–57). Accept 'bottom' or 'sidebar' as the
   // value; produce a partial patch that updates ONLY the matching panel id.
   // The reducer's `settingsValueSet` case deep-merges the partial
@@ -663,6 +701,9 @@ export function getSettingsFieldValue(
     [42, 'readSymbols'],
     [43, 'showSageMemoryInject'],
     [45, 'nextStepsTool'],
+    // WrongProxy / WrongTrace master switch (field 59). The companion
+    // URL field (60) is text-typed, see getSettingsFieldValue.
+    [59, 'wrongProxyEnabled'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -715,6 +756,12 @@ export function getSettingsFieldValue(
   // Text field (thinking word).
   if (field === 22) {
     return { ok: true, label, displayValue: values.thinkingWord };
+  }
+
+  // Text field (WrongProxy URL, field 60). Display the verbatim URL so the
+  // user can confirm exactly which daemon is being probed.
+  if (field === 60) {
+    return { ok: true, label, displayValue: values.wrongProxyUrl };
   }
 
   // Per-panel position rows (45–57). Each field maps onto one panel id in
@@ -796,6 +843,16 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   {
     name: 'Panels',
     fields: [46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58],
+  },
+  {
+    // WrongProxy / WrongTrace — fields 59 (master switch) + 60 (URL).
+    // Sits in its own section because the runtime probe + base-URL
+    // rewrite it controls live outside the picker's normal "feature
+    // toggle" semantics; matching the WebUI's IntegrationsSection
+    // keeps the cross-surface contract obvious. Appended at the end
+    // to avoid shifting the panel-position block 46–58 indices.
+    name: 'Integrations',
+    fields: [59, 60],
   },
 ];
 
@@ -894,6 +951,14 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   showSageMemoryInject: true,
   sageMemoryInjectThreshold: 0.85,
   nextStepsTool: false,
+  // WrongProxy / WrongTrace. Defaults mirror the WebUI `LocalPrefs`
+  // DEFAULTS in `packages/webui/src/stores/local-prefs.ts` (master
+  // switch off, URL 'http://localhost:8000'). Required keys here
+  // because `SettingsPickerValues` (mapped from `SettingsPickerPatch`)
+  // makes every key mandatory — omitting them here breaks the type
+  // contract for the entire TUI settings module. See Chimera review.
+  wrongProxyEnabled: false,
+  wrongProxyUrl: 'http://localhost:8000',
 } as const);
 
 /**
@@ -968,6 +1033,13 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     [43, 'showSageMemoryInject'],
     [44, 'sageMemoryInjectThreshold'],
     [45, 'nextStepsTool'],
+    // WrongProxy / WrongTrace: appended at the end so the existing
+    // 46+13 = 59 entries are not shifted (the picker caps + scrolls;
+    // field 59 is boolean, 60 is text). See `Settings.wrongProxy*`
+    // and `ToolsConfig.wrongProxy?: WrongProxyToolConfig` for the
+    // canonical persistence shape.
+    [59, 'wrongProxyEnabled'],
+    [60, 'wrongProxyUrl'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

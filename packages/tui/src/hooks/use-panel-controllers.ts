@@ -216,6 +216,11 @@ export function usePanelControllers({
       sageMemoryInjectThreshold: s.sageMemoryInjectThreshold ?? 0.85,
       nextStepsTool: s.nextStepsTool ?? false,
       readSymbols: s.readSymbols ?? false,
+      // WrongProxy / WrongTrace: hydrate from the picker state slice.
+      // Same defaults as the WebUI LocalPrefs and the CLI adapter's
+      // branch tree — see tui-settings-adapter.ts.
+      wrongProxyEnabled: s.wrongProxyEnabled ?? false,
+      wrongProxyUrl: s.wrongProxyUrl ?? 'http://localhost:8000',
     });
   }, [getSettings]);
 

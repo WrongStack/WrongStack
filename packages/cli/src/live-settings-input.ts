@@ -89,4 +89,18 @@ export interface LiveSettingsInput {
   nextStepsTool?: boolean | undefined;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
   sageMemoryInjectThreshold?: number | undefined;
+  /**
+   * WrongProxy / WrongTrace: master switch. When true AND the daemon at
+   * `wrongProxyUrl` is reachable, every provider's base URL is rewritten
+   * through `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is
+   * excluded by spec. Persisted to `tools.wrongProxy.enabled` (read at
+   * boot, applied mid-session by `applyLiveSettings`).
+   */
+  wrongProxyEnabled?: boolean | undefined;
+  /**
+   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. The
+   * CLI's periodic probe targets `<wrongProxyUrl>/api/health`; a 2xx
+   * response flips the runtime's `active` flag.
+   */
+  wrongProxyUrl?: string | undefined;
 }

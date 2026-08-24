@@ -258,6 +258,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       sageMemoryInjectThreshold: (cfg.Sage as Record<string, unknown> | undefined)?.inject
         ? ((cfg.Sage as Record<string, unknown>).inject as Record<string, unknown>)?.relationFloor
         : undefined,
+      // WrongProxy / WrongTrace: read from `tools.wrongProxy.{enabled,url}`
+      // so the persistence shape mirrors the WebUI `LocalPrefs` shape
+      // (single object with two fields, not two top-level keys). The
+      // canonical type is `ToolsConfig.wrongProxy?: WrongProxyToolConfig`
+      // — no index-signature widening cast needed.
+      wrongProxyEnabled:
+        cfg.tools?.wrongProxy?.enabled === true,
+      wrongProxyUrl: cfg.tools?.wrongProxy?.url,
     };
   }
 
@@ -316,7 +324,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.panelPositions !== undefined ||
         s.showSageMemoryInject !== undefined ||
         s.sageMemoryInjectThreshold !== undefined ||
-        s.readSymbols !== undefined
+        s.readSymbols !== undefined ||
+        // WrongProxy / WrongTrace: gate the persisted-section write on
+        // either key being present in the live patch. Without this, a
+        // picker toggle round-trip would silently no-op the persistence
+        // layer (the runtime probe would never read the change).
+        s.wrongProxyEnabled !== undefined ||
+        s.wrongProxyUrl !== undefined
       ) {
         const cfg = configStore.get();
         // Delegate path resolution to the canonical resolver. This keeps
@@ -441,13 +455,29 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (
           s.maxIterations !== undefined ||
           s.nextStepsTool !== undefined ||
-          fsAccess !== undefined
+          fsAccess !== undefined ||
+          // WrongProxy / WrongTrace: include either key in the tools-section
+          // write guard so a picker toggle round-trip actually persists to
+          // `tools.wrongProxy.{enabled,url}`. Without this, the gate at
+          // line 279 would short-circuit and skip the whole section write.
+          s.wrongProxyEnabled !== undefined ||
+          s.wrongProxyUrl !== undefined
         ) {
           const tools = (decrypted.tools as Record<string, unknown>) ?? {};
           if (s.maxIterations !== undefined) tools.maxIterations = s.maxIterations;
           if (s.nextStepsTool !== undefined) tools.nextsteps = { enabled: s.nextStepsTool };
           // Single source of truth for the inverse: deriveFsAccess above.
           if (fsAccess !== undefined) tools.restrictToProjectRoot = fsAccess.restrictToProjectRoot;
+          // WrongProxy / WrongTrace: write to `tools.wrongProxy.{enabled,url}`
+          // as a single nested object (mirrors the WebUI `LocalPrefs`
+          // shape). Only assign when the key is present in the live
+          // patch so unset keys preserve their on-disk values.
+          if (s.wrongProxyEnabled !== undefined || s.wrongProxyUrl !== undefined) {
+            const wp = (tools.wrongProxy as Record<string, unknown>) ?? {};
+            if (s.wrongProxyEnabled !== undefined) wp.enabled = s.wrongProxyEnabled;
+            if (s.wrongProxyUrl !== undefined) wp.url = s.wrongProxyUrl;
+            tools.wrongProxy = wp;
+          }
           decrypted.tools = tools;
         }
         if (s.debugStream !== undefined) {
@@ -606,7 +636,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
             : {}),
           ...(s.maxIterations !== undefined ||
           s.nextStepsTool !== undefined ||
-          fsAccess !== undefined
+          fsAccess !== undefined ||
+          // WrongProxy / WrongTrace: must be in the tools guard or the
+          // in-memory ConfigStore never sees the freshly-saved values,
+          // and the next picker open in the same process would overwrite
+          // the on-disk selection with stale state. See Chimera review.
+          s.wrongProxyEnabled !== undefined ||
+          s.wrongProxyUrl !== undefined
             ? {
                 tools: {
                   ...currentConfig.tools,

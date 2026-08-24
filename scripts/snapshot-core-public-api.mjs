@@ -61,6 +61,10 @@ const ownership = {
   tools: ['host/application concern', '@wrongstack/tools or product plugin'],
   types: ['agent-domain contract', 'Core type-only subpaths'],
   utils: ['kernel primitive', 'split dependency-free primitives from concrete helpers'],
+  // wiring: pure-logic shared infrastructure (e.g. the WrongProxy URL
+  // rewriter consumed by both cli and runtime; side-effectful companions
+  // like the periodic probe stay in their consuming packages).
+  wiring: ['concrete runtime default', 'Runtime or focused infrastructure package'],
   worktree: ['concrete runtime default', 'Runtime or focused worktree implementation'],
 };
 

@@ -49,6 +49,11 @@ import type {
   TextBlock,
   Tool,
 } from '@wrongstack/core/types';
+import {
+  getProxyConfig,
+  rewriteBaseUrl,
+  shouldRewriteFor,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 
 export interface LightSubagentFactoryDeps {
   /** DI container — used to resolve configStore / tokenCounter / scrubber / prompt builder. */
@@ -331,17 +336,39 @@ function buildProvider(
   providerId: string,
   model: string,
 ): ReturnType<ProviderRegistry['create']> {
-  const providerConfig = config.providers?.[providerId] ?? {
+  // Subagent providers inherit the same WrongProxy/WrongTrace rewrite as
+  // the main provider. We keep a local copy of the rewrite block here
+  // (rather than calling `@wrongstack/cli/wiring/provider-runtime.js`)
+  // because the runtime package is intentionally decoupled from the CLI —
+  // pulling the CLI's wiring into the runtime would invert the dep
+  // direction. The proxy-rewrite module in `@wrongstack/core` is the
+  // shared contract; both packages import it.
+  const savedProviderCfg = config.providers?.[providerId];
+  // The registry key for an alias is the SAVED cfg's `type` (the factory
+  // id), not the alias itself — mirrors `resolveProviderCfg` in
+  // @wrongstack/cli wiring. Passing the alias to `registry.create` would
+  // throw "No provider factory registered for <alias>" (or, worse, build
+  // a different provider when an alias-named factory exists). Exclusion
+  // also tests the factory type: an alias backed by openai-codex must
+  // stay on its direct OAuth path, exactly like the real provider.
+  const factoryType = savedProviderCfg?.type ?? providerId;
+  const rawBaseUrl = savedProviderCfg?.baseUrl ?? config.baseUrl;
+  const proxiedBaseUrl =
+    rawBaseUrl && shouldRewriteFor(factoryType)
+      ? rewriteBaseUrl(rawBaseUrl, getProxyConfig().url)
+      : rawBaseUrl;
+  const providerConfig = {
+    ...(savedProviderCfg ?? {}),
+    apiKey: savedProviderCfg?.apiKey ?? config.apiKey,
+    baseUrl: proxiedBaseUrl,
     type: providerId,
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
   };
-  if (!registry.has(providerId)) {
+  if (!registry.has(factoryType)) {
     throw new Error(
-      `No provider factory registered for "${providerId}" — cannot build a subagent provider for the SDD run.`,
+      `No provider factory registered for "${factoryType}" (provider "${providerId}") — cannot build a subagent provider for the SDD run.`,
     );
   }
-  return registry.create({ ...providerConfig, type: providerId, model });
+  return registry.create({ ...providerConfig, type: factoryType, model }, factoryType);
 }
 
 async function resolveReasoningConfig(

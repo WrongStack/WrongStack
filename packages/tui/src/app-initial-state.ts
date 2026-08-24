@@ -302,6 +302,18 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       sageMemoryInjectThreshold: 0.85,
       nextStepsTool: false,
       readSymbols: false,
+      // WrongProxy / WrongTrace. Defaults match the WebUI LocalPrefs
+      // (master switch off; URL 'http://localhost:8000'). The runtime
+      // probe in `packages/cli/src/wiring/proxy-probe.ts` reacts via
+      // the WS `prefs.update` pipeline — these initial values only
+      // cover the slice before the first `settingsOpen` action lands.
+      wrongProxyEnabled: false,
+      wrongProxyUrl: 'http://localhost:8000',
+      // WrongProxy URL text-edit state (field 60). The reducer quartet
+      // at `reducers/settings-values.ts:733-801` seeds the draft from
+      // `wrongProxyUrl` on Start and clears it on Commit/Cancel.
+      wrongProxyUrlEditing: false,
+      wrongProxyUrlDraft: '',
     },
     statuslinePicker: {
       open: false,

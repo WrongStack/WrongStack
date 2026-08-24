@@ -23,7 +23,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(15);
+    expect(opts.version).toBe(16);
     expect(typeof opts.migrate).toBe('function');
   });
 
@@ -352,6 +352,41 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('preserves an explicitly persisted autoCollapseInput boolean', () => {
     expect(migrate({ autoCollapseInput: true }).autoCollapseInput).toBe(true);
     expect(migrate({ autoCollapseInput: false }).autoCollapseInput).toBe(false);
+  });
+
+  // ── v16: WrongProxy / WrongTrace toggles ──────────────────────────────
+
+  it('backfills wrongProxyEnabled to false and wrongProxyUrl to the daemon default', () => {
+    expect(migrate({}).wrongProxyEnabled).toBe(false);
+    expect(migrate({}).wrongProxyUrl).toBe('http://localhost:8000');
+    expect(migrate(null).wrongProxyEnabled).toBe(false);
+    expect(migrate(null).wrongProxyUrl).toBe('http://localhost:8000');
+  });
+
+  it('coerces non-boolean wrongProxyEnabled back to false', () => {
+    for (const v of ['true', 'yes', 1, 0, null, undefined, {}]) {
+      expect(migrate({ wrongProxyEnabled: v }).wrongProxyEnabled).toBe(false);
+    }
+  });
+
+  it('coerces non-string or blank wrongProxyUrl back to the default', () => {
+    for (const v of [123, true, null, undefined, {}, '   ']) {
+      expect(migrate({ wrongProxyUrl: v }).wrongProxyUrl).toBe('http://localhost:8000');
+    }
+  });
+
+  it('preserves explicitly persisted v16 values', () => {
+    const p = migrate({ wrongProxyEnabled: true, wrongProxyUrl: 'http://127.0.0.1:9111' });
+    expect(p.wrongProxyEnabled).toBe(true);
+    expect(p.wrongProxyUrl).toBe('http://127.0.0.1:9111');
+  });
+
+  it('backfills v16 fields even when the persisted store is older than v16', () => {
+    // The v16 guards are not gated by `version < 16` — a v15 store that
+    // pre-dates the fields must still get the defaults.
+    const p = migrate({ autoCollapseInput: true }, 15);
+    expect(p.wrongProxyEnabled).toBe(false);
+    expect(p.wrongProxyUrl).toBe('http://localhost:8000');
   });
 
   // ── unknown keys ─────────────────────────────────────────────────────────

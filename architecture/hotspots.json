@@ -279,7 +279,7 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 881,
+      "lines": 900,
       "relativeImports": 12
     },
     "packages/tui/src/app.tsx": {
@@ -307,8 +307,12 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 1007,
+      "lines": 1079,
       "relativeImports": 4
+    },
+    "packages/tui/src/components/settings-picker.tsx": {
+      "lines": 803,
+      "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
       "lines": 1147,
@@ -321,6 +325,10 @@
     "packages/tui/src/kanban-slash.ts": {
       "lines": 980,
       "relativeImports": 1
+    },
+    "packages/tui/src/reducers/settings-values.ts": {
+      "lines": 818,
+      "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
       "lines": 870,

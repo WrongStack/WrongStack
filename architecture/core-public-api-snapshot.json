@@ -300,7 +300,7 @@
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG, } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
         "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
-        "export { DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, MAX_TUI_THINKING_WORD_LENGTH, normalizeTokenSavingTier, normalizeTuiThinkingWord, resolveFleetChatVerbosity, resolveTokenSavingTier, THEME_PRESET_IDS, } from './config.js';",
+        "export { DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, MAX_TUI_THINKING_WORD_LENGTH, MAX_WRONGPROXY_URL_LENGTH, normalizeTokenSavingTier, normalizeTuiThinkingWord, resolveFleetChatVerbosity, resolveTokenSavingTier, THEME_PRESET_IDS, } from './config.js';",
         "export { DESIGN_STACKS, isDesignStack, KNOWN_TOKEN_GROUPS, KNOWN_TOKEN_NAMES, } from './design-kit.js';",
         "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
         "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
@@ -1080,6 +1080,24 @@
         "export { hashRequest } from './hash.js';",
         "export { type ReplayMode, ReplayProviderRunner, type ReplayProviderRunnerOptions, } from './replay-provider-runner.js';"
       ]
+    },
+    {
+      "subpath": "./wiring/proxy-rewrite",
+      "target": {
+        "types": "./dist/wiring/proxy-rewrite.d.ts",
+        "import": "./dist/wiring/proxy-rewrite.js"
+      },
+      "source": "packages/core/src/wiring/proxy-rewrite.ts",
+      "declarations": [
+        "export const PROXY_EXCLUDED_PROVIDERS",
+        "export function __resetProxyConfigForTests",
+        "export function applyProxyConfig",
+        "export function getProxyConfig",
+        "export function isProxyEligible",
+        "export function rewriteBaseUrl",
+        "export function shouldRewriteFor",
+        "export interface ProxyConfig"
+      ]
     }
   ],
   "inventory": [
@@ -1263,7 +1281,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11501
+      "sourceLines": 11541
     },
     {
       "directory": "utils",
@@ -1271,6 +1289,13 @@
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
       "sourceLines": 10534
+    },
+    {
+      "directory": "wiring",
+      "classification": "concrete runtime default",
+      "intendedOwner": "Runtime or focused infrastructure package",
+      "sourceFiles": 1,
+      "sourceLines": 139
     },
     {
       "directory": "worktree",

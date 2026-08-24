@@ -83,6 +83,12 @@ export function useSettingsAutoSave(
         sageMemoryInjectThreshold: sp.sageMemoryInjectThreshold,
         nextStepsTool: sp.nextStepsTool,
         readSymbols: sp.readSymbols,
+        // WrongProxy / WrongTrace: persist the picker-state values to
+        // the same Config keys the adapter exposes (see LiveSettingsInput
+        // and the tui-settings-adapter.ts branch tree). Optional with
+        // `??` fallback — older persisted configs may not have the keys.
+        wrongProxyEnabled: sp.wrongProxyEnabled ?? false,
+        wrongProxyUrl: sp.wrongProxyUrl ?? 'http://localhost:8000',
       }),
     ).then((err: string | null) => {
       if (err) dispatch({ type: 'settingsHint', text: err });

@@ -6,7 +6,7 @@ import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
 import { F_KEY_ENTRIES } from '../components/f-key-picker.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
-import { THINKING_WORD_FIELD } from '../components/settings-picker.js';
+import { THINKING_WORD_FIELD, WRONGPROXY_URL_FIELD } from '../components/settings-picker-model.js';
 import type { StatuslineItem } from '../components/statusline-picker.js';
 import { actionForFKeyPanel } from '../f-key-panels.js';
 import { selectedSlashCommandLine } from '../slash-command-search.js';
@@ -334,6 +334,13 @@ export function useAppPickerKeys({
       }
       if (sp.field === THINKING_WORD_FIELD) {
         dispatch({ type: 'settingsThinkingEditStart' });
+      } else if (sp.field === WRONGPROXY_URL_FIELD) {
+        // Field 60 (WrongProxy URL): Enter opens the inline text edit,
+        // mirroring the thinking-word flow. The reducer quartet at
+        // `reducers/settings-values.ts:733-801` handles Start/Change/Commit/
+        // Cancel; the schema-validating Commit handler keeps the current
+        // URL on invalid input and surfaces a hint.
+        dispatch({ type: 'settingsWrongProxyUrlEditStart' });
       } else {
         dispatch({ type: 'settingsValueChange', delta: 1 });
       }

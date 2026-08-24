@@ -165,6 +165,10 @@
     "./replay": {
       "types": "./dist/replay/index.d.ts",
       "import": "./dist/replay/index.js"
+    },
+    "./wiring/proxy-rewrite": {
+      "types": "./dist/wiring/proxy-rewrite.d.ts",
+      "import": "./dist/wiring/proxy-rewrite.js"
     }
   },
   "files": [

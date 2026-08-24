@@ -368,6 +368,25 @@ export type State = {
      * `CYCLE_INTERVAL_SECONDS`. Persisted on every ←/→ change in `/settings`.
      */
     animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+    // ── Integrations ──
+    /**
+     * WrongProxy / WrongTrace: master switch. When true AND the daemon at
+     * `wrongProxyUrl` is reachable, every provider's base URL is rewritten
+     * through `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is
+     * excluded by spec. Mirrors `Settings.wrongProxyEnabled` and the
+     * `tools.wrongProxy.enabled` config key. Picker field 59.
+     */
+    wrongProxyEnabled: boolean;
+    /**
+     * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. The
+     * CLI's periodic probe targets `<wrongProxyUrl>/api/health`; a 2xx
+     * response flips the runtime's `active` flag. Picker field 60.
+     */
+    wrongProxyUrl: string;
+    /** True while free-text editing the WrongProxy URL (Enter on its row). */
+    wrongProxyUrlEditing: boolean;
+    /** In-progress text buffer while `wrongProxyUrlEditing`. */
+    wrongProxyUrlDraft: string;
     // Safety
     /** Whether the process circuit breaker gates bash/exec. */
     breakerEnabled: boolean;

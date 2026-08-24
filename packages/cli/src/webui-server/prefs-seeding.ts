@@ -25,6 +25,10 @@ interface CliWebUIOptions {
         fallbackAuto?: boolean | undefined;
         modelMatrix?: Config['modelMatrix'] | undefined;
         uiLocale?: string | undefined;
+        /** WrongProxy / WrongTrace toggle. */
+        wrongProxyEnabled?: boolean | undefined;
+        /** WrongProxy / WrongTrace URL. Default: 'http://localhost:8000'. */
+        wrongProxyUrl?: string | undefined;
       }
     | undefined;
 }
@@ -88,6 +92,12 @@ export function createPrefsSeeding(opts: CliWebUIOptions): PrefsSeeding {
     }
     if (typeof payload['uiLocale'] === 'string') {
       patchLiveAppConfig({ uiLocale: payload['uiLocale'] });
+    }
+    if (typeof payload['wrongProxyEnabled'] === 'boolean') {
+      patchLiveAppConfig({ wrongProxyEnabled: payload['wrongProxyEnabled'] });
+    }
+    if (typeof payload['wrongProxyUrl'] === 'string') {
+      patchLiveAppConfig({ wrongProxyUrl: payload['wrongProxyUrl'] });
     }
     if (
       payload['modelMatrix'] &&

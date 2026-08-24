@@ -88,6 +88,12 @@ const coreEntries = entryMap([
   'src/goal/index.ts',
   'src/hooks/index.ts',
   'src/replay/index.ts',
+  // WrongProxy / WrongTrace rewriter. Listed here so esbuild emits
+  // `dist/wiring/proxy-rewrite.{js,d.ts}`; without an explicit entry the
+  // file is part of the source graph but never lands in `dist/`, and
+  // consumers (`@wrongstack/cli`, `@wrongstack/runtime`) hit
+  // ERR_PACKAGE_PATH_NOT_EXPORTED at runtime.
+  'src/wiring/proxy-rewrite.ts',
 ]);
 
 const toolEntries = entryMap([

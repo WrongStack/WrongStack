@@ -235,6 +235,16 @@ export type Action =
       showSageMemoryInject: boolean;
       sageMemoryInjectThreshold: number;
       nextStepsTool: boolean;
+      /**
+       * WrongProxy / WrongTrace: master switch + configurable URL
+       * (default http://localhost:8000). Mirrors `Settings.wrongProxy*`
+       * and `SettingsPickerPatch.wrongProxy*`. Both fields land in
+       * the Integrations section of the picker; the runtime probe
+       * reads the values via the TUI settings adapter (see
+       * `packages/cli/boot/tui-settings-adapter.ts`).
+       */
+      wrongProxyEnabled: boolean;
+      wrongProxyUrl: string;
     }
   | { type: 'settingsClose' }
   | { type: 'settingsFieldMove'; delta: number }
@@ -262,6 +272,14 @@ export type Action =
   | { type: 'settingsThinkingEditCommit' }
   /** Discard the draft and leave edit mode without changing the word. */
   | { type: 'settingsThinkingEditCancel' }
+  /** Begin free-text editing of the WrongProxy URL (Enter on its row). */
+  | { type: 'settingsWrongProxyUrlEditStart' }
+  /** Replace the in-progress WrongProxy URL draft with the given buffer. */
+  | { type: 'settingsWrongProxyUrlEditChange'; draft: string }
+  /** Commit the draft as the new WrongProxy URL (validated in the reducer). */
+  | { type: 'settingsWrongProxyUrlEditCommit' }
+  /** Discard the draft and leave edit mode without changing the URL. */
+  | { type: 'settingsWrongProxyUrlEditCancel' }
   | { type: 'statuslineOpen'; hiddenItems: StatuslineItem[] }
   | { type: 'statuslineClose' }
   | { type: 'statuslineFieldMove'; delta: number }

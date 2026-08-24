@@ -109,6 +109,37 @@ export interface ToolsConfig {
    * in the next session (same as `features.tokenSavingMode`).
    */
   nextsteps?: NextStepsToolConfig | undefined;
+  /**
+   * WrongProxy / WrongTrace: automatic base-URL rerouting through a
+   * local proxy daemon (default `http://localhost:8000`). When
+   * `enabled` is true AND the daemon at `url` is reachable, every
+   * provider's base URL is rewritten through
+   * `${url}/proxy/<host><path>`. openai-codex is excluded by spec.
+   *
+   * Mirrors the WebUI `LocalPrefs` shape (single object with two
+   * fields, not two top-level keys). Persisted to the encrypted
+   * profile config and mirrored into `ctx.meta` by the TUI settings
+   * adapter so the runtime probe can read it mid-session.
+   */
+  wrongProxy?: WrongProxyToolConfig | undefined;
+}
+
+/** WrongProxy / WrongTrace tool-config (`tools.wrongProxy`). */
+export interface WrongProxyToolConfig {
+  /**
+   * Master switch. When true AND the daemon at `url` is reachable,
+   * every provider's base URL is rewritten through
+   * `${url}/proxy/<host><path>`. openai-codex is excluded by spec.
+   * Default: false.
+   */
+  enabled?: boolean | undefined;
+  /**
+   * Where the local proxy daemon listens. Default
+   * `http://localhost:8000`. The CLI's periodic probe targets
+   * `<url>/api/health`; a 2xx response flips the runtime's
+   * `active` flag.
+   */
+  url?: string | undefined;
 }
 
 /** Opt-in switch for the agent-callable `nextsteps` tool (`tools.nextsteps`). */

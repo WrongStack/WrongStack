@@ -236,6 +236,14 @@ export interface CliWebUIOptions {
   /** Forward browser YOLO changes to the host's live permission policy. */
   onYoloSwitch?: ((enabled: boolean) => void) | undefined;
   /**
+   * Forward `wrongProxyEnabled` / `wrongProxyUrl` changes from the
+   * browser to the runtime probe (`@wrongstack/cli/wiring/proxy-wiring`).
+   * Mirrors the `onAutonomySwitch` / `onYoloSwitch` pattern: the WS
+   * server stays package-agnostic and the boot site provides the
+   * host-side effect.
+   */
+  onWrongProxyPrefsChange?: ((payload: Record<string, unknown>) => void) | undefined;
+  /**
    * Pre-computed update info from the CLI's preflight version check.
    * When present, the session.start payload includes appVersion,
    * latestVersion, and updateAvailable so all surfaces (WebUI, SimpleUI)

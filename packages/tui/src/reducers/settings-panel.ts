@@ -96,13 +96,33 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           sageMemoryInjectThreshold: action.sageMemoryInjectThreshold,
           nextStepsTool: action.nextStepsTool,
           readSymbols: action.readSymbols,
+          // WrongProxy / WrongTrace: hydrate from the persisted boot-time
+          // values pushed into the action by the TUI settings adapter.
+          // The runtime probe (see `packages/cli/src/wiring/proxy-probe.ts`)
+          // reacts to these via the WS `prefs.update` pipeline.
+          wrongProxyEnabled: action.wrongProxyEnabled,
+          wrongProxyUrl: action.wrongProxyUrl,
+          // WrongProxy URL text-edit state (field 60): always defaults to
+          // 'not editing' + empty draft on open. The Start action seeds
+          // the draft from `wrongProxyUrl` at the reducer boundary.
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
           hint: undefined,
         },
       };
     case 'settingsClose':
+      // Always reset the text-edit flag + draft on close, so a stuck
+      // edit never leaks into the next open.
       return {
         ...state,
-        settingsPicker: { ...state.settingsPicker, open: false, hint: undefined },
+        ...closePanels(state),
+        settingsPicker: {
+          ...state.settingsPicker,
+          open: false,
+          filter: '',
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
+        },
       };
     case 'settingsFieldMove': {
       const next =
@@ -111,6 +131,8 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
       // can't linger on an unrelated field. `lastSettingsField` tracks the
       // current focus so the canonical Settings shape stays in sync — the
       // app.tsx auto-save effect writes it back to disk.
+      // Also abandons any in-progress WrongProxy URL edit (field 60) for
+      // the same reason — a stale draft can't survive navigation.
       return {
         ...state,
         settingsPicker: {
@@ -119,6 +141,8 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           lastSettingsField: next,
           thinkingWordEditing: false,
           thinkingWordDraft: '',
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
           hint: undefined,
         },
       };
@@ -128,12 +152,16 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
       // Keep `lastSettingsField` in sync with the new focus so the
       // canonical Settings shape reflects the user's most recent pick
       // even if the picker is closed before the auto-save effect fires.
+      // Also abandons any in-progress WrongProxy URL edit (field 60) for
+      // the same reason — a stale draft can't survive a direct jump.
       return {
         ...state,
         settingsPicker: {
           ...state.settingsPicker,
           field,
           lastSettingsField: field,
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
           hint: undefined,
         },
       };

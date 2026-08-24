@@ -133,6 +133,38 @@ function applyLiveSettings(
         });
       }
     }
+    // WrongProxy / WrongTrace: mirror the picker state into the live
+    // config so the runtime probe (`packages/cli/src/wiring/proxy-probe.ts`)
+    // sees the new values without a session restart. Both keys land in
+    // `config.tools.wrongProxy.{enabled,url}` — the same shape `getSettings()`
+    // reads from disk. Without this entry, the runtime never reads the
+    // picker's mid-session toggle. The canonical type
+    // (`ToolsConfig.wrongProxy?: WrongProxyToolConfig`) replaces the
+    // earlier index-signature widening cast.
+    if (settings.wrongProxyEnabled !== undefined || settings.wrongProxyUrl !== undefined) {
+      const prev = config.tools?.wrongProxy;
+      const next = {
+        ...(prev ?? {}),
+        ...(settings.wrongProxyEnabled !== undefined ? { enabled: settings.wrongProxyEnabled } : {}),
+        ...(settings.wrongProxyUrl !== undefined ? { url: settings.wrongProxyUrl } : {}),
+      };
+      config = patchConfig(config, {
+        tools: {
+          ...config.tools,
+          wrongProxy: next,
+        },
+      });
+      // Mirror into ctx.meta so the runtime probe (which reads from
+      // `meta['wrongProxyEnabled']` / `meta['wrongProxyUrl']` via the WS
+      // prefs pipeline) sees the change immediately. The WebUI pipeline
+      // also writes here — keeping the TUI path symmetric avoids drift.
+      if (settings.wrongProxyEnabled !== undefined) {
+        input.context.meta['wrongProxyEnabled'] = settings.wrongProxyEnabled;
+      }
+      if (settings.wrongProxyUrl !== undefined) {
+        input.context.meta['wrongProxyUrl'] = settings.wrongProxyUrl;
+      }
+    }
     input.setConfig(config);
   } catch {
     // Persistence is authoritative. Live application remains best-effort.

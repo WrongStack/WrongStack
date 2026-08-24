@@ -258,6 +258,16 @@ export function AppViewPickers({
           nextStepsTool={state.settingsPicker.nextStepsTool}
           readSymbols={state.settingsPicker.readSymbols}
           panelPositions={state.settingsPicker.panelPositions}
+          // WrongProxy / WrongTrace (fields 59–60): the runtime probe
+          // reads both keys from the same SettingsPicker slice (see
+          // `runtime-controller-deps.ts:applyLiveSettings`). Wiring them
+          // here closes the round-trip from the picker to the live Config
+          // + ctx.meta. Without these props, `pnpm typecheck` fails and
+          // the runtime probe never sees the picker's mid-session toggle.
+          wrongProxyEnabled={state.settingsPicker.wrongProxyEnabled}
+          wrongProxyUrl={state.settingsPicker.wrongProxyUrl}
+          wrongProxyUrlEditing={state.settingsPicker.wrongProxyUrlEditing}
+          wrongProxyUrlDraft={state.settingsPicker.wrongProxyUrlDraft}
           inputHeight={inputHeight}
           filter={state.settingsPicker.filter}
           hint={state.settingsPicker.hint}

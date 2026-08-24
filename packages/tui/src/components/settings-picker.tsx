@@ -144,6 +144,23 @@ export interface SettingsPickerProps {
    * per PanelId in PANEL_IDS order; each row cycles 'bottom' ↔ 'sidebar'.
    */
   panelPositions: import('../ui-contracts.js').PanelPositionMap;
+  // ── Integrations ──
+  /**
+   * WrongProxy / WrongTrace: master switch. When true AND the daemon at
+   * `wrongProxyUrl` is reachable, every provider's base URL is rewritten
+   * through `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is
+   * excluded by spec. Toggled on the row at field index 59.
+   */
+  wrongProxyEnabled: boolean;
+  /**
+   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. Text
+   * field (Enter on the row opens an inline edit). Picker field 60.
+   */
+  wrongProxyUrl: string;
+  /** True while free-text editing the WrongProxy URL (Enter on its row). */
+  wrongProxyUrlEditing: boolean;
+  /** In-progress text buffer while `wrongProxyUrlEditing`. */
+  wrongProxyUrlDraft: string;
   // ── Debug ──
   /** Raw SSE stream debugging toggle — hex-dump every byte received from providers. */
   debugStream: boolean;
@@ -211,6 +228,8 @@ export function SettingsPicker({
   thinkingWord,
   thinkingWordEditing,
   thinkingWordDraft,
+  wrongProxyUrlEditing,
+  wrongProxyUrlDraft,
   reasoningMode,
   reasoningEffort,
   reasoningPreserve,
@@ -235,6 +254,13 @@ export function SettingsPicker({
   nextStepsTool,
   readSymbols,
   panelPositions,
+  // WrongProxy / WrongTrace: pick these from the same slice as
+  // `nextStepsTool` and `readSymbols`. The runtime probe (see
+  // `runtime-controller-deps.ts:applyLiveSettings`) reads them off the
+  // same object, so adding both at the destructuring level keeps the
+  // mid-session effect coherent.
+  wrongProxyEnabled,
+  wrongProxyUrl,
   inputHeight,
   hint,
   onLayoutComputed,
@@ -511,6 +537,26 @@ export function SettingsPicker({
           ? 'Render in right sidebar'
           : 'Render in lower F-key region',
     })),
+    // ── Integrations (fields 59–60) ─────────────────────────────────────
+    // WrongProxy / WrongTrace. Appended at the end so the existing
+    // field indices 0–58 (including the panel-position block 46–58)
+    // remain stable — see the SettingsPicker "Appended to preserve"
+    // comment above. The runtime probe (see
+    // `runtime-controller-deps.ts:applyLiveSettings`) reads both keys
+    // from the same SettingsPicker slice, so adding them at the
+    // destructuring level keeps the mid-session effect coherent.
+    {
+      label: 'WrongProxy / WrongTrace',
+      value: boolVal(wrongProxyEnabled),
+      detail: 'Route base URLs through the local proxy (default http://localhost:8000). openai-codex is excluded.',
+    },
+    {
+      label: 'WrongProxy URL',
+      value: wrongProxyUrlEditing ? `${wrongProxyUrlDraft ?? ''}▏` : wrongProxyUrl,
+      detail: wrongProxyUrlEditing
+        ? 'type a URL · Enter ✓ · Esc ✗ (http://host:port or https://host:port)'
+        : 'Where the local proxy daemon listens. Probed at <url>/api/health every 30s.',
+    },
   ];
 
   // Build field → row index mapping. `rows` includes section headers

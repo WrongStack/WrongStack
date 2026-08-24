@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T05:57:28.338Z",
+  "generatedAt": "2026-08-24T07:16:24.574Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3342,
-    "testFiles": 2874,
-    "sourceLines": 791921,
+    "sourceFiles": 3345,
+    "testFiles": 2875,
+    "sourceLines": 793016,
     "workspaceEdges": 123,
-    "moduleEdges": 10303,
+    "moduleEdges": 10306,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 817
+    "testOnlyExports": 819
   },
   "errors": [],
   "packageCycles": [],
@@ -55,6 +55,7 @@
       "tools",
       "types",
       "utils",
+      "wiring",
       "worktree"
     ],
     "registered": [
@@ -85,6 +86,7 @@
       "tools",
       "types",
       "utils",
+      "wiring",
       "worktree"
     ],
     "unclassified": [],
@@ -136,7 +138,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 463,
+      "sourceFiles": 465,
       "testFiles": 428,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -205,8 +207,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 763,
-      "testFiles": 644,
+      "sourceFiles": 764,
+      "testFiles": 645,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -221,7 +223,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 644
+          "testFiles": 645
         }
       ]
     },
@@ -8066,6 +8068,12 @@
       },
       {
         "file": "packages/core/tests/utils/wstack-paths.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/wiring/proxy-rewrite.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18736,7 +18744,7 @@
     },
     {
       "file": "packages/tui/src/app-state.ts",
-      "lines": 881,
+      "lines": 900,
       "relativeImports": 12
     },
     {
@@ -18771,8 +18779,13 @@
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1007,
+      "lines": 1079,
       "relativeImports": 4
+    },
+    {
+      "file": "packages/tui/src/components/settings-picker.tsx",
+      "lines": 803,
+      "relativeImports": 12
     },
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
@@ -18788,6 +18801,11 @@
       "file": "packages/tui/src/kanban-slash.ts",
       "lines": 980,
       "relativeImports": 1
+    },
+    {
+      "file": "packages/tui/src/reducers/settings-values.ts",
+      "lines": 818,
+      "relativeImports": 6
     },
     {
       "file": "packages/tui/src/submit-controller.ts",
@@ -18972,6 +18990,11 @@
       "relativeImports": 5
     },
     {
+      "file": "packages/tui/src/components/settings-picker-model.ts",
+      "lines": 1079,
+      "relativeImports": 4
+    },
+    {
       "file": "packages/core/src/storage/session-store.ts",
       "lines": 1068,
       "relativeImports": 38
@@ -19060,11 +19083,6 @@
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1007,
       "relativeImports": 48
-    },
-    {
-      "file": "packages/tui/src/components/settings-picker-model.ts",
-      "lines": 1007,
-      "relativeImports": 4
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
@@ -20386,6 +20404,18 @@
       "name": "bootstrapProfileName"
     },
     {
+      "file": "packages/core/src/wiring/proxy-rewrite.ts",
+      "name": "__resetProxyConfigForTests"
+    },
+    {
+      "file": "packages/core/src/wiring/proxy-rewrite.ts",
+      "name": "isProxyEligible"
+    },
+    {
+      "file": "packages/core/src/wiring/proxy-rewrite.ts",
+      "name": "PROXY_EXCLUDED_PROVIDERS"
+    },
+    {
       "file": "packages/governance/src/daemon-launcher.ts",
       "name": "launchGovernanceProjectDaemonWithRuntime"
     },
@@ -20656,10 +20686,6 @@
     {
       "file": "packages/plugin-sdk/src/runtime/index.ts",
       "name": "locateRunnerEntry"
-    },
-    {
-      "file": "packages/plugin-sdk/src/runtime/index.ts",
-      "name": "probeRunner"
     },
     {
       "file": "packages/plugins/src/catalog.ts",

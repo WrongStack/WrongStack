@@ -16,6 +16,14 @@ export interface PrefsHandlerContext {
   applyConfigPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
   setAutoCompact?: ((enabled: boolean) => void) | undefined;
   setLogLevel?: ((level: 'debug' | 'info' | 'warn' | 'error') => void) | undefined;
+  /**
+   * WrongProxy / WrongTrace: applies the toggle + URL to the runtime
+   * config and kicks the periodic probe. Injected by the CLI's
+   * `createPrefsSeeding` so the WS server stays package-agnostic — the
+   * server doesn't pull `@wrongstack/cli`'s import graph or its
+   * `setInterval`-owning probe module.
+   */
+  applyWrongProxyPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
   broadcast: (message: WSServerMessage) => void;
 }
@@ -115,6 +123,18 @@ export function handlePrefsUpdate(
     void import('@wrongstack/providers').then(({ setDebugStreamEnabled }) =>
       setDebugStreamEnabled(payload['debugStream'] as boolean),
     );
+  }
+  // WrongProxy / WrongTrace: drive the runtime probe through an
+  // injected callback. The CLI provides `applyWrongProxyPrefs` via
+  // `PrefsHandlerContext`; the WS server deliberately stays agnostic of
+  // `@wrongstack/cli` so the server bundle doesn't drag the probe loop
+  // (and its `setInterval`) into the import graph when the user has
+  // never touched the toggle.
+  if (
+    typeof payload['wrongProxyEnabled'] === 'boolean' ||
+    typeof payload['wrongProxyUrl'] === 'string'
+  ) {
+    ctx.applyWrongProxyPrefs?.(payload);
   }
   if (
     typeof payload['logLevel'] === 'string' &&

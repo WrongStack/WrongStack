@@ -1,4 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils';
+import { MAX_WRONGPROXY_URL_LENGTH } from '@wrongstack/core/types';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import {
@@ -41,6 +42,15 @@ const settingsValueActionTypes = [
   'settingsThinkingEditChange',
   'settingsThinkingEditCommit',
   'settingsThinkingEditCancel',
+  // WrongProxy / WrongTrace URL (field 60) text-edit quartet.
+  // Adding these here routes them into `reduceSettingsValues` via the
+  // `SettingsValueAction` extract — without these, the actions hit the
+  // generic `reduce*` path and the `action satisfies never` narrowing
+  // marks the whole `Action` union as unassignable to `never`.
+  'settingsWrongProxyUrlEditStart',
+  'settingsWrongProxyUrlEditChange',
+  'settingsWrongProxyUrlEditCommit',
+  'settingsWrongProxyUrlEditCancel',
 ] as const satisfies readonly Action['type'][];
 
 type SettingsValueAction = Extract<Action, { type: (typeof settingsValueActionTypes)[number] }>;
@@ -562,6 +572,15 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, nextStepsTool: !sp.nextStepsTool, hint: undefined },
         };
+      // Field 59: WrongProxy / WrongTrace master switch. Toggles on
+      // left/right, mirroring the other boolean cycle entries above.
+      // The companion URL field (60) is text — Enter opens an inline
+      // edit, not a cycle, so it has no entry here.
+      if (f === 59)
+        return {
+          ...state,
+          settingsPicker: { ...sp, wrongProxyEnabled: !sp.wrongProxyEnabled, hint: undefined },
+        };
       // Fields PANEL_POSITION_FIELD_START..PANEL_POSITION_FIELD_START+PANEL_IDS.length:
       // per-panel position (cycle 'bottom' → 'sidebar'). One field index
       // per PanelId, in PANEL_IDS order. The first 46 indices (0–45) are
@@ -718,6 +737,76 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state.settingsPicker,
           thinkingWordEditing: false,
           thinkingWordDraft: '',
+          hint: undefined,
+        },
+      };
+    // WrongProxy URL (field 60) free-text edit quartet. Mirrors the
+    // `settingsThinkingEdit*` shape: Enter on the row opens the edit
+    // (seeding the draft with the current URL), Change caps the draft
+    // (URLs don't have a strict length cap, but we cap to a sane 2 KiB
+    // to prevent pathological input), Commit validates the scheme and
+    // applies the new value, Cancel discards. Empty draft on commit
+    // keeps the current URL (same semantics as the thinking-word edit).
+    case 'settingsWrongProxyUrlEditStart':
+      return {
+        ...state,
+        settingsPicker: {
+          ...state.settingsPicker,
+          wrongProxyUrlEditing: true,
+          // Seed the draft with the current URL so the user edits from it.
+          wrongProxyUrlDraft: state.settingsPicker.wrongProxyUrl,
+          hint: undefined,
+        },
+      };
+    case 'settingsWrongProxyUrlEditChange':
+      return {
+        ...state,
+        settingsPicker: {
+          ...state.settingsPicker,
+          // Cap to a sane 2 KiB so a runaway paste can't bloat the slice.
+          wrongProxyUrlDraft: action.draft.slice(0, MAX_WRONGPROXY_URL_LENGTH),
+          hint: undefined,
+        },
+      };
+    case 'settingsWrongProxyUrlEditCommit': {
+      const sp = state.settingsPicker;
+      const raw = sp.wrongProxyUrlDraft.trim();
+      // Empty draft = cancel (keep the current URL).
+      if (raw.length === 0) {
+        return {
+          ...state,
+          settingsPicker: {
+            ...sp,
+            wrongProxyUrlEditing: false,
+            wrongProxyUrlDraft: '',
+            hint: undefined,
+          },
+        };
+      }
+      // Validate the scheme + host presence. Whitespace inside the URL is
+      // rejected (the runtime probe would treat the URL as unreachable
+      // anyway, but catching it here surfaces a clear hint to the user).
+      const valid = /^https?:\/\/[^\s/?#]+/.test(raw);
+      return {
+        ...state,
+        settingsPicker: {
+          ...sp,
+          wrongProxyUrl: valid ? raw : sp.wrongProxyUrl,
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
+          hint: valid
+            ? undefined
+            : 'Invalid URL — use http://host:port or https://host:port (no whitespace).',
+        },
+      };
+    }
+    case 'settingsWrongProxyUrlEditCancel':
+      return {
+        ...state,
+        settingsPicker: {
+          ...state.settingsPicker,
+          wrongProxyUrlEditing: false,
+          wrongProxyUrlDraft: '',
           hint: undefined,
         },
       };

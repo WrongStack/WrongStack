@@ -228,6 +228,43 @@ export function tryToolsSettingsPickerKeys(
       }
       return true;
     }
+    // WrongProxy URL (field 60) text-edit branch. Mirrors the
+    // `thinkingWordEditing` block above: printable chars append to the
+    // draft, Enter commits (validated by `new URL` in the reducer),
+    // Escape cancels, Backspace deletes one char. The Start action
+    // was already wired by `use-app-picker-keys.ts:337` on Enter at
+    // the row; this branch handles the keystrokes while editing.
+    if (sp.wrongProxyUrlEditing) {
+      if (key.escape) {
+        dispatch({ type: 'settingsWrongProxyUrlEditCancel' });
+        return true;
+      }
+      if (isEnter) {
+        if (debouncedEnter(host)) return true;
+        dispatch({ type: 'settingsWrongProxyUrlEditCommit' });
+        return true;
+      }
+      if (key.backspace) {
+        dispatch({
+          type: 'settingsWrongProxyUrlEditChange',
+          draft: sp.wrongProxyUrlDraft.slice(0, -1),
+        });
+        return true;
+      }
+      if (
+        input &&
+        input.length === 1 &&
+        input.charCodeAt(0) >= 0x20 &&
+        input.charCodeAt(0) < 0x7f
+      ) {
+        dispatch({
+          type: 'settingsWrongProxyUrlEditChange',
+          draft: sp.wrongProxyUrlDraft + input,
+        });
+        return true;
+      }
+      return true;
+    }
     if (key.escape || (key.ctrl && input === 's')) {
       dispatch({ type: 'settingsClose' });
       return true;

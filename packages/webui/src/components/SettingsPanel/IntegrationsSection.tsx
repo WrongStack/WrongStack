@@ -16,6 +16,44 @@ export function IntegrationsSection({ syncPref }: IntegrationsSectionProps) {
 
   return (
     <div className="space-y-6">
+      {/* WrongProxy / WrongTrace — automatic base-URL rerouting */}
+      <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+        <div className="flex items-start gap-3 mb-4">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+            <Server className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold">{t('settings:integrations.wrongProxyHeading')}</h3>
+          </div>
+        </div>
+        <div className="space-y-3">
+          <PreferenceToggle
+            label={t('settings:integrations.wrongProxyEnabledLabel')}
+            hint={t('settings:integrations.wrongProxyEnabledHint')}
+            value={localPrefs.wrongProxyEnabled}
+            onChange={() =>
+              syncPref('wrongProxyEnabled', !localPrefs.wrongProxyEnabled)
+            }
+          />
+          <div className="space-y-1">
+            <span className="text-sm font-medium">
+              {t('settings:integrations.wrongProxyUrlLabel')}
+            </span>
+            <Input
+              value={localPrefs.wrongProxyUrl}
+              placeholder="http://localhost:8000"
+              onChange={(e) => syncPref('wrongProxyUrl', e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {t('settings:integrations.wrongProxyUrlHint')}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t('settings:integrations.wrongProxyChangesApply')}
+          </p>
+        </div>
+      </div>
+
       {/* HQ Client */}
       <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
         <div className="flex items-start gap-3 mb-4">

@@ -369,6 +369,11 @@ export function routeSettingsOverlayKey(
     sageMemoryInjectThreshold: config.sageMemoryInjectThreshold ?? 0.85,
     nextStepsTool: config.nextStepsTool ?? false,
     readSymbols: config.readSymbols ?? false,
+    // WrongProxy / WrongTrace: hydrate from the persisted Config (CLI
+    // adapter owns the read/write — see LiveSettingsInput + the
+    // tui-settings-adapter.ts branch tree).
+    wrongProxyEnabled: config.wrongProxyEnabled ?? false,
+    wrongProxyUrl: config.wrongProxyUrl ?? 'http://localhost:8000',
   });
   return true;
 }

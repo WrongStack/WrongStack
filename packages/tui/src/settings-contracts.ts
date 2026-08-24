@@ -93,4 +93,18 @@ export type SettingsPickerPatch = Partial<{
    * effect in the next session. Default: false.
    */
   nextStepsTool: boolean;
+  /**
+   * WrongProxy / WrongTrace: master switch. When true AND the daemon at
+   * `wrongProxyUrl` is reachable, every provider's base URL is rewritten
+   * through `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is
+   * excluded by spec. Persisted to `config.features.wrongProxy*`
+   * via the TUI settings adapter; CLI proxy-wiring module reacts.
+   */
+  wrongProxyEnabled: boolean;
+  /**
+   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. The
+   * CLI's periodic probe targets `<wrongProxyUrl>/api/health`; a 2xx
+   * response flips the runtime's `active` flag.
+   */
+  wrongProxyUrl: string;
 }>;

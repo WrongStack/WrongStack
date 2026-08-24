@@ -13,6 +13,7 @@ import {
   filterCurrentCodexModelIds,
   isCodexCatalogModel,
 } from '../auth-menu/openai-codex-oauth.js';
+import { resolveProviderCfgWithProxy } from './provider-runtime.js';
 
 export interface ProviderSetupResult {
   resolvedProvider: ResolvedProvider | undefined;
@@ -137,15 +138,19 @@ export async function setupProvider(params: {
   }
 
   // Provider instance — resolve the user-visible id separately from the
-  // factory lookup key so saved aliases behave the same at boot and at runtime.
-  const providerConfig = config.providers?.[config.provider] ?? {
-    type: config.provider,
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-  };
+  // factory lookup key so saved aliases behave the same at boot and at
+  // runtime. `resolveProviderCfgWithProxy` is the single source of truth
+  // for the saved-config merge + WrongProxy rewrite; using it here
+  // preserves `savedProviderCfg.type` so saved aliases like
+  // `minimax-coding-plan` (with `type: 'anthropic'`) still resolve to
+  // the correct factory. The previous hand-copied block lost the alias
+  // type — see Chimera review on the proxy-rerouting PR.
+  const { cfg: providerConfig, factoryType } = resolveProviderCfgWithProxy(
+    config,
+    config.provider,
+  );
   let provider: ReturnType<ProviderRegistry['create']>;
   try {
-    const factoryType = providerConfig.type ?? config.provider;
     const cfgWithType = { ...providerConfig, type: config.provider };
     if (providerRegistry.has(factoryType)) {
       provider = providerRegistry.create(cfgWithType, factoryType);

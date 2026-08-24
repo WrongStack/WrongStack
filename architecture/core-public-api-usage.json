@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 994,
+      "files": 995,
       "typeOnly": 918,
-      "runtimeOrMixed": 245
+      "runtimeOrMixed": 246
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -199,6 +199,11 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/utils/tree-kill": {
+      "files": 4,
+      "typeOnly": 0,
+      "runtimeOrMixed": 4
+    },
+    "@wrongstack/core/wiring/proxy-rewrite": {
       "files": 4,
       "typeOnly": 0,
       "runtimeOrMixed": 4
@@ -14264,6 +14269,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/src/reducers/settings-values.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/rehydrate-history.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -18861,6 +18872,30 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/plug-lsp/src/server/lsp-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/src/wiring/provider-runtime.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/src/wiring/proxy-probe.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/src/wiring/proxy-wiring.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

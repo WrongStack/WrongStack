@@ -220,6 +220,21 @@ export interface LocalPrefs {
   /** Cascade severity threshold: when a review finds findings at or above this level, spawn follow-up agents. */
   autoReviewCascadeOn: 'off' | 'critical' | 'high';
 
+  // ── WrongProxy / WrongTrace (automatic base-URL rerouting) ─────────────
+  /**
+   * Master switch. When true AND the daemon at `wrongProxyUrl` is
+   * reachable, every provider's base URL flows through
+   * `${wrongProxyUrl}/proxy/<host><path>`. Excluded providers
+   * (openai-codex) flow through unchanged.
+   */
+  wrongProxyEnabled: boolean;
+  /**
+   * Where the local proxy daemon listens. Default `http://localhost:8000`.
+   * User-editable via WebUI `IntegrationsSection` and TUI SettingsPicker.
+   * Periodic probe targets `<wrongProxyUrl>/api/health`; 2xx → active.
+   */
+  wrongProxyUrl: string;
+
   set: (patch: Partial<LocalPrefs>) => void;
   reset: () => void;
 }
@@ -322,6 +337,10 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   autoReviewMaxConcurrentReviews: 2,
   autoReviewCascadeOn: 'off',
   pluginsEnabled: {},
+  // WrongProxy / WrongTrace. Master switch defaults to off so the feature
+  // ships silent; URL defaults to the dev-script daemon's documented port.
+  wrongProxyEnabled: false,
+  wrongProxyUrl: 'http://localhost:8000',
 };
 
 export const useLocalPrefs = create<LocalPrefs>()(
@@ -333,7 +352,16 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 15,
+      version: 16,
+      // v16 (2026-08-24): added WrongProxy / WrongTrace toggles. The
+      // master switch defaults to off (existing users see no behavior
+      // change); the URL defaults to http://localhost:8000 (the dev-script
+      // daemon port documented in the WRONGTRACE dev script). The probe
+      // in `proxy-probe.ts` only fires when the toggle is on, so existing
+      // users pay no cost. Older stores are backfilled via DEFAULTS spread
+      // + the explicit migration guard at the bottom; no remap is needed
+      // because the fields have no historical alias in localStorage.
+      //
       // v15 (2026-08-04): added autoCollapseInput (display toggle). Default
       // false — the chat input no longer auto-collapses under the history.
       // Older stores are backfilled via DEFAULTS spread + the explicit
@@ -444,6 +472,16 @@ export const useLocalPrefs = create<LocalPrefs>()(
         if (typeof p.breakerAutoKillResetMs !== 'number') p.breakerAutoKillResetMs = 60_000;
         if (p.fsAccess !== 'unrestricted' && p.fsAccess !== 'project') p.fsAccess = 'unrestricted';
         if (typeof p.debugStream !== 'boolean') p.debugStream = false;
+        // v16: WrongProxy / WrongTrace. Both fields are independent of any
+        // historical alias, but we still type-check so a corrupted persisted
+        // value (e.g. `"yes"`, 123) doesn't survive into the live store and
+        // reach the WebUI/TUI panels + the CLI probe as a non-member value.
+        // Mirrors the typeof-style guards used for `breakerEnabled` /
+        // `debugStream` directly above.
+        if (typeof p.wrongProxyEnabled !== 'boolean') p.wrongProxyEnabled = false;
+        if (typeof p.wrongProxyUrl !== 'string' || p.wrongProxyUrl.trim().length === 0) {
+          p.wrongProxyUrl = 'http://localhost:8000';
+        }
         // Chimera/auto-review migration — backfill with the canonical defaults
         // so persisted stores from pre-v9 don't expose `undefined` to the panel.
         if (typeof p.chimeraEnabled !== 'boolean') p.chimeraEnabled = true;

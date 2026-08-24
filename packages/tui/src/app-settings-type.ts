@@ -131,4 +131,16 @@ export type Settings = {
   breakerEnabled?: boolean | undefined;
   /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
   breakerAutoKillResetMs?: number | undefined;
+  /**
+   * WrongProxy / WrongTrace: master switch. When true AND the daemon at
+   * `wrongProxyUrl` is reachable, every provider's base URL is rewritten
+   * through `${wrongProxyUrl}/proxy/<host><path>`. openai-codex is
+   * excluded by spec. Mirrors `SettingsPickerPatch.wrongProxyEnabled`.
+   */
+  wrongProxyEnabled?: boolean | undefined;
+  /**
+   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. Mirrors
+   * `SettingsPickerPatch.wrongProxyUrl`.
+   */
+  wrongProxyUrl?: string | undefined;
 };

@@ -1,6 +1,7 @@
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
+import { getProxyConfig, rewriteBaseUrl, shouldRewriteFor } from '@wrongstack/core/wiring/proxy-rewrite';
 
 /**
  * Resolve the user-visible providerId into a runtime cfg + a factory type
@@ -51,14 +52,63 @@ export function resolveProviderCfg(
   const savedCfg = config.providers?.[providerId];
   // Fall back to the top-level config's apiKey/baseUrl on a per-key basis
   // so a saved cfg that omits one still inherits from the parent.
+  const rawBaseUrl = savedCfg?.baseUrl ?? config.baseUrl;
+  // When the WrongProxy/WrongTrace toggle is on and the daemon is reachable,
+  // rewrite `rawBaseUrl` through the proxy (`http://localhost:8000/proxy/<host><path>`).
+  // Excluded providers (e.g. openai-codex) flow through unchanged — the
+  // rewriter itself is a no-op for them.
+  const baseUrl =
+    rawBaseUrl && shouldRewriteFor(providerId)
+      ? rewriteBaseUrl(rawBaseUrl, currentProxyBaseUrl())
+      : rawBaseUrl;
   const cfg: ProviderConfig = {
     ...savedCfg,
     apiKey: savedCfg?.apiKey ?? config.apiKey,
-    baseUrl: savedCfg?.baseUrl ?? config.baseUrl,
+    baseUrl,
     type: providerId,
   };
   const factoryType = savedCfg?.type ?? providerId;
   return { cfg, factoryType };
+}
+
+/**
+ * Read the current proxy URL. Indirected through `proxy-rewrite` so the
+ * test-only reset (`__resetProxyConfigForTests`) is the single switch
+ * that resets both modules' view of state.
+ */
+function currentProxyBaseUrl(): string {
+  return getProxyConfig().url;
+}
+
+/**
+ * Shared proxy-aware provider-config resolver.
+ *
+ * Three sites in this monorepo merge a saved provider config with the
+ * top-level Config and hand the result to a provider factory:
+ *
+ *   1. `packages/cli/src/wiring/provider-runtime.ts` `resolveProviderCfg()`
+ *      — used by `/model`, the fallback extension, and any other runtime
+ *        path that rebuilds a Provider from a saved-config alias.
+ *   2. `packages/cli/src/wiring/provider.ts` `setupProvider()` — the
+ *      boot-time setup path for the active session provider.
+ *   3. `packages/runtime/src/fleet/light-subagent-factory.ts` `buildProvider()`
+ *      — subagent provider construction for SDD runs.
+ *
+ * Each of those had to apply the same proxy rewrite. The duplication
+ * drifted: `provider.ts:154` was force-setting `type: config.provider`
+ * before the `factoryType` read at line 158, silently destroying any
+ * saved-alias `type` field (e.g. `minimax-coding-plan` mapped to
+ * `type: 'anthropic'`). The drift was caught by Chimera review; this
+ * helper is the single source of truth that prevents it from recurring.
+ *
+ * Inputs are intentionally `Pick<Config, ...>` (not the full Config) so
+ * this helper stays free of disk I/O and can be called from any layer.
+ */
+export function resolveProviderCfgWithProxy(
+  config: Pick<Config, 'providers' | 'apiKey' | 'baseUrl'>,
+  providerId: string,
+): ResolvedProviderCfg {
+  return resolveProviderCfg(config, providerId);
 }
 
 /**

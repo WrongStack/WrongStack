@@ -81,6 +81,11 @@ const BOOLEAN_PREF_KEYS = new Set([
   // "unknown preference key".
   'readSymbols',
   'showSageMemoryInject',
+  // WrongProxy / WrongTrace master switch. When on, the CLI rewrites every
+  // provider's base URL through the configured proxy URL (default
+  // http://localhost:8000 → http://localhost:8000/proxy/<host><path>).
+  // Excluded providers (openai-codex) flow through unchanged.
+  'wrongProxyEnabled',
 ]);
 
 /** Keys whose value must be an array of strings (e.g. an ordered model list). */
@@ -171,6 +176,10 @@ const STRING_PREF_KEYS = new Set([
   'autoReviewProvider',
   'autoReviewModel',
   'autoReviewFallbackProfile',
+  // WrongProxy / WrongTrace URL. Empty = unset. Default lives in
+  // `LocalPrefs.DEFAULTS.wrongProxyUrl` ('http://localhost:8000'); users
+  // can override here for non-default daemon ports / paths.
+  'wrongProxyUrl',
 ]);
 
 const ENUM_PREF_KEYS: Record<string, Set<string>> = {

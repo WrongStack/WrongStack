@@ -570,6 +570,11 @@
     "packages/core/src/utils/wstack-paths.ts": [
       "bootstrapProfileName"
     ],
+    "packages/core/src/wiring/proxy-rewrite.ts": [
+      "__resetProxyConfigForTests",
+      "isProxyEligible",
+      "PROXY_EXCLUDED_PROVIDERS"
+    ],
     "packages/governance/src/daemon-launcher.ts": [
       "launchGovernanceProjectDaemonWithRuntime"
     ],
@@ -714,8 +719,7 @@
     ],
     "packages/plugin-sdk/src/runtime/index.ts": [
       "collectSourceFiles",
-      "locateRunnerEntry",
-      "probeRunner"
+      "locateRunnerEntry"
     ],
     "packages/plugins/src/catalog.ts": [
       "PLUGIN_CATALOG_ENTRIES"

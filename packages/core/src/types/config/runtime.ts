@@ -206,6 +206,14 @@ export const DEFAULT_TUI_THINKING_WORD = 'thinking';
 export const MAX_TUI_THINKING_WORD_LENGTH = 16;
 
 /**
+ * Hard cap on the WrongProxy / WrongTrace URL draft. URLs don't have a
+ * strict length limit, but capping to a sane 2 KiB prevents a runaway
+ * paste from bloating the `settingsPicker` slice. The runtime probe
+ * accepts any well-formed URL up to whatever the OS / fetch allow.
+ */
+export const MAX_WRONGPROXY_URL_LENGTH = 2048;
+
+/**
  * Normalize the configurable statusline word shown while the TUI is working.
  * The value must be a single short word; invalid values fall back to the default.
  */
