@@ -7,14 +7,14 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
-import { normalizeCommandOutput, safeResolveReal } from './_util.js';
-import { getProcessRegistry, redactCommand } from './process-registry.js';
-import { checkAndBlockKillCommand } from './bash-kill-guard.js';
-import { detectDanger } from './_danger-detect.js';
 import { diagnoseBashism, shellArgs } from './_shell-pick.js';
+import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { resolvePowerShell } from './_win32-resolve.js';
+import { checkAndBlockKillCommand } from './bash-kill-guard.js';
+import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 export interface PwshInput {
   command: string;
@@ -178,16 +178,15 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
 
     const isWin = os.platform() === 'win32';
     const bin = isWin ? resolvePowerShell('pwsh.exe') : 'pwsh';
-    const args = shellArgs('pwsh');
-    const stdinBody = wrapPwshCommand(input.command);
+    const encodedCommand = Buffer.from(wrapPwshCommand(input.command), 'utf16le').toString(
+      'base64',
+    );
+    const args = [...shellArgs('pwsh'), encodedCommand];
 
     const env = buildChildEnv(ctx.session?.id);
     let targetCwd: string;
     try {
-      targetCwd = await safeResolveReal(
-        input.workdir ?? ctx.workingDir ?? ctx.projectRoot,
-        ctx,
-      );
+      targetCwd = await safeResolveReal(input.workdir ?? ctx.workingDir ?? ctx.projectRoot, ctx);
     } catch (err) {
       yield {
         type: 'final',
@@ -210,14 +209,9 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
         cwd: targetCwd,
         env,
         detached,
-        stdio: ['pipe', 'ignore', 'ignore'],
+        stdio: ['ignore', 'ignore', 'ignore'],
         windowsHide: true,
       });
-
-      if (child.stdin) {
-        child.stdin.write(stdinBody);
-        child.stdin.end();
-      }
 
       const pid = child.pid;
       if (typeof pid === 'number') {
@@ -282,7 +276,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       cwd: targetCwd,
       env,
       detached,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
     });
 
@@ -328,15 +322,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       });
     }
 
-    if (child.stdin) {
-      child.stdin.write(stdinBody);
-      child.stdin.end();
-    }
-
-    const timeoutMs = Math.min(
-      Math.max(1_000, input.timeout_ms ?? DEFAULT_TIMEOUT_MS),
-      600_000,
-    );
+    const timeoutMs = Math.min(Math.max(1_000, input.timeout_ms ?? DEFAULT_TIMEOUT_MS), 600_000);
 
     let timedOut = false;
     const timers: NodeJS.Timeout[] = [];
@@ -380,8 +366,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
               event: 'pwsh.sigterm_failed',
               platform: process.platform,
               error: err instanceof Error ? err.message : String(err),
-              message:
-                'pwsh child.kill("SIGTERM") raised on POSIX fallback; process may be leaked',
+              message: 'pwsh child.kill("SIGTERM") raised on POSIX fallback; process may be leaked',
             }),
           );
         }
