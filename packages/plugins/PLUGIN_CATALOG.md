@@ -7,7 +7,7 @@
 | agent-handoff | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/agent-handoff` | Listens for subagent.done events and posts structured handoff notes to the project mailbox |
 | cost-tracker | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/cost-tracker` | Tracks LLM token usage and estimated cost per session with per-model breakdown |
 | file-watcher | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/file-watcher` | Watches project files and emits events when changes occur (add, change, delete) |
-| git-autocommit | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/git-autocommit` | AI-powered git staging and conventional commit message generation |
+| git-autocommit | 0.3.0 | ^0.1.10 | `@wrongstack/plugins/git-autocommit` | AI-powered git staging and conventional commit message generation |
 | auto-doc | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/auto-doc` | Auto-generates JSDoc/TSDoc comments for functions, classes, types, and interfaces |
 | shell-check | 0.2.0 | ^0.1.10 | `@wrongstack/plugins/shell-check` | Runs shellcheck analysis on bash/shell scripts and surfaces issues with severity levels |
 | cron | 0.1.0 | ^0.1.10 | `@wrongstack/plugins/cron` | Schedules recurring tasks using beforeIteration/afterIteration extension hooks |

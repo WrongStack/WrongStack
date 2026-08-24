@@ -182,6 +182,10 @@
       "lines": 997,
       "relativeImports": 11
     },
+    "packages/plugins/src/git-autocommit/index.ts": {
+      "lines": 1010,
+      "relativeImports": 0
+    },
     "packages/plugins/src/path-guard/shell-targets.ts": {
       "lines": 1048,
       "relativeImports": 1
@@ -307,7 +311,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 1120,
+      "lines": 1147,
       "relativeImports": 13
     },
     "packages/tui/src/input-validation.ts": {

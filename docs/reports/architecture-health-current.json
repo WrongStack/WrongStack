@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-23T21:11:08.766Z",
+  "generatedAt": "2026-08-24T05:57:28.338Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 35,
     "sourceFiles": 3342,
     "testFiles": 2874,
-    "sourceLines": 791597,
+    "sourceLines": 791921,
     "workspaceEdges": 123,
     "moduleEdges": 10303,
     "nonCommandSlashImports": 0,
@@ -18615,6 +18615,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/plugins/src/git-autocommit/index.ts",
+      "lines": 1010,
+      "relativeImports": 0
+    },
+    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
@@ -18771,7 +18776,7 @@
     },
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1120,
+      "lines": 1147,
       "relativeImports": 13
     },
     {
@@ -18958,7 +18963,7 @@
   "hotspots": [
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1120,
+      "lines": 1147,
       "relativeImports": 13
     },
     {
@@ -19045,6 +19050,11 @@
       "file": "packages/tools/src/codebase-index/project-server.ts",
       "lines": 1013,
       "relativeImports": 9
+    },
+    {
+      "file": "packages/plugins/src/git-autocommit/index.ts",
+      "lines": 1010,
+      "relativeImports": 0
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
@@ -19200,11 +19210,6 @@
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 949,
       "relativeImports": 1
-    },
-    {
-      "file": "apps/desktop/src/renderer/src/renderer.ts",
-      "lines": 944,
-      "relativeImports": 8
     }
   ],
   "testOnlyExports": [

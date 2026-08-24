@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-23T21:11:08.766Z
+**Generated:** 2026-08-24T05:57:28.338Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 35 |
 | Production source files | 3342 |
-| Production source lines | 791597 |
+| Production source lines | 791921 |
 | Test files | 2874 |
 | Workspace dependency edges | 123 |
 | Relative module edges | 10303 |
@@ -85,7 +85,7 @@ None.
 
 | Lines | File |
 |---:|---|
-| 1120 | `packages/tui/src/components/sidebar-content.tsx` |
+| 1147 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1068 | `packages/core/src/storage/session-store.ts` |
 | 1063 | `packages/sage/src/sqlite-store.ts` |
@@ -103,6 +103,7 @@ None.
 | 1016 | `packages/core/src/core/context.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1013 | `packages/tools/src/codebase-index/project-server.ts` |
+| 1010 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1007 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1007 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1006 | `packages/core/src/coordination/delegate-tool.ts` |
@@ -134,7 +135,6 @@ None.
 | 950 | `packages/tui/src/components/history/utils.tsx` |
 | 949 | `packages/core/src/hq/protocol/core.ts` |
 | 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
-| 944 | `apps/desktop/src/renderer/src/renderer.ts` |
 
 ## Exports only tests reference
 
