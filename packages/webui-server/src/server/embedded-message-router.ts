@@ -1,9 +1,10 @@
 import type { Agent } from '@wrongstack/core/agent';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import type { Logger, MemoryPort } from '@wrongstack/core/types';
+import type { Logger, MemoryPort, ProviderConfig } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
@@ -328,7 +329,17 @@ export function createEmbeddedMessageRouter(
     getLiveProviderId: () => deps.agentConfigCtx.agent.ctx.provider.id,
     buildProvider: async (providerId) => {
       const saved = await deps.agentConfigCtx.loadSavedProviders();
-      return makeProviderFromConfig(providerId, saved[providerId] ?? { type: providerId });
+      const providerCfg = saved[providerId] ?? { type: providerId };
+      // WrongProxy / WrongTrace: rewrite the built provider's base URL through
+      // the shared helper so the WebUI-linked helper honors the proxy toggle.
+      return makeProviderFromConfig(
+        providerId,
+        routeProviderCfgThroughProxy(
+          providerCfg,
+          deps.agentConfigCtx.getConfig?.()?.baseUrl,
+          providerId,
+        ) as ProviderConfig,
+      );
     },
     applyModelSwitch: (providerId, modelId) =>
       applyEmbeddedModelSwitch(deps.agentConfigCtx, providerId, modelId),

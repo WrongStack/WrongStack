@@ -831,17 +831,17 @@ gain new approval prompts. Plugins can register in-process hooks via
 | Tier | Tools | Tool descriptions | Measured savings |
 |------|-------|-----------------|------------------|
 | `off` | All built-ins | 80 chars | 0 tokens (baseline) |
-| `minimal` | 13 (TIER1 only) | 40 chars | ~2.6k tokens |
-| `light` | 13 (TIER1 only) | 50 chars | ~2.1k tokens |
-| `medium` | 32 (TIER1 + TIER2) | 60 chars | ~1.0k tokens |
-| `aggressive` | 39 (TIER1 + TIER2 − task + TIER3 − setWorkingDir) | 70 chars | ~1.1k tokens |
+| `minimal` | 23 (TIER1 only) | 40 chars | ~2.6k tokens |
+| `light` | 23 (TIER1 only) | 50 chars | ~2.1k tokens |
+| `medium` | 43 (TIER1 + TIER2) | 60 chars | ~1.0k tokens |
+| `aggressive` | 23 (TIER1 only) | 70 chars | ~1.1k tokens |
 
 The five tiers optimize along two different axes; pick the one that matches
 your use case rather than reading "savings" as monotonic:
 
-- **Fewer tools + lots of guidance trimmed** — `minimal` (~2.6k saved), `light` (~2.1k saved). TIER1 only (13 tools). Best for focused edits and quick fixes.
-- **Fewer tools + full guidance** — `medium` (~1.0k saved). TIER1+TIER2 (32 tools). Best for standard development where the model benefits from explicit delegation/mailbox guidance.
-- **Many tools + compact guidance** — `aggressive` (~1.1k saved). TIER1+TIER2+most-TIER3 (39 tools). Best when the task needs a wider tool surface (lint/test/install/etc.) but prompt real estate is tight. Context Management and Commit Hygiene remain at full because they're most useful under context pressure.
+- **Fewer tools + lots of guidance trimmed** — `minimal` (~2.6k saved), `light` (~2.1k saved). TIER1 only (23 tools). Best for focused edits and quick fixes.
+- **Fewer tools + full guidance** — `medium` (~1.0k saved). TIER1+TIER2 (43 tools). Best for standard development where the model benefits from explicit delegation/mailbox guidance.
+- **Fewer tools + compact guidance** — `aggressive` (~1.1k saved). TIER1 only (23 tools). Best when prompt real estate is tight: the tool set matches `minimal`/`light` while guidance blocks are compacted hardest. Context Management and Commit Hygiene remain at full because they're most useful under context pressure.
 
 Every tier retains `codebase-stats`, `codebase-search`, and `codebase-index`, so token saving never forces broad `tree`/`grep`/`glob` exploration when a persisted index is available.
 

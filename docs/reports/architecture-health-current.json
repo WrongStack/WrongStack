@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T07:46:23.826Z",
+  "generatedAt": "2026-08-24T12:31:47.885Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 35,
-    "sourceFiles": 3345,
-    "testFiles": 2875,
-    "sourceLines": 793057,
+    "sourceFiles": 3346,
+    "testFiles": 2882,
+    "sourceLines": 793813,
     "workspaceEdges": 123,
-    "moduleEdges": 10306,
+    "moduleEdges": 10317,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 819
+    "testOnlyExports": 824
   },
   "errors": [],
   "packageCycles": [],
@@ -139,7 +139,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 465,
-      "testFiles": 428,
+      "testFiles": 431,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -177,7 +177,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 428
+          "testFiles": 431
         }
       ]
     },
@@ -744,7 +744,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 332,
-      "testFiles": 318,
+      "testFiles": 319,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -767,7 +767,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 318
+          "testFiles": 319
         }
       ]
     },
@@ -869,8 +869,8 @@
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 192,
-      "testFiles": 152,
+      "sourceFiles": 193,
+      "testFiles": 155,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -894,7 +894,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 152
+          "testFiles": 155
         }
       ]
     },
@@ -2097,6 +2097,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/diag-doctor-handler.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/diff-renderer.test.ts",
         "projects": [
           "root-node"
@@ -3058,6 +3064,18 @@
       },
       {
         "file": "packages/cli/tests/providers-models.gaps.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/proxy-probe.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/proxy-wiring.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15015,6 +15033,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/wrong-proxy-panel-sidebar.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/vector-memory/tests/embedding-cache.test.ts",
         "projects": [
           "root-node"
@@ -15549,6 +15573,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/embedded-host-adapters.proxy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/embedded-host-adapters.test.ts",
         "projects": [
           "root-node"
@@ -15957,6 +15987,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/proxy-runtime.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/realtime-handler-disposal.test.ts",
         "projects": [
           "root-node"
@@ -16090,6 +16126,12 @@
       },
       {
         "file": "packages/webui-server/tests/setup-events.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/setup-screen.proxy.test.ts",
         "projects": [
           "root-node"
         ]
@@ -18403,6 +18445,11 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/cli/src/cli-main.ts",
+      "lines": 809,
+      "relativeImports": 34
+    },
+    {
       "file": "packages/cli/src/goal-host.ts",
       "lines": 930,
       "relativeImports": 1
@@ -18789,7 +18836,7 @@
     },
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1147,
+      "lines": 1092,
       "relativeImports": 13
     },
     {
@@ -18959,8 +19006,8 @@
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 843,
-      "relativeImports": 24
+      "lines": 854,
+      "relativeImports": 25
     },
     {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
@@ -18981,7 +19028,7 @@
   "hotspots": [
     {
       "file": "packages/tui/src/components/sidebar-content.tsx",
-      "lines": 1147,
+      "lines": 1092,
       "relativeImports": 13
     },
     {
@@ -19918,6 +19965,18 @@
     {
       "file": "packages/cli/src/wiring/provider-runtime-setup.ts",
       "name": "serializeProviderRuntimeSnapshot"
+    },
+    {
+      "file": "packages/cli/src/wiring/proxy-probe.ts",
+      "name": "__resetProxyProbeForTests"
+    },
+    {
+      "file": "packages/cli/src/wiring/proxy-probe.ts",
+      "name": "stopProxyProbe"
+    },
+    {
+      "file": "packages/cli/src/wiring/proxy-wiring.ts",
+      "name": "shutdownWrongProxy"
     },
     {
       "file": "packages/cli/src/wiring/slash-commands.ts",
@@ -21978,6 +22037,14 @@
     {
       "file": "packages/webui-server/src/server/provider-config-standalone.ts",
       "name": "vaultKeyFileForConfigPath"
+    },
+    {
+      "file": "packages/webui-server/src/server/proxy-runtime.ts",
+      "name": "probeWrongProxyActive"
+    },
+    {
+      "file": "packages/webui-server/src/server/proxy-runtime.ts",
+      "name": "seedWrongProxyFromConfig"
     },
     {
       "file": "packages/webui-server/src/server/terminal-ws-handler.ts",

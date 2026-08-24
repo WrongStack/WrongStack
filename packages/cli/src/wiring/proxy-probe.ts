@@ -15,7 +15,13 @@
  * The probe is intentionally minimal: the daemon's `/api/health` response
  * shape is small and stable, so we don't try to parse it — a 2xx is
  * enough to mark the proxy active. Failures (timeout, non-2xx, ECONNREFUSED)
- * flip `active` to false and the rewriter leaves base URLs alone.
+ * are treated as SOFT signals: a single transient failure (daemon mid-
+ * restart, one dropped 2xx) must not flip `active` to false and silently
+ * disable rewrites for every subsequent request. `active` flips to false
+ * only after `deactivateAfterFailures` consecutive failures; the periodic
+ * loop keeps retrying, so a recovered daemon re-activates on the next
+ * successful probe. Toggle-off (`enabled: false` / no URL) still deactivates
+ * immediately.
  */
 
 import { applyProxyConfig, getProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
@@ -23,6 +29,8 @@ import { applyProxyConfig, getProxyConfig } from '@wrongstack/core/wiring/proxy-
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 2_000;
 const HEALTH_PATH = '/api/health';
+/** Consecutive failures before `active` flips to false (soft-signal threshold). */
+const DEFAULT_DEACTIVATE_AFTER_FAILURES = 2;
 
 interface ProbeRunnerOptions {
   /** Override the default interval (30s). Useful for tests. */
@@ -34,12 +42,19 @@ interface ProbeRunnerOptions {
   /** Override `setInterval` / `clearInterval` for tests. */
   setIntervalImpl?: typeof setInterval;
   clearIntervalImpl?: typeof clearInterval;
+  /**
+   * Number of CONSECUTIVE failed probes required before `active` flips to
+   * false. A single transient failure is a soft signal and leaves `active`
+   * untouched. Defaults to 2. Useful for tests wanting to exercise the
+   * threshold without waiting two ticks.
+   */
+  deactivateAfterFailures?: number;
 }
 
 export interface ProbeRunner {
   /** Stop the periodic probe and abort any in-flight request. */
   stop(): void;
-  /** Force an immediate probe (next tick). Returns the new active state. */
+  /** Force an immediate probe (next tick). Resolves with whether the health check succeeded. */
   poke(): Promise<boolean>;
 }
 
@@ -60,16 +75,34 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const setIntervalImpl = opts.setIntervalImpl ?? setInterval;
   const clearIntervalImpl = opts.clearIntervalImpl ?? clearInterval;
+  // Clamp to a sane threshold: NaN / 0 / negative would break the
+  // `consecutiveFailures >= threshold` comparison (never deactivating, or
+  // deactivating on every single failure — the exact flap we removed).
+  const deactivateAfterFailures =
+    typeof opts.deactivateAfterFailures === 'number' &&
+    Number.isFinite(opts.deactivateAfterFailures)
+      ? Math.max(1, Math.trunc(opts.deactivateAfterFailures))
+      : DEFAULT_DEACTIVATE_AFTER_FAILURES;
 
   const state = {
     currentAbort: undefined as AbortController | undefined,
     timer: undefined as ReturnType<typeof setInterval> | undefined,
+    // Consecutive failed probes. Reset on every success; `active` flips to
+    // false only once this reaches `deactivateAfterFailures`. A single
+    // transient failure is a soft signal and must not disable rewrites.
+    consecutiveFailures: 0,
   };
 
   const runOnce = async (): Promise<boolean> => {
     const cfg = getProxyConfig();
     if (!cfg.enabled || !cfg.url) {
-      // Toggle off → ensure we don't claim the proxy is active.
+      // Toggle off → ensure we don't claim the proxy is active. Also reset
+      // the failure streak so a later re-enable starts from a clean slate
+      // instead of immediately deactivating on one stale failure. Abort any
+      // in-flight probe so its late result cannot resurrect the flag.
+      state.consecutiveFailures = 0;
+      if (state.currentAbort) state.currentAbort.abort();
+      state.currentAbort = undefined;
       applyProxyConfig({ active: false });
       return false;
     }
@@ -78,7 +111,14 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
     if (state.currentAbort) state.currentAbort.abort();
     const abort = new AbortController();
     state.currentAbort = abort;
-    const timeout = setTimeout(() => abort.abort(), timeoutMs);
+    // Distinguish a genuine timeout (the 2s deadline fired — a real health
+    // failure that accumulates toward deactivation) from an overlapping-poke
+    // abort (a newer probe superseded this run — its result is moot).
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      abort.abort();
+    }, timeoutMs);
     if (typeof (timeout as { unref?: () => void }).unref === 'function') {
       (timeout as { unref: () => void }).unref();
     }
@@ -90,12 +130,43 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
         headers: { accept: 'application/json' },
       });
       const ok = res.ok && res.status >= 200 && res.status < 300;
-      applyProxyConfig({ active: ok });
+      // Discard the verdict if the config this probe started with is no
+      // longer live: a toggle-off or URL change mid-flight makes a 2xx from
+      // the OLD target irrelevant, and resurrecting `active` from a stale
+      // probe would undo the toggle-off above.
+      const live = getProxyConfig();
+      const stillRelevant = live.enabled && live.url === cfg.url;
+      if (stillRelevant) {
+        if (ok) {
+          // Healthy probe: reset the streak and mark the proxy active. A
+          // recovered daemon re-activates on the very next tick, no wait.
+          state.consecutiveFailures = 0;
+          applyProxyConfig({ active: true });
+        } else {
+          // Soft signal: a single non-2xx (daemon mid-restart, one dropped
+          // 2xx) must not flip `active` false and silently disable rewrites
+          // for every subsequent request. Only N consecutive failures count.
+          state.consecutiveFailures += 1;
+          if (state.consecutiveFailures >= deactivateAfterFailures) {
+            applyProxyConfig({ active: false });
+          }
+        }
+      }
       return ok;
     } catch {
-      // Timeout / ECONNREFUSED / DNS — anything other than a clean 2xx
-      // counts as inactive. AbortError is the common case here.
-      applyProxyConfig({ active: false });
+      // Timeout / ECONNREFUSED / DNS — soft-signal treatment identical to a
+      // non-2xx: they accumulate toward the threshold. An OVERLAPPING-POKE
+      // abort (the next run superseded this one, or the toggle changed
+      // mid-flight) is NOT a health failure and must not accumulate. Same
+      // relevancy guard as the success path: a stale probe never counts.
+      const live = getProxyConfig();
+      const stillRelevant = live.enabled && live.url === cfg.url;
+      if (stillRelevant && (timedOut || !abort.signal.aborted)) {
+        state.consecutiveFailures += 1;
+        if (state.consecutiveFailures >= deactivateAfterFailures) {
+          applyProxyConfig({ active: false });
+        }
+      }
       return false;
     } finally {
       clearTimeout(timeout);

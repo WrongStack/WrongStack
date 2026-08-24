@@ -1,7 +1,7 @@
 # 02 — Tool Usage
 
 Examples exercising WrongStack's built-in tool registry. The full set currently
-contains 59 tools (including 16 `browser_*` tools); token-saving modes may expose
+contains 70 tools (including 16 `browser_*` tools); token-saving modes may expose
 a smaller tier for a session. Run `wrongstack tools` for the active registry.
 
 `wrongstack tools` lists everything currently registered for the active

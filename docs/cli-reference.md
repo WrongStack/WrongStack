@@ -82,21 +82,23 @@ locked WrongStack native file (`EBUSY`, `EPERM`, or `EACCES`), stop running
 WrongStack WebUI, Desktop, and background processes before retrying.
 
 ```
-Usage: wstack update [--check-only] [--pm npm|pnpm|yarn|bun] [--allow-scripts]
+Usage: wstack update [--check-only] [--pm <manager>] [--allow-scripts]
 ```
 
 | Flag | Effect |
 |------|--------|
 | `--check-only`, `-c` | Report whether a newer version exists without installing anything. |
-| `--pm <manager>` | Force a specific package manager (`npm`, `pnpm`, `yarn`, or `bun`) instead of auto-detecting. |
-| `--allow-scripts` | Run package lifecycle scripts during the update (off by default). |
+| `--pm <manager>` | Force a specific package manager (`npm`, `pnpm`, `yarn`, or `bun`) instead of auto-detecting. The bare `--npm`, `--pnpm`, `--yarn`, and `--bun` shortcuts are accepted as equivalents of `--pm <name>`. |
+| `--allow-scripts`, `--lifecycle-scripts` | Run package lifecycle scripts during the update (off by default). |
 
 Examples:
 
 ```bash
-wstack update                 # update via the detected package manager
-wstack update --check-only    # is there a newer release?
-wstack update --pm pnpm       # force pnpm
+wstack update                         # update via the detected package manager
+wstack update --check-only            # is there a newer release?
+wstack update --pm pnpm               # force pnpm
+wstack update --pnpm                  # equivalent shortcut for `--pm pnpm`
+wstack update --lifecycle-scripts     # equivalent shortcut for `--allow-scripts`
 ```
 
 You can always update manually instead:

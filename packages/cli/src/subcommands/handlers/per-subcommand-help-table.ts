@@ -333,9 +333,12 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     description:
       'Check the latest npm version and update the globally-installed ' +
       '`wrongstack` package. Use `--check-only` to just print the ' +
-      'current/latest without installing. The update is global; run ' +
-      'from any project root.',
-    usage: 'wstack update [--check-only]',
+      'current/latest without installing. Pass `--pm <manager>` (or its ' +
+      'shorthand `--npm`, `--pnpm`, `--yarn`, `--bun`) to force a specific ' +
+      'package manager; pass `--allow-scripts` (alias `--lifecycle-scripts`) ' +
+      'to opt into package lifecycle scripts during the update (off by default). ' +
+      'The update is global; run from any project root.',
+    usage: 'wstack update [--check-only] [--pm <manager>] [--allow-scripts (alias: --lifecycle-scripts)]',
     seeAlso: 'wstack version (read-only version info)',
   },
 

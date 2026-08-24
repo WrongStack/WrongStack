@@ -16,6 +16,7 @@ import type { Provider, ProviderConfig } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Config } from '@wrongstack/core/types';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 
 const UNCONFIGURED_CAPABILITIES: Provider['capabilities'] = {
@@ -108,7 +109,17 @@ export function resolveSetupProvider(
         baseUrl: config.baseUrl,
       };
     try {
-      const cfgWithType = { ...providerConfig, type: config.provider };
+      // WrongProxy / WrongTrace: rewrite THIS provider's base URL through the
+      // shared helper when the toggle is on and the daemon is reachable.
+      // The standalone WebUI seeds the singleton at boot (proxy-runtime.ts);
+      // without this step the initial provider carries the raw base URL and
+      // the separate WebUI process bypasses the proxy entirely.
+      const routedConfig = routeProviderCfgThroughProxy(
+        providerConfig,
+        config.baseUrl,
+        config.provider,
+      );
+      const cfgWithType = { ...routedConfig, type: config.provider };
       const provider: Provider =
         config.features.modelsRegistry && providerRegistry.has(config.provider)
           ? providerRegistry.create(cfgWithType)
@@ -126,8 +137,15 @@ export function resolveSetupProvider(
   if (firstKey) {
     const firstProvider = expectDefined(savedProviders[firstKey]);
     try {
+      // WrongProxy / WrongTrace: rewrite the fallback provider's base URL
+      // through the shared helper, same as Branch 1.
+      const routedConfig = routeProviderCfgThroughProxy(
+        firstProvider,
+        config.baseUrl,
+        firstKey,
+      );
       const provider = makeProviderFromConfig(firstKey, {
-        ...firstProvider,
+        ...routedConfig,
         type: firstKey,
         family: firstProvider.family,
         apiKey: firstProvider.apiKey,

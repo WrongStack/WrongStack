@@ -331,6 +331,13 @@
     "packages/cli/src/wiring/provider-runtime-setup.ts": [
       "serializeProviderRuntimeSnapshot"
     ],
+    "packages/cli/src/wiring/proxy-probe.ts": [
+      "__resetProxyProbeForTests",
+      "stopProxyProbe"
+    ],
+    "packages/cli/src/wiring/proxy-wiring.ts": [
+      "shutdownWrongProxy"
+    ],
     "packages/cli/src/wiring/slash-commands.ts": [
       "setupSlashCommands"
     ],
@@ -1411,6 +1418,10 @@
     ],
     "packages/webui-server/src/server/provider-config-standalone.ts": [
       "vaultKeyFileForConfigPath"
+    ],
+    "packages/webui-server/src/server/proxy-runtime.ts": [
+      "probeWrongProxyActive",
+      "seedWrongProxyFromConfig"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"

@@ -51,6 +51,7 @@ import type { Config, Logger, ModelsRegistry, ResolvedProvider } from '@wrongsta
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { setupProvider } from '../wiring/provider.js';
+import { awaitFirstWrongProxyProbe, bootstrapWrongProxy } from '../wiring/proxy-wiring.js';
 
 export type ModeId = string;
 export type ModePrompt = string;
@@ -124,6 +125,29 @@ export async function resolveModeAndCapabilities(
   let providerRegistry: ProviderRegistry;
   let provider: ReturnType<ProviderRegistry['create']>;
   try {
+    // Seed the WrongProxy / WrongTrace singleton from the persisted
+    // `tools.wrongProxy.{enabled,url}` block BEFORE setupProvider() runs.
+    // Without this, the rewriter defaults to {enabled:false, active:false}
+    // and the Provider gets the raw baseUrl baked in — so toggling the
+    // WebUI/Settings toggle mid-session flips the probe's `active` flag
+    // but the Provider transport still points at the upstream directly.
+    // The probe boots inside bootstrapWrongProxy() and runs its first
+    // /api/health check on the next macrotask, so by the time
+    // resolveProviderCfg reads the singleton (synchronously inside
+    // setupProvider) the URL is set; `active` will flip to true within
+    // ~10ms of the first tick, which is fast enough that subsequent
+    // request-batches see it. See proxy-rewrite.ts:51-59.
+    bootstrapWrongProxy(deps.config.tools?.wrongProxy);
+    // Close the boot race that otherwise leaves the LEADER provider on the
+    // raw URL even when the toggle is on: `bootstrapWrongProxy` sets
+    // `enabled`/`url` synchronously, but the probe's first `/api/health`
+    // check (which flips `active` → true) only resolves on a later
+    // macrotask. `setupProvider` reads `getProxyConfig()` synchronously on
+    // the very next line, so without this gate `shouldRewriteFor()` returns
+    // false and the raw base URL is baked into the leader provider. This
+    // mirrors the same gate `cli-main.ts:358` applies before
+    // `setupProviderRuntime` — the leader boot path must do it too.
+    await awaitFirstWrongProxyProbe();
     const result = await setupProvider({
       config: deps.config,
       modelsRegistry: deps.modelsRegistry,

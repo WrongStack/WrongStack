@@ -60,7 +60,7 @@ describe('canonical preference handlers', () => {
     expect(sent).toEqual([{ type: 'prefs.updated', payload: { autonomy: 'auto' } }]);
   });
 
-  it('applies validated preferences through host capabilities', () => {
+  it('applies validated preferences through host capabilities', async () => {
     const state = makeContext();
     const payload = {
       yolo: true,
@@ -70,7 +70,7 @@ describe('canonical preference handlers', () => {
       featureMcp: true,
     };
 
-    handlePrefsUpdate(state.context, ws, payload);
+    await handlePrefsUpdate(state.context, ws, payload);
 
     expect(state.meta).toMatchObject(payload);
     expect(state.persist).toHaveBeenCalledWith(payload);
@@ -82,10 +82,10 @@ describe('canonical preference handlers', () => {
     expect(state.broadcasts.at(-1)).toEqual({ type: 'prefs.updated', payload });
   });
 
-  it('rejects unknown preferences before changing runtime state', () => {
+  it('rejects unknown preferences before changing runtime state', async () => {
     const state = makeContext();
 
-    handlePrefsUpdate(state.context, ws, { unknownPreference: true });
+    await handlePrefsUpdate(state.context, ws, { unknownPreference: true });
 
     expect(state.meta).toEqual({});
     expect(state.persist).not.toHaveBeenCalled();

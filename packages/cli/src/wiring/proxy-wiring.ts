@@ -53,13 +53,63 @@ export function applyWrongProxyPrefs(payload: Record<string, unknown>): void {
 }
 
 /**
+ * Await one probe pass so the `ProxyConfig` singleton's `active` flag is
+ * settled before the caller reads it. Returns immediately when no probe
+ * runner exists (toggle never enabled). Each call triggers a fresh
+ * `runOnce()` probe — there is no memoization — so call it once per
+ * decision point, not per request.
+ *
+ * This closes the cli-main boot race: `bootstrapWrongProxy()` seeds
+ * `enabled` / `url` synchronously, but `startProxyProbe()` only schedules
+ * a 30 s `setInterval` and the first `poke()` resolves on the next
+ * macrotask. `setupProviderRuntime()` runs synchronously on the very
+ * next line, so without this gate providers are constructed with the raw
+ * base URL even when the toggle is on.
+ */
+export async function awaitFirstWrongProxyProbe(): Promise<void> {
+  if (!probeRunner) return; // no runner booted → toggle off, nothing to await
+  await probeRunner.poke();
+}
+
+/**
  * Apply the initial prefs snapshot at boot. Same as `applyWrongProxyPrefs`
  * but explicitly named for the boot site so future readers can find it.
+ *
+ * Accepts the canonical persisted shape (`config.tools.wrongProxy` —
+ * `{ enabled?, url? }`) directly. The `enabled` / `url` keys are mapped
+ * to the flat `wrongProxyEnabled` / `wrongProxyUrl` keys the proxy
+ * rewriter reads; any other keys in the snapshot are ignored. Callers
+ * that hold a `WrongProxyToolConfig` (the typed schema in
+ * `@wrongstack/core/types/config/tools.ts`) can pass it through without
+ * casting — the function never reads anything beyond `enabled` / `url`.
  */
 export function bootstrapWrongProxy(
-  snapshot: Record<string, unknown> | undefined,
+  snapshot:
+    | {
+        enabled?: boolean | undefined;
+        url?: string | undefined;
+      }
+    | Record<string, unknown>
+    | undefined,
 ): void {
-  applyWrongProxyPrefs(snapshot ?? {});
+  if (!snapshot) {
+    applyWrongProxyPrefs({});
+    return;
+  }
+  // Re-key to the flat `wrongProxyEnabled` / `wrongProxyUrl` keys the
+  // runtime probe reads. Booleans, strings, and `undefined` pass
+  // through unchanged; any other shape falls back to the raw record
+  // path so legacy callers (WS prefs pipeline payloads) still work.
+  const enabled = (snapshot as { enabled?: boolean }).enabled;
+  const url = (snapshot as { url?: string }).url;
+  if (typeof enabled === 'boolean' || typeof url === 'string') {
+    const payload: Record<string, unknown> = {};
+    if (typeof enabled === 'boolean') payload['wrongProxyEnabled'] = enabled;
+    if (typeof url === 'string') payload['wrongProxyUrl'] = url;
+    applyWrongProxyPrefs(payload);
+    return;
+  }
+  applyWrongProxyPrefs(snapshot as Record<string, unknown>);
 }
 
 /**

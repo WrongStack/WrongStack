@@ -52,6 +52,10 @@ type Session = Awaited<ReturnType<SessionStore['create']>>;
 import type { Config } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import {
+  applyWrongProxyPrefs as applyWrongProxyPrefsRuntime,
+  routeProviderCfgThroughProxy,
+} from './proxy-runtime.js';
 import { type AutonomyRouteHandlers, createAutonomyRouteHandlers } from './autonomy-routes.js';
 import { patchConfig } from './boot.js';
 import {
@@ -316,15 +320,24 @@ export function buildRoutes(
       const cur = state.getConfig();
       const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
       const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
+      // WrongProxy / WrongTrace: rewrite the switched provider's base URL
+      // through the shared helper so the live WebUI session honors the
+      // proxy toggle, same as the CLI's `/model` switch path. `newCfg.baseUrl`
+      // is the fallback when the saved cfg carries no explicit baseUrl.
+      const routedCfg = routeProviderCfgThroughProxy(
+        providerCfg,
+        newCfg.baseUrl,
+        newProvider,
+      );
       const built = deps.providerRegistry.has(newProvider)
-        ? deps.providerRegistry.create({ ...providerCfg, type: newProvider } as never)
-        : makeProviderFromConfig(newProvider, providerCfg);
+        ? deps.providerRegistry.create({ ...routedCfg, type: newProvider } as never)
+        : makeProviderFromConfig(newProvider, routedCfg);
       // Overlay the target model's catalog facts. A freshly constructed provider
       // only has the wire-family baseline, so without this the session keeps the
       // previous model's context window and loses `maxOutput` entirely.
       const newProv = deps.modelsRegistry
         ? await withCatalogCapabilities(deps.modelsRegistry, newProvider, built, {
-            ...providerCfg,
+            ...routedCfg,
             type: newProvider,
             model: newModel,
           })
@@ -342,7 +355,9 @@ export function buildRoutes(
       deps.context.provider = newProv;
       // Capability refresh is best-effort after the atomic live swap. A catalog
       // outage must not report the switch as failed after it already committed.
-      await cb.updateAutoCompactionMaxContext(newProv, newProvider, providerCfg).catch((error) => {
+      // Pass the POST-rewrite routedCfg (the same config the provider was built
+      // from) so maxContext resolution sees the effective proxy-target URL.
+      await cb.updateAutoCompactionMaxContext(newProv, newProvider, routedCfg).catch((error) => {
         deps.logger.warn(`model.switch capability refresh failed: ${String(error)}`);
       });
 
@@ -507,6 +522,13 @@ export function buildRoutes(
       if (typeof payload['fallbackAuto'] === 'boolean')
         config.fallbackAuto = payload['fallbackAuto'];
     },
+    // WrongProxy / WrongTrace: reflect the standalone toggle/URL into the
+    // shared `ProxyConfig` singleton immediately and await the re-probe so
+    // `active` is fresh before a subsequent model.switch reads it. In the
+    // CLI-hosted path this same key is the CLI's `applyWrongProxyPrefs`; when
+    // running as its own process there is no CLI to inject it, so route it to
+    // the server-local runtime module.
+    applyWrongProxyPrefs: (payload) => applyWrongProxyPrefsRuntime(payload),
     setAutoCompact: (enabled) => {
       deps.pipelines.contextWindow.remove('AutoCompaction', { optional: true });
       if (enabled && deps.autoCompactor) {

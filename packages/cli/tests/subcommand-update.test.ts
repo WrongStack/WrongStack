@@ -224,7 +224,7 @@ describe('updateCmd subcommand', () => {
     deps.flags = { help: true };
 
     expect(await updateCmd([], deps)).toBe(0);
-    expect(writes.join('')).toContain('Usage: wrongstack update');
+    expect(writes.join('')).toContain('Usage: wstack update');
     expect(updateMocks.checkForUpdate).not.toHaveBeenCalled();
     expect(updateMocks.spawn).not.toHaveBeenCalled();
   });

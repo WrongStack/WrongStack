@@ -42,6 +42,7 @@ const loaders: Record<string, SubcommandLoader> = {
   plugins: async () => (await import('./handlers/plugin-usage.js')).pluginCmd,
   diag: async () => (await import('./handlers/diag-doctor.js')).diagCmd,
   doctor: async () => (await import('./handlers/diag-doctor.js')).doctorCmd,
+  'proxy-status': async () => (await import('./handlers/diag-doctor.js')).proxyCmd,
   export: async () => (await import('./handlers/export.js')).exportCmd,
   usage: async () => (await import('./handlers/plugin-usage.js')).usageCmd,
   version: async () => (await import('./handlers/version-help.js')).versionCmd,

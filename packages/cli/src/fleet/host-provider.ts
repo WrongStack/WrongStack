@@ -1,8 +1,12 @@
 import type { Config, Provider, ReasoningConfig, SubagentConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
-
 import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
 import type { MultiAgentDeps } from './host-types.js';
+import {
+  getProxyConfig,
+  rewriteBaseUrl,
+  shouldRewriteFor,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 
 export async function buildHostSubagentProvider(
   deps: MultiAgentDeps,
@@ -22,9 +26,24 @@ export async function buildHostSubagentProvider(
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,
   };
+  // WrongProxy / WrongTrace: rewrite THIS subagent's base URL through the
+  // shared singleton when the toggle is on and the daemon is reachable.
+  // Subagents must traverse the same proxy as the leader — a bare
+  // `providerRegistry.create(cfgWithType)` here would bypass the reroute
+  // entirely, so fan-out/fallback workers talk to the upstream directly
+  // even though the leader goes through the proxy. This mirrors
+  // `buildProvider` in `light-subagent-factory.ts` and `resolveProviderCfg`
+  // in `provider-runtime.ts`.
+  const factoryType = newCfg.type ?? providerId;
+  const rawBaseUrl = newCfg.baseUrl ?? config.baseUrl;
+  const baseUrl =
+    rawBaseUrl && shouldRewriteFor(factoryType)
+      ? rewriteBaseUrl(rawBaseUrl, getProxyConfig().url)
+      : rawBaseUrl;
   const cfgWithType = {
     ...newCfg,
     type: providerId,
+    ...(baseUrl !== newCfg.baseUrl ? { baseUrl } : {}),
     ...(model ? { model } : {}),
   };
   let provider = deps.providerRegistry.has(providerId)

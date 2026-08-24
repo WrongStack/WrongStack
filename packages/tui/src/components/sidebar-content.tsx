@@ -239,7 +239,7 @@ function fmtRelative(iso: string | undefined): string {
  * the routed F-key panel twins (`sidebar-panel-frame.tsx` +
  * `sidebar-panels-{workspace,task}.tsx`). Imported at the top of this file
  * for the `MODEL CORE`, `PROMPT CACHE`, `SYSTEM`, `AGENT SWARM`, `MISSIONS`,
- * `SESSIONS`, and `TOOL TICKER` cards — the migration keeps the persistent
+ * and `SESSIONS` cards — the migration keeps the persistent
  * call sites identical because the shared component preserves the same
  * `innerWidth` / `marginBottom` / `accent` / `children` contract.
  */
@@ -1086,61 +1086,6 @@ export function SidebarContent({
           )}
         </Card>
       ) : null}
-
-      {/* ── Live Tool Stream Ticker card ── */}
-      {(() => {
-        const liveTools: Array<{ agent: string; name: string; status: string; color: string }> = [];
-        for (const entry of Object.values(entries)) {
-          if (entry.currentTool?.name) {
-            liveTools.push({
-              agent: entry.name || entry.id,
-              name: entry.currentTool.name,
-              status: 'RUNNING',
-              color: theme.success,
-            });
-          } else if (entry.recentTools && entry.recentTools.length > 0) {
-            const lastTool = entry.recentTools[entry.recentTools.length - 1];
-            if (lastTool?.name) {
-              liveTools.push({
-                agent: entry.name || entry.id,
-                name: lastTool.name,
-                status: lastTool.ok === false ? 'FAIL' : 'OK',
-                color: lastTool.ok === false ? theme.error : theme.textMuted,
-              });
-            }
-          }
-        }
-        if (liveTools.length === 0) return null;
-        return (
-          <Card innerWidth={innerWidth} marginBottom={0} accent={theme.accent}>
-            {(bodyWidth) => (
-              <>
-                <SidebarSectionHeader
-                  glyph={glyphs.tools}
-                  label="TOOL TICKER"
-                  color={theme.accent}
-                  badge={liveTools.some((t) => t.status === 'RUNNING') ? 'STREAM' : 'IDLE'}
-                  badgeColor={
-                    liveTools.some((t) => t.status === 'RUNNING') ? theme.success : theme.textMuted
-                  }
-                  innerWidth={bodyWidth}
-                  pill
-                />
-                {liveTools.slice(0, 3).map((item, i) => (
-                  <SidebarStatRow
-                    key={`ticker-${i}`}
-                    label={`${glyphs.zap} ${item.name}`}
-                    value={item.status}
-                    color={item.color}
-                    accent={item.color}
-                    innerWidth={bodyWidth}
-                  />
-                ))}
-              </>
-            )}
-          </Card>
-        );
-      })()}
     </Box>
   );
 }

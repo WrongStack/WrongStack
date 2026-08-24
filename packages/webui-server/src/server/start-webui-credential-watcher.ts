@@ -1,6 +1,7 @@
 import { watchProviderConfig } from '@wrongstack/core/storage';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { patchConfig } from './boot.js';
@@ -88,9 +89,19 @@ export function setupWebuiCredentialWatcher(options: {
           ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
           ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
         };
+        // WrongProxy / WrongTrace: keep the hot-reloaded provider on the proxy
+        // too. A credential/config reload must not silently drop the rewrite
+        // and send the live session back to the upstream directly. The live
+        // config's top-level baseUrl is the fallback when the saved cfg
+        // carries no explicit one (same rule as the other WebUI sites).
+        const routedCfg = routeProviderCfgThroughProxy(
+          providerCfg,
+          state.getConfig().baseUrl,
+          activeId,
+        );
         const newProv = deps.providerRegistry.has(activeId)
-          ? deps.providerRegistry.create({ ...providerCfg, type: activeId } as never)
-          : makeProviderFromConfig(activeId, { ...providerCfg, type: activeId });
+          ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never)
+          : makeProviderFromConfig(activeId, { ...routedCfg, type: activeId });
         deps.context.provider = newProv;
         void updateAutoCompactionMaxContext(newProv).catch(() => undefined);
         console.log(`[WebUI] Provider credentials reloaded from config.json (${activeId})`);

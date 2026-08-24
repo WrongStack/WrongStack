@@ -734,4 +734,37 @@ export const pluginDetailsPart6: Record<string, PluginDetail> = {
     apiVersion: "^0.1.10",
     example: "process_guard_status — reports { enabled, mode, platform, selfPid, parentPid, counters: { invocations, detections, warns }, lastDetection }",
   },
+  "gitignore-guard": {
+    version: "0.1.0",
+    longDescription: "PostToolUse write|edit hook that suggests (mode: 'suggest', default) or auto-appends (mode: 'append') a .gitignore entry for build-artifact-looking paths. Configurable via artifactPatterns (regex array) and ignorePatterns (regex array); maxAppendPerCall caps lines appended per hook invocation. Deliberately orthogonal to path-guard (which blocks protected paths; gitignore-guard never blocks, only suggests/appends). Default state active per audit catalog (risk: medium) — toggle `enabled: false` to disable.",
+    tools: [
+      {
+        name: "gitignore_guard_status",
+        category: "Diagnostics",
+        mutating: false,
+        permission: "auto",
+        summary: "Reports gitignore-guard state: mode, active pattern lists, per-session suggest/append/skip counters.",
+      },
+      {
+        name: "gitignore_guard_append",
+        category: "Files",
+        mutating: true,
+        permission: "confirm",
+        summary: "Append a .gitignore entry for a path (or an explicit gitignore pattern). Walks parent directories for the first existing .gitignore and appends missing pattern lines.",
+        params: [
+          { name: "path", type: "string", description: "File or directory path whose artifact pattern should be appended." },
+          { name: "pattern", type: "string", description: "Optional explicit gitignore pattern to append. When omitted, the pattern is derived from the path via artifactPatterns." },
+        ],
+      },
+    ],
+    configOptions: [
+      { name: "enabled", type: "boolean", defaultValue: "true", description: "Master switch. When false, the hook is a no-op." },
+      { name: "mode", type: "\"suggest\" | \"append\"", defaultValue: "\"suggest\"", description: "'suggest' injects a notice into the tool result; 'append' writes the missing pattern to a .gitignore automatically." },
+      { name: "artifactPatterns", type: "string[]", description: "Regex array matching basename (no slash) or anchored glob (with slash) of build-artifact-looking paths." },
+      { name: "ignorePatterns", type: "string[]", description: "Regex array of paths to skip entirely." },
+      { name: "maxAppendPerCall", type: "number", defaultValue: "5", description: "Maximum number of lines appended per hook invocation." },
+    ],
+    hooks: ["PostToolUse (write|edit) — lifecycle: hot"],
+    apiVersion: "^0.1.10",
+  },
 };

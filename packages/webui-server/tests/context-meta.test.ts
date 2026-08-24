@@ -278,7 +278,7 @@ describe('seedContextMeta', () => {
   });
 
   it('sets maxIterations default to 500', () => {
-    const context = { meta: {} };
+    const context: { meta: Record<string, unknown> } = { meta: {} };
     seedContextMeta(makeConfig(), context);
     expect(context.meta['maxIterations']).toBe(500);
   });
@@ -485,7 +485,7 @@ describe('seedContextMeta — per-plugin effective state', () => {
   // fix alone would leave behind. Mirrors the CLI's
   // `tui-settings-adapter.ts:266-268` read path so TUI and WebUI agree.
   it('seeds wrongProxyEnabled + wrongProxyUrl from config.tools.wrongProxy', () => {
-    const context = { meta: {} };
+    const context: { meta: Record<string, unknown> } = { meta: {} };
     seedContextMeta(
       makeConfig({ tools: { wrongProxy: { enabled: true, url: 'http://proxy.local:9000' } } }),
       context,
@@ -495,14 +495,14 @@ describe('seedContextMeta — per-plugin effective state', () => {
   });
 
   it('defaults wrongProxyEnabled to false and wrongProxyUrl to empty when config has no nested entry', () => {
-    const context = { meta: {} };
+    const context: { meta: Record<string, unknown> } = { meta: {} };
     seedContextMeta(makeConfig(), context);
     expect(context.meta['wrongProxyEnabled']).toBe(false);
     expect(context.meta['wrongProxyUrl']).toBe('');
   });
 
   it('preserves a sibling tools.* key when seeding wrongProxy', () => {
-    const context = { meta: {} };
+    const context: { meta: Record<string, unknown> } = { meta: {} };
     seedContextMeta(
       makeConfig({
         tools: {

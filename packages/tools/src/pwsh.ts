@@ -348,7 +348,22 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
           if (!attempted) {
             try {
               child.kill();
-            } catch {}
+            } catch (err) {
+              // Both the registry kill and the direct kill failed — the
+              // timed-out child is leaked. Surface it instead of swallowing
+              // silently so an operator can chase the process.
+              console.log(
+                JSON.stringify({
+                  level: 'warn',
+                  event: 'pwsh.kill_fallback_failed',
+                  pid: child.pid,
+                  platform: process.platform,
+                  error: err instanceof Error ? err.message : String(err),
+                  message:
+                    'pwsh child.kill() raised after the registry kill failed; process may be leaked',
+                }),
+              );
+            }
           }
         }
         return;
@@ -358,7 +373,18 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       } else {
         try {
           child.kill('SIGTERM');
-        } catch {}
+        } catch (err) {
+          console.log(
+            JSON.stringify({
+              level: 'warn',
+              event: 'pwsh.sigterm_failed',
+              platform: process.platform,
+              error: err instanceof Error ? err.message : String(err),
+              message:
+                'pwsh child.kill("SIGTERM") raised on POSIX fallback; process may be leaked',
+            }),
+          );
+        }
       }
     };
 

@@ -341,9 +341,21 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.310.0',
+    version: '0.310.1',
     date: '2026-08-23',
     latest: true,
+    tagline: 'Anthropic usage accumulation & TUI cache card',
+    highlights: [
+      'Anthropic usage accumulation keeps cache telemetry across message_start → message_delta — a new mergeAnthropicUsage() helper preserves present fields, absent fields keep the previously-seen value, and a cacheWriteFromAggregate provenance flag prevents TTL-split sums from clobbering authoritative aggregates on partial-TTL gateways',
+      'TUI sidebar scroll clamp accounts for the new cache card (110 → 121, 87 → 98, 95 → 106, 1 → 12 scroll maxima)',
+      'Anthropic-compatible gateway usage on message_delta is now merged, not replaced — reads input_tokens, cache_read/creation_input_tokens, and ephemeral_5m/1h_input_tokens when reported on the final event',
+      'TUI prompt-cache card surfaces 5m/1h TTL split and saved-USD row; primary cache chip grew compact r<read> w<write> + ~$saved tail',
+      '195-line presets-anthropic-openai-google.test.ts covers message_start, message_delta, partial-TTL, mixed-shape, and authoritative-aggregate-pinning scenarios',
+    ],
+  },
+  {
+    version: '0.310.0',
+    date: '2026-08-23',
     tagline: 'Estimator parity & primitives',
     highlights: [
       'WebUI context-breakdown token figures now match the CLI/TUI estimator (calibrated 3.5 chars/token + EWM basis)',

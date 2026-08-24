@@ -724,7 +724,6 @@ export function WrongProxyPanelSidebar({
           </Text>
         ) : undefined
       }
-      footer="/settings integrations"
     >
       <SidebarSectionHeader
         glyph={glyphs.link}

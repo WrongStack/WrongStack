@@ -67,6 +67,21 @@ function isProxyEligibleForRewrite(originalBaseUrl: string, proxyUrl: string): b
   if (originalBaseUrl.startsWith(`${normalizedProxy}${PROXY_PATH_PREFIX}`)) {
     return false;
   }
+  // A base URL that already targets a local endpoint (localhost / loopback
+  // with an explicit port) does not need a proxy hop — the daemon would just
+  // forward to itself. Skip rewriting so a local model server (e.g. Ollama at
+  // http://localhost:11434/v1) keeps talking to the local port directly.
+  try {
+    const parsed = new URL(originalBaseUrl);
+    const isLoopback =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      // WHATWG URL serializes IPv6 hosts with brackets — `[::1]`, not `::1`.
+      parsed.hostname === '[::1]';
+    if (isLoopback && parsed.port !== '') return false;
+  } catch {
+    // Malformed original — fall through to the permissive passthrough below.
+  }
   return true;
 }
 

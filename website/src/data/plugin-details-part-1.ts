@@ -410,4 +410,13 @@ export const pluginDetailsPart1: Record<string, PluginDetail> = {
     apiVersion: "^0.1.10",
     example: "git_autocommit({ type: \"fix\", scope: \"session\", message: \"...\" })",
   },
+  "wstack-cloud-config-sync": {
+    version: "1.0.0",
+    longDescription: "Built-in my.wrongstack.com config synchronization plugin. Loads by default (audit defaultState: active) and registers the /cloudsync slash command (status, on, off, now, set url|token|interval). While the plugin is always loaded, the background sync behavior is opt-in: /cloudsync on enables it and a pull-then-push pass runs every cloudSync.intervalSeconds (default 300). The plugin keeps the local WrongStack config aligned with the namespaced sync API across six CLOUD_SYNC_CONTRACT namespaces (core.runtime, ui.preferences, models.routing, providers.catalog, mcp.servers, extensions.plugins) so a user moving between machines lands on the same setup. Secrets never sync. Distinct from wstack-sync (the legacy prompt+settings sync).",
+    tools: [],
+    configOptions: [],
+    hooks: [],
+    apiVersion: "^0.1",
+    example: "/cloudsync status\n/cloudsync set url https://my.wrongstack.com\n/cloudsync set token wst_…\n/cloudsync on\n/cloudsync now",
+  },
 };

@@ -34,6 +34,7 @@ import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
+import { bootstrapWrongProxy, awaitFirstWrongProxyProbe } from './wiring/proxy-wiring.js';
 import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSessionEstablishment } from './wiring/session-establishment.js';
@@ -340,6 +341,21 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     logger,
     teardownHandlers,
   });
+
+  // Seed the WrongProxy / WrongTrace runtime singleton from persisted
+  // config BEFORE the first provider is built. Without this, the WS prefs
+  // pipeline is the only producer of `applyProxyConfig` and that path only
+  // fires on incremental `prefs.update` messages — a CLI session that
+  // boots with the toggle already on (and never sees a WebUI delta) runs
+  // with the default `{ enabled: false, url: '', active: false }` and
+  // `shouldRewriteFor()` returns false for every provider. `bootstrapWrongProxy`
+  // is idempotent and lazily boots the probe when `enabled: true`.
+  bootstrapWrongProxy(config.tools?.wrongProxy);
+  // Close the race against `setupProviderRuntime` below: the probe's first
+  // poke() resolves on the next macrotask, but setupProviderRuntime reads
+  // `getProxyConfig()` synchronously on the very next line. Awaiting the
+  // probe here ensures `active` is correct before the singleton is read.
+  await awaitFirstWrongProxyProbe();
 
   const { buildProviderForId, buildProviderForModel, switchProviderAndModel } =
     setupProviderRuntime({

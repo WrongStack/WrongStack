@@ -6,6 +6,10 @@
       "lines": 851,
       "relativeImports": 19
     },
+    "packages/cli/src/cli-main.ts": {
+      "lines": 809,
+      "relativeImports": 34
+    },
     "packages/cli/src/goal-host.ts": {
       "lines": 930,
       "relativeImports": 1
@@ -315,7 +319,7 @@
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 1147,
+      "lines": 1092,
       "relativeImports": 13
     },
     "packages/tui/src/input-validation.ts": {
@@ -451,8 +455,8 @@
       "relativeImports": 10
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 843,
-      "relativeImports": 24
+      "lines": 854,
+      "relativeImports": 25
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
       "lines": 949,

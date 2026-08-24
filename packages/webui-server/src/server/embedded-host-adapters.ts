@@ -13,6 +13,7 @@ import type {
   SessionWriter,
 } from '@wrongstack/core/types';
 import { toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { createConversationOperations } from './conversation-operations.js';
@@ -66,7 +67,16 @@ export async function applyEmbeddedModelSwitch(
   await agentContext.runModelTransition(async () => {
     const saved = await ctx.loadSavedProviders();
     const providerConfig = saved[providerId] ?? { type: providerId };
-    const nextProvider = makeProviderFromConfig(providerId, providerConfig);
+    // WrongProxy / WrongTrace: rewrite the switched provider's base URL through
+    // the shared helper so the embedded WebUI honors the proxy toggle, same as
+    // the other WebUI provider-build paths. The live config's top-level baseUrl
+    // is the fallback when the saved cfg carries no explicit one.
+    const routedConfig = routeProviderCfgThroughProxy(
+      providerConfig,
+      ctx.getConfig?.()?.baseUrl,
+      providerId,
+    );
+    const nextProvider = makeProviderFromConfig(providerId, routedConfig);
     await ctx.modelsRegistry?.refresh().catch((error) => {
       ctx.log(
         JSON.stringify({

@@ -45,6 +45,7 @@ import {
   prefSnapshot as prefSnapshotImpl,
   updateGlobalConfig as updateGlobalConfigImpl,
 } from './pref-helpers.js';
+import { bootstrapWrongProxyFromConfig } from './proxy-runtime.js';
 import {
   ensureProjectDataDir,
   generateProjectSlug,
@@ -106,6 +107,16 @@ export async function startWebUI(
   // Boot configuration
   const boot = await bootConfig();
   const { config: baseConfig, globalConfigPath, wpaths, logger } = boot;
+  // Seed the WrongProxy / WrongTrace singleton from the persisted
+  // `tools.wrongProxy.{enabled,url}` block and await the first probe BEFORE
+  // the server's provider is built (in `createPreContextServices` →
+  // `resolveSetupProvider`). Without this, every provider-build path in this
+  // process reads the core singleton at its default `{enabled:false, url:'',
+  // active:false}` and constructs providers with the raw base URL — so a
+  // separate WebUI process would ignore the proxy toggle entirely. The CLI
+  // host already does this (cli-main.ts / system-prompt.ts); the standalone
+  // server must too.
+  await bootstrapWrongProxyFromConfig(baseConfig);
   // PR 5 of Phase 2: when the caller (typically the CLI) supplies a
   // pre-built `BackendServices`, prefer its `vault` over the one the
   // default boot would construct. This lets `runWebUI` keep owning the

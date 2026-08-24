@@ -21,9 +21,11 @@ export interface PrefsHandlerContext {
    * config and kicks the periodic probe. Injected by the CLI's
    * `createPrefsSeeding` so the WS server stays package-agnostic — the
    * server doesn't pull `@wrongstack/cli`'s import graph or its
-   * `setInterval`-owning probe module.
+   * `setInterval`-owning probe module. May return a promise so the
+   * standalone server's re-probe can be awaited before the next
+   * prefs-dependent request (e.g. an immediate model.switch).
    */
-  applyWrongProxyPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
+  applyWrongProxyPrefs?: ((payload: Record<string, unknown>) => void | Promise<void>) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
   broadcast: (message: WSServerMessage) => void;
 }
@@ -69,11 +71,11 @@ export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket): void {
   ctx.send(ws, { type: 'prefs.updated', payload: ctx.snapshot() });
 }
 
-export function handlePrefsUpdate(
+export async function handlePrefsUpdate(
   ctx: PrefsHandlerContext,
   ws: WebSocket,
   input: Record<string, unknown>,
-): void {
+): Promise<void> {
   const parsed = validatePrefsUpdatePayload(input);
   if (!parsed.ok) {
     sendResult(ctx, ws, false, parsed.message);
@@ -134,7 +136,11 @@ export function handlePrefsUpdate(
     typeof payload['wrongProxyEnabled'] === 'boolean' ||
     typeof payload['wrongProxyUrl'] === 'string'
   ) {
-    ctx.applyWrongProxyPrefs?.(payload);
+    // Await the injected callback so the re-probe settles `active` before
+    // the next prefs-dependent request (e.g. an immediate model.switch)
+    // reads the singleton. The CLI's sync `applyWrongProxyPrefs` resolves
+    // immediately; the standalone runtime's is async.
+    await ctx.applyWrongProxyPrefs?.(payload);
   }
   if (
     typeof payload['logLevel'] === 'string' &&

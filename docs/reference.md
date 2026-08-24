@@ -14,26 +14,33 @@ Use this as a map; the deep docs it links to are authoritative.
 
 ---
 
-## Built-in tools (68)
+## Built-in tools (70)
 
-WrongStack ships **68 built-in tools** — no plugins required. They fall into
+WrongStack ships **70 built-in tools** — no plugins required. They fall into
 these families:
 
 | Family | Examples |
 |--------|----------|
-| Filesystem | `read`, `write`, `edit`, `patch`, `replace`, `glob`, `grep`, `tree`, `diff` |
+| Filesystem | `read`, `write`, `edit`, `patch`, `replace`, `glob`, `grep`, `tree`, `diff`, `json` |
 | Code quality | `lint`, `format`, `typecheck`, `test`, `codebase-targeted-test`, `security-ast-scan` |
-| Execution | `bash`, `exec` |
+| Language ops | `language_info`, `language`, `language_package` |
+| Execution | `bash`, `exec`, `pwsh` |
 | Search & web | `search`, `fetch` |
-| Project insight | `codebase-index` (SQLite/FTS5 symbol index), `codebase-search`, `codebase-skeleton`, `codebase-repo-map`, `codebase-impact-analysis`, `dead-code-scan` |
+| Project insight | `codebase-index` (SQLite/FTS5 symbol index), `codebase-search`, `codebase-skeleton`, `codebase-repo-map`, `codebase-impact-analysis`, `codebase-incoming-calls`, `codebase-outgoing-calls`, `codebase-stats`, `dead-code-scan` |
 | Planning | `todo`, `plan`, `task`, `kanban` |
-| Git | `git`, `git_autocommit`, `semver_bump`, `semver_changelog` |
-| Packages | `install`, `audit`, `outdated` |
-| Browser / E2E | `browser_open`, `browser_navigate`, `browser_click`, `browser_screenshot`, `browser_evaluate`, … |
-| Memory | `remember`, `memory_search`, `pin_add` |
-| Agents | `delegate`, `spawn_subagent`, `assign_task`, `await_tasks` |
-| Meta | `clarify`, `tool_search`, `tool_help`, `batch_tool_use`, `context_manager` |
-| Structured edits | `codebase-ast-replace` with compatibility-invariant checks |
+| Git | `git` |
+| Packages | `install`, `audit`, `outdated`, `logs` |
+| Generation | `document`, `scaffold`, `design` |
+| Browser / E2E | `browser_open`, `browser_navigate`, `browser_click`, `browser_screenshot`, `browser_evaluate`, `e2e_plan`, … |
+| Meta & tooling | `clarify`, `tool_search`, `tool_use`, `batch_tool_use`, `tool_help`, `set_working_dir` |
+| Structured edits | `codebase-ast-replace`, `codebase-invariant-check` |
+
+Related surfaces that are **not** built-in tools: `git_autocommit` /
+`semver_bump` / `semver_changelog` come from the `git-autocommit` and
+`semver-bump` plugins; `remember` / `memory_search` come from SAGE;
+`pin_add` comes from the `context-pins` plugin; `delegate` /
+`spawn_subagent` / `assign_task` / `await_tasks` are the runtime agent
+layer.
 
 Run `wstack tools` for the live, version-specific list.
 

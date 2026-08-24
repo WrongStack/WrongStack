@@ -191,7 +191,7 @@ export const updateCmd: SubcommandHandler = async (args, deps) => runUpdateComma
 
 function writeUpdateUsage(renderer: Pick<TerminalRenderer, 'write'>): void {
   renderer.write(
-    'Usage: wrongstack update [--check-only] [--pm npm|pnpm|yarn|bun] [--allow-scripts]\n',
+    'Usage: wstack update [--check-only] [--pm <manager>] [--allow-scripts (alias: --lifecycle-scripts)]\n',
   );
 }
 

@@ -1,5 +1,12 @@
 # Multi-Tier Token Saving Mode — Design Document
 
+> **Status (2026-08-24): implemented with deviations.** The shipped tiers
+> differ from the matrix below: TIER1 = 23 tools, TIER2 = 20, TIER3 = 10,
+> and `aggressive` selects **TIER1 only** — not "TIER1+TIER2+TIER3". See
+> `docs/configuration.md` (token-saving table) and `BUILTIN_TIER_COUNTS` in
+> `packages/tools/src/tool-tier.ts` for the live numbers; this document is
+> retained as the original design rationale.
+
 ## Problem Statement
 
 The current `tokenSavingMode: boolean` is binary — it either applies maximum reduction or none. This forces an all-or-nothing trade-off: maximum savings may degrade the model's ability to handle complex tasks, while full mode wastes tokens on elements that could safely be simplified.

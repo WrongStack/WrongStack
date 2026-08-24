@@ -75,6 +75,30 @@ describe('rewriteBaseUrl', () => {
     );
   });
 
+  it('does NOT rewrite a base URL that already targets localhost with a port', () => {
+    expect(rewriteBaseUrl('http://localhost:11434/v1', 'http://localhost:8000')).toBe(
+      'http://localhost:11434/v1',
+    );
+  });
+
+  it('does NOT rewrite a base URL that already targets 127.0.0.1 with a port', () => {
+    expect(rewriteBaseUrl('http://127.0.0.1:11434/v1', 'http://localhost:8000')).toBe(
+      'http://127.0.0.1:11434/v1',
+    );
+  });
+
+  it('does NOT rewrite a base URL that already targets IPv6 loopback with a port', () => {
+    expect(rewriteBaseUrl('http://[::1]:11434/v1', 'http://localhost:8000')).toBe(
+      'http://[::1]:11434/v1',
+    );
+  });
+
+  it('rewrites a localhost base URL WITHOUT a port (no local endpoint to short-circuit)', () => {
+    expect(rewriteBaseUrl('http://localhost/v1', 'http://localhost:8000')).toBe(
+      'http://localhost:8000/proxy/localhost/v1',
+    );
+  });
+
   it('returns the original when the original is malformed', () => {
     expect(rewriteBaseUrl('not a url', 'http://localhost:8000')).toBe('not a url');
   });

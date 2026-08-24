@@ -2,7 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { color, toErrorMessage } from '@wrongstack/core/utils';
+import {
+  applyProxyConfig,
+  getProxyConfig,
+  shouldRewriteFor,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 import { API_VERSION } from '../../version.js';
+import { startProxyProbe } from '../../wiring/proxy-probe.js';
 import type { SubcommandHandler } from '../contracts.js';
 import {
   clearStaleDaemonEndpoints,
@@ -30,6 +36,63 @@ export const diagCmd: SubcommandHandler = async (_args, deps) => {
     `  tools:         ${deps.toolRegistry?.list().length ?? 0}`,
     `  plugins:       ${cfg.plugins?.length ?? 0}`,
     `  mcpServers:    ${Object.keys(cfg.mcpServers ?? {}).length}`,
+  ];
+  deps.renderer.write(lines.join('\n') + '\n');
+  return 0;
+};
+
+/**
+ * `wstack proxy-status` — print the live in-process `ProxyConfig` singleton.
+ *
+ * A fresh `wstack` invocation has never booted the WS prefs pipeline that
+ * the long-running session uses to populate the singleton, so reading
+ * `getProxyConfig()` raw here would always return the module default
+ * (`enabled=false, url='', active=false`) regardless of what's on disk
+ * or whether the daemon is reachable. To answer "did the probe flip
+ * active=true?" we seed the singleton from persisted prefs (`config.tools
+ * .wrongProxy`), start a one-shot probe, await its first poke, and only
+ * then read state. `startProxyProbe()` is idempotent so this is safe to
+ * call from a subcommand that has no other runtime side-effects.
+ */
+export const proxyCmd: SubcommandHandler = async (_args, deps) => {
+  const persisted = deps.config.tools?.wrongProxy;
+  // Seed from disk so the singleton reflects what the live session uses,
+  // not the empty default. Mirror the shape `applyWrongProxyPrefs` writes.
+  if (persisted) {
+    applyProxyConfig({
+      enabled: persisted.enabled === true,
+      url: typeof persisted.url === 'string' ? persisted.url : '',
+    });
+  }
+  // One-shot reachability probe against the persisted URL. The probe's
+  // first tick flips `active` to true (2xx) or false (timeout/refused).
+  // We don't care about the return value — `getProxyConfig()` is the source.
+  if (persisted?.enabled === true && persisted.url) {
+    const runner = startProxyProbe({ intervalMs: 60_000, timeoutMs: 2_000 });
+    await runner.poke();
+  }
+  const cfg = getProxyConfig();
+  const gate = shouldRewriteFor('openai'); // representative non-excluded
+  const enabled = cfg.enabled;
+  const url = cfg.url || '<unset>';
+  const active = cfg.active;
+  const status = (): { glyph: string; label: string; color: (s: string) => string } => {
+    if (enabled && active && cfg.url) return { glyph: '✓', label: 'live', color: color.green };
+    if (enabled && !active)
+      return { glyph: '●', label: 'enabled, probe not yet active', color: color.amber };
+    if (!enabled && cfg.url)
+      return { glyph: '○', label: 'url set, toggle off', color: color.dim };
+    return { glyph: '·', label: 'unconfigured', color: color.dim };
+  };
+  const s = status();
+  const rewriteGateLabel = (open: boolean): string =>
+    open ? color.green('rewrites applied') : color.dim('rewrites bypassed');
+  const lines = [
+    color.bold('WrongProxy / WrongTrace status'),
+    `  enabled:      ${enabled}`,
+    `  url:          ${url}`,
+    `  active:       ${active}    ${s.color(`(${s.label})`)}`,
+    `  shouldRewrite:${gate}  ${rewriteGateLabel(gate)}`,
   ];
   deps.renderer.write(lines.join('\n') + '\n');
   return 0;

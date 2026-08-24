@@ -92,18 +92,21 @@ export const OFF_ONLY_TOOLS: Tool[] = [...browserTools, e2ePlanTool];
 
 /**
  * Tier 1 (Token Saving) tool set — the absolute minimum for useful work.
- * 15 tools covering core file ops, indexed project discovery, shell, search,
- * and utilities. Codebase index lifecycle tools stay available at every tier
- * so token saving does not force broad filesystem scans.
- * Saves ~3500-5500 tokens vs full mode by omitting specialized schemas from
- * direct provider exposure; hosts may retain those tools in a lazy catalog.
+ * 23 tools covering core file ops, indexed project discovery, structured
+ * edits, shell, search, and utilities. Codebase index lifecycle tools stay
+ * available at every tier so token saving does not force broad filesystem
+ * scans. Saves ~3500-5500 tokens vs full mode by omitting specialized
+ * schemas from direct provider exposure; hosts may retain those tools in a
+ * lazy catalog.
  *
  * Tier 1 tools:
- *   read, write, edit                         — file operations
- *   codebase-stats, codebase-search/index     — indexed project discovery
- *   bash, grep, glob                          — shell + exact/path fallback
- *   diff, patch, json                         — utility
- *   search                                   — web research
+ *   read, write, edit, clarify                 — file operations
+ *   codebase-stats/search/index/skeleton/repo-map/impact/targeted-test/
+ *   incoming-calls/outgoing-calls/ast-replace/invariant-check,
+ *   security-ast-scan                          — indexed project discovery
+ *   bash, grep, glob                           — shell + exact/path fallback
+ *   diff, patch, json                          — utility
+ *   search                                     — web research
  */
 export const TIER1_TOOLS: Tool[] = [
   readTool,
@@ -133,9 +136,9 @@ export const TIER1_TOOLS: Tool[] = [
 
 /**
  * Tier 2 tool set — standard development tools useful for non-trivial work.
- * Adds 19 tools: replace, exec, fetch, git, tree, lint, format, typecheck,
- * test, languageInfo, language, languagePackage, todo, plan, kanban, task,
- * install, audit, design.
+ * Adds 20 tools: replace, exec, pwsh, fetch, git, tree, lint, format,
+ * typecheck, test, languageInfo, language, languagePackage, todo, plan,
+ * kanban, task, install, audit, design.
  *
  * These tools are used regularly during development but are not essential for
  * every turn. Omitting them in minimal/light tier saves ~900 tokens per prompt.
@@ -165,7 +168,7 @@ export const TIER2_TOOLS: Tool[] = [
 
 /**
  * Tier 3 tool set — specialized, administrative, and exploratory tools.
- * Adds 12 tools: outdated, logs, document, scaffold, dead-code-scan,
+ * Adds 10 tools: outdated, logs, document, scaffold, dead-code-scan,
  * tool-search, tool-use, batch-tool-use, tool-help, set-working-dir.
  *
  * These tools are situational (e.g. documentation generation, scaffolding,

@@ -141,6 +141,7 @@
   <url><loc>https://wrongstack.com/features/customization</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-prompts</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-sync</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/plugins/wstack-cloud-config-sync</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-chimera</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-skills</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/wstack-auto-review</loc><priority>0.8</priority></url>
@@ -171,6 +172,7 @@
   <url><loc>https://wrongstack.com/plugins/spec-linker</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/doc-sync-guard</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/loop-breaker</loc><priority>0.8</priority></url>
+  <url><loc>https://wrongstack.com/plugins/gitignore-guard</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/path-guard</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/context-pins</loc><priority>0.8</priority></url>
   <url><loc>https://wrongstack.com/plugins/checkpoint</loc><priority>0.8</priority></url>

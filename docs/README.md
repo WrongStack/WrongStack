@@ -96,7 +96,7 @@ the per-subcommand and per-slash-command docs below.
 | Document | What it covers |
 |---|---|
 | [cli-reference.md](cli-reference.md) | Launch flags, subcommands, and the `wstack update` self-updater (`--check-only`, `--pm`, `--allow-scripts`) |
-| [reference.md](reference.md) | Condensed map of the 59 built-in tools, ~140 providers, slash commands, the 8 modes, and the 29 bundled skills |
+| [reference.md](reference.md) | Condensed map of the 70 built-in tools, ~140 providers, slash commands, the 19 modes, and the 29 bundled skills |
 
 ---
 

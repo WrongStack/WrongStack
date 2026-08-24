@@ -64,11 +64,11 @@ const catalogStats = {
 const sourceDetails = {
   Core: {
     title: 'Core first-party plugins',
-    body: 'Five host-level feature plugins composed by WrongStack itself: prompts, sync, Chimera, skills and mid-session auto-review.',
+    body: 'Six host-level feature plugins composed by WrongStack itself: prompts, sync, cloud config sync, Chimera, skills and mid-session auto-review.',
   },
   Suite: {
     title: '@wrongstack/plugins suite',
-    body: 'Sixty-four focused workflow, quality, security, provider-wire and developer-experience plugins available from one package.',
+    body: 'Sixty-five focused workflow, quality, security, provider-wire and developer-experience plugins available from one package.',
   },
   Bridge: {
     title: 'Interface bridges',
