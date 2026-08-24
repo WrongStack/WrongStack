@@ -167,7 +167,11 @@ describe('useQueueManager', () => {
     const refs = buildHarness();
     const store = makeQueueStore();
     refs.queueStore = store;
-    render(React.createElement(Harness, { refs }));
+    const view = render(React.createElement(Harness, { refs }));
+    // Let the rehydrate read resolve so the persist gate (hydrated) opens.
+    await act(async () => {
+      await Promise.resolve();
+    });
     // Trigger a queue change by updating stateRef.current.queue
     const queueItem = {
       displayText: 'test',
@@ -175,9 +179,11 @@ describe('useQueueManager', () => {
       journalRaw: 'raw test',
     };
     refs.stateRef.current = { queue: [queueItem] } as unknown as State;
-    // Re-render to trigger the persist effect
-    render(React.createElement(Harness, { refs }));
-    // Need re-render via act - the component re-renders on state change
+    // Re-render the SAME mounted instance (preserves the hook's hydrated ref,
+    // as a real parent re-render would) to fire the persist effect.
+    act(() => {
+      view.rerender(React.createElement(Harness, { refs }));
+    });
     await vi.waitFor(() => {
       expect(store.write).toHaveBeenCalledWith(
         expect.arrayContaining([
@@ -204,6 +210,88 @@ describe('useQueueManager', () => {
 
     await vi.waitFor(() => {
       expect(refs.onQueueChange).toHaveBeenCalledWith(['item1']);
+    });
+  });
+
+  it('does not write a queue before rehydration read completes', async () => {
+    const refs = buildHarness();
+    let resolveRead: (items: unknown[]) => void = () => {};
+    const readPromise = new Promise<unknown[]>((resolve) => {
+      resolveRead = resolve;
+    });
+    const store = makeQueueStore({
+      read: vi.fn(() => readPromise as never),
+    });
+    refs.queueStore = store;
+    // Mount-time in-memory queue is empty; the persisted store has pending items.
+    refs.stateRef.current = { queue: [] } as unknown as State;
+    render(React.createElement(Harness, { refs }));
+
+    // While the rehydrate read() is still pending, the persist effect must not
+    // have issued an empty write — write([]) maps to QueueStore.clear(), which
+    // would unlink the persisted queue.json that read() is about to restore.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(store.write).not.toHaveBeenCalled();
+    expect(store.clear).not.toHaveBeenCalled();
+
+    // Let rehydration finish; it must dispatch the restored item (not drop it).
+    act(() => {
+      resolveRead([{ displayText: 'survived', blocks: [{ type: 'text', text: 'x' }] }]);
+    });
+    await vi.waitFor(() => {
+      expect(refs.dispatch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'enqueue',
+          item: expect.objectContaining({ displayText: 'survived' }),
+        }),
+      );
+    });
+  });
+
+  it('flushes a pre-hydration enqueue once the read completes', async () => {
+    const refs = buildHarness();
+    let resolveRead: (items: unknown[]) => void = () => {};
+    const readPromise = new Promise<unknown[]>((resolve) => {
+      resolveRead = resolve;
+    });
+    const store = makeQueueStore({
+      read: vi.fn(() => readPromise as never),
+    });
+    refs.queueStore = store;
+    refs.stateRef.current = { queue: [] } as unknown as State;
+    const view = render(React.createElement(Harness, { refs }));
+
+    // User enqueues BEFORE the persisted read resolves (pre-hydration window).
+    const queueItem = {
+      displayText: 'typed-early',
+      blocks: [{ type: 'text' as const, text: 'x' }],
+      journalRaw: 'raw-early',
+    };
+    refs.stateRef.current = { queue: [queueItem] } as unknown as State;
+    act(() => {
+      view.rerender(React.createElement(Harness, { refs }));
+    });
+
+    // Still no store write while the read is pending (the empty mount queue
+    // must not clear the file the read is about to restore).
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(store.write).not.toHaveBeenCalled();
+
+    // Read resolves with nothing to restore (fresh store). The pre-hydration
+    // enqueue must now be flushed to the store, not dropped.
+    act(() => {
+      resolveRead([]);
+    });
+    await vi.waitFor(() => {
+      expect(store.write).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ displayText: 'typed-early', journalRaw: 'raw-early' }),
+        ]),
+      );
     });
   });
 
