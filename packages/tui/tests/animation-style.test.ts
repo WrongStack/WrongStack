@@ -29,8 +29,8 @@ function parseRgb(hex: string): [number, number, number] {
 
 describe('animation-style', () => {
   describe('exports', () => {
-    it('exposes 5 renderable styles', () => {
-      expect(ANIMATION_STYLES).toEqual(['rainbow', 'wave', 'pulse', 'dots', 'breathe']);
+    it('exposes 6 renderable styles', () => {
+      expect(ANIMATION_STYLES).toEqual(['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static']);
     });
 
     it('has a description per style', () => {

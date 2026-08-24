@@ -346,8 +346,16 @@ describe('/settings slash command', () => {
   it('animation rejects invalid values without writing', async () => {
     const { ctx, globalConfig } = makeCtx();
     const res = await buildSettingsCommand(ctx).run!('animation sparkle');
-    expect(stripAnsi(res!.message!)).toContain('animation rainbow|wave|pulse|dots|breathe|cycle');
+    expect(stripAnsi(res!.message!)).toContain('animation rainbow|wave|pulse|dots|breathe|static|cycle');
     expect(existsSync(globalConfig)).toBe(false);
+  });
+
+  it('animation accepts the static style (no-animation working chip)', async () => {
+    const { ctx, globalConfig } = makeCtx();
+    const res = await buildSettingsCommand(ctx).run!('animation static');
+    expect(stripAnsi(res!.message!)).toContain('animation style → static');
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8'));
+    expect(written.autonomy.animationStyle).toBe('static');
   });
 
   // ── Help text for the new sections ──

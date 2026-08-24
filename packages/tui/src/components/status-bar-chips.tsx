@@ -172,9 +172,12 @@ export function ThinkingChip({
   // segment) eight times a second while the agent worked. Hook usage is safe
   // here despite PowerlineRail's invoke-to-measure trick: this chip exposes
   // a `text` prop, which visibleNodeText prefers over calling the function.
-  const { time: colorTime } = useAnimation({ interval: COLOR_TICK_MS, isActive: true });
-  const colorPhase = colorPhaseFromTime(colorTime);
+  // `static` (and the static slice of `cycle`) keeps the tick off entirely —
+  // a flat indicator must not pay an animation clock.
   const live: AnimationStyle = style === 'cycle' ? styleForCycleTick(cycleTick) : style;
+  const animateColor = live === 'rainbow' || live === 'wave' || live === 'pulse';
+  const { time: colorTime } = useAnimation({ interval: COLOR_TICK_MS, isActive: animateColor });
+  const colorPhase = colorPhaseFromTime(animateColor ? colorTime : 0);
   if (live === 'rainbow') {
     // A single Catppuccin gradient translates left-to-right across the label.
     // Adjacent palette stops are blended so the movement stays continuous.
@@ -204,6 +207,17 @@ export function ThinkingChip({
   if (live === 'pulse') {
     return (
       <Text bold color={pulseColor(colorPhase)}>
+        {text}
+      </Text>
+    );
+  }
+  if (live === 'static') {
+    // No animation at all — the working indicator stays flat for users who
+    // find the moving glyph distracting. The useAnimation tick above still
+    // runs but nothing consumes it, so output is identical every frame and
+    // Ink's diff writes nothing.
+    return (
+      <Text bold color="green">
         {text}
       </Text>
     );

@@ -193,7 +193,8 @@ export function StatusBar({
     fleet?.running ?? 0,
     thinkingWord,
   );
-  const statePrefix = state === 'idle' || state === 'aborting' ? '●' : spinner;
+  const statePrefix =
+    state === 'idle' || state === 'aborting' ? '●' : animationStyle === 'static' ? '●' : spinner;
   const thinking = state === 'running' || state === 'streaming';
 
   const hasAutoProceed = autoProceedCountdown != null && autoProceedCountdown > 0;

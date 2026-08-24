@@ -207,7 +207,7 @@ export type Action =
        * One of the renderable styles plus the meta-mode `'cycle'`. Persisted
        * to disk on every ←/→ change in `/settings`.
        */
-      animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+      animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
       /**
        * Persisted row index for where to land when the picker reopens.
        * See `Settings.lastSettingsField`.

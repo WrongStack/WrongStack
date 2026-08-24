@@ -55,7 +55,7 @@ export const BREATHE_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', 
 //   then wrap to 0
 export const DOTS_FRAMES = ['', '.', '..', '...', '..', '.'];
 
-export const ANIMATION_STYLES = ['rainbow', 'wave', 'pulse', 'dots', 'breathe'] as const;
+export const ANIMATION_STYLES = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static'] as const;
 export type AnimationStyle = (typeof ANIMATION_STYLES)[number];
 
 export const DEFAULT_ANIMATION_STYLE: AnimationStyle = 'rainbow';
@@ -66,6 +66,7 @@ export const ANIMATION_STYLE_DESCS: Record<AnimationStyle, string> = {
   pulse: 'Whole-text brightness pulse',
   dots: 'Trailing dots ellipsis (. .. ... .. .)',
   breathe: 'Spinning braille glyph prefix, flat text',
+  static: 'No animation — flat working indicator',
 };
 
 /**
@@ -105,10 +106,14 @@ export function colorPhaseFromTime(elapsedMs: number): number {
 /**
  * Cycle through every other `AnimationStyle` in order, returning to the
  * start once the list is exhausted. `rainbow` is excluded from the cycle
- * (it's the default/canonical look); cycle goes through the four variant
+ * (it's the default/canonical look); cycle goes through the five variant
  * styles only.
  */
-export const CYCLE_ORDER: readonly AnimationStyle[] = ['wave', 'pulse', 'dots', 'breathe'];
+// Derived from ANIMATION_STYLES so a new style joins the shuffle without a
+// second hand-maintained list to drift. Rainbow stays excluded (default).
+export const CYCLE_ORDER: readonly AnimationStyle[] = ANIMATION_STYLES.filter(
+  (style) => style !== 'rainbow',
+);
 
 /**
  * Map a coarse `tick` (seconds elapsed since the cycle started) onto the

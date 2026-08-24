@@ -94,7 +94,7 @@ export interface SettingsAdapter {
   saveSettings: (s: LiveSettingsInput) => Promise<string | null>;
 }
 
-const ANIMATION_STYLES = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'cycle'] as const;
+const ANIMATION_STYLES = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle'] as const;
 type AnimationStyleValue = (typeof ANIMATION_STYLES)[number];
 
 /** Widen an untyped config value to the animation-style union; default 'rainbow'. */

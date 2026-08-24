@@ -194,7 +194,7 @@ const ENUM_PREF_KEYS: Record<string, Set<string>> = {
   reasoningEffort: REASONING_EFFORT_VALUES,
   cacheTtl: CACHE_TTL_VALUES,
   statuslineMode: new Set(['minimum', 'detailed', 'no-color']),
-  animationStyle: new Set(['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'cycle']),
+  animationStyle: new Set(['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle']),
   fsAccess: new Set(['unrestricted', 'project']),
   // Chimera autoFix + auto-review cascade threshold
   chimeraAutoFix: new Set(['off', 'ask', 'auto']),

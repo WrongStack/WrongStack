@@ -874,10 +874,10 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'animation') {
       const raw = (rest[0] ?? '').toLowerCase();
-      const styles = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'cycle'];
+      const styles = ['rainbow', 'wave', 'pulse', 'dots', 'breathe', 'static', 'cycle'];
       if (!styles.includes(raw))
         return {
-          message: `${color.amber('Usage:')} /settings animation rainbow|wave|pulse|dots|breathe|cycle`,
+          message: `${color.amber('Usage:')} /settings animation rainbow|wave|pulse|dots|breathe|static|cycle`,
         };
       await persistAutonomySetting(persistDeps, (autonomy) => {
         (autonomy as Record<string, unknown>).animationStyle = raw;

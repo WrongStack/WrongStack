@@ -116,7 +116,7 @@ export type Settings = {
   cacheTtl: CacheTtl;
   /** Where to persist settings: 'global' or 'project'. */
   configScope: 'global' | 'project';
-  animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+  animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
   /** When true, read tool includes codebase-index symbols alongside file content. */
   readSymbols: boolean;
   /** Full mouse mode: in-app managed scroll + clickable UI (SGR tracking on). */

@@ -20,7 +20,7 @@ export type EnhanceLanguage = 'original' | 'english';
 export type TokenSavingTierTui = 'auto' | 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
 export type FleetChatVerbosityTui = 'off' | 'full';
 export type ConfigScope = 'global' | 'project';
-export type AnimationStyleChoice = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+export type AnimationStyleChoice = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
 
 /** Where to render the agent swarm panel: lower region, sidebar, or hidden. */
 export type AgentSwarmPanelMode = 'bottom' | 'sidebar' | 'off';

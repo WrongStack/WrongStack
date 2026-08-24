@@ -367,7 +367,7 @@ export type State = {
      * meta-mode `'cycle'` that rotates through the variant styles every
      * `CYCLE_INTERVAL_SECONDS`. Persisted on every ←/→ change in `/settings`.
      */
-    animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+    animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
     // ── Integrations ──
     /**
      * WrongProxy / WrongTrace: master switch. When true AND the daemon at

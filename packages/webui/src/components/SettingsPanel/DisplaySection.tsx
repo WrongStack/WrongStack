@@ -184,6 +184,7 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
                 { value: 'pulse', label: t('settings:display.animationStylePulse') },
                 { value: 'dots', label: t('settings:display.animationStyleDots') },
                 { value: 'breathe', label: t('settings:display.animationStyleBreathe') },
+                { value: 'static', label: t('settings:display.animationStyleStatic') },
                 { value: 'cycle', label: t('settings:display.animationStyleCycle') },
               ]}
               onChange={(v) => syncPref('animationStyle', v)}

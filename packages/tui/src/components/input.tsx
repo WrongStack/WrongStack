@@ -50,6 +50,10 @@ function ComposerTopRail({
   // the resting brand glyph measure exactly one column, so the rail geometry is
   // computed once here and never shifts as the icon animates below.
   const icon = glyphs.brand;
+  // The 'static' style flattens the whole working surface: the left orb rests
+  // on the brand glyph instead of pulsing (the right chip renders flat text).
+  // 'cycle' keeps animating — it means "shuffle all styles".
+  const staticMode = animationStyle === 'static';
 
   // — 1. Status section (right side) —
   const requestedStatusWidth = composerStatusReservedWidth(status);
@@ -77,7 +81,11 @@ function ComposerTopRail({
       {title ? (
         <>
           <Text>{'─ '}</Text>
-          <ComposerActivityIcon status={status} idleGlyph={glyphs.brand} disabled={disabled} />
+          {staticMode ? (
+            <Text bold>{glyphs.brand}</Text>
+          ) : (
+            <ComposerActivityIcon status={status} idleGlyph={glyphs.brand} disabled={disabled} />
+          )}
           <Text>{` ${title}`}</Text>
           {workingTimeChip ? <Text dimColor>{workingTimeChip}</Text> : null}
           <Text> </Text>

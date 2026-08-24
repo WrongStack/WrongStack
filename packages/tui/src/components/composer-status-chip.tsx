@@ -241,6 +241,19 @@ function renderWorking(
       width: displayWidth(text),
     };
   }
+  if (style === 'static') {
+    // Flat working label — no spinner, no suffix. The width reservation
+    // (word + 5) keeps the rail geometry identical to other styles.
+    const text = truncateDisplay(word, maxWidth);
+    return {
+      node: (
+        <Text bold color="green">
+          {text}
+        </Text>
+      ),
+      width: displayWidth(text),
+    };
+  }
   if (style === 'breathe') {
     // The spinner IS the breathing element; text stays flat.
     const text = truncateDisplay(`${spinner} ${word}`, maxWidth);

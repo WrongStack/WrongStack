@@ -107,7 +107,7 @@ export interface LocalPrefs {
   /** TUI statusline density. */
   statuslineMode: 'minimum' | 'detailed' | 'no-color';
   /** TUI working-chip animation style. */
-  animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+  animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
 
   // --- Display toggles ---
   /** Show completed thinking/logic blocks in chat history */

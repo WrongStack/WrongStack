@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { Settings } from '../app-settings-type.js';
 import { DEFAULT_STATUSLINE_MODE } from '../components/settings-picker.js';
 
-type AnimationStyle = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle';
+type AnimationStyle = 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
 
 export function useLiveSettingsState({
   getSettings,
