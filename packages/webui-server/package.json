@@ -53,6 +53,7 @@
     "@wrongstack/tools": "workspace:*",
     "@wrongstack/vector-memory": "workspace:*",
     "@wrongstack/webui-protocol": "workspace:*",
+    "@wrongstack/wrongtrace": "workspace:*",
     "ws": "^8.21.3"
   },
   "devDependencies": {

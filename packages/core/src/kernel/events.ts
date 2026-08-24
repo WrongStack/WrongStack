@@ -15,6 +15,7 @@ import type { SddEventMap } from './events/sdd-events.js';
 import type { SessionEventMap } from './events/session-events.js';
 import type { ToolEventMap } from './events/tool-events.js';
 import type { WorktreeEventMap } from './events/worktree-events.js';
+import type { WrongTraceEventMap } from './events/wrongtrace-events.js';
 
 /** Safety cap on the wildcard listener array to prevent unbounded growth from
  *  undisposed onPattern/onRegex/onAny callers. No legitimate usage needs more
@@ -86,7 +87,8 @@ export interface EventMap
     MemoryEventMap,
     SddEventMap,
     WorktreeEventMap,
-    FleetEventMap {}
+    FleetEventMap,
+    WrongTraceEventMap {}
 
 export type EventName = keyof EventMap;
 export type Listener<E extends EventName> = (payload: EventMap[E]) => void;

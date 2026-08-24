@@ -1155,6 +1155,9 @@ importers:
       '@wrongstack/webui-protocol':
         specifier: workspace:*
         version: link:../webui-protocol
+      '@wrongstack/wrongtrace':
+        specifier: workspace:*
+        version: link:../wrongtrace
       ws:
         specifier: ^8.21.3
         version: 8.21.3

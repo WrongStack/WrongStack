@@ -78,6 +78,10 @@ Public surface (see `packages/wrongtrace/src/index.ts`):
 | `getRecentActivity` | helper | Recent actor/action events for a file |
 | `digestAtlas` | helper | Boot-prompt atlas digest (fragile files, thrash) |
 | `createIpcTransport` / `createMcpTransport` | function | Raw transports for advanced consumers |
+| `getWrongTrace`, `preflightFileEdit`, `withFileLock` | function | The shared guardrail gate — one singleton per process |
+| `createWrongTracePreToolUseHook` / `createWrongTracePostToolUseHook`, `WrongTraceGateDecisionEvent` | function / type | Shared fail-open lock-gate hook factories + typed decision events |
+
+The gate and hooks live **in the adapter itself** (not in `@wrongstack/cli`) so every host — CLI leader, fleet subagents, standalone WebUI server, runtime-package light subagents — consumes the exact same lock-gate implementation without importing `@wrongstack/cli` (dep direction cli → webui-server forbids the reverse edge). The CLI's `wiring/wrongtrace-gate.ts` / `wiring/wrongtrace-hooks.ts` are re-export shims.
 
 ---
 
@@ -173,13 +177,27 @@ Merges the friction matrix's `recent_collisions` with the events endpoint. `[]` 
 
 Workspace count, fragile-file count (`health_score < 40` or `is_fragile`), self-thrash-heavy workspaces. `null` when no atlas is available.
 
+**Consumed at boot** — `packages/cli/src/wiring/wrongtrace-prompt-contributor.ts` registers a
+`SystemPromptContributor` on the leader's prompt builder (`bindSystemPromptBuilder`) that races
+discovery + atlas/friction fetches against an 800 ms deadline and, when the daemon answers, emits
+a compact `## WrongTrace observability` block combining `digestAtlas` + `summarizeFriction`.
+The atlas is fetched **without symbol trees** (`include_symbols=false`, ~10% of the full payload —
+summary mode would strip the per-file health arrays `digestAtlas` needs, silently reporting
+"0 fragile files").
+Fail-open: an absent or slow daemon contributes nothing and never stalls boot.
+
+In addition, the gate hooks emit **typed decision events** (`WrongTraceGateDecisionEvent`) that
+each host maps onto its EventBus as `wrongtrace.gate.decision` (declared in core's `EventMap`):
+`deny`, `allow-fragile`, `lock-acquired`, `lock-conflict-race`, `lock-released`. This makes the
+gate's decisions observable — the first step toward counting how often it fires.
+
 ---
 
 ## 6. CLI integration
 
-### 6.1 The gate — `packages/cli/src/wiring/wrongtrace-gate.ts`
+### 6.1 The gate — `@wrongstack/wrongtrace` `gate.ts` (CLI re-export: `packages/cli/src/wiring/wrongtrace-gate.ts`)
 
-Thin, never-blocking entry points over the adapter:
+Thin, never-blocking entry points shared by every host:
 
 - **`getWrongTrace()`** — lazily created singleton client; a discovery rejection resolves `{isAvailable:false}` so the singleton can never be poisoned. Warm-up is fire-and-forget at boot (`packages/cli/src/boot/system-prompt.ts`).
 - **`preflightFileEdit(path)`** → `{kind:'allow', risk} | {kind:'blocked', risk}` — locked files block; everything else — including daemon-offline — allows. Stale locks (TTL already elapsed) do not block.
@@ -188,24 +206,34 @@ Thin, never-blocking entry points over the adapter:
 
 ### 6.2 The guardrail hooks — `packages/cli/src/wiring/wrongtrace-hooks.ts`
 
-In-process hooks registered on the shared Agent's `HookRunner` (wired in `packages/cli/src/wiring/lifecycle-plugins.ts` under the id `wrongtrace-gate`), which means **every mutating tool call from every host — TUI, WebUI, REPL, single-shot — passes this gate before a byte is written**.
+In-process hooks registered on the shared Agent's `HookRunner` (wired in `packages/cli/src/wiring/lifecycle-plugins.ts` under the id `wrongtrace-gate`). Every host's mutating tool calls pass the gate before a byte is written:
+
+- **CLI leader** (TUI, WebUI-in-CLI, REPL, single-shot) — hooks on the leader's `HookRunner`.
+- **Fleet subagents** — a dedicated WrongTrace-only `HookRunner` (`packages/cli/src/fleet/subagent-hook-runner.ts`) threaded through `MultiAgentDeps.hookRunner` into each worker's `ToolExecutor` (`host-subagent-factory.ts`).
+- **Standalone WebUI server** — its own gate `HookRunner` (`backend-services.ts`), owner identity = the server's own session id.
+- **Runtime-package light subagents** (e.g. the SDD wizard path) — `makeLightSubagentFactory` (`@wrongstack/runtime/light-subagent-factory.ts`) accepts a `hookRunner` dep passed by the standalone WebUI host, so SDD workers honor the same locks.
 
 Gated tools: `edit`, `write`, `replace`, `patch`, `codebase-ast-replace` (target path resolved from `path` / `file_path` / `target` / `file` input fields).
 
 **preToolUse:**
 
-1. Run the pre-flight (`preflightFileEdit`).
-2. Locked by another owner → **deny** with owner/expiry in the reason — the model sees it and picks another file.
-3. Healthy/fragile/offline → **allow**. Fragile files additionally get a one-line `additionalContext` nudge: *"WrongTrace: <path> is fragile (…). Prefer surgical AST diffs over rewrites."*
-4. On allow, the hook **claims the lock** (`owner: wrongstack:<sessionId>`, TTL 900 s) so peers see the edit in flight. A race-lost claim (`ok:false`) still proceeds — the file was free at check time.
+1. Run the pre-flight (`preflightFileEdit`). A lock held by **another owner** → **deny** with owner/expiry in the reason — the model sees it and picks another file. A lock held by **this same session** (e.g. leaked by an interrupted earlier edit) is exempted (`preflightFileEdit(path, selfOwner)` compares the daemon's `lock_owner` against `wrongstack:<sessionId>`) so a session can never self-block its own retry.
+2. Healthy/fragile/offline → **allow**. Fragile files additionally get a one-line `additionalContext` nudge: *"WrongTrace: <path> is fragile (…). Prefer surgical AST diffs over rewrites."*
+3. On allow, the hook **claims the lock** (`owner: wrongstack:<sessionId>`, TTL 900 s) so peers see the edit in flight. A race-lost claim (`ok:false`) still proceeds — the file was free at check time, and the daemon rejects a concurrent claim from anyone else.
 
-**postToolUse:** releases the lock acquired in preToolUse (path-keyed). If the process dies between the two phases, the daemon's 15-minute TTL reaps the lock — that TTL is the leak backstop.
+**postToolUse:** releases the lock acquired in preToolUse (path-keyed, **scoped per hook pair**). Each host wires a `createWrongTraceHookPair(sessionId, { emit })` — pre and post share one lock set, so one executor can never release another executor's active claim (e.g. a standalone-WebUI server running its own agent and SDD-wizard workers under one process). If the process dies between the two phases, the daemon's 15-minute TTL reaps the lock — that TTL is the leak backstop.
 
 **Failure philosophy:** fail-open, twice over. The hook itself catches everything (a slow daemon can never add latency surprises to the edit path), and the runner's fail-open policy for non-policy hooks is the second net.
 
 ### 6.3 Boot wiring
 
 `packages/cli/src/boot/system-prompt.ts` seeds the WrongProxy/WrongTrace runtime singleton from persisted settings, then warms the observability gate in the background: `void getWrongTrace()`. No boot path awaits the daemon.
+
+`bindSystemPromptBuilder` additionally registers the **WrongTrace observability contributor** (`wiring/wrongtrace-prompt-contributor.ts`) — a `SystemPromptContributor` that races discovery + atlas/friction fetches against an 800 ms deadline and injects a compact atlas + friction block when the daemon answers (see §5). Fail-open: an absent daemon contributes nothing and never stalls boot.
+
+### 6.4 Session telemetry
+
+`reportTelemetry` is wired into the session-completion path: `finalizeExecutionCleanup` (`packages/cli/src/execution-cleanup.ts`) reports one summary per finished session — `run_id`, agent/model/provider identity, token usage (`tokenCounter.total()`), and cost (`estimateCost().total()`) — through `wiring/wrongtrace-telemetry.ts`. The report is **not awaited inline** (never delays the reviewer notification), joins the session-end producer drain, and is raced against a 5 s deadline so a hung transport cannot block teardown. `agent_name` is `wrongstack-cli`; a session whose `ctx.model` is unset (mid-resume swap) skips reporting with a structured warning rather than attributing tokens to an empty identity.
 
 ---
 
@@ -241,8 +269,11 @@ When `enabled` is true **and** the daemon at `url` is reachable, every provider'
 | `packages/wrongtrace/src/__tests__/client.test.ts` | Discovery contract (both health schemas, socket fallbacks), client behavior online/offline, per-endpoint shapes — all against a stubbed `fetch` |
 | `packages/wrongtrace/src/__tests__/ipc.test.ts` | JSON-RPC 2.0 newline framing against an **in-process socket daemon**; IPC-first routing; error-envelope → HTTP fallback; the `lockFile` HTTP-first exception |
 | `packages/wrongtrace/src/__tests__/agent-helpers.test.ts` | Risk-band heuristics, friction prose, activity merging, atlas digest — pure functions |
-| `packages/cli/tests/wrongtrace-hooks.executor.test.ts` | Hook deny/allow/claim/release behavior on the executor path |
+| `packages/cli/tests/wrongtrace-hooks.executor.test.ts` | Hook deny/allow/claim/release behavior on the executor path, **plus typed gate-decision events** (`deny` / `lock-acquired` / `lock-released` emitted and asserted) |
 | `packages/cli/tests/wrongtrace-gate.live.test.ts` | Live-daemon assertions — **self-skip when the daemon is offline** (see trap below) |
+| `packages/cli/tests/wrongtrace-telemetry.test.ts` | Telemetry payload mapping + fail-open report contract (report-once, offline no-op, throw-swallowed) |
+| `packages/cli/tests/boot/system-prompt-builder.test.ts` | Pins the builder's contributor set — now autonomy + WrongTrace observability |
+| `packages/webui-server/tests/wrongtrace-webui-gate.test.ts` | Standalone-WebUI gate registration contract (deny/claim/release against the live daemon, offline-degrade) |
 | `packages/cli/tests/proxy-probe.test.ts` | Soft-signal threshold, mid-flight toggle guards, stale-probe discarding |
 | `packages/core/tests/wiring/proxy-rewrite.test.ts` | Base-URL rewrite semantics incl. the openai-codex exclusion |
 | `packages/webui-server/tests/wrongproxy-prefs-e2e.test.ts` | Settings → prefs → runtime propagation |
@@ -283,10 +314,18 @@ Start the daemon on the expected port and re-run `packages/wrongtrace` + `packag
 | Concern | Path |
 |---|---|
 | Adapter package (client, discovery, transports, helpers, types) | `packages/wrongtrace/src/` |
+| Shared gate (singleton, preflight, withFileLock) | `packages/wrongtrace/src/gate.ts` |
+| Shared guardrail hook factories + typed decision events | `packages/wrongtrace/src/hooks.ts` |
 | Adapter unit + IPC tests | `packages/wrongtrace/src/__tests__/` |
-| CLI gate (singleton, preflight, with-file-lock) | `packages/cli/src/wiring/wrongtrace-gate.ts` |
-| CLI guardrail hooks (pre/post tool use) | `packages/cli/src/wiring/wrongtrace-hooks.ts` |
-| Hook registration | `packages/cli/src/wiring/lifecycle-plugins.ts` (`wrongtrace-gate`) |
+| CLI gate re-export shim | `packages/cli/src/wiring/wrongtrace-gate.ts` |
+| CLI hook re-export shim | `packages/cli/src/wiring/wrongtrace-hooks.ts` |
+| Session telemetry (report at session completion) | `packages/cli/src/wiring/wrongtrace-telemetry.ts` |
+| Boot-prompt atlas/friction contributor | `packages/cli/src/wiring/wrongtrace-prompt-contributor.ts` |
+| Fleet subagent gate runner | `packages/cli/src/fleet/subagent-hook-runner.ts` |
+| Standalone WebUI gate wiring | `packages/webui-server/src/server/backend-services.ts` |
+| Runtime light-subagent factory hookRunner dep | `packages/runtime/src/fleet/light-subagent-factory.ts` |
+| Typed `wrongtrace.gate.decision` event key | `packages/core/src/kernel/events/wrongtrace-events.ts` |
+| Hook registration (leader lifecycle) | `packages/cli/src/wiring/lifecycle-plugins.ts` (`wrongtrace-gate`) |
 | Boot warm-up | `packages/cli/src/boot/system-prompt.ts` |
 | WrongProxy probe | `packages/cli/src/wiring/proxy-probe.ts` |
 | Proxy rewrite semantics | `packages/core/src/wiring/proxy-rewrite.ts` |

@@ -55,6 +55,7 @@ import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
 import type { TokenSavingTier } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
+import { createWrongTracePromptContributor } from '../wiring/wrongtrace-prompt-contributor.js';
 
 export interface MutableRef<T> {
   current: T | undefined;
@@ -235,6 +236,11 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
               deps.autonomyModeRef.current === 'eternal' ||
               deps.autonomyModeRef.current === 'eternal-parallel',
           }),
+          // Consumes the WrongTrace observability helpers: when the daemon
+          // is reachable, the leader prompt carries a compact atlas digest +
+          // friction summary block. Fail-open and deadline-bounded (<1s), so
+          // an absent/slow daemon never stalls the boot prompt.
+          createWrongTracePromptContributor(),
         ],
       }),
   );

@@ -52,6 +52,29 @@ export type { IpcTransport, IpcCallResult, IpcTimeouts } from "./adapters/ipc.js
 export { createMcpTransport } from "./adapters/mcp.js";
 export type { McpTransport, McpToolBag, McpToolHandler, McpToolName } from "./adapters/mcp.js";
 
+// ── Shared guardrail gate + hooks (CLI leader, fleet subagents, WebUI server) ──
+
+export {
+  getWrongTrace,
+  preflightFileEdit,
+  resetWrongTraceGate,
+  withFileLock,
+} from "./gate.js";
+export type { PreflightOptions, PreflightVerdict } from "./gate.js";
+
+export {
+  createWrongTraceHookPair,
+  createWrongTracePostToolUseHook,
+  createWrongTracePreToolUseHook,
+} from "./hooks.js";
+export type {
+  WrongTraceGateDecisionEvent,
+  WrongTraceHookInput,
+  WrongTraceHookOptions,
+  WrongTraceHookPair,
+  WrongTracePreToolUseOutcome,
+} from "./hooks.js";
+
 /**
  * Drop-in replacement for the legacy `getWrongTraceClient()` from the
  * reference TypeScript snippet. Kept as a one-liner alias for caller

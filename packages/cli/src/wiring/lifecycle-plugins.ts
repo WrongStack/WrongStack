@@ -56,7 +56,7 @@ import { createAgent, setupCompaction } from './pipeline.js';
 import { setupPlugins } from './plugins.js';
 import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import { createPromptJournalRecorder, createPromptJournalToolCallRecorder } from './prompt-journal-recorder.js';
-import { createWrongTracePostToolUseHook, createWrongTracePreToolUseHook } from './wrongtrace-hooks.js';
+import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -200,17 +200,27 @@ export async function setupLifecycleAndPlugins(
   // and claims the lock for this session; postToolUse releases it. Daemon
   // offline → every call allows; TTL reaps locks if a process dies
   // mid-edit. Registered AFTER the journal recorder so hook context never
-  // leaks into the journal (same ordering rationale as above).
+  // leaks into the journal (same ordering rationale as above). Per-runner
+  // hook pair: pre/post share one lock set, so this runner's release can
+  // never free a fleet worker's active claim (see hooks.ts concurrency note).
+  const wrongTraceHooks = createWrongTraceHookPair(
+    () => session.id,
+    (() => {
+      const emit = (event: import('@wrongstack/wrongtrace').WrongTraceGateDecisionEvent) =>
+        events.emit('wrongtrace.gate.decision', event);
+      return { emit };
+    })(),
+  );
   hookRegistry.registerInProcess(
     'PreToolUse',
     'edit|write|replace|patch|codebase-ast-replace',
-    createWrongTracePreToolUseHook(() => session.id),
+    wrongTraceHooks.preToolUse,
     'wrongtrace-gate',
   );
   hookRegistry.registerInProcess(
     'PostToolUse',
     'edit|write|replace|patch|codebase-ast-replace',
-    createWrongTracePostToolUseHook(),
+    wrongTraceHooks.postToolUse,
     'wrongtrace-gate',
   );
 

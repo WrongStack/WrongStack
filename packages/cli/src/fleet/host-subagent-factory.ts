@@ -323,6 +323,10 @@ export function createHostSubagentFactory(
       // `kanban_queue` already carries board/task/lease identity in ctx.meta
       // and can satisfy the same gate its leader was held to.
       requireKanbanGovernance: config.tools?.kanbanGovernance ?? false,
+      // WrongTrace lock gate — worker edits honor peer locks exactly like
+      // the leader's. Undefined until deps wire it (see host-types.ts);
+      // absent runner = pre-gate behavior, never an error.
+      ...(host.deps.hookRunner ? { hookRunner: host.deps.hookRunner } : {}),
     });
 
     const subagentConfigStore = host.deps.configStore;

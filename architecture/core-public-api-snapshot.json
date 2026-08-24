@@ -1181,8 +1181,8 @@
       "directory": "kernel",
       "classification": "kernel primitive",
       "intendedOwner": "Core",
-      "sourceFiles": 18,
-      "sourceLines": 3664
+      "sourceFiles": 19,
+      "sourceLines": 3691
     },
     {
       "directory": "models",

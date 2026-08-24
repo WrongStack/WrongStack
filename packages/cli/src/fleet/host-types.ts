@@ -1,5 +1,6 @@
 import type { AgentPipelines, FallbackProfileManager } from '@wrongstack/core/agent';
 import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { HookRunner } from '@wrongstack/core/hooks';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import type {
@@ -42,6 +43,14 @@ export interface MultiAgentDeps {
    * subagent pipeline. This is host wiring, never a model-visible capability.
    */
   installToolBoundary?: ((pipelines: AgentPipelines) => void) | undefined;
+  /**
+   * Optional hook runner applied to every spawned subagent's ToolExecutor.
+   * The CLI wires a dedicated WrongTrace-only runner here so worker edits
+   * pass the same lock gate as the leader. Deliberately NOT the leader's
+   * own HookRegistry: shell hooks from `config.hooks` are a leader-session
+   * automation surface and must not silently replay on workers.
+   */
+  hookRunner?: HookRunner | undefined;
 }
 
 /**

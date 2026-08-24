@@ -93,6 +93,15 @@ export interface LightSubagentFactoryDeps {
   installToolBoundary?:
     | ((pipelines: import('@wrongstack/core/agent').AgentPipelines) => void)
     | undefined;
+  /**
+   * Optional hook runner applied to the subagent's ToolExecutor so worker
+   * edits honor the WrongTrace lock gate like the leader's. The host owns
+   * this runner (typically a dedicated WrongTrace-only HookRunner with a
+   * per-process session id); `undefined` means pre-gate behavior, never an
+   * error. Mirrors the CLI host factory's `host.deps.hookRunner` thread at
+   * packages/cli/src/fleet/host-subagent-factory.ts.
+   */
+  hookRunner?: import('@wrongstack/core/hooks').HookRunner | undefined;
 }
 
 /**
@@ -245,6 +254,10 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
       // Every ToolExecutor host must resolve this identically — see
       // packages/cli/src/wiring/pipeline.ts.
       requireKanbanGovernance: config.tools?.kanbanGovernance ?? false,
+      // WrongTrace lock gate — worker edits honor peer locks exactly like
+      // the leader's, when the host supplies a hookRunner (see
+      // LightSubagentFactoryDeps). Absent runner = pre-gate behavior.
+      ...(deps.hookRunner ? { hookRunner: deps.hookRunner } : {}),
     });
 
     const agent = new Agent({

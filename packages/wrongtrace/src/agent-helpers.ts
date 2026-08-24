@@ -55,6 +55,10 @@ export async function getCrossAgentRisk(
   wt: WrongTraceClient,
   path: string,
   frictionLimit = 50,
+  /** Caller's lock-owner identity (`wrongstack:<sessionId>`). A lock the
+   *  caller itself holds (e.g. leaked by an interrupted earlier edit) is
+   *  exempted — it must not deny the session's own retry. */
+  selfOwner?: string,
 ): Promise<CrossAgentRisk> {
   if (!wt.isAvailable) {
     return { path, risk: 0, band: "unknown", reasons: ["WrongTrace offline — no signal available"] };
@@ -64,6 +68,16 @@ export async function getCrossAgentRisk(
   const friction = await wt.getFrictionMatrix(frictionLimit);
 
   if (health?.is_locked) {
+    // Self-owner exemption: a live lock claimed by THIS session is not a
+    // foreign conflict. The acquire happens in preToolUse, so a retry or a
+    // leaked own lock must fall through to health scoring instead of
+    // hard-blocking the session's own edit path.
+    if (selfOwner !== undefined && health.lock_owner === selfOwner) {
+      const exempted = await scoreFromHealth(path, health, friction);
+      exempted.reasons.unshift(`own lock held (owner ${selfOwner}) — exempted`);
+      return exempted;
+    }
+
     const expiresAt = health.lock_expires_at ? Date.parse(health.lock_expires_at) : Number.NaN;
     const hasExpiry = !Number.isNaN(expiresAt);
 

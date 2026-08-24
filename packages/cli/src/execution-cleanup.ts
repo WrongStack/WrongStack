@@ -118,6 +118,57 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
       sessionEndProducers.add(tracked);
     },
   });
+  // WrongTrace session telemetry: one summary per finished session, so the
+  // daemon can attribute activity to this run. NOT awaited inline — the
+  // director.requestFinish reviewer notification below must not wait on a
+  // daemon round-trip. The drain loop below joins sessionEndProducers, so the
+  // report still completes before teardown; the hard deadline keeps a hung
+  // transport from blocking that drain. Fail-open — see wrongtrace-telemetry.ts.
+  try {
+    const model = agent.ctx.model;
+    if (!model) {
+      // Mid-resume swap can leave ctx.model unset; report nothing rather than
+      // attribute this session's tokens to an empty model identity.
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'shutdown.wrongtrace_telemetry_skipped',
+          message: 'Skipping WrongTrace telemetry: agent model unknown at session end',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    } else {
+      const { reportWrongTraceSessionTelemetry } = await import('./wiring/wrongtrace-telemetry.js');
+      const usage = tokenCounter.total();
+      const report = reportWrongTraceSessionTelemetry({
+        sessionId: activeSession.id,
+        agentName: 'wrongstack-cli',
+        model,
+        provider: agent.ctx.provider?.id ?? '',
+        usage: {
+          input: usage.input,
+          output: usage.output,
+          cacheRead: usage.cacheRead,
+          cacheWrite: usage.cacheWrite,
+        },
+        costUsd: tokenCounter.estimateCost().total,
+      });
+      // Adapter calls are already timeout-bounded (≤4s HTTP / 5s IPC); this
+      // race is the belt to those braces — the drain loop must have a hard
+      // ceiling on this producer. Unref so the timer alone never holds exit.
+      const deadline = new Promise<void>((resolve) => {
+        const t = setTimeout(resolve, 5_000);
+        (t as unknown as { unref?: () => void }).unref?.();
+      });
+      const tracked = Promise.race([report, deadline]).finally(() =>
+        sessionEndProducers.delete(tracked),
+      );
+      void tracked.catch(() => undefined);
+      sessionEndProducers.add(tracked);
+    }
+  } catch {
+    /* best-effort telemetry */
+  }
   // "The leader agent has finished": notify every still-running
   // graceful-finish subagent (the Chimera reviewer opts in) BEFORE waiting on
   // their work. This is the in-band notification delivered between the

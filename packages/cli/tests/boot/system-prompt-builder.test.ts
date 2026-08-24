@@ -185,12 +185,14 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     },
   );
 
-  it('autonomy contributor is the only contributor wired into the builder', () => {
+  it('autonomy + WrongTrace contributors are wired into the builder', () => {
     // The pre-refactor inline block wired exactly one
     // contributor: `makeAutonomyPromptContributor({...})`.
-    // We assert that the helper preserves that shape: the
-    // builder receives a single-element contributors array.
-    // (The contributor itself is a function typed as
+    // We assert that the helper preserves that shape and now
+    // additionally wires the WrongTrace observability
+    // contributor: the builder receives a two-element
+    // contributors array.
+    // (The contributors themselves are functions typed as
     // `SystemPromptContributor = (ctx) => Promise<TextBlock[]>`,
     // so the helper has no public surface to assert against
     // for the `enabled` callback's return value \u2014 that is
@@ -200,8 +202,8 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
       const { capturedFactory } = makeDeps({ autonomyMode: mode });
       const builder = capturedFactory();
       const contributors = builder.opts.contributors ?? [];
-      expect(contributors).toHaveLength(1);
-      expect(typeof contributors[0]).toBe('function');
+      expect(contributors).toHaveLength(2);
+      expect(contributors.every((c) => typeof c === 'function')).toBe(true);
     }
   });
 });

@@ -27,6 +27,7 @@ import {
   type SessionWriter,
 } from '@wrongstack/core/types';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
+import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
 import { MultiAgentHost } from '../multi-agent.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
@@ -399,6 +400,16 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       cwd,
       skillLoader,
       secretScrubber: container.resolve(TOKENS.SecretScrubber),
+      // WrongTrace lock gate for every spawned worker — same fail-open
+      // coordination the leader's executor enforces (lifecycle-plugins).
+      // Registered unconditionally to mirror the leader registration.
+      // Dedicated runner: shell hooks from config.hooks stay leader-only.
+      // Gate-decision events fan out on the host EventBus so deny/allow/
+      // lock transitions are observable from the CLI.
+      hookRunner: createSubagentWrongTraceHookRunner(
+        () => session.id,
+        (event) => events.emit('wrongtrace.gate.decision', event),
+      ),
       ...(installToolBoundary ? { installToolBoundary } : {}),
     },
     {

@@ -13,28 +13,32 @@ import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
 import { afterAll, describe, expect, it } from 'vitest';
 import { getWrongTrace, resetWrongTraceGate } from '../src/wiring/wrongtrace-gate.js';
 import {
-  createWrongTracePostToolUseHook,
-  createWrongTracePreToolUseHook,
+  createWrongTraceHookPair,
+  type WrongTraceGateDecisionEvent,
 } from '../src/wiring/wrongtrace-hooks.js';
 
 const PROBE = `__hook_probe_${Date.now()}__`;
 const SESSION = 'hook-focused-test';
 
-function buildRunner(): HookRunner {
+function buildRunner(emit?: (event: WrongTraceGateDecisionEvent) => void): HookRunner {
   // Mirrors the registration in lifecycle-plugins.ts: same event, same
-  // matcher string, same owner. If the production wiring drifts, this test
-  // still exercises the exact registration contract it must satisfy.
+  // matcher string, same owner, and the same per-runner PAIR factory (not
+  // the legacy standalone factories). If the production wiring drifts, this
+  // test still exercises the exact registration contract it must satisfy.
+  // The optional emit callback mirrors production wiring too — lifecycle-plugins
+  // forwards gate events onto the EventBus as `wrongtrace.gate.decision`.
+  const hooks = createWrongTraceHookPair(() => SESSION, emit ? { emit } : undefined);
   const registry = new HookRegistry();
   registry.registerInProcess(
     'PreToolUse',
     'edit|write|replace|patch|codebase-ast-replace',
-    createWrongTracePreToolUseHook(() => SESSION),
+    hooks.preToolUse,
     'wrongtrace-gate',
   );
   registry.registerInProcess(
     'PostToolUse',
     'edit|write|replace|patch|codebase-ast-replace',
-    createWrongTracePostToolUseHook(),
+    hooks.postToolUse,
     'wrongtrace-gate',
   );
   return new HookRunner({ registry, logger: undefined, sessionId: () => SESSION });
@@ -94,6 +98,41 @@ describe('WrongTrace hooks on the real HookRunner (executor path)', () => {
 
     const noPath = await runner.preToolUse('edit', { content: 'x' }, env, { mutating: true });
     expect(noPath.block).toBeFalsy();
+  });
+
+  it('emits typed gate-decision events (deny / lock-acquired / lock-released)', async () => {
+    const wt = await getWrongTrace();
+    const emitted: WrongTraceGateDecisionEvent[] = [];
+    const runner = buildRunner((event) => emitted.push(event));
+    const env = { cwd: process.cwd() };
+
+    // Offline daemon → no gate events (fail-open contract).
+    if (!wt.isAvailable) {
+      await runner.preToolUse('edit', { path: PROBE }, env, { mutating: true });
+      expect(emitted).toHaveLength(0);
+      return;
+    }
+
+    // Foreign lock → deny event with the owner in the reason.
+    await wt.lockFile(PROBE, 'held by peer', { owner: 'peer-agent', ttlSeconds: 60 });
+    try {
+      await runner.preToolUse('edit', { path: PROBE }, env, { mutating: true });
+      const deny = emitted.find((e) => e.kind === 'deny');
+      expect(deny).toBeDefined();
+      expect(deny?.path).toBe(PROBE);
+      expect(deny?.kind === 'deny' ? deny.reason : '').toContain('peer-agent');
+    } finally {
+      await wt.unlockFile(PROBE);
+    }
+
+    // Unlocked edit → lock-acquired on claim, lock-released on postToolUse.
+    emitted.length = 0;
+    await runner.preToolUse('edit', { path: PROBE }, env, { mutating: true });
+    expect(emitted.some((e) => e.kind === 'lock-acquired')).toBe(true);
+    await runner.postToolUse('edit', { path: PROBE }, { content: '', isError: false }, env);
+    expect(emitted.some((e) => e.kind === 'lock-released')).toBe(true);
+    const after = (await wt.listLocks()).filter((l) => l.path === PROBE);
+    expect(after).toHaveLength(0);
   });
 
   it('fragile files allow with a surgical-edit nudge in additionalContext', async () => {

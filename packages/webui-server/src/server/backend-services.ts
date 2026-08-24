@@ -50,6 +50,8 @@ import type {
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 
 import { Agent } from '@wrongstack/core/agent';
+import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
+import { createWrongTraceHookPair } from '@wrongstack/wrongtrace';
 import {
   BrainDecisionLedger,
   BrainMonitor,
@@ -389,6 +391,39 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   const secretScrubber = container.resolve(TOKENS.SecretScrubber);
   const renderer = container.has(TOKENS.Renderer) ? container.resolve(TOKENS.Renderer) : undefined;
   const permissionPolicy = container.resolve(TOKENS.PermissionPolicy);
+  // WrongTrace guardrail: dedicated lock-gate runner for the standalone
+  // server, mirroring the CLI's lifecycle-plugins.ts registration (same
+  // events, matcher, owner id). Owner identity = THIS process's active
+  // session id — startWebUI is its own process, never a copied CLI-leader
+  // closure; when the CLI hosts WebUI in-process, dispatch-webui routes
+  // through the CLI agent and its already-gated executor instead.
+  const wrongTraceHookRegistry = new HookRegistry();
+  // Per-runner pair: pre/post share one lock set, so this server's release
+  // can never free an SDD-wizard worker's active claim (see hooks.ts
+  // concurrency note). Owner identity = THIS process's active session id —
+  // startWebUI is its own process, never a copied CLI-leader closure.
+  const wrongTraceHooks = createWrongTraceHookPair(() => context.session.id, {
+    emit: (event) => events.emit('wrongtrace.gate.decision', event),
+  });
+  wrongTraceHookRegistry.registerInProcess(
+    'PreToolUse',
+    'edit|write|replace|patch|codebase-ast-replace',
+    wrongTraceHooks.preToolUse,
+    'wrongtrace-gate',
+  );
+  wrongTraceHookRegistry.registerInProcess(
+    'PostToolUse',
+    'edit|write|replace|patch|codebase-ast-replace',
+    wrongTraceHooks.postToolUse,
+    'wrongtrace-gate',
+  );
+  const wrongTraceHookRunner = new HookRunner({
+    registry: wrongTraceHookRegistry,
+    sessionId: () => context.session.id,
+    // Coordination, not enforcement: these hooks are fail-open by
+    // construction and must run regardless of shell-hook gating.
+    allowNonPolicy: true,
+  });
   const toolExecutor = new ToolExecutor(toolRegistry, {
     permissionPolicy,
     secretScrubber,
@@ -399,6 +434,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     perIterationOutputCapBytes:
       config.tools?.perIterationOutputCapBytes ?? DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
     tracer: undefined,
+    hookRunner: wrongTraceHookRunner,
     // Off unless the operator opts in. The WebUI drives the same agent as the
     // CLI, so it must resolve this identically — a surface-dependent gate
     // would mean the same repo governs under `wstack` and not in the browser.
@@ -647,6 +683,12 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         // round-robin keeps reassigning the doomed model. Mirrors the CLI
         // factory wiring at host-subagent-factory.ts:337.
         statusTracker: container.safeResolve(TOKENS.ProviderModelStatusTracker),
+        // WrongTrace lock gate for SDD-wizard workers: the standalone server
+        // already built a dedicated WrongTrace-only HookRunner for its own
+        // executor above; handing the same runner to the runtime factory
+        // makes every worker edit honor peer locks with one process-wide
+        // owner identity (context.session.id).
+        hookRunner: wrongTraceHookRunner,
         ...(input.installToolBoundary ? { installToolBoundary: input.installToolBoundary } : {}),
       }),
       paths: {
