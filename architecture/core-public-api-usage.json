@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 293,
+      "files": 294,
       "typeOnly": 235,
-      "runtimeOrMixed": 75
+      "runtimeOrMixed": 76
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -59,9 +59,9 @@
       "runtimeOrMixed": 22
     },
     "@wrongstack/core/hooks": {
-      "files": 12,
+      "files": 13,
       "typeOnly": 3,
-      "runtimeOrMixed": 9
+      "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
       "files": 124,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 240,
+      "files": 241,
       "typeOnly": 128,
-      "runtimeOrMixed": 125
+      "runtimeOrMixed": 126
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -114,9 +114,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/registry": {
-      "files": 109,
+      "files": 110,
       "typeOnly": 54,
-      "runtimeOrMixed": 56
+      "runtimeOrMixed": 57
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -124,9 +124,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/security": {
-      "files": 137,
+      "files": 138,
       "typeOnly": 26,
-      "runtimeOrMixed": 114
+      "runtimeOrMixed": 115
     },
     "@wrongstack/core/session-catalog": {
       "files": 10,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/storage": {
-      "files": 105,
+      "files": 106,
       "typeOnly": 30,
-      "runtimeOrMixed": 107
+      "runtimeOrMixed": 108
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1003,
-      "typeOnly": 926,
+      "files": 1004,
+      "typeOnly": 927,
       "runtimeOrMixed": 246
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -1024,6 +1024,12 @@
       "file": "packages/runtime/tests/vision.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -3949,6 +3955,12 @@
     },
     {
       "specifier": "@wrongstack/core/hooks",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hooks",
       "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5863,6 +5875,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/sage/src/host-wiring.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7441,6 +7459,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/tools/src/tool-tier.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -8114,6 +8138,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8810,6 +8840,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12806,6 +12842,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/runtime/tests/vision.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

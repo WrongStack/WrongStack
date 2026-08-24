@@ -169,6 +169,22 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
   } catch {
     /* best-effort telemetry */
   }
+  // Persist the in-process gate-decision tally so the standalone
+  // `wstack proxy-status` command (fresh process) can report the LAST
+  // session's firing rates — the counter module is deliberately not an
+  // EventBus listener (leak discipline), so session end is the durable
+  // snapshot point. Fail-open: observability must never break teardown.
+  try {
+    const { snapshotGateDecisions, persistWrongTraceGateCounters } = await import(
+      './wiring/wrongtrace-gate-counters.js'
+    );
+    const projectRoot = agent.ctx.projectRoot;
+    if (projectRoot) {
+      await persistWrongTraceGateCounters(projectRoot, snapshotGateDecisions());
+    }
+  } catch {
+    /* best-effort counters persist */
+  }
   // "The leader agent has finished": notify every still-running
   // graceful-finish subagent (the Chimera reviewer opts in) BEFORE waiting on
   // their work. This is the in-band notification delivered between the

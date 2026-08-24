@@ -28,6 +28,7 @@ import {
 } from '@wrongstack/core/types';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
 import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
+import { recordGateDecision } from './wrongtrace-gate-counters.js';
 import { MultiAgentHost } from '../multi-agent.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
@@ -408,7 +409,11 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       // lock transitions are observable from the CLI.
       hookRunner: createSubagentWrongTraceHookRunner(
         () => session.id,
-        (event) => events.emit('wrongtrace.gate.decision', event),
+        (event) => {
+          // Same firing-rate tally as the leader emit site (lifecycle-plugins).
+          recordGateDecision(event);
+          events.emit('wrongtrace.gate.decision', event);
+        },
       ),
       ...(installToolBoundary ? { installToolBoundary } : {}),
     },

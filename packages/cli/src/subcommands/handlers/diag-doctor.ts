@@ -9,6 +9,10 @@ import {
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import { API_VERSION } from '../../version.js';
 import { startProxyProbe } from '../../wiring/proxy-probe.js';
+import {
+  loadWrongTraceGateCounters,
+  formatGateCounterReport,
+} from '../../wiring/wrongtrace-gate-counters.js';
 import type { SubcommandHandler } from '../contracts.js';
 import {
   clearStaleDaemonEndpoints,
@@ -94,6 +98,14 @@ export const proxyCmd: SubcommandHandler = async (_args, deps) => {
     `  active:       ${active}    ${s.color(`(${s.label})`)}`,
     `  shouldRewrite:${gate}  ${rewriteGateLabel(gate)}`,
   ];
+  // WrongTrace gate-decision tallies, persisted at session end by
+  // finalizeExecutionCleanup — makes the gate's firing rate measurable from
+  // a fresh `wstack proxy-status` invocation.
+  const counters = await loadWrongTraceGateCounters(deps.projectRoot);
+  if (counters) {
+    lines.push(color.bold('WrongTrace gate decisions (last session)'));
+    lines.push(`  ${formatGateCounterReport(counters)}`);
+  }
   deps.renderer.write(lines.join('\n') + '\n');
   return 0;
 };

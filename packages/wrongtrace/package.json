@@ -3,7 +3,14 @@
   "version": "0.313.0",
   "license": "MIT",
   "description": "Optional client adapter for the external WrongTrace AI Observability daemon. Discovers the daemon over HTTP/IPC/MCP at runtime; returns isAvailable:false when it is not reachable, so callers degrade gracefully. Not coupled to any runtime inside WrongStack — this is the 'sibling' integration protocol.",
-  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WrongStack/WrongStack.git",
+    "directory": "packages/wrongtrace"
+  },
+  "homepage": "https://github.com/WrongStack/WrongStack#readme",
+  "bugs": "https://github.com/WrongStack/WrongStack/issues",
+  "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -26,6 +33,9 @@
   },
   "engines": {
     "node": ">=22.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
     "undici-types": "^8.10.0"

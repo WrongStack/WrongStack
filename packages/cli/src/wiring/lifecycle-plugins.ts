@@ -57,6 +57,7 @@ import { setupPlugins } from './plugins.js';
 import { buildCouncilRegistries, createLiveModelRouter } from './provider-utility-tools.js';
 import { createPromptJournalRecorder, createPromptJournalToolCallRecorder } from './prompt-journal-recorder.js';
 import { createWrongTraceHookPair } from './wrongtrace-hooks.js';
+import { recordGateDecision } from './wrongtrace-gate-counters.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,8 +207,12 @@ export async function setupLifecycleAndPlugins(
   const wrongTraceHooks = createWrongTraceHookPair(
     () => session.id,
     (() => {
-      const emit = (event: import('@wrongstack/wrongtrace').WrongTraceGateDecisionEvent) =>
+      const emit = (event: import('@wrongstack/wrongtrace').WrongTraceGateDecisionEvent) => {
+        // Tally into the process-shared gate-decision counter (firing-rate
+        // measurability) then fan out on the bus for real-time subscribers.
+        recordGateDecision(event);
         events.emit('wrongtrace.gate.decision', event);
+      };
       return { emit };
     })(),
   );

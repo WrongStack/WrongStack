@@ -79,6 +79,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
+    "@wrongstack/wrongtrace": "workspace:*",
     "typescript": "^7.0.2"
   },
   "publishConfig": {

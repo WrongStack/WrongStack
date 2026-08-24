@@ -85,14 +85,35 @@ const EDIT_TOOLS = new Set([
   "codebase-ast-replace",
 ]);
 
-/** Extract the target file path from a mutating tool's input, if present. */
+/**
+ * Extract the target file path from a mutating tool's input, if present.
+ *
+ * Order matters: `file` (codebase-ast-replace) MUST come before any
+ * selector-ish field — `target` is the body/full AST selector, never a
+ * path, so it must not be treated as one. Multi-file inputs resolve to
+ * their first concrete file; `patch` has no single derivable target (the
+ * diff payload names its own files), so its optional `directory` is the
+ * coarsest honest claim and a bare `patch` input (no directory) yields
+ * `undefined` → gate allows without a claim.
+ */
 function targetPathOf(toolInput: unknown): string | undefined {
   if (!toolInput || typeof toolInput !== "object") return undefined;
   const t = toolInput as Record<string, unknown>;
-  for (const key of ["path", "file_path", "target", "file"]) {
+  // Single-file keys: edit/write → `path`, codebase-ast-replace → `file`.
+  for (const key of ["path", "file_path", "file"]) {
     const v = t[key];
     if (typeof v === "string" && v.length > 0) return v;
   }
+  // `replace` accepts files: string | string[].
+  const files = t["files"];
+  if (typeof files === "string" && files.length > 0) return files;
+  if (Array.isArray(files) && files.length > 0) {
+    const first = files[0];
+    if (typeof first === "string" && first.length > 0) return first;
+  }
+  // `patch` accepts an optional directory.
+  const dir = t["directory"];
+  if (typeof dir === "string" && dir.length > 0) return dir;
   return undefined;
 }
 

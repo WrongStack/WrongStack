@@ -541,6 +541,9 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
+      '@wrongstack/wrongtrace':
+        specifier: workspace:*
+        version: link:../wrongtrace
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
