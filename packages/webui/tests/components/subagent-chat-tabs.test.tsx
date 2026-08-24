@@ -56,7 +56,13 @@ function entry(
  *   input area entirely in this mode).
  */
 describe('subagent chat tabs', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Pre-warm the lazy markdown chunk (LazyMarkdown = React.lazy(() =>
+    // import('react-markdown'))). Without this any text entry renders empty
+    // until the chunk loads, and under full-suite worker contention that can
+    // exceed waitFor's 1s default. Keep this — the component is otherwise
+    // correct; pre-warming makes the render deterministic.
+    await import('react-markdown');
     useFleetStore.setState({
       agents: new Map(),
       agentTranscripts: new Map(),
