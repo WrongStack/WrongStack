@@ -33,7 +33,10 @@ import { writeClipboardText } from '@wrongstack/runtime/clipboard';
 import { render } from 'ink-testing-library';
 import { describe, expect, it, vi } from 'vitest';
 import { createAppKeyHandler } from '../src/app-key-handler.js';
-import { copyableTextForEntry } from '../src/components/history/copy-icon.js';
+import {
+  copyableTextForEntries,
+  copyableTextForEntry,
+} from '../src/components/history/copy-icon.js';
 import type { RenderGroup } from '../src/components/history/tool-group.js';
 import type { HistoryEntry } from '../src/components/history.js';
 import type { KeyEvent } from '../src/components/input.js';
@@ -486,6 +489,39 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
     }
   });
 
+  it('a drag over a compact tool-group copies EVERY member (v1.1 H1), not just the head', async () => {
+    writeClipboardTextMock.mockClear();
+    // Two consecutive same-name tool calls (bash ×2, not in
+    // STRUCTURED_DIFF_TOOLS) compact into one render group. The full chain —
+    // groupEntries → buildMountedCardSpans (entryIds = every member) →
+    // commitSelection's toolGroupsByHeadId → copyableTextForEntries — must
+    // land the WHOLE group's raw JSON on the clipboard. The assembler-level
+    // test passes that map by hand; this pins the mounted chain end-to-end.
+    const tools: HistoryEntry[] = [
+      { id: 10, kind: 'tool', name: 'bash', durationMs: 5, ok: true, output: 'first result' },
+      { id: 11, kind: 'tool', name: 'bash', durationMs: 7, ok: true, output: 'second result' },
+    ];
+    const h = mountHistory(tools);
+    try {
+      // Tool groups get no gutter translation (M3 pass-through): band col N
+      // is card col N. A one-row drag across the compacted card commits.
+      h.controller.beginSelection(0, 0);
+      h.controller.extendSelection(0, 3);
+      h.controller.endSelection();
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
+      const copied = writeClipboardTextMock.mock.calls[0]?.[0] ?? '';
+      // BOTH members' payloads — the expansion, not a head-only copy.
+      expect(copied).toContain('first result');
+      expect(copied).toContain('second result');
+      // And it is the group's raw serialization (copyableTextForEntries),
+      // matching the existing copy-icon contract for compacted groups.
+      expect(copied).toContain(copyableTextForEntries(tools));
+    } finally {
+      h.unmount();
+    }
+  });
+
   it('returns false (no clipboard write) when the drag never moved', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([textEntry(1, 'short entry')]);
@@ -771,6 +807,10 @@ describe('Regression: release-commits-copy routing', () => {
       await handleKey(press.input, press.key);
       const drag = mouseKey('\x1b[<32;7;1M'); // motion, button left — same as the commit test
       await handleKey(drag.input, drag.key);
+      // Non-vacuous guard: the press/drag above actually began a selection
+      // (routing works) before the wheel below clears it — otherwise this
+      // test would pass even if beginSelection/extendSelection broke.
+      expect(h.controller.hasSelection()).toBe(true);
 
       // Cb 64 = wheel up at (x=10, y=1) — inside the history band
       // (viewportRows=1 → terminal row 1 is history row 0).
