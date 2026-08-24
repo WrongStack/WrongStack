@@ -25,7 +25,7 @@
   - *How:* `codebase-skeleton`
   - *How:* `ChatView/index.tsx`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=34; wins=34 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=36; wins=36 -->
 - **Treat files under `packages/webui/tests/**` as vitest entry points: confirm discovery and environment by reading the package's `vitest.config.ts` inline `projects` blocks (include globs + `globals: true`), never by searching for code importers. When a webui test uses hooks like `beforeEach` without importing them from `vitest`, check `test.globals: true` before flagging it as a bug — but note bare-hook usage only works inside projects with globals enabled, not root-config suites.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/tests/**`
@@ -79,7 +79,7 @@
   - *How:* `CODEX_MODELS_CLIENT_VERSION`
   - *How:* `packages/providers/src/openai-codex.ts`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=72; wins=72 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=76; wins=76 -->
 - **Treat the exports map in `packages/webui/package.json` as packaging metadata, not a live API: no workspace code imports `@wrongstack/webui` or `@wrongstack/webui/types`; only `packages/cli` and `apps/desktop` declare it, as a presence pin. Its real delivery path is the Vite bundle from `packages/webui/src/main.tsx` served by `@wrongstack/webui-server`, so probing "who imports this package" must grep import statements, not just dependency declarations.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `packages/webui/package.json`
@@ -91,4 +91,4 @@
   - *How:* `@wrongstack/webui-server`
 
 ---
-*Last capture: 2026-08-24T19:33:24.554Z · 8 entries*
+*Last capture: 2026-08-24T09:44:31.654Z · 8 entries*
