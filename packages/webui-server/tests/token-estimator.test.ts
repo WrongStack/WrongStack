@@ -75,10 +75,31 @@ describe('stringifyContent', () => {
     expect(stringifyContent(42)).toBe('42');
   });
 
-  it('handles undefined (JSON.stringify returns raw undefined)', () => {
-    // JSON.stringify(undefined) returns the JS value undefined (not a string),
-    // so stringifyContent returns undefined for undefined input
-    expect(stringifyContent(undefined)).toBeUndefined();
+  it('handles undefined via the String() fallback (was returning raw undefined)', () => {
+    // JSON.stringify(undefined) returns the JS value undefined (not a string)
+    // WITHOUT throwing, so the catch never ran — the declared `string`
+    // contract was violated and estimateTokens crashed on `.length`.
+    // The fix routes that value to the same String(c) fallback.
+    expect(stringifyContent(undefined)).toBe('undefined');
+    expect(typeof stringifyContent(undefined)).toBe('string');
+  });
+
+  it('routes function values through the String() fallback (was a crash)', () => {
+    const fn = () => 1;
+    expect(stringifyContent(fn)).toBe(String(fn));
+    expect(typeof stringifyContent(fn)).toBe('string');
+  });
+
+  it('routes symbols through the String() fallback (was a crash)', () => {
+    const sym = Symbol('x');
+    expect(stringifyContent(sym)).toBe(String(sym));
+    expect(typeof stringifyContent(sym)).toBe('string');
+  });
+
+  it('never returns a non-string for any input class (contract)', () => {
+    for (const value of [undefined, () => 1, Symbol('x'), 1n, null, 42, { a: 1 }, [1, 2], 'text']) {
+      expect(typeof stringifyContent(value)).toBe('string');
+    }
   });
 });
 

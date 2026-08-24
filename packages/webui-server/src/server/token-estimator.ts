@@ -37,7 +37,13 @@ export function estimateTokens(s: string): number {
 export function stringifyContent(c: unknown): string {
   if (typeof c === 'string') return c;
   try {
-    return JSON.stringify(c);
+    const serialized = JSON.stringify(c);
+    // JSON.stringify returns `undefined` (not a string) for top-level
+    // undefined/function/symbol values WITHOUT throwing, so the catch
+    // below would never run and the declared `string` contract would be
+    // violated — callers feeding the result into estimateTokens(s) then
+    // crashed on `s.length`. Route that case to the same String(c) fallback.
+    return serialized === undefined ? String(c) : serialized;
   } catch {
     return String(c);
   }
