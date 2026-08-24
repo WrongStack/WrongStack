@@ -27,7 +27,7 @@ interface CliWebUIOptions {
         uiLocale?: string | undefined;
         /** WrongProxy / WrongTrace toggle. */
         wrongProxyEnabled?: boolean | undefined;
-        /** WrongProxy / WrongTrace URL. Default: 'http://localhost:8000'. */
+        /** WrongProxy / WrongTrace URL. Default: 'http://localhost:3444'. */
         wrongProxyUrl?: string | undefined;
       }
     | undefined;

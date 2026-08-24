@@ -378,7 +378,7 @@ export type State = {
      */
     wrongProxyEnabled: boolean;
     /**
-     * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. The
+     * WrongProxy / WrongTrace URL. Default `http://localhost:3444`. The
      * CLI's periodic probe targets `<wrongProxyUrl>/api/health`; a 2xx
      * response flips the runtime's `active` flag. Picker field 60.
      */

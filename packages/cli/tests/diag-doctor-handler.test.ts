@@ -122,11 +122,11 @@ describe('proxyCmd — enabled × url-set × probe-success', () => {
   it('seeds the singleton, runs the probe, and reports live + rewrites applied', async () => {
     mockGetProxyConfig.mockReturnValue({
       enabled: true,
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
       active: true,
     });
     mockShouldRewriteFor.mockReturnValue(true);
-    const deps = makeDeps({ enabled: true, url: 'http://localhost:8000' });
+    const deps = makeDeps({ enabled: true, url: 'http://localhost:3444' });
 
     const code = await runProxyCmd([], deps);
 
@@ -134,7 +134,7 @@ describe('proxyCmd — enabled × url-set × probe-success', () => {
     // The handler must apply persisted prefs to the singleton before reading.
     expect(mockApplyProxyConfig).toHaveBeenCalledWith({
       enabled: true,
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
     });
     // The probe must have been started with a sane timeout/interval.
     expect(mockStartProxyProbe).toHaveBeenCalledTimes(1);
@@ -147,7 +147,7 @@ describe('proxyCmd — enabled × url-set × probe-success', () => {
     // seeded singleton state and the `live` label.
     const out = deps.renderer.write.mock.calls.map((c) => c[0]).join('');
     expect(out).toContain('enabled:      true');
-    expect(out).toContain('url:          http://localhost:8000');
+    expect(out).toContain('url:          http://localhost:3444');
     expect(out).toContain('active:       true');
     expect(out).toContain('shouldRewrite:true');
     expect(out).toContain('live');
@@ -161,11 +161,11 @@ describe('proxyCmd — enabled × url-set × probe-failure', () => {
     mockProbeResponse.value = false;
     mockGetProxyConfig.mockReturnValue({
       enabled: true,
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
       active: false,
     });
     mockShouldRewriteFor.mockReturnValue(false);
-    const deps = makeDeps({ enabled: true, url: 'http://localhost:8000' });
+    const deps = makeDeps({ enabled: true, url: 'http://localhost:3444' });
 
     const code = await runProxyCmd([], deps);
 
@@ -173,7 +173,7 @@ describe('proxyCmd — enabled × url-set × probe-failure', () => {
     expect(mockStartProxyProbe).toHaveBeenCalledTimes(1);
     const out = deps.renderer.write.mock.calls.map((c) => c[0]).join('');
     expect(out).toContain('enabled:      true');
-    expect(out).toContain('url:          http://localhost:8000');
+    expect(out).toContain('url:          http://localhost:3444');
     expect(out).toContain('active:       false');
     // The status glyph/label for `enabled && !active` is the amber warning,
     // not the green `live` glyph.
@@ -197,11 +197,11 @@ describe('proxyCmd — disabled × url-set', () => {
   it('reports url-set toggle off and rewrites bypassed', async () => {
     mockGetProxyConfig.mockReturnValue({
       enabled: false,
-      url: 'http://localhost:8000',
+      url: 'http://localhost:3444',
       active: false,
     });
     mockShouldRewriteFor.mockReturnValue(false);
-    const deps = makeDeps({ enabled: false, url: 'http://localhost:8000' });
+    const deps = makeDeps({ enabled: false, url: 'http://localhost:3444' });
 
     const code = await runProxyCmd([], deps);
 
@@ -211,7 +211,7 @@ describe('proxyCmd — disabled × url-set', () => {
     expect(mockStartProxyProbe).not.toHaveBeenCalled();
     const out = deps.renderer.write.mock.calls.map((c) => c[0]).join('');
     expect(out).toContain('enabled:      false');
-    expect(out).toContain('url:          http://localhost:8000');
+    expect(out).toContain('url:          http://localhost:3444');
     expect(out).toContain('active:       false');
     expect(out).toContain('url set, toggle off');
     expect(out).toContain('rewrites bypassed');

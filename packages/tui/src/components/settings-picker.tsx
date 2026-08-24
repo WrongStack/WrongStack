@@ -153,7 +153,7 @@ export interface SettingsPickerProps {
    */
   wrongProxyEnabled: boolean;
   /**
-   * WrongProxy / WrongTrace URL. Default `http://localhost:8000`. Text
+   * WrongProxy / WrongTrace URL. Default `http://localhost:3444`. Text
    * field (Enter on the row opens an inline edit). Picker field 60.
    */
   wrongProxyUrl: string;
@@ -548,7 +548,7 @@ export function SettingsPicker({
     {
       label: 'WrongProxy / WrongTrace',
       value: boolVal(wrongProxyEnabled),
-      detail: 'Route base URLs through the local proxy (default http://localhost:8000). openai-codex is excluded.',
+      detail: 'Route base URLs through the local proxy (default http://localhost:3444). openai-codex is excluded.',
     },
     {
       label: 'WrongProxy URL',

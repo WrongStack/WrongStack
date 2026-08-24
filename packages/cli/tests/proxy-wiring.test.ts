@@ -50,7 +50,7 @@ describe('awaitFirstWrongProxyProbe', () => {
     probeMocks.startProxyProbe.mockReturnValue({ poke, stop: vi.fn() });
 
     // Toggle on → applyWrongProxyPrefs boots the probe runner lazily.
-    applyWrongProxyPrefs({ wrongProxyEnabled: true, wrongProxyUrl: 'http://localhost:8000' });
+    applyWrongProxyPrefs({ wrongProxyEnabled: true, wrongProxyUrl: 'http://localhost:3444' });
     expect(probeMocks.startProxyProbe).toHaveBeenCalledTimes(1);
 
     await expect(awaitFirstWrongProxyProbe()).resolves.toBeUndefined();

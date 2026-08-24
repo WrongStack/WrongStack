@@ -237,7 +237,7 @@ export type Action =
       nextStepsTool: boolean;
       /**
        * WrongProxy / WrongTrace: master switch + configurable URL
-       * (default http://localhost:8000). Mirrors `Settings.wrongProxy*`
+       * (default http://localhost:3444). Mirrors `Settings.wrongProxy*`
        * and `SettingsPickerPatch.wrongProxy*`. Both fields land in
        * the Integrations section of the picker; the runtime probe
        * reads the values via the TUI settings adapter (see

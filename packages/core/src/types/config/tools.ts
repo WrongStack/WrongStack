@@ -111,7 +111,7 @@ export interface ToolsConfig {
   nextsteps?: NextStepsToolConfig | undefined;
   /**
    * WrongProxy / WrongTrace: automatic base-URL rerouting through a
-   * local proxy daemon (default `http://localhost:8000`). When
+   * local proxy daemon (default `http://localhost:3444`). When
    * `enabled` is true AND the daemon at `url` is reachable, every
    * provider's base URL is rewritten through
    * `${url}/proxy/<host><path>`. openai-codex is excluded by spec.
@@ -135,7 +135,7 @@ export interface WrongProxyToolConfig {
   enabled?: boolean | undefined;
   /**
    * Where the local proxy daemon listens. Default
-   * `http://localhost:8000`. The CLI's periodic probe targets
+   * `http://localhost:3444`. The CLI's periodic probe targets
    * `<url>/api/health`; a 2xx response flips the runtime's
    * `active` flag.
    */
