@@ -683,10 +683,10 @@ export interface WrongProxyPanelSidebarProps {
 }
 
 /**
- * Sidebar twin for the live WrongProxy / WrongTrace daemon. Renders
- * the proxy URL, a status pill (LIVE / WARN / DOWN / ?), the round-trip
- * latency when known, and a brief footer hint mirroring the WebUI copy
- * about openai-codex being excluded by spec.
+ * Sidebar twin for the live WrongProxy / WrongTrace daemon. Renders the
+ * proxy URL with its round-trip latency, the probe error detail when
+ * warn/down, and — when the daemon's `/api/health` body exposes them —
+ * the WrongTrace IPC socket path and daemon version.
  *
  * The panel is mounted only when `wrongProxyEnabled` is true at the
  * `app-view-sidebar.tsx` gate — see the `wrongProxyEnabled` usage there.
@@ -708,6 +708,18 @@ export function WrongProxyPanelSidebar({
   const showLatency = inner >= METRIC_MIN_BODY_WIDTH;
   const latencyLabel = proxy?.latencyMs !== undefined ? `${proxy.latencyMs}ms` : '';
   const urlLabel = proxy?.url ?? '—';
+  // Pre-truncate the IPC socket path so the StatRow dot-leader math
+  // stays exact on narrow rails — `SidebarStatRow` assumes the caller
+  // passes a value that fits (it only clamps the leader, not the value).
+  // "· ipc " label + 3 (min leader + gap) reserve on the left.
+  const ipcLabel = `${glyphs.dividerDot} ipc`;
+  const ipcValue = proxy?.socketPath
+    ? trunc(proxy.socketPath, Math.max(4, bodyWidth - displayWidth(ipcLabel) - 3))
+    : null;
+  const daemonLabel = `${glyphs.dividerDot} daemon`;
+  const daemonValue = proxy?.version
+    ? trunc(proxy.version, Math.max(4, bodyWidth - displayWidth(daemonLabel) - 3))
+    : null;
   return (
     <SidebarPanelFrame
       accent={visual.color}
@@ -725,12 +737,6 @@ export function WrongProxyPanelSidebar({
         ) : undefined
       }
     >
-      <SidebarSectionHeader
-        glyph={glyphs.link}
-        label="ENDPOINT"
-        color={visual.color}
-        innerWidth={bodyWidth}
-      />
       <Box flexDirection="row" width={bodyWidth}>
         <Text color={visual.color}>{visual.glyph}</Text>
         <Text color={theme.textPrimary} bold wrap="truncate">
@@ -755,15 +761,26 @@ export function WrongProxyPanelSidebar({
           {glyphs.warning} {trunc(proxy.detail, bodyWidth - 2)}
         </Text>
       ) : null}
-      <SidebarStatRow
-        label={`${glyphs.dividerDot} mode`}
-        value="routing"
-        color={theme.textMuted}
-        innerWidth={bodyWidth}
-      />
-      <Text color={theme.textMuted} wrap="truncate" dimColor>
-        {trunc('openai-codex excluded by spec', bodyWidth)}
-      </Text>
+      {/* WrongTrace IPC info — rendered only when the daemon reported a
+          socket path / version, so an HTTP-only daemon keeps the card at
+          its minimal height. */}
+      {ipcValue ? (
+        <SidebarStatRow
+          label={ipcLabel}
+          value={ipcValue}
+          color={theme.textMuted}
+          innerWidth={bodyWidth}
+          valueMuted
+        />
+      ) : null}
+      {daemonValue ? (
+        <SidebarStatRow
+          label={daemonLabel}
+          value={daemonValue}
+          color={theme.textPrimary}
+          innerWidth={bodyWidth}
+        />
+      ) : null}
     </SidebarPanelFrame>
   );
 }

@@ -140,6 +140,15 @@ export interface SidebarWrongProxy {
   status: SidebarWrongProxyStatus;
   latencyMs?: number | undefined;
   detail?: string | undefined;
+  /**
+   * WrongTrace IPC endpoint, read from the `/api/health` body's
+   * `socket_path` field (named pipe / UDS the daemon listens on).
+   * Undefined when the daemon is down or does not expose a socket —
+   * the sidebar then omits the IPC rows entirely.
+   */
+  socketPath?: string | undefined;
+  /** Daemon version from the `/api/health` body, when reported. */
+  version?: string | undefined;
 }
 
 /**
@@ -185,11 +194,39 @@ export function useSidebarWrongProxy(
         });
         if (cancelled) return;
         const ok = res.ok && res.status >= 200 && res.status < 300;
+        // The WrongProxy daemon's health body carries WrongTrace IPC
+        // metadata (`socket_path`, `version`) — see
+        // @wrongstack/wrongtrace's WrongTraceHealth. Read best-effort:
+        // a non-JSON or absent body must not fail the probe.
+        let socketPath: string | undefined;
+        let version: string | undefined;
+        if (ok) {
+          try {
+            const body: unknown = await res.json();
+            if (body != null && typeof body === 'object') {
+              const { socket_path, version: reported } = body as {
+                socket_path?: unknown;
+                version?: unknown;
+              };
+              if (typeof socket_path === 'string' && socket_path.length > 0) {
+                socketPath = socket_path;
+              }
+              if (typeof reported === 'string' && reported.length > 0) {
+                version = reported;
+              }
+            }
+          } catch {
+            // Body is decorative here — reachability is what matters.
+          }
+        }
+        if (cancelled) return;
         setData({
           url: trimmed,
           status: ok ? 'ok' : 'warn',
           latencyMs: Date.now() - startedAt,
           detail: ok ? undefined : `HTTP ${res.status}`,
+          socketPath,
+          version,
         });
       } catch (error) {
         if (cancelled) return;

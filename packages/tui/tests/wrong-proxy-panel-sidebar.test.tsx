@@ -10,7 +10,7 @@ import { Box } from '../src/ink.js';
 // because the title-row width budget hair-cuts the pill on narrower
 // rails — that's canonical `SidebarPanelFrame` behavior used by every
 // other twin too; see the assertions below which target body content
-// (URL, detail, footer hint, status glyph on the ENDPOINT row) where
+// (URL, detail, IPC rows, status glyph on the URL row) where
 // truncation is consistent across rails.
 const RAIL_WIDTH = 48;
 
@@ -25,21 +25,41 @@ function mount(proxy: Parameters<typeof WrongProxyPanelSidebar>[0]['proxy']) {
 }
 
 describe('WrongProxyPanelSidebar', () => {
-  it('renders the URL, healthy glyph, footer hint, and "routing" mode row when the probe is healthy', () => {
+  it('renders the URL, healthy glyph, and WrongTrace IPC rows when the health body reports a socket path', () => {
     const { lastFrame } = mount({
       url: 'http://localhost:3444',
       status: 'ok',
       latencyMs: 23,
+      socketPath: '\\\\.\\pipe\\wrongtrace',
+      version: '0.3.3',
     });
     const frame = lastFrame();
     expect(frame).toContain('WRONGPROXY');
     expect(frame).toContain('http://localhost:3444');
-    expect(frame).toContain('ENDPOINT');
-    // Healthy glyph is rendered on the ENDPOINT row prefix — independent
+    // Healthy glyph is rendered on the URL row prefix — independent
     // of the title-row pill truncation, so the assertion is stable.
     expect(frame).toContain('✓');
-    // Footer hint mirrors the WebUI copy about openai-codex.
-    expect(frame).toContain('openai-codex excluded by spec');
+    // WrongTrace IPC info sourced from the /api/health body. The row
+    // labels carry the `·` rail so the asserts don't collide with the
+    // ever-present "proxy daemon" kicker text.
+    expect(frame).toContain('· ipc');
+    expect(frame).toContain('wrongtrace');
+    expect(frame).toContain('· daemon');
+    expect(frame).toContain('0.3.3');
+  });
+
+  it('omits the IPC rows entirely for an HTTP-only daemon (no socket_path in the health body)', () => {
+    const { lastFrame } = mount({
+      url: 'http://localhost:3444',
+      status: 'ok',
+      latencyMs: 12,
+      // No socketPath / version — an HTTP-only daemon keeps the card
+      // at its minimal height with no filler rows.
+    });
+    const frame = lastFrame();
+    expect(frame).toContain('http://localhost:3444');
+    expect(frame).not.toContain('· ipc');
+    expect(frame).not.toContain('· daemon');
   });
 
   it('renders the unreachable detail and the failure glyph when the daemon is offline', () => {
@@ -51,16 +71,17 @@ describe('WrongProxyPanelSidebar', () => {
     });
     const frame = lastFrame();
     expect(frame).toContain('WRONGPROXY');
-    expect(frame).toContain('ENDPOINT');
-    // Failure glyph on the ENDPOINT row prefix — a stable signal that
+    // Failure glyph on the URL row prefix — a stable signal that
     // survives pill/title-row truncation because it lives in the body.
     expect(frame).toContain('×');
     // `proxy.detail` is appended under the URL row; mirrors the
     // Connections panel's per-service `detail` line shape.
     expect(frame).toContain('ECONNREFUSED');
+    // A down daemon reported no IPC metadata, so no IPC rows.
+    expect(frame).not.toContain('ipc');
   });
 
-  it('renders an idle twin (no latency, no detail) when proxy is null', () => {
+  it('renders an idle twin (no latency, no IPC rows) when proxy is null', () => {
     const { lastFrame } = mount(null);
     const frame = lastFrame();
     expect(frame).toContain('WRONGPROXY');
@@ -68,5 +89,6 @@ describe('WrongProxyPanelSidebar', () => {
     // muted "?" pill so a mount/unmount race during a settings toggle
     // never flashes an inconsistent state.
     expect(frame).not.toContain('ms');
+    expect(frame).not.toContain('ipc');
   });
 });
