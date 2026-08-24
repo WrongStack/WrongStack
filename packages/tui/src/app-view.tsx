@@ -1,9 +1,6 @@
 import type React from 'react';
 import { AppStatusRegion } from './app-status-region.js';
-import {
-  buildSidebarOpenFlags,
-  resolveAppSidebarLayout,
-} from './app-ui-state.js';
+import { buildSidebarOpenFlags, resolveAppSidebarLayout } from './app-ui-state.js';
 import type { AppViewProps } from './app-view-contract.js';
 import { AppViewPickers } from './app-view-pickers.js';
 import { AppViewSidebar } from './app-view-sidebar.js';
@@ -15,6 +12,7 @@ import {
   useSidebarConnections,
   useSidebarKanban,
   useSidebarProcessList,
+  useSidebarWrongProxy,
 } from './hooks/use-sidebar-panel-data.js';
 import { useTerminalSize } from './hooks/use-terminal-size.js';
 import { Box } from './ink.js';
@@ -23,11 +21,7 @@ import { PANEL_IDS, type PanelId, SIDEBAR_PANEL_LIMIT } from './ui-contracts.js'
 const INPUT_PROMPT = DEFAULT_INPUT_PROMPT;
 
 export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
-  const {
-    agent,
-    appVersion,
-    setSuggestions,
-  } = host;
+  const { agent, appVersion, setSuggestions } = host;
   const {
     state,
     activity,
@@ -69,6 +63,25 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     sidebarSlotVisible('connections'),
   );
   const sidebarKanbanData = useSidebarKanban(agent.ctx.projectRoot, sidebarSlotVisible('kanban'));
+
+  // WrongProxy status panel — gated on the master switch via the
+  // picker's draft while the settings picker is open (so the panel
+  // tracks ←/→ edits synchronously, matching the pattern in
+  // `effectivePanelPositionsInput`/`effectiveAgentSwarmPanelMode` in
+  // `app-ui-state.ts`) and the persisted `liveSettings` once the
+  // picker is closed. Without the dual-source read, the user can
+  // toggle WrongProxy on via the picker and watch the card NOT
+  // appear until an unrelated render after async persistence lands.
+  const wrongProxyEnabled = state.settingsPicker.open
+    ? state.settingsPicker.wrongProxyEnabled === true
+    : liveSettings?.wrongProxyEnabled === true;
+  const wrongProxyUrl = state.settingsPicker.open
+    ? state.settingsPicker.wrongProxyUrl
+    : liveSettings?.wrongProxyUrl;
+  const sidebarWrongProxyData = useSidebarWrongProxy(
+    wrongProxyUrl,
+    wrongProxyEnabled && sidebarWidth > 0,
+  );
   const sidebarPlanData = usePlanPanelData(
     agent.ctx.projectRoot,
     agent.ctx.session?.id ?? null,
@@ -157,6 +170,8 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             sidebarConnectionsData={sidebarConnectionsData}
             sidebarKanbanData={sidebarKanbanData}
             sidebarPlanData={sidebarPlanData}
+            sidebarWrongProxyEnabled={wrongProxyEnabled}
+            sidebarWrongProxyData={sidebarWrongProxyData}
           />
         </Box>
       </Box>

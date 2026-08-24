@@ -476,4 +476,44 @@ describe('seedContextMeta — per-plugin effective state', () => {
     expect(seed(config)).toBeUndefined();
     expect(({} as Record<string, unknown>)['enabled']).toBeUndefined();
   });
+
+  // WrongProxy / WrongTrace: the boot-read path in `seedContextMeta` must
+  // project `config.tools.wrongProxy.{enabled,url}` onto the flat meta
+  // keys the WebUI panel reads. Without this projection, a restart boots
+  // with the panel showing defaults (toggle off, default URL) even though
+  // the persisted config has the values — the symptom the persist-layer
+  // fix alone would leave behind. Mirrors the CLI's
+  // `tui-settings-adapter.ts:266-268` read path so TUI and WebUI agree.
+  it('seeds wrongProxyEnabled + wrongProxyUrl from config.tools.wrongProxy', () => {
+    const context = { meta: {} };
+    seedContextMeta(
+      makeConfig({ tools: { wrongProxy: { enabled: true, url: 'http://proxy.local:9000' } } }),
+      context,
+    );
+    expect(context.meta['wrongProxyEnabled']).toBe(true);
+    expect(context.meta['wrongProxyUrl']).toBe('http://proxy.local:9000');
+  });
+
+  it('defaults wrongProxyEnabled to false and wrongProxyUrl to empty when config has no nested entry', () => {
+    const context = { meta: {} };
+    seedContextMeta(makeConfig(), context);
+    expect(context.meta['wrongProxyEnabled']).toBe(false);
+    expect(context.meta['wrongProxyUrl']).toBe('');
+  });
+
+  it('preserves a sibling tools.* key when seeding wrongProxy', () => {
+    const context = { meta: {} };
+    seedContextMeta(
+      makeConfig({
+        tools: {
+          maxIterations: 80,
+          wrongProxy: { enabled: true, url: 'http://p:1' },
+        },
+      }),
+      context,
+    );
+    expect(context.meta['wrongProxyEnabled']).toBe(true);
+    expect(context.meta['wrongProxyUrl']).toBe('http://p:1');
+    expect(context.meta['maxIterations']).toBe(80);
+  });
 });

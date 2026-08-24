@@ -18,11 +18,13 @@ import {
   SessionsPanelSidebar,
   TodosPanelSidebar,
   WorktreePanelSidebar,
+  WrongProxyPanelSidebar,
 } from './components/sidebar-panels.js';
 import type {
   useSidebarConnections,
   useSidebarKanban,
   useSidebarProcessList,
+  useSidebarWrongProxy,
 } from './hooks/use-sidebar-panel-data.js';
 import { Text } from './ink.js';
 import { theme } from './theme.js';
@@ -39,6 +41,14 @@ export interface AppViewSidebarProps {
   sidebarConnectionsData: ReturnType<typeof useSidebarConnections>;
   sidebarKanbanData: ReturnType<typeof useSidebarKanban>;
   sidebarPlanData: ReturnType<typeof usePlanPanelData>;
+  /** Master switch from `liveSettings?.wrongProxyEnabled`. The WrongProxy
+   *  sidebar panel renders only while this is true; when false the entire
+   *  panel returns `null` so it doesn't take a slot in `SIDEBAR_PANEL_LIMIT`
+   *  or burn IPC probes. */
+  sidebarWrongProxyEnabled: boolean;
+  /** Live probe data from `useSidebarWrongProxy`. `null` while the panel
+   *  is bootstrapping or the daemon URL hasn't produced a response yet. */
+  sidebarWrongProxyData: ReturnType<typeof useSidebarWrongProxy>;
 }
 
 export function AppViewSidebar({
@@ -52,6 +62,8 @@ export function AppViewSidebar({
   sidebarConnectionsData,
   sidebarKanbanData,
   sidebarPlanData,
+  sidebarWrongProxyEnabled,
+  sidebarWrongProxyData,
 }: AppViewSidebarProps): React.ReactElement | null {
   const { agent } = host;
   const { state, activity, environment, statusbar, liveTodos, liveSettings } = runtime;
@@ -190,6 +202,20 @@ export function AppViewSidebar({
       ) : null}
       {sidebarSlotVisible('connections') ? (
         <ConnectionsPanelSidebar connections={sidebarConnectionsData} width={sidebarContentWidth} />
+      ) : null}
+      {/* WrongProxy status panel — gated on the master switch from
+          `liveSettings.wrongProxyEnabled` so it never appears when the
+          user has the proxy off. The component itself renders the
+          shareable `SidebarPanelFrame` chrome (no nested viewport), and
+          `RightSidebar` is the sole owner of width/clipping. The panel
+          is intentionally NOT in `PANEL_IDS`: it is not an F-key panel,
+          and its slot allocation follows the master switch rather than
+          a per-panel "position" preference — see app-view.tsx for the
+          `useSidebarWrongProxy` hook that powers it (and the
+          `&& sidebarWidth > 0` short-circuit so the probe loop stays
+          dormant on narrow terminals). */}
+      {sidebarWrongProxyEnabled ? (
+        <WrongProxyPanelSidebar proxy={sidebarWrongProxyData} width={sidebarContentWidth} />
       ) : null}
       {hiddenSidebarPanelCount > 0 ? (
         <Text color={theme.textMuted}>+{hiddenSidebarPanelCount} more</Text>

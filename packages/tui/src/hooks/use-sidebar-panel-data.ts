@@ -125,6 +125,95 @@ export function useSidebarConnections(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// WrongProxy reachability data
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * Status returned by the WrongProxy sidebar twin. Mirrors the
+ * 4-state shape used by `useSidebarConnections` so the sidebar frame's
+ * pill / glyph / row coloring stay uniform across panels.
+ */
+export type SidebarWrongProxyStatus = 'ok' | 'warn' | 'down' | 'unknown';
+
+export interface SidebarWrongProxy {
+  url: string;
+  status: SidebarWrongProxyStatus;
+  latencyMs?: number | undefined;
+  detail?: string | undefined;
+}
+
+/**
+ * Probe the WrongProxy daemon. Refreshes every 8 seconds while
+ * `enabled` is true; returns `null` when `enabled` is false so the
+ * sidebar twin (and its slot reservation) stop participating in the
+ * `SIDEBAR_PANEL_LIMIT` race — the panel is then rendered as `null`
+ * by `app-view-sidebar.tsx`. The probe hits `<base>/api/health`, the
+ * canonical endpoint shared with the runtime probe in
+ * `packages/cli/src/wiring/proxy-probe.ts`; we deliberately do NOT
+ * share the runtime probe's mutable `active` flag because the sidebar
+ * twin needs its own observable state (latency, error detail) to
+ * paint a useful panel — the runtime probe only flips a boolean.
+ *
+ * Errors stay silent: failures populate `status: 'down'` so the card
+ * shows "unreachable" without spamming the console, matching the
+ * no-throw contract used by every other sidebar probe.
+ */
+export function useSidebarWrongProxy(
+  url: string | undefined,
+  enabled = true,
+): SidebarWrongProxy | null {
+  const [data, setData] = useState<SidebarWrongProxy | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !url) {
+      setData(null);
+      return;
+    }
+    let cancelled = false;
+    const probe = async (): Promise<void> => {
+      const trimmed = url.trim().replace(/\/+$/, '');
+      const healthUrl = `${trimmed}/api/health`;
+      const startedAt = Date.now();
+      try {
+        const res = await fetch(healthUrl, {
+          method: 'GET',
+          // 2s budget — matches the runtime probe in proxy-probe.ts so a
+          // hung localhost:8000 cannot stall the render loop. The TUI
+          // never sees AbortError unless the caller tears us down.
+          signal: AbortSignal.timeout(2_000),
+          headers: { accept: 'application/json' },
+        });
+        if (cancelled) return;
+        const ok = res.ok && res.status >= 200 && res.status < 300;
+        setData({
+          url: trimmed,
+          status: ok ? 'ok' : 'warn',
+          latencyMs: Date.now() - startedAt,
+          detail: ok ? undefined : `HTTP ${res.status}`,
+        });
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : String(error);
+        setData({
+          url: trimmed,
+          status: 'down',
+          latencyMs: Date.now() - startedAt,
+          detail: message || 'unreachable',
+        });
+      }
+    };
+    void probe();
+    const id = setInterval(() => void probe(), 8_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [url, enabled]);
+
+  return data;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Kanban board data
 // ─────────────────────────────────────────────────────────────────────────
 

@@ -300,6 +300,86 @@ describe('WebUI preference persistence helpers', () => {
     expect(await readConfig()).toEqual({ keep: true });
   });
 
+  // WrongProxy / WrongTrace: the WebUI toggle + URL flow through the
+  // prefs.update pipeline (validator → ctx.meta → persist → live runtime),
+  // but `persistPrefsToConfig` previously had no branch that mutated the
+  // decrypted config for these keys. The validator accepted them, the
+  // hot-reload wiring fired, the config file was rewritten with zero
+  // changes — and the next boot saw an empty profile. These tests pin the
+  // canonical nested shape (`tools.wrongProxy.{enabled,url}`) so the
+  // regression can't return unnoticed AND so a future writer doesn't
+  // accidentally land the values at the top level (where the runtime
+  // probe + TUI picker never read them).
+  it('persists wrongProxyEnabled + wrongProxyUrl to nested tools.wrongProxy', async () => {
+    await fs.writeFile(configPath, '{}', 'utf8');
+    await persistPrefsToConfig(deps, holder, {
+      wrongProxyEnabled: true,
+      wrongProxyUrl: 'http://proxy.local:9000/proxy',
+    });
+    expect(await readConfig()).toEqual({
+      tools: {
+        wrongProxy: {
+          enabled: true,
+          url: 'http://proxy.local:9000/proxy',
+        },
+      },
+    });
+  });
+
+  it('updates wrongProxyEnabled without dropping wrongProxyUrl from existing nested config', async () => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        tools: { wrongProxy: { enabled: true, url: 'http://old:8000' } },
+      }),
+      'utf8',
+    );
+    await persistPrefsToConfig(deps, holder, { wrongProxyEnabled: false });
+    const config = await readConfig();
+    expect((config.tools as Record<string, unknown>).wrongProxy).toEqual({
+      enabled: false,
+      url: 'http://old:8000',
+    });
+  });
+
+  it('does not overwrite other tools-section keys when writing wrongProxy', async () => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({ tools: { maxIterations: 80, wrongProxy: { enabled: true } } }),
+      'utf8',
+    );
+    await persistPrefsToConfig(deps, holder, { wrongProxyUrl: 'http://new:8000' });
+    expect(await readConfig()).toEqual({
+      tools: {
+        maxIterations: 80,
+        wrongProxy: { enabled: true, url: 'http://new:8000' },
+      },
+    });
+  });
+
+  it('rejects non-boolean / non-string wrongProxy values silently (typeof guard)', async () => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        tools: { wrongProxy: { enabled: true, url: 'http://keep:8000' } },
+      }),
+      'utf8',
+    );
+    await persistPrefsToConfig(deps, holder, {
+      wrongProxyEnabled: 'yes',
+      wrongProxyUrl: 12345,
+    });
+    // Validator rejects the payload upstream, but if a non-member value
+    // ever reaches `persistPrefsToConfig` directly, the typeof guards
+    // must leave the existing fields untouched rather than overwrite
+    // them with garbage.
+    const config = await readConfig();
+    expect((config.tools as Record<string, unknown>).wrongProxy).toEqual({
+      enabled: true,
+      url: 'http://keep:8000',
+    });
+  });
+
   // `config.plugins` outranks `extensions.<name>.enabled` (resolvePluginEnablement),
   // so writing only the extension left the panel's switch decorative for every
   // plugin that also had a plugins[] entry.

@@ -142,6 +142,8 @@ export function useSettingsAutoSave(
     state.settingsPicker.sageMemoryInjectThreshold,
     state.settingsPicker.nextStepsTool,
     state.settingsPicker.readSymbols,
+    state.settingsPicker.wrongProxyEnabled,
+    state.settingsPicker.wrongProxyUrl,
     saveSettings,
   ]);
 }

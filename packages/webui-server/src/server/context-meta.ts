@@ -132,6 +132,17 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   const tgMs = tgExt?.['longToolThresholdMs'];
   meta['tgLongToolMs'] = typeof tgMs === 'number' ? tgMs : 30_000;
 
+  // WrongProxy / WrongTrace: seed the flat meta keys the WebUI panel reads
+  // (`wrongProxyEnabled`, `wrongProxyUrl`) from the canonical nested shape
+  // (`config.tools.wrongProxy.{enabled,url}` — the same shape
+  // `persistPrefsToConfig` writes and `getSettings()` reads). Without this,
+  // a restart boots with the panel showing defaults (toggle off, default
+  // URL) even though the persisted config has the values — the user has to
+  // reopen Settings before the toggle reappears. Mirrors the CLI's
+  // `tui-settings-adapter.ts:266-268` read path so TUI and WebUI agree.
+  meta['wrongProxyEnabled'] = config.tools?.wrongProxy?.enabled === true;
+  meta['wrongProxyUrl'] = (config.tools?.wrongProxy?.url as string) ?? '';
+
   // Per-plugin toggles — seed the EFFECTIVE state for every plugin the config
   // actually decides, so the panel shows what is running rather than the
   // browser's last guess. Names reachable here always resolve from

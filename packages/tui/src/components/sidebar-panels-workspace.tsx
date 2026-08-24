@@ -1,5 +1,9 @@
 import type React from 'react';
 import type { FleetEntry } from '../app-state.js';
+import type {
+  SidebarWrongProxy,
+  SidebarWrongProxyStatus,
+} from '../hooks/use-sidebar-panel-data.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
 import { theme } from '../theme.js';
@@ -503,6 +507,29 @@ export interface ConnectionsPanelSidebarProps {
   width: number;
 }
 
+/**
+ * Status pill + glyph mapping for the WrongProxy sidebar twin. Kept
+ * local to this file (instead of as a module-level constant) because
+ * it is only meaningful in this sidebar card and duplicates the
+ * envelope of `ConnectionsPanelSidebar` only loosely.
+ */
+function wrongProxyVisual(status: SidebarWrongProxyStatus): {
+  glyph: string;
+  color: string;
+  pill: string;
+} {
+  switch (status) {
+    case 'ok':
+      return { glyph: glyphs.success, color: theme.success, pill: 'LIVE' };
+    case 'warn':
+      return { glyph: glyphs.warning, color: theme.warn, pill: 'WARN' };
+    case 'down':
+      return { glyph: glyphs.failure, color: theme.error, pill: 'DOWN' };
+    default:
+      return { glyph: '?', color: theme.textMuted, pill: '?' };
+  }
+}
+
 export function ConnectionsPanelSidebar({
   connections,
   width,
@@ -641,6 +668,103 @@ export function ConnectionsPanelSidebar({
           );
         })
       )}
+    </SidebarPanelFrame>
+  );
+}
+
+export interface WrongProxyPanelSidebarProps {
+  /**
+   * Live probe state. When `null` (URL missing or probe disabled) the
+   * panel renders an idle placeholder inside the same frame so the
+   * layout never jumps when the toggle flips on mid-session.
+   */
+  proxy: SidebarWrongProxy | null;
+  width: number;
+}
+
+/**
+ * Sidebar twin for the live WrongProxy / WrongTrace daemon. Renders
+ * the proxy URL, a status pill (LIVE / WARN / DOWN / ?), the round-trip
+ * latency when known, and a brief footer hint mirroring the WebUI copy
+ * about openai-codex being excluded by spec.
+ *
+ * The panel is mounted only when `wrongProxyEnabled` is true at the
+ * `app-view-sidebar.tsx` gate — see the `wrongProxyEnabled` usage there.
+ * This component still defensively renders an empty-state when
+ * `proxy === null` so a mount/unmount race during a toggle flip does
+ * not flash an inconsistent card.
+ */
+export function WrongProxyPanelSidebar({
+  proxy,
+  width,
+}: WrongProxyPanelSidebarProps): React.ReactElement {
+  const inner = Math.max(8, width);
+  // Mirror the body-width math used by every other sidebar twin on
+  // this page: `Card` adds 2 cols for `│` sides and 2 cols for body
+  // padding on rails wide enough to afford the chrome (>= 18), and
+  // SectionHeader / StatRow dotted leaders size to that inset width.
+  const bodyWidth = inner >= 18 ? inner - 4 : inner;
+  const visual = proxy ? wrongProxyVisual(proxy.status) : wrongProxyVisual('unknown');
+  const showLatency = inner >= METRIC_MIN_BODY_WIDTH;
+  const latencyLabel = proxy?.latencyMs !== undefined ? `${proxy.latencyMs}ms` : '';
+  const urlLabel = proxy?.url ?? '—';
+  return (
+    <SidebarPanelFrame
+      accent={visual.color}
+      icon={glyphs.link}
+      title="WRONGPROXY"
+      width={width}
+      kicker="proxy daemon"
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${visual.glyph} ${visual.pill}` : undefined}
+      pillColor={visual.color}
+      right={
+        inner < PILL_MIN_INNER_WIDTH ? (
+          <Text color={visual.color} bold>
+            {visual.glyph} {visual.pill}
+          </Text>
+        ) : undefined
+      }
+      footer="/settings integrations"
+    >
+      <SidebarSectionHeader
+        glyph={glyphs.link}
+        label="ENDPOINT"
+        color={visual.color}
+        innerWidth={bodyWidth}
+      />
+      <Box flexDirection="row" width={bodyWidth}>
+        <Text color={visual.color}>{visual.glyph}</Text>
+        <Text color={theme.textPrimary} bold wrap="truncate">
+          {' '}
+          {trunc(
+            urlLabel,
+            Math.max(
+              3,
+              bodyWidth - (showLatency && latencyLabel ? displayWidth(latencyLabel) + 1 : 2),
+            ),
+          )}
+        </Text>
+        {showLatency && latencyLabel ? (
+          <>
+            <Box flexGrow={1} />
+            <Text color={theme.textMuted}>{latencyLabel}</Text>
+          </>
+        ) : null}
+      </Box>
+      {proxy?.detail ? (
+        <Text color={proxy.status === 'down' ? theme.error : theme.warn} wrap="truncate">
+          {glyphs.warning} {trunc(proxy.detail, bodyWidth - 2)}
+        </Text>
+      ) : null}
+      <SidebarStatRow
+        label={`${glyphs.dividerDot} mode`}
+        value="routing"
+        color={theme.textMuted}
+        innerWidth={bodyWidth}
+      />
+      <Text color={theme.textMuted} wrap="truncate" dimColor>
+        {trunc('openai-codex excluded by spec', bodyWidth)}
+      </Text>
     </SidebarPanelFrame>
   );
 }

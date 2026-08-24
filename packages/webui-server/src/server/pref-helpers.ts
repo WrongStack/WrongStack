@@ -18,9 +18,9 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SecretVault } from '@wrongstack/core/types';
 import { pluginEntryMatchesName } from '@wrongstack/core/plugin';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
+import type { SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, backupConfigFile, FORBIDDEN_PROTO_KEYS } from '@wrongstack/core/utils';
 
 /** Pref keys exposed to the settings panel via prefs.get / prefs.updated. */
@@ -523,6 +523,29 @@ export async function persistPrefsToConfig(
       // Raw SSE debug dump → top-level Config.debugStream
       if (typeof payload['debugStream'] === 'boolean')
         decrypted.debugStream = payload['debugStream'];
+
+      // WrongProxy / WrongTrace → nested `tools.wrongProxy.{enabled,url}`.
+      // Mirrors the TUI adapter (`packages/cli/src/boot/tui-settings-adapter.ts:475-480`)
+      // and the canonical schema (`ToolsConfig.wrongProxy?: WrongProxyToolConfig`).
+      // DO NOT write to top-level `wrongProxyEnabled` / `wrongProxyUrl` —
+      // nothing reads them back: the runtime probe (`runtime-controller-deps.ts:144-148`)
+      // and the TUI picker (field 59) both read `config.tools?.wrongProxy?.*`, so a
+      // top-level write would land on disk, survive `prefs.update`, and be ignored
+      // on next boot (the symptom this branch fixes).
+      // Only assign fields present in the payload so unset keys preserve their
+      // on-disk values (parity with the TUI adapter).
+      if (
+        typeof payload['wrongProxyEnabled'] === 'boolean' ||
+        typeof payload['wrongProxyUrl'] === 'string'
+      ) {
+        const toolsCfg = (decrypted.tools as Record<string, unknown>) ?? {};
+        const wp = (toolsCfg['wrongProxy'] as Record<string, unknown>) ?? {};
+        if (typeof payload['wrongProxyEnabled'] === 'boolean')
+          wp['enabled'] = payload['wrongProxyEnabled'];
+        if (typeof payload['wrongProxyUrl'] === 'string') wp['url'] = payload['wrongProxyUrl'];
+        toolsCfg['wrongProxy'] = wp;
+        decrypted.tools = toolsCfg;
+      }
 
       // Note: `autoReviewFallbackModels` is intentionally NOT a persisted
       // user-configurable input. It's a *resolved output* computed by the

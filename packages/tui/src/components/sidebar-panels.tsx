@@ -36,4 +36,6 @@ export {
   type ProjectPickerSidebarProps,
   WorktreePanelSidebar,
   type WorktreePanelSidebarProps,
+  WrongProxyPanelSidebar,
+  type WrongProxyPanelSidebarProps,
 } from './sidebar-panels-workspace.js';
