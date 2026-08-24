@@ -217,6 +217,9 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
         const text = assembleSelectionText({
           slices,
           entriesById: entriesByIdRef.current,
+          // Wrap-aware row→line translation (v1.1 M4): termWidth is the same
+          // render width the card geometry was built with.
+          termWidth,
           ...(toolGroupsByHeadId.size > 0 ? { toolGroupsByHeadId } : {}),
         });
         selectionRef.current = { anchor: null, head: null, inProgress: false };

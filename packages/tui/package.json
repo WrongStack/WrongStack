@@ -44,7 +44,8 @@
     "@wrongstack/tools": "workspace:*",
     "ink": "7.1.1",
     "react": "^19.2.8",
-    "string-width": "8.2.2"
+    "string-width": "8.2.2",
+    "wrap-ansi": "^10.0.1"
   },
   "devDependencies": {
     "@testing-library/dom": "^10.4.1",

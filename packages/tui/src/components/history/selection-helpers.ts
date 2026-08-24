@@ -5,7 +5,8 @@
  * Extracted from scrollable-history.tsx.
  */
 import { copyableTextForEntries, copyableTextForEntry } from './copy-icon.js';
-import type { HistoryEntry } from './index.js';
+import type { HistoryEntry } from './types.js';
+import { buildBodyRowMap, resolveRowCol } from './wrap-geometry.js';
 
 /**
  * Selection rectangle in viewport cell coordinates, normalized so
@@ -145,8 +146,15 @@ export function assembleSelectionText(opts: {
   slices: readonly SelectionSlice[];
   entriesById: ReadonlyMap<number, HistoryEntry>;
   toolGroupsByHeadId?: ReadonlyMap<number, readonly number[]> | undefined;
+  /**
+   * Render width used to build the wrap-aware row→line translation for
+   * assistant/thinking cards (v1.1 M4). When omitted, wrapped kinds fall
+   * back to the v1 naive mapping below — callers that cannot know the
+   * width keep their existing behavior.
+   */
+  termWidth?: number | undefined;
 }): string {
-  const { slices, entriesById, toolGroupsByHeadId } = opts;
+  const { slices, entriesById, toolGroupsByHeadId, termWidth } = opts;
   if (slices.length === 0) return '';
   const byEntry = new Map<number, SelectionSlice[]>();
   for (const slice of slices) {
@@ -175,6 +183,42 @@ export function assembleSelectionText(opts: {
     if (fullText.length === 0) continue;
     if (entries.length > 1) {
       segments.push(fullText);
+      continue;
+    }
+    // Wrap-aware path (v1.1 M4): for kinds this translation mirrors, resolve
+    // the slice's row/col anchors against the same wrap geometry the renderer
+    // produced, then slice the render base (map.text). For non-wrapped text
+    // every line is one segment with start 0, so the resolved anchors equal
+    // v1's numbers exactly. Without termWidth (or for other kinds) the v1
+    // naive loop below keeps its existing behavior.
+    const single = entries[0] as HistoryEntry;
+    if (termWidth !== undefined && (single.kind === 'assistant' || single.kind === 'thinking')) {
+      const map = buildBodyRowMap(single.kind, single.text, termWidth);
+      const lines = map.text.split('\n');
+      for (const slice of entrySlices) {
+        const a = resolveRowCol(map, slice.startRow, slice.startCol, false);
+        const b = resolveRowCol(map, slice.endRow, slice.endCol, true);
+        if (b.line < a.line) continue;
+        const collected: string[] = [];
+        for (let ln = a.line; ln <= b.line && ln < lines.length; ln++) {
+          const line = lines[ln] ?? '';
+          if (ln === a.line && ln === b.line) {
+            const start = Math.max(0, Math.min(line.length, a.offset));
+            const end = Math.max(start, Math.min(line.length, b.offset));
+            if (end > start) collected.push(line.slice(start, end));
+          } else if (ln === a.line) {
+            const start = Math.max(0, Math.min(line.length, a.offset));
+            if (start < line.length) collected.push(line.slice(start));
+          } else if (ln === b.line) {
+            const end = Math.max(0, Math.min(line.length, b.offset));
+            if (end > 0) collected.push(line.slice(0, end));
+          } else {
+            collected.push(line);
+          }
+        }
+        const seg = collected.join('\n');
+        if (seg.length > 0) segments.push(seg);
+      }
       continue;
     }
     for (const slice of entrySlices) {

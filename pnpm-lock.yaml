@@ -788,6 +788,9 @@ importers:
       string-width:
         specifier: 8.2.2
         version: 8.2.2
+      wrap-ansi:
+        specifier: ^10.0.1
+        version: 10.0.1
     devDependencies:
       '@testing-library/dom':
         specifier: ^10.4.1
