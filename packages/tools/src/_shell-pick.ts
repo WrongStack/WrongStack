@@ -264,10 +264,9 @@ export function looksLikePowerShellExtended(command: string): boolean {
  *    don't block waiting for user input. `$WhatIfPreference=$false` ensures
  *    commands actually RUN (not just print what they would do).
  *
- * Do not prefix the stdin script with a UTF-8 BOM. Some PowerShell builds do
- * not strip it when reading `-Command -` and treat it as part of the first
- * command name (`\uFEFF[Console]::OutputEncoding`), causing every wrapped
- * command to fail before the user's script runs.
+ * The caller encodes this script as UTF-16LE Base64 for `-EncodedCommand`.
+ * Do not prefix it with a BOM: the encoded command is already decoded using
+ * PowerShell's required UTF-16LE representation.
  */
 export function wrapPowerShellScript(command: string): string {
   const bootstrap =
@@ -323,16 +322,13 @@ const PS_VERB_RE = new RegExp(
 /**
  * Return the argv prefix for a given shell. The bash tool passes a single
  * command string and expects the shell to interpret it. cmd.exe uses
- * `/c <cmd>`; PowerShell uses `-NoLogo -NoProfile -NonInteractive -Command -`
- * and reads the script from stdin (the `-` at the end is the documented way
- * to tell PowerShell "the script is on stdin, not as an argument"). Stdin
- * pipe sidesteps the entire class of quoting bugs that arise from
- * interpolating multi-line / single-quoted / dollar-sign-laden scripts into
- * a `-Command "..."` string.
+ * `/c <cmd>`; PowerShell uses `-EncodedCommand <base64>`. The encoded payload
+ * avoids quoting bugs for multi-line, quoted, and dollar-sign-laden scripts.
  */
 export function shellArgs(shell: BashShell): string[] {
+  // The caller appends a UTF-16LE Base64 payload for PowerShell.
   if (shell === 'powershell' || shell === 'pwsh') {
-    return ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '-'];
+    return ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand'];
   }
   return ['/c'];
 }

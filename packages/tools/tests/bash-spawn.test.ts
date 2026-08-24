@@ -16,8 +16,6 @@ const hoisted = vi.hoisted(() => ({
     platform: process.platform,
     chunkCount: 0,
     spawnCalls: [] as Array<{ cmd: string; args: readonly string[]; opts: { stdio?: unknown } }>,
-    stdinWrites: [] as string[],
-    stdinEnds: [] as boolean[],
     wrongstackShell: undefined as string | undefined,
   },
 }));
@@ -32,10 +30,6 @@ const cfg: {
   chunkCount: number;
   /** Captures every argument passed to spawn() (one entry per call). */
   spawnCalls: Array<{ cmd: string; args: readonly string[]; opts: { stdio?: unknown } }>;
-  /** Captures what the test wrote to child.stdin (one entry per spawn call). */
-  stdinWrites: string[];
-  /** Captures whether child.stdin.end() was called (one entry per spawn call). */
-  stdinEnds: boolean[];
   /** Override WRONGSTACK_SHELL for the duration of one test. */
   wrongstackShell: string | undefined;
 } = hoisted.cfg;
@@ -76,20 +70,12 @@ vi.mock('node:child_process', async (orig) => {
       };
       child.stdout = mkStream();
       child.stderr = mkStream();
-      // bash.ts writes the script to child.stdin when routing through
-      // PowerShell (`-Command -`). The mock records writes/ends so tests
-      // can assert that the right shell got the right script.
       const stdin = new EventEmitter() as EventEmitter & {
         write: (s: string) => boolean;
         end: () => void;
       };
-      stdin.write = (s: string) => {
-        cfg.stdinWrites.push(s);
-        return true;
-      };
-      stdin.end = () => {
-        cfg.stdinEnds.push(true);
-      };
+      stdin.write = () => true;
+      stdin.end = () => {};
       child.stdin = stdin;
       child.pid = cfg.pid;
       child.killed = false;
@@ -131,6 +117,13 @@ import { _resetProcessRegistry, getProcessRegistry } from '../src/process-regist
 
 const ctx = () => ({ cwd: '/p', projectRoot: '/p', tools: [], session: { id: 's' } }) as any;
 const opts = (signal?: AbortSignal) => ({ signal: signal ?? new AbortController().signal });
+const expectedPowerShellArgs = (command: string) => [
+  '-NoLogo',
+  '-NoProfile',
+  '-NonInteractive',
+  '-EncodedCommand',
+  Buffer.from(wrapPowerShellScript(command), 'utf16le').toString('base64'),
+];
 
 async function runFinal(input: Record<string, unknown>, signal?: AbortSignal) {
   let final: unknown;
@@ -155,8 +148,6 @@ beforeEach(() => {
   cfg.platform = process.platform;
   cfg.chunkCount = 0;
   cfg.spawnCalls = [];
-  cfg.stdinWrites = [];
-  cfg.stdinEnds = [];
   cfg.wrongstackShell = undefined;
   _resetProcessRegistry();
 });
@@ -332,13 +323,8 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
       expect(out.exit_code).toBe(0);
       expect(cfg.spawnCalls.length).toBeGreaterThan(0);
       const call = cfg.spawnCalls[0]!;
-      // Spawn args for PowerShell: [-NoLogo, -NoProfile, -NonInteractive,
-      // -Command, -]. The script is written to stdin (last entry of
-      // stdinWrites).
-      expect(call.args).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '-']);
+      expect(call.args).toEqual(expectedPowerShellArgs('Get-Content package.json'));
       expect(call.cmd.toLowerCase()).toMatch(/pwsh|powershell/);
-      expect(cfg.stdinWrites[0]).toBe(wrapPowerShellScript('Get-Content package.json'));
-      expect(cfg.stdinEnds[0]).toBe(true);
     });
   });
 
@@ -348,7 +334,7 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     await withShell(undefined, async () => {
       await runFinal({ command: 'echo $env:USERNAME' });
       const call = cfg.spawnCalls[0]!;
-      expect(call.args).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '-']);
+      expect(call.args).toEqual(expectedPowerShellArgs('echo $env:USERNAME'));
       expect(call.cmd.toLowerCase()).toMatch(/pwsh|powershell/);
     });
   });
@@ -362,7 +348,6 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
       // Plain echo on cmd.exe uses /c (not the PowerShell -Command prefix).
       expect(call.args).toEqual(['/c', 'echo hi']);
       expect(call.cmd.toLowerCase()).toContain('cmd');
-      expect(cfg.stdinWrites.length).toBe(0); // cmd.exe doesn't read stdin
     });
   });
 
@@ -372,7 +357,7 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     await withShell('powershell', async () => {
       await runFinal({ command: 'Get-Date' });
       const call = cfg.spawnCalls[0]!;
-      expect(call.args).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '-']);
+      expect(call.args).toEqual(expectedPowerShellArgs('Get-Date'));
       expect(call.cmd.toLowerCase()).toContain('powershell');
     });
   });
@@ -383,7 +368,7 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     await withShell('pwsh', async () => {
       await runFinal({ command: 'Get-Date' });
       const call = cfg.spawnCalls[0]!;
-      expect(call.args).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '-']);
+      expect(call.args).toEqual(expectedPowerShellArgs('Get-Date'));
       expect(call.cmd.toLowerCase()).toMatch(/pwsh/);
     });
   });
@@ -435,16 +420,14 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     });
   });
 
-  it('streams the script to stdin in background mode too', async () => {
+  it('passes the encoded script in argv in background mode too', async () => {
     cfg.platform = 'win32';
     cfg.stdout = 'started';
     await withShell(undefined, async () => {
       const out = await runFinal({ command: 'Get-Process', background: true });
       expect(out.exit_code).toBeNull();
       expect(out.pid).toBe(7777);
-      // Background path should also write to stdin + close it.
-      expect(cfg.stdinWrites[0]).toBe(wrapPowerShellScript('Get-Process'));
-      expect(cfg.stdinEnds[0]).toBe(true);
+      expect(cfg.spawnCalls[0]!.args).toEqual(expectedPowerShellArgs('Get-Process'));
     });
   });
 
@@ -453,22 +436,19 @@ describe('bashTool Windows shell selection (Codex + PowerShell)', () => {
     cfg.stdout = 'ok';
     await withShell('cmd', async () => {
       await runFinal({ command: 'echo ok' });
-      expect(cfg.stdinWrites.length).toBe(0);
-      expect(cfg.stdinEnds.length).toBe(0);
+      expect(cfg.spawnCalls[0]!.opts.stdio).toEqual(['ignore', 'pipe', 'pipe']);
     });
   });
 
-  it('multi-line PowerShell scripts are preserved inside the stdin wrapper', async () => {
+  it('multi-line PowerShell scripts are passed via -EncodedCommand as a single argv arg', async () => {
     cfg.platform = 'win32';
     cfg.stdout = '';
     await withShell(undefined, async () => {
       const script =
         '$env:PATH\nGet-ChildItem -Recurse | Where-Object { $_.PSIsContainer -eq $false }';
       await runFinal({ command: script });
-      // The script body is wrapped (BOM + bootstrap + try/finally) but its
-      // contents are carried through verbatim.
-      expect(cfg.stdinWrites[0]).toBe(wrapPowerShellScript(script));
-      expect(cfg.stdinWrites[0]).toContain(script);
+      const encoded = cfg.spawnCalls[0]!.args.at(-1)!;
+      expect(Buffer.from(encoded, 'base64').toString('utf16le')).toBe(wrapPowerShellScript(script));
     });
   });
 });

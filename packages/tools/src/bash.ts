@@ -1,26 +1,26 @@
 import { spawn } from 'node:child_process';
 import * as os from 'node:os';
 import { StringDecoder } from 'node:string_decoder';
+import type { Context } from '@wrongstack/core/agent';
 import {
   emitProcessCompleted,
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
-import type { Context } from '@wrongstack/core/agent';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
-import { normalizeCommandOutput } from './_util.js';
-import { getProcessRegistry, redactCommand } from './process-registry.js';
-import { checkAndBlockKillCommand } from './bash-kill-guard.js';
 import {
+  type BashShell,
+  diagnoseBashism,
   pickShell,
   shellArgs,
-  type BashShell,
   wrapPowerShellScript,
-  diagnoseBashism,
 } from './_shell-pick.js';
+import { normalizeCommandOutput } from './_util.js';
 import { resolvePowerShell } from './_win32-resolve.js';
+import { checkAndBlockKillCommand } from './bash-kill-guard.js';
+import { getProcessRegistry, redactCommand } from './process-registry.js';
 
 interface BashInput {
   command: string;
@@ -210,12 +210,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       bin: string;
       /** argv prefix (everything except the inline command). */
       argv: readonly string[];
-      /** When true, write `input.command` to the child's stdin instead of
-       *  passing it as an argv. PowerShell uses this because quotes and
-       *  dollar-signs can break `-Command "..."` quoting; `pwsh -Command -`
-       *  reads the script from stdin verbatim. */
-      useStdin: boolean;
-      stdinBody: string | undefined;
+      /** Command payload appended to argv. PowerShell requires UTF-16LE Base64. */
+      commandArg: string;
     };
     let plan: ShellPlan;
     // The resolved Windows shell kind, kept in scope so the post-failure
@@ -251,11 +247,10 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       plan = {
         bin,
         argv: shellArgs(shell),
-        useStdin: shell === 'powershell' || shell === 'pwsh',
-        stdinBody:
+        commandArg:
           shell === 'powershell' || shell === 'pwsh'
-            ? wrapPowerShellScript(input.command)
-            : undefined,
+            ? Buffer.from(wrapPowerShellScript(input.command), 'utf16le').toString('base64')
+            : input.command,
       };
     } else {
       // POSIX: use WRONGSTACK_SHELL if set; else honor $SHELL only when it
@@ -271,10 +266,10 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           else bin = '/bin/bash';
         } else bin = '/bin/bash';
       }
-      plan = { bin, argv: ['-c'], useStdin: false, stdinBody: undefined };
+      plan = { bin, argv: ['-c'], commandArg: input.command };
     }
     const shell = plan.bin;
-    const args = plan.useStdin ? [...plan.argv] : [...plan.argv, input.command];
+    const args = [...plan.argv, plan.commandArg];
 
     const env = buildChildEnv(ctx.session?.id);
 
@@ -301,32 +296,10 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       const child = spawn(shell, args, {
         cwd: spawnCwd,
         env,
-        // PowerShell takes the script on stdin (no argv quoting); cmd.exe
-        // and POSIX shells ignore stdin when given the command inline.
-        stdio: [plan.useStdin ? 'pipe' : 'ignore', 'ignore', 'ignore'],
-        // win32: CreateProcess IGNORES CREATE_NO_WINDOW (windowsHide) when
-        // DETACHED_PROCESS (detached: true) is set, so the console-less
-        // cmd.exe's grandchildren (node, dev servers) each allocate a fresh
-        // VISIBLE console window. detached: false lets CREATE_NO_WINDOW
-        // apply: the child gets a hidden console that grandchildren inherit.
-        // Windows children survive parent exit either way. POSIX keeps
-        // detached for the process-group kill semantics.
+        stdio: ['ignore', 'ignore', 'ignore'],
         detached: !isWin,
         windowsHide: true,
       });
-      // PowerShell: stream the script to stdin and close. We do this AFTER
-      // spawn() returns because `child.stdin` is only available then. The
-      // write is buffered in the OS pipe; pwsh reads it as it boots. Closing
-      // stdin is what tells pwsh "end of script" — without an .end(), the
-      // pipe stays open and pwsh waits forever for more input.
-      if (plan.useStdin) {
-        try {
-          child.stdin?.write(plan.stdinBody ?? input.command);
-          child.stdin?.end();
-        } catch {
-          /* spawn already errored — the error handler below will fire */
-        }
-      }
       const pid = child.pid;
       const stdoutBytes = 0;
       const stderrBytes = 0;
@@ -417,26 +390,11 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     const child = spawn(shell, args, {
       cwd: spawnCwd,
       env,
-      // PowerShell takes the script on stdin (no argv quoting); cmd.exe
-      // and POSIX shells ignore stdin when given the command inline.
-      stdio: [plan.useStdin ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe'],
       detached,
       windowsHide: true,
       ...(isWin ? {} : { signal: opts.signal }),
     });
-    // PowerShell: stream the script to stdin and close. We do this AFTER
-    // spawn() returns because `child.stdin` is only available then. The
-    // write is buffered in the OS pipe; pwsh reads it as it boots. Closing
-    // stdin is what tells pwsh "end of script" — without an .end(), the
-    // pipe stays open and pwsh waits forever for more input.
-    if (plan.useStdin) {
-      try {
-        child.stdin?.write(plan.stdinBody ?? input.command);
-        child.stdin?.end();
-      } catch {
-        /* spawn already errored — the error handler below will fire */
-      }
-    }
 
     // Register with global registry so Ctrl+C / /kill can find and kill it.
     const pid = child.pid;
