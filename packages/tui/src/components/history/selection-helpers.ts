@@ -6,7 +6,7 @@
  */
 import { copyableTextForEntries, copyableTextForEntry } from './copy-icon.js';
 import type { HistoryEntry } from './types.js';
-import { buildBodyRowMap, resolveRowCol } from './wrap-geometry.js';
+import { buildBodyRowMap, hasWrapMap, resolveRowCol } from './wrap-geometry.js';
 
 /**
  * Selection rectangle in viewport cell coordinates, normalized so
@@ -192,7 +192,7 @@ export function assembleSelectionText(opts: {
     // v1's numbers exactly. Without termWidth (or for other kinds) the v1
     // naive loop below keeps its existing behavior.
     const single = entries[0] as HistoryEntry;
-    if (termWidth !== undefined && (single.kind === 'assistant' || single.kind === 'thinking')) {
+    if (termWidth !== undefined && hasWrapMap(single)) {
       const map = buildBodyRowMap(single.kind, single.text, termWidth);
       const lines = map.text.split('\n');
       for (const slice of entrySlices) {

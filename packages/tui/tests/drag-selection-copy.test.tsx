@@ -304,14 +304,14 @@ interface MountedHandle {
  *  to `vp` under larger viewports and pushes all cards off-screen. With
  *  `viewportRows={1}` the slack is always 0 and the first card's icon row
  *  is always row 0. */
-function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
+function mountHistory(entries: readonly HistoryEntry[], maxWidth = 120): MountedHandle {
   const controllerRef: { current: HistoryScrollController | null } = { current: null };
   const app = render(
     <ScrollableHistory
       entries={[...entries]}
       viewportRows={1}
       controllerRef={controllerRef}
-      maxWidth={120}
+      maxWidth={maxWidth}
       autonomyMode="off"
       multiDiffSummaryThreshold={5}
     />,
@@ -322,7 +322,7 @@ function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
       entries={[...entries]}
       viewportRows={1}
       controllerRef={controllerRef}
-      maxWidth={120}
+      maxWidth={maxWidth}
       autonomyMode="off"
       multiDiffSummaryThreshold={5}
     />,
@@ -330,7 +330,7 @@ function mountHistory(entries: readonly HistoryEntry[]): MountedHandle {
   if (controllerRef.current === null) throw new Error('controllerRef not populated');
   return {
     controller: controllerRef.current,
-    copyIconCol: Math.min(app.stdout.columns, 120) - SCROLLBAR_HIT_WIDTH,
+    copyIconCol: Math.min(app.stdout.columns, maxWidth) - SCROLLBAR_HIT_WIDTH,
     entries,
     lastFrame: () => app.frames[app.frames.length - 1] ?? '',
     unmount: () => app.unmount(),
@@ -441,14 +441,46 @@ describe('HistoryScrollController: beginSelection / extendSelection / commitSele
     writeClipboardTextMock.mockClear();
     const h = mountHistory([{ id: 5, kind: 'info', text: 'alpha bravo charlie' }]);
     try {
-      // info rows are plain Text with NO border/padding gutter: band col N
-      // IS text col N. No translation, no clamp.
+      // info rows get NO gutter translation (gutterWidthForEntry → 0): the
+      // band column flows to the assembler unchanged. NOTE: info rows render
+      // a 2-cell 'ℹ ' icon prefix before entry.text (entry.tsx), so visible
+      // text starts at band col 2 while the naive assembler slices
+      // entry.text from band col 0 — a known 2-column visual offset
+      // documented in scroll-controller-types.ts (icon-prefix translation is
+      // the same follow-up family as the user-card label prefix). This pins
+      // the pass-through MECHANISM, not the offset's desirability.
       h.controller.beginSelection(0, 0);
       h.controller.extendSelection(0, 4); // raw col 4 → 'alpha' directly
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
       expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+    } finally {
+      h.unmount();
+    }
+  });
+
+  it('uses the banded termWidth (viewportWidth − rail), not maxWidth, for the wrap map', async () => {
+    writeClipboardTextMock.mockClear();
+    // maxWidth=16 → controller termWidth = 16 − SCROLLBAR_HIT_WIDTH(3) = 13
+    // → wrap contentWidth = 13 − gutter(2) = 11. 'aaaa bbbb cccc' wraps at
+    // 11 into ['aaaa bbbb ', 'cccc'] (wrap-ansi keeps the trailing space on
+    // segment 1 under trim:false; 10 + 4 = 14 = source length). Row 0's
+    // span is therefore [0, 10): a drag to text col 10 inclusive resolves
+    // through the CLAMP to offset 10 → source chars 0..9 = 'aaaa bbbb '
+    // (trailing space load-bearing). If the controller threaded
+    // maxWidth/viewportWidth instead, contentWidth 14 would fit the whole
+    // line as ONE [0,14) span and the same drag would recover
+    // 'aaaa bbbb ccc' — so this expectation pins the banded width
+    // end-to-end through commitSelection's assembleSelectionText call.
+    const h = mountHistory([textEntry(1, 'aaaa bbbb cccc')], 16);
+    try {
+      h.controller.beginSelection(0, 2); // band 2 → text col 0 (gutter clamp)
+      h.controller.extendSelection(0, 12); // band 12 → text col 10, inclusive
+      h.controller.endSelection();
+      const ok = await h.controller.commitSelection();
+      expect(ok).toBe(true);
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('aaaa bbbb ');
     } finally {
       h.unmount();
     }

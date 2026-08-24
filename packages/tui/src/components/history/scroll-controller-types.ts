@@ -67,9 +67,11 @@ export interface HistoryScrollController {
    * Known limitation (follow-up): user cards render the `👤 USER  ` label
    * inline before entry.text, and the emoji's cell width is
    * terminal-dependent — so body col 0 on a user card is the start of the
-   * LABEL, not of entry.text. Selection assembly on user cards keeps the v1
-   * naive mapping; exact user-text recovery needs row-aware prefix
-   * translation in the assembler (same machinery as the M4 wrap map).
+   * LABEL, not of entry.text. Info rows have the same shape with a 2-cell
+   * `ℹ ` icon prefix (currently pass-through). Selection assembly on user
+   * cards keeps the v1 naive mapping; exact user-text recovery needs
+   * row-aware prefix translation in the assembler (same machinery as the
+   * M4 wrap map).
    */
   beginSelection(row: number, col: number): void;
   /**

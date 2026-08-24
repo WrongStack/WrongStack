@@ -18,14 +18,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { HistoryEntry } from '../src/components/history.js';
-import { assembleSelectionText } from '../src/components/scrollable-history.js';
 import {
+  type BodyRowSpan,
   buildBodyRowMap,
   resolveRowCol,
-  type BodyRowSpan,
 } from '../src/components/history/wrap-geometry.js';
+import type { HistoryEntry } from '../src/components/history.js';
 import type { SelectionSlice } from '../src/components/scrollable-history.js';
+import { assembleSelectionText } from '../src/components/scrollable-history.js';
 
 function assistantEntry(id: number, text: string): HistoryEntry {
   return { id, kind: 'assistant', text };
@@ -35,6 +35,19 @@ describe('buildBodyRowMap', () => {
   it('maps a non-wrapped line to a single whole-line span (v1 reduction)', () => {
     const map = buildBodyRowMap('assistant', 'alpha bravo charlie', 77);
     expect(map.rows).toEqual<BodyRowSpan[]>([{ line: 0, start: 0, end: 19 }]);
+  });
+
+  it('treats markdown headings as source lines — the map is source-based, not render-styled', () => {
+    // MarkdownView restyles '# Heading' visually, but the copy contract is
+    // deliberately source-based: the map indexes the entry's SOURCE text,
+    // so a full-card drag recovers the markdown the model wrote, not the
+    // renderer's decoration. This pins that contract explicitly.
+    const map = buildBodyRowMap('assistant', '# Heading\nplain line', 77);
+    expect(map.rows).toEqual<BodyRowSpan[]>([
+      { line: 0, start: 0, end: 9 },
+      { line: 1, start: 0, end: 10 },
+    ]);
+    expect(map.text).toBe('# Heading\nplain line');
   });
 
   it('splits a wrapped line into prefix-sum spans that reconstruct the source', () => {
@@ -98,9 +111,12 @@ describe('assembleSelectionText wrap-aware recovery (M4)', () => {
   //   visual row 2 → 'second line'   (line 1, no wrap)
   const text = 'aaaaa bbbbb ccccc\nsecond line';
   const entries = new Map<number, HistoryEntry>([[7, assistantEntry(7, text)]]);
-  const slice = (startRow: number, startCol: number, endRow: number, endCol: number): SelectionSlice[] => [
-    { entryId: 7, startRow, startCol, endRow, endCol },
-  ];
+  const slice = (
+    startRow: number,
+    startCol: number,
+    endRow: number,
+    endCol: number,
+  ): SelectionSlice[] => [{ entryId: 7, startRow, startCol, endRow, endCol }];
 
   it('recovers the WYSIWYG slice from rows that wrap (v1 garbled this)', () => {
     // Drag from visual row 1 col 1 ('ccccc…') through row 2 col 5 ('second').

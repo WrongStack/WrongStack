@@ -5,14 +5,28 @@
  * v1's assembler indexed the entry's source lines by the card's VISUAL row,
  * which equals the source line only when no line wraps. Any wrapped line
  * desynchronizes the index and garbles the copied text. This module supplies
- * the exact per-row mapping.
+ * the per-row mapping against the entry's SOURCE text (sanitized, with the
+ * assistant next-steps block stripped exactly like the renderer).
+ *
+ * Exactness boundary: the mapping is EXACT for plain prose and thinking text
+ * — MarkdownView renders those lines as-is and Ink wraps them with the same
+ * wrap-ansi call mirrored below. For assistant text containing markdown
+ * STRUCTURE (headings, lists, tables, fenced code), MarkdownView restyles
+ * the render (heading styles, bullet glyphs, table layout), so the visual
+ * rows can diverge from this source-text map. The copy semantics are
+ * deliberately source-based in that case: a drag recovers what the model
+ * wrote, not the renderer's decoration. Visual-row alignment for
+ * heavily-structured markdown is approximate and documented as such.
  *
  * The render truth this mirrors (verified against the components):
  *  - `assistant` cards (entry.tsx) render `parseNextSteps(text, true).stripped`
- *    through AssistantBody, wrapped by Ink's Text at
+ *    through AssistantBody → MarkdownView, wrapped by Ink's Text at
  *    `assistantContentWidth(termWidth)` = termWidth − 2. Ink wraps via
  *    wrap-ansi with `{ trim: false, hard: true }` (ink/build/wrap-text.js).
- *  - `thinking` cards render sanitizeTerminalText(text) at the same width.
+ *    The markdown transform above applies only to structured spans; plain
+ *    prose lines pass through unwrapped-by-markdown and are exact here.
+ *  - `thinking` cards render sanitizeTerminalText(text) at the same width
+ *    with no markdown transform — exact.
  *
  * Origin: card row 0 = body row 0, matching v1's documented origin (one card
  * row per source line when nothing wraps). Any chrome-row offset above the
@@ -50,9 +64,13 @@ export interface BodyRowMap {
 }
 
 /** Kinds whose render path this module mirrors. Everything else uses the
- * v1 naive mapping in assembleSelectionText. */
-export function hasWrapMap(kind: HistoryEntry['kind']): boolean {
-  return kind === 'assistant' || kind === 'thinking';
+ * v1 naive mapping in assembleSelectionText. Declared as a type predicate
+ * (taking the entry, not the kind) so call sites narrow the HistoryEntry
+ * union — both member kinds carry `text`, the others may not. */
+export function hasWrapMap(
+  entry: HistoryEntry,
+): entry is Extract<HistoryEntry, { kind: 'assistant' | 'thinking' }> {
+  return entry.kind === 'assistant' || entry.kind === 'thinking';
 }
 
 /** The renderer's content width for bordered text cards. Mirrors
