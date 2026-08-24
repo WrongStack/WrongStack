@@ -64,14 +64,18 @@ export interface HistoryScrollController {
    * margin-click behavior. Gutterless kinds (info, memory-lifecycle, tool
    * groups, …) pass the column through unchanged.
    *
-   * Known limitation (follow-up): user cards render the `👤 USER  ` label
-   * inline before entry.text, and the emoji's cell width is
-   * terminal-dependent — so body col 0 on a user card is the start of the
-   * LABEL, not of entry.text. Info rows have the same shape with a 2-cell
-   * `ℹ ` icon prefix (currently pass-through). Selection assembly on user
-   * cards keeps the v1 naive mapping; exact user-text recovery needs
-   * row-aware prefix translation in the assembler (same machinery as the
-   * M4 wrap map).
+   * Known limitation: `warn` rows still render a `⚠ ` prefix inline with no
+   * prefix translation (the wrap map covers assistant/thinking/user/info —
+   * see wrap-geometry.ts). User cards WITH a paste block also keep the v1
+   * naive path: they render two text regions while the copy base holds one.
+   *
+   * Inline prefixes (user `👤 USER  ` label, info `ℹ ` icon) are translated
+   * row-aware in the assembler: the wrap map wraps `prefix + first line`
+   * together exactly as the renderer's single Text node does, and
+   * resolveRowCol shifts row-0 columns past the measured prefix width
+   * (string-width cells), clamping label/icon clicks to the text start —
+   * the same margin-click semantics as the gutter clamp above. Constants
+   * are single-sourced in wrap-geometry.ts and consumed by entry.tsx.
    */
   beginSelection(row: number, col: number): void;
   /**

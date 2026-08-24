@@ -17,11 +17,14 @@
  *   'aaaaa bbbbb ccccc' @ 11 → ['aaaaa bbbbb', ' ccccc']
  */
 
+import stringWidth from 'string-width';
 import { describe, expect, it } from 'vitest';
 import {
   type BodyRowSpan,
   buildBodyRowMap,
+  INFO_PREFIX,
   resolveRowCol,
+  USER_LABEL,
 } from '../src/components/history/wrap-geometry.js';
 import type { HistoryEntry } from '../src/components/history.js';
 import type { SelectionSlice } from '../src/components/scrollable-history.js';
@@ -29,6 +32,14 @@ import { assembleSelectionText } from '../src/components/scrollable-history.js';
 
 function assistantEntry(id: number, text: string): HistoryEntry {
   return { id, kind: 'assistant', text };
+}
+
+function userEntry(id: number, text: string, pasteContent?: string): HistoryEntry {
+  return { id, kind: 'user', text, ...(pasteContent !== undefined ? { pasteContent } : {}) };
+}
+
+function infoEntry(id: number, text: string): HistoryEntry {
+  return { id, kind: 'info', text };
 }
 
 describe('buildBodyRowMap', () => {
@@ -154,5 +165,113 @@ describe('assembleSelectionText wrap-aware recovery (M4)', () => {
     const withoutWidth = assembleSelectionText({ slices: plainSlice, entriesById: plain });
     expect(withWidth).toBe('alpha');
     expect(withWidth).toBe(withoutWidth);
+  });
+});
+
+describe('inline-prefix translation (user label / info icon)', () => {
+  it('wraps the user label into row 0 and maps continuation rows to text-local spans', () => {
+    // Ground truth (wrap-ansi@10.0.1, trim:false hard:true): contentWidth 11
+    // wraps '👤 USER  aaaaa bbbbb ccccc' into ['👤 USER  ', 'aaaaa bbbbb',
+    // ' ccccc'] — row 0 is label-only, rows 1-2 are the text, exactly what
+    // the renderer's single Text node puts on screen.
+    const map = buildBodyRowMap('user', 'aaaaa bbbbb ccccc', 13);
+    expect(map.prefixWidth).toBe(9);
+    expect(map.rows).toEqual<BodyRowSpan[]>([
+      { line: 0, start: 0, end: 0 },
+      { line: 0, start: 0, end: 11 },
+      { line: 0, start: 11, end: 17 },
+    ]);
+    // Rejoin invariant: the text-local spans reconstruct the source line.
+    const line = map.text.split('\n')[0] ?? '';
+    expect(map.rows.map((s) => line.slice(s.start, s.end)).join('')).toBe(line);
+  });
+
+  it('wraps the info prefix at the FULL termWidth (unbordered row)', () => {
+    // 'ℹ alpha bravo charlie' @ 17 → ['ℹ alpha bravo ', 'charlie']; spans
+    // are text-local: the 2-cell icon is subtracted from every row-0 segment.
+    const map = buildBodyRowMap('info', 'alpha bravo charlie', 17);
+    expect(map.prefixWidth).toBe(2);
+    expect(map.rows).toEqual<BodyRowSpan[]>([
+      { line: 0, start: 0, end: 12 },
+      { line: 0, start: 12, end: 19 },
+    ]);
+  });
+
+  it('pins the cells === code-units assumption both prefixes rely on', () => {
+    // buildBodyRowMap subtracts prefixChars (UTF-16 code units) from row-0
+    // segment offsets while resolveRowCol subtracts prefixWidth (terminal
+    // cells). The two models coincide ONLY while each prefix char is
+    // 1 code unit per cell (👤 is a surrogate pair: 2 units AND 2 cells).
+    // A prefix that breaks this (a flag emoji is 4 units but 2 cells)
+    // desynchronizes spans vs clamp SILENTLY — the rejoin invariant still
+    // passes because both shift by prefixChars. This pin fails loudly.
+    expect(stringWidth(USER_LABEL)).toBe(USER_LABEL.length);
+    expect(stringWidth(INFO_PREFIX)).toBe(INFO_PREFIX.length);
+  });
+
+  it('clamps label clicks to the text start and shifts row-0 columns past the prefix', () => {
+    const map = buildBodyRowMap('user', 'alpha bravo charlie', 77);
+    // Wide pane, no wrap: row 0 = label cells [0,9) then the text. Clicks ON
+    // the label clamp to text offset 0; col 9 is the first text cell.
+    expect(resolveRowCol(map, 0, 0, false)).toEqual({ line: 0, offset: 0 });
+    expect(resolveRowCol(map, 0, 8, true)).toEqual({ line: 0, offset: 1 });
+    expect(resolveRowCol(map, 0, 9, false)).toEqual({ line: 0, offset: 0 });
+    expect(resolveRowCol(map, 0, 14, true)).toEqual({ line: 0, offset: 6 });
+  });
+
+  it('mirrors Ink on degenerate narrow panes: label-only rows get zero-width spans', () => {
+    // contentWidth floors at 1 while the label is 9 cells, so wrap-ansi
+    // emits one row per cell (13 rows for label+'hello'). The first 8 rows
+    // are prefix-only → zero-width spans; the text rows reconstruct the
+    // source. Deliberately mirrors Ink instead of "fixing" the wrap.
+    const map = buildBodyRowMap('user', 'hello', 3);
+    expect(map.rows).toHaveLength(13);
+    expect(map.rows.map((s) => map.text.slice(s.start, s.end)).join('')).toBe('hello');
+  });
+});
+
+describe('assembleSelectionText inline-prefix recovery', () => {
+  it('recovers text-local slices from a user card (label translated)', () => {
+    // contentWidth 11: visual row 1 shows 'aaaaa bbbbb' (text chars 0..11).
+    // Row 1 carries no label, so col 1 → text char 1 — the drag is fully
+    // text-local instead of offset by the 9-cell label.
+    const entries = new Map<number, HistoryEntry>([[3, userEntry(3, 'aaaaa bbbbb ccccc')]]);
+    const slices: SelectionSlice[] = [
+      { entryId: 3, startRow: 1, startCol: 1, endRow: 1, endCol: 5 },
+    ];
+    expect(assembleSelectionText({ slices, entriesById: entries, termWidth: 13 })).toBe('aaaa ');
+  });
+
+  it('translates the info icon prefix on row 0', () => {
+    // Full width 17: row 0 spans text chars 0..12 with a 2-cell prefix, so
+    // col 2 (first text cell) through col 8 inclusive → chars 0..7.
+    const entries = new Map<number, HistoryEntry>([[4, infoEntry(4, 'alpha bravo charlie')]]);
+    const slices: SelectionSlice[] = [
+      { entryId: 4, startRow: 0, startCol: 2, endRow: 0, endCol: 8 },
+    ];
+    expect(assembleSelectionText({ slices, entriesById: entries, termWidth: 17 })).toBe('alpha b');
+  });
+
+  it('keeps the v1 naive path for user cards with a paste block', () => {
+    // Copy base is pasteContent (copy-icon.ts) while the card renders two
+    // text regions — the wrap map models one, so such cards are guarded back
+    // to v1, which slices the base by raw card row/col.
+    const entries = new Map<number, HistoryEntry>([[5, userEntry(5, '', 'pasted text')]]);
+    const slices: SelectionSlice[] = [
+      { entryId: 5, startRow: 0, startCol: 0, endRow: 0, endCol: 5 },
+    ];
+    expect(assembleSelectionText({ slices, entriesById: entries, termWidth: 77 })).toBe('pasted');
+  });
+
+  it('falls back to v1 raw-JSON recovery for an empty user card (empty render base)', () => {
+    // text '' → copyableTextForEntry returns stringifyRaw(entry) (raw JSON).
+    // The wrap map's base is empty — nothing to slice — so the assembler
+    // must fall through to v1 and slice the JSON fallback instead of
+    // silently returning ''. Row 0 of the pretty-printed JSON is '{'.
+    const entries = new Map<number, HistoryEntry>([[6, userEntry(6, '')]]);
+    const slices: SelectionSlice[] = [
+      { entryId: 6, startRow: 0, startCol: 0, endRow: 0, endCol: 0 },
+    ];
+    expect(assembleSelectionText({ slices, entriesById: entries, termWidth: 77 })).toBe('{');
   });
 });

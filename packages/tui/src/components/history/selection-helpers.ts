@@ -192,8 +192,18 @@ export function assembleSelectionText(opts: {
     // v1's numbers exactly. Without termWidth (or for other kinds) the v1
     // naive loop below keeps its existing behavior.
     const single = entries[0] as HistoryEntry;
-    if (termWidth !== undefined && hasWrapMap(single)) {
-      const map = buildBodyRowMap(single.kind, single.text, termWidth);
+    // User cards with a paste block render TWO text regions (label + text,
+    // then the `  ↳ paste` preview) while the copy base holds only the
+    // paste — the wrap map models one region, so those keep the v1 path.
+    const map =
+      termWidth !== undefined &&
+      hasWrapMap(single) &&
+      !(single.kind === 'user' && (single.pasteContent || single.queued))
+        ? buildBodyRowMap(single.kind, single.text, termWidth)
+        : null;
+    // An empty render base (e.g. an empty user card) has nothing to slice —
+    // fall through to v1, whose fullText is the raw-JSON fallback.
+    if (map !== null && map.text.length > 0) {
       const lines = map.text.split('\n');
       for (const slice of entrySlices) {
         const a = resolveRowCol(map, slice.startRow, slice.startCol, false);
