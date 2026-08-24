@@ -47,11 +47,13 @@ import type {
   RegisteredClient,
 } from './mailbox-types.js';
 import {
+  acceptMailboxMessageForSession,
   isMailboxLeader,
   isMailboxMessageVisibleTo,
   normalizeRecipient,
   sessionRecipient,
   validateSendType,
+  type MailboxSessionAffinityContext,
 } from './mailbox-types.js';
 import { autoCompact, type CompactionContext, purgeStale } from './sqlite-mailbox-compaction.js';
 import {
@@ -338,7 +340,7 @@ export class SqliteMailbox implements Mailbox {
     }
     const rows = this.stmt(sql).all(...params) as unknown as MessageRow[];
     const idFilter = query.ids === undefined ? undefined : new Set(query.ids);
-    const messages = this.materializeMessageRows(rows).filter((message) => {
+    const filtered = this.materializeMessageRows(rows).filter((message) => {
       if (idFilter !== undefined && !idFilter.has(message.id)) return false;
       if (query.to !== undefined && message.to !== query.to && message.to !== '*') return false;
       if (query.from !== undefined && message.from !== query.from) return false;
@@ -365,6 +367,27 @@ export class SqliteMailbox implements Mailbox {
       if (query.replyTo !== undefined && message.replyTo !== query.replyTo) return false;
       return true;
     });
+    // Session-affinity receive-side filter (matches the inbox checker's
+    // applySessionAffinityFilter in mailbox-attach.ts): when the reader's
+    // current session is provided, drop messages whose affinity token
+    // targets a different session. This keeps the badge/query paths in
+    // agreement with what the inbox actually shows.
+    let messages = filtered;
+    if (query.currentSessionId !== undefined || query.sessionAffinityCtx !== undefined) {
+      const kept: MailboxMessageProjection[] = [];
+      for (const message of filtered) {
+        if (
+          await acceptMailboxMessageForSession(
+            message,
+            query.currentSessionId,
+            query.sessionAffinityCtx,
+          )
+        ) {
+          kept.push(message);
+        }
+      }
+      messages = kept;
+    }
     messages.sort((left, right) => right.timestamp.localeCompare(left.timestamp));
     return messages.slice(0, query.limit ?? 50).map((message) => {
       const copy = {
@@ -495,7 +518,11 @@ export class SqliteMailbox implements Mailbox {
    *   identity is `leader`. This call path carries no role, matching the
    *   `isMailboxMessageVisibleTo(message, forAgentId)` it replaces.
    */
-  async unreadCount(forAgentId: string, sessionId?: string): Promise<number> {
+  async unreadCount(
+    forAgentId: string,
+    sessionId?: string,
+    ctx?: MailboxSessionAffinityContext,
+  ): Promise<number> {
     const sessionAddress = sessionId === undefined ? undefined : sessionRecipient(sessionId);
     const where: string[] = [];
     const params: string[] = [];
@@ -541,10 +568,27 @@ export class SqliteMailbox implements Mailbox {
       )
     )`);
 
-    const row = this.stmt(
-      `SELECT COUNT(*) AS total FROM messages WHERE ${where.join(' AND ')}`,
-    ).get(...params) as { total?: number } | undefined;
-    return Number(row?.total ?? 0);
+    // No reader-session context → nothing to filter against: keep the pure SQL
+    // COUNT (e.g. the generic HTTP unread-count endpoint).
+    if (sessionId === undefined && ctx === undefined) {
+      const row = this.stmt(
+        `SELECT COUNT(*) AS total FROM messages WHERE ${where.join(' AND ')}`,
+      ).get(...params) as { total?: number } | undefined;
+      return Number(row?.total ?? 0);
+    }
+    // Reader session (or affinity ctx) supplied: count only messages that pass
+    // the same session-affinity predicate the inbox checker applies, so the
+    // badge agrees with the messages the inbox actually shows. Fail-closed —
+    // a message whose affinity token targets a different session (or is
+    // malformed / unresolvable without allowUnscoped) is not counted.
+    const rows = this.stmt(
+      `SELECT id, data, legacy_global_completion FROM messages WHERE ${where.join(' AND ')}`,
+    ).all(...params) as unknown as MessageRow[];
+    let total = 0;
+    for (const message of this.materializeMessageRows(rows)) {
+      if (await acceptMailboxMessageForSession(message, sessionId, ctx)) total += 1;
+    }
+    return total;
   }
 
   async softDelete(mailId: string, by: string): Promise<MailboxMessage | null> {

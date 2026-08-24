@@ -35,6 +35,8 @@ export {
   validateSendType,
 } from './mailbox-predicates.js';
 
+import type { MailboxSessionAffinityContext } from './mailbox-session-sync.js';
+
 export {
   acceptMailboxMessageForSession,
   acceptMailboxMessageForSessionSync,
@@ -98,7 +100,18 @@ export interface MailboxQuery {
   minPriority?: 'low' | 'normal' | 'high' | undefined;
   limit?: number | undefined;
   since?: string | undefined;
+  /** Filters by the message's SENDER session id (origin), not the reader's session. */
   sessionId?: string | undefined;
+  /**
+   * Reader's current session id. When present, messages carrying a
+   * session-affinity token for a DIFFERENT session are excluded, matching the
+   * inbox checker's receive-side filter (mailbox-attach applySessionAffinityFilter).
+   * Kept distinct from `sessionId` (sender origin) so a reader can filter by
+   * both simultaneously.
+   */
+  currentSessionId?: string | undefined;
+  /** Resolver + unscoped policy for session-affinity tokens (see acceptMailboxMessageForSession). */
+  sessionAffinityCtx?: MailboxSessionAffinityContext | undefined;
   includeDeleted?: boolean | undefined;
   replyTo?: string | undefined;
 }
@@ -238,7 +251,11 @@ export interface Mailbox {
   registerAgent(input: AgentRegistrationInput): Promise<void>;
   deregisterAgent(agentId: string): Promise<void>;
   heartbeat(input: AgentHeartbeatInput): Promise<void>;
-  unreadCount(forAgentId: string, sessionId?: string): Promise<number>;
+  unreadCount(
+    forAgentId: string,
+    sessionId?: string,
+    ctx?: MailboxSessionAffinityContext,
+  ): Promise<number>;
   close(): Promise<void>;
   clearAll(): Promise<void>;
   purgeStale(opts?: PurgeOptions): Promise<PurgeResult>;

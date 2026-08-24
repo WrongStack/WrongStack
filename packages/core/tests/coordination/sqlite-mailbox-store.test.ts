@@ -529,3 +529,115 @@ describe('SqliteMailbox lifecycle', () => {
     expect(result.totalPurged).toBe(0);
   });
 });
+
+describe('SqliteMailbox session-affinity read-path filtering', () => {
+  const sendAffinity = (over: Record<string, unknown> = {}) =>
+    mb.send({
+      from: 'leader-a',
+      to: 'leader-a',
+      type: 'result',
+      subject: 'chimera report',
+      body: 'review',
+      ...over,
+    } as never);
+
+  it('query drops messages whose affinity token targets a different session', async () => {
+    await sendAffinity({
+      subject: 'same-session',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-cur' },
+    } as never);
+    await sendAffinity({
+      subject: 'cross-session',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-other' },
+    } as never);
+    await sendAffinity({ subject: 'no-token' } as never);
+
+    const visible = await mb.query({ to: 'leader-a', currentSessionId: 'session-cur' });
+    expect(visible.map((m) => m.subject)).toEqual(
+      expect.arrayContaining(['same-session', 'no-token']),
+    );
+    expect(visible.map((m) => m.subject)).not.toContain('cross-session');
+  });
+
+  it('query keeps same-session affinity mail and honors allowUnscoped without a session', async () => {
+    await sendAffinity({
+      subject: 'same-session',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-cur' },
+    } as never);
+
+    const sameSession = await mb.query({
+      to: 'leader-a',
+      currentSessionId: 'session-cur',
+    });
+    expect(sameSession.map((m) => m.subject)).toContain('same-session');
+
+    // With an affinity ctx but no reader session, allowUnscoped governs.
+    const unscoped = await mb.query({
+      to: 'leader-a',
+      sessionAffinityCtx: { allowUnscoped: true },
+    });
+    expect(unscoped.map((m) => m.subject)).toContain('same-session');
+
+    // No reader context at all → the filter is skipped (matches the inbox
+    // checker, which always supplies a session), so the mail is returned.
+    const noContext = await mb.query({ to: 'leader-a' });
+    expect(noContext.map((m) => m.subject)).toContain('same-session');
+  });
+
+  it('explicit mismatched sessionId is dropped even when allowUnscoped is true', async () => {
+    await sendAffinity({
+      subject: 'mismatch',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-other' },
+    } as never);
+
+    const visible = await mb.query({
+      to: 'leader-a',
+      currentSessionId: 'session-cur',
+      sessionAffinityCtx: { allowUnscoped: true },
+    });
+    expect(visible.map((m) => m.subject)).not.toContain('mismatch');
+  });
+
+  it('unreadCount excludes cross-session affinity mail (badge agrees with inbox)', async () => {
+    await sendAffinity({
+      subject: 'same-session',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-cur' },
+    } as never);
+    await sendAffinity({
+      subject: 'cross-session',
+      sessionAffinity: { kind: 'chimera.review', sessionId: 'session-other' },
+    } as never);
+
+    expect(await mb.unreadCount('leader-a', 'session-cur')).toBe(1);
+    expect(await mb.unreadCount('leader-a', 'session-other')).toBe(1);
+  });
+
+  it('malformed persisted affinity tokens fail closed on both read paths', async () => {
+    // Persist malformed tokens via send() (cast): the JSONL import path rejects
+    // them at the codec and drops the line before it reaches the store, so the
+    // read-path guard would never be exercised. send() stores `data` verbatim,
+    // letting the null/Array fail-closed branches in acceptMailboxMessageForSession
+    // actually run against persisted rows.
+    await mb.send({
+      from: 'leader-a',
+      to: 'leader-a',
+      type: 'result',
+      subject: 'null-token',
+      body: '',
+      sessionAffinity: null,
+    } as never);
+    await mb.send({
+      from: 'leader-a',
+      to: 'leader-a',
+      type: 'result',
+      subject: 'array-token',
+      body: '',
+      sessionAffinity: [],
+    } as never);
+    await sendAffinity({ subject: 'no-token' } as never);
+
+    const visible = await mb.query({ to: 'leader-a', currentSessionId: 'session-cur' });
+    expect(visible.map((m) => m.subject)).toEqual(['no-token']);
+    expect(await mb.unreadCount('leader-a', 'session-cur')).toBe(1);
+  });
+});
