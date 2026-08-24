@@ -161,6 +161,12 @@ export function createTestState(
       sageMemoryInjectThreshold: 0.85,
       readSymbols: false,
       nextStepsTool: false,
+      // WrongProxy / WrongTrace: match app-initial-state defaults (switch
+      // off, daemon default URL, no edit in progress).
+      wrongProxyEnabled: false,
+      wrongProxyUrl: 'http://localhost:8000',
+      wrongProxyUrlEditing: false,
+      wrongProxyUrlDraft: '',
       panelPositions: DEFAULT_PANEL_POSITIONS,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },

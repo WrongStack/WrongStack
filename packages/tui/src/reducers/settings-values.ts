@@ -783,10 +783,17 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           },
         };
       }
-      // Validate the scheme + host presence. Whitespace inside the URL is
-      // rejected (the runtime probe would treat the URL as unreachable
-      // anyway, but catching it here surfaces a clear hint to the user).
-      const valid = /^https?:\/\/[^\s/?#]+/.test(raw);
+      // Validate with full URL parsing — a prefix-only regex accepts
+      // `http://host/path with space` (unanchored), which the runtime
+      // probe would then treat as unreachable. `URL` rejects internal
+      // whitespace and malformed hosts; scheme must still be http(s).
+      let valid = false;
+      try {
+        const parsed = new URL(raw);
+        valid = parsed.protocol === 'http:' || parsed.protocol === 'https:';
+      } catch {
+        valid = false;
+      }
       return {
         ...state,
         settingsPicker: {

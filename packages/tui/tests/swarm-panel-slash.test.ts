@@ -52,6 +52,9 @@ const baseValues: SettingsPickerValues = {
   sageMemoryInjectThreshold: 0.85,
   readSymbols: true,
   nextStepsTool: false,
+  // WrongProxy / WrongTrace (fields 59/60).
+  wrongProxyEnabled: false,
+  wrongProxyUrl: 'http://localhost:8000',
   panelPositions: {
     projectPicker: 'bottom',
     fleet: 'bottom',
