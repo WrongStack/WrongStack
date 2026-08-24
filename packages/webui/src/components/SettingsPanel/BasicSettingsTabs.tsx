@@ -11,6 +11,7 @@ import { useTheme } from '../ThemeProvider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { ConnectionsHealthSection } from './ConnectionsHealthSection';
+import { ProviderHealthSection } from './ProviderHealthSection';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
@@ -23,6 +24,8 @@ export function ConnectionSettingsTab() {
   return (
     <div className="mt-0 space-y-4">
       <ConnectionsHealthSection />
+
+      <ProviderHealthSection />
 
       <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
         <div className="space-y-3">
