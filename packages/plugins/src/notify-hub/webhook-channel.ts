@@ -46,6 +46,12 @@ export interface WebhookChannelOptions {
    * failures. Default 5. Set to 0 to disable the circuit breaker.
    */
   readonly maxConsecutiveFailures?: number | undefined;
+  /**
+   * How long (ms) the circuit breaker stays open before allowing a retry
+   * probe. Default 30_000. Set to 0 to disable automatic recovery (keep
+   * the breaker latched until `resetCircuit()` is called).
+   */
+  readonly circuitResetMs?: number | undefined;
 }
 
 export class WebhookNotificationChannel implements NotificationChannel {
@@ -56,7 +62,10 @@ export class WebhookNotificationChannel implements NotificationChannel {
   readonly #headers: Readonly<Record<string, string>>;
   readonly #timeoutMs: number;
   readonly #maxFailures: number;
+  readonly #resetMs: number;
   readonly #circuit: CircuitState;
+  /** Timestamp (ms) when the circuit last opened — for time-based half-open. */
+  #openedAt = 0;
 
   /** Total deliveries attempted (across all resets). */
   #totalAttempted = 0;
@@ -72,6 +81,7 @@ export class WebhookNotificationChannel implements NotificationChannel {
     this.#headers = opts.headers ?? {};
     this.#timeoutMs = opts.timeoutMs ?? 5_000;
     this.#maxFailures = opts.maxConsecutiveFailures ?? 5;
+    this.#resetMs = opts.circuitResetMs ?? 30_000;
     this.#circuit = freshCircuit();
   }
 
@@ -82,8 +92,12 @@ export class WebhookNotificationChannel implements NotificationChannel {
   async deliver(msg: NotificationMessage): Promise<NotificationResult> {
     const deliveredAt = new Date().toISOString();
 
-    // Circuit breaker gate — check before attempting delivery.
-    if (this.#circuit.open && this.#maxFailures > 0) {
+    // Circuit breaker gate — suppress delivery ONLY while still inside the
+    // open cooldown. Once the cooldown elapses we fall through to a real
+    // retry probe: a recovered endpoint is hit again rather than blacked out
+    // forever. `circuitResetMs = 0` keeps the old latched (permanent) behavior.
+    const inCooldown = this.#resetMs > 0 && Date.now() - this.#openedAt < this.#resetMs;
+    if (this.#circuit.open && this.#maxFailures > 0 && inCooldown) {
       this.#totalSuppressed += 1;
       return {
         ok: false,
@@ -131,6 +145,7 @@ export class WebhookNotificationChannel implements NotificationChannel {
       this.#circuit.consecutiveFailures += 1;
       if (this.#maxFailures > 0 && this.#circuit.consecutiveFailures >= this.#maxFailures) {
         this.#circuit.open = true;
+        this.#openedAt = Date.now(); // arm the cooldown for time-based half-open
       }
 
       return {

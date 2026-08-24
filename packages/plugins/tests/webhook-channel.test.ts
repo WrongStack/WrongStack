@@ -262,6 +262,42 @@ describe('circuit breaker', () => {
     expect(ch.circuitStatus().open).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(10);
   });
+
+  it('auto-recovers after the cooldown and retries a recovered endpoint', async () => {
+    vi.useFakeTimers();
+    try {
+      const ch = new WebhookNotificationChannel({
+        webhookUrl: WEBHOOK_URL,
+        maxConsecutiveFailures: 2,
+        circuitResetMs: 1000,
+      });
+
+      // Fail twice — circuit opens.
+      fetchMock.mockResolvedValue({ ok: false, status: 503 });
+      await ch.deliver(SAMPLE_MSG);
+      await ch.deliver(SAMPLE_MSG);
+      expect(ch.circuitStatus().open).toBe(true);
+
+      // Still inside the cooldown — suppressed, no HTTP call.
+      const suppressed = await ch.deliver(SAMPLE_MSG);
+      expect(suppressed.ok).toBe(false);
+      expect(suppressed.error).toContain('circuit open');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Advance past the cooldown; the endpoint is now healthy.
+      vi.advanceTimersByTime(1001);
+      fetchMock.mockResolvedValue({ ok: true, status: 200 });
+
+      // Delivery falls through to a real probe and succeeds (breaker resets).
+      const recovered = await ch.deliver(SAMPLE_MSG);
+      expect(recovered.ok).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(ch.circuitStatus().open).toBe(false);
+      expect(ch.circuitStatus().consecutiveFailures).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
