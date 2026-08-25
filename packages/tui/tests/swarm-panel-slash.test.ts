@@ -55,6 +55,7 @@ const baseValues: SettingsPickerValues = {
   // WrongProxy / WrongTrace (fields 59/60).
   wrongProxyEnabled: false,
   wrongProxyUrl: 'http://localhost:3444',
+  showSidebar: true,
   panelPositions: {
     projectPicker: 'bottom',
     fleet: 'bottom',

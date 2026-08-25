@@ -167,6 +167,7 @@ export function createTestState(
       wrongProxyUrl: 'http://localhost:3444',
       wrongProxyUrlEditing: false,
       wrongProxyUrlDraft: '',
+      showSidebar: true,
       panelPositions: DEFAULT_PANEL_POSITIONS,
     },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },

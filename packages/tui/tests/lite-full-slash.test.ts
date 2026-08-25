@@ -9,6 +9,11 @@ import type { Settings } from '../src/app-settings-type.js';
 import { reduceSettingsValues } from '../src/reducers/settings-values.js';
 import type { Action } from '../src/app-action-type.js';
 
+// `reduceSettingsValues` narrows to the settings-value slice of `Action`;
+// the extract keeps these fixtures assignable without re-exporting the
+// reducer-local `SettingsValueAction` type.
+type SettingsValueSetAction = Extract<Action, { type: 'settingsValueSet' }>;
+
 const baseSettings = {
   showSidebar: true,
 } as Pick<Settings, 'showSidebar'> as Settings;
@@ -79,7 +84,7 @@ describe('settingsValueSet applies the /lite and /full layout patch', () => {
     const next = reduceSettingsValues(state, {
       type: 'settingsValueSet',
       patch: { statuslineMode: 'minimum', showSidebar: false },
-    } as Action);
+    } as SettingsValueSetAction);
     expect(next.settingsPicker.statuslineMode).toBe('minimum');
     expect(next.settingsPicker.showSidebar).toBe(false);
   });
@@ -89,7 +94,7 @@ describe('settingsValueSet applies the /lite and /full layout patch', () => {
     const next = reduceSettingsValues(state, {
       type: 'settingsValueSet',
       patch: { statuslineMode: 'detailed', showSidebar: true },
-    } as Action);
+    } as SettingsValueSetAction);
     expect(next.settingsPicker.statuslineMode).toBe('detailed');
     expect(next.settingsPicker.showSidebar).toBe(true);
   });
@@ -99,7 +104,7 @@ describe('settingsValueSet applies the /lite and /full layout patch', () => {
     const next = reduceSettingsValues(base, {
       type: 'settingsValueSet',
       patch: { statuslineMode: 'minimum', showSidebar: false },
-    } as Action);
+    } as SettingsValueSetAction);
     expect(next.settingsPicker.showAgentSwarmPanel).toBe(base.settingsPicker.showAgentSwarmPanel);
     expect(next.settingsPicker.panelPositions).toEqual(base.settingsPicker.panelPositions);
     expect(next.settingsPicker.thinkingWord).toBe(base.settingsPicker.thinkingWord);

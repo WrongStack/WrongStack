@@ -312,6 +312,7 @@ describe('getSettingsFieldValue', () => {
     // WrongProxy / WrongTrace (fields 59/60).
     wrongProxyEnabled: false,
     wrongProxyUrl: 'http://localhost:3444',
+    showSidebar: true,
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
@@ -477,6 +478,7 @@ describe('formatAllSettingsSummary', () => {
     // WrongProxy / WrongTrace (fields 59/60).
     wrongProxyEnabled: false,
     wrongProxyUrl: 'http://localhost:3444',
+    showSidebar: true,
     panelPositions: DEFAULT_PANEL_POSITIONS,
   };
 
