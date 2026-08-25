@@ -338,7 +338,13 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
         .catch(() => undefined);
     },
   });
-  writeStartupInfo(deps, { host, port: boundPort, projectDir, tokenPath: acquireResult.tokenPath });
+  writeStartupInfo(deps, {
+    host,
+    port: boundPort,
+    projectDir,
+    projectId,
+    tokenPath: acquireResult.tokenPath,
+  });
   const stopMemoryWatchdog = startSharedHeapWatchdog({
     collectStats: () => {
       const hqQueue = hqConnection?.getPublisher()?.getQueueStats();
@@ -415,23 +421,46 @@ interface StartupInfo {
   host: string;
   port: number;
   projectDir: string;
+  /**
+   * The scope id credentials are checked against — `path.basename(projectDir)`,
+   * NOT the directory itself. Surfaced because it is otherwise invisible: an
+   * operator who copies the printed `projectDir` into a credential gets a 403
+   * ("credential is scoped to a different project") at every request, since
+   * mailbox-http-router compares this value byte-for-byte.
+   */
+  projectId: string;
   tokenPath: string;
 }
 
 function writeStartupInfo(deps: SubcommandDeps, info: StartupInfo): void {
-  // One structured JSON line to stdout for log-shippers; human-readable
-  // mirror to stderr (renderer.writeWarning/etc. go to stderr).
+  // One structured JSON line to stdout for log-shippers, followed by a
+  // human-readable mirror.
+  //
+  // Both currently land on stdout: `renderer.write()` writes to `this.out`
+  // (renderer.ts:45, `opts.out ?? process.stdout`). Only writeWarning/
+  // writeError/writeInfo use `this.err` (renderer.ts:46) — and each of those
+  // prefixes a glyph, so none is a drop-in unadorned stderr channel.
+  //
+  // Consequence: `wstack mailbox serve | jq` sees the banner interleaved with
+  // the JSON line. Splitting them needs a plain stderr method on the renderer
+  // (or a direct process.stderr.write, which would bypass the TUI-silence
+  // handling in renderer.suppressStdout) — a renderer API change, not a local
+  // edit here.
   console.log(
     JSON.stringify({
       event: 'mailbox_serve_started',
       host: info.host,
       port: info.port,
       projectDir: info.projectDir,
+      projectId: info.projectId,
       tokenFile: info.tokenPath,
     }),
   );
   deps.renderer.write(`WrongStack mailbox bridge listening on http://${info.host}:${info.port}\n`);
   deps.renderer.write(`Project dir:  ${info.projectDir}\n`);
+  deps.renderer.write(
+    `Project id:   ${info.projectId}  (use this as projectId when issuing credentials)\n`,
+  );
   deps.renderer.write(`Token file:   ${info.tokenPath} (mode 0600)\n`);
   deps.renderer.write('\n');
   deps.renderer.write('Routes:\n');

@@ -27,6 +27,13 @@ let token: string;
 let credentialAuthorization: string;
 let baseUrl: string;
 let serverChild: import('node:child_process').ChildProcess | null = null;
+// Startup output is accumulated at module scope so the startup-banner test can
+// assert on it. `writeStartupInfo` emits a structured JSON line (stdout, for
+// log-shippers) plus a human-readable mirror; both are captured because the
+// banner is the only place an operator learns the projectId that credentials
+// are scoped to.
+let startupStdout = '';
+let startupStderr = '';
 
 async function readToken(projectDir: string): Promise<string> {
   const tokenPath = path.join(projectDir, '.mailbox.token');
@@ -121,22 +128,23 @@ beforeAll(async () => {
     { cwd: tmpProject, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   serverChild = child;
-  let stdout = '';
   child.stdout?.on('data', (c: Buffer) => {
-    stdout += c.toString('utf8');
+    startupStdout += c.toString('utf8');
   });
-  child.stderr?.on('data', () => {
-    /* swallow */
+  // Accumulated rather than swallowed: renderer.write() goes to stderr, and the
+  // human-readable startup banner is asserted on by the startup-banner test.
+  child.stderr?.on('data', (c: Buffer) => {
+    startupStderr += c.toString('utf8');
   });
 
   // Wait for the structured startup event so we know the port.
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`server didn't start within 10s; stdout so far:\n${stdout}`)),
+      () => reject(new Error(`server didn't start within 10s; stdout so far:\n${startupStdout}`)),
       10_000,
     );
     const check = setInterval(() => {
-      if (stdout.includes('"mailbox_serve_started"')) {
+      if (startupStdout.includes('"mailbox_serve_started"')) {
         clearInterval(check);
         clearTimeout(timer);
         resolve();
@@ -145,13 +153,13 @@ beforeAll(async () => {
     child.once('exit', (code) => {
       clearInterval(check);
       clearTimeout(timer);
-      reject(new Error(`server exited early (code=${code}); stdout:\n${stdout}`));
+      reject(new Error(`server exited early (code=${code}); stdout:\n${startupStdout}`));
     });
   });
 
   // Parse the bind URL from the structured log line.
-  const m = /"port":\s*(\d+)/.exec(stdout);
-  if (!m) throw new Error(`could not parse port from startup log:\n${stdout}`);
+  const m = /"port":\s*(\d+)/.exec(startupStdout);
+  if (!m) throw new Error(`could not parse port from startup log:\n${startupStdout}`);
   const port = Number(m[1]);
   baseUrl = `http://127.0.0.1:${port}`;
   token = await readToken(projectDir);
@@ -193,6 +201,38 @@ afterAll(async () => {
 });
 
 const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` });
+
+describe('mailbox-bridge — startup banner', () => {
+  it('surfaces projectId in both the JSON line and the human-readable output', () => {
+    // The projectId is `path.basename(projectDir)`, NOT the directory itself,
+    // and mailbox-http-router compares it byte-for-byte. The banner is the only
+    // place an operator sees it: without this line they copy the printed
+    // `Project dir` into a credential and every request then 403s with
+    // "credential is scoped to a different project".
+    const expectedProjectId = path.basename(mailboxProjectDir);
+    expect(expectedProjectId).not.toBe(mailboxProjectDir);
+
+    const startupLine = startupStdout
+      .split('\n')
+      .find((line) => line.includes('"mailbox_serve_started"'));
+    expect(startupLine, `no startup event in stdout:\n${startupStdout}`).toBeDefined();
+    const parsed = JSON.parse(startupLine as string) as Record<string, unknown>;
+    expect(parsed['projectId']).toBe(expectedProjectId);
+    // projectDir must stay alongside it: the pair is what makes the distinction
+    // between the two values legible.
+    expect(parsed['projectDir']).toBe(mailboxProjectDir);
+
+    // Human-readable mirror. Asserted against both streams on purpose: the
+    // comment above writeStartupInfo claims renderer.write() goes to stderr,
+    // but measured against the built CLI it lands on stdout. The banner's
+    // stream is not the contract here — its presence is — so combining the two
+    // keeps this test from breaking if the renderer's routing is corrected.
+    const startupOutput = `${startupStdout}\n${startupStderr}`;
+    expect(startupOutput).toContain(`Project id:   ${expectedProjectId}`);
+    expect(startupOutput).toContain('when issuing credentials');
+    expect(startupOutput).toContain(`Project dir:  ${mailboxProjectDir}`);
+  });
+});
 
 describe('mailbox-bridge — /healthz (no auth)', () => {
   it('returns 200 with { ok: true } without a token', async () => {
