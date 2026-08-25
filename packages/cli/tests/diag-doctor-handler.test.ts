@@ -136,13 +136,17 @@ describe('proxyCmd — enabled × url-set × probe-success', () => {
       enabled: true,
       url: 'http://localhost:3444',
     });
-    // The probe must have been started with a sane timeout/interval.
+    // The probe must run exactly once, and with NO options at all.
+    // `startProxyProbe` is a module singleton: its early-return path drops
+    // every field of `opts` when a runner already exists, and `intervalMs` /
+    // `timeoutMs` are captured into the runner closure at construction, so
+    // they can never be applied retroactively. A subcommand passing them
+    // therefore promised a per-call configuration the function cannot honour.
+    // This call site is deliberately argument-free; asserting that here makes
+    // a future re-introduction fail loudly instead of silently doing nothing.
     expect(mockStartProxyProbe).toHaveBeenCalledTimes(1);
-    const opts = mockStartProxyProbe.mock.calls[0]?.[0] as {
-      timeoutMs?: number;
-      intervalMs?: number;
-    };
-    expect(opts?.timeoutMs).toBe(2_000);
+    const opts = mockStartProxyProbe.mock.calls[0]?.[0];
+    expect(opts).toBeUndefined();
     // Output assertions: enabled, url, active, shouldRewrite all reflect the
     // seeded singleton state and the `live` label.
     const out = deps.renderer.write.mock.calls.map((c) => c[0]).join('');

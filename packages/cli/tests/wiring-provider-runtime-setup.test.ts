@@ -4,6 +4,7 @@ import {
   __resetProxyConfigForTests,
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolveProviderCfg } from '../src/wiring/provider-runtime.js';
 import { setupProviderRuntime, type ProviderRuntimeDeps } from '../src/wiring/provider-runtime-setup.js';
 
 // Keep the unit hermetic: the catalog overlay, storage watchers/snapshot
@@ -533,5 +534,52 @@ describe('setupProviderRuntime — WrongProxy instant-apply', () => {
     applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
     await flushAsync();
     expect(build).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `resolveProviderCfg` emits one `WrongProxy rewrite ...` line per provider
+ * build, and that line embeds the provider's baseUrl. The URL is passed
+ * through `sanitizeUrlForLog`, whose FALLBACK branch runs whenever
+ * `new URL()` throws. Credentials smuggled in a fragment must not survive
+ * that branch — `wrongstack.log` is persisted, so a leak here is durable.
+ *
+ * These call `resolveProviderCfg` directly rather than going through
+ * `setupProviderRuntime`, because `makeDeps` injects a mocked
+ * `resolveProviderCfgRuntime` — the real log line is unreachable from there.
+ */
+describe('resolveProviderCfg — WrongProxy rewrite log redaction', () => {
+  beforeEach(() => __resetProxyConfigForTests());
+  afterEach(() => __resetProxyConfigForTests());
+
+  // A space makes this genuinely unparseable → new URL() throws → the
+  // sanitizer's fallback path runs. The fragment carries the credential.
+  const UNPARSEABLE_WITH_FRAGMENT = 'https://api.example.com path/#key=fixture-token-frag';
+
+  function logLines(baseUrl: string): string[] {
+    const lines: string[] = [];
+    resolveProviderCfg(fakeConfig({ baseUrl }) as Config, 'anthropic', {
+      logger: { info: (message: string) => lines.push(message) },
+    });
+    return lines.filter((l) => l.includes('WrongProxy rewrite'));
+  }
+
+  it('emits exactly one rewrite line that never carries a fragment credential', () => {
+    const lines = logLines(UNPARSEABLE_WITH_FRAGMENT);
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain('fixture-token-frag');
+    expect(lines[0]).not.toContain('#');
+    // The non-secret prefix survives, so the line stays diagnostically useful.
+    expect(lines[0]).toContain('https://api.example.com path/');
+    expect(lines[0]).toContain("for provider 'anthropic'");
+  });
+
+  it('redacts a query credential on a well-formed URL too', () => {
+    const lines = logLines('https://api.example.com/v1?key=fixture-token-query');
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain('fixture-token-query');
+    expect(lines[0]).toContain('https://api.example.com/v1');
   });
 });

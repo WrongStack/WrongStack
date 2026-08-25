@@ -77,7 +77,14 @@ export const proxyCmd: SubcommandHandler = async (_args, deps) => {
   // first tick flips `active` to true (2xx) or false (timeout/refused).
   // We don't care about the return value — `getProxyConfig()` is the source.
   if (persisted?.enabled === true && persisted.url) {
-    const runner = startProxyProbe({ intervalMs: 60_000, timeoutMs: 2_000 });
+    // No options: `startProxyProbe` is a module singleton whose early-return
+    // path ignores every field of `opts` when a runner already exists, and
+    // `intervalMs`/`timeoutMs` are captured into the runner closure at
+    // construction. Passing them here promised a per-call configuration the
+    // function cannot honour. This subcommand only needs the one-shot
+    // `poke()` below; the periodic interval is irrelevant to a process that
+    // exits in seconds.
+    const runner = startProxyProbe();
     await runner.poke();
   }
   const cfg = getProxyConfig();
