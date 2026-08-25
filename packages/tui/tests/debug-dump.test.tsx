@@ -41,7 +41,6 @@ describe('debug dump', () => {
         <SidebarContent
           contextWindow={{ used: 48_000, max: 200_000 }}
           cacheStats={{ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }}
-          cacheCoverageTokens={0}
           entries={ENTRIES}
           fleetCounts={{ running: 1, idle: 1, pending: 0, completed: 0 }}
           provider="anthropic"

@@ -224,7 +224,6 @@ export function AppViewSidebar({
         contextWindow={statusbar.contextWindow}
         contextBreakdown={statusbar.contextBreakdown}
         cacheStats={statusbar.cacheStats}
-        cacheCoverageTokens={statusbar.cacheCoverageTokens}
         entries={statusbar.entriesWithLeader}
         fleetCounts={statusbar.fleetCounts}
         provider={liveProvider}
