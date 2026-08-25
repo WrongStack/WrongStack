@@ -245,6 +245,26 @@ export class TerminalRenderer implements Renderer {
     this.err.write(`${theme.info('ℹ')} ${text}\n`);
   }
 
+  /**
+   * Write text to stderr verbatim: no glyph prefix, no markdown processing.
+   *
+   * Deliberately stricter than writeWarning/writeError/writeInfo, which emit
+   * *diagnostics* and are suppressed only when a TUI owns the terminal (so
+   * they survive silent mode). This method is for informational mirrors of
+   * stdout output, where the stdout copy already carries the full content —
+   * in silent mode the operator asked for machine-only output, so the mirror
+   * is dropped rather than leaked onto a quieter stream. It therefore honors
+   * the full {@link suppressStdout} gate.
+   *
+   * Used by `wstack mailbox serve` to route the human-readable startup banner
+   * away from stdout, keeping the mailbox_serve_started JSON line cleanly
+   * pipeable (`mailbox serve | jq`).
+   */
+  writeStderr(text: string): void {
+    if (this.suppressStdout()) return;
+    this.err.write(text);
+  }
+
   clear(): void {
     if (this.suppressStdout()) return;
     this.out.write('\x1b[2J\x1b[H');

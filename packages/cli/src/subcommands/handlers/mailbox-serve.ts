@@ -433,19 +433,11 @@ interface StartupInfo {
 }
 
 function writeStartupInfo(deps: SubcommandDeps, info: StartupInfo): void {
-  // One structured JSON line to stdout for log-shippers, followed by a
-  // human-readable mirror.
-  //
-  // Both currently land on stdout: `renderer.write()` writes to `this.out`
-  // (renderer.ts:45, `opts.out ?? process.stdout`). Only writeWarning/
-  // writeError/writeInfo use `this.err` (renderer.ts:46) — and each of those
-  // prefixes a glyph, so none is a drop-in unadorned stderr channel.
-  //
-  // Consequence: `wstack mailbox serve | jq` sees the banner interleaved with
-  // the JSON line. Splitting them needs a plain stderr method on the renderer
-  // (or a direct process.stderr.write, which would bypass the TUI-silence
-  // handling in renderer.suppressStdout) — a renderer API change, not a local
-  // edit here.
+  // One structured JSON line to stdout for log-shippers; the human-readable
+  // mirror goes to stderr via renderer.writeStderr, so `mailbox serve | jq`
+  // sees only JSON. writeStderr honors the full suppressStdout gate (silent ||
+  // tuiActive): in silent mode the operator asked for machine-only output, and
+  // the JSON line already carries every field the banner prints.
   console.log(
     JSON.stringify({
       event: 'mailbox_serve_started',
@@ -456,35 +448,43 @@ function writeStartupInfo(deps: SubcommandDeps, info: StartupInfo): void {
       tokenFile: info.tokenPath,
     }),
   );
-  deps.renderer.write(`WrongStack mailbox bridge listening on http://${info.host}:${info.port}\n`);
-  deps.renderer.write(`Project dir:  ${info.projectDir}\n`);
-  deps.renderer.write(
+  deps.renderer.writeStderr(
+    `WrongStack mailbox bridge listening on http://${info.host}:${info.port}\n`,
+  );
+  deps.renderer.writeStderr(`Project dir:  ${info.projectDir}\n`);
+  deps.renderer.writeStderr(
     `Project id:   ${info.projectId}  (use this as projectId when issuing credentials)\n`,
   );
-  deps.renderer.write(`Token file:   ${info.tokenPath} (mode 0600)\n`);
-  deps.renderer.write('\n');
-  deps.renderer.write('Routes:\n');
-  deps.renderer.write('  POST /mailbox/send              send a message\n');
-  deps.renderer.write('  POST /mailbox/query             query messages\n');
-  deps.renderer.write(
+  deps.renderer.writeStderr(`Token file:   ${info.tokenPath} (mode 0600)\n`);
+  deps.renderer.writeStderr('\n');
+  deps.renderer.writeStderr('Routes:\n');
+  deps.renderer.writeStderr('  POST /mailbox/send              send a message\n');
+  deps.renderer.writeStderr('  POST /mailbox/query             query messages\n');
+  deps.renderer.writeStderr(
     '  POST /mailbox/check             check inbox and optionally mark read/completed\n',
   );
-  deps.renderer.write('  POST /mailbox/ack               acknowledge one message\n');
-  deps.renderer.write('  POST /mailbox/ack-many          acknowledge many in one batch\n');
-  deps.renderer.write('  POST /mailbox/unread-count      count unread messages for an agent\n');
-  deps.renderer.write('  POST /mailbox/agents/register   register an external agent\n');
-  deps.renderer.write('  POST /mailbox/agents/heartbeat  update agent heartbeat\n');
-  deps.renderer.write('  POST /mailbox/register-client   register an external client\n');
-  deps.renderer.write('  POST /mailbox/heartbeat         update client heartbeat\n');
-  deps.renderer.write('  GET  /mailbox/agents            list all registered agents\n');
-  deps.renderer.write('  GET  /mailbox/agents/online     list agents with a live heartbeat\n');
-  deps.renderer.write('  GET  /mailbox/events            SSE stream — real-time mailbox push\n');
-  deps.renderer.write('  GET  /healthz                   health probe (no auth)\n');
-  deps.renderer.write('\n');
-  deps.renderer.write('Send the bearer token in: Authorization: Bearer <token>\n');
-  deps.renderer.write('Cat the token from another shell:\n');
-  deps.renderer.write(`  cat ${info.tokenPath}\n`);
-  deps.renderer.write('\nPress Ctrl+C to stop.\n');
+  deps.renderer.writeStderr('  POST /mailbox/ack               acknowledge one message\n');
+  deps.renderer.writeStderr('  POST /mailbox/ack-many          acknowledge many in one batch\n');
+  deps.renderer.writeStderr(
+    '  POST /mailbox/unread-count      count unread messages for an agent\n',
+  );
+  deps.renderer.writeStderr('  POST /mailbox/agents/register   register an external agent\n');
+  deps.renderer.writeStderr('  POST /mailbox/agents/heartbeat  update agent heartbeat\n');
+  deps.renderer.writeStderr('  POST /mailbox/register-client   register an external client\n');
+  deps.renderer.writeStderr('  POST /mailbox/heartbeat         update client heartbeat\n');
+  deps.renderer.writeStderr('  GET  /mailbox/agents            list all registered agents\n');
+  deps.renderer.writeStderr(
+    '  GET  /mailbox/agents/online     list agents with a live heartbeat\n',
+  );
+  deps.renderer.writeStderr(
+    '  GET  /mailbox/events            SSE stream — real-time mailbox push\n',
+  );
+  deps.renderer.writeStderr('  GET  /healthz                   health probe (no auth)\n');
+  deps.renderer.writeStderr('\n');
+  deps.renderer.writeStderr('Send the bearer token in: Authorization: Bearer <token>\n');
+  deps.renderer.writeStderr('Cat the token from another shell:\n');
+  deps.renderer.writeStderr(`  cat ${info.tokenPath}\n`);
+  deps.renderer.writeStderr('\nPress Ctrl+C to stop.\n');
 }
 
 function printHelp(deps: SubcommandDeps): void {
