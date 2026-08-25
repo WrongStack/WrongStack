@@ -213,6 +213,7 @@
     "packages/core/src/boot.ts": ["cleanupStaleProjects"],
     "packages/core/src/chronicle/project-server-client.ts": ["resolveChronicleProjectServerUrl"],
     "packages/core/src/chronicle/sqlite-compaction.ts": ["chronicleSqliteAllocatedBytes"],
+    "packages/core/src/coordination/agents/agent-prompts.ts": ["agentPromptCacheSize"],
     "packages/core/src/coordination/agents/phase3-techstack.ts": ["TECHSTACK_AGENTS"],
     "packages/core/src/coordination/agents/role-skills.ts": ["BUNDLED_AGENT_SKILLS"],
     "packages/core/src/coordination/collab-debug.ts": ["DEFAULT_MAX_TARGET_FILES"],
@@ -655,6 +656,7 @@
     ],
     "packages/tui/src/auth-panel-model.ts": ["filterAuthCatalog"],
     "packages/tui/src/brain-panel-model.ts": ["personaCycle"],
+    "packages/tui/src/git-info.ts": ["branchLabel"],
     "packages/tui/src/components/agents-monitor.tsx": [
       "agentRisk",
       "fmtExactTokens",
