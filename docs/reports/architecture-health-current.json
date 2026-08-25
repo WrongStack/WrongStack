@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-25T05:34:30.195Z",
+  "generatedAt": "2026-08-25T07:04:04.799Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3367,
     "testFiles": 2897,
-    "sourceLines": 797950,
+    "sourceLines": 798011,
     "workspaceEdges": 125,
     "moduleEdges": 10376,
     "nonCommandSlashImports": 0,
@@ -24,7 +24,10 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 827
   },
-  "errors": [],
+  "errors": [
+    "packages/sdd/src/sdd-parallel-run.ts: hotspot grew from 909 to 928 lines; review and update the ratchet in the same change",
+    "packages/tui/src/submit-controller.ts: hotspot grew from 870 to 895 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -18832,7 +18835,7 @@
     },
     {
       "file": "packages/sdd/src/sdd-parallel-run.ts",
-      "lines": 909,
+      "lines": 928,
       "relativeImports": 6
     },
     {
@@ -18967,7 +18970,7 @@
     },
     {
       "file": "packages/tui/src/submit-controller.ts",
-      "lines": 870,
+      "lines": 895,
       "relativeImports": 13
     },
     {
