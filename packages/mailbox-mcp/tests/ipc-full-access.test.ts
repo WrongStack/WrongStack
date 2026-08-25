@@ -208,6 +208,7 @@ describe('Mailbox MCP full-access IPC integration', () => {
         action: 'credential_issue',
         credentialOptions: {
           principalId: 'external-agent',
+          projectId: 'mailbox-mcp-integration-project',
           kind: 'agent',
           capabilities: ['mail.read.self', 'mail.send.informational'],
           ttlMs: 60_000,

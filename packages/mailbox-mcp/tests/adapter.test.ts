@@ -167,6 +167,7 @@ describe('createMailboxMcpToolHost', () => {
         action: 'credential_issue',
         credentialOptions: {
           principalId: 'external-agent',
+          projectId: 'external-project',
           kind: 'agent',
           capabilities: ['mail.read.self', 'mail.read.self'],
           ttlMs: 60_000,
@@ -176,6 +177,7 @@ describe('createMailboxMcpToolHost', () => {
     ).resolves.toMatchObject({ isError: false });
     expect(credentialIssue).toHaveBeenCalledWith({
       principalId: 'external-agent',
+      projectId: 'external-project',
       kind: 'agent',
       capabilities: ['mail.read.self'],
       ttlMs: 60_000,
@@ -187,12 +189,59 @@ describe('createMailboxMcpToolHost', () => {
         action: 'credential_issue',
         credentialOptions: {
           principalId: 'external-agent',
+          // Present so the rejection below is attributable to the unsupported
+          // capability: the projectId guard throws earlier in credentialOptions,
+          // which would otherwise satisfy `isError: true` for the wrong reason.
+          projectId: 'external-project',
           kind: 'agent',
           capabilities: ['mail.runtime.control'],
           ttlMs: 60_000,
         },
       }),
     ).resolves.toMatchObject({ isError: true });
+  });
+
+  it('requires projectId to issue a credential but not to rotate one', async () => {
+    const credentialIssue = vi.fn().mockResolvedValue({ credential: {}, secret: 'secret' });
+    const credentialRotate = vi
+      .fn()
+      .mockResolvedValue({ credential: { credentialId: 'cred-2' }, secret: 'rotated' });
+    const host = createMailboxMcpToolHost(
+      backend({ credentialIssue, credentialRotate }),
+      new MailboxEventEmitter(),
+      { actor: 'external-admin', admin: true },
+    );
+
+    // Issuing without projectId is rejected before the backend is touched.
+    // Without this guard the credential is created successfully and then fails
+    // every HTTP request as a generic 401 that never names the missing field.
+    const issued = await host.callTool('mailbox_admin', {
+      action: 'credential_issue',
+      credentialOptions: { principalId: 'external-agent', kind: 'agent' },
+    });
+    expect(issued).toMatchObject({ isError: true });
+    expect(String(issued.content)).toContain('projectId');
+    expect(credentialIssue).not.toHaveBeenCalled();
+
+    // Rotation legitimately omits it — core inherits projectId from the
+    // credential being superseded — so the guard must not fire here even when
+    // credentialOptions is present. This is the asymmetry the `required`
+    // argument encodes, and why projectId cannot live in the shared schema's
+    // `required` array.
+    await expect(
+      host.callTool('mailbox_admin', {
+        action: 'credential_rotate',
+        credentialId: 'cred-1',
+        credentialOptions: { ttlMs: 60_000 },
+      }),
+    ).resolves.toMatchObject({ isError: false });
+    expect(credentialRotate).toHaveBeenCalledWith('cred-1', { ttlMs: 60_000 });
+
+    // Omitting credentialOptions entirely stays valid too.
+    await expect(
+      host.callTool('mailbox_admin', { action: 'credential_rotate', credentialId: 'cred-1' }),
+    ).resolves.toMatchObject({ isError: false });
+    expect(credentialRotate).toHaveBeenLastCalledWith('cred-1', undefined);
   });
 
   it('long-polls Mailbox events and removes its subscription', async () => {

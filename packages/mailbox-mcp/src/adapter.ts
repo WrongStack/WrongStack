@@ -121,7 +121,15 @@ const BASE_SCHEMA: Record<string, unknown> = {
       type: 'object',
       properties: {
         principalId: { type: 'string' },
-        projectId: { type: 'string' },
+        // Cannot be listed in a `required` array: this block is shared by
+        // `credential_issue` and `credential_rotate`, and rotation inherits
+        // projectId from the credential it supersedes. The hard check lives in
+        // `credentialOptions()` below, gated on the `required` argument.
+        projectId: {
+          type: 'string',
+          description:
+            'Mandatory for credential_issue — a credential without it is created but can never authenticate over HTTP. Omit for credential_rotate: inherited from the rotated credential.',
+        },
         kind: { type: 'string', enum: ['agent', 'operator', 'service'] },
         capabilities: {
           type: 'array',
@@ -258,6 +266,19 @@ function credentialOptions(
       }
       result[key] = value.trim();
     }
+  }
+  // A credential without `projectId` is issued successfully but is permanently
+  // unusable over HTTP: `credentialDecision` (core: mailbox-http-auth.ts:65)
+  // returns `{allowed:false}` when `credential.projectId === undefined`, and it
+  // surfaces as a generic 401 that never names the missing field. Fail here
+  // instead, where the caller can still fix it.
+  //
+  // Gated on `required` (true only for `credential_issue`): rotation passes
+  // `false` and legitimately omits the field, because core's rotation path
+  // inherits it from the credential being superseded
+  // (`projectId: old.projectId ?? options?.projectId`).
+  if (required && result['projectId'] === undefined) {
+    throw new Error('credentialOptions.projectId is required when issuing a credential');
   }
   const kind = options['kind'];
   if (kind !== undefined) {
