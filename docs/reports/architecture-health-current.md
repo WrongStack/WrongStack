@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T20:18:48.128Z
+**Generated:** 2026-08-25T20:28:43.125Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -31,8 +31,6 @@
 - packages/webui/src/components/ChatInput.tsx: relative import fan-out increased from 17 to 18; review and update the ratchet in the same change
 - packages/webui/src/types/server-message.ts: hotspot grew from 938 to 974 lines; review and update the ratchet in the same change
 - packages/webui-server/src/server/ws-payload-validation.ts: hotspot grew from 949 to 1001 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/agents/agent-prompts.ts: "agentPromptCacheSize" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/tui/src/git-info.ts: "branchLabel" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
