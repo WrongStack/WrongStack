@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 294,
+      "files": 293,
       "typeOnly": 235,
-      "runtimeOrMixed": 76
+      "runtimeOrMixed": 75
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -1024,12 +1024,6 @@
       "file": "packages/runtime/tests/vision.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",

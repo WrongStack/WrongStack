@@ -13,13 +13,12 @@
  * "green ≠ live" rule documented in docs/wrongtrace.md §8.
  */
 
-import { FallbackProfileManager, type UserInputPayload } from '@wrongstack/core/agent';
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import type { Config, Provider, ProviderError, SessionWriter, Tool } from '@wrongstack/core/types';
+import type { Config, Provider, SessionWriter, Tool } from '@wrongstack/core/types';
 import {
   createWrongTraceHookPair,
   getWrongTrace,
@@ -52,17 +51,21 @@ function buildSddStyleRunner(): HookRunner {
 
 // ── Light-subagent factory harness (mirrors light-subagent-factory.test.ts) ──
 
-const reasoningCaps = {
-  default: 'enabled',
-  disableSupported: true,
-  effortSupported: true,
-  effortLevels: ['low', 'medium', 'high'],
-  preserveThinking: 'optional',
-} as const;
-
 const noopProvider: Provider = {
   id: 'noop',
-  capabilities: { streaming: false, tools: true, vision: false, reasoning: false },
+  capabilities: {
+    streaming: false,
+    tools: true,
+    parallelTools: false,
+    vision: false,
+    promptCache: false,
+    systemPrompt: true,
+    jsonMode: false,
+    reasoning: false,
+    maxContext: 0,
+    maxOutput: 0,
+    cacheControl: 'none',
+  },
   async complete() {
     return {
       content: [{ type: 'text', text: 'ok' }],
@@ -72,15 +75,7 @@ const noopProvider: Provider = {
     };
   },
   async *stream() {
-    yield {
-      type: 'response',
-      response: {
-        content: [{ type: 'text', text: 'ok' }],
-        stopReason: 'end_turn',
-        usage: { input: 0, output: 0 },
-        model: 'noop',
-      },
-    };
+    yield { type: 'message_stop', stopReason: 'end_turn', usage: { input: 0, output: 0 } };
   },
 };
 
@@ -126,9 +121,9 @@ function sessionShim(): SessionWriter {
     get pendingToolUses() {
       return [];
     },
-    append: () => {},
-    appendBatch: () => {},
-    flush: () => {},
+    append: async () => {},
+    appendBatch: async () => {},
+    flush: async () => {},
     close: async () => {},
     recordFileChange: () => {},
     recordSideEffect: () => {},
@@ -174,13 +169,12 @@ function makeFactoryDeps(hookRunner: HookRunner) {
         build: async () => [{ type: 'text', text: 'system' }],
       }) as never,
   );
-  container.bind(
-    TOKENS.FallbackProfileManager,
-    () => new FallbackProfileManager({ getModel: async () => reasoningCaps }) as never,
-  );
-
   const providerRegistry = new ProviderRegistry();
-  providerRegistry.register({ type: 'noop', create: () => providerFor('noop') });
+  providerRegistry.register({
+    type: 'noop',
+    family: 'unsupported',
+    create: () => providerFor('noop'),
+  });
 
   const toolRegistry = new ToolRegistry();
   toolRegistry.register(writeTool);
@@ -206,7 +200,7 @@ describe('runtime light-subagent WrongTrace gate (SDD-path threading contract)',
   it('threads the hookRunner into a spawned light subagent', async () => {
     const runner = buildSddStyleRunner();
     const factory = makeLightSubagentFactory(makeFactoryDeps(runner));
-    const built = await factory({ id: 'sdd-light', role: 'executor' });
+    const built = await factory({ id: 'sdd-light', name: 'sdd-light', role: 'executor' });
     expect(built.agent).toBeDefined();
     expect(built.events).toBeDefined();
     // Mirror light-subagent-factory.test.ts isolation expectations — the

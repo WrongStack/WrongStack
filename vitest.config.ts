@@ -32,6 +32,7 @@ export default defineConfig({
       ),
       '@wrongstack/runtime': path.resolve(__dirname, './packages/runtime/src'),
       '@wrongstack/governance': path.resolve(__dirname, './packages/governance/src'),
+      '@wrongstack/wrongtrace': path.resolve(__dirname, './packages/wrongtrace/src'),
       // Packages extracted from core (sdd/kanban/security-scanner) — the core
       // barrel re-exports from them, so every test importing core needs these
       // resolved from source as well.

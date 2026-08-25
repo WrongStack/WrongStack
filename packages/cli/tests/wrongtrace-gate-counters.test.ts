@@ -11,11 +11,14 @@ import {
 } from '../src/wiring/wrongtrace-gate-counters.js';
 
 const EVENT_FACTORY = {
-  deny: (path = 'a.ts') => ({ kind: 'deny', path, reason: 'WrongTrace lock: peer' }),
-  allowFragile: (path = 'b.ts') => ({ kind: 'allow-fragile', path, reasons: ['x'] }),
-  lockAcquired: (path = 'c.ts') => ({ kind: 'lock-acquired', path, owner: 'wrongstack:s1' }),
-  lockConflictRace: (path = 'd.ts') => ({ kind: 'lock-conflict-race', path }),
-  lockReleased: (path = 'e.ts') => ({ kind: 'lock-released', path }),
+  deny: (path = 'a.ts') =>
+    ({ kind: 'deny', path, reason: 'WrongTrace lock: peer' }) as const,
+  allowFragile: (path = 'b.ts') =>
+    ({ kind: 'allow-fragile', path, reasons: ['x'] }) as const,
+  lockAcquired: (path = 'c.ts') =>
+    ({ kind: 'lock-acquired', path, owner: 'wrongstack:s1' }) as const,
+  lockConflictRace: (path = 'd.ts') => ({ kind: 'lock-conflict-race', path }) as const,
+  lockReleased: (path = 'e.ts') => ({ kind: 'lock-released', path }) as const,
 } as const;
 
 type KnownEvent = ReturnType<(typeof EVENT_FACTORY)[keyof typeof EVENT_FACTORY]>;
