@@ -7,9 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.313.0] — 2026-08-25
+
+Consolidates the intermediate `0.311.0` and `0.312.0` version bumps into one
+documented release.
+
+### Added
+
+- **WrongProxy and WrongTrace now form one optional local integration across CLI, TUI, WebUI, and subagents.** Provider base URLs can be rerouted through the external daemon while `@wrongstack/wrongtrace` supplies a public, zero-hard-dependency adapter with JSON-RPC 2.0 IPC, MCP, and HTTP fallbacks. The daemon is discovered at `http://localhost:3444` by default, and every path remains fail-open when it is absent. (`bdac3d320`, `e5566e462`, `b21b3ed87`)
+- **WrongTrace guardrails cover every host that can execute mutating tools.** CLI leaders, fleet workers, standalone WebUI sessions, and runtime light subagents share reference-counted file-lock hooks, typed decision telemetry, persisted gate counters, a bounded atlas/friction prompt digest, and completion telemetry without introducing a startup or availability dependency. (`fb9578afc`, `afe2257d6`, `ef6261e27`, `c2c6f8b11`, `8f52191f2`)
+- **The TUI can select and copy transcript text by dragging in its default managed-mouse mode.** Release commits the selection to the clipboard, the rail shows the selected band, wrapped card rows recover their source text correctly, gutters are clamped, and scrolling cancels stale selections. A new `static` animation style also provides a motionless working indicator. (`363269bb1`, `0e8afde27`, `18fdccb97`, `52ed22da7`, `2e02feab2`, `9c0b617d2`)
+- **Provider health is visible in WebUI Connections.** The panel consumes the live provider-health WebSocket state instead of maintaining a parallel snapshot path. (`131c016ac`, `7b99e42b4`)
+
+### Changed
+
+- **WrongProxy configuration applies to the live provider immediately.** Switching providers or changing proxy settings rebuilds routing from the previous effective baseline, so enabling, disabling, or editing the URL does not require a restart and does not stack rewrites. (`d80f81b17`, `fb0b6a034`, `4744f6094`, `fcfd4ea80`)
+- **All release surfaces are aligned to `0.313.0`.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD `softwareVersion`/`dateModified`, and both changelog surfaces now describe the same release.
+
+### Security
+
+- **`git_autocommit` is fenced to caller-owned paths.** Scoped commits use explicit pathspecs, preserve foreign staged files, reject concurrent drift, and no longer stage the whole shared tree when the index is empty unless `autoStage` is deliberately enabled. (`7b90b0f48`, `4d1f94d61`)
+
+### Fixed
+
+- **PowerShell tool transport uses the native encoded-command contract.** Wrapped scripts are sent as UTF-16LE Base64 through `-EncodedCommand`, avoiding BOM, stdin, and quoting failures seen with `-Command -`. (`37185db1`, `9af478a29`)
+- **Transient webhook outages recover automatically.** The circuit breaker enters a timed half-open state after its cooldown instead of suppressing every future delivery until a manual reset. (`d9038d2a8`)
+- **Persisted TUI queues survive startup hydration.** The mount-time empty state can no longer clear `queue.json`, and messages added while hydration is pending are flushed after the stored queue is restored. (`1ca2990be`, `2c410551e`)
+- **Desktop and session state preserve the latest run.** Final-only assistant text is deduplicated per run rather than against older conversation history, final window geometry is saved before shutdown, mailbox badges honor session affinity, and `/context` no longer counts tool-result frames as user turns. (`2802bd55f`, `8dec7ac7d`, `4252d7bea`, `ec6a11637`)
+- **Hard billing-limit responses rotate through fallback correctly.** Provider `403`/`429` responses that explicitly report exhausted quota are classified as `quota_exhausted` instead of generic authentication or rate-limit failures. (`de1f7e062`)
+
 ### Documentation
 
-- **WrongTrace integration is now documented end to end.** New [`docs/wrongtrace.md`](docs/wrongtrace.md) covers the optional external daemon (`http://localhost:3444` default) and both integrations that share it: the observability guardrails (`@wrongstack/wrongtrace` adapter — discovery, the IPC → MCP → HTTP per-method routing matrix including the deliberate `lockFile` HTTP-only exception, the full REST surface, agent helpers, the CLI pre-flight gate and fail-open executor hooks) and WrongProxy provider base-URL rerouting (`tools.wrongProxy`, soft-signal health probe). Includes a test-suite map with the green-≠-live offline-skip trap, troubleshooting, and a file map. `docs/README.md` indexes the new page, `README.md` gains a package-table row for `@wrongstack/wrongtrace`, a "WrongTrace guardrails" capability subsection, and a Docs-table entry, and the website ships a matching `wrongtrace-integration` feature story with deep dive and sitemap URL. (`fb0b6a034`)
+- **WrongTrace integration is documented end to end.** New [`docs/wrongtrace.md`](docs/wrongtrace.md) covers the optional external daemon, the IPC → MCP → HTTP routing matrix, the deliberate `lockFile` HTTP-only exception, the full REST surface, agent helpers, executor hooks, test-suite map, troubleshooting, and file map. The README, docs index, package table, website feature story, and sitemap all link to the same integration contract. (`fb0b6a034`, `07b89779a`, `f66e25866`)
 
 ## [0.310.1] — 2026-08-23
 

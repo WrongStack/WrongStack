@@ -28,7 +28,7 @@ Brain-governed policy decisions, and collaborative debugging — with a
 **project-wide SAGE memory** that persists knowledge across sessions, **active
 Kanban/task boards** with atomic verification, an **inter-agent mailbox** that
 links every client, and **Chimera** auto-review agents that critique your diffs.
-It ships with **61 built-in tools**, **29 bundled skills**, **73 managed first-party
+It ships with **70 built-in tools**, **29 bundled skills**, **73 managed first-party
 plugins**, and **~140 providers** pulled live from
 [models.dev](https://models.dev) — all on top of a compact, swappable kernel that
 boots fully offline with `--no-features`.
@@ -36,15 +36,15 @@ boots fully offline with `--no-features`.
 **Built from scratch, stands on its own.** WrongStack is not a plugin layer or an
 orchestration kit bolted onto another coding tool — it's a complete agent written
 top to bottom: its own compact kernel, its own provider transports (4 wire
-families, real SSE), its own 61-tool executor, permission policy, memory system,
+families, real SSE), its own 70-tool executor, permission policy, memory system,
 and multi-agent runtime. Nothing here wraps a third-party CLI; everything works
 standalone, and `--no-features` even runs it fully offline.
 
 ### The scale of it
 
 Not a thin wrapper — a real engine. To put it in perspective: the codebase spans
-**29 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
-thousands of tests** guarding it. You get **61 built-in tools**, a **77-role agent
+**34 packages and 2 apps** of first-party, TypeScript-strict source, with **tens of
+thousands of tests** guarding it. You get **70 built-in tools**, a **77-role agent
 roster**, **~140 providers**, and **six surfaces** — all sharing **one compact
 kernel** (~1,670 lines) that boots **fully offline** with `--no-features`.
 
@@ -52,18 +52,27 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.310.0
+### What's new in 0.313.0
 
-- **WebUI context-breakdown token figures now match the CLI/TUI estimator.** The
-  browser's context debug view uses the same calibrated basis (3.5 chars/token +
-  EWM calibration) as compaction and the context bar, and the canonical ReDoS
-  regex guard moved to a new dependency-leaf `@wrongstack/primitives` package,
-  unifying three drifted copies.
-- **All release surfaces align to `0.310.0`.** The root and workspace manifests,
-  both apps, the README highlights, and the website metadata, JSON-LD, and
-  release changelog now match the published manifests.
+- **WrongProxy and WrongTrace are integrated across every surface.** Provider
+  traffic can opt into the external local proxy, while CLI, fleet, standalone
+  WebUI, and light-subagent executors share fail-open file guardrails, telemetry,
+  persisted counters, and bounded atlas/friction context.
+- **The TUI supports drag-to-copy in its default mode.** Selection survives
+  wrapped transcript rows, shows a visible highlight band, clamps gutters, and
+  copies on release without forcing the transcript into native mouse mode.
+- **WebUI provider health is live and actionable.** Connections uses the shared
+  WebSocket health state, and WrongProxy setting changes rebuild provider routing
+  immediately without stacked URL rewrites or a restart.
+- **Shared-worktree and runtime recovery are safer.** `git_autocommit` fences
+  commits to caller-owned paths; persisted queues survive startup hydration;
+  webhook circuits recover after cooldown; and desktop final output, geometry,
+  mailbox affinity, and PowerShell command transport retain their intended state.
+- **All release surfaces align to `0.313.0`.** The root, 34 package manifests,
+  both apps, README highlights, website metadata, JSON-LD, and release changelog
+  now describe the same release.
 
-See the complete [0.310.0 release notes](CHANGELOG.md).
+See the complete [0.313.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -72,7 +81,7 @@ See the complete [0.310.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.310.0](#whats-new-in-03100)
+- [What's new in 0.313.0](#whats-new-in-03130)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)
@@ -276,7 +285,7 @@ required**. Deep reference lives in [`docs/reference.md`](docs/reference.md).
 
 ### Tools & code intelligence
 
-**61 built-in tools** span filesystem edits, code quality (`lint`/`format`/
+**70 built-in tools** span filesystem edits, code quality (`lint`/`format`/
 `typecheck`/`test`), execution, web search/fetch, git, packages, browser/E2E
 controls, and a project-owned Codebase Index. The index combines SQLite/FTS5
 substring search, local semantic ranking, content-hash invalidation, symbol and
@@ -496,7 +505,7 @@ Services  → deterministic local IPC → one owner each → SQLite-backed proje
 
 1. **Minimal kernel** — the four primitives + token table total ~1670 lines; the agent loop adds ~525.
 2. **Zero non-overridable behavior** — 16 services bound through `Container`, 6 pipelines as middleware, all extension points in registries.
-3. **Standalone sufficiency** — works with 61 built-in tools and no plugins.
+3. **Standalone sufficiency** — works with 70 built-in tools and no plugins.
 4. **Layered, not monolithic** — `--no-features` runs offline with zero startup network calls.
 
 Full walk-through: [`docs/architecture.md`](docs/architecture.md).
@@ -510,7 +519,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 | `@wrongstack/core` | Kernel, agent, types, registries, plugin contract |
 | `@wrongstack/runtime` | Default runtime implementations + host composition |
 | `@wrongstack/providers` | Anthropic/OpenAI/OpenAI-compatible/Google adapters + SSE |
-| `@wrongstack/tools` | 61 built-in tools (incl. browser/E2E + SQLite codebase index) |
+| `@wrongstack/tools` | 70 built-in tools (incl. browser/E2E + SQLite codebase index) |
 | `@wrongstack/mcp` | MCP server registry + reconnection logic |
 | `@wrongstack/acp` | Agent Client Protocol client + agent support |
 | `@wrongstack/bench` | Benchmark harness (Aider polyglot + SWE-bench Verified) |
@@ -535,7 +544,7 @@ Full walk-through: [`docs/architecture.md`](docs/architecture.md).
 
 - **Tens of thousands of tests** passing in the release gate across ~1,900 test files
 - Coverage thresholds (root Vitest): ≥73% lines / ≥73% functions / ≥64% branches / ≥72% statements
-- All 29 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
+- All 34 packages + 2 apps build clean with TypeScript strict + `noUncheckedIndexedAccess`
 - Node 22.19+ only, ESM-only, no CommonJS bundles
 - Threat model: [`SECURITY.md`](SECURITY.md)
 

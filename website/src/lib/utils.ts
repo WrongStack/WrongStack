@@ -341,9 +341,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.313.0',
+    date: '2026-08-25',
+    latest: true,
+    consolidated: true,
+    tagline: 'WrongTrace guardrails, live proxy routing & native TUI selection',
+    highlights: [
+      'WrongProxy and the public @wrongstack/wrongtrace adapter integrate the optional local daemon across CLI, TUI, WebUI, fleet workers, and runtime light subagents while remaining fail-open when it is absent',
+      'Every mutating executor shares reference-counted file-lock hooks, typed decision telemetry, persisted gate counters, bounded atlas/friction prompt context, and completion telemetry',
+      'TUI drag-to-copy works in default managed-mouse mode with release-to-copy, a visible selection band, wrap-aware source recovery, gutter clamping, and scroll cancellation',
+      'WebUI Connections consumes live provider-health WebSocket state, and WrongProxy changes rebuild routing immediately without stacked URL rewrites or restart',
+      'git_autocommit fences scoped commits to caller-owned paths, preserves foreign staged files, and refuses concurrent drift instead of absorbing the shared tree',
+      'PowerShell uses UTF-16LE -EncodedCommand; TUI queues survive hydration; webhook circuits recover after cooldown; desktop final output and geometry retain the latest run state',
+      'Hard billing-limit responses rotate as quota exhaustion, mailbox badges honor session affinity, and WrongTrace counters publish through serialized atomic writes',
+      'All root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces align to 0.313.0',
+    ],
+  },
+  {
     version: '0.310.1',
     date: '2026-08-23',
-    latest: true,
     tagline: 'Anthropic usage accumulation & TUI cache card',
     highlights: [
       'Anthropic usage accumulation keeps cache telemetry across message_start → message_delta — a new mergeAnthropicUsage() helper preserves present fields, absent fields keep the previously-seen value, and a cacheWriteFromAggregate provenance flag prevents TTL-split sums from clobbering authoritative aggregates on partial-TTL gateways',
