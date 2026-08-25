@@ -81,8 +81,23 @@ export class Agent {
    * conversation or racing abort signals.
    */
   private _runInProgress = false;
-  /** SHA-256 of the last submitted input content — prevents duplicate runs. */
+
+  /**
+   * Dedup window for byte-identical consecutive inputs. Only accidental
+   * back-to-back duplicates fall inside it — terminal \r\n re-entrancy,
+   * stuck-key bursts, client auto-resubmit loops. A deliberate re-send later
+   * (the classic "continue" nudge after a model switch, or retyping the same
+   * instruction after a failed run) must always execute.
+   */
+  static readonly INPUT_DEDUP_WINDOW_MS = 1_500;
+
+  /**
+   * SHA-256 + submission time of the last committed input content. The pair
+   * powers burst-only dedup: identical text skips a run solely when it lands
+   * within {@link Agent.INPUT_DEDUP_WINDOW_MS} of the previous submission.
+   */
   private _lastInputHash: string | undefined;
+  private _lastInputHashAt: number | undefined;
 
   constructor(init: AgentInit) {
     this.container = init.container;
@@ -198,17 +213,34 @@ export class Agent {
     // this._lastInputHash only after setup succeeds inside the try.
     let newInputHash: string | undefined;
 
-    // Dedup: silently skip a run when the input text is byte-identical to
-    // the immediately preceding submission.  Prevents terminal \r\n
-    // re-entrancy, stuck-key bursts, and client-side resubmission loops
-    // from firing duplicate runs back-to-back.
+    // Dedup: skip a run whose input is byte-identical to the immediately
+    // preceding submission AND lands within the burst window — terminal
+    // \r\n re-entrancy, stuck-key bursts, client-side resubmission loops.
+    // Identical text submitted LATER is a deliberate repeat ("continue"
+    // nudges after a model switch, retry-after-error) and must execute;
+    // an unbounded dedup used to swallow it silently, leaving the session
+    // looking dead until the user typed something different.
     const inputText =
       typeof userInput === 'string'
         ? userInput
         : ((userInput as { prompt?: string })?.prompt ?? '');
     if (inputText.length > 0) {
       const hash = createHash('sha256').update(inputText).digest('hex');
-      if (hash === this._lastInputHash) {
+      const elapsed = Date.now() - (this._lastInputHashAt ?? Number.NaN);
+      // `elapsed >= 0` guards against wall-clock steps backward (NTP sync or
+      // manual adjustment): a negative duration must never extend the burst
+      // window, and NaN (no committed timestamp yet) fails both comparisons,
+      // so a first-ever input can never be treated as a duplicate.
+      const burstDuplicate =
+        hash === this._lastInputHash &&
+        elapsed >= 0 &&
+        elapsed < Agent.INPUT_DEDUP_WINDOW_MS;
+      if (burstDuplicate) {
+        // Logger.debug is a required method (types/logger.ts); no fallback
+        // chain needed — this only has to be observable at debug level.
+        this._logger.debug(
+          'Duplicate input suppressed: identical text resubmitted inside the dedup burst window.',
+        );
         return {
           status: 'done' as const,
           iterations: 0,
@@ -296,6 +328,7 @@ export class Agent {
       // can detect a changed input. If anything above threw, the hash stays
       // unchanged so the next run retries the refresh instead of skipping it.
       this._lastInputHash = newInputHash;
+      this._lastInputHashAt = Date.now();
 
       this.events.emit('agent.run.started', {
         sessionId,
@@ -311,6 +344,14 @@ export class Agent {
         controller,
         autonomousContinue,
       );
+      // A run that RESOLVES as failed/aborted — the loop can absorb the error
+      // and return a status instead of throwing — must release the dedup hash
+      // exactly like the catch path below. Retyping the same instruction after
+      // a failure or a stop is a retry, not an accidental duplicate.
+      if (result.status === 'failed' || result.status === 'aborted') {
+        this._lastInputHash = undefined;
+        this._lastInputHashAt = undefined;
+      }
       span?.setAttribute('agent.status', result.status);
       span?.setAttribute('agent.iterations', result.iterations);
       await this.extensions.runAfterRun(this.ctx, result);
@@ -324,6 +365,12 @@ export class Agent {
       });
       return result;
     } catch (err) {
+      // A run that died before completing must never leave its input hash
+      // committed: retyping the same instruction after an error (or a stop)
+      // is a retry, not an accidental duplicate. Without this reset the
+      // committed hash silently swallowed every identical resubmission.
+      this._lastInputHash = undefined;
+      this._lastInputHashAt = undefined;
       const wse = err instanceof AgentError ? err : toWrongStackError(err);
       const safeError = err instanceof Error ? new Error(err.message) : new Error(String(err));
       this.events.emit('error', {
