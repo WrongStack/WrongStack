@@ -25,7 +25,7 @@
   - *How:* `codebase-skeleton`
   - *How:* `ChatView/index.tsx`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=37; wins=37 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=38; wins=38 -->
 - **Treat files under `packages/webui/tests/**` as vitest entry points: confirm discovery and environment by reading the package's `vitest.config.ts` inline `projects` blocks (include globs + `globals: true`), never by searching for code importers. When a webui test uses hooks like `beforeEach` without importing them from `vitest`, check `test.globals: true` before flagging it as a bug — but note bare-hook usage only works inside projects with globals enabled, not root-config suites.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/tests/**`

@@ -256,30 +256,22 @@ describe('persistence primitive edge branches', () => {
   });
 
   it('refreshes the heartbeat and tolerates heartbeat cleanup failures', async () => {
-    vi.useFakeTimers();
     doubles.fs.utimes.mockRejectedValue(errorWithCode('EIO'));
     doubles.lockHandle.close.mockRejectedValue(errorWithCode('EIO'));
     doubles.fs.unlink.mockRejectedValue(errorWithCode('EPERM'));
     const primitives = createPersistencePrimitives();
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = () => resolve();
-    });
-    // Deferred heartbeat: with staleMs=2000, refreshMs=1000 → the heartbeat
-    // starts at 1001ms and first refreshes at ~2001ms. The critical section
-    // must stay open past that window so a live holder refreshes.
-    const pending = primitives.withFileLock(
-      '/tmp/state.json',
-      async () => {
-        await gate;
-        return 'done';
-      },
-      { staleMs: 2_000 },
-    );
-    await vi.advanceTimersByTimeAsync(2_050);
+
+    await expect(
+      primitives.withFileLock(
+        '/tmp/state.json',
+        async () => {
+          await new Promise((resolve) => setTimeout(resolve, 70));
+          return 'done';
+        },
+        { staleMs: 100 },
+      ),
+    ).resolves.toBe('done');
     expect(doubles.fs.utimes).toHaveBeenCalled();
-    release();
-    await expect(pending).resolves.toBe('done');
   });
 
   // Regression: both of these used to `continue` back to `fs.open` without
@@ -474,51 +466,6 @@ describe('persistence primitive edge branches', () => {
         return 42;
       }),
     ).resolves.toBe(42);
-  });
-});
-
-describe('withFileLock deferred heartbeat (CPU fix)', () => {
-  it('does not touch utimes for a short critical section', async () => {
-    usePlatform('linux');
-    vi.useFakeTimers();
-    const primitives = createPersistencePrimitives();
-    await expect(
-      primitives.withFileLock('/tmp/state.json', async () => 'fast'),
-    ).resolves.toBe('fast');
-    // Fast fn() resolves before the deferred-start window (refreshMs+1) fires,
-    // and the finally clears firstHeartbeat — so zero heartbeat syscalls.
-    await vi.advanceTimersByTimeAsync(10_000);
-    expect(doubles.fs.utimes).not.toHaveBeenCalled();
-  });
-
-  it('starts the heartbeat and refreshes the lock mtime for a long critical section', async () => {
-    usePlatform('linux');
-    vi.useFakeTimers();
-    const primitives = createPersistencePrimitives();
-    let release!: () => void;
-    const gate = new Promise<void>((resolve) => {
-      release = () => resolve();
-    });
-    // Explicit small staleMs keeps the heartbeat schedule fast: refreshMs =
-    // max(1000, staleMs/2) = 1000, deferred start at 1001ms, first utimes at
-    // ~2001ms, then every 1000ms.
-    const pending = primitives.withFileLock(
-      '/tmp/state.json',
-      async () => {
-        await gate;
-        return 'slow';
-      },
-      { staleMs: 2_000 },
-    );
-    // Advance past the deferred-start (refreshMs+1) and one refresh tick —
-    // a live holder must refresh so the stale-break never fires on it.
-    await vi.advanceTimersByTimeAsync(2_050);
-    expect(doubles.fs.utimes).toHaveBeenCalled();
-    const callsAtFirstHeartbeat = doubles.fs.utimes.mock.calls.length;
-    await vi.advanceTimersByTimeAsync(1_000);
-    expect(doubles.fs.utimes.mock.calls.length).toBeGreaterThan(callsAtFirstHeartbeat);
-    release();
-    await expect(pending).resolves.toBe('slow');
   });
 });
 

@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=8; wins=8 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=9; wins=9 -->
 - **Run WrongStack's storage slice without a build step via `npx vitest run packages/core/tests/storage` from repo root — the root `vitest.config.ts` aliases `@wrongstack/core` (and extracted packages) to source, so stale dist never affects these tests; note the package script `test` covers ALL of `packages/core/tests`, which is broader than storage.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `npx vitest run packages/core/tests/storage`
@@ -26,7 +26,7 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=5; wins=5 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=6; wins=6 -->
 - **When `submit_result` returns the generic "required / confidence must be 0..1" error despite all fields present and in range, retry at most once with a compacted payload — if it still refuses, the channel-side validator is rejecting all payloads; deliver the report in the final text response instead of looping.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`

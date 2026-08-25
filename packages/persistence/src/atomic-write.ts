@@ -309,32 +309,22 @@ export function createPersistencePrimitives(
     // would put two holders in the section and drop writes. A live holder now
     // stays fresh, so the stale-break path only fires for a crashed holder.
     // Refresh twice per stale window so a live holder never crosses staleMs.
-    // The floor keeps `utimes` from ever firing faster than a sane cadence
-    // even when a caller passes a pathologically tiny staleMs (the old
-    // `Math.max(50, …)` floor allowed up to 20 syscalls/sec while holding).
-    const refreshMs = Math.max(1_000, Math.floor(staleMs / 2));
-    // Heartbeat is deferred, not started eagerly: a fast critical section
-    // (the common case) pays zero `utimes`. It only starts firing once fn()
-    // has actually run past the refresh period, so short locks stay silent.
-    let heartbeat: ReturnType<typeof setInterval> | null = null;
-    const startHeartbeat = (): void => {
-      if (heartbeat) return;
-      heartbeat = setInterval(() => {
-        const now = new Date();
-        void fs.utimes(lockPath, now, now).catch(() => undefined);
-      }, refreshMs);
-      heartbeat.unref?.();
-    };
-    const firstHeartbeat = setTimeout(() => {
-      if (Date.now() - started >= refreshMs) startHeartbeat();
-    }, refreshMs + 1);
-    firstHeartbeat.unref?.();
+    // The small floor only guards against a pathologically tiny staleMs.
+    // (An eager unref'd interval is deliberate: it fires at staleMs/2 and is
+    // cleared before its first tick for any short section, so the common path
+    // pays no syscalls. Deferring or raising the floor beyond staleMs/2 would
+    // let a long holder go stale before the first refresh and be stolen.)
+    const refreshMs = Math.max(50, Math.floor(staleMs / 2));
+    const heartbeat = setInterval(() => {
+      const now = new Date();
+      void fs.utimes(lockPath, now, now).catch(() => undefined);
+    }, refreshMs);
+    heartbeat.unref?.();
 
     try {
       return await fn();
     } finally {
-      clearTimeout(firstHeartbeat);
-      if (heartbeat) clearInterval(heartbeat);
+      clearInterval(heartbeat);
       await handle?.close().catch(() => undefined);
       await fs.unlink(lockPath).catch(() => undefined);
     }
