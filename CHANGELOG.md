@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.313.1] — 2026-08-25
+
+### Added
+
+- **The TUI now ships with 50 compile-checked theme presets.** Fourteen new palettes — Matrix Green, Amber CRT, Cyber Noir, Cobalt Monochrome, Blood Moon, Cobalt2, Shades of Purple, Flexoki Dark, LaserWave, Andromeda, GitHub Dark Dimmed, Hyper Snazzy, Tokyo Night Moon, and Gruvbox Dark Hard — are available through the same persisted `/theme` picker and boot-time adapter as the existing themes. (`a0cf228d1`)
+- **`/lite`, `/full`, and `/sidebar` provide persistent TUI layout control.** `/lite` switches to a minimum statusline and full-width history, `/full` restores the detailed rail and sidebar, and `/sidebar` can toggle, show, hide, or report the right rail independently. Changes apply immediately and persist through the normal settings path. (`a0cf228d1`)
+- **Model switches are synchronized across browser surfaces.** The server protocol now broadcasts `provider.model_switched`; WebUI updates its active provider/model state and conversation, while SimpleUI exposes the switch in its activity state. (`a0cf228d1`)
+
+### Changed
+
+- **Provider retries now give transient failures a realistic recovery window.** The fallback schedule moves from 1s → 2s → 4s to 4s → 8s → 16s with bounded jitter, while an explicit provider `Retry-After` remains authoritative. (`a0cf228d1`)
+- **Core and Tools builds share cross-subpath runtime identity.** esbuild splitting keeps error classes and process-wide registries from being duplicated into every published subpath bundle, so built installs preserve `ProviderError` classification, fallback decisions, and singleton ownership just like source execution. Duck-typed error guards remain as a defensive compatibility boundary. (`a0cf228d1`)
+- **All public release surfaces align to `0.313.1`.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD metadata, and both changelog surfaces now describe the same release.
+
+### Fixed
+
+- **The provider waiting room is enforced at the wire boundary.** Every leader and subagent call now skips quarantined provider/model pairs before opening a socket, records terminal failures and successes exactly once, preserves provider error metadata across bundle boundaries, and rotates fallback chains for network-shaped failures instead of repeatedly selecting a known-bad route. (`a0cf228d1`)
+- **WrongProxy connection failures fail open without racing the retry.** A refused proxy connection disables the live proxy route, waits for the bounded provider rebuild chain to settle, and then retries through the direct provider endpoint without requiring a restart. (`a0cf228d1`)
+- **Identical user input is deduplicated only as a short accidental burst.** The agent suppresses byte-identical submissions for 1.5 seconds to catch terminal re-entry and client resubmit loops, but deliberate repeats after the window — and retries after failed, aborted, or thrown runs — execute normally. (`d32220358`, `7c2e966c0`)
+
 ## [0.313.0] — 2026-08-25
 
 Consolidates the intermediate `0.311.0` and `0.312.0` version bumps into one

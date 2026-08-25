@@ -341,9 +341,25 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.313.0',
+    version: '0.313.1',
     date: '2026-08-25',
     latest: true,
+    tagline: 'Reliable failover, persistent TUI layouts & 50 themes',
+    highlights: [
+      'The provider waiting room now gates every leader and subagent call before the wire, records outcomes exactly once, and preserves fallback-worthy ProviderError metadata across built-package boundaries',
+      'WrongProxy connection failures fail open, wait for the bounded live-provider rebuild to settle, and retry against the direct provider route without a restart',
+      'Transient provider retries use a 4s → 8s → 16s exponential schedule with bounded jitter while explicit Retry-After hints remain authoritative',
+      'Fourteen new palettes bring the compile-checked, persisted TUI theme catalog to 50 presets',
+      '/lite and /full apply inverse persistent layout presets; /sidebar independently toggles, shows, hides, or reports the right rail',
+      'Identical input is deduplicated only inside a 1.5-second accidental burst, so deliberate repeats and retries after failed or aborted runs execute normally',
+      'WebUI and SimpleUI consume provider.model_switched to keep active provider/model state, conversation feedback, and activity synchronized',
+      'Core and Tools package splitting preserves shared class identity and process-wide singleton ownership across published subpath entries',
+      'All root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces align to 0.313.1',
+    ],
+  },
+  {
+    version: '0.313.0',
+    date: '2026-08-25',
     consolidated: true,
     tagline: 'WrongTrace guardrails, live proxy routing & native TUI selection',
     highlights: [
