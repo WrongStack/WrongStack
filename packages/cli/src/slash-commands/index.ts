@@ -82,6 +82,7 @@ import { buildReviewCommand } from './review.js';
 import { buildSecurityCommand } from './security.js';
 import { buildSettingsCommand } from './settings.js';
 import { buildShadowCommand } from './shadow.js';
+import { buildSidebarCommand } from './sidebar.js';
 import { buildDirectorCommand, buildSpawnCommand } from './spawn-agents.js';
 import { buildStatuslineCommand } from './statusline.js';
 import { buildSupervisorCommand } from './supervisor.js';
@@ -163,6 +164,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
 
     buildWorktreeCommand(opts),
     buildSettingsCommand(opts),
+    buildSidebarCommand(opts),
     buildHqCommand(opts),
     buildTelegramSetupCommand(opts),
     buildTelegramSettingsCommand(opts),

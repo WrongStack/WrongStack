@@ -113,6 +113,29 @@ export function effectiveAgentSwarmPanelMode(
 }
 
 /**
+ * Pure dual-source read for the right-sidebar master switch: the picker
+ * draft wins while the settings picker is open, the persisted value
+ * (defaulting to true) otherwise. Boolean mirror of {@link
+ * resolveAgentSwarmPanelVisibility}.
+ */
+export function resolveShowSidebarVisibility(
+  settingsOpen: boolean,
+  pickerValue: boolean,
+  persistedValue: boolean | undefined,
+): boolean {
+  return settingsOpen ? pickerValue : (persistedValue ?? true);
+}
+
+/** {@link resolveShowSidebarVisibility} bound to app state + live settings. */
+export function effectiveShowSidebar(state: State, liveSettings: Settings | undefined): boolean {
+  return resolveShowSidebarVisibility(
+    state.settingsPicker.open,
+    state.settingsPicker.showSidebar,
+    liveSettings?.showSidebar,
+  );
+}
+
+/**
  * Open flags for each routable panel — which twins are candidates for a
  * sidebar slot. Shared by the dispatcher and the renderer so the
  * scroll-clamp reservation in `resolveSidebarLayout` and the actual twin
@@ -165,6 +188,7 @@ export function resolveAppSidebarLayout(
     mailboxPanelOpen,
     buildSidebarOpenFlags(state, liveSettings),
     effectiveAgentSwarmPanelMode(state, liveSettings) === 'sidebar',
+    effectiveShowSidebar(state, liveSettings),
   );
 }
 
@@ -230,6 +254,15 @@ function resolveSidebarLayout(
    * sites stay correct.
    */
   legacySwarmOnSidebar?: boolean | undefined,
+  /**
+   * Master visibility switch for the right sidebar, resolved dual-source
+   * by {@link resolveAppSidebarLayout} (picker draft while the settings
+   * picker is open, persisted `liveSettings.showSidebar` otherwise;
+   * default true). When false the sidebar width collapses to 0 so chat
+   * history takes the full terminal width, regardless of routed twins
+   * or the swarm mode.
+   */
+  showSidebar?: boolean | undefined,
 ): SidebarLayoutState {
   const panelPositions: PanelPositionMap = coercePanelPositionMap(panelPositionsInput);
   const routedToSidebar = (id: PanelId): boolean => panelPositions[id] === 'sidebar';
@@ -274,7 +307,12 @@ function resolveSidebarLayout(
     ((state.goalRun?.monitorOpen ?? false) && !routedToSidebar('coordinator')) ||
     (state.sddBoard?.monitorOpen ?? false);
 
-  const sidebarWidth = overlayOpen ? 0 : computeSidebarWidth(termCols);
+  // Dual-source master switch (see the showSidebar param doc): collapsed
+  // BEFORE computeSidebarWidth so a hidden sidebar can never reserve
+  // columns. `undefined` defaults to visible — old callers that never
+  // pass the flag keep the pre-gating behavior.
+  const sidebarWidth =
+    overlayOpen || showSidebar === false ? 0 : computeSidebarWidth(termCols);
   // The swarm panel is on the sidebar iff EITHER:
   //   - `panelPositions.fleet === 'sidebar'` (new per-panel position map,
   //     fed by both the picker draft and persisted config). This field
@@ -290,7 +328,8 @@ function resolveSidebarLayout(
   // swarm mode (no recent picker open) gets the full mission-queue
   // scroll budget.
   const effectiveSwarmOnSidebar =
-    panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false);
+    showSidebar !== false &&
+    (panelPositions.fleet === 'sidebar' || (legacySwarmOnSidebar ?? false));
 
   // Sum the conservative natural-height budget for each routed twin mounted
   // above `SidebarContent`. Worklist twins can wrap at the 16-column floor, so

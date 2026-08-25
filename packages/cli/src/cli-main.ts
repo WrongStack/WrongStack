@@ -341,6 +341,14 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     logger,
     teardownHandlers,
   });
+  // One waiting room per process. The runtime container binds a bare default
+  // so a standalone webui-server boot has something to write into; the CLI's
+  // instance is the real one — it carries the event bus (hence
+  // `provider.status_changed` + disk persistence) and the entries restored
+  // from the previous run. Without this override the container hands the
+  // plugin one-shot orchestrator and `api.llm` a SECOND, empty tracker, so a
+  // model quarantined by the agent loop stayed callable from those paths.
+  container.override(TOKENS.ProviderModelStatusTracker, () => statusTracker);
 
   // Seed the WrongProxy / WrongTrace runtime singleton from persisted
   // config BEFORE the first provider is built. Without this, the WS prefs

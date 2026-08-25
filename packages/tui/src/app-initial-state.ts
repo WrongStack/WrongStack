@@ -127,6 +127,8 @@ export interface CreateInitialStateOptions {
   restoredEntries: State['entries'];
   /** Checkpoints rebuilt from a resumed session's events. Empty for a fresh session. */
   restoredCheckpoints?: State['checkpoints'] | undefined;
+  /** Initial context-window snapshot for resumed sessions. */
+  initialContextSnapshot?: { tokens: number; maxContext: number } | undefined;
   enhanceEnabled: boolean;
   initialAgentsMonitorOpen?: boolean | undefined;
   /** Boot-time fleet-chat verbosity (from persisted config). Default 'off'. */
@@ -295,6 +297,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       breakerAutoKillResetMs: 60_000,
       showModelReasoning: true,
       showAgentSwarmPanel: 'bottom',
+      showSidebar: true,
       panelPositions: DEFAULT_PANEL_POSITIONS,
       // Default on: compact one-line chip (see SageMemoryBlock). Full bordered
       // panel remains available when operators expand inject visibility later.
@@ -385,6 +388,15 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       startedAt: Date.now(),
       lastEventAt: Date.now(),
       iterating: false,
+      ...(options.initialContextSnapshot && options.initialContextSnapshot.tokens > 0
+        ? {
+            ctxTokens: options.initialContextSnapshot.tokens,
+            ctxMaxTokens:
+              options.initialContextSnapshot.maxContext > 0
+                ? options.initialContextSnapshot.maxContext
+                : undefined,
+          }
+        : {}),
     },
     fleetCost: 0,
     fleetTokens: { input: 0, output: 0 },

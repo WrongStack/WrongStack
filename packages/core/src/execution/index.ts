@@ -187,7 +187,12 @@ export {
   shouldEnhance,
 } from './prompt-enhancer.js';
 export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';
-export { DefaultRetryPolicy, MODEL_RETRIES } from './retry-policy.js';
+export {
+  DefaultRetryPolicy,
+  MODEL_RETRIES,
+  RETRY_BASE_DELAY_MS,
+  RETRY_JITTER_MS,
+} from './retry-policy.js';
 export { SelectiveCompactor, type SelectiveCompactorOptions } from './selective-compactor.js';
 export { DefaultSkillLoader, type SkillLoaderOptions } from './skill-loader.js';
 export {

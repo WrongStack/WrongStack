@@ -244,6 +244,11 @@ export function createAgentLoopHandler(
     const diRunner = a.container.has(TOKENS.ProviderRunner)
       ? a.container.resolve(TOKENS.ProviderRunner)
       : null;
+    // The waiting room, threaded down to the wire funnel. Selection-time
+    // filters (fallback chain, model matrix, spawn) all consult the same
+    // tracker, but only this hand-off stops a request that was already in
+    // flight through a path with no fallback extension attached.
+    const statusTracker = a.container.safeResolve(TOKENS.ProviderModelStatusTracker);
     const baseRunner = diRunner
       ? (ctx: typeof a.ctx, req: Request) =>
           diRunner.run({
@@ -255,6 +260,7 @@ export function createAgentLoopHandler(
             retry: a.retry,
             logger: a.logger,
             tracer: a.tracer,
+            ...(statusTracker ? { statusTracker } : {}),
           })
       : async (ctx: typeof a.ctx, req: Request) =>
           runProviderWithRetry({
@@ -266,6 +272,7 @@ export function createAgentLoopHandler(
             retry: a.retry,
             logger: a.logger,
             tracer: a.tracer,
+            ...(statusTracker ? { statusTracker } : {}),
           });
 
     const customRunner = a.extensions.wrapProviderRunner(baseRunner);
@@ -283,7 +290,6 @@ export function createAgentLoopHandler(
 
         try {
           await a.ctx.session.writeInFlightMarker(`iteration ${i} / max ${a.maxIterations}`);
-          await a.ctx.session.flush();
         } catch (err) {
           (a.logger.debug ?? a.logger.warn)?.(
             `in-flight marker write failed: ${toErrorMessage(err)}`,

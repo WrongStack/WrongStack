@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
+import {
+  DefaultRetryPolicy,
+  RETRY_BASE_DELAY_MS,
+  RETRY_JITTER_MS,
+} from '../../src/execution/retry-policy.js';
 import { ProviderError } from '../../src/types/provider.js';
 
 describe('DefaultRetryPolicy — extra', () => {
@@ -55,22 +59,22 @@ describe('DefaultRetryPolicy — extra', () => {
     it('grows exponentially with attempt index (capped at 30s)', () => {
       for (let i = 0; i < 10; i++) {
         const d = p.delayMs(i);
-        // Exponential backoff: 1000 * 2^i + jitter, capped at 30_000
-        const expectedMin = 1000 * 2 ** i;
-        const _expectedMax = Math.min(30000, expectedMin + 999);
-        if (expectedMin <= 30000) {
+        // Exponential backoff: RETRY_BASE_DELAY_MS * 2^i + jitter, capped
+        // at 30_000. The cap bites from i=3 on (4s base → 32s).
+        const expectedMin = RETRY_BASE_DELAY_MS * 2 ** i;
+        if (expectedMin <= 30_000) {
           expect(d).toBeGreaterThanOrEqual(expectedMin);
-          expect(d).toBeLessThanOrEqual(expectedMin + 999);
+          expect(d).toBeLessThanOrEqual(Math.min(30_000, expectedMin + RETRY_JITTER_MS - 1));
         } else {
           // Capped at 30s when exponential exceeds cap
-          expect(d).toBeLessThanOrEqual(30000);
+          expect(d).toBe(30_000);
         }
       }
     });
 
     it('caps jitter at expected value for high attempt counts', () => {
       for (let i = 0; i < 100; i++) {
-        const d = p.delayMs(10); // 1000 * 2^10 = 1,024,000 but capped at 30s
+        const d = p.delayMs(10); // 4000 * 2^10 = 4,096,000 but capped at 30s
         expect(d).toBeLessThanOrEqual(30_000);
         expect(d).toBeGreaterThan(0);
       }

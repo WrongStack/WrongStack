@@ -219,8 +219,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 61 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(61);
+    it('SETTINGS_FIELD_LABELS has 62 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(62);
     });
 
     it('trims whitespace from input', () => {
@@ -501,10 +501,10 @@ describe('formatAllSettingsSummary', () => {
     }
   });
 
-  it('renders exactly 61 value lines (one per field)', () => {
+  it('renders exactly 62 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(61);
+    expect(fieldLines).toHaveLength(62);
   });
 
   it('includes the thinking word value', () => {
@@ -586,8 +586,8 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 49 keys (47 legacy + panelPositions + wrongProxy)', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(49);
+  it('SETTINGS_DEFAULTS has all 50 keys (48 legacy + panelPositions + wrongProxy + showSidebar)', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(50);
   });
 
   it('every field 0-57 can be reset', () => {

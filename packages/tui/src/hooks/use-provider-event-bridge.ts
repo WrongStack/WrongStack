@@ -280,6 +280,18 @@ export function useProviderEventBridge({
         },
       });
     });
+    // Explicit model switch (e.g. /model or settings)
+    const offModelSwitched = events.on('provider.model_switched', (e) => {
+      const from = e.from ? `${e.from.providerId}/${e.from.model}` : '';
+      const to = `${e.to.providerId}/${e.to.model}`;
+      dispatch({
+        type: 'addEntry',
+        entry: {
+          kind: 'info',
+          text: from ? `🔄 Model changed: ${from} → ${to}` : `🔄 Model set to ${to}`,
+        },
+      });
+    });
     // Fallback gate — BEFORE the chain iterates, the gate emits
     // provider.fallback_pending so the UI can show a modal with a
     // countdown and manual model selection. The overlay dispatches
@@ -600,6 +612,7 @@ export function useProviderEventBridge({
       offRetry();
       offProvErr();
       offFallback();
+      offModelSwitched();
       offFallbackPending();
       offProvResp();
       offConfirmNeeded();

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T07:05:01.876Z
+**Generated:** 2026-08-25T10:48:42.849Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3367 |
-| Production source lines | 798011 |
-| Test files | 2897 |
+| Production source files | 3368 |
+| Production source lines | 799285 |
+| Test files | 2902 |
 | Workspace dependency edges | 125 |
-| Relative module edges | 10376 |
+| Relative module edges | 10383 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,7 +21,19 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/cli/src/cli-main.ts: hotspot grew from 809 to 817 lines; review and update the ratchet in the same change
+- packages/core/src/coordination/provider-status-tracker.ts: hotspot grew from 964 to 984 lines; review and update the ratchet in the same change
+- packages/core/src/core/fallback-model.ts: hotspot grew from 844 to 874 lines; review and update the ratchet in the same change
+- packages/core/src/core/fallback-model.ts: relative import fan-out increased from 14 to 15; review and update the ratchet in the same change
+- packages/simpleui/src/lib/message-handler.ts: hotspot grew from 810 to 825 lines; review and update the ratchet in the same change
+- packages/tui/src/app-state.ts: hotspot grew from 900 to 902 lines; review and update the ratchet in the same change
+- packages/tui/src/components/settings-picker-model.ts: hotspot grew from 1079 to 1089 lines; review and update the ratchet in the same change
+- packages/tui/src/components/settings-picker.tsx: hotspot grew from 803 to 811 lines; review and update the ratchet in the same change
+- packages/tui/src/hooks/use-tui-slash-commands.ts: new 838-line hotspot is not in architecture/hotspots.json
+- packages/tui/src/reducers/settings-values.ts: hotspot grew from 825 to 831 lines; review and update the ratchet in the same change
+- packages/tui/src/theme-presets.ts: hotspot grew from 1019 to 1424 lines; review and update the ratchet in the same change
+- packages/tui/src/app-ui-state.ts: "effectiveShowSidebar" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- packages/tui/src/app-ui-state.ts: "resolveShowSidebarVisibility" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -29,9 +41,9 @@ PASS — no blocking architecture-health errors.
 |---|---:|---:|---|
 | @wrongstack/acp | 42 | 35 | @wrongstack/core |
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
-| @wrongstack/cli | 471 | 435 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
+| @wrongstack/cli | 472 | 436 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 765 | 645 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 765 | 648 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | @wrongstack/persistence |
 | @wrongstack/kanban | 86 | 63 | @wrongstack/persistence, @wrongstack/primitives |
@@ -55,7 +67,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 29 | @wrongstack/core |
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 334 | 322 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 334 | 323 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 464 | 339 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -86,9 +98,10 @@ None.
 
 | Lines | File |
 |---:|---|
+| 1424 | `packages/tui/src/theme-presets.ts` |
 | 1092 | `packages/tui/src/components/sidebar-content.tsx` |
+| 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
-| 1079 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1068 | `packages/core/src/storage/session-store.ts` |
 | 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
@@ -100,7 +113,6 @@ None.
 | 1023 | `packages/tui/src/components/context-panel.tsx` |
 | 1022 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
-| 1019 | `packages/tui/src/theme-presets.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1016 | `packages/core/src/core/context.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
@@ -119,6 +131,7 @@ None.
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 986 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
+| 984 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
 | 982 | `packages/webui-server/src/server/kanban-routes.ts` |
@@ -129,7 +142,6 @@ None.
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 968 | `packages/kanban/src/types.ts` |
 | 965 | `packages/webui/src/components/ChatInput.tsx` |
-| 964 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 962 | `packages/tui/src/app-key-handler.ts` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
@@ -139,7 +151,7 @@ None.
 
 ## Exports only tests reference
 
-- 827 runtime exports are referenced by tests and by no other production file.
+- 829 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

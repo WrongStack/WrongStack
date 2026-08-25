@@ -152,6 +152,7 @@ export async function setupSession(params: {
   let restoredEvents: SessionResult['restoredEvents'] = [];
   let resumedModel: string | undefined;
   let resumedProvider: string | undefined;
+  let resumedUsage: import('@wrongstack/core/types').SessionData['usage'] | undefined;
   if (resumeId) {
     let claimHandle: SessionClaimHandle | undefined;
     try {
@@ -175,6 +176,10 @@ export async function setupSession(params: {
       // once the provider runtime + switch callback exist).
       resumedModel = resumed.data.metadata.model;
       resumedProvider = resumed.data.metadata.provider;
+      resumedUsage = resumed.data.usage;
+      if (resumed.data.usage) {
+        tokenCounter.account(resumed.data.usage, resumedModel, resumedProvider);
+      }
       renderer.writeInfo(
         `Resumed session ${resumed.data.metadata.id} — ${restoredMessages.length} messages, ${restoredToolCalls.length} tool executions, ${resumed.data.usage.input + resumed.data.usage.output} tokens used previously.`,
       );
@@ -223,6 +228,9 @@ export async function setupSession(params: {
     agentName: 'Leader Agent',
     traceId,
   });
+  if (typeof resumedUsage?.input === 'number' && resumedUsage.input > 0) {
+    context.lastRequestTokens = resumedUsage.input;
+  }
   // Inject package-author-tracker options so the install tool can record authorship.
   context.meta['packageTrackerOpts'] = {
     storageDir: wpaths.projectDir,

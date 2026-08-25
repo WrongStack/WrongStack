@@ -127,6 +127,37 @@ export class WrongStackError extends Error {
   }
 
   /**
+   * Duck-type guard mirroring {@link ProviderError.isProviderError}.
+   *
+   * `instanceof WrongStackError` is NOT reliable inside this monorepo: the
+   * package builder emits every `@wrongstack/core` subpath (`core`, `types`,
+   * `coordination`, `execution`, `extension`, …) as an independent esbuild
+   * bundle with `splitting: false`, so each entry inlines its OWN copy of this
+   * class. An error constructed by `@wrongstack/providers` (which imports from
+   * `@wrongstack/core/types`) therefore fails `instanceof` against the copy
+   * baked into `@wrongstack/core/core` — which is where the agent loop and the
+   * provider runner live.
+   *
+   * That mismatch silently downgraded every provider failure to a generic
+   * `AgentError` in {@link toWrongStackError}, stripping `kind` / `status` /
+   * `body` and blinding the fallback engine and the provider waiting room.
+   * Use this guard anywhere the error may have crossed a subpath boundary.
+   */
+  static isWrongStackError(err: unknown): err is WrongStackError {
+    if (err instanceof WrongStackError) return true;
+    if (!err || typeof err !== 'object') return false;
+    const e = err as Record<string, unknown>;
+    return (
+      typeof e['name'] === 'string' &&
+      e['name'].endsWith('Error') &&
+      typeof e['code'] === 'string' &&
+      typeof e['subsystem'] === 'string' &&
+      typeof e['severity'] === 'string' &&
+      typeof e['describe'] === 'function'
+    );
+  }
+
+  /**
    * Render a one-line user-facing description.
    * Subclasses should override for domain-specific formatting.
    */
@@ -274,7 +305,13 @@ export function toWrongStackError(
   err: unknown,
   code: Extract<ErrorCode, 'AGENT_RUN_FAILED' | 'AGENT_ABORTED' | 'UNKNOWN'> = ERROR_CODES.AGENT_RUN_FAILED,
 ): WrongStackError {
-  if (err instanceof WrongStackError) return err;
+  // Duck-typed, NOT `instanceof`: a ProviderError thrown by
+  // `@wrongstack/providers` extends the `@wrongstack/core/types` copy of
+  // WrongStackError, which is a different class identity from the copy bundled
+  // into `@wrongstack/core/core`. Wrapping it would strip `kind`/`status`/
+  // `body` and make the error invisible to the fallback engine and the
+  // provider waiting room. See {@link WrongStackError.isWrongStackError}.
+  if (WrongStackError.isWrongStackError(err)) return err;
   const message = toErrorMessage(err);
   return new AgentError({
     message,

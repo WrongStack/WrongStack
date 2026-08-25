@@ -91,6 +91,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           breakerAutoKillResetMs: action.breakerAutoKillResetMs,
           showModelReasoning: action.showModelReasoning,
           showAgentSwarmPanel: action.showAgentSwarmPanel,
+          showSidebar: action.showSidebar ?? true,
           panelPositions: coercePanelPositionMap(action.panelPositions),
           showSageMemoryInject: action.showSageMemoryInject,
           sageMemoryInjectThreshold: action.sageMemoryInjectThreshold,

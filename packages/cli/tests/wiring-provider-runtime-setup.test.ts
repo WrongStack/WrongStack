@@ -106,12 +106,20 @@ function makeDeps(overrides: Partial<ProviderRuntimeDeps> = {}) {
     logger: { warn: vi.fn(), info: vi.fn() },
     teardownHandlers: [] as Array<() => void>,
     context,
-    events: {} as never,
+    // switchProviderAndModel emits 'provider.model_switched' after a
+    // successful switch; a bare object makes that call throw with
+    // "events?.emit is not a function".
+    events: { emit: vi.fn() } as never,
     resolveProviderCfgRuntime: vi.fn((c: Config, providerId: string) => ({
       cfg: { type: providerId, apiKey: c.apiKey } as ProviderConfig,
     })),
     buildProviderForIdRuntime: vi.fn((_opts: unknown, providerId: string) => fakeProvider(providerId)),
-    statusTracker: {} as never,
+    statusTracker: {
+      // switchProviderAndModel unblocks the (provider, model) pair before
+      // rebuilding the provider; a bare object makes that call throw and
+      // fail every switch test with "statusTracker?.unblock is not a function".
+      unblock: vi.fn(),
+    } as never,
     ...overrides,
   } as ProviderRuntimeDeps;
 }
@@ -200,6 +208,15 @@ describe('setupProviderRuntime — switchProviderAndModel', () => {
       apiKey: TOKEN_TOP,
     });
     expect(deps.refreshActiveReasoningConfig).toHaveBeenCalledWith('openai', 'gpt-x');
+    // The switch must unblock the (provider, model) pair and emit the
+    // model_switched event — pinned so a future refactor that drops
+    // either silently fails here, not in production. (sessionId is
+    // undefined in this fixture's context; anything() rejects undefined.)
+    expect(deps.statusTracker?.unblock).toHaveBeenCalledWith('openai', 'gpt-x');
+    expect(deps.events?.emit).toHaveBeenCalledWith(
+      'provider.model_switched',
+      expect.objectContaining({ from: expect.anything() }),
+    );
   });
 
   it('returns the error message when building the provider fails', async () => {

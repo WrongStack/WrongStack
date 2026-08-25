@@ -130,6 +130,8 @@ export interface SettingsPickerProps {
    * this toggle controls only the sidebar mission queue. Default: 'bottom'.
    */
   showAgentSwarmPanel: import('../app-settings-type.js').AgentSwarmPanelMode;
+  /** Right sidebar master toggle. */
+  showSidebar?: boolean | undefined;
   /** Show SAGE Memory Inject blocks in tool results. Default: false. */
   showSageMemoryInject: boolean;
   /** Minimum relation strength for SAGE memory injection. Default: 0.85. */
@@ -249,6 +251,7 @@ export function SettingsPicker({
   breakerAutoKillResetMs,
   showModelReasoning,
   showAgentSwarmPanel,
+  showSidebar,
   showSageMemoryInject,
   sageMemoryInjectThreshold,
   nextStepsTool,
@@ -556,6 +559,11 @@ export function SettingsPicker({
       detail: wrongProxyUrlEditing
         ? 'type a URL · Enter ✓ · Esc ✗ (http://host:port or https://host:port)'
         : 'Where the local proxy daemon listens. Probed at <url>/api/health every 30s.',
+    },
+    {
+      label: 'Right sidebar',
+      value: boolVal(showSidebar ?? true),
+      detail: 'Show or hide the right sidebar in the TUI (chat history takes full width when off)',
     },
   ];
 

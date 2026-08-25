@@ -184,6 +184,52 @@ export function shouldRewriteFor(providerId: string): boolean {
 }
 
 /**
+ * Automatically deactivate the proxy if a connection failure occurs while
+ * the proxy was marked active. Triggers instant-apply provider rebuilds to
+ * fallback immediately to direct provider communication without failing the turn.
+ */
+export function deactivateProxyOnConnectionFailure(err: unknown): boolean {
+  const cfg = currentConfig;
+  if (!cfg.enabled || !cfg.active) return false;
+
+  const msg = (
+    err instanceof Error
+      ? `${err.name} ${err.message} ${(err as { code?: string }).code ?? ''}`
+      : String(err)
+  ).toLowerCase();
+
+  let isProxyFail = false;
+  if (cfg.url) {
+    try {
+      const parsed = new URL(cfg.url);
+      if (msg.includes(parsed.host.toLowerCase())) isProxyFail = true;
+    } catch {}
+  }
+
+  if (
+    !isProxyFail &&
+    (msg.includes('econnrefused') ||
+      msg.includes('ehostunreach') ||
+      msg.includes('enetunreach') ||
+      msg.includes('fetch failed') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('connect error') ||
+      msg.includes('proxy error') ||
+      msg.includes('502') ||
+      msg.includes('503') ||
+      msg.includes('504'))
+  ) {
+    isProxyFail = true;
+  }
+
+  if (isProxyFail) {
+    applyProxyConfig({ active: false });
+    return true;
+  }
+  return false;
+}
+
+/**
  * Reset to defaults. Intended for tests; do NOT call from production code
  * (the singleton lives for the lifetime of the process). Also drops all
  * change listeners so tests never observe each other's notifications.
@@ -191,6 +237,64 @@ export function shouldRewriteFor(providerId: string): boolean {
 export function __resetProxyConfigForTests(): void {
   currentConfig = { ...DEFAULT_PROXY_CONFIG };
   listeners.clear();
+  // A previous test's instant-apply handles must not leak their (possibly
+  // never-settling) rebuild chains into the next test's settle waits.
+  instantApplyChains.clear();
+}
+
+// ─── Routing-settle barrier ────────────────────────────────────────────────
+//
+// Deactivation (deactivateProxyOnConnectionFailure) flips the config flag
+// and notifies listeners synchronously, but each instant-apply provider
+// rebuild runs on an async chain. A retry loop that re-reads ctx.provider
+// before the rebuild lands would spend its remaining attempts on the dead
+// proxy URL — the exact outage the deactivation was routing around. This
+// barrier lets the retry path wait (bounded) for every live instant-apply
+// chain to drain before scheduling the next attempt.
+
+/** Upper bound for {@link waitForProxyRoutingSettle}. Local provider builds
+ *  settle in single-digit milliseconds; anything slower means the host is
+ *  doing network work inside rebuildProvider, and a retrying turn must not
+ *  hang on it. Resolves on timeout — the barrier delays, never fails. */
+export const PROXY_ROUTING_SETTLE_CAP_MS = 2_000;
+
+/** Live rebuild-chain getters, one per non-disposed instant-apply handle. */
+const instantApplyChains = new Set<() => Promise<void>>();
+
+/**
+ * Wait until every registered instant-apply rebuild triggered by the current
+ * proxy-config change has settled, the cap elapses, or `signal` aborts.
+ * Resolves in all three cases — a settle timeout must not fail the turn,
+ * only stop delaying it.
+ */
+export async function waitForProxyRoutingSettle(
+  timeoutMs: number = PROXY_ROUTING_SETTLE_CAP_MS,
+  signal?: AbortSignal | undefined,
+): Promise<void> {
+  // A pre-aborted signal must resolve immediately — `addEventListener` on an
+  // already-aborted signal never fires, so without this check an aborted
+  // turn would sit out the full cap before its catch path ran.
+  if (signal?.aborted) return;
+  // Snapshot the CURRENT chain promise from each handle. Listener bodies run
+  // synchronously up to the rebuild scheduling, so by the time a caller that
+  // just deactivated the proxy awaits this, the pending chain is registered.
+  const chains = [...instantApplyChains].map((get) => get());
+  if (chains.length === 0) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  try {
+    await Promise.race([
+      Promise.allSettled(chains),
+      new Promise<void>((resolve) => {
+        onAbort = () => resolve();
+        timer = setTimeout(resolve, Math.max(0, timeoutMs));
+        signal?.addEventListener('abort', onAbort, { once: true });
+      }),
+    ]);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+    if (onAbort !== undefined) signal?.removeEventListener('abort', onAbort);
+  }
 }
 
 // ─── Instant-apply: rebuild live providers on routing changes ─────────────
@@ -257,10 +361,7 @@ function effectiveBaseUrlFor(
   return active ? rewriteBaseUrl(rawBaseUrl, cfg.url) : rawBaseUrl;
 }
 
-function effectiveBaseUrl(
-  providerId: string,
-  rawBaseUrl: string | undefined,
-): string | undefined {
+function effectiveBaseUrl(providerId: string, rawBaseUrl: string | undefined): string | undefined {
   return effectiveBaseUrlFor(currentConfig, providerId, rawBaseUrl);
 }
 
@@ -293,6 +394,11 @@ export function createProxyInstantApply(deps: ProxyInstantApplyDeps): ProxyInsta
   let lastEffectiveUrl = effectiveBaseUrl(lastProviderId, getRawBaseUrl(lastProviderId));
   let disposed = false;
   let rebuildChain: Promise<void> = Promise.resolve();
+  // Publish the chain so waitForProxyRoutingSettle can observe pending
+  // rebuilds. Registered for the handle's lifetime; removed on dispose so a
+  // torn-down host (standalone WebUI shutdown) stops delaying retries.
+  const chainGetter = (): Promise<void> => rebuildChain;
+  instantApplyChains.add(chainGetter);
   const unsubscribe = subscribeToProxyConfig((next, previous) => {
     if (disposed) return;
     const providerId = getActiveProviderId();
@@ -330,6 +436,7 @@ export function createProxyInstantApply(deps: ProxyInstantApplyDeps): ProxyInsta
     dispose(): void {
       if (disposed) return;
       disposed = true;
+      instantApplyChains.delete(chainGetter);
       unsubscribe();
     },
   };

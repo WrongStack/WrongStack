@@ -41,7 +41,7 @@
 
 import type { EventBus } from '../kernel/events.js';
 import { type ProviderErrorKind, parseResetHintMs } from '../types/provider.js';
-import { ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
+import { QUOTA_EXHAUSTED_RE, ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -512,6 +512,29 @@ export class ProviderModelStatusTracker {
   }
 
   /**
+   * Manually unblock/reset a provider/model pair (e.g. after a manual model switch or key update).
+   */
+  unblock(providerId: string, model: string): void {
+    ({ providerId, model } = statusIdentity(providerId, model));
+    this.providerQuotaBlocks.delete(providerId);
+    const key = pairKey(providerId, model);
+    const s = this.map.get(key);
+    if (s) {
+      const oldState = s.state;
+      s.state = 'healthy';
+      s.stateExpiresAt = null;
+      s.consecutiveFailures = 0;
+      s.rateLimitHits = 0;
+      s.overloadedHits = 0;
+      s.serverErrors = 0;
+      s.otherErrors = 0;
+      if (oldState !== 'healthy') {
+        this.emitStatusChanged(providerId, model, oldState, 'healthy', 'manual_unblock');
+      }
+    }
+  }
+
+  /**
    * Check if a (providerId, model) pair is currently rate-limited.
    * This is a stronger signal than just `!isAvailable()` — it tells
    * callers that requests should be re-tried after a delay rather
@@ -892,9 +915,6 @@ function unpairKey(key: string): [string, string] {
   if (idx === -1) return [key, ''];
   return [key.slice(0, idx), key.slice(idx + 1)];
 }
-
-const QUOTA_EXHAUSTED_RE =
-  /(?:insufficient|exhausted|depleted|exceeded|no|not enough)[-_\s]*(?:quota|credit|balance)|(?:quota|credit|balance)[-_\s]*(?:exhausted|depleted|exceeded|insufficient)|billing[_\s-]*(?:hard[_\s-]*)?limit|payment required|spending limit|plan limit|usage[-_\s]*limit[-_\s]*(?:reached|exceeded)|rate[-_\s]*limit[-_\s]*exceeded/i;
 
 /** Distinguish an exhausted account/plan from an ordinary per-minute 429. */
 function isQuotaExhausted(kind: ProviderErrorKind, status: number, message: string): boolean {

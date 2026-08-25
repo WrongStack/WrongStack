@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.313.0",
+  "packageVersion": "0.313.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -479,7 +479,7 @@
         "export { COUNCIL_REFUSAL_OPTION_ID, CouncilOrchestrator, type CouncilOrchestratorOptions, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY, } from './council-orchestrator.js';",
         "export { COUNCIL_REFUSE_OPTION_ID, type CouncilBrainOptions, type CouncilVoter, createCouncilBrainArbiter, } from './council-brain.js';",
         "export { DefaultPromptLoader, type PromptLoaderOptions, renderPrompt } from './prompt-loader.js';",
-        "export { DefaultRetryPolicy, MODEL_RETRIES } from './retry-policy.js';",
+        "export { DefaultRetryPolicy, MODEL_RETRIES, RETRY_BASE_DELAY_MS, RETRY_JITTER_MS, } from './retry-policy.js';",
         "export { DefaultSkillLoader, type SkillLoaderOptions } from './skill-loader.js';",
         "export { EternalAutonomyEngine, type EternalAutonomyOptions, type EternalEngineState, type IterationStage, } from './eternal-autonomy.js';",
         "export { IntelligentCompactor, type IntelligentCompactorOptions } from './intelligent-compactor.js';",
@@ -1090,9 +1090,11 @@
       "source": "packages/core/src/wiring/proxy-rewrite.ts",
       "declarations": [
         "export const PROXY_EXCLUDED_PROVIDERS",
+        "export const PROXY_ROUTING_SETTLE_CAP_MS",
         "export function __resetProxyConfigForTests",
         "export function applyProxyConfig",
         "export function createProxyInstantApply",
+        "export function deactivateProxyOnConnectionFailure",
         "export function getProxyConfig",
         "export function isProxyEligible",
         "export function rewriteBaseUrl",
@@ -1119,14 +1121,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 170,
-      "sourceLines": 49049
+      "sourceLines": 49079
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 44,
-      "sourceLines": 11372
+      "sourceLines": 11604
     },
     {
       "directory": "design",
@@ -1140,7 +1142,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17827
+      "sourceLines": 17866
     },
     {
       "directory": "extension",
@@ -1182,7 +1184,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3723
+      "sourceLines": 3732
     },
     {
       "directory": "models",
@@ -1287,7 +1289,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11553
+      "sourceLines": 11617
     },
     {
       "directory": "utils",
@@ -1301,7 +1303,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 336
+      "sourceLines": 444
     },
     {
       "directory": "worktree",

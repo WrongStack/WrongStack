@@ -68,6 +68,11 @@ export interface LiveSettingsInput {
    * Backward-compat: legacy boolean values are coerced by the TUI settings adapter. Default: 'bottom'. */
   showAgentSwarmPanel?: 'bottom' | 'sidebar' | 'off' | boolean | undefined;
   /**
+   * Right sidebar visibility: when false, the right sidebar is completely
+   * hidden and chat history takes the full terminal width. Default: true.
+   */
+  showSidebar?: boolean | undefined;
+  /**
    * Per-panel position map (one entry per F-key panel id). Each value is
    * 'bottom' (F-key behavior) or 'sidebar' (right-sidebar twin). Persisted
    * as `autonomy.panelPositions` in the project/profile config. The TUI

@@ -99,6 +99,7 @@ The TUI registers these commands after mounting. They are not available in the p
 | `/rewind` | — | Open or directly use the checkpoint timeline; [rewind](rewind.md) |
 | `/model` | `/provider`, `/switch` | Open the provider/model picker; [model picker](model.md) |
 | `/settings-get` | `/config-get`, `/get` | Read settings without opening the picker; [settings lookup](settings-get.md) |
+| `/lite`, `/full` | — | Layout presets: statusline density + sidebar visibility; [layout presets](lite-full.md) |
 
 The TUI also installs official overrides for existing names. `/settings` gains `/config` and `/prefs`; `/mailbox` gains `/inbox` and `/mail`; and `/autonomy` gains `/auto`. The core aliases remain registered, so `/mb` still reaches the core mailbox command. The TUI claims `/resume` and `/load` for its session picker while `/sessions` remains the core listing command. `/f`, `/design`, and `/statusline` keep their core names but gain interactive behavior.
 

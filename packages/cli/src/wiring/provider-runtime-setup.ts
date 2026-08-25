@@ -223,11 +223,21 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   ): Promise<string | null> =>
     context.runModelTransition(async () => {
       try {
+        statusTracker?.unblock(providerId, modelId);
         const nextProvider = await buildProviderForModel(providerId, modelId);
         configStore.update({ provider: providerId, model: modelId });
         sync(patchConfig(cfg, { provider: providerId, model: modelId }));
+        const from = context.provider
+          ? { providerId: context.provider.id, model: context.model }
+          : undefined;
         context.provider = nextProvider;
         context.model = modelId;
+        events?.emit('provider.model_switched', {
+          sessionId: context.session?.id,
+          from,
+          to: { providerId, model: modelId },
+          timestamp: Date.now(),
+        });
         await Promise.all([
           refreshMaxContextFor(providerId, modelId),
           refreshActiveReasoningConfig(providerId, modelId),

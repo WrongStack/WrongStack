@@ -102,6 +102,11 @@ export interface AutonomyConfig {
    */
   showAgentSwarmPanel?: 'bottom' | 'sidebar' | 'off' | boolean | undefined;
   /**
+   * Right sidebar visibility: when false, the right sidebar is completely hidden
+   * and chat history takes the full terminal width. Default: true.
+   */
+  showSidebar?: boolean | undefined;
+  /**
    * Persist the TUI prompt input history to disk per project so Up/Down
    * navigation recalls prompts across sessions. Secrets are scrubbed before
    * they reach disk. Default: enabled, 100 entries.

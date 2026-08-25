@@ -361,6 +361,7 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   // WS `prefs.update` pipeline; the picker is just the user surface.
   'WrongProxy / WrongTrace', // 59
   'WrongProxy URL', // 60
+  'Right sidebar', // 61
 ];
 
 /**
@@ -415,6 +416,8 @@ export function resolveSettingsFieldValue(
     // WrongProxy / WrongTrace master switch (field 59). The companion
     // URL field (60) is text-typed, see resolveSettingsFieldValue.
     [59, 'wrongProxyEnabled'],
+    // Right sidebar master switch (field 61).
+    [61, 'showSidebar'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
@@ -704,6 +707,8 @@ export function getSettingsFieldValue(
     // WrongProxy / WrongTrace master switch (field 59). The companion
     // URL field (60) is text-typed, see getSettingsFieldValue.
     [59, 'wrongProxyEnabled'],
+    // Right sidebar master switch (field 61).
+    [61, 'showSidebar'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -838,7 +843,7 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
   },
   {
     name: 'Display',
-    fields: [39, 40, 41, 43, 44],
+    fields: [39, 40, 41, 43, 44, 61],
   },
   {
     name: 'Panels',
@@ -959,6 +964,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   // contract for the entire TUI settings module. See Chimera review.
   wrongProxyEnabled: false,
   wrongProxyUrl: 'http://localhost:3444',
+  showSidebar: true,
 } as const);
 
 /**
@@ -1040,6 +1046,10 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     // canonical persistence shape.
     [59, 'wrongProxyEnabled'],
     [60, 'wrongProxyUrl'],
+    // Right sidebar master switch (field 61). Without this entry,
+    // `/settings reset sidebar` returns null and the field is
+    // unresettable even though BOOL_FIELDS accepts on/off for it.
+    [61, 'showSidebar'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {

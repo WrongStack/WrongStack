@@ -44,6 +44,20 @@ export function useAppSessionState(options: AppSessionStateOptions) {
     () => buildRestoredCheckpoints(options.restoredEvents),
     [options.restoredEvents],
   );
+  const initialContextSnapshot = useMemo(() => {
+    const lastReq = options.agent?.ctx?.lastRequestTokens;
+    const reqTokens = options.agent?.ctx?.tokenCounter?.currentRequestTokens?.();
+    const sumReqTokens =
+      (typeof reqTokens === 'number' ? reqTokens : 0) +
+      (typeof reqTokens?.input === 'number' ? reqTokens.input : 0) +
+      (typeof reqTokens?.cacheRead === 'number' ? reqTokens.cacheRead : 0) +
+      (typeof reqTokens?.cacheWrite === 'number' ? reqTokens.cacheWrite : 0);
+    const tokens = sumReqTokens > 0 ? sumReqTokens : (typeof lastReq === 'number' ? lastReq : 0);
+    const maxContext =
+      (options.agent?.ctx?.provider as { capabilities?: { maxContext?: number } } | undefined)
+        ?.capabilities?.maxContext ?? 0;
+    return tokens > 0 ? { tokens, maxContext } : undefined;
+  }, [options.agent?.ctx]);
 
   const [state, dispatch] = useReducer(
     reducer,
@@ -61,6 +75,7 @@ export function useAppSessionState(options: AppSessionStateOptions) {
       autonomyAgents: options.autonomyAgents,
       restoredEntries,
       restoredCheckpoints,
+      initialContextSnapshot,
       enhanceEnabled: options.enhanceEnabled,
       initialAgentsMonitorOpen: options.initialAgentsMonitorOpen,
       initialFleetChat: options.initialFleetChat,

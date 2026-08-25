@@ -29,7 +29,10 @@ export function classifySubagentError(
   const cause =
     err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : undefined;
 
-  if (err instanceof ProviderError) {
+  // Duck-typed: the error was constructed against the `@wrongstack/core/types`
+  // bundle and `instanceof` does not survive that subpath boundary — see
+  // {@link ProviderError.isProviderError}.
+  if (ProviderError.isProviderError(err)) {
     const baseMessage = err.describe();
     return providerErrorToSubagentError(err, baseMessage, cause);
   }

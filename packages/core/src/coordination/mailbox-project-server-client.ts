@@ -86,7 +86,14 @@ function normalizePath(value: string): string {
  */
 function resolveProjectServerUrl(): URL | null {
   for (const relative of [
+    // Unbundled / per-subpath output: dist/coordination/index.js.
     './mailbox-project-server.js',
+    // Root-level output — dist/index.js and, since core is built with code
+    // splitting, the shared chunks that sit next to it. Without this entry the
+    // lookup silently reports missing-build and every process quietly opens
+    // its own store, which is exactly the "one mailbox per project" invariant
+    // this resolver exists to protect.
+    './coordination/mailbox-project-server.js',
     '../../dist/coordination/mailbox-project-server.js',
   ]) {
     try {

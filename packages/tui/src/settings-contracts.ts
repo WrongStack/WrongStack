@@ -68,6 +68,7 @@ export type SettingsPickerPatch = Partial<{
   breakerAutoKillResetMs: number;
   showModelReasoning: boolean;
   showAgentSwarmPanel: AgentSwarmPanelMode;
+  showSidebar: boolean;
   /**
    * Per-panel position map (one entry per F-key panel id). Each value is
    * 'bottom' (F-key behavior) or 'sidebar' (right-sidebar twin). Callers

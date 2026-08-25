@@ -5,6 +5,7 @@ import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
 import type { SessionHistoryEntry } from '@/stores';
 import {
   useChatStore,
+  useConfigStore,
   useFallbackStore,
   useFleetStore,
   useHistoryStore,
@@ -158,6 +159,7 @@ export function handleProviderFallback(msg: WSServerMessage) {
   };
   const from = `${payload.from.providerId}/${payload.from.model}`;
   const to = `${payload.to.providerId}/${payload.to.model}`;
+  useConfigStore.getState().setConfig({ provider: payload.to.providerId, model: payload.to.model });
   useChatStore.getState().addMessage({
     role: 'assistant',
     content: `Provider fallback: \`${from}\` returned ${payload.status}; switching to \`${to}\`${payload.providerSwitched ? ' with provider change' : ''}.`,
@@ -173,6 +175,25 @@ export function handleProviderFallback(msg: WSServerMessage) {
     if (pending.requestId !== payload.requestId) return;
   }
   useFallbackStore.getState().clear();
+}
+
+export function handleProviderModelSwitched(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
+  const payload = msg.payload as {
+    from?: { providerId: string; model: string } | undefined;
+    to: { providerId: string; model: string };
+    timestamp: number;
+  };
+  const to = `${payload.to.providerId}/${payload.to.model}`;
+  const from = payload.from ? `${payload.from.providerId}/${payload.from.model}` : '';
+  useConfigStore.getState().setConfig({ provider: payload.to.providerId, model: payload.to.model });
+  useChatStore.getState().addMessage({
+    role: 'assistant',
+    content: from
+      ? `Model switched: \`${from}\` → \`${to}\``
+      : `Model switched to \`${to}\``,
+  });
+  toast.info(`Model: ${to}`);
 }
 
 export function handleProviderFallbackPending(msg: WSServerMessage) {

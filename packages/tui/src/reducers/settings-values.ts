@@ -581,6 +581,12 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           ...state,
           settingsPicker: { ...sp, wrongProxyEnabled: !sp.wrongProxyEnabled, hint: undefined },
         };
+      // Field 61: Right sidebar master switch (on/off).
+      if (f === 61)
+        return {
+          ...state,
+          settingsPicker: { ...sp, showSidebar: !sp.showSidebar, hint: undefined },
+        };
       // Fields PANEL_POSITION_FIELD_START..PANEL_POSITION_FIELD_START+PANEL_IDS.length:
       // per-panel position (cycle 'bottom' → 'sidebar'). One field index
       // per PanelId, in PANEL_IDS order. The first 46 indices (0–45) are
