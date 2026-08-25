@@ -17,6 +17,7 @@ overrides:
   # dompurify <=3.4.12: IN_PLACE hook removal leaves a detached subtree
   # executable -> XSS (GHSA-55q2-fjhq-7xh7). Patched in 3.4.13.
   # Pulled in transitively by monaco-editor (webui).
+  dompurify: ">=3.4.13"
   wrongstack: link:apps/wrongstack
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer
