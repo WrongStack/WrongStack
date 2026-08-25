@@ -190,8 +190,9 @@ describe('finalizeExecutionCleanup', () => {
     await expect(finalizeExecutionCleanup(result as never)).resolves.toBeUndefined();
 
     expect(result.events.emit).toHaveBeenCalled();
-    expect(warnings).toHaveBeenCalledTimes(6);
+    expect(warnings).toHaveBeenCalledTimes(7);
     const warningText = warnings.mock.calls.flat().join(' ');
+    expect(warningText).toContain('shutdown.wrongtrace_telemetry_skipped');
     expect(warningText).toContain('shutdown.mcp_stop_failed');
     expect(warningText).toContain('shutdown.session_end_append_failed');
     expect(warningText).toContain('shutdown.chimera_work_failed');
