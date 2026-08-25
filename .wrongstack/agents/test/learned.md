@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=7; wins=7 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T08:34:41.240Z; skill=testing; applied=8; wins=8 -->
 - **Run WrongStack's storage slice without a build step via `npx vitest run packages/core/tests/storage` from repo root — the root `vitest.config.ts` aliases `@wrongstack/core` (and extracted packages) to source, so stale dist never affects these tests; note the package script `test` covers ALL of `packages/core/tests`, which is broader than storage.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `npx vitest run packages/core/tests/storage`

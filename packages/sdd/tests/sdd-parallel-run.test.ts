@@ -1703,4 +1703,38 @@ describe('SddParallelRun — coverage edge paths', () => {
       false,
     );
   });
+
+  it('parks in waitWhilePaused while paused and wakes promptly on resume (no polling)', async () => {
+    const { run, tracker } = await makeHarness();
+    const exec = stubExecuteOne(run, tracker, () => {
+      // Tasks resolve immediately so the run would otherwise settle instantly.
+    });
+    // Pause BEFORE driving the loop, then start the run — it must block at
+    // waitWhilePaused and issue no dispatches until resumed.
+    run.pause();
+    const running = run.run();
+    // Let the event loop run: a paused run must NOT dispatch anything.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(exec).not.toHaveBeenCalled();
+    expect(run.isPaused()).toBe(true);
+    // Resume — the event-driven wait wakes immediately (no 100ms poll), and
+    // the run then completes both ready tasks.
+    run.resume();
+    const result = await running;
+    expect(exec).toHaveBeenCalledTimes(2);
+    expect(result.totalCompleted).toBe(2);
+  });
+
+  it('wakes a paused run on stop so it exits without waiting out the pause', async () => {
+    const { run, tracker } = await makeHarness();
+    const exec = stubExecuteOne(run, tracker);
+    run.pause();
+    const running = run.run();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(run.isPaused()).toBe(true);
+    // stop() must resolve waitWhilePaused waiters (not leave them parked).
+    run.stop();
+    await running;
+    expect(exec).not.toHaveBeenCalled();
+  });
 });

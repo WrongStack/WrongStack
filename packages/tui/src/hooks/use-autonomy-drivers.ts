@@ -24,6 +24,19 @@ interface AutonomyDriversOptions {
   parallelLoopRunningRef: MutableRefObject<boolean>;
 }
 
+/** Time (ms) the eternal/parallel driver sleeps between iterations so the
+ *  loop never spins hot; also lets /autonomy stop and SIGINT land between
+ *  iterations. Kept as a named constant so the yield density is explicit and
+ *  verifiable (a driver loop must never run at zero delay). */
+const BETWEEN_ITERATION_YIELD_MS = 200;
+
+/** Yield between driver iterations. Centralizes the single unwind point so the
+ *  density (and the guarantee that it can never silently become a busy-spin)
+ *  is defined in exactly one place. */
+function yieldBetweenIterations(ms: number = BETWEEN_ITERATION_YIELD_MS): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /** Owns eternal and parallel-eternal loop drivers plus their live event bridges. */
 export function useAutonomyDrivers({
   getEternalEngine,
@@ -102,7 +115,7 @@ export function useAutonomyDrivers({
         dispatch({ type: 'status', status: 'idle' });
         // Yield so a slash command submitted between iterations (e.g.
         // /autonomy stop) actually lands before we kick the next one.
-        await new Promise((r) => setTimeout(r, 200));
+        await yieldBetweenIterations();
       }
     } finally {
       eternalLoopRunningRef.current = false;
@@ -162,7 +175,7 @@ export function useAutonomyDrivers({
         }
         if (!mountedRef.current) break;
         dispatch({ type: 'status', status: 'idle' });
-        await new Promise((r) => setTimeout(r, 200));
+        await yieldBetweenIterations();
       }
     } finally {
       parallelLoopRunningRef.current = false;

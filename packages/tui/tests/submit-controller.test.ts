@@ -669,3 +669,32 @@ describe('createSubmitController — runText follow-ups', () => {
     expect(Object.keys(h.ctx.meta).length).toBe(0);
   });
 });
+
+describe('createSubmitController — runText idle settle (CPU fix)', () => {
+  it('proceeds without waiting when the run is already idle', async () => {
+    // statusRef defaults to 'idle', so the settle loop (waitForIdleSettle)
+    // must exit on the very first check — no 25ms×up-to-1.5s spin.
+    const h = makeHost({ slashResult: { runText: 'auto follow-up' } });
+    const start = Date.now();
+    await h.submit('/steer go faster');
+    expect(h.actionFns['runBlocks']).toHaveBeenCalled();
+    expect(Date.now() - start).toBeLessThan(500);
+  });
+
+  it('waits for the run to settle into idle before submitting the next block', async () => {
+    // statusRef starts ''running'' (busy); the settle loop must poll until the
+    // status flips to idle, then proceed with runBlocks — but never for the
+    // full 1500ms budget once idle is reached.
+    const h = makeHost({
+      slashResult: { runText: 'auto follow-up' },
+      statusRef: 'running',
+    });
+    const pending = h.submit('/steer go faster');
+    // Flip the status to idle as if the abort settled; the next poll exits.
+    (h.refs['state'] as { current: { status: string } }).current.status = 'idle';
+    const start = Date.now();
+    await pending;
+    expect(h.actionFns['runBlocks']).toHaveBeenCalled();
+    expect(Date.now() - start).toBeLessThan(1500);
+  });
+});

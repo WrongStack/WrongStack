@@ -169,11 +169,19 @@ export class SddParallelRun {
   // -------------------------------------------------------------------
 
   private paused = false;
+  /** Resolvers for tasks parked in `waitWhilePaused`, woken on resume/stop. */
+  private pausedWaiters = new Set<() => void>();
+
+  private notifyPausedWaiters(): void {
+    for (const resolve of this.pausedWaiters) resolve();
+    this.pausedWaiters.clear();
+  }
 
   /** Trigger stop — causes run() to abort after the current wave. */
   stop(): void {
     this.stopRequested = true;
     this.paused = false;
+    this.notifyPausedWaiters();
     this.coordinator?.stopAll();
   }
 
@@ -183,6 +191,7 @@ export class SddParallelRun {
   }
   resume(): void {
     this.paused = false;
+    this.notifyPausedWaiters();
   }
   isPaused(): boolean {
     return this.paused;
@@ -360,8 +369,18 @@ export class SddParallelRun {
   }
 
   private async waitWhilePaused(): Promise<void> {
+    // Event-driven instead of polling: park on a promise that `resume()` and
+    // `stop()` resolve, so a paused run consumes zero CPU while waiting (the
+    // old 100ms poll woke the loop 10×/s for nothing). A bounded fallback
+    // timer guarantees progress even if a notifier is missed.
     while (this.paused && !this.stopRequested) {
-      await new Promise((r) => setTimeout(r, 100));
+      await new Promise<void>((resolve) => {
+        this.pausedWaiters.add(resolve);
+        const safety = setTimeout(() => {
+          if (this.pausedWaiters.delete(resolve)) resolve();
+        }, 1000);
+        safety.unref?.();
+      });
     }
   }
 

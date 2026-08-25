@@ -309,18 +309,32 @@ export function createPersistencePrimitives(
     // would put two holders in the section and drop writes. A live holder now
     // stays fresh, so the stale-break path only fires for a crashed holder.
     // Refresh twice per stale window so a live holder never crosses staleMs.
-    // The small floor only guards against a pathologically tiny staleMs.
-    const refreshMs = Math.max(50, Math.floor(staleMs / 2));
-    const heartbeat = setInterval(() => {
-      const now = new Date();
-      void fs.utimes(lockPath, now, now).catch(() => undefined);
-    }, refreshMs);
-    heartbeat.unref?.();
+    // The floor keeps `utimes` from ever firing faster than a sane cadence
+    // even when a caller passes a pathologically tiny staleMs (the old
+    // `Math.max(50, …)` floor allowed up to 20 syscalls/sec while holding).
+    const refreshMs = Math.max(1_000, Math.floor(staleMs / 2));
+    // Heartbeat is deferred, not started eagerly: a fast critical section
+    // (the common case) pays zero `utimes`. It only starts firing once fn()
+    // has actually run past the refresh period, so short locks stay silent.
+    let heartbeat: ReturnType<typeof setInterval> | null = null;
+    const startHeartbeat = (): void => {
+      if (heartbeat) return;
+      heartbeat = setInterval(() => {
+        const now = new Date();
+        void fs.utimes(lockPath, now, now).catch(() => undefined);
+      }, refreshMs);
+      heartbeat.unref?.();
+    };
+    const firstHeartbeat = setTimeout(() => {
+      if (Date.now() - started >= refreshMs) startHeartbeat();
+    }, refreshMs + 1);
+    firstHeartbeat.unref?.();
 
     try {
       return await fn();
     } finally {
-      clearInterval(heartbeat);
+      clearTimeout(firstHeartbeat);
+      if (heartbeat) clearInterval(heartbeat);
       await handle?.close().catch(() => undefined);
       await fs.unlink(lockPath).catch(() => undefined);
     }

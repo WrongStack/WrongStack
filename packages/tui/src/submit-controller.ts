@@ -22,6 +22,31 @@ import { resolveAttachmentTokens, type TokenPreviewStore } from './token-preview
 import { startFreshTopicContext, TopicShiftAdvisor } from './topic-shift-advisor.js';
 import type { SubmitCapabilities } from './tui-host-capabilities.js';
 
+/**
+ * Wait up to `deadlineMs` for an in-flight run to settle into `idle` before
+ * kicking the next iteration. Polls `isIdle` rather than spinning: the cadence
+ * starts tight (so we react quickly when the abort settles early) and backs
+ * off toward the deadline, so a long wait never hammers the event loop at a
+ * fixed high frequency. Returns true if idle was reached before the deadline.
+ */
+async function waitForIdleSettle(
+  isIdle: () => boolean,
+  deadlineMs: number,
+  opts: { maxPollMs?: number } = {},
+): Promise<boolean> {
+  const maxPollMs = opts.maxPollMs ?? 150;
+  const start = Date.now();
+  let pollMs = 20;
+  while (!isIdle()) {
+    const remaining = deadlineMs - (Date.now() - start);
+    if (remaining <= 0) return false;
+    const wait = Math.min(Math.max(pollMs, 1), maxPollMs, remaining);
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    pollMs = Math.min(pollMs * 2, maxPollMs);
+  }
+  return true;
+}
+
 export interface SubmitControllerHost {
   readonly capabilities: SubmitCapabilities;
   readonly state: State;
@@ -422,10 +447,10 @@ export function createSubmitController(host: SubmitControllerHost) {
             // Wait briefly for any in-flight abort to settle into
             // 'idle' before kicking the next iteration — otherwise
             // runBlocks would early-return on the busy guard.
-            const start = Date.now();
-            while (stateRef.current.status !== 'idle' && Date.now() - start < 1500) {
-              await new Promise((r) => setTimeout(r, 25));
-            }
+            await waitForIdleSettle(
+              () => stateRef.current.status === 'idle',
+              1500,
+            );
             // Submit directly without placing the text into the input field.
             // The draft was already cleared above (clearDraft before dispatch),
             // and runBlocks will handle the execution. The finally block
@@ -807,10 +832,10 @@ export function createSubmitController(host: SubmitControllerHost) {
           // Wait briefly for the aborting iteration to settle into 'idle' before
           // kicking the next one — otherwise runBlocks early-returns on the busy
           // guard. Same wait-loop the `/steer` runText path uses.
-          const start = Date.now();
-          while (stateRef.current.status !== 'idle' && Date.now() - start < 1500) {
-            await new Promise((r) => setTimeout(r, 25));
-          }
+          await waitForIdleSettle(
+            () => stateRef.current.status === 'idle',
+            1500,
+          );
           try {
             stampJournalMarker();
             await runBlocks(steerBlocks);
