@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T11:51:11.065Z
+**Generated:** 2026-08-25T20:18:48.128Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,11 +8,11 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3368 |
-| Production source lines | 799285 |
-| Test files | 2902 |
+| Production source files | 3374 |
+| Production source lines | 802528 |
+| Test files | 2912 |
 | Workspace dependency edges | 125 |
-| Relative module edges | 10383 |
+| Relative module edges | 10402 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,7 +21,18 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/cli/src/cli-main.ts: hotspot grew from 817 to 830 lines; review and update the ratchet in the same change
+- packages/core/src/chronicle/file-observer.ts: new 812-line hotspot is not in architecture/hotspots.json
+- packages/core/src/coordination/multi-agent-coordinator.ts: hotspot grew from 1022 to 1035 lines; review and update the ratchet in the same change
+- packages/core/src/coordination/sqlite-mailbox.ts: hotspot grew from 896 to 923 lines; review and update the ratchet in the same change
+- packages/tui/src/components/sidebar-content.tsx: hotspot shrunk from 1092 to 1033 lines; review and update the ratchet in the same change
+- packages/tui/src/components/status-bar-rails.tsx: new 961-line hotspot is not in architecture/hotspots.json
+- packages/webui/src/components/ChatInput.tsx: hotspot grew from 965 to 983 lines; review and update the ratchet in the same change
+- packages/webui/src/components/ChatInput.tsx: relative import fan-out increased from 17 to 18; review and update the ratchet in the same change
+- packages/webui/src/types/server-message.ts: hotspot grew from 938 to 974 lines; review and update the ratchet in the same change
+- packages/webui-server/src/server/ws-payload-validation.ts: hotspot grew from 949 to 1001 lines; review and update the ratchet in the same change
+- packages/core/src/coordination/agents/agent-prompts.ts: "agentPromptCacheSize" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+- packages/tui/src/git-info.ts: "branchLabel" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
 
 ## Workspace packages
 
@@ -31,7 +42,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 472 | 436 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 765 | 648 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 766 | 649 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 17 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | @wrongstack/persistence |
 | @wrongstack/kanban | 86 | 63 | @wrongstack/persistence, @wrongstack/primitives |
@@ -55,12 +66,12 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 29 | @wrongstack/core |
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 334 | 323 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 333 | 323 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 464 | 339 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/webui | 468 | 347 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 0 | @wrongstack/core |
-| @wrongstack/webui-server | 194 | 158 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 196 | 159 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 10 | 3 | — |
 | wrongstack | 1 | 0 | @wrongstack/cli |
 
@@ -87,7 +98,6 @@ None.
 | Lines | File |
 |---:|---|
 | 1424 | `packages/tui/src/theme-presets.ts` |
-| 1092 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1068 | `packages/core/src/storage/session-store.ts` |
@@ -95,11 +105,12 @@ None.
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1041 | `packages/webui/src/lib/ws-client.ts` |
+| 1035 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
+| 1033 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1030 | `packages/core/src/index.ts` |
 | 1023 | `packages/core/src/storage/file-session-writer.ts` |
 | 1023 | `packages/tui/src/components/context-panel.tsx` |
-| 1022 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1016 | `packages/core/src/core/context.ts` |
@@ -110,6 +121,7 @@ None.
 | 1006 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1002 | `packages/tui/src/components/kanban-panel.tsx` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
+| 1001 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 999 | `packages/tui/src/components/agents-monitor.tsx` |
 | 998 | `packages/tui/src/app.tsx` |
 | 998 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
@@ -121,25 +133,24 @@ None.
 | 986 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 984 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
+| 983 | `packages/webui/src/components/ChatInput.tsx` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
 | 982 | `packages/webui-server/src/server/kanban-routes.ts` |
 | 980 | `packages/tui/src/kanban-slash.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 979 | `packages/kanban/src/manager/assignment.ts` |
 | 974 | `packages/webui/src/stores/viz-store.ts` |
+| 974 | `packages/webui/src/types/server-message.ts` |
 | 971 | `packages/sage/src/tools/memory-tools.ts` |
 | 968 | `packages/kanban/src/types.ts` |
-| 965 | `packages/webui/src/components/ChatInput.tsx` |
 | 963 | `packages/tools/src/codebase-index/writer.ts` |
 | 962 | `packages/tui/src/app-key-handler.ts` |
+| 961 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 957 | `packages/core/src/execution/eternal-autonomy.ts` |
-| 950 | `packages/tui/src/components/history/utils.tsx` |
-| 949 | `packages/core/src/hq/protocol/core.ts` |
-| 949 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 
 ## Exports only tests reference
 
-- 829 runtime exports are referenced by tests and by no other production file.
+- 826 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
