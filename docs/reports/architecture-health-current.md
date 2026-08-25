@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T07:04:04.799Z
+**Generated:** 2026-08-25T07:05:01.876Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,8 +21,7 @@
 
 ## Verification result
 
-- packages/sdd/src/sdd-parallel-run.ts: hotspot grew from 909 to 928 lines; review and update the ratchet in the same change
-- packages/tui/src/submit-controller.ts: hotspot grew from 870 to 895 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

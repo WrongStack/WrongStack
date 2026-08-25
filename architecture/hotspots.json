@@ -227,7 +227,7 @@
       "relativeImports": 0
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
-      "lines": 909,
+      "lines": 928,
       "relativeImports": 6
     },
     "packages/sdd/src/spec-builder.ts": {
@@ -335,7 +335,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
-      "lines": 870,
+      "lines": 895,
       "relativeImports": 13
     },
     "packages/tui/src/theme-presets.ts": {
