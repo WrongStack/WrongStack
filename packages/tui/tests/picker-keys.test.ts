@@ -1870,11 +1870,11 @@ describe('usePickerKeys — statusline picker', () => {
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineFieldMove', delta: 1 });
 
     runPickerKey(host, '', key({ leftArrow: true }), false);
-    expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineToggle', item: 'autonomy' });
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineToggle', item: 'project' });
 
     host.lastEnterAtRef.current = 0;
     runPickerKey(host, '', key(), true);
-    expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineToggle', item: 'autonomy' });
+    expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineToggle', item: 'project' });
 
     runPickerKey(host, '', key({ escape: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'statuslineClose' });
