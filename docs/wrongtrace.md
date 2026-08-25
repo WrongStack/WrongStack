@@ -246,7 +246,7 @@ The typed `wrongtrace.gate.decision` events (§5) are tallied by `packages/wrong
 - Standalone WebUI server persists on each gate decision (its host session model has no single session-end hook).
 - Last writer wins; each process tallies only its own sessions (module singleton per process).
 
-**Readout:** `wstack proxy-status` (diag-doctor `proxyCmd`) loads the file and prints the last session's `deny / allow-fragile / lock-acquired / lock-conflict-race / lock-released / total`. `wstack doctor` additionally prints a `eventBus: listeners=… wildcards=…` line when invoked from a host that holds a live EventBus (the standalone fresh-process invocation has none and omits the line rather than fabricating counts).
+**Readout:** `wstack proxy-status` (diag-doctor `proxyCmd`) loads the file and prints the **cumulative** `deny / allow-fragile / lock-acquired / lock-conflict-race / lock-released / total` for the process that last wrote it (each host tallies its own process-lifetime sessions; the file holds the latest writer's running tally, not a single session). `wstack doctor` additionally prints a `eventBus: listeners=… wildcards=…` line when invoked from a host that holds a live EventBus (the standalone fresh-process invocation has none and omits the line rather than fabricating counts).
 
 ---
 

@@ -13,8 +13,8 @@
  *     registrations; see the core EventBus leak board card).
  *   - A snapshot is persisted to `<projectRoot>/.wrongstack/
  *     wrongtrace-gate-counters.json` so the standalone `wstack
- *     proxy-status` command (fresh process) can report the last session's
- *     firing rates — cross-process measurability.
+ *     proxy-status` command (fresh process) can report the latest writer's
+ *     CUMULATIVE firing rates — cross-process measurability.
  *
  * Shared file contract (CLI + standalone WebUI): both processes write the
  * same path with the same snapshot shape; each process tallies its own
@@ -118,22 +118,41 @@ export function countersFilePath(projectRoot: string): string {
   return path.join(projectRoot, COUNTERS_FILE);
 }
 
+// In-process serialization so unawaited per-decision persists (the
+// standalone WebUI emit closure) cannot interleave: each write awaits the
+// previous one, then publishes atomically via temp-file + rename (an
+// interrupted write never leaves a truncated counters file).
+let persistChain: Promise<void> = Promise.resolve();
+
 /** Best-effort persist — the doctor surface must never fail a session end. */
-export async function persistWrongTraceGateCounters(
+export function persistWrongTraceGateCounters(
   projectRoot: string,
   snapshot: WrongTraceGateCounterSnapshot,
 ): Promise<void> {
-  try {
+  // Chain so overlapping callers serialize; fail-open and never reject the
+  // returned promise (observability must not break teardown).
+  persistChain = persistChain.then(async () => {
     const file = countersFilePath(projectRoot);
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(
-      file,
-      JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
-      'utf8',
-    );
-  } catch {
-    /* best-effort: observability must not break session teardown */
-  }
+    const tmp = `${file}.${process.pid}.${Math.random().toString(36).slice(2)}.tmp`;
+    try {
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(
+        tmp,
+        JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
+        'utf8',
+      );
+      await fs.rename(tmp, file);
+    } catch {
+      // best-effort: leave the prior file intact (rename is atomic; a failed
+      // write before it only orphans the tmp file).
+      try {
+        await fs.unlink(tmp).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+  return persistChain;
 }
 
 export async function loadWrongTraceGateCounters(

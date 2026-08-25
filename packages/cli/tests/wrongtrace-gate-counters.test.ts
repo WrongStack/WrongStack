@@ -82,6 +82,39 @@ describe('wrongtrace-gate-counters', () => {
     expect(path.join).toBeDefined(); // keep path import used
   });
 
+  it('persist serializes overlapping unawaited writes (no interleaving)', async () => {
+    const fs = await import('node:fs');
+    const os = await import('node:os');
+    const path = await import('node:path');
+    // Unique per-test projectRoot so parallel workers / other suites can't
+    // clobber the same counters path.
+    const tmp = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'wrongtrace-counters-'));
+    try {
+      // Fire several persists WITHOUT awaiting between them (like the
+      // standalone WebUI emit closure, which persists per gate decision
+      // unawaited). The chained implementation must serialize them so the
+      // final file is exactly the last snapshot, not a torn mix.
+      const snapshots: WrongTraceGateCounterSnapshot[] = [];
+      const pending: Promise<void>[] = [];
+      for (let i = 1; i <= 5; i++) {
+        const s = createWrongTraceGateCounter();
+        s.record(EVENT_FACTORY.deny());
+        for (let j = 0; j < i; j++) s.record(EVENT_FACTORY.lockAcquired());
+        const snap = s.snapshot();
+        snapshots.push(snap);
+        pending.push(persistWrongTraceGateCounters(tmp, snap));
+      }
+      // Deterministically wait for the chain to drain (no wall-clock sleep).
+      await Promise.all(pending);
+      const loaded = await loadWrongTraceGateCounters(tmp);
+      // Serialized last-writer-wins: the final snapshot is the last one, and
+      // the round trip must be exact (no partial/corrupted file).
+      expect(loaded).toEqual(snapshots[snapshots.length - 1]);
+    } finally {
+      await fs.promises.rm(tmp, { recursive: true, force: true }).catch(() => {});
+    }
+  });
+
   it('formatGateCounterReport is human-readable', () => {
     const c = createWrongTraceGateCounter();
     c.record(EVENT_FACTORY.deny());
