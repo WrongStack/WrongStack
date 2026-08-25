@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-25T20:28:43.125Z",
+  "generatedAt": "2026-08-25T20:39:46.809Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -24,18 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 826
   },
-  "errors": [
-    "packages/cli/src/cli-main.ts: hotspot grew from 817 to 830 lines; review and update the ratchet in the same change",
-    "packages/core/src/chronicle/file-observer.ts: new 812-line hotspot is not in architecture/hotspots.json",
-    "packages/core/src/coordination/multi-agent-coordinator.ts: hotspot grew from 1022 to 1035 lines; review and update the ratchet in the same change",
-    "packages/core/src/coordination/sqlite-mailbox.ts: hotspot grew from 896 to 923 lines; review and update the ratchet in the same change",
-    "packages/tui/src/components/sidebar-content.tsx: hotspot shrunk from 1092 to 1033 lines; review and update the ratchet in the same change",
-    "packages/tui/src/components/status-bar-rails.tsx: new 961-line hotspot is not in architecture/hotspots.json",
-    "packages/webui/src/components/ChatInput.tsx: hotspot grew from 965 to 983 lines; review and update the ratchet in the same change",
-    "packages/webui/src/components/ChatInput.tsx: relative import fan-out increased from 17 to 18; review and update the ratchet in the same change",
-    "packages/webui/src/types/server-message.ts: hotspot grew from 938 to 974 lines; review and update the ratchet in the same change",
-    "packages/webui-server/src/server/ws-payload-validation.ts: hotspot grew from 949 to 1001 lines; review and update the ratchet in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [

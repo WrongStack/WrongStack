@@ -7,7 +7,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 817,
+      "lines": 830,
       "relativeImports": 34
     },
     "packages/cli/src/goal-host.ts": {
@@ -38,6 +38,10 @@
       "lines": 804,
       "relativeImports": 14
     },
+    "packages/core/src/chronicle/file-observer.ts": {
+      "lines": 812,
+      "relativeImports": 8
+    },
     "packages/core/src/chronicle/query.ts": {
       "lines": 920,
       "relativeImports": 3
@@ -67,7 +71,7 @@
       "relativeImports": 6
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1022,
+      "lines": 1035,
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
@@ -75,7 +79,7 @@
       "relativeImports": 3
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
-      "lines": 896,
+      "lines": 923,
       "relativeImports": 15
     },
     "packages/core/src/coordination/subagent-budget.ts": {
@@ -319,8 +323,12 @@
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
-      "lines": 1092,
+      "lines": 1033,
       "relativeImports": 13
+    },
+    "packages/tui/src/components/status-bar-rails.tsx": {
+      "lines": 961,
+      "relativeImports": 12
     },
     "packages/tui/src/hooks/use-tui-slash-commands.ts": {
       "lines": 838,
@@ -355,8 +363,8 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 965,
-      "relativeImports": 17
+      "lines": 983,
+      "relativeImports": 18
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
       "lines": 1002,
@@ -423,7 +431,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 938,
+      "lines": 974,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -463,7 +471,7 @@
       "relativeImports": 26
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
-      "lines": 949,
+      "lines": 1001,
       "relativeImports": 1
     },
     "apps/desktop/src/main/runtime-manager.ts": {
