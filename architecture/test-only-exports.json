@@ -344,8 +344,8 @@
     "packages/cli/src/wiring/tools.ts": [
       "setupTools"
     ],
-    "packages/cli/src/wiring/wrongtrace-gate.ts": [
-      "resetWrongTraceGate"
+    "packages/cli/src/wiring/wrongtrace-telemetry.ts": [
+      "buildWrongTraceTelemetryReport"
     ],
     "packages/core/src/boot.ts": [
       "cleanupStaleProjects"

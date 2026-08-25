@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-24T21:24:39.510Z",
+  "generatedAt": "2026-08-25T05:34:30.195Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,15 +12,15 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3359,
-    "testFiles": 2894,
-    "sourceLines": 796923,
-    "workspaceEdges": 124,
-    "moduleEdges": 10356,
+    "sourceFiles": 3367,
+    "testFiles": 2897,
+    "sourceLines": 797950,
+    "workspaceEdges": 125,
+    "moduleEdges": 10376,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
-    "testsWithoutTypecheck": 1,
+    "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 827
   },
@@ -138,8 +138,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 467,
-      "testFiles": 433,
+      "sourceFiles": 471,
+      "testFiles": 435,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -178,7 +178,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 433
+          "testFiles": 435
         }
       ]
     },
@@ -208,7 +208,7 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 764,
+      "sourceFiles": 765,
       "testFiles": 645,
       "workspaceDependencies": [
         "@wrongstack/kanban",
@@ -532,7 +532,7 @@
       "name": "@wrongstack/runtime",
       "dir": "packages/runtime",
       "sourceFiles": 13,
-      "testFiles": 15,
+      "testFiles": 16,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/governance",
@@ -550,7 +550,7 @@
         {
           "path": "packages/runtime/tsconfig.test.json",
           "error": null,
-          "testFiles": 15
+          "testFiles": 16
         }
       ]
     },
@@ -871,7 +871,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 194,
-      "testFiles": 157,
+      "testFiles": 158,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -884,7 +884,8 @@
         "@wrongstack/techstack",
         "@wrongstack/tools",
         "@wrongstack/vector-memory",
-        "@wrongstack/webui-protocol"
+        "@wrongstack/webui-protocol",
+        "@wrongstack/wrongtrace"
       ],
       "tsconfigs": [
         {
@@ -895,15 +896,15 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 157
+          "testFiles": 158
         }
       ]
     },
     {
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
-      "sourceFiles": 7,
-      "testFiles": 4,
+      "sourceFiles": 10,
+      "testFiles": 3,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -4217,6 +4218,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/wrongtrace-gate-counters.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/wrongtrace-gate.live.test.ts",
         "projects": [
           "root-node"
@@ -4224,6 +4231,12 @@
       },
       {
         "file": "packages/cli/tests/wrongtrace-hooks.executor.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/wrongtrace-telemetry.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10349,6 +10362,12 @@
         ]
       },
       {
+        "file": "packages/runtime/tests/wrongtrace-light-subagent-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/sage-mcp/tests/adapter.test.ts",
         "projects": [
           "root-node"
@@ -16337,6 +16356,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/wrongtrace-webui-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/ws-auth.test.ts",
         "projects": [
           "root-node"
@@ -18417,24 +18442,10 @@
         "projects": [
           "root-node"
         ]
-      },
-      {
-        "file": "packages/wrongtrace/tests/client.test.ts",
-        "projects": [
-          "root-node"
-        ]
       }
     ],
     "invalidRuntime": [],
-    "withoutTypecheck": [
-      {
-        "file": "packages/wrongtrace/tests/client.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      }
-    ],
+    "withoutTypecheck": [],
     "multipleTypechecks": []
   },
   "unresolvedRelativeImports": [
@@ -20087,8 +20098,8 @@
       "name": "setupTools"
     },
     {
-      "file": "packages/cli/src/wiring/wrongtrace-gate.ts",
-      "name": "resetWrongTraceGate"
+      "file": "packages/cli/src/wiring/wrongtrace-telemetry.ts",
+      "name": "buildWrongTraceTelemetryReport"
     },
     {
       "file": "packages/core/src/boot.ts",
