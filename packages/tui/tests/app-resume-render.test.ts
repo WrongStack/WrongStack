@@ -2,7 +2,7 @@ import { EventBus } from '@wrongstack/core/kernel';
 import type { Message, SessionEvent } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/app.js';
 import { History } from '../src/components/history/index.js';
 import type { HistoryEntry } from '../src/components/history/types.js';
@@ -47,6 +47,11 @@ function ResumeRerenderHarness({
 }
 
 describe('Issue 005 — resumed history rendering', () => {
+  beforeEach(() => {
+    reconstructionSpies.entries.mockClear();
+    reconstructionSpies.checkpoints.mockClear();
+  });
+
   afterEach(() => {
     reconstructionSpies.entries.mockClear();
     reconstructionSpies.checkpoints.mockClear();

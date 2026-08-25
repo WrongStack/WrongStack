@@ -230,6 +230,7 @@ export type Action =
       breakerAutoKillResetMs: number;
       showModelReasoning: boolean;
       showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
+      showSidebar?: boolean | undefined;
       panelPositions: import('./ui-contracts.js').PanelPositionMap;
       readSymbols: boolean;
       showSageMemoryInject: boolean;

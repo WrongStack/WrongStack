@@ -77,6 +77,56 @@ const THEME_META: Record<ThemePresetId, { name: string; desc: string }> = {
   aura: { name: 'Aura Dark', desc: 'Vivid purple and spring green on near-black violet' },
   'dark-plus': { name: 'VS Code Dark+', desc: "VS Code's default — familiar blue/orange/teal" },
   monochrome: { name: 'Monochrome', desc: 'Pure grayscale — no hue, only luminance' },
+  matrix: { name: 'Matrix Green', desc: 'Phosphor green CRT terminal — digital rain aesthetic' },
+  amber: { name: 'Amber CRT', desc: 'Warm phosphor CRT terminal — glowing vintage amber' },
+  'cyber-noir': {
+    name: 'Cyber Noir',
+    desc: 'Stark white and slate on jet black — minimalist high contrast',
+  },
+  'cobalt-mono': {
+    name: 'Cobalt Monochrome',
+    desc: 'Luminous cyan on deep abyss blue — oceanic blueprint',
+  },
+  'blood-moon': {
+    name: 'Blood Moon',
+    desc: 'Crimson & scarlet on obsidian — brooding dark mode',
+  },
+  cobalt2: {
+    name: 'Cobalt2',
+    desc: "Wes Bos' signature theme — deep navy with golden yellow & cyan",
+  },
+  'shades-of-purple': {
+    name: 'Shades of Purple',
+    desc: "Ahmad Awais' bold purple palette with neon yellow & magenta",
+  },
+  'flexoki-dark': {
+    name: 'Flexoki Dark',
+    desc: "Steph Ango's inky warm paper palette — natural earthy accents",
+  },
+  laserwave: {
+    name: 'LaserWave',
+    desc: '80s retrowave — neon flamingo and turquoise on violet',
+  },
+  andromeda: {
+    name: 'Andromeda',
+    desc: 'Deep interstellar dark with vibrant neon teal and pink',
+  },
+  'github-dark-dimmed': {
+    name: 'GitHub Dark Dimmed',
+    desc: "GitHub's softer slate dark theme — gentle blues and pastels",
+  },
+  snazzy: {
+    name: 'Hyper Snazzy',
+    desc: "Sindre Sorhus' elegant saturated terminal palette",
+  },
+  'tokyo-night-moon': {
+    name: 'Tokyo Night Moon',
+    desc: 'Tokyo Night on balanced deep indigo — vibrant accents',
+  },
+  'gruvbox-dark-hard': {
+    name: 'Gruvbox Dark Hard',
+    desc: 'Maximum contrast Gruvbox on deep pitch charcoal',
+  },
 };
 
 const THEME_OPTIONS: ThemeOption[] = THEME_PRESET_IDS.map((id) => ({ id, ...THEME_META[id] }));
@@ -102,7 +152,11 @@ function presetHelpLines(perLine = 4): string[] {
  * Exported for direct unit testing (packages/cli/tests/slash-theme.test.ts);
  * the picker itself treats it as private.
  */
-export function computeWindow(total: number, selected: number, rows: number): {
+export function computeWindow(
+  total: number,
+  selected: number,
+  rows: number,
+): {
   start: number;
   end: number;
   hasAbove: boolean;

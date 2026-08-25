@@ -529,6 +529,77 @@ export function useTuiSlashCommands({
     });
   }, [slashRegistry, openStatuslinePicker, setHiddenItems]);
 
+  // Register the TUI-only `/lite` and `/full` commands — one-key layout
+  // presets. `/lite` collapses the chrome (statusline density 'minimum' +
+  // right sidebar hidden) so chat history takes the full terminal width;
+  // `/full` restores it (statusline 'detailed' + sidebar visible). Both
+  // persist through the same dispatch + saveSettings path as
+  // `/settings <chord> <value>`, so the change survives restarts and the
+  // open settings picker tracks it live.
+  useEffect(() => {
+    if (!getSettings || !saveSettings) return;
+    const applyLayoutPreset = async (
+      statuslineMode: 'minimum' | 'detailed',
+      showSidebar: boolean,
+    ): Promise<string> => {
+      const patch = { statuslineMode, showSidebar };
+      dispatch({ type: 'settingsValueSet', patch });
+      const cur = getSettings();
+      if (cur) {
+        try {
+          const err = await saveSettings({ ...cur, ...patch });
+          if (err) dispatch({ type: 'settingsHint', text: err });
+        } catch {
+          // Mirrors the /settings save guard: a rejected persistence
+          // (Windows EBUSY when a second wstack holds the config) must
+          // not kill the TUI — the runtime state is already updated.
+          dispatch({ type: 'settingsHint', text: 'Could not save settings.' });
+        }
+      }
+      return showSidebar
+        ? `✓ Full layout: statusline detailed, sidebar on.`
+        : `✓ Lite layout: statusline minimum, sidebar off.`;
+    };
+    const liteCmd = {
+      name: 'lite',
+      description:
+        'Minimal chrome: statusline density → minimum and the right sidebar hidden.',
+      help:
+        'Switch to the lite layout.\n\n' +
+        '  statusline density → minimum (single rail)\n' +
+        '  right sidebar → hidden (full-width history)\n\n' +
+        'Reverse with /full.',
+      async run() {
+        return { message: await applyLayoutPreset('minimum', false) };
+      },
+    };
+    const fullCmd = {
+      name: 'full',
+      description:
+        'Full chrome: statusline density → detailed and the right sidebar visible.',
+      help:
+        'Switch to the full layout.\n\n' +
+        '  statusline density → detailed (multi-line bar)\n' +
+        '  right sidebar → visible\n\n' +
+        'Reverse with /lite.',
+      async run() {
+        return { message: await applyLayoutPreset('detailed', true) };
+      },
+    };
+    const teardownLite = registerSlashCommandLifecycle(slashRegistry, liteCmd, {
+      owner: 'tui',
+      official: true,
+    });
+    const teardownFull = registerSlashCommandLifecycle(slashRegistry, fullCmd, {
+      owner: 'tui',
+      official: true,
+    });
+    return () => {
+      teardownLite();
+      teardownFull();
+    };
+  }, [slashRegistry, getSettings, saveSettings, dispatch]);
+
   // Register the TUI-only `/mailbox` command — toggles the mailbox panel.
   useEffect(() => {
     const cmd = {

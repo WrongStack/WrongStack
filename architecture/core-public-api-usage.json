@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1004,
-      "typeOnly": 927,
-      "runtimeOrMixed": 246
+      "files": 1005,
+      "typeOnly": 928,
+      "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 545,
+      "files": 546,
       "typeOnly": 60,
-      "runtimeOrMixed": 512
+      "runtimeOrMixed": 513
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -10441,6 +10441,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/sidebar.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/spawn-agents.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10863,7 +10869,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/session.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 8
+      "runtimeOrMixed": 9
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -16556,6 +16562,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/shadow.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/sidebar.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

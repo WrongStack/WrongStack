@@ -26,6 +26,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyProxyConfig,
   createProxyInstantApply,
+  deactivateProxyOnConnectionFailure,
   getProxyConfig,
   isProxyEligible,
   PROXY_EXCLUDED_PROVIDERS,
@@ -429,5 +430,37 @@ describe('createProxyInstantApply', () => {
     await flush();
     expect(h.rebuildProvider).toHaveBeenCalledTimes(1);
     h.handle.dispose();
+  });
+});
+
+describe('deactivateProxyOnConnectionFailure', () => {
+  beforeEach(() => __resetProxyConfigForTests());
+  afterEach(() => __resetProxyConfigForTests());
+
+  it('returns false when proxy is not enabled or not active', () => {
+    applyProxyConfig({ enabled: false, url: 'http://localhost:3444', active: false });
+    expect(deactivateProxyOnConnectionFailure(new Error('connect ECONNREFUSED 127.0.0.1:3444'))).toBe(false);
+    expect(getProxyConfig().active).toBe(false);
+  });
+
+  it('immediately deactivates proxy on ECONNREFUSED or proxy connection errors', () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const err = new Error('request to http://localhost:3444/proxy/api.openai.com/v1 failed, reason: connect ECONNREFUSED 127.0.0.1:3444');
+    expect(deactivateProxyOnConnectionFailure(err)).toBe(true);
+    expect(getProxyConfig().active).toBe(false);
+  });
+
+  it('immediately deactivates proxy on 502/503/504 proxy errors', () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const err = new Error('502 Bad Gateway from proxy');
+    expect(deactivateProxyOnConnectionFailure(err)).toBe(true);
+    expect(getProxyConfig().active).toBe(false);
+  });
+
+  it('immediately deactivates proxy on fetch failed', () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const err = new TypeError('fetch failed');
+    expect(deactivateProxyOnConnectionFailure(err)).toBe(true);
+    expect(getProxyConfig().active).toBe(false);
   });
 });

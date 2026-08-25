@@ -1,6 +1,6 @@
 # TUI Theme Presets
 
-WrongStack'in TUI'si **35 tema preset'i** ile gelir. Aktif preset `config.themePreset` alanında saklanır ve `/theme` ile değiştirilir.
+WrongStack'in TUI'si **50 tema preset'i** ile gelir. Aktif preset `config.themePreset` alanında saklanır ve `/theme` ile değiştirilir.
 
 > Bu dosya `packages/tui/src/theme.ts` içindeki canlı paletten üretilmiştir. Elle düzenlemeyin — palet değişirse yeniden üretin.
 
@@ -54,6 +54,21 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 | 33 | `vitesse-dark` | Vitesse Dark | — | `#121212` | `#6394bf` | `#16301f` | `#331d1d` |
 | 34 | `aura` | Aura Dark | — | `#15141b` | `#82e2ff` | `#14382c` | `#351d23` |
 | 35 | `dark-plus` | VS Code Dark+ | — | `#1e1e1e` | `#569cd6` | `#16351f` | `#3a1d20` |
+| 36 | `monochrome` | Monochrome | — | `#0e0e0e` | `#cccccc` | `#1c1c1c` | `#262626` |
+| 37 | `matrix` | Matrix Green | Monochrome / CRT | `#050a05` | `#22c55e` | `#0b2612` | `#2a0e14` |
+| 38 | `amber` | Amber CRT | Monochrome / CRT | `#0f0a03` | `#ffb000` | `#1a2608` | `#2b0e0a` |
+| 39 | `cyber-noir` | Cyber Noir | Monochrome | `#08090a` | `#e2e8f0` | `#0f291e` | `#2d1217` |
+| 40 | `cobalt-mono` | Cobalt Monochrome | Monochrome | `#040d1a` | `#38bdf8` | `#06281e` | `#2a0e18` |
+| 41 | `blood-moon` | Blood Moon | Monochrome | `#0f0507` | `#f87171` | `#122614` | `#2e080d` |
+| 42 | `cobalt2` | Cobalt2 | — | `#15232d` | `#0088ff` | `#103822` | `#3d0e20` |
+| 43 | `shades-of-purple` | Shades of Purple | — | `#181734` | `#9effff` | `#163628` | `#3b162a` |
+| 44 | `flexoki-dark` | Flexoki Dark | Flexoki | `#100f0f` | `#4385be` | `#192b1a` | `#321919` |
+| 45 | `laserwave` | LaserWave | Synthwave | `#161320` | `#40b4c4` | `#143830` | `#3a1728` |
+| 46 | `andromeda` | Andromeda | — | `#1b1d23` | `#00e8c6` | `#163827` | `#3b172a` |
+| 47 | `github-dark-dimmed` | GitHub Dark Dimmed | GitHub | `#1c2128` | `#6cb6ff` | `#1b3824` | `#3d1c20` |
+| 48 | `snazzy` | Hyper Snazzy | — | `#1e2029` | `#57c7ff` | `#153826` | `#3b1820` |
+| 49 | `tokyo-night-moon` | Tokyo Night Moon | Tokyo Night | `#1e2030` | `#82aaff` | `#1d3627` | `#3d1e28` |
+| 50 | `gruvbox-dark-hard` | Gruvbox Dark Hard | Gruvbox | `#141617` | `#83a598` | `#1a331a` | `#351a1a` |
 
 ### Açıklamalar
 
@@ -92,6 +107,21 @@ Seçim aktif profilin config dosyasına yazılır, yani sonraki açılışta da 
 - **Vitesse Dark** (`vitesse-dark`) — Anthony Fu's minimal palette — muted, print-like
 - **Aura Dark** (`aura`) — Vivid purple and spring green on near-black violet
 - **VS Code Dark+** (`dark-plus`) — Visual Studio Code's default — familiar blue/orange/teal
+- **Monochrome** (`monochrome`) — Pure grayscale — no hue, only luminance
+- **Matrix Green** (`matrix`) — Phosphor green CRT terminal — digital rain aesthetic
+- **Amber CRT** (`amber`) — Warm phosphor CRT terminal — glowing vintage amber
+- **Cyber Noir** (`cyber-noir`) — Stark white and slate on jet black — minimalist high contrast
+- **Cobalt Monochrome** (`cobalt-mono`) — Luminous cyan on deep abyss blue — oceanic blueprint
+- **Blood Moon** (`blood-moon`) — Crimson & scarlet on obsidian — brooding dark mode
+- **Cobalt2** (`cobalt2`) — Wes Bos' signature theme — deep navy with golden yellow & cyan
+- **Shades of Purple** (`shades-of-purple`) — Ahmad Awais' bold purple palette with neon yellow & magenta
+- **Flexoki Dark** (`flexoki-dark`) — Steph Ango's inky warm paper palette — natural earthy accents
+- **LaserWave** (`laserwave`) — 80s retrowave — neon flamingo and turquoise on violet
+- **Andromeda** (`andromeda`) — Deep interstellar dark with vibrant neon teal and pink
+- **GitHub Dark Dimmed** (`github-dark-dimmed`) — GitHub's softer slate dark theme — gentle blues and pastels
+- **Hyper Snazzy** (`snazzy`) — Sindre Sorhus' elegant saturated terminal palette
+- **Tokyo Night Moon** (`tokyo-night-moon`) — Tokyo Night on balanced deep indigo — vibrant accents
+- **Gruvbox Dark Hard** (`gruvbox-dark-hard`) — Maximum contrast Gruvbox on deep pitch charcoal
 
 ## Bir preset neyi tanımlar
 

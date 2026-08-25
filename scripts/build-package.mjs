@@ -201,7 +201,25 @@ const profiles = {
     // print a version string. Single entry point, so chunking stays simple.
     splitting: true,
   },
-  '@wrongstack/core': { entries: coreEntries },
+  '@wrongstack/core': {
+    entries: coreEntries,
+    // MANDATORY, not an optimization. `core` publishes ~40 subpath entries and
+    // with splitting OFF esbuild inlines every shared module into each one —
+    // so `WrongStackError`, `ProviderError`, `AgentError` and every other
+    // shared class existed once PER BUNDLE. `instanceof` then silently
+    // returned false across a subpath boundary: a ProviderError thrown by
+    // `@wrongstack/providers` (built against `core/types`) failed
+    // `instanceof ProviderError` inside `core/core`, so `toWrongStackError`
+    // flattened every provider failure to a shapeless AgentError. The fallback
+    // engine stopped hopping, the provider waiting room was never written to,
+    // and the recovery strategies in `execution/error-handler.ts` went dead —
+    // all only in BUILT installs, which is why the source-level test suite
+    // stayed green. Splitting emits ONE shared chunk, restoring a single class
+    // identity (and a single module-level singleton) per process.
+    splitting: true,
+    // Root-level chunks — see the note on the `@wrongstack/tools` profile.
+    chunkNames: '[name]-[hash]',
+  },
   // `project-server` must be its own entry: client.ts spawns it via
   // `new URL('./project-server.js', import.meta.url)`, and `client.ts` is
   // bundled into `dist/index.js`. The entry key must NOT contain a `/` — esbuild
@@ -345,6 +363,20 @@ const profiles = {
   '@wrongstack/webui-protocol': standard(['@wrongstack/core']),
   '@wrongstack/tools': {
     entries: toolEntries,
+    // Same reason as `@wrongstack/core`: 58 subpath entries with splitting OFF
+    // gave every entry its own copy of `indexStorePool`, `indexCircuitBreaker`,
+    // `languageProfileRegistry`, the project-server `connections` map and the
+    // process registry — 12 independent copies of what the source treats as
+    // one process-wide singleton. Splitting collapses them into one chunk.
+    splitting: true,
+    // Chunks live at the dist ROOT, not in a subdirectory. Several modules
+    // locate sibling artifacts (daemon entry points, worker scripts, the
+    // `instructions/` tree) with `new URL(rel, import.meta.url)`, and once
+    // splitting moves that code into a chunk the chunk's own location is what
+    // those relative paths resolve against. The dist root is the layout their
+    // candidate lists already enumerate as the "root bundle" case, so keeping
+    // chunks there needs no per-resolver special casing.
+    chunkNames: '[name]-[hash]',
     external: [
       '@typescript/typescript6',
       '@wrongstack/core',
@@ -531,6 +563,7 @@ async function bundle(config, defaults) {
     mainFields: config.mainFields ?? defaults.mainFields,
     loader: config.loader ?? defaults.loader,
     assetNames: config.assetNames ?? defaults.assetNames,
+    chunkNames: config.chunkNames ?? defaults.chunkNames,
     logLevel: 'info',
   });
   await stripBannerFromChunks(config, defaults, outdir, entries);

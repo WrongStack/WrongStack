@@ -97,6 +97,8 @@ export type Settings = {
    *  sidebar, vertical), or 'off' (hidden). Default: 'bottom'.
    *  Backward-compat: old boolean configs are coerced — true→'bottom', false→'off'. */
   showAgentSwarmPanel: AgentSwarmPanelMode;
+  /** Right sidebar visibility: when false, the right sidebar is completely hidden. Default: true. */
+  showSidebar: boolean;
   /**
    * Per-panel position map. Each F-key panel can be set to 'bottom' (F-key
    * behavior, the default) or 'sidebar' (rendered in the right sidebar).

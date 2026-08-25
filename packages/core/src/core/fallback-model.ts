@@ -26,6 +26,7 @@ import {
   type Response,
 } from '../types/provider.js';
 import { resolveEventSessionId } from './context.js';
+import { isProviderFailureTracked } from './provider-runner.js';
 import type { FallbackChain } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar, logicalCalendarTarget } from './model-availability-calendar.js';
@@ -162,9 +163,31 @@ export function fallbackProfileChain(config: Config, profileName: string | undef
  * so they surface instead.
  */
 function shouldFallback(err: unknown): number | null {
-  if (!(err instanceof ProviderError) && !ProviderError.isProviderError(err)) return null;
-  const kind = (err as ProviderError).kind;
-  return isFallbackWorthy(kind) ? (err as ProviderError).status : null;
+  if (err instanceof ProviderError || ProviderError.isProviderError(err)) {
+    const kind = (err as ProviderError).kind;
+    return isFallbackWorthy(kind) ? (err as ProviderError).status : null;
+  }
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    if (
+      msg.includes('econnrefused') ||
+      msg.includes('econnreset') ||
+      msg.includes('etimedout') ||
+      msg.includes('fetch failed') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('network') ||
+      msg.includes('timeout') ||
+      msg.includes('503') ||
+      msg.includes('502') ||
+      msg.includes('504') ||
+      msg.includes('overloaded') ||
+      msg.includes('rate limit') ||
+      msg.includes('quota')
+    ) {
+      return 503;
+    }
+  }
+  return null;
 }
 
 function isUsableModelResponse(response: Response): boolean | undefined {
@@ -542,7 +565,10 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         // Record the failure in the tracker (real ProviderError, not our synthetic skip)
         const firstErrIsProvider =
           firstErr_ instanceof ProviderError || ProviderError.isProviderError(firstErr_);
-        if (!alreadyTracked && firstErrIsProvider && tracker) {
+        // `isProviderFailureTracked` — the provider runner is the single wire
+        // funnel and already wrote this failure to the waiting room. Counting
+        // it again here would halve every consecutive-failure threshold.
+        if (!alreadyTracked && firstErrIsProvider && tracker && !isProviderFailureTracked(firstErr_)) {
           tracker.recordFailure(
             ctx_.provider.id,
             ctx_.model,
@@ -818,7 +844,11 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             return response;
           } catch (err) {
             // Record fallback failure too
-            if ((err instanceof ProviderError || ProviderError.isProviderError(err)) && tracker) {
+            if (
+              (err instanceof ProviderError || ProviderError.isProviderError(err)) &&
+              tracker &&
+              !isProviderFailureTracked(err)
+            ) {
               tracker.recordFailure(
                 nextProvider.id,
                 targetModel,

@@ -79,6 +79,40 @@ const MAX_ATTEMPTS_BY_KIND: Record<ProviderErrorKind, number> = {
  */
 const FAILOVER_RETRY_AFTER_MS = 15_000;
 
+/**
+ * First-retry wait for the exponential schedule, in ms.
+ *
+ * The schedule is `RETRY_BASE_DELAY_MS * 2^attempt + jitter`, so with a
+ * base of 4s and {@link MODEL_RETRIES} attempts a struggling route waits
+ * 4s → 8s → 16s before the turn hands over to the fallback chain.
+ *
+ * It used to be 1000 (1s → 2s → 4s). That schedule was too eager for the
+ * failure it actually fires on: a provider that just refused a request
+ * because of a network blip, an overload, or a burst-rate window is
+ * almost never healthy again 1 second later, so the first two retries
+ * mostly bought another two failures — three requests hammered out inside
+ * ~7 seconds — and then reported the same error anyway. Starting at 4s
+ * gives the far side a realistic window to recover, and still exhausts
+ * all three in-place attempts in well under half a minute.
+ *
+ * NOTE: this is only the *fallback* schedule. A provider that sends a
+ * `Retry-After` still wins outright (see {@link DefaultRetryPolicy.delayMs}).
+ */
+export const RETRY_BASE_DELAY_MS = 4_000;
+
+/**
+ * Width of the uniform jitter added to every exponential wait, in ms.
+ *
+ * Deliberately decoupled from {@link RETRY_BASE_DELAY_MS}: jitter exists to
+ * de-synchronise concurrent agents retrying the same route, and one second
+ * of spread is plenty for that. Scaling it with the base would have turned
+ * the first retry into a 4–8s coin flip for no added benefit.
+ */
+export const RETRY_JITTER_MS = 1_000;
+
+/** Ceiling for a single exponential wait, in ms. */
+const MAX_BACKOFF_MS = 30_000;
+
 export class DefaultRetryPolicy implements RetryPolicy {
   shouldRetry(err: Error | ProviderError, attempt: number): boolean {
     const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
@@ -111,7 +145,8 @@ export class DefaultRetryPolicy implements RetryPolicy {
    *      [0, MAX_RETRY_AFTER_MS]. The provider told us exactly when
    *      to come back; we should listen.
    *   2. Otherwise fall through to the exponential-with-jitter
-   *      schedule (`1000 * 2^attempt + jitter`, capped at 30s).
+   *      schedule (`RETRY_BASE_DELAY_MS * 2^attempt + jitter`, capped
+   *      at 30s) — 4s → 8s → 16s for the three in-place attempts.
    *
    * `err` is optional for back-compat with the existing interface;
    * callers should pass it whenever available.
@@ -126,15 +161,14 @@ export class DefaultRetryPolicy implements RetryPolicy {
       // 60s upper bound.
       return Math.max(0, Math.min(hint, MAX_RETRY_AFTER_MS));
     }
-    const base = 1000;
-    const exp = base * 2 ** attempt;
+    const exp = RETRY_BASE_DELAY_MS * 2 ** attempt;
     // crypto.randomInt(min, max) is half-open: returns an integer in
-    // [min, max). With (0, base) we get integers in [0, 1000), matching
-    // the previous Math.random() * 1000 jitter range. Using crypto
+    // [min, max). With (0, RETRY_JITTER_MS) we get integers in [0, 1000),
+    // matching the previous Math.random() * 1000 jitter range. Using crypto
     // (not Math.random) per the project's deterministic-source
     // convention (see docs/design-provider-health-gate.md).
-    const jitter = randomInt(0, base);
-    return Math.min(30_000, exp + jitter);
+    const jitter = randomInt(0, RETRY_JITTER_MS);
+    return Math.min(MAX_BACKOFF_MS, exp + jitter);
   }
 }
 

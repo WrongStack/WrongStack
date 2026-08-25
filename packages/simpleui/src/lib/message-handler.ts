@@ -456,6 +456,21 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         deps.setFallbackPending?.(null);
         break;
       }
+      case 'provider.model_switched': {
+        if (
+          typeof payload['sessionId'] === 'string' &&
+          payload['sessionId'] !== sessionIdRef.current
+        ) {
+          break;
+        }
+        const target =
+          payload['to'] && typeof payload['to'] === 'object'
+            ? (payload['to'] as Record<string, unknown>)
+            : undefined;
+        const model = typeof target?.['model'] === 'string' ? target['model'] : '';
+        setActivity(model ? `Model · ${model}` : 'Model switched');
+        break;
+      }
       case 'provider.fallback_pending': {
         // Server broadcasts reach every tab; only show the modal for the
         // session this tab is viewing.

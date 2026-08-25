@@ -97,10 +97,10 @@ export const PANEL_IDS = Object.freeze([
 export type PanelId = (typeof PANEL_IDS)[number];
 
 /** Total field count = legacy 46 + per-panel positions + the two
- *  WrongProxy / WrongTrace fields (master switch + URL). Derived at
- *  runtime from `PANEL_IDS.length` + 2 to keep the surface in sync. */
+ *  WrongProxy / WrongTrace fields (master switch + URL) + showSidebar.
+ *  Derived at runtime from `PANEL_IDS.length` + 3 to keep the surface in sync. */
 export const TOTAL_SETTINGS_FIELD_COUNT =
-  PANEL_POSITION_FIELD_START + PANEL_IDS.length + 2;
+  PANEL_POSITION_FIELD_START + PANEL_IDS.length + 3;
 
 /** Map of every tracked panel → its current placement. */
 export type PanelPositionMap = Readonly<Record<PanelId, PanelPosition>>;

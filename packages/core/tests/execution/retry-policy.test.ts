@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DefaultRetryPolicy, MODEL_RETRIES } from '../../src/execution/retry-policy.js';
+import {
+  DefaultRetryPolicy,
+  MODEL_RETRIES,
+  RETRY_BASE_DELAY_MS,
+  RETRY_JITTER_MS,
+} from '../../src/execution/retry-policy.js';
 import { ProviderError } from '../../src/types/provider.js';
 
 describe('DefaultRetryPolicy', () => {
@@ -92,18 +97,19 @@ describe('DefaultRetryPolicy', () => {
 
   // Regression: § 1.1 PR-B2-from-the-report — switched from
   // Math.random() to crypto.randomInt(). Verify the jitter is still
-  // distributed across the expected [0, 1000) integer range. 10k
-  // samples → roughly uniform across the 1000 possible values.
-  it('delayMs jitter is uniformly distributed across [0, 1000)', () => {
-    const buckets = new Array<number>(10).fill(0); // 10 buckets of width 100
+  // distributed across the expected [0, RETRY_JITTER_MS) integer range.
+  // 10k samples → roughly uniform across the 1000 possible values.
+  it('delayMs jitter is uniformly distributed across [0, RETRY_JITTER_MS)', () => {
+    const buckets = new Array<number>(10).fill(0); // 10 buckets of equal width
+    const width = RETRY_JITTER_MS / 10;
     const samples = 10_000;
     for (let i = 0; i < samples; i++) {
-      // attempt=0 → exp=1000, jitter is the entire [0, 1000) range
+      // attempt=0 → exp=RETRY_BASE_DELAY_MS, jitter is the whole range
       const d = p.delayMs(0);
-      const jitter = d - 1000; // strip the base exponential
+      const jitter = d - RETRY_BASE_DELAY_MS; // strip the base exponential
       expect(jitter).toBeGreaterThanOrEqual(0);
-      expect(jitter).toBeLessThan(1000);
-      const bucket = Math.floor(jitter / 100);
+      expect(jitter).toBeLessThan(RETRY_JITTER_MS);
+      const bucket = Math.floor(jitter / width);
       buckets[bucket] = (buckets[bucket] ?? 0) + 1;
     }
     // Each of the 10 buckets should hold ~1000 samples (within ±10%).
@@ -114,13 +120,24 @@ describe('DefaultRetryPolicy', () => {
     }
   });
 
-  // Regression: jitter should never exceed 1000 — the upper bound of
-  // the [0, base) range. crypto.randomInt(min, max) is half-open so
-  // the inclusive upper bound is `base - 1` (i.e. 999).
-  it('delayMs jitter never exceeds 1000 - 1 (crypto.randomInt half-open)', () => {
+  // Regression: jitter should never reach RETRY_JITTER_MS — the upper bound
+  // of the [0, RETRY_JITTER_MS) range. crypto.randomInt(min, max) is
+  // half-open so the inclusive upper bound is `RETRY_JITTER_MS - 1` (999).
+  it('delayMs jitter never exceeds RETRY_JITTER_MS - 1 (crypto.randomInt half-open)', () => {
     for (let i = 0; i < 1000; i++) {
       const d = p.delayMs(0);
-      expect(d - 1000).toBeLessThan(1000);
+      expect(d - RETRY_BASE_DELAY_MS).toBeLessThan(RETRY_JITTER_MS);
+    }
+  });
+
+  // The in-place schedule a user actually sees while a provider is down:
+  // three attempts at 4s → 8s → 16s (plus <1s jitter), then failover.
+  it('walks the 4s -> 8s -> 16s schedule across the MODEL_RETRIES attempts', () => {
+    const expected = [4_000, 8_000, 16_000];
+    for (let attempt = 0; attempt < MODEL_RETRIES; attempt++) {
+      const d = p.delayMs(attempt);
+      expect(d).toBeGreaterThanOrEqual(expected[attempt] as number);
+      expect(d).toBeLessThan((expected[attempt] as number) + RETRY_JITTER_MS);
     }
   });
 
@@ -156,11 +173,11 @@ describe('DefaultRetryPolicy', () => {
   it('falls through to exponential schedule when retryAfterMs is missing', () => {
     // No retryAfterMs → use the default exponential+jitter path.
     const err = new ProviderError('rate limited', 429, true, 'x');
-    // attempt=0 → exp=1000, jitter in [0, 1000)
+    // attempt=0 → exp=RETRY_BASE_DELAY_MS, jitter in [0, RETRY_JITTER_MS)
     for (let i = 0; i < 50; i++) {
       const d = p.delayMs(0, err);
-      expect(d).toBeGreaterThanOrEqual(1000);
-      expect(d).toBeLessThan(2000);
+      expect(d).toBeGreaterThanOrEqual(RETRY_BASE_DELAY_MS);
+      expect(d).toBeLessThan(RETRY_BASE_DELAY_MS + RETRY_JITTER_MS);
     }
   });
 
@@ -176,10 +193,10 @@ describe('DefaultRetryPolicy', () => {
       const err = new ProviderError('rate limited', 429, true, 'x', {
         body: { retryAfterMs: bad },
       });
-      // attempt=0 → exp=1000, jitter in [0, 1000)
+      // attempt=0 → exp=RETRY_BASE_DELAY_MS, jitter in [0, RETRY_JITTER_MS)
       const d = p.delayMs(0, err);
-      expect(d).toBeGreaterThanOrEqual(1000);
-      expect(d).toBeLessThan(2000);
+      expect(d).toBeGreaterThanOrEqual(RETRY_BASE_DELAY_MS);
+      expect(d).toBeLessThan(RETRY_BASE_DELAY_MS + RETRY_JITTER_MS);
     }
   });
 
@@ -188,15 +205,15 @@ describe('DefaultRetryPolicy', () => {
     // policy must not crash and must use the default schedule.
     const err = new Error('ECONNRESET');
     const d = p.delayMs(0, err);
-    expect(d).toBeGreaterThanOrEqual(1000);
-    expect(d).toBeLessThan(2000);
+    expect(d).toBeGreaterThanOrEqual(RETRY_BASE_DELAY_MS);
+    expect(d).toBeLessThan(RETRY_BASE_DELAY_MS + RETRY_JITTER_MS);
   });
 
   it('falls through when err is omitted entirely', () => {
     // The optional-second-arg form must keep back-compat. No err →
     // exponential+jitter as before.
     const d = p.delayMs(2);
-    expect(d).toBeGreaterThanOrEqual(4000); // 1000 * 2^2
-    expect(d).toBeLessThan(5000);
+    expect(d).toBeGreaterThanOrEqual(16_000); // 4000 * 2^2
+    expect(d).toBeLessThan(16_000 + RETRY_JITTER_MS);
   });
 });

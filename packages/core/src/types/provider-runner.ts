@@ -1,3 +1,4 @@
+import type { ProviderModelStatusTracker } from '../coordination/provider-status-tracker.js';
 import type { EventBus } from '../kernel/events.js';
 import type { AgentContext } from './context.js';
 import type { Logger } from './logger.js';
@@ -19,6 +20,13 @@ export interface RunProviderOptions {
   retry: RetryPolicy;
   logger: Logger;
   tracer?: Tracer | undefined;
+  /**
+   * Shared provider/model waiting room. A runner that honours it must refuse
+   * to call a quarantined (provider, model) pair and must report the wire
+   * outcome back — this funnel is the last line of defence that keeps a
+   * quota-exhausted route off the wire no matter which extensions are loaded.
+   */
+  statusTracker?: ProviderModelStatusTracker | undefined;
 }
 
 /**

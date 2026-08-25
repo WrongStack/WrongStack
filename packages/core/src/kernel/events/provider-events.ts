@@ -244,4 +244,13 @@ export interface ProviderEventMap {
     sessionId?: string | undefined;
     timestamp: number;
   };
+  /**
+   * Fired when the active provider/model is switched (e.g. via /model, UI switcher, or API).
+   */
+  'provider.model_switched': {
+    sessionId?: string | undefined;
+    from?: { providerId: string; model: string } | undefined;
+    to: { providerId: string; model: string };
+    timestamp: number;
+  };
 }

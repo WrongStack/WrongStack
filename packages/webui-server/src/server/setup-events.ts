@@ -344,6 +344,18 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     });
   });
 
+  on('provider.model_switched', (e) => {
+    broadcast(clients, {
+      type: 'provider.model_switched',
+      payload: sessionPayload({
+        sessionId: e.sessionId,
+        from: e.from,
+        to: e.to,
+        timestamp: e.timestamp,
+      }),
+    });
+  });
+
   on('provider.fallback_pending', (e) => {
     broadcast(clients, {
       type: 'provider.fallback_pending',

@@ -49,6 +49,20 @@ export const THEME_PRESET_IDS = [
   'aura',
   'dark-plus',
   'monochrome',
+  'matrix',
+  'amber',
+  'cyber-noir',
+  'cobalt-mono',
+  'blood-moon',
+  'cobalt2',
+  'shades-of-purple',
+  'flexoki-dark',
+  'laserwave',
+  'andromeda',
+  'github-dark-dimmed',
+  'snazzy',
+  'tokyo-night-moon',
+  'gruvbox-dark-hard',
 ] as const;
 
 export type ThemePresetId = (typeof THEME_PRESET_IDS)[number];

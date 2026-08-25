@@ -70,6 +70,10 @@ const fakeProvider = {
 
 const fakeTokenCounter = {
   count: vi.fn().mockResolvedValue({ total: 0 }),
+  // setupSession credits a resumed session's prior usage through
+  // tokenCounter.account(); without this stub the resume path throws
+  // TypeError → RESUME_FAILED before any assertion runs.
+  account: vi.fn(),
 } as never;
 
 describe('setupSession', () => {

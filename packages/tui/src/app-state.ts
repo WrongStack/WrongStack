@@ -340,6 +340,8 @@ export type State = {
     showModelReasoning: boolean;
     /** Agent swarm panel placement: 'bottom' (lower region), 'sidebar' (right sidebar), or 'off'. Default: 'bottom'. */
     showAgentSwarmPanel: import('./app-settings-type.js').AgentSwarmPanelMode;
+    /** Right sidebar visibility (mirrors Settings.showSidebar). Default: true. */
+    showSidebar: boolean;
     /**
      * Per-panel position map mirrored from the persisted Settings shape.
      * Each F-key panel can be set to 'bottom' (F-key behavior, the default)

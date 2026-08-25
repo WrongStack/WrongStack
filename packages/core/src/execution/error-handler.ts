@@ -38,7 +38,7 @@ export function buildRecoveryStrategies(opts?: {
       label: 'context_overflow_reduce',
       compactor: opts?.compactor,
       async attempt(err, ctx) {
-        if (!(err instanceof ProviderError)) return null;
+        if (!ProviderError.isProviderError(err)) return null;
         // Accept both the cleanly-classified overflow AND an overflow-shaped
         // error a gateway mislabeled (413, or an overflow phrase under a
         // generic invalid_request/400) — see isContextOverflowShaped.
@@ -74,7 +74,7 @@ export function buildRecoveryStrategies(opts?: {
     {
       label: 'rate_limit_backoff',
       async attempt(err, ctx) {
-        if (!(err instanceof ProviderError) || err.kind !== 'rate_limit') return null;
+        if (!ProviderError.isProviderError(err) || err.kind !== 'rate_limit') return null;
 
         // Prefer the parsed Retry-After hint the provider extracted into
         // body.retryAfterMs; fall back to 5s when absent.
@@ -113,7 +113,7 @@ export function buildRecoveryStrategies(opts?: {
     {
       label: 'downgrade_model',
       async attempt(err, ctx) {
-        if (!(err instanceof ProviderError)) return null;
+        if (!ProviderError.isProviderError(err)) return null;
         // rate_limit is intentionally NOT handled here: the rate_limit_backoff
         // strategy above always returns a decision for it, so this strategy
         // is never reached. Downgrade applies to overload and generic server
@@ -174,7 +174,7 @@ export function buildRecoveryStrategies(opts?: {
     {
       label: 'content_filter_reroute',
       async attempt(err, ctx) {
-        if (!(err instanceof ProviderError) || err.kind !== 'content_filter') return null;
+        if (!ProviderError.isProviderError(err) || err.kind !== 'content_filter') return null;
 
         const registry = opts?.modelsRegistry;
         if (!registry) return null;
@@ -309,7 +309,7 @@ export class DefaultErrorHandler implements ErrorHandler {
     if (err instanceof Error && err.name === 'AbortError') {
       return { kind: 'abort', retryable: false };
     }
-    if (err instanceof ProviderError) {
+    if (ProviderError.isProviderError(err)) {
       // Map the canonical taxonomy onto the handler's public (coarser) union.
       // Exhaustive by construction — a new ProviderErrorKind refuses to
       // compile until it is mapped here. Retryability comes from the kind

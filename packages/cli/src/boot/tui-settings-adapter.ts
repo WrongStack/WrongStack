@@ -239,6 +239,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
       showModelReasoning: autonomy?.showModelReasoning ?? true,
       showAgentSwarmPanel: coerceAgentSwarmMode(autonomy?.showAgentSwarmPanel),
+      showSidebar: autonomy?.showSidebar ?? true,
       // Migrate the legacy `autonomy.showAgentSwarmPanel: 'sidebar'` into
       // the new per-panel `panelPositions.fleet` map at the read boundary
       // so users with old configs (no `panelPositions` key on disk) get
@@ -321,6 +322,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.breakerAutoKillResetMs !== undefined ||
         s.showModelReasoning !== undefined ||
         s.showAgentSwarmPanel !== undefined ||
+        s.showSidebar !== undefined ||
         s.panelPositions !== undefined ||
         s.showSageMemoryInject !== undefined ||
         s.sageMemoryInjectThreshold !== undefined ||
@@ -388,6 +390,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.showModelReasoning !== undefined) autonomy.showModelReasoning = s.showModelReasoning;
         if (s.showAgentSwarmPanel !== undefined)
           autonomy.showAgentSwarmPanel = s.showAgentSwarmPanel;
+        if (s.showSidebar !== undefined) autonomy.showSidebar = s.showSidebar;
         if (s.panelPositions !== undefined) autonomy.panelPositions = s.panelPositions;
         if (s.showSageMemoryInject !== undefined)
           autonomy.showSageMemoryInject = s.showSageMemoryInject;

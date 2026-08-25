@@ -809,4 +809,15 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(status?.lastErrorKind, 'rate_limit');
     strictEqual(status?.rateLimitHits, 1);
   });
+
+  it('unblocks and clears failure state on manual unblock', () => {
+    for (let i = 0; i < 5; i++) {
+      tracker.recordFailure('test', 'model-a', 'server', 500, `Error ${i}`);
+    }
+    strictEqual(tracker.isAvailable('test', 'model-a'), false);
+
+    tracker.unblock('test', 'model-a');
+    strictEqual(tracker.isAvailable('test', 'model-a'), true);
+    strictEqual(tracker.getStatus('test', 'model-a')?.state, 'healthy');
+  });
 });
