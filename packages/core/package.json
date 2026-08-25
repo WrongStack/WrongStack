@@ -195,7 +195,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^22.19.0",
+    "@types/node": "^26.2.0",
     "typescript": "^7.0.2"
   },
   "publishConfig": {
