@@ -54,7 +54,7 @@ Design rules, enforced everywhere in this integration:
 
 ### 1.1 The adapter package (`packages/wrongtrace/`)
 
-`@wrongstack/wrongtrace` (v0.1.0, workspace-private, zero runtime dependencies beyond `undici-types`) is deliberately decoupled from every runtime package inside WrongStack — it is the "sibling" integration protocol. Import surface:
+`@wrongstack/wrongtrace` (public — `publishConfig.access: "public"`, no `private` flag; zero runtime dependencies beyond `undici-types`) is deliberately decoupled from every runtime package inside WrongStack — it is the "sibling" integration protocol. Import surface:
 
 ```ts
 import { getWrongTraceClient } from "@wrongstack/wrongtrace";
@@ -80,6 +80,8 @@ Public surface (see `packages/wrongtrace/src/index.ts`):
 | `createIpcTransport` / `createMcpTransport` | function | Raw transports for advanced consumers |
 | `getWrongTrace`, `preflightFileEdit`, `withFileLock` | function | The shared guardrail gate — one singleton per process |
 | `createWrongTracePreToolUseHook` / `createWrongTracePostToolUseHook`, `WrongTraceGateDecisionEvent` | function / type | Shared fail-open lock-gate hook factories + typed decision events |
+| `createWrongTraceHookPair` | function | Paired pre/post gate hooks sharing one reference-counted lock set (per-runner scoping; a sibling can never release your claim) |
+| `createWrongTraceGateCounter`, `recordGateDecision`, `snapshotGateDecisions`, `persistWrongTraceGateCounters`, `loadWrongTraceGateCounters`, `formatGateCounterReport` | function | Gate-decision tally — one process-shared counter, persisted to `<projectRoot>/.wrongstack/wrongtrace-gate-counters.json` so `wstack proxy-status` can report firing rates cross-process |
 
 The gate and hooks live **in the adapter itself** (not in `@wrongstack/cli`) so every host — CLI leader, fleet subagents, standalone WebUI server, runtime-package light subagents — consumes the exact same lock-gate implementation without importing `@wrongstack/cli` (dep direction cli → webui-server forbids the reverse edge). The CLI's `wiring/wrongtrace-gate.ts` / `wiring/wrongtrace-hooks.ts` are re-export shims.
 
@@ -235,6 +237,17 @@ Gated tools: `edit`, `write`, `replace`, `patch`, `codebase-ast-replace` (target
 
 `reportTelemetry` is wired into the session-completion path: `finalizeExecutionCleanup` (`packages/cli/src/execution-cleanup.ts`) reports one summary per finished session — `run_id`, agent/model/provider identity, token usage (`tokenCounter.total()`), and cost (`estimateCost().total()`) — through `wiring/wrongtrace-telemetry.ts`. The report is **not awaited inline** (never delays the reviewer notification), joins the session-end producer drain, and is raced against a 5 s deadline so a hung transport cannot block teardown. `agent_name` is `wrongstack-cli`; a session whose `ctx.model` is unset (mid-resume swap) skips reporting with a structured warning rather than attributing tokens to an empty identity.
 
+### 6.5 Gate-decision counters (firing-rate measurability)
+
+The typed `wrongtrace.gate.decision` events (§5) are tallied by `packages/wrongtrace/src/gate-counters.ts` — a pure, transport-agnostic counter (`record()` / `snapshot()`) with a process-shared singleton. Hosts call `recordGateDecision(event)` **inside their existing emit closures** (leader + fleet runner in `lifecycle-plugins.ts` / `subagent-hook-runner.ts`, standalone WebUI server in `backend-services.ts`) — deliberately *not* as new EventBus listeners, so the counter never registers a listener it must remember to dispose.
+
+**Shared counters-file contract:** every host persists the same snapshot shape to the same path — `<projectRoot>/.wrongstack/wrongtrace-gate-counters.json`:
+- CLI persists once at session end (`finalizeExecutionCleanup`, alongside telemetry).
+- Standalone WebUI server persists on each gate decision (its host session model has no single session-end hook).
+- Last writer wins; each process tallies only its own sessions (module singleton per process).
+
+**Readout:** `wstack proxy-status` (diag-doctor `proxyCmd`) loads the file and prints the last session's `deny / allow-fragile / lock-acquired / lock-conflict-race / lock-released / total`. `wstack doctor` additionally prints a `eventBus: listeners=… wildcards=…` line when invoked from a host that holds a live EventBus (the standalone fresh-process invocation has none and omits the line rather than fabricating counts).
+
 ---
 
 ## 7. WrongProxy provider routing (the sibling feature)
@@ -316,6 +329,8 @@ Start the daemon on the expected port and re-run `packages/wrongtrace` + `packag
 | Adapter package (client, discovery, transports, helpers, types) | `packages/wrongtrace/src/` |
 | Shared gate (singleton, preflight, withFileLock) | `packages/wrongtrace/src/gate.ts` |
 | Shared guardrail hook factories + typed decision events | `packages/wrongtrace/src/hooks.ts` |
+| Gate-decision counter (shared tally + counters-file persist) | `packages/wrongtrace/src/gate-counters.ts` |
+| CLI counter re-export shim | `packages/cli/src/wiring/wrongtrace-gate-counters.ts` |
 | Adapter unit + IPC tests | `packages/wrongtrace/src/__tests__/` |
 | CLI gate re-export shim | `packages/cli/src/wiring/wrongtrace-gate.ts` |
 | CLI hook re-export shim | `packages/cli/src/wiring/wrongtrace-hooks.ts` |

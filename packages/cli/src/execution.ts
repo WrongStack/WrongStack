@@ -215,6 +215,10 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
   const offStorageObservability = installStorageObservability(events, context.traceId);
 
   const chimeraWork = createChimeraWorkRegistry();
+  // Session-scoped disposers for the chimera wildcard listeners — the
+  // installers push their `onPattern` disposers here and the finally block
+  // below drains them at session end (EventBus wildcard-leak board card).
+  const chimeraTeardowns: Array<() => void> = [];
 
   installChimeraReviewHandler({
     events,
@@ -224,6 +228,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     agent,
     config,
     projectDir: wpaths.projectDir,
+    teardownHandlers: chimeraTeardowns,
     // Thread the shared tracker so the round-robin Chimera reviewer picks
     // skip (provider, model) pairs currently in the waiting room. Without
     // this, a 429-stricken model is re-spawned on every concurrent reviewer
@@ -238,6 +243,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     events,
     director,
     session,
+    teardownHandlers: chimeraTeardowns,
     buildLadder: () =>
       buildMutatingAgentLadder({
         profileChain: effectiveFallbackChain(config),
@@ -732,6 +738,16 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       }
     }
   } finally {
+    // Release session-scoped wildcard listeners (chimera review/cascade)
+    // BEFORE the cleanup drains below, so no stale listener survives into
+    // teardown — the EventBus wildcard-disposer fix.
+    for (const off of chimeraTeardowns.splice(0)) {
+      try {
+        off();
+      } catch {
+        /* best-effort — a throwing disposer must not block cleanup */
+      }
+    }
     await finalizeExecutionCleanup({
       offStorageObservability,
       fleetStatusLine,

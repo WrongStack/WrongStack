@@ -81,6 +81,9 @@ export type InstallChimeraReviewHandlerOptions = {
     | ((payload: ChimeraReviewCompletePayload, projectDir: string) => Promise<void>)
     | undefined;
   trackWork: (work: Promise<void>) => void;
+  /** Optional session-teardown chain — the wildcard listener disposer is
+   *  pushed here so the registration is released when the session ends. */
+  teardownHandlers?: Array<() => void> | undefined;
 };
 
 export function installChimeraReviewHandler({
@@ -94,8 +97,13 @@ export function installChimeraReviewHandler({
   statusTracker,
   persistReview = persistChimeraReview,
   trackWork,
+  teardownHandlers,
 }: InstallChimeraReviewHandlerOptions): void {
-  events.onPattern('chimera.review_needed', (_event, payload) => {
+  // Capture the disposer instead of discarding it — the wildcard listener
+  // otherwise accumulates in EventBus.wildcards until the process cap is
+  // hit (see the EventBus leak board card). Owner tag included so a cap
+  // rejection log names this registration site.
+  const off = events.onPattern('chimera.review_needed', (_event, payload) => {
     const p = payload as ChimeraReviewNeededPayload & {
       reviewModelSelection?: 'round-robin' | 'random' | undefined;
     };
@@ -563,7 +571,11 @@ export function installChimeraReviewHandler({
         }
       })(),
     );
-  });
+  }, 'chimera-review');
+  // Session-scoped release: the caller's teardown chain (execution.ts
+  // finally block) invokes this to drop the wildcard listener at session
+  // end instead of letting it accumulate toward MAX_WILDCARDS.
+  if (off) teardownHandlers?.push(off);
 }
 
 async function persistChimeraReview(

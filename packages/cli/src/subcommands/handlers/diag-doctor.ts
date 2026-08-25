@@ -40,6 +40,11 @@ export const diagCmd: SubcommandHandler = async (_args, deps) => {
     `  tools:         ${deps.toolRegistry?.list().length ?? 0}`,
     `  plugins:       ${cfg.plugins?.length ?? 0}`,
     `  mcpServers:    ${Object.keys(cfg.mcpServers ?? {}).length}`,
+    ...(deps.events
+      ? [
+          `  eventBus:      listeners=${deps.events.listenerCount()} wildcards=${deps.events.wildcardCount()}`,
+        ]
+      : []),
   ];
   deps.renderer.write(lines.join('\n') + '\n');
   return 0;

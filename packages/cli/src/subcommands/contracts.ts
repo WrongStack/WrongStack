@@ -27,4 +27,11 @@ export interface SubcommandDeps {
   userHome: string;
   /** Parsed top-level flags after they have been removed from positional args. */
   flags?: Record<string, string | boolean>;
+  /**
+   * Live EventBus when a subcommand is invoked from a host that holds one
+   * (e.g. an in-process diagnostics surface). Standalone `wstack doctor`
+   * runs in a fresh process and has none — the handler then omits the
+   * listener-pressure line instead of fabricating counts.
+   */
+  events?: import('@wrongstack/core/kernel').EventBus | undefined;
 }

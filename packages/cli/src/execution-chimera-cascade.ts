@@ -46,6 +46,9 @@ export type InstallChimeraCascadeHandlerOptions = {
   buildLadder?: (() => ReviewerAttempt[]) | undefined;
   /** Test seam; production defaults to the real safe command verifier. */
   verifyEvidence?: typeof verifyCascadeEvidence | undefined;
+  /** Optional session-teardown chain — the wildcard listener disposer is
+   *  pushed here so the registration is released when the session ends. */
+  teardownHandlers?: Array<() => void> | undefined;
   /** Persist every evidence verdict on the source report, even when re-review stops. */
   persistEvidence?:
     | ((
@@ -69,8 +72,13 @@ export function installChimeraCascadeHandler({
   buildLadder,
   verifyEvidence = verifyCascadeEvidence,
   persistEvidence,
+  teardownHandlers,
 }: InstallChimeraCascadeHandlerOptions): void {
-  events.onPattern('chimera.cascade_needed', (_event, payload) => {
+  // Capture the disposer instead of discarding it — the wildcard listener
+  // otherwise accumulates in EventBus.wildcards until the process cap is
+  // hit (see the EventBus leak board card). Owner tag included so a cap
+  // rejection log names this registration site.
+  const off = events.onPattern('chimera.cascade_needed', (_event, payload) => {
     const p = payload as ChimeraCascadeNeededPayload;
     const dir = director;
     if (!dir) return; // Director not available — cascade skipped.
@@ -218,7 +226,11 @@ export function installChimeraCascadeHandler({
     })();
 
     trackWork(pendingWork);
-  });
+  }, 'chimera-cascade');
+  // Session-scoped release: the caller's teardown chain (execution.ts
+  // finally block) invokes this to drop the wildcard listener at session
+  // end instead of letting it accumulate toward MAX_WILDCARDS.
+  if (off) teardownHandlers?.push(off);
 }
 
 async function maybeReReviewCascade({

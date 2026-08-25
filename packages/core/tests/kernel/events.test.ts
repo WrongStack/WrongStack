@@ -155,6 +155,47 @@ describe('EventBus', () => {
     expect(fn).toHaveBeenCalledWith({ id: 'abc' });
   });
 
+  describe('wildcard owner tags + count accessors', () => {
+    it('records an owner tag on onPattern', () => {
+      const bus = new EventBus();
+      const error = vi.fn();
+      bus.setLogger({ error });
+      // Register up to the cap (MAX_WILDCARDS = 500), then a tagged one
+      // must be REJECTED and the rejection log must name the owner.
+      for (let i = 0; i < 500; i++) bus.onPattern(`wild.${i}`, vi.fn());
+      bus.onPattern('over.cap', vi.fn(), 'chimera-test');
+      const last = error.mock.calls.at(-1)?.[0] as string | undefined;
+      expect(last).toContain('rejecting onPattern("over.cap")');
+      expect(last).toContain('owner: chimera-test');
+    });
+
+    it('records an owner tag on onAny rejection', () => {
+      const bus = new EventBus();
+      const error = vi.fn();
+      bus.setLogger({ error });
+      for (let i = 0; i < 500; i++) bus.onPattern(`wild.${i}`, vi.fn());
+      // EventBus.onAny forwards to onPattern('*', …) — no separate log.
+      bus.onAny(vi.fn(), 'chimera-any');
+      const last = error.mock.calls.at(-1)?.[0] as string | undefined;
+      expect(last).toContain('rejecting onPattern("*")');
+      expect(last).toContain('owner: chimera-any');
+    });
+
+    it('wildcardCount tracks registrations and disposals', () => {
+      const bus = new EventBus();
+      expect(bus.wildcardCount()).toBe(0);
+      const offA = bus.onPattern('a.*', vi.fn());
+      const offB = bus.onRegex(/^b\./, vi.fn());
+      const offC = bus.onAny(vi.fn());
+      expect(bus.wildcardCount()).toBe(3);
+      offA();
+      expect(bus.wildcardCount()).toBe(2);
+      offB();
+      offC();
+      expect(bus.wildcardCount()).toBe(0);
+    });
+  });
+
   it('emits to multiple event types', () => {
     const bus = new EventBus();
     const a = vi.fn();

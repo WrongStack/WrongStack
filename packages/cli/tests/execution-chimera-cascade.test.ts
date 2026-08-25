@@ -2,6 +2,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@wrongstack/core/kernel';
 import { installChimeraCascadeHandler } from '../src/execution-chimera-cascade.js';
 
 const roots: string[] = [];
@@ -16,6 +17,7 @@ function harness(
   opts: {
     verifyEvidence?: Parameters<typeof installChimeraCascadeHandler>[0]['verifyEvidence'];
     persistEvidence?: Parameters<typeof installChimeraCascadeHandler>[0]['persistEvidence'];
+    teardownHandlers?: Array<() => void>;
   } = {},
 ) {
   let handler: ((event: unknown, payload: unknown) => void) | undefined;
@@ -37,6 +39,7 @@ function harness(
     },
     verifyEvidence: opts.verifyEvidence,
     persistEvidence: opts.persistEvidence,
+    teardownHandlers: opts.teardownHandlers,
   });
   return {
     events,
@@ -47,6 +50,24 @@ function harness(
 }
 
 describe('installChimeraCascadeHandler', () => {
+  it('captures its wildcard disposer into teardownHandlers (EventBus leak fix)', () => {
+    const bus = new EventBus();
+    const teardownHandlers: Array<() => void> = [];
+    installChimeraCascadeHandler({
+      events: bus as never,
+      director: null as never,
+      session: { append: vi.fn().mockResolvedValue(undefined) } as never,
+      getPendingWork: () => undefined,
+      trackWork: vi.fn(),
+      persistEvidence: vi.fn(),
+      teardownHandlers,
+    });
+    expect(bus.wildcardCount()).toBe(1);
+    expect(teardownHandlers).toHaveLength(1);
+    teardownHandlers[0]!();
+    expect(bus.wildcardCount()).toBe(0);
+  });
+
   it('skips cascades without a Director or requested agents', () => {
     const absent = harness(null);
     absent.emit({ agents: ['bug-hunter'] });

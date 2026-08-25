@@ -75,6 +75,21 @@ export type {
   WrongTracePreToolUseOutcome,
 } from "./hooks.js";
 
+export {
+  createWrongTraceGateCounter,
+  countersFilePath,
+  formatGateCounterReport,
+  loadWrongTraceGateCounters,
+  persistWrongTraceGateCounters,
+  recordGateDecision,
+  resetGateDecisions,
+  snapshotGateDecisions,
+} from "./gate-counters.js";
+export type {
+  WrongTraceGateCounter,
+  WrongTraceGateCounterSnapshot,
+} from "./gate-counters.js";
+
 /**
  * Drop-in replacement for the legacy `getWrongTraceClient()` from the
  * reference TypeScript snippet. Kept as a one-liner alias for caller

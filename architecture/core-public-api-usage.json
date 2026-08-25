@@ -79,9 +79,9 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 241,
+      "files": 243,
       "typeOnly": 128,
-      "runtimeOrMixed": 126
+      "runtimeOrMixed": 128
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -5197,6 +5197,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/subcommands/contracts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/webui-server-options.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5450,6 +5456,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/cli-eternal-flag.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/execution-chimera-cascade.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

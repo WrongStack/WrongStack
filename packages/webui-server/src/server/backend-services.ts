@@ -51,7 +51,7 @@ type Session = Awaited<ReturnType<SessionStore['create']>>;
 
 import { Agent } from '@wrongstack/core/agent';
 import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
-import { createWrongTraceHookPair } from '@wrongstack/wrongtrace';
+import { createWrongTraceHookPair, recordGateDecision, snapshotGateDecisions, persistWrongTraceGateCounters } from '@wrongstack/wrongtrace';
 import {
   BrainDecisionLedger,
   BrainMonitor,
@@ -403,7 +403,16 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // concurrency note). Owner identity = THIS process's active session id —
   // startWebUI is its own process, never a copied CLI-leader closure.
   const wrongTraceHooks = createWrongTraceHookPair(() => context.session.id, {
-    emit: (event) => events.emit('wrongtrace.gate.decision', event),
+    emit: (event) => {
+      events.emit('wrongtrace.gate.decision', event);
+      // Shared counters contract (see adapter gate-counters.ts): this
+      // process's tally is persisted per gate decision — the standalone
+      // server has no single session-end hook, and last writer wins
+      // against the CLI's session-end persist. `wstack proxy-status`
+      // reads whatever the latest writer left.
+      recordGateDecision(event);
+      void persistWrongTraceGateCounters(projectRoot, snapshotGateDecisions());
+    },
   });
   wrongTraceHookRegistry.registerInProcess(
     'PreToolUse',
