@@ -130,7 +130,7 @@ describe('WrongProxy deactivation → retry settle', () => {
       provider: proxyPinned as never,
       request: makeRequest(),
       signal: new AbortController().signal,
-      ctx,
+      ctx: ctx as never,
       events,
       retry,
       logger,

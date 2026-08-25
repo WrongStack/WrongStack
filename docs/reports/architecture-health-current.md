@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T10:50:23.903Z
+**Generated:** 2026-08-25T11:51:11.065Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary

@@ -11,7 +11,8 @@
       "!**/*.md",
       "!**/*.html",
       "!**/.vitest-reports",
-      "!**/.reports"
+      "!**/.reports",
+      "!docs/reports/architecture-health-current.json"
     ]
   },
   "formatter": {

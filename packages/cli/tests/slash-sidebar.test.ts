@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildSidebarCommand } from '../src/slash-commands/sidebar.js';
 
