@@ -31,7 +31,6 @@
 
 import type React from 'react';
 import { Box, Text } from '../ink.js';
-import { flattenChildren } from '../react-children-flatten.js';
 import { truncateTextChildren } from '../react-wrap-truncate.js';
 import { sidebarCardHairline, sidebarCardSurface, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -98,47 +97,8 @@ export function Card({
   const sideWidth = useSides ? 1 : 0;
   // Inner body width accounts for the optional side bars + padding.
   const bodyContentWidth = Math.max(2, innerWidth - sideWidth * 2 - bodyPadX * 2);
-  // Wrap each top-level child of the body in a `│ ... │` row when
-  // sides are enabled. The child's internal rows will inherit the
-  // indentation from `bodyPadX` so they read as "inside the frame".
-  // We use a recursive Fragment flattener instead of React.Children.toArray
-  // because the latter does NOT unwrap Fragments — a `<>…</>` block with
-  // three children is reported as a single element, which would collapse
-  // the per-row side bars onto the first row only.
-  //
-  // Before flattening, walk the body and force every <Text> descendant to
-  // use `wrap="truncate"`. Without this, a long un-truncated string would
-  // soft-wrap into the next terminal line, push past the right `│` bar,
-  // and visually break the card frame. The wrapper is purely defensive —
-  // callers that already pass `wrap="truncate"` are no-ops.
-  //
-  // The middle Box uses an explicit `width` rather than `flexGrow={1}`
-  // because Yoga was returning the box at its content's intrinsic width
-  // when the inner child was short, leaving the right `│` bar stranded
-  // off-frame. An explicit width pins the Box to `innerWidth - 2` cols
-  // (the space between the two side bars) and `overflowX="hidden"` clips
-  // any horizontally-overflowing content.
-  const middleWidth = innerWidth - 2; // 2 cols for the two side bars
   const bodyContent = children(bodyContentWidth);
   const safeBodyContent = truncateTextChildren(bodyContent);
-  const bodyRows = useSides
-    ? flattenChildren(safeBodyContent).map((row, i) => (
-        // eslint-disable-next-line react/no-array-index-key
-        <Box key={i} flexDirection="row" width={innerWidth}>
-          <Text color={frameColor}>│</Text>
-          <Box
-            flexDirection="column"
-            width={middleWidth}
-            paddingX={bodyPadX}
-            overflowX="hidden"
-            overflowY="hidden"
-          >
-            {row}
-          </Box>
-          <Text color={frameColor}>│</Text>
-        </Box>
-      ))
-    : bodyContent;
   return (
     <Box
       flexDirection="column"
@@ -153,9 +113,37 @@ export function Card({
           >{`╭${glyphs.dividerDash.repeat(Math.max(0, innerWidth - 2))}╮`}</Text>
         </Box>
       ) : null}
-      <Box flexDirection="column" paddingX={useSides ? 0 : bodyPadX}>
-        {bodyRows}
-      </Box>
+      {/* Sides on wide rails: one bordered Box paints `│` on EVERY visual
+          line of the body — including soft-wrapped continuation lines and
+          flex-wrap stacks — which the previous per-row `│ … │` Text wrapper
+          could not do (its Text side bars only covered each row's first
+          line). Round border side char is `│`, so the look is unchanged;
+          content width math is identical (innerWidth − 2 for the two border
+          cols). The old flattenChildren-based per-row mapping is retired. */}
+      {useSides ? (
+        <Box
+          flexDirection="column"
+          width={innerWidth}
+          borderStyle="round"
+          borderLeft
+          borderRight
+          borderTop={false}
+          borderBottom={false}
+          borderLeftColor={frameColor}
+          borderRightColor={frameColor}
+          paddingX={bodyPadX}
+          overflowX="hidden"
+          overflowY="hidden"
+        >
+          {safeBodyContent}
+        </Box>
+      ) : (
+        <Box flexDirection="column" paddingX={bodyPadX}>
+          {/* Raw (un-truncated) body: narrow rails must keep full labels
+              via soft-wrap — the worklist-wrap contract forbids `…` here. */}
+          {bodyContent}
+        </Box>
+      )}
       {capped ? (
         useCorners ? (
           <Box width={innerWidth}>
