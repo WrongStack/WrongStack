@@ -1,18 +1,13 @@
 {
   "schemaVersion": 1,
   "files": {
-    "apps/desktop/src/main/runtime-manager.ts": [
-      "normalizeProjectManifest",
-      "waitForChildExit"
-    ],
+    "apps/desktop/src/main/runtime-manager.ts": ["normalizeProjectManifest", "waitForChildExit"],
     "apps/desktop/src/main/state/constants.ts": [
       "LOG_NOTIFY_DEBOUNCE_MS",
       "PENDING_WEBUI_FLUSH_DELAY_MS",
       "WINDOW_STATE_SAVE_DEBOUNCE_MS"
     ],
-    "apps/desktop/src/main/validation/index.ts": [
-      "validateOrThrow"
-    ],
+    "apps/desktop/src/main/validation/index.ts": ["validateOrThrow"],
     "apps/desktop/src/main/validation/schemas.ts": [
       "abortRuntimeSchema",
       "activateRuntimeSchema",
@@ -30,67 +25,37 @@
       "webuiPrefsChangedSchema",
       "webuiReadyChangedSchema"
     ],
-    "packages/acp/src/agent/protocol-handler.ts": [
-      "protocolHandlerCoverage"
-    ],
+    "packages/acp/src/agent/protocol-handler.ts": ["protocolHandlerCoverage"],
     "packages/acp/src/agent/server-agent-turn.ts": [
       "disposeACPServerAgentTurn",
       "serverAgentTurnCoverage"
     ],
-    "packages/acp/src/agent/stdio-transport.ts": [
-      "stdioTransportCoverage"
-    ],
-    "packages/acp/src/agent/wrongstack-acp-agent.ts": [
-      "wrongStackACPServerCoverage"
-    ],
+    "packages/acp/src/agent/stdio-transport.ts": ["stdioTransportCoverage"],
+    "packages/acp/src/agent/wrongstack-acp-agent.ts": ["wrongStackACPServerCoverage"],
     "packages/acp/src/client/tool-translator.ts": [
       "acpToolToSchema",
       "buildTaskSpec",
       "extractTextFromContent",
       "parseToolResponse"
     ],
-    "packages/acp/src/client/trust-boundary-permission.ts": [
-      "trustBoundaryPermissionCoverage"
-    ],
-    "packages/acp/src/integration/acp-bench.ts": [
-      "acpBenchCoverage"
-    ],
-    "packages/acp/src/integration/acp-subagent-runner.ts": [
-      "describeAgent"
-    ],
-    "packages/acp/src/integration/ensemble-runner.ts": [
-      "ensembleRunnerCoverage"
-    ],
-    "packages/acp/src/legacy.ts": [
-      "LEGACY_ACP_CONTRACT_VERSION"
-    ],
-    "packages/acp/src/registry/acp-registry-fetch.ts": [
-      "currentPlatformKey"
-    ],
-    "packages/acp/src/registry/ensemble-registry.ts": [
-      "defaultProbe"
-    ],
-    "packages/acp/src/types/acp-v1.ts": [
-      "assertNeverSessionUpdate"
-    ],
-    "packages/acp/src/version.ts": [
-      "versionCoverage"
-    ],
-    "packages/cli/src/acp-server-agent.ts": [
-      "ACPClientPermissionPolicy"
-    ],
-    "packages/cli/src/arg-parser.ts": [
-      "BOOLEAN_FLAGS"
-    ],
+    "packages/acp/src/client/trust-boundary-permission.ts": ["trustBoundaryPermissionCoverage"],
+    "packages/acp/src/integration/acp-bench.ts": ["acpBenchCoverage"],
+    "packages/acp/src/integration/acp-subagent-runner.ts": ["describeAgent"],
+    "packages/acp/src/integration/ensemble-runner.ts": ["ensembleRunnerCoverage"],
+    "packages/acp/src/legacy.ts": ["LEGACY_ACP_CONTRACT_VERSION"],
+    "packages/acp/src/registry/acp-registry-fetch.ts": ["currentPlatformKey"],
+    "packages/acp/src/registry/ensemble-registry.ts": ["defaultProbe"],
+    "packages/acp/src/types/acp-v1.ts": ["assertNeverSessionUpdate"],
+    "packages/acp/src/version.ts": ["versionCoverage"],
+    "packages/cli/src/acp-server-agent.ts": ["ACPClientPermissionPolicy"],
+    "packages/cli/src/arg-parser.ts": ["BOOLEAN_FLAGS"],
     "packages/cli/src/auth-menu/auth-menu-audit.ts": [
       "createAuthAuditLogger",
       "fileAuditSink",
       "memAuthAuditSink",
       "resolveAuditSink"
     ],
-    "packages/cli/src/auth-menu/panel-service.ts": [
-      "plainMaskedKey"
-    ],
+    "packages/cli/src/auth-menu/panel-service.ts": ["plainMaskedKey"],
     "packages/cli/src/boot.ts": [
       "autoSelectSavedProvider",
       "isHomeDirectory",
@@ -100,15 +65,9 @@
       "defaultProfileProvidersAreEmpty",
       "findLatestProviderBackup"
     ],
-    "packages/cli/src/boot/governance-trace-context.ts": [
-      "MAX_GOVERNANCE_PLAN_BYTES"
-    ],
-    "packages/cli/src/boot/launch-menu.ts": [
-      "shouldSkipMenu"
-    ],
-    "packages/cli/src/boot/short-circuit-desktop.ts": [
-      "stripDesktopLauncherArgs"
-    ],
+    "packages/cli/src/boot/governance-trace-context.ts": ["MAX_GOVERNANCE_PLAN_BYTES"],
+    "packages/cli/src/boot/launch-menu.ts": ["shouldSkipMenu"],
+    "packages/cli/src/boot/short-circuit-desktop.ts": ["stripDesktopLauncherArgs"],
     "packages/cli/src/boot/system-prompt-menu.ts": [
       "countSystemPromptTokens",
       "isSystemPromptPinned",
@@ -123,9 +82,7 @@
       "containedJsonlPath",
       "enrichStubSummaries"
     ],
-    "packages/cli/src/boot/webui-session-child.ts": [
-      "WEBUI_SESSION_CHILD_PROTOCOL_VERSION"
-    ],
+    "packages/cli/src/boot/webui-session-child.ts": ["WEBUI_SESSION_CHILD_PROTOCOL_VERSION"],
     "packages/cli/src/chimera-reviewer-policy.ts": [
       "MAX_MUTATING_ATTEMPTS",
       "MAX_REVIEWER_ATTEMPTS"
@@ -135,58 +92,31 @@
       "governanceRuntimeEnabled",
       "governedHandle"
     ],
-    "packages/cli/src/config-history.ts": [
-      "MAX_CONFIG_HISTORY_ENTRIES"
-    ],
-    "packages/cli/src/execution-chimera-review.ts": [
-      "normalizeFileKeyForCitation"
-    ],
-    "packages/cli/src/fleet-statusline.ts": [
-      "renderFleetLine"
-    ],
-    "packages/cli/src/fleet/host-event-bridge.ts": [
-      "compactBridgeToolInput"
-    ],
+    "packages/cli/src/config-history.ts": ["MAX_CONFIG_HISTORY_ENTRIES"],
+    "packages/cli/src/execution-chimera-review.ts": ["normalizeFileKeyForCitation"],
+    "packages/cli/src/fleet-statusline.ts": ["renderFleetLine"],
+    "packages/cli/src/fleet/host-event-bridge.ts": ["compactBridgeToolInput"],
     "packages/cli/src/fleet/host-helpers.ts": [
       "DEFAULT_SUBAGENT_HIDDEN_TOOLS",
       "NEVER_SUBAGENT_TOOLS"
     ],
-    "packages/cli/src/goal-host.ts": [
-      "isGoalCommandAllowed",
-      "resetGoalPolicy"
-    ],
-    "packages/cli/src/governance-hq-telemetry.ts": [
-      "projectGovernanceHqSnapshot"
-    ],
-    "packages/cli/src/hooks-wiring.ts": [
-      "HookBlockedError"
-    ],
-    "packages/cli/src/hq-publisher.ts": [
-      "createCliHqPublisher"
-    ],
-    "packages/cli/src/hq-server/auth-state.ts": [
-      "projectAuthFile"
-    ],
-    "packages/cli/src/hq-server/client-address.ts": [
-      "parseForwardedEntry"
-    ],
+    "packages/cli/src/goal-host.ts": ["isGoalCommandAllowed", "resetGoalPolicy"],
+    "packages/cli/src/governance-hq-telemetry.ts": ["projectGovernanceHqSnapshot"],
+    "packages/cli/src/hooks-wiring.ts": ["HookBlockedError"],
+    "packages/cli/src/hq-publisher.ts": ["createCliHqPublisher"],
+    "packages/cli/src/hq-server/auth-state.ts": ["projectAuthFile"],
+    "packages/cli/src/hq-server/client-address.ts": ["parseForwardedEntry"],
     "packages/cli/src/hq-server/snapshot.ts": [
       "HQ_BROWSER_MAX_BUFFERED_BYTES",
       "HQ_STALE_SNAPSHOT_MS",
       "reapStaleClientState"
     ],
-    "packages/cli/src/hq-server/utils.ts": [
-      "isSafeSessionId"
-    ],
+    "packages/cli/src/hq-server/utils.ts": ["isSafeSessionId"],
     "packages/cli/src/hq-tunnel.ts": [
       "extractQuickTunnelUrl",
       "hasRegisteredQuickTunnelConnection"
     ],
-    "packages/cli/src/launch-hints.ts": [
-      "HINT_COUNT",
-      "HINT_GROUP_COUNT",
-      "HINT_GROUP_TITLES"
-    ],
+    "packages/cli/src/launch-hints.ts": ["HINT_COUNT", "HINT_GROUP_COUNT", "HINT_GROUP_TITLES"],
     "packages/cli/src/mcp-serve.ts": [
       "loadSelectedMcpServeContent",
       "makeServeContext",
@@ -194,46 +124,22 @@
       "resolveServeFsRestriction",
       "selectExposedTools"
     ],
-    "packages/cli/src/next-task-predictor.ts": [
-      "buildPredictionPrompt",
-      "parsePredictions"
-    ],
-    "packages/cli/src/picker.ts": [
-      "filterProviders",
-      "renderLiveProviderList"
-    ],
-    "packages/cli/src/plugin-management.ts": [
-      "renderConfiguredPlugins",
-      "renderPluginAuditReport"
-    ],
-    "packages/cli/src/project-picker.ts": [
-      "effectiveVisibleHeight",
-      "filterItems"
-    ],
-    "packages/cli/src/provider-config-utils.ts": [
-      "clearStaleProviderDefaults"
-    ],
-    "packages/cli/src/provider-helpers.ts": [
-      "resolveProviderAlias"
-    ],
-    "packages/cli/src/simpleui-dist.ts": [
-      "resolveSimpleUiDistDir"
-    ],
+    "packages/cli/src/next-task-predictor.ts": ["buildPredictionPrompt", "parsePredictions"],
+    "packages/cli/src/picker.ts": ["filterProviders", "renderLiveProviderList"],
+    "packages/cli/src/plugin-management.ts": ["renderConfiguredPlugins", "renderPluginAuditReport"],
+    "packages/cli/src/project-picker.ts": ["effectiveVisibleHeight", "filterItems"],
+    "packages/cli/src/provider-config-utils.ts": ["clearStaleProviderDefaults"],
+    "packages/cli/src/provider-helpers.ts": ["resolveProviderAlias"],
+    "packages/cli/src/simpleui-dist.ts": ["resolveSimpleUiDistDir"],
     "packages/cli/src/slash-commands/goal-refiner.ts": [
       "refineGoal",
       "refineGoalHeuristic",
       "refineGoalWithFallback",
       "resolveRefinerTarget"
     ],
-    "packages/cli/src/slash-commands/memory-triage.ts": [
-      "fileProposals"
-    ],
-    "packages/cli/src/slash-commands/sdd-format.ts": [
-      "taskStatusIcon"
-    ],
-    "packages/cli/src/slash-commands/session.ts": [
-      "isSafeSessionKillPid"
-    ],
+    "packages/cli/src/slash-commands/memory-triage.ts": ["fileProposals"],
+    "packages/cli/src/slash-commands/sdd-format.ts": ["taskStatusIcon"],
+    "packages/cli/src/slash-commands/session.ts": ["isSafeSessionKillPid"],
     "packages/cli/src/slash-commands/slash-deep-help.ts": [
       "renderSlashDeepHelp",
       "renderSlashFocusedHelp",
@@ -241,12 +147,8 @@
       "slashesWithFocusedHelp",
       "wantsDeepHelp"
     ],
-    "packages/cli/src/slash-commands/telegram-pairing.ts": [
-      "extractTelegramPairingCandidates"
-    ],
-    "packages/cli/src/slash-commands/theme.ts": [
-      "truncateDesc"
-    ],
+    "packages/cli/src/slash-commands/telegram-pairing.ts": ["extractTelegramPairingCandidates"],
+    "packages/cli/src/slash-commands/theme.ts": ["truncateDesc"],
     "packages/cli/src/subcommands/handlers/auth-local-help.ts": [
       "LOCAL_AUTH_FLAGS",
       "LOCAL_AUTH_HELP_USAGE",
@@ -259,16 +161,9 @@
       "BENCH_RUN_VALUE_FLAG_NAMES",
       "buildBenchRunUsageLine"
     ],
-    "packages/cli/src/subcommands/handlers/config-history.ts": [
-      "historyCmd",
-      "restoreCmd"
-    ],
-    "packages/cli/src/subcommands/handlers/governance.ts": [
-      "runGovernanceStatusCommand"
-    ],
-    "packages/cli/src/subcommands/handlers/modeldiag-profiles.ts": [
-      "ROLE_CATEGORY"
-    ],
+    "packages/cli/src/subcommands/handlers/config-history.ts": ["historyCmd", "restoreCmd"],
+    "packages/cli/src/subcommands/handlers/governance.ts": ["runGovernanceStatusCommand"],
+    "packages/cli/src/subcommands/handlers/modeldiag-profiles.ts": ["ROLE_CATEGORY"],
     "packages/cli/src/subcommands/handlers/models-add-help.ts": [
       "buildModelsAddUsageLine",
       "MODELS_ADD_BOOLEAN_FLAG_NAMES",
@@ -281,12 +176,8 @@
       "renderGenericHelp",
       "subcommandsWithFocusedHelp"
     ],
-    "packages/cli/src/subcommands/handlers/update.ts": [
-      "detectUpdatePackageManager"
-    ],
-    "packages/cli/src/terminal-format.ts": [
-      "terminalFormattingEnabled"
-    ],
+    "packages/cli/src/subcommands/handlers/update.ts": ["detectUpdatePackageManager"],
+    "packages/cli/src/terminal-format.ts": ["terminalFormattingEnabled"],
     "packages/cli/src/tuneup.ts": [
       "checkAutonomy",
       "checkConfigDoctor",
@@ -302,25 +193,14 @@
       "checkSkills",
       "isReadOnlyCommand"
     ],
-    "packages/cli/src/update-check.ts": [
-      "fetchLatestFromNpm",
-      "getUpdateNotification",
-      "isNewer"
-    ],
+    "packages/cli/src/update-check.ts": ["fetchLatestFromNpm", "getUpdateNotification", "isNewer"],
     "packages/cli/src/webui-server/privileged-actions.ts": [
       "authorizeCliWebUIAction",
       "createCliProcessRoutes"
     ],
-    "packages/cli/src/wiring/cli-heap-watchdog.ts": [
-      "startCliHeapWatchdog"
-    ],
-    "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": [
-      "MAILBOX_BRIDGE_META_KEY"
-    ],
-    "packages/cli/src/wiring/metrics.ts": [
-      "registerMcpHealthCheck",
-      "registerMcpMetrics"
-    ],
+    "packages/cli/src/wiring/cli-heap-watchdog.ts": ["startCliHeapWatchdog"],
+    "packages/cli/src/wiring/mailbox-bridge-bootstrap.ts": ["MAILBOX_BRIDGE_META_KEY"],
+    "packages/cli/src/wiring/metrics.ts": ["registerMcpHealthCheck", "registerMcpMetrics"],
     "packages/cli/src/wiring/plugins.ts": [
       "_resetDeprecatedWarningsForTests",
       "builtinPluginNameFromSpec",
@@ -328,55 +208,26 @@
       "pluginNameFromSpec",
       "warnIfDeprecatedPluginName"
     ],
-    "packages/cli/src/wiring/provider-runtime-setup.ts": [
-      "serializeProviderRuntimeSnapshot"
-    ],
-    "packages/cli/src/wiring/proxy-probe.ts": [
-      "__resetProxyProbeForTests",
-      "stopProxyProbe"
-    ],
-    "packages/cli/src/wiring/proxy-wiring.ts": [
-      "shutdownWrongProxy"
-    ],
-    "packages/cli/src/wiring/slash-commands.ts": [
-      "setupSlashCommands"
-    ],
-    "packages/cli/src/wiring/tools.ts": [
-      "setupTools"
-    ],
-    "packages/cli/src/wiring/wrongtrace-telemetry.ts": [
-      "buildWrongTraceTelemetryReport"
-    ],
-    "packages/core/src/boot.ts": [
-      "cleanupStaleProjects"
-    ],
-    "packages/core/src/chronicle/project-server-client.ts": [
-      "resolveChronicleProjectServerUrl"
-    ],
-    "packages/core/src/chronicle/sqlite-compaction.ts": [
-      "chronicleSqliteAllocatedBytes"
-    ],
-    "packages/core/src/coordination/agents/phase3-techstack.ts": [
-      "TECHSTACK_AGENTS"
-    ],
-    "packages/core/src/coordination/agents/role-skills.ts": [
-      "BUNDLED_AGENT_SKILLS"
-    ],
-    "packages/core/src/coordination/collab-debug.ts": [
-      "DEFAULT_MAX_TARGET_FILES"
-    ],
-    "packages/core/src/coordination/delegate-tool.ts": [
-      "hintForKind"
-    ],
+    "packages/cli/src/wiring/provider-runtime-setup.ts": ["serializeProviderRuntimeSnapshot"],
+    "packages/cli/src/wiring/proxy-probe.ts": ["__resetProxyProbeForTests", "stopProxyProbe"],
+    "packages/cli/src/wiring/proxy-wiring.ts": ["shutdownWrongProxy"],
+    "packages/cli/src/wiring/slash-commands.ts": ["setupSlashCommands"],
+    "packages/cli/src/wiring/tools.ts": ["setupTools"],
+    "packages/cli/src/wiring/wrongtrace-telemetry.ts": ["buildWrongTraceTelemetryReport"],
+    "packages/core/src/boot.ts": ["cleanupStaleProjects"],
+    "packages/core/src/chronicle/project-server-client.ts": ["resolveChronicleProjectServerUrl"],
+    "packages/core/src/chronicle/sqlite-compaction.ts": ["chronicleSqliteAllocatedBytes"],
+    "packages/core/src/coordination/agents/phase3-techstack.ts": ["TECHSTACK_AGENTS"],
+    "packages/core/src/coordination/agents/role-skills.ts": ["BUNDLED_AGENT_SKILLS"],
+    "packages/core/src/coordination/collab-debug.ts": ["DEFAULT_MAX_TARGET_FILES"],
+    "packages/core/src/coordination/delegate-tool.ts": ["hintForKind"],
     "packages/core/src/coordination/mailbox-codecs.ts": [
       "MailboxValidationError",
       "parseMailboxHeartbeatInput",
       "parseMailboxRegistrationInput",
       "SEND_ALLOWED_FIELDS"
     ],
-    "packages/core/src/coordination/mailbox-credential-store.ts": [
-      "resolveCredentialStorePath"
-    ],
+    "packages/core/src/coordination/mailbox-credential-store.ts": ["resolveCredentialStorePath"],
     "packages/core/src/coordination/mailbox-message-codec.ts": [
       "parseMailboxLine",
       "parseMailboxLines",
@@ -393,16 +244,12 @@
       "materializeMessages",
       "serializeReceiptRecordV2"
     ],
-    "packages/core/src/coordination/subagent-nicknames.ts": [
-      "getAllNicknameKeys"
-    ],
+    "packages/core/src/coordination/subagent-nicknames.ts": ["getAllNicknameKeys"],
     "packages/core/src/core/continue-to-next-iteration.ts": [
       "clearAutonomousContinue",
       "setAutonomousContinue"
     ],
-    "packages/core/src/core/fallback-profile-manager.ts": [
-      "MAX_LAST_RESORT_CANDIDATES"
-    ],
+    "packages/core/src/core/fallback-profile-manager.ts": ["MAX_LAST_RESORT_CANDIDATES"],
     "packages/core/src/core/streaming-response-builder.ts": [
       "buildResponse",
       "createStreamingState",
@@ -418,25 +265,12 @@
       "handleToolUseStop",
       "safeJsonOrRaw"
     ],
-    "packages/core/src/execution/autonomy-brain.ts": [
-      "quickDecide",
-      "resolveRiskCeiling"
-    ],
-    "packages/core/src/execution/council-brain.ts": [
-      "makeSeatCallerForVoter"
-    ],
-    "packages/core/src/execution/design-detect.ts": [
-      "makeDesignVerifyToolCallMiddleware"
-    ],
-    "packages/core/src/execution/model-runtime.ts": [
-      "resolveParametersForRequest"
-    ],
-    "packages/core/src/execution/prompt-enhancer.ts": [
-      "completeRefinerPass"
-    ],
-    "packages/core/src/execution/provider-runner-impl.ts": [
-      "DefaultProviderRunner"
-    ],
+    "packages/core/src/execution/autonomy-brain.ts": ["quickDecide", "resolveRiskCeiling"],
+    "packages/core/src/execution/council-brain.ts": ["makeSeatCallerForVoter"],
+    "packages/core/src/execution/design-detect.ts": ["makeDesignVerifyToolCallMiddleware"],
+    "packages/core/src/execution/model-runtime.ts": ["resolveParametersForRequest"],
+    "packages/core/src/execution/prompt-enhancer.ts": ["completeRefinerPass"],
+    "packages/core/src/execution/provider-runner-impl.ts": ["DefaultProviderRunner"],
     "packages/core/src/execution/tool-error-taxonomy.ts": [
       "classifiedToolErrorResult",
       "getToolErrorInfo"
@@ -449,34 +283,22 @@
       "mintHqBrowserToken",
       "writeHqAuthFile"
     ],
-    "packages/core/src/hq/exposure.ts": [
-      "isOpenMode"
-    ],
-    "packages/core/src/hq/factory.ts": [
-      "resolveHqConfigFromEnv"
-    ],
-    "packages/core/src/hq/kanban-store.ts": [
-      "MAX_HQ_KANBAN_CACHE_PROJECTS"
-    ],
+    "packages/core/src/hq/exposure.ts": ["isOpenMode"],
+    "packages/core/src/hq/factory.ts": ["resolveHqConfigFromEnv"],
+    "packages/core/src/hq/kanban-store.ts": ["MAX_HQ_KANBAN_CACHE_PROJECTS"],
     "packages/core/src/hq/mailbox-mapper.ts": [
       "createMailboxSnapshotPayload",
       "mapMailboxAgentToHqSummary",
       "mapMailboxMessageToHqSummary"
     ],
-    "packages/core/src/hq/redaction.ts": [
-      "redactHqValue"
-    ],
+    "packages/core/src/hq/redaction.ts": ["redactHqValue"],
     "packages/core/src/infrastructure/mcp-servers.ts": [
       "kanbanServer",
       "mailboxServer",
       "requirementIntakeServer"
     ],
-    "packages/core/src/plugins/review-context-builder.ts": [
-      "parsePorcelainStatusZ"
-    ],
-    "packages/core/src/plugins/review-finding-parser.ts": [
-      "extractStructuredFindingsBlock"
-    ],
+    "packages/core/src/plugins/review-context-builder.ts": ["parsePorcelainStatusZ"],
+    "packages/core/src/plugins/review-finding-parser.ts": ["extractStructuredFindingsBlock"],
     "packages/core/src/plugins/review-finding-store.ts": [
       "FINDING_IGNORED_RETENTION_MS",
       "FINDING_RESOLVED_RETENTION_MS"
@@ -490,12 +312,8 @@
       "extractFindingAnchor",
       "resolveFindingPath"
     ],
-    "packages/core/src/plugins/review-report-types.ts": [
-      "InvalidReportTransitionError"
-    ],
-    "packages/core/src/plugins/review-store-maintenance.ts": [
-      "REVIEW_STORE_MAINTENANCE_FILE"
-    ],
+    "packages/core/src/plugins/review-report-types.ts": ["InvalidReportTransitionError"],
+    "packages/core/src/plugins/review-store-maintenance.ts": ["REVIEW_STORE_MAINTENANCE_FILE"],
     "packages/core/src/plugins/skills-plugin.ts": [
       "buildSkillCommand",
       "buildSkillGeneratorCommand",
@@ -506,15 +324,9 @@
       "buildSkillUpdateCommand",
       "resolveImportSourceDir"
     ],
-    "packages/core/src/security/permission-policy.ts": [
-      "mergeTrustEntries"
-    ],
-    "packages/core/src/security/totp.ts": [
-      "hotp"
-    ],
-    "packages/core/src/security/yolo-risk.ts": [
-      "pathLooksInsideProject"
-    ],
+    "packages/core/src/security/permission-policy.ts": ["mergeTrustEntries"],
+    "packages/core/src/security/totp.ts": ["hotp"],
+    "packages/core/src/security/yolo-risk.ts": ["pathLooksInsideProject"],
     "packages/core/src/skills/github-fetcher.ts": [
       "githubFetcherCoverage",
       "resolveGitHubToken",
@@ -528,27 +340,19 @@
       "acquireDirectorStateLock",
       "releaseDirectorStateLock"
     ],
-    "packages/core/src/storage/goal-store.ts": [
-      "updateGoal"
-    ],
-    "packages/core/src/storage/session-writer/session-writer-flush.ts": [
-      "flushBufferSync"
-    ],
+    "packages/core/src/storage/goal-store.ts": ["updateGoal"],
+    "packages/core/src/storage/session-writer/session-writer-flush.ts": ["flushBufferSync"],
     "packages/core/src/storage/session-writer/session-writer-summary-tracker.ts": [
       "SessionWriterSummaryTracker"
     ],
-    "packages/core/src/types/provider.ts": [
-      "MAX_RESET_HINT_MS"
-    ],
+    "packages/core/src/types/provider.ts": ["MAX_RESET_HINT_MS"],
     "packages/core/src/types/runtime-capability-manifest.ts": [
       "isDeprecatedRuntimeToolAlias",
       "isKnownRuntimeCapability",
       "normalizeRuntimeToolName",
       "runtimeCapabilityForTool"
     ],
-    "packages/core/src/utils/child-env.ts": [
-      "sanitizeNodeOptions"
-    ],
+    "packages/core/src/utils/child-env.ts": ["sanitizeNodeOptions"],
     "packages/core/src/utils/config-json.ts": [
       "getJsonPath",
       "isJsonObject",
@@ -556,47 +360,29 @@
       "setJsonPathInFile",
       "writeJsonObjectFile"
     ],
-    "packages/core/src/utils/env-typed.ts": [
-      "envEnum",
-      "envFloat",
-      "envInt",
-      "envString"
-    ],
-    "packages/core/src/utils/glob-match.ts": [
-      "matchCommandGlob"
-    ],
-    "packages/core/src/utils/project-identity.ts": [
-      "isProjectId"
-    ],
+    "packages/core/src/utils/env-typed.ts": ["envEnum", "envFloat", "envInt", "envString"],
+    "packages/core/src/utils/glob-match.ts": ["matchCommandGlob"],
+    "packages/core/src/utils/project-identity.ts": ["isProjectId"],
     "packages/core/src/utils/tool-subject.ts": [
       "escapeGlobSubject",
       "isPathSubjectKey",
       "normalizePathSubject"
     ],
-    "packages/core/src/utils/tool-wire-compact.ts": [
-      "compactDescription",
-      "findSemanticBoundary"
-    ],
-    "packages/core/src/utils/wstack-paths.ts": [
-      "bootstrapProfileName"
-    ],
+    "packages/core/src/utils/tool-wire-compact.ts": ["compactDescription", "findSemanticBoundary"],
+    "packages/core/src/utils/wstack-paths.ts": ["bootstrapProfileName"],
     "packages/core/src/wiring/proxy-rewrite.ts": [
       "__resetProxyConfigForTests",
       "isProxyEligible",
       "PROXY_EXCLUDED_PROVIDERS",
       "subscribeToProxyConfig"
     ],
-    "packages/governance/src/daemon-launcher.ts": [
-      "launchGovernanceProjectDaemonWithRuntime"
-    ],
+    "packages/governance/src/daemon-launcher.ts": ["launchGovernanceProjectDaemonWithRuntime"],
     "packages/governance/src/daemon-metadata.ts": [
       "governanceDaemonAttachmentBrokerPath",
       "governanceDaemonMetadataPath",
       "governanceDaemonStartupLeasePath"
     ],
-    "packages/governance/src/legacy-shadow-adapter.ts": [
-      "LegacyGovernanceShadowAdapter"
-    ],
+    "packages/governance/src/legacy-shadow-adapter.ts": ["LegacyGovernanceShadowAdapter"],
     "packages/governance/src/plan-version.ts": [
       "decideReplanAuthorization",
       "summarizePlanAutonomy"
@@ -625,34 +411,17 @@
       "MAX_VERIFICATION_RUN_TTL_MS",
       "VERIFICATION_RUN_REQUEST_SCHEMA_VERSION"
     ],
-    "packages/governance/src/verification-tool-gateway.ts": [
-      "VerificationToolGateway"
-    ],
+    "packages/governance/src/verification-tool-gateway.ts": ["VerificationToolGateway"],
     "packages/governance/src/workflow-state.ts": [
       "isSuccessfulWorkflowState",
       "isTerminalWorkflowState"
     ],
-    "packages/kanban/src/manager/_internal.ts": [
-      "compareTasksForWork",
-      "reconcileTaskColumns"
-    ],
-    "packages/kanban/src/manager/boards.ts": [
-      "addColumn",
-      "removeColumn",
-      "updateColumn"
-    ],
-    "packages/kanban/src/manager/task-graph-bridge.ts": [
-      "buildTaskGraphFromKanbanBoard"
-    ],
-    "packages/kanban/src/manager/task-readiness.ts": [
-      "formatDependencyReadinessIssues"
-    ],
-    "packages/kanban/src/server/kanban-store.ts": [
-      "ServerKanbanStore"
-    ],
-    "packages/kanban/src/server/sqlite-storage.ts": [
-      "KANBAN_SQLITE_FILE"
-    ],
+    "packages/kanban/src/manager/_internal.ts": ["compareTasksForWork", "reconcileTaskColumns"],
+    "packages/kanban/src/manager/boards.ts": ["addColumn", "removeColumn", "updateColumn"],
+    "packages/kanban/src/manager/task-graph-bridge.ts": ["buildTaskGraphFromKanbanBoard"],
+    "packages/kanban/src/manager/task-readiness.ts": ["formatDependencyReadinessIssues"],
+    "packages/kanban/src/server/kanban-store.ts": ["ServerKanbanStore"],
+    "packages/kanban/src/server/sqlite-storage.ts": ["KANBAN_SQLITE_FILE"],
     "packages/kanban/src/storage.ts": [
       "boardMeta",
       "EVENT_LOG_MAX_CACHE_ENTRIES",
@@ -664,34 +433,19 @@
       "DEFAULT_MAX_VERIFICATION_ATTEMPTS",
       "isParked"
     ],
-    "packages/kanban/src/verification/verification-report.ts": [
-      "renderVerificationReportMarkdown"
-    ],
-    "packages/mcp/src/registry-connect-loop.ts": [
-      "discoverSlotCapabilities"
-    ],
-    "packages/mcp/src/registry-idle.ts": [
-      "sleepIdleSlot"
-    ],
-    "packages/mcp/src/test-helpers/mock-server.ts": [
-      "MockMCPServer"
-    ],
-    "packages/persistence/src/sqlite-runtime.ts": [
-      "isRuntimeSqliteAvailable"
-    ],
-    "packages/plug-lsp/src/config.ts": [
-      "mergeConfig",
-      "withPresetFallbacks"
-    ],
+    "packages/kanban/src/verification/verification-report.ts": ["renderVerificationReportMarkdown"],
+    "packages/mcp/src/registry-connect-loop.ts": ["discoverSlotCapabilities"],
+    "packages/mcp/src/registry-idle.ts": ["sleepIdleSlot"],
+    "packages/mcp/src/test-helpers/mock-server.ts": ["MockMCPServer"],
+    "packages/persistence/src/sqlite-runtime.ts": ["isRuntimeSqliteAvailable"],
+    "packages/plug-lsp/src/config.ts": ["mergeConfig", "withPresetFallbacks"],
     "packages/plug-lsp/src/position.ts": [
       "humanToLSPRange",
       "lspToHuman",
       "lspToHumanRange",
       "splitLines"
     ],
-    "packages/plug-lsp/src/registry.ts": [
-      "registryCoverage"
-    ],
+    "packages/plug-lsp/src/registry.ts": ["registryCoverage"],
     "packages/plug-lsp/src/server/capabilities.ts": [
       "supportsCodeAction",
       "supportsDocumentSymbol",
@@ -699,42 +453,20 @@
       "supportsPrepareRename",
       "supportsReferences"
     ],
-    "packages/plug-lsp/src/server/lsp-server.ts": [
-      "lspServerCoverage"
-    ],
-    "packages/plug-lsp/src/setup.ts": [
-      "runSetup",
-      "setupCoverage"
-    ],
-    "packages/plug-lsp/src/slash-commands/lsp.ts": [
-      "lspCommandCoverage"
-    ],
-    "packages/plug-lsp/src/tools/completion.ts": [
-      "completionCoverage"
-    ],
-    "packages/plug-lsp/src/tools/shared.ts": [
-      "textDocumentPosition"
-    ],
-    "packages/plug-lsp/src/tools/workspace-edit.ts": [
-      "applyTextEdits"
-    ],
+    "packages/plug-lsp/src/server/lsp-server.ts": ["lspServerCoverage"],
+    "packages/plug-lsp/src/setup.ts": ["runSetup", "setupCoverage"],
+    "packages/plug-lsp/src/slash-commands/lsp.ts": ["lspCommandCoverage"],
+    "packages/plug-lsp/src/tools/completion.ts": ["completionCoverage"],
+    "packages/plug-lsp/src/tools/shared.ts": ["textDocumentPosition"],
+    "packages/plug-lsp/src/tools/workspace-edit.ts": ["applyTextEdits"],
     "packages/plug-lsp/src/utils/command-resolver.ts": [
       "commandResolverCoverage",
       "findLocalBinary"
     ],
-    "packages/plug-lsp/src/utils/safe-spawn.ts": [
-      "safeSpawnCoverage"
-    ],
-    "packages/plug-lsp/src/utils/timeout.ts": [
-      "timeoutCoverage"
-    ],
-    "packages/plugin-sdk/src/runtime/index.ts": [
-      "collectSourceFiles",
-      "locateRunnerEntry"
-    ],
-    "packages/plugins/src/catalog.ts": [
-      "PLUGIN_CATALOG_ENTRIES"
-    ],
+    "packages/plug-lsp/src/utils/safe-spawn.ts": ["safeSpawnCoverage"],
+    "packages/plug-lsp/src/utils/timeout.ts": ["timeoutCoverage"],
+    "packages/plugin-sdk/src/runtime/index.ts": ["collectSourceFiles", "locateRunnerEntry"],
+    "packages/plugins/src/catalog.ts": ["PLUGIN_CATALOG_ENTRIES"],
     "packages/plugins/src/changelog-writer/index.ts": [
       "commitSubjectFromCommand",
       "commitToEntry",
@@ -745,65 +477,34 @@
       "validateToml",
       "validateYaml"
     ],
-    "packages/plugins/src/dep-guard/index.ts": [
-      "typosquatOf"
-    ],
-    "packages/plugins/src/dependency-vulnerability-gate/index.ts": [
-      "isInstallCommand"
-    ],
+    "packages/plugins/src/dep-guard/index.ts": ["typosquatOf"],
+    "packages/plugins/src/dependency-vulnerability-gate/index.ts": ["isInstallCommand"],
     "packages/plugins/src/duplicate-code-detector/index.ts": [
       "hashFingerprint",
       "hookIndexBudgets"
     ],
-    "packages/plugins/src/error-lens/index.ts": [
-      "extractErrorLine",
-      "extractFrames"
-    ],
-    "packages/plugins/src/factories/index.ts": [
-      "OFFICIAL_PLUGIN_SPECIFIERS"
-    ],
-    "packages/plugins/src/git-autocommit/index.ts": [
-      "parsePorcelainLine"
-    ],
+    "packages/plugins/src/error-lens/index.ts": ["extractErrorLine", "extractFrames"],
+    "packages/plugins/src/factories/index.ts": ["OFFICIAL_PLUGIN_SPECIFIERS"],
+    "packages/plugins/src/git-autocommit/index.ts": ["parsePorcelainLine"],
     "packages/plugins/src/gitignore-guard/index.ts": [
       "classifyArtifact",
       "DEFAULT_ARTIFACT_PATTERNS",
       "matchGitignorePattern"
     ],
-    "packages/plugins/src/injection-shield/index.ts": [
-      "scanForInjection",
-      "stripInvisible"
-    ],
-    "packages/plugins/src/license-audit-gate/index.ts": [
-      "parsePackageNames"
-    ],
-    "packages/plugins/src/lint-gate/index.ts": [
-      "resolveLocalLinter"
-    ],
-    "packages/plugins/src/llm-cache/index.ts": [
-      "fingerprintRequest",
-      "isDeterministic"
-    ],
-    "packages/plugins/src/model-router/index.ts": [
-      "pickRule",
-      "requestCharSize"
-    ],
-    "packages/plugins/src/path-guard/index.ts": [
-      "isSymlinkEscape"
-    ],
-    "packages/plugins/src/plugin-audit-catalog/index.ts": [
-      "HOST_PLUGIN_AUDIT_ENTRIES"
-    ],
+    "packages/plugins/src/injection-shield/index.ts": ["scanForInjection", "stripInvisible"],
+    "packages/plugins/src/license-audit-gate/index.ts": ["parsePackageNames"],
+    "packages/plugins/src/lint-gate/index.ts": ["resolveLocalLinter"],
+    "packages/plugins/src/llm-cache/index.ts": ["fingerprintRequest", "isDeterministic"],
+    "packages/plugins/src/model-router/index.ts": ["pickRule", "requestCharSize"],
+    "packages/plugins/src/path-guard/index.ts": ["isSymlinkEscape"],
+    "packages/plugins/src/plugin-audit-catalog/index.ts": ["HOST_PLUGIN_AUDIT_ENTRIES"],
     "packages/plugins/src/prompt-firewall/index.ts": [
       "detectSecrets",
       "detectSecretsGuarded",
       "KIND_ALIASES",
       "SCAN_WINDOW_LIMIT"
     ],
-    "packages/plugins/src/semver-bump/index.ts": [
-      "determineBump",
-      "parseConventional"
-    ],
+    "packages/plugins/src/semver-bump/index.ts": ["determineBump", "parseConventional"],
     "packages/plugins/src/token-throttle/index.ts": [
       "computeThrottleDelay",
       "pruneWindow",
@@ -814,24 +515,12 @@
       "convertResponseFormat",
       "resolveGatewayWireBaseUrl"
     ],
-    "packages/providers/src/error-parse.ts": [
-      "retryAfterMsFromBody"
-    ],
-    "packages/providers/src/oauth/index.ts": [
-      "OAUTH_PROVIDER_IDS"
-    ],
-    "packages/providers/src/openai-shared.ts": [
-      "OPENAI_EFFORT_ACCEPT"
-    ],
-    "packages/providers/src/opencode.ts": [
-      "usesResponsesEndpoint"
-    ],
-    "packages/providers/src/presets/local-llm.ts": [
-      "createLocalLlmPreset"
-    ],
-    "packages/providers/src/tool-priority.ts": [
-      "scoreTool"
-    ],
+    "packages/providers/src/error-parse.ts": ["retryAfterMsFromBody"],
+    "packages/providers/src/oauth/index.ts": ["OAUTH_PROVIDER_IDS"],
+    "packages/providers/src/openai-shared.ts": ["OPENAI_EFFORT_ACCEPT"],
+    "packages/providers/src/opencode.ts": ["usesResponsesEndpoint"],
+    "packages/providers/src/presets/local-llm.ts": ["createLocalLlmPreset"],
+    "packages/providers/src/tool-priority.ts": ["scoreTool"],
     "packages/runtime/src/governance-bootstrap.ts": [
       "bootstrapGovernanceRuntimeWithFactory",
       "MAX_PENDING_GOVERNANCE_OBSERVATIONS",
@@ -842,86 +531,41 @@
       "applyWrongStackPacks",
       "createRuntimeHostFromParts"
     ],
-    "packages/sage/src/anchors/verify.ts": [
-      "anchorVerificationCoverage"
-    ],
-    "packages/sage/src/middleware/memory-injector-agent.ts": [
-      "memoryInjectorAgentCoverage"
-    ],
-    "packages/sage/src/middleware/tool-call-memory-retrieval.ts": [
-      "pathAnchorRelation"
-    ],
-    "packages/sage/src/middleware/tool-call-memory.ts": [
-      "toolCallMemoryCoverage"
-    ],
-    "packages/sage/src/middleware/turn-memory.ts": [
-      "turnMemoryCoverage"
-    ],
-    "packages/sage/src/paths.ts": [
-      "clearProjectPathCache"
-    ],
-    "packages/sage/src/project-server-endpoint.ts": [
-      "SAGE_PROJECT_SERVER_METADATA_FILE"
-    ],
-    "packages/sage/src/retrieval/format.ts": [
-      "memoryFormatCoverage"
-    ],
+    "packages/sage/src/anchors/verify.ts": ["anchorVerificationCoverage"],
+    "packages/sage/src/middleware/memory-injector-agent.ts": ["memoryInjectorAgentCoverage"],
+    "packages/sage/src/middleware/tool-call-memory-retrieval.ts": ["pathAnchorRelation"],
+    "packages/sage/src/middleware/tool-call-memory.ts": ["toolCallMemoryCoverage"],
+    "packages/sage/src/middleware/turn-memory.ts": ["turnMemoryCoverage"],
+    "packages/sage/src/paths.ts": ["clearProjectPathCache"],
+    "packages/sage/src/project-server-endpoint.ts": ["SAGE_PROJECT_SERVER_METADATA_FILE"],
+    "packages/sage/src/retrieval/format.ts": ["memoryFormatCoverage"],
     "packages/sage/src/shared/pagination.ts": [
       "compareByUpdatedDesc",
       "DEFAULT_PAGE_LIMIT",
       "normalizeListStatuses"
     ],
-    "packages/sage/src/types.ts": [
-      "kindToLegacyType"
-    ],
-    "packages/sdd/src/sdd-board-store.ts": [
-      "sameIndexSignature"
-    ],
-    "packages/sdd/src/start-sdd-run.ts": [
-      "applySddControlCommand"
-    ],
-    "packages/security-scanner/src/redaction-diagnostic.ts": [
-      "REDACTION_DIAGNOSTIC_RAW"
-    ],
+    "packages/sage/src/types.ts": ["kindToLegacyType"],
+    "packages/sdd/src/sdd-board-store.ts": ["sameIndexSignature"],
+    "packages/sdd/src/start-sdd-run.ts": ["applySddControlCommand"],
+    "packages/security-scanner/src/redaction-diagnostic.ts": ["REDACTION_DIAGNOSTIC_RAW"],
     "packages/security-scanner/src/skill-generator.ts": [
       "gatherProjectInfo",
       "generateFallbackSkill"
     ],
-    "packages/simpleui/src/agent-chat-pane.tsx": [
-      "agentConversationEntries"
-    ],
-    "packages/simpleui/src/context-breakdown-modal.tsx": [
-      "parseContextDebugPayload"
-    ],
-    "packages/simpleui/src/lib/agent-model.ts": [
-      "IDLE_AGENT_TTL_MS",
-      "isActiveStatus"
-    ],
-    "packages/simpleui/src/lib/model-catalog-view.ts": [
-      "isLikelyNonChatModel"
-    ],
-    "packages/simpleui/src/lib/model-switch.ts": [
-      "findModelContextWindow"
-    ],
-    "packages/simpleui/src/lib/settings-catalog.ts": [
-      "SETTINGS_CATALOG",
-      "SETTINGS_GROUPS"
-    ],
+    "packages/simpleui/src/agent-chat-pane.tsx": ["agentConversationEntries"],
+    "packages/simpleui/src/context-breakdown-modal.tsx": ["parseContextDebugPayload"],
+    "packages/simpleui/src/lib/agent-model.ts": ["IDLE_AGENT_TTL_MS", "isActiveStatus"],
+    "packages/simpleui/src/lib/model-catalog-view.ts": ["isLikelyNonChatModel"],
+    "packages/simpleui/src/lib/model-switch.ts": ["findModelContextWindow"],
+    "packages/simpleui/src/lib/settings-catalog.ts": ["SETTINGS_CATALOG", "SETTINGS_GROUPS"],
     "packages/simpleui/src/lib/worklist-store.ts": [
       "parseSimplePlan",
       "parseSimpleTasks",
       "parseSimpleTodos"
     ],
-    "packages/simpleui/src/lib/ws.ts": [
-      "exchangeAuthCookie",
-      "scrubPageToken"
-    ],
-    "packages/simpleui/src/tool-call-entry.tsx": [
-      "ToolCallEntry"
-    ],
-    "packages/techstack/src/adapters/python.ts": [
-      "parsePoetryLock"
-    ],
+    "packages/simpleui/src/lib/ws.ts": ["exchangeAuthCookie", "scrubPageToken"],
+    "packages/simpleui/src/tool-call-entry.tsx": ["ToolCallEntry"],
+    "packages/techstack/src/adapters/python.ts": ["parsePoetryLock"],
     "packages/techstack/src/advisory/native-audit.ts": [
       "runCargoAudit",
       "runComposerAudit",
@@ -929,10 +573,7 @@
       "runGoVulncheck",
       "runPipAudit"
     ],
-    "packages/techstack/src/discovery/index.ts": [
-      "deriveCoverage",
-      "mapEcosystem"
-    ],
+    "packages/techstack/src/discovery/index.ts": ["deriveCoverage", "mapEcosystem"],
     "packages/techstack/src/policy/resolver.ts": [
       "findRuleMatches",
       "matchesSelector",
@@ -948,36 +589,21 @@
       "loadRulebook",
       "validateRulebook"
     ],
-    "packages/techstack/src/registry/client.ts": [
-      "parseNpmPackument"
-    ],
+    "packages/techstack/src/registry/client.ts": ["parseNpmPackument"],
     "packages/telegram/src/api-client.ts": [
       "buildTelegramBotApiBaseUrl",
       "TelegramHttpError",
       "TelegramResponseParseError"
     ],
-    "packages/telegram/src/format.ts": [
-      "fmtToolOutput"
-    ],
-    "packages/telegram/src/manifest.ts": [
-      "TELEGRAM_MANIFEST"
-    ],
-    "packages/telegram/src/offset-store.ts": [
-      "offsetPathForToken"
-    ],
+    "packages/telegram/src/format.ts": ["fmtToolOutput"],
+    "packages/telegram/src/manifest.ts": ["TELEGRAM_MANIFEST"],
+    "packages/telegram/src/offset-store.ts": ["offsetPathForToken"],
     "packages/telegram/src/security/inbound.ts": [
       "sanitizeTelegramInboundBody",
       "TELEGRAM_INBOUND_TAG"
     ],
-    "packages/telegram/src/telemetry.ts": [
-      "bumpCounter",
-      "observeHistogram",
-      "TelegramTelemetry"
-    ],
-    "packages/tools/src/_output-spool.ts": [
-      "_resetOutputSpoolForTests",
-      "toolOutputDir"
-    ],
+    "packages/telegram/src/telemetry.ts": ["bumpCounter", "observeHistogram", "TelegramTelemetry"],
+    "packages/tools/src/_output-spool.ts": ["_resetOutputSpoolForTests", "toolOutputDir"],
     "packages/tools/src/_shell-pick.ts": [
       "looksLikePowerShell",
       "looksLikePowerShellExtended",
@@ -989,97 +615,51 @@
       "resolvePath",
       "truncateHeadTail"
     ],
-    "packages/tools/src/auto-proceed-loop-guard.ts": [
-      "normalizeForRepetition"
-    ],
-    "packages/tools/src/bash-kill-guard.ts": [
-      "parseKillCommand"
-    ],
-    "packages/tools/src/browser/artifacts.ts": [
-      "_resetArtifactSweepForTests"
-    ],
+    "packages/tools/src/auto-proceed-loop-guard.ts": ["normalizeForRepetition"],
+    "packages/tools/src/bash-kill-guard.ts": ["parseKillCommand"],
+    "packages/tools/src/browser/artifacts.ts": ["_resetArtifactSweepForTests"],
     "packages/tools/src/codebase-index/background-indexer.ts": [
       "resetIndexStateForTesting",
       "setIndexReady"
     ],
-    "packages/tools/src/codebase-index/content-hash.ts": [
-      "parseContentHash",
-      "xxhash64Hex"
-    ],
+    "packages/tools/src/codebase-index/content-hash.ts": ["parseContentHash", "xxhash64Hex"],
     "packages/tools/src/codebase-index/generic-parser.ts": [
       "GENERIC_MAX_FILE_CHARS",
       "GENERIC_MAX_SYMBOLS_DEFAULT"
     ],
-    "packages/tools/src/codebase-index/gitignore.ts": [
-      "compileGitignore"
-    ],
-    "packages/tools/src/codebase-index/indexer.ts": [
-      "shouldUseParserWorkerPool"
-    ],
-    "packages/tools/src/codebase-index/lsp-kind.ts": [
-      "isLspKind",
-      "LSPSymbolKind"
-    ],
-    "packages/tools/src/codebase-index/parser-batch.ts": [
-      "__batchScriptPathsForTest"
-    ],
-    "packages/tools/src/codebase-index/parser-worker-pool.ts": [
-      "ParserWorkerPool"
-    ],
-    "packages/tools/src/codebase-index/project-server-endpoint.ts": [
-      "projectIndexServerKey"
-    ],
+    "packages/tools/src/codebase-index/gitignore.ts": ["compileGitignore"],
+    "packages/tools/src/codebase-index/indexer.ts": ["shouldUseParserWorkerPool"],
+    "packages/tools/src/codebase-index/lsp-kind.ts": ["isLspKind", "LSPSymbolKind"],
+    "packages/tools/src/codebase-index/parser-batch.ts": ["__batchScriptPathsForTest"],
+    "packages/tools/src/codebase-index/parser-worker-pool.ts": ["ParserWorkerPool"],
+    "packages/tools/src/codebase-index/project-server-endpoint.ts": ["projectIndexServerKey"],
     "packages/tools/src/codebase-index/vector-search.ts": [
       "buildRankMap",
       "RRF_K",
       "VECTOR_DIMENSIONS"
     ],
-    "packages/tools/src/codebase-index/writer-helpers.ts": [
-      "posixIndexPath"
-    ],
-    "packages/tools/src/codebase-index/writer-refs.ts": [
-      "FAMILY_MATCH_SQL"
-    ],
-    "packages/tools/src/kanban-task-inputs.ts": [
-      "mergedDependsOn"
-    ],
-    "packages/tools/src/process-guardian.ts": [
-      "ProcessGuardian"
-    ],
-    "packages/tools/src/process-registry.ts": [
-      "killWin32Tree"
-    ],
-    "packages/tools/src/ps-slash.ts": [
-      "getGlobalProcessStatus"
-    ],
-    "packages/tools/src/search.ts": [
-      "__clearSearchCache"
-    ],
+    "packages/tools/src/codebase-index/writer-helpers.ts": ["posixIndexPath"],
+    "packages/tools/src/codebase-index/writer-refs.ts": ["FAMILY_MATCH_SQL"],
+    "packages/tools/src/kanban-task-inputs.ts": ["mergedDependsOn"],
+    "packages/tools/src/process-guardian.ts": ["ProcessGuardian"],
+    "packages/tools/src/process-registry.ts": ["killWin32Tree"],
+    "packages/tools/src/ps-slash.ts": ["getGlobalProcessStatus"],
+    "packages/tools/src/search.ts": ["__clearSearchCache"],
     "packages/tools/src/session-kanban.ts": [
       "cleanupEmptySessionKanbanBoards",
       "cleanupSessionKanbanBoard",
       "cleanupSessionKanbanBoardIfEmpty"
     ],
-    "packages/tools/src/spawn-background.ts": [
-      "spawnBackground",
-      "spawnBackgroundExec"
-    ],
-    "packages/tools/src/tool-diff.ts": [
-      "DIFF_LINE_SAFETY_CAP",
-      "TOOL_DIFF_BROWSER_SRC"
-    ],
-    "packages/tools/src/tool-summary.ts": [
-      "SUMMARIZE_TOOL_INPUT_BROWSER_SRC"
-    ],
+    "packages/tools/src/spawn-background.ts": ["spawnBackground", "spawnBackgroundExec"],
+    "packages/tools/src/tool-diff.ts": ["DIFF_LINE_SAFETY_CAP", "TOOL_DIFF_BROWSER_SRC"],
+    "packages/tools/src/tool-summary.ts": ["SUMMARIZE_TOOL_INPUT_BROWSER_SRC"],
     "packages/tui/src/app-ui-state.ts": [
-      "isPickerOverlayOpen"
+      "effectiveShowSidebar",
+      "isPickerOverlayOpen",
+      "resolveShowSidebarVisibility"
     ],
-    "packages/tui/src/auth-panel-model.ts": [
-      "filterAuthCatalog"
-    ],
-    "packages/tui/src/brain-panel-model.ts": [
-      "personaCycle"
-    ],
+    "packages/tui/src/auth-panel-model.ts": ["filterAuthCatalog"],
+    "packages/tui/src/brain-panel-model.ts": ["personaCycle"],
     "packages/tui/src/components/agents-monitor.tsx": [
       "agentRisk",
       "fmtExactTokens",
@@ -1100,23 +680,11 @@
       "CYCLE_TICK_INTERVAL_MS",
       "DEFAULT_ANIMATION_STYLE"
     ],
-    "packages/tui/src/components/auth-panel.tsx": [
-      "isAuthFlowUrlLine",
-      "latestAuthFlowUrl"
-    ],
-    "packages/tui/src/components/clear-confirm-panel.tsx": [
-      "isClearConfirmation"
-    ],
-    "packages/tui/src/components/confirm-prompt.tsx": [
-      "confirmButtonSegments",
-      "payloadDiff"
-    ],
-    "packages/tui/src/components/continue-confirm-panel.tsx": [
-      "continueAutoProceedSeconds"
-    ],
-    "packages/tui/src/components/enhance-panel.tsx": [
-      "refinementPulse"
-    ],
+    "packages/tui/src/components/auth-panel.tsx": ["isAuthFlowUrlLine", "latestAuthFlowUrl"],
+    "packages/tui/src/components/clear-confirm-panel.tsx": ["isClearConfirmation"],
+    "packages/tui/src/components/confirm-prompt.tsx": ["confirmButtonSegments", "payloadDiff"],
+    "packages/tui/src/components/continue-confirm-panel.tsx": ["continueAutoProceedSeconds"],
+    "packages/tui/src/components/enhance-panel.tsx": ["refinementPulse"],
     "packages/tui/src/components/fleet-panel.tsx": [
       "activityText",
       "buildSwarmGrid",
@@ -1125,135 +693,67 @@
       "swarmColumnCount",
       "swarmMeter"
     ],
-    "packages/tui/src/components/help-overlay.tsx": [
-      "helpSections"
-    ],
-    "packages/tui/src/components/history/banner.tsx": [
-      "bannerGradientColor",
-      "brandMarkPinkRow"
-    ],
-    "packages/tui/src/components/history/code-block.tsx": [
-      "applyWashTokens"
-    ],
-    "packages/tui/src/components/history/replay.ts": [
-      "replaySessionEvents"
-    ],
-    "packages/tui/src/components/history/sage-output-format.ts": [
-      "SAGE_MEMORY_DETAIL"
-    ],
-    "packages/tui/src/components/input.tsx": [
-      "EMPTY_KEY"
-    ],
+    "packages/tui/src/components/help-overlay.tsx": ["helpSections"],
+    "packages/tui/src/components/history/banner.tsx": ["bannerGradientColor", "brandMarkPinkRow"],
+    "packages/tui/src/components/history/code-block.tsx": ["applyWashTokens"],
+    "packages/tui/src/components/history/replay.ts": ["replaySessionEvents"],
+    "packages/tui/src/components/history/sage-output-format.ts": ["SAGE_MEMORY_DETAIL"],
+    "packages/tui/src/components/input.tsx": ["EMPTY_KEY"],
     "packages/tui/src/components/kanban-panel.tsx": [
       "computeBoardColumnLayout",
       "stageForColumn",
       "summarizeGoalMetrics",
       "summarizeSuccessCriteria"
     ],
-    "packages/tui/src/components/key-hint-bar.tsx": [
-      "hintsFor",
-      "IDLE_MESSAGES",
-      "isIdleContext"
-    ],
-    "packages/tui/src/components/live-activity-strip.tsx": [
-      "activityStripRows"
-    ],
-    "packages/tui/src/components/memory-context-widget.tsx": [
-      "MemoryContextWidget"
-    ],
-    "packages/tui/src/components/powerline-rail.tsx": [
-      "visibleNodeText"
-    ],
-    "packages/tui/src/components/refine-failure-panel.tsx": [
-      "filterRefineModels"
-    ],
+    "packages/tui/src/components/key-hint-bar.tsx": ["hintsFor", "IDLE_MESSAGES", "isIdleContext"],
+    "packages/tui/src/components/live-activity-strip.tsx": ["activityStripRows"],
+    "packages/tui/src/components/memory-context-widget.tsx": ["MemoryContextWidget"],
+    "packages/tui/src/components/powerline-rail.tsx": ["visibleNodeText"],
+    "packages/tui/src/components/refine-failure-panel.tsx": ["filterRefineModels"],
     "packages/tui/src/components/send-mode-picker.tsx": [
       "formatSendModeMessagePreview",
       "sendModeFromKey"
     ],
-    "packages/tui/src/components/settings-picker-model.ts": [
-      "SETTINGS_DEFAULTS"
-    ],
-    "packages/tui/src/components/settings-picker-row-list.tsx": [
-      "buildVisibleSectionHeaders"
-    ],
-    "packages/tui/src/components/shell-command-warning.tsx": [
-      "truncateShellCommandWarningCommand"
-    ],
-    "packages/tui/src/components/sidebar-content.tsx": [
-      "contextSpectrum"
-    ],
-    "packages/tui/src/components/sidebar-panel-frame.tsx": [
-      "SidebarPanelCard"
-    ],
+    "packages/tui/src/components/settings-picker-model.ts": ["SETTINGS_DEFAULTS"],
+    "packages/tui/src/components/settings-picker-row-list.tsx": ["buildVisibleSectionHeaders"],
+    "packages/tui/src/components/shell-command-warning.tsx": ["truncateShellCommandWarningCommand"],
+    "packages/tui/src/components/sidebar-content.tsx": ["contextSpectrum"],
+    "packages/tui/src/components/sidebar-panel-frame.tsx": ["SidebarPanelCard"],
     "packages/tui/src/components/sidebar.tsx": [
       "SIDEBAR_FRACTION",
       "SIDEBAR_HORIZONTAL_CHROME",
       "SIDEBAR_MIN_TERMINAL"
     ],
-    "packages/tui/src/components/statusline-detail-panel.tsx": [
-      "StatuslineDetailPanel"
-    ],
+    "packages/tui/src/components/statusline-detail-panel.tsx": ["StatuslineDetailPanel"],
     "packages/tui/src/components/statusline-picker.tsx": [
       "getExpiresInLabel",
       "ITEM_LINE",
       "STREAM_CHIP_EXPIRES_IN_MINUTES"
     ],
-    "packages/tui/src/components/worktree-monitor.tsx": [
-      "isWorktreeMonitorCloseKey"
-    ],
-    "packages/tui/src/context-slash.ts": [
-      "formatContextPanelSummary"
-    ],
-    "packages/tui/src/cron-slash.ts": [
-      "renderCronList"
-    ],
-    "packages/tui/src/esc-close-panels.ts": [
-      "ESC_CLOSE_PANELS"
-    ],
-    "packages/tui/src/file-search.ts": [
-      "invalidateFileCache"
-    ],
-    "packages/tui/src/history-archive.ts": [
-      "MAX_MEMORY_ENTRIES"
-    ],
+    "packages/tui/src/components/worktree-monitor.tsx": ["isWorktreeMonitorCloseKey"],
+    "packages/tui/src/context-slash.ts": ["formatContextPanelSummary"],
+    "packages/tui/src/cron-slash.ts": ["renderCronList"],
+    "packages/tui/src/esc-close-panels.ts": ["ESC_CLOSE_PANELS"],
+    "packages/tui/src/file-search.ts": ["invalidateFileCache"],
+    "packages/tui/src/history-archive.ts": ["MAX_MEMORY_ENTRIES"],
     "packages/tui/src/history-retention.ts": [
       "TUI_HISTORY_MAX_BYTES",
       "TUI_HISTORY_MAX_ENTRIES",
       "TUI_HISTORY_MAX_ENTRY_BYTES"
     ],
-    "packages/tui/src/hooks/fleet-chat-coalescer.ts": [
-      "addTool",
-      "newToolAgg"
-    ],
+    "packages/tui/src/hooks/fleet-chat-coalescer.ts": ["addTool", "newToolAgg"],
     "packages/tui/src/hooks/subagent-history-format.ts": [
       "formatHistoryDuration",
       "shortenTaskPreview"
     ],
-    "packages/tui/src/hooks/use-app-event-bridges.ts": [
-      "useAppEventBridges"
-    ],
-    "packages/tui/src/hooks/use-app-panels-state.ts": [
-      "useAppPanelsState"
-    ],
-    "packages/tui/src/hooks/use-chip-staleness-guard.ts": [
-      "formatDiagnosis"
-    ],
-    "packages/tui/src/hooks/use-file-search.ts": [
-      "detectAtToken"
-    ],
-    "packages/tui/src/hooks/use-mode-picker.ts": [
-      "buildModePickerOptions"
-    ],
-    "packages/tui/src/hooks/use-next-steps-auto-submit.ts": [
-      "selectAutoProceedCandidate"
-    ],
-    "packages/tui/src/hooks/use-prompt-picker.ts": [
-      "buildPromptPickerPayload"
-    ],
-    "packages/tui/src/hooks/use-statusline-hidden-sync.ts": [
-      "statuslineHiddenDiffers"
-    ],
+    "packages/tui/src/hooks/use-app-event-bridges.ts": ["useAppEventBridges"],
+    "packages/tui/src/hooks/use-app-panels-state.ts": ["useAppPanelsState"],
+    "packages/tui/src/hooks/use-chip-staleness-guard.ts": ["formatDiagnosis"],
+    "packages/tui/src/hooks/use-file-search.ts": ["detectAtToken"],
+    "packages/tui/src/hooks/use-mode-picker.ts": ["buildModePickerOptions"],
+    "packages/tui/src/hooks/use-next-steps-auto-submit.ts": ["selectAutoProceedCandidate"],
+    "packages/tui/src/hooks/use-prompt-picker.ts": ["buildPromptPickerPayload"],
+    "packages/tui/src/hooks/use-statusline-hidden-sync.ts": ["statuslineHiddenDiffers"],
     "packages/tui/src/hooks/use-stream-chip-expiration.ts": [
       "computeExpiredChipKeys",
       "computeStreamChipActions"
@@ -1262,19 +762,10 @@
       "compactionHistoryEntry",
       "providerContextLimitHistoryEntry"
     ],
-    "packages/tui/src/hooks/use-token-counter-refresh.ts": [
-      "snapshotTokenCounter"
-    ],
-    "packages/tui/src/hooks/use-working-dir-chip.ts": [
-      "formatWorkingDirChip"
-    ],
-    "packages/tui/src/input-editing.ts": [
-      "isInputWordSeparator"
-    ],
-    "packages/tui/src/input-tokens.ts": [
-      "PROTOCOL_TOKEN_SRC",
-      "splitChips"
-    ],
+    "packages/tui/src/hooks/use-token-counter-refresh.ts": ["snapshotTokenCounter"],
+    "packages/tui/src/hooks/use-working-dir-chip.ts": ["formatWorkingDirChip"],
+    "packages/tui/src/input-editing.ts": ["isInputWordSeparator"],
+    "packages/tui/src/input-tokens.ts": ["PROTOCOL_TOKEN_SRC", "splitChips"],
     "packages/tui/src/input-validation.ts": [
       "ensureValidAction",
       "normalizedEquals",
@@ -1295,35 +786,14 @@
       "visibleChars",
       "wrappedRows"
     ],
-    "packages/tui/src/markdown-table.ts": [
-      "renderMarkdownTables",
-      "strWidth"
-    ],
-    "packages/tui/src/memory-slash-gather.ts": [
-      "handleGatherSubcommand"
-    ],
-    "packages/tui/src/mouse.ts": [
-      "MOUSE_CLICK_ON",
-      "MOUSE_HOVER_ON",
-      "parseMouseEvent"
-    ],
-    "packages/tui/src/queue-slash.ts": [
-      "handleQueueCommand"
-    ],
-    "packages/tui/src/scroll-anchor.ts": [
-      "anchorAtTopRow"
-    ],
-    "packages/tui/src/sidebar-sizing.ts": [
-      "SIDEBAR_TWIN_HEIGHT_BY_PANEL"
-    ],
-    "packages/tui/src/terminal-width.ts": [
-      "frameRule",
-      "frameRuleParts",
-      "padDisplayEnd"
-    ],
-    "packages/tui/src/thinking-word.ts": [
-      "TUI_THINKING_WORD_POOL"
-    ],
+    "packages/tui/src/markdown-table.ts": ["renderMarkdownTables", "strWidth"],
+    "packages/tui/src/memory-slash-gather.ts": ["handleGatherSubcommand"],
+    "packages/tui/src/mouse.ts": ["MOUSE_CLICK_ON", "MOUSE_HOVER_ON", "parseMouseEvent"],
+    "packages/tui/src/queue-slash.ts": ["handleQueueCommand"],
+    "packages/tui/src/scroll-anchor.ts": ["anchorAtTopRow"],
+    "packages/tui/src/sidebar-sizing.ts": ["SIDEBAR_TWIN_HEIGHT_BY_PANEL"],
+    "packages/tui/src/terminal-width.ts": ["frameRule", "frameRuleParts", "padDisplayEnd"],
+    "packages/tui/src/thinking-word.ts": ["TUI_THINKING_WORD_POOL"],
     "packages/tui/src/token-previews.ts": [
       "createTokenPreview",
       "TOKEN_PREVIEW_MAX_CHARS",
@@ -1331,77 +801,34 @@
       "TOKEN_PREVIEWS_MAX_CHARS",
       "TOKEN_PREVIEWS_MAX_ENTRIES"
     ],
-    "packages/tui/src/tool-glyph.ts": [
-      "TOOL_GLYPHS"
-    ],
-    "packages/tui/src/tui-memory-counters.ts": [
-      "resetTuiMemoryCounters"
-    ],
-    "packages/tui/src/ui-glyphs.ts": [
-      "glyphSet"
-    ],
-    "packages/tui/src/workbench-slash.ts": [
-      "createWorkbenchSlashCommand",
-      "renderWorkbenchReport"
-    ],
-    "packages/webui-hq/src/app.tsx": [
-      "getHqViewDefinition",
-      "HQ_VIEW_DEFINITIONS"
-    ],
-    "packages/webui-hq/src/lib/auth.ts": [
-      "authHeaders",
-      "normalizeHqTokenInput",
-      "setHqToken"
-    ],
-    "packages/webui-hq/src/lib/hq-ws-client.ts": [
-      "closeHqClient"
-    ],
-    "packages/webui-hq/src/lib/inspector-slots.tsx": [
-      "RightInspector"
-    ],
-    "packages/webui-hq/src/lib/inspector.ts": [
-      "clearInspectorSlots"
-    ],
-    "packages/webui-hq/src/lib/transcript-store.ts": [
-      "entryKey"
-    ],
-    "packages/webui-hq/src/lib/use-session-transcript.ts": [
-      "coalesceStreamedText"
-    ],
+    "packages/tui/src/tool-glyph.ts": ["TOOL_GLYPHS"],
+    "packages/tui/src/tui-memory-counters.ts": ["resetTuiMemoryCounters"],
+    "packages/tui/src/ui-glyphs.ts": ["glyphSet"],
+    "packages/tui/src/workbench-slash.ts": ["createWorkbenchSlashCommand", "renderWorkbenchReport"],
+    "packages/webui-hq/src/app.tsx": ["getHqViewDefinition", "HQ_VIEW_DEFINITIONS"],
+    "packages/webui-hq/src/lib/auth.ts": ["authHeaders", "normalizeHqTokenInput", "setHqToken"],
+    "packages/webui-hq/src/lib/hq-ws-client.ts": ["closeHqClient"],
+    "packages/webui-hq/src/lib/inspector-slots.tsx": ["RightInspector"],
+    "packages/webui-hq/src/lib/inspector.ts": ["clearInspectorSlots"],
+    "packages/webui-hq/src/lib/transcript-store.ts": ["entryKey"],
+    "packages/webui-hq/src/lib/use-session-transcript.ts": ["coalesceStreamedText"],
     "packages/webui-hq/src/stores/hq-local-prefs.ts": [
       "getHqLocalPrefsSnapshot",
       "reloadHqLocalPrefs",
       "resetHqLocalPrefs"
     ],
-    "packages/webui-hq/src/views/control.tsx": [
-      "controlClientLabel"
-    ],
-    "packages/webui-hq/src/views/fleet-nav.tsx": [
-      "buildNav"
-    ],
-    "packages/webui-hq/src/views/fleet-topology.ts": [
-      "FLEET_COLUMN_GAP",
-      "FLEET_LEAF_H"
-    ],
-    "packages/webui-hq/src/views/live-console.tsx": [
-      "commandLifecycleTone"
-    ],
-    "packages/webui-hq/src/views/mailbox-filters.ts": [
-      "EMPTY_LIVE_FILTER_STATE"
-    ],
-    "packages/webui-hq/src/views/mailbox-live.ts": [
-      "buildLiveFeed"
-    ],
-    "packages/webui-hq/src/views/settings.tsx": [
-      "scorePassword"
-    ],
+    "packages/webui-hq/src/views/control.tsx": ["controlClientLabel"],
+    "packages/webui-hq/src/views/fleet-nav.tsx": ["buildNav"],
+    "packages/webui-hq/src/views/fleet-topology.ts": ["FLEET_COLUMN_GAP", "FLEET_LEAF_H"],
+    "packages/webui-hq/src/views/live-console.tsx": ["commandLifecycleTone"],
+    "packages/webui-hq/src/views/mailbox-filters.ts": ["EMPTY_LIVE_FILTER_STATE"],
+    "packages/webui-hq/src/views/mailbox-live.ts": ["buildLiveFeed"],
+    "packages/webui-hq/src/views/settings.tsx": ["scorePassword"],
     "packages/webui-server/src/server/codemap-cache.ts": [
       "codemapGraphCacheChars",
       "codemapGraphCacheSize"
     ],
-    "packages/webui-server/src/server/connection-lifecycle.ts": [
-      "RATE_LIMIT_EXEMPT_TYPES"
-    ],
+    "packages/webui-server/src/server/connection-lifecycle.ts": ["RATE_LIMIT_EXEMPT_TYPES"],
     "packages/webui-server/src/server/connections/auto-healer.ts": [
       "AUTO_HEAL_DEFAULT_COOLDOWN_MS",
       "AUTO_HEAL_ENV_FLAG",
@@ -1415,43 +842,23 @@
       "killSageServer",
       "restartKanbanServer"
     ],
-    "packages/webui-server/src/server/governance-runtime.ts": [
-      "webUiGovernanceRuntimeEnabled"
-    ],
-    "packages/webui-server/src/server/mcp-handlers.ts": [
-      "toView"
-    ],
-    "packages/webui-server/src/server/provider-config-standalone.ts": [
-      "vaultKeyFileForConfigPath"
-    ],
+    "packages/webui-server/src/server/governance-runtime.ts": ["webUiGovernanceRuntimeEnabled"],
+    "packages/webui-server/src/server/mcp-handlers.ts": ["toView"],
+    "packages/webui-server/src/server/provider-config-standalone.ts": ["vaultKeyFileForConfigPath"],
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
     ],
-    "packages/webui-server/src/server/terminal-ws-handler.ts": [
-      "resolveTerminalShell"
-    ],
-    "packages/webui-server/src/server/ws-payload-validation.ts": [
-      "validateBrainConfigSetPayload"
-    ],
+    "packages/webui-server/src/server/terminal-ws-handler.ts": ["resolveTerminalShell"],
+    "packages/webui-server/src/server/ws-payload-validation.ts": ["validateBrainConfigSetPayload"],
     "packages/webui/src/components/activity-bar/index.tsx": [
       "calculateDesktopActivityCapacity",
       "splitDesktopActivityBarItems"
     ],
-    "packages/webui/src/components/AgentOfficeView.tsx": [
-      "AgentLane"
-    ],
-    "packages/webui/src/components/AgentsPage.tsx": [
-      "getIterations",
-      "getLastEventAt"
-    ],
-    "packages/webui/src/components/ChatInput/code-detect.ts": [
-      "detectLanguage",
-      "unfenceCode"
-    ],
-    "packages/webui/src/components/ChatInput/image-attachments.ts": [
-      "MAX_PROCESSED_IMAGE_BYTES"
-    ],
+    "packages/webui/src/components/AgentOfficeView.tsx": ["AgentLane"],
+    "packages/webui/src/components/AgentsPage.tsx": ["getIterations", "getLastEventAt"],
+    "packages/webui/src/components/ChatInput/code-detect.ts": ["detectLanguage", "unfenceCode"],
+    "packages/webui/src/components/ChatInput/image-attachments.ts": ["MAX_PROCESSED_IMAGE_BYTES"],
     "packages/webui/src/components/codemap-model.ts": [
       "_clearNormalizedPathCacheForTests",
       "_normalizedPathCacheSizeForTests",
@@ -1468,28 +875,15 @@
       "formatBoundarySelectors",
       "parseBoundarySelectors"
     ],
-    "packages/webui/src/components/KanbanTaskInspectorChrome.tsx": [
-      "TASK_INSPECTOR_TABS"
-    ],
-    "packages/webui/src/components/KanbanView.tsx": [
-      "TASK_ACTIVITY_LOAD_LIMIT"
-    ],
+    "packages/webui/src/components/KanbanTaskInspectorChrome.tsx": ["TASK_INSPECTOR_TABS"],
+    "packages/webui/src/components/KanbanView.tsx": ["TASK_ACTIVITY_LOAD_LIMIT"],
     "packages/webui/src/components/MessageBubble/StreamingMarkdown.tsx": [
       "splitStableStreamPrefix"
     ],
-    "packages/webui/src/components/OfficeMapCanvas/utils.ts": [
-      "AGENT_COLS",
-      "layoutClientXs"
-    ],
-    "packages/webui/src/components/SearchOverlay.tsx": [
-      "messageSearchText"
-    ],
-    "packages/webui/src/components/SessionsDashboard.tsx": [
-      "sessionApiError"
-    ],
-    "packages/webui/src/components/SettingsPanel/ModelListEditor.tsx": [
-      "deriveRows"
-    ],
+    "packages/webui/src/components/OfficeMapCanvas/utils.ts": ["AGENT_COLS", "layoutClientXs"],
+    "packages/webui/src/components/SearchOverlay.tsx": ["messageSearchText"],
+    "packages/webui/src/components/SessionsDashboard.tsx": ["sessionApiError"],
+    "packages/webui/src/components/SettingsPanel/ModelListEditor.tsx": ["deriveRows"],
     "packages/webui/src/components/SettingsPanel/ProviderModelsPanel.filter.ts": [
       "formatClearAllowlistDialogBody",
       "selectModelList",
@@ -1511,27 +905,13 @@
       "buildTaskActivityExport",
       "eventFieldChanges"
     ],
-    "packages/webui/src/components/TaskExecutionAttempts.tsx": [
-      "buildTaskExecutionAttempts"
-    ],
-    "packages/webui/src/components/TaskIntelligencePanel.tsx": [
-      "deriveTaskIntelligence"
-    ],
-    "packages/webui/src/components/toaster-helpers.ts": [
-      "buildUndoToastEntry"
-    ],
-    "packages/webui/src/components/WorktreeGraph.tsx": [
-      "deriveWorktreeGraph"
-    ],
-    "packages/webui/src/hooks/use-ws-handlers.ts": [
-      "useWsHandlers"
-    ],
-    "packages/webui/src/hooks/useFleetPolling.ts": [
-      "useFleetPolling"
-    ],
-    "packages/webui/src/hooks/useViewport.ts": [
-      "MOBILE_BREAKPOINT"
-    ],
+    "packages/webui/src/components/TaskExecutionAttempts.tsx": ["buildTaskExecutionAttempts"],
+    "packages/webui/src/components/TaskIntelligencePanel.tsx": ["deriveTaskIntelligence"],
+    "packages/webui/src/components/toaster-helpers.ts": ["buildUndoToastEntry"],
+    "packages/webui/src/components/WorktreeGraph.tsx": ["deriveWorktreeGraph"],
+    "packages/webui/src/hooks/use-ws-handlers.ts": ["useWsHandlers"],
+    "packages/webui/src/hooks/useFleetPolling.ts": ["useFleetPolling"],
+    "packages/webui/src/hooks/useViewport.ts": ["MOBILE_BREAKPOINT"],
     "packages/webui/src/hooks/ws-handlers.ts": [
       "handleConfigDoctorResult",
       "handleDiagGet",
@@ -1598,9 +978,7 @@
       "handleTechStackSnapshotUpdated",
       "handleTechStackWorkspaceCompleted"
     ],
-    "packages/webui/src/i18n/index.ts": [
-      "installDesktopHostLocaleBridge"
-    ],
+    "packages/webui/src/i18n/index.ts": ["installDesktopHostLocaleBridge"],
     "packages/webui/src/lib/agent-status.ts": [
       "AGENT_STATUS_LABEL",
       "classifyCtxPct",
@@ -1613,15 +991,9 @@
       "shuffleAllCards",
       "SLASH_REFS"
     ],
-    "packages/webui/src/lib/desktop-shell.ts": [
-      "detectDesktopShell"
-    ],
-    "packages/webui/src/lib/fallback-ref.ts": [
-      "splitProviderModel"
-    ],
-    "packages/webui/src/lib/model-calendar.ts": [
-      "isCalendarRuleBlocking"
-    ],
+    "packages/webui/src/lib/desktop-shell.ts": ["detectDesktopShell"],
+    "packages/webui/src/lib/fallback-ref.ts": ["splitProviderModel"],
+    "packages/webui/src/lib/model-calendar.ts": ["isCalendarRuleBlocking"],
     "packages/webui/src/lib/model-matrix-routes.ts": [
       "MODEL_MATRIX_PHASE_ROUTES",
       "MODEL_MATRIX_ROLE_ROUTES"
@@ -1630,39 +1002,15 @@
       "resolveOnePlugin",
       "resolvePluginToggleStates"
     ],
-    "packages/webui/src/lib/sdd-theme.ts": [
-      "SDD_PRIORITY",
-      "SDD_STATUS"
-    ],
-    "packages/webui/src/lib/terminal-dock.ts": [
-      "MAX_TERMINAL_HEIGHT",
-      "MIN_TERMINAL_HEIGHT"
-    ],
-    "packages/webui/src/lib/tool-icon.ts": [
-      "TOOL_CATEGORY_LABELS"
-    ],
-    "packages/webui/src/lib/view-navigation.ts": [
-      "PANEL_VIEW_BY_ACTIVITY",
-      "VIEW_ACTIVITY"
-    ],
-    "packages/webui/src/lib/ws-client-utils.ts": [
-      "resolvePublicWsUrl"
-    ],
-    "packages/webui/src/stores/chat-queue-helpers.ts": [
-      "enqueueSequence"
-    ],
-    "packages/webui/src/stores/file-store.ts": [
-      "mergePersistedFileStore"
-    ],
-    "packages/webui/src/stores/goal-store.ts": [
-      "useGoalStore"
-    ],
-    "packages/webui/src/stores/memory-lifecycle-store.ts": [
-      "toMemoryLifecycleItem"
-    ],
-    "packages/webui/src/stores/monitor-store.ts": [
-      "clientBucket",
-      "deriveMonitorStats"
-    ]
+    "packages/webui/src/lib/sdd-theme.ts": ["SDD_PRIORITY", "SDD_STATUS"],
+    "packages/webui/src/lib/terminal-dock.ts": ["MAX_TERMINAL_HEIGHT", "MIN_TERMINAL_HEIGHT"],
+    "packages/webui/src/lib/tool-icon.ts": ["TOOL_CATEGORY_LABELS"],
+    "packages/webui/src/lib/view-navigation.ts": ["PANEL_VIEW_BY_ACTIVITY", "VIEW_ACTIVITY"],
+    "packages/webui/src/lib/ws-client-utils.ts": ["resolvePublicWsUrl"],
+    "packages/webui/src/stores/chat-queue-helpers.ts": ["enqueueSequence"],
+    "packages/webui/src/stores/file-store.ts": ["mergePersistedFileStore"],
+    "packages/webui/src/stores/goal-store.ts": ["useGoalStore"],
+    "packages/webui/src/stores/memory-lifecycle-store.ts": ["toMemoryLifecycleItem"],
+    "packages/webui/src/stores/monitor-store.ts": ["clientBucket", "deriveMonitorStats"]
   }
 }

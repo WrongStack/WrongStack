@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-25T10:48:42.849Z
+**Generated:** 2026-08-25T10:50:23.903Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,19 +21,7 @@
 
 ## Verification result
 
-- packages/cli/src/cli-main.ts: hotspot grew from 809 to 817 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/provider-status-tracker.ts: hotspot grew from 964 to 984 lines; review and update the ratchet in the same change
-- packages/core/src/core/fallback-model.ts: hotspot grew from 844 to 874 lines; review and update the ratchet in the same change
-- packages/core/src/core/fallback-model.ts: relative import fan-out increased from 14 to 15; review and update the ratchet in the same change
-- packages/simpleui/src/lib/message-handler.ts: hotspot grew from 810 to 825 lines; review and update the ratchet in the same change
-- packages/tui/src/app-state.ts: hotspot grew from 900 to 902 lines; review and update the ratchet in the same change
-- packages/tui/src/components/settings-picker-model.ts: hotspot grew from 1079 to 1089 lines; review and update the ratchet in the same change
-- packages/tui/src/components/settings-picker.tsx: hotspot grew from 803 to 811 lines; review and update the ratchet in the same change
-- packages/tui/src/hooks/use-tui-slash-commands.ts: new 838-line hotspot is not in architecture/hotspots.json
-- packages/tui/src/reducers/settings-values.ts: hotspot grew from 825 to 831 lines; review and update the ratchet in the same change
-- packages/tui/src/theme-presets.ts: hotspot grew from 1019 to 1424 lines; review and update the ratchet in the same change
-- packages/tui/src/app-ui-state.ts: "effectiveShowSidebar" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/tui/src/app-ui-state.ts: "resolveShowSidebarVisibility" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

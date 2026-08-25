@@ -7,7 +7,7 @@
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 809,
+      "lines": 817,
       "relativeImports": 34
     },
     "packages/cli/src/goal-host.ts": {
@@ -71,7 +71,7 @@
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
-      "lines": 964,
+      "lines": 984,
       "relativeImports": 3
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
@@ -87,8 +87,8 @@
       "relativeImports": 15
     },
     "packages/core/src/core/fallback-model.ts": {
-      "lines": 844,
-      "relativeImports": 14
+      "lines": 874,
+      "relativeImports": 15
     },
     "packages/core/src/core/system-prompt-builder.ts": {
       "lines": 880,
@@ -235,7 +235,7 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 810,
+      "lines": 825,
       "relativeImports": 22
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
@@ -283,7 +283,7 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 900,
+      "lines": 902,
       "relativeImports": 12
     },
     "packages/tui/src/app.tsx": {
@@ -311,16 +311,20 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker-model.ts": {
-      "lines": 1079,
+      "lines": 1089,
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker.tsx": {
-      "lines": 803,
+      "lines": 811,
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
       "lines": 1092,
       "relativeImports": 13
+    },
+    "packages/tui/src/hooks/use-tui-slash-commands.ts": {
+      "lines": 838,
+      "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
       "lines": 996,
@@ -331,7 +335,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/reducers/settings-values.ts": {
-      "lines": 825,
+      "lines": 831,
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
@@ -339,7 +343,7 @@
       "relativeImports": 13
     },
     "packages/tui/src/theme-presets.ts": {
-      "lines": 1019,
+      "lines": 1424,
       "relativeImports": 2
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
