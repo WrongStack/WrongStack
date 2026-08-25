@@ -27,7 +27,7 @@ import type { FleetEntry } from '../app-state-fleet.js';
 import type { HeapSample } from '../heap-watchdog.js';
 import { Box, Text } from '../ink.js';
 import { displayWidth } from '../terminal-width.js';
-import { pastel, theme } from '../theme.js';
+import { getActiveThemeName, pastel, theme } from '../theme.js';
 import type { PanelId } from '../ui-contracts.js';
 import { SIDEBAR_MISSION_ROWS } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
@@ -69,6 +69,8 @@ export interface SidebarContentProps {
   provider?: string | undefined;
   /** Current model label for display. */
   model?: string | undefined;
+  /** Active theme preset name for display. */
+  themeName?: string | undefined;
   /** Actual sidebar width in columns (including border+padding chrome).
    *  Used to size the content area and truncate text appropriately. */
   width: number;
@@ -438,6 +440,7 @@ export function SidebarContent({
   fleetCounts,
   provider,
   model,
+  themeName,
   width,
   scrollOffset = 0,
   focused = false,
@@ -590,17 +593,21 @@ export function SidebarContent({
           const showPill = !inlineBar && contextWindow && bodyWidth >= 20;
           return (
             <>
-              {/* Stage banner: rail glyph + MODEL CORE. No corner brackets
-               here — the card's own `╭ ╮ / ╰ ╯` frame already wraps this
-               section, so adding a second pair of corners would be
-               redundant noise. */}
-              <Box width={bodyWidth}>
-                <Text color={theme.accent} bold>
-                  {glyphs.railHeavy}
-                </Text>
-                <Text color={theme.brand} bold wrap="truncate">
-                  {` ${glyphs.star4} MODEL CORE`}
-                </Text>
+              {/* Stage banner: rail glyph + MODEL CORE */}
+              <Box width={bodyWidth} justifyContent="space-between">
+                <Box>
+                  <Text color={theme.accent} bold>
+                    {glyphs.railHeavy}
+                  </Text>
+                  <Text color={theme.brand} bold wrap="truncate">
+                    {` ${glyphs.star4} MODEL CORE`}
+                  </Text>
+                </Box>
+                {bodyWidth >= 28 ? (
+                  <Text color={theme.textSecondary} wrap="truncate">
+                    {`${glyphs.palette} ${themeName ?? getActiveThemeName()}`}
+                  </Text>
+                ) : null}
               </Box>
               {modelIdentity ? (
                 <Box flexDirection="column" marginTop={1}>
@@ -613,6 +620,11 @@ export function SidebarContent({
                     {trunc(modelIdentity, bodyWidth)}
                   </Text>
                 </Box>
+              ) : null}
+              {bodyWidth < 28 ? (
+                <Text color={theme.textSecondary} wrap="truncate">
+                  {`${glyphs.palette} ${trunc(themeName ?? getActiveThemeName(), Math.max(1, bodyWidth - 3))}`}
+                </Text>
               ) : null}
               <Box width={bodyWidth}>
                 <Text color={ctxColor} bold>

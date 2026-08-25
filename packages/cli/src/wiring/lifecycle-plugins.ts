@@ -435,7 +435,10 @@ export async function setupLifecycleAndPlugins(
   const fallbackProfileManager = container.resolve(TOKENS.FallbackProfileManager);
   const statusTracker = container.resolve(TOKENS.ProviderModelStatusTracker);
   const buildUtilityProvider = (providerId: string): Provider =>
-    buildProviderForIdRuntimeFn({ config: getLiveConfig(), providerRegistry }, providerId);
+    buildProviderForIdRuntimeFn(
+      { config: getLiveConfig(), providerRegistry, logger },
+      providerId,
+    );
   const pluginOneShot = new OneShotOrchestrator({
     buildProvider: buildUtilityProvider,
     getConfig: getLiveConfig,

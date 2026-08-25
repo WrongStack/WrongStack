@@ -159,7 +159,17 @@ describe('setupProviderRuntime — returned runtime helpers', () => {
     const runtime = setupProviderRuntime(deps);
     expect(runtime.resolveProviderCfg('anthropic').cfg.type).toBe('anthropic');
     expect(runtime.buildProviderForId('openai').id).toBe('openai');
-    expect(deps.resolveProviderCfgRuntime).toHaveBeenCalledWith(deps.config, 'anthropic');
+    // The logger is threaded through so every build logs its proxy rewrite
+    // decision into wrongstack.log.
+    expect(deps.resolveProviderCfgRuntime).toHaveBeenCalledWith(
+      deps.config,
+      'anthropic',
+      { logger: deps.logger },
+    );
+    expect(deps.buildProviderForIdRuntime).toHaveBeenCalledWith(
+      expect.objectContaining({ config: deps.config, logger: deps.logger }),
+      'openai',
+    );
   });
 
   it('skips the catalog overlay when the models registry feature is off', async () => {

@@ -9,7 +9,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
-import { theme } from '../theme.js';
+import { getActiveThemeName, theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
 import { computeRailSpans, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
@@ -131,6 +131,7 @@ export function StatusBar({
   indexState,
   breakerCountdown,
   modeLabel,
+  themeName,
   debugStreamStats,
   enhanceCountdown,
   nextStepsAutoSubmitCountdown,
@@ -304,6 +305,7 @@ export function StatusBar({
     workingDir,
     git,
     modeLabel,
+    themeName,
     sessionCount,
     toolCount,
     tokenSavingMode,
@@ -465,6 +467,13 @@ export function StatusBar({
           modeLabel && showChip('mode') ? (
             <Text color={chipColor(theme.accent, isNoColor)}>
               {isNoColor ? modeLabel : modeIcon(modeLabel)}
+            </Text>
+          ) : null,
+          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
+            <Text color={chipColor(theme.brand, isNoColor)}>
+              {isNoColor
+                ? truncateChip(themeName ?? getActiveThemeName(), 24)
+                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
             </Text>
           ) : null,
           sessionCount != null && sessionCount > 0 && showChip('sessions') ? (

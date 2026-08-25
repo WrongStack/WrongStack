@@ -39,6 +39,7 @@ export interface UiGlyphs {
   process: string;
   cpu: string;
   brain: string;
+  palette: string;
   auto: string;
   segmentStart: string;
   segmentTransition: string;
@@ -181,6 +182,7 @@ const UNICODE: UiGlyphs = Object.freeze({
   process: '⚡',
   cpu: '▦',
   brain: '✦',
+  palette: '🎨',
   auto: '◴',
   segmentStart: '◖',
   segmentTransition: '▶',
@@ -308,6 +310,7 @@ const NERD: UiGlyphs = Object.freeze({
   context: '󰓡',
   index: '󰌨',
   brain: '󰧑',
+  palette: '󰏘',
   segmentStart: '',
   segmentTransition: '',
   segmentEnd: '',
@@ -349,6 +352,7 @@ const ASCII: UiGlyphs = Object.freeze({
   process: '!',
   cpu: 'c',
   brain: '*',
+  palette: 'th:',
   auto: 'a',
   segmentStart: '[',
   segmentTransition: '>',

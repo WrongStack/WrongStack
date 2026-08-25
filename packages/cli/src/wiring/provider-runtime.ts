@@ -1,7 +1,13 @@
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import { getProxyConfig, rewriteBaseUrl, shouldRewriteFor } from '@wrongstack/core/wiring/proxy-rewrite';
+import { sanitizeUrlForLog } from './proxy-probe.js';
+import {
+  getProxyConfig,
+  isProxyEligible,
+  rewriteBaseUrl,
+  shouldRewriteFor,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 
 /**
  * Resolve the user-visible providerId into a runtime cfg + a factory type
@@ -48,6 +54,16 @@ export interface ResolvedProviderCfg {
 export function resolveProviderCfg(
   config: Pick<Config, 'providers' | 'apiKey' | 'baseUrl'>,
   providerId: string,
+  opts?: {
+    /**
+     * Log the rewrite decision for this provider build. Structural
+     * (info only) so hosts can pass core's Logger, a child logger, or a
+     * test stub. Applied rewrites log at info (routing provenance); skips
+     * log at debug-level verbosity via the same `info` channel to keep
+     * the interface minimal — wrongstack.log is the primary consumer.
+     */
+    logger?: { info(message: string): void } | undefined;
+  },
 ): ResolvedProviderCfg {
   const savedCfg = config.providers?.[providerId];
   // Fall back to the top-level config's apiKey/baseUrl on a per-key basis
@@ -57,10 +73,28 @@ export function resolveProviderCfg(
   // rewrite `rawBaseUrl` through the proxy (`http://localhost:3444/proxy/<host><path>`).
   // Excluded providers (e.g. openai-codex) flow through unchanged — the
   // rewriter itself is a no-op for them.
-  const baseUrl =
-    rawBaseUrl && shouldRewriteFor(providerId)
-      ? rewriteBaseUrl(rawBaseUrl, currentProxyBaseUrl())
-      : rawBaseUrl;
+  let rewriteReason = 'no-base-url';
+  let baseUrl = rawBaseUrl;
+  if (rawBaseUrl && shouldRewriteFor(providerId)) {
+    const rewritten = rewriteBaseUrl(rawBaseUrl, currentProxyBaseUrl());
+    // rewriteBaseUrl is a permissive passthrough: it returns the input
+    // unchanged for ineligible shapes. Distinguish "applied" from each
+    // distinct skip so the log answers WHY traffic is (not) proxied.
+    if (rewritten !== rawBaseUrl) {
+      rewriteReason = 'applied';
+      baseUrl = rewritten;
+    } else {
+      rewriteReason = passthroughReason(rawBaseUrl);
+    }
+  } else if (rawBaseUrl) {
+    // shouldRewriteFor() === false here — explain which gate blocked it.
+    rewriteReason = proxySkipReason(providerId);
+  }
+  // NOTE: sanitizeUrlForLog returns '' (never nullish) for missing input,
+  // so the sentinel must be `||`, not `??`.
+  opts?.logger?.info(
+    `WrongProxy rewrite ${rewriteReason} for provider '${providerId}': ${sanitizeUrlForLog(rawBaseUrl) || '<none>'} -> ${sanitizeUrlForLog(baseUrl) || '<none>'}`,
+  );
   const cfg: ProviderConfig = {
     ...savedCfg,
     apiKey: savedCfg?.apiKey ?? config.apiKey,
@@ -69,6 +103,44 @@ export function resolveProviderCfg(
   };
   const factoryType = savedCfg?.type ?? providerId;
   return { cfg, factoryType };
+}
+
+/**
+ * Explain a `rewriteBaseUrl` passthrough (input returned unchanged while
+ * the proxy gate allowed the rewrite). Distinct tokens, not one collapsed
+ * label: each names a different operator action (or non-action).
+ */
+function passthroughReason(rawBaseUrl: string): string {
+  if (!rawBaseUrl.includes('://')) return 'no-scheme';
+  const proxyRoot = currentProxyBaseUrl().replace(/\/+$/, '');
+  if (proxyRoot && rawBaseUrl.startsWith(`${proxyRoot}/proxy/`)) {
+    return 'already-rewritten';
+  }
+  try {
+    const parsed = new URL(rawBaseUrl);
+    const host = parsed.hostname;
+    const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+    if (isLoopback && parsed.port !== '') return 'loopback';
+  } catch {
+    // Unparseable — the generic token below is the honest claim.
+  }
+  return 'ineligible';
+}
+
+/**
+ * Explain a `shouldRewriteFor() === false` verdict for the log line. The
+ * singleton's three gates in precedence order: toggle off, no URL
+ * configured, daemon not active (probe failed). Provider-level exclusion
+ * (openai-codex) is checked last — it only matters when everything else
+ * would have allowed the rewrite.
+ */
+function proxySkipReason(providerId: string): string {
+  const cfg = getProxyConfig();
+  if (!cfg.enabled) return 'disabled';
+  if (!cfg.url) return 'no-proxy-url';
+  if (!cfg.active) return 'inactive';
+  if (!isProxyEligible(providerId)) return 'excluded';
+  return 'unknown';
 }
 
 /**
@@ -107,8 +179,9 @@ function currentProxyBaseUrl(): string {
 export function resolveProviderCfgWithProxy(
   config: Pick<Config, 'providers' | 'apiKey' | 'baseUrl'>,
   providerId: string,
+  opts?: { logger?: { info(message: string): void } | undefined },
 ): ResolvedProviderCfg {
-  return resolveProviderCfg(config, providerId);
+  return resolveProviderCfg(config, providerId, opts);
 }
 
 /**
@@ -123,10 +196,14 @@ export function buildProviderForId(
   args: {
     config: Pick<Config, 'providers' | 'apiKey' | 'baseUrl' | 'features'>;
     providerRegistry: ProviderRegistry;
+    /** Optional rewrite-decision logger (see resolveProviderCfg). */
+    logger?: { info(message: string): void } | undefined;
   },
   providerId: string,
 ): Provider {
-  const { cfg, factoryType } = resolveProviderCfg(args.config, providerId);
+  const { cfg, factoryType } = resolveProviderCfg(args.config, providerId, {
+    logger: args.logger,
+  });
   const useRegistry =
     !!args.config.features.modelsRegistry && args.providerRegistry.has(factoryType);
   return useRegistry

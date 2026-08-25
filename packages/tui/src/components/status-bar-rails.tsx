@@ -66,6 +66,7 @@ export interface StatusBarRailBuildParams {
   workingDir?: string | undefined;
   git?: StatusBarProps['git'];
   modeLabel?: string | undefined;
+  themeName?: string | undefined;
   sessionCount?: number | undefined;
   toolCount?: number | undefined;
   tokenSavingMode?: string | undefined;

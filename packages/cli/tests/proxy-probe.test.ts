@@ -26,9 +26,12 @@ import {
   __resetProxyConfigForTests,
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import {
+  setProxyProbeLogger,
   startProxyProbe,
   stopProxyProbe,
+  type ProbeLogger,
   type ProbeRunner,
+  __resetProxyProbeForTests,
 } from '../src/wiring/proxy-probe.js';
 
 /** Disable the periodic interval so no tick interferes with explicit pokes. */
@@ -213,5 +216,120 @@ describe('proxy-probe soft-signal active flag', () => {
 
     await runner.poke();
     expect(getProxyConfig().active).toBe(false);
+  });
+});
+
+describe('proxy-probe transition logging', () => {
+  let lines: Array<{ level: 'info' | 'warn'; message: string }>;
+
+  beforeEach(() => {
+    __resetProxyConfigForTests();
+    lines = [];
+    const capture: ProbeLogger = {
+      info: (message) => lines.push({ level: 'info', message }),
+      warn: (message) => lines.push({ level: 'warn', message }),
+    };
+    setProxyProbeLogger(capture);
+  });
+
+  afterEach(() => {
+    stopProxyProbe();
+    __resetProxyConfigForTests();
+    __resetProxyProbeForTests(); // also detaches the capture logger
+  });
+
+  it('logs activation once on the first healthy probe, not on every tick', async () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(okResponse()) // auto-poke → activate
+      .mockResolvedValueOnce(okResponse()) // explicit poke → still healthy, NO new line
+      .mockResolvedValueOnce(okResponse());
+    const runner: ProbeRunner = startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    await runner.poke();
+    await runner.poke();
+
+    const activations = lines.filter((l) => l.message.includes('active=true'));
+    expect(activations).toHaveLength(1);
+    expect(activations[0].level).toBe('info');
+    expect(activations[0].message).toContain('rewrites ON');
+    expect(activations[0].message).toContain('http://localhost:3444');
+  });
+
+  it('logs deactivation with the failure-streak reason', async () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(okResponse()) // auto-poke
+      .mockResolvedValueOnce(failResponse()) // streak 1 (soft — no line)
+      .mockResolvedValueOnce(failResponse()); // streak 2 → deactivate → warn line
+    const runner: ProbeRunner = startProxyProbe({
+      ...NO_INTERVAL,
+      fetchImpl,
+      deactivateAfterFailures: 2,
+    });
+
+    await runner.poke();
+    await runner.poke();
+    expect(getProxyConfig().active).toBe(false);
+
+    const deactivations = lines.filter((l) => l.message.includes('active=false'));
+    expect(deactivations).toHaveLength(1);
+    expect(deactivations[0].level).toBe('warn');
+    expect(deactivations[0].message).toContain('2 consecutive failed health checks');
+    expect(deactivations[0].message).toContain('rewrites OFF');
+  });
+
+  it('soft single failures do NOT log a transition', async () => {
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: true });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(okResponse()) // auto-poke
+      .mockResolvedValueOnce(failResponse()); // streak 1 — active stays true
+    const runner: ProbeRunner = startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    await runner.poke();
+    expect(getProxyConfig().active).toBe(true);
+    expect(lines).toHaveLength(0);
+  });
+
+  it('redacts query/fragment from the proxy URL in log lines', async () => {
+    applyProxyConfig({
+      enabled: true,
+      url: 'http://localhost:3444/?key=secret-token#frag',
+      active: false,
+    });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(okResponse()); // auto-poke → activate
+    startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    // Await the auto-poke (microtask) so the activation line has fired.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const activations = lines.filter((l) => l.message.includes('active=true'));
+    expect(activations).toHaveLength(1);
+    expect(activations[0].message).not.toContain('secret-token');
+    expect(activations[0].message).toContain('http://localhost:3444/');
+  });
+
+  it('a throwing logger never breaks the probe: state still flips', async () => {
+    setProxyProbeLogger({
+      info: () => {
+        throw new Error('logger exploded');
+      },
+      warn: () => {
+        throw new Error('logger exploded');
+      },
+    });
+    applyProxyConfig({ enabled: true, url: 'http://localhost:3444', active: false });
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(okResponse());
+    const runner: ProbeRunner = startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    const ok = await runner.poke();
+    expect(ok).toBe(true);
+    expect(getProxyConfig().active).toBe(true); // log throw did not corrupt state
   });
 });

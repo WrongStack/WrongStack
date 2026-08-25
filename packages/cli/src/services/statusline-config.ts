@@ -29,6 +29,7 @@ export const STATUSLINE_CONFIG_KEYS = [
   'git',
   'sessions',
   'tools',
+  'theme',
   'token_saving',
   'memory',
   'cpu',

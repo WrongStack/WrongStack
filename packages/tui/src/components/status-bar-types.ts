@@ -218,6 +218,11 @@ export interface StatusBarProps {
    * against. Updated live via `ctx.onWorkingDirChanged()`.
    */
   workingDir?: string | undefined;
+  /**
+   * Active color theme preset name (e.g. "catppuccin", "dracula", "tokyo-night").
+   * Rendered as a `glyphs.palette` chip on line 2 so the user can see their active theme.
+   */
+  themeName?: string | undefined;
   /** Autonomy mode chip: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel'. */
   autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
   /**

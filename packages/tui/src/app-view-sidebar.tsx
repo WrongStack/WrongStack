@@ -27,7 +27,7 @@ import type {
   useSidebarWrongProxy,
 } from './hooks/use-sidebar-panel-data.js';
 import { Text } from './ink.js';
-import { theme } from './theme.js';
+import { getActiveThemeName, theme } from './theme.js';
 import type { PanelId } from './ui-contracts.js';
 
 export interface AppViewSidebarProps {
@@ -229,6 +229,7 @@ export function AppViewSidebar({
         fleetCounts={statusbar.fleetCounts}
         provider={liveProvider}
         model={liveModel}
+        themeName={getActiveThemeName()}
         width={sidebarWidth}
         scrollOffset={state.sidebarScrollOffset}
         focused={state.sidebarFocused}

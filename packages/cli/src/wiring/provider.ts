@@ -148,6 +148,9 @@ export async function setupProvider(params: {
   const { cfg: providerConfig, factoryType } = resolveProviderCfgWithProxy(
     config,
     config.provider,
+    // Boot-time rewrite decision — the first "is traffic proxied?" line in
+    // wrongstack.log. info-level only; skips log too (they answer WHY).
+    { logger },
   );
   let provider: ReturnType<ProviderRegistry['create']>;
   try {

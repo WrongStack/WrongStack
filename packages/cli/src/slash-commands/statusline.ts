@@ -65,6 +65,7 @@ const ITEM_DESCRIPTIONS: Record<keyof StatuslineConfig, string> = {
   auto_proceed: 'Auto-proceed countdown',
   sessions: 'Live session count',
   tools: 'Registered tool count',
+  theme: 'Active color theme preset',
   token_saving: 'Token-saving mode indicator',
   memory: 'Current CLI process RAM and V8 heap usage',
   cpu: 'CPU usage percentage',

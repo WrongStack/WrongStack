@@ -40,6 +40,7 @@ export type StatuslineItem =
   | 'auto_proceed'
   | 'sessions'
   | 'tools'
+  | 'theme'
   | 'token_saving'
   | 'brain'
   | 'mailbox'
@@ -120,6 +121,7 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   auto_proceed: 'Auto-proceed countdown',
   sessions: 'Live session count',
   tools: 'Registered tool count',
+  theme: 'Active color theme preset',
   token_saving: 'Token-saving mode indicator',
   brain: 'Brain arbiter decisions',
   mailbox: 'Mailbox unread messages',
@@ -163,6 +165,7 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   project: 2,
   sessions: 2,
   side_effects: 2,
+  theme: 2,
   token_saving: 2,
   tools: 2,
   working_dir: 2,
@@ -222,6 +225,7 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'mode',
   'sessions',
   'side_effects',
+  'theme',
   'token_saving',
   'tools',
   // Line 3

@@ -27,6 +27,7 @@ import { WorktreeMonitor } from './components/worktree-monitor.js';
 import { WorktreePanel } from './components/worktree-panel.js';
 import { Box } from './ink.js';
 import { renderRunningTools } from './running-tools.js';
+import { getActiveThemeName } from './theme.js';
 import type { PanelId, PanelPositionMap } from './ui-contracts.js';
 
 // The dual-source swarm-mode read (`resolveAgentSwarmPanelVisibility`) and
@@ -197,6 +198,7 @@ export function AppStatusRegion({
           indexState={indexState}
           breakerCountdown={breakerCountdown}
           modeLabel={liveModeLabel || undefined}
+          themeName={getActiveThemeName()}
           debugStreamStats={state.debugStreamStats}
           enhanceCountdown={enhanceCountdown}
           nextStepsAutoSubmitCountdown={nextStepsAutoSubmitCountdown}

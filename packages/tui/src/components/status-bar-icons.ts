@@ -33,6 +33,7 @@ export const STATUSLINE_ICONS = {
   side_effects: glyphs.audit,
   state: glyphs.running,
   tasks: glyphs.task,
+  theme: glyphs.palette,
   token_saving: glyphs.save,
   tokens: glyphs.context,
   todos: glyphs.task,

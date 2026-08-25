@@ -32,6 +32,16 @@ const HEALTH_PATH = '/api/health';
 /** Consecutive failures before `active` flips to false (soft-signal threshold). */
 const DEFAULT_DEACTIVATE_AFTER_FAILURES = 2;
 
+/**
+ * Minimal structural logger for probe transitions. Deliberately not core's
+ * full `Logger` so any host (CLI logger, diag subcommand, test stub) can
+ * pass a plain object — observability must not hard-require a dependency.
+ */
+export interface ProbeLogger {
+  info(message: string): void;
+  warn(message: string): void;
+}
+
 interface ProbeRunnerOptions {
   /** Override the default interval (30s). Useful for tests. */
   intervalMs?: number;
@@ -61,6 +71,24 @@ export interface ProbeRunner {
 let activeRunner: ProbeRunner | undefined;
 
 /**
+ * Module-level transition logger so the SINGLETON probe runner can gain a
+ * logger after it was booted: `startProxyProbe()` is first called from
+ * `applyWrongProxyPrefs` (no logger in scope there), while the CLI logger
+ * only becomes available later in boot. `setProxyProbeLogger` updates the
+ * LIVE runner too — the closure reads this variable at flip time.
+ */
+let probeLogger: ProbeLogger | undefined;
+
+/**
+ * Install (or replace) the probe's transition logger. Affects the running
+ * probe immediately; subsequent `startProxyProbe()` calls inherit it.
+ * Passing undefined silences transition logging again.
+ */
+export function setProxyProbeLogger(logger: ProbeLogger | undefined): void {
+  probeLogger = logger;
+}
+
+/**
  * Start the probe loop. Idempotent — repeated calls reuse the existing
  * runner unless `stop()` was called in between.
  */
@@ -75,6 +103,30 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const setIntervalImpl = opts.setIntervalImpl ?? setInterval;
   const clearIntervalImpl = opts.clearIntervalImpl ?? clearInterval;
+  const logger = () => probeLogger;
+  // Fires ONLY on an actual active-flag transition. Every flip is a routing
+  // change for every subsequent provider build — exactly what an operator
+  // grepping wrongstack.log for "is traffic proxied?" needs to see.
+  // Fully isolated: a throwing logger must never alter probe control flow
+  // (activation logging sits INSIDE runOnce's try block, and toggle-off
+  // logging runs inside fire-and-forget poke() chains).
+  const logTransition = (next: boolean, reason: string): void => {
+    const log = logger();
+    if (!log) return;
+    // Redact query/fragment: a user-entered proxy URL may embed credentials
+    // there, and a log line must never become a secret leak. The reason
+    // string deliberately carries NO URL — the sanitized proxy= field does.
+    const url = sanitizeUrlForLog(getProxyConfig().url) || '<unset>';
+    const line = next
+      ? `WrongProxy active=true (${reason}) — base-URL rewrites ON, proxy=${url}`
+      : `WrongProxy active=false (${reason}) — base-URL rewrites OFF, proxy=${url}`;
+    try {
+      if (next) log.info(line);
+      else log.warn(line);
+    } catch {
+      // Observability failure must not corrupt probe state or verdicts.
+    }
+  };
   // Clamp to a sane threshold: NaN / 0 / negative would break the
   // `consecutiveFailures >= threshold` comparison (never deactivating, or
   // deactivating on every single failure — the exact flap we removed).
@@ -103,7 +155,8 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
       state.consecutiveFailures = 0;
       if (state.currentAbort) state.currentAbort.abort();
       state.currentAbort = undefined;
-      applyProxyConfig({ active: false });
+      const prev = applyProxyConfig({ active: false });
+      if (prev.active) logTransition(false, 'toggle off or URL unset');
       return false;
     }
     // Abort any previous run that's still in flight; this guarantees we
@@ -141,14 +194,21 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
           // Healthy probe: reset the streak and mark the proxy active. A
           // recovered daemon re-activates on the very next tick, no wait.
           state.consecutiveFailures = 0;
-          applyProxyConfig({ active: true });
+          const prev = applyProxyConfig({ active: true });
+          if (!prev.active) logTransition(true, 'health check ok');
         } else {
           // Soft signal: a single non-2xx (daemon mid-restart, one dropped
           // 2xx) must not flip `active` false and silently disable rewrites
           // for every subsequent request. Only N consecutive failures count.
           state.consecutiveFailures += 1;
           if (state.consecutiveFailures >= deactivateAfterFailures) {
-            applyProxyConfig({ active: false });
+            const prev = applyProxyConfig({ active: false });
+            if (prev.active) {
+              logTransition(
+                false,
+                `${state.consecutiveFailures} consecutive failed health checks (last: HTTP ${res.status})`,
+              );
+            }
           }
         }
       }
@@ -164,7 +224,13 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
       if (stillRelevant && (timedOut || !abort.signal.aborted)) {
         state.consecutiveFailures += 1;
         if (state.consecutiveFailures >= deactivateAfterFailures) {
-          applyProxyConfig({ active: false });
+          const prev = applyProxyConfig({ active: false });
+          if (prev.active) {
+            logTransition(
+              false,
+              `${state.consecutiveFailures} consecutive failed health checks (last: ${timedOut ? `timeout after ${timeoutMs}ms` : 'network error'})`,
+            );
+          }
         }
       }
       return false;
@@ -216,6 +282,23 @@ function buildHealthUrl(rawBase: string): string {
 }
 
 /**
+ * Redact a URL for logging: keep scheme://host[:port]/path, drop query and
+ * fragment. Provider/proxy URLs may embed credentials there (`?key=...`);
+ * a wrongstack.log line must never persist them.
+ */
+export function sanitizeUrlForLog(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    // Not parseable — log only the pre-query portion, if any.
+    const cut = raw.indexOf('?');
+    return cut >= 0 ? raw.slice(0, cut) : raw;
+  }
+}
+
+/**
  * Stop any running probe. Safe to call when nothing is running.
  */
 export function stopProxyProbe(): void {
@@ -225,4 +308,5 @@ export function stopProxyProbe(): void {
 /** Test-only: clear module state without touching timers. */
 export function __resetProxyProbeForTests(): void {
   activeRunner = undefined;
+  probeLogger = undefined;
 }

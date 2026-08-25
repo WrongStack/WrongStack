@@ -34,6 +34,7 @@ import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
+import { setProxyProbeLogger } from './wiring/proxy-probe.js';
 import { bootstrapWrongProxy, awaitFirstWrongProxyProbe } from './wiring/proxy-wiring.js';
 import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
@@ -69,6 +70,12 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     webuiSessionChild,
   } = cliCtx;
   const profileConfigPath = activeProfileConfigPath(wpaths, config);
+
+  // Attach the proxy probe's transition logger BEFORE anything can boot the
+  // probe — `resolveModeAndCapabilities` below calls `bootstrapWrongProxy`,
+  // which lazily starts the probe singleton; the very first activation (or
+  // deactivation) must already land in wrongstack.log.
+  setProxyProbeLogger({ info: (m) => logger.info(m), warn: (m) => logger.warn(m) });
 
   const modeStore = container.resolve(TOKENS.ModeStore);
   const activeMode = await modeStore.getActiveMode();
@@ -358,6 +365,9 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // with the default `{ enabled: false, url: '', active: false }` and
   // `shouldRewriteFor()` returns false for every provider. `bootstrapWrongProxy`
   // is idempotent and lazily boots the probe when `enabled: true`.
+  // `bootstrapWrongProxy` is idempotent and lazily boots the probe when
+  // `enabled: true`. Its transition logger was attached at the top of
+  // runInteractive — before this first bootstrap — so nothing is missed.
   bootstrapWrongProxy(config.tools?.wrongProxy);
   // Close the race against `setupProviderRuntime` below: the probe's first
   // poke() resolves on the next macrotask, but setupProviderRuntime reads

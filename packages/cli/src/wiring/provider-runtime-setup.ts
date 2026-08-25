@@ -58,9 +58,17 @@ export interface ProviderRuntimeDeps {
   teardownHandlers: (() => void)[];
   context: AnyObj;
   events: EventBus;
-  resolveProviderCfgRuntime: (config: Config, providerId: string) => { cfg: ProviderConfig };
+  resolveProviderCfgRuntime: (
+    config: Config,
+    providerId: string,
+    opts?: { logger?: { info(message: string): void } | undefined },
+  ) => { cfg: ProviderConfig };
   buildProviderForIdRuntime: (
-    opts: { config: Config; providerRegistry: ProviderRegistry },
+    opts: {
+      config: Config;
+      providerRegistry: ProviderRegistry;
+      logger?: { info(message: string): void } | undefined;
+    },
     providerId: string,
   ) => Provider;
   /** Shared provider/model status tracker. */
@@ -144,10 +152,13 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   );
 
   // ── Provider config helpers ────────────────────────────────────────────
-  const resolveProviderCfg = (providerId: string) => resolveProviderCfgRuntime(cfg, providerId);
+  // Every provider build logs its WrongProxy rewrite decision (applied/skip
+  // reason) so wrongstack.log answers "is traffic proxied?" per build site.
+  const resolveProviderCfg = (providerId: string) =>
+    resolveProviderCfgRuntime(cfg, providerId, { logger });
 
   const buildProviderForId = (providerId: string): Provider =>
-    buildProviderForIdRuntime({ config: cfg, providerRegistry }, providerId);
+    buildProviderForIdRuntime({ config: cfg, providerRegistry, logger }, providerId);
 
   const buildProviderForModel = async (providerId: string, modelId: string): Promise<Provider> => {
     const provider = buildProviderForId(providerId);
