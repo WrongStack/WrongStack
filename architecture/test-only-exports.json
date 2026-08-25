@@ -69,14 +69,10 @@
     "packages/cli/src/boot/launch-menu.ts": ["shouldSkipMenu"],
     "packages/cli/src/boot/short-circuit-desktop.ts": ["stripDesktopLauncherArgs"],
     "packages/cli/src/boot/system-prompt-menu.ts": [
-      "countSystemPromptTokens",
       "isSystemPromptPinned",
-      "persistSystemPromptVariant",
-      "readSavedSystemPromptVariant",
       "runSystemPromptMenu",
       "shouldSkipSystemPromptMenu",
-      "SYSTEM_PROMPT_OPTIONS",
-      "SYSTEM_PROMPT_VARIANTS"
+      "SYSTEM_PROMPT_OPTIONS"
     ],
     "packages/cli/src/boot/tui-session-stub-enrich.ts": [
       "containedJsonlPath",
@@ -372,7 +368,6 @@
     "packages/core/src/utils/wstack-paths.ts": ["bootstrapProfileName"],
     "packages/core/src/wiring/proxy-rewrite.ts": [
       "__resetProxyConfigForTests",
-      "isProxyEligible",
       "PROXY_EXCLUDED_PROVIDERS",
       "subscribeToProxyConfig"
     ],
