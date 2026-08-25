@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=749; wins=744 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=750; wins=745 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -43,7 +43,7 @@
   - *How:* `src`
   - *How:* `activity:agents.tabsLabel`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:34:09.873Z; applied=60; wins=60 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:34:09.873Z; applied=61; wins=61 -->
 - **Grep for kill-related test coverage with precise tokens (`SIGKILL`, `killed-session`, `never-closed`) or word boundaries — bare `kill` matches `skills` across config-store/cloud-sync suites and floods results. When pre-mapping a "Tests:" todo, grep `it\('` names across the package's test dir first; behavior tests often live under grab-bag files whose name mismatches the symbol under test (e.g. `DefaultSessionStore.list()` kill-visibility coverage sits inside `session-store-extra.test.ts`, not a list-named file), so absence of a matching filename proves nothing about coverage.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `SIGKILL`
