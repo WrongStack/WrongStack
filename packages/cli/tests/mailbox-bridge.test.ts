@@ -131,8 +131,9 @@ beforeAll(async () => {
   child.stdout?.on('data', (c: Buffer) => {
     startupStdout += c.toString('utf8');
   });
-  // Accumulated rather than swallowed: renderer.write() goes to stderr, and the
-  // human-readable startup banner is asserted on by the startup-banner test.
+  // Accumulated rather than swallowed: the human-readable startup banner goes
+  // to stderr via renderer.writeStderr, and the startup-banner test asserts
+  // stream separation against both captured streams.
   child.stderr?.on('data', (c: Buffer) => {
     startupStderr += c.toString('utf8');
   });
@@ -203,7 +204,7 @@ afterAll(async () => {
 const auth = (): Record<string, string> => ({ Authorization: `Bearer ${token}` });
 
 describe('mailbox-bridge — startup banner', () => {
-  it('surfaces projectId in both the JSON line and the human-readable output', () => {
+  it('routes JSON to stdout and the human banner (with projectId) to stderr', () => {
     // The projectId is `path.basename(projectDir)`, NOT the directory itself,
     // and mailbox-http-router compares it byte-for-byte. The banner is the only
     // place an operator sees it: without this line they copy the printed
@@ -212,6 +213,8 @@ describe('mailbox-bridge — startup banner', () => {
     const expectedProjectId = path.basename(mailboxProjectDir);
     expect(expectedProjectId).not.toBe(mailboxProjectDir);
 
+    // stdout carries the structured startup event. `mailbox serve | jq` must
+    // see only JSON, so this suite parses the event from stdout specifically.
     const startupLine = startupStdout
       .split('\n')
       .find((line) => line.includes('"mailbox_serve_started"'));
@@ -222,15 +225,21 @@ describe('mailbox-bridge — startup banner', () => {
     // between the two values legible.
     expect(parsed['projectDir']).toBe(mailboxProjectDir);
 
-    // Human-readable mirror. Asserted against both streams on purpose: the
-    // comment above writeStartupInfo claims renderer.write() goes to stderr,
-    // but measured against the built CLI it lands on stdout. The banner's
-    // stream is not the contract here — its presence is — so combining the two
-    // keeps this test from breaking if the renderer's routing is corrected.
-    const startupOutput = `${startupStdout}\n${startupStderr}`;
-    expect(startupOutput).toContain(`Project id:   ${expectedProjectId}`);
-    expect(startupOutput).toContain('when issuing credentials');
-    expect(startupOutput).toContain(`Project dir:  ${mailboxProjectDir}`);
+    // Stream separation is the contract, asserted per-stream. A regression that
+    // puts the banner back on renderer.write() would pollute stdout — a
+    // combined-stream assertion would silently pass in that world, so each
+    // direction is pinned independently.
+    expect(startupStdout).not.toContain('Project id:');
+    expect(startupStdout).not.toContain('Project dir:');
+    expect(startupStdout).not.toContain('Routes:');
+    expect(startupStdout).not.toContain('Press Ctrl+C to stop');
+
+    // And the human-readable mirror lands on stderr via renderer.writeStderr.
+    expect(startupStderr).toContain(`Project id:   ${expectedProjectId}`);
+    expect(startupStderr).toContain('when issuing credentials');
+    expect(startupStderr).toContain(`Project dir:  ${mailboxProjectDir}`);
+    expect(startupStderr).toContain('Routes:');
+    expect(startupStderr).toContain('Press Ctrl+C to stop');
   });
 });
 
