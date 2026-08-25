@@ -54,9 +54,6 @@ export interface StatusBarRailBuildParams {
         readTokens: number;
         writeTokens: number;
         savedUsd: number;
-        /** 5-min / 1-hour cache-write split; present for Anthropic-family providers. */
-        cacheWrite5m?: number | undefined;
-        cacheWrite1h?: number | undefined;
       }
     | undefined;
   queueCount?: number | undefined;
