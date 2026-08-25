@@ -4,13 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-
-import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
-import {
-  closeOpenedCredentialStores,
-  type CredentialStoreLike,
-  openCredentialStore,
-} from '../helpers/sqlite-credential-store.js';
 import { MailboxEventEmitter } from '../../src/coordination/mailbox-events.js';
 import {
   authorizeMailboxBearerToken,
@@ -26,6 +19,12 @@ import type {
   MailboxQuery,
   MailboxSendInput,
 } from '../../src/coordination/mailbox-types.js';
+import { SqliteMailbox } from '../../src/coordination/sqlite-mailbox.js';
+import {
+  type CredentialStoreLike,
+  closeOpenedCredentialStores,
+  openCredentialStore,
+} from '../helpers/sqlite-credential-store.js';
 
 interface ResponseRecorder {
   response: ServerResponse;
@@ -985,11 +984,17 @@ describe('mailbox HTTP router', () => {
         return verifyPersisted(...args);
       });
       eventEmitter.emit({
-        type: 'message.sent', messageId: 'first', from: 'leader', to: 'worker@sess-1',
+        type: 'message.sent',
+        messageId: 'first',
+        from: 'leader',
+        to: 'worker@sess-1',
         timestamp: '2026-07-16T00:00:00.000Z',
       });
       eventEmitter.emit({
-        type: 'message.sent', messageId: 'second', from: 'leader', to: 'worker@sess-1',
+        type: 'message.sent',
+        messageId: 'second',
+        from: 'leader',
+        to: 'worker@sess-1',
         timestamp: '2026-07-16T00:00:01.000Z',
       });
 
@@ -1043,7 +1048,10 @@ describe('mailbox HTTP router', () => {
       });
 
       eventEmitter.emit({
-        type: 'message.sent', messageId: 'pending-at-close', from: 'leader', to: 'worker@sess-1',
+        type: 'message.sent',
+        messageId: 'pending-at-close',
+        from: 'leader',
+        to: 'worker@sess-1',
         timestamp: '2026-07-16T00:00:00.000Z',
       });
       await vi.waitFor(() => expect(validationStarted).toHaveBeenCalledOnce());
@@ -1924,9 +1932,7 @@ describe('mailbox HTTP authorization helpers', () => {
       });
 
       expect(sent.status).toBe(201);
-      expect(stub.send).toHaveBeenCalledWith(
-        expect.objectContaining({ from: 'credential-agent' }),
-      );
+      expect(stub.send).toHaveBeenCalledWith(expect.objectContaining({ from: 'credential-agent' }));
       expect(denied.status).toBe(403);
       expect(stub.query).not.toHaveBeenCalled();
     } finally {
@@ -2173,9 +2179,7 @@ describe('mailbox HTTP authorization helpers', () => {
       // states one within the request ceiling.
       expect(stub.query.mock.calls.some(([query]) => query.unreadBy === undefined)).toBe(true);
       expect(
-        stub.query.mock.calls.every(
-          ([query]) => query.limit === undefined || query.limit <= 500,
-        ),
+        stub.query.mock.calls.every(([query]) => query.limit === undefined || query.limit <= 500),
       ).toBe(true);
       const projected = (queried.json() as { data: Array<Record<string, unknown>> }).data[0];
       expect(projected).toMatchObject({
@@ -2439,11 +2443,13 @@ describe('mailbox HTTP authorization helpers', () => {
       }),
     });
     expect(response.status).toBe(200);
-    expect(stub.query).toHaveBeenCalledWith(expect.objectContaining({
-      unreadBy: 'operator',
-      incompleteOnly: true,
-      includeReceiptState: true,
-    }));
+    expect(stub.query).toHaveBeenCalledWith(
+      expect.objectContaining({
+        unreadBy: 'operator',
+        incompleteOnly: true,
+        includeReceiptState: true,
+      }),
+    );
     const projected = (response.json() as { data: Array<Record<string, unknown>> }).data[0];
     expect(projected).toMatchObject({ readByMe: true, completedByMe: false });
     expect(projected).not.toHaveProperty('recipientState');
@@ -3077,7 +3083,8 @@ describe('mailbox HTTP look-back filter (sinceMs / defaultMaxAgeMs)', () => {
     // route matching and forward it to `parseSinceMs`.
     const stub = makeMailbox();
     const oldMessage = message({
-      id: 'old-message', to: 'agent-b',
+      id: 'old-message',
+      to: 'agent-b',
       timestamp: new Date(Date.now() - 2 * 60 * 60_000).toISOString(),
     });
     stub.query.mockResolvedValue([oldMessage]);
@@ -3085,7 +3092,11 @@ describe('mailbox HTTP look-back filter (sinceMs / defaultMaxAgeMs)', () => {
     // Without the override the 1-hour default suppresses the old message.
     const filtered = await handle({
       mailbox: stub.mailbox,
-      request: makeRequest({ method: 'POST', url: '/api/projects/p1/mailbox/query', body: { to: 'agent-b' } }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/api/projects/p1/mailbox/query',
+        body: { to: 'agent-b' },
+      }),
       routePath: '/mailbox/query',
       defaultMaxAgeMs: 60 * 60_000,
     });
@@ -3109,4 +3120,176 @@ describe('mailbox HTTP look-back filter (sinceMs / defaultMaxAgeMs)', () => {
     expect(response.status).toBe(200);
     expect(response.json()).toMatchObject({ count: 1, data: [{ id: 'old-message' }] });
   });
+});
+
+describe('mailbox-http-router — heartbeat row recovery over HTTP', () => {
+  it('rebuilds a deleted agent row from an HTTP heartbeat carrying identity', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-hb-recovery-'));
+    const mailbox = new SqliteMailbox(dir);
+    try {
+      const registered = await handle({
+        mailbox,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/register',
+          body: {
+            agentId: 'external-agent@session-1',
+            sessionId: 'session-1',
+            name: 'External Agent',
+            pid: 4242,
+          },
+        }),
+      });
+      expect(registered.status).toBe(200);
+
+      // Row loss without fake timers: deregisterAgent deletes the row AND the
+      // throttle entry, so the recovery heartbeat is not throttled. The
+      // prune-driven variant (row older than AGENT_STALE_MS) is covered at the
+      // store level in sqlite-mailbox-store.test.ts; what this test proves is
+      // the HTTP layer passing identity through to the recovery branch.
+      await mailbox.deregisterAgent('external-agent@session-1');
+      const gone = await handle({
+        mailbox,
+        request: makeRequest({ method: 'GET', url: '/mailbox/agents' }),
+      });
+      expect((gone.json() as { count: number }).count).toBe(0);
+
+      const heartbeat = await handle({
+        mailbox,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/heartbeat',
+          body: {
+            agentId: 'external-agent@session-1',
+            sessionId: 'session-1',
+            name: 'External Agent',
+            pid: 4242,
+            status: 'running',
+          },
+        }),
+      });
+      expect(heartbeat.status).toBe(200);
+
+      const listed = await handle({
+        mailbox,
+        request: makeRequest({ method: 'GET', url: '/mailbox/agents' }),
+      });
+      const body = listed.json() as { data: Array<Record<string, unknown>>; count: number };
+      expect(body.count).toBe(1);
+      expect(body.data[0]).toMatchObject({
+        agentId: 'external-agent@session-1',
+        sessionId: 'session-1',
+        name: 'External Agent',
+        pid: 4242,
+        status: 'running',
+        online: true,
+        source: 'http',
+      });
+    } finally {
+      await mailbox.close();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  }, 5_000);
+
+  it('rejects a heartbeat that would register a reserved id — no registration bypass', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/agents/heartbeat',
+        body: {
+          agentId: 'leader@evil-session',
+          sessionId: 'evil-session',
+          name: 'Fake Leader',
+          pid: 1,
+        },
+      }),
+    });
+    expect(response.status).toBe(400);
+    const body = response.json() as { error?: { code?: string; message?: string } };
+    expect(body.error?.code).toBe('VALIDATION_ERROR');
+    expect(body.error?.message).toContain('reserved');
+    // The store must never see it: a heartbeat carrying identity persists a
+    // row, so rejecting at validation is what prevents the bypass.
+    expect(stub.heartbeat).not.toHaveBeenCalled();
+  });
+
+  it('forces source http — a client-supplied source label never reaches the store', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/agents/heartbeat',
+        body: {
+          agentId: 'external-agent@session-1',
+          sessionId: 'session-1',
+          name: 'External Agent',
+          pid: 4242,
+          source: 'cli',
+        },
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(stub.heartbeat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentId: 'external-agent@session-1',
+        source: 'http',
+      }),
+    );
+  });
+
+  it('derives heartbeat identity from the credential and rejects conflicting fields', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-hb-cred-'));
+    try {
+      const store = openCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'cred-agent@cred-session',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.heartbeat.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const ok = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/heartbeat',
+          headers: { authorization },
+          body: { name: 'Cred Agent', pid: 777 },
+        }),
+      });
+      expect(ok.status).toBe(200);
+      expect(stub.heartbeat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'cred-agent@cred-session',
+          sessionId: 'cred-session',
+          role: 'cred-agent',
+          source: 'http',
+        }),
+      );
+
+      const conflicting = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/heartbeat',
+          headers: { authorization },
+          body: { name: 'Cred Agent', pid: 777, sessionId: 'somebody-else' },
+        }),
+      });
+      expect(conflicting.status).toBe(400);
+      expect(stub.heartbeat).toHaveBeenCalledTimes(1);
+    } finally {
+      await closeOpenedCredentialStores();
+      await rm(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 });
+    }
+  }, 5_000);
 });

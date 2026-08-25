@@ -485,13 +485,28 @@ export function validateAgentRegistration(
   return result;
 }
 
-export function validateAgentHeartbeat(body: unknown, actorId?: string): AgentHeartbeatInput {
+export function validateAgentHeartbeat(
+  body: unknown,
+  actor?: MailboxActorContext,
+): AgentHeartbeatInput {
   if (typeof body !== 'object' || body === null) {
     throw validationError('expected JSON object body');
   }
   const object = body as Record<string, unknown>;
-  if (actorId !== undefined) rejectConflictingIdentity(object, 'agentId', actorId);
-  const result: AgentHeartbeatInput = { agentId: actorId ?? requireString(object, 'agentId') };
+  if (actor !== undefined) {
+    rejectConflictingIdentity(object, 'agentId', actor.actorId);
+    rejectConflictingOptionalIdentity(object, 'sessionId', actor.sessionId);
+    rejectConflictingOptionalIdentity(object, 'role', actor.role);
+  }
+  const agentId = actor?.actorId ?? requireString(object, 'agentId');
+  // A heartbeat that rebuilds a pruned row is a registration in effect (the
+  // store's recovery branch persists a fresh row from these fields), so it
+  // inherits registration's reserved-id guard on exactly the paths where the
+  // agentId is client-supplied: the actor-less mounts (HQ gateway,
+  // bearer-token `mailbox serve`). Credentialed actors are exempt — their
+  // agentId is credential-derived and rejectConflictingIdentity pins it.
+  if (actor === undefined) validateReaderId(agentId);
+  const result: AgentHeartbeatInput = { agentId };
   const status = optionalString(object, 'status');
   const currentTool = optionalString(object, 'currentTool');
   const currentTask = optionalString(object, 'currentTask');
@@ -512,6 +527,30 @@ export function validateAgentHeartbeat(body: unknown, actorId?: string): AgentHe
     }
     result.toolCalls = toolCalls;
   }
+  // Row-rebuilding identity (see AgentHeartbeatInput): mirrors
+  // validateAgentRegistration's split. Identity (sessionId/role) is
+  // credential-authoritative when an actor is present; display attributes
+  // (name, pid) always come from the body; source is forced, never
+  // client-supplied — an HTTP client must not be able to label itself 'cli'.
+  const name = optionalString(object, 'name');
+  const pid = optionalNumber(object, 'pid');
+  if (name !== undefined) result.name = name;
+  if (pid !== undefined) {
+    if (!Number.isInteger(pid) || pid < 1) {
+      throw validationError('field "pid" must be a positive integer when present');
+    }
+    result.pid = pid;
+  }
+  if (actor === undefined) {
+    const sessionId = optionalString(object, 'sessionId');
+    const role = optionalString(object, 'role');
+    if (sessionId !== undefined) result.sessionId = sessionId;
+    if (role !== undefined) result.role = role;
+  } else {
+    if (actor.sessionId !== undefined) result.sessionId = actor.sessionId;
+    if (actor.role !== undefined) result.role = actor.role;
+  }
+  result.source = 'http';
   return result;
 }
 

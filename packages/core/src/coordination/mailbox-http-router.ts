@@ -1,12 +1,24 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-
-import type { MailboxEventEmitter } from './mailbox-events.js';
 import type { MailboxCredentialVerifier } from './mailbox-credential-store.js';
+import type { MailboxEventEmitter } from './mailbox-events.js';
+import {
+  checkMailbox,
+  eligibleRecipientsForActor,
+  isMessageVisibleToActor,
+  queryMessagesForActor,
+  requiredCredentialCapability,
+  requiredSendCapability,
+  stripAggregateReceiptState,
+  unreadCountForActor,
+  visibleMessageIdsForActor,
+} from './mailbox-http-actor-query.js';
 import {
   authorizePersistedMailboxCredential,
-  parseCredentialAuthorization,
   type MailboxHttpAccessDecision,
+  parseCredentialAuthorization,
 } from './mailbox-http-auth.js';
+import type { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
+import { createCredentialRevalidator, handleSse } from './mailbox-http-sse.js';
 import {
   filterMailboxMessagesByTimestamp,
   MAILBOX_HTTP_MAX_AGE_CEILING_MS,
@@ -24,27 +36,8 @@ import {
   validateSend,
   validationError,
 } from './mailbox-http-validation.js';
-import type {
-  Mailbox,
-  MailboxActorContext,
-} from './mailbox-types.js';
+import type { Mailbox, MailboxActorContext } from './mailbox-types.js';
 import { hasMailboxCapability } from './mailbox-types.js';
-import type { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
-import {
-  checkMailbox,
-  eligibleRecipientsForActor,
-  isMessageVisibleToActor,
-  queryMessagesForActor,
-  requiredCredentialCapability,
-  requiredSendCapability,
-  stripAggregateReceiptState,
-  unreadCountForActor,
-  visibleMessageIdsForActor,
-} from './mailbox-http-actor-query.js';
-import {
-  createCredentialRevalidator,
-  handleSse,
-} from './mailbox-http-sse.js';
 
 export {
   MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
@@ -54,7 +47,6 @@ export {
 
 export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
 export const MAILBOX_HTTP_DEFAULT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
-export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
 export {
   authorizeMailboxBearerToken,
@@ -62,6 +54,7 @@ export {
   type MailboxHttpAccessDecision,
   type MailboxHttpCredentialDecision,
 } from './mailbox-http-auth.js';
+export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
 export interface MailboxHttpRouterOptions {
   mailbox: Mailbox;
@@ -102,9 +95,7 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
           return;
         }
 
-        const customAccess = options.authorize
-          ? await options.authorize(request)
-          : undefined;
+        const customAccess = options.authorize ? await options.authorize(request) : undefined;
         let access: MailboxHttpAccessDecision = customAccess ?? { allowed: true };
         const presentedCredential = parseCredentialAuthorization(request);
         if (options.credentialStore !== undefined && presentedCredential !== undefined) {
@@ -127,7 +118,7 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
               access = {
                 ...access,
                 actor: persistedAccess.actor,
-                ...(access.rateLimitKey ?? persistedAccess.rateLimitKey
+                ...((access.rateLimitKey ?? persistedAccess.rateLimitKey)
                   ? { rateLimitKey: access.rateLimitKey ?? persistedAccess.rateLimitKey }
                   : {}),
               };
@@ -168,7 +159,10 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
             response,
             access.status ?? 401,
             access.body ?? {
-              error: { code: 'UNAUTHORIZED', message: 'invalid or missing authorization credential' },
+              error: {
+                code: 'UNAUTHORIZED',
+                message: 'invalid or missing authorization credential',
+              },
             },
           );
           return;
@@ -248,7 +242,10 @@ async function dispatchMailboxRoute(
     const requiredCapability = requiredCredentialCapability(method, path);
     if (requiredCapability === undefined) {
       writeJson(response, 403, {
-        error: { code: 'FORBIDDEN', message: `credential access is not permitted for ${method} ${path}` },
+        error: {
+          code: 'FORBIDDEN',
+          message: `credential access is not permitted for ${method} ${path}`,
+        },
       });
       return;
     }
@@ -298,14 +295,18 @@ async function dispatchMailboxRoute(
     const selfScoped = actor !== undefined && !hasMailboxCapability(actor, 'mail.read.all');
     const actorProjectionRequired =
       actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts');
-    if (actorProjectionRequired && (query.unreadBy !== undefined || query.incompleteOnly === true)) {
+    if (
+      actorProjectionRequired &&
+      (query.unreadBy !== undefined || query.incompleteOnly === true)
+    ) {
       query.unreadBy = actor.actorId;
       query.readerRole = actor.role;
     }
     if (actor !== undefined) query.includeReceiptState = true;
-    const messages = selfScoped && actor !== undefined
-      ? await queryMessagesForActor(mailbox, actor, query)
-      : await mailbox.query(query);
+    const messages =
+      selfScoped && actor !== undefined
+        ? await queryMessagesForActor(mailbox, actor, query)
+        : await mailbox.query(query);
     const filtered = filterMailboxMessagesByTimestamp(messages, queryContext.minTimestampIso);
     const projected =
       actorProjectionRequired && actor !== undefined
@@ -323,7 +324,9 @@ async function dispatchMailboxRoute(
     const checkInput = validateCheck(await readJsonBody(request, maxBodyBytes), actor?.actorId);
     if (actor !== undefined) {
       const modifiesReceipts =
-        checkInput.markRead !== false || checkInput.completed === true || checkInput.outcome !== undefined;
+        checkInput.markRead !== false ||
+        checkInput.completed === true ||
+        checkInput.outcome !== undefined;
       if (modifiesReceipts && !hasMailboxCapability(actor, 'mail.ack.self')) {
         writeJson(response, 403, {
           error: {
@@ -363,9 +366,10 @@ async function dispatchMailboxRoute(
       }
     }
     const updated = await mailbox.ack(input);
-    const projectedAck = actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts') && updated !== null
-      ? stripAggregateReceiptState(updated, actor.actorId)
-      : updated;
+    const projectedAck =
+      actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts') && updated !== null
+        ? stripAggregateReceiptState(updated, actor.actorId)
+        : updated;
     writeJson(response, 200, { updated: projectedAck });
     return;
   }
@@ -381,17 +385,19 @@ async function dispatchMailboxRoute(
       input.acks = input.acks.map((ack) => ({ ...ack, readerId: actor.actorId }));
     }
     const updated = await mailbox.ackMany(input);
-    const projectedMany = actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts')
-      ? updated.map((message) => stripAggregateReceiptState(message, actor.actorId))
-      : updated;
+    const projectedMany =
+      actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts')
+        ? updated.map((message) => stripAggregateReceiptState(message, actor.actorId))
+        : updated;
     writeJson(response, 200, { updated: projectedMany, count: projectedMany.length });
     return;
   }
   if (method === 'POST' && path === '/mailbox/unread-count') {
     const body = await readJsonBody(request, maxBodyBytes);
-    const count = actor === undefined
-      ? await mailbox.unreadCount(requireString(body, 'forAgentId'))
-      : await unreadCountForActor(mailbox, actor);
+    const count =
+      actor === undefined
+        ? await mailbox.unreadCount(requireString(body, 'forAgentId'))
+        : await unreadCountForActor(mailbox, actor);
     writeJson(response, 200, { count });
     return;
   }
@@ -402,7 +408,7 @@ async function dispatchMailboxRoute(
     return;
   }
   if (method === 'POST' && path === '/mailbox/agents/heartbeat') {
-    const input = validateAgentHeartbeat(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    const input = validateAgentHeartbeat(await readJsonBody(request, maxBodyBytes), actor);
     if (actor !== undefined) input.agentId = actor.actorId;
     await mailbox.heartbeat(input);
     writeJson(response, 200, { ok: true });
