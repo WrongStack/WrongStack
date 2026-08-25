@@ -1,12 +1,11 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`routed sidebar variants — real-TTY visual matrix > agents at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ⧉ AGENTS
                                                              ─ 3 1 1        ─
                                                              ▎ ! HOTTEST·····
-                                                             refactor-pl…
+                                                             refactor-plan…
                                                              ctx 82% ◆ typec…
                                                              ▎ ◈ RUNNING··⟦3⟧
                                                              ▶ Leader Agent
@@ -31,22 +30,22 @@ exports[`routed sidebar variants — real-TTY visual matrix > agents at 80 colum
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > agents at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ⧉ AGENTS       ⟦3 ✓1 │
                                                                                            │ live ops               │
                                                                                            │ ▎ ! HOTTEST··········· │
-                                                                                           │ refactor-planner-with… │
+                                                                                           │ refactor-planner-wi…   │
                                                                                            │ ctx 82% ◆ typecheck    │
                                                                                            │ ▎ ◈ RUNNING········⟦3⟧ │
                                                                                            │ ▶ Leader Agent   6m12s │
-                                                                                           │  security-scanner6m12s │
-                                                                                           │  refactor-planner6m12s │
+                                                                                           │ ▶ security-scan… 6m12s │
+                                                                                           │ ▶ refactor-plan… 6m12s │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F3 details ◆ $12.3456
@@ -66,22 +65,22 @@ exports[`routed sidebar variants — real-TTY visual matrix > agents at 120 colu
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > agents at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ⧉ AGENTS                 ⟦3 ✓1 │
                                                                                                                          │ live ops                         │
                                                                                                                          │ ▎ ! HOTTEST····················· │
-                                                                                                                         │ refactor-planner-with-a-very-lo… │
+                                                                                                                         │ refactor-planner-with-a-very-…   │
                                                                                                                          │ ctx 82% ◆ typecheck              │
                                                                                                                          │ ▎ ◈ RUNNING··················⟦3⟧ │
                                                                                                                          │ ▶ Leader Agent             6m12s │
                                                                                                                          │ ▶ security-scanner-東京    6m12s │
-                                                                                                                         │  refactor-planner-with-a-ve6m12s │
+                                                                                                                         │ ▶ refactor-planner-with-a… 6m12s │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F3 details ◆ $12.3456
@@ -101,16 +100,17 @@ exports[`routed sidebar variants — real-TTY visual matrix > agents at 160 colu
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ⚙ CONNECTIONS
-                                                             ─ ✓3 !1 ×1     ─
-                                                             ◆ SIGNAL MATRIX…
+                                                             ─ 1 DOWN       ─
+                                                             ▎ ⚙ SIGNAL
+                                                             MATRIX
                                                              ███████░░░░░
                                                              ✓━━Chronicle du…
                                                                ⌁⌁⌁ link 01
@@ -124,7 +124,6 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 
                                                                ⌁⌁⌁ link 05
                                                              ╰──────────────╯
 
-                                                             ◆ Ctrl+N details
 
 
 
@@ -136,30 +135,29 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 80 
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > connections at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
-                                                                                           │ ▌ ⚙ CONNECTIONS ⟦✓3 !1 │
-                                                                                           │ service health         │
-                                                                                           │ ◆ SIGNAL MATRIX 3/5    │
-                                                                                           │ █████████████░░░░░░░░░ │
-                                                                                           │ ✓━━Chronicle durable… 1│
+"                                                                                           ╭────────────────────────╮
+                                                                                           │ ▌ ⚙ CONNECTIONS   ⟦1 DO│
+                                                                                           │ signal matrix          │
+                                                                                           │ ▎ ⚙ SIGNAL MATRIX⟦3/5⟧ │
+                                                                                           │ ███████████░░░░░░░     │
+                                                                                           │ ✓━━Chronicle dur… 12ms │
                                                                                            │   ⌁⌁⌁ link 01          │
-                                                                                           │ ✓━━Codebase Index 日… 4│
+                                                                                           │ ✓━━Codebase Inde… 47ms │
                                                                                            │   ⌁⌁⌁⌁ link 02         │
-                                                                                           │ !┅┅SAGE Memory In… 1000│
+                                                                                           │ !┅┅SAGE Memor… 10000ms │
                                                                                            │   ⌁⌁⌁⌁⌁ link 03        │
-                                                                                           │ ✓━━Kanban IPC heartbe… │
+                                                                                           │ ✓━━Kanban IPC hea… 8ms │
                                                                                            │   ⌁⌁⌁⌁⌁⌁ link 04       │
-                                                                                           │ ×··Mailbox IPC cross-se│
+                                                                                           │ ×··Mailbox IPC cross-… │
                                                                                            │   ⌁⌁⌁ link 05          │
                                                                                            ╰────────────────────────╯
 
-                                                                                           ◆ Ctrl+N details
 
 
 
@@ -171,30 +169,30 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 120
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > connections at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
-                                                                                                                         │ ▌ ⚙ CONNECTIONS           ⟦✓3 !1 │
-                                                                                                                         │ service health                   │
-                                                                                                                         │ ◆ SIGNAL MATRIX 3/5              │
-                                                                                                                         │ ███████████████████░░░░░░░░░░░░░ │
-                                                                                                                         │ ✓━━Chronicle durable history    1│
+"                                                                                                                         ╭──────────────────────────────────╮
+                                                                                                                         │ ▌ ⚙ CONNECTIONS             ⟦1 DO│
+                                                                                                                         │ signal matrix                    │
+                                                                                                                         │ ▎ ⚙ SIGNAL MATRIX··········⟦3/5⟧ │
+                                                                                                                         │ █████████████████░░░░░░░░░░░     │
+                                                                                                                         │ ✓━━Chronicle durable histo… 12ms │
                                                                                                                          │   ⌁⌁⌁ link 01                    │
-                                                                                                                         │ ✓━━Codebase Index 日本語        4│
+                                                                                                                         │ ✓━━Codebase Index 日本語    47ms │
                                                                                                                          │   ⌁⌁⌁⌁ link 02                   │
-                                                                                                                         │ !┅┅SAGE Memory Injector      1000│
+                                                                                                                         │ !┅┅SAGE Memory Injector  10000ms │
                                                                                                                          │   ⌁⌁⌁⌁⌁ link 03                  │
-                                                                                                                         │ ✓━━Kanban IPC heartbeat          │
+                                                                                                                         │ ✓━━Kanban IPC heartbeat      8ms │
                                                                                                                          │   ⌁⌁⌁⌁⌁⌁ link 04                 │
                                                                                                                          │ ×··Mailbox IPC cross-session     │
                                                                                                                          │   ⌁⌁⌁ link 05                    │
                                                                                                                          ╰──────────────────────────────────╯
 
-                                                                                                                         ◆ Ctrl+N details
 
 
 
@@ -206,24 +204,29 @@ exports[`routed sidebar variants — real-TTY visual matrix > connections at 160
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◴ COORDINATOR
-                                                             ─ ▶ RUNNING    ─
-                                                             ▎ ▶ PHASES·⟦3/7⟧
-                                                             ▶ Generate re…
-                                                             ▶ Inspect lon…
-                                                             ▶ Run typeche…
-                                                             · elapse··62m03s
-
+                                                             ─ 3 active     ─
+                                                             ▎ ☷ PHASES⟦4/3⟧
+                                                             ✓ Generate
+                                                             real-TTY
+                                                             snapshot matrix
+                                                             ✓ Inspect long
+                                                             Unicode
+                                                             presentation
+                                                             ✓ Run typecheck
+                                                             and focused
+                                                             regressions
                                                              ╰──────────────╯
 
-                                                             ◆ F11 details
+                                                             ◆ F11 details ◆…
 
 
 
@@ -239,25 +242,23 @@ exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 80 
 
 
 
-
-
-                                                            ────────────────────
-"
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
-                                                                                           │ ▌ ◴ COORDINATOR⟦▶ RUNNI│
-                                                                                           │ autonomous             │
-                                                                                           │ ▎ ▶ PHASES·······⟦3/7⟧ │
-                                                                                           │  Generate real-TTY sn… │
-                                                                                           │  Inspect long Unicode… │
-                                                                                           │  Run typecheck and fo… │
-                                                                                           │ · elapsed······62m03s  │
+"                                                                                           ╭────────────────────────╮
+                                                                                           │ ▌ ◴ COORDINATOR ⟦3 acti│
+                                                                                           │ phases                 │
+                                                                                           │ ▎ ☷ PHASES······⟦4/3⟧ │
+                                                                                           │ ✓ Generate real-TTY    │
+                                                                                           │ snapshot matrix        │
+                                                                                           │ ✓ Inspect long Unicode │
+                                                                                           │  presentation          │
+                                                                                           │ ✓ Run typecheck and    │
+                                                                                           │ focused regressions    │
                                                                                            ╰────────────────────────╯
 
-                                                                                           ◆ F11 details
+                                                                                           ◆ F11 details ◆ 62m03s
 
 
 
@@ -276,23 +277,23 @@ exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 120
 
 
 
-                                                                                          ──────────────────────────────
-"
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
-                                                                                                                         │ ▌ ◴ COORDINATOR          ⟦▶ RUNNI│
-                                                                                                                         │ autonomous                       │
-                                                                                                                         │ ▎ ▶ PHASES·················⟦3/7⟧ │
-                                                                                                                         │  Generate real-TTY snapshot mat… │
-                                                                                                                         │  Inspect long Unicode presentat… │
-                                                                                                                         │  Run typecheck and focused regr… │
-                                                                                                                         │ · elapsed················62m03s  │
+"                                                                                                                         ╭──────────────────────────────────╮
+                                                                                                                         │ ▌ ◴ COORDINATOR           ⟦3 acti│
+                                                                                                                         │ phases                           │
+                                                                                                                         │ ▎ ☷ PHASES················⟦4/3⟧ │
+                                                                                                                         │ ✓ Generate real-TTY snapshot     │
+                                                                                                                         │ matrix                           │
+                                                                                                                         │ ✓ Inspect long Unicode           │
+                                                                                                                         │ presentation                     │
+                                                                                                                         │ ✓ Run typecheck and focused      │
+                                                                                                                         │ regressions                      │
                                                                                                                          ╰──────────────────────────────────╯
 
-                                                                                                                         ◆ F11 details
+                                                                                                                         ◆ F11 details ◆ 62m03s
 
 
 
@@ -311,18 +312,16 @@ exports[`routed sidebar variants — real-TTY visual matrix > coordinator at 160
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > fleet at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◈ AGENT SWARM
                                                              ─ 3 LIVE       ─
-                                                             ▶ Leader …
-                                                             ▶ securit…
-                                                             ▶ refacto…
+                                                             ▶ Leader Agent
+                                                             ▶ security-sc…
+                                                             ▶ refactor-pl…
                                                              ╰──────────────╯
 
 
@@ -346,13 +345,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > fleet at 80 column
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > fleet at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ◈ AGENT SWARM   ⟦3 LI│
                                                                                            │ fleet                  │
                                                                                            │ ▶ Leader Agent         │
@@ -381,13 +380,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > fleet at 120 colum
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > fleet at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ◈ AGENT SWARM             ⟦3 LI│
                                                                                                                          │ fleet                            │
                                                                                                                          │ ▶ Leader Agent                   │
@@ -416,13 +415,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > fleet at 160 colum
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > goal at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◎ GOAL
                                                              ─ ▶ ACTIVE     ─
                                                              ▎ ◎ MISSION·····
@@ -451,32 +450,32 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 80 columns
                                                              ◆ F9 details
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > goal at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ◎ GOAL        ⟦▶ ACTI│
                                                                                            │ mission control        │
                                                                                            │ ▎ ◎ MISSION··········· │
-                                                                                           │ Ship a dense, legible… │
+                                                                                           │ Ship a dense, legib…   │
                                                                                            │ ▎ ✓ PROGRESS·····⟦63%⟧ │
                                                                                            │                        │
-                                                                                             █████████████░░░░░░░░…
+                                                                                           │ ██████████████░░░░░░░░ │
                                                                                            │ ▎ ◆ DELIVERABLES·⟦1/4⟧ │
                                                                                            │ ✓ Preserve sixteen     │
-                                                                                             content columns
+                                                                                           │ content columns        │
                                                                                            │ ○ Render all thirteen  │
-                                                                                             routed variants at
-                                                                                             three widths
+                                                                                           │ routed variants at     │
+                                                                                           │ three widths           │
                                                                                            │ ○ Inspect 한국어,      │
-                                                                                             日本語, and emoji
-                                                                                             telemetry
+                                                                                           │ 日本語, and emoji      │
+                                                                                           │ telemetry              │
                                                                                            │ ○ Verify the final     │
-                                                                                             matrix with production
-                                                                                              typechecks
+                                                                                           │ matrix with production │
+                                                                                           │  typechecks            │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F9 details
@@ -486,29 +485,29 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 120 column
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > goal at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ◎ GOAL                  ⟦▶ ACTI│
                                                                                                                          │ mission control                  │
                                                                                                                          │ ▎ ◎ MISSION····················· │
-                                                                                                                         │ Ship a dense, legible, show-lik… │
+                                                                                                                         │ Ship a dense, legible, show-l…   │
                                                                                                                          │ ▎ ✓ PROGRESS···············⟦63%⟧ │
                                                                                                                          │                                  │
-                                                                                                                           ████████████████████░░░░░░░░░░░…
+                                                                                                                         │ ████████████████████░░░░░░░░░░░░ │
                                                                                                                          │ ▎ ◆ DELIVERABLES···········⟦1/4⟧ │
                                                                                                                          │ ✓ Preserve sixteen content       │
-                                                                                                                           columns
+                                                                                                                         │ columns                          │
                                                                                                                          │ ○ Render all thirteen routed     │
-                                                                                                                           variants at three widths
+                                                                                                                         │ variants at three widths         │
                                                                                                                          │ ○ Inspect 한국어, 日本語, and    │
-                                                                                                                           emoji telemetry
+                                                                                                                         │ emoji telemetry                  │
                                                                                                                          │ ○ Verify the final matrix with   │
-                                                                                                                           production typechecks
+                                                                                                                         │ production typechecks            │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F9 details
@@ -521,13 +520,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > goal at 160 column
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > kanban at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◆ KANBAN
                                                              ─ ✓0 24        ─
                                                              ▎ ◈ COLUMNS·····
@@ -556,13 +555,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 80 colum
                                                              ╰──────────────╯
 
                                                              ◆ F12 details
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > kanban at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ◆ KANBAN     ⟦24 acti│
                                                                                            │ board                  │
                                                                                            │ ▎ ◈ COLUMNS··········· │
@@ -573,31 +572,31 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 120 colu
                                                                                            │ Done               128 │
                                                                                            │ ▎ ▶ ACTIVE············ │
                                                                                            │ ○ Generate all         │
-                                                                                             thirty-nine routed
-                                                                                             sidebar snapshots
+                                                                                           │ thirty-nine routed     │
+                                                                                           │ sidebar snapshots      │
                                                                                            │ ! 2. Inspect the       │
-                                                                                             connection signal
-                                                                                             matrix at sixteen
-                                                                                             columns
+                                                                                           │ connection signal      │
+                                                                                           │ matrix at sixteen      │
+                                                                                           │ columns                │
                                                                                            │ ! 3. Verify Unicode    │
-                                                                                             telemetry 한국어
-                                                                                             日本語 🛰
+                                                                                           │ telemetry 한국어       │
+                                                                                           │ 日本語 🛰               │
                                                                                            │ ! 4. Run both          │
-                                                                                             TypeScript projects
-                                                                                             and Biome
+                                                                                           │ TypeScript projects    │
+                                                                                           │ and Biome              │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F12 details
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > kanban at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ◆ KANBAN               ⟦24 acti│
                                                                                                                          │ board                            │
                                                                                                                          │ ▎ ◈ COLUMNS····················· │
@@ -608,13 +607,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 160 colu
                                                                                                                          │ Done                         128 │
                                                                                                                          │ ▎ ▶ ACTIVE······················ │
                                                                                                                          │ ○ Generate all thirty-nine       │
-                                                                                                                           routed sidebar snapshots
+                                                                                                                         │ routed sidebar snapshots         │
                                                                                                                          │ ! 2. Inspect the connection      │
-                                                                                                                           signal matrix at sixteen columns
+                                                                                                                         │ signal matrix at sixteen columns │
                                                                                                                          │ ! 3. Verify Unicode telemetry    │
-                                                                                                                           한국어 日本語 🛰
+                                                                                                                         │ 한국어 日本語 🛰                  │
                                                                                                                          │ ! 4. Run both TypeScript         │
-                                                                                                                           projects and Biome
+                                                                                                                         │ projects and Biome               │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F12 details
@@ -626,13 +625,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > kanban at 160 colu
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > plan at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ☷ PLAN
                                                              ─ ◐1 ✓1 4      ─
                                                              ▎ ☷ PROGRESS···
@@ -661,31 +660,31 @@ exports[`routed sidebar variants — real-TTY visual matrix > plan at 80 columns
                                                              ◆ F5 details
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > plan at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ☷ PLAN            ⟦2│
                                                                                            │ Real-TTY sidebar pr…   │
                                                                                            │ ▎ ☷ PROGRESS····⟦25%⟧ │
                                                                                            │                        │
-                                                                                             █████░░░░░░░░░░░░░░░░…
+                                                                                           │ ██████░░░░░░░░░░░░░░░░ │
                                                                                            │ ▎ ◆ STEPS········⟦1/4⟧ │
                                                                                            │ ◐ Generate all         │
-                                                                                             thirty-nine routed
-                                                                                             sidebar snapshots
+                                                                                           │ thirty-nine routed     │
+                                                                                           │ sidebar snapshots      │
                                                                                            │ ○ Inspect long Unicode │
-                                                                                              telemetry without
-                                                                                             losing identity
+                                                                                           │  telemetry without     │
+                                                                                           │ losing identity        │
                                                                                            │ ○ Keep every row       │
-                                                                                             inside the
-                                                                                             sixteen-column floor
+                                                                                           │ inside the             │
+                                                                                           │ sixteen-column floor   │
                                                                                            │ ✓ Preserve             │
-                                                                                             RightSidebar clipping
-                                                                                             ownership
+                                                                                           │ RightSidebar clipping  │
+                                                                                           │ ownership              │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F5 details
@@ -696,27 +695,27 @@ exports[`routed sidebar variants — real-TTY visual matrix > plan at 120 column
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > plan at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ☷ PLAN                      ⟦2│
                                                                                                                          │ Real-TTY sidebar pr…             │
                                                                                                                          │ ▎ ☷ PROGRESS··············⟦25%⟧ │
                                                                                                                          │                                  │
-                                                                                                                           ███████…░░░░░░░░░░░░░░░░░░░░░░░…
+                                                                                                                         │ ████████░░░░░░░░░░░░░░░░░░░░░░░░ │
                                                                                                                          │ ▎ ◆ STEPS··················⟦1/4⟧ │
                                                                                                                          │ ◐ Generate all thirty-nine       │
-                                                                                                                           routed sidebar snapshots
+                                                                                                                         │ routed sidebar snapshots         │
                                                                                                                          │ ○ Inspect long Unicode telemetry │
-                                                                                                                            without losing identity
+                                                                                                                         │  without losing identity         │
                                                                                                                          │ ○ Keep every row inside the      │
-                                                                                                                           sixteen-column floor
+                                                                                                                         │ sixteen-column floor             │
                                                                                                                          │ ✓ Preserve RightSidebar clipping │
-                                                                                                                            ownership
+                                                                                                                         │  ownership                       │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F5 details
@@ -731,13 +730,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > plan at 160 column
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > processList at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ⚡ PROCESSES
                                                              ─ 3/4          ─
                                                              ▶ wrongstack-tu…
@@ -766,19 +765,19 @@ exports[`routed sidebar variants — real-TTY visual matrix > processList at 80 
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > processList at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ⚡ PROCESSES       ⟦3│
                                                                                            │ running                │
-                                                                                           │  wrongstack-tui-123456 │
-                                                                                           │  codebase-index-234567 │
-                                                                                           │  kanban-ipc-hear345678 │
-                                                                                           │  idle-background456789 │
+                                                                                           │ ▶ wrongstack-t… 123456 │
+                                                                                           │ ▶ codebase-ind… 234567 │
+                                                                                           │ ▶ kanban-ipc-h… 345678 │
+                                                                                           │ ● idle-backgro… 456789 │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F8 details
@@ -801,19 +800,19 @@ exports[`routed sidebar variants — real-TTY visual matrix > processList at 120
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > processList at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ⚡ PROCESSES                 ⟦3│
                                                                                                                          │ running                          │
-                                                                                                                         │  wrongstack-tui-with-a-lon123456 │
-                                                                                                                         │  codebase-index-worker-日…234567 │
+                                                                                                                         │ ▶ wrongstack-tui-with-a-… 123456 │
+                                                                                                                         │ ▶ codebase-index-worker-… 234567 │
                                                                                                                          │ ▶ kanban-ipc-heartbeat    345678 │
-                                                                                                                         │ ● idle-background-observer456789 │
+                                                                                                                         │ ● idle-background-observ… 456789 │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F8 details
@@ -836,13 +835,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > processList at 160
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ▣ PROJECT
                                                              ─ 2 projects   ─
                                                              ▎ ▣ CURRENT·····
@@ -871,26 +870,26 @@ exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 8
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ▣ PROJECT   ⟦2 projec│
                                                                                            │ sidebar visual 한국…   │
                                                                                            │ ▎ ▣ CURRENT⟦4 choices⟧ │
-                                                                                           │ WrongStack — terminal… │
+                                                                                           │ WrongStack — termin…   │
                                                                                            │ ▎ ▣ CHOICES··········· │
-                                                                                           │  ▣ WrongStack — termi… │
+                                                                                           │   ▣ WrongStack — te…   │
                                                                                            │  └─ D:/Codebox/PROJEC… │
-                                                                                           │  ▣ 国際化-laboratory-… │
+                                                                                           │ ▎ ▣ 国際化-laborato…   │
                                                                                            │  └─ /workspace/한국어… │
-                                                                                           │ ─────────────────────… │
-                                                                                           │  ◆ Create a new isola… │
+                                                                                           │ ────────────────────── │
+                                                                                           │   ◆ Create a new is…   │
                                                                                            │  └─ Fresh context and… │
-                                                                                           │  ◆ Browse previous se… │
+                                                                                           │   ◆ Browse previous…   │
                                                                                            │  └─ Resume from durab… │
                                                                                            │ ! Enter opens the hig… │
                                                                                            ╰────────────────────────╯
@@ -906,24 +905,24 @@ exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 1
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ▣ PROJECT             ⟦2 projec│
                                                                                                                          │ sidebar visual 한국…             │
                                                                                                                          │ ▎ ▣ CURRENT··········⟦4 choices⟧ │
-                                                                                                                         │ WrongStack — terminal orchestra… │
+                                                                                                                         │ WrongStack — terminal orchest…   │
                                                                                                                          │ ▎ ▣ CHOICES····················· │
-                                                                                                                         │  ▣ WrongStack — terminal orches… │
+                                                                                                                         │   ▣ WrongStack — terminal orc…   │
                                                                                                                          │  └─ D:/Codebox/PROJECTS/WrongSt… │
-                                                                                                                         │  ▣ 国際化-laboratory-with-a-lon… │
+                                                                                                                         │ ▎ ▣ 国際化-laboratory-with-a-…   │
                                                                                                                          │  └─ /workspace/한국어/日本語/🛰   │
-                                                                                                                         │ ───────────────────────────────… │
-                                                                                                                         │  ◆ Create a new isolated session │
+                                                                                                                         │ ──────────────────────────────── │
+                                                                                                                         │   ◆ Create a new isolated ses…   │
                                                                                                                          │  └─ Fresh context and worktree   │
                                                                                                                          │   ◆ Browse previous sessions     │
                                                                                                                          │  └─ Resume from durable history  │
@@ -941,13 +940,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > projectPicker at 1
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > queue at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◴ QUEUE
                                                              ─ 3            ─
                                                              1. Explain why
@@ -976,26 +975,26 @@ exports[`routed sidebar variants — real-TTY visual matrix > queue at 80 column
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > queue at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ◴ QUEUE              │
                                                                                            │ queued prompts         │
                                                                                            │ 1. Explain why the     │
-                                                                                             connection topology
-                                                                                             changed after
-                                                                                             reconnecting
+                                                                                           │ connection topology    │
+                                                                                           │ changed after          │
+                                                                                           │ reconnecting           │
                                                                                            │ 2. Review the          │
-                                                                                             Unicode-width behavior
-                                                                                              for 한국어 and 🛰
-                                                                                             status glyphs
+                                                                                           │ Unicode-width behavior │
+                                                                                           │  for 한국어 and 🛰      │
+                                                                                           │ status glyphs          │
                                                                                            │ 3. Run the complete    │
-                                                                                             TUI regression suite
-                                                                                             after the visual pass
+                                                                                           │ TUI regression suite   │
+                                                                                           │ after the visual pass  │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F7 details
@@ -1011,24 +1010,24 @@ exports[`routed sidebar variants — real-TTY visual matrix > queue at 120 colum
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > queue at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ◴ QUEUE                        │
                                                                                                                          │ queued prompts                   │
                                                                                                                          │ 1. Explain why the connection    │
-                                                                                                                           topology changed after
-                                                                                                                           reconnecting
+                                                                                                                         │ topology changed after           │
+                                                                                                                         │ reconnecting                     │
                                                                                                                          │ 2. Review the Unicode-width      │
-                                                                                                                           behavior for 한국어 and 🛰 status
-                                                                                                                            glyphs
+                                                                                                                         │ behavior for 한국어 and 🛰 status │
+                                                                                                                         │  glyphs                          │
                                                                                                                          │ 3. Run the complete TUI          │
-                                                                                                                           regression suite after the
-                                                                                                                           visual pass
+                                                                                                                         │ regression suite after the       │
+                                                                                                                         │ visual pass                      │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F7 details
@@ -1046,13 +1045,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > queue at 160 colum
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > sessions at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ⧉ SESSIONS
                                                              ─ 4            ─
                                                              ▎ ⧉ LIVE·····⟦2⟧
@@ -1081,21 +1080,21 @@ exports[`routed sidebar variants — real-TTY visual matrix > sessions at 80 col
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > sessions at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ⧉ SESSIONS           │
                                                                                            │ live + resume          │
                                                                                            │ ▎ ⧉ LIVE···········⟦2⟧ │
-                                                                                           │  WrongStack-main-日…3a │
-                                                                                           │  internationalizatio1a │
+                                                                                           │ ● WrongStack-main…  3a │
+                                                                                           │ ◉ internationaliz…  1a │
                                                                                            │ ▎ ▰ RESUME·········⟦2⟧ │
-                                                                                           │  Fix the narrow-term1d │
-                                                                                           │  Unicode-width audit2d │
+                                                                                           │ ✓ Fix the narrow-t… 1d │
+                                                                                           │ ⏱ Unicode-width au… 2d │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F10 details
@@ -1116,21 +1115,21 @@ exports[`routed sidebar variants — real-TTY visual matrix > sessions at 120 co
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > sessions at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ⧉ SESSIONS                     │
                                                                                                                          │ live + resume                    │
                                                                                                                          │ ▎ ⧉ LIVE·····················⟦2⟧ │
                                                                                                                          │ ● WrongStack-main-日本語      3a │
-                                                                                                                         │  internationalization-laborato1a │
+                                                                                                                         │ ◉ internationalization-labo…  1a │
                                                                                                                          │ ▎ ▰ RESUME···················⟦2⟧ │
-                                                                                                                         │  Fix the narrow-terminal conne1d │
-                                                                                                                         │  Unicode-width audit 한국어 日2d │
+                                                                                                                         │ ✓ Fix the narrow-terminal co… 1d │
+                                                                                                                         │ ⏱ Unicode-width audit 한국어… 2d │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F10 details
@@ -1151,13 +1150,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > sessions at 160 co
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > todos at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ◎ TODOS
                                                              ─ 1/3          ─
                                                              ▶ Generating
@@ -1186,29 +1185,29 @@ exports[`routed sidebar variants — real-TTY visual matrix > todos at 80 column
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > todos at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ◎ TODOS            ⟦1│
                                                                                            │ mission queue          │
                                                                                            │ ▶ Generating           │
-                                                                                             thirty-nine real-TTY
-                                                                                             sidebar snapshots
-                                                                                             across every routed
-                                                                                             variant
+                                                                                           │ thirty-nine real-TTY   │
+                                                                                           │ sidebar snapshots      │
+                                                                                           │ across every routed    │
+                                                                                           │ variant                │
                                                                                            │ ○ Inspect Korean       │
-                                                                                             한국어, Japanese
-                                                                                             日本語, and emoji 🛰
-                                                                                             telemetry at the
-                                                                                             narrow rail
+                                                                                           │ 한국어, Japanese       │
+                                                                                           │ 日本語, and emoji 🛰    │
+                                                                                           │ telemetry at the       │
+                                                                                           │ narrow rail            │
                                                                                            │ ✓ Preserve the         │
-                                                                                             existing sixteen
-                                                                                             content-column
-                                                                                             contract
+                                                                                           │ existing sixteen       │
+                                                                                           │ content-column         │
+                                                                                           │ contract               │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F6 details
@@ -1221,23 +1220,23 @@ exports[`routed sidebar variants — real-TTY visual matrix > todos at 120 colum
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > todos at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ◎ TODOS                      ⟦1│
                                                                                                                          │ mission queue                    │
                                                                                                                          │ ▶ Generating thirty-nine         │
-                                                                                                                           real-TTY sidebar snapshots
-                                                                                                                           across every routed variant
+                                                                                                                         │ real-TTY sidebar snapshots       │
+                                                                                                                         │ across every routed variant      │
                                                                                                                          │ ○ Inspect Korean 한국어,         │
-                                                                                                                           Japanese 日本語, and emoji 🛰
-                                                                                                                           telemetry at the narrow rail
+                                                                                                                         │ Japanese 日本語, and emoji 🛰     │
+                                                                                                                         │ telemetry at the narrow rail     │
                                                                                                                          │ ✓ Preserve the existing sixteen  │
-                                                                                                                           content-column contract
+                                                                                                                         │ content-column contract          │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F6 details
@@ -1256,13 +1255,13 @@ exports[`routed sidebar variants — real-TTY visual matrix > todos at 160 colum
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > worktree at 80 columns 1`] = `
-"                                                            ◉
-                                                             ╭──────────────╮
+"                                                             ╭──────────────╮
                                                              ▌ ⎇ WORKTREES
                                                              ─ A1 D0 !1     ─
                                                              • sidebar-visua…
@@ -1291,17 +1290,17 @@ exports[`routed sidebar variants — real-TTY visual matrix > worktree at 80 col
 
 
 
-                                                            ────────────────────
-"
+
+
+                                                            ────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > worktree at 120 columns 1`] = `
-"                                                                                          ◉
-                                                                                           ╭────────────────────────╮
+"                                                                                           ╭────────────────────────╮
                                                                                            │ ▌ ⎇ WORKTREES⟦1 act ✓0 │
                                                                                            │ isolation              │
-                                                                                           │  sidebar-visu+1284/-3… │
-                                                                                           │  한국어-日本語-w+84/-9 │
+                                                                                           │ • sidebar-… +1284/-377 │
+                                                                                           │ ! 한국어-日本…  +84/-9 │
                                                                                            ╰────────────────────────╯
 
                                                                                            ◆ F4 details
@@ -1326,17 +1325,17 @@ exports[`routed sidebar variants — real-TTY visual matrix > worktree at 120 co
 
 
 
-                                                                                          ──────────────────────────────
-"
+
+
+                                                                                          ──────────────────────────────"
 `;
 
 exports[`routed sidebar variants — real-TTY visual matrix > worktree at 160 columns 1`] = `
-"                                                                                                                        ◉
-                                                                                                                         ╭──────────────────────────────────╮
+"                                                                                                                         ╭──────────────────────────────────╮
                                                                                                                          │ ▌ ⎇ WORKTREES          ⟦1 act ✓0 │
                                                                                                                          │ isolation                        │
-                                                                                                                         │  sidebar-visual-presen+1284/-377 │
-                                                                                                                         │  한국어-日本語-width-verif+84/-9 │
+                                                                                                                         │ • sidebar-visual-pre… +1284/-377 │
+                                                                                                                         │ ! 한국어-日本語-width-ve… +84/-9 │
                                                                                                                          ╰──────────────────────────────────╯
 
                                                                                                                          ◆ F4 details
@@ -1361,6 +1360,7 @@ exports[`routed sidebar variants — real-TTY visual matrix > worktree at 160 co
 
 
 
-                                                                                                                        ────────────────────────────────────────
-"
+
+
+                                                                                                                        ────────────────────────────────────────"
 `;
