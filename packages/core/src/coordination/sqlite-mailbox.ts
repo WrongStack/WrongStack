@@ -50,10 +50,10 @@ import {
   acceptMailboxMessageForSession,
   isMailboxLeader,
   isMailboxMessageVisibleTo,
+  type MailboxSessionAffinityContext,
   normalizeRecipient,
   sessionRecipient,
   validateSendType,
-  type MailboxSessionAffinityContext,
 } from './mailbox-types.js';
 import { autoCompact, type CompactionContext, purgeStale } from './sqlite-mailbox-compaction.js';
 import {
@@ -527,7 +527,7 @@ export class SqliteMailbox implements Mailbox {
     const where: string[] = [];
     const params: string[] = [];
 
-    const recipients = ["to_id = ?", "to_id = '*'"];
+    const recipients = ['to_id = ?', "to_id = '*'"];
     params.push(forAgentId);
     if (sessionAddress !== undefined) {
       recipients.push('to_id = ?');
@@ -718,6 +718,33 @@ export class SqliteMailbox implements Mailbox {
       if (input.iterations !== undefined) agent.iterations = input.iterations;
       if (input.toolCalls !== undefined) agent.toolCalls = input.toolCalls;
       this.persistAgent(agent);
+    } else if (input.sessionId !== undefined && input.name !== undefined) {
+      // The row is gone but the agent is demonstrably alive — it is heartbeating
+      // right now. Rows are deleted once stale (AGENT_STALE_MS) by this method's
+      // own prune above, by registerAgent, or by ANY observer calling
+      // getAgentStatuses(). Without this branch the agent stays invisible for
+      // the rest of its life: it never calls registerAgent again, so nothing
+      // would ever recreate the row.
+      //
+      // Requires identity from the caller; heartbeats that omit sessionId/name
+      // cannot rebuild a truthful row, and inventing one would report a wrong
+      // name/pid to HQ. Those callers keep the old refresh-only behavior.
+      const nowIso = new Date(nowMs).toISOString();
+      this.persistAgent({
+        agentId: input.agentId,
+        sessionId: input.sessionId,
+        name: input.name,
+        ...(input.role !== undefined ? { role: input.role } : {}),
+        status: input.status ?? 'idle',
+        ...(input.currentTool !== undefined ? { currentTool: input.currentTool } : {}),
+        ...(input.currentTask !== undefined ? { currentTask: input.currentTask } : {}),
+        iterations: input.iterations ?? 0,
+        toolCalls: input.toolCalls ?? 0,
+        registeredAt: nowIso,
+        lastSeenAt: nowIso,
+        pid: input.pid ?? process.pid,
+        ...(input.source !== undefined ? { source: input.source } : {}),
+      });
     }
     this.events?.emitCustom('mailbox.agent_heartbeat', {
       agentId: input.agentId,

@@ -1,16 +1,10 @@
-import type { MailboxMessageType } from './mailbox-type-properties.js';
 import type {
   MailboxAudience,
   MailboxMessage,
   MailboxSessionAffinity,
   MailboxTaskContext,
 } from './mailbox-message-types.js';
-
-export {
-  MAILBOX_TYPE_PROPERTIES,
-  type MailboxMessageType,
-  type MailboxTypeCategory,
-} from './mailbox-type-properties.js';
+import type { MailboxMessageType } from './mailbox-type-properties.js';
 
 export {
   expandMailboxCapabilities,
@@ -21,7 +15,6 @@ export {
   type MailboxCapability,
   type MailboxPrincipalKind,
 } from './mailbox-auth-types.js';
-
 export {
   isActionRequiredForActor,
   isMailboxLeader,
@@ -34,26 +27,30 @@ export {
   sessionRecipient,
   validateSendType,
 } from './mailbox-predicates.js';
+export {
+  MAILBOX_TYPE_PROPERTIES,
+  type MailboxMessageType,
+  type MailboxTypeCategory,
+} from './mailbox-type-properties.js';
 
 import type { MailboxSessionAffinityContext } from './mailbox-session-sync.js';
 
+export type {
+  ActorMailboxMessage,
+  MailboxAudience,
+  MailboxLegacyReportSessionAffinity,
+  MailboxMessage,
+  MailboxReceiptRecordV2,
+  MailboxScopedSessionAffinity,
+  MailboxSessionAffinity,
+  MailboxTaskContext,
+  ReadReceipts,
+} from './mailbox-message-types.js';
 export {
   acceptMailboxMessageForSession,
   acceptMailboxMessageForSessionSync,
   type MailboxSessionAffinityContext,
 } from './mailbox-session-sync.js';
-
-export {
-  type ActorMailboxMessage,
-  type MailboxAudience,
-  type MailboxLegacyReportSessionAffinity,
-  type MailboxMessage,
-  type MailboxReceiptRecordV2,
-  type MailboxScopedSessionAffinity,
-  type MailboxSessionAffinity,
-  type MailboxTaskContext,
-  type ReadReceipts,
-} from './mailbox-message-types.js';
 
 export interface RegisteredAgent {
   agentId: string;
@@ -207,6 +204,21 @@ export interface AgentHeartbeatInput {
   currentTask?: string | undefined;
   iterations?: number | undefined;
   toolCalls?: number | undefined;
+  /**
+   * Identity fields, carried so a heartbeat can REBUILD a pruned row.
+   *
+   * A registry row is deleted once it is older than AGENT_STALE_MS — either by
+   * the agent's own prune or by any observer calling getAgentStatuses(). Without
+   * these, `heartbeat` can only refresh a row that still exists, so a live agent
+   * that lost its row stays invisible forever (it never calls registerAgent
+   * again). They are optional to keep the RPC wire-compatible: a caller that
+   * omits them gets the previous refresh-only behavior.
+   */
+  sessionId?: string | undefined;
+  name?: string | undefined;
+  role?: string | undefined;
+  pid?: number | undefined;
+  source?: 'cli' | 'webui' | 'mcp' | 'acp' | 'http' | undefined;
 }
 
 export interface PurgeOptions {

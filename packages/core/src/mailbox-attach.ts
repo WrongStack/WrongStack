@@ -17,10 +17,6 @@
  */
 
 import { resolveProjectDir } from './coordination/global-mailbox-paths.js';
-import { getSharedProjectMailbox } from './coordination/remote-mailbox.js';
-import { createHqPublisherFromEnv } from './hq/factory.js';
-import { wstackGlobalRoot } from './utils/wstack-paths.js';
-import { toErrorMessage } from './utils/error.js';
 import {
   MAILBOX_AWARENESS_INTERVAL_MS,
   MAILBOX_HEARTBEAT_INTERVAL_MS,
@@ -33,12 +29,16 @@ import {
   MAILBOX_TYPE_PROPERTIES,
   type MailboxSessionAffinityContext,
 } from './coordination/mailbox-types.js';
-import type { FleetConfig } from './types/config.js';
+import { getSharedProjectMailbox } from './coordination/remote-mailbox.js';
 import type { AgentInternals } from './core/agent-internals.js';
-import { JsonlReportStore } from './plugins/review-report-store.js';
-import { buildMailboxBtwAwarenessBlock, createMailboxChecker } from './core/mailbox-loop.js';
 import { setBtwNote } from './core/btw.js';
 import { buildFleetPulseBlock, fleetPulseSignature } from './core/fleet-pulse.js';
+import { buildMailboxBtwAwarenessBlock, createMailboxChecker } from './core/mailbox-loop.js';
+import { createHqPublisherFromEnv } from './hq/factory.js';
+import { JsonlReportStore } from './plugins/review-report-store.js';
+import type { FleetConfig } from './types/config.js';
+import { toErrorMessage } from './utils/error.js';
+import { wstackGlobalRoot } from './utils/wstack-paths.js';
 
 export function attachMailboxChecker(
   a: AgentInternals,
@@ -87,7 +87,7 @@ function attachMailboxCheckerInner(
     // Agent-level hook: the HQ publisher lives across runs, not per-run.
     a.ctx.registerAgentHook(() => hqPublisher.close());
   }
-  const surface = source ?? ((a.ctx.meta['source'] as 'cli' | 'webui' | undefined) ?? 'cli');
+  const surface = source ?? (a.ctx.meta['source'] as 'cli' | 'webui' | undefined) ?? 'cli';
   if (!a.ctx.meta['source']) a.ctx.meta['source'] = surface;
 
   // SESSION-bound unique identity (`<base>@<sessionTag>`): every session
@@ -138,9 +138,24 @@ function attachMailboxCheckerInner(
   const HEARTBEAT_INTERVAL_MS = MAILBOX_HEARTBEAT_INTERVAL_MS;
   const heartbeatTimer = setInterval(() => {
     const id = ensureRegistered();
-    getMailbox().heartbeat({ agentId: id }).catch(() => {
-      // Silently ignore - heartbeat failures are expected during shutdown
-    });
+    // Identity rides along on every heartbeat so the daemon can REBUILD this
+    // row if it was pruned (>AGENT_STALE_MS, e.g. after a sleep/starvation gap,
+    // or by any observer calling getAgentStatuses()). ensureRegistered() cannot
+    // do it: it early-returns on an unchanged identity and never re-registers.
+    // Must mirror the registerAgent payload above so a rebuilt row is identical.
+    const identity = resolveMailboxIdentity(a.ctx);
+    getMailbox()
+      .heartbeat({
+        agentId: id,
+        sessionId: a.ctx.session.id,
+        name: `${identity.name} [${surface}]`,
+        role: identity.role,
+        pid: process.pid,
+        source: surface,
+      })
+      .catch(() => {
+        // Silently ignore - heartbeat failures are expected during shutdown
+      });
   }, HEARTBEAT_INTERVAL_MS);
   heartbeatTimer.unref?.();
 
@@ -187,8 +202,7 @@ function attachMailboxCheckerInner(
     resolveProjectDir(a.ctx.projectRoot, wstackGlobalRoot()),
   );
   const sessionAffinityCtx: MailboxSessionAffinityContext = {
-    resolveChimeraReportSessionId: async (reportId) =>
-      (await reportStore.get(reportId))?.sessionId,
+    resolveChimeraReportSessionId: async (reportId) => (await reportStore.get(reportId))?.sessionId,
   };
   /**
    * Filter messages by session affinity. Shared by inline and awareness
@@ -251,7 +265,10 @@ function attachMailboxCheckerInner(
     include: (m) => !MAILBOX_TYPE_PROPERTIES[m.type]?.outOfBand,
     ack: false,
   });
-  const sessionScopedCheckMailboxAwareness = applySessionAffinityFilter(checkMailboxAwareness, false);
+  const sessionScopedCheckMailboxAwareness = applySessionAffinityFilter(
+    checkMailboxAwareness,
+    false,
+  );
 
   // Background mailbox awareness: poll while tools or long provider calls are
   // in flight, but queue the result as a BTW note so the agent only consumes it
