@@ -211,4 +211,81 @@ export const markdownComponents = {
       </div>
     );
   },
+
+  table({ className, children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
+    return (
+      <div className="not-prose my-3 w-full max-w-full overflow-x-auto rounded-lg border border-border/80 bg-card/40 shadow-sm scrollbar-thin">
+        <table
+          className={cn(
+            'w-full min-w-full table-auto border-collapse text-left text-xs',
+            className,
+          )}
+          {...props}
+        >
+          {children}
+        </table>
+      </div>
+    );
+  },
+
+  thead({ className, children, ...props }: React.ComponentPropsWithoutRef<'thead'>) {
+    return (
+      <thead
+        className={cn('border-b border-border/80 bg-muted/60 text-foreground font-semibold', className)}
+        {...props}
+      >
+        {children}
+      </thead>
+    );
+  },
+
+  tbody({ className, children, ...props }: React.ComponentPropsWithoutRef<'tbody'>) {
+    return (
+      <tbody
+        className={cn('divide-y divide-border/40 text-foreground/90', className)}
+        {...props}
+      >
+        {children}
+      </tbody>
+    );
+  },
+
+  tr({ className, children, ...props }: React.ComponentPropsWithoutRef<'tr'>) {
+    return (
+      <tr
+        className={cn('transition-colors hover:bg-muted/30 even:bg-muted/10', className)}
+        {...props}
+      >
+        {children}
+      </tr>
+    );
+  },
+
+  th({ className, children, ...props }: React.ComponentPropsWithoutRef<'th'>) {
+    return (
+      <th
+        className={cn(
+          'px-3 py-2 text-xs font-semibold text-foreground whitespace-nowrap',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </th>
+    );
+  },
+
+  td({ className, children, ...props }: React.ComponentPropsWithoutRef<'td'>) {
+    return (
+      <td
+        className={cn(
+          'px-3 py-2 text-xs text-foreground/90 break-words align-top',
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </td>
+    );
+  },
 };

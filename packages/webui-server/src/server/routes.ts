@@ -21,6 +21,7 @@
  */
 import path from 'node:path';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { ObservableBrainArbiter } from '@wrongstack/core/coordination';
 import type {
   AutoCompactionMiddleware,
@@ -71,7 +72,15 @@ import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.j
 import { handleConfigDoctor } from './config-doctor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
 import { emitFallbackChoice } from './fallback-choice.js';
-import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
+import {
+  handleGitChanges,
+  handleGitCommit,
+  handleGitDiff,
+  handleGitDiscard,
+  handleGitInfo,
+  handleGitStage,
+  handleGitUnstage,
+} from './git-handlers.js';
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
 import { createMailboxRouteHandlers, type MailboxRouteHandlers } from './mailbox-routes.js';
@@ -93,6 +102,7 @@ import {
 } from './mcp-handlers.js';
 import type { McpRouteHandlers } from './mcp-routes.js';
 import { createModeHandlers } from './mode-handlers.js';
+import { rebuildSystemPrompt } from './system-prompt-rebuild.js';
 import type { ModeRouteHandlers } from './mode-routes.js';
 import { createModelOperations } from './model-operations.js';
 import type { PendingConfirm } from './pending-confirms.js';
@@ -123,7 +133,11 @@ import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { ConnectedClient } from './types.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import {
+  validateGitCommitPayload,
   validateGitDiffPayload,
+  validateGitDiscardPayload,
+  validateGitStagePayload,
+  validateGitUnstagePayload,
   validateShellOpenPayload,
 } from './ws-payload-validation.js';
 import { broadcast, send, sendResult } from './ws-utils.js';
@@ -480,6 +494,43 @@ export function buildRoutes(
     persist: cb.persistPrefsToConfig,
     pendingConfirms: deps.pendingConfirms,
     configStore: deps.configStore,
+    systemPrompt: {
+      paths: () => {
+        const wpaths = resolveWstackPaths({
+          projectRoot: state.getProjectRoot(),
+          globalRoot: deps.wpaths.globalRoot,
+        });
+        return {
+          globalDir: wpaths.globalInstructions,
+          projectDir: wpaths.inProjectInstructions,
+        };
+      },
+      profileConfigPath: deps.profileConfigPath,
+      current: () => state.getConfig().systemPrompt?.variant ?? 'default',
+      // Mutate the live Config *before* rebuilding: `persistPrefsToConfig`
+      // writes the file, not the in-memory object, and the builder reads the
+      // variant off the object. Without this the rebuild would faithfully
+      // recompose the prompt the session already had.
+      applyVariant: async (variant) => {
+        const config = state.getConfig();
+        config.systemPrompt = { ...(config.systemPrompt ?? {}), variant };
+        await rebuildSystemPrompt(
+          {
+            modeStore: deps.modeStore,
+            memoryStore: deps.memoryStore,
+            skillLoader: deps.skillLoader,
+            modelCapabilities: (() => state.getModelCapabilities()) as never,
+            context: deps.context,
+            toolRegistry: deps.toolRegistry,
+            getConfig: state.getConfig,
+            projectRoot: state.getProjectRoot(),
+            globalRoot: deps.wpaths.globalRoot,
+            container: deps.container,
+          },
+          state.getModeId(),
+        );
+      },
+    },
     setYolo: (enabled) =>
       (deps.permissionPolicy as { setYolo?: (value: boolean) => void }).setYolo?.(enabled),
     applyConfigPrefs: (payload) => {
@@ -571,6 +622,38 @@ export function buildRoutes(
         return;
       }
       await handleGitDiff(ws, state.getProjectRoot(), parsed.value.path);
+    },
+    gitStage: async (ws, msg) => {
+      const parsed = validateGitStagePayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      await handleGitStage(ws, state.getProjectRoot(), parsed.value.paths);
+    },
+    gitUnstage: async (ws, msg) => {
+      const parsed = validateGitUnstagePayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      await handleGitUnstage(ws, state.getProjectRoot(), parsed.value.paths);
+    },
+    gitDiscard: async (ws, msg) => {
+      const parsed = validateGitDiscardPayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      await handleGitDiscard(ws, state.getProjectRoot(), parsed.value.paths);
+    },
+    gitCommit: async (ws, msg) => {
+      const parsed = validateGitCommitPayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      await handleGitCommit(ws, state.getProjectRoot(), parsed.value.message);
     },
     shellOpen: async (ws, msg) => {
       const parsed = validateShellOpenPayload(msg.payload);

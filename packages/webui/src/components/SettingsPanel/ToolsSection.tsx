@@ -217,7 +217,7 @@ export function ToolsSection(): ReactElement {
       ) : (
         <div className="relative overflow-hidden rounded-lg border border-border/70 bg-background/35 shadow-inner">
           <ul
-            className="max-h-[min(58dvh,660px)] space-y-2 overflow-y-scroll p-2 pr-3 [scrollbar-gutter:stable]"
+            className="max-h-[min(58dvh,660px)] space-y-2 overflow-y-auto p-2 pr-3 [scrollbar-gutter:stable]"
             aria-label={t('activity:toolsSec.toolsList')}
           >
             {filtered.map((tool) => (

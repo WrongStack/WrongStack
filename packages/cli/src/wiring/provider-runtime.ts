@@ -1,11 +1,11 @@
 import type { ProviderRegistry } from '@wrongstack/core/registry';
 import type { Config, Provider, ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import { sanitizeUrlForLog } from './proxy-probe.js';
 import {
   getProxyConfig,
   isProxyEligible,
   rewriteBaseUrl,
+  sanitizeUrlForLog,
   shouldRewriteFor,
 } from '@wrongstack/core/wiring/proxy-rewrite';
 

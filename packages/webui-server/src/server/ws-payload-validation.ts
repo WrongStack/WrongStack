@@ -806,6 +806,58 @@ export function validateGitDiffPayload(payload: unknown): PayloadValidationResul
   return { ok: true, value: { path } };
 }
 
+export interface GitPathsPayload {
+  paths: string[];
+}
+
+function parsePathsPayload(payload: unknown, op: string): PayloadValidationResult<GitPathsPayload> {
+  if (!isRecord(payload)) {
+    return { ok: false, message: `${op} payload must be an object` };
+  }
+  const single = payload['path'];
+  const multi = payload['paths'];
+  if (single !== undefined) {
+    if (typeof single !== 'string') {
+      return { ok: false, message: `${op} payload.path must be a string` };
+    }
+    return { ok: true, value: { paths: [single] } };
+  }
+  if (multi !== undefined) {
+    if (!Array.isArray(multi) || multi.some((p) => typeof p !== 'string')) {
+      return { ok: false, message: `${op} payload.paths must be an array of strings` };
+    }
+    return { ok: true, value: { paths: multi as string[] } };
+  }
+  return { ok: true, value: { paths: [] } };
+}
+
+export function validateGitStagePayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+  return parsePathsPayload(payload, 'git.stage');
+}
+
+export function validateGitUnstagePayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+  return parsePathsPayload(payload, 'git.unstage');
+}
+
+export function validateGitDiscardPayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+  return parsePathsPayload(payload, 'git.discard');
+}
+
+export interface GitCommitPayload {
+  message: string;
+}
+
+export function validateGitCommitPayload(payload: unknown): PayloadValidationResult<GitCommitPayload> {
+  if (!isRecord(payload)) {
+    return { ok: false, message: 'git.commit payload must be an object' };
+  }
+  const message = payload['message'];
+  if (typeof message !== 'string' || message.trim().length === 0) {
+    return { ok: false, message: 'git.commit payload.message must be a non-empty string' };
+  }
+  return { ok: true, value: { message: message.trim() } };
+}
+
 interface ProjectsAddPayload {
   root: string;
   name?: string;

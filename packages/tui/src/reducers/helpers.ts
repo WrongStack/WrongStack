@@ -105,14 +105,28 @@ function sliceTailWithoutSplittingSurrogatePair(value: string, maxChars: number)
  * Reducer stream state is only the live rendering tail, not the canonical
  * provider response; completed output remains available from the committed
  * history entry and session log.
+ *
+ * `maxChars` is a HIGH-WATER mark, not an exact cap: the buffer may grow to
+ * `2 * maxChars` and is then cut back to `maxChars`. Trimming on every delta
+ * looks tidier but costs O(current) PER TOKEN — V8 has to flatten the
+ * accumulated rope before it can slice it, so a saturated buffer memcpy'd its
+ * whole length for every token that arrived. Measured over 60k deltas into a
+ * 64KB buffer: 139ms trimming eagerly versus 1.2ms with this high-water cut,
+ * for the same retained tail. The fleet bridge runs three of these per delta
+ * per subagent, so that cost multiplied.
+ *
+ * Guarantees: the result always ends with `delta`, always retains at least the
+ * most recent `maxChars` characters written, and never exceeds `2 * maxChars`.
+ * Callers hold a live rendering tail whose exact length the user cannot
+ * observe, so the doubled ceiling (128KB at the largest call site, against the
+ * 500k-char entry limit in `input-validation/limits.ts`) buys the per-token
+ * copy away.
  */
 export function retainStreamTail(current: string, delta: string, maxChars: number): string {
   if (maxChars <= 0) return '';
   if (delta.length >= maxChars) return sliceTailWithoutSplittingSurrogatePair(delta, maxChars);
-  const keepCurrent = maxChars - delta.length;
-  return current.length > keepCurrent
-    ? sliceTailWithoutSplittingSurrogatePair(current, keepCurrent) + delta
-    : current + delta;
+  const next = current + delta;
+  return next.length > maxChars * 2 ? sliceTailWithoutSplittingSurrogatePair(next, maxChars) : next;
 }
 
 /** Caps applied to tool `input` payloads before retention in history entries. */

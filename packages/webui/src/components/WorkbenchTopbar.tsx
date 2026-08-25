@@ -1,6 +1,21 @@
-import { Bot, Check, Command, Cpu, Moon, Palette, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
+import {
+  Bot,
+  Check,
+  Command,
+  Cpu,
+  Menu,
+  Moon,
+  MoreVertical,
+  Palette,
+  Search,
+  Settings,
+  Sparkles,
+  Sun,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { useConfigStore, useSessionStore } from '@/stores';
+import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getPalette, PALETTES } from '@/lib/palettes';
@@ -137,13 +152,96 @@ export function WorkbenchTopbar({
   const toggleTheme = useCallback(() => {
     setTheme(effectiveTheme === 'dark' ? 'light' : 'dark');
   }, [effectiveTheme, setTheme]);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const serverProcess = useServerProcessMetrics();
   const heapLoad = serverProcess ? serverProcess.memoryUsage.heapUsed / serverProcess.heapLimit : 0;
   const indexServer = serverProcess?.codebaseIndexServer;
   const indexHealth = indexServer?.health;
   const indexMetrics = indexHealth?.server;
+
   return (
-    <div className="hidden shrink-0 border-b border-border/70 bg-card/85 px-3 py-2 shadow-sm backdrop-blur-xl md:block">
+    <>
+      {/* ── Mobile Compact Header (<md) ── */}
+      <div className="flex shrink-0 items-center justify-between border-b border-border/70 bg-card/85 px-2.5 py-1.5 shadow-sm backdrop-blur-xl md:hidden">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            aria-label="Toggle navigation menu"
+            title="Toggle navigation"
+          >
+            <Menu className="h-4 w-4" />
+          </button>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate text-xs font-semibold">{projectName || 'WrongStack'}</span>
+              <span className="rounded bg-muted/60 px-1 py-0.5 text-[10px] text-muted-foreground font-mono">
+                {viewLabel(currentView)}
+              </span>
+              {isLoading && (
+                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-primary">
+                  <Bot className="h-3 w-3 animate-pulse" />
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={onSearch}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title={t('activity:topbar.search')}
+          >
+            <Search className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title={effectiveTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          >
+            {effectiveTheme === 'dark' ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                title="More options"
+                aria-label="More options"
+              >
+                <MoreVertical className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={onModel} className="gap-2">
+                <Cpu className="h-4 w-4" />
+                <span>{t('activity:topbar.model')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onPalette} className="gap-2">
+                <Command className="h-4 w-4" />
+                <span>{t('activity:topbar.command')}</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onSettings} className="gap-2">
+                <Settings className="h-4 w-4" />
+                <span>{t('activity:topbar.settings')}</span>
+              </DropdownMenuItem>
+              <div className="border-t border-border/60 my-1 px-2 py-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Status</span>
+                <span className={cn('font-mono font-medium', wsConnected ? 'text-success' : 'text-warning')}>
+                  {wsConnected ? 'Connected' : 'Offline'}
+                </span>
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* ── Desktop Full Header (>=md) ── */}
+      <div className="hidden shrink-0 border-b border-border/70 bg-card/85 px-3 py-2 shadow-sm backdrop-blur-xl md:block">
       <div className="flex min-w-0 items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <div className="min-w-0">
@@ -343,5 +441,6 @@ export function WorkbenchTopbar({
         </div>
       </div>
     </div>
+    </>
   );
 }

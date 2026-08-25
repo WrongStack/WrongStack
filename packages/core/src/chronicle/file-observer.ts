@@ -6,6 +6,7 @@ import { mapWithConcurrency } from '../storage/storage-concurrency.js';
 import { type ProjectWatchSubscription, watchProjectTree } from '../utils/project-watch.js';
 import { DEFAULT_WALK_IGNORE_DIRS } from '../utils/walk-ignore.js';
 import type { ChronicleContext } from './context.js';
+import { CHRONICLE_MAX_APPEND_BATCH } from './project-server-protocol.js';
 import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';
 
@@ -13,6 +14,45 @@ interface FileFingerprint {
   size: number;
   mtimeMs: number;
   hash?: string | undefined;
+}
+
+/** One reconciled path with its fingerprints on either side of the change. */
+interface FileChange {
+  relative: string;
+  before?: FileFingerprint | undefined;
+  after?: FileFingerprint | undefined;
+}
+
+/**
+ * One journal event paired with the fingerprint-state writes that become
+ * valid only once that event's commit unit — an `appendBatch` chunk, or a
+ * single `append` on the legacy fallback path — has actually landed.
+ *
+ * Pairing state with its event (rather than keeping a flat side map) is what
+ * makes partial-commit recovery exact: when chunk 3 of 5 throws, chunks 1–2
+ * have already applied their state, so the retry re-derives only the
+ * uncommitted remainder instead of re-emitting committed events.
+ */
+interface PendingEvent {
+  input: ChronicleEventInput;
+  /** `[relative, after]` pairs; `undefined` after marks a delete. */
+  state: Array<[relative: string, after: FileFingerprint | undefined]>;
+  /**
+   * Deferred live `file.activity` emission. Built at observation time but
+   * invoked at most once, and only when this event's commit unit lands —
+   * emitting at build time meant a failed flush had already announced the
+   * change and the recovery re-derive announced it a second time.
+   */
+  emitActivity?: (() => void) | undefined;
+  /**
+   * Tool-mutation hint claimed by this event, and the `recentToolMutations`
+   * key it was claimed under. Released at commit; restored with a fresh
+   * `at` on flush failure so the recovery pass re-attributes the event as
+   * `file.tool.*` with its original correlation instead of degrading it to
+   * `file.external.*`.
+   */
+  attribution?: RecentToolMutation | undefined;
+  attributionKey?: string | undefined;
 }
 
 interface RecentToolMutation {
@@ -81,6 +121,13 @@ const DEFAULT_FULL_RESCAN_MIN_INTERVAL_MS = 30_000;
 /** Max entries in recentToolMutations before oldest are evicted. */
 const MAX_RECENT_TOOL_MUTATIONS = 500;
 
+/**
+ * Events per `appendBatch` call when flushing a reconcile pass. Matches the
+ * project-server's own accept limit so a batch built here is never rejected
+ * as oversized by the transport on the other side of the socket.
+ */
+const JOURNAL_FLUSH_CHUNK = CHRONICLE_MAX_APPEND_BATCH;
+
 /** Observe editor/user/external process mutations that bypass WrongStack tools. */
 export async function startChronicleFileObserver(
   options: ChronicleFileObserverOptions,
@@ -130,6 +177,13 @@ export async function startChronicleFileObserver(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
   let flushTail: Promise<void> | null = null;
+  // Failure from the most recent reconcile drain, if any. close() clears
+  // this when it begins its final drain and rethrows it after the drain
+  // settles, so a failed shutdown flush is surfaced to the caller instead
+  // of silently dropped (both production close sites catch: the CLI wiring
+  // ignores the rejection, the project-server records it in
+  // watcherLastError).
+  let drainFailure: unknown;
   const minFullRescanIntervalMs =
     options.minFullRescanIntervalMs ?? DEFAULT_FULL_RESCAN_MIN_INTERVAL_MS;
   // The startup scan just ran — the first watcher-triggered full rescan also
@@ -193,11 +247,7 @@ export async function startChronicleFileObserver(
     const candidates = (fullScan ? unionKeys(known, fullScan.files) : changedPaths).filter(
       (relative) => !isExcluded(relative, excluded, excludedPaths),
     );
-    const changes: Array<{
-      relative: string;
-      before?: FileFingerprint | undefined;
-      after?: FileFingerprint | undefined;
-    }> = [];
+    const changes: FileChange[] = [];
     for (const relative of candidates) {
       const before = known.get(relative);
       // A successful full scan already paid the stat/read/hash cost. Reuse
@@ -222,90 +272,180 @@ export async function startChronicleFileObserver(
     const deleted = changes.filter((change) => change.before && !change.after);
     const created = changes.filter((change) => !change.before && change.after);
     const consumed = new Set<string>();
-    const journalWrites: Promise<void>[] = [];
-    for (const from of deleted) {
-      const match = created.find(
-        (to) =>
-          !consumed.has(to.relative) &&
-          from.before?.hash !== undefined &&
-          from.before.hash === to.after?.hash,
+    // Journal events, each paired with the fingerprint-state writes that
+    // may be applied only after that event's commit unit lands. Applying
+    // state while inputs are still being built meant a flush that threw (a
+    // chunk failure, a closed project-server socket) left `known` already
+    // advanced past changes whose events were never written — and since
+    // the pending set was drained, no later reconcile re-derived them:
+    // audit events were permanently lost. Commit-unit pairing instead
+    // advances state exactly as far as the journal actually committed, so
+    // a retry after a partial flush re-derives only the remainder.
+    const pendingEvents: PendingEvent[] = [];
+    /**
+     * Build one pending event: PEEK at (do not consume) the tool-attribution
+     * hint for the changed path, build the journal input plus its deferred
+     * live-activity emitter, and record the hint/key pair so the commit
+     * callback can release it and the failure path can restore it.
+     */
+    const pushPending = (
+      eventType: string,
+      relativePath: string,
+      state: FileFingerprint | undefined,
+      attributes: Record<string, unknown>,
+      stateWrites: Array<[relative: string, after: FileFingerprint | undefined]>,
+    ): void => {
+      const attribution = peekAttribution(relativePath, recentToolMutations);
+      const { input, emitActivity } = buildMutation(
+        options,
+        eventType,
+        relativePath,
+        state,
+        attributes,
+        attribution,
       );
+      pendingEvents.push({
+        input,
+        state: stateWrites,
+        emitActivity,
+        attribution,
+        attributionKey: attribution ? relativePath : undefined,
+      });
+    };
+    // Index the creates by content hash rather than rescanning the array for
+    // every delete. A branch switch or a build drop can put thousands of
+    // entries in BOTH lists, and the linear scan made this pass
+    // O(deletes x creates). Buckets keep insertion order behind a cursor, so
+    // each delete still claims the FIRST unclaimed create with a matching
+    // hash — identical pairing to the `created.find(...)` it replaces.
+    const createdByHash = new Map<string, { entries: FileChange[]; cursor: number }>();
+    for (const to of created) {
+      const hash = to.after?.hash;
+      if (hash === undefined) continue;
+      const bucket = createdByHash.get(hash);
+      if (bucket) bucket.entries.push(to);
+      else createdByHash.set(hash, { entries: [to], cursor: 0 });
+    }
+    const claimCreated = (hash: string): FileChange | undefined => {
+      const bucket = createdByHash.get(hash);
+      if (!bucket) return undefined;
+      // The cursor never revisits an entry, so a create is claimed at most
+      // once without consulting `consumed`.
+      return bucket.cursor < bucket.entries.length ? bucket.entries[bucket.cursor++] : undefined;
+    };
+    for (const from of deleted) {
+      const fromHash = from.before?.hash;
+      if (fromHash === undefined) continue;
+      const match = claimCreated(fromHash);
       if (!match) continue;
       consumed.add(from.relative);
       consumed.add(match.relative);
-      known.delete(from.relative);
-      known.set(match.relative, match.after!);
-      journalWrites.push(
-        recordMutation(
-          options,
-          'file.external.renamed',
-          match.relative,
-          match.after,
-          {
-            operation: 'rename',
-            previousPath: from.relative,
-            previousResourceId: resourceId(from.relative),
-            actor: 'external',
-          },
-          mutationAttribution(match.relative, recentToolMutations),
-        ),
+      pushPending(
+        'file.external.renamed',
+        match.relative,
+        match.after,
+        {
+          operation: 'rename',
+          previousPath: from.relative,
+          previousResourceId: resourceId(from.relative),
+          actor: 'external',
+        },
+        [
+          [from.relative, undefined],
+          [match.relative, match.after!],
+        ],
       );
     }
 
     for (const change of changes) {
       if (consumed.has(change.relative)) continue;
       if (!change.after) {
-        known.delete(change.relative);
-        journalWrites.push(
-          recordMutation(
-            options,
-            'file.external.deleted',
-            change.relative,
-            change.before,
-            {
-              operation: 'delete',
-              actor: 'external',
-              previousHash: change.before?.hash,
-              previousSize: change.before?.size,
-            },
-            mutationAttribution(change.relative, recentToolMutations),
-          ),
+        pushPending(
+          'file.external.deleted',
+          change.relative,
+          change.before,
+          {
+            operation: 'delete',
+            actor: 'external',
+            previousHash: change.before?.hash,
+            previousSize: change.before?.size,
+          },
+          [[change.relative, undefined]],
         );
       } else if (!change.before) {
-        known.set(change.relative, change.after);
-        journalWrites.push(
-          recordMutation(
-            options,
-            'file.external.created',
-            change.relative,
-            change.after,
-            {
-              operation: 'write',
-              actor: 'external',
-            },
-            mutationAttribution(change.relative, recentToolMutations),
-          ),
+        pushPending(
+          'file.external.created',
+          change.relative,
+          change.after,
+          {
+            operation: 'write',
+            actor: 'external',
+          },
+          [[change.relative, change.after]],
         );
       } else {
-        known.set(change.relative, change.after);
-        journalWrites.push(
-          recordMutation(
-            options,
-            'file.external.modified',
-            change.relative,
-            change.after,
-            {
-              operation: 'edit',
-              actor: 'external',
-              previousHash: change.before.hash,
-              previousSize: change.before.size,
-            },
-            mutationAttribution(change.relative, recentToolMutations),
-          ),
+        pushPending(
+          'file.external.modified',
+          change.relative,
+          change.after,
+          {
+            operation: 'edit',
+            actor: 'external',
+            previousHash: change.before.hash,
+            previousSize: change.before.size,
+          },
+          [[change.relative, change.after]],
         );
       }
     }
-    await Promise.all(journalWrites);
+    try {
+      await flushJournalInputs(options, pendingEvents, (committed) => {
+        // This commit unit is durable — advance the fingerprint state for
+        // exactly its events. A later failure therefore leaves `known` at
+        // the journal's actual frontier, and the retry re-derives only the
+        // uncommitted remainder instead of re-emitting committed events.
+        for (const event of committed) {
+          for (const [relative, after] of event.state) {
+            if (after) known.set(relative, after);
+            else known.delete(relative);
+          }
+          // The tool hint is consumed only now that its event is durable.
+          // The identity check never deletes a NEWER hint that arrived for
+          // the same path while this batch was in flight.
+          if (
+            event.attributionKey &&
+            recentToolMutations.get(event.attributionKey) === event.attribution
+          ) {
+            recentToolMutations.delete(event.attributionKey);
+          }
+          // Live bus event fires exactly once per event, at commit — a
+          // failed flush never announced the change, so the recovery
+          // re-derive is not a duplicate.
+          event.emitActivity?.();
+        }
+      });
+    } catch (error) {
+      // Committed chunks have already applied their state; the throwing
+      // chunk and everything after it have not, so `known` sits exactly at
+      // the journal's frontier. The next reconcile re-derives only that
+      // remainder; requeue a bounded full rescan so recovery does not wait
+      // for another filesystem event to touch the same files, then surface
+      // the failure. (If the observer is closing, the rescan is dropped —
+      // see close().)
+      for (const event of pendingEvents) {
+        if (!event.attribution || !event.attributionKey) continue;
+        const held = recentToolMutations.get(event.attributionKey);
+        // Skip hints already released by a committed unit, and never
+        // clobber a newer hint that arrived after this batch was built.
+        if (held !== event.attribution) continue;
+        // Replay: refresh the 2s match window so the recovery pass
+        // re-attributes these changes as `file.tool.*` with their original
+        // correlation instead of degrading them to `file.external.*`.
+        recentToolMutations.set(event.attributionKey, { ...event.attribution, at: Date.now() });
+      }
+      requestFullRescan();
+      throw error;
+    }
   };
 
   const drainPending = (): Promise<void> => {
@@ -314,7 +454,12 @@ export async function startChronicleFileObserver(
       while (pending.size > 0) {
         const paths = [...pending];
         pending.clear();
-        await reconcile(paths).catch((error) => options.onError?.(error));
+        try {
+          await reconcile(paths);
+        } catch (error) {
+          drainFailure = error;
+          options.onError?.(error);
+        }
       }
     })().finally(() => {
       if (flushTail === drain) flushTail = null;
@@ -339,9 +484,24 @@ export async function startChronicleFileObserver(
       return known.size;
     },
     noteToolMutation,
+    /**
+     * Shut down the observer. If the final drain (an in-flight drain plus
+     * anything still pending at close time) fails, close() REJECTS with
+     * that error — a failed shutdown flush is surfaced, not silently
+     * dropped. The failure is still not retried after close returns:
+     * `requestFullRescan()` no-ops once `closed` is set, and `known` is
+     * in-memory state that dies here, so uncommitted changes are not
+     * re-derived by a future boot (the startup scan builds fresh
+     * fingerprints without diffing against this process's history). The
+     * journal remains authoritative for everything that did commit. A
+     * second close() call is a no-op and does not re-throw.
+     */
     async close() {
       if (closed) return;
       closed = true;
+      // Only failures from here on are this close's final drain; an older
+      // failure has already been reported (and likely recovered).
+      drainFailure = undefined;
       offToolProgress?.();
       watcher.close();
       if (timer) {
@@ -351,25 +511,55 @@ export async function startChronicleFileObserver(
       if (fullRescanTimer) {
         clearTimeout(fullRescanTimer);
         fullRescanTimer = undefined;
+        // The timer was queued work — most commonly the bounded recovery
+        // rescan a failed reconcile scheduled. Cancelling it without
+        // converting it to final-drain work silently dropped the retry:
+        // pending was empty, so close() resolved while uncommitted audit
+        // events were lost forever. Run it as this close's final drain.
+        pending.add('*');
       }
       if (pending.size > 0) drainPending();
       await flushTail;
       recentToolMutations.clear();
+      if (drainFailure !== undefined) throw drainFailure;
     },
   };
 }
 
-async function recordMutation(
+/**
+ * Build the Chronicle input for one reconciled change, plus the DEFERRED
+ * live `file.activity` emitter that the caller fires at commit time.
+ *
+ * This used to `await journal.append(input)` itself, which meant one SQLite
+ * transaction — and, at `synchronous = FULL`, one fsync — PER CHANGED FILE.
+ * A `git checkout` touching 2000 files paid 2000 of them, serially: the
+ * caller collected the promises and `Promise.all`-ed them, but node:sqlite is
+ * a synchronous binding, so nothing overlapped. Building the input here and
+ * committing the whole reconcile pass through {@link flushJournalInputs}
+ * collapses that to a handful of transactions.
+ *
+ * The bus event moved from here to the commit callback for the same reason
+ * the fingerprint state did: emitting at build time announced changes whose
+ * journal write then failed, and the recovery re-derive announced them a
+ * second time — duplicate live events for one filesystem change.
+ */
+function buildMutation(
   options: ChronicleFileObserverOptions,
   eventType: string,
   relativePath: string,
   state: FileFingerprint | undefined,
   attributes: Record<string, unknown>,
   attribution?: RecentToolMutation | undefined,
-): Promise<void> {
+): { input: ChronicleEventInput; emitActivity?: (() => void) | undefined } {
   const context = typeof options.context === 'function' ? options.context() : options.context;
   const operation = attributes['operation'] as 'write' | 'edit' | 'delete' | 'rename';
-  options.events?.emit('file.activity', {
+  const bus = options.events;
+  // The live `file.activity` bus event is DEFERRED to commit time — see
+  // PendingEvent.emitActivity. The payload is still built here so `at`
+  // reflects when the change was observed, not when the journal landed.
+  // `as const` preserves the literal unions the EventBus payload type
+  // requires now that the object is extracted instead of inline.
+  const activity = {
     filePath: path.join(options.projectRoot, relativePath),
     operation,
     phase: 'changed',
@@ -379,7 +569,12 @@ async function recordMutation(
     traceId: context.correlation.traceId,
     agentId: attribution?.agentId ?? context.scope.agentId,
     ...(attribution ? { toolUseId: attribution.toolUseId, toolName: attribution.toolName } : {}),
-  });
+  } as const;
+  const emitActivity: (() => void) | undefined = bus
+    ? () => {
+        bus.emit('file.activity', activity);
+      }
+    : undefined;
   const input: ChronicleEventInput = {
     eventType: attribution ? eventType.replace('.external.', '.tool.') : eventType,
     scope: {
@@ -408,16 +603,82 @@ async function recordMutation(
       observedBy: 'fs.watch',
     },
   };
-  await options.journal.append(input);
+  return { input, emitActivity };
 }
 
-function mutationAttribution(
+/**
+ * Commit one reconcile pass's events, preferring the sink's batch entry point.
+ *
+ * Sinks predating `appendBatch` (and test doubles) fall back to starting every
+ * `append` at once. That is deliberate, not laziness: the file-backed
+ * `ChronicleJournal` coalesces whatever lands inside its 5ms batch window, so
+ * awaiting the appends one at a time would drain the window between each and
+ * turn one batch into N — the opposite of the point. Concurrent starts
+ * reproduce exactly what this function replaced.
+ *
+ * The batch is chunked so a single enormous reconcile cannot build one
+ * oversized frame for the project-server transport.
+ *
+ * `onCommitted` fires once per commit unit — after each `appendBatch` chunk
+ * resolves, or after each individual `append` on the fallback path — with
+ * exactly the events that just became durable. The caller applies those
+ * events' fingerprint-state writes there, which is what keeps a mid-flush
+ * failure from either losing unattempted events (state ahead of the journal)
+ * or re-emitting committed ones (state behind the journal).
+ */
+async function flushJournalInputs(
+  options: ChronicleFileObserverOptions,
+  events: readonly PendingEvent[],
+  onCommitted: (committed: readonly PendingEvent[]) => void,
+): Promise<void> {
+  if (events.length === 0) return;
+  const batch = options.journal.appendBatch?.bind(options.journal);
+  if (!batch) {
+    // Wait for EVERY append to settle before surfacing any failure.
+    // Promise.all's fail-fast hands the rejection to the caller while
+    // sibling appends are still in flight; their commits then land after
+    // the recovery rescan has already re-derived them — duplicate audit
+    // events. allSettled lets every fulfilled append apply its state (via
+    // onCommitted) first, so `known` ends exactly at the journal's
+    // frontier no matter which appends failed.
+    const settled = await Promise.allSettled(
+      events.map(async (event) => {
+        await options.journal.append(event.input);
+        onCommitted([event]);
+      }),
+    );
+    const failure = settled.find((result) => result.status === 'rejected');
+    if (failure) throw (failure as PromiseRejectedResult).reason;
+    return;
+  }
+  for (let index = 0; index < events.length; index += JOURNAL_FLUSH_CHUNK) {
+    const chunk = events.slice(index, index + JOURNAL_FLUSH_CHUNK);
+    await batch(chunk.map((event) => event.input));
+    onCommitted(chunk);
+  }
+}
+
+/**
+ * PEEK at the tool-mutation hint for a path without consuming it.
+ *
+ * Claim/release is tied to the journal commit, not the build: the hint is
+ * released only when its event's commit unit lands (see the onCommitted
+ * callback in reconcile) and restored with a fresh `at` when the flush
+ * fails, so the recovery pass re-attributes the change as `file.tool.*`
+ * with its original correlation. Popping at build time — the old behavior
+ * — meant a failed flush permanently lost the attribution and the retry
+ * degraded the event to `file.external.*`.
+ *
+ * Stale (>2s) hints are reported as no attribution but deliberately left
+ * in the map: they age out via the size cap or are overwritten by the next
+ * hint for the same path.
+ */
+function peekAttribution(
   relativePath: string,
   recent: Map<string, RecentToolMutation>,
 ): RecentToolMutation | undefined {
   const value = recent.get(relativePath);
   if (!value) return undefined;
-  recent.delete(relativePath);
   return Date.now() - value.at <= 2_000 ? value : undefined;
 }
 

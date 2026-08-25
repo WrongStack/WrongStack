@@ -16,7 +16,12 @@
 // closure dependency is added.
 
 import type { WebSocket } from 'ws';
-import { handlePrefsGet, handlePrefsUpdate, type PrefsHandlerContext } from './prefs-handlers.js';
+import {
+  handlePrefsGet,
+  handlePrefsUpdate,
+  handleSystemPromptGet,
+  type PrefsHandlerContext,
+} from './prefs-handlers.js';
 import type { WSClientMessage } from './types.js';
 import { send } from './ws-utils.js';
 
@@ -30,6 +35,13 @@ export interface PrefsRouteHandlers {
    * logger.level), then broadcast the full current snapshot to all clients.
    */
   updatePrefs: (ws: WebSocket, payload: Record<string, unknown>) => Promise<void>;
+  /**
+   * Reply with the identity-prompt variant catalogue: label, hint and an
+   * upper-bound token estimate per variant, plus which one is live and whether
+   * the user has ever chosen. Setting a variant goes through `prefs.update`
+   * with `systemPromptVariant`, so this side stays read-only.
+   */
+  getSystemPrompt: (ws: WebSocket) => Promise<void>;
   /** Preview/apply canonical defaults in the active profile config. */
   doctorConfig?: ((ws: WebSocket, apply: boolean) => Promise<void>) | undefined;
 }
@@ -41,6 +53,7 @@ export function createPrefsRouteHandlers(
   return {
     getPrefs: async (ws) => handlePrefsGet(ctx, ws),
     updatePrefs: async (ws, payload) => handlePrefsUpdate(ctx, ws, payload),
+    getSystemPrompt: async (ws) => handleSystemPromptGet(ctx, ws),
     ...(doctorConfig !== undefined ? { doctorConfig } : {}),
   };
 }
@@ -54,6 +67,7 @@ export function createPrefsRouteHandlers(
  * Owned prefixes:
  *   - `prefs.get`
  *   - `prefs.update`
+ *   - `system_prompt.get`
  *   - `config.doctor`
  *
  * Regression-tested by packages/webui/tests/server/dispatcher-routing.test.ts.
@@ -70,6 +84,10 @@ export async function handlePrefsRoute(
     }
     case 'prefs.update': {
       await handlers.updatePrefs(ws, (msg.payload ?? {}) as Record<string, unknown>);
+      return true;
+    }
+    case 'system_prompt.get': {
+      await handlers.getSystemPrompt(ws);
       return true;
     }
     case 'config.doctor': {

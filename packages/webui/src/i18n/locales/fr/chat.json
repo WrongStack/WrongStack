@@ -54,7 +54,9 @@
     "addQueueTitle": "ajouter file — attendre la fin du run en cours",
     "openPromptLibrary": "Ouvrir la bibliothèque de prompts — parcourir les prompts prêts à l'emploi et sauvegardés",
     "expandInput": "Agrandir la saisie",
-    "collapseInput": "Réduire"
+    "collapseInput": "Réduire",
+    "startListening": "Saisie vocale (Reconnaissance vocale)",
+    "stopListening": "Écoute en cours... (Cliquer pour arrêter)"
   },
   "header": {
     "openSidebarTitle": "Ouvrir la barre latérale (Ctrl+\\)",

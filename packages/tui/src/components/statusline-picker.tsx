@@ -5,12 +5,12 @@ import { glyphs } from '../ui-glyphs.js';
 import { KeyCap, MonitorShell, truncatePanelText, useMonitorSize } from './monitor-shell.js';
 
 /** All possible statusline chip keys.
-
+ *
  *  NOTE: `'cpu'` and `'memory'` were removed — CPU/RAM/heap metrics now live
- *  in the right sidebar's SYSTEM card (sidebar-content.tsx). Any stale entries
- *  in a saved statusline profile are silently ignored by `showChip` since no
- *  chip renders them anymore, mirroring how removed phantom items ('version',
- *  'time', 'sage') are handled. */
+ *  in the right sidebar's SYSTEM card (sidebar-content.tsx). Any stale keys
+ *  still present in a saved statusline profile (including long-removed
+ *  phantoms like 'time' and 'sage') are silently ignored by `showChip`; the
+ *  canonical key set is exactly the union below. */
 export type StatuslineItem =
   | 'state'
   | 'model'
@@ -48,7 +48,10 @@ export type StatuslineItem =
   | 'debug_stream'
   | 'next_steps'
   | 'memory_context'
-  | 'side_effects';
+  | 'side_effects'
+  | 'version'
+  | 'dropped_tools'
+  | 'prompt_variant';
 
 /**
  * Metadata for a temporarily-visible chip (one that appeared due to data,
@@ -130,62 +133,69 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   next_steps: 'Next-step auto-submit countdown',
   memory_context: 'Memory context detail line (total records + active-in-context)',
   side_effects: 'Side-effect / audit event count',
+  version: 'WrongStack version + update notice (right-anchored)',
+  dropped_tools: 'Tools dropped from the provider request (maxTools limit)',
+  prompt_variant: 'System prompt variant (Lite / Standard / Pro)',
 };
 
 /**
  * Which TUI status bar line each chip appears on. Used to group chips
  * visually in the picker. MUST mirror the actual render lines in
- * `status-bar.tsx`: line 1 = workspace + runtime chips (mode/project/workdir
- * state + cheap provider/model/context telemetry), line 2 = session context
- * (memory pressure, git, mode label, tools), line 3 = active work +
- * connectivity (todos, plan, tasks, fleet, brain, mailbox, goals,
- * countdowns), line 4 = background services (memory context lifecycle,
- * codebase-index server health). Exported so the navigation-order test guards
- * against drift instead of duplicating it.
+ * `status-bar.tsx` and `status-bar-rails.tsx`: line 1 = workspace &
+ * identity (project, workdir, git, provider/model, mode labels), line 2 =
+ * run state & safety (state, permission flags, context meter, queue,
+ * breaker, warnings), line 3 = active work & countdowns (goal, boards,
+ * auto-submit timers), line 4 = fleet, connectivity & background services
+ * (fleet, mailbox, brain, memory context, codebase-index server health).
+ * Exported so the navigation-order test guards against drift instead of
+ * duplicating it.
  */
 export const ITEM_LINE: Record<StatuslineItem, number> = {
-  // Line 1 — workspace + runtime: mode indicators, project/workdir,
-  // provider/model, context window, and other low-cost runtime chips
-  autonomy: 1,
-  breaker: 1,
-  cache: 1,
-  context: 1,
-  cost: 1,
-  elapsed: 1,
-  hint: 1,
+  // Line 1 — workspace & identity: static session header (rarely changes)
+  project: 1,
+  working_dir: 1,
+  git: 1,
   model: 1,
-  processes: 1,
-  queue: 1,
-  state: 1,
-  tokens: 1,
-  yolo: 1,
-  // Line 2 — session context: workdir/project first, then mode, git, tools.
-  git: 2,
-  mode: 2,
-  project: 2,
-  sessions: 2,
-  side_effects: 2,
-  theme: 2,
+  mode: 1,
+  prompt_variant: 1,
+  theme: 1,
+  sessions: 1,
+  tools: 1,
+  version: 1,
+  // Line 2 — run state & safety: live telemetry + permission band.
+  // queue/hint/breaker render inside primaryChips BEFORE processes/elapsed.
+  state: 2,
+  yolo: 2,
+  autonomy: 2,
+  eternal_stage: 2,
+  context: 2,
+  tokens: 2,
+  cost: 2,
+  cache: 2,
+  queue: 2,
+  hint: 2,
+  breaker: 2,
+  processes: 2,
+  elapsed: 2,
   token_saving: 2,
-  tools: 2,
-  working_dir: 2,
-  // Line 3 — active work + connectivity
-  auto_proceed: 3,
-  brain: 3,
-  debug_stream: 3,
-  enhance: 3,
-  eternal_stage: 3,
-  fleet: 3,
-  fleet_agents: 3,
+  side_effects: 2,
+  // Line 3 — active work & countdowns (conditional)
   goal: 3,
-  mailbox: 3,
-  next_steps: 3,
+  todos: 3,
   plan: 3,
   tasks: 3,
-  todos: 3,
-  // Line 4 — background-service telemetry
-  index: 4,
+  next_steps: 3,
+  auto_proceed: 3,
+  enhance: 3,
+  dropped_tools: 3,
+  // Line 4 — fleet, connectivity & background services (conditional)
+  fleet: 4,
+  fleet_agents: 4,
+  mailbox: 4,
+  brain: 4,
+  debug_stream: 4,
   memory_context: 4,
+  index: 4,
 };
 
 export interface StatuslinePickerProps {
@@ -202,49 +212,57 @@ export interface StatuslinePickerProps {
 /** Total number of statusline fields. */
 export const STATUSLINE_FIELD_COUNT = Object.keys(ITEM_LINE).length;
 
-/** Ordered list of statusline items — grouped by display line, then alphabetically within each line for consistent navigation. */
+/**
+ * Ordered list of statusline items — grouped by display line, then in
+ * RENDER order within each line so the picker mirrors the statusline
+ * top-to-bottom, left-to-right. (Previously alphabetical within a line,
+ * which made picker navigation diverge from the rendered rail.)
+ */
 export const STATUSLINE_ITEMS: StatuslineItem[] = [
-  // Line 1
-  'autonomy',
-  'breaker',
-  'cache',
-  'context',
-  'cost',
-  'elapsed',
-  'hint',
-  'model',
-  'processes',
-  'queue',
-  'state',
-  'tokens',
-  'yolo',
-  // Line 2 — workdir/project first, then session context
+  // Line 1 — workspace & identity
   'project',
   'working_dir',
   'git',
+  'model',
   'mode',
-  'sessions',
-  'side_effects',
+  'prompt_variant',
   'theme',
-  'token_saving',
+  'sessions',
   'tools',
-  // Line 3
-  'auto_proceed',
-  'brain',
-  'debug_stream',
-  'enhance',
+  'version',
+  // Line 2 — run state & safety
+  'state',
+  'yolo',
+  'autonomy',
   'eternal_stage',
-  'fleet',
-  'fleet_agents',
+  'context',
+  'tokens',
+  'cost',
+  'cache',
+  'queue',
+  'hint',
+  'breaker',
+  'processes',
+  'elapsed',
+  'token_saving',
+  'side_effects',
+  // Line 3 — active work & countdowns
   'goal',
-  'mailbox',
-  'next_steps',
+  'todos',
   'plan',
   'tasks',
-  'todos',
-  // Line 4
-  'index',
+  'next_steps',
+  'auto_proceed',
+  'enhance',
+  'dropped_tools',
+  // Line 4 — fleet, connectivity & background services
+  'fleet',
+  'fleet_agents',
+  'mailbox',
+  'brain',
+  'debug_stream',
   'memory_context',
+  'index',
 ];
 
 /** Stream-triggered chips — these auto-expire unless the user has toggled them on permanently. */

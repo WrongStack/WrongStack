@@ -86,7 +86,16 @@ function isProxyEligibleForRewrite(originalBaseUrl: string, proxyUrl: string): b
 }
 
 function composeRewrittenUrl(originalBaseUrl: string, proxyUrl: string): string {
-  const parsedOriginal = new URL(originalBaseUrl);
+  let parsedOriginal: URL;
+  try {
+    parsedOriginal = new URL(originalBaseUrl);
+  } catch {
+    // Scheme'd but unparseable (e.g. "https://[::1", "http://exa mple.com").
+    // isProxyEligibleForRewrite deliberately lets these through, so this is
+    // the last line of defense for the module contract: the rewriter must
+    // NEVER be the reason provider construction fails — pass through.
+    return originalBaseUrl;
+  }
   // Host + path; query and hash would be meaningless on the proxy root.
   const hostAndPath = `${parsedOriginal.host}${parsedOriginal.pathname}`;
   const trailingQuery = parsedOriginal.search || '';
@@ -113,6 +122,83 @@ export interface ProxyConfig {
 const DEFAULT_PROXY_CONFIG: ProxyConfig = { enabled: false, url: '', active: false };
 
 let currentConfig: ProxyConfig = { ...DEFAULT_PROXY_CONFIG };
+
+// ─── Probe transition logging ──────────────────────────────────────────────
+//
+// Lives HERE (not in the CLI's proxy-probe.ts) for the same structural
+// reason as instant-apply below: the CLI's esbuild bundle can copy
+// proxy-probe.ts's module scope into MULTIPLE chunks (verified live
+// 2026-08-25: setProxyProbeLogger landed in chunk-QTASZ2IS.js while
+// startProxyProbe ran from chunk-GWVLRUVH.js), so a module-level logger
+// variable there splits into per-chunk copies and the probe reads the one
+// the host never set — silently silent logging. Core modules are
+// externalized in the CLI build, so THIS module is structurally one
+// instance everywhere; state here is shared by every bundled copy.
+
+/**
+ * Minimal structural logger for probe transitions. Deliberately not core's
+ * full `Logger` so any host (CLI logger, subcommand, test stub) can pass a
+ * plain object.
+ */
+export interface ProxyTransitionLogger {
+  info(message: string): void;
+  warn(message: string): void;
+}
+
+let proxyTransitionLogger: ProxyTransitionLogger | undefined;
+
+/**
+ * Install (or replace) the probe's transition logger. Affects the running
+ * probe immediately (the flip path reads this variable at log time).
+ * Passing undefined silences transition logging again.
+ */
+export function setProxyTransitionLogger(
+  logger: ProxyTransitionLogger | undefined,
+): void {
+  proxyTransitionLogger = logger;
+}
+
+/**
+ * Redact a URL for logging: keep scheme://host[:port]/path, drop query and
+ * fragment. Provider/proxy URLs may embed credentials there (`?key=...`);
+ * a log line must never persist them.
+ */
+export function sanitizeUrlForLog(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+  } catch {
+    // Unparseable — keep only the portion before any query, fragment, or
+    // control character. A malformed string that smuggles `#secret` or a
+    // CR/LF would otherwise land in the log verbatim.
+    const cut = raw.search(/[?#\x00-\x1f\x7f]/);
+    return cut >= 0 ? raw.slice(0, cut) : raw;
+  }
+}
+
+/**
+ * Emit one probe-transition line. Called ONLY when `active` actually flips
+ * (never on verdict-identical probes) — every flip is a routing change for
+ * every subsequent provider build. Fully isolated: a throwing logger must
+ * never alter probe control flow.
+ */
+export function logProxyTransition(next: boolean, reason: string): void {
+  const log = proxyTransitionLogger;
+  if (!log) return;
+  // The reason string deliberately carries NO URL — the sanitized proxy=
+  // field does, so raw URLs never ride into the log via the reason.
+  const url = sanitizeUrlForLog(currentConfig.url) || '<unset>';
+  const line = next
+    ? `WrongProxy active=true (${reason}) — base-URL rewrites ON, proxy=${url}`
+    : `WrongProxy active=false (${reason}) — base-URL rewrites OFF, proxy=${url}`;
+  try {
+    if (next) log.info(line);
+    else log.warn(line);
+  } catch {
+    // Observability failure must not corrupt probe state or verdicts.
+  }
+}
 
 /** Read the current proxy configuration. Safe to call from any layer. */
 export function getProxyConfig(): ProxyConfig {
@@ -236,6 +322,7 @@ export function deactivateProxyOnConnectionFailure(err: unknown): boolean {
  */
 export function __resetProxyConfigForTests(): void {
   currentConfig = { ...DEFAULT_PROXY_CONFIG };
+  proxyTransitionLogger = undefined;
   listeners.clear();
   // A previous test's instant-apply handles must not leak their (possibly
   // never-settling) rebuild chains into the next test's settle waits.

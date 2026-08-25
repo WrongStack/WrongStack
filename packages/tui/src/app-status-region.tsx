@@ -175,6 +175,7 @@ export function AppStatusRegion({
           }
           memoryContextMonitor={memoryContextMonitor}
           contextStrategy={getSettings ? getSettings().contextStrategy : undefined}
+          promptVariant={getSettings ? getSettings().systemPromptVariant : undefined}
           brain={state.brain}
           projectName={projectName}
           workingDir={workingDirChip}

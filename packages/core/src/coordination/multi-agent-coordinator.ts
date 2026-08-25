@@ -53,6 +53,13 @@ export interface MultiAgentCoordinatorOptions {
   sessionId?: BudgetSessionIdSource | undefined;
 }
 
+/**
+ * Listener ceiling for the coordinator's own event surface. High enough that
+ * no legitimate `awaitTasks()` fan-out reaches it, low enough that a waiter
+ * which stops removing itself still trips Node's warning.
+ */
+const MAX_COORDINATOR_LISTENERS = 512;
+
 export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiAgentCoordinator {
   readonly coordinatorId: string;
   readonly config: MultiAgentConfig;
@@ -97,9 +104,15 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     // awaitTasks() registers one short-lived 'task.completed' listener per
     // awaited id; a single call awaiting >10 ids (or several concurrent
     // callers) crosses Node's default 10-listener cap and prints a spurious
-    // MaxListenersExceededWarning that also masks genuine leaks. These waiters
-    // are bounded and self-removing, so lift the cap.
-    this.setMaxListeners(0);
+    // MaxListenersExceededWarning. These waiters are bounded and
+    // self-removing, so the default is too low.
+    //
+    // Raised, NOT lifted. `setMaxListeners(0)` means unlimited, which silences
+    // the warning for a real leak too — a waiter that stopped unwinding would
+    // accumulate forever with nothing to notice. This ceiling sits far above
+    // any legitimate fan-out (fleet concurrency times awaited ids) while still
+    // failing loudly if one ever does.
+    this.setMaxListeners(MAX_COORDINATOR_LISTENERS);
     this.coordinatorId = config.coordinatorId;
     this.config = config;
     this.runner = options.runner;

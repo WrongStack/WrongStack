@@ -48,6 +48,12 @@ export class ChronicleMetricsStore {
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
     this.db.exec('PRAGMA journal_mode = WAL');
+    // Every other SQLite store in the repo pairs WAL with NORMAL durability and
+    // a busy timeout. Without the timeout a concurrent writer fails instantly
+    // with SQLITE_BUSY instead of waiting out the other transaction; metrics
+    // are derived data, so FULL fsync per commit buys nothing here.
+    this.db.exec('PRAGMA synchronous = NORMAL');
+    this.db.exec('PRAGMA busy_timeout = 5000');
     ensureMetricsSchema(this.db);
     this.ingester = new ChronicleMetricsIngester(this.db, this.directory, this.dbPath);
   }

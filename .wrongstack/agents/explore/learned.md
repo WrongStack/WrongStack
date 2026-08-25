@@ -39,17 +39,17 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=23; wins=22 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=27; wins=26 -->
 - ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=41; wins=40 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=45; wins=44 -->
 - **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T09:23:56.979Z; applied=20; wins=19 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T09:23:56.979Z; applied=21; wins=20 -->
 - **Always scope grep/codebase-search for `project-server-client` in the WrongStack repo by package path — the basename exists in at least two unrelated subsystems: `packages/tools/src/codebase-index/project-server-client.ts` (codebase-index daemon IPC client) and `packages/core/src/chronicle/project-server-client.ts` (Chronicle journal daemon, exported via `@wrongstack/core` as `ChronicleProjectServerClient`).**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `project-server-client`
@@ -58,7 +58,7 @@
   - *How:* `@wrongstack/core`
   - *How:* `ChronicleProjectServerClient`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-24T20:34:39.843Z; skill=research-web; applied=1; wins=1 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-24T20:34:39.843Z; skill=research-web; applied=2; wins=2 -->
 - **Always treat `docs/README.md` in the WrongStack repo as a documentation index with zero code coupling — when asked for its "importers", the complete answer is a repo-wide grep for the path string (expect only `CHANGELOG.md` release notes), not a code-graph lookup; its real consumers are the contributing conventions that mandate updating it when maintained docs are added.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `docs/README.md`

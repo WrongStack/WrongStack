@@ -118,13 +118,33 @@ describe('retainStreamTail', () => {
     expect(retainStreamTail('abc', 'def', 10)).toBe('abcdef');
   });
 
-  it('keeps only the newest bounded tail without building a larger retained value', () => {
+  it('caps a single oversized delta to the bound', () => {
     expect(retainStreamTail('0123456789', 'abcdefghij', 8)).toBe('cdefghij');
-    expect(retainStreamTail('0123456789', 'ABCD', 8)).toBe('6789ABCD');
+  });
+
+  it('lets the buffer ride up to the high-water mark before cutting', () => {
+    // 2x the bound is the ceiling, so 14 chars against a bound of 8 is left
+    // alone. Trimming here instead would cost a full rope flatten per token.
+    expect(retainStreamTail('0123456789', 'ABCD', 8)).toBe('0123456789ABCD');
+  });
+
+  it('cuts back to the bound once the high-water mark is crossed', () => {
+    // 17 + 1 = 18 > 2 * 8, so the result is exactly the newest 8 characters
+    // and still ends with the delta.
+    expect(retainStreamTail('q'.repeat(17), 'Z', 8)).toBe('qqqqqqqZ');
+  });
+
+  it('never exceeds twice the bound across a long stream', () => {
+    let tail = '';
+    for (let i = 0; i < 500; i++) tail = retainStreamTail(tail, 'abcde', 8);
+    expect(tail.length).toBeLessThanOrEqual(16);
+    expect(tail.endsWith('abcde')).toBe(true);
   });
 
   it('does not retain an orphaned UTF-16 surrogate when trimming the head', () => {
-    expect(retainStreamTail('A😀B', 'C', 3)).toBe('BC');
+    // The cut lands mid-pair: 5 code units back from the end of a 9-unit
+    // buffer is the low half of a surrogate pair, so the guard moves forward.
+    expect(retainStreamTail('😀😀😀😀', 'C', 4)).toBe('😀C');
     expect(retainStreamTail('', 'A😀B', 3)).toBe('😀B');
   });
 

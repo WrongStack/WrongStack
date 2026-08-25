@@ -1,7 +1,8 @@
 import type React from 'react';
+import { systemPromptVariantLabel } from '@wrongstack/core/agent';
 import { Text } from '../ink.js';
 import { activeMemoryContextCount } from '../memory-context-monitor.js';
-import { theme } from '../theme.js';
+import { getActiveThemeName, theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { AnimationStyle } from './animation-style.js';
 import type { RailSpanEntry } from './powerline-rail.js';
@@ -17,6 +18,7 @@ import {
 import {
   countdownColor,
   formatSuggestionLabel,
+  modeIcon,
 } from './status-bar-helpers.js';
 import {
   chipColor,
@@ -93,7 +95,6 @@ export interface StatusBarRailBuildParams {
   hasAutoProceed: boolean;
   autoProceedCountdown?: StatusBarProps['autoProceedCountdown'];
   droppedTools?: number | undefined;
-  detailChips: React.ReactElement[];
   minimalWorkParts: string[];
   thinking: boolean;
   statePrefix: string;
@@ -105,6 +106,16 @@ export interface StatusBarRailBuildParams {
   memoryContextMonitor?: StatusBarProps['memoryContextMonitor'];
   Sage?: StatusBarProps['Sage'];
   indexState?: StatusBarProps['indexState'];
+  /** Mailbox status for the connectivity rail (line 4). */
+  mailbox?: MailboxStatus | undefined;
+  /** Per-agent live detail rows for the connectivity rail (line 4). */
+  fleetAgents?: FleetAgentDetail[] | undefined;
+  /** Whether the mailbox chip is eligible (not hidden + has activity). */
+  showMailbox: boolean;
+  /** Pre-built memory-context chips for the connectivity rail (line 4). */
+  memoryDetailChips: React.ReactElement[];
+  /** Active system-prompt variant (Lite / Standard / Pro) — line 1 identity chip. */
+  promptVariant?: 'lite' | 'default' | 'pro' | undefined;
 }
 
 export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactElement[] {
@@ -195,13 +206,135 @@ export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactEleme
   ].filter((chip): chip is React.ReactElement => chip !== null);
 }
 
-export function buildModeChipEntries(
+export function buildWorkspaceChipEntries(
   p: StatusBarRailBuildParams,
   modelStatusChip: React.ReactElement | null,
 ): RailSpanEntry[] {
-  const { yolo, showChip, isNoColor, autonomy, processCount, primaryChips, stateStatusChip, fleetWorkingTime } = p;
+  const {
+    showChip,
+    isNoColor,
+    projectName,
+    workingDir,
+    git,
+    modeLabel,
+    themeName,
+    sessionCount,
+    toolCount,
+    promptVariant,
+  } = p;
   return (
     [
+      {
+        id: 'project',
+        node:
+          projectName && showChip('project') ? (
+            <Text color={chipColor(theme.accent, isNoColor)}>
+              {isNoColor
+                ? truncateChip(projectName, 24)
+                : `${STATUSLINE_ICONS.project} ${truncateChip(projectName, 24)}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'working_dir',
+        node:
+          workingDir && showChip('working_dir') ? (
+            <Text color={chipColor(theme.accent, isNoColor)}>
+              {isNoColor
+                ? truncateChip(workingDir, 28)
+                : `${STATUSLINE_ICONS.working_dir} ${truncateChip(workingDir, 28)}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'git',
+        node:
+          git && showChip('git') ? (
+            <Text>
+              <Text color={theme.monitor.agents}>
+                {STATUSLINE_ICONS.git} {truncateChip(git.branch, 24)}
+              </Text>
+              {git.deleted > 0 ? <Text color={theme.error}> -{git.deleted}</Text> : null}
+              {git.untracked > 0 ? <Text dimColor={!isNoColor}> ?{git.untracked}</Text> : null}
+            </Text>
+          ) : null,
+      },
+      { id: 'model', node: modelStatusChip },
+      {
+        id: 'mode',
+        node:
+          modeLabel && showChip('mode') ? (
+            <Text color={chipColor(theme.accent, isNoColor)}>
+              {isNoColor ? modeLabel : modeIcon(modeLabel)}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'prompt_variant',
+        node:
+          promptVariant && showChip('prompt_variant') ? (
+            <Text color={chipColor(theme.brand, isNoColor)}>
+              {isNoColor
+                ? `prompt ${systemPromptVariantLabel(promptVariant).toUpperCase()}`
+                : `${STATUSLINE_ICONS.prompt_variant} ${systemPromptVariantLabel(promptVariant).toUpperCase()}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'theme',
+        node:
+          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
+            <Text color={chipColor(theme.brand, isNoColor)}>
+              {isNoColor
+                ? truncateChip(themeName ?? getActiveThemeName(), 24)
+                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'sessions',
+        node:
+          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'tools',
+        node:
+          toolCount != null && showChip('tools') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
+    ] as Array<{ id: string; node: React.ReactElement | null }>
+  ).filter((entry): entry is RailSpanEntry => entry.node != null);
+}
+
+export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanEntry[] {
+  const {
+    yolo,
+    showChip,
+    isNoColor,
+    autonomy,
+    processCount,
+    primaryChips,
+    stateStatusChip,
+    fleetWorkingTime,
+    tokenSavingMode,
+    sideEffectCount,
+    showEternalStage,
+    eternalStage,
+  } = p;
+  return (
+    [
+      { id: 'state', node: stateStatusChip },
       {
         id: 'yolo',
         node:
@@ -230,7 +363,14 @@ export function buildModeChipEntries(
             </Text>
           ) : null,
       },
-      { id: 'model', node: modelStatusChip },
+      {
+        id: 'eternal_stage',
+        node:
+          showEternalStage && eternalStage ? (
+            <EternalStageChip stage={eternalStage} monochrome={isNoColor} />
+          ) : null,
+      },
+      ...primaryChips.map((node, i) => ({ id: `primary-${i}`, node })),
       {
         id: 'processes',
         node:
@@ -241,8 +381,6 @@ export function buildModeChipEntries(
             </Text>
           ) : null,
       },
-      ...primaryChips.map((node, i) => ({ id: `primary-${i}`, node })),
-      { id: 'state', node: stateStatusChip },
       {
         id: 'elapsed',
         node:
@@ -254,12 +392,32 @@ export function buildModeChipEntries(
             </Text>
           ) : null,
       },
+      {
+        id: 'token_saving',
+        node:
+          tokenSavingMode !== undefined && tokenSavingMode !== 'off' && showChip('token_saving') ? (
+            <Text color={isNoColor ? undefined : theme.warn} bold>
+              {isNoColor ? tokenSavingMode : `${STATUSLINE_ICONS.token_saving} ${tokenSavingMode}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'side_effects',
+        node:
+          sideEffectCount != null && sideEffectCount > 0 && showChip('side_effects') ? (
+            <Text color={isNoColor ? undefined : theme.warn}>
+              {isNoColor
+                ? `${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.side_effects} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
 
 export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactElement[] {
-  const { showChip, thinking, statePrefix, stateLabel, animationStyle, spinnerIdx, cycleTick, isNoColor, stateColor, model, provider, context, showTokenDisplay, displayTokens, autonomy, fleetWorkingTime, minimalWorkParts } = p;
+  const { showChip, thinking, statePrefix, stateLabel, animationStyle, spinnerIdx, cycleTick, isNoColor, stateColor, model, provider, context, showTokenDisplay, displayTokens, yolo, autonomy, fleetWorkingTime, minimalWorkParts } = p;
   return [
     showChip('state') && thinking ? (
       <ThinkingChip
@@ -273,40 +431,37 @@ export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactEleme
         {statePrefix} {stateLabel}
       </Text>
     ) : null,
+    yolo && showChip('yolo') ? (
+      <Text color={chipColor(theme.error, isNoColor)} bold>
+        {isNoColor ? 'YOLO' : `${STATUSLINE_ICONS.yolo} YOLO`}
+      </Text>
+    ) : null,
     showChip('model') ? (
       <Text color={chipColor(theme.monitor.agents, isNoColor)}>
         {provider ? `${provider}/` : ''}
         {model}
       </Text>
     ) : null,
-    (context || showTokenDisplay) && showChip('context')
+    context && showChip('context')
       ? (() => {
           const ratio = context ? Math.min(context.used / context.max, 1) : 0;
           const c = context ? contextBarColor(ratio) : theme.textSecondary;
-          const hasTokens = showTokenDisplay && showChip('tokens');
           return (
-            <Text>
-              <Text color={chipColor(c, isNoColor)}>
-                {context ? <Text dimColor={!isNoColor}>{'ctx '}</Text> : null}
-                {context ? renderMeter(ratio, 6) : ''} {context ? fmtTok(context.used) : ''}
-              </Text>
-              {hasTokens && context ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
-              {hasTokens ? (
-                <Text color={chipColor(theme.textSecondary, isNoColor)}>
-                  ↑
-                  <Text color={chipColor(theme.accent, isNoColor)}>
-                    {fmtTok(displayTokens.input)}
-                  </Text>{' '}
-                  ↓
-                  <Text color={chipColor(theme.accent, isNoColor)}>
-                    {fmtTok(displayTokens.output)}
-                  </Text>
-                </Text>
-              ) : null}
+            <Text color={chipColor(c, isNoColor)}>
+              {context ? <Text dimColor={!isNoColor}>{'ctx '}</Text> : null}
+              {context ? renderMeter(ratio, 6) : ''} {context ? fmtTok(context.used) : ''}
             </Text>
           );
         })()
       : null,
+    showTokenDisplay && showChip('tokens') ? (
+      <Text color={chipColor(theme.textSecondary, isNoColor)}>
+        ↑
+        <Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.input)}</Text>{' '}
+        ↓
+        <Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.output)}</Text>
+      </Text>
+    ) : null,
     autonomy && autonomy !== 'off' && showChip('autonomy') ? (
       <Text
         color={chipColor(
@@ -403,31 +558,43 @@ export function buildWorkRowEntries(p: StatusBarRailBuildParams): RailSpanEntry[
     plan,
     hasTaskActivity,
     tasks,
-    fleetHasActivity,
-    fleet,
-    subagentCount,
-    showBrain,
-    brain,
-    showDebugStream,
-    debugStreamStats,
-    showEnhance,
-    enhanceCountdown,
     hasNextStepsAutoSubmit,
     nextStepsAutoSubmitCountdown,
     nextStepsAutoSubmitLabel,
     nextStepsColor,
-    showEternalStage,
-    eternalStage,
     hasActiveGoal,
     goalSummary,
     hasAutoProceed,
     autoProceedCountdown,
+    showEnhance,
+    enhanceCountdown,
     droppedTools,
-    detailChips,
   } = p;
 
   return (
     [
+      {
+        id: 'goal',
+        node: hasActiveGoal ? (
+          <Text
+            color={
+              isNoColor
+                ? undefined
+                : goalSummary!.goalState === 'abandoned'
+                  ? theme.textMuted
+                  : goalSummary!.goalState === 'active' || goalSummary!.goalState === 'completed'
+                    ? theme.success
+                    : theme.warn
+            }
+          >
+            {isNoColor ? '' : `${STATUSLINE_ICONS.goal} `}
+            {goalSummary!.goal.length > 40
+              ? `${goalSummary!.goal.slice(0, 37)}…`
+              : goalSummary!.goal}{' '}
+            [{goalSummary!.goalState}] (iter {goalSummary!.iterations})
+          </Text>
+        ) : null,
+      },
       {
         id: 'todos',
         node:
@@ -530,6 +697,93 @@ export function buildWorkRowEntries(p: StatusBarRailBuildParams): RailSpanEntry[
           ) : null,
       },
       {
+        id: 'next_steps',
+        node:
+          hasNextStepsAutoSubmit &&
+          nextStepsAutoSubmitCountdown != null &&
+          showChip('next_steps') ? (
+            <>
+              <Text color={isNoColor ? undefined : nextStepsColor} bold>
+                {isNoColor
+                  ? `${nextStepsAutoSubmitCountdown}s`
+                  : `${STATUSLINE_ICONS.next_steps} ${nextStepsAutoSubmitCountdown}s`}
+              </Text>
+              <Text dimColor={!isNoColor}>
+                {' '}
+                {nextStepsAutoSubmitLabel ? formatSuggestionLabel(nextStepsAutoSubmitLabel) : ''}
+                {' · ⇥ edit'}
+              </Text>
+            </>
+          ) : null,
+      },
+      {
+        id: 'auto_proceed',
+        node:
+          hasAutoProceed && showChip('auto_proceed') ? (
+            <Text
+              color={
+                isNoColor
+                  ? undefined
+                  : autoProceedCountdown != null && autoProceedCountdown <= 5
+                    ? theme.warn
+                    : theme.accent
+              }
+            >
+              {isNoColor
+                ? `auto in ${autoProceedCountdown}s`
+                : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'enhance',
+        node: showEnhance ? (
+          <Text color={isNoColor ? undefined : countdownColor(enhanceCountdown!, 15, 5)}>
+            {isNoColor
+              ? `refined · send in ${enhanceCountdown}s`
+              : `${STATUSLINE_ICONS.enhance} refinement ready · send in ${enhanceCountdown}s`}
+          </Text>
+        ) : null,
+      },
+      {
+        id: 'dropped_tools',
+        node:
+          droppedTools && droppedTools > 0 && showChip('dropped_tools') ? (
+            <Text color={isNoColor ? undefined : theme.warn}>
+              {isNoColor ? `-${droppedTools} tools` : `${STATUSLINE_ICONS.dropped_tools} -${droppedTools}`}
+            </Text>
+          ) : null,
+      },
+    ] as Array<{ id: string; node: React.ReactElement | null }>
+  ).filter((entry): entry is RailSpanEntry => entry.node != null);
+}
+
+export function buildConnectivityChipEntries(p: StatusBarRailBuildParams): RailSpanEntry[] {
+  const {
+    showChip,
+    isNoColor,
+    fleetHasActivity,
+    fleet,
+    subagentCount,
+    showBrain,
+    brain,
+    showDebugStream,
+    debugStreamStats,
+    mailbox,
+    fleetAgents,
+    showMailbox,
+    memoryDetailChips,
+  } = p;
+  const mailboxChips = buildMailboxDetailChips(
+    mailbox,
+    showMailbox,
+    isNoColor,
+    fleetAgents,
+    showChip('fleet_agents'),
+  );
+  return (
+    [
+      {
         id: 'fleet',
         node:
           fleetHasActivity && showChip('fleet') ? (
@@ -569,6 +823,7 @@ export function buildWorkRowEntries(p: StatusBarRailBuildParams): RailSpanEntry[
             )
           ) : null,
       },
+      ...mailboxChips.map((node, i) => ({ id: i === 0 ? 'mailbox' : `detail-${i}`, node })),
       {
         id: 'brain',
         node: showBrain ? <BrainChip brain={brain!} monochrome={isNoColor} /> : null,
@@ -585,96 +840,11 @@ export function buildWorkRowEntries(p: StatusBarRailBuildParams): RailSpanEntry[
           </Text>
         ) : null,
       },
-      {
-        id: 'enhance',
-        node: showEnhance ? (
-          <Text color={isNoColor ? undefined : countdownColor(enhanceCountdown!, 15, 5)}>
-            {isNoColor
-              ? `refined · send in ${enhanceCountdown}s`
-              : `${STATUSLINE_ICONS.enhance} refinement ready · send in ${enhanceCountdown}s`}
-          </Text>
-        ) : null,
-      },
-      {
-        id: 'next_steps',
-        node:
-          hasNextStepsAutoSubmit &&
-          nextStepsAutoSubmitCountdown != null &&
-          showChip('next_steps') ? (
-            <>
-              <Text color={isNoColor ? undefined : nextStepsColor} bold>
-                {isNoColor
-                  ? `${nextStepsAutoSubmitCountdown}s`
-                  : `${STATUSLINE_ICONS.next_steps} ${nextStepsAutoSubmitCountdown}s`}
-              </Text>
-              <Text dimColor={!isNoColor}>
-                {' '}
-                {nextStepsAutoSubmitLabel ? formatSuggestionLabel(nextStepsAutoSubmitLabel) : ''}
-                {' · ⇥ edit'}
-              </Text>
-            </>
-          ) : null,
-      },
-      {
-        id: 'eternal_stage',
-        node: showEternalStage && eternalStage ? (
-          <EternalStageChip stage={eternalStage} monochrome={isNoColor} />
-        ) : null,
-      },
-      {
-        id: 'goal',
-        node: hasActiveGoal ? (
-          <Text
-            color={
-              isNoColor
-                ? undefined
-                : goalSummary!.goalState === 'abandoned'
-                  ? theme.textMuted
-                  : goalSummary!.goalState === 'active' || goalSummary!.goalState === 'completed'
-                    ? theme.success
-                    : theme.warn
-            }
-          >
-            {isNoColor ? '' : `${STATUSLINE_ICONS.goal} `}
-            {goalSummary!.goal.length > 40
-              ? `${goalSummary!.goal.slice(0, 37)}…`
-              : goalSummary!.goal}{' '}
-            [{goalSummary!.goalState}] (iter {goalSummary!.iterations})
-          </Text>
-        ) : null,
-      },
-      {
-        id: 'auto_proceed',
-        node:
-          hasAutoProceed && showChip('auto_proceed') ? (
-            <Text
-              color={
-                isNoColor
-                  ? undefined
-                  : autoProceedCountdown != null && autoProceedCountdown <= 5
-                    ? theme.warn
-                    : theme.accent
-              }
-            >
-              {isNoColor
-                ? `auto in ${autoProceedCountdown}s`
-                : `${STATUSLINE_ICONS.auto_proceed} auto in ${autoProceedCountdown}s`}
-            </Text>
-          ) : null,
-      },
-      {
-        id: 'dropped_tools',
-        node:
-          droppedTools && droppedTools > 0 ? (
-            <Text color={isNoColor ? undefined : theme.warn}>
-              {isNoColor ? `-${droppedTools} tools` : `${STATUSLINE_ICONS.tools} -${droppedTools}`}
-            </Text>
-          ) : null,
-      },
-      ...detailChips.map((node, i) => ({ id: `detail-${i}`, node })),
+      ...memoryDetailChips.map((node, i) => ({ id: `memory-${i}`, node })),
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
+
 
 export function buildIndexStatusChip(
   indexState: StatusBarProps['indexState'],
@@ -729,6 +899,9 @@ export function buildMemoryDetailChips(
   isNoColor: boolean,
 ): React.ReactElement[] {
   const memorySummary = memoryContextMonitor?.latest;
+  // No memory telemetry at all → no chips (not even the section label), so
+  // an index-only line 4 renders the index chip without a bare `✦ Memory`.
+  if (!Sage && !memorySummary) return [];
   const memoryDetailChips: React.ReactElement[] = [];
   const liveActive = memoryContextMonitor ? activeMemoryContextCount(memoryContextMonitor as never) : 0;
   const reportedActive = memoryContextMonitor ? liveActive : (Sage?.activeInContext ?? 0);

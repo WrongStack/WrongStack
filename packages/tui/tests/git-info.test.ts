@@ -3,7 +3,7 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { readGitInfo } from '../src/git-info.js';
+import { branchLabel, readGitInfo } from '../src/git-info.js';
 
 const hasGit = (() => {
   try {
@@ -15,6 +15,37 @@ const hasGit = (() => {
 })();
 
 const describeIfGit = hasGit ? describe : describe.skip;
+
+// Pure-label unit coverage needs no git binary, so it runs unconditionally —
+// this is the regression net for the SHA-256 OID length bug (regex used to
+// cap at 40 hex chars, degrading every SHA-256 repo's detached chip to the
+// literal 'detached' instead of the short OID).
+describe('branchLabel', () => {
+  it('returns the branch name when present', () => {
+    expect(branchLabel('main', 'abc1234')).toBe('main');
+  });
+
+  it('shortens a SHA-1 (40-hex) detached OID to 7 chars', () => {
+    const oid = '0123456789abcdef0123456789abcdef01234567';
+    expect(branchLabel('(detached)', oid)).toBe(oid.slice(0, 7));
+  });
+
+  it('shortens a SHA-256 (64-hex) detached OID to 7 chars', () => {
+    const oid = 'a'.repeat(64);
+    expect(branchLabel('(detached)', oid)).toBe('aaaaaaa');
+  });
+
+  it('falls back to "detached" for non-SHA sentinels', () => {
+    expect(branchLabel('(detached)', '(initial)')).toBe('detached');
+    expect(branchLabel('(detached)', '')).toBe('detached');
+    // Too short to be a plausible OID prefix.
+    expect(branchLabel('(detached)', 'abc123')).toBe('detached');
+    // Non-hex characters must never render as an OID.
+    expect(branchLabel('(detached)', 'zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz')).toBe('detached');
+    // Longer than any known object format — reject rather than truncate.
+    expect(branchLabel('(detached)', 'a'.repeat(65))).toBe('detached');
+  });
+});
 
 describeIfGit('readGitInfo', () => {
   let repoDir: string;

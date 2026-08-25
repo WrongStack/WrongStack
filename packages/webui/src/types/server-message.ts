@@ -376,6 +376,7 @@ export type WSServerMessage =
     }
   | { type: 'goal-state.updated'; payload: Record<string, unknown> | null }
   | { type: 'prefs.updated'; payload: Record<string, unknown> }
+  | { type: 'system_prompt.info'; payload: WSSystemPromptInfo }
   | { type: 'techstack.job.started'; payload: { jobId: string; kind: 'inventory' | 'analyze' } }
   | {
       type: 'techstack.job.progress';
@@ -478,6 +479,16 @@ export type WSServerMessage =
       };
     }
   | {
+      type: 'git.action_result';
+      payload: {
+        action: 'stage' | 'unstage' | 'discard' | 'commit';
+        ok: boolean;
+        paths?: string[] | undefined;
+        message?: string | undefined;
+        error?: string | undefined;
+      };
+    }
+  | {
       type: 'git.changes';
       payload: {
         files: Array<{
@@ -487,6 +498,8 @@ export type WSServerMessage =
           deleted: number;
           staged: boolean;
         }>;
+        /** Repo→project path prefix ('' when equal) — see repoRelativePrefix. */
+        repoPrefix?: string | undefined;
         error?: string | undefined;
       };
     }
@@ -933,5 +946,28 @@ export interface WSPromptJournalEntry {
 export interface WSPromptsJournalPayload {
   enabled: boolean;
   entries: WSPromptJournalEntry[];
+  error?: string | undefined;
+}
+
+/** One selectable identity-prompt size, with its upper-bound token estimate. */
+export interface WSSystemPromptVariantInfo {
+  variant: 'lite' | 'default' | 'pro';
+  label: string;
+  hint: string;
+  tokens: number;
+}
+
+/**
+ * Payload of `system_prompt.info`.
+ *
+ * `chosen` is false until the user has explicitly picked a variant at least
+ * once — the config loader materializes a default variant for every config, so
+ * this flag is the only way the browser can tell a fresh install from a
+ * deliberate "Standard" and decide whether to open the picker unprompted.
+ */
+export interface WSSystemPromptInfo {
+  current: 'lite' | 'default' | 'pro';
+  chosen: boolean;
+  variants: WSSystemPromptVariantInfo[];
   error?: string | undefined;
 }

@@ -55,7 +55,6 @@ function sidebarContentEl(contentWidth: number): ReactElement {
     <SidebarContent
       contextWindow={{ used: 48_000, max: 200_000 }}
       cacheStats={{ readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }}
-      cacheCoverageTokens={0}
       entries={ENTRIES}
       fleetCounts={{ running: 1, idle: 1, pending: 0, completed: 0 }}
       provider="anthropic"
@@ -100,7 +99,6 @@ describe('sidebar cache card frame integrity (real TTY)', () => {
                 },
               ],
             }}
-            cacheCoverageTokens={800}
             entries={ENTRIES}
             fleetCounts={{ running: 1, idle: 1, pending: 0, completed: 0 }}
             provider="minimax"
@@ -116,8 +114,9 @@ describe('sidebar cache card frame integrity (real TTY)', () => {
     );
     await settle();
     const frame = view.lines().join('\n');
-    expect(frame).toContain('minimax hit');
-    expect(frame).toContain('80.0%');
+    expect(frame).toContain('PROMPT CACHE');
+    expect(frame).toContain('read 800');
+    expect(frame).not.toContain('write');
     view.unmount();
   });
 

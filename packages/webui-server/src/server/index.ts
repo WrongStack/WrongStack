@@ -184,7 +184,16 @@ export {
   type StaticServeOptions,
   startStaticServe,
 } from './frontend-static-serve.js';
-export { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
+export {
+  handleGitChanges,
+  handleGitCommit,
+  handleGitDiff,
+  handleGitDiscard,
+  handleGitInfo,
+  handleGitStage,
+  handleGitUnstage,
+  repoRelativePrefix,
+} from './git-handlers.js';
 export { handleGoalGet } from './goal-handlers.js';
 export type { GoalRouteHandlers } from './goal-routes.js';
 // ── Additional re-exports for consumers/tests ──────────────────────────────
@@ -356,8 +365,20 @@ export {
   handleAutonomySwitch,
   handlePrefsGet,
   handlePrefsUpdate,
+  handleSystemPromptGet,
   type PrefsHandlerContext,
 } from './prefs-handlers.js';
+export {
+  buildSystemPromptInfo,
+  type SystemPromptInfoPayload,
+  type SystemPromptSurface,
+  type SystemPromptVariantInfo,
+  unavailableSystemPromptInfo,
+} from './system-prompt-handlers.js';
+export {
+  rebuildSystemPrompt,
+  type SystemPromptRebuildDeps,
+} from './system-prompt-rebuild.js';
 export {
   createPrefsRouteHandlers,
   handlePrefsRoute,

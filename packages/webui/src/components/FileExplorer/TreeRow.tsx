@@ -115,7 +115,14 @@ export const TreeRow = memo(function TreeRow({
         ) : (
           <DirIcon className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
         )}
-        <span className="truncate font-medium flex-1 min-w-0">{node.name}</span>
+        <span
+          className={cn(
+            'truncate font-medium flex-1 min-w-0',
+            gitStatus === 'M' && 'text-warning/80',
+          )}
+        >
+          {node.name}
+        </span>
         {gitStatus && <GitStatusDot status={gitStatus} />}
       </button>
     );
@@ -147,7 +154,16 @@ export const TreeRow = memo(function TreeRow({
     >
       <span className="w-3 shrink-0" />
       <Icon className={cn('h-3.5 w-3.5 shrink-0', iconColor)} />
-      <span className="truncate flex-1 min-w-0">{node.name}</span>
+      <span
+        className={cn(
+          'truncate flex-1 min-w-0',
+          !isActive && gitStatus === 'M' && 'text-warning/90',
+          !isActive && (gitStatus === 'A' || gitStatus === '?') && 'text-success/90',
+          gitStatus === 'D' && 'line-through opacity-70 text-destructive/90',
+        )}
+      >
+        {node.name}
+      </span>
       {gitStatus && <GitStatusDot status={gitStatus} />}
     </button>
   );

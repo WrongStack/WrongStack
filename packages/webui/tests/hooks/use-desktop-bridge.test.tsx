@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 // ── module stubs ────────────────────────────────────────────────────────────
 
@@ -337,7 +338,9 @@ describe('useDesktopBridge', () => {
     it('new-session starts a session and returns to chat', () => {
       mount();
       command({ action: 'new-session' });
-      expect(wsClient.newSession).toHaveBeenCalled();
+      // Routed through the system-prompt picker, same as the in-app button.
+      expect(useSystemPromptStore.getState().pickerOpen).toBe(true);
+      expect(useSystemPromptStore.getState().pickerStartsSession).toBe(true);
       expect(nav.showPanel).toHaveBeenCalledWith('chat');
     });
 

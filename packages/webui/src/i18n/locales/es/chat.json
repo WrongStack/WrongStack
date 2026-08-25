@@ -54,7 +54,9 @@
     "addQueueTitle": "añadir cola — retener hasta que termine el run actual",
     "openPromptLibrary": "Abrir biblioteca de prompts — explorar prompts prefabricados y guardados",
     "expandInput": "Expandir la entrada",
-    "collapseInput": "Contraer"
+    "collapseInput": "Contraer",
+    "startListening": "Entrada de voz (Voz a texto)",
+    "stopListening": "Escuchando... (Haz clic para detener)"
   },
   "header": {
     "openSidebarTitle": "Abrir barra lateral (Ctrl+\\)",

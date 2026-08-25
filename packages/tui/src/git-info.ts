@@ -16,9 +16,17 @@ export interface GitInfo {
  * when the directory isn't a git repository or git isn't installed —
  * the status bar just hides the git chip in that case.
  *
- * Spawns two short-lived `git` processes in parallel. Cheap enough to
- * call on a 3–5 second interval; the caller is responsible for the
- * cadence (this function is purely fire-and-result).
+ * Spawns TWO short-lived `git` processes in parallel — `status
+ * --porcelain=v2 --branch` (branch name, detached OID, untracked count) and
+ * `diff HEAD --numstat` (line counts). It used to be three: `branch
+ * --show-current` was its own spawn, plus a fourth `rev-parse --short`
+ * whenever HEAD was detached. Porcelain v2's `# branch.oid` / `# branch.head`
+ * header carries both, so those spawns are gone.
+ *
+ * Process spawn is the dominant cost here (~40-80ms each on Windows), not
+ * git's own work, so spawn count is the number that matters. The caller owns
+ * the cadence and should skip calling this when nothing has changed — see
+ * `use-git-session-status.ts`.
  */
 export async function readGitInfo(cwd: string): Promise<GitInfo | null> {
   // Folded as the child streams, never buffered. `--numstat` and
@@ -28,8 +36,10 @@ export async function readGitInfo(cwd: string): Promise<GitInfo | null> {
   let deleted = 0;
   let untracked = 0;
 
-  const [branchRes, numstatRes, statusRes] = await Promise.all([
-    runGit(cwd, ['branch', '--show-current']),
+  let branchHead = '';
+  let branchOid = '';
+
+  const [numstatRes, statusRes] = await Promise.all([
     foldGit(cwd, ['diff', 'HEAD', '--numstat'], (line) => {
       if (!line) return;
       const [a, d] = line.split('\t');
@@ -37,42 +47,47 @@ export async function readGitInfo(cwd: string): Promise<GitInfo | null> {
       if (a && a !== '-') added += Number.parseInt(a, 10) || 0;
       if (d && d !== '-') deleted += Number.parseInt(d, 10) || 0;
     }),
-    foldGit(cwd, ['status', '--porcelain'], (line) => {
-      if (line.startsWith('?? ')) untracked++;
+    foldGit(cwd, ['status', '--porcelain=v2', '--branch'], (line) => {
+      // Porcelain v2 emits its header lines first; they are the only reason
+      // we pass --branch: `# branch.head <name|(detached)>` and
+      // `# branch.oid <sha|(initial)>`.
+      if (line.startsWith('# branch.head ')) {
+        branchHead = line.slice('# branch.head '.length).trim();
+        return;
+      }
+      if (line.startsWith('# branch.oid ')) {
+        branchOid = line.slice('# branch.oid '.length).trim();
+        return;
+      }
+      // v2 marks untracked entries with a bare '? ' prefix (v1 used '?? ').
+      if (line.startsWith('? ')) untracked++;
     }),
   ]);
 
-  // If any of the three failed with a non-zero exit OR git wasn't
-  // found, we're not in a repo (or git is missing) — bail entirely.
-  // The counters above may hold partial folds; discarding them here is why
-  // they are never read on the failure path.
-  if (!branchRes.ok || !numstatRes.ok || !statusRes.ok) return null;
+  // If either failed with a non-zero exit OR git wasn't found, we're not in a
+  // repo (or git is missing) — bail entirely. The counters above may hold
+  // partial folds; discarding them here is why they are never read on the
+  // failure path.
+  if (!numstatRes.ok || !statusRes.ok) return null;
 
-  const branch = branchRes.stdout.trim();
-  // Detached HEAD: `branch --show-current` returns empty. Render the
-  // short SHA instead so the chip isn't blank.
-  const branchLabel = branch || (await detachedShortSha(cwd)) || 'detached';
-
-  return { branch: branchLabel, added, deleted, untracked };
-}
-
-async function detachedShortSha(cwd: string): Promise<string | null> {
-  const res = await runGit(cwd, ['rev-parse', '--short', 'HEAD']);
-  return res.ok ? res.stdout.trim() : null;
-}
-
-interface GitResult {
-  ok: boolean;
-  stdout: string;
+  return { branch: branchLabel(branchHead, branchOid), added, deleted, untracked };
 }
 
 /**
- * Ceiling on retained stdout for the commands whose full text we actually
- * need (`branch --show-current`, `rev-parse --short`). Both emit a single
- * short line; the cap only exists so a wedged or hostile git can't grow the
- * string without bound.
+ * Collapse porcelain v2's branch header into the chip's single label.
+ *
+ * `branch.head` is the branch name, or the literal `(detached)`. On a
+ * detached HEAD we render the short OID so the chip is never blank;
+ * `branch.oid` is `(initial)` in a repo with no commits yet, which is not a
+ * SHA and must not be shown as one. OID length depends on the repo's object
+ * format — 40 hex for SHA-1 repos, 64 for SHA-256 (`git init
+ * --object-format=sha256`) — so both bounds are accepted.
  */
-const MAX_RETAINED_STDOUT = 64 * 1024;
+export function branchLabel(head: string, oid: string): string {
+  if (head && head !== '(detached)') return head;
+  if (/^[0-9a-f]{7,64}$/.test(oid)) return oid.slice(0, 7);
+  return 'detached';
+}
 
 /**
  * Ceiling on the in-flight partial line held by {@link foldGit}. git never
@@ -83,7 +98,13 @@ const MAX_RETAINED_STDOUT = 64 * 1024;
 const MAX_LINE_CHARS = 64 * 1024;
 
 function spawnGit(cwd: string, args: string[]) {
-  return spawn('git', args, {
+  // `--no-optional-locks` is a git-level option and must precede the
+  // subcommand. Without it `git status` refreshes the stat cache by REWRITING
+  // .git/index (922KB in this repo) on every poll, and holds .git/index.lock
+  // while doing so — racing the user's own git commands and their editor's
+  // git integration. Every invocation here is a read, so that refresh is
+  // pure cost.
+  return spawn('git', ['--no-optional-locks', ...args], {
     cwd,
     env: buildChildEnv(),
     // Inherit stderr (silent) — we don't care about git's noise.
@@ -142,26 +163,6 @@ function foldGit(
       });
     } catch {
       resolve({ ok: false });
-    }
-  });
-}
-
-function runGit(cwd: string, args: string[]): Promise<GitResult> {
-  return new Promise((resolve) => {
-    let stdout = '';
-    try {
-      const child = spawnGit(cwd, args);
-      child.stdout?.setEncoding('utf8');
-      child.stdout?.on('data', (chunk: string) => {
-        if (stdout.length >= MAX_RETAINED_STDOUT) return;
-        stdout += chunk;
-      });
-      child.on('error', () => resolve({ ok: false, stdout: '' }));
-      child.on('close', (code) => {
-        resolve({ ok: code === 0, stdout });
-      });
-    } catch {
-      resolve({ ok: false, stdout: '' });
     }
   });
 }

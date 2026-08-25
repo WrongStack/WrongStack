@@ -96,6 +96,30 @@ function makeGit(cwd: string | undefined) {
 }
 
 /**
+ * Compute the repo-relative prefix for a project root, normalized to
+ * forward slashes with a trailing separator ('' when the project root IS
+ * the repo root, or either side is unknown/escapes the repo).
+ *
+ * `git status --porcelain` always reports paths relative to the REPOSITORY
+ * root, while `files.tree` node paths are relative to the PROJECT root.
+ * When a subdirectory of the repo is opened as the project (e.g.
+ * `packages/webui`), git paths like `packages/webui/src/a.ts` carry a
+ * prefix the tree never emits — every explorer git badge would silently
+ * miss. Prepending this prefix to tree-relative paths aligns the two
+ * bases; separator normalization keeps it valid on Windows where
+ * `rev-parse --show-toplevel` may print either separator style.
+ */
+export function repoRelativePrefix(repoRoot: string, projectRoot: string): string {
+  if (!repoRoot || !projectRoot) return '';
+  const rel = nodePath.relative(nodePath.normalize(repoRoot), nodePath.normalize(projectRoot));
+  if (!rel || rel === '.') return '';
+  // A project root outside the repo maps to '' — the git process would
+  // have failed in that case, yielding an empty change set anyway.
+  if (rel.startsWith('..')) return '';
+  return rel.replaceAll('\\', '/') + '/';
+}
+
+/**
  * Read the working-tree change set (everything that differs from HEAD:
  * staged, unstaged, and untracked) and broadcast a `git.changes` message.
  *
@@ -111,11 +135,18 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
   const cwd = projectRoot || undefined;
   try {
     const git = makeGit(cwd);
-    const [statusRaw, unstagedNumstat, stagedNumstat] = await Promise.all([
+    const [statusRaw, unstagedNumstat, stagedNumstat, toplevelRaw] = await Promise.all([
       git(['status', '--porcelain', '-z']),
       git(['diff', '--numstat', '-z']),
       git(['diff', '--cached', '--numstat', '-z']),
+      git(['rev-parse', '--show-toplevel']),
     ]);
+    // Porcelain paths are repo-root-relative; tree paths are
+    // project-root-relative. Send the mapping prefix so the client does
+    // not have to guess (see repoRelativePrefix). The trim matters: this
+    // git helper (unlike handleGitInfo's) does not strip the trailing
+    // newline rev-print emits, and a "\n" suffix breaks path.relative.
+    const repoPrefix = repoRelativePrefix(toplevelRaw.trim(), projectRoot);
 
     // numstat -z format: "<added>\t<deleted>\t<path>\0" per entry. For a rename
     // git emits "<added>\t<deleted>\0<oldpath>\0<newpath>\0" (path field empty,
@@ -182,11 +213,11 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
       files.push({ path, status, added, deleted, staged });
     }
 
-    send(ws, { type: 'git.changes', payload: { files } });
+    send(ws, { type: 'git.changes', payload: { files, repoPrefix } });
   } catch (err) {
     send(ws, {
       type: 'git.changes',
-      payload: { files: [], error: err instanceof Error ? err.message : String(err) },
+      payload: { files: [], repoPrefix: '', error: err instanceof Error ? err.message : String(err) },
     });
   }
 }
@@ -219,13 +250,26 @@ export async function handleGitDiff(
     const { readFile } = await import('node:fs/promises');
     const { join } = await import('node:path');
 
+    // The client sends REPO-relative paths (the git.changes shape). The
+    // `git show HEAD:<path>` rev syntax is itself repo-root-relative from
+    // any cwd, so the original path is correct there — but the working-
+    // tree readFile joins against projectRoot and would double-nest in a
+    // subdirectory project (`<project>/packages/webui/packages/webui/…`),
+    // making every file read as deleted. Translate ONLY the read side.
+    const prefix = await currentRepoPrefix(projectRoot);
+    if (prefix && !path.startsWith(prefix)) {
+      reply({ oldText: '', newText: '', error: 'path outside project root' });
+      return;
+    }
+    const treePath = prefix ? path.slice(prefix.length) : path;
+
     // HEAD version. `git show` writes nothing for a path absent at HEAD.
     const oldText = await git(['show', `HEAD:${path}`]);
 
     // Working-tree version (absent → deleted file → empty).
     let newText = '';
     try {
-      const abs = cwd ? join(cwd, path) : path;
+      const abs = cwd ? join(cwd, treePath) : treePath;
       let readPath = abs;
       if (cwd) {
         const { realpath } = await import('node:fs/promises');
@@ -282,4 +326,250 @@ export async function handleGitDiff(
   } catch (err) {
     reply({ oldText: '', newText: '', error: err instanceof Error ? err.message : String(err) });
   }
+}
+
+async function execGit(
+  cwd: string | undefined,
+  args: string[],
+): Promise<{ ok: boolean; stdout: string; stderr: string; error?: string }> {
+  const { execFile: ef } = await import('node:child_process');
+  return new Promise((resolve) => {
+    ef(
+      'git',
+      args,
+      { cwd, timeout: 10000, maxBuffer: 1024 * 1024 * 16 },
+      (err: Error | null, stdout: string, stderr: string) => {
+        if (err) {
+          resolve({ ok: false, stdout: stdout || '', stderr: stderr || '', error: err.message });
+        } else {
+          resolve({ ok: true, stdout: stdout || '', stderr: stderr || '' });
+        }
+      },
+    );
+  });
+}
+
+/**
+ * Lexical safety for a RELATIVE pathspec. The `..` check is SEGMENT-based,
+ * not substring: `release..notes.md` is a legal filename (two dots inside
+ * one segment), while `a/../b` traverses. Empty segments (`foo//bar`, a
+ * trailing `/`) are NOT unsafe — they are paste artifacts that
+ * {@link normalizePathspec} collapses; rejecting them turned valid client
+ * payloads into hard errors. Absolute, NUL, and leading-dash paths are
+ * rejected outright.
+ */
+function isUnsafeRelativePath(p: string): boolean {
+  if (!p || typeof p !== 'string' || p.includes('\0') || nodePath.isAbsolute(p) || p.startsWith('-')) {
+    return true;
+  }
+  return p.replaceAll('\\', '/').split('/').some((seg) => seg === '..');
+}
+
+/** Collapse `//` runs and trailing separators into a clean git pathspec. */
+function normalizePathspec(p: string): string {
+  const collapsed = p.replaceAll('\\', '/').replace(/\/+/g, '/').replace(/\/+$/, '');
+  return collapsed || '.';
+}
+
+function validateAndFilterPaths(projectRoot: string, paths: string[]): { safe: string[]; error?: string } {
+  const safe: string[] = [];
+  const root = nodePath.resolve(projectRoot || '.');
+  for (const p of paths) {
+    if (isUnsafeRelativePath(p)) {
+      return { safe: [], error: `Invalid or unsafe path: ${p}` };
+    }
+    const abs = nodePath.resolve(root, p);
+    if (!isPathInside(root, abs)) {
+      return { safe: [], error: `Path outside project root: ${p}` };
+    }
+    safe.push(p);
+  }
+  return { safe };
+}
+
+/**
+ * Repo→project prefix for the CURRENT repository ('' when projectRoot is
+ * the repo root, or git is unavailable / not a repo). Costs one rev-parse.
+ */
+async function currentRepoPrefix(projectRoot: string): Promise<string> {
+  const res = await execGit(projectRoot || undefined, ['rev-parse', '--show-toplevel']);
+  if (!res.ok) return '';
+  return repoRelativePrefix(res.stdout.trim(), projectRoot);
+}
+
+/**
+ * Translate REPO-relative pathspecs (the shape `git.changes` emits and the
+ * Changes panel sends back) into pathspecs relative to `projectRoot`, the
+ * cwd every path-consuming git action executes with.
+ *
+ * When a repo subdirectory is opened as the project, a repo-relative path
+ * like `packages/webui/a.ts` resolved against projectRoot double-nests
+ * (`<project>/packages/webui/packages/webui/a.ts`) — stage/unstage/discard
+ * then fail or silently no-op. Stripping the server-computed prefix aligns
+ * the pathspec with the execution cwd.
+ *
+ * Translation (not executing from the repo root) is deliberate: mutating
+ * files outside the opened project would widen the client's write surface,
+ * against this server's containment posture — a repo-relative path that
+ * does not carry the prefix is rejected, same message as the lexical check.
+ */
+async function translateRepoPathspecs(
+  projectRoot: string,
+  paths: string[],
+): Promise<{ safe: string[]; originals: string[]; error?: string }> {
+  for (const p of paths) {
+    if (isUnsafeRelativePath(p)) {
+      return { safe: [], originals: [], error: `Invalid or unsafe path: ${p}` };
+    }
+  }
+  const prefix = await currentRepoPrefix(projectRoot);
+  const translated: string[] = [];
+  for (const raw of paths) {
+    const p = normalizePathspec(raw);
+    if (prefix) {
+      // SEGMENT boundary, not raw string prefix: `packages/webui` (the
+      // project directory itself, no trailing separator) must still match
+      // `packages/webui/` — a plain startsWith(prefix) rejected it as
+      // "outside project root".
+      const dir = prefix.slice(0, -1);
+      if (p !== dir && !p.startsWith(prefix)) {
+        return { safe: [], originals: [], error: `Path outside project root: ${raw}` };
+      }
+    }
+    // Slicing the exact directory yields '' — stage the whole project.
+    translated.push(prefix ? (p.slice(prefix.length) || '.') : p);
+  }
+  const validation = validateAndFilterPaths(projectRoot, translated);
+  if (validation.error) return { safe: [], originals: [], error: validation.error };
+  return { safe: validation.safe, originals: paths };
+}
+
+export async function handleGitStage(
+  ws: WebSocket,
+  projectRoot: string,
+  paths: string[],
+): Promise<void> {
+  const cwd = projectRoot || undefined;
+  const { safe, originals, error } = await translateRepoPathspecs(projectRoot, paths);
+  if (error) {
+    send(ws, { type: 'git.action_result', payload: { action: 'stage', ok: false, error } });
+    return;
+  }
+
+  // Intentional empty array = "stage all" (ChangesPanel sends []). The
+  // explicit `.` pathspec matters in a subdirectory project: since Git 2.0,
+  // bare `git add -A` stages the ENTIRE repository from any cwd — escaping
+  // the opened project. `.` limits the sweep to the execution cwd.
+  const args = safe.length === 0 ? ['add', '-A', '--', '.'] : ['add', '--', ...safe];
+  const res = await execGit(cwd, args);
+  if (!res.ok) {
+    send(ws, { type: 'git.action_result', payload: { action: 'stage', ok: false, error: res.stderr || res.error || 'git add failed' } });
+    return;
+  }
+
+  send(ws, { type: 'git.action_result', payload: { action: 'stage', ok: true, paths: originals } });
+  await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
+}
+
+export async function handleGitUnstage(
+  ws: WebSocket,
+  projectRoot: string,
+  paths: string[],
+): Promise<void> {
+  const cwd = projectRoot || undefined;
+  const { safe, originals, error } = await translateRepoPathspecs(projectRoot, paths);
+  if (error) {
+    send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: false, error } });
+    return;
+  }
+
+  // `.` keeps the no-path unstage contained to the execution cwd (same
+  // subdirectory rationale as the stage-all pathspec above).
+  const args =
+    safe.length === 0
+      ? ['restore', '--staged', '--', '.']
+      : ['restore', '--staged', '--', ...safe];
+  const res = await execGit(cwd, args);
+  if (!res.ok) {
+    send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: false, error: res.stderr || res.error || 'git unstage failed' } });
+    return;
+  }
+
+  send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: true, paths: originals } });
+  await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
+}
+
+export async function handleGitDiscard(
+  ws: WebSocket,
+  projectRoot: string,
+  paths: string[],
+): Promise<void> {
+  const cwd = projectRoot || undefined;
+  if (!paths || paths.length === 0) {
+    send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error: 'Explicit path required for discard' } });
+    return;
+  }
+  const { safe, originals, error } = await translateRepoPathspecs(projectRoot, paths);
+  if (error) {
+    send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error } });
+    return;
+  }
+
+  // Restore modified/deleted tracked files, then clean untracked ones.
+  // Results are checked: reporting ok:true while the repo is locked (or a
+  // pathspec is invalid) leaves the UI claiming a discard that never
+  // happened. "did not match" is EXPECTED in both directions — restore
+  // says it for an untracked path (clean handles those), clean says it for
+  // a tracked-only pathspec.
+  // Restore runs PER PATH, not batched: with a mixed batch (one tracked +
+  // one untracked pathspec) a single `git restore` invocation fails
+  // wholesale on the untracked name and the TRACKED sibling never gets
+  // restored — while the handler still reported ok:true. Per-path calls
+  // make each file's outcome independent. Discard is an explicit user
+  // action on a small path set, so the extra invocations are fine.
+  const benign = /not removing|no such file or directory|did not match/i;
+  for (const p of safe) {
+    const r = await execGit(cwd, ['restore', '--', p]);
+    if (!r.ok && !benign.test(r.stderr)) {
+      send(ws, {
+        type: 'git.action_result',
+        payload: {
+          action: 'discard',
+          ok: false,
+          error: `${p}: ${r.stderr || r.error || 'git restore failed'}`,
+        },
+      });
+      return;
+    }
+  }
+  const cleanRes = await execGit(cwd, ['clean', '-fd', '--', ...safe]);
+  if (!cleanRes.ok && !benign.test(cleanRes.stderr)) {
+    send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error: cleanRes.stderr || cleanRes.error || 'git clean failed' } });
+    return;
+  }
+
+  send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: true, paths: originals } });
+  await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
+}
+
+export async function handleGitCommit(
+  ws: WebSocket,
+  projectRoot: string,
+  message: string,
+): Promise<void> {
+  const cwd = projectRoot || undefined;
+  const trimmed = message?.trim();
+  if (!trimmed) {
+    send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: false, error: 'Commit message cannot be empty' } });
+    return;
+  }
+
+  const res = await execGit(cwd, ['commit', '-m', trimmed, '--', '.']);
+  if (!res.ok) {
+    send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: false, error: res.stderr || res.error || 'git commit failed' } });
+    return;
+  }
+
+  send(ws, { type: 'git.action_result', payload: { action: 'commit', ok: true, message: trimmed } });
+  await Promise.all([handleGitChanges(ws, projectRoot), handleGitInfo(ws, projectRoot)]);
 }

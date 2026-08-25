@@ -106,6 +106,22 @@ describe('rewriteBaseUrl', () => {
     expect(rewriteBaseUrl('not a url', 'http://localhost:3444')).toBe('not a url');
   });
 
+  it('does NOT throw on a scheme-but-unparseable original — returns it unchanged (regression: unguarded new URL in composeRewrittenUrl)', () => {
+    // These contain '://' so isProxyEligibleForRewrite's early checks pass
+    // (and its own new URL() catch deliberately falls through to
+    // "eligible"), but Node's WHATWG parser rejects them — previously the
+    // unguarded new URL() in composeRewrittenUrl threw, violating the
+    // module contract that a misconfigured URL must never hard-fail
+    // provider construction.
+    const malformed = ['https://[::1', 'http://exa mple.com/v1'];
+    for (const url of malformed) {
+      // Sanity: the input really is unparseable (test invalid if Node
+      // ever starts accepting these).
+      expect(() => new URL(url)).toThrow();
+      expect(rewriteBaseUrl(url, 'http://localhost:3444')).toBe(url);
+    }
+  });
+
   it('returns the original when the proxy URL is malformed', () => {
     expect(rewriteBaseUrl('https://api.openai.com/v1', 'no-scheme')).toBe(
       'https://api.openai.com/v1',

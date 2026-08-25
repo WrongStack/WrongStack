@@ -54,7 +54,9 @@
     "addQueueTitle": "zur Warteschlange — halten bis der aktuelle Run endet",
     "openPromptLibrary": "Prompt-Bibliothek öffnen — vorgefertigte und gespeicherte Prompts durchsuchen",
     "expandInput": "Eingabe erweitern",
-    "collapseInput": "Einklappen"
+    "collapseInput": "Einklappen",
+    "startListening": "Spracheingabe (Speech to text)",
+    "stopListening": "Zuhören... (Zum Stoppen klicken)"
   },
   "header": {
     "openSidebarTitle": "Seitenleiste öffnen (Ctrl+\\)",

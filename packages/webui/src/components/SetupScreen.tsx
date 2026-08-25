@@ -35,6 +35,7 @@ import { formatSetupRelativeTime } from './SetupScreen/relative-time';
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 import { ProviderKeyCard } from './SetupScreen/ProviderKeyCard';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import type {
   CatalogModel,
   CatalogProvider,
@@ -304,7 +305,11 @@ export function SetupScreen() {
     const wsClient = getWSClient(wsUrl);
     const result = await wsClient.switchModel(selectedProvider, selectedModel, 5_000);
     if (result.success) {
-      wsClient.newSession();
+      // First run in the truest sense: provider and model are settled, so the
+      // last thing left to size is the system prompt. The picker starts the
+      // session on confirm, and marks the question asked so App's first-run
+      // effect does not raise it a second time.
+      useSystemPromptStore.getState().openPicker({ startsSession: true });
       showPanel('chat');
     } else {
       toast.error(result.message || i18n.t('setup:screen.errors.modelSwitchTimeout'));

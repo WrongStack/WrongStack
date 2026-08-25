@@ -3412,7 +3412,9 @@
     "dismiss": "Ignora",
     "run": "Esegui",
     "wstackUpdate": "wstack update",
-    "orYourPackageManagerToUpgrade": "(o il tuo gestore di pacchetti) per aggiornare."
+    "orYourPackageManagerToUpgrade": "(o il tuo gestore di pacchetti) per aggiornare.",
+    "refresh": "Aggiorna",
+    "newBuildReady": "Nuova build pronta. Cache svuotata."
   },
   "depGraph": {
     "prioCrit": "Crit.",
@@ -3580,5 +3582,17 @@
       "clarify_interaction": "Interazione di chiarimento",
       "subagent_delegation": "Delega a sub-agente"
     }
+  },
+  "systemPrompt": {
+    "title": "Prompt di sistema",
+    "description": "Scegli quante istruzioni integrate riceve l'agente. Un prompt più grande consuma token a ogni richiesta.",
+    "firstRunDescription": "Scegli una dimensione del prompt di sistema prima del primo messaggio. Un prompt più grande consuma token a ogni richiesta.",
+    "tokens": "~{{count}} token",
+    "current": "Attuale",
+    "apply": "Applica",
+    "applyAndStart": "Applica e avvia sessione",
+    "cancel": "Annulla",
+    "unavailable": "La selezione del prompt di sistema non è disponibile su questo server.",
+    "openTitle": "Scegli la dimensione del prompt di sistema"
   }
 }

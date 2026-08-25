@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -154,5 +154,97 @@ describe('Chronicle file observer I/O', () => {
     }
     await observer.close();
     expect(journal.stats().persistedEvents).toBe(1);
+  });
+  it('commits a reconcile burst through appendBatch as ONE call', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-io-'));
+    tempDirs.push(root);
+    for (const name of ['a.ts', 'b.ts', 'c.ts', 'd.ts']) {
+      await writeFile(path.join(root, name), `export const ${name[0]} = 1;\n`);
+    }
+    const journal = new ChronicleJournal({
+      filePath: path.join(root, '.wrongstack', 'chronicle.jsonl'),
+    });
+    // A sink that exposes the optional batch entry point, like the project
+    // server's watcherSink does. Every event must arrive in one call: the
+    // SQLite journal opens a transaction (and at synchronous=FULL, fsyncs)
+    // per append, so one call per changed file is what this guards against.
+    const batchSizes: number[] = [];
+    const sink = {
+      append: (input: Parameters<typeof journal.append>[0]) => journal.append(input),
+      appendBatch: async (inputs: readonly Parameters<typeof journal.append>[0][]) => {
+        batchSizes.push(inputs.length);
+        return Promise.all(inputs.map((input) => journal.append(input)));
+      },
+      flush: () => journal.flush(),
+      stats: () => journal.stats(),
+    };
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal: sink,
+      context,
+      debounceMs: 5,
+      minFullRescanIntervalMs: 0,
+    });
+
+    await Promise.all(
+      ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map((name) =>
+        writeFile(path.join(root, name), `export const ${name[0]} = 2;\n`),
+      ),
+    );
+    io.onWatch?.('change', null);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await observer.close();
+
+    expect(batchSizes).toEqual([4]);
+  });
+
+  it('pairs delete+create renames by content hash, not by rescanning', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-io-'));
+    tempDirs.push(root);
+    // Two distinct contents, so a correct pairing cannot be reached by luck.
+    await writeFile(path.join(root, 'one.ts'), 'export const one = 1;\n');
+    await writeFile(path.join(root, 'two.ts'), 'export const two = 2;\n');
+    const journal = new ChronicleJournal({
+      filePath: path.join(root, '.wrongstack', 'chronicle.jsonl'),
+    });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal,
+      context,
+      debounceMs: 5,
+      minFullRescanIntervalMs: 0,
+    });
+
+    await rename(path.join(root, 'one.ts'), path.join(root, 'one-moved.ts'));
+    await rename(path.join(root, 'two.ts'), path.join(root, 'two-moved.ts'));
+    io.onWatch?.('change', null);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    await observer.close();
+
+    const lines = (await readFile(path.join(root, '.wrongstack', 'chronicle.jsonl'), 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            eventType: string;
+            resource: { path: string };
+            attributes: Record<string, unknown>;
+          },
+      );
+    const renames = lines.filter((line) => line.eventType === 'file.external.renamed');
+    // Assert the actual pairing, not just that two renames happened: a crossed
+    // match (one.ts -> two-moved.ts) would satisfy a count-only check.
+    expect(
+      renames.map((r) => `${String(r.attributes['previousPath'])}=>${r.resource.path}`).sort(),
+    ).toEqual(['one.ts=>one-moved.ts', 'two.ts=>two-moved.ts']);
   });
 });

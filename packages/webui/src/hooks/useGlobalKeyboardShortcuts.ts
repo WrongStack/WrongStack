@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
-import { useChatStore, useConfigStore, useUIStore } from '@/stores';
+import { useChatStore, useConfigStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
 import { ACTIVITY_SHORTCUT_BY_KEY, navigateToView, openMainView, openPanel, showPanel } from '@/components/activity-bar/nav';
 import { downloadChatAsMarkdown } from '@/components/CommandPalette';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 export interface UseGlobalKeyboardShortcutsOptions {
   toggleSidebar: () => void;
@@ -72,6 +73,29 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
         e.preventDefault();
         openPanel('worktrees');
         return;
+      }
+      // Ctrl+Shift+E — toggle / focus File Explorer (VS Code parity)
+      if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        openPanel('chat');
+        return;
+      }
+      // Ctrl+Shift+F — open global search dialog
+      if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setSearchOpen(true);
+        return;
+      }
+      // Alt+1..9 — jump directly to open session tab (browser / multiplexer parity)
+      if (e.altKey && !mod && !e.shiftKey && /^[1-9]$/.test(e.key)) {
+        const idx = Number(e.key) - 1;
+        const entries = useHistoryStore.getState().entries;
+        const target = entries[idx];
+        if (target && target.id !== useSessionStore.getState().session?.id) {
+          e.preventDefault();
+          getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(target.id);
+          return;
+        }
       }
       // F1..F12 — browser equivalents of the TUI function-key panels.
       // These are skipped while typing so editor/text-input conventions keep
@@ -158,7 +182,7 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
           getWSClient(useConfigStore.getState().wsUrl)?.clearContext?.();
         } else if (e.key.toLowerCase() === 'n') {
           e.preventDefault();
-          getWSClient(useConfigStore.getState().wsUrl)?.newSession?.();
+          useSystemPromptStore.getState().openPicker({ startsSession: true });
           showPanel('chat');
         } else if (e.key.toLowerCase() === 'e') {
           e.preventDefault();

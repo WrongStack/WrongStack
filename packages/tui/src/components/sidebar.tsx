@@ -103,28 +103,6 @@ export interface RightSidebarProps {
  * below can use box-drawing characters in their own headers without any
  * glyph collision.
  */
-function SidebarRibbon({
-  width,
-  focused,
-}: {
-  width: number;
-  focused: boolean;
-}): React.ReactElement {
-  // The "SIDE RAIL" title was redundant — every card already names itself
-  // (MODEL CORE, PROMPT CACHE, SYSTEM, …), so the rail itself doesn't need
-  // a label. Keep just a single focused/unfocused pulse dot so the user
-  // can see the rail is "live" without consuming a row of chrome.
-  const dot = focused ? glyphs.pulseHigh : glyphs.pulseMid;
-  const dotColor = focused ? theme.success : theme.accent;
-  return (
-    <Box width={width} flexShrink={0}>
-      <Text color={dotColor} bold>
-        {dot}
-      </Text>
-    </Box>
-  );
-}
-
 /** Hairline + key hint that anchors the bottom of the rail on focus. */
 function SidebarFooter({
   width,
@@ -136,7 +114,7 @@ function SidebarFooter({
   if (!focused) {
     return (
       <Box width={width} flexShrink={0}>
-        <Text color={theme.accent} bold>
+        <Text color={theme.borderSubtle}>
           {glyphs.dividerDash.repeat(Math.max(0, width))}
         </Text>
       </Box>
@@ -168,13 +146,11 @@ export function RightSidebar({
   // Hide entirely on narrow terminals.
   if (resolvedWidth === 0) return null;
 
-  // Subtract the rail chrome (ribbon = 2 rows, footer = 1 row) from the
-  // requested max height so the inner bordered shell + its contents fit.
-  const innerHeight = maxHeight === undefined ? undefined : Math.max(0, maxHeight - 3);
+  // Subtract footer (1 row) from max height when present.
+  const innerHeight = maxHeight === undefined ? undefined : Math.max(0, maxHeight - 1);
 
   return (
     <Box flexDirection="column" flexShrink={0}>
-      <SidebarRibbon width={resolvedWidth} focused={focused} />
       <Box
         flexDirection="column"
         width={resolvedWidth}
@@ -189,11 +165,6 @@ export function RightSidebar({
             <Text color={theme.textMuted} wrap="truncate">
               SIDEBAR
             </Text>
-            {focused ? (
-              <Text color={theme.borderActive} bold>
-                [FOCUS]
-              </Text>
-            ) : null}
           </Box>
         )}
       </Box>

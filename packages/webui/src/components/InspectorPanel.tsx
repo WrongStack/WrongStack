@@ -8,7 +8,7 @@
  * task, node and message detail surfaces can join the same shell next.
  */
 
-import { Activity, Bot, PanelRightOpen, Scale, Users, X } from 'lucide-react';
+import { Activity, Bot, ChevronLeft, Columns3, PanelRightOpen, Scale, Users, X } from 'lucide-react';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   EventTimeline,
@@ -21,7 +21,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { openPanel } from '@/components/activity-bar/nav';
 import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
-import { useCouncilLogStore, useFleetStore, useSideEffectStore, useUIStore } from '@/stores';
+import { useCouncilLogStore, useFleetStore, useKanbanStore, useSideEffectStore, useUIStore } from '@/stores';
 import { AgentCard } from './AgentCard';
 import { FleetAgentRow } from '@/components/ui/fleet-agent-row';
 import { CouncilLogTimeline } from './CouncilLogTimeline';
@@ -159,6 +159,9 @@ export function InspectorPanel() {
     }
   }, [inspectorFocusedAgentId, inspectorOpen, setInspectorTab, setInspectorFocusedAgentId]);
 
+  const inspectorTarget = useUIStore((s) => s.inspectorTarget);
+  const openInspectorTarget = useUIStore((s) => s.openInspectorTarget);
+
   return (
     <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen} modal={false}>
       <SheetContent
@@ -175,110 +178,220 @@ export function InspectorPanel() {
         }}
         className="flex w-[calc(100vw-3rem)] max-w-none flex-col gap-0 overflow-hidden border-l border-border/80 bg-card/96 p-0 shadow-[-24px_0_64px_-36px_hsl(var(--shadow-color)/0.65)] backdrop-blur-xl sm:w-[min(680px,48vw)] sm:max-w-[680px]"
       >
-        <SheetHeader className="relative gap-1 border-b border-border/70 bg-muted/20 px-4 py-3 pr-12">
-          <SheetTitle className="flex items-center gap-2 text-sm">
-            <PanelRightOpen className="h-4 w-4 text-primary" />
-            {t('activity:inspector.label')}
-          </SheetTitle>
-          <SheetDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
-            {fleetTotal > 0 ? (
-              <>
-                <span className="inline-flex items-center gap-1">
-                  <span
-                    className={cn(
-                      'h-1.5 w-1.5 rounded-full',
-                      runningCount > 0 ? 'bg-success animate-pulse' : 'bg-muted-foreground/50',
-                    )}
-                  />
-                  <span className="tabular-nums">
-                    {runningCount}/{fleetTotal}
-                  </span>
-                </span>
-                <span className="font-mono tabular-nums">
-                  ↓{fmtTok(fleetTokensIn)} ↑{fmtTok(fleetTokensOut)} · {fmtCost(totalCost)}
-                </span>
-              </>
-            ) : (
-              <span>{t('activity:inspector.agentsAppearHint')}</span>
-            )}
-          </SheetDescription>
-          <SheetClose asChild>
-            <button
-              type="button"
-              data-testid="inspector-close"
-              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label={t('activity:inspector.collapseAria')}
-              title={t('activity:inspector.collapseTitle')}
+        {inspectorTarget?.kind === 'task' ? (
+          <>
+            <SheetHeader className="relative gap-1 border-b border-border/70 bg-muted/20 px-4 py-3 pr-12">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openInspectorTarget({ kind: 'fleet', tab: 'fleet' })}
+                  className="inline-flex h-6 items-center gap-1 rounded px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  title="Back to Fleet"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  <span>Fleet</span>
+                </button>
+                <span className="text-muted-foreground/40">/</span>
+                <SheetTitle className="flex items-center gap-1.5 text-sm font-semibold truncate">
+                  <Columns3 className="h-4 w-4 text-primary shrink-0" />
+                  <span className="truncate">{inspectorTarget.title || inspectorTarget.taskId}</span>
+                </SheetTitle>
+              </div>
+              <SheetDescription className="text-[11px] font-mono text-muted-foreground truncate">
+                Task ID: {inspectorTarget.taskId} {inspectorTarget.boardId ? `· Board: ${inspectorTarget.boardId}` : ''}
+              </SheetDescription>
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  data-testid="inspector-close"
+                  className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={t('activity:inspector.collapseAria')}
+                  title={t('activity:inspector.collapseTitle')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </SheetClose>
+            </SheetHeader>
+
+            <TaskInspectorContent
+              taskId={inspectorTarget.taskId}
+              boardId={inspectorTarget.boardId}
+              onBack={() => openInspectorTarget({ kind: 'fleet', tab: 'fleet' })}
+            />
+          </>
+        ) : (
+          <>
+            <SheetHeader className="relative gap-1 border-b border-border/70 bg-muted/20 px-4 py-3 pr-12">
+              <SheetTitle className="flex items-center gap-2 text-sm">
+                <PanelRightOpen className="h-4 w-4 text-primary" />
+                {t('activity:inspector.label')}
+              </SheetTitle>
+              <SheetDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                {fleetTotal > 0 ? (
+                  <>
+                    <span className="inline-flex items-center gap-1">
+                      <span
+                        className={cn(
+                          'h-1.5 w-1.5 rounded-full',
+                          runningCount > 0 ? 'bg-success animate-pulse' : 'bg-muted-foreground/50',
+                        )}
+                      />
+                      <span className="tabular-nums">
+                        {runningCount}/{fleetTotal}
+                      </span>
+                    </span>
+                    <span className="font-mono tabular-nums">
+                      ↓{fmtTok(fleetTokensIn)} ↑{fmtTok(fleetTokensOut)} · {fmtCost(totalCost)}
+                    </span>
+                  </>
+                ) : (
+                  <span>{t('activity:inspector.agentsAppearHint')}</span>
+                )}
+              </SheetDescription>
+              <SheetClose asChild>
+                <button
+                  type="button"
+                  data-testid="inspector-close"
+                  className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={t('activity:inspector.collapseAria')}
+                  title={t('activity:inspector.collapseTitle')}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </SheetClose>
+            </SheetHeader>
+
+            <Tabs
+              value={inspectorTab}
+              onValueChange={(value) => setInspectorTab(value as InspectorTab)}
+              className="flex min-h-0 flex-1 flex-col"
             >
-              <X className="h-4 w-4" />
-            </button>
-          </SheetClose>
-        </SheetHeader>
+              <TabsList
+                className="flex h-10 min-h-10 shrink-0 justify-start gap-1 border-x-0 border-t-0 border-b border-border/70 bg-muted/30 p-2 shadow-none"
+                aria-label={t('activity:inspector.label')}
+              >
+                <TabButton
+                  value="fleet"
+                  icon={<Bot className="h-3.5 w-3.5" />}
+                  label={t('activity:inspector.tabFleet')}
+                  count={fleetTotal}
+                  running={runningCount}
+                />
+                <TabButton
+                  value="agents"
+                  icon={<Users className="h-3.5 w-3.5" />}
+                  label={t('activity:inspector.tabAgents')}
+                  count={fleetTotal}
+                />
+                <TabButton
+                  value="sideEffects"
+                  icon={<Activity className="h-3.5 w-3.5" />}
+                  label={t('activity:inspector.tabAudit')}
+                  count={sideEffectCount}
+                />
+                <TabButton
+                  value="council"
+                  icon={<Scale className="h-3.5 w-3.5" />}
+                  label={t('activity:inspector.tabCouncil', { defaultValue: 'Council' })}
+                  count={councilCount}
+                  running={councilVotingCount}
+                />
+              </TabsList>
 
-        <Tabs
-          value={inspectorTab}
-          onValueChange={(value) => setInspectorTab(value as InspectorTab)}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <TabsList
-            className="flex h-10 min-h-10 shrink-0 justify-start gap-1 border-x-0 border-t-0 border-b border-border/70 bg-muted/30 p-2 shadow-none"
-            aria-label={t('activity:inspector.label')}
-          >
-            <TabButton
-              value="fleet"
-              icon={<Bot className="h-3.5 w-3.5" />}
-              label={t('activity:inspector.tabFleet')}
-              count={fleetTotal}
-              running={runningCount}
-            />
-            <TabButton
-              value="agents"
-              icon={<Users className="h-3.5 w-3.5" />}
-              label={t('activity:inspector.tabAgents')}
-              count={fleetTotal}
-            />
-            <TabButton
-              value="sideEffects"
-              icon={<Activity className="h-3.5 w-3.5" />}
-              label={t('activity:inspector.tabAudit')}
-              count={sideEffectCount}
-            />
-            <TabButton
-              value="council"
-              icon={<Scale className="h-3.5 w-3.5" />}
-              label={t('activity:inspector.tabCouncil', { defaultValue: 'Council' })}
-              count={councilCount}
-              running={councilVotingCount}
-            />
-          </TabsList>
-
-          <TabsContent value="fleet" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-            <FleetTabContent
-              fleetList={fleetList}
-              leaderId={leaderId}
-              selectedAgentId={selectedAgentId}
-              eventTimeline={eventTimeline}
-              onSelectAgent={handleSelectAgent}
-            />
-          </TabsContent>
-          <TabsContent value="agents" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-            <AgentsTabContent
-              fleetList={fleetList}
-              selectedAgent={selectedAgent}
-              leaderId={leaderId}
-              selectedAgentId={selectedAgent?.id ?? null}
-              onSelectAgent={setSelectedAgentId}
-            />
-          </TabsContent>
-          <TabsContent value="sideEffects" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-            <SideEffectTimeline />
-          </TabsContent>
-          <TabsContent value="council" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
-            <CouncilLogTimeline />
-          </TabsContent>
-        </Tabs>
+              <TabsContent value="fleet" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+                <FleetTabContent
+                  fleetList={fleetList}
+                  leaderId={leaderId}
+                  selectedAgentId={selectedAgentId}
+                  eventTimeline={eventTimeline}
+                  onSelectAgent={handleSelectAgent}
+                />
+              </TabsContent>
+              <TabsContent value="agents" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+                <AgentsTabContent
+                  fleetList={fleetList}
+                  selectedAgent={selectedAgent}
+                  leaderId={leaderId}
+                  selectedAgentId={selectedAgent?.id ?? null}
+                  onSelectAgent={setSelectedAgentId}
+                />
+              </TabsContent>
+              <TabsContent value="sideEffects" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+                <SideEffectTimeline />
+              </TabsContent>
+              <TabsContent value="council" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+                <CouncilLogTimeline />
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function TaskInspectorContent({
+  taskId,
+  boardId: _boardId,
+  onBack,
+}: {
+  taskId: string;
+  boardId?: string | undefined;
+  onBack: () => void;
+}) {
+  const activeBoard = useKanbanStore((s) => s.activeBoard);
+  const task = useMemo(() => {
+    return activeBoard?.tasks.find((t) => t.id === taskId) ?? null;
+  }, [activeBoard, taskId]);
+
+  if (!task) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground p-4">
+        <Columns3 className="h-8 w-8 mb-2 opacity-30 text-primary" />
+        <p className="text-xs font-medium">Task details ({taskId})</p>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Select a task from Kanban or SDD to inspect full parameters.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="mt-4 px-3 py-1 text-xs rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
+        >
+          Back to Fleet
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain p-4 space-y-4">
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono text-muted-foreground uppercase">{task.id}</span>
+          <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary uppercase">
+            {task.columnId || 'todo'}
+          </span>
+        </div>
+        <h3 className="text-sm font-semibold text-foreground">{task.title}</h3>
+      </div>
+
+      {task.description && (
+        <div className="rounded-md border border-border/70 bg-muted/30 p-3 text-xs text-foreground/90 whitespace-pre-wrap">
+          {task.description}
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded border border-border/60 p-2 bg-card/40">
+          <div className="text-[10px] uppercase text-muted-foreground font-semibold">Priority</div>
+          <div className="font-mono text-xs text-foreground mt-0.5 capitalize">{task.priority || 'Medium'}</div>
+        </div>
+        <div className="rounded border border-border/60 p-2 bg-card/40">
+          <div className="text-[10px] uppercase text-muted-foreground font-semibold">Assigned Agent</div>
+          <div className="font-mono text-xs text-foreground mt-0.5">{task.assignedAgent || task.assignee || task.assignment?.agentId || 'Unassigned'}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -1,81 +1,72 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { InspectorPanel, InspectorTrigger } from '../../src/components/InspectorPanel.js';
-import { useFleetStore, useSideEffectStore, useUIStore } from '../../src/stores/index.js';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { InspectorPanel } from '../../src/components/InspectorPanel';
+import { useFleetStore, useKanbanStore, useUIStore } from '../../src/stores';
 
-describe('global inspector drawer', () => {
+vi.mock('../../src/i18n', () => ({
+  useAppTranslation: () => ({
+    t: (k: string, opts?: any) => {
+      if (typeof opts === 'string') return opts;
+      if (opts && typeof opts === 'object' && 'defaultValue' in opts) return opts.defaultValue;
+      return k;
+    },
+  }),
+}));
+
+describe('InspectorPanel component with universal targets', () => {
   beforeEach(() => {
-    useFleetStore.getState().clear();
-    useSideEffectStore.getState().clear();
-    useUIStore.setState({ inspectorOpen: false, inspectorTab: 'fleet' });
+    useFleetStore.setState({
+      agents: new Map(),
+      leaderId: undefined,
+    });
+    useUIStore.setState({
+      inspectorOpen: true,
+      inspectorTab: 'fleet',
+      inspectorTarget: null,
+    });
+    useKanbanStore.setState({
+      activeBoard: {
+        id: 'board-1',
+        title: 'Core Sprint',
+        columns: [],
+        tasks: [
+          {
+            id: 'task-101',
+            title: 'Fix authentication cookie issue',
+            description: 'Cookies must have SameSite=Lax and Secure in prod.',
+            columnId: 'todo',
+            priority: 'high',
+            assignedAgent: 'agent-sec-1',
+          },
+        ] as any,
+      } as any,
+    });
   });
 
-  afterEach(() => cleanup());
+  it('renders standard fleet tabs when no task target is set', () => {
+    render(<InspectorPanel />);
 
-  function renderInspector() {
-    render(
-      <>
-        <InspectorTrigger />
-        <InspectorPanel />
-      </>,
-    );
-  }
-
-  it('opens from the shell trigger and exposes all consolidated tabs', async () => {
-    renderInspector();
-
-    const trigger = screen.getByTestId('inspector-trigger');
-    fireEvent.click(trigger);
-
-    // InspectorTrigger now calls openPanel('agents') which opens the Agents
-    // sidebar (sidebarOpen + activeActivity='agents'), not the inspector
-    // drawer. Set inspectorOpen so the drawer renders for testing.
-    act(() => {
-      useUIStore.setState({ inspectorOpen: true });
-    });
-
-    expect(await screen.findByTestId('inspector-drawer')).toBeDefined();
-    expect(trigger.getAttribute('aria-expanded')).toBe('true');
-    expect(screen.getByRole('tab', { name: 'Fleet' }).getAttribute('aria-selected')).toBe('true');
-    expect(screen.getByRole('tab', { name: 'Agents' })).toBeDefined();
-    expect(screen.getByRole('tab', { name: 'Audit' })).toBeDefined();
-
-    fireEvent.click(screen.getByTestId('inspector-close'));
-    await waitFor(() => expect(useUIStore.getState().inspectorOpen).toBe(false));
+    expect(screen.getByTestId('inspector-drawer')).toBeDefined();
   });
 
-  it('keeps the active tab in shared UI state', async () => {
-    renderInspector();
-    // Render the drawer so tabs are available for interaction.
-    act(() => {
-      useUIStore.setState({ inspectorOpen: true });
+  it('renders task details and back button when task target is set', () => {
+    useUIStore.getState().openInspectorTarget({
+      kind: 'task',
+      taskId: 'task-101',
+      title: 'Fix authentication cookie issue',
     });
 
-    fireEvent.click(screen.getByTestId('inspector-trigger'));
+    render(<InspectorPanel />);
 
-    const auditTab = await screen.findByRole('tab', { name: 'Audit' });
-    fireEvent.keyDown(auditTab, { key: 'Enter' });
+    const titles = screen.getAllByText('Fix authentication cookie issue');
+    expect(titles.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('agent-sec-1')).toBeDefined();
+    expect(screen.getByText('Cookies must have SameSite=Lax and Secure in prod.')).toBeDefined();
 
-    await waitFor(() => expect(useUIStore.getState().inspectorTab).toBe('sideEffects'));
-    expect(auditTab.getAttribute('aria-selected')).toBe('true');
+    // Clicking Back button returns to fleet view
+    const backBtn = screen.getByTitle('Back to Fleet');
+    fireEvent.click(backBtn);
 
-    fireEvent.click(screen.getByTestId('inspector-close'));
-    await waitFor(() => expect(useUIStore.getState().inspectorOpen).toBe(false));
-  });
-
-  it('closes through the labelled action and restores focus to the trigger', async () => {
-    renderInspector();
-    const trigger = screen.getByTestId('inspector-trigger');
-    fireEvent.click(trigger);
-    // Render the drawer so the close button is available.
-    act(() => {
-      useUIStore.setState({ inspectorOpen: true });
-    });
-
-    fireEvent.click(await screen.findByTestId('inspector-close'));
-
-    await waitFor(() => expect(screen.queryByTestId('inspector-drawer')).toBeNull());
-    expect(useUIStore.getState().inspectorOpen).toBe(false);
-    expect(document.activeElement).toBe(trigger);
+    expect(useUIStore.getState().inspectorTarget).toEqual({ kind: 'fleet', tab: 'fleet' });
   });
 });

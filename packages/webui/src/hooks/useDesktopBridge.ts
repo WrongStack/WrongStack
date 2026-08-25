@@ -26,6 +26,7 @@ import {
 import { PANEL_ORDER } from '@/components/activity-bar';
 import { downloadChatAsMarkdown } from '@/components/CommandPalette';
 import { toast } from '@/components/Toaster';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 export interface UseDesktopBridgeOptions {
   setPaletteOpen: (open: boolean) => void;
@@ -125,7 +126,7 @@ export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
 
       const action = detail['action'];
       if (action === 'new-session') {
-        ws?.newSession?.();
+        useSystemPromptStore.getState().openPicker({ startsSession: true });
         showPanel('chat');
         handled = true;
       } else if (action === 'clear-context') {

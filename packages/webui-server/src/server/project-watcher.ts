@@ -3,20 +3,28 @@
  * files are created, modified, or deleted inside the project root, so
  * the WebUI file explorer refreshes its tree without manual navigation.
  *
- * Uses Node's native `fs.watch` with `recursive: true` (supported on
- * Windows and macOS; Linux support landed in Node 22). Events are
- * debounced (400ms) to coalesce bursts from build tools, git
- * checkouts, and agent writes. Heavyweight directories
- * (`node_modules`, `.git`, `dist`, …) are ignored to avoid event
- * storms — the same `SKIP_DIRS` set the tree builder uses.
+ * Subscribes to core's SHARED recursive project watcher rather than opening
+ * its own. This file used to call `fs.watch(root, {recursive:true})` directly,
+ * which meant a running WebUI put a SECOND recursive watch on the same tree:
+ * the OS then tracked it independently and delivered every event twice — and
+ * on Windows `ReadDirectoryChangesW` reports `node_modules` too, so a `pnpm
+ * install` or a build paid that twice over. Core's registry keeps ONE watcher
+ * per resolved root per process and fans out to subscribers, which is exactly
+ * why it exists; the codebase indexer and the chronicle file observer were
+ * already using it.
  *
- * The watcher is `persistent: false` and `unref`'d on each handle so
- * it does not keep the process alive. The returned disposer closes
- * all native handles.
+ * Events are debounced (400ms) to coalesce bursts from build tools, git
+ * checkouts, and agent writes. Heavyweight directories (`node_modules`,
+ * `.git`, `dist`, …) are ignored to avoid event storms — the same `SKIP_DIRS`
+ * set the tree builder uses.
+ *
+ * The shared watcher is non-persistent and never keeps the process alive. The
+ * returned disposer drops this subscription; the underlying handle closes once
+ * the last subscriber leaves.
  */
 
-import { watch, type FSWatcher } from 'node:fs';
 import * as path from 'node:path';
+import { type ProjectWatchSubscription, watchProjectTree } from '@wrongstack/core/utils';
 import { SKIP_DIRS } from './file-picker.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
@@ -41,7 +49,7 @@ const DEBOUNCE_MS = 400;
  */
 export function startProjectWatcher(deps: ProjectWatcherDeps): () => void {
   const { projectRoot, broadcast, clients } = deps;
-  const watchers: FSWatcher[] = [];
+  let subscription: ProjectWatchSubscription | undefined;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let disposed = false;
 
@@ -69,16 +77,12 @@ export function startProjectWatcher(deps: ProjectWatcherDeps): () => void {
   };
 
   try {
-    // `recursive: true` watches the entire subtree (Node 22+ on Linux;
-    // unsupported runtimes throw and the watcher is simply absent — the
-    // tree then refreshes on manual navigation; there is no silent
-    // top-level fallback). `persistent: false` + `unref` keep the watcher
-    // from holding the process alive, matching the module contract above.
-    const watcher = watch(
+    subscription = watchProjectTree(
       projectRoot,
-      { recursive: true, persistent: false },
-      (_eventType, filename) => {
+      ({ filename }) => {
         if (!filename) {
+          // Null filename is a watcher-buffer overflow: the OS dropped events
+          // and cannot say which. Refresh the tree rather than miss a change.
           scheduleNotify();
           return;
         }
@@ -86,18 +90,18 @@ export function startProjectWatcher(deps: ProjectWatcherDeps): () => void {
         if (shouldIgnore(changedPath)) return;
         scheduleNotify();
       },
+      {
+        onError: () => {
+          // Watch errors (EPERM on Windows, ENOSPC on Linux) are non-fatal —
+          // the tree still refreshes on the next manual navigation. Log
+          // nothing to avoid noise.
+        },
+      },
     );
-    watcher.unref?.();
-    watcher.on('error', () => {
-      // fs.watch errors (EPERM on Windows, ENOSPC on Linux) are
-      // non-fatal — the tree will still refresh on the next
-      // manual navigation. Log nothing to avoid noise.
-    });
-    watchers.push(watcher);
   } catch {
-    // If recursive watch fails (e.g. older Linux), the watcher is
-    // simply absent. The tree falls back to manual refresh on
-    // directory navigation, same as before this feature.
+    // No recursive watch on this platform/path (Linux before Node 22). The
+    // tree falls back to manual refresh on directory navigation, same as
+    // before this feature.
   }
 
   return () => {
@@ -107,12 +111,11 @@ export function startProjectWatcher(deps: ProjectWatcherDeps): () => void {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-    for (const w of watchers) {
-      try {
-        w.close();
-      } catch {
-        // best-effort cleanup
-      }
+    try {
+      subscription?.close();
+    } catch {
+      // best-effort cleanup
     }
+    subscription = undefined;
   };
 }

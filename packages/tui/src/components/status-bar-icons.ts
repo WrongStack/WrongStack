@@ -11,6 +11,7 @@ export const STATUSLINE_ICONS = {
   context: glyphs.context,
   cost: glyphs.cost,
   debug_stream: glyphs.bug,
+  dropped_tools: glyphs.warning,
   elapsed: glyphs.clock,
   enhance: glyphs.auto,
   eternal_stage: glyphs.running,
@@ -28,6 +29,7 @@ export const STATUSLINE_ICONS = {
   plan: glyphs.plan,
   processes: glyphs.process,
   project: glyphs.folder,
+  prompt_variant: glyphs.terminal,
   queue: glyphs.queue,
   sessions: glyphs.sessions,
   side_effects: glyphs.audit,
@@ -38,6 +40,7 @@ export const STATUSLINE_ICONS = {
   tokens: glyphs.context,
   todos: glyphs.task,
   tools: glyphs.tools,
+  version: glyphs.brand,
   working_dir: glyphs.workingDirectory,
   yolo: glyphs.warning,
 } as const satisfies Record<StatuslineItem, string>;

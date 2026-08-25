@@ -4,7 +4,15 @@ import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
-import { handleGitChanges, handleGitDiff } from '@wrongstack/webui-server';
+import {
+  handleGitChanges,
+  handleGitCommit,
+  handleGitDiff,
+  handleGitDiscard,
+  handleGitStage,
+  handleGitUnstage,
+  repoRelativePrefix,
+} from '@wrongstack/webui-server';
 
 /** Minimal ws mock that records parsed JSON sends. */
 function createMockWs() {
@@ -97,6 +105,52 @@ describe('git change-set handlers', () => {
       expect(ws.sent[0]?.payload.files).toEqual([]);
     });
 
+    it('reports repoPrefix so the client can map repo-relative git paths to project-relative tree paths', async () => {
+      // Project root = repo root → no prefix.
+      const ws = createMockWs();
+      await handleGitChanges(ws, repo);
+      expect(ws.sent[0]?.payload.repoPrefix).toBe('');
+
+      // Project root = repo SUBDIRECTORY → git paths carry this prefix.
+      // The file must be TRACKED before the edit: porcelain collapses a
+      // fully-untracked directory to its top entry (`?? packages/`), which
+      // would not prove the path shape. A tracked-then-modified file is
+      // always reported individually, repo-root-relative.
+      const sub = path.join(repo, 'packages', 'webui');
+      fsSync.mkdirSync(sub, { recursive: true });
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export {};\n');
+      git(repo, ['add', '.']);
+      git(repo, ['commit', '-q', '-m', 'sub package baseline']);
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export { changed: true };\n');
+      const wsSub = createMockWs();
+      await handleGitChanges(wsSub, sub);
+      const subPayload = wsSub.sent[0]?.payload as {
+        repoPrefix?: string;
+        files?: Array<{ path: string; status: string }>;
+      };
+      expect(subPayload?.repoPrefix).toBe('packages/webui/');
+      // Porcelain paths stay REPO-relative…
+      const paths = (subPayload?.files ?? []).map((f) => f.path.replace(/\\/g, '/'));
+      expect(paths).toContain('packages/webui/index.ts');
+    });
+
+    it('repoRelativePrefix: subdirectory, equal roots, outside, and Windows separators', () => {
+      expect(repoRelativePrefix('/repo', '/repo')).toBe('');
+      expect(repoRelativePrefix('/repo', '/repo/packages/webui')).toBe('packages/webui/');
+      // Project outside the repo → '' (git would fail there anyway).
+      expect(repoRelativePrefix('/repo', '/elsewhere')).toBe('');
+      // Backslash-form inputs are only meaningful where node:path treats
+      // '\' as a separator; on POSIX they are opaque single segments, so
+      // the helper correctly reports no relation. Assert both ways so the
+      // suite stays green on Windows dev boxes AND Linux CI.
+      const windowsForm = repoRelativePrefix('D:\\repo', 'D:\\repo\\apps\\demo');
+      if (process.platform === 'win32') {
+        expect(windowsForm).toBe('apps/demo/');
+      } else {
+        expect(windowsForm).toBe('');
+      }
+    });
+
     it('never throws outside a git repo', async () => {
       const notRepo = path.join(process.env.TEMP || '/tmp', `notgit-${randomBytes(4).toString('hex')}`);
       fsSync.mkdirSync(notRepo, { recursive: true });
@@ -108,6 +162,196 @@ describe('git change-set handlers', () => {
       } finally {
         fsSync.rmSync(notRepo, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('handleGitStage/Unstage/Discard with a subdirectory project root', () => {
+    // Regression (chimera): `git.changes` emits REPO-relative paths, but
+    // the action handlers execute git with cwd=projectRoot. When the
+    // project is a repo subdirectory, `packages/webui/index.ts` used to
+    // resolve beneath the subdir again (double-nest) — staging silently
+    // did nothing. The handlers now strip the repo prefix first.
+    let sub: string;
+
+    beforeEach(() => {
+      sub = path.join(repo, 'packages', 'webui');
+      fsSync.mkdirSync(sub, { recursive: true });
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 1;\n');
+      git(repo, ['add', '.']);
+      git(repo, ['commit', '-q', '-m', 'sub package baseline']);
+      // Tracked-then-modified so porcelain reports the individual path.
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 2;\n');
+    });
+
+    const stagedState = (): string => {
+      // First two chars of the porcelain line: XY. X = index, Y = worktree.
+      const out = execFileSync('git', ['status', '--porcelain'], {
+        cwd: sub,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      const line = out
+        .split('\n')
+        .find((l) => l.replace(/\\/g, '/').includes('packages/webui/index.ts'));
+      return line?.slice(0, 2) ?? '';
+    };
+
+    it('stages a repo-relative pathspec against a subdirectory project', async () => {
+      const ws = createMockWs();
+      await handleGitStage(ws, sub, ['packages/webui/index.ts']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      expect(result?.payload.paths).toEqual(['packages/webui/index.ts']);
+      // X column 'M' proves the index actually changed — the double-nest
+      // bug left it ' ' (unstaged) while still reporting ok:true.
+      expect(stagedState()).toBe('M ');
+    });
+
+    it('unstages a repo-relative pathspec against a subdirectory project', async () => {
+      git(sub, ['add', 'index.ts']);
+      expect(stagedState()).toBe('M ');
+      const ws = createMockWs();
+      await handleGitUnstage(ws, sub, ['packages/webui/index.ts']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      expect(stagedState()).toBe(' M');
+    });
+
+    it('discards a repo-relative pathspec against a subdirectory project', async () => {
+      const ws = createMockWs();
+      await handleGitDiscard(ws, sub, ['packages/webui/index.ts']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      // Content restored to HEAD — the discard actually executed.
+      expect(fsSync.readFileSync(path.join(sub, 'index.ts'), 'utf8')).toContain('v = 1');
+    });
+
+    it('rejects a repo-relative path outside the opened subdirectory project', async () => {
+      // keep.txt lives at the repo root — outside the packages/webui
+      // project. A repo-relative pathspec for it must be refused, not
+      // executed (translation must not widen the write surface).
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'line1\nEDITED\n');
+      const ws = createMockWs();
+      await handleGitStage(ws, sub, ['keep.txt']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(false);
+      expect(result?.payload.error).toContain('outside project root');
+      expect(stagedState()).toBe(' M');
+    });
+
+    it('git diff reads HEAD and the working tree through a subdirectory project', async () => {
+      // The `git show HEAD:<repo-relative>` rev syntax is repo-root-
+      // relative from any cwd, but the working-tree readFile joins
+      // against projectRoot — without prefix translation every file
+      // read as deleted (empty newText) in a subdirectory project.
+      const ws = createMockWs();
+      await handleGitDiff(ws, sub, 'packages/webui/index.ts');
+      const p = ws.sent[0]?.payload as { oldText: string; newText: string; error?: string };
+      expect(p.error).toBeUndefined();
+      expect(p.oldText).toBe('export const v = 1;\n');
+      expect(p.newText).toBe('export const v = 2;\n');
+    });
+
+    it('empty-array stage-all stays contained to the subdirectory project', async () => {
+      // Root-level keep.txt is also modified; an "all" stage from the
+      // packages/webui project must NOT touch it. Bare `git add -A`
+      // stages the entire repository since Git 2.0 — the explicit `.`
+      // pathspec limits the sweep to the execution cwd.
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'line1\nROOT EDIT\n');
+      const ws = createMockWs();
+      await handleGitStage(ws, sub, []);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      // The sub project's file IS staged…
+      expect(stagedState()).toBe('M ');
+      // …but the repo-root file is NOT.
+      const rootOut = execFileSync('git', ['status', '--porcelain'], {
+        cwd: repo,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      const keepLine = rootOut.split('\n').find((l) => l.endsWith('keep.txt'));
+      expect(keepLine?.slice(0, 2)).toBe(' M');
+    });
+
+    it('discard of a mixed tracked+untracked batch restores the tracked file', async () => {
+      // Regression (chimera round-2): a single `git restore` over both
+      // pathspecs fails wholesale on the untracked name, so the tracked
+      // sibling never restored while the handler reported ok:true.
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 3;\n');
+      fsSync.writeFileSync(path.join(sub, 'scratch.txt'), 'temp\n');
+      const before = fsSync.readFileSync(path.join(sub, 'index.ts'), 'utf8');
+      expect(before).toContain('v = 3');
+
+      const ws = createMockWs();
+      await handleGitDiscard(ws, sub, ['packages/webui/index.ts', 'packages/webui/scratch.txt']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      // Tracked file restored to HEAD — the baseline commit's v = 1 (the
+      // beforeEach writes v = 2 as the working-tree modification).
+      expect(fsSync.readFileSync(path.join(sub, 'index.ts'), 'utf8')).toContain('v = 1');
+      // …and the untracked file was cleaned.
+      expect(fsSync.existsSync(path.join(sub, 'scratch.txt'))).toBe(false);
+    });
+
+    it('accepts a legal double-dot filename while rejecting traversal', async () => {
+      // `release..notes.md` is one segment containing '..', not traversal.
+      fsSync.writeFileSync(path.join(repo, 'release..notes.md'), 'notes\n');
+      const ws = createMockWs();
+      await handleGitStage(ws, repo, ['release..notes.md']);
+      const ok = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(ok?.payload.ok).toBe(true);
+
+      const wsBad = createMockWs();
+      await handleGitStage(wsBad, repo, ['a/../keep.txt']);
+      const bad = wsBad.sent.find((m) => m.type === 'git.action_result');
+      expect(bad?.payload.ok).toBe(false);
+      expect(bad?.payload.error).toContain('unsafe');
+    });
+
+    it('stages the project directory itself (no trailing separator) in a subdir project', async () => {
+      // Regression (chimera round-3): `packages/webui` — the project
+      // directory — carries no trailing slash, so a plain
+      // startsWith('packages/webui/') rejected it as outside the project.
+      // The boundary match must treat it as the project root ('.').
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 9;\n');
+      const ws = createMockWs();
+      await handleGitStage(ws, sub, ['packages/webui']);
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      expect(stagedState()).toBe('M ');
+    });
+
+    it('commit from a subdirectory project commits only the subdirectory', async () => {
+      // Regression (chimera round-2): bare `git commit -m` from a
+      // subdirectory cwd commits the ENTIRE repo's staged index since
+      // Git 2.0 — staging one file outside the project and committing
+      // inside it used to leak the outside file into the commit.
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 5;\n');
+      // Stage a MODIFIED file OUTSIDE the subdirectory project — staging
+      // an unmodified file would be a no-op and prove nothing.
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'line1\nSTAGED OUTSIDE\n');
+      git(repo, ['add', 'keep.txt']);
+      const wsPrep = createMockWs();
+      await handleGitStage(wsPrep, sub, ['packages/webui/index.ts']);
+      const ws = createMockWs();
+      await handleGitCommit(ws, sub, 'subdir-only commit');
+      const result = ws.sent.find((m) => m.type === 'git.action_result');
+      expect(result?.payload.ok).toBe(true);
+      // The commit contains ONLY the sub project's file: keep.txt remains
+      // staged for a future commit (not consumed by this one). It is a
+      // TRACKED file, so staged-but-uncommitted shows as `M ` (X=M, Y=' ').
+      const committed = execFileSync('git', ['show', '--name-only', '--pretty=format:', 'HEAD'], {
+        cwd: sub,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      })
+        .toString()
+        .trim()
+        .replace(/\\/g, '/');
+      expect(committed).toBe('packages/webui/index.ts');
+      const rootOut = execFileSync('git', ['status', '--porcelain'], {
+        cwd: repo,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      expect(rootOut).toContain('M  keep.txt');
     });
   });
 
@@ -184,6 +428,78 @@ describe('git change-set handlers', () => {
       await handleGitDiff(ws, repo, 'bin.dat');
       const p = ws.sent[0]?.payload as { binary?: boolean };
       expect(p.binary).toBe(true);
+    });
+  });
+
+  describe('handleGitStage & handleGitUnstage', () => {
+    it('stages specific files and unstages them', async () => {
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'modified content\n');
+      const ws = createMockWs();
+
+      await handleGitStage(ws, repo, ['keep.txt']);
+      const stageResult = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(stageResult).toMatchObject({ action: 'stage', ok: true });
+
+      const changesAfterStage = ws.sent.find((m) => m.type === 'git.changes')?.payload as { files: Array<{ path: string; staged: boolean }> };
+      expect(changesAfterStage.files.find((f) => f.path === 'keep.txt')?.staged).toBe(true);
+
+      // Now unstage
+      const ws2 = createMockWs();
+      await handleGitUnstage(ws2, repo, ['keep.txt']);
+      const unstageResult = ws2.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(unstageResult).toMatchObject({ action: 'unstage', ok: true });
+
+      const changesAfterUnstage = ws2.sent.find((m) => m.type === 'git.changes')?.payload as { files: Array<{ path: string; staged: boolean }> };
+      expect(changesAfterUnstage.files.find((f) => f.path === 'keep.txt')?.staged).toBe(false);
+    });
+
+    it('rejects unsafe path traversal during staging', async () => {
+      const ws = createMockWs();
+      await handleGitStage(ws, repo, ['../outside.txt']);
+      const stageResult = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(stageResult).toMatchObject({ action: 'stage', ok: false });
+    });
+  });
+
+  describe('handleGitDiscard', () => {
+    it('discards modified tracked files', async () => {
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'modified content\n');
+      const ws = createMockWs();
+      await handleGitDiscard(ws, repo, ['keep.txt']);
+      const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(res).toMatchObject({ action: 'discard', ok: true });
+      expect(fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8').replace(/\r\n/g, '\n')).toBe('line1\nline2\nline3\n');
+    });
+
+    it('discards untracked files', async () => {
+      fsSync.writeFileSync(path.join(repo, 'untracked.txt'), 'hello\n');
+      const ws = createMockWs();
+      await handleGitDiscard(ws, repo, ['untracked.txt']);
+      const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(res).toMatchObject({ action: 'discard', ok: true });
+      expect(fsSync.existsSync(path.join(repo, 'untracked.txt'))).toBe(false);
+    });
+  });
+
+  describe('handleGitCommit', () => {
+    it('commits staged changes with a message', async () => {
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'committed change\n');
+      git(repo, ['add', 'keep.txt']);
+      const ws = createMockWs();
+      await handleGitCommit(ws, repo, 'feat: updated keep.txt');
+      const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(res).toMatchObject({ action: 'commit', ok: true, message: 'feat: updated keep.txt' });
+
+      // Clean tree after commit
+      const changesAfterCommit = ws.sent.find((m) => m.type === 'git.changes')?.payload as { files: unknown[] };
+      expect(changesAfterCommit.files).toHaveLength(0);
+    });
+
+    it('rejects empty commit message', async () => {
+      const ws = createMockWs();
+      await handleGitCommit(ws, repo, '   ');
+      const res = ws.sent.find((m) => m.type === 'git.action_result')?.payload;
+      expect(res).toMatchObject({ action: 'commit', ok: false });
     });
   });
 });

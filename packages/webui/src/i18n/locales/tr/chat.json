@@ -54,7 +54,9 @@
     "addQueueTitle": "kuyruğa ekle — mevcut çalışma bitene kadar bekle",
     "openPromptLibrary": "İstek kütüphanesini aç — hazır ve kayıtlı isteklere göz at",
     "expandInput": "Girişi genişlet",
-    "collapseInput": "Daralt"
+    "collapseInput": "Daralt",
+    "startListening": "Sesli giriş (Konuşmayı metne dönüştür)",
+    "stopListening": "Dinleniyor... (Durdurmak için tıklayın)"
   },
   "header": {
     "openSidebarTitle": "Kenar çubuğunu aç (Ctrl+\\)",

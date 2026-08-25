@@ -136,7 +136,7 @@ describe('StatuslinePicker render', () => {
 
     const frame = lastFrame() ?? '';
     // Focused top item is visible…
-    expect(frame).toContain('breaker');
+    expect(frame).toContain('project');
     // …but items far below the window are NOT rendered, and a "below" hint shows.
     expect(frame).not.toContain('mailbox');
     expect(frame).toContain('below');

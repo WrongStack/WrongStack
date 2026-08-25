@@ -24,6 +24,7 @@ import {
   type PromptsContext,
   type SkillsContext,
 } from '@wrongstack/webui-server';
+import { rebuildSystemPrompt } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
 import type { CliWebUIOptions } from '../webui-server-options.js';
 import type { WSServerMessage } from './contracts.js';
@@ -152,6 +153,9 @@ export function createWebuiRouteContexts({
     log: (m) => console.log(m),
   };
 
+  const promptProjectRoot = (): string =>
+    opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string | undefined }).projectRoot ?? '';
+
   const prefsCtx: PrefsHandlerContext = {
     meta: opts.agent.ctx.meta,
     snapshot: prefSnapshot,
@@ -161,6 +165,50 @@ export function createWebuiRouteContexts({
     applyWrongProxyPrefs: opts.onWrongProxyPrefsChange,
     pendingConfirms,
     configStore: opts.agent.container?.safeResolve?.(TOKENS.ConfigStore),
+    systemPrompt: {
+      paths: () => {
+        const wpaths = resolveWstackPaths({ projectRoot: promptProjectRoot(), globalRoot });
+        return {
+          globalDir: wpaths.globalInstructions,
+          projectDir: wpaths.inProjectInstructions,
+        };
+      },
+      profileConfigPath,
+      current: () => opts.appConfig?.systemPrompt?.variant ?? 'default',
+      // Patch the live config before rebuilding — `persistPrefs` writes the
+      // file, and the builder reads the variant off the in-memory object.
+      applyVariant: async (variant) => {
+        if (opts.appConfig) {
+          opts.appConfig.systemPrompt = { ...(opts.appConfig.systemPrompt ?? {}), variant };
+        }
+        const tools = opts.agent.tools as
+          | import('@wrongstack/core/registry').ToolRegistry
+          | undefined;
+        if (!tools || !opts.appConfig) return;
+        await rebuildSystemPrompt(
+          {
+            modeStore: opts.modeStore,
+            memoryStore: opts.memoryStore,
+            skillLoader: opts.skillLoader,
+            modelCapabilities: {
+              maxContextTokens: opts.agent.ctx.provider?.capabilities?.maxContext,
+              supportsTools: !!opts.agent.ctx.provider?.capabilities?.tools,
+              supportsVision: !!opts.agent.ctx.provider?.capabilities?.vision,
+              supportsReasoning: !!opts.agent.ctx.provider?.capabilities?.reasoning,
+            },
+            context: opts.agent.ctx,
+            toolRegistry: tools,
+            getConfig: () => opts.appConfig as NonNullable<typeof opts.appConfig>,
+            projectRoot: promptProjectRoot(),
+            globalRoot,
+            container: opts.agent.container,
+          },
+          typeof opts.agent.ctx.meta['mode'] === 'string'
+            ? (opts.agent.ctx.meta['mode'] as string)
+            : 'default',
+        );
+      },
+    },
     send,
     broadcast,
   };

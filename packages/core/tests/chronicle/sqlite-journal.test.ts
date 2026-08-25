@@ -434,12 +434,30 @@ describe('ChronicleSqliteJournal', () => {
     expect((db.prepare('PRAGMA journal_mode').get() as { journal_mode: string }).journal_mode).toBe(
       'wal',
     );
-    // Durability must match the DELETE-mode behaviour this replaced: FULL fsyncs
-    // the WAL on every commit, so a committed event still survives power loss.
-    expect((db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous).toBe(2);
+    // NORMAL (1) is the default. In WAL mode it still survives a process crash
+    // — the WAL is written before the commit returns — and only an OS crash or
+    // power loss can cost the last commits. This is the highest-volume writer
+    // in the runtime, so the per-commit fsync FULL adds was the largest single
+    // source of disk I/O here; deployments that need power-loss durability for
+    // the audit trail opt back in via `durability: 'full'` (asserted below).
+    expect((db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous).toBe(1);
     const limit = (db.prepare('PRAGMA journal_size_limit').get() as { journal_size_limit: number })
       .journal_size_limit;
     expect(limit).toBe(16 * 1024 * 1024);
+  });
+
+  it('opts back into FULL durability when asked', async () => {
+    const fullDir = path.join(dir, 'wal-full');
+    await fs.mkdir(fullDir, { recursive: true });
+    // Close the journal beforeEach opened at `dir` before replacing the shared
+    // handle: on Windows an open SQLite connection holds its -shm file, and
+    // afterEach's recursive rm of `dir` then fails with EBUSY.
+    journal.close();
+    journal = new ChronicleSqliteJournal({ directory: fullDir, durability: 'full' });
+    await journal.append(input());
+
+    const db = (journal as unknown as { db: DatabaseSync }).db;
+    expect((db.prepare('PRAGMA synchronous').get() as { synchronous: number }).synchronous).toBe(2);
   });
 
   /**

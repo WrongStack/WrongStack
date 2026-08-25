@@ -41,7 +41,15 @@ import {
   type EmbeddedSessionContext,
 } from './embedded-host-adapters.js';
 import { emitFallbackChoice } from './fallback-choice.js';
-import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
+import {
+  handleGitChanges,
+  handleGitCommit,
+  handleGitDiff,
+  handleGitDiscard,
+  handleGitInfo,
+  handleGitStage,
+  handleGitUnstage,
+} from './git-handlers.js';
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
@@ -273,6 +281,25 @@ export function createEmbeddedMessageRouter(
     gitChanges: (ws) => handleGitChanges(ws, projectRoot()),
     gitDiff: (ws, msg) =>
       handleGitDiff(ws, projectRoot(), (msg.payload as { path?: string } | undefined)?.path ?? ''),
+    gitStage: (ws, msg) => {
+      const p = msg.payload as { paths?: string[]; path?: string } | undefined;
+      const list = p?.paths ?? (p?.path ? [p.path] : []);
+      return handleGitStage(ws, projectRoot(), list);
+    },
+    gitUnstage: (ws, msg) => {
+      const p = msg.payload as { paths?: string[]; path?: string } | undefined;
+      const list = p?.paths ?? (p?.path ? [p.path] : []);
+      return handleGitUnstage(ws, projectRoot(), list);
+    },
+    gitDiscard: (ws, msg) => {
+      const p = msg.payload as { paths?: string[]; path?: string } | undefined;
+      const list = p?.paths ?? (p?.path ? [p.path] : []);
+      return handleGitDiscard(ws, projectRoot(), list);
+    },
+    gitCommit: (ws, msg) => {
+      const message = (msg.payload as { message?: string } | undefined)?.message ?? '';
+      return handleGitCommit(ws, projectRoot(), message);
+    },
     shellOpen: async (ws, msg) => {
       const payload = msg.payload as { path?: unknown; target?: unknown } | undefined;
       if (typeof payload?.path !== 'string')

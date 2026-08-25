@@ -118,6 +118,13 @@ export type Settings = {
   cacheTtl: CacheTtl;
   /** Where to persist settings: 'global' or 'project'. */
   configScope: 'global' | 'project';
+  /**
+   * Active system-prompt variant (Lite / Standard / Pro). Read-only display
+   * data sourced from `config.systemPrompt.variant` — selection happens in
+   * the CLI boot menu (persistSystemPromptVariant), not the TUI picker, so
+   * there is no saveSettings counterpart.
+   */
+  systemPromptVariant?: 'lite' | 'default' | 'pro' | undefined;
   animationStyle: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'static' | 'cycle';
   /** When true, read tool includes codebase-index symbols alongside file content. */
   readSymbols: boolean;

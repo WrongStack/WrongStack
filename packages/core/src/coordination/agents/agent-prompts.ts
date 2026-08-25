@@ -7,19 +7,38 @@ import { assertProjectAgentRole } from './project-agent-paths.js';
 
 /**
  * Cache of resolved prompt text, keyed by
- * `<envDir>\0<policyOn>\0<projectRoot>\0<overlayFingerprint>\0<id>`. Base
+ * `<envDir>\0<policyOn>\0<projectRoot>\0<id>`. Base
  * prompt files do not change during a process lifetime, so their resolution
  * is memoized. The key includes the override env var so tests that set
  * `WRONGSTACK_AGENT_INSTRUCTIONS_DIR` still observe fresh resolution.
  *
  * The project overlay files (`identity.md` / `learned.md` / `consolidated.md`)
  * DO change mid-process — `captureLearnedFromAgentOutput` rewrites
- * `learned.md` on every capture — so their (mtimeMs, size) fingerprint is
- * part of the key. Without it, wisdom captured in a running process only
- * reached subagent spawns after a restart, silently breaking the
- * capture→inject feedback loop.
+ * `learned.md` on every capture — so their (mtimeMs, size) fingerprint decides
+ * whether an entry is still valid. Without that check, wisdom captured in a
+ * running process only reached subagent spawns after a restart, silently
+ * breaking the capture→inject feedback loop.
+ *
+ * The fingerprint lives in the VALUE, not the key. It used to be part of the
+ * key, which meant every capture minted a new entry and left the previous
+ * generation behind forever — each one a fully rendered prompt (base + tech
+ * policy + identity + learned overlay), and nothing here ever deleted. A
+ * long-lived host that captures often grew this map without bound. Keying on
+ * role alone and overwriting on a fingerprint miss keeps the entry count at
+ * one per role while preserving the exact same invalidation semantics.
  */
-const promptCache = new Map<string, string>();
+const promptCache = new Map<string, { fingerprint: string; prompt: string }>();
+
+/**
+ * Number of live prompt-cache entries.
+ *
+ * Exposed so the "one entry per role, regardless of how many times the overlay
+ * is rewritten" bound above is testable. The old fingerprint-in-key scheme grew
+ * this without limit and nothing could observe it.
+ */
+export function agentPromptCacheSize(): number {
+  return promptCache.size;
+}
 
 /**
  * Cache of the ordered candidate directory list, keyed by `<envDir>\0<cwd-home>`.
@@ -229,9 +248,12 @@ export function agentPrompt(id: string): string {
   // the cached string's identity. Omitting it let a single process serve one
   // project's learned content for another project's prompt.
   const promptProjectRoot = process.env['WRONGSTACK_PROJECT_ROOT'] || process.cwd();
-  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${promptProjectRoot}\u0000${agentOverlayFingerprint(id, promptProjectRoot)}\u0000${id}`;
+  const cacheKey = `${envDir}\u0000${policyOn ? 1 : 0}\u0000${promptProjectRoot}\u0000${id}`;
+  const overlayFingerprint = agentOverlayFingerprint(id, promptProjectRoot);
   const cached = cacheBypass ? undefined : promptCache.get(cacheKey);
-  if (cached !== undefined) return cached;
+  // A fingerprint miss means the overlay was rewritten: fall through, rebuild,
+  // and OVERWRITE this key rather than leaving a second generation beside it.
+  if (cached !== undefined && cached.fingerprint === overlayFingerprint) return cached.prompt;
 
   const fileName = `${id}.md`;
   let resolved = '';
@@ -267,7 +289,8 @@ export function agentPrompt(id: string): string {
   // WRONGSTACK_PROJECT_ROOT is set, allowing the project-specific agent
   // identity mechanism to work without any code changes.
   resolved = buildProjectContextualizedPrompt(resolved, id, promptProjectRoot);
-  if (!cacheBypass) promptCache.set(cacheKey, resolved);
+  if (!cacheBypass)
+    promptCache.set(cacheKey, { fingerprint: overlayFingerprint, prompt: resolved });
   return resolved;
 }
 

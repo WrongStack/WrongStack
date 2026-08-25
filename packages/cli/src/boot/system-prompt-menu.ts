@@ -19,42 +19,39 @@
  * contract as the launch prompts), and the caller in boot.ts exits 0.
  */
 
-import * as fs from 'node:fs/promises';
 import {
-  buildIdentityLayer,
-  loadInstructionBundle,
+  countSystemPromptTokens,
+  persistSystemPromptVariant,
+  readSavedSystemPromptVariant,
+  SYSTEM_PROMPT_VARIANT_OPTIONS,
+  SYSTEM_PROMPT_VARIANTS,
   type SystemInstructionVariant,
+  type SystemPromptVariantPaths,
 } from '@wrongstack/core/agent';
-import { atomicWrite, color, estimateTextTokens } from '@wrongstack/core/utils';
+import { color } from '@wrongstack/core/utils';
 import type { ReadlineInputReader } from '../input-reader.js';
 import { LaunchAbortedError } from '../pre-launch.js';
 import type { TerminalRenderer } from '../renderer.js';
 import { fmtTok } from '../utils.js';
 
-/** Menu order + display labels. `default` is shown as "Standard". */
-export const SYSTEM_PROMPT_OPTIONS: ReadonlyArray<{
-  variant: SystemInstructionVariant;
-  label: string;
-  hint: string;
-}> = [
-  { variant: 'lite', label: 'Lite', hint: 'leanest — best for small context windows' },
-  { variant: 'default', label: 'Standard', hint: 'balanced — the default' },
-  { variant: 'pro', label: 'Pro', hint: 'most detailed guidance — uses more tokens' },
-];
+/**
+ * Menu order + display labels, re-exported from core so the CLI menu, the
+ * WebUI picker, and any other surface offer the same three options in the same
+ * order with the same token math.
+ */
+export const SYSTEM_PROMPT_OPTIONS = SYSTEM_PROMPT_VARIANT_OPTIONS;
 
-/** All selectable variants, in menu order. */
-export const SYSTEM_PROMPT_VARIANTS: readonly SystemInstructionVariant[] =
-  SYSTEM_PROMPT_OPTIONS.map((o) => o.variant);
-
-const SUMMARY_TIMEOUT_MS = 5_000;
+export {
+  countSystemPromptTokens,
+  persistSystemPromptVariant,
+  readSavedSystemPromptVariant,
+  SYSTEM_PROMPT_VARIANTS,
+};
 
 /** Instruction dirs used to resolve the identity text per variant. */
-export interface SystemPromptMenuPaths {
-  /** Profile override directory, e.g. `~/.wrongstack/profiles/<name>/instructions`. */
-  globalDir?: string | undefined;
-  /** Project override directory, e.g. `<project>/.wrongstack/instructions`. */
-  projectDir?: string | undefined;
-}
+export type SystemPromptMenuPaths = SystemPromptVariantPaths;
+
+const SUMMARY_TIMEOUT_MS = 5_000;
 
 /** Loose `--flag=true/1/yes/on` boolean mirror of core's `isEnabledFlag`. */
 function flagOn(value: string | boolean | undefined): boolean {
@@ -88,83 +85,8 @@ export function shouldSkipSystemPromptMenu(flags: Record<string, string | boolea
   return false;
 }
 
-/**
- * Estimate the tokens of the system identity block each variant injects.
- *
- * Resolution goes through the same `loadInstructionBundle` the
- * SystemPromptBuilder runs (bundled → global → project, later layers override
- * `system.identity`), and composition goes through the builder's own
- * `buildIdentityLayer`. Calling the real composer matters: when the identity
- * came from the *project* layer, WS-016 makes the builder emit the bundled
- * identity PLUS a `<project-supplied-instructions>` delimiter block PLUS the
- * project text rather than replacing the identity. Counting
- * `bundle.system.identity` alone therefore under-reports a project override by
- * the whole bundled prompt — which is exactly the case a repo that ships its
- * own `system-pro.md` hits.
- *
- * The figure is an **upper bound**, not `/context` parity: `buildIdentityLayer`
- * is called without an `InstructionTemplateContext`, which by its own contract
- * keeps the full text, so `ws:if` blocks for tools the live request never
- * registers are still counted. Erring high is the right direction for a menu
- * whose purpose is comparing variant cost, and every figure is rendered with a
- * leading `~`.
- */
-export async function countSystemPromptTokens(
-  paths: SystemPromptMenuPaths,
-): Promise<Record<SystemInstructionVariant, number>> {
-  const counts = {} as Record<SystemInstructionVariant, number>;
-  for (const variant of SYSTEM_PROMPT_VARIANTS) {
-    const bundle = await loadInstructionBundle({
-      globalDir: paths.globalDir,
-      projectDir: paths.projectDir,
-      systemVariant: variant,
-    });
-    const identity = buildIdentityLayer(
-      bundle.system?.identity,
-      bundle.system?.identitySource,
-      undefined,
-    );
-    counts[variant] = estimateTextTokens(identity);
-  }
-  return counts;
-}
-
 function labelFor(variant: SystemInstructionVariant): string {
   return SYSTEM_PROMPT_OPTIONS.find((o) => o.variant === variant)?.label ?? variant;
-}
-
-const VALID_VARIANTS = new Set<SystemInstructionVariant>(SYSTEM_PROMPT_VARIANTS);
-
-/**
- * Read the variant the user explicitly saved to the profile config file.
- *
- * The config loader materializes `systemPrompt: { variant: 'default' }` for
- * every config (see `@wrongstack/core` config-loader defaults), so the
- * in-memory Config cannot distinguish "user chose Standard" from "never
- * chose". Only the raw file can: {@link persistSystemPromptVariant} writes
- * the key explicitly, so its presence on disk is the signal that a selection
- * was made. Absence (first run, or a config edited before this feature
- * existed) returns undefined and the caller shows the full menu instead of
- * the summary gate.
- */
-export async function readSavedSystemPromptVariant(
-  configPath: string,
-): Promise<SystemInstructionVariant | undefined> {
-  let raw: string;
-  try {
-    raw = await fs.readFile(configPath, 'utf8');
-  } catch {
-    return undefined;
-  }
-  try {
-    const parsed = JSON.parse(raw) as { systemPrompt?: { variant?: unknown } | undefined };
-    const variant = parsed.systemPrompt?.variant;
-    return typeof variant === 'string' && VALID_VARIANTS.has(variant as SystemInstructionVariant)
-      ? (variant as SystemInstructionVariant)
-      : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 /**
@@ -233,47 +155,6 @@ export async function runSystemPromptMenu(deps: {
 
   // Anything unrecognized falls back to the default — the menu is best-effort.
   return defaultVariant;
-}
-
-/**
- * Persist the chosen variant to the profile config file so the next boot
- * can offer a one-line "Continue with these?" gate. Mirrors
- * `persistLaunchChoices`: reads the existing JSON, mutates only the
- * `systemPrompt` block, writes back atomically with mode 0600. Other fields
- * (including encrypted secrets) pass through round-trip unchanged.
- *
- * @throws when the config file exists but is corrupt (same policy as the
- * launch-choices writer — never overwrite unreadable user config silently).
- */
-export async function persistSystemPromptVariant(
-  configPath: string,
-  variant: SystemInstructionVariant,
-): Promise<void> {
-  let fileExists = false;
-  try {
-    await fs.access(configPath);
-    fileExists = true;
-  } catch {}
-
-  let existing: Record<string, unknown> = {};
-  try {
-    const raw = await fs.readFile(configPath, 'utf8');
-    existing = JSON.parse(raw) as Record<string, unknown>;
-  } catch (err) {
-    if (fileExists) {
-      throw new Error(
-        `Refusing to overwrite corrupt config at ${configPath} ` +
-          `(${(err as Error).message}). Fix or move the file aside before retrying.`,
-        { cause: err },
-      );
-    }
-    existing = {};
-  }
-
-  const systemPrompt = (existing.systemPrompt ?? {}) as Record<string, unknown>;
-  existing.systemPrompt = { ...systemPrompt, variant };
-
-  await atomicWrite(configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
 }
 
 /** Outcome of {@link maybeRunSystemPromptMenu}. */

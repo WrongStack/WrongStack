@@ -4,6 +4,7 @@ import {
   runChatSlashCommand,
 } from '../../src/components/ChatInput/slash-routing.js';
 import { streamCoalescer } from '../../src/lib/stream-coalescer.js';
+import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 // Mock external store dependencies and downloadChatAsMarkdown
 const mocks = vi.hoisted(() => {
@@ -160,9 +161,13 @@ describe('runChatSlashCommand', () => {
     expect(options.client?.clearContext).toHaveBeenCalledTimes(1);
   });
 
-  it('/new calls client.newSession', () => {
+  it('/new opens the system-prompt picker, which owns the session start', () => {
     expect(runChatSlashCommand({ ...options, raw: '/new' })).toBe(true);
-    expect(options.client?.newSession).toHaveBeenCalledTimes(1);
+    // The picker sends `session.new` on confirm — see SystemPromptDialog. `/new`
+    // gets the same hand-off as the New Session button so the two cannot drift.
+    expect(useSystemPromptStore.getState().pickerOpen).toBe(true);
+    expect(useSystemPromptStore.getState().pickerStartsSession).toBe(true);
+    expect(options.client?.newSession).not.toHaveBeenCalled();
   });
 
   it('/exit sends webui.shutdown', () => {

@@ -10,6 +10,7 @@ export default defineConfig({
       'packages/core/tests/architecture/build-lineage-script.test.ts',
       'packages/core/tests/architecture/test-skip-budget-script.test.ts',
       'packages/core/tests/architecture/script-entrypoints.test.ts',
+      'packages/core/tests/architecture/check-dep-path-separators.test.ts',
     ],
     maxWorkers: getVitestMaxWorkers(),
     coverage: {

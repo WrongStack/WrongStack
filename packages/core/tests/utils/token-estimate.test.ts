@@ -46,6 +46,32 @@ describe('estimateToolInputTokens', () => {
     expect(() => estimateToolInputTokens(frozen)).not.toThrow();
   });
 
+  it('serializes a payload once and memoizes on the object', () => {
+    // The memo used to be keyed by a hash of the stringified payload, so every
+    // call paid JSON.stringify PLUS a full DJB2 pass before it could look
+    // anything up — two walks over the payload to cache one division. Keyed on
+    // the object, a repeat call must not touch the payload at all.
+    let reads = 0;
+    const input = {
+      get payload(): string {
+        reads++;
+        return 'x'.repeat(350);
+      },
+    };
+    const first = estimateToolInputTokens(input);
+    const second = estimateToolInputTokens(input);
+    expect(second).toBe(first);
+    expect(reads).toBe(1);
+  });
+
+  it('gives equal estimates to distinct objects with identical content', () => {
+    // Object identity drives the memo, so two separate objects are two misses —
+    // but they must still agree on the number.
+    const a = { command: 'ls -la', cwd: '/tmp' };
+    const b = { command: 'ls -la', cwd: '/tmp' };
+    expect(estimateToolInputTokens(b)).toBe(estimateToolInputTokens(a));
+  });
+
   it('returns the same estimate on repeated calls (cache hit)', () => {
     const input = { command: 'pwd' };
     const a = estimateToolInputTokens(input);
@@ -65,6 +91,22 @@ describe('estimateToolInputTokens', () => {
 });
 
 describe('estimateToolResultTokens', () => {
+  it('memoizes object contents on the object and handles non-object scalars', () => {
+    let reads = 0;
+    const content = {
+      get body(): string {
+        reads++;
+        return 'y'.repeat(700);
+      },
+    };
+    const first = estimateToolResultTokens(content);
+    expect(estimateToolResultTokens(content)).toBe(first);
+    expect(reads).toBe(1);
+    // null / numbers cannot key a WeakMap and take the scalar path instead.
+    expect(estimateToolResultTokens(null)).toBeGreaterThan(0);
+    expect(estimateToolResultTokens(42)).toBeGreaterThan(0);
+  });
+
   it('returns >0 for plain string content', () => {
     expect(estimateToolResultTokens('some output')).toBeGreaterThan(0);
   });

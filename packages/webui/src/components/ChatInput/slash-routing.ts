@@ -4,6 +4,7 @@ import { useSessionStore, useUIStore } from '@/stores';
 import type { WSClientMessage } from '@/types';
 import { downloadChatAsMarkdown } from '../CommandPalette/export-utils.js';
 import { SLASH_COMMANDS } from './slash-commands.js';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 interface ChatAssistantMessage {
   role: 'assistant';
@@ -132,7 +133,9 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       client?.clearContext?.();
       return true;
     case '/new':
-      client?.newSession?.();
+      // Same hand-off as the New Session button: the picker sends `session.new`
+      // once a variant is confirmed.
+      useSystemPromptStore.getState().openPicker({ startsSession: true });
       showPanel('chat');
       return true;
     case '/exit':

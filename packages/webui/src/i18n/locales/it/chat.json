@@ -54,7 +54,9 @@
     "addQueueTitle": "aggiungi coda — trattieni fino al termine del run corrente",
     "openPromptLibrary": "Apri libreria prompt — sfoglia prompt pronti e salvati",
     "expandInput": "Espandi l'input",
-    "collapseInput": "Comprimi"
+    "collapseInput": "Comprimi",
+    "startListening": "Input vocale (Da voce a testo)",
+    "stopListening": "In ascolto... (Fai clic per fermare)"
   },
   "header": {
     "openSidebarTitle": "Apri barra laterale (Ctrl+\\)",

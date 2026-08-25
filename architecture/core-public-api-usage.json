@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 293,
-      "typeOnly": 235,
-      "runtimeOrMixed": 75
+      "files": 297,
+      "typeOnly": 237,
+      "runtimeOrMixed": 77
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -79,9 +79,9 @@
       "runtimeOrMixed": 40
     },
     "@wrongstack/core/kernel": {
-      "files": 243,
+      "files": 244,
       "typeOnly": 128,
-      "runtimeOrMixed": 128
+      "runtimeOrMixed": 129
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -114,9 +114,9 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/registry": {
-      "files": 110,
-      "typeOnly": 54,
-      "runtimeOrMixed": 57
+      "files": 112,
+      "typeOnly": 55,
+      "runtimeOrMixed": 58
     },
     "@wrongstack/core/replay": {
       "files": 3,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1005,
-      "typeOnly": 928,
+      "files": 1006,
+      "typeOnly": 929,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 546,
+      "files": 549,
       "typeOnly": 60,
-      "runtimeOrMixed": 513
+      "runtimeOrMixed": 516
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -204,9 +204,9 @@
       "runtimeOrMixed": 4
     },
     "@wrongstack/core/wiring/proxy-rewrite": {
-      "files": 16,
+      "files": 17,
       "typeOnly": 3,
-      "runtimeOrMixed": 16
+      "runtimeOrMixed": 17
     },
     "@wrongstack/core/worktree": {
       "files": 12,
@@ -1537,6 +1537,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tui/src/components/status-bar-rails.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tui/src/components/todos-monitor.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1850,8 +1856,8 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/mode-handlers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1864,6 +1870,12 @@
       "file": "packages/webui-server/src/server/pre-context-services.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/prefs-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -1934,6 +1946,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/start-webui.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/system-prompt-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6337,6 +6361,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/webui-server/src/server/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7009,6 +7039,12 @@
     },
     {
       "specifier": "@wrongstack/core/registry",
+      "file": "packages/cli/src/webui-server/route-contexts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7574,6 +7610,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/webui-server/src/server/setup-screen.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15157,6 +15199,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/techstack-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -18361,6 +18409,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tui/src/hooks/use-git-session-status.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tui/src/hooks/use-input-history-persistence.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18637,12 +18691,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/webui-server/src/server/mode-handlers.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/mode-operations.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18668,6 +18716,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/project-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/project-watcher.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18704,6 +18758,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/requirement-intake-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/routes.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -18782,6 +18842,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/start-webui.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/system-prompt-rebuild.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19022,6 +19088,12 @@
     {
       "specifier": "@wrongstack/core/utils/tree-kill",
       "file": "packages/plug-lsp/src/server/lsp-server.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/wiring/proxy-rewrite",
+      "file": "packages/cli/src/cli-main.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

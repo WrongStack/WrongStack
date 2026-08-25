@@ -326,6 +326,12 @@ export interface StatusBarProps {
   /** Active agent mode label with icon (e.g. `glyphs.brand teach`, `glyphs.running brief`). Rendered on line 2. */
   modeLabel?: string | undefined;
   /**
+   * Active system-prompt variant — rendered as a `⌘ PRO|STANDARD|LITE` chip on
+   * line 1 (workspace & identity) so the session's prompt density is visible
+   * at a glance. Sourced from `config.systemPrompt.variant`.
+   */
+  promptVariant?: 'lite' | 'default' | 'pro' | undefined;
+  /**
    * Live debug-stream telemetry — pushed into the TUI reducer by the
    * throttled callback from stream-debug-state.ts. When non-null, renders
    * a `glyphs.bug stream` chip on line 3 with chunk count, size, delta, and total

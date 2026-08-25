@@ -72,6 +72,10 @@ export function useWebSocketBootstrap(): void {
         // client starts with the server's truth — surviving a page refresh
         // without losing any settings changed in another tab.
         ws.getPrefs();
+        // Same reason, for the identity-prompt catalogue: the first-run picker
+        // needs to know whether a variant was ever chosen before the user gets
+        // a chance to type, so it is pulled on connect rather than on open.
+        ws.getSystemPrompt();
       })
       .catch((err) => {
         if (cancelled) return;
@@ -194,6 +198,7 @@ export function useWebSocket() {
     [client],
   );
   const resumeSession = useCallback((id: string) => client.resumeSessionById(id), [client]);
+  const newSession = useCallback(() => client.newSession(), [client]);
   const inspectSession = useCallback((id: string) => client.inspectSession(id), [client]);
   const saveSession = useCallback(() => client.saveSession(), [client]);
   const listTools = useCallback((options?: WSSendOptions) => client.listTools(options), [client]);
@@ -356,6 +361,12 @@ export function useWebSocket() {
     [client],
   );
 
+  // Git Staging
+  const stageGit = useCallback((paths: string | string[]) => client.stageGit(paths), [client]);
+  const unstageGit = useCallback((paths: string | string[]) => client.unstageGit(paths), [client]);
+  const discardGit = useCallback((paths: string | string[]) => client.discardGit(paths), [client]);
+  const commitGit = useCallback((message: string) => client.commitGit(message), [client]);
+
   return {
     client,
     sendMessage,
@@ -377,6 +388,7 @@ export function useWebSocket() {
     deleteSession,
     renameSession,
     resumeSession,
+    newSession,
     inspectSession,
     saveSession,
     listTools,
@@ -415,5 +427,9 @@ export function useWebSocket() {
     switchAutonomy,
     updatePrefs,
     refineModel,
+    stageGit,
+    unstageGit,
+    discardGit,
+    commitGit,
   };
 }

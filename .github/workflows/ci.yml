@@ -39,6 +39,15 @@ jobs:
       # what runs in CI after review (WS-041).
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
 
+      # Dependency specs must not contain Windows path separators. A
+      # backslashed `link:`/`file:` path installs fine on NTFS and then
+      # breaks every POSIX `pnpm install --frozen-lockfile` (specifier
+      # mismatch vs the forward-slashed lockfile). Pure Node, no deps —
+      # deliberately BEFORE install so the signal arrives without paying
+      # the install cost first.
+      - name: Lint (dep path separators)
+        run: node scripts/check-dep-path-separators.mjs
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22

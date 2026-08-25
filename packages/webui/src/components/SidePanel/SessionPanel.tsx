@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { Pagination } from '@/components/ui/pagination';
 import { showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { useChatStore, useConfigStore, useFleetStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { fmtTok } from '../ChatView/utils';
@@ -176,7 +177,7 @@ function QuickToggle({
 // ── Panel ─────────────────────────────────────────────────────────────
 
 export function SessionPanel() {
-  const { client, updatePrefs, switchAutonomy } = useWebSocket();
+  const { updatePrefs, switchAutonomy } = useWebSocket();
   const { t } = useAppTranslation();
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -254,10 +255,13 @@ export function SessionPanel() {
       return;
     }
 
-    client?.newSession?.();
+    // The picker starts the session on confirm — see SystemPromptDialog.
+    // Applying the variant first matters: `session.new` keeps the process
+    // alive, so the new session inherits whatever prompt is live at that point.
+    useSystemPromptStore.getState().openPicker({ startsSession: true });
     // Starting a conversation is a chat-surface action — bring it up.
     showPanel('chat');
-  }, [client, isLoading, t]);
+  }, [isLoading, t, showPanel]);
 
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.28)] [scrollbar-gutter:stable]">

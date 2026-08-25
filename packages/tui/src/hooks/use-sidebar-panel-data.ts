@@ -17,7 +17,31 @@
  */
 
 import { getProcessRegistry } from '@wrongstack/tools';
+import type React from 'react';
 import { useEffect, useState } from 'react';
+
+/**
+ * Compare two arrays element-wise with a caller-supplied predicate.
+ *
+ * Every hook below rebuilt its state object on each tick, so React saw a new
+ * reference and re-rendered — and Ink repainted the whole tree — even when the
+ * poll had found nothing new. On an open sidebar that is an unconditional
+ * repaint every 2 seconds, against the "terminal stays quiet: no periodic
+ * repaint" rule. Returning the PREVIOUS state when the data is unchanged keeps
+ * the reference stable and the frame still.
+ *
+ * (The connections and proxy panels display a live latency figure, so their
+ * numbers genuinely move most ticks; the guard is still correct there, it just
+ * elides fewer frames.)
+ */
+function sameList<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boolean): boolean {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let index = 0; index < a.length; index++) {
+    if (!eq(a[index]!, b[index]!)) return false;
+  }
+  return true;
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // ProcessList data
@@ -56,7 +80,18 @@ export function useSidebarProcessList(enabled = true): {
         status: p.killed ? 'killed' : 'running',
       }));
       const activeCount = all.filter((p) => !p.killed).length;
-      setData({ activeCount, totalCount: all.length, processes });
+      const next = { activeCount, totalCount: all.length, processes };
+      setData((previous) =>
+        previous.activeCount === next.activeCount &&
+        previous.totalCount === next.totalCount &&
+        sameList(
+          previous.processes,
+          next.processes,
+          (x, y) => x.pid === y.pid && x.name === y.name && x.status === y.status,
+        )
+          ? previous
+          : next,
+      );
     };
     read();
     const id = setInterval(read, 2000);
@@ -108,9 +143,17 @@ export function useSidebarConnections(
                   : 'unknown',
           latencyMs: s.latencyMs,
         }));
-        setConnections(mapped);
+        setConnections((previous) =>
+          sameList(
+            previous,
+            mapped,
+            (x, y) => x.name === y.name && x.status === y.status && x.latencyMs === y.latencyMs,
+          )
+            ? previous
+            : mapped,
+        );
       } catch {
-        if (!cancelled) setConnections([]);
+        if (!cancelled) setConnections((previous) => (previous.length === 0 ? previous : []));
       }
     };
     poll();
@@ -149,6 +192,32 @@ export interface SidebarWrongProxy {
   socketPath?: string | undefined;
   /** Daemon version from the `/api/health` body, when reported. */
   version?: string | undefined;
+}
+
+/**
+ * Store a probe result, keeping the previous object when nothing moved.
+ *
+ * This panel renders a live latency figure, so most ticks really do carry new
+ * data and are supposed to repaint. The guard matters for the steady states —
+ * a daemon that stays down with the same message, or a probe that lands on the
+ * same millisecond — where the old code repainted the whole tree for an
+ * identical frame.
+ */
+function setProxyData(
+  setData: React.Dispatch<React.SetStateAction<SidebarWrongProxy | null>>,
+  next: SidebarWrongProxy,
+): void {
+  setData((previous) =>
+    previous !== null &&
+    previous.url === next.url &&
+    previous.status === next.status &&
+    previous.latencyMs === next.latencyMs &&
+    previous.detail === next.detail &&
+    previous.socketPath === next.socketPath &&
+    previous.version === next.version
+      ? previous
+      : next,
+  );
 }
 
 /**
@@ -220,7 +289,7 @@ export function useSidebarWrongProxy(
           }
         }
         if (cancelled) return;
-        setData({
+        setProxyData(setData, {
           url: trimmed,
           status: ok ? 'ok' : 'warn',
           latencyMs: Date.now() - startedAt,
@@ -231,7 +300,7 @@ export function useSidebarWrongProxy(
       } catch (error) {
         if (cancelled) return;
         const message = error instanceof Error ? error.message : String(error);
-        setData({
+        setProxyData(setData, {
           url: trimmed,
           status: 'down',
           latencyMs: Date.now() - startedAt,
@@ -291,15 +360,22 @@ export function useSidebarKanban(
         if (!boardId) return;
         const board = await getBoard(projectRoot, boardId);
         if (cancelled || !board) return;
-        // Aggregate column counts.
-        const columnMap = new Map<string, number>();
+        // Bucket the tasks in ONE pass keyed by column id. The previous shape
+        // ran `board.tasks.filter(...)` once per column, which is
+        // O(columns x tasks) over a board this hook re-reads on a timer.
+        const tasksByColumn = new Map<string, { title?: string | undefined }[]>();
+        for (const task of board.tasks ?? []) {
+          const bucket = tasksByColumn.get(task.columnId);
+          if (bucket) bucket.push(task);
+          else tasksByColumn.set(task.columnId, [task]);
+        }
+        const columns: SidebarKanbanColumn[] = [];
         let totalActive = 0;
         const activeTitles: string[] = [];
         for (const col of board.columns ?? []) {
-          const tasks = board.tasks?.filter((t) => t.columnId === col.id) ?? [];
-          const count = tasks.length;
-          columnMap.set(col.title, count);
-          totalActive += count;
+          const tasks = tasksByColumn.get(col.id) ?? [];
+          columns.push({ name: col.title, count: tasks.length });
+          totalActive += tasks.length;
           // Collect titles from non-done columns.
           if (col.title.toLowerCase() !== 'done') {
             for (const t of tasks.slice(0, 3)) {
@@ -307,17 +383,40 @@ export function useSidebarKanban(
             }
           }
         }
-        const columns: SidebarKanbanColumn[] = [...columnMap.entries()].map(([name, count]) => ({
-          name,
-          count,
-        }));
-        setData({ columns, totalActive, activeCardTitles: activeTitles.slice(0, 6) });
+        const next = {
+          columns,
+          totalActive,
+          activeCardTitles: activeTitles.slice(0, 6),
+        };
+        setData((previous) =>
+          previous.totalActive === next.totalActive &&
+          sameList(
+            previous.columns,
+            next.columns,
+            (x, y) => x.name === y.name && x.count === y.count,
+          ) &&
+          sameList(previous.activeCardTitles, next.activeCardTitles, (x, y) => x === y)
+            ? previous
+            : next,
+        );
       } catch {
-        if (!cancelled) setData({ columns: [], totalActive: 0, activeCardTitles: [] });
+        if (!cancelled) {
+          setData((previous) =>
+            previous.columns.length === 0 &&
+            previous.totalActive === 0 &&
+            previous.activeCardTitles.length === 0
+              ? previous
+              : { columns: [], totalActive: 0, activeCardTitles: [] },
+          );
+        }
       }
     };
     poll();
-    const id = setInterval(poll, 10000);
+    // Every tick deserializes the WHOLE board (over IPC to the kanban daemon,
+    // or by parsing the board JSON when there is no backend) to render a few
+    // column counts. Those counts move on human timescales, so a 30s cadence
+    // costs the session three board reads a minute instead of six.
+    const id = setInterval(poll, 30_000);
     return () => {
       cancelled = true;
       clearInterval(id);

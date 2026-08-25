@@ -1,0 +1,17 @@
+{
+  "short_name": "WrongStack",
+  "name": "WrongStack Operator Workbench",
+  "description": "WrongStack WebUI Operator Workbench",
+  "icons": [
+    {
+      "src": "/wrongstack.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512 any"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#090a0f",
+  "theme_color": "#090a0f",
+  "display": "standalone",
+  "orientation": "any"
+}

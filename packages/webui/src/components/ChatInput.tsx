@@ -28,6 +28,7 @@ import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
 import { detectAtMention, matchSlash } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
+import { useSpeechRecognition } from './ChatInput/use-speech-recognition.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { useChatInputMcp } from './ChatInput/use-chat-input-mcp.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
@@ -92,6 +93,20 @@ export function ChatInput({
   const { reset: resetAutoSubmitStreak } = useAutoSubmitStreak();
 
   const [input, setInput] = useState(() => useUIStore.getState().draftInput ?? '');
+
+  const {
+    isListening,
+    isSupported: isSpeechSupported,
+    toggleListening: handleToggleSpeech,
+  } = useSpeechRecognition({
+    onTranscript: (text) => {
+      setInput((prev) => {
+        const next = prev ? `${prev} ${text}` : text;
+        useUIStore.getState().setDraftInput(next);
+        return next;
+      });
+    },
+  });
 
   useRefineTimeout({
     clientConnected: client?.isConnected,
@@ -957,6 +972,9 @@ export function ChatInput({
           handleAddQueue={handleAddQueue}
           updatePrefs={updatePrefs}
           t={t}
+          isListening={isListening}
+          isSpeechSupported={isSpeechSupported}
+          onToggleSpeech={handleToggleSpeech}
         />
       </form>
     </div>

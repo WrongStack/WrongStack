@@ -90,6 +90,24 @@ export interface ChronicleSqliteJournalOptions {
   /** Aggregate SQLite allocation ceiling across the database, WAL, and SHM files. */
   maxBytes?: number | undefined;
   retentionCheckIntervalMs?: number | undefined;
+  /**
+   * WAL durability level. Defaults to `'normal'`.
+   *
+   * In WAL mode `NORMAL` still survives a **process** crash — an aborted
+   * agent, an OOM kill, a `taskkill` — because the WAL is already written;
+   * only an OS crash or power loss can cost the last commits. `FULL` adds an
+   * fsync to every commit to close that last gap.
+   *
+   * This journal is the highest-volume writer in the runtime (measured at
+   * ~7.2GB over 7 days), so that per-commit fsync was the single largest
+   * source of disk I/O in the system — paid continuously, for telemetry that
+   * is reconstructible from the session logs. Every other SQLite store here
+   * (mailbox, kanban, techstack, vector-memory) runs `NORMAL`.
+   *
+   * Set `'full'` when the deployment genuinely needs power-loss durability
+   * for the audit trail.
+   */
+  durability?: 'normal' | 'full' | undefined;
 }
 
 export interface ChronicleSqlitePurgeOptions {
@@ -217,7 +235,9 @@ export class ChronicleSqliteJournal {
     const Database = loadDatabaseSync();
     this.db = new Database(this.dbPath);
     this.db.exec('PRAGMA journal_mode = WAL');
-    this.db.exec('PRAGMA synchronous = FULL');
+    this.db.exec(
+      options.durability === 'full' ? 'PRAGMA synchronous = FULL' : 'PRAGMA synchronous = NORMAL',
+    );
     this.db.exec(`PRAGMA wal_autocheckpoint = ${WAL_AUTOCHECKPOINT_PAGES}`);
     this.db.exec(`PRAGMA journal_size_limit = ${WAL_SIZE_LIMIT_BYTES}`);
     ensureChronicleSchema(this.db);

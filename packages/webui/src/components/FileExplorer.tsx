@@ -48,14 +48,48 @@ export function FileExplorer() {
   const cwd = useSessionStore((s) => s.cwd);
   const projectName = useSessionStore((s) => s.projectName);
   const gitChanges = useGitChangesStore((s) => s.files);
+  const gitRepoPrefix = useGitChangesStore((s) => s.repoPrefix);
 
   const gitStatusMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const f of gitChanges) {
-      m.set(f.path, f.status);
+      const norm = f.path.replace(/\\/g, '/').replace(/^\//, '');
+      m.set(norm, f.status);
     }
     return m;
   }, [gitChanges]);
+
+  const getGitStatus = useCallback(
+    (nodePath: string, isDir: boolean): string | undefined => {
+      const root = (cwd || projectName || '').replace(/\\/g, '/').replace(/^\//, '').replace(/\/$/, '');
+      let norm = nodePath.replace(/\\/g, '/').replace(/^\//, '');
+      if (root && norm.startsWith(root + '/')) {
+        norm = norm.slice(root.length + 1);
+      }
+      // Tree paths are PROJECT-root-relative; porcelain paths from
+      // git.changes are REPO-root-relative. When a repo subdirectory is
+      // opened as the project, git keys carry a prefix the tree never
+      // emits — prepend the server-computed repoPrefix (see
+      // repoRelativePrefix in webui-server git-handlers) to align them.
+      const key = gitRepoPrefix + norm;
+      const direct = gitStatusMap.get(key);
+      if (direct) return direct;
+      if (isDir) {
+        const prefix = key
+          ? (key.endsWith('/') ? key : key + '/')
+          : (gitRepoPrefix ? (gitRepoPrefix.endsWith('/') ? gitRepoPrefix : gitRepoPrefix + '/') : null);
+        if (prefix) {
+          for (const [p] of gitStatusMap.entries()) {
+            if (p.startsWith(prefix)) {
+              return 'M';
+            }
+          }
+        }
+      }
+      return undefined;
+    },
+    [gitStatusMap, gitRepoPrefix, cwd, projectName],
+  );
 
   const pathSep = cwd?.includes('\\') ? '\\' : '/';
 
@@ -659,7 +693,11 @@ export function FileExplorer() {
                   isActive={row.node.type === 'file' && row.node.path === activeFilePath}
                   isSelected={!row.emptyPlaceholder && row.node.path === selectedPath}
                   isFocused={!row.emptyPlaceholder && row.node.path === focusedPath}
-                  gitStatus={!row.emptyPlaceholder ? gitStatusMap.get(row.node.path) : undefined}
+                  gitStatus={
+                    !row.emptyPlaceholder
+                      ? getGitStatus(row.node.path, row.node.type === 'directory')
+                      : undefined
+                  }
                   onToggle={toggleDir}
                   onSelect={handleSelect}
                   onOpen={handleOpen}

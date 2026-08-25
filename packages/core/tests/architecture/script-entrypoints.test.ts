@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 const repoRoot = resolve(import.meta.dirname, '../../../..');
 const executableScripts = [
   'scripts/acp-smoke-test.mts',
+  'scripts/analyze-cpuprofile.mjs',
   'scripts/bench.mjs',
   'scripts/brain-workload-report.mjs',
   'scripts/build-package.mjs',
@@ -13,6 +14,7 @@ const executableScripts = [
   'scripts/check-architecture-health.mjs',
   'scripts/check-browser-runtime.mjs',
   'scripts/check-build-lineage.mjs',
+  'scripts/check-dep-path-separators.mjs',
   'scripts/check-file-size.mjs',
   'scripts/check-i18n-completeness.mjs',
   'scripts/check-node-pty.mjs',
@@ -35,6 +37,7 @@ const executableScripts = [
   'scripts/lib/test-skip-budget.mjs',
   'scripts/lint-console-logging.mjs',
   'scripts/lint-distributive-types.mjs',
+  'scripts/perf-chronicle-append.mts',
   'scripts/purge-stale-mailbox-entries.mjs',
   'scripts/sage-maintenance.mjs',
   'scripts/snapshot-core-public-api.mjs',
@@ -61,6 +64,9 @@ describe('executable script inventory', () => {
     ['scripts/check-browser-runtime.mjs', ['--help'], 0, 'Usage:'],
     ['scripts/sage-maintenance.mjs', ['--help'], 0, 'USAGE'],
     ['scripts/tui-heap-soak.mjs', ['--help'], 0, 'Usage:'],
+    ['scripts/analyze-cpuprofile.mjs', ['--help'], 0, 'Usage:'],
+    ['scripts/analyze-cpuprofile.mjs', ['--bogus'], 2, 'Unknown argument'],
+    ['scripts/analyze-cpuprofile.mjs', [], 2, 'required'],
     ['scripts/check-build-lineage.mjs', [], 2, 'Usage:'],
     ['scripts/check-file-size.mjs', ['--cap', 'invalid'], 2, 'Invalid'],
     ['scripts/check-test-typecheck.mjs', ['--invalid'], 2, 'Unknown argument'],

@@ -397,7 +397,7 @@ export function SettingsPanel() {
             className="grid min-h-[calc(100dvh-9rem)] gap-3 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-5"
           >
             <div className="relative min-w-0">
-              <TabsList className="flex h-auto w-full justify-start gap-0.5 overflow-x-scroll rounded-lg border border-border/60 bg-card/60 p-1.5 shadow-sm [scrollbar-gutter:stable] lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:rounded-xl lg:bg-card/60 lg:p-2">
+              <TabsList className="flex h-auto w-full justify-start gap-0.5 overflow-x-auto rounded-lg border border-border/60 bg-card/60 p-1.5 shadow-sm [scrollbar-gutter:stable] lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:rounded-xl lg:bg-card/60 lg:p-2">
                 {TABS.map((tab) => (
                   <TabsTrigger
                     key={tab.id}

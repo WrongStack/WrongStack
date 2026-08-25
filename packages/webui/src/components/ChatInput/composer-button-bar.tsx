@@ -1,4 +1,4 @@
-import { Bell, ListPlus, RotateCw, Send, Sparkles } from 'lucide-react';
+import { Bell, ListPlus, Mic, MicOff, RotateCw, Send, Sparkles } from 'lucide-react';
 import type React from 'react';
 import { cn } from '@/lib/utils';
 import { useLocalPrefs } from '@/stores/local-prefs';
@@ -24,6 +24,9 @@ export interface ComposerButtonBarProps {
   handleAddQueue: () => void;
   updatePrefs: (prefs: { enhanceEnabled: boolean }) => void;
   t: (key: string, opts?: Record<string, unknown>) => string;
+  isListening?: boolean;
+  isSpeechSupported?: boolean;
+  onToggleSpeech?: () => void;
 }
 
 export function ComposerButtonBar({
@@ -43,6 +46,9 @@ export function ComposerButtonBar({
   handleAddQueue,
   updatePrefs,
   t,
+  isListening,
+  isSpeechSupported,
+  onToggleSpeech,
 }: ComposerButtonBarProps) {
   const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
 
@@ -84,6 +90,27 @@ export function ComposerButtonBar({
           }
         >
           <Sparkles className="h-4 w-4" />
+        </Button>
+      )}
+
+      {isSpeechSupported && (
+        <Button
+          type="button"
+          size="icon"
+          variant={isListening ? 'destructive' : 'outline'}
+          disabled={disabled}
+          onClick={onToggleSpeech}
+          className={cn(
+            'h-[44px] w-[44px] shrink-0 rounded-md transition-all',
+            isListening && 'animate-pulse bg-destructive text-destructive-foreground',
+          )}
+          title={
+            isListening
+              ? t('chat:input.stopListening', { defaultValue: 'Listening... (Click to stop)' })
+              : t('chat:input.startListening', { defaultValue: 'Voice input (Speech to text)' })
+          }
+        >
+          {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
         </Button>
       )}
 

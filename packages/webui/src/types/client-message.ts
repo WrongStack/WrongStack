@@ -557,11 +557,16 @@ export type WSClientMessageCore =
   | { type: 'git.info' }
   | { type: 'git.changes' }
   | { type: 'git.diff'; payload: { path: string } }
+  | { type: 'git.stage'; payload: { paths?: string[] | undefined; path?: string | undefined } }
+  | { type: 'git.unstage'; payload: { paths?: string[] | undefined; path?: string | undefined } }
+  | { type: 'git.discard'; payload: { paths?: string[] | undefined; path?: string | undefined } }
+  | { type: 'git.commit'; payload: { message: string } }
   | { type: 'goal.get' }
   | { type: 'goal-state.get' }
   | { type: 'autonomy.switch'; payload: { mode: string } }
   | { type: 'prefs.update'; payload: Record<string, unknown> }
   | { type: 'prefs.get' }
+  | { type: 'system_prompt.get' }
   | { type: 'projects.list' }
   | { type: 'projects.add'; payload: { root: string; name?: string | undefined } }
   | { type: 'projects.select'; payload: { root: string; name?: string | undefined } }

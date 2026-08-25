@@ -1,7 +1,13 @@
+import type { SystemInstructionVariant } from '@wrongstack/core/agent';
 import type { ConfigStore } from '@wrongstack/core/types';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { type PendingConfirm, resolveYoloEligiblePendingConfirms } from './pending-confirms.js';
+import {
+  buildSystemPromptInfo,
+  type SystemPromptSurface,
+  unavailableSystemPromptInfo,
+} from './system-prompt-handlers.js';
 import type { WSServerMessage } from './types.js';
 import { validatePrefsUpdatePayload } from './ws-payload-validation.js';
 
@@ -26,6 +32,12 @@ export interface PrefsHandlerContext {
    * prefs-dependent request (e.g. an immediate model.switch).
    */
   applyWrongProxyPrefs?: ((payload: Record<string, unknown>) => void | Promise<void>) | undefined;
+  /**
+   * Identity-prompt picker. Optional so a host that has not wired it still
+   * compiles; `system_prompt.get` then answers with an explicit "unavailable"
+   * payload rather than leaving the browser's request unanswered.
+   */
+  systemPrompt?: SystemPromptSurface | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
   broadcast: (message: WSServerMessage) => void;
 }
@@ -69,6 +81,17 @@ function routingPatch(payload: Record<string, unknown>): Record<string, unknown>
 
 export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket): void {
   ctx.send(ws, { type: 'prefs.updated', payload: ctx.snapshot() });
+}
+
+/** Answer `system_prompt.get` with the variant catalogue and token estimates. */
+export async function handleSystemPromptGet(
+  ctx: PrefsHandlerContext,
+  ws: WebSocket,
+): Promise<void> {
+  const payload = ctx.systemPrompt
+    ? await buildSystemPromptInfo(ctx.systemPrompt)
+    : unavailableSystemPromptInfo();
+  ctx.send(ws, { type: 'system_prompt.info', payload });
 }
 
 export async function handlePrefsUpdate(
@@ -148,6 +171,30 @@ export async function handlePrefsUpdate(
   ) {
     ctx.setLogLevel?.(payload['logLevel'] as 'debug' | 'info' | 'warn' | 'error');
   }
+  // The identity variant is the one pref that changes the *prompt itself*, so
+  // persisting it is not enough: without a rebuild the new variant would only
+  // take effect on the next boot, and the picker would report a variant the
+  // running session is not actually using.
+  const nextVariant = payload['systemPromptVariant'];
+  if (typeof nextVariant === 'string' && ctx.systemPrompt) {
+    try {
+      await ctx.systemPrompt.applyVariant?.(nextVariant as SystemInstructionVariant);
+    } catch (err) {
+      sendResult(
+        ctx,
+        ws,
+        false,
+        `System prompt saved, but the live prompt could not be rebuilt: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    ctx.broadcast({
+      type: 'system_prompt.info',
+      payload: await buildSystemPromptInfo(ctx.systemPrompt),
+    });
+  }
+
   ctx.broadcast({ type: 'prefs.updated', payload: ctx.snapshot() });
 }
 

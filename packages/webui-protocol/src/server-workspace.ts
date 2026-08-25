@@ -15,6 +15,7 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
   'files.tree',
   'files.tree.changed',
   'files.written',
+  'git.action_result',
   'git.changes',
   'git.diff',
   'git.info',
@@ -50,4 +51,5 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'provider.probe',
   'provider.status.snapshot',
   'providers.saved',
+  'system_prompt.info',
 ] as const;

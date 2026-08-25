@@ -19,9 +19,10 @@ import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { EmptyState } from './ui/empty-state';
-import { X, Circle, Send, FileText } from 'lucide-react';
+import { Circle, FileText, GitBranch, Map as MapIcon, Send, WrapText, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor, { type OnMount, loader } from '@monaco-editor/react';
+import { useGitInfoStore } from '@/stores/git-info-store';
 import * as monaco from 'monaco-editor';
 import type { WSCompletionResult } from '@/types';
 import { useTheme } from './ThemeProvider';
@@ -153,6 +154,10 @@ export function CodeEditor() {
   /** Whether the editor currently has a non-empty text selection. Drives the
    *  floating "send to chat" toolbar. */
   const [hasSelection, setHasSelection] = useState(false);
+  const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
+  const [wordWrap, setWordWrap] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(false);
+  const gitBranch = useGitInfoStore((s) => s.info?.branch);
 
   useEffect(() => {
     activeFilePathRef.current = activeFilePath;
@@ -357,7 +362,12 @@ export function CodeEditor() {
         const sel = editor.getSelection();
         setHasSelection(!!sel && !sel.isEmpty());
       };
-      editor.onDidChangeCursorSelection(updateSelection);
+      editor.onDidChangeCursorSelection?.(updateSelection);
+      editor.onDidChangeCursorPosition?.((e) => {
+        if (e?.position) {
+          setCursorPos({ line: e.position.lineNumber, col: e.position.column });
+        }
+      });
 
       // Right-click context menu action: "Send selection to chat". When
       // nothing is selected it offers "Mention whole file" instead.
@@ -435,10 +445,38 @@ export function CodeEditor() {
     <div className="flex h-full min-w-0 flex-col overflow-hidden">
       <EditorTabs />
       <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-        {/* Floating "send to chat" toolbar — appears when text is selected,
-            and always offers "mention whole file" for the active tab. */}
+        {/* Floating editor toolbar */}
         {(hasSelection || activeFile) && (
           <div className="absolute top-2 right-2 z-10 flex items-center gap-1 rounded-lg border border-border bg-popover/95 backdrop-blur shadow-md p-1">
+            <button
+              type="button"
+              onClick={() => setWordWrap((w) => !w)}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors',
+                wordWrap
+                  ? 'bg-primary/20 text-primary font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+              )}
+              title={wordWrap ? 'Disable word wrap' : 'Enable word wrap'}
+            >
+              <WrapText className="h-3 w-3" />
+              <span>Wrap</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowMinimap((m) => !m)}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] transition-colors',
+                showMinimap
+                  ? 'bg-primary/20 text-primary font-medium'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-accent',
+              )}
+              title={showMinimap ? 'Hide minimap' : 'Show minimap'}
+            >
+              <MapIcon className="h-3 w-3" />
+              <span>Map</span>
+            </button>
+            <div className="h-3.5 w-px bg-border/80 mx-0.5" />
             <button
               type="button"
               onClick={hasSelection ? sendSelectionToChat : mentionWholeFile}
@@ -466,14 +504,14 @@ export function CodeEditor() {
               </div>
             }
             options={{
-              minimap: { enabled: false },
+              minimap: { enabled: showMinimap },
               fontSize: 13,
               fontFamily:
                 "'IBM Plex Mono', 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace",
               lineNumbers: 'on',
               renderWhitespace: 'selection',
               scrollBeyondLastLine: false,
-              wordWrap: 'off',
+              wordWrap: wordWrap ? 'on' : 'off',
               tabSize: 2,
               smoothScrolling: true,
               cursorBlinking: 'smooth',
@@ -492,6 +530,24 @@ export function CodeEditor() {
           </div>
         )}
       </div>
+      {activeFile && (
+        <div className="flex h-6 shrink-0 items-center justify-between border-t border-border/70 bg-muted/30 px-3 text-[11px] text-muted-foreground font-mono select-none">
+          <div className="flex items-center gap-3 min-w-0">
+            {gitBranch && (
+              <span className="inline-flex items-center gap-1 text-foreground/80 font-medium">
+                <GitBranch className="h-3 w-3 text-primary shrink-0" />
+                <span className="truncate max-w-[140px]">{gitBranch}</span>
+              </span>
+            )}
+            <span className="truncate max-w-[320px] text-muted-foreground">{activeFile.path}</span>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span>Ln {cursorPos.line}, Col {cursorPos.col}</span>
+            <span>UTF-8</span>
+            <span className="uppercase text-[10px] font-semibold text-primary">{language}</span>
+          </div>
+        </div>
+      )}
       {activeFile && <FileActivityDrawer file={activeFile} />}
     </div>
   );

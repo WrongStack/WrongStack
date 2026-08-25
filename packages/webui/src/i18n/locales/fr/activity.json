@@ -3412,7 +3412,9 @@
     "dismiss": "Ignorer",
     "run": "Exécutez",
     "wstackUpdate": "wstack update",
-    "orYourPackageManagerToUpgrade": "(ou votre gestionnaire de paquets) pour mettre à niveau."
+    "orYourPackageManagerToUpgrade": "(ou votre gestionnaire de paquets) pour mettre à niveau.",
+    "refresh": "Actualiser",
+    "newBuildReady": "Nouvelle version prête. Cache vidé."
   },
   "depGraph": {
     "prioCrit": "Crit.",
@@ -3580,5 +3582,17 @@
       "clarify_interaction": "Interaction de clarification",
       "subagent_delegation": "Délégation à un sous-agent"
     }
+  },
+  "systemPrompt": {
+    "title": "Prompt système",
+    "description": "Choisissez le volume de consignes intégrées fourni à l'agent. Un prompt plus long consomme des tokens à chaque requête.",
+    "firstRunDescription": "Choisissez une taille de prompt système avant votre premier message. Un prompt plus long consomme des tokens à chaque requête.",
+    "tokens": "~{{count}} tokens",
+    "current": "Actuel",
+    "apply": "Appliquer",
+    "applyAndStart": "Appliquer et démarrer la session",
+    "cancel": "Annuler",
+    "unavailable": "La sélection du prompt système n'est pas disponible sur ce serveur.",
+    "openTitle": "Choisir la taille du prompt système"
   }
 }

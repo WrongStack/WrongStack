@@ -20,7 +20,9 @@ import {
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useMemoryLifecycleStore } from '@/stores/memory-lifecycle-store';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import type { WSServerMessage } from '@/types';
+import type { WSSystemPromptInfo } from '@/types/server-message';
 
 function deriveGoalRunStatus(
   phases: PhaseItem[] | undefined,
@@ -165,6 +167,12 @@ export function handlePrefsUpdated(msg: WSServerMessage) {
       useUIStore.getState().hideConfirm();
     }
   }
+}
+
+export function handleSystemPromptInfo(msg: WSServerMessage) {
+  const payload = msg.payload as WSSystemPromptInfo;
+  if (!payload || !Array.isArray(payload.variants)) return;
+  useSystemPromptStore.getState().setInfo(payload);
 }
 
 export function handleBrainStatus(msg: WSServerMessage) {
@@ -595,9 +603,12 @@ export function handleGitInfo(msg: WSServerMessage) {
 export function handleGitChanges(msg: WSServerMessage) {
   const p = msg.payload as {
     files: Array<{ path: string; status: string; added: number; deleted: number; staged: boolean }>;
+    repoPrefix?: string | undefined;
     error?: string | undefined;
   };
-  useGitChangesStore.getState().setFiles(p.files ?? [], p.error ?? null);
+  useGitChangesStore
+    .getState()
+    .setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '');
 }
 
 export function handleGitDiff(msg: WSServerMessage) {
@@ -660,6 +671,7 @@ export function handleChimeraReportAvailable(msg: WSServerMessage) {
 export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
   'goal-state.updated': handleGoalUpdated,
   'prefs.updated': handlePrefsUpdated,
+  'system_prompt.info': handleSystemPromptInfo,
   'goal.state': handleGoalState,
   'goal.progress': handleGoalProgress,
   'goal.paused': handleGoalLifecycle,

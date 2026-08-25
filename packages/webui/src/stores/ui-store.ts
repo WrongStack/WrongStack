@@ -132,6 +132,13 @@ export type WorkDashboardTab = 'todos' | 'tasks' | 'plan';
  */
 export type InspectorTab = 'fleet' | 'agents' | 'sideEffects' | 'council';
 
+export type InspectorTarget =
+  | { kind: 'fleet'; tab?: InspectorTab | undefined }
+  | { kind: 'agent'; agentId: string }
+  | { kind: 'sideEffects' }
+  | { kind: 'council' }
+  | { kind: 'task'; taskId: string; boardId?: string | undefined; title?: string | undefined };
+
 interface UIState {
   sidebarOpen: boolean;
   /** Which activity icon is selected in the ActivityBar — controls secondary panel content. */
@@ -187,6 +194,8 @@ interface UIState {
   inspectorOpen: boolean;
   /** Active tab inside the global right inspector drawer. */
   inspectorTab: InspectorTab;
+  /** Target routing descriptor for the universal inspector drawer. */
+  inspectorTarget: InspectorTarget | null;
   /** Agent ID to focus when opening the inspector on the agents tab. Cleared on read. */
   inspectorFocusedAgentId: string | null;
   /** Subagent whose full transcript currently replaces the main chat pane
@@ -361,6 +370,8 @@ interface UIState {
   setAgentsMonitorOpen: (open: boolean) => void;
   setInspectorOpen: (open: boolean) => void;
   setInspectorTab: (tab: InspectorTab) => void;
+  openInspectorTarget: (target: InspectorTarget) => void;
+  closeInspector: () => void;
   setInspectorFocusedAgentId: (id: string | null) => void;
   setSubagentChatFocus: (id: string | null) => void;
   toggleInspector: () => void;
@@ -395,6 +406,7 @@ function homeNavigationStatePatch(
     sideContextBreakdownOpen: false,
     inspectorOpen: false,
     inspectorTab: 'fleet',
+    inspectorTarget: null,
     inspectorFocusedAgentId: null,
     subagentChatFocusId: null,
     terminalOpen: false,
@@ -445,6 +457,7 @@ export const useUIStore = create<UIState>()(
       agentsMonitorOpen: false,
       inspectorOpen: false,
       inspectorTab: 'fleet',
+      inspectorTarget: null,
       inspectorFocusedAgentId: null,
       subagentChatFocusId: null,
       processMonitorOpen: false,
@@ -569,8 +582,31 @@ export const useUIStore = create<UIState>()(
           ...(open ? { dockSection: null } : {}),
         })),
       setInspectorOpen: (open: boolean) =>
-        set({ inspectorOpen: open, ...(open ? { dockSection: null } : {}) }),
+        set({ inspectorOpen: open, ...(open ? { dockSection: null } : { inspectorTarget: null }) }),
       setInspectorTab: (tab: InspectorTab) => set({ inspectorTab: tab }),
+      openInspectorTarget: (target: InspectorTarget) =>
+        set((s) => {
+          let tab: InspectorTab = s.inspectorTab;
+          let focusedAgentId: string | null = s.inspectorFocusedAgentId;
+          if (target.kind === 'fleet') {
+            tab = target.tab ?? 'fleet';
+          } else if (target.kind === 'agent') {
+            tab = 'agents';
+            focusedAgentId = target.agentId;
+          } else if (target.kind === 'sideEffects') {
+            tab = 'sideEffects';
+          } else if (target.kind === 'council') {
+            tab = 'council';
+          }
+          return {
+            inspectorOpen: true,
+            inspectorTarget: target,
+            inspectorTab: tab,
+            inspectorFocusedAgentId: focusedAgentId,
+            dockSection: null,
+          };
+        }),
+      closeInspector: () => set({ inspectorOpen: false, inspectorTarget: null }),
       setInspectorFocusedAgentId: (id: string | null) => set({ inspectorFocusedAgentId: id }),
       setSubagentChatFocus: (id: string | null) => set({ subagentChatFocusId: id }),
       toggleInspector: () =>

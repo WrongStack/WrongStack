@@ -407,6 +407,10 @@
     /* biome-ignore lint/suspicious/noDuplicateProperties: 100vh above is the fallback for browsers without dvh support */
     height: 100dvh;
     max-height: 100dvh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
     background:
       linear-gradient(
         90deg,
@@ -942,22 +946,29 @@
   @apply border-l-2 border-primary pl-4 italic text-muted-foreground;
 }
 
-/* — Tables in markdown: no background — */
+/* — Tables in markdown: responsive overflow container — */
 .markdown-content table {
-  @apply w-full mb-3 border-collapse;
+  @apply w-full mb-3 border-collapse text-xs;
+  display: table;
+  min-width: 100%;
+}
+.markdown-content > table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .markdown-content th,
 .markdown-content td {
-  @apply px-3 py-1.5 text-sm border border-border;
+  @apply px-3 py-2 text-xs border border-border/60;
 }
 .markdown-content th {
-  @apply font-medium bg-transparent;
+  @apply font-semibold bg-muted/40 text-foreground;
 }
 .markdown-content td {
-  @apply bg-transparent;
+  @apply text-foreground/90;
 }
 .markdown-content tr:hover td {
-  @apply bg-transparent;
+  @apply bg-muted/20;
 }
 
 /* — Vim-style chat focus marker — */

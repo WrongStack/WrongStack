@@ -2,7 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { agentPrompt } from '../../src/coordination/agents/agent-prompts.js';
+import {
+  agentPrompt,
+  agentPromptCacheSize,
+} from '../../src/coordination/agents/agent-prompts.js';
 import { captureLearnedFromAgentOutputDetailed } from '../../src/coordination/agents/project-agent-identity.js';
 
 /**
@@ -86,6 +89,23 @@ describe('agentPrompt overlay fingerprint', () => {
     const after = agentPrompt('executor');
     expect(after).not.toBe(before);
     expect(after).toContain('Run the narrow package test before the workspace suite');
+  });
+
+  it('keeps one cache entry per role across repeated overlay rewrites', () => {
+    // The fingerprint used to be part of the cache key, so every capture minted
+    // a fresh entry and the previous generation — a fully rendered prompt —
+    // stayed resident forever. A host that captures often grew the map without
+    // bound. Rewriting the overlay must overwrite, not accumulate.
+    writeIdentity('generation 0');
+    agentPrompt('executor');
+    const afterFirst = agentPromptCacheSize();
+
+    for (let generation = 1; generation <= 25; generation++) {
+      writeIdentity(`generation ${generation}`);
+      expect(agentPrompt('executor')).toContain(`generation ${generation}`);
+    }
+
+    expect(agentPromptCacheSize()).toBe(afterFirst);
   });
 
   it('does not leak one project overlay into another project root', () => {

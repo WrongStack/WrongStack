@@ -54,7 +54,9 @@
     "addQueueTitle": "adicionar fila — reter até o run atual terminar",
     "openPromptLibrary": "Abrir biblioteca de prompts — navegar por prompts prontos e salvos",
     "expandInput": "Expandir a entrada",
-    "collapseInput": "Recolher"
+    "collapseInput": "Recolher",
+    "startListening": "Entrada de voz (Voz para texto)",
+    "stopListening": "Ouvindo... (Clique para parar)"
   },
   "header": {
     "openSidebarTitle": "Abrir barra lateral (Ctrl+\\)",

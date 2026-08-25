@@ -24,6 +24,8 @@ import {
 } from './components/WorkbenchTopbar';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { SystemPromptDialog } from './components/SystemPromptDialog';
+import { useSystemPromptStore } from './stores/system-prompt-store';
 import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { UpdateBanner } from './components/UpdateBanner';
@@ -38,6 +40,7 @@ import { SidePanel } from './components/SidePanel';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { Toaster } from './components/Toaster';
 import { WorkspaceDockInspector } from './components/WorkspaceDock';
+import { SessionTabBar } from './components/SessionTabBar';
 import { ViewRouter } from './components/ViewRouter';
 import { useAppTranslation } from '@/i18n';
 
@@ -169,6 +172,21 @@ function AppInner() {
     })),
   );
   const isLoading = useChatStore((s) => s.isLoading);
+  const chatMessageCount = useChatStore((s) => s.messages.length);
+  const systemPromptInfo = useSystemPromptStore((s) => s.info);
+  const systemPromptPrompted = useSystemPromptStore((s) => s.promptedThisSession);
+
+  // First run: ask for the identity-prompt size before the chat has any
+  // history. Deliberately gated on `chosen === false` rather than on the
+  // current variant — the server materializes a default for every config, so
+  // "current is Standard" would re-ask a user who already picked Standard.
+  // `promptedThisSession` keeps a reconnect or a re-render from reopening it.
+  useEffect(() => {
+    if (!systemPromptInfo || systemPromptInfo.chosen) return;
+    if (systemPromptInfo.variants.length === 0) return;
+    if (chatMessageCount > 0 || systemPromptPrompted) return;
+    useSystemPromptStore.getState().openPicker();
+  }, [systemPromptInfo, chatMessageCount, systemPromptPrompted]);
   const iteration = useSessionStore((s) => s.iteration);
   const projectName = useSessionStore((s) => s.projectName);
   const sessionTitle = useSessionStore((s) => s.session?.title);
@@ -337,6 +355,7 @@ function AppInner() {
             onSettings={() => openMainView('settings')}
           />
         )}
+        {currentView !== 'setup' && <SessionTabBar />}
         {currentView !== 'setup' && <ConnectionBanner />}
         {currentView !== 'setup' && <UpdateBanner />}
         {/* Main view content — routed by ViewRouter */}
@@ -405,6 +424,7 @@ function AppInner() {
 
       {/* Global overlays */}
       <ConfirmDialog />
+      <SystemPromptDialog />
       <ConfirmModalHost />
       <PromptModalHost />
       <CommandPalette />

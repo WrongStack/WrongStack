@@ -2,6 +2,7 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { StatusBar, type StatusBarProps } from '../src/components/status-bar.js';
+import type { StatusBarClickMap } from '../src/components/status-bar-types.js';
 import { displayWidth } from '../src/terminal-width.js';
 
 // Strip ANSI so we assert on the plain glyphs the user actually sees.
@@ -257,7 +258,7 @@ describe('StatusBar chip separators', () => {
     expect(frame).not.toContain('50% ctx');
   });
 
-  it('places live provider/model before context and project/workdir on line 2', () => {
+  it('places workspace identity on line 1 and provider/model after git', () => {
     const frame = frameOf({
       provider: 'openai',
       model: 'gpt-5.6',
@@ -268,8 +269,10 @@ describe('StatusBar chip separators', () => {
     });
     const [line1 = '', line2 = ''] = frame.split('\n');
 
-    expect(line1).toMatch(/openai\/gpt-5\.6.*\[00o/);
-    expect(line2).toMatch(/▣ WrongStack.*⌁ packages\/tui/);
+    // Line 1 is now the workspace & identity rail: project → workdir → git →
+    // provider/model. Line 2 carries the run-state rail with the context meter.
+    expect(line1).toMatch(/▣ WrongStack.*⌁ packages\/tui.*openai\/gpt-5\.6/);
+    expect(line2).toMatch(/\[00o/);
   });
 
   it('updates the rendered provider/model when current state changes', () => {
@@ -299,9 +302,9 @@ describe('StatusBar chip separators', () => {
     view.unmount();
   });
 
-  it('line 1: separates the autonomy chip from subsequent runtime chips', () => {
-    // Autonomy stays on line 1 with provider/model and state, while project
-    // starts line 2. Both rails should keep their internal separators.
+  it('line 2: separates the run-state chips (state, yolo, autonomy)', () => {
+    // Autonomy moved to the run-state rail (line 2) with state and yolo,
+    // while project leads the workspace rail (line 1).
     const frame = frameOf({
       autonomy: 'auto',
       projectName: 'proj',
@@ -311,21 +314,23 @@ describe('StatusBar chip separators', () => {
     expect(frame).toContain('∞ AUTO');
     expect(frame).toContain('▣ proj');
     const [line1 = '', line2 = ''] = frame.split('\n');
-    expect(line1).toMatch(/AUTO.*anthropic\/claude.*● idle/);
-    expect(line2).toMatch(/^▣ proj/);
+    expect(line1).toMatch(/^▣ proj.*anthropic\/claude/);
+    expect(line2).toMatch(/● idle.*AUTO/);
   });
 
-  it('line 2: separates the task chip from the fleet chip without todos/plan present', () => {
-    // On the combined secondary line, tasks and fleet chips appear with
-    // Powerline transitions between all adjacent chips.
+  it('separates the task chip (line 3) from the fleet chip (line 4)', () => {
+    // Tasks live on the active-work rail; fleet moved to the connectivity
+    // rail below it. Each keeps its internal separators.
     const frame = frameOf({
       tasks: { pending: 1, inProgress: 0, completed: 0, blocked: 0, failed: 0 },
       fleet: { running: 1, idle: 0, pending: 0, completed: 0 },
     });
-    // Both task and fleet glyphs appear on the same line with separators
-    expect(frame).toContain('◆');
-    expect(frame).toContain('◈');
-    expect(frame).toMatch(/◆.*◈/);
+    const lines = frame.split('\n');
+    const taskLine = lines.find((l) => l.includes('◆')) ?? '';
+    const fleetLine = lines.find((l) => l.includes('◈')) ?? '';
+    expect(taskLine).toBeTruthy();
+    expect(fleetLine).toBeTruthy();
+    expect(lines.indexOf(taskLine)).toBeLessThan(lines.indexOf(fleetLine));
   });
 
   it('renders todos on the active-work line (line 3)', () => {
@@ -340,16 +345,15 @@ describe('StatusBar chip separators', () => {
     expect(line).toMatch(/^todos/);
   });
 
-  it('renders all visible chips on line 1 in the correct order', () => {
+  it('renders the run-state band in order: state, YOLO, autonomy', () => {
     const frame = frameOf({
       yolo: true,
       autonomy: 'eternal',
     });
-    // YOLO is first on line 1, followed by autonomy, then state/idle, then model.
-    // Every adjacent pair should have a Powerline transition.
-    const line1 = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
-    expect(line1).toMatch(/YOLO.*∞ ETERNAL/);
-    expect(line1).toMatch(/∞ ETERNAL.*●/);
+    // Line 2 is the run-state rail: state first, then the permission band
+    // (yolo, autonomy), with separators between all adjacent chips.
+    const line2 = frame.split('\n').find((l) => l.includes('YOLO')) ?? '';
+    expect(line2).toMatch(/● idle.*! YOLO.*∞ ETERNAL/);
   });
 
   it('hides mailbox line content when mailbox is disabled', () => {
@@ -381,6 +385,50 @@ describe('StatusBar chip separators', () => {
     expect(frame).not.toContain('👥');
   });
 
+  it('publishes fleet click spans on physical line 3 when work is active', () => {
+    // Fleet + todos both present: work rail renders (physical line 2,
+    // click-map line 2) and connectivity renders below it (physical line 3,
+    // click-map line 3). The fleet span id must sit on line 3.
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const { lastFrame, unmount } = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        todos: { pending: 2, inProgress: 1, completed: 0 },
+        fleet: { running: 1, idle: 0, pending: 0, completed: 0 },
+        clickMapRef,
+      } as StatusBarProps),
+    );
+    expect(lastFrame()).toBeTruthy();
+    const fleetLines = clickMapRef.current?.lines.filter((l) =>
+      l.spans.some((s) => s.id === 'fleet'),
+    );
+    expect(fleetLines?.map((l) => l.line)).toEqual([3]);
+    unmount();
+  });
+
+  it('publishes fleet click spans on physical line 2 when no work rail renders', () => {
+    // Fleet WITHOUT todos/plan/tasks/goal: hasWorkActivity is false so the
+    // work rail is gated off and connectivity physically renders as the
+    // third row (line index 2). The click-map must track that — a stale
+    // fixed line 3 would make every fleet-chip click miss.
+    const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+    const { lastFrame, unmount } = render(
+      React.createElement(StatusBar, {
+        model: 'anthropic/claude',
+        state: 'idle',
+        fleet: { running: 1, idle: 0, pending: 0, completed: 0 },
+        clickMapRef,
+      } as StatusBarProps),
+    );
+    expect(lastFrame()).toBeTruthy();
+    const fleetLines = clickMapRef.current?.lines.filter((l) =>
+      l.spans.some((s) => s.id === 'fleet'),
+    );
+    expect(fleetLines?.map((l) => l.line)).toEqual([2]);
+    unmount();
+  });
+
   it('renders mailbox when a peer surface is online even with no unread mail', () => {
     const frame = frameOf({
       mailbox: {
@@ -390,8 +438,9 @@ describe('StatusBar chip separators', () => {
       },
     });
 
-    // The mailbox chip sits on line 3 (active work + connectivity). Mailbox
-    // is the only chip on line 3 here, so it should render without overflow.
+    // The mailbox chip sits on line 4 (fleet, connectivity & background
+    // services). Mailbox is the only chip on line 4 here, so it should render
+    // without overflow.
     expect(frame).toContain('✉ 0');
   });
 

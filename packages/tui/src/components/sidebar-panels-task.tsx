@@ -88,12 +88,12 @@ export function PlanPanelSidebar({
         innerWidth={bodyWidth}
         pill
       />
-      <Box marginTop={1}>
+      <Box marginTop={1} width={bodyWidth}>
         <Text color={ratio === 1 && total > 0 ? theme.success : theme.accent}>
-          {glyphs.barFull.repeat(Math.round(ratio * inner))}
+          {glyphs.barFull.repeat(Math.round(ratio * bodyWidth))}
         </Text>
         <Text color={theme.borderSubtle}>
-          {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round(ratio * inner)))}
+          {glyphs.barEmpty.repeat(Math.max(0, bodyWidth - Math.round(ratio * bodyWidth)))}
         </Text>
       </Box>
       <SidebarSectionHeader
@@ -308,10 +308,6 @@ export function ProcessListPanelSidebar({
         <EmptyState message="no processes" innerWidth={bodyWidth} />
       ) : (
         processes.slice(0, 10).map((p, i) => {
-          // Vary the status glyph by `p.status` so a glance at the row
-          // answers "is this process healthy?" without reading the name.
-          // `running` → ▶ (success), `idle`/`stopped` → ● (muted),
-          // `failed`/anything-else → × (error).
           const status = (p.status ?? '').toLowerCase();
           const statusVisual =
             status === 'running'
@@ -324,11 +320,11 @@ export function ProcessListPanelSidebar({
           const showPid = inner >= METRIC_MIN_BODY_WIDTH;
           const pidLabel = String(p.pid);
           return (
-            <Box key={`${p.pid}-${i}`} flexDirection="row">
+            <Box key={`${p.pid}-${i}`} flexDirection="row" width={bodyWidth}>
               <Text color={statusVisual.color}>{statusVisual.glyph}</Text>
               <Text color={theme.textPrimary}> </Text>
               <Text wrap="truncate">
-                {trunc(p.name, Math.max(4, inner - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)))}
+                {trunc(p.name, Math.max(4, bodyWidth - 2 - (showPid ? displayWidth(pidLabel) + 1 : 0)))}
               </Text>
               {showPid ? (
                 <>
@@ -363,9 +359,6 @@ export function GoalPanelSidebar({
   // the right `│` bar.
   const bodyWidth = inner >= 18 ? inner - 4 : inner;
   const displayGoal = goal ? goal.refinedGoal || goal.goal : '';
-  // Goal state glyph — use the shared `glyphs.*` language instead of emoji
-  // so the panel reads the same as the rest of the rail. `glyphs.pause`
-  // (⏸) replaces the hand-rolled `⏸` and `glyphs.idle` (●) replaces `⏹`.
   const stateVisual = goal
     ? goal.goalState === 'active'
       ? { glyph: glyphs.running, color: theme.warn }
@@ -414,7 +407,7 @@ export function GoalPanelSidebar({
             innerWidth={bodyWidth}
           />
           <Text color={theme.textPrimary} bold wrap="truncate">
-            {trunc(displayGoal, inner - 2)}
+            {trunc(displayGoal, bodyWidth - 2)}
           </Text>
           <SidebarSectionHeader
             glyph={glyphs.success}
@@ -424,12 +417,12 @@ export function GoalPanelSidebar({
             innerWidth={bodyWidth}
             pill
           />
-          <Box marginTop={1}>
+          <Box marginTop={1} width={bodyWidth}>
             <Text color={theme.success}>
-              {glyphs.barFull.repeat(Math.round((progress / 100) * inner))}
+              {glyphs.barFull.repeat(Math.round((progress / 100) * bodyWidth))}
             </Text>
             <Text color={theme.borderSubtle}>
-              {glyphs.barEmpty.repeat(Math.max(0, inner - Math.round((progress / 100) * inner)))}
+              {glyphs.barEmpty.repeat(Math.max(0, bodyWidth - Math.round((progress / 100) * bodyWidth)))}
             </Text>
           </Box>
           <SidebarSectionHeader
@@ -523,11 +516,11 @@ export function SessionsPanelSidebar({
             const color = liveSessionColor(s.status);
             const showAgentCount = inner >= METRIC_MIN_BODY_WIDTH;
             return (
-              <Box key={s.sessionId} flexDirection="row">
+              <Box key={s.sessionId} flexDirection="row" width={bodyWidth}>
                 <Text color={color}>{icon}</Text>
-                <Text color={isCurrent ? theme.accent : theme.textPrimary} bold={isCurrent}>
+                <Text color={isCurrent ? theme.accent : theme.textPrimary} bold={isCurrent} wrap="truncate">
                   {' '}
-                  {trunc(s.projectName, Math.max(4, inner - (showAgentCount ? 6 : 2)))}
+                  {trunc(s.projectName, Math.max(4, bodyWidth - (showAgentCount ? 6 : 2)))}
                 </Text>
                 {showAgentCount ? (
                   <>
@@ -557,7 +550,7 @@ export function SessionsPanelSidebar({
               : '';
             const title = trunc(
               rs.title || rs.lastUserMessage || rs.id,
-              Math.max(4, inner - 2 - (showRelativeTime ? displayWidth(rel) + 1 : 0)),
+              Math.max(4, bodyWidth - 2 - (showRelativeTime ? displayWidth(rel) + 1 : 0)),
             );
             const outcomeGlyph =
               rs.outcome === 'completed'
@@ -577,7 +570,7 @@ export function SessionsPanelSidebar({
                     : theme.textMuted;
             const isCurrent = isCurrentSession(rs.id, currentSessionId, rs.isCurrent);
             return (
-              <Box key={rs.id} flexDirection="row">
+              <Box key={rs.id} flexDirection="row" width={bodyWidth}>
                 <Text color={outcomeColor}>{outcomeGlyph}</Text>
                 <Text
                   color={isCurrent ? theme.accent : theme.textSecondary}
@@ -652,9 +645,9 @@ export function KanbanPanelSidebar({
         innerWidth={bodyWidth}
       />
       {columns.slice(0, 5).map((c, i) => (
-        <Box key={i} flexDirection="row">
+        <Box key={i} flexDirection="row" width={bodyWidth}>
           <Text color={theme.textSecondary} wrap="truncate">
-            {trunc(c.name, inner - 6)}
+            {trunc(c.name, bodyWidth - 6)}
           </Text>
           <Box flexGrow={1} />
           <Text color={theme.textMuted}>{c.count}</Text>
@@ -670,12 +663,6 @@ export function KanbanPanelSidebar({
       {activeCardTitles.length === 0 ? (
         <EmptyState message="no active cards" innerWidth={bodyWidth} />
       ) : (
-        // Vary the ACTIVE row icon by position: oldest entry (index 0) gets
-        // `glyphs.pending` (○) so the user can tell at a glance which card
-        // has been blocking the longest; subsequent entries get
-        // `glyphs.warning` (!) so a glance down the rail reads as "newest
-        // warning". The 1-based index also lives in the icon slot so a
-        // long title can be told apart from its peers.
         activeCardTitles.slice(0, 6).map((title, i) => {
           const icon = i === 0 ? glyphs.pending : glyphs.warning;
           const iconColor = i === 0 ? theme.textMuted : theme.warn;

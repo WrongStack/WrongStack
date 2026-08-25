@@ -302,7 +302,12 @@ const NERD: UiGlyphs = Object.freeze({
   task: '󰄬',
   fleet: '󰓾',
   bug: '󰃤',
-  mail: '󰇮',
+  // Trailing space neutralises the wide private-use-area glyph bleeding
+  // into the next cell on terminals that draw nerd-font PUA icons at 2
+  // columns (e.g. Windows Terminal + Cascadia/Consolas fallbacks) so the
+  // mailbox unread chip `mailbox  N new` keeps a visible gap before the
+  // count. Unicode ✉ and ASCII 'm' are narrow, so this only matters here.
+  mail: '󰇮 ',
   peers: '󰀉',
   desktop: '󰍹',
   web: '󰖟',

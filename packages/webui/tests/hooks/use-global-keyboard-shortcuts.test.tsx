@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
+import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
 
 // ── module stubs ────────────────────────────────────────────────────────────
 
@@ -317,7 +318,10 @@ describe('useGlobalKeyboardShortcuts', () => {
     it('Ctrl+N starts a new session and returns to chat', () => {
       mount();
       press('n', { ctrlKey: true });
-      expect(wsClient.newSession).toHaveBeenCalled();
+      // Ctrl+N hands off to the system-prompt picker, which sends `session.new`
+      // once a variant is confirmed — see SystemPromptDialog.
+      expect(useSystemPromptStore.getState().pickerOpen).toBe(true);
+      expect(useSystemPromptStore.getState().pickerStartsSession).toBe(true);
       expect(nav.showPanel).toHaveBeenCalledWith('chat');
     });
 

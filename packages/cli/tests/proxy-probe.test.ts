@@ -23,13 +23,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyProxyConfig,
   getProxyConfig,
+  setProxyTransitionLogger,
+  type ProxyTransitionLogger,
   __resetProxyConfigForTests,
 } from '@wrongstack/core/wiring/proxy-rewrite';
 import {
-  setProxyProbeLogger,
   startProxyProbe,
   stopProxyProbe,
-  type ProbeLogger,
   type ProbeRunner,
   __resetProxyProbeForTests,
 } from '../src/wiring/proxy-probe.js';
@@ -225,17 +225,17 @@ describe('proxy-probe transition logging', () => {
   beforeEach(() => {
     __resetProxyConfigForTests();
     lines = [];
-    const capture: ProbeLogger = {
+    const capture: ProxyTransitionLogger = {
       info: (message) => lines.push({ level: 'info', message }),
       warn: (message) => lines.push({ level: 'warn', message }),
     };
-    setProxyProbeLogger(capture);
+    setProxyTransitionLogger(capture);
   });
 
   afterEach(() => {
     stopProxyProbe();
-    __resetProxyConfigForTests();
-    __resetProxyProbeForTests(); // also detaches the capture logger
+    __resetProxyProbeForTests();
+    __resetProxyConfigForTests(); // also detaches the capture logger
   });
 
   it('logs activation once on the first healthy probe, not on every tick', async () => {
@@ -315,8 +315,30 @@ describe('proxy-probe transition logging', () => {
     expect(activations[0].message).toContain('http://localhost:3444/');
   });
 
+  it('redacts a fragment-only credential on an unparseable URL (no query delimiter)', async () => {
+    applyProxyConfig({
+      enabled: true,
+      // A space makes this genuinely unparseable → new URL() throws → the
+      // sanitizer's FALLBACK path runs. A fragment WITHOUT a preceding '?'
+      // must still be stripped (regression for the indexOf('?')-only
+      // fallback that left '#secret' intact).
+      url: 'localhost 3444/#secret-token',
+      active: false,
+    });
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(okResponse());
+    startProxyProbe({ ...NO_INTERVAL, fetchImpl });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const activations = lines.filter((l) => l.message.includes('active=true'));
+    expect(activations).toHaveLength(1);
+    expect(activations[0].message).not.toContain('secret-token');
+    expect(activations[0].message).toContain('localhost 3444');
+  });
+
   it('a throwing logger never breaks the probe: state still flips', async () => {
-    setProxyProbeLogger({
+    setProxyTransitionLogger({
       info: () => {
         throw new Error('logger exploded');
       },

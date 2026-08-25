@@ -66,6 +66,7 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['auditLevel'] = config.session?.auditLevel ?? 'standard';
   meta['maxIterations'] = config.tools?.maxIterations ?? 500;
   meta['contextMode'] = config.context?.mode ?? 'balanced';
+  meta['systemPromptVariant'] = config.systemPrompt?.variant ?? 'default';
   {
     const tsm = config.features?.tokenSavingMode;
     meta['tokenSavingTier'] = typeof tsm === 'string' ? tsm : tsm ? 'medium' : 'off';

@@ -31,6 +31,25 @@ export const domainMethods = {
     this.send({ type: 'git.diff', payload: { path } });
   },
 
+  stageGit(this: WsClientDomainHost, paths: string | string[]) {
+    const p = Array.isArray(paths) ? paths : [paths];
+    this.send({ type: 'git.stage', payload: { paths: p } });
+  },
+
+  unstageGit(this: WsClientDomainHost, paths: string | string[]) {
+    const p = Array.isArray(paths) ? paths : [paths];
+    this.send({ type: 'git.unstage', payload: { paths: p } });
+  },
+
+  discardGit(this: WsClientDomainHost, paths: string | string[]) {
+    const p = Array.isArray(paths) ? paths : [paths];
+    this.send({ type: 'git.discard', payload: { paths: p } });
+  },
+
+  commitGit(this: WsClientDomainHost, message: string) {
+    this.send({ type: 'git.commit', payload: { message } });
+  },
+
   getProviderStatus(this: WsClientDomainHost) {
     this.send({ type: 'provider.status.get' });
   },
@@ -46,6 +65,20 @@ export const domainMethods = {
   newSession(this: WsClientDomainHost) {
     this.send({ type: 'abort', payload: this.withSession({}) });
     this.send({ type: 'session.new', payload: this.withSession({}) });
+  },
+
+  /** Ask for the identity-prompt catalogue (variants, token estimates, current). */
+  getSystemPrompt(this: WsClientDomainHost) {
+    this.send({ type: 'system_prompt.get' });
+  },
+
+  /**
+   * Switch the identity-prompt size. Rides `prefs.update` because the variant is
+   * an ordinary persisted preference on the server; the server answers with a
+   * fresh `system_prompt.info` broadcast once the live prompt is rebuilt.
+   */
+  setSystemPromptVariant(this: WsClientDomainHost, variant: 'lite' | 'default' | 'pro') {
+    this.send({ type: 'prefs.update', payload: { systemPromptVariant: variant } });
   },
 
   listProviders(this: WsClientDomainHost) {

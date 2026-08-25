@@ -133,7 +133,7 @@ async function writeServerMetadata(): Promise<void> {
   // inherited ACEs and grants the owner alone.
   await restrictFilePermissions(target, {
     label: 'kanban-server-metadata',
-    warn: (message) => process.stderr.write(`${message}\n`),
+    warn: (message: string) => process.stderr.write(`${message}\n`),
   });
 }
 let stopping = false;

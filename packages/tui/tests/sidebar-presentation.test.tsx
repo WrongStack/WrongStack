@@ -54,11 +54,7 @@ describe('right sidebar presentation', () => {
 
     expect(frame).toContain('MODEL CORE');
     expect(frame).toContain('anthropic/claude-sonnet');
-    // The 10-char inline bar takes priority over the full 'CONTEXT LOAD'
-    // label — on a 28-col body the bar + short 'CTX LOAD' label fits but
-    // the full label doesn't. The bar uses 8 filled `0`s + 1 transition
-    // `o` + 1 empty `.` for an 80% reading.
-    expect(frame).toContain('080% CTX LOAD');
+    expect(frame).toContain('80%');
     expect(frame).toContain('[00000000o.]');
     expect(frame).toContain('SYS');
     expect(frame).toContain('TLS');

@@ -33,7 +33,7 @@ import { SIDEBAR_MISSION_ROWS } from '../ui-contracts.js';
 import { glyphs } from '../ui-glyphs.js';
 import type { LiveSessionEntry } from './sessions-panel.js';
 import { Card } from './sidebar-card.js';
-import { SidebarSectionHeader, SidebarStatRow, SidebarStatusPill } from './sidebar-panel-frame.js';
+import { SidebarSectionHeader } from './sidebar-panel-frame.js';
 import {
   contextBarColor,
   dialGlyph,
@@ -54,13 +54,6 @@ export interface SidebarContentProps {
    * the spend is hitting the prompt cache without opening `/context`.
    */
   cacheStats?: CacheStats | undefined;
-  /**
-   * How far the cached prefix reaches into the live request, in tokens.
-   * Drawn as an overlay marker on the context-window spectrum bar so
-   * "exactly how far the cache extends" is answerable at a glance.
-   * Zero hides the marker — no prompt cached this request.
-   */
-  cacheCoverageTokens?: number | undefined;
   /** Fleet entries (leader + subagents) from useStatusbarViewModel. */
   entries: Record<string, FleetEntry>;
   /** Fleet counts summary. */
@@ -407,7 +400,7 @@ function DialRow({
   // before the right-aligned sparkline. Every remaining column is a sparkline
   // cell; below 3 cells the sparkline is dropped (narrowest sidebars still
   // get dial + value).
-  const sparkW = innerWidth - displayWidth(label) - displayWidth(value) - 4;
+  const sparkW = innerWidth - displayWidth(label) - displayWidth(value) - 3;
   const spark = sparkW >= 3 ? sparkline(history ?? [], sparkW) : '';
   return (
     <Box flexDirection="row" width={innerWidth}>
@@ -423,7 +416,6 @@ function DialRow({
       {spark ? (
         <>
           <Box flexGrow={1} />
-          <Text> </Text>
           <Text color={color}>{spark}</Text>
         </>
       ) : null}
@@ -435,7 +427,6 @@ export function SidebarContent({
   contextWindow,
   contextBreakdown,
   cacheStats,
-  cacheCoverageTokens = 0,
   entries,
   fleetCounts,
   provider,
@@ -479,11 +470,6 @@ export function SidebarContent({
   const cs = cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
   const hasCacheActivity = cs.readTokens > 0 || cs.writeTokens > 0;
   const cacheHitPct = Math.round(cs.hitRatio * 100);
-  const activeProviderCache = cs.providers?.find((entry) => entry.provider === provider);
-  const cacheCoveragePct =
-    contextWindow && contextWindow.max > 0
-      ? Math.min(100, Math.round((cacheCoverageTokens / contextWindow.max) * 100))
-      : 0;
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
@@ -525,74 +511,8 @@ export function SidebarContent({
 
       {/* ── Model + context hero: the statusbar identity, elevated into a stage. ── */}
       <Card innerWidth={innerWidth} accent={ctxColor}>
-        {(bodyWidth) => {
-          // Inline context-load bar: paint a compact `0/o/.` meter (same
-          // glyph set as the statusline `ctx` chip) on the SAME line as
-          // the percentage. The bar is **always 10 inner chars** when
-          // there's room — that matches the user-facing meter convention
-          // (`[000o......]` for ~40%, `[oooooooooo]` for full) and makes
-          // the row read as a single visual unit regardless of rail width.
-          //
-          // Width budget: pct (4) + bar+brackets (12) + 2 spaces + label
-          // (13 or 9 or none). The label is the secondary concern — we
-          // prefer the full 'CONTEXT LOAD' and shrink to the short
-          // 'CTX LOAD' if a 10-char bar wouldn't fit alongside, and drop
-          // the label entirely on the narrowest rails. The pill only
-          // appears when no bar is shown (the bar already telegraphs the
-          // state via its color).
-          const fullLoadLabel = ' CONTEXT LOAD'; // 13 cols
-          const shortLoadLabel = ' CTX LOAD'; // 9 cols
-          const pctText = contextWindow ? `${String(ctxPct).padStart(3, '0')}%` : ' — ';
-          const pctW = pctText.length;
-          const PREFERRED_BAR_INNER = 10;
-          let barInnerW = 0;
-          let effectiveLoadLabel: string | null = null;
-          if (contextWindow) {
-            const tryFit = (labelW: number): number => {
-              const available = bodyWidth - pctW - labelW - 2; // -2 for spaces around bar
-              if (available < 12) return 0; // need 10 inner + 2 brackets
-              return Math.min(PREFERRED_BAR_INNER, available - 2);
-            };
-            // 1. Try full label + 10-char bar
-            const fromFull = tryFit(fullLoadLabel.length);
-            if (fromFull >= PREFERRED_BAR_INNER) {
-              barInnerW = fromFull;
-              effectiveLoadLabel = fullLoadLabel;
-            } else {
-              // 2. Try short label + 10-char bar
-              const fromShort = tryFit(shortLoadLabel.length);
-              if (fromShort >= PREFERRED_BAR_INNER) {
-                barInnerW = fromShort;
-                effectiveLoadLabel = shortLoadLabel;
-              } else {
-                // 3. Try 10-char bar without a label
-                const noLabelAvailable = bodyWidth - pctW - 2 - 2; // -2 space, -2 brackets
-                if (noLabelAvailable >= PREFERRED_BAR_INNER) {
-                  barInnerW = PREFERRED_BAR_INNER;
-                  effectiveLoadLabel = null;
-                } else {
-                  // 4. Fall back: shrink the bar. Keep the full label if
-                  //    it fits alongside, else the short label.
-                  if (fromFull > 0) {
-                    barInnerW = fromFull;
-                    effectiveLoadLabel = fullLoadLabel;
-                  } else if (fromShort > 0) {
-                    barInnerW = fromShort;
-                    effectiveLoadLabel = shortLoadLabel;
-                  }
-                  // 5. Else: no room for bar at all; pill takes over.
-                }
-              }
-            }
-          }
-          const inlineBar =
-            contextWindow && barInnerW > 0 ? renderMeter(ctxRatio, barInnerW) : null;
-          // Pill only when there's no inline bar. The bar (when present)
-          // already telegraphs the state via its accent color, so adding
-          // ⟦HIGH⟧ on the same row would just crowd the line.
-          const showPill = !inlineBar && contextWindow && bodyWidth >= 20;
-          return (
-            <>
+        {(bodyWidth) => (
+          <>
               {/* Stage banner: rail glyph + MODEL CORE */}
               <Box width={bodyWidth} justifyContent="space-between">
                 <Box>
@@ -603,7 +523,7 @@ export function SidebarContent({
                     {` ${glyphs.star4} MODEL CORE`}
                   </Text>
                 </Box>
-                {bodyWidth >= 28 ? (
+                {bodyWidth >= 28 && (themeName || getActiveThemeName()) ? (
                   <Text color={theme.textSecondary} wrap="truncate">
                     {`${glyphs.palette} ${themeName ?? getActiveThemeName()}`}
                   </Text>
@@ -621,228 +541,237 @@ export function SidebarContent({
                   </Text>
                 </Box>
               ) : null}
-              {bodyWidth < 28 ? (
-                <Text color={theme.textSecondary} wrap="truncate">
-                  {`${glyphs.palette} ${trunc(themeName ?? getActiveThemeName(), Math.max(1, bodyWidth - 3))}`}
-                </Text>
-              ) : null}
-              <Box width={bodyWidth}>
-                <Text color={ctxColor} bold>
-                  {contextWindow ? `${String(ctxPct).padStart(3, '0')}%` : ' — '}
-                </Text>
-                {effectiveLoadLabel ? (
-                  <Text color={theme.textMuted}>{effectiveLoadLabel}</Text>
-                ) : null}
-                {inlineBar ? <Text color={ctxColor}>{` ${inlineBar}`}</Text> : null}
-                <Box flexGrow={1} />
-                {showPill ? (
-                  <SidebarStatusPill
-                    label={ctxRatio > 0.85 ? 'HIGH' : ctxRatio > 0.5 ? 'WARM' : 'OK'}
-                    color={ctxColor}
-                    outlined
-                  />
-                ) : null}
-              </Box>
               {contextWindow ? (
                 <>
-                  <Text wrap="truncate">
-                    {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => (
-                      <Text key={segment.shortLabel} color={segment.color}>
-                        {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
-                      </Text>
-                    ))}
-                  </Text>
-                  {cacheCoverageTokens > 0 && contextWindow.max > 0 ? (
-                    <Text color={theme.success} wrap="truncate">
-                      {glyphs.railMid} cache covers {fmtTok(cacheCoverageTokens)} /{' '}
-                      {fmtTok(contextWindow.max)} ({cacheCoveragePct}%)
-                    </Text>
-                  ) : null}
-                  <Text color={theme.textMuted} wrap="truncate">
-                    {fmtTok(contextWindow.used)} / {fmtTok(contextWindow.max)} tokens
-                  </Text>
-                  {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => {
-                    if (segment.shortLabel === 'FREE' && segment.tokens <= 0) return null;
-                    const pct = Math.round((segment.tokens / Math.max(1, contextWindow.max)) * 100);
+                  {(() => {
+                    const tokensLabel = `${fmtTok(contextWindow.used)} / ${fmtTok(contextWindow.max)}`;
+                    const pctLabel = `${String(ctxPct).padStart(2, ' ')}% `;
+                    const availableForMeter = bodyWidth - pctLabel.length - tokensLabel.length - 2;
+                    const meterInner = Math.min(10, availableForMeter - 2);
+                    const dynamicMeter =
+                      meterInner >= 3 ? renderMeter(ctxRatio, meterInner) : null;
                     return (
-                      <SidebarStatRow
-                        key={segment.shortLabel}
-                        label={`${segment.glyph} ${segment.shortLabel}`}
-                        value={`${fmtTok(segment.tokens)} ${pct}%`}
-                        color={segment.color}
-                        innerWidth={bodyWidth}
-                        valueMuted
-                      />
+                      <Box width={bodyWidth} flexDirection="row" justifyContent="space-between">
+                        <Box flexDirection="row">
+                          <Text color={ctxColor} bold>
+                            {pctLabel}
+                          </Text>
+                          {dynamicMeter ? <Text color={ctxColor}>{dynamicMeter}</Text> : null}
+                        </Box>
+                        <Text color={theme.textMuted} wrap="truncate">
+                          {tokensLabel}
+                        </Text>
+                      </Box>
                     );
-                  })}
+                  })()}
+                  <Box width={bodyWidth} flexDirection="row">
+                    <Text wrap="truncate">
+                      {contextSpectrum(contextBreakdown, contextWindow, bodyWidth).map((segment) => (
+                        <Text key={segment.shortLabel} color={segment.color}>
+                          {(segment.shortLabel === 'FREE' ? '·' : '━').repeat(segment.cells)}
+                        </Text>
+                      ))}
+                    </Text>
+                  </Box>
+                  {(() => {
+                    const activeSegments = contextSpectrum(
+                      contextBreakdown,
+                      contextWindow,
+                      bodyWidth,
+                    ).filter((s) => s.tokens > 0 || s.shortLabel === 'FREE');
+                    if (bodyWidth >= 28) {
+                      const rows: Array<
+                        [typeof activeSegments[0], typeof activeSegments[0] | undefined]
+                      > = [];
+                      for (let i = 0; i < activeSegments.length; i += 2) {
+                        rows.push([activeSegments[i]!, activeSegments[i + 1]]);
+                      }
+                      return rows.map(([left, right]) => {
+                        const leftPct = Math.round(
+                          (left.tokens / Math.max(1, contextWindow.max)) * 100,
+                        );
+                        const rightPct = right
+                          ? Math.round((right.tokens / Math.max(1, contextWindow.max)) * 100)
+                          : 0;
+                        return (
+                          <Box
+                            key={left.shortLabel}
+                            flexDirection="row"
+                            width={bodyWidth}
+                            justifyContent="space-between"
+                          >
+                            <Text color={left.color} wrap="truncate">
+                              {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
+                              <Text color={theme.textMuted}> {leftPct}%</Text>
+                            </Text>
+                            {right ? (
+                              <Text color={right.color} wrap="truncate">
+                                {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
+                                <Text color={theme.textMuted}> {rightPct}%</Text>
+                              </Text>
+                            ) : null}
+                          </Box>
+                        );
+                      });
+                    }
+                    return activeSegments.map((segment) => {
+                      const pct = Math.round(
+                        (segment.tokens / Math.max(1, contextWindow.max)) * 100,
+                      );
+                      return (
+                        <Box
+                          key={segment.shortLabel}
+                          flexDirection="row"
+                          width={bodyWidth}
+                          justifyContent="space-between"
+                        >
+                          <Text color={segment.color} wrap="truncate">
+                            {segment.glyph} {segment.shortLabel}
+                          </Text>
+                          <Text color={segment.color} wrap="truncate">
+                            {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}%</Text>
+                          </Text>
+                        </Box>
+                      );
+                    });
+                  })()}
                 </>
               ) : (
-                <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting context telemetry</Text>
+                <Text color={theme.textMuted}>{glyphs.dividerDot} awaiting telemetry</Text>
+              )}
+            </>
+          )}
+      </Card>
+
+      {/* ── Prompt cache card: hit ratio + coverage ── */}
+      <Card innerWidth={innerWidth} accent={hasCacheActivity ? theme.success : undefined}>
+        {(bodyWidth) => {
+          const meterInner = Math.max(1, bodyWidth - 2);
+          const dynamicMeter = renderMeter(cs.hitRatio, meterInner);
+          return (
+            <>
+              <SidebarSectionHeader
+                glyph={glyphs.context}
+                label="PROMPT CACHE"
+                color={hasCacheActivity ? theme.success : theme.textMuted}
+                badge={hasCacheActivity ? `${cacheHitPct}% HIT` : 'IDLE'}
+                badgeColor={hasCacheActivity ? theme.success : theme.textMuted}
+                innerWidth={bodyWidth}
+                pill
+                badgeMuted={!hasCacheActivity}
+              />
+              {hasCacheActivity ? (
+                <>
+                  <Box width={bodyWidth} flexDirection="row">
+                    <Text color={theme.success}>{dynamicMeter}</Text>
+                  </Box>
+                  {bodyWidth >= 28 ? (
+                    <Box flexDirection="row" width={bodyWidth} justifyContent="space-between">
+                      <Text color={theme.textSecondary} wrap="truncate">
+                        read <Text color={theme.textPrimary} bold>{fmtTok(cs.readTokens)}</Text>
+                        {cs.writeTokens > 0 ? (
+                          <>
+                            {' · '}write <Text color={theme.textPrimary} bold>{fmtTok(cs.writeTokens)}</Text>
+                          </>
+                        ) : null}
+                        {cs.savedUsd > 0 ? (
+                          <>
+                            {' · '}saved{' '}
+                            <Text color={theme.success} bold>
+                              ~${cs.savedUsd.toFixed(2)}
+                            </Text>
+                          </>
+                        ) : null}
+                      </Text>
+                    </Box>
+                  ) : (
+                    <>
+                      <Box flexDirection="row" width={bodyWidth} justifyContent="space-between">
+                        <Text color={theme.textSecondary} wrap="truncate">
+                          read <Text color={theme.textPrimary} bold>{fmtTok(cs.readTokens)}</Text>
+                        </Text>
+                        {cs.writeTokens > 0 ? (
+                          <Text color={theme.textSecondary} wrap="truncate">
+                            write <Text color={theme.textPrimary} bold>{fmtTok(cs.writeTokens)}</Text>
+                          </Text>
+                        ) : null}
+                      </Box>
+                      {cs.savedUsd > 0 ? (
+                        <Box flexDirection="row" width={bodyWidth} justifyContent="space-between">
+                          <Text color={theme.textSecondary} wrap="truncate">
+                            saved
+                          </Text>
+                          <Text color={theme.success} bold wrap="truncate">
+                            ~${cs.savedUsd.toFixed(2)}
+                          </Text>
+                        </Box>
+                      ) : null}
+                    </>
+                  )}
+                </>
+              ) : (
+                <Text color={theme.textMuted} wrap="truncate">
+                  {glyphs.dividerDot} standby · caches prefix on prompt
+                </Text>
               )}
             </>
           );
         }}
       </Card>
 
-      {/* ── Prompt cache card: hit ratio + coverage ── */}
-      <Card innerWidth={innerWidth} accent={hasCacheActivity ? theme.success : undefined}>
-        {(bodyWidth) => (
-          <>
-            <SidebarSectionHeader
-              glyph={glyphs.context}
-              label="PROMPT CACHE"
-              color={hasCacheActivity ? theme.success : theme.textMuted}
-              badge={hasCacheActivity ? `${cacheHitPct}%` : 'IDLE'}
-              badgeColor={hasCacheActivity ? theme.success : theme.textMuted}
-              innerWidth={bodyWidth}
-              pill
-              badgeMuted={!hasCacheActivity}
-            />
-            <Box flexDirection="row" width={bodyWidth}>
-              <Text color={hasCacheActivity ? theme.success : theme.textMuted} bold>
-                {hasCacheActivity ? `${cacheHitPct}%` : 'no cache yet'}
-              </Text>
-              <Text color={theme.textMuted}>
-                {hasCacheActivity
-                  ? ' cache-hit'
-                  : ` ${glyphs.dividerDot} first prompt writes a prefix`}
-              </Text>
-            </Box>
-            {hasCacheActivity ? (
+      {/* ── System vitals: CPU, RAM, heap ── */}
+      {processMemory || cpuPercent != null ? (
+        <Card innerWidth={innerWidth}>
+          {(bodyWidth) => {
+            const isHighLoad = (cpuPercent ?? 0) > 85 || (processMemory?.load ?? 0) > 0.85;
+            const isWarnLoad = (cpuPercent ?? 0) > 60 || (processMemory?.load ?? 0) > 0.6;
+            const healthBadge = isHighLoad ? 'HIGH' : isWarnLoad ? 'WARN' : 'HEALTHY';
+            const healthColor = isHighLoad ? theme.error : isWarnLoad ? theme.warn : theme.success;
+            return (
               <>
-                {/* Token-bar mini-meter for the cache hit ratio. */}
-                <Box flexDirection="row" width={bodyWidth}>
-                  <Text color={theme.success}>
-                    {glyphs.barFull.repeat(
-                      Math.round((cacheHitPct / 100) * Math.max(4, bodyWidth - 4)),
-                    )}
-                  </Text>
-                  <Text color={theme.borderSubtle}>
-                    {glyphs.barEmpty.repeat(
-                      Math.max(
-                        0,
-                        Math.max(4, bodyWidth - 4) -
-                          Math.round((cacheHitPct / 100) * Math.max(4, bodyWidth - 4)),
-                      ),
-                    )}
-                  </Text>
-                </Box>
-                <SidebarStatRow
-                  label={`${activeProviderCache?.provider ?? provider ?? 'provider'} hit`}
-                  value={
-                    activeProviderCache
-                      ? `${(activeProviderCache.hitRatio * 100).toFixed(1)}%`
-                      : `${cacheHitPct}%`
-                  }
-                  color={theme.success}
-                  accent={theme.success}
+                <SidebarSectionHeader
+                  glyph={glyphs.cpu}
+                  label="SYSTEM VITALS"
+                  color={theme.accent}
+                  badge={healthBadge}
+                  badgeColor={healthColor}
                   innerWidth={bodyWidth}
+                  pill
                 />
-                <SidebarStatRow
-                  label="read"
-                  value={fmtTok(cs.readTokens)}
-                  color={theme.textPrimary}
-                  accent={theme.success}
-                  innerWidth={bodyWidth}
-                />
-                <SidebarStatRow
-                  label="write"
-                  value={fmtTok(cs.writeTokens)}
-                  color={theme.textSecondary}
-                  accent={theme.warn}
-                  innerWidth={bodyWidth}
-                />
-                {cs.cacheWrite5m !== undefined && cs.cacheWrite1h !== undefined ? (
+                {cpuPercent != null ? (
+                  <DialRow
+                    label="CPU "
+                    value={`${cpuPercent.toFixed(0).padStart(2, ' ')}%`}
+                    ratio={cpuPercent / 100}
+                    history={cpuHistory}
+                    innerWidth={bodyWidth}
+                  />
+                ) : null}
+                {processMemory ? (
                   <>
-                    <SidebarStatRow
-                      label="write 5m"
-                      value={fmtTok(cs.cacheWrite5m)}
-                      color={theme.textSecondary}
-                      accent={theme.warn}
+                    <DialRow
+                      label="RAM "
+                      value={fmtMemory(processMemory.rss)}
+                      ratio={
+                        totalMem && totalMem > 0
+                          ? Math.min(1, processMemory.rss / totalMem)
+                          : processMemory.load
+                      }
+                      history={rssHistory}
                       innerWidth={bodyWidth}
                     />
-                    <SidebarStatRow
-                      label="write 1h"
-                      value={fmtTok(cs.cacheWrite1h)}
-                      color={theme.textSecondary}
-                      accent={theme.warn}
+                    <DialRow
+                      label="HEAP"
+                      value={fmtMemory(processMemory.heapUsed)}
+                      ratio={processMemory.load}
+                      history={heapHistory}
                       innerWidth={bodyWidth}
                     />
                   </>
                 ) : null}
-                {cs.savedUsd > 0 ? (
-                  <SidebarStatRow
-                    label="saved"
-                    value={`~${cs.savedUsd.toFixed(2)}`}
-                    color={theme.success}
-                    accent={theme.success}
-                    innerWidth={bodyWidth}
-                  />
-                ) : null}
               </>
-            ) : null}
-            {cacheCoverageTokens > 0 && contextWindow ? (
-              <SidebarStatRow
-                label="coverage"
-                value={`${fmtTok(cacheCoverageTokens)}/${fmtTok(contextWindow.max)} ${cacheCoveragePct}%`}
-                color={theme.success}
-                accent={theme.success}
-                innerWidth={bodyWidth}
-              />
-            ) : null}
-          </>
-        )}
-      </Card>
-
-      {/* ── System vitals: CPU, RAM, heap — relocated from the statusline ── */}
-      {processMemory || cpuPercent != null ? (
-        <Card innerWidth={innerWidth}>
-          {(bodyWidth) => (
-            <>
-              <SidebarSectionHeader
-                glyph={glyphs.cpu}
-                label="SYSTEM"
-                color={theme.textSecondary}
-                badge={cpuPercent != null ? `${cpuPercent.toFixed(0)}%` : undefined}
-                badgeColor={cpuPercent != null ? contextBarColor(cpuPercent / 100) : undefined}
-                innerWidth={bodyWidth}
-                pill
-              />
-              {cpuPercent != null ? (
-                <DialRow
-                  label="CPU"
-                  value={`${cpuPercent.toFixed(0)}%`}
-                  ratio={cpuPercent / 100}
-                  history={cpuHistory}
-                  innerWidth={bodyWidth}
-                />
-              ) : null}
-              {processMemory ? (
-                <>
-                  <DialRow
-                    label="RAM"
-                    value={fmtMemory(processMemory.rss)}
-                    // RSS is the process's whole resident set — ratio it against
-                    // physical RAM, not the V8 heap limit (HeapSample.load).
-                    ratio={
-                      totalMem && totalMem > 0
-                        ? Math.min(1, processMemory.rss / totalMem)
-                        : processMemory.load
-                    }
-                    history={rssHistory}
-                    innerWidth={bodyWidth}
-                  />
-                  <DialRow
-                    label="HEAP"
-                    value={fmtMemory(processMemory.heapUsed)}
-                    ratio={processMemory.load}
-                    history={heapHistory}
-                    innerWidth={bodyWidth}
-                  />
-                </>
-              ) : null}
-            </>
-          )}
+            );
+          }}
         </Card>
       ) : null}
 

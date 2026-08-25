@@ -1,4 +1,5 @@
 import type { Message } from '@wrongstack/core/types';
+import { type ProjectWatchSubscription, watchProjectTree } from '@wrongstack/core/utils';
 import { useEffect, useRef, useState } from 'react';
 import type { AppProps } from '../app-props.js';
 import type { StatuslineItem } from '../components/statusline-picker.js';
@@ -10,7 +11,7 @@ interface GitSessionStatusOptions {
   setSessionCount: (count: number) => void;
   /**
    * Statusline hidden items. The 10s git poll is the only consumer of
-   * `readGitInfo`, which spawns three `git` child processes per tick —
+   * `readGitInfo`, which spawns two `git` child processes per tick —
    * when the `git` chip is user-hidden, skip the poll entirely until it
    * is visible again.
    */
@@ -27,6 +28,29 @@ function sameGitInfo(a: GitInfo | null, b: GitInfo | null): boolean {
       a.deleted === b.deleted &&
       a.untracked === b.untracked)
   );
+}
+
+/**
+ * Paths whose changes can never move `readGitInfo`'s answer, so an event on
+ * one must not re-arm the poll.
+ *
+ * Deliberately tiny and conservative. A broader ignore list (core's
+ * `DEFAULT_WALK_IGNORE_SET`, say) would swallow `__snapshots__`, `dist`, and
+ * `build` — all of which are tracked in some repo somewhere, and a missed
+ * event freezes the chip on a stale count. Over-reporting is free: it costs
+ * one poll we would have run anyway. Under-reporting is a bug.
+ *
+ * `.git` is the one directory worth filtering, because fetch/gc churn its
+ * objects and refs constantly. Only `HEAD` (branch switch) and `index`
+ * (staging, which `diff HEAD` counts) can change the answer.
+ */
+function gitPollNeedsRefresh(relative: string): boolean {
+  const segments = relative.split(/[\\/]/);
+  if (segments.includes('node_modules')) return false;
+  const dotGit = segments.indexOf('.git');
+  if (dotGit === -1) return true;
+  const rest = segments.slice(dotGit + 1);
+  return rest.length === 1 && (rest[0] === 'HEAD' || rest[0] === 'index');
 }
 
 /** Polls repository identity and the live-session count for status surfaces. */
@@ -53,6 +77,33 @@ export function useGitSessionStatus({
     // processes, no branch-switch notices — until it is visible again.
     if (gitHidden) return;
     let cancelled = false;
+
+    // Change gate. A tick that finds nothing changed still pays two process
+    // spawns (~40-80ms each on Windows) to recompute a byte-identical answer,
+    // forever, on every idle session. Subscribing to the SHARED recursive
+    // project watcher costs no extra OS watcher — core's registry keeps one
+    // per root per process and this is an additional subscriber — and tells
+    // us exactly when a spawn could produce a different result.
+    //
+    // Gating on `.git` mtimes instead would be wrong: a working-tree edit
+    // never touches `.git/index`, so the +/- counts would go stale. Only a
+    // tree watcher covers both working-tree edits and `.git/HEAD` switches.
+    //
+    // `dirty` starts true so the first tick always paints.
+    let dirty = true;
+    let watcher: ProjectWatchSubscription | undefined;
+    try {
+      watcher = watchProjectTree(agent.ctx.cwd, ({ filename }) => {
+        // A null filename is a watcher-buffer overflow: the OS dropped events
+        // and cannot say which. Assume the worst and refresh.
+        if (filename === null || gitPollNeedsRefresh(filename)) dirty = true;
+      });
+    } catch {
+      // No recursive watch here (Linux < 22, EPERM on a network share).
+      // Degrade to the unconditional poll rather than freezing the chip.
+      watcher = undefined;
+    }
+
     const refresh = () => {
       readGitInfo(agent.ctx.cwd)
         .then((info) => {
@@ -85,13 +136,22 @@ export function useGitSessionStatus({
           if (!cancelled) setGitInfo(null);
         });
     };
-    refresh();
-    // Git status spawns short-lived child processes. Ten seconds keeps branch
-    // changes responsive without paying that process cost twelve times/minute.
-    const timer = setInterval(refresh, 10_000);
+    // Clearing `dirty` BEFORE the spawn (not after) means an event that lands
+    // while git is still running re-arms the next tick instead of being lost.
+    const maybeRefresh = () => {
+      if (watcher && !dirty) return;
+      dirty = false;
+      refresh();
+    };
+
+    maybeRefresh();
+    // Ten seconds keeps branch changes responsive. With the gate above, an
+    // idle repository spawns nothing at all between ticks.
+    const timer = setInterval(maybeRefresh, 10_000);
     return () => {
       cancelled = true;
       clearInterval(timer);
+      watcher?.close();
     };
     // `gitHidden` must be a dep: toggling the chip in /statusline has to
     // re-run this effect to start (or stop) the poll. Without it the gate

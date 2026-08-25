@@ -18,6 +18,10 @@ function handlers(): ShellGitRouteHandlers {
     gitInfo: vi.fn(async () => undefined),
     gitChanges: vi.fn(async () => undefined),
     gitDiff: vi.fn(async () => undefined),
+    gitStage: vi.fn(async () => undefined),
+    gitUnstage: vi.fn(async () => undefined),
+    gitDiscard: vi.fn(async () => undefined),
+    gitCommit: vi.fn(async () => undefined),
     shellOpen: vi.fn(async () => undefined),
   };
 }
@@ -36,6 +40,10 @@ describe('handleShellGitRoute dispatcher characterization', () => {
     ['git.info', 'gitInfo'],
     ['git.changes', 'gitChanges'],
     ['git.diff', 'gitDiff'],
+    ['git.stage', 'gitStage'],
+    ['git.unstage', 'gitUnstage'],
+    ['git.discard', 'gitDiscard'],
+    ['git.commit', 'gitCommit'],
     ['shell.open', 'shellOpen'],
   ] as const)('dispatches %s to %s and returns true', async (type, handlerName) => {
     const ws = mockWs();

@@ -119,7 +119,8 @@ function summarizePprof(profile: PprofProfile): MemoryAllocationSummary {
 }
 
 async function startDatadogProfiler(): Promise<ContinuousMemoryProfiler> {
-  const pprof = (await import('@datadog/pprof')) as DatadogPprofModule;
+  const moduleName = '@datadog/pprof';
+  const pprof = (await import(moduleName)) as unknown as DatadogPprofModule;
   pprof.heap.start(DEFAULT_SAMPLE_INTERVAL_BYTES, DEFAULT_STACK_DEPTH);
   let stopped = false;
 

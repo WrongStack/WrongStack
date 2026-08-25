@@ -54,7 +54,9 @@
     "addQueueTitle": "add queue — hold until the current run completes",
     "openPromptLibrary": "Open prompt library — browse ready-made and saved prompts",
     "expandInput": "Expand input",
-    "collapseInput": "Collapse"
+    "collapseInput": "Collapse",
+    "startListening": "Voice input (Speech to text)",
+    "stopListening": "Listening... (Click to stop)"
   },
   "header": {
     "openSidebarTitle": "Open sidebar (Ctrl+\\)",

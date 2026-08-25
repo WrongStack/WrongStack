@@ -59,6 +59,7 @@ interface ParsedArgs {
   projectDir: string;
   workspaceId: string;
   retentionDays: number;
+  durability: 'normal' | 'full';
 }
 
 interface ClientState {
@@ -85,6 +86,12 @@ function parseArgs(argv: string[]): ParsedArgs {
     if (!values.get(key)) throw new Error(`Chronicle project server requires ${key}`);
   }
   const retentionInput = Number(values.get('--retention-days'));
+  // Durability is an operator escape hatch rather than per-session config, so
+  // it is read from the environment the daemon already inherits instead of
+  // being threaded through the client's spawn arguments. Anything other than
+  // an explicit 'full' keeps the WAL default of NORMAL.
+  const durabilityInput =
+    values.get('--durability') ?? process.env['WRONGSTACK_CHRONICLE_DURABILITY'] ?? '';
   return {
     projectRoot: path.resolve(values.get('--project-root')!),
     globalRoot: path.resolve(values.get('--global-root')!),
@@ -92,6 +99,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     projectDir: path.resolve(values.get('--project-dir')!),
     workspaceId: values.get('--workspace-id')!,
     retentionDays: Number.isFinite(retentionInput) && retentionInput > 0 ? retentionInput : 30,
+    durability: durabilityInput.trim().toLowerCase() === 'full' ? 'full' : 'normal',
   };
 }
 
@@ -228,6 +236,7 @@ function store(): Promise<ChronicleSqliteJournal> {
     const journal = new ChronicleSqliteJournal({
       directory: chronicleDirectory,
       retentionDays: parsed.retentionDays,
+      durability: parsed.durability,
       // Bound burst growth independently of age retention. Prefix eviction keeps
       // at most this many rows while preserving chain verification via checkpoints.
       maxEvents: 100_000,
@@ -331,6 +340,10 @@ async function appendInputs(inputs: ChronicleEventInput[]): Promise<ChronicleEve
 
 const watcherSink: ChronicleEventSink = {
   append: async (input) => (await appendInputs([input]))[0]!,
+  // The file observer reconciles a whole burst at once (a branch switch, a
+  // build drop). Routing that through `appendInputs` as ONE call keeps it to
+  // one `BEGIN IMMEDIATE` + one fsync instead of one per changed file.
+  appendBatch: (inputs) => appendInputs([...inputs]),
   flush: async () => flushJournals(),
   stats: () => journalForToday().stats(),
 };
@@ -691,7 +704,12 @@ async function stop(_reason: string): Promise<void> {
       else resolve();
     });
   });
-  await watcher?.close().catch(() => {});
+  await watcher?.close().catch((error) => {
+    // A failed shutdown flush IS the drain failure under the observer's
+    // close() contract — record it so the daemon's ping watcher field
+    // reports the lost audit tail instead of silently swallowing it.
+    watcherLastError = error instanceof Error ? error.message : String(error);
+  });
   watcher = undefined;
   await flushJournals().catch(() => {});
   metricsStore?.close();

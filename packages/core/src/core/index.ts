@@ -102,3 +102,13 @@ export {
   type DomainGlossaryOptions,
   renderDomainGlossary,
 } from './system-prompt-glossary.js';
+export {
+  countSystemPromptTokens,
+  isSystemInstructionVariant,
+  persistSystemPromptVariant,
+  readSavedSystemPromptVariant,
+  SYSTEM_PROMPT_VARIANT_OPTIONS,
+  SYSTEM_PROMPT_VARIANTS,
+  type SystemPromptVariantPaths,
+  systemPromptVariantLabel,
+} from './system-prompt-variants.js';

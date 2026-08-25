@@ -96,10 +96,9 @@ describe('StatusBar overflow handling (width-budget)', () => {
   });
 
   it('drops trailing chips with a +N marker rather than wrapping the line', () => {
-    // ink-testing-library renders at a fixed 100 columns; pack line 2 well past
-    // that so the lowest-priority trailing chips must be dropped. StatusBar
-    // renders line 1 (runtime + version chip) and line 2 (detail chips) —
-    // only line 2 carries enough chips to overflow at this budget.
+    // ink-testing-library renders at a fixed 100 columns; pack the workspace
+    // rail (line 1) and the session-identity tail well past that so the
+    // lowest-priority trailing chips must be dropped with a +N marker.
     const frame = frameOf({
       yolo: true,
       autonomy: 'eternal',
@@ -119,22 +118,21 @@ describe('StatusBar overflow handling (width-budget)', () => {
     const lines = frame.split('\n');
     const line1 = lines[0] ?? '';
     const line2 = lines[1] ?? '';
-    // Line 1 stays under the 100-col terminal (no wrap) — YOLO + autonomy
-    // are pinned at the leading edge.
+    // Line 1 (workspace rail) is now the overflow-prone line: project +
+    // workdir + git + model + theme + sessions + tools. It must append a
+    // `+N` marker rather than wrap or silently truncate, and its leading
+    // identity chips must survive the drop.
     expect(line1.length).toBeLessThanOrEqual(100);
-    expect(line1).toContain('! YOLO');
-    // Line 2 carries the detail chips that overflow at 100 cols — the
-    // rail must append a `+N` marker rather than wrapping or truncating
-    // silently. Pin the marker so a future refactor that drops the
-    // overflow handling (and silently clips chips) is caught.
-    expect(line2.length).toBeLessThanOrEqual(100);
-    const overflowMatch = line2.match(/\+(\d+)/);
+    expect(line1).toContain('project-name-here');
+    expect(line1).toContain('feature/long-branch-name');
+    const overflowMatch = line1.match(/\+(\d+)/);
     expect(overflowMatch).not.toBeNull();
     expect(Number(overflowMatch?.[1])).toBeGreaterThan(0);
-    expect(line2).toContain('feature/long-branch-name');
+    // Line 2 (run state) fits at this budget — no wrap.
+    expect(line2.length).toBeLessThanOrEqual(100);
   });
 
-  it('keeps the leading YOLO + autonomy chips when dropping (priority order)', () => {
+  it('keeps the leading workspace chips when dropping (priority order)', () => {
     const frame = frameOf({
       yolo: true,
       autonomy: 'eternal',
@@ -146,12 +144,15 @@ describe('StatusBar overflow handling (width-budget)', () => {
       toolCount: 99,
       tokenSavingMode: 'medium',
     });
-    // StatusBar renders line 1 (runtime + version chip) and line 2 (detail
-    // chips). The leading YOLO + autonomy chips live on line 1 and must
-    // survive any overflow drops on line 2.
-    const line1 = frame.split('\n')[0] ?? '';
-    expect(line1).toContain('! YOLO');
-    expect(line1).toContain('∞ ETERNAL');
+    // The workspace rail (line 1) leads with project/workdir/git + model and
+    // must survive any overflow drops; yolo + autonomy now live on line 2
+    // (run state) and lead that rail.
+    const lines = frame.split('\n');
+    const line1 = lines[0] ?? '';
+    const line2 = lines[1] ?? '';
+    expect(line1).toContain('project-name-here');
+    expect(line2).toContain('! YOLO');
+    expect(line2).toContain('∞ ETERNAL');
   });
 });
 

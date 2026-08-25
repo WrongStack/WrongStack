@@ -206,6 +206,7 @@
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './input-builder.js';",
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
         "export { clearPendingNextSteps, hasNextStepsTag, MAX_PENDING_NEXT_STEPS, maybeAppendPendingNextSteps, type PendingNextStep, readPendingNextSteps, renderNextStepsBlock, writePendingNextSteps, } from './next-steps-slot.js';",
+        "export { countSystemPromptTokens, isSystemInstructionVariant, persistSystemPromptVariant, readSavedSystemPromptVariant, SYSTEM_PROMPT_VARIANT_OPTIONS, SYSTEM_PROMPT_VARIANTS, type SystemPromptVariantPaths, systemPromptVariantLabel, } from './system-prompt-variants.js';",
         "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, runtimeFallbackChain, smartDefaultFallbackChain, } from './fallback-model.js';",
         "export { diagnoseFallbackConfig, type FallbackDiagnosticReport, type FallbackDiagnosticWarning, type FallbackSimulationResult, type FallbackSimulationStep, simulateFallbackFailover, } from './fallback-doctor.js';",
         "export { formatModelRef, type ModelRef, normalizeModelRef, parseModelRef, } from './model-ref.js';",
@@ -1097,13 +1098,17 @@
         "export function deactivateProxyOnConnectionFailure",
         "export function getProxyConfig",
         "export function isProxyEligible",
+        "export function logProxyTransition",
         "export function rewriteBaseUrl",
+        "export function sanitizeUrlForLog",
+        "export function setProxyTransitionLogger",
         "export function shouldRewriteFor",
         "export function subscribeToProxyConfig",
         "export interface ProxyConfig",
         "export interface ProxyInstantApplyDeps",
         "export interface ProxyInstantApplyHandle",
         "export interface ProxyInstantApplyLogger",
+        "export interface ProxyTransitionLogger",
         "export type ProxyConfigListener"
       ]
     }
@@ -1114,21 +1119,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 9372
+      "sourceLines": 9690
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 170,
-      "sourceLines": 49079
+      "sourceLines": 49199
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 44,
-      "sourceLines": 11604
+      "sourceFiles": 45,
+      "sourceLines": 11779
     },
     {
       "directory": "design",
@@ -1296,14 +1301,14 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10534
+      "sourceLines": 10528
     },
     {
       "directory": "wiring",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 1,
-      "sourceLines": 444
+      "sourceLines": 531
     },
     {
       "directory": "worktree",

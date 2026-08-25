@@ -47,6 +47,10 @@ export const PREF_KEYS = [
   'contextStrategy',
   'contextMode',
   'tokenSavingTier',
+  // Identity-prompt size: lite | default | pro. Persisted to
+  // config.systemPrompt.variant, the same key the CLI startup menu writes,
+  // so a choice made in the browser is the one the next CLI boot offers.
+  'systemPromptVariant',
   'maxConcurrent',
   'titleAnimation',
   'uiLocale',
@@ -400,6 +404,16 @@ export async function persistPrefsToConfig(
         const featsCfg = (decrypted.features as Record<string, unknown>) ?? {};
         featsCfg.tokenSavingMode = payload['tokenSavingTier'];
         decrypted.features = featsCfg;
+      }
+      // Writing the key explicitly is what marks the choice as *made*: the
+      // config loader materializes `variant: 'default'` in memory for every
+      // config, so only its presence on disk distinguishes "user picked
+      // Standard" from "never asked". The WebUI first-run picker reads that
+      // same signal back through `readSavedSystemPromptVariant`.
+      if (typeof payload['systemPromptVariant'] === 'string') {
+        const promptCfg = (decrypted.systemPrompt as Record<string, unknown>) ?? {};
+        promptCfg.variant = payload['systemPromptVariant'];
+        decrypted.systemPrompt = promptCfg;
       }
       if (typeof payload['maxConcurrent'] === 'number') {
         decrypted.maxConcurrent = payload['maxConcurrent'];

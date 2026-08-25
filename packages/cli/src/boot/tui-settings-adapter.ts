@@ -209,6 +209,10 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       thinkingWord: normalizeTuiThinkingWord(autonomy?.thinkingWord),
       animationStyle: normalizeAnimationStyle(autonomy?.animationStyle),
       configScope: cfg.configScope ?? 'global',
+      systemPromptVariant:
+        cfg.systemPrompt?.variant === 'lite' || cfg.systemPrompt?.variant === 'pro'
+          ? cfg.systemPrompt.variant
+          : 'default',
       enhanceDelayMs:
         ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ?? 60_000,
       enhanceEnabled:

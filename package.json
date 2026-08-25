@@ -18,6 +18,8 @@
     "bench": "vitest bench --run --config vitest.bench.config.ts",
     "bench:perf": "node scripts/bench.mjs",
     "bench:tui-heap": "node scripts/tui-heap-soak.mjs",
+    "perf:chronicle": "tsx scripts/perf-chronicle-append.mts",
+    "analyze:cpuprofile": "node scripts/analyze-cpuprofile.mjs",
     "profile:memory": "node scripts/memory-profile.mjs",
     "analyze:memory": "node scripts/analyze-memory-log.mjs",
     "brain:workload": "node scripts/brain-workload-report.mjs",
@@ -53,6 +55,7 @@
     "check:rulebook": "node --experimental-strip-types scripts/check-rulebook.mjs",
     "check:clean-dist": "node scripts/check-build-lineage.mjs --assert-clean",
     "check:dist-hidden": "node scripts/check-dist-hidden-files.mjs",
+    "check:dep-paths": "node scripts/check-dep-path-separators.mjs",
     "check:build-manifest": "node scripts/check-build-lineage.mjs --verify .reports/build-artifact-manifest.json",
     "write:build-manifest": "node scripts/check-build-lineage.mjs --write .reports/build-artifact-manifest.json",
     "check:architecture": "node scripts/snapshot-core-public-api.mjs && node scripts/check-architecture-health.mjs",
@@ -80,7 +83,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.10",
     "@playwright/test": "^1.62.1",
-    "@types/node": "^22.19.0",
+    "@types/node": "^22.20.1",
     "@vitest/coverage-istanbul": "^4.1.11",
     "@vitest/coverage-v8": "^4.1.11",
     "@wrongstack/tools": "workspace:*",
@@ -92,5 +95,8 @@
     "typescript": "^7.0.2",
     "undici-types": "^8.10.0",
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "wrongstack": "link:apps/wrongstack"
   }
 }

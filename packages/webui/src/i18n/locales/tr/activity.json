@@ -3412,7 +3412,9 @@
     "dismiss": "Kapat",
     "run": "Çalıştır:",
     "wstackUpdate": "wstack update",
-    "orYourPackageManagerToUpgrade": "(veya paket yöneticinizi) yükseltmek için."
+    "orYourPackageManagerToUpgrade": "(veya paket yöneticinizi) yükseltmek için.",
+    "refresh": "Yenile",
+    "newBuildReady": "Yeni sürüm hazır. Önbellek temizlendi."
   },
   "depGraph": {
     "prioCrit": "Kritik",
@@ -3580,5 +3582,17 @@
       "clarify_interaction": "Netleştirme etkileşimi",
       "subagent_delegation": "Alt ajan yetkilendirmesi"
     }
+  },
+  "systemPrompt": {
+    "title": "Sistem promptu",
+    "description": "Ajanın hangi hazır yönergelerle başlayacağını seçin. Büyük prompt her istekte token harcar.",
+    "firstRunDescription": "İlk mesajınızdan önce sistem promptu boyutunu seçin. Büyük prompt her istekte token harcar.",
+    "tokens": "~{{count}} token",
+    "current": "Geçerli",
+    "apply": "Uygula",
+    "applyAndStart": "Uygula ve oturum başlat",
+    "cancel": "Vazgeç",
+    "unavailable": "Bu sunucuda sistem promptu seçimi kullanılamıyor.",
+    "openTitle": "Sistem promptu boyutunu seç"
   }
 }

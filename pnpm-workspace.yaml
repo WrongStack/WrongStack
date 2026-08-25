@@ -17,28 +17,7 @@ overrides:
   # dompurify <=3.4.12: IN_PLACE hook removal leaves a detached subtree
   # executable -> XSS (GHSA-55q2-fjhq-7xh7). Patched in 3.4.13.
   # Pulled in transitively by monaco-editor (webui).
-  dompurify: ">=3.4.13"
-  esbuild: "^0.28.2"
-  undici-types: "^8.10.0"
-  # jsdom@29.1.1 (vitest test env) needs undici's 7.x line (it requires the
-  # internal lib/handler/wrap-handler.js, absent from undici 8.x). Pin it to the
-  # advisory-patched 7.29.0 — clears the undici GHSAs AND keeps jsdom working.
-  # Scoped so non-jsdom undici consumers still float to the patched 8.x line.
-  "jsdom>undici": "7.29.0"
-  # nanoid <3.3.18: custom alphabet generators can loop indefinitely when the
-  # requested size is 0 (GHSA-2v37-7h3g-55p8). Pulled in transitively by
-  # postcss (Vite/Vitest). Patched in 3.3.18.
-  nanoid@<3.3.18: ^3.3.18
-  # adm-zip <0.6.0: crafted ZIP file triggers a 4GB memory allocation
-  # (GHSA-xcpc-8h2w-3j85). Pulled in transitively by
-  # @huggingface/transformers > onnxruntime-node (vector-memory).
-  # Patched in 0.6.0.
-  adm-zip: "^0.6.0"
-  # sharp <0.35.0: inherited libvips vulnerabilities CVE-2026-33327,
-  # CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 (GHSA-f88m-g3jw-g9cj).
-  # Optional dependency of @huggingface/transformers (vector-memory).
-  # Patched in 0.35.0.
-  sharp: "^0.35.0"
+  wrongstack: link:apps/wrongstack
 peerDependencyRules:
   # TypeScript 7 was released before i18next/react-i18next widened their peer
   # ranges. WrongStack's WebUI passes its TS7 typecheck; allow this known lag.

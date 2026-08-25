@@ -34,7 +34,7 @@ import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
-import { setProxyProbeLogger } from './wiring/proxy-probe.js';
+import { setProxyTransitionLogger } from '@wrongstack/core/wiring/proxy-rewrite';
 import { bootstrapWrongProxy, awaitFirstWrongProxyProbe } from './wiring/proxy-wiring.js';
 import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
@@ -74,8 +74,11 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
   // Attach the proxy probe's transition logger BEFORE anything can boot the
   // probe — `resolveModeAndCapabilities` below calls `bootstrapWrongProxy`,
   // which lazily starts the probe singleton; the very first activation (or
-  // deactivation) must already land in wrongstack.log.
-  setProxyProbeLogger({ info: (m) => logger.info(m), warn: (m) => logger.warn(m) });
+  // deactivation) must already land in wrongstack.log. Core's setter (not a
+  // CLI-local one): the CLI bundle can duplicate proxy-probe.ts's module
+  // scope across chunks, so the logger state MUST live in the externalized
+  // core module to be shared by every bundled copy.
+  setProxyTransitionLogger({ info: (m) => logger.info(m), warn: (m) => logger.warn(m) });
 
   const modeStore = container.resolve(TOKENS.ModeStore);
   const activeMode = await modeStore.getActiveMode();

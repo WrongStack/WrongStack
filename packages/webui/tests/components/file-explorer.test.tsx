@@ -4,7 +4,7 @@ import type React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TreeNode } from '../../src/stores/file-store';
 import { useFileStore } from '../../src/stores/file-store';
-import { useSessionStore } from '../../src/stores';
+import { useGitChangesStore, useSessionStore } from '../../src/stores';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store';
 
 // The tree is virtualized with virtua; jsdom has no layout, so windowing
@@ -62,6 +62,75 @@ describe('FileExplorer (virtualized tree)', () => {
     expect(screen.queryByText('app.ts')).toBeNull();
     expect(screen.queryByText('lib')).toBeNull();
     expect(screen.queryByText('util.ts')).toBeNull();
+  });
+
+  it('maps git badges through repoPrefix when the project root is a repo subdirectory', () => {
+    // Regression (chimera): porcelain paths are REPO-root-relative while
+    // tree paths are PROJECT-root-relative. Opening packages/webui of a
+    // monorepo as the project makes git keys carry a `packages/webui/`
+    // prefix the tree never emits — every badge used to silently miss.
+    // The server now sends repoPrefix; the lookup must prepend it.
+    useSessionStore.setState({ cwd: '/subproj', projectName: 'subproj' });
+    useFileStore.getState().setTree(
+      '/subproj',
+      makeTree().map((n) => ({
+        ...n,
+        path: n.path.replace('/proj', '/subproj'),
+        children: n.children?.map((c) => ({
+          ...c,
+          path: c.path.replace('/proj', '/subproj'),
+          children: c.children?.map((g) => ({ ...g, path: g.path.replace('/proj', '/subproj') })),
+        })),
+      })),
+    );
+    useGitChangesStore.getState().setFiles(
+      [
+        {
+          path: 'subproj/src/app.ts',
+          status: 'M',
+          added: 1,
+          deleted: 0,
+          staged: false,
+        },
+        {
+          path: 'subproj/src/lib/util.ts',
+          status: 'M',
+          added: 3,
+          deleted: 1,
+          staged: false,
+        },
+      ],
+      null,
+      'subproj/',
+    );
+
+    render(<FileExplorer />);
+    fireEvent.click(screen.getByText('src')); // expand to reveal files
+
+    // Direct file match through the prefix…
+    expect(screen.getByText('app.ts')).toBeTruthy();
+    const badges = screen
+      .getAllByRole('img')
+      .filter((el) => el.getAttribute('aria-label') === 'Modified');
+    // app.ts (direct) + src and lib (directory aggregation through the
+    // prefixed key) all resolve with repoPrefix present.
+    expect(badges.length).toBeGreaterThanOrEqual(1);
+
+    // Negative control: with NO prefix, the same repo-relative paths must
+    // NOT match project-relative tree keys (proves the prefix is what
+    // closes the gap, not a coincidental substring).
+    act(() => {
+      useGitChangesStore.getState().setFiles(
+        [{ path: 'subproj/src/app.ts', status: 'M', added: 1, deleted: 0, staged: false }],
+        null,
+        '',
+      );
+    });
+    expect(
+      screen
+        .queryAllByRole('img')
+        .filter((el) => el.getAttribute('aria-label') === 'Modified'),
+    ).toHaveLength(0);
   });
 
   it('expands and collapses a directory on click', () => {
@@ -342,5 +411,21 @@ describe('FileExplorer (virtualized tree)', () => {
     const clearBtn = screen.getByLabelText('Clear');
     fireEvent.click(clearBtn);
     expect(input.value).toBe('');
+  });
+
+  it('renders git status badge and propagates modified status to parent directories', () => {
+    useGitChangesStore.setState({
+      files: [
+        { path: 'src/app.ts', status: 'M', added: 5, deleted: 2, staged: false },
+        { path: 'readme.md', status: 'A', added: 10, deleted: 0, staged: true },
+      ],
+    });
+
+    render(<FileExplorer />);
+
+    expect(screen.getByText('readme.md')).toBeTruthy();
+    expect(screen.getByText('src')).toBeTruthy();
+    expect(screen.getByText('A')).toBeTruthy();
+    expect(screen.getByText('M')).toBeTruthy();
   });
 });

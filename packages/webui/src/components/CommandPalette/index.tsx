@@ -48,6 +48,7 @@ import {
 } from '../ChatInput/slash-routing.js';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { downloadChatAsHtml, downloadChatAsMarkdown } from './export-utils.js';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 interface PaletteItem {
   id: string;
@@ -180,7 +181,7 @@ export function CommandPalette() {
         icon: RotateCcw,
         keywords: ['new', 'fresh', 'session'],
         run: () => {
-          ws.client?.newSession?.();
+          useSystemPromptStore.getState().openPicker({ startsSession: true });
           showPanel('chat');
         },
       },

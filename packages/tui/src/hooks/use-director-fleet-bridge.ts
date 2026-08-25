@@ -14,8 +14,17 @@ import {
 // made a 10-agent run schedule several full App/Ink renders per second. Keep
 // the live preview responsive while allowing one render to absorb a burst.
 const FLUSH_MS = 500;
-/** A completed subagent bubble remains useful, but must not retain an
- * arbitrarily large model response in the bridge before its turn boundary. */
+/**
+ * A completed subagent bubble remains useful, but must not retain an
+ * arbitrarily large model response in the bridge before its turn boundary.
+ *
+ * This is a high-water mark — see `retainStreamTail`, which lets the buffer
+ * reach twice this before cutting back, so the real ceiling is 128KB per
+ * in-flight subagent. That doubling is what removes a per-token rope flatten
+ * from the hottest path in this file: every `provider.text_delta` feeds THREE
+ * retained buffers (`pending`, `streamBuf`, `historyBuf`), for every subagent
+ * streaming at once.
+ */
 export const MAX_FLEET_HISTORY_BUFFER_CHARS = 64 * 1024;
 const STREAM_COLORS = ['cyan', 'magenta', 'yellow', 'green', 'blue'];
 

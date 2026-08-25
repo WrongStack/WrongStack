@@ -24,23 +24,17 @@
  * immediately.
  */
 
-import { applyProxyConfig, getProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
+import {
+  applyProxyConfig,
+  getProxyConfig,
+  logProxyTransition,
+} from '@wrongstack/core/wiring/proxy-rewrite';
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_TIMEOUT_MS = 2_000;
 const HEALTH_PATH = '/api/health';
 /** Consecutive failures before `active` flips to false (soft-signal threshold). */
 const DEFAULT_DEACTIVATE_AFTER_FAILURES = 2;
-
-/**
- * Minimal structural logger for probe transitions. Deliberately not core's
- * full `Logger` so any host (CLI logger, diag subcommand, test stub) can
- * pass a plain object — observability must not hard-require a dependency.
- */
-export interface ProbeLogger {
-  info(message: string): void;
-  warn(message: string): void;
-}
 
 interface ProbeRunnerOptions {
   /** Override the default interval (30s). Useful for tests. */
@@ -71,24 +65,6 @@ export interface ProbeRunner {
 let activeRunner: ProbeRunner | undefined;
 
 /**
- * Module-level transition logger so the SINGLETON probe runner can gain a
- * logger after it was booted: `startProxyProbe()` is first called from
- * `applyWrongProxyPrefs` (no logger in scope there), while the CLI logger
- * only becomes available later in boot. `setProxyProbeLogger` updates the
- * LIVE runner too — the closure reads this variable at flip time.
- */
-let probeLogger: ProbeLogger | undefined;
-
-/**
- * Install (or replace) the probe's transition logger. Affects the running
- * probe immediately; subsequent `startProxyProbe()` calls inherit it.
- * Passing undefined silences transition logging again.
- */
-export function setProxyProbeLogger(logger: ProbeLogger | undefined): void {
-  probeLogger = logger;
-}
-
-/**
  * Start the probe loop. Idempotent — repeated calls reuse the existing
  * runner unless `stop()` was called in between.
  */
@@ -103,30 +79,14 @@ export function startProxyProbe(opts: ProbeRunnerOptions = {}): ProbeRunner {
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
   const setIntervalImpl = opts.setIntervalImpl ?? setInterval;
   const clearIntervalImpl = opts.clearIntervalImpl ?? clearInterval;
-  const logger = () => probeLogger;
-  // Fires ONLY on an actual active-flag transition. Every flip is a routing
-  // change for every subsequent provider build — exactly what an operator
-  // grepping wrongstack.log for "is traffic proxied?" needs to see.
-  // Fully isolated: a throwing logger must never alter probe control flow
-  // (activation logging sits INSIDE runOnce's try block, and toggle-off
-  // logging runs inside fire-and-forget poke() chains).
-  const logTransition = (next: boolean, reason: string): void => {
-    const log = logger();
-    if (!log) return;
-    // Redact query/fragment: a user-entered proxy URL may embed credentials
-    // there, and a log line must never become a secret leak. The reason
-    // string deliberately carries NO URL — the sanitized proxy= field does.
-    const url = sanitizeUrlForLog(getProxyConfig().url) || '<unset>';
-    const line = next
-      ? `WrongProxy active=true (${reason}) — base-URL rewrites ON, proxy=${url}`
-      : `WrongProxy active=false (${reason}) — base-URL rewrites OFF, proxy=${url}`;
-    try {
-      if (next) log.info(line);
-      else log.warn(line);
-    } catch {
-      // Observability failure must not corrupt probe state or verdicts.
-    }
-  };
+  // Transition logging is DELEGATED to core's logProxyTransition: the CLI's
+  // esbuild bundle can copy this file's module scope into multiple chunks
+  // (verified live 2026-08-25: a module-level logger variable here split
+  // into per-chunk copies — the host set one, the probe read another, and
+  // logging was silently silent). Core is externalized in the CLI build, so
+  // state there is structurally one instance everywhere. Hosts attach the
+  // logger via core's `setProxyTransitionLogger`.
+  const logTransition = logProxyTransition;
   // Clamp to a sane threshold: NaN / 0 / negative would break the
   // `consecutiveFailures >= threshold` comparison (never deactivating, or
   // deactivating on every single failure — the exact flap we removed).
@@ -282,23 +242,6 @@ function buildHealthUrl(rawBase: string): string {
 }
 
 /**
- * Redact a URL for logging: keep scheme://host[:port]/path, drop query and
- * fragment. Provider/proxy URLs may embed credentials there (`?key=...`);
- * a wrongstack.log line must never persist them.
- */
-export function sanitizeUrlForLog(raw: string | undefined): string {
-  if (!raw) return '';
-  try {
-    const parsed = new URL(raw);
-    return `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
-  } catch {
-    // Not parseable — log only the pre-query portion, if any.
-    const cut = raw.indexOf('?');
-    return cut >= 0 ? raw.slice(0, cut) : raw;
-  }
-}
-
-/**
  * Stop any running probe. Safe to call when nothing is running.
  */
 export function stopProxyProbe(): void {
@@ -308,5 +251,4 @@ export function stopProxyProbe(): void {
 /** Test-only: clear module state without touching timers. */
 export function __resetProxyProbeForTests(): void {
   activeRunner = undefined;
-  probeLogger = undefined;
 }

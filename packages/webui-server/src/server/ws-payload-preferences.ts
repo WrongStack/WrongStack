@@ -35,6 +35,8 @@ const REASONING_EFFORT_VALUES = new Set([
   'max',
 ]);
 const CACHE_TTL_VALUES = new Set(['default', '5m', '1h']);
+/** Identity-prompt variants offered by the system-prompt picker. */
+const SYSTEM_PROMPT_VARIANT_VALUES = new Set(['lite', 'default', 'pro']);
 
 const BOOLEAN_PREF_KEYS = new Set([
   'yolo',
@@ -187,6 +189,7 @@ const ENUM_PREF_KEYS: Record<string, Set<string>> = {
   contextStrategy: CONTEXT_STRATEGY_VALUES,
   contextMode: CONTEXT_MODE_VALUES,
   tokenSavingTier: TOKEN_SAVING_TIER_VALUES,
+  systemPromptVariant: SYSTEM_PROMPT_VARIANT_VALUES,
   enhanceLanguage: ENHANCE_LANGUAGE_VALUES,
   logLevel: LOG_LEVEL_VALUES,
   auditLevel: AUDIT_LEVEL_VALUES,

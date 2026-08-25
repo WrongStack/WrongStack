@@ -9,7 +9,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { useTodosAutoClear } from '../hooks/use-todos-auto-clear.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation } from '../ink.js';
-import { getActiveThemeName, theme } from '../theme.js';
+import { theme } from '../theme.js';
 import type { AnimationStyle } from './animation-style.js';
 import { computeRailSpans, PowerlineRail } from './powerline-rail.js';
 import { ThinkingChip } from './status-bar-chips.js';
@@ -17,16 +17,13 @@ import {
   hasTokenDisplay,
   stateChip,
   tokenDisplayTotals,
-  truncateChip,
 } from './status-bar-format.js';
 import {
   countdownColor,
   hasMailboxActivity,
   isStreamChipVisible,
-  modeIcon,
 } from './status-bar-helpers.js';
 import {
-  chipColor,
   COMPACT_THRESHOLD,
   LINE_BG_COLORS,
   SPINNER_FRAMES,
@@ -35,13 +32,14 @@ import {
   STATUSLINE_ICONS,
 } from './status-bar-icons.js';
 import {
+  buildConnectivityChipEntries,
   buildIndexStatusChip,
-  buildMailboxDetailChips,
   buildMemoryDetailChips,
   buildMinimumChips,
-  buildModeChipEntries,
   buildPrimaryChips,
+  buildRunStateChipEntries,
   buildWorkRowEntries,
+  buildWorkspaceChipEntries,
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
 import type { StatusBarProps } from './status-bar-types.js';
@@ -131,6 +129,7 @@ export function StatusBar({
   indexState,
   breakerCountdown,
   modeLabel,
+  promptVariant,
   themeName,
   debugStreamStats,
   enhanceCountdown,
@@ -267,16 +266,9 @@ export function StatusBar({
 
   const indexStatusChip = buildIndexStatusChip(indexState, showChip, isNoColor);
 
-  const memoryDetailChips = buildMemoryDetailChips(memoryContextMonitor, Sage, isNoColor);
-  const hasMemoryDetail = (memoryContextMonitor?.latest != null || Sage != null) && showChip('memory_context');
-
-  const detailChips = buildMailboxDetailChips(
-    mailbox,
-    showMailbox,
-    isNoColor,
-    fleetAgents,
-    showChip('fleet_agents'),
-  );
+  const memoryDetailChips = showChip('memory_context')
+    ? buildMemoryDetailChips(memoryContextMonitor, Sage, isNoColor)
+    : [];
 
   const buildParams: StatusBarRailBuildParams = {
     showChip,
@@ -335,7 +327,11 @@ export function StatusBar({
     hasAutoProceed,
     autoProceedCountdown,
     droppedTools,
-    detailChips,
+    mailbox,
+    fleetAgents,
+    showMailbox,
+    memoryDetailChips,
+    promptVariant,
     minimalWorkParts,
     thinking,
     statePrefix,
@@ -352,65 +348,77 @@ export function StatusBar({
   const primaryChips = buildPrimaryChips(buildParams);
   buildParams.primaryChips = primaryChips;
 
-  const modeChipEntries = buildModeChipEntries(buildParams, modelStatusChip);
-  const modeChips = modeChipEntries.map((entry) => entry.node);
+  const workspaceChipEntries = buildWorkspaceChipEntries(buildParams, modelStatusChip);
+  const runStateChipEntries = buildRunStateChipEntries(buildParams);
+  const workspaceChips = workspaceChipEntries.map((entry) => entry.node);
+  const runStateChips = runStateChipEntries.map((entry) => entry.node);
 
   const showUpdateNotice =
     Boolean(updateAvailable) &&
     typeof latestVersion === 'string' &&
     latestVersion.length > 0 &&
     latestVersion !== version;
-  const versionStatusChip = version ? (
-    <Text>
-      <Text color={isNoColor ? undefined : theme.textSecondary} dimColor={!isNoColor}>
-        v{version}
+  const versionStatusChip =
+    version && showChip('version') ? (
+      <Text>
+        <Text color={isNoColor ? undefined : theme.textSecondary} dimColor={!isNoColor}>
+          v{version}
+        </Text>
+        {showUpdateNotice ? (
+          <Text color={isNoColor ? undefined : STACK_ORANGE}> · (update v{latestVersion})</Text>
+        ) : null}
       </Text>
-      {showUpdateNotice ? (
-        <Text color={isNoColor ? undefined : STACK_ORANGE}> · (update v{latestVersion})</Text>
-      ) : null}
-    </Text>
-  ) : null;
+    ) : null;
 
   const minimumChips = buildMinimumChips(buildParams);
-
-  const hasWorkActivity =
-    (todos &&
-      (todos.pending > 0 || todos.inProgress > 0 || (todos.completed > 0 && !todosCleared))) ||
-    (plan && (plan.open > 0 || plan.inProgress > 0 || plan.done > 0)) ||
-    hasTaskActivity ||
-    fleetHasActivity ||
-    showBrain ||
-    showDebugStream ||
-    showEnhance ||
-    hasNextStepsAutoSubmit ||
-    buildParams.hasActiveGoal ||
-    hasAutoProceed ||
-    buildParams.showEternalStage ||
-    detailChips.length > 0;
 
   const workRowEntries = buildWorkRowEntries(buildParams);
   const workRowChips = workRowEntries.map((entry) => entry.node);
 
+  // Line 3 gate — active work & countdowns only. Derived from the entries
+  // themselves because every entry already applies its own showChip gate —
+  // so a hidden chip (e.g. droppedTools > 0 with 'dropped_tools' toggled
+  // off) can never open an empty rail. Connectivity chips (mailbox, fleet,
+  // brain, debug_stream) live on line 4 and never open this rail.
+  const hasWorkActivity = workRowEntries.length > 0;
+
+  // Line 4 gate — fleet, connectivity & background services.
+  const connectivityEntries = buildConnectivityChipEntries(buildParams);
+  const connectivityChips = connectivityEntries.map((entry) => entry.node);
+  const hasConnectivityActivity = connectivityChips.length > 0;
+
+  // Click-map: physical lines are 0 (L1 workspace), 1 (L2 run state) —
+  // unconditional rails — and 2/3 only when their conditional rails render.
+  // Model/autonomy/state/todos hit targets now live on these physical lines.
   if (clickMapRef) {
     const railBudget = Math.max(12, termWidth);
+    const clickLines = [
+      {
+        line: 0,
+        spans: computeRailSpans(
+          isCompact ? workspaceChipEntries.slice(0, 5) : workspaceChipEntries,
+          railBudget,
+          versionStatusChip,
+        ),
+      },
+      {
+        line: 1,
+        spans: computeRailSpans(runStateChipEntries, railBudget),
+      },
+    ];
+    if (hasWorkActivity) {
+      clickLines.push({ line: 2, spans: computeRailSpans(workRowEntries, railBudget) });
+    }
+    if (hasConnectivityActivity) {
+      // The connectivity rail renders directly below the work rail; when the
+      // work rail is gated off, connectivity physically sits on line 2.
+      clickLines.push({
+        line: hasWorkActivity ? 3 : 2,
+        spans: computeRailSpans(connectivityEntries, railBudget),
+      });
+    }
     clickMapRef.current =
-      mode === 'minimum'
-        ? { lines: [] }
-        : {
-            lines: [
-              {
-                line: 0,
-                spans: computeRailSpans(
-                  isCompact ? modeChipEntries.slice(0, 5) : modeChipEntries,
-                  railBudget,
-                  versionStatusChip,
-                ),
-              },
-              ...(hasWorkActivity
-                ? [{ line: 2, spans: computeRailSpans(workRowEntries, railBudget) }]
-                : []),
-            ],
-          };
+      mode === 'minimum' ? { lines: [] } : { lines: clickLines };
   }
 
   if (mode === 'minimum') {
@@ -429,86 +437,24 @@ export function StatusBar({
 
   return (
     <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
-      {/* Line 1 — Runtime + mode chips */}
+      {/* Line 1 — Workspace & identity */}
       <PowerlineRail
-        segments={isCompact ? modeChips.slice(0, 5) : modeChips}
+        segments={isCompact ? workspaceChips.slice(0, 5) : workspaceChips}
         rightAnchor={versionStatusChip}
         budget={Math.max(12, termWidth)}
         monochrome={isNoColor}
         fillBg={LINE_BG_COLORS[0]}
       />
 
-      {/* Line 2 — Session context */}
+      {/* Line 2 — Run state & safety */}
       <PowerlineRail
-        segments={[
-          projectName && showChip('project') ? (
-            <Text color={chipColor(theme.accent, isNoColor)}>
-              {isNoColor
-                ? truncateChip(projectName, 24)
-                : `${STATUSLINE_ICONS.project} ${truncateChip(projectName, 24)}`}
-            </Text>
-          ) : null,
-          workingDir && showChip('working_dir') ? (
-            <Text color={chipColor(theme.accent, isNoColor)}>
-              {isNoColor
-                ? truncateChip(workingDir, 28)
-                : `${STATUSLINE_ICONS.working_dir} ${truncateChip(workingDir, 28)}`}
-            </Text>
-          ) : null,
-          git && showChip('git') ? (
-            <Text>
-              <Text color={theme.monitor.agents}>
-                {STATUSLINE_ICONS.git} {truncateChip(git.branch, 24)}
-              </Text>
-              {git.deleted > 0 ? <Text color={theme.error}> -{git.deleted}</Text> : null}
-              {git.untracked > 0 ? <Text dimColor={!isNoColor}> ?{git.untracked}</Text> : null}
-            </Text>
-          ) : null,
-          modeLabel && showChip('mode') ? (
-            <Text color={chipColor(theme.accent, isNoColor)}>
-              {isNoColor ? modeLabel : modeIcon(modeLabel)}
-            </Text>
-          ) : null,
-          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
-            <Text color={chipColor(theme.brand, isNoColor)}>
-              {isNoColor
-                ? truncateChip(themeName ?? getActiveThemeName(), 24)
-                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
-            </Text>
-          ) : null,
-          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-          toolCount != null && showChip('tools') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-          tokenSavingMode !== undefined && tokenSavingMode !== 'off' && showChip('token_saving') ? (
-            <Text color={isNoColor ? undefined : theme.warn} bold>
-              {isNoColor ? tokenSavingMode : `${STATUSLINE_ICONS.token_saving} ${tokenSavingMode}`}
-            </Text>
-          ) : null,
-          sideEffectCount > 0 && showChip('side_effects') ? (
-            <Text color={isNoColor ? undefined : theme.warn}>
-              {isNoColor
-                ? `${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.side_effects} ${sideEffectCount} audit${sideEffectCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-        ].filter((c): c is React.ReactElement => c !== null)}
+        segments={runStateChips}
         budget={Math.max(12, termWidth)}
         monochrome={isNoColor}
         fillBg={LINE_BG_COLORS[1]}
       />
 
-      {/* Line 3 — Active work + Connectivity */}
+      {/* Line 3 — Active work & countdowns */}
       {hasWorkActivity ? (
         <PowerlineRail
           segments={workRowChips}
@@ -518,10 +464,10 @@ export function StatusBar({
         />
       ) : null}
 
-      {/* Line 4 — Background-service detail */}
-      {hasMemoryDetail || indexStatusChip ? (
+      {/* Line 4 — Fleet, connectivity & background services */}
+      {hasConnectivityActivity || indexStatusChip ? (
         <PowerlineRail
-          segments={memoryDetailChips}
+          segments={connectivityChips}
           rightAnchor={indexStatusChip}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}

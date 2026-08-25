@@ -3412,7 +3412,9 @@
     "dismiss": "Ausblenden",
     "run": "Führen Sie",
     "wstackUpdate": "wstack update",
-    "orYourPackageManagerToUpgrade": "(oder Ihren Paketmanager) aus, um zu aktualisieren."
+    "orYourPackageManagerToUpgrade": "(oder Ihren Paketmanager) aus, um zu aktualisieren.",
+    "refresh": "Aktualisieren",
+    "newBuildReady": "Neuer Build bereit. Cache geleert."
   },
   "depGraph": {
     "prioCrit": "Krit.",
@@ -3580,5 +3582,17 @@
       "clarify_interaction": "Klärungs-Interaktion",
       "subagent_delegation": "Subagenten-Delegation"
     }
+  },
+  "systemPrompt": {
+    "title": "System-Prompt",
+    "description": "Legen Sie fest, wie viele eingebaute Vorgaben der Agent erhält. Ein größerer Prompt kostet bei jeder Anfrage Tokens.",
+    "firstRunDescription": "Wählen Sie vor Ihrer ersten Nachricht eine System-Prompt-Größe. Ein größerer Prompt kostet bei jeder Anfrage Tokens.",
+    "tokens": "~{{count}} Tokens",
+    "current": "Aktuell",
+    "apply": "Übernehmen",
+    "applyAndStart": "Übernehmen & Sitzung starten",
+    "cancel": "Abbrechen",
+    "unavailable": "Die System-Prompt-Auswahl ist auf diesem Server nicht verfügbar.",
+    "openTitle": "System-Prompt-Größe wählen"
   }
 }
