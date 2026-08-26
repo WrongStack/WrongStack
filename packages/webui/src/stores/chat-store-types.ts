@@ -104,4 +104,5 @@ export interface ChatState {
   clearThinking: () => void;
   flushThinkingLog: (iteration: number) => void;
   clearThinkingLog: () => void;
+  switchSession: (newSessionId: string) => void;
 }

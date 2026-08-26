@@ -5,8 +5,8 @@
   "bySpecifier": {
     "@wrongstack/core/agent": {
       "files": 297,
-      "typeOnly": 237,
-      "runtimeOrMixed": 77
+      "typeOnly": 236,
+      "runtimeOrMixed": 78
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -1748,8 +1748,8 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/backend-services.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/agent",

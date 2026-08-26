@@ -1,6 +1,6 @@
 {
   "name": "wrongstack",
-  "version": "0.313.1",
+  "version": "0.314.0",
   "license": "MIT",
   "description": "WrongStack — terminal AI coding agent. Installs `wrongstack` and `wstack` binaries (re-export of @wrongstack/cli).",
   "keywords": [
@@ -20,17 +20,22 @@
   "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
   "bin": {
-    "wstack": "./src/index.js",
-    "wrongstack": "./src/index.js"
+    "wstack": "./dist/index.js",
+    "wrongstack": "./dist/index.js"
   },
   "files": [
-    "src"
+    "dist"
   ],
   "scripts": {
-    "build": "echo 'no build'",
-    "typecheck": "echo 'no typecheck'"
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.tests.json",
+    "test": "vitest run"
   },
   "dependencies": {
     "@wrongstack/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
   }
 }

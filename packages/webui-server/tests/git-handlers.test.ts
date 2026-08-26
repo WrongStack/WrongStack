@@ -320,6 +320,102 @@ describe('git change-set handlers', () => {
       expect(stagedState()).toBe('M ');
     });
 
+    it('rejects pathspec magic — a :(top) escape must not reach the repo root', async () => {
+      // Regression (chimera round-4, security): `packages/webui/:(top)keep.txt`
+      // strips to `:(top)keep.txt`, and git's :(top) magic re-anchors the
+      // pathspec at the REPO root — targeting a file outside the project.
+      // GIT_LITERAL_PATHSPECS disables magic, so the literal name matches
+      // nothing and the action fails contained (or no-ops), never escaping.
+      fsSync.writeFileSync(path.join(repo, 'keep.txt'), 'line1\nMAGIC TARGET\n');
+      const before = fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8');
+      const ws = createMockWs();
+      await handleGitStage(ws, sub, ['packages/webui/:(top)keep.txt']);
+      // Whatever the outcome, keep.txt must NOT be staged by this action.
+      const rootOut = execFileSync('git', ['status', '--porcelain'], {
+        cwd: repo,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).toString();
+      const keepLine = rootOut.split('\n').find((l) => l.endsWith('keep.txt'));
+      expect(keepLine?.slice(0, 1)).toBe(' '); // X column not staged
+      expect(fsSync.readFileSync(path.join(repo, 'keep.txt'), 'utf8')).toBe(before);
+    });
+
+    it('repoRelativePrefix treats a legal ..hidden directory as inside the repo', () => {
+      // Regression (chimera round-4): a raw startsWith('..') check
+      // reported "no relation" for a project under a `..hidden` directory,
+      // dropping the prefix and re-breaking every git badge there.
+      expect(repoRelativePrefix('/repo', '/repo/..hidden/app')).toBe('..hidden/app/');
+      // True escapes are still rejected, segment-aware.
+      expect(repoRelativePrefix('/repo', '/repo/..')).toBe('');
+      expect(repoRelativePrefix('/repo', '/repo/../other')).toBe('');
+    });
+
+    it('rev-parse prefix cache serves a fresh prefix after a project switch', async () => {
+      // Regression (chimera perf fold): currentRepoPrefix caches the
+      // rev-parse toplevel per RESOLVED projectRoot. The correctness
+      // property is that a project SWITCH resolves fresh — if the cache
+      // keyed on anything coarser (or leaked across entries), project B
+      // would be served project A's 'packages/webui/' prefix and reject
+      // its own paths as outside the project root. The return trip to A
+      // then proves the still-valid A entry survives (hit stays correct).
+      const sub2 = path.join(repo, 'packages', 'beta');
+      fsSync.mkdirSync(sub2, { recursive: true });
+      fsSync.writeFileSync(path.join(sub2, 'other.ts'), 'export const b = 1;\n');
+      git(repo, ['add', '.']);
+      git(repo, ['commit', '-q', '-m', 'beta baseline']);
+      fsSync.writeFileSync(path.join(sub2, 'other.ts'), 'export const b = 2;\n');
+
+      const sub2Staged = (): string => {
+        const out = execFileSync('git', ['status', '--porcelain'], {
+          cwd: sub2,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).toString();
+        const line = out
+          .split('\n')
+          .find((l) => l.replace(/\\/g, '/').includes('packages/beta/other.ts'));
+        return line?.slice(0, 2) ?? '';
+      };
+
+      // The beta commit above also committed the beforeEach's v = 2
+      // working-tree change of index.ts, leaving it clean. Re-modify so
+      // step 1 stages a REAL change (a clean file stages as a no-op and
+      // porcelain has no line to assert on).
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 3;\n');
+
+      // 1) Warm project A's (packages/webui) cache entry.
+      const wsA = createMockWs();
+      await handleGitStage(wsA, sub, ['packages/webui/index.ts']);
+      expect(wsA.sent.find((m) => m.type === 'git.action_result')?.payload.ok).toBe(true);
+      expect(stagedState()).toBe('M ');
+
+      // 2) Immediately act on project B (packages/beta): a stale A prefix
+      //    would reject 'packages/beta/other.ts' as outside the project.
+      const wsB = createMockWs();
+      await handleGitStage(wsB, sub2, ['packages/beta/other.ts']);
+      expect(wsB.sent.find((m) => m.type === 'git.action_result')?.payload.ok).toBe(true);
+      expect(sub2Staged()).toBe('M ');
+
+      // 3) Return trip to A — its cache entry is still valid and correct.
+      fsSync.writeFileSync(path.join(sub, 'index.ts'), 'export const v = 11;\n');
+      const wsA2 = createMockWs();
+      await handleGitUnstage(wsA2, sub, ['packages/webui/index.ts']);
+      expect(wsA2.sent.find((m) => m.type === 'git.action_result')?.payload.ok).toBe(true);
+      expect(stagedState()).toBe(' M');
+    });
+
+    it('git diff accepts a legal double-dot filename', async () => {
+      fsSync.writeFileSync(path.join(repo, 'release..notes.md'), 'v1\n');
+      git(repo, ['add', 'release..notes.md']);
+      git(repo, ['commit', '-q', '-m', 'notes baseline']);
+      fsSync.writeFileSync(path.join(repo, 'release..notes.md'), 'v2\n');
+      const ws = createMockWs();
+      await handleGitDiff(ws, repo, 'release..notes.md');
+      const p = ws.sent[0]?.payload as { oldText: string; newText: string; error?: string };
+      expect(p.error).toBeUndefined();
+      expect(p.oldText).toBe('v1\n');
+      expect(p.newText).toBe('v2\n');
+    });
+
     it('commit from a subdirectory project commits only the subdirectory', async () => {
       // Regression (chimera round-2): bare `git commit -m` from a
       // subdirectory cwd commits the ENTIRE repo's staged index since

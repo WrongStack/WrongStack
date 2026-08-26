@@ -21,7 +21,7 @@
  * `modelCapabilitiesRef` it just built).
  */
 import { join } from 'node:path';
-import type { AgentPipelines, Context } from '@wrongstack/core/agent';
+import { type AgentPipelines, Context } from '@wrongstack/core/agent';
 import type { CollaborationBus, ObservableBrainArbiter } from '@wrongstack/core/coordination';
 import type {
   AutoCompactionMiddleware,
@@ -150,6 +150,7 @@ interface AgentServices {
   autoCompactor: AutoCompactionMiddleware | undefined;
   toolExecutor: ToolExecutor;
   agent: Agent;
+  getAgent?: (sessionId?: string) => Agent;
   permissionPolicy: PermissionPolicy;
   pipelines: AgentPipelines;
   brain: ObservableBrainArbiter;
@@ -744,12 +745,73 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     collabHandler.dispose();
   };
 
+  const MAX_CONCURRENT_SESSION_AGENTS = 4;
+  const sessionAgents = new Map<string, Agent>();
+  if (context.session?.id) {
+    sessionAgents.set(context.session.id, agent);
+  }
+  const getAgentForSession = (sessionId?: string): Agent => {
+    if (!sessionId) return agent;
+    const existing = sessionAgents.get(sessionId);
+    if (existing) return existing;
+    if (context.session?.id === sessionId) {
+      sessionAgents.set(sessionId, agent);
+      return agent;
+    }
+
+    if (sessionAgents.size >= MAX_CONCURRENT_SESSION_AGENTS) {
+      const oldestKey = sessionAgents.keys().next().value;
+      if (oldestKey) {
+        const evicted = sessionAgents.get(oldestKey);
+        evicted?.ctx.readFiles.clear();
+        evicted?.ctx.fileMtimes.clear();
+        sessionAgents.delete(oldestKey);
+      }
+    }
+    const sessionCtx = new Context({
+      projectRoot,
+      cwd: workingDir,
+      model: context.model,
+      provider: context.provider,
+      session: { id: sessionId, traceId: context.traceId } as Session,
+      traceId: context.traceId,
+      systemPrompt: context.systemPrompt,
+      agentId: 'leader',
+      agentName: 'Leader Agent',
+      allowOutsideProjectRoot: context.allowOutsideProjectRoot,
+      signal: context.signal,
+      tokenCounter: input.tokenCounter,
+    });
+    Object.assign(sessionCtx.meta, context.meta);
+    const sessionAgent = new Agent({
+      container,
+      tools: toolRegistry,
+      providers: providerRegistry,
+      events,
+      pipelines,
+      refreshSystemPrompt: true,
+      context: sessionCtx,
+      maxIterations: config.tools?.maxIterations ?? DEFAULT_TOOLS_CONFIG.maxIterations,
+      iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
+      executionStrategy:
+        config.tools?.defaultExecutionStrategy ?? DEFAULT_TOOLS_CONFIG.defaultExecutionStrategy,
+      perIterationOutputCapBytes:
+        config.tools?.perIterationOutputCapBytes ?? DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
+      loopDetection: config.tools?.loopDetection ?? DEFAULT_TOOLS_CONFIG.loopDetection,
+      confirmAwaiter: undefined,
+      toolExecutor,
+    });
+    sessionAgents.set(sessionId, sessionAgent);
+    return sessionAgent;
+  };
+
   return {
     collabBus,
     compactor,
     autoCompactor,
     toolExecutor,
     agent,
+    getAgent: getAgentForSession,
     permissionPolicy,
     pipelines,
     brain,

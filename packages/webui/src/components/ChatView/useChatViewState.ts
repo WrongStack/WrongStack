@@ -70,9 +70,11 @@ export function useChatViewState() {
     };
   }, [switcherOpen]);
 
-  const { provider, model } = useConfigStore(
-    useShallow((s) => ({ provider: s.provider, model: s.model })),
+  const { configProvider, configModel } = useConfigStore(
+    useShallow((s) => ({ configProvider: s.provider, configModel: s.model })),
   );
+  const provider = session?.provider || configProvider;
+  const model = session?.model || configModel;
   const vlistRef = useRef<VListHandle>(null);
 
   const rows = useMemo(() => buildChatRows(messages), [messages]);

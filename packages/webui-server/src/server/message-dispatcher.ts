@@ -141,27 +141,47 @@ export function createMessageDispatcher(
       : undefined;
   }
 
-  function sessionPayload(payload: Record<string, unknown>): Record<string, unknown> {
-    const current = state.getSession().id;
-    const provided = payload['sessionId'];
-    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : current;
-    return { ...payload, sessionId };
-  }
-
+  /**
+   * Session gate mirroring conversation-operations.ts: a request that
+   * explicitly targets a DIFFERENT session than the one this runtime is
+   * currently on is rejected with an error frame. Both consumers of the
+   * `false` return (worklist `allowMessage` and introspection
+   * `sessionAllowed`) stop silently, so the frame must be sent HERE.
+   * Allowed requests rebind the client so session-filtered broadcasts and
+   * the onClose abort cleanup (keyed by client.sessionId) follow the
+   * client's session; rejected ones must NOT rebind — the runtime never
+   * switched, and a stale binding would misroute the abort.
+   */
   function ensureCurrentSession(ws: WebSocket, msg: WSClientMessage, phase: string): boolean {
     const requested = messageSessionId(msg);
     const current = state.getSession().id;
-    if (!requested || requested === current) return true;
+    if (!requested || !current || requested === current) {
+      const client = state.getClients().get(ws);
+      if (client && requested) {
+        client.sessionId = requested;
+      }
+      return true;
+    }
+    if (deps.hasSession?.(requested)) {
+      const client = state.getClients().get(ws);
+      if (client && requested) {
+        client.sessionId = requested;
+      }
+      return true;
+    }
     send(ws, {
       type: 'error',
-      payload: sessionPayload({
+      payload: {
+        sessionId: current,
         phase,
         message: `Request targeted session ${requested}, but this WebUI runtime is currently on ${current}.`,
         requestedSessionId: requested,
-      }),
+      },
     });
     return false;
   }
+
+  const sessionRunControllers = new Map<string, AbortController>();
 
   const worklistRoutes = createWorklistRouteHandlers({
     getContext: makeWorklistContext,
@@ -216,29 +236,41 @@ export function createMessageDispatcher(
     },
   };
   const conversationRoutes = createConversationOperations({
-    getAgent: () => deps.agent,
+    getAgent: (sessionId?: string) => deps.getAgent?.(sessionId) ?? deps.agent,
     getSessionId: () => state.getSession().id,
+    hasSession: (id: string) => (deps.hasSession ? deps.hasSession(id) : false),
     runControl: {
       begin: (_ws, sessionId) => {
-        if (runLock.get()) return undefined;
+        const key = sessionId || state.getSession().id || '__default__';
+        if (sessionRunControllers.has(key)) return undefined;
         const controller = new AbortController();
+        sessionRunControllers.set(key, controller);
         runLock.set(controller);
-        runLock.setSession(sessionId);
+        runLock.setSession(key);
         return controller;
       },
-      end: (_ws, _sessionId, controller) => {
+      end: (_ws, sessionId, controller) => {
+        const key = sessionId || state.getSession().id || '__default__';
+        if (sessionRunControllers.get(key) === controller) {
+          sessionRunControllers.delete(key);
+        }
         if (runLock.get() === controller) {
           runLock.set(null);
           runLock.setSession(null);
         }
       },
       abort: (_ws, sessionId) => {
-        // Only abort when the session matches. The standalone host has a
-        // single run slot, but a stop from session B must not kill a run
-        // owned by session A. A sessionId-less abort (legacy clients)
-        // falls through to the current run regardless.
-        if (runLock.getSession() === sessionId || !runLock.getSession()) {
+        if (sessionId) {
+          sessionRunControllers.get(sessionId)?.abort();
+          sessionRunControllers.delete(sessionId);
+        } else {
+          for (const ctrl of sessionRunControllers.values()) {
+            ctrl.abort();
+          }
+          sessionRunControllers.clear();
           runLock.get()?.abort();
+          runLock.set(null);
+          runLock.setSession(null);
         }
       },
     },

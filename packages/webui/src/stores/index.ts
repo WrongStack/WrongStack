@@ -130,3 +130,4 @@ export {
 export type { VizEdge, VizEvent, VizNode } from './viz-store.js';
 export { useVizStore } from './viz-store.js';
 export { useWorktreeStore } from './worktree-store.js';
+export { useSessionTabStore, MAX_OPEN_TABS } from './session-tab-store.js';

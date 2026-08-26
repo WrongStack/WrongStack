@@ -28,6 +28,7 @@ import {
   type WsClientDomainMethods,
 } from './ws-client-domain-methods';
 import type { WSSendOptions } from './ws-client-contracts';
+import { useSessionStore } from '../stores/session-store';
 import {
   buildClearModelsMessage,
   buildProviderUpdateMessage,
@@ -201,7 +202,8 @@ class WrongStackWebSocketClientBase {
   }
 
   withSession<T extends Record<string, unknown>>(payload: T): T & { sessionId?: string } {
-    return this.sessionId ? { ...payload, sessionId: this.sessionId } : payload;
+    const activeId = useSessionStore.getState().session?.id || this.sessionId;
+    return activeId ? { ...payload, sessionId: activeId } : payload;
   }
 
   /**
@@ -907,7 +909,7 @@ class WrongStackWebSocketClientBase {
       }, timeoutMs);
       this.send({
         type: 'model.switch',
-        payload: { provider, model, requestId },
+        payload: this.withSession({ provider, model, requestId }),
       });
     });
   }

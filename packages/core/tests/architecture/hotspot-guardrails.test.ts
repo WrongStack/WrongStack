@@ -51,6 +51,12 @@ const HOTSPOTS: readonly Hotspot[] = [
     maxLines: 2000,
     rationale: 'Canvas rendering and interaction logic need decomposition, not more inline growth.',
   },
+  {
+    file: 'packages/tui/src/theme-presets.ts',
+    maxLines: 1424,
+    rationale:
+      'Single inline `themePresets` Record<ThemeName, Theme> holds ~50 preset definitions inline. Extract per-preset files under theme-presets/<name>.ts and compose via index to shrink below the 1424 floor; do not extend the inline list further.',
+  },
 ] as const;
 
 /**

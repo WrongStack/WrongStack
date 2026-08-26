@@ -53,11 +53,39 @@ export function send(ws: WebSocket, msg: object): void {
 }
 
 /**
- * Broadcast a JSON message to every connected client.
- * Swallows per-socket send errors — a client that disconnected between the
- * readyState check and `ws.send()` is cleaned up by its own `close` handler.
+ * Broadcast a JSON message to connected clients.
+ * When a sessionId is present in msg.payload, only clients subscribed to that sessionId
+ * (or clients without a bound session) receive the message.
+ * Global messages without a sessionId are sent to all connected clients.
  */
-export function broadcast(clients: Map<WebSocket, ConnectedClient>, msg: object): void {
+export function broadcast(
+  clients: Map<WebSocket, ConnectedClient>,
+  msg: object,
+  targetSessionId?: string,
+): void {
+  const payload = (msg as { payload?: unknown }).payload;
+  const sessionId =
+    targetSessionId ??
+    (payload &&
+    typeof payload === 'object' &&
+    'sessionId' in payload &&
+    typeof (payload as { sessionId?: unknown }).sessionId === 'string'
+      ? (payload as { sessionId: string }).sessionId
+      : undefined);
+
+  const data = JSON.stringify(msg);
+  const frameBytes = Buffer.byteLength(data, 'utf8');
+  for (const [ws, client] of clients) {
+    if (!sessionId || !client.sessionId || client.sessionId === sessionId) {
+      sendSerialized(ws, data, frameBytes);
+    }
+  }
+}
+
+/**
+ * Broadcast unconditionally to all connected clients.
+ */
+export function broadcastAll(clients: Map<WebSocket, ConnectedClient>, msg: object): void {
   const data = JSON.stringify(msg);
   const frameBytes = Buffer.byteLength(data, 'utf8');
   for (const [ws] of clients) {

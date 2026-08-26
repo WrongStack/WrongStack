@@ -2,6 +2,7 @@ import type { SessionStore } from '@wrongstack/core/types';
 
 export interface SessionDeletionContext {
   getActiveSessionId: () => string;
+  getActiveSessionIds?: (() => string[]) | undefined;
   getSessionStore: () => SessionStore;
   refreshSessions: () => Promise<void>;
 }
@@ -15,8 +16,9 @@ export async function deleteWebUISession(
   ctx: SessionDeletionContext,
   sessionId: string,
 ): Promise<void> {
-  if (sessionId === ctx.getActiveSessionId()) {
-    throw new Error('Cannot delete the active session');
+  const activeIds = ctx.getActiveSessionIds ? ctx.getActiveSessionIds() : [ctx.getActiveSessionId()];
+  if (activeIds.includes(sessionId)) {
+    throw new Error(`Cannot delete active session ${sessionId}`);
   }
   await ctx.getSessionStore().delete(sessionId);
   await ctx.refreshSessions().catch(() => undefined);

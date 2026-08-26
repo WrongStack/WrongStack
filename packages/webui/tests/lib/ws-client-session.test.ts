@@ -29,13 +29,12 @@ describe('WrongStackWebSocketClient session transitions', () => {
     expect(flush).not.toHaveBeenCalled();
   });
 
-  it('sends abort before session.new when requesting a new session', () => {
+  it('sends session.new when requesting a new session', () => {
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
     const sendSpy = vi.spyOn(client, 'send');
 
     client.newSession();
 
-    expect(sendSpy).toHaveBeenCalledWith({ type: 'abort', payload: {} });
     expect(sendSpy).toHaveBeenCalledWith({ type: 'session.new', payload: {} });
   });
 

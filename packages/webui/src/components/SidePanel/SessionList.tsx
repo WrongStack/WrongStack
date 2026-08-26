@@ -24,7 +24,7 @@ import type { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SessionHistoryEntry } from '@/stores';
-import { useUIStore } from '@/stores';
+import { useSessionStore, useSessionTabStore, useUIStore } from '@/stores';
 
 export type HistoryFilter = 'all' | 'favorites' | 'active' | 'completed' | 'issues';
 export type HistorySort = 'recent' | 'tokens' | 'activity';
@@ -119,9 +119,11 @@ export function formatCompactNumber(value: number): string {
 /** Pure function: returns empty non-active sessions that are safe to offer for cleanup. */
 export function getEmptySessionIds(
   entries: Array<{ id: string; tokenTotal: number; isCurrent: boolean }>,
+  protectedIds?: Iterable<string>,
 ): string[] {
+  const protectedSet = new Set(protectedIds);
   return entries
-    .filter((entry) => entry.tokenTotal === 0 && !entry.isCurrent)
+    .filter((entry) => entry.tokenTotal === 0 && !entry.isCurrent && !protectedSet.has(entry.id))
     .map((entry) => entry.id);
 }
 
@@ -413,17 +415,25 @@ export function SessionList({
     [],
   );
 
+  const openTabIds = useSessionTabStore((s) => s.openTabIds);
+
   const handleResume = useCallback(
     (id: string) => {
+      const result = useSessionTabStore.getState().openTab(id, { resumeSession });
+      if (!result.success) return;
       setResumingId(id);
-      resumeSession(id);
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
       resumeTimer.current = setTimeout(() => setResumingId(null), 10_000);
     },
     [resumeSession],
   );
 
-  const emptySessionIds = useMemo(() => getEmptySessionIds(historyEntries), [historyEntries]);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const emptySessionIds = useMemo(() => {
+    const protectedIds = new Set(openTabIds);
+    if (currentSessionId) protectedIds.add(currentSessionId);
+    return getEmptySessionIds(historyEntries, protectedIds);
+  }, [historyEntries, currentSessionId, openTabIds]);
   const visibleEntries = useMemo(
     () =>
       filterAndSortSessions(historyEntries, {
@@ -716,11 +726,27 @@ export function SessionList({
                                   />
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <div
-                                    className="truncate text-sm font-semibold text-foreground"
-                                    title={displayName(entry)}
-                                  >
-                                    {displayName(entry)}
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div
+                                      className="truncate text-sm font-semibold text-foreground"
+                                      title={displayName(entry)}
+                                    >
+                                      {displayName(entry)}
+                                    </div>
+                                    {entry.isCurrent ? (
+                                      <span className="inline-flex shrink-0 items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                                        {t('activity:sessions.activeTab', { defaultValue: 'Active Tab' })}
+                                      </span>
+                                    ) : openTabIds.includes(entry.id) ? (
+                                      <span className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                                        {t('activity:sessions.tabNumber', {
+                                          count: openTabIds.indexOf(entry.id) + 1,
+                                          defaultValue: `Tab ${openTabIds.indexOf(entry.id) + 1}`,
+                                        })}
+                                      </span>
+                                    ) : null}
                                   </div>
                                   <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
                                     {entry.provider}/{entry.model}

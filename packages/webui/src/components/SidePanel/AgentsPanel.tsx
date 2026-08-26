@@ -9,7 +9,7 @@ import { Bot, CheckCircle2, LayoutGrid, ListFilter, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
-import { selectLeaderName, selectSortedAgentList, useFleetStore, useUIStore } from '@/stores';
+import { selectLeaderName, selectSortedAgentList, useFleetStore, useSessionStore, useUIStore } from '@/stores';
 import { useAppTranslation } from '@/i18n';
 import { FleetSummaryBar } from '@/components/agents/FleetSummaryBar';
 import { AgentRosterCard } from '@/components/agents/AgentRosterCard';
@@ -34,6 +34,7 @@ export function AgentsPanel() {
   const leaderId = useFleetStore((s) => s.leaderId);
   const leaderName = useFleetStore(selectLeaderName);
   const clearFinishedAgents = useFleetStore((s) => s.clearFinishedAgents);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const { t } = useAppTranslation();
 
   const [filter, setFilter] = useState<AgentFilter>('all');
@@ -42,19 +43,27 @@ export function AgentsPanel() {
   const rosterRef = useRef<HTMLDivElement>(null);
   const [showHint, setShowHint] = useState(true);
 
+  const sessionFleetList = useMemo(
+    () =>
+      fleetList.filter(
+        (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
+      ),
+    [fleetList, currentSessionId],
+  );
+
   const filteredList = useMemo(() => {
-    if (filter === 'all') return fleetList;
-    return fleetList.filter((a) => {
+    if (filter === 'all') return sessionFleetList;
+    return sessionFleetList.filter((a) => {
       if (filter === 'running') return a.status === 'running';
       if (filter === 'completed') return a.status === 'completed';
       if (filter === 'failed') return a.status === 'failed' || a.status === 'timeout';
       return true;
     });
-  }, [fleetList, filter]);
+  }, [sessionFleetList, filter]);
 
   // Agents are bounded (active fleet), show all without pagination.
 
-  const hasFinished = fleetList.some(
+  const hasFinished = sessionFleetList.some(
     (a) => a.status !== 'running',
   );
 

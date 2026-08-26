@@ -14,7 +14,7 @@ import { useAppTranslation } from '@/i18n';
 import { openPanel } from '@/components/activity-bar/nav';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { useFleetStore, useUIStore } from '@/stores';
+import { useFleetStore, useSessionStore, useUIStore } from '@/stores';
 
 const STATUS_META: Record<
   string,
@@ -88,11 +88,18 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
   const { t } = useAppTranslation();
   const fleetAgents = useFleetStore((s) => s.agents);
   const leaderId = useFleetStore((s) => s.leaderId);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'running' | 'done' | 'failed'>('all');
 
+  const sessionAgents = useMemo(() => {
+    return Array.from(fleetAgents.values()).filter(
+      (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
+    );
+  }, [fleetAgents, currentSessionId]);
+
   const list = useMemo(() => {
-    const arr = Array.from(fleetAgents.values());
+    const arr = [...sessionAgents];
     arr.sort((a, b) => {
       const aActive = a.status === 'running' ? 0 : 1;
       const bActive = b.status === 'running' ? 0 : 1;
@@ -105,19 +112,19 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
     if (filter === 'failed')
       return arr.filter((a) => a.status === 'failed' || a.status === 'timeout');
     return arr;
-  }, [fleetAgents, filter]);
+  }, [sessionAgents, filter]);
 
   const counts = useMemo(() => {
     let running = 0,
       completed = 0,
       failed = 0;
-    for (const a of fleetAgents.values()) {
+    for (const a of sessionAgents) {
       if (a.status === 'running') running++;
       else if (a.status === 'completed') completed++;
       else if (a.status === 'failed' || a.status === 'timeout') failed++;
     }
-    return { running, completed, failed, total: fleetAgents.size };
-  }, [fleetAgents]);
+    return { running, completed, failed, total: sessionAgents.length };
+  }, [sessionAgents]);
 
   const clearFinished = useFleetStore((s) => s.clearFinishedAgents);
 

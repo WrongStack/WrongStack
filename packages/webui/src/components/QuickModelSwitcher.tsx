@@ -3,7 +3,8 @@ import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useAppTranslation } from '@/i18n';
 import { toast } from '@/components/Toaster';
-import { useConfigStore, useUIStore } from '@/stores';
+import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
+import { memorySessionSnapshots } from '@/stores/session-store';
 import type { WSServerMessage } from '@/types';
 import { ArrowRight, Cpu, Filter, Search } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -155,6 +156,25 @@ export function QuickModelSwitcher() {
     const target = `${pick.provider} / ${pick.model}`;
     setSwitchingTarget(target);
     const result = await switchModel(pick.provider, pick.model);
+    if (result.success) {
+      const cur = useSessionStore.getState().session;
+      if (cur) {
+        useSessionStore.getState().setSession({
+          ...cur,
+          provider: pick.provider,
+          model: pick.model,
+        });
+        const snap = memorySessionSnapshots.get(cur.id);
+        if (snap) {
+          snap.provider = pick.provider;
+          snap.model = pick.model;
+          if (snap.session) {
+            snap.session.provider = pick.provider;
+            snap.session.model = pick.model;
+          }
+        }
+      }
+    }
     // Suppress toast notifications if the dialog was closed while switching
     if (openRef.current) {
       if (result.success) {

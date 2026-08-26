@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionTabBar } from '../../src/components/SessionTabBar';
 import { useHistoryStore, useSessionStore } from '../../src/stores';
+import { useSystemPromptStore } from '../../src/stores/system-prompt-store';
 
 const mockResumeSession = vi.fn();
 const mockNewSession = vi.fn();
@@ -50,6 +51,7 @@ describe('SessionTabBar component', () => {
         },
       ],
     });
+    useSystemPromptStore.setState({ pickerOpen: false, pickerStartsSession: false });
   });
 
   it('renders active session tab', () => {
@@ -64,6 +66,7 @@ describe('SessionTabBar component', () => {
     const newBtn = screen.getByTitle('New Session');
     fireEvent.click(newBtn);
 
-    expect(mockNewSession).toHaveBeenCalledTimes(1);
+    expect(useSystemPromptStore.getState().pickerOpen).toBe(true);
+    expect(useSystemPromptStore.getState().pickerStartsSession).toBe(true);
   });
 });

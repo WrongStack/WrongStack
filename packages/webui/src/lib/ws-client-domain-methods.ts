@@ -63,8 +63,7 @@ export const domainMethods = {
   },
 
   newSession(this: WsClientDomainHost) {
-    this.send({ type: 'abort', payload: this.withSession({}) });
-    this.send({ type: 'session.new', payload: this.withSession({}) });
+    this.send({ type: 'session.new', payload: {} });
   },
 
   /** Ask for the identity-prompt catalogue (variants, token estimates, current). */

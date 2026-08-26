@@ -1,6 +1,7 @@
 import type { Usage } from '@wrongstack/core/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useConfigStore } from './config-store.js';
 import type { SessionInfo } from './types.js';
 
 // ============================================
@@ -142,7 +143,27 @@ interface SessionState {
     updateAvailable: boolean;
   }) => void;
   setDroppedTools: (count: number) => void;
+  switchSession: (newSessionId: string) => void;
 }
+
+export interface SessionSnapshot {
+  session: SessionInfo | null;
+  provider?: string | undefined;
+  model?: string | undefined;
+  mode: string;
+  contextMode: string;
+  totalTokens: Usage;
+  lastInputTokens: number;
+  cost: number;
+  startTime: number | null;
+  maxContext: number;
+  reasoningEffortLevels?: string[] | undefined;
+  cacheStats: SessionState['cacheStats'];
+  iteration: SessionState['iteration'];
+  todos: SessionState['todos'];
+}
+
+export const memorySessionSnapshots = new Map<string, SessionSnapshot>();
 
 /** Persistence schema version. Bump whenever the shape or partialize set
  *  changes so an existing localStorage entry from a prior build doesn't
@@ -154,7 +175,7 @@ const PERSIST_MAX_BYTES = 32 * 1024;
 
 export const useSessionStore = create<SessionState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       session: null,
       totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       lastInputTokens: 0,
@@ -327,6 +348,74 @@ export const useSessionStore = create<SessionState>()(
           updateAvailable: info.updateAvailable,
         }),
       setDroppedTools: (count) => set({ droppedTools: count }),
+      switchSession: (newSessionId) => {
+        const state = get();
+        const currentSessionId = state.session?.id;
+        if (currentSessionId === newSessionId) return;
+
+        // 1. Snapshot current active session
+        if (currentSessionId) {
+          memorySessionSnapshots.set(currentSessionId, {
+            session: state.session,
+            provider: state.session?.provider,
+            model: state.session?.model,
+            mode: state.mode,
+            contextMode: state.contextMode,
+            totalTokens: state.totalTokens,
+            lastInputTokens: state.lastInputTokens,
+            cost: state.cost,
+            startTime: state.startTime,
+            maxContext: state.maxContext,
+            reasoningEffortLevels: state.reasoningEffortLevels,
+            cacheStats: state.cacheStats,
+            iteration: state.iteration,
+            todos: state.todos,
+          });
+        }
+
+        // 2. Restore cached session
+        const cached = memorySessionSnapshots.get(newSessionId);
+        if (cached) {
+          const modelToSet = cached.model || cached.session?.model;
+          const providerToSet = cached.provider || cached.session?.provider;
+          set({
+            session: cached.session ?? {
+              id: newSessionId,
+              startedAt: Date.now(),
+              model: modelToSet ?? '',
+              provider: providerToSet ?? '',
+            },
+            mode: cached.mode,
+            contextMode: cached.contextMode,
+            totalTokens: cached.totalTokens,
+            lastInputTokens: cached.lastInputTokens,
+            cost: cached.cost,
+            startTime: cached.startTime,
+            maxContext: cached.maxContext,
+            reasoningEffortLevels: cached.reasoningEffortLevels,
+            cacheStats: cached.cacheStats,
+            iteration: cached.iteration,
+            todos: cached.todos,
+            lastVisitedAt: Date.now(),
+          });
+          if (providerToSet && modelToSet) {
+            useConfigStore.getState().setConfig({ provider: providerToSet, model: modelToSet });
+          } else if (providerToSet) {
+            useConfigStore.getState().setConfig({ provider: providerToSet });
+          }
+        } else {
+          set({
+            session: { id: newSessionId, startedAt: Date.now(), provider: '', model: '' },
+            totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+            lastInputTokens: 0,
+            cost: 0,
+            startTime: Date.now(),
+            iteration: null,
+            todos: [],
+            lastVisitedAt: Date.now(),
+          });
+        }
+      },
     }),
     {
       name: 'wrongstack-session',

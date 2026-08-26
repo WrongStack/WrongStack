@@ -21,7 +21,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { openPanel } from '@/components/activity-bar/nav';
 import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
-import { useCouncilLogStore, useFleetStore, useKanbanStore, useSideEffectStore, useUIStore } from '@/stores';
+import { useCouncilLogStore, useFleetStore, useKanbanStore, useSessionStore, useSideEffectStore, useUIStore } from '@/stores';
 import { AgentCard } from './AgentCard';
 import { FleetAgentRow } from '@/components/ui/fleet-agent-row';
 import { CouncilLogTimeline } from './CouncilLogTimeline';
@@ -70,9 +70,15 @@ export function InspectorTrigger(): React.ReactElement {
   const { t } = useAppTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const activeActivity = useUIStore((s) => s.activeActivity);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const agentsSidebarActive = sidebarOpen && activeActivity === 'agents';
   const runningCount = useFleetStore(
-    (s) => Array.from(s.agents.values()).filter((agent) => agent.status === 'running').length,
+    (s) =>
+      Array.from(s.agents.values()).filter(
+        (agent) =>
+          (!agent.sessionId || !currentSessionId || agent.sessionId === currentSessionId) &&
+          agent.status === 'running',
+      ).length,
   );
   const badge = runningCount;
 
@@ -109,6 +115,7 @@ export function InspectorPanel() {
   const setInspectorTab = useUIStore((s) => s.setInspectorTab);
   const inspectorFocusedAgentId = useUIStore((s) => s.inspectorFocusedAgentId);
   const setInspectorFocusedAgentId = useUIStore((s) => s.setInspectorFocusedAgentId);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const { t } = useAppTranslation();
 
   // Fleet-wide signals (subscribed narrowly so tab switches / typing in the
@@ -119,7 +126,20 @@ export function InspectorPanel() {
   const fleetTokensOut = useFleetStore((s) => s.fleetTokensOut);
   const eventTimeline = useFleetStore((s) => s.eventTimeline);
 
-  const fleetList = useMemo(() => sortFleet(fleetAgents, leaderId), [fleetAgents, leaderId]);
+  const sessionFleetAgents = useMemo(() => {
+    const m = new Map<string, SubagentView>();
+    for (const [k, v] of fleetAgents) {
+      if (!v.sessionId || !currentSessionId || v.sessionId === currentSessionId) {
+        m.set(k, v);
+      }
+    }
+    return m;
+  }, [fleetAgents, currentSessionId]);
+
+  const fleetList = useMemo(
+    () => sortFleet(sessionFleetAgents, leaderId),
+    [sessionFleetAgents, leaderId],
+  );
 
   const runningCount = fleetList.filter((a) => a.status === 'running').length;
   const totalCost = fleetList.reduce((sum, a) => sum + a.costUsd, 0);

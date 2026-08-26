@@ -53,6 +53,15 @@ export function handleContextDebug(msg: WSServerMessage) {
 
 export function handleKeyOperationResult(msg: WSServerMessage) {
   const p = msg.payload as { success: boolean; message: string };
+  if (!p || typeof p.message !== 'string') return;
+  // Session transitions / tab switches must be silent without popup toast noise
+  if (
+    p.message.startsWith('Resumed session') ||
+    p.message.includes('Session is already active') ||
+    p.message.startsWith('Swapped session')
+  ) {
+    return;
+  }
   if (p.success) toast.success(p.message);
   else toast.error(p.message);
   const client = getWSClient(useConfigStore.getState().wsUrl);
@@ -60,6 +69,7 @@ export function handleKeyOperationResult(msg: WSServerMessage) {
 }
 
 export function handleModelSwitchResult(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     success: boolean;
     provider?: string | undefined;
@@ -72,6 +82,14 @@ export function handleModelSwitchResult(msg: WSServerMessage) {
 
   useConfigStore.getState().setProvider(p.provider);
   useConfigStore.getState().setModel(p.model);
+  const currentSession = useSessionStore.getState().session;
+  if (currentSession) {
+    useSessionStore.getState().setSession({
+      ...currentSession,
+      provider: p.provider,
+      model: p.model,
+    });
+  }
   const from =
     p.previousProvider && p.previousModel
       ? `${p.previousProvider} / ${p.previousModel}`

@@ -10,7 +10,7 @@ import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { useFleetStore, useUIStore } from '@/stores';
+import { useFleetStore, useSessionStore, useUIStore } from '@/stores';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
@@ -38,16 +38,27 @@ export function ChatView() {
 
   // ── Subagent chat focus (AgentTabs) ──────────────────────────────
   // Selection lives in ui-store so roster cards / detail sections can jump
-  // straight into an agent's transcript. Both fleet probes are booleans —
-  // they keep this component out of per-fleet-event re-renders.
+  // straight into an agent's transcript.
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const focusedSubagentId = useUIStore((s) => s.subagentChatFocusId);
   const setSubagentChatFocus = useUIStore((s) => s.setSubagentChatFocus);
   const setSearchOpen = useUIStore((s) => s.setSearchOpen);
-  const fleetHasAgents = useFleetStore((s) => s.agents.size > 0);
+  const fleetHasAgents = useFleetStore((s) => {
+    for (const a of s.agents.values()) {
+      if (!a.sessionId || !currentSessionId || a.sessionId === currentSessionId) return true;
+    }
+    return false;
+  });
   const leaderId = useFleetStore((s) => s.leaderId);
-  const focusedAgentExists = useFleetStore((s) =>
-    focusedSubagentId != null ? s.agents.has(focusedSubagentId) : false,
+  const focusedAgent = useFleetStore((s) =>
+    focusedSubagentId != null ? s.agents.get(focusedSubagentId) : undefined,
   );
+  const focusedAgentBelongsToCurrentSession =
+    !focusedAgent ||
+    !focusedAgent.sessionId ||
+    !currentSessionId ||
+    focusedAgent.sessionId === currentSessionId;
+  const focusedAgentExists = Boolean(focusedAgent) && focusedAgentBelongsToCurrentSession;
   // The leader owns the main pane — a focus pointing at it (e.g. a stray
   // "open chat" on the leader's roster card) just means plain leader chat.
   const subagentMode =
@@ -128,8 +139,23 @@ export function ChatView() {
 
       {/* Messages — swapped for the focused subagent's read-only history */}
       {subagentMode ? (
-        <div className="relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">
-          <SubagentTranscriptView key={focusedSubagentId} agentId={focusedSubagentId} />
+        <div className="relative mx-2 mt-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">
+          <div className="flex shrink-0 items-center justify-between border-b border-primary/20 bg-primary/10 px-3 py-1.5 text-xs text-primary font-medium">
+            <div className="flex items-center gap-2 truncate">
+              <Bot className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Subagent Transcript: <strong>{focusedSubagentId}</strong> (Read-only)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSubagentChatFocus(null)}
+              className="ml-2 inline-flex shrink-0 items-center gap-1 rounded bg-primary/20 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/30"
+            >
+              ✕ Return to Chat
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <SubagentTranscriptView key={focusedSubagentId} agentId={focusedSubagentId} />
+          </div>
         </div>
       ) : (
       <div className="relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">

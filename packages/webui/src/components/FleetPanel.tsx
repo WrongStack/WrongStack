@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { AgentTranscript } from '@/components/AgentTranscript';
-import { EMPTY_AGENT_TRANSCRIPT, type SubagentView, useFleetStore } from '@/stores';
+import { EMPTY_AGENT_TRANSCRIPT, type SubagentView, useFleetStore, useSessionStore } from '@/stores';
 import { compareAgentsByActivity, tallyAgents } from '@/lib/agent-status';
 import { Bot, Check, ChevronDown, ChevronRight, Clock, Copy, Cpu, Wrench, X, Zap } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -408,15 +408,18 @@ export function FleetPanel({
   className?: string | undefined;
 }): React.ReactElement | null {
   const agents = useFleetStore((s) => s.agents);
+  const currentSessionId = useSessionStore((s) => s.session?.id);
   const { t } = useAppTranslation();
   const [collapsed, setCollapsed] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const list = useMemo(() => {
-    const arr = Array.from(agents.values());
+    const arr = Array.from(agents.values()).filter(
+      (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
+    );
     arr.sort(compareAgentsByActivity);
     return arr;
-  }, [agents]);
+  }, [agents, currentSessionId]);
   // Fleet is bounded (active agents), show all without pagination.
 
   const selected = selectedId ? list.find((a) => a.id === selectedId) : null;

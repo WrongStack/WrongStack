@@ -1,8 +1,10 @@
 {
   "schemaVersion": 1,
   "maxRootImportFiles": 0,
+  "maxBarrelRelativeImports": 200,
   "rootEntryPolicy": "compatibility-only",
   "canonicalObservabilityImport": "@wrongstack/core/observability",
   "reviewedAt": "2026-07-22",
-  "removalGate": "Lower maxRootImportFiles after each canonical subpath migration; never raise it to admit new root consumers."
+  "removalGate": "Lower maxRootImportFiles after each canonical subpath migration; never raise it to admit new root consumers.",
+  "barrelRatchetNote": "maxBarrelRelativeImports: 200 — packages/core/src/index.ts relative import count must stay at or below this ceiling. Each canonical subpath migration should shrink it. Code that imports from '@wrongstack/core' should move to a subpath import; bare '@wrongstack/core' is compatibility-only."
 }

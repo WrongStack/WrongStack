@@ -28,7 +28,11 @@ export type {
   SessionRegistryEntry,
   SessionWebUIEndpointHint,
 } from '../session-catalog/session-registry.js';
-/** @deprecated Test/migration adapter; production ownership uses SessionRegistry above. */
+/**
+ * @deprecated Test/migration adapter; production ownership uses SessionRegistry
+ * above. Remove once `packages/webui-server/tests/standalone-session-identity.test.ts`
+ * migrates to the canonical subpath import (tracked for the 0.320 major).
+ */
 export { SessionRegistry as LegacySessionRegistry } from '../session-catalog/session-registry.js';
 export type { SyncCategory, SyncConfig } from '../types/config.js';
 export type { DefaultSessionReaderOptions, SessionReader } from '../types/session-reader.js';

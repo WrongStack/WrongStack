@@ -173,9 +173,9 @@ export interface WebuiMutableState {
    * refactor moves that into the projectHandlers setter chain so the
    * route layer just calls a single hook.
    */
-  abortRunLock: () => void;
+  abortRunLock: (sessionId?: string) => void;
   /** True while the leader agent owns the shared run lock. */
-  isRunActive: () => boolean;
+  isRunActive: (sessionId?: string) => boolean;
   /** Read-only reference to the live WS clients map. */
   getClients(): Map<WebSocket, ConnectedClient>;
 }
@@ -186,6 +186,8 @@ export interface WebuiMutableState {
 export interface WebuiDeps {
   trustBoundary: import('@wrongstack/core/security').TrustBoundary;
   agent: Agent;
+  getAgent?: ((sessionId?: string) => Agent) | undefined;
+  hasSession?: ((id: string) => boolean) | undefined;
   context: Context;
   container: Container;
   toolRegistry: ToolRegistry;
@@ -448,6 +450,8 @@ export function buildRoutes(
     onSessionSwapped: cb.onSessionSwapped,
     abortActiveRun: state.abortRunLock,
     isRunActive: state.isRunActive,
+    getAgent: deps.getAgent,
+    hasSession: deps.hasSession,
     sessionStartPayload: cb.sessionStartPayload,
   });
 

@@ -10,7 +10,7 @@
  * bodies are a verbatim lift — only dependency references changed.
  */
 
-import type { Context, TodoItem } from '@wrongstack/core/agent';
+import type { Agent, Context, TodoItem } from '@wrongstack/core/agent';
 import type { createStrategyCompactor } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
@@ -43,7 +43,7 @@ import {
   validateContextModeSwitchPayload,
   validateContextModeUpdatePayload,
 } from './ws-payload-validation.js';
-import { broadcast, errMessage, send } from './ws-utils.js';
+import { broadcastAll, errMessage, send } from './ws-utils.js';
 
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 type WSMessageLike = { type: string; payload?: unknown | undefined };
@@ -108,6 +108,8 @@ export interface SessionHandlersContext {
   /** When sessionId is provided, abort only that session's run; otherwise abort all. */
   abortActiveRun?: ((sessionId?: string) => void) | undefined;
   isRunActive?: ((sessionId?: string) => boolean) | undefined;
+  hasSession?: ((id: string) => boolean) | undefined;
+  getAgent?: ((sessionId?: string) => Agent) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
 }
 
@@ -117,15 +119,77 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     if (ctx.sendMessage) ctx.sendMessage(ws, message);
     else send(ws, message);
   };
+  const sendSessionStart = (ws: WebSocket, payload: unknown): void => {
+    sendTo(ws, { type: 'session.start', payload });
+    if (ctx.broadcastMessage) {
+      ctx.broadcastMessage({ type: 'session.start', payload });
+    }
+  };
+  const sendTodosUpdated = (ws: WebSocket, payload: unknown): void => {
+    sendTo(ws, { type: 'todos.updated', payload });
+    if (ctx.broadcastMessage) {
+      ctx.broadcastMessage({ type: 'todos.updated', payload });
+    }
+  };
   const broadcastToAll = (message: OutboundMessage): void => {
     if (ctx.broadcastMessage) ctx.broadcastMessage(message);
-    else broadcast(ctx.clients ?? new Map(), message);
+    else broadcastAll(ctx.clients ?? new Map(), message);
   };
   const result = (ws: WebSocket, success: boolean, message: string): void => {
     sendTo(ws, { type: 'key.operation_result', payload: { success, message } });
   };
   const sessionsDirectory = (): string =>
     ctx.getSessionsDir?.() ?? ctx.sessionsDir ?? `${ctx.getProjectRoot()}/.wrongstack/sessions`;
+  const resetContextAccounting = (): void => {
+    ctx.context.lastRequestTokens = undefined;
+    ctx.context.lastRealInputTokens = undefined;
+    ctx.context.state.deleteMeta?.('lastRequestTokensAt');
+    ctx.context.state.deleteMeta?.('totalUsage');
+    ctx.context.state.deleteMeta?.('realAnchorMsgCount');
+  };
+  const activateSession = async (
+    next: Session,
+    messages: Context['messages'],
+    usage?: Parameters<TokenCounter['account']>[0],
+    todos: TodoItem[] = [],
+  ): Promise<void> => {
+    ctx.setSession(next);
+    const targetAgent = ctx.getAgent?.(next.id);
+    const targetCtx = targetAgent?.ctx ?? ctx.context;
+
+    const isRunning = ctx.isRunActive?.(next.id) ?? false;
+    targetCtx.session = next;
+
+    if (!isRunning) {
+      targetCtx.state.replaceMessages(messages);
+      await targetCtx.flushConversationJournal?.().catch(() => undefined);
+      await ctx.onBeforeSessionTodosReplaced?.(next.id, sessionsDirectory());
+      targetCtx.state.replaceTodos(todos);
+      if (targetCtx === ctx.context) {
+        resetContextAccounting();
+        ctx.tokenCounter.reset?.();
+      }
+      targetCtx.clearMemoryEvidence?.();
+      targetCtx.readFiles.clear();
+      targetCtx.fileMtimes.clear();
+    }
+    targetCtx.state.setMeta?.(
+      'plan.path',
+      sessionScopedPath(sessionsDirectory(), next.id, '.plan.json'),
+    );
+    targetCtx.state.setMeta?.(
+      'task.path',
+      sessionScopedPath(sessionsDirectory(), next.id, '.tasks.json'),
+    );
+    if (usage && !isRunning) {
+      ctx.tokenCounter.account(usage, currentConfig().model, targetCtx.provider?.id ?? ctx.context.provider.id);
+      if (typeof usage.input === 'number' && usage.input > 0) {
+        targetCtx.lastRequestTokens = usage.input;
+      }
+    }
+    ctx.setSessionStartedAt?.(Date.now());
+    await ctx.onSessionSwapped?.(next.id);
+  };
   const modeStore = async (): Promise<CustomModeStore> => {
     const store = ctx.getCustomModeStore ? await ctx.getCustomModeStore() : ctx.customModeStore;
     if (!store) throw new Error('Context mode store not available');
@@ -150,6 +214,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     const requested = requestedSessionId(msg);
     const current = currentSessionId();
     if (!requested || requested === current) return true;
+    if (ctx.hasSession?.(requested)) return true;
     sendTo(ws, {
       type: 'error',
       payload: sessionPayload({
@@ -179,75 +244,20 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       .catch(() => undefined);
     await writer.close().catch(() => undefined);
   };
-  const resetContextAccounting = (): void => {
-    ctx.context.lastRequestTokens = undefined;
-    ctx.context.lastRealInputTokens = undefined;
-    ctx.context.state.deleteMeta?.('lastRequestTokensAt');
-    ctx.context.state.deleteMeta?.('realAnchorMsgCount');
-  };
-  const activateSession = async (
-    next: Session,
-    messages: Context['messages'],
-    usage?: Parameters<TokenCounter['account']>[0],
-    todos: TodoItem[] = [],
-  ): Promise<void> => {
-    const current = ctx.getSession();
-    if (current !== next) {
-      // Stop the previous session's in-flight run before swapping — a slow
-      // provider stream would otherwise keep running (and emitting events)
-      // in the background after session.new/resume.
-      try {
-        ctx.abortActiveRun?.(current.id);
-      } catch {
-        // Aborting is best-effort; ownership/session finalization must still
-        // advance so a faulty host callback cannot strand a claimed session.
-      }
-      // Drain the exact-conversation journal into the OUTGOING writer before
-      // closing it. Those events were queued against `current`, and a closed
-      // FileSessionWriter drops appends silently — so closing first ends the
-      // session we are leaving with its last turns missing from the
-      // transcript. The TUI resume path already flushes in this order.
-      await ctx.context.flushConversationJournal?.().catch(() => undefined);
-      await finalizeSession(current);
-    }
-    ctx.setSession(next);
-    ctx.context.session = next;
-    ctx.context.state.replaceMessages(messages);
-    await ctx.context.flushConversationJournal?.();
-    // Rebind durable todo persistence before replaceTodos emits. Detaching
-    // afterward would flush this new-session snapshot into the previous file.
-    await ctx.onBeforeSessionTodosReplaced?.(next.id, sessionsDirectory());
-    // Restore the resumed session's todo board from its .todos.json sidecar
-    // (empty for a fresh session). Without this a resume cleared the panel.
-    ctx.context.state.replaceTodos(todos);
-    resetContextAccounting();
-    ctx.context.clearMemoryEvidence?.();
-    ctx.context.readFiles.clear();
-    ctx.context.fileMtimes.clear();
-    ctx.context.state.setMeta?.(
-      'plan.path',
-      sessionScopedPath(sessionsDirectory(), next.id, '.plan.json'),
-    );
-    ctx.context.state.setMeta?.(
-      'task.path',
-      sessionScopedPath(sessionsDirectory(), next.id, '.tasks.json'),
-    );
-    ctx.tokenCounter.reset?.();
-    if (usage) {
-      ctx.tokenCounter.account(usage, currentConfig().model, ctx.context.provider.id);
-      if (typeof usage.input === 'number' && usage.input > 0) {
-        ctx.context.lastRequestTokens = usage.input;
-      }
-    }
-    ctx.setSessionStartedAt?.(Date.now());
-    await ctx.onSessionSwapped?.(next.id);
-  };
 
   return {
     newSession: (ws, msg) =>
       serializeSessionTransition(async () => {
         if (!ensureCurrentSession(ws, msg, 'session.new')) return;
-        const clearedSessionId = currentSessionId();
+        const explicitTarget = requestedSessionId(msg);
+        if (explicitTarget) {
+          try {
+            ctx.abortActiveRun?.(explicitTarget);
+          } catch {
+            // best-effort
+          }
+        }
+        const clearedSessionId = explicitTarget ?? currentSessionId();
         if (ctx.canSwapSessions?.() !== false) {
           const store = ctx.getSessionStore();
           const config = currentConfig();
@@ -261,6 +271,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           let activated = false;
           try {
             rollbackClaim = await ctx.claimSession?.(next.id);
+            if (explicitTarget) {
+              const current = ctx.getSession();
+              if (current.id === explicitTarget) {
+                await ctx.context.flushConversationJournal?.().catch(() => undefined);
+                await finalizeSession(current);
+              }
+            }
             // activateSession cannot fail before replacing the runtime writer:
             // finalizeSession is best-effort and setSession is synchronous.
             activated = true;
@@ -288,10 +305,24 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           ctx.context.fileMtimes.clear();
           ctx.tokenCounter.reset?.();
         }
-        broadcastToAll({
-          type: 'session.start',
-          payload: await ctx.sessionStartPayload({ reset: true, clearedSessionId }),
-        });
+        const nextId = ctx.getSession().id;
+        const client = ctx.clients?.get(ws);
+        if (client) {
+          client.sessionId = nextId;
+        }
+        const startPayload = await ctx.sessionStartPayload({ reset: true, clearedSessionId, sessionId: nextId });
+        sendSessionStart(ws, startPayload);
+        try {
+          const list = await ctx.getSessionStore().list(200);
+          broadcastToAll({
+            type: 'sessions.list',
+            payload: {
+              sessions: toSessionHistoryEntries(list, nextId),
+            },
+          });
+        } catch {
+          // best-effort
+        }
       }),
     clearContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.clear')) return;
@@ -593,10 +624,24 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     deleteSession: async (ws, msg) => {
       const { id } = (msg as { payload: { id: string } }).payload;
+      if (ctx.isRunActive?.(id)) {
+        result(ws, false, 'Cannot delete session while an agent run is active. Please stop the run first.');
+        return;
+      }
       try {
         await deleteWebUISession(
           {
             getActiveSessionId: () => ctx.getSession().id,
+            getActiveSessionIds: () => {
+              const ids = new Set<string>();
+              ids.add(ctx.getSession().id);
+              if (ctx.clients) {
+                for (const client of ctx.clients.values()) {
+                  if (client.sessionId) ids.add(client.sessionId);
+                }
+              }
+              return Array.from(ids);
+            },
             getSessionStore: ctx.getSessionStore,
             refreshSessions: async () => {
               const list = await ctx.getSessionStore().list(200);
@@ -654,14 +699,45 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           const current = ctx.getSession();
           const store = ctx.getSessionStore();
           const canonicalId = store.resolveId ? await store.resolveId(id) : id;
-          if (canonicalId === current.id) {
-            result(ws, false, 'Session is already active');
+          const isCurrentSession = canonicalId === current.id;
+          if (isCurrentSession) {
+            const client = ctx.clients?.get(ws);
+            if (client) {
+              client.sessionId = canonicalId;
+            }
+            const liveMessages = ctx.context?.state?.messages ?? [];
+            const currentTodos = ctx.context?.state?.todos ?? [];
+            const isRunning = ctx.isRunActive?.() ?? false;
+            const startPayload = await ctx.sessionStartPayload({
+              reset: true,
+              sessionId: canonicalId,
+              isRunning,
+              ...buildReplayPayload({
+                messages: liveMessages,
+                events: [],
+                usage: {
+                  input: ctx.context?.lastRequestTokens ?? 0,
+                  output: 0,
+                },
+              }),
+            });
+            sendTo(ws, {
+              type: 'session.start',
+              payload: startPayload,
+            });
+            sendTo(ws, {
+              type: 'todos.updated',
+              payload: { sessionId: canonicalId, todos: currentTodos },
+            });
+            result(ws, true, 'Session is already active');
             return;
           }
           rollbackClaim = await ctx.claimSession?.(canonicalId);
           const resumed = await store.resume(canonicalId);
-          // Restore the resumed session's todo board from its sidecar so the
-          // panel isn't wiped on resume (parity with the boot `--resume` path).
+          if (!ctx.hasSession) {
+            await ctx.context.flushConversationJournal?.().catch(() => undefined);
+            await finalizeSession(current);
+          }
           const restoredTodos =
             (await loadTodosCheckpoint(
               sessionScopedPath(sessionsDirectory(), resumed.writer.id, '.todos.json'),
@@ -676,29 +752,56 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             resumed.data.usage,
             restoredTodos,
           );
-          broadcastToAll({
-            type: 'session.start',
-            payload: await ctx.sessionStartPayload({
-              reset: true,
-              // Same builder the connect path uses, so a resume and a reconnect
-              // hand the client an identical transcript (markers included).
-              ...buildReplayPayload({
-                messages: resumed.data.messages,
-                events: resumed.data.events,
-                usage: resumed.data.usage,
-              }),
+          const client = ctx.clients?.get(ws);
+          if (client) {
+            client.sessionId = resumed.writer.id;
+          }
+          const isRunning = ctx.isRunActive?.(resumed.writer.id) ?? false;
+          const targetAgent = ctx.getAgent?.(resumed.writer.id);
+          const liveMessages =
+            isRunning && targetAgent?.ctx?.messages && targetAgent.ctx.messages.length > 0
+              ? targetAgent.ctx.messages
+              : resumed.data.messages;
+          const startPayload = await ctx.sessionStartPayload({
+            reset: true,
+            sessionId: resumed.writer.id,
+            isRunning,
+            // Same builder the connect path uses, so a resume and a reconnect
+            // hand the client an identical transcript (markers included).
+            ...buildReplayPayload({
+              messages: liveMessages,
+              events: resumed.data.events,
+              usage: resumed.data.usage,
             }),
           });
+          sendSessionStart(ws, startPayload);
           // The client resets todos to [] on session.start(reset); push the
           // restored board AFTER so the panel repopulates.
-          broadcastToAll({
-            type: 'todos.updated',
-            payload: { sessionId: resumed.writer.id, todos: restoredTodos },
-          });
+          sendTodosUpdated(ws, { sessionId: resumed.writer.id, todos: restoredTodos });
+          try {
+            const list = await ctx.getSessionStore().list(200);
+            broadcastToAll({
+              type: 'sessions.list',
+              payload: {
+                sessions: toSessionHistoryEntries(list, resumed.writer.id),
+              },
+            });
+          } catch {
+            // best-effort
+          }
           result(ws, true, `Resumed session ${id}`);
         } catch (err) {
           if (!activated) await rollbackClaim?.().catch(() => undefined);
           result(ws, false, errMessage(err));
+          try {
+            const list = await ctx.getSessionStore().list(200);
+            sendTo(ws, {
+              type: 'sessions.list',
+              payload: { sessions: toSessionHistoryEntries(list, ctx.getSession().id) },
+            });
+          } catch {
+            // best-effort
+          }
         }
       }),
     saveSession: async (ws, msg) => {

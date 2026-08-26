@@ -25,6 +25,16 @@
   - *How:* `codebase-incoming-calls`
   - *How:* `read`
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-26T07:31:22.592Z; skill=node-modern; applied=1; wins=1 -->
+- **Always treat `@wrongstack/simpleui` grep hits as suspect until checked against `packages/cli/src/simpleui-dist.ts` — that file resolves the package by **path string** (`resolvePackageJson('@wrongstack/simpleui/package.json')`) for static-asset serving, so it looks like a barrel consumer but never imports the module. The simpleui barrel (`packages/simpleui/src/index.ts`) has zero in-repo importers by design: the package is consumed only as a built Vite `dist/` asset.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `@wrongstack/simpleui`
+  - *How:* `packages/cli/src/simpleui-dist.ts`
+  - *How:* `resolvePackageJson('@wrongstack/simpleui/package.json')`
+  - *How:* `packages/simpleui/src/index.ts`
+  - *How:* `dist/`
+  - *How:* `wrongstack/simpleui/package.json`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-08-22T09:30:41.957Z; applied=1; wins=1 -->
 - **When tracing callers of `incomingCallsService`, `outgoingCallsService`, `packageGraphService`, `fileGraphService`, or `symbolGraphService` in the WrongStack repo, always disambiguate between the **sync** implementations in `packages/tools/src/codebase-index/index-service.ts` and the **async shadowing wrappers** with identical names exported from `packages/tools/src/codebase-index/background-indexer.ts` (and re-exported via the `./codebase-index/index` barrel) — the package barrel exports only the wrappers, so external consumers never touch the sync originals directly.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -58,12 +68,6 @@
   - *How:* `@wrongstack/core`
   - *How:* `ChronicleProjectServerClient`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-24T20:34:39.843Z; skill=research-web; applied=2; wins=2 -->
-- **Always treat `docs/README.md` in the WrongStack repo as a documentation index with zero code coupling — when asked for its "importers", the complete answer is a repo-wide grep for the path string (expect only `CHANGELOG.md` release notes), not a code-graph lookup; its real consumers are the contributing conventions that mandate updating it when maintained docs are added.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `docs/README.md`
-  - *How:* `CHANGELOG.md`
-
 <!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:11:21.015Z; applied=3; wins=3 -->
 - **To find production consumers of any builder in `packages/cli/src/slash-commands/*.ts`, trace one hop up: `slash-commands/index.ts` `buildBuiltinSlashCommands` aggregates them, then `wiring/slash-commands.ts` `buildCommandHostSlashCommands` bridges to `wiring/cli-slash-commands-setup.ts` — direct importers of the leaf module are almost always tests.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
@@ -74,19 +78,5 @@
   - *How:* `buildCommandHostSlashCommands`
   - *How:* `wiring/cli-slash-commands-setup.ts`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-24T21:09:21.331Z; applied=1; wins=1 -->
-- **When mapping an ad-hoc script under `.temp_files/`, always run a second grep scoped **inside** `.temp_files` for the module basename — the repo-wide grep can silently skip the whole gitignored directory, and the scoped basename grep is what actually rules out sibling `.mjs` imports. Anchor: `grep <basename> .temp_files`.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `.temp_files/`
-  - *How:* `.temp_files`
-  - *How:* `.mjs`
-  - *How:* `grep <basename> .temp_files`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:18:09.821Z; applied=1; wins=1 -->
-- **When tracing producers/consumers of an exported factory in packages/simpleui/src/lib/ (e.g. message-handler.ts, message-handler-deps.ts, message-handler-session-start.ts), always grep the module basename with `grep <basename> packages/simpleui` BEFORE relying on `codebase-incoming-calls` — these factory exports are stripped from the symbol index and incoming-calls returns "Symbol not found" even when there is a clear caller in simple-ui-session.tsx and a test in tests/.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `grep <basename> packages/simpleui`
-  - *How:* `codebase-incoming-calls`
-
 ---
-*Last capture: 2026-08-24T21:09:21.331Z · 10 entries*
+*Last capture: 2026-08-26T07:31:22.592Z · 8 entries*

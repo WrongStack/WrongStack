@@ -34,8 +34,9 @@ export interface ConversationRunControl {
 }
 
 export interface ConversationOperationsContext {
-  getAgent: () => Agent;
+  getAgent: (sessionId?: string) => Agent;
   getSessionId: () => string;
+  hasSession?: ((id: string) => boolean) | undefined;
   runControl: ConversationRunControl;
   pendingConfirms: Map<string, PendingConfirm>;
   send: (ws: WebSocket, message: OutboundMessage) => void;
@@ -68,6 +69,7 @@ export function createConversationOperations(
     const requested = requestedSessionId(msg);
     const current = ctx.getSessionId();
     if (!requested || !current || requested === current) return true;
+    if (ctx.hasSession?.(requested)) return true;
     ctx.send(ws, {
       type: 'error',
       payload: sessionPayload({
@@ -121,10 +123,12 @@ export function createConversationOperations(
         id?: unknown;
         content?: unknown;
         freshContext?: unknown;
+        sessionId?: unknown;
         images?: IncomingImagePayload[] | undefined;
         imageBase64?: string | undefined;
       };
-      const originSessionId = ctx.getSessionId();
+      const requested = typeof payload.sessionId === 'string' && payload.sessionId ? payload.sessionId : undefined;
+      const originSessionId = requested ?? ctx.getSessionId();
       const requestId = typeof payload.id === 'string' ? payload.id : undefined;
       const controller = ctx.runControl.begin(ws, originSessionId);
       if (!controller) {
@@ -144,7 +148,7 @@ export function createConversationOperations(
       // every catch branch stamp the result with the session the user
       // started in — not whatever session is live when the run unwinds.
       try {
-        const agent = ctx.getAgent();
+        const agent = ctx.getAgent(originSessionId);
         if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
         const content = typeof payload.content === 'string' ? payload.content : '';
         let input: string | ContentBlock[] = content;

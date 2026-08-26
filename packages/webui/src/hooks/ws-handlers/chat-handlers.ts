@@ -238,6 +238,11 @@ export function handleRunResult(msg: WSServerMessage) {
     },
   );
   if (!payload) return;
+  const currentSessionId = useSessionStore.getState().session?.id;
+  const targetSessionId = (payload as { sessionId?: string }).sessionId;
+  if (targetSessionId && currentSessionId && targetSessionId !== currentSessionId) {
+    return;
+  }
   // iterations is optional on the wire (some server builds omit it on
   // early-exit paths); default to 1 so downstream math + copy stays sane.
   const iterations = payload.iterations ?? 1;
@@ -338,7 +343,10 @@ export function handleRunResult(msg: WSServerMessage) {
     useChatStore
       .getState()
       .addMessage({ role: 'assistant', content: `Error: ${payload.error.message}`, isError: true });
-    toast.error(`Run ended: ${payload.error.message}`);
+    const isSilentAbort = payload.error.message === 'User aborted' || payload.error.message === 'aborted';
+    if (!isSilentAbort) {
+      toast.error(`Run ended: ${payload.error.message}`);
+    }
     notifyIfHidden(
       `${useSessionStore.getState().projectName || 'Agent'} run failed`,
       payload.error.message,

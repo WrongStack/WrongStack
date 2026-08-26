@@ -37,6 +37,7 @@ vi.mock('@/stores', () => {
     useFleetStore: makeStore({ agents: [], leaderId: null, clearFinishedAgents: () => {} }),
     useUIStore: makeStore({ setSidebarOpen: () => {}, setCurrentView: () => {} }),
     useChatStore: makeStore({ addMessage: () => {}, setLoading: () => {} }),
+    useSessionStore: makeStore({ session: { id: 'test-session' } }),
   };
 });
 

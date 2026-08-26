@@ -36,6 +36,22 @@ export {
 } from './chat-retention';
 export { BTW_DISPATCH_GRACE_MS } from './chat-queue-helpers';
 
+interface SessionMemoryCache {
+  messages: ChatMessage[];
+  currentAssistantMessageId: string | null;
+  currentToolId: string | null;
+  isLoading: boolean;
+  executions: Map<string, ToolExecution>;
+  toolMessageIdsByUseId: Map<string, string>;
+  thinkingBuffer: string;
+  thinkingStartedAt: number | null;
+  thinkingLogBuffer: string;
+  thinkingLogStartedAt: number | null;
+  runStart: { at: number; cost: number } | null;
+}
+
+export const memorySessionCaches = new Map<string, SessionMemoryCache>();
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => ({
@@ -465,6 +481,61 @@ export const useChatStore = create<ChatState>()(
         get().clearThinkingLog();
       },
       clearThinkingLog: () => set({ thinkingLogBuffer: '', thinkingLogStartedAt: null }),
+      switchSession: (newSessionId) => {
+        const state = get();
+        if (state.boundSessionId === newSessionId) return;
+
+        // 1. Snapshot current active session into memorySessionCaches
+        if (state.boundSessionId) {
+          memorySessionCaches.set(state.boundSessionId, {
+            messages: state.messages,
+            currentAssistantMessageId: state.currentAssistantMessageId,
+            currentToolId: state.currentToolId,
+            isLoading: state.isLoading,
+            executions: new Map(state.executions),
+            toolMessageIdsByUseId: new Map(state.toolMessageIdsByUseId),
+            thinkingBuffer: state.thinkingBuffer,
+            thinkingStartedAt: state.thinkingStartedAt,
+            thinkingLogBuffer: state.thinkingLogBuffer,
+            thinkingLogStartedAt: state.thinkingLogStartedAt,
+            runStart: state.runStart,
+          });
+        }
+
+        // 2. Restore cached session if available, else clean slate for new session
+        const cached = memorySessionCaches.get(newSessionId);
+        if (cached) {
+          set({
+            boundSessionId: newSessionId,
+            messages: cached.messages,
+            currentAssistantMessageId: cached.currentAssistantMessageId,
+            currentToolId: cached.currentToolId,
+            isLoading: cached.isLoading,
+            executions: cached.executions,
+            toolMessageIdsByUseId: cached.toolMessageIdsByUseId,
+            thinkingBuffer: cached.thinkingBuffer,
+            thinkingStartedAt: cached.thinkingStartedAt,
+            thinkingLogBuffer: cached.thinkingLogBuffer,
+            thinkingLogStartedAt: cached.thinkingLogStartedAt,
+            runStart: cached.runStart,
+          });
+        } else {
+          set({
+            boundSessionId: newSessionId,
+            messages: [],
+            currentAssistantMessageId: null,
+            currentToolId: null,
+            isLoading: false,
+            executions: new Map(),
+            toolMessageIdsByUseId: new Map(),
+            thinkingBuffer: '',
+            thinkingStartedAt: null,
+            thinkingLogBuffer: '',
+            thinkingLogStartedAt: null,
+            runStart: null,
+          });
+        }
+      },
     }),
     {
       name: 'wrongstack-chat',

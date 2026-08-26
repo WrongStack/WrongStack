@@ -18,6 +18,7 @@ import {
   useSessionStore,
   useUIStore,
 } from '@/stores';
+import { memorySessionSnapshots } from '@/stores/session-store';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
@@ -230,8 +231,12 @@ export function handleSessionStart(msg: WSServerMessage) {
     latestVersion?: unknown;
     updateAvailable?: unknown;
   };
-  const provider = sessionRouteIdentifier(payload.provider);
-  const model = sessionRouteIdentifier(payload.model);
+  const currentConfig = useConfigStore.getState();
+  const currentSession = useSessionStore.getState().session;
+  const rawProvider = sessionRouteIdentifier(payload.provider);
+  const rawModel = sessionRouteIdentifier(payload.model);
+  const provider = rawProvider || currentConfig.provider || currentSession?.provider || '';
+  const model = rawModel || currentConfig.model || currentSession?.model || '';
   const prev = useSessionStore.getState().session?.id;
   const isNew = !prev || prev !== payload.sessionId;
   const isReset = isNew || payload.reset;
@@ -259,6 +264,35 @@ export function handleSessionStart(msg: WSServerMessage) {
 
   if (payload.needsSetup) {
     navigateToView('setup');
+  }
+
+  const sessionId = payload.sessionId;
+  const currentActiveSessionId = useSessionStore.getState().session?.id;
+  const isCurrentActive = !sessionId || currentActiveSessionId === sessionId;
+
+  if (sessionId) {
+    const existing = memorySessionSnapshots.get(sessionId);
+    memorySessionSnapshots.set(sessionId, {
+      session: {
+        id: sessionId,
+        startedAt: existing?.startTime ?? Date.now(),
+        model,
+        provider,
+      },
+      provider: provider || existing?.provider,
+      model: model || existing?.model,
+      mode: payload.mode || existing?.mode || 'default',
+      contextMode: payload.contextMode || existing?.contextMode || 'balanced',
+      totalTokens: existing?.totalTokens ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      lastInputTokens: (payload as { lastInputTokens?: number }).lastInputTokens ?? existing?.lastInputTokens ?? 0,
+      cost: existing?.cost ?? 0,
+      startTime: existing?.startTime ?? Date.now(),
+      maxContext: payload.maxContext ?? existing?.maxContext ?? 0,
+      reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] }).reasoningEffortLevels ?? existing?.reasoningEffortLevels,
+      cacheStats: existing?.cacheStats ?? null,
+      iteration: existing?.iteration ?? null,
+      todos: existing?.todos ?? [],
+    });
   }
 
   if (isReset) {
@@ -292,18 +326,28 @@ export function handleSessionStart(msg: WSServerMessage) {
     // semantics replace a previous model's list on switch.
     reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] }).reasoningEffortLevels,
   });
-  useConfigStore.getState().setConfig({ provider, model });
+  if (provider && model) {
+    useConfigStore.getState().setConfig({ provider, model });
+  } else if (provider) {
+    useConfigStore.getState().setConfig({ provider });
+  }
+
+  const isRunning = Boolean((payload as { isRunning?: boolean }).isRunning);
   if (isReset) {
     if (!payload.needsSetup && isDesktopShell() && !isRoutePinnedView()) {
       resetUiNavigationToHome({ sidebarOpen: false });
     }
-    streamCoalescer.dropAll();
-    useChatStore.getState().clearMessages();
+    if (!isRunning) {
+      streamCoalescer.dropAll();
+      useChatStore.getState().clearThinking();
+    }
+    useChatStore.getState().setCurrentAssistantMessage(null);
+    useChatStore.getState().setCurrentToolId(null);
     useChatStore.getState().setBoundSessionId(payload.sessionId);
     useUIStore.getState().setSearchActiveMessageId(null);
-    useChatStore.getState().setLoading(false);
+    useChatStore.getState().setLoading(isRunning);
     useSessionStore.setState({ todos: [] });
-    setFaviconStatus('ready');
+    setFaviconStatus(isRunning ? 'running' : 'ready');
 
     const fleet = useFleetStore.getState();
     if (payload.clearedSessionId) {
@@ -322,19 +366,23 @@ export function handleSessionStart(msg: WSServerMessage) {
     reconcileFileTabsAfterEnvChange(useSessionStore.getState().projectRoot);
     getWSClient().send({ type: 'files.tree', payload: { path: useSessionStore.getState().cwd } });
   }
+
   const replay = (payload as { replayMessages?: ReplayMessage[] }).replayMessages;
   const replayMarkers = (payload as { replayMarkers?: SessionMarker[] }).replayMarkers ?? [];
+
   if (replay && replay.length > 0) {
     const chat = useChatStore.getState();
-    const shouldReplace =
-      isReset ||
-      chat.messages.length === 0 ||
-      chat.boundSessionId !== payload.sessionId ||
-      chat.isLoading;
-    if (shouldReplace) {
-      chat.setMessages(hydrateReplayMessages(replay, replayMarkers));
-      chat.setBoundSessionId(payload.sessionId);
+    chat.setMessages(hydrateReplayMessages(replay, replayMarkers));
+    chat.setBoundSessionId(payload.sessionId);
+    if (isRunning) {
+      chat.setLoading(true);
+      setFaviconStatus('running');
     }
+  } else if (isReset) {
+    useChatStore.getState().clearMessages();
+    useChatStore.getState().setBoundSessionId(payload.sessionId);
+    useChatStore.getState().setLoading(isRunning);
+    setFaviconStatus(isRunning ? 'running' : 'ready');
   }
   if (replay) {
     const usage = (

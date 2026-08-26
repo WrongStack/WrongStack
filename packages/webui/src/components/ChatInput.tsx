@@ -22,7 +22,7 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { ComposerButtonBar } from './ChatInput/composer-button-bar.js';
 import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
-import { toWireImages } from './ChatInput/image-attachments.js';
+import { toWireImages, type ImageAttachment } from './ChatInput/image-attachments.js';
 import { handleNextList, handleNextSelect } from './ChatInput/next-steps-helpers.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
@@ -41,6 +41,11 @@ import { toast } from './Toaster';
 export function resolveCancelInput(prev: string, original: string): string {
   return prev.trim() ? prev : original;
 }
+
+const sessionDraftMap = new Map<
+  string,
+  { input: string; images: ImageAttachment[]; refs: ReturnType<typeof useFileReferenceStore.getState>['refs'] }
+>();
 
 export function ChatInput({
   onOpenBreakdown,
@@ -165,12 +170,34 @@ export function ChatInput({
   const prevSessionIdRef = useRef<string | null>(sessionId);
   useEffect(() => {
     if (prevSessionIdRef.current === sessionId) return;
+    const oldId = prevSessionIdRef.current;
+    if (oldId) {
+      sessionDraftMap.set(oldId, {
+        input,
+        images: [...pendingImages],
+        refs: [...fileRefs],
+      });
+    }
     prevSessionIdRef.current = sessionId;
-    setInput('');
+
+    if (sessionId && sessionDraftMap.has(sessionId)) {
+      const saved = sessionDraftMap.get(sessionId)!;
+      setInput(saved.input);
+      clearPendingImages();
+      if (saved.images.length > 0) {
+        useUIStore.getState().setDraftImages(saved.images);
+      }
+      clearRefs();
+      for (const r of saved.refs) {
+        useFileReferenceStore.getState().addRef(r);
+      }
+    } else {
+      setInput('');
+      clearPendingImages();
+      clearRefs();
+    }
     setHistoryIdx(-1);
     stickyDraftRef.current = null;
-    clearPendingImages();
-    clearRefs();
     setAtMention(null);
     setPasteHint(null);
     topicCheckAbortRef.current?.abort();
@@ -278,6 +305,8 @@ export function ChatInput({
   }, [slashSuggestions.length, slashIndex]);
 
   const _clearTextarea = useCallback(() => {
+    const curId = useSessionStore.getState().session?.id;
+    if (curId) sessionDraftMap.delete(curId);
     const ta = textareaRef.current;
     if (ta) {
       ta.value = '';

@@ -68,6 +68,16 @@ export function useWebSocketBootstrap(): void {
     ws.connect()
       .then(() => {
         if (cancelled) return;
+        // Check URL for session query param to support direct multi-session routing
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const urlSessionId = params.get('session');
+          if (urlSessionId) {
+            ws.resumeSessionById(urlSessionId);
+          }
+        } catch {
+          // ignore
+        }
         // Pull the current preference snapshot from the server so the
         // client starts with the server's truth — surviving a page refresh
         // without losing any settings changed in another tab.

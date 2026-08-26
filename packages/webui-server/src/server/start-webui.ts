@@ -75,6 +75,7 @@ import { setupWebuiProxyInstantApply } from './start-webui-proxy-apply.js';
 import { createPackageOperationExecutor } from './start-webui-remediation.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
+import { startWebUILiveStatusLogger } from './webui-status-logger.js';
 import type { WebUIOptions } from './types.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
 
@@ -363,6 +364,7 @@ export async function startWebUI(
     compactor,
     autoCompactor,
     agent,
+    getAgent,
     toolExecutor,
     permissionPolicy,
     pipelines,
@@ -476,16 +478,26 @@ export async function startWebUI(
     );
   }
 
+  const _sessionRunLocks = new Map<string, AbortController>();
   let _runLock: AbortController | null = null;
   let _runLockSession: string | null = null;
   const runLockControl = {
-    get: () => _runLock,
-    set: (ctrl: AbortController | null) => {
+    get: (sessionId?: string) => (sessionId ? (_sessionRunLocks.get(sessionId) ?? null) : _runLock),
+    set: (ctrl: AbortController | null, sessionId?: string) => {
       _runLock = ctrl;
+      if (sessionId) {
+        if (ctrl) _sessionRunLocks.set(sessionId, ctrl);
+        else _sessionRunLocks.delete(sessionId);
+      }
     },
     getSession: () => _runLockSession,
     setSession: (id: string | null) => {
       _runLockSession = id;
+    },
+    has: (sessionId: string) => _sessionRunLocks.has(sessionId),
+    hasAny: () => _sessionRunLocks.size > 0 || _runLock !== null,
+    delete: (sessionId: string) => {
+      _sessionRunLocks.delete(sessionId);
     },
   };
 
@@ -634,21 +646,44 @@ export async function startWebUI(
     setConfigWriteLock: (next) => {
       configWriteLock.lock = next;
     },
-    abortRunLock: () => {
-      const ctrl = runLockControl.get();
-      if (ctrl) {
-        ctrl.abort();
-        runLockControl.set(null);
-        runLockControl.setSession(null);
+    abortRunLock: (sessionId?: string) => {
+      if (sessionId) {
+        const ctrl = _sessionRunLocks.get(sessionId);
+        if (ctrl) {
+          ctrl.abort();
+          _sessionRunLocks.delete(sessionId);
+        }
+        if (runLockControl.getSession() === sessionId) {
+          const globalCtrl = runLockControl.get();
+          if (globalCtrl) {
+            globalCtrl.abort();
+            runLockControl.set(null);
+            runLockControl.setSession(null);
+          }
+        }
+      } else {
+        for (const ctrl of _sessionRunLocks.values()) {
+          ctrl.abort();
+        }
+        _sessionRunLocks.clear();
+        const globalCtrl = runLockControl.get();
+        if (globalCtrl) {
+          globalCtrl.abort();
+          runLockControl.set(null);
+          runLockControl.setSession(null);
+        }
       }
     },
-    isRunActive: () => runLockControl.get() !== null,
+    isRunActive: (sessionId?: string) =>
+      sessionId ? _sessionRunLocks.has(sessionId) : runLockControl.hasAny(),
     getClients: () => clients,
   };
 
   const deps: WebuiDeps = {
     trustBoundary,
     agent,
+    getAgent,
+    hasSession: (_id: string) => true,
     context,
     container,
     toolRegistry,
@@ -748,6 +783,32 @@ export async function startWebUI(
     }),
   });
 
+  const stopLiveStatusLogger = startWebUILiveStatusLogger({
+    events,
+    getSessionList: () => {
+      const activeIds = new Set<string>();
+      for (const client of clients.values()) {
+        if (client.sessionId) activeIds.add(client.sessionId);
+      }
+      const currentId = state.getSession().id;
+      if (activeIds.size === 0 && currentId) {
+        activeIds.add(currentId);
+      }
+      return Array.from(activeIds).map((id) => {
+        const ag = deps.getAgent?.(id);
+        const cfg = state.getConfig();
+        const isRunning = state.isRunActive(id);
+        return {
+          id,
+          model: ag?.ctx?.model ?? cfg.model,
+          provider: ag?.ctx?.provider?.id ?? cfg.provider,
+          isRunning,
+        };
+      });
+    },
+    getAgent: (sessionId) => deps.getAgent?.(sessionId),
+  });
+
   const routes = buildRoutes(state, deps, cb);
   const stopEmptySessionCleanup = scheduleOwnerlessEmptySessionCleanup({
     getSessionStore: state.getSessionStore,
@@ -845,6 +906,7 @@ export async function startWebUI(
     getKanbanSupervisorDispose: () => kanbanSupervisorDispose,
     todosCheckpoint,
     stopHeapWatchdog,
+    stopLiveStatusLogger,
     getCredentialWatcherClose: () => credentialWatcherClose,
     getProxyInstantApplyDispose: () => proxyInstantApplyDispose,
     disposeRealtimeHandlers,

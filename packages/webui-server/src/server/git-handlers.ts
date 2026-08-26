@@ -111,12 +111,15 @@ function makeGit(cwd: string | undefined) {
  */
 export function repoRelativePrefix(repoRoot: string, projectRoot: string): string {
   if (!repoRoot || !projectRoot) return '';
-  const rel = nodePath.relative(nodePath.normalize(repoRoot), nodePath.normalize(projectRoot));
+  const rel = nodePath
+    .relative(nodePath.normalize(repoRoot), nodePath.normalize(projectRoot))
+    .replaceAll('\\', '/');
   if (!rel || rel === '.') return '';
-  // A project root outside the repo maps to '' — the git process would
-  // have failed in that case, yielding an empty change set anyway.
-  if (rel.startsWith('..')) return '';
-  return rel.replaceAll('\\', '/') + '/';
+  // Outside the repo maps to '' — SEGMENT-aware: '..' or '../x' escapes,
+  // but a legal `..hidden` directory name does NOT (a raw startsWith('..')
+  // falsely reported "no relation" for projects under such a directory).
+  if (rel === '..' || rel.startsWith('../')) return '';
+  return rel + '/';
 }
 
 /**
@@ -147,6 +150,16 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
     // git helper (unlike handleGitInfo's) does not strip the trailing
     // newline rev-print emits, and a "\n" suffix breaks path.relative.
     const repoPrefix = repoRelativePrefix(toplevelRaw.trim(), projectRoot);
+
+    // Seed the shared cache (see currentRepoPrefix): every changes
+    // refresh re-warms the prefix for this project root, so the NEXT
+    // stage/unstage/discard skips its rev-parse entirely. Only successful
+    // lookups are cached — an empty toplevel (not a repo) must not pin ''
+    // for the TTL window.
+    const toplevel = toplevelRaw.trim();
+    if (toplevel) {
+      cacheRepoRoot(nodePath.resolve(projectRoot || '.'), toplevel);
+    }
 
     // numstat -z format: "<added>\t<deleted>\t<path>\0" per entry. For a rename
     // git emits "<added>\t<deleted>\0<oldpath>\0<newpath>\0" (path field empty,
@@ -240,7 +253,10 @@ export async function handleGitDiff(
   const reply = (extra: Record<string, unknown>): void =>
     send(ws, { type: 'git.diff', payload: { path, ...extra } });
 
-  if (!path || path.includes('\0') || path.includes('..') || nodePath.isAbsolute(path)) {
+  // Same segment-based validator as the action handlers: a legal
+  // `release..notes.md` filename must be diffable, not just stageable —
+  // the old raw substring check rejected it here while staging accepted it.
+  if (isUnsafeRelativePath(path)) {
     reply({ oldText: '', newText: '', error: 'invalid path' });
     return;
   }
@@ -331,13 +347,35 @@ export async function handleGitDiff(
 async function execGit(
   cwd: string | undefined,
   args: string[],
+  opts?: { literalPathspecs?: boolean },
 ): Promise<{ ok: boolean; stdout: string; stderr: string; error?: string }> {
   const { execFile: ef } = await import('node:child_process');
   return new Promise((resolve) => {
     ef(
       'git',
       args,
-      { cwd, timeout: 10000, maxBuffer: 1024 * 1024 * 16 },
+      {
+        cwd,
+        timeout: 10000,
+        maxBuffer: 1024 * 1024 * 16,
+        // Pathspec magic containment (chimera round-4), OPT-IN (chimera
+        // follow-up): a validated input like `packages/webui/:(top)keep.txt`
+        // translates to `:(top)keep.txt`, passes every lexical check as an
+        // odd filename, and — WITHOUT this flag — git interprets the
+        // `:(top)` magic and targets a repo-ROOT file outside the opened
+        // project. Literal pathspecs make every `--` argument a plain
+        // filename; the attack then simply matches nothing.
+        // Scoped per-call because the variable LEAKS to child processes:
+        // `git commit` runs user hooks (pre-commit, commit-msg), and
+        // GIT_LITERAL_PATHSPECS=1 in that environment rewrites how the
+        // user's own hook scripts interpret every pathspec they touch.
+        // Only pathspec-carrying mutations opt in (`.` and literal paths
+        // only — no caller relies on magic).
+        env:
+          opts?.literalPathspecs === true
+            ? { ...process.env, GIT_LITERAL_PATHSPECS: '1' }
+            : process.env,
+      },
       (err: Error | null, stdout: string, stderr: string) => {
         if (err) {
           resolve({ ok: false, stdout: stdout || '', stderr: stderr || '', error: err.message });
@@ -389,12 +427,49 @@ function validateAndFilterPaths(projectRoot: string, paths: string[]): { safe: s
 
 /**
  * Repo→project prefix for the CURRENT repository ('' when projectRoot is
- * the repo root, or git is unavailable / not a repo). Costs one rev-parse.
+ * the repo root, or git is unavailable / not a repo).
+ *
+ * The rev-parse result is cached per RESOLVED projectRoot (chimera perf:
+ * one git process per stage/unstage/discard/diff call was pure overhead
+ * for click bursts). The cache key is the project root itself, so a
+ * project SWITCH resolves fresh — each project gets its own prefix,
+ * never the previous project's. A short TTL bounds staleness for the
+ * rare case of the repo layout changing under an unchanged project root
+ * (e.g. a new `git init` inside the project). Failed rev-parses are NOT
+ * cached: a transient failure must not pin '' for the TTL window.
  */
+const REPO_ROOT_CACHE_TTL_MS = 30_000;
+/** Bound the cache: distinct project roots are few, but a long-running
+ * server must never retain one entry per root forever. Map preserves
+ * insertion order, so eviction drops the oldest entry. */
+const REPO_ROOT_CACHE_MAX = 64;
+const repoRootCache = new Map<string, { repoRoot: string; at: number }>();
+
+/** Record a successful rev-parse, evicting the oldest entry at capacity. */
+function cacheRepoRoot(key: string, repoRoot: string): void {
+  if (repoRootCache.size >= REPO_ROOT_CACHE_MAX) {
+    const oldest = repoRootCache.keys().next().value;
+    if (oldest !== undefined) repoRootCache.delete(oldest);
+  }
+  repoRootCache.set(key, { repoRoot, at: Date.now() });
+}
+
 async function currentRepoPrefix(projectRoot: string): Promise<string> {
+  const key = nodePath.resolve(projectRoot || '.');
+  const hit = repoRootCache.get(key);
+  if (hit) {
+    if (Date.now() - hit.at < REPO_ROOT_CACHE_TTL_MS) {
+      return repoRelativePrefix(hit.repoRoot, projectRoot);
+    }
+    // Expired entries are DELETED, not just bypassed — otherwise the map
+    // retains one stale entry per project root for the process lifetime.
+    repoRootCache.delete(key);
+  }
   const res = await execGit(projectRoot || undefined, ['rev-parse', '--show-toplevel']);
   if (!res.ok) return '';
-  return repoRelativePrefix(res.stdout.trim(), projectRoot);
+  const repoRoot = res.stdout.trim();
+  cacheRepoRoot(key, repoRoot);
+  return repoRelativePrefix(repoRoot, projectRoot);
 }
 
 /**
@@ -461,7 +536,7 @@ export async function handleGitStage(
   // bare `git add -A` stages the ENTIRE repository from any cwd — escaping
   // the opened project. `.` limits the sweep to the execution cwd.
   const args = safe.length === 0 ? ['add', '-A', '--', '.'] : ['add', '--', ...safe];
-  const res = await execGit(cwd, args);
+  const res = await execGit(cwd, args, { literalPathspecs: true });
   if (!res.ok) {
     send(ws, { type: 'git.action_result', payload: { action: 'stage', ok: false, error: res.stderr || res.error || 'git add failed' } });
     return;
@@ -489,7 +564,7 @@ export async function handleGitUnstage(
     safe.length === 0
       ? ['restore', '--staged', '--', '.']
       : ['restore', '--staged', '--', ...safe];
-  const res = await execGit(cwd, args);
+  const res = await execGit(cwd, args, { literalPathspecs: true });
   if (!res.ok) {
     send(ws, { type: 'git.action_result', payload: { action: 'unstage', ok: false, error: res.stderr || res.error || 'git unstage failed' } });
     return;
@@ -529,7 +604,7 @@ export async function handleGitDiscard(
   // action on a small path set, so the extra invocations are fine.
   const benign = /not removing|no such file or directory|did not match/i;
   for (const p of safe) {
-    const r = await execGit(cwd, ['restore', '--', p]);
+    const r = await execGit(cwd, ['restore', '--', p], { literalPathspecs: true });
     if (!r.ok && !benign.test(r.stderr)) {
       send(ws, {
         type: 'git.action_result',
@@ -542,7 +617,7 @@ export async function handleGitDiscard(
       return;
     }
   }
-  const cleanRes = await execGit(cwd, ['clean', '-fd', '--', ...safe]);
+  const cleanRes = await execGit(cwd, ['clean', '-fd', '--', ...safe], { literalPathspecs: true });
   if (!cleanRes.ok && !benign.test(cleanRes.stderr)) {
     send(ws, { type: 'git.action_result', payload: { action: 'discard', ok: false, error: cleanRes.stderr || cleanRes.error || 'git clean failed' } });
     return;

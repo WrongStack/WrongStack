@@ -18,6 +18,7 @@ export function setupWebuiShutdown(options: {
   getKanbanSupervisorDispose: () => (() => void | Promise<void>) | null;
   todosCheckpoint: { detach: () => Promise<void> };
   stopHeapWatchdog: () => Promise<void>;
+  stopLiveStatusLogger?: (() => void) | undefined;
   getCredentialWatcherClose: () => (() => void) | undefined;
   getProxyInstantApplyDispose: () => () => void;
   disposeRealtimeHandlers: () => void;
@@ -68,8 +69,10 @@ export function setupWebuiShutdown(options: {
       await options.todosCheckpoint.detach();
       await options.stopHeapWatchdog();
       options.getCredentialWatcherClose()?.();
-      options.getProxyInstantApplyDispose()();
-      options.disposeRealtimeHandlers();
+      if (options.disposeRealtimeHandlers) {
+        options.disposeRealtimeHandlers();
+      }
+      options.stopLiveStatusLogger?.();
       const governanceCleanup = await options.governanceHandle?.close();
       if (governanceCleanup && !governanceCleanup.ok) {
         options.logger.warn(
