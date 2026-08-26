@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { isModelInFavorites } from '@/components/QuickModelSwitcher.filter';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
+import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
 export interface ModelCandidate {
@@ -11,6 +13,7 @@ export interface ModelCandidate {
   description?: string | undefined;
   contextWindow?: number | undefined;
   outputModalities?: string[] | undefined;
+  isFavorite?: boolean | undefined;
 }
 
 /**
@@ -21,6 +24,7 @@ export interface ModelCandidate {
  */
 export function useProviderModels(active: boolean): ModelCandidate[] {
   const wsUrl = useConfigStore((s) => s.wsUrl);
+  const favoriteModels = useLocalPrefs((s) => s.favoriteModels);
   const { listSavedProviders, listProviderModels } = useWebSocket();
   const [saved, setSaved] = useState<string[]>([]);
   const [byProvider, setByProvider] = useState<
@@ -85,9 +89,10 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
           description: m.description,
           contextWindow: m.contextWindow,
           outputModalities: m.outputModalities,
+          isFavorite: isModelInFavorites(provider, m.id, favoriteModels),
         });
       }
     }
     return out;
-  }, [saved, byProvider]);
+  }, [saved, byProvider, favoriteModels]);
 }

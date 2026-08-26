@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useSessionStore } from '../../src/stores/session-store';
+import { useSessionLanes, useSessionStore } from '../../src/stores/session-store';
 
-const PERSIST_KEY = 'wrongstack-session';
+const PERSIST_KEY = 'wrongstack-session-lanes';
 
 function getPersisted(): Record<string, unknown> | null {
   const raw = localStorage.getItem(PERSIST_KEY);
@@ -17,6 +17,9 @@ function setPersisted(value: Record<string, unknown> | null): void {
 }
 
 function resetStore() {
+  // Four tabs means four lanes; a leftover lane would hand its accounting to
+  // the next test.
+  useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   useSessionStore.setState({
     session: null,
     totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -364,42 +367,61 @@ describe('setTodos', () => {
 // they get re-fetched from the server on reconnect — the server is the
 // authority on live run state.
 describe('F5 resilience — persistence', () => {
+  const laneOptions = useSessionStore.persist.getOptions();
+
+  function activeLane(blob: {
+    state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+  }) {
+    return blob.state.lanes[blob.state.activeSessionId]!;
+  }
+
   it('writes the persisted session pointer + env on setSession', () => {
     useSessionStore.setState({
       projectName: 'wrongstack-demo',
       projectRoot: '/tmp/wrongstack-demo',
       cwd: '/tmp/wrongstack-demo/src',
-      mode: 'code',
-      contextMode: 'frugal',
     });
     useSessionStore.getState().setSession(makeSession({ id: 'sess-XYZ' }));
+    useSessionStore.setState({ mode: 'code', contextMode: 'frugal' });
     flushWrites();
-    const blob = getPersisted();
+    const blob = getPersisted() as unknown as {
+      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+    } | null;
     expect(blob).toBeTruthy();
-    expect((blob!.state as Record<string, unknown>).session).toMatchObject({
-      id: 'sess-XYZ',
-    });
-    expect((blob!.state as Record<string, unknown>).projectName).toBe('wrongstack-demo');
-    expect((blob!.state as Record<string, unknown>).cwd).toBe('/tmp/wrongstack-demo/src');
-    expect((blob!.state as Record<string, unknown>).mode).toBe('code');
-    expect((blob!.state as Record<string, unknown>).contextMode).toBe('frugal');
+    // Project fields are shared by all four tabs; the session pointer, mode
+    // and context policy belong to the tab that owns them.
+    expect((blob!.state as unknown as Record<string, unknown>).projectName).toBe('wrongstack-demo');
+    expect((blob!.state as unknown as Record<string, unknown>).cwd).toBe(
+      '/tmp/wrongstack-demo/src',
+    );
+    expect(blob!.state.activeSessionId).toBe('sess-XYZ');
+    const lane = activeLane(blob!);
+    expect(lane.session).toMatchObject({ id: 'sess-XYZ' });
+    expect(lane.mode).toBe('code');
+    expect(lane.contextMode).toBe('frugal');
   });
 
-  it('does NOT persist heavy fields (modes, todos, iteration, totalTokens)', () => {
+  it('does NOT persist heavy fields (todos, iteration, totalTokens, cost)', () => {
+    useSessionStore.getState().setSession(makeSession({ id: 'sess-heavy' }));
     useSessionStore.setState({
       iteration: { index: 5, max: 10 },
       totalTokens: { input: 999, output: 88, cacheRead: 11, cacheWrite: 0 },
       cost: 0.42,
       startTime: 1_700_000_000_000,
+      todos: [{ id: 't', content: 'x', status: 'pending' }],
     });
-    useSessionStore.getState().setSession(makeSession());
     flushWrites();
-    const blob = getPersisted();
-    const persisted = blob!.state as Record<string, unknown>;
-    expect(persisted.iteration).toBeUndefined();
-    expect(persisted.totalTokens).toBeUndefined();
-    expect(persisted.cost).toBeUndefined();
-    expect(persisted.startTime).toBeUndefined();
+    const blob = getPersisted() as unknown as {
+      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+    };
+    const lane = activeLane(blob);
+    for (const field of ['iteration', 'totalTokens', 'cost', 'startTime', 'todos']) {
+      expect(lane[field], field).toBeUndefined();
+    }
+    // ...and the project-wide catalogs are not in the blob either.
+    const state = blob.state as unknown as Record<string, unknown>;
+    expect(state.modes).toBeUndefined();
+    expect(state.contextModes).toBeUndefined();
   });
 
   it('stamps lastVisitedAt on setSession and startSession', () => {
@@ -411,100 +433,78 @@ describe('F5 resilience — persistence', () => {
     expect(s.lastVisitedAt).toBeLessThanOrEqual(after);
   });
 
-  it('round-trips session + env through migrate() with version 1', () => {
-    const v1Blob = {
-      state: {
-        session: {
-          id: 'restored-after-f5',
-          title: 'Round trip',
-          startedAt: 1_700_000_000_000,
-          provider: 'anthropic',
-          model: 'anthropic-test-model',
-        },
+  it('merge() round-trips the session pointer, env and per-tab mode', () => {
+    const merged = laneOptions.merge?.(
+      {
+        activeSessionId: 'restored-after-f5',
         projectName: 'persisted-project',
         projectRoot: '/tmp/persisted-project',
         cwd: '/tmp/persisted-project',
-        mode: 'plan',
-        contextMode: 'deep',
-        lastVisitedAt: 1_700_000_000_001,
+        lanes: {
+          'restored-after-f5': {
+            session: {
+              id: 'restored-after-f5',
+              title: 'Round trip',
+              startedAt: 1_700_000_000_000,
+              provider: 'anthropic',
+              model: 'anthropic-test-model',
+            },
+            mode: 'plan',
+            contextMode: 'deep',
+            lastVisitedAt: 1_700_000_000_001,
+          },
+        },
       },
-      version: 1,
+      useSessionStore.persist.getOptions() as never,
+    ) as {
+      activeSessionId: string;
+      projectName: string;
+      cwd: string;
+      lanes: Record<string, Record<string, unknown>>;
     };
-    setPersisted(v1Blob as Record<string, unknown>);
-    // Force the persist middleware to re-run migrate by re-creating the
-    // store facade. In the real run the persist API does this on
-    // construction; for the test we exercise it through the same path
-    // by calling rehydrate() if available, otherwise by toggling state.
-    const api = (
-      useSessionStore as unknown as {
-        persist?: {
-          rehydrate?: () => Promise<void>;
-          getOptions?: () => { migrate?: (p: unknown, v: number) => unknown };
-        };
-      }
-    ).persist;
-    expect(api?.getOptions?.().migrate).toBeTypeOf('function');
-    // Manually invoke the migrate the store registered, to validate
-    // that the v1 shape hydrates cleanly under the current migrate.
-    const restored = api?.getOptions?.().migrate?.(v1Blob.state, 1);
-    expect(restored).toMatchObject({
+    expect(merged.activeSessionId).toBe('restored-after-f5');
+    expect(merged.projectName).toBe('persisted-project');
+    expect(merged.cwd).toBe('/tmp/persisted-project');
+    expect(merged.lanes['restored-after-f5']).toMatchObject({
       session: { id: 'restored-after-f5' },
-      projectName: 'persisted-project',
-      cwd: '/tmp/persisted-project',
       mode: 'plan',
       contextMode: 'deep',
       lastVisitedAt: 1_700_000_000_001,
     });
   });
 
-  it('migrate() rejects future versions (drops stale payload)', () => {
-    setPersisted({
-      state: { session: { id: 'future-build' } },
-      version: 99,
-    } as Record<string, unknown>);
-    const api = (
-      useSessionStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const result = api?.getOptions?.().migrate?.({ session: { id: 'future-build' } }, 99);
-    // migrate() returns null for unknown-future versions — Zustand then
-    // reverts to defaults. The shape doesn't matter, only the contract.
-    expect(result).toBeNull();
+  it('merge() restores every tab, not just the one that was in front', () => {
+    const merged = laneOptions.merge?.(
+      {
+        activeSessionId: 'b',
+        lanes: {
+          a: { session: { id: 'a', startedAt: 1, provider: 'p', model: 'm' }, mode: 'code' },
+          b: { session: { id: 'b', startedAt: 2, provider: 'p', model: 'm' }, mode: 'plan' },
+        },
+      },
+      useSessionStore.persist.getOptions() as never,
+    ) as { lanes: Record<string, { mode: string }> };
+    expect(merged.lanes.a?.mode).toBe('code');
+    expect(merged.lanes.b?.mode).toBe('plan');
   });
 
-  it('migrate() rejects corrupt session shape', () => {
-    setPersisted({
-      state: { session: 'not-an-object', projectName: 'x' },
-      version: 1,
-    } as Record<string, unknown>);
-    const api = (
-      useSessionStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const result = api?.getOptions?.().migrate?.({ session: 'not-an-object', projectName: 'x' }, 1);
-    expect(result).toBeNull();
+  it('merge() drops a corrupt session shape without losing the lane', () => {
+    const merged = laneOptions.merge?.(
+      { activeSessionId: 'x', lanes: { x: { session: 'not-an-object', mode: 42 } } },
+      useSessionStore.persist.getOptions() as never,
+    ) as { lanes: Record<string, { session: unknown; mode: string }> };
+    expect(merged.lanes.x?.session).toBeNull();
+    expect(merged.lanes.x?.mode).toBe('default');
   });
 
-  it('migrate() coerces non-string env fields to defaults', () => {
-    setPersisted({
-      state: { projectName: 42, cwd: { bogus: true }, mode: null },
-      version: 1,
-    } as Record<string, unknown>);
-    const api = (
-      useSessionStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const result = api
-      ?.getOptions?.()
-      .migrate?.({ projectName: 42, cwd: { bogus: true }, mode: null }, 1);
-    expect(result).toMatchObject({
-      projectName: '',
-      cwd: '',
-      mode: 'default',
-    });
+  it('merge() coerces non-string env fields to defaults', () => {
+    const merged = laneOptions.merge?.(
+      { projectName: 42, cwd: { bogus: true }, lanes: {} },
+      useSessionStore.persist.getOptions() as never,
+    ) as { projectName: string; cwd: string; activeSessionId: string };
+    expect(merged.projectName).toBe('');
+    expect(merged.cwd).toBe('');
+    expect(merged.activeSessionId).toBe('__unbound__');
   });
 
   it('does NOT clear lastVisitedAt when endSession() runs', () => {

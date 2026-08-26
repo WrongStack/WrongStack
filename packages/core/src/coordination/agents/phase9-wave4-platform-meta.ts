@@ -130,6 +130,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Plugin author: build, package and ship runnable WrongStack plugins with full lifecycle, health and teardown.',
+      rationale: PLUGIN_AUTHOR_META,
       keywords: [
         ...PLUGIN_AUTHOR_META.signals,
         'plugin',
@@ -154,6 +155,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Tool author: design tool schemas, capability declarations, permissions and error contracts with security as the first concern.',
+      rationale: TOOL_AUTHOR_META,
       keywords: [
         ...TOOL_AUTHOR_META.signals,
         'tool',
@@ -178,6 +180,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Prompt evaluator: build rubrics, adversarial prompt tests and regression suites for independent measurement.',
+      rationale: PROMPT_evaluator_META,
       keywords: [
         ...PROMPT_evaluator_META.signals,
         'prompt-evaluator',
@@ -201,6 +204,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Benchmark engineer: design reproducible benchmarks and methodology with deterministic baselines.',
+      rationale: BENCHMARK_ENGINEER_META,
       keywords: [
         ...BENCHMARK_ENGINEER_META.signals,
         'benchmark-engineer',
@@ -224,6 +228,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Memory curator: validate, merge and de-duplicate long-term memory entries with audience scoping.',
+      rationale: MEMORY_CURATOR_META,
       keywords: [
         ...MEMORY_CURATOR_META.signals,
         'memory-curator',
@@ -247,6 +252,7 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
       phase: 'meta',
       summary:
         'Fleet coordinator: own multi-agent job partitioning, capacity planning and result synthesis across many parallel workers.',
+      rationale: FLEET_COORDINATOR_META,
       keywords: [
         ...FLEET_COORDINATOR_META.signals,
         'fleet-coordinator',
@@ -258,16 +264,5 @@ export const WAVE4_AGENTS: AgentDefinition[] = [
     },
   },
 ];
-
-export const WAVE4_ROLE_METAS: Record<string, RoleDispatcherSignal> = {
-  'plugin-author': PLUGIN_AUTHOR_META,
-  'tool-author': TOOL_AUTHOR_META,
-  'prompt-evaluator': PROMPT_evaluator_META,
-  'benchmark-engineer': BENCHMARK_ENGINEER_META,
-  'memory-curator': MEMORY_CURATOR_META,
-  'fleet-coordinator': FLEET_COORDINATOR_META,
-};
-
-export const WAVE4_ROLES = new Set<string>(Object.keys(WAVE4_ROLE_METAS));
 
 void skillSet;

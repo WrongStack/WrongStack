@@ -1,118 +1,67 @@
+/**
+ * session-store.ts — Foreground view over the session lane registry.
+ *
+ * The per-tab accounting lives in `session-lanes.ts`. This module projects
+ * `lanes[activeSessionId]` (plus the project-wide globals) behind the
+ * historical `useSessionStore` API, so every panel that renders the tab in
+ * front keeps working unchanged.
+ *
+ * WS handlers must NOT write through this facade — they route by
+ * `payload.sessionId` via `sessionFor(msg)` / `sessionLane(sessionId)`.
+ * Writing here from a handler credits a background run's tokens, cost or
+ * iteration to whichever tab happens to be on screen.
+ */
+
 import type { Usage } from '@wrongstack/core/types';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { useStore } from 'zustand';
+import {
+  adoptDefaultLane as adoptDefaultChatLane,
+  DEFAULT_LANE_ID,
+  setActiveLane as setActiveChatLane,
+} from './chat-lanes';
 import { useConfigStore } from './config-store.js';
+import { useLocalPrefs } from './local-prefs.js';
+import {
+  activeSessionLane,
+  activeSessionLaneId,
+  type CacheStats,
+  type ContextLimitWarning,
+  createSessionLaneData,
+  EMPTY_SESSION_LANE,
+  SESSION_DEFAULT_LANE_ID,
+  type SessionGlobals,
+  type SessionLaneData,
+  sessionLane,
+  setActiveSessionLane,
+  setSessionGlobals,
+  type TodoItem,
+  useSessionLanes,
+} from './session-lanes.js';
 import type { SessionInfo } from './types.js';
 
-// ============================================
-// Session Store
-// ============================================
+export type {
+  CacheStats,
+  ContextLimitWarning,
+  SessionLaneData,
+  TodoItem,
+} from './session-lanes.js';
+export {
+  activeSessionLane,
+  activeSessionLaneId,
+  adoptDefaultSessionLane,
+  disposeSessionLane,
+  ensureSessionLane,
+  hasSessionLane,
+  readSessionLane,
+  type SessionLaneActions,
+  sessionLane,
+  sessionLaneIds,
+  setActiveSessionLane,
+  setSessionGlobals,
+  useSessionLanes,
+} from './session-lanes.js';
 
-interface SessionState {
-  session: SessionInfo | null;
-  totalTokens: Usage;
-  /** Input tokens of the LAST provider response — used as the "live context
-   *  size" indicator in the topbar (matches what TUI's ContextChip shows). */
-  lastInputTokens: number;
-  cost: number;
-  startTime: number | null;
-  /** Active effective context window. 0 = unknown. */
-  maxContext: number;
-  /** Live provider-reported decrease, shown until the session/model changes. */
-  contextLimitWarning: {
-    previousMaxContext: number;
-    maxContext: number;
-    providerId: string;
-    modelId: string;
-  } | null;
-  /**
-   * Live prompt-cache snapshot from the most recent `stats.get`
-   * reply. `null` until the first reply lands — distinguishes "no
-   * cache yet" from "0 hit". Cleared on session start/end and on
-   * provider/model switch (same lifecycle as `contextLimitWarning`,
-   * so a stale reading from the previous session can never leak into
-   * the new one).
-   */
-  cacheStats: {
-    readTokens: number;
-    writeTokens: number;
-    hitRatio: number;
-    /** Session cache telemetry split by routed provider (fallback/model switches included). */
-    providers?: Array<{
-      provider: string;
-      input: number;
-      cacheRead: number;
-      cacheWrite: number;
-      hitRatio: number;
-    }>;
-    /**
-     * Cached prefix of the most recent prompt, capped at `lastInputTokens`
-     * so the coverage figure never overshoots the live request size.
-     * Used by the context breakdown modal and topbar cache badge.
-     */
-    coverageTokens: number;
-  } | null;
-  /** USD per 1M tokens — used to compute cost deltas on every provider.response. */
-  inputCost: number;
-  outputCost: number;
-  cacheReadCost: number;
-  /** Effort levels the ACTIVE model advertises (session.start payload).
-   *  Undefined when the model has no explicit list — the settings effort
-   *  dropdown then shows the full canonical set. Same lifecycle as
-   *  `cacheStats`: refreshed on every session.start (which fires on model
-   *  switch), so a stale list from the previous model never leaks. */
-  reasoningEffortLevels?: string[] | undefined;
-  /** basename(projectRoot) for the topbar. */
-  projectName: string;
-  /** Full project root path — used for richer tooltips / hover context. */
-  projectRoot: string;
-  /** Full working directory path — can differ from projectRoot. */
-  cwd: string;
-  /** Active mode id (default | code | …). */
-  mode: string;
-  /** All modes the backend knows about, populated by modes.list. The
-   *  topbar mode chip uses this to render a picker; empty until the
-   *  backend responds. */
-  modes: Array<{ id: string; name: string; description: string }>;
-  /** Active context-window policy id (balanced | frugal | deep | archival). */
-  contextMode: string;
-  /** Context-window policy presets from the backend. */
-  contextModes: Array<{
-    id: string;
-    name: string;
-    description: string;
-    thresholds?: { warn: number | undefined; soft: number; hard: number };
-    preserveK?: number | undefined;
-    eliseThreshold?: number | undefined;
-    custom?: boolean | undefined;
-  }>;
-  /** Iteration progress while the agent is running. Resets on run.result. */
-  iteration: { index: number; max: number } | null;
-  /** Live snapshot of context.todos — backend broadcasts on every
-   *  tool.executed, and the sidebar/overlay reads from here. */
-  todos: Array<{
-    id: string;
-    content: string;
-    status: 'pending' | 'in_progress' | 'completed';
-    activeForm?: string | undefined;
-    /** Board-derived titles of the unfinished work this row waits on. */
-    blockedBy?: string[] | undefined;
-    kanbanBoardId?: string | undefined;
-    kanbanTaskId?: string | undefined;
-  }>;
-  /** Client-side wall-clock at the last successful session.start. Survives
-   *  F5 because it's in partialize. Used by the resilience verifier view
-   *  to confirm the active session round-trips through localStorage. */
-  lastVisitedAt: number;
-  /** Current app version string (e.g. "0.7.0") from the boot-time update check. */
-  appVersion: string;
-  /** Latest published version on npm, when known. */
-  latestVersion: string;
-  /** True when a newer published version exists than appVersion. */
-  updateAvailable: boolean;
-  /** Number of tools dropped from provider requests due to maxTools limit (0 = no limit or within limit). */
-  droppedTools: number;
-
+export interface SessionState extends SessionGlobals, SessionLaneData {
   setSession: (session: SessionInfo | null) => void;
   updateUsage: (usage: Usage, providerId?: string) => void;
   addCost: (cost: number) => void;
@@ -132,11 +81,11 @@ interface SessionState {
   }) => void;
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
-  setContextLimitWarning: (warning: SessionState['contextLimitWarning']) => void;
-  setCacheStats: (cache: SessionState['cacheStats']) => void;
-  setModes: (modes: Array<{ id: string; name: string; description: string }>) => void;
-  setContextModes: (modes: SessionState['contextModes']) => void;
-  setTodos: (todos: SessionState['todos']) => void;
+  setContextLimitWarning: (warning: ContextLimitWarning | null) => void;
+  setCacheStats: (cache: CacheStats | null) => void;
+  setModes: (modes: SessionGlobals['modes']) => void;
+  setContextModes: (modes: SessionGlobals['contextModes']) => void;
+  setTodos: (todos: TodoItem[]) => void;
   setUpdateInfo: (info: {
     appVersion: string;
     latestVersion: string;
@@ -145,6 +94,239 @@ interface SessionState {
   setDroppedTools: (count: number) => void;
   switchSession: (newSessionId: string) => void;
 }
+
+// ---------------------------------------------------------------------------
+// Active-lane projection
+// ---------------------------------------------------------------------------
+
+type LanesState = ReturnType<typeof useSessionLanes.getState>;
+
+const viewCache = new WeakMap<LanesState, SessionState>();
+
+const GLOBAL_KEYS = new Set<string>([
+  'projectName',
+  'projectRoot',
+  'cwd',
+  'modes',
+  'contextModes',
+  'appVersion',
+  'latestVersion',
+  'updateAvailable',
+]);
+
+function projectActiveLane(state: LanesState): SessionState {
+  const cached = viewCache.get(state);
+  if (cached) return cached;
+
+  const sid = state.activeSessionId;
+  const lane = state.lanes[sid] ?? EMPTY_SESSION_LANE;
+  const actions = sessionLane(sid);
+
+  const view: SessionState = {
+    // lane
+    session: lane.session,
+    totalTokens: lane.totalTokens,
+    lastInputTokens: lane.lastInputTokens,
+    cost: lane.cost,
+    startTime: lane.startTime,
+    maxContext: lane.maxContext,
+    contextLimitWarning: lane.contextLimitWarning,
+    cacheStats: lane.cacheStats,
+    inputCost: lane.inputCost,
+    outputCost: lane.outputCost,
+    cacheReadCost: lane.cacheReadCost,
+    reasoningEffortLevels: lane.reasoningEffortLevels,
+    mode: lane.mode,
+    contextMode: lane.contextMode,
+    iteration: lane.iteration,
+    todos: lane.todos,
+    droppedTools: lane.droppedTools,
+    lastVisitedAt: lane.lastVisitedAt,
+    // globals
+    projectName: state.projectName,
+    projectRoot: state.projectRoot,
+    cwd: state.cwd,
+    modes: state.modes,
+    contextModes: state.contextModes,
+    appVersion: state.appVersion,
+    latestVersion: state.latestVersion,
+    updateAvailable: state.updateAvailable,
+    // actions
+    setSession: setSessionOnForeground,
+    updateUsage: actions.updateUsage,
+    addCost: actions.addCost,
+    startSession: startSessionOnForeground,
+    endSession: actions.endSession,
+    setEnv: setEnvOnActiveLane,
+    setIteration: actions.setIteration,
+    setContextUsage: actions.setContextUsage,
+    setContextLimitWarning: actions.setContextLimitWarning,
+    setCacheStats: actions.setCacheStats,
+    setModes: setModes,
+    setContextModes: setContextModes,
+    setTodos: actions.setTodos,
+    setUpdateInfo: setUpdateInfo,
+    setDroppedTools: actions.setDroppedTools,
+    switchSession: switchSession,
+  };
+
+  viewCache.set(state, view);
+  return view;
+}
+
+/**
+ * Setting the session through the FACADE means "this is the tab in front" —
+ * that is what the single-store API meant, and app code plus tests rely on it.
+ * Handlers that fill a background lane call `sessionLane(id).setSession`
+ * instead, which never moves the pointer.
+ */
+function bindForeground(sessionId: string | null | undefined): void {
+  // Preferences move with the pointer. `autonomy`, `yolo`, the context
+  // strategy, the reasoning knobs and the prompt variant belong to ONE tab —
+  // the pickers must describe the tab on screen, not the last one that
+  // happened to change a setting. This runs before the early return below
+  // because the very first bind after a reload can already match the lane
+  // pointer while the prefs store still points at nothing.
+  useLocalPrefs.getState().bindSession(sessionId ?? null);
+  // No session in front: fall back to the pre-session lane rather than leaving
+  // the pointer on a session that is no longer displayed. A stale pointer is
+  // how "ended the session, kept writing into its transcript" happened.
+  const target = sessionId || DEFAULT_LANE_ID;
+  if (activeSessionLaneId() === target) return;
+  // Anything the user typed before a session existed belongs to the first real
+  // one — otherwise binding the session would silently blank the composer's
+  // transcript.
+  if (activeSessionLaneId() === DEFAULT_LANE_ID && target !== DEFAULT_LANE_ID) {
+    adoptDefaultChatLane(target);
+  }
+  setActiveSessionLane(target);
+  setActiveChatLane(target);
+}
+
+function setSessionOnForeground(session: SessionInfo | null): void {
+  bindForeground(session?.id ?? null);
+  activeSessionLane().setSession(session);
+}
+
+function startSessionOnForeground(session: SessionInfo): void {
+  bindForeground(session.id);
+  activeSessionLane().startSession(session);
+}
+
+/**
+ * `setEnv` mixes lane fields (rates, ceiling, mode) with project globals
+ * (root, cwd, name); split them so a model's cost table never becomes another
+ * tab's, and the project path stays shared.
+ */
+function setEnvOnActiveLane(env: Parameters<SessionState['setEnv']>[0]): void {
+  const globals: Partial<SessionGlobals> = {};
+  if (env.projectRoot !== undefined) globals.projectRoot = env.projectRoot;
+  if (env.projectName !== undefined) globals.projectName = env.projectName;
+  if (env.cwd !== undefined) globals.cwd = env.cwd;
+  if (Object.keys(globals).length > 0) setSessionGlobals(globals);
+  activeSessionLane().setEnvRates({
+    maxContext: env.maxContext,
+    mode: env.mode,
+    contextMode: env.contextMode,
+    inputCost: env.inputCost,
+    outputCost: env.outputCost,
+    cacheReadCost: env.cacheReadCost,
+    reasoningEffortLevels: env.reasoningEffortLevels,
+    hasReasoningEffortKey: 'reasoningEffortLevels' in env,
+  });
+}
+
+function setModes(modes: SessionGlobals['modes']): void {
+  setSessionGlobals({ modes });
+}
+
+function setContextModes(contextModes: SessionGlobals['contextModes']): void {
+  setSessionGlobals({ contextModes });
+}
+
+function setUpdateInfo(info: {
+  appVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+}): void {
+  setSessionGlobals(info);
+}
+
+/**
+ * Point the foreground at another session's lane.
+ *
+ * Nothing is parked and nothing is restored: every lane keeps its own totals,
+ * cost, iteration and todo list at all times. The old implementation copied
+ * state into and out of a snapshot map on every switch, and every field added
+ * later had to be remembered in three places or it leaked.
+ */
+function switchSession(newSessionId: string): void {
+  setActiveSessionLane(newSessionId);
+  const lane = useSessionLanes.getState().lanes[newSessionId];
+  const provider = lane?.session?.provider;
+  const model = lane?.session?.model;
+  if (provider && model) useConfigStore.getState().setConfig({ provider, model });
+  else if (provider) useConfigStore.getState().setConfig({ provider });
+}
+
+// ---------------------------------------------------------------------------
+// The facade
+// ---------------------------------------------------------------------------
+
+function getState(): SessionState {
+  return projectActiveLane(useSessionLanes.getState());
+}
+
+function setState(
+  partial: Partial<SessionState> | ((state: SessionState) => Partial<SessionState>),
+): void {
+  const patch = typeof partial === 'function' ? partial(getState()) : partial;
+  if (!patch) return;
+  // A `setState({ session })` re-points the foreground, matching what the
+  // single-store API did before lanes existed.
+  if ('session' in patch) {
+    const nextSession = (patch as { session?: SessionInfo | null }).session;
+    bindForeground(nextSession?.id ?? null);
+  }
+  const globals: Record<string, unknown> = {};
+  const laneFields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    if (typeof value === 'function') continue;
+    if (GLOBAL_KEYS.has(key)) globals[key] = value;
+    else laneFields[key] = value;
+  }
+  if (Object.keys(globals).length > 0) setSessionGlobals(globals as Partial<SessionGlobals>);
+  if (Object.keys(laneFields).length > 0) {
+    activeSessionLane().patch(laneFields as Partial<SessionLaneData>);
+  }
+}
+
+function subscribe(listener: (state: SessionState, prev: SessionState) => void): () => void {
+  return useSessionLanes.subscribe((state, prev) =>
+    listener(projectActiveLane(state), projectActiveLane(prev)),
+  );
+}
+
+interface SessionStoreFacade {
+  <T>(selector: (state: SessionState) => T): T;
+  getState: typeof getState;
+  getInitialState: typeof getState;
+  setState: typeof setState;
+  subscribe: typeof subscribe;
+  /** The lane registry's own persist API (rehydrate/flush/clearStorage). */
+  persist: (typeof useSessionLanes)['persist'];
+}
+
+export const useSessionStore: SessionStoreFacade = Object.assign(
+  function useSessionStoreHook<T>(selector: (state: SessionState) => T): T {
+    return useStore(useSessionLanes, (state) => selector(projectActiveLane(state)));
+  },
+  { getState, getInitialState: getState, setState, subscribe, persist: useSessionLanes.persist },
+);
+
+// ---------------------------------------------------------------------------
+// Compatibility shims
+// ---------------------------------------------------------------------------
 
 export interface SessionSnapshot {
   session: SessionInfo | null;
@@ -158,351 +340,105 @@ export interface SessionSnapshot {
   startTime: number | null;
   maxContext: number;
   reasoningEffortLevels?: string[] | undefined;
-  cacheStats: SessionState['cacheStats'];
-  iteration: SessionState['iteration'];
-  todos: SessionState['todos'];
+  cacheStats: CacheStats | null;
+  iteration: { index: number; max: number } | null;
+  todos: TodoItem[];
 }
 
-export const memorySessionSnapshots = new Map<string, SessionSnapshot>();
+/**
+ * Read-through view of the lane registry in the shape the old parked-snapshot
+ * map exposed. Kept so the few call sites that want "what does tab X look
+ * like right now" keep reading — but it is no longer a separate copy of the
+ * truth that has to be kept in sync, which is what let a tab come back showing
+ * a neighbour's model or zeroed counters.
+ */
+export const memorySessionSnapshots = {
+  has(sessionId: string): boolean {
+    return sessionId in useSessionLanes.getState().lanes;
+  },
+  get(sessionId: string): SessionSnapshot | undefined {
+    const lane = useSessionLanes.getState().lanes[sessionId];
+    if (!lane) return undefined;
+    return {
+      session: lane.session,
+      provider: lane.session?.provider,
+      model: lane.session?.model,
+      mode: lane.mode,
+      contextMode: lane.contextMode,
+      totalTokens: lane.totalTokens,
+      lastInputTokens: lane.lastInputTokens,
+      cost: lane.cost,
+      startTime: lane.startTime,
+      maxContext: lane.maxContext,
+      reasoningEffortLevels: lane.reasoningEffortLevels,
+      cacheStats: lane.cacheStats,
+      iteration: lane.iteration,
+      todos: lane.todos,
+    };
+  },
+  set(sessionId: string, snapshot: Partial<SessionSnapshot>): void {
+    const patch: Partial<SessionLaneData> = {};
+    if (snapshot.session !== undefined) patch.session = snapshot.session;
+    if (snapshot.mode !== undefined) patch.mode = snapshot.mode;
+    if (snapshot.contextMode !== undefined) patch.contextMode = snapshot.contextMode;
+    if (snapshot.totalTokens !== undefined) patch.totalTokens = snapshot.totalTokens;
+    if (snapshot.lastInputTokens !== undefined) patch.lastInputTokens = snapshot.lastInputTokens;
+    if (snapshot.cost !== undefined) patch.cost = snapshot.cost;
+    if (snapshot.startTime !== undefined) patch.startTime = snapshot.startTime;
+    if (snapshot.maxContext !== undefined) patch.maxContext = snapshot.maxContext;
+    if (snapshot.reasoningEffortLevels !== undefined) {
+      patch.reasoningEffortLevels = snapshot.reasoningEffortLevels;
+    }
+    if (snapshot.cacheStats !== undefined) patch.cacheStats = snapshot.cacheStats;
+    if (snapshot.iteration !== undefined) patch.iteration = snapshot.iteration;
+    if (snapshot.todos !== undefined) patch.todos = snapshot.todos;
+    sessionLane(sessionId).patch(patch);
+  },
+  delete(sessionId: string): void {
+    useSessionLanes.setState((s) => {
+      const next = { ...s.lanes };
+      delete next[sessionId];
+      return { lanes: next };
+    });
+  },
+  clear(): void {
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
+  },
+};
 
-/** Persistence schema version. Bump whenever the shape or partialize set
- *  changes so an existing localStorage entry from a prior build doesn't
- *  resurrect stale fields after the next deploy. */
-const SESSION_PERSIST_VERSION = 1;
-/** Hard cap on persisted env fields. We trim on rehydrate so a stale
- *  corrupt blob can't make Zustand rebuild a giant Map on the next render. */
-const PERSIST_MAX_BYTES = 32 * 1024;
+/**
+ * Credit usage to a session that is not in front.
+ *
+ * Now a plain lane write — background accrual is the DEFAULT, not a special
+ * case bolted onto the side. Creates the lane if the run outran its tab.
+ */
+export function accrueBackgroundUsage(
+  sessionId: string,
+  usage: {
+    input: number;
+    output: number;
+    cacheRead?: number | undefined;
+    cacheWrite?: number | undefined;
+  },
+  rates: { inputCost: number; outputCost: number; cacheReadCost: number },
+): void {
+  if (!sessionId) return;
+  const lanes = useSessionLanes.getState().lanes;
+  if (!lanes[sessionId]) return;
+  const lane = sessionLane(sessionId);
+  lane.updateUsage({
+    input: usage.input ?? 0,
+    output: usage.output ?? 0,
+    cacheRead: usage.cacheRead ?? 0,
+    cacheWrite: usage.cacheWrite ?? 0,
+  });
+  const cost =
+    ((usage.input ?? 0) * rates.inputCost +
+      (usage.cacheWrite ?? 0) * rates.inputCost +
+      (usage.output ?? 0) * rates.outputCost +
+      (usage.cacheRead ?? 0) * rates.cacheReadCost) /
+    1_000_000;
+  lane.addCost(cost);
+}
 
-export const useSessionStore = create<SessionState>()(
-  persist(
-    (set, get) => ({
-      session: null,
-      totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      lastInputTokens: 0,
-      cost: 0,
-      startTime: null,
-      maxContext: 0,
-      contextLimitWarning: null,
-      cacheStats: null,
-      inputCost: 0,
-      outputCost: 0,
-      cacheReadCost: 0,
-      projectName: '',
-      projectRoot: '',
-      cwd: '',
-      mode: 'default',
-      modes: [],
-      contextMode: 'balanced',
-      contextModes: [],
-      iteration: null,
-      todos: [],
-      /** Client-side wall-clock at the last successful session.start.
-       *  Used by the F5-resilience verifier view to confirm "most recently
-       *  active session" round-trips through localStorage. 0 = unknown. */
-      lastVisitedAt: 0,
-      appVersion: '',
-      latestVersion: '',
-      updateAvailable: false,
-      droppedTools: 0,
-
-      setSession: (session) =>
-        set((state) => {
-          const sessionOrRouteChanged =
-            state.session?.id !== session?.id ||
-            state.session?.provider !== session?.provider ||
-            state.session?.model !== session?.model;
-          return {
-            session,
-            lastVisitedAt: Date.now(),
-            // Clear cache snapshot on provider/model switch — a stale
-            // reading from the previous provider can never apply to the
-            // new prompt cache. Same lifecycle as `contextLimitWarning`.
-            // `reasoningEffortLevels` follows: a new model's effort set is
-            // unknown until the next session.start repopulates it.
-            ...(sessionOrRouteChanged
-              ? {
-                  contextLimitWarning: null,
-                  cacheStats: null,
-                  reasoningEffortLevels: undefined,
-                }
-              : {}),
-          };
-        }),
-
-      updateUsage: (usage, providerId) =>
-        set((state) => {
-          const inputDelta = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
-          const cacheReadDelta = usage.cacheRead ?? 0;
-          const cacheWriteDelta = usage.cacheWrite ?? 0;
-          const nextInput = state.totalTokens.input + usage.input;
-          const nextCacheRead = (state.totalTokens.cacheRead ?? 0) + cacheReadDelta;
-          const nextCacheWrite = (state.totalTokens.cacheWrite ?? 0) + cacheWriteDelta;
-          const provider = providerId ?? state.session?.provider ?? 'unknown';
-          const providers = [...(state.cacheStats?.providers ?? [])];
-          const providerIndex = providers.findIndex((entry) => entry.provider === provider);
-          const previous =
-            providerIndex >= 0
-              ? providers[providerIndex]
-              : { provider, input: 0, cacheRead: 0, cacheWrite: 0, hitRatio: 0 };
-          const providerInput = previous.input + usage.input;
-          const providerCacheRead = previous.cacheRead + cacheReadDelta;
-          const providerCacheWrite = previous.cacheWrite + cacheWriteDelta;
-          const providerTotal = providerInput + providerCacheRead + providerCacheWrite;
-          const nextProvider = {
-            provider,
-            input: providerInput,
-            cacheRead: providerCacheRead,
-            cacheWrite: providerCacheWrite,
-            hitRatio:
-              providerTotal > 0 ? Math.min(1, Math.max(0, providerCacheRead / providerTotal)) : 0,
-          };
-          if (providerIndex >= 0) providers[providerIndex] = nextProvider;
-          else providers.push(nextProvider);
-          providers.sort((a, b) => b.cacheRead - a.cacheRead);
-          const totalPrompt = nextInput + nextCacheRead + nextCacheWrite;
-          return {
-            totalTokens: {
-              input: nextInput,
-              output: state.totalTokens.output + usage.output,
-              cacheRead: nextCacheRead,
-              cacheWrite: nextCacheWrite,
-            },
-            lastInputTokens: inputDelta || state.lastInputTokens,
-            cacheStats: {
-              readTokens: nextCacheRead,
-              writeTokens: nextCacheWrite,
-              hitRatio:
-                totalPrompt > 0 ? Math.min(1, Math.max(0, nextCacheRead / totalPrompt)) : 0,
-              coverageTokens: cacheReadDelta,
-              providers,
-            },
-          };
-        }),
-
-      addCost: (cost) => set((state) => ({ cost: state.cost + cost })),
-
-      startSession: (session) =>
-        set({
-          session,
-          startTime: Date.now(),
-          iteration: null,
-          lastInputTokens: 0,
-          totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-          cost: 0,
-          lastVisitedAt: Date.now(),
-          droppedTools: 0,
-          contextLimitWarning: null,
-          cacheStats: null,
-          reasoningEffortLevels: undefined,
-        }),
-
-      endSession: () =>
-        set({
-          session: null,
-          startTime: null,
-          iteration: null,
-          droppedTools: 0,
-          contextLimitWarning: null,
-          cacheStats: null,
-          reasoningEffortLevels: undefined,
-          // Note: we intentionally do NOT clear lastVisitedAt here. The
-          // verifier view uses it to show "previous activity at …" even
-          // when the user explicitly ended a session.
-        }),
-
-      setEnv: (env) =>
-        set((state) => ({
-          maxContext: env.maxContext ?? state.maxContext,
-          projectRoot: env.projectRoot ?? state.projectRoot,
-          projectName: env.projectName ?? state.projectName,
-          cwd: env.cwd ?? state.cwd,
-          mode: env.mode ?? state.mode,
-          contextMode: env.contextMode ?? state.contextMode,
-          inputCost: env.inputCost ?? state.inputCost,
-          outputCost: env.outputCost ?? state.outputCost,
-          cacheReadCost: env.cacheReadCost ?? state.cacheReadCost,
-          // Key-presence, not `??`: the server OMITS the field when the new
-          // model advertises no effort list, and a `??` fallback would keep
-          // the previous model's list alive across the switch (the same
-          // stale-leak pattern cacheStats guards against). Present-but-
-          // undefined means "no list" and must overwrite.
-          reasoningEffortLevels:
-            'reasoningEffortLevels' in env ? env.reasoningEffortLevels : state.reasoningEffortLevels,
-        })),
-
-      setIteration: (iteration) => set({ iteration }),
-      setContextUsage: (tokens, maxContext) =>
-        set((state) => ({
-          lastInputTokens: tokens,
-          maxContext: maxContext ?? state.maxContext,
-        })),
-      setContextLimitWarning: (contextLimitWarning) => set({ contextLimitWarning }),
-      setCacheStats: (cacheStats) => set({ cacheStats }),
-      setModes: (modes) => set({ modes }),
-      setContextModes: (contextModes) => set({ contextModes }),
-      setTodos: (todos) => set({ todos }),
-      setUpdateInfo: (info) =>
-        set({
-          appVersion: info.appVersion,
-          latestVersion: info.latestVersion,
-          updateAvailable: info.updateAvailable,
-        }),
-      setDroppedTools: (count) => set({ droppedTools: count }),
-      switchSession: (newSessionId) => {
-        const state = get();
-        const currentSessionId = state.session?.id;
-        if (currentSessionId === newSessionId) return;
-
-        // 1. Snapshot current active session
-        if (currentSessionId) {
-          memorySessionSnapshots.set(currentSessionId, {
-            session: state.session,
-            provider: state.session?.provider,
-            model: state.session?.model,
-            mode: state.mode,
-            contextMode: state.contextMode,
-            totalTokens: state.totalTokens,
-            lastInputTokens: state.lastInputTokens,
-            cost: state.cost,
-            startTime: state.startTime,
-            maxContext: state.maxContext,
-            reasoningEffortLevels: state.reasoningEffortLevels,
-            cacheStats: state.cacheStats,
-            iteration: state.iteration,
-            todos: state.todos,
-          });
-        }
-
-        // 2. Restore cached session
-        const cached = memorySessionSnapshots.get(newSessionId);
-        if (cached) {
-          const modelToSet = cached.model || cached.session?.model;
-          const providerToSet = cached.provider || cached.session?.provider;
-          set({
-            session: cached.session ?? {
-              id: newSessionId,
-              startedAt: Date.now(),
-              model: modelToSet ?? '',
-              provider: providerToSet ?? '',
-            },
-            mode: cached.mode,
-            contextMode: cached.contextMode,
-            totalTokens: cached.totalTokens,
-            lastInputTokens: cached.lastInputTokens,
-            cost: cached.cost,
-            startTime: cached.startTime,
-            maxContext: cached.maxContext,
-            reasoningEffortLevels: cached.reasoningEffortLevels,
-            cacheStats: cached.cacheStats,
-            iteration: cached.iteration,
-            todos: cached.todos,
-            lastVisitedAt: Date.now(),
-          });
-          if (providerToSet && modelToSet) {
-            useConfigStore.getState().setConfig({ provider: providerToSet, model: modelToSet });
-          } else if (providerToSet) {
-            useConfigStore.getState().setConfig({ provider: providerToSet });
-          }
-        } else {
-          set({
-            session: { id: newSessionId, startedAt: Date.now(), provider: '', model: '' },
-            totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-            lastInputTokens: 0,
-            cost: 0,
-            startTime: Date.now(),
-            iteration: null,
-            todos: [],
-            lastVisitedAt: Date.now(),
-          });
-        }
-      },
-    }),
-    {
-      name: 'wrongstack-session',
-      version: SESSION_PERSIST_VERSION,
-      // Persist the session pointer + lightweight env fields. Heavy state
-      // (todos, modes, contextModes, iterations) lives in chat/fleet
-      // stores — pulling them here would balloon localStorage and risk
-      // resurrecting partial stores when the WS reconnects with fresh
-      // server truth. Cost/token totals are derivable from the live
-      // `session.start` payload's `replayUsage`, so we rehydrate those
-      // from the server rather than resurrecting stale numbers.
-      partialize: (s) => ({
-        session: s.session,
-        projectName: s.projectName,
-        projectRoot: s.projectRoot,
-        cwd: s.cwd,
-        mode: s.mode,
-        contextMode: s.contextMode,
-        lastVisitedAt: s.lastVisitedAt,
-        // Persist the last known context token estimate so the context-fill
-        // bar is accurate on F5. This is a lightweight scalar (8 bytes) —
-        // it does not include the full transcript (which lives in the
-        // chat-store 'wrongstack-chat' key).
-        lastInputTokens: s.lastInputTokens,
-      }),
-      // Bump the schema version above and add a remap here when the
-      // persisted shape changes. Returning `null` drops the persisted
-      // payload entirely (a clean rehydrate from defaults is safer than
-      // an invalid one).
-      migrate: (persisted, version) => {
-        if (version > SESSION_PERSIST_VERSION) {
-          // Future schema from a newer build — drop and start clean.
-          return null as never as {
-            session: SessionInfo | null;
-            projectName: string;
-            projectRoot: string;
-            cwd: string;
-            mode: string;
-            contextMode: string;
-            lastVisitedAt: number;
-          };
-        }
-        const p = (persisted ?? {}) as Partial<SessionState>;
-        // Reject clearly corrupt payloads: missing session.id is fine
-        // (means it's never been populated), but session must be null or
-        // have an id string. We do NOT validate session.title shape — the
-        // server is the source of truth on rehydrate.
-        if (p.session !== null && p.session !== undefined && typeof p.session !== 'object') {
-          return null as never as {
-            session: SessionInfo | null;
-            projectName: string;
-            projectRoot: string;
-            cwd: string;
-            mode: string;
-            contextMode: string;
-            lastVisitedAt: number;
-          };
-        }
-        return {
-          session: (p.session ?? null) as SessionInfo | null,
-          projectName: typeof p.projectName === 'string' ? p.projectName : '',
-          projectRoot: typeof p.projectRoot === 'string' ? p.projectRoot : '',
-          cwd: typeof p.cwd === 'string' ? p.cwd : '',
-          mode: typeof p.mode === 'string' ? p.mode : 'default',
-          contextMode: typeof p.contextMode === 'string' ? p.contextMode : 'balanced',
-          lastVisitedAt: typeof p.lastVisitedAt === 'number' ? p.lastVisitedAt : 0,
-        };
-      },
-      // Bound the rehydrate cost. localStorage already has its own quota,
-      // but a single corrupted blob of N MB shouldn't lock the main
-      // thread parsing JSON. We bounce anything over the cap rather than
-      // try to repair it — let the next mutation rebuild from defaults.
-      // The `_state` arg is intentionally unused — the rehydrate side-
-      // effect only needs to know "did rehydrate complete", which is
-      // signaled by the absence of `error`.
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) return;
-        // Touch the closure so the cap constant is referenced.
-        const _cap = PERSIST_MAX_BYTES;
-        void _cap;
-        // Mark rehydration completion for the verifier view.
-        if (typeof window !== 'undefined') {
-          (
-            window as unknown as { __wrongstackSessionRehydrated?: boolean }
-          ).__wrongstackSessionRehydrated = true;
-        }
-      },
-    },
-  ),
-);
+export { createSessionLaneData };

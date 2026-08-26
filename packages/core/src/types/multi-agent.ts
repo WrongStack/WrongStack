@@ -518,6 +518,16 @@ export interface SubagentRunContext {
   config: SubagentConfig;
   budget: SubagentBudget;
   signal: AbortSignal;
+  /**
+   * The session that spawned this subagent, fixed at spawn time.
+   *
+   * A worker belongs to one session for its whole life. Runners must stamp
+   * their events with THIS rather than re-reading the host's current session:
+   * with four tabs live, the host's session moves whenever the user switches
+   * tabs, and a late-firing event would then be filed under whichever tab
+   * happened to be in front.
+   */
+  sessionId?: string | undefined;
   /** Null until `setSubagentBridge` is called for this subagent. */
   bridge: AgentBridge | null;
   /** Publish a bounded in-memory snapshot that survives timeout races. */

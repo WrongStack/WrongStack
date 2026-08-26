@@ -244,6 +244,18 @@ async function handleUsage(opts: SlashCommandContext): Promise<{ message: string
         lines.push(`  ${color.dim(name)} ${color.cyan(cost)} ${color.dim(tokens)}`);
       }
     }
+    // Retired subagents stay in `total` but lose their per-agent row, so
+    // without this line the itemized rows visibly fail to add up to the total.
+    const retired = usage.retired;
+    if (retired && retired.subagents > 0) {
+      if (subagents.length === 0) lines.push('');
+      const retiredLabel = `retired (${retired.subagents})`.padEnd(20);
+      const retiredCost = `${retired.cost.toFixed(4)}`.padStart(10);
+      const retiredTokens = `${retired.input} in / ${retired.output} out`.padEnd(30);
+      lines.push(
+        `  ${color.dim(retiredLabel)} ${color.cyan(retiredCost)} ${color.dim(retiredTokens)}`,
+      );
+    }
     const msg = lines.join('\n');
     opts.renderer.write(msg);
     return { message: msg };

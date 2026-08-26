@@ -1,4 +1,5 @@
 import type { Context } from '../../core/context.js';
+import type { Usage } from '../../types/provider.js';
 
 export interface AgentEventMap {
   /**
@@ -353,9 +354,15 @@ export interface AgentEventMap {
     reason?: string | undefined;
   };
   /**
-   * Fired by the delegate tool when a subagent finishes. The agent's run
-   * loop listens for this to collect `delegateSummaries` for the RunResult,
-   * so the CLI/TUI can render flashy completion banners.
+   * Fired by the delegate tool when a subagent finishes — raised from
+   * `emitDelegateCompleted` in `coordination/delegate-tool.ts`, alongside the
+   * richer `delegate.completed`. That helper is the ONLY emitter; keep any new
+   * completion branch routed through it rather than emitting
+   * `delegate.completed` directly, or these subscribers go silent again:
+   *   - `core/agent-loop.ts` collects `delegateSummaries` for the RunResult
+   *     (the CLI renderer's completion banner reads that array),
+   *   - the bundled `agent-handoff` plugin posts its mailbox handoff note,
+   *   - `webui-server` collab mirror forwards it to connected observers.
    */
   'subagent.done': { sessionId?: string | undefined; summary: string; ok: boolean };
   /**
@@ -374,5 +381,68 @@ export interface AgentEventMap {
     rawLoad?: number | undefined;
     tokens: number;
     maxContext: number;
+  };
+  /**
+   * A subagent's token spend, re-emitted onto the host EventBus with agent
+   * attribution attached.
+   *
+   * Deliberately NOT a replay of `token.accounted` under its own name. Every
+   * subagent runs on a private EventBus, so its `token.accounted` never
+   * reaches the host — but the host's subscribers for that event (statusline,
+   * `hq/cost-bridge`, `provider-cache-ledger`) all read it as LEADER spend.
+   * Re-emitting verbatim would fix subagent attribution by corrupting the
+   * leader's. Chronicle's domain adapter consumes this name through the
+   * `subagent.` prefix, mapping `subagentId` to `scope.agentId` and
+   * `provider`/`model` to `runtime`.
+   */
+  'subagent.token_accounted': {
+    /** Parent/host session id — a subagent's spend rolls up to it. */
+    sessionId?: string | undefined;
+    subagentId: string;
+    agentName?: string | undefined;
+    /** Routed provider, falling back to the spawn-time selection. */
+    provider?: string | undefined;
+    /** Routed model, falling back to the spawn-time selection. */
+    model?: string | undefined;
+    /** This subagent's cumulative usage — never the leader's. */
+    usage: Usage;
+    /** Usage contributed by this one accounting call (not cumulative). */
+    deltaUsage?: Usage | undefined;
+    cost: { input: number; output: number; total: number };
+  };
+  /**
+   * A subagent's provider attempt, re-emitted onto the host EventBus with
+   * agent attribution. Same rationale as {@link subagent.token_accounted}: the
+   * host's `provider.attempt.*` subscribers (fallback management, the shared
+   * `ProviderModelStatusTracker`, the leader's status surfaces) treat those
+   * events as leader activity, so subagent attempts get their own name. The
+   * three lifecycle phases collapse into one event keyed by `outcome` because
+   * every consumer of the subagent variant wants them on one timeline.
+   */
+  'subagent.provider_attempt': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
+    subagentId: string;
+    agentName?: string | undefined;
+    outcome: 'started' | 'completed' | 'failed';
+    provider?: string | undefined;
+    model?: string | undefined;
+    /** 0-based retry index within one logical request. */
+    attempt?: number | undefined;
+    durationMs?: number | undefined;
+    stopReason?: string | undefined;
+    /** Full Usage, cache buckets included — the point of bridging this at all. */
+    usage?: Usage | undefined;
+    /** Failure description; present on `outcome: 'failed'`. */
+    description?: string | undefined;
+    /** HTTP status; present on `outcome: 'failed'`. */
+    status?: number | undefined;
+    /** Retry classification; present on `outcome: 'failed'`. */
+    failureKind?: string | undefined;
+    retryable?: boolean | undefined;
+    traceId?: string | undefined;
+    logicalRequestId?: string | undefined;
+    promptManifestId?: string | undefined;
+    attemptId?: string | undefined;
   };
 }

@@ -69,7 +69,30 @@ export interface SessionMetadata {
  * The only files that live inside the project tree are the committed
  * `.wrongstack/AGENTS.md` and `.wrongstack/skills/`.
  */
-export type SessionEvent =
+export type SessionEvent = SessionEventVariant & SessionEventAttribution;
+
+/**
+ * Attribution stamped onto a journal event by the WRITER, never by the
+ * producer that built it.
+ *
+ * A leader's JSONL can carry events produced by its subagents: the
+ * parent-interleaved writer (`createParentSubagentSessionWriter`) forwards a
+ * subagent's appends into the leader's journal because that subagent has no
+ * journal of its own. Without a stamp those appends are indistinguishable
+ * from the leader's, so a transcript reader cannot say which agent ran which
+ * tool. `withAgentAttribution` sets this at the writer boundary — the one
+ * place that knows whose writer it is — so no emit site has to remember.
+ *
+ * Absent means "the session's own leader". Old journals have no stamp at all,
+ * which reads the same way and is correct: they predate subagent interleaving
+ * being attributable.
+ */
+export interface SessionEventAttribution {
+  /** Subagent that produced this event; absent = the session's leader. */
+  agentId?: string | undefined;
+}
+
+type SessionEventVariant =
   | { type: 'session_start'; ts: string; id: string; model: string; provider: string }
   | { type: 'session_resumed'; ts: string; id: string; model: string; provider: string }
   | {
@@ -99,6 +122,21 @@ export type SessionEvent =
       content: ContentBlock[];
       stopReason: string;
       usage: Usage;
+      /**
+       * Model that produced this response and billed this `usage`.
+       *
+       * Optional because logs written before this field existed omit it —
+       * never because a live writer may skip it. `usage` is the only place
+       * token counts are journaled, so without these two fields the journal
+       * cannot answer "which model burned these tokens": `session_start`
+       * records only the model the session OPENED with (a mid-session switch
+       * or a fallback rotation leaves it stale), and `llm_request` carries
+       * `model` but no provider. Readers must still tolerate `undefined` and
+       * fall back to the nearest preceding `llm_request` / `session_start`.
+       */
+      model?: string | undefined;
+      /** Provider id that served this response. See {@link model}. */
+      provider?: string | undefined;
     }
   | { type: 'tool_use'; ts: string; name: string; id: string; input: unknown }
   | { type: 'tool_result'; ts: string; id: string; content: unknown; isError: boolean }
@@ -205,7 +243,46 @@ export type SessionEvent =
   | { type: 'task_completed'; ts: string; taskId: string; title: string }
   | { type: 'task_failed'; ts: string; taskId: string; title: string; error: string }
   | { type: 'agent_spawned'; ts: string; agentId: string; role: string }
-  | { type: 'agent_stopped'; ts: string; agentId: string }
+  | {
+      /**
+       * Binds a spawned agent to the transcript it writes into.
+       *
+       * Separate from `agent_spawned` because the two facts are learned in
+       * different places: the fleet layer emits `agent_spawned` once the
+       * coordinator hands back an id, while the writer is built one layer
+       * down in the subagent factory, which has no channel back to that emit
+       * site. Threading one would have changed five signatures for a fact
+       * that is naturally its own record — and would still be optional on
+       * `agent_spawned`, since an agent running on the parent-interleaved
+       * writer never gets a transcript of its own and emits no link at all.
+       *
+       * Readers join on `agentId` within the session.
+       */
+      type: 'agent_session_linked';
+      ts: string;
+      agentId: string;
+      /** The subagent journal's own session id. */
+      agentSessionId: string;
+      /**
+       * Absolute path of the subagent's JSONL at the time it was opened.
+       * Absent for in-memory writers (tests, ephemeral runs), which have a
+       * session id but no file.
+       */
+      transcriptPath?: string | undefined;
+      provider?: string | undefined;
+      model?: string | undefined;
+      /** Set when this agent was spawned by another agent, not the leader. */
+      parentAgentId?: string | undefined;
+    }
+  | {
+      type: 'agent_stopped';
+      ts: string;
+      agentId: string;
+      /** Why the agent ended. Absent in journals written before this field. */
+      reason?: 'completed' | 'aborted' | 'failed' | 'evicted' | undefined;
+      /** This agent's own cumulative spend, when the stopper knows it. */
+      usage?: Usage | undefined;
+    }
   | { type: 'agent_error'; ts: string; agentId: string; error: string }
   | { type: 'spec_parsed'; ts: string; specId: string; title: string; completeness: number }
   | { type: 'spec_analyzed'; ts: string; specId: string; gaps: string[] }
@@ -459,7 +536,11 @@ export interface SessionData {
    * in flight (crash/interrupt). Computed during replay BEFORE adjacency
    * repair strips them. `resume()` surfaces this as an informational notice so
    * the user/model know work was interrupted; the tools are NOT re-executed.
-   * Undefined for events-only loads (no message reconstruction).
+   *
+   * Only present when at least one call was left open: **absent means none**,
+   * never zero (see `load-session-data.ts`). It is also absent for
+   * events-only loads, which reconstruct no messages to count. Read it as
+   * `data.pendingToolUseCount ?? 0` rather than testing for `undefined`.
    */
   pendingToolUseCount?: number | undefined;
   /**

@@ -27,8 +27,8 @@ import {
   type KanbanTaskStatus,
   type KanbanTaskTransitionInput,
   kanbanQueueAnomalyCount,
-  listBoards,
   listBoardHistory,
+  listBoards,
   listReadyTasks,
   mergeTasks,
   moveTask,
@@ -63,6 +63,7 @@ import { paginateKanbanBoards } from './kanban-route-pagination.js';
 import type { KanbanSupervisor } from './kanban-supervisor.js';
 import { handleKanbanTaskRoute } from './kanban-task-routes.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
+import { messageSessionId } from './ws-utils.js';
 
 export { type KanbanBoardPage, paginateKanbanBoards } from './kanban-route-pagination.js';
 export { KANBAN_CLIENT_MESSAGE_TYPES } from './kanban-route-protocol.js';
@@ -70,6 +71,16 @@ export { KANBAN_CLIENT_MESSAGE_TYPES } from './kanban-route-protocol.js';
 export interface KanbanRouteContext {
   projectRoot: string;
   context?: Context | undefined;
+  /**
+   * Every session a tab is currently displaying.
+   *
+   * `context.session` is only the one the runtime last switched to. With four
+   * tabs open, guarding `kanban.delete` on that alone protected ONE live board
+   * and left the other three deletable out from under the tabs showing them.
+   * Hosts that track displayed tabs pass this; single-session hosts omit it
+   * and the runtime session remains the whole set.
+   */
+  getDisplayedSessionIds?: (() => string[]) | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
   dispatchTask?: KanbanTaskDispatcher | undefined;
   /**
@@ -79,16 +90,23 @@ export interface KanbanRouteContext {
    * double-audit that happens when both paths refresh the same board concurrently.
    */
   supervisor?: KanbanSupervisor | undefined;
+  /** Set per message by `handleKanbanRoute` — see `KanbanRouteHelperContext`. */
+  requestSessionId?: string | undefined;
 }
 
 export async function handleKanbanRoute(
   ws: WebSocket,
   msg: WSClientMessage,
-  ctx: KanbanRouteContext,
+  rawCtx: KanbanRouteContext,
 ): Promise<boolean> {
   if (!msg.type.startsWith('kanban.')) return false;
   const payload = msg.payload as Record<string, unknown> | undefined;
   const type = msg.type;
+  // Attribute this message to the tab that sent it. Everything downstream
+  // (`activityContext`, `touchTaskPresence`) reads it through
+  // `actingSessionId`, so one stamp here covers every route below.
+  const requestSessionId = messageSessionId(msg);
+  const ctx: KanbanRouteContext = requestSessionId ? { ...rawCtx, requestSessionId } : rawCtx;
 
   try {
     if (await handleKanbanDecompositionRoute(ws, type, payload, ctx)) return true;
@@ -283,8 +301,16 @@ export async function handleKanbanRoute(
           return true;
         }
         const board = await getBoard(ctx.projectRoot, boardId);
-        const activeSessionId = ctx.context?.session?.id;
-        if (activeSessionId && board?.tags?.includes(`session:${activeSessionId}`)) {
+        // A board belonging to ANY open tab is off limits, not just the
+        // runtime's — the other three tabs are just as live to the user.
+        const liveSessionIds = new Set(
+          ctx.getDisplayedSessionIds?.() ?? [ctx.context?.session?.id ?? ''],
+        );
+        liveSessionIds.delete('');
+        const ownedByLiveSession = [...liveSessionIds].some((id) =>
+          board?.tags?.includes(`session:${id}`),
+        );
+        if (ownedByLiveSession) {
           fail(ws, type, 'The active session Kanban board cannot be deleted.');
           return true;
         }

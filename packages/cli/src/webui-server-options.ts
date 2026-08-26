@@ -69,6 +69,17 @@ export interface CliWebUIOptions {
         ceilingMismatch?: boolean | undefined;
       } | null)
     | undefined;
+  /**
+   * Stop every subagent that ONE session spawned.
+   *
+   * Aborting a session's run unwinds only the workers its leader is blocked
+   * on; anything started with `spawn_subagent` + `assign_task` keeps running
+   * because nothing asked it to stop — so a tab's Stop button silenced the
+   * leader while its fleet ground on. The CLI owns the Director, so it
+   * supplies the cascade. Session-scoped by contract: with four tabs live,
+   * stopping one must never reach into another's fleet.
+   */
+  stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
   /** Browser-facing HTTP URL, used when WebUI is exposed behind a tunnel/proxy. */
   publicUrl?: string | undefined;
   /** Browser-facing WebSocket URL injected into the frontend. */

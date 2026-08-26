@@ -1,9 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { ImageAttachment } from '../components/ChatInput/image-attachments.js';
+import { MAX_ATTACHED_IMAGES } from '../components/ChatInput/image-attachments.js';
 import type { QueuedItem, QueueMode } from './chat-store';
 import type { MailboxMessage } from './mailbox-store';
-import { MAX_ATTACHED_IMAGES } from '../components/ChatInput/image-attachments.js';
-import type { ImageAttachment } from '../components/ChatInput/image-attachments.js';
 
 // ============================================
 // UI Store
@@ -203,6 +203,10 @@ interface UIState {
    *  persisted; ChatView auto-clears it when the focused agent leaves the
    *  fleet roster (removed, cleared, session stop). */
   subagentChatFocusId: string | null;
+  /** Which session the flat `subagentChatFocusId` describes. */
+  subagentChatFocusSessionId: string | null;
+  /** Per-tab subagent focus, so switching tabs restores what each was showing. */
+  subagentChatFocusBySession: Record<string, string | null>;
   /** Process Monitor overlay — triggered by /kill slash command. */
   processMonitorOpen: boolean;
   /** Queue Panel overlay — triggered by /queue slash command. */
@@ -215,6 +219,10 @@ interface UIState {
   terminalOpen: boolean;
   /** Monotonic signal consumed by TerminalPanel to create another PTY tab. */
   terminalCreateNonce: number;
+  agentRosterActiveTab: 'live' | 'officemap' | 'catalog' | 'learning' | 'memory' | 'customize';
+  setAgentRosterActiveTab: (
+    tab: 'live' | 'officemap' | 'catalog' | 'learning' | 'memory' | 'customize',
+  ) => void;
   /** Persisted Settings panel scroll position and active category tab so the user
    *  returns to the exact location after navigating away and back. */
   settingsActiveTab: string;
@@ -373,7 +381,7 @@ interface UIState {
   openInspectorTarget: (target: InspectorTarget) => void;
   closeInspector: () => void;
   setInspectorFocusedAgentId: (id: string | null) => void;
-  setSubagentChatFocus: (id: string | null) => void;
+  setSubagentChatFocus: (id: string | null, sessionId?: string | null) => void;
   toggleInspector: () => void;
 }
 
@@ -409,6 +417,8 @@ function homeNavigationStatePatch(
     inspectorTarget: null,
     inspectorFocusedAgentId: null,
     subagentChatFocusId: null,
+    subagentChatFocusSessionId: null,
+    subagentChatFocusBySession: {},
     terminalOpen: false,
     paletteOpen: false,
     shortcutsOpen: false,
@@ -460,12 +470,15 @@ export const useUIStore = create<UIState>()(
       inspectorTarget: null,
       inspectorFocusedAgentId: null,
       subagentChatFocusId: null,
+      subagentChatFocusSessionId: null,
+      subagentChatFocusBySession: {},
       processMonitorOpen: false,
       queuePanelOpen: false,
       cronJobsOpen: false,
       inspectSessionId: null,
       terminalOpen: false,
       terminalCreateNonce: 0,
+      agentRosterActiveTab: 'live',
       settingsActiveTab: 'general',
       scrollPositions: {},
       draftInput: '',
@@ -565,6 +578,7 @@ export const useUIStore = create<UIState>()(
           hiddenChips: s.hiddenChips.filter((candidate) => candidate !== section),
         })),
       setDockCustomizeOpen: (open) => set({ dockCustomizeOpen: open }),
+      setAgentRosterActiveTab: (tab) => set({ agentRosterActiveTab: tab }),
       // Compatibility entry points used by slash routes and Desktop commands.
       // The legacy booleans remain false so no second overlay can be mounted.
       setFleetMonitorOpen: (open: boolean) =>
@@ -608,7 +622,21 @@ export const useUIStore = create<UIState>()(
         }),
       closeInspector: () => set({ inspectorOpen: false, inspectorTarget: null }),
       setInspectorFocusedAgentId: (id: string | null) => set({ inspectorFocusedAgentId: id }),
-      setSubagentChatFocus: (id: string | null) => set({ subagentChatFocusId: id }),
+      // Which subagent transcript is open is a property of the TAB, not of the
+      // app: focusing one in tab 2 must not swap tab 1's chat out from under
+      // the user. The map is keyed by session; the flat field stays as the
+      // foreground projection so existing readers keep working.
+      setSubagentChatFocus: (id: string | null, sessionId?: string | null) =>
+        set((state) => {
+          const key = sessionId ?? state.subagentChatFocusSessionId;
+          return {
+            subagentChatFocusId: id,
+            subagentChatFocusSessionId: key ?? null,
+            subagentChatFocusBySession: key
+              ? { ...state.subagentChatFocusBySession, [key]: id }
+              : state.subagentChatFocusBySession,
+          };
+        }),
       toggleInspector: () =>
         set((s) => ({
           inspectorOpen: !s.inspectorOpen,

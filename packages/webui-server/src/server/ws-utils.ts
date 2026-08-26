@@ -54,9 +54,10 @@ export function send(ws: WebSocket, msg: object): void {
 
 /**
  * Broadcast a JSON message to connected clients.
- * When a sessionId is present in msg.payload, only clients subscribed to that sessionId
- * (or clients without a bound session) receive the message.
- * Global messages without a sessionId are sent to all connected clients.
+ *
+ * When a sessionId is present in msg.payload, only clients displaying that
+ * session receive it — see `clientWantsSession`. Global messages without a
+ * sessionId are sent to all connected clients.
  */
 export function broadcast(
   clients: Map<WebSocket, ConnectedClient>,
@@ -76,10 +77,28 @@ export function broadcast(
   const data = JSON.stringify(msg);
   const frameBytes = Buffer.byteLength(data, 'utf8');
   for (const [ws, client] of clients) {
-    if (!sessionId || !client.sessionId || client.sessionId === sessionId) {
-      sendSerialized(ws, data, frameBytes);
-    }
+    if (clientWantsSession(client, sessionId)) sendSerialized(ws, data, frameBytes);
   }
+}
+
+/**
+ * Does this connection display the session a message is addressed to?
+ *
+ * A page with four tabs open is ONE socket. Deciding delivery from
+ * `client.sessionId` — the tab last touched — silently dropped the other
+ * three tabs' runs at the wire, which looks exactly like "the background tab
+ * stopped working". `sessionIds` is the declared open set (`session.subscribe`);
+ * a connection that has not declared one keeps the old single-session filter,
+ * so surfaces that only ever show one session are unaffected.
+ */
+export function clientWantsSession(
+  client: Pick<ConnectedClient, 'sessionId' | 'sessionIds'>,
+  sessionId: string | undefined,
+): boolean {
+  if (!sessionId) return true;
+  if (client.sessionIds && client.sessionIds.size > 0) return client.sessionIds.has(sessionId);
+  if (!client.sessionId) return true;
+  return client.sessionId === sessionId;
 }
 
 /**
@@ -170,4 +189,18 @@ export function buildWebUIAccessUrl(opts: {
 export function envFlag(name: string): boolean {
   const value = process.env[name]?.trim().toLowerCase();
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
+}
+
+/**
+ * The session a client message names, or undefined. Session-scoped replies
+ * (`brain.status`, `/diag`) use it so the answer describes the tab that asked
+ * rather than whichever session the runtime happens to be on.
+ */
+export function messageSessionId(msg: { payload?: unknown }): string | undefined {
+  const payload = msg.payload;
+  return payload &&
+    typeof payload === 'object' &&
+    typeof (payload as { sessionId?: unknown }).sessionId === 'string'
+    ? (payload as { sessionId: string }).sessionId
+    : undefined;
 }

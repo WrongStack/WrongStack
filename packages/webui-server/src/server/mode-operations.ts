@@ -11,8 +11,13 @@ interface ModeSession {
 export interface ModeOperationsContext {
   modeStore?: ModeStore | undefined;
   getSession?: (() => ModeSession | null | undefined) | undefined;
-  applyModeId: (id: string) => void;
-  afterSwitch?: ((id: string) => void | Promise<void>) | undefined;
+  /**
+   * Record the active mode. `sessionId` names the tab that switched — each
+   * WebUI tab carries its own mode, so the process-wide value is only the
+   * default a newly opened tab inherits.
+   */
+  applyModeId: (id: string, sessionId?: string) => void;
+  afterSwitch?: ((id: string, sessionId?: string) => void | Promise<void>) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
 }
 
@@ -58,7 +63,7 @@ export function createModeOperations(context: ModeOperationsContext) {
       }
     },
 
-    async switchMode(ws: WebSocket, id: string): Promise<void> {
+    async switchMode(ws: WebSocket, id: string, sessionId?: string): Promise<void> {
       if (!context.modeStore) {
         sendResult(context, ws, false, 'Mode store not available');
         return;
@@ -77,7 +82,7 @@ export function createModeOperations(context: ModeOperationsContext) {
           }
           await context.modeStore.setActiveMode(id);
         }
-        context.applyModeId(id);
+        context.applyModeId(id, sessionId);
         const from = previous?.id ?? 'default';
         const session = context.getSession?.();
         if (session && from !== id) {

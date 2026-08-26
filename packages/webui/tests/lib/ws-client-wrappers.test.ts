@@ -30,10 +30,22 @@ describe('provider and key management', () => {
   it.each([
     ['listProviders', 'providers.list'],
     ['listSavedProviders', 'providers.saved'],
-    ['getPrefs', 'prefs.get'],
   ] as Array<[keyof WrongStackWebSocketClient, string]>)('%s sends %s', (method, type) => {
     (client[method] as () => void)();
     expect(frame()).toEqual({ type });
+  });
+
+  it('getPrefs names the session it is asking about', () => {
+    // The session-scoped half of the snapshot lives on that session's meta —
+    // an untagged ask is answered about whichever session the runtime is on,
+    // which is a different tab from the asking one as often as not.
+    client.getPrefs('tab-2');
+    expect(frame()).toEqual({ type: 'prefs.get', payload: { sessionId: 'tab-2' } });
+  });
+
+  it('getPrefs stays untagged when there is no session yet', () => {
+    client.getPrefs();
+    expect(frame()).toEqual({ type: 'prefs.get', payload: {} });
   });
 
   it('listProviderModels keys by providerId', () => {
@@ -62,13 +74,16 @@ describe('provider and key management', () => {
   it.each([
     ['addKey', 'key.add'],
     ['updateKey', 'key.update'],
-  ] as Array<[keyof WrongStackWebSocketClient, string]>)('%s carries the secret', (method, type) => {
-    (client[method] as (a: string, b: string, c: string) => void)('openai', 'work', 'sk-1');
-    expect(frame()).toEqual({
-      type,
-      payload: { providerId: 'openai', label: 'work', apiKey: 'sk-1' },
-    });
-  });
+  ] as Array<[keyof WrongStackWebSocketClient, string]>)(
+    '%s carries the secret',
+    (method, type) => {
+      (client[method] as (a: string, b: string, c: string) => void)('openai', 'work', 'sk-1');
+      expect(frame()).toEqual({
+        type,
+        payload: { providerId: 'openai', label: 'work', apiKey: 'sk-1' },
+      });
+    },
+  );
 
   it.each([
     ['deleteKey', 'key.delete'],
@@ -229,20 +244,23 @@ describe('context management', () => {
   it.each([
     ['validateContextEditor', 'context.editor.validate'],
     ['applyContextEditor', 'context.editor.apply'],
-  ] as Array<[keyof WrongStackWebSocketClient, string]>)('%s carries the edit set', (method, type) => {
-    const messages = [{ role: 'user', content: 'hi' }] as never;
-    const removals: never[] = [];
-    (client[method] as (a: string, b: unknown, c: unknown[], d: boolean) => void)(
-      'rev-1',
-      messages,
-      removals,
-      true,
-    );
-    expect(frame()).toMatchObject({
-      type,
-      payload: { baseRevision: 'rev-1', messages, removals, allowRepair: true },
-    });
-  });
+  ] as Array<[keyof WrongStackWebSocketClient, string]>)(
+    '%s carries the edit set',
+    (method, type) => {
+      const messages = [{ role: 'user', content: 'hi' }] as never;
+      const removals: never[] = [];
+      (client[method] as (a: string, b: unknown, c: unknown[], d: boolean) => void)(
+        'rev-1',
+        messages,
+        removals,
+        true,
+      );
+      expect(frame()).toMatchObject({
+        type,
+        payload: { baseRevision: 'rev-1', messages, removals, allowRepair: true },
+      });
+    },
+  );
 
   it('switchContextMode keys by id', () => {
     client.switchContextMode('lean');
@@ -379,15 +397,20 @@ describe('disconnect', () => {
   it('drops the outbound queue — replaying stale frames after a reconnect is worse than losing them', () => {
     const internals = client as unknown as {
       messageQueue: unknown[];
-      sessionSwapPending: boolean;
+      pendingSwapTarget: string | null;
+      requestedSwitchSessionId: string | null;
     };
     internals.messageQueue.push({ type: 'user_message' }, { type: 'session.new' });
-    internals.sessionSwapPending = true;
+    internals.pendingSwapTarget = 'sess_pending';
+    internals.requestedSwitchSessionId = 'sess_pending';
 
     client.disconnect();
 
     expect(internals.messageQueue).toHaveLength(0);
-    expect(internals.sessionSwapPending).toBe(false);
+    // The swap died with the socket; a reconnect re-announces from scratch and
+    // must not inherit a focus grant nobody is waiting on.
+    expect(internals.pendingSwapTarget).toBe(null);
+    expect(internals.requestedSwitchSessionId).toBe(null);
   });
 
   it('stops the reconnect loop', () => {

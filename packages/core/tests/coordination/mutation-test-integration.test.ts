@@ -2,14 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
-import { Context } from '../../src/core/context.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import { Director } from '../../src/coordination/director.js';
 import { makeMutationTestTool } from '../../src/coordination/director-mutation-test-tool.js';
 import { FLEET_ROSTER } from '../../src/coordination/fleet.js';
 import { planMutations } from '../../src/coordination/mutation-engine.js';
 import { makeSubagentResultTool } from '../../src/coordination/subagent-result-tool.js';
+import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
+import { Context } from '../../src/core/context.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
@@ -24,7 +24,7 @@ import { DefaultPermissionPolicy } from '../../src/security/permission-policy.js
 import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import { DefaultSessionStore } from '../../src/storage/session-store.js';
 import type { Tool } from '../../src/types/tool.js';
-import { type ScriptedResponse, MockProvider } from '../helpers/mock-provider.js';
+import { MockProvider, type ScriptedResponse } from '../helpers/mock-provider.js';
 
 /**
  * End-to-end Chaos Monkey integration: a REAL Agent.run() drives the chaos
@@ -34,7 +34,11 @@ import { type ScriptedResponse, MockProvider } from '../helpers/mock-provider.js
  * not stubs.
  */
 
-const FIXTURE_REL = 'packages/core/tests/coordination/__mutation_fixture__/subject.ts';
+import { fileURLToPath } from 'node:url';
+
+const WORKSPACE_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const FIXTURE_PATH = fileURLToPath(new URL('./__mutation_fixture__/subject.ts', import.meta.url));
+const FIXTURE_REL = path.relative(WORKSPACE_ROOT, FIXTURE_PATH).replace(/\\/g, '/');
 
 let cleanupDirs: string[] = [];
 afterEach(async () => {
@@ -101,8 +105,8 @@ async function buildRealAgent(scriptedResponses: ScriptedResponse[]) {
 
 describe('mutation_test through a real Agent.run()', () => {
   it('drives the chaos task end-to-end and reports an honest pass', async () => {
-    const root = process.cwd();
-    const source = await fs.readFile(path.join(root, FIXTURE_REL), 'utf8');
+    const root = WORKSPACE_ROOT;
+    const source = await fs.readFile(FIXTURE_PATH, 'utf8');
     const plan = planMutations(FIXTURE_REL, source, { maxPerFile: 10 });
     expect(plan.length).toBeGreaterThan(0);
 
@@ -173,8 +177,8 @@ describe('mutation_test through a real Agent.run()', () => {
   });
 
   it('drives a survivor through the strengthen loop with a real Agent', async () => {
-    const root = process.cwd();
-    const source = await fs.readFile(path.join(root, FIXTURE_REL), 'utf8');
+    const root = WORKSPACE_ROOT;
+    const source = await fs.readFile(FIXTURE_PATH, 'utf8');
     const plan = planMutations(FIXTURE_REL, source, { maxPerFile: 10 });
     expect(plan.length).toBeGreaterThan(0);
 
@@ -205,17 +209,28 @@ describe('mutation_test through a real Agent.run()', () => {
             ? [
                 {
                   content: [
-                    { type: 'text', text: 'Report\n```json\n' + reportFor(() => 'survived') + '\n```' },
+                    {
+                      type: 'text',
+                      text: 'Report\n```json\n' + reportFor(() => 'survived') + '\n```',
+                    },
                   ],
                   stopReason: 'end_turn',
                 },
               ]
             : calls === 2
-              ? [{ content: [{ type: 'text', text: 'Tests strengthened.' }], stopReason: 'end_turn' }]
+              ? [
+                  {
+                    content: [{ type: 'text', text: 'Tests strengthened.' }],
+                    stopReason: 'end_turn',
+                  },
+                ]
               : [
                   {
                     content: [
-                      { type: 'text', text: 'Report\n```json\n' + reportFor(() => 'killed') + '\n```' },
+                      {
+                        type: 'text',
+                        text: 'Report\n```json\n' + reportFor(() => 'killed') + '\n```',
+                      },
                     ],
                     stopReason: 'end_turn',
                   },

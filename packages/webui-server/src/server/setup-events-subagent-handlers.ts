@@ -7,7 +7,14 @@ import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export function registerSetupEventsSubagentHandlers(options: {
   on: <E extends EventName>(event: E, listener: Listener<E>) => void;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   clients: Map<WebSocket, ConnectedClient>;
   context: Context;
   projection?: SetupEventProjection | undefined;
@@ -40,42 +47,54 @@ export function registerSetupEventsSubagentHandlers(options: {
     }),
   );
   on('subagent.tool_started', (e) => {
-    broadcast(clients, {
-      type: 'codemap.tool_started',
-      payload: {
-        sessionId: e.agentSessionId ?? e.sessionId ?? '',
-        parentSessionId: e.sessionId,
-        traceId: e.traceId,
-        agentId: e.subagentId,
-        agentName: e.agentName ?? e.subagentId,
-        id: e.id,
-        name: e.name,
-        input: scrub(e.input),
-        fileTargets: extractCodeMapFileTargets(projectRoot || '.', e.name, e.input),
+    // Deliver to the tab that OWNS the subagent. `payload.sessionId` is the
+    // subagent's own session so the codemap can attribute the node, but no tab
+    // subscribes to a subagent session — routing on it dropped every
+    // subagent's codemap activity at the wire.
+    broadcast(
+      clients,
+      {
+        type: 'codemap.tool_started',
+        payload: sessionPayload({
+          sessionId: e.agentSessionId ?? e.sessionId ?? '',
+          parentSessionId: e.sessionId,
+          traceId: e.traceId,
+          agentId: e.subagentId,
+          agentName: e.agentName ?? e.subagentId,
+          id: e.id,
+          name: e.name,
+          input: scrub(e.input),
+          fileTargets: extractCodeMapFileTargets(projectRoot || '.', e.name, e.input),
+        }),
       },
-    });
+      e.sessionId,
+    );
   });
   on('subagent.tool_executed', (e) => {
-    broadcast(clients, {
-      type: 'codemap.tool_executed',
-      payload: {
-        sessionId: e.agentSessionId ?? e.sessionId ?? '',
-        parentSessionId: e.sessionId,
-        traceId: e.traceId,
-        agentId: e.subagentId,
-        agentName: e.agentName ?? e.subagentId,
-        id: e.id,
-        name: e.name,
-        durationMs: e.durationMs,
-        ok: e.ok,
-        input: scrub(e.input),
-        fileTargets: extractCodeMapFileTargets(projectRoot || '.', e.name, e.input),
-        output: scrub(e.output),
-        outputBytes: e.outputBytes,
-        outputTokens: e.outputTokens,
-        outputLines: e.outputLines,
+    broadcast(
+      clients,
+      {
+        type: 'codemap.tool_executed',
+        payload: sessionPayload({
+          sessionId: e.agentSessionId ?? e.sessionId ?? '',
+          parentSessionId: e.sessionId,
+          traceId: e.traceId,
+          agentId: e.subagentId,
+          agentName: e.agentName ?? e.subagentId,
+          id: e.id,
+          name: e.name,
+          durationMs: e.durationMs,
+          ok: e.ok,
+          input: scrub(e.input),
+          fileTargets: extractCodeMapFileTargets(projectRoot || '.', e.name, e.input),
+          output: scrub(e.output),
+          outputBytes: e.outputBytes,
+          outputTokens: e.outputTokens,
+          outputLines: e.outputLines,
+        }),
       },
-    });
+      e.sessionId,
+    );
     forwardSubagent('tool_executed', {
       sessionId: e.sessionId,
       subagentId: e.subagentId,

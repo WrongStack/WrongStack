@@ -4,6 +4,7 @@ import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { PendingConfirm } from './pending-confirms.js';
+import { startProjectWatcher } from './project-watcher.js';
 import type { SetupEventProjection } from './setup-event-projection.js';
 import {
   registerSetupEventsClientStatusWriter,
@@ -17,14 +18,20 @@ import { registerSetupEventsStatusWatcher } from './setup-events-status-watcher.
 import { registerSetupEventsSubagentHandlers } from './setup-events-subagent-handlers.js';
 import { registerSetupEventsToolHandlers } from './setup-events-tool-handlers.js';
 import type { FileWatcherMetrics } from './setup-events-watcher.js';
-import { startProjectWatcher } from './project-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export type { FileWatcherMetrics } from './setup-events-watcher.js';
 
 export interface SetupEventsDeps {
   events: EventBus;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   clients: Map<WebSocket, ConnectedClient>;
   config: { tools?: { maxIterations?: number | undefined } };
   context: Context;
@@ -38,6 +45,13 @@ export interface SetupEventsDeps {
    * with no tool history.
    */
   sessionBridge?: SessionEventBridge | undefined;
+  /**
+   * Resolve an audit bridge for a NAMED session. Hosts that serve several
+   * sessions at once (the WebUI, four tabs on one runtime) pass this so a
+   * background tab's tool and error history lands in its own journal instead
+   * of being dropped for not being the session in front.
+   */
+  bridgeForSession?: ((sessionId: string) => SessionEventBridge | undefined) | undefined;
   /** Optional wpaths for writing status.json file. */
   wpaths?: WstackPaths | undefined;
   /** Optional live file-watcher metrics sink. */
@@ -102,6 +116,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   const { sessionPayload, appendForCurrentSession } = createSetupEventSessionHelpers(
     context,
     sessionBridge,
+    { bridgeForSession: deps.bridgeForSession },
   );
 
   on('iteration.started', (e) => {

@@ -11,9 +11,51 @@ import {
 import type { WSServerMessage } from './types.js';
 import { validatePrefsUpdatePayload } from './ws-payload-validation.js';
 
+/**
+ * Preferences that belong to ONE session rather than to the process.
+ *
+ * Every WebUI tab runs its own session with its own agent context, so these
+ * have to land on the calling tab's meta bag: flipping yolo in tab 3 must not
+ * hand tab 1's run blanket tool approval, and a context strategy chosen for a
+ * long refactor tab must not re-shape a quick question in the tab beside it.
+ *
+ * Everything NOT listed here (locale, ports, HQ, telegram, feature flags,
+ * breaker, proxy, log level…) is genuinely process-wide and keeps its single
+ * global home.
+ */
+export const SESSION_SCOPED_PREF_KEYS: ReadonlySet<string> = new Set([
+  'autonomy',
+  'autonomyDelayMs',
+  'autoProceedMaxIterations',
+  'yolo',
+  'maxIterations',
+  'contextStrategy',
+  'contextMode',
+  'contextAutoCompact',
+  'tokenSavingTier',
+  'systemPromptVariant',
+  'reasoningMode',
+  'reasoningEffort',
+  'reasoningPreserve',
+  'nextPrediction',
+  'nextStepsTool',
+]);
+
 export interface PrefsHandlerContext {
   meta: Record<string, unknown>;
-  snapshot: () => Record<string, unknown>;
+  /**
+   * Meta bag of a specific session, for the session-scoped keys above.
+   * Falls back to the process-wide `meta` when the host has not wired
+   * per-session contexts (the embedded single-session runtimes).
+   */
+  metaFor?: ((sessionId?: string) => Record<string, unknown>) | undefined;
+  /**
+   * Read the pref snapshot for ONE session. The session-scoped keys live on
+   * that session's meta, so a snapshot taken without an id describes whichever
+   * session the runtime is on — which is a different tab from the asking one
+   * as often as not once four are open.
+   */
+  snapshot: (sessionId?: string) => Record<string, unknown>;
   persist: (payload: Record<string, unknown>) => Promise<void>;
   pendingConfirms: Map<string, PendingConfirm>;
   configStore?: ConfigStore | undefined;
@@ -79,8 +121,13 @@ function routingPatch(payload: Record<string, unknown>): Record<string, unknown>
   return patch;
 }
 
-export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket): void {
-  ctx.send(ws, { type: 'prefs.updated', payload: ctx.snapshot() });
+export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket, sessionId?: string): void {
+  // Stamped so the browser can file the answer under the tab that asked
+  // instead of over whatever it is currently showing.
+  ctx.send(ws, {
+    type: 'prefs.updated',
+    payload: { ...ctx.snapshot(sessionId), ...(sessionId ? { sessionId } : {}) },
+  });
 }
 
 /** Answer `system_prompt.get` with the variant catalogue and token estimates. */
@@ -98,6 +145,7 @@ export async function handlePrefsUpdate(
   ctx: PrefsHandlerContext,
   ws: WebSocket,
   input: Record<string, unknown>,
+  sessionId?: string,
 ): Promise<void> {
   const parsed = validatePrefsUpdatePayload(input);
   if (!parsed.ok) {
@@ -105,7 +153,14 @@ export async function handlePrefsUpdate(
     return;
   }
   const payload = parsed.value.prefs;
-  for (const [key, value] of Object.entries(payload)) ctx.meta[key] = value;
+  // Session-scoped keys land on the CALLING tab's context; the rest stay
+  // process-wide. Both still go to `persist`, which keeps the config file as
+  // the default a newly opened tab starts from.
+  const sessionMeta = ctx.metaFor?.(sessionId) ?? ctx.meta;
+  for (const [key, value] of Object.entries(payload)) {
+    if (SESSION_SCOPED_PREF_KEYS.has(key)) sessionMeta[key] = value;
+    else ctx.meta[key] = value;
+  }
   void ctx.persist(payload);
 
   // Mirror `autonomy.switch`: an `autonomy` payload arriving through
@@ -178,7 +233,7 @@ export async function handlePrefsUpdate(
   const nextVariant = payload['systemPromptVariant'];
   if (typeof nextVariant === 'string' && ctx.systemPrompt) {
     try {
-      await ctx.systemPrompt.applyVariant?.(nextVariant as SystemInstructionVariant);
+      await ctx.systemPrompt.applyVariant?.(nextVariant as SystemInstructionVariant, sessionId);
     } catch (err) {
       sendResult(
         ctx,
@@ -195,13 +250,41 @@ export async function handlePrefsUpdate(
     });
   }
 
-  ctx.broadcast({ type: 'prefs.updated', payload: ctx.snapshot() });
+  // Split the echo: session-scoped keys are addressed at the tab that set
+  // them, project-wide keys go to everyone. Broadcasting one untagged snapshot
+  // wrote one tab's autonomy over every other tab's picker.
+  const snapshot = ctx.snapshot(sessionId);
+  const scoped: Record<string, unknown> = {};
+  const shared: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (SESSION_SCOPED_PREF_KEYS.has(key)) scoped[key] = value;
+    else shared[key] = value;
+  }
+  if (Object.keys(shared).length > 0) {
+    ctx.broadcast({ type: 'prefs.updated', payload: shared });
+  }
+  if (Object.keys(scoped).length > 0) {
+    ctx.broadcast({
+      type: 'prefs.updated',
+      payload: sessionId ? { ...scoped, sessionId } : scoped,
+    });
+  }
 }
 
-export function handleAutonomySwitch(ctx: PrefsHandlerContext, ws: WebSocket, mode: string): void {
-  ctx.meta['autonomy'] = mode;
+export function handleAutonomySwitch(
+  ctx: PrefsHandlerContext,
+  ws: WebSocket,
+  mode: string,
+  sessionId?: string,
+): void {
+  // Autonomy is per-tab: a tab left running on `eternal` must not drag the
+  // tab the user is typing in along with it.
+  (ctx.metaFor?.(sessionId) ?? ctx.meta)['autonomy'] = mode;
   ctx.setAutonomy?.(mode);
   sendResult(ctx, ws, true, `Autonomy mode set to "${mode}"`);
-  ctx.broadcast({ type: 'prefs.updated', payload: { autonomy: mode } });
+  ctx.broadcast({
+    type: 'prefs.updated',
+    payload: { autonomy: mode, ...(sessionId ? { sessionId } : {}) },
+  });
   void ctx.persist({ autonomy: mode });
 }

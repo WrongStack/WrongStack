@@ -1562,3 +1562,27 @@ kbd {
   outline: 1px solid hsl(220 60% 50% / 0.4);
   font-weight: 700;
 }
+
+/* ── Parked views ────────────────────────────────────────────────────────
+ * A view that is mounted but not in front.
+ *
+ * The chat transcript is virtualized: unmounting it (the old
+ * `currentView === 'chat' && <ChatView/>`) threw away the row measurements,
+ * the scroll offset and every highlighted code block, so every return to
+ * chat paid a full re-render and landed at the wrong place.
+ *
+ * `display: none` is NOT usable here — a hidden element measures 0x0, which
+ * makes the virtualizer's ResizeObserver collapse its window and drops
+ * `scrollTop`. Taking the view out of flow while keeping its box lets it
+ * carry on measuring against the real container, so re-showing it is a
+ * visibility flip with nothing to recompute.
+ *
+ * Pair with `inert` + `aria-hidden` on the element so a parked view can be
+ * neither focused nor read out.
+ */
+.ws-view-parked {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}

@@ -133,6 +133,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Payments specialist: ledger, refund, webhook, idempotency and reconciliation with financial-correctness invariants.',
+      rationale: PAYMENTS_META,
       keywords: [
         ...PAYMENTS_META.signals,
         'payments',
@@ -157,6 +158,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Messaging infrastructure specialist: queue, pub/sub, delivery semantics and DLQ with broker failure modes.',
+      rationale: MESSAGING_META,
       keywords: [
         ...MESSAGING_META.signals,
         'messaging',
@@ -181,6 +183,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Search relevance specialist: indexing, ranking, retrieval and offline/online evaluation of search quality.',
+      rationale: SEARCH_RELEVANCE_META,
       keywords: [
         ...SEARCH_RELEVANCE_META.signals,
         'search',
@@ -205,6 +208,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Object-storage specialist: upload, checksum, lifecycle, CDN and replication for unstructured blob data.',
+      rationale: STORAGE_META,
       keywords: [
         ...STORAGE_META.signals,
         'object-storage',
@@ -228,6 +232,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
     capability: {
       phase: 'domain',
       summary: 'ML engineer: model integration, inference, evaluation and guardrail wiring.',
+      rationale: ML_ENGINEER_META,
       keywords: [
         ...ML_ENGINEER_META.signals,
         'ml',
@@ -251,6 +256,7 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Data governance specialist: lineage, classification, ownership and data contracts with quality-of-record.',
+      rationale: DATA_GOVERNANCE_META,
       keywords: [
         ...DATA_GOVERNANCE_META.signals,
         'data-governance',
@@ -262,16 +268,5 @@ export const WAVE3_AGENTS: AgentDefinition[] = [
     },
   },
 ];
-
-export const WAVE3_ROLE_METAS: Record<string, RoleDispatcherSignal> = {
-  payments: PAYMENTS_META,
-  messaging: MESSAGING_META,
-  'search-relevance': SEARCH_RELEVANCE_META,
-  storage: STORAGE_META,
-  'ml-engineer': ML_ENGINEER_META,
-  'data-governance': DATA_GOVERNANCE_META,
-};
-
-export const WAVE3_ROLES = new Set<string>(Object.keys(WAVE3_ROLE_METAS));
 
 void skillSet;

@@ -235,21 +235,37 @@ describe('setRunStart', () => {
   });
 });
 
-describe('persist partialize', () => {
-  const partialize = options.partialize as (s: unknown) => Record<string, unknown>;
+describe('persist partialize (per-lane)', () => {
+  const partialize = options.partialize as (s: unknown) => {
+    activeSessionId: string;
+    lanes: Record<string, { messages: unknown[]; queue: Array<{ images?: unknown }> }>;
+  };
+
+  /** One lane's worth of persisted state, in the registry's shape. */
+  function lanesOf(lane: Record<string, unknown>, sid = 'sess_a') {
+    return {
+      activeSessionId: sid,
+      lanes: { [sid]: { thinkingLogBuffer: '', messages: [], queue: [], ...lane } },
+    };
+  }
 
   it('strips image data urls from persisted attachments', () => {
-    const out = partialize({
-      messages: [
-        { id: 'm1', role: 'user', content: 'x', attachments: [{ id: 'a', dataUrl: 'data:huge' }] },
-      ],
-      queue: [],
-      boundSessionId: null,
-      thinkingLogBuffer: '',
-    });
+    const out = partialize(
+      lanesOf({
+        messages: [
+          {
+            id: 'm1',
+            role: 'user',
+            content: 'x',
+            attachments: [{ id: 'a', dataUrl: 'data:huge' }],
+          },
+        ],
+      }),
+    );
 
-    const attachments = (out.messages as Array<{ attachments: Array<{ dataUrl?: string }> }>)[0]!
-      .attachments;
+    const attachments = (
+      out.lanes.sess_a!.messages as Array<{ attachments: Array<{ dataUrl?: string }> }>
+    )[0]!.attachments;
     expect(attachments[0]?.dataUrl).toBeUndefined();
     // The chip metadata survives so the bubble can render a placeholder.
     expect(attachments[0]).toHaveProperty('id', 'a');
@@ -257,81 +273,58 @@ describe('persist partialize', () => {
 
   it('leaves a message with no attachments untouched', () => {
     const message = { id: 'm1', role: 'user', content: 'x' };
-    const out = partialize({
-      messages: [message],
-      queue: [],
-      boundSessionId: null,
-      thinkingLogBuffer: '',
-    });
-    expect((out.messages as unknown[])[0]).toBe(message);
+    const out = partialize(lanesOf({ messages: [message] }));
+    expect(out.lanes.sess_a!.messages[0]).toBe(message);
   });
 
   it('leaves attachments with no data url untouched', () => {
     const message = { id: 'm1', role: 'user', content: 'x', attachments: [{ id: 'a' }] };
-    const out = partialize({
-      messages: [message],
-      queue: [],
-      boundSessionId: null,
-      thinkingLogBuffer: '',
-    });
-    expect((out.messages as unknown[])[0]).toBe(message);
+    const out = partialize(lanesOf({ messages: [message] }));
+    expect(out.lanes.sess_a!.messages[0]).toBe(message);
   });
 
   it('drops images from queued items', () => {
-    const out = partialize({
-      messages: [],
-      queue: [{ text: 'a', images: [{ id: 'i' }] }, { text: 'b' }],
-      boundSessionId: null,
-      thinkingLogBuffer: '',
-    });
-
-    const queue = out.queue as Array<{ images?: unknown }>;
+    const out = partialize(
+      lanesOf({ queue: [{ text: 'a', images: [{ id: 'i' }] }, { text: 'b' }] }),
+    );
+    const queue = out.lanes.sess_a!.queue;
     expect(queue[0]?.images).toBeUndefined();
     expect(queue[1]).not.toHaveProperty('images');
   });
 
-  it('persists only the whitelisted keys', () => {
+  it('persists only the whitelisted keys, per lane', () => {
     const out = partialize({
-      messages: [],
-      queue: [],
-      boundSessionId: 'sess_a',
-      thinkingLogBuffer: 'log',
-      executions: new Map(),
-      refining: true,
+      activeSessionId: 'sess_a',
+      lanes: {
+        sess_a: {
+          messages: [],
+          queue: [],
+          thinkingLogBuffer: 'log',
+          executions: new Map(),
+          refining: true,
+          abortController: new AbortController(),
+        },
+      },
     });
 
-    expect(Object.keys(out).sort()).toEqual([
-      'boundSessionId',
+    expect(Object.keys(out).sort()).toEqual(['activeSessionId', 'lanes']);
+    expect(Object.keys(out.lanes.sess_a!).sort()).toEqual([
       'messages',
       'queue',
       'thinkingLogBuffer',
     ]);
   });
-});
 
-describe('persist onRehydrateStorage', () => {
-  const onRehydrate = options.onRehydrateStorage as () => (
-    state: unknown,
-    error?: unknown,
-  ) => void;
-
-  function flag(): boolean | undefined {
-    return (window as unknown as { __wrongstackChatRehydrated?: boolean })
-      .__wrongstackChatRehydrated;
-  }
-
-  beforeEach(() => {
-    delete (window as unknown as { __wrongstackChatRehydrated?: boolean })
-      .__wrongstackChatRehydrated;
-  });
-
-  it('marks the transcript safe to render on success', () => {
-    onRehydrate()({}, undefined);
-    expect(flag()).toBe(true);
-  });
-
-  it('leaves the flag unset when rehydration failed', () => {
-    onRehydrate()(undefined, new Error('corrupt'));
-    expect(flag()).toBeUndefined();
+  it('keeps every open lane, so a reload restores all four tabs', () => {
+    const out = partialize({
+      activeSessionId: 'sess_b',
+      lanes: {
+        sess_a: { messages: [{ id: 'a' }], queue: [], thinkingLogBuffer: '' },
+        sess_b: { messages: [{ id: 'b' }], queue: [], thinkingLogBuffer: '' },
+        sess_c: { messages: [{ id: 'c' }], queue: [], thinkingLogBuffer: '' },
+      },
+    });
+    expect(Object.keys(out.lanes).sort()).toEqual(['sess_a', 'sess_b', 'sess_c']);
+    expect(out.activeSessionId).toBe('sess_b');
   });
 });

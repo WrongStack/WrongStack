@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  installWsClientActionMethods,
   type WsClientActionHost,
   type WsClientActionMethods,
-  installWsClientActionMethods,
 } from '../../src/lib/ws-client-actions';
 
 /**
@@ -422,9 +422,11 @@ describe('todo, task and plan actions', () => {
 // ── misc ────────────────────────────────────────────────────────────────────
 
 describe('misc actions', () => {
-  it('switchMode keys by id', () => {
+  it('switchMode keys by id and stamps the tab it applies to', () => {
+    // The mode belongs to one tab: four sessions run at once, each with its
+    // own mode, so the server needs to know which one switched.
     client.switchMode('code');
-    expect(frame()).toEqual({ type: 'mode.switch', payload: { id: 'code' } });
+    expect(frame()).toEqual({ type: 'mode.switch', payload: { id: 'code', sessionId: 'sess-1' } });
   });
 
   it('deleteSession and renameSession are not session-stamped', () => {

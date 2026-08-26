@@ -28,21 +28,19 @@ import { sendRosterMessage } from '@/lib/roster-ws';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useUIStore } from '@/stores';
-import { AgentRosterHeader, AgentRosterTabs } from './AgentRosterChrome.js';
-import { SelfLearningTab } from './AgentRosterSelfLearningTab.js';
 import { RosterCatalogTab } from './AgentRosterCatalogTab.js';
+import { AgentRosterHeader, AgentRosterTabs } from './AgentRosterChrome.js';
 import { LiveFleetTab } from './AgentRosterLiveTab.js';
-import { useAgentRosterData } from './useAgentRosterData.js';
+import { SelfLearningTab } from './AgentRosterSelfLearningTab.js';
+import { AudienceMemoryPanel } from './AudienceMemoryPanel.js';
 /**
  * Trailing-debounce window for coalescing `agent-roster.updated` broadcasts.
  * A bulk optimize emits one event per role; without this, each would trigger
  * its own full roster reload. Reloading once after the burst settles is enough.
  */
-import type {
-  CustomRosterStats,
-  RosterAgentEntry,
-  RosterTab,
-} from './agent-roster-data.js';
+import type { CustomRosterStats, RosterAgentEntry, RosterTab } from './agent-roster-data.js';
+import { OfficeMapPanel } from './OfficeMapPanel.js';
+import { useAgentRosterData } from './useAgentRosterData.js';
 
 // ══════════════════════════════════════════════════════════════════════
 //  TAB: Customization
@@ -98,7 +96,9 @@ function CustomizationTab({
       setEditMode(mode);
       setRuntimeConfig(null);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.loadCustomizationFailed'));
+      setEditError(
+        error instanceof Error ? error.message : t('activity:agentRoster.loadCustomizationFailed'),
+      );
     } finally {
       setSaving(false);
     }
@@ -115,7 +115,9 @@ function CustomizationTab({
       setRuntimeConfig(data.config ?? {});
       setEditMode(null);
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.loadRuntimePolicyFailed'));
+      setEditError(
+        error instanceof Error ? error.message : t('activity:agentRoster.loadRuntimePolicyFailed'),
+      );
     } finally {
       setSaving(false);
     }
@@ -131,7 +133,11 @@ function CustomizationTab({
         setRuntimeConfig(null);
         onRefresh();
       } catch (error) {
-        setEditError(error instanceof Error ? error.message : t('activity:agentRoster.runtimePolicySaveFailed'));
+        setEditError(
+          error instanceof Error
+            ? error.message
+            : t('activity:agentRoster.runtimePolicySaveFailed'),
+        );
       } finally {
         setSaving(false);
       }
@@ -186,7 +192,9 @@ function CustomizationTab({
       ui.setSidebarOpen(false);
       ui.setCurrentView('chat');
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.llmImprovementFailed'));
+      setEditError(
+        error instanceof Error ? error.message : t('activity:agentRoster.llmImprovementFailed'),
+      );
     }
   }, [selectedRole]);
 
@@ -224,7 +232,9 @@ function CustomizationTab({
       setSelectedRole(data.role);
       onRefresh();
     } catch (error) {
-      setEditError(error instanceof Error ? error.message : t('activity:agentRoster.agentCreationFailed'));
+      setEditError(
+        error instanceof Error ? error.message : t('activity:agentRoster.agentCreationFailed'),
+      );
     } finally {
       setSaving(false);
     }
@@ -302,7 +312,9 @@ function CustomizationTab({
         {createOpen && (
           <div className="max-w-2xl space-y-4">
             <div>
-              <h3 className="text-base font-semibold">{t('activity:agentRoster.createOrCloneTitle')}</h3>
+              <h3 className="text-base font-semibold">
+                {t('activity:agentRoster.createOrCloneTitle')}
+              </h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('activity:agentRoster.createOrCloneHint')}
               </p>
@@ -364,7 +376,9 @@ function CustomizationTab({
               />
             </label>
             <label className="block space-y-1 text-xs">
-              <span className="font-medium">{t('activity:agentRoster.taskTypesCommaOrOnePer')}</span>
+              <span className="font-medium">
+                {t('activity:agentRoster.taskTypesCommaOrOnePer')}
+              </span>
               <textarea
                 value={createDraft.taskTypes}
                 onChange={(event) =>
@@ -414,7 +428,8 @@ function CustomizationTab({
                   onClick={runImprove}
                   className="inline-flex items-center gap-1 rounded border border-border/50 px-2 py-1 text-[10px] hover:bg-accent transition-colors"
                 >
-                  <Sparkles className="h-3 w-3 text-brand-2" /> {t('activity:agentRoster.llmImprove')}
+                  <Sparkles className="h-3 w-3 text-brand-2" />{' '}
+                  {t('activity:agentRoster.llmImprove')}
                 </button>
                 <button
                   type="button"
@@ -543,9 +558,27 @@ function CustomizationTab({
 //  MAIN: AgentRosterView
 // ══════════════════════════════════════════════════════════════════════
 
-export function AgentRosterView({ className }: { className?: string | undefined }) {
+export function AgentRosterView({
+  className,
+  initialTab = 'live',
+}: {
+  className?: string | undefined;
+  initialTab?: RosterTab | undefined;
+}) {
   const { t } = useAppTranslation();
-  const [activeTab, setActiveTab] = useState<RosterTab>('live');
+  const storeActiveTab = useUIStore((s) => s.agentRosterActiveTab);
+  const setStoreActiveTab = useUIStore((s) => s.setAgentRosterActiveTab);
+  const [localActiveTab, setLocalActiveTab] = useState<RosterTab>(initialTab);
+  const activeTab = storeActiveTab ?? localActiveTab;
+  const setActiveTab = useCallback(
+    (tab: RosterTab) => {
+      setLocalActiveTab(tab);
+      if (typeof setStoreActiveTab === 'function') {
+        setStoreActiveTab(tab);
+      }
+    },
+    [setStoreActiveTab],
+  );
   const [nowTick, setNowTick] = useState(Date.now());
   const { customStats, catalog, rosterLoading, rosterError, loadRoster } = useAgentRosterData();
 
@@ -579,12 +612,14 @@ export function AgentRosterView({ className }: { className?: string | undefined 
         )}
 
         {activeTab === 'live' && <LiveFleetTab nowTick={nowTick} />}
+        {activeTab === 'officemap' && <OfficeMapPanel />}
         {activeTab === 'catalog' && (
           <RosterCatalogTab customStats={customStats} catalog={catalog} />
         )}
         {activeTab === 'learning' && (
           <SelfLearningTab customStats={customStats} onRefresh={loadRoster} />
         )}
+        {activeTab === 'memory' && <AudienceMemoryPanel />}
         {activeTab === 'customize' && (
           <CustomizationTab customStats={customStats} catalog={catalog} onRefresh={loadRoster} />
         )}

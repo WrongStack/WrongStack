@@ -3,13 +3,20 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import type { EventBus, EventName, Listener } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';
 import type { WebSocket } from 'ws';
+import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export interface SetupEventsCoreWatcherDeps {
   events: EventBus;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   clients: Map<WebSocket, ConnectedClient>;
   context: Context;
   wpaths?: WstackPaths | undefined;

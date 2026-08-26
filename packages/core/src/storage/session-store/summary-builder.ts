@@ -1,8 +1,10 @@
 import { createReadStream } from 'node:fs';
 import { createInterface } from 'node:readline';
+import { effectiveInputTokens } from '../../types/provider.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionEvent, SessionSummary } from '../../types/session.js';
 import { sessionContentPreview, userInputTitle } from '../session-helpers.js';
+import { isSessionErrorEvent, resolveSessionOutcome } from '../session-outcome.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 
 export async function summarizeSessionFile(opts: {
@@ -60,7 +62,7 @@ async function summarizeSessionEventSequence(opts: {
       }
     }
     const toolBreakdown: Record<string, number> = {};
-    let outcome: SessionSummary['outcome'];
+
     let lastEventType: SessionEvent['type'] | undefined;
     let hasError = false;
     let sawStart = false;
@@ -111,24 +113,26 @@ async function summarizeSessionEventSequence(opts: {
         }
       } else if (e.type === 'llm_response') {
         messageCount++;
-        tokenIn += e.usage.input ?? 0;
+        // Cache buckets included — see totalUsageTokens for why tokenTotal
+        // counts the whole prompt the model loaded, not just the fresh slice.
+        tokenIn += effectiveInputTokens(e.usage);
         tokenOut += e.usage.output ?? 0;
+        // A mid-session model switch or fallback rotation is only visible on
+        // the response that used it; session_start/session_resumed record the
+        // model the session OPENED with. Last writer wins, matching the live
+        // tracker so a rebuilt summary equals the one the writer produced.
+        if (e.model) model = e.model;
+        if (e.provider) provider = e.provider;
       } else if (e.type === 'in_flight_start') iterationCount++;
       else if (e.type === 'tool_call_start') {
         toolCallCount++;
         toolBreakdown[e.name] = (toolBreakdown[e.name] ?? 0) + 1;
       } else if (e.type === 'tool_result' && e.isError) toolErrorCount++;
       else if (e.type === 'file_snapshot') fileChangeCount += e.files.length;
-      else if (e.type === 'error' || e.type === 'provider_error') hasError = true;
+      else if (isSessionErrorEvent(e)) hasError = true;
     }
 
-    if (lastEventType === 'session_end') {
-      outcome = 'completed';
-    } else if (lastEventType === 'in_flight_start') {
-      outcome = 'aborted';
-    } else if (hasError) {
-      outcome = 'error';
-    }
+    const outcome = resolveSessionOutcome(lastEventType, hasError);
 
     return {
       id,

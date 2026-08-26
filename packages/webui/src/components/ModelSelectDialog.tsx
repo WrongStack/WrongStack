@@ -1,10 +1,10 @@
-import { Layers, Search } from 'lucide-react';
+import { Layers, Search, Star } from 'lucide-react';
 import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModels';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { PickerCardList } from './ui/PickerCardList';
-import { useAppTranslation } from '@/i18n';
 
 /**
  * What the dialog lets the user pick: provider/model, fallback profile, or both.
@@ -101,12 +101,13 @@ export function ModelSelectDialog({
 
   const pickModel = (candidate: ModelCandidate | undefined): void => {
     if (!candidate) return;
-    const keepOpen = onPick({
-      type: 'provider-model',
-      provider: candidate.provider,
-      model: candidate.model,
-      label: `${candidate.provider}/${candidate.model}`,
-    }) === true;
+    const keepOpen =
+      onPick({
+        type: 'provider-model',
+        provider: candidate.provider,
+        model: candidate.model,
+        label: `${candidate.provider}/${candidate.model}`,
+      }) === true;
     if (!keepOpen) onClose();
   };
 
@@ -152,7 +153,9 @@ export function ModelSelectDialog({
               }}
               className={cn(
                 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
-                tab === 'fallback' ? 'bg-primary/10 text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                tab === 'fallback'
+                  ? 'bg-primary/10 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Layers className="h-3 w-3 inline mr-1" />
@@ -166,7 +169,9 @@ export function ModelSelectDialog({
               }}
               className={cn(
                 'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-all',
-                tab === 'models' ? 'bg-primary/10 text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                tab === 'models'
+                  ? 'bg-primary/10 text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
               )}
             >
               <Search className="h-3 w-3 inline mr-1" />
@@ -230,9 +235,7 @@ export function ModelSelectDialog({
             <div ref={listRef} className="max-h-72 space-y-0.5 overflow-y-auto">
               {filtered.length === 0 ? (
                 <p className="py-4 text-center text-xs text-muted-foreground">
-                  {candidates.length === 0
-                    ? 'Loading models…'
-                    : `No models match "${query}"`}
+                  {candidates.length === 0 ? 'Loading models…' : `No models match "${query}"`}
                 </p>
               ) : (
                 filtered.map((c, i) => {
@@ -251,14 +254,15 @@ export function ModelSelectDialog({
                         onClick={() => pickModel(c)}
                         className={cn(
                           'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs',
-                          i === cursor
-                            ? 'bg-primary/15 text-foreground'
-                            : 'hover:bg-muted/60',
+                          i === cursor ? 'bg-primary/15 text-foreground' : 'hover:bg-muted/60',
                         )}
                       >
                         <span className="truncate font-mono">{c.model}</span>
                         {c.label !== c.model && (
                           <span className="truncate text-muted-foreground">{c.label}</span>
+                        )}
+                        {c.isFavorite && (
+                          <Star className="h-3 w-3 fill-warning text-warning shrink-0 ml-auto" />
                         )}
                       </button>
                     </div>
@@ -270,7 +274,9 @@ export function ModelSelectDialog({
         )}
 
         <p className="text-[10px] text-muted-foreground">
-          {mode === 'fallback' ? 'Click a profile to select' : '↑/↓ navigate · Enter select · Esc close'}
+          {mode === 'fallback'
+            ? 'Click a profile to select'
+            : '↑/↓ navigate · Enter select · Esc close'}
         </p>
       </DialogContent>
     </Dialog>

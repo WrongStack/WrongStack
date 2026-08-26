@@ -127,9 +127,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   const { evOn, config, context, session, sessionRef, wpaths, projectRoot } = deps;
 
   // ── SessionEventBridge ──────────────────────────────────────────────────
-  const sessionConfig = resolveSessionLoggingConfig(
-    config as never as Parameters<typeof resolveSessionLoggingConfig>[0],
-  );
+  const sessionConfig = resolveSessionLoggingConfig(config);
   const sessionWriter: () => import('@wrongstack/core/types').SessionWriter | null | undefined =
     () =>
       ((context as Record<string, unknown>).session as
@@ -409,6 +407,27 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       const cost = e.costUsd && e.costUsd > 0 ? ` · ${e.costUsd.toFixed(4)}` : '';
       deps.renderer!.writeInfo!(`${e.ok ? '✅' : '❌'} ${e.summary}${cost}`);
     });
+
+    // Loop detection had no subscriber outside tests, so a run the detector
+    // cut came back as a bare `max_iterations` with no stated cause. Only
+    // `action: 'cut'` surfaces: a 'steer' is an in-band nudge the model
+    // absorbs on its own, and announcing it would be noise.
+    evOn(
+      'tool.loop_detected',
+      (e: {
+        tools: string;
+        repeatCount: number;
+        kind?: string | undefined;
+        action?: string | undefined;
+      }) => {
+        if (e.action !== 'cut') return;
+        const what =
+          e.kind === 'message' ? 'the same reply' : e.tools ? `\`${e.tools}\`` : 'the same step';
+        deps.renderer!.writeInfo!(
+          `🔁 Loop detected — ${what} repeated ${e.repeatCount}× ; the run was stopped.`,
+        );
+      },
+    );
   }
 
   // ── Tool progress forwarding ─────────────────────────────────────────────

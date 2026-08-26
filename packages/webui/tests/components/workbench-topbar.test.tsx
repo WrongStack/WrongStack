@@ -32,8 +32,6 @@ describe('WorkbenchTopbar responsive component', () => {
         isLoading={false}
         iteration={null}
         onPalette={vi.fn()}
-        onSearch={vi.fn()}
-        onModel={vi.fn()}
         onSettings={vi.fn()}
       />,
     );
@@ -54,8 +52,6 @@ describe('WorkbenchTopbar responsive component', () => {
         isLoading={false}
         iteration={null}
         onPalette={vi.fn()}
-        onSearch={vi.fn()}
-        onModel={vi.fn()}
         onSettings={vi.fn()}
       />,
     );

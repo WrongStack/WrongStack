@@ -17,11 +17,19 @@
  * rather than by driving a fake `localStorage`, because those two functions are
  * the entire contract for what leaves memory.
  */
-import { describe, expect, it } from 'vitest';
+
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
 
+// The chat surface's persistence lives with the lane registry: one persisted
+// entry per session tab, so a reload restores all four transcripts, not just
+// whichever one happened to be in front when the tab closed.
 const chatSource = readFileSync(
+  resolve(import.meta.dirname, '../../src/stores/chat-lanes.ts'),
+  'utf8',
+);
+const chatFacadeSource = readFileSync(
   resolve(import.meta.dirname, '../../src/stores/chat-store.ts'),
   'utf8',
 );
@@ -66,14 +74,14 @@ describe('config store never persists a credential (WS-069)', () => {
 
 describe('chat store bounds what reaches localStorage (WS-062)', () => {
   it('caps the persisted slice separately from the in-memory cap', () => {
-    expect(chatSource).toMatch(/const MAX_PERSISTED_MESSAGES = \d+/);
+    expect(chatFacadeSource).toMatch(/const MAX_PERSISTED_MESSAGES = \d+/);
     expect(partializeBody(chatSource)).toContain('slice(-MAX_PERSISTED_MESSAGES)');
   });
 
   it('persists strictly fewer messages than it retains in memory', () => {
     // The point of the finding: a storage budget cannot be the heap budget.
-    const persisted = Number(/const MAX_PERSISTED_MESSAGES = (\d+)/.exec(chatSource)?.[1]);
-    const inMemory = Number(/const MAX_CHAT_MESSAGES = (\d+)/.exec(chatSource)?.[1]);
+    const persisted = Number(/const MAX_PERSISTED_MESSAGES = (\d+)/.exec(chatFacadeSource)?.[1]);
+    const inMemory = Number(/const MAX_CHAT_MESSAGES = (\d+)/.exec(chatFacadeSource)?.[1]);
     expect(persisted).toBeGreaterThan(0);
     expect(inMemory).toBeGreaterThan(0);
     expect(persisted).toBeLessThan(inMemory);
@@ -90,11 +98,23 @@ describe('chat store bounds what reaches localStorage (WS-062)', () => {
     expect(partializeBody(chatSource)).toContain('dataUrl: undefined');
   });
 
-  it('still persists the unsubmitted queue and session binding', () => {
+  it('still persists the unsubmitted queue and the active tab', () => {
     // These are the reason persistence exists at all; a quota fix that drops
     // them would be trading the user's typed input for storage headroom.
     const body = partializeBody(chatSource);
     expect(body).toContain('queue:');
-    expect(body).toContain('boundSessionId');
+    expect(body).toContain('activeSessionId');
+  });
+
+  it('persists every lane, not just the one in front', () => {
+    // Four tabs, four transcripts. Persisting only the foreground would make a
+    // reload silently empty the other three.
+    const body = partializeBody(chatSource);
+    expect(body).toContain('lanes:');
+    expect(body).toContain('Object.entries(s.lanes)');
+  });
+
+  it('bounds the persisted lane count at the tab ceiling', () => {
+    expect(partializeBody(chatSource)).toContain('slice(0, MAX_LANES)');
   });
 });

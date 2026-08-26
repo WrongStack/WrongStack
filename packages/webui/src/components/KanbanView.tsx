@@ -144,7 +144,11 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   const sendKanban = (type: `kanban.${string}`, payload: Record<string, unknown> = {}) => {
     useKanbanStore.getState().sendKanban(type, payload);
-    ws.send({ type, payload });
+    // Name the tab doing the work. Boards are addressed by `boardId` so their
+    // contents never crossed tabs, but every activity entry and presence ping
+    // was stamped with whichever session the runtime was on — tab 3 moving a
+    // card was recorded as tab 1's work.
+    ws.send({ type, payload: sessionId ? { ...payload, sessionId } : payload });
   };
 
   // Raw send for run-control messages (sdd.board.* / goal.*) — these steer
@@ -548,16 +552,11 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   {t('activity:kanban.boardHistory')}
                 </h3>
                 {boardHistory.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('activity:kanban.noHistory')}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t('activity:kanban.noHistory')}</p>
                 ) : (
                   <ol className="space-y-2">
                     {[...boardHistory].reverse().map((entry) => (
-                      <li
-                        key={entry.id}
-                        className="rounded-md border bg-card p-3 text-sm"
-                      >
+                      <li key={entry.id} className="rounded-md border bg-card p-3 text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">
                             {entry.type === 'board.created' && '🎉 '}

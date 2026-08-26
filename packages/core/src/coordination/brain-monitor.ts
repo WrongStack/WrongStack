@@ -45,6 +45,16 @@ export type { BrainInterventionKind };
 export interface BrainInterventionInput {
   subject: string;
   body: string;
+  /**
+   * The session whose distress triggered this intervention.
+   *
+   * The steer has to reach THAT leader. A host that resolves the target from
+   * its own "current session" instead delivers the correction to whichever
+   * session is in front — with several sessions live under one host, the tab
+   * that is struggling gets nothing and an unrelated one is told to change
+   * approach. Undefined only when the signal itself carried no session.
+   */
+  sessionId?: string | undefined;
 }
 
 /**
@@ -171,15 +181,44 @@ function editedPath(input: unknown): string | undefined {
   return typeof candidate === 'string' && candidate.length > 0 ? candidate : undefined;
 }
 
+/**
+ * Everything the monitor accumulates while watching ONE session.
+ *
+ * These used to be flat instance fields, which made every counter project-wide:
+ * with several sessions live under one host, tab 1's failing tool and tab 2's
+ * failing tool advanced the SAME streak, and whichever crossed the threshold
+ * engaged the Brain with the host's current session id attached. The steer then
+ * went to a session that was doing nothing wrong, while the one that was
+ * actually stuck got no help. Distress is a property of a session, so the
+ * evidence for it has to be too.
+ */
+interface SessionSignalState {
+  failStreaks: Map<string, number>;
+  errorTimestamps: number[];
+  editTimestamps: Map<string, number[]>;
+  /** Per-kind engagement cooldown. One session's steer must not mute another's. */
+  lastEngagedAt: Map<string, number>;
+  /** At most one in-flight engagement per session — an LLM call takes seconds. */
+  engaging: boolean;
+  activeRuns: number;
+  lastProgressAt: number;
+  /** Last time anything at all was recorded, for pruning idle sessions. */
+  touchedAt: number;
+}
+
+/** Bucket for events that name no session (a host that does not stamp them). */
+const UNATTRIBUTED_SESSION = '';
+
+/**
+ * Ceiling on tracked sessions. Four tabs is the supported maximum; the slack
+ * absorbs sessions that end while their window is still open. Idle buckets are
+ * pruned before this ever bites.
+ */
+const MAX_TRACKED_SESSIONS = 16;
+
 export class BrainMonitor {
-  private readonly failStreaks = new Map<string, number>();
-  private errorTimestamps: number[] = [];
-  private readonly editTimestamps = new Map<string, number[]>();
-  private readonly lastEngagedAt = new Map<string, number>();
+  private readonly bySession = new Map<string, SessionSignalState>();
   private readonly unsubscribers: Array<() => void> = [];
-  private engaging = false;
-  private activeRuns = 0;
-  private lastProgressAt = 0;
   private stallTimer: ReturnType<typeof setInterval> | undefined;
 
   // Mutable, not readonly: `reconfigure()` re-applies these live. Every knob
@@ -211,6 +250,72 @@ export class BrainMonitor {
   private resolveLeaderSessionId(): string | undefined {
     const id = this.opts.leaderSessionId;
     return typeof id === 'function' ? id() : id;
+  }
+
+  /**
+   * The signal state for one session, created on first sight.
+   *
+   * A host that pins `leaderSessionId` (the CLI, one session per process) only
+   * ever reaches one bucket. A host that does not (the WebUI, four tabs on one
+   * runtime) gets one bucket per tab, which is the point.
+   */
+  private stateFor(sessionId: string | undefined): SessionSignalState {
+    const key = sessionId || UNATTRIBUTED_SESSION;
+    let state = this.bySession.get(key);
+    if (!state) {
+      this.pruneIdleSessions();
+      state = {
+        failStreaks: new Map(),
+        errorTimestamps: [],
+        editTimestamps: new Map(),
+        lastEngagedAt: new Map(),
+        engaging: false,
+        activeRuns: 0,
+        lastProgressAt: 0,
+        touchedAt: Date.now(),
+      };
+      this.bySession.set(key, state);
+    }
+    state.touchedAt = Date.now();
+    return state;
+  }
+
+  /**
+   * Drop buckets for sessions that have been quiet longer than any signal
+   * window. Without this a long-lived host accumulates one bucket per session
+   * it has ever seen — cheap individually, unbounded in aggregate.
+   *
+   * Cooldowns are the one thing worth losing sleep over here: pruning a bucket
+   * resets its rate limit. That is acceptable only because the prune horizon is
+   * strictly longer than the cooldown, so a pruned session could have engaged
+   * again anyway.
+   */
+  private pruneIdleSessions(): void {
+    if (this.bySession.size < MAX_TRACKED_SESSIONS) return;
+    const now = Date.now();
+    const horizon = Math.max(
+      this.fileChurnWindowMs,
+      this.errorStormWindowMs,
+      this.stallMs,
+      this.cooldownMs,
+    );
+    for (const [key, state] of this.bySession) {
+      if (state.engaging) continue;
+      if (now - state.touchedAt > horizon) this.bySession.delete(key);
+    }
+    // Still full: evict the least recently touched idle bucket.
+    if (this.bySession.size >= MAX_TRACKED_SESSIONS) {
+      let oldestKey: string | undefined;
+      let oldestAt = Number.POSITIVE_INFINITY;
+      for (const [key, state] of this.bySession) {
+        if (state.engaging) continue;
+        if (state.touchedAt < oldestAt) {
+          oldestAt = state.touchedAt;
+          oldestKey = key;
+        }
+      }
+      if (oldestKey !== undefined) this.bySession.delete(oldestKey);
+    }
   }
 
   constructor(private readonly opts: BrainMonitorOptions) {
@@ -307,18 +412,19 @@ export class BrainMonitor {
         const leaderSid = this.resolveLeaderSessionId();
         if (leaderSid && e.sessionId && e.sessionId !== leaderSid) return;
 
-        this.lastProgressAt = Date.now();
-        this.trackFileChurn(e.name, e.ok, e.input);
+        const state = this.stateFor(e.sessionId);
+        state.lastProgressAt = Date.now();
+        this.trackFileChurn(state, e.sessionId, e.name, e.ok, e.input);
         if (!this.signals.toolFailureStreak) return;
         if (e.ok) {
-          this.failStreaks.delete(e.name);
+          state.failStreaks.delete(e.name);
           return;
         }
-        const streak = (this.failStreaks.get(e.name) ?? 0) + 1;
-        this.failStreaks.set(e.name, streak);
+        const streak = (state.failStreaks.get(e.name) ?? 0) + 1;
+        state.failStreaks.set(e.name, streak);
         if (streak >= this.toolFailureStreak) {
-          this.failStreaks.delete(e.name);
-          void this.engage('tool_failure_streak', {
+          state.failStreaks.delete(e.name);
+          void this.engage('tool_failure_streak', e.sessionId, {
             question: `The tool "${e.name}" has failed ${streak} times in a row. Should the agent be steered to a different approach?`,
             context: [
               `Tool: ${e.name}`,
@@ -339,8 +445,9 @@ export class BrainMonitor {
           // Ignore subagent run events — only track the leader's runs
           const lsid = this.resolveLeaderSessionId();
           if (lsid && e.sessionId && e.sessionId !== lsid) return;
-          this.activeRuns += 1;
-          this.lastProgressAt = Date.now();
+          const state = this.stateFor(e.sessionId);
+          state.activeRuns += 1;
+          state.lastProgressAt = Date.now();
         }),
         // `agent.run.completed` is the only terminator. `Agent.run` emits it on
         // every exit path — the success path and, unconditionally, the catch
@@ -355,29 +462,35 @@ export class BrainMonitor {
         this.opts.events.on('agent.run.completed', (e) => {
           const lsid = this.resolveLeaderSessionId();
           if (lsid && e.sessionId && e.sessionId !== lsid) return;
-          this.activeRuns = Math.max(0, this.activeRuns - 1);
+          const state = this.stateFor(e.sessionId);
+          state.activeRuns = Math.max(0, state.activeRuns - 1);
         }),
         this.opts.events.on('iteration.started', (e) => {
           const lsid = this.resolveLeaderSessionId();
           if (lsid && e.sessionId && e.sessionId !== lsid) return;
-          this.lastProgressAt = Date.now();
+          this.stateFor(e.sessionId).lastProgressAt = Date.now();
         }),
       );
       this.stallTimer = setInterval(() => {
-        if (this.activeRuns === 0 || this.lastProgressAt === 0) return;
-        const idleMs = Date.now() - this.lastProgressAt;
-        if (idleMs < this.stallMs) return;
-        // Re-arm from now so a declined steer doesn't re-fire every tick
-        // (the per-kind cooldown also applies).
-        this.lastProgressAt = Date.now();
-        void this.engage('agent_stall', {
-          question: `An active run has made no observable progress (no tool call or iteration) for ${Math.round(idleMs / 60_000)} minute(s). Should the agent be steered before more time is wasted?`,
-          context: [
-            `Active runs: ${this.activeRuns}`,
-            `Idle for: ${Math.round(idleMs / 1000)}s`,
-            `Stall threshold: ${Math.round(this.stallMs / 1000)}s`,
-          ].join('\n'),
-        });
+        // Each session stalls on its own clock: a busy tab must not keep a
+        // stuck neighbour's watchdog re-armed, which is what one shared
+        // `lastProgressAt` did.
+        for (const [key, state] of this.bySession) {
+          if (state.activeRuns === 0 || state.lastProgressAt === 0) continue;
+          const idleMs = Date.now() - state.lastProgressAt;
+          if (idleMs < this.stallMs) continue;
+          // Re-arm from now so a declined steer doesn't re-fire every tick
+          // (the per-kind cooldown also applies).
+          state.lastProgressAt = Date.now();
+          void this.engage('agent_stall', key || undefined, {
+            question: `An active run has made no observable progress (no tool call or iteration) for ${Math.round(idleMs / 60_000)} minute(s). Should the agent be steered before more time is wasted?`,
+            context: [
+              `Active runs: ${state.activeRuns}`,
+              `Idle for: ${Math.round(idleMs / 1000)}s`,
+              `Stall threshold: ${Math.round(this.stallMs / 1000)}s`,
+            ].join('\n'),
+          });
+        }
       }, this.stallCheckIntervalMs);
       this.stallTimer.unref?.();
     }
@@ -390,15 +503,16 @@ export class BrainMonitor {
         if (lsid && e.sessionId && e.sessionId !== lsid) return;
 
         const now = Date.now();
-        this.errorTimestamps.push(now);
-        this.errorTimestamps = this.errorTimestamps.filter(
+        const state = this.stateFor(e.sessionId);
+        state.errorTimestamps.push(now);
+        state.errorTimestamps = state.errorTimestamps.filter(
           (t) => now - t <= this.errorStormWindowMs,
         );
-        if (this.errorTimestamps.length >= this.errorStormCount) {
-          const count = this.errorTimestamps.length;
-          this.errorTimestamps = [];
+        if (state.errorTimestamps.length >= this.errorStormCount) {
+          const count = state.errorTimestamps.length;
+          state.errorTimestamps = [];
           const message = e.err instanceof Error ? e.err.message : String(e.err);
-          void this.engage('error_storm', {
+          void this.engage('error_storm', e.sessionId, {
             question: `${count} errors occurred within ${Math.round(this.errorStormWindowMs / 1000)}s (phase: ${e.phase}). Should the agent be steered before more work is wasted?`,
             context: `Latest error: ${message.slice(0, 400)}`,
           });
@@ -422,31 +536,41 @@ export class BrainMonitor {
     this.running = false;
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
-    this.failStreaks.clear();
-    this.errorTimestamps = [];
-    this.editTimestamps.clear();
+    // Accumulating evidence resets per session; engagement cooldowns are
+    // preserved so re-tuning cannot be used to bypass the rate limit.
+    for (const state of this.bySession.values()) {
+      state.failStreaks.clear();
+      state.errorTimestamps = [];
+      state.editTimestamps.clear();
+      state.activeRuns = 0;
+      state.lastProgressAt = 0;
+    }
     if (this.stallTimer) {
       clearInterval(this.stallTimer);
       this.stallTimer = undefined;
     }
-    this.activeRuns = 0;
-    this.lastProgressAt = 0;
   }
 
   /** Sliding-window count of successful edits per file → churn signal. */
-  private trackFileChurn(toolName: string, ok: boolean, input: unknown): void {
+  private trackFileChurn(
+    state: SessionSignalState,
+    sessionId: string | undefined,
+    toolName: string,
+    ok: boolean,
+    input: unknown,
+  ): void {
     if (!this.signals.fileChurn) return;
     if (!ok || !this.fileEditTools.has(toolName.toLowerCase())) return;
     const path = editedPath(input);
     if (!path) return;
     const now = Date.now();
-    const stamps = (this.editTimestamps.get(path) ?? []).filter(
+    const stamps = (state.editTimestamps.get(path) ?? []).filter(
       (t) => now - t <= this.fileChurnWindowMs,
     );
     stamps.push(now);
     if (stamps.length >= this.fileChurnThreshold) {
-      this.editTimestamps.delete(path);
-      void this.engage('file_churn', {
+      state.editTimestamps.delete(path);
+      void this.engage('file_churn', sessionId, {
         question: `The file "${path}" has been edited ${stamps.length} times within ${Math.round(this.fileChurnWindowMs / 60_000)} minutes — the agent may be oscillating (edit/revert loop) instead of converging. Should it be steered?`,
         context: [
           `File: ${path}`,
@@ -456,34 +580,41 @@ export class BrainMonitor {
       });
       return;
     }
-    if (this.editTimestamps.size >= 500 && !this.editTimestamps.has(path)) {
-      for (const [p, times] of this.editTimestamps) {
+    if (state.editTimestamps.size >= 500 && !state.editTimestamps.has(path)) {
+      for (const [p, times] of state.editTimestamps) {
         if (times.every((t) => now - t > this.fileChurnWindowMs)) {
-          this.editTimestamps.delete(p);
+          state.editTimestamps.delete(p);
         }
       }
-      if (this.editTimestamps.size >= 500) {
-        const oldest = this.editTimestamps.keys().next().value;
-        if (oldest !== undefined) this.editTimestamps.delete(oldest);
+      if (state.editTimestamps.size >= 500) {
+        const oldest = state.editTimestamps.keys().next().value;
+        if (oldest !== undefined) state.editTimestamps.delete(oldest);
       }
     }
-    this.editTimestamps.set(path, stamps);
+    state.editTimestamps.set(path, stamps);
   }
 
   private async engage(
     kind: BrainInterventionKind,
+    sessionId: string | undefined,
     input: { question: string; context: string },
   ): Promise<void> {
-    // Rate limits: per-kind cooldown + never more than one engagement in
-    // flight (an LLM-backed brain call can take seconds).
-    const last = this.lastEngagedAt.get(kind) ?? 0;
-    if (this.engaging || Date.now() - last < this.cooldownMs) return;
-    this.engaging = true;
-    this.lastEngagedAt.set(kind, Date.now());
+    const state = this.stateFor(sessionId);
+    // Rate limits, PER SESSION: a per-kind cooldown plus never more than one
+    // engagement in flight for that session (an LLM-backed brain call takes
+    // seconds). Sharing either across sessions meant one busy tab could
+    // silence the Brain for every other tab.
+    const last = state.lastEngagedAt.get(kind) ?? 0;
+    if (state.engaging || Date.now() - last < this.cooldownMs) return;
+    state.engaging = true;
+    state.lastEngagedAt.set(kind, Date.now());
     try {
       const request: BrainDecisionRequest = {
         id: `brainmon-${randomUUID()}`,
-        sessionId: this.opts.sessionId?.(),
+        // The session whose evidence triggered this — NOT the host's current
+        // one. They differ the moment two sessions run under one host, and
+        // taking the host's sent the steer to the wrong leader.
+        sessionId: sessionId ?? this.opts.sessionId?.(),
         source: 'system',
         question: input.question,
         context: input.context,
@@ -549,7 +680,7 @@ export class BrainMonitor {
     } catch {
       // The monitor must never destabilize the host it protects.
     } finally {
-      this.engaging = false;
+      state.engaging = false;
     }
   }
 
@@ -570,6 +701,7 @@ export class BrainMonitor {
     const guidance = decision.rationale?.trim() || decision.text.trim();
     try {
       await this.opts.intervene({
+        sessionId: request.sessionId,
         subject: `Brain intervention: ${kind.replace(/_/g, ' ')}`,
         body: [
           `The Brain engaged after detecting: ${request.question}`,

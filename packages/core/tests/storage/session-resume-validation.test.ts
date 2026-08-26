@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SessionEvent } from '../../src/types/session.js';
 import {
   formatCrashRecoveryNotice,
   formatInterruptedToolNotice,
@@ -9,6 +8,7 @@ import {
   isResumeNoticeMessage,
   validateResumeFileObservations,
 } from '../../src/storage/session-resume-validation.js';
+import type { SessionEvent } from '../../src/types/session.js';
 
 // Mock node:fs/promises for file system operations
 vi.mock('node:fs/promises', async () => {
@@ -59,7 +59,9 @@ describe('validateResumeFileObservations', () => {
   });
 
   it('returns empty staleFiles when there are no file_observation events', async () => {
-    const events: SessionEvent[] = [{ type: 'session_start', ts: now(), id: 's1', model: 'm', provider: 'p' }];
+    const events: SessionEvent[] = [
+      { type: 'session_start', ts: now(), id: 's1', model: 'm', provider: 'p' },
+    ];
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.checkedFileCount).toBe(0);
     expect(result.staleFiles).toEqual([]);
@@ -115,7 +117,9 @@ describe('validateResumeFileObservations', () => {
   it('marks a file as unreadable when stat fails with non-ENOENT error', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
     vi.mocked(fsp.realpath).mockResolvedValue(testFile1);
-    vi.mocked(fsp.stat).mockRejectedValue(Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }));
+    vi.mocked(fsp.stat).mockRejectedValue(
+      Object.assign(new Error('EACCES permission denied'), { code: 'EACCES' }),
+    );
 
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.checkedFileCount).toBe(1);
@@ -127,8 +131,14 @@ describe('validateResumeFileObservations', () => {
     const events: SessionEvent[] = [
       { type: 'session_start', ts: now(), id: 's1', model: 'm', provider: 'p' },
       { type: 'user_input', ts: now(), content: 'hello' },
-      { type: 'llm_response', ts: now(), content: [{ type: 'text', text: 'hi' }] },
-      { type: 'checkpoint', ts: now(), promptIndex: 0, tokenIn: 10, tokenOut: 20 },
+      {
+        type: 'llm_response',
+        ts: now(),
+        content: [{ type: 'text', text: 'hi' }],
+        stopReason: 'end_turn',
+        usage: { input: 10, output: 20 },
+      },
+      { type: 'checkpoint', ts: now(), promptIndex: 0, promptPreview: 'hello' },
     ];
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.checkedFileCount).toBe(0);
@@ -181,8 +191,19 @@ describe('formatResumeValidationNotice', () => {
       checkedAt: new Date().toISOString(),
       checkedFileCount: 3,
       staleFiles: [
-        { path: testFile1, status: 'modified' as const, observedAt: new Date().toISOString(), expectedHash: 'a'.repeat(64), actualHash: 'b'.repeat(64) },
-        { path: testFile2, status: 'deleted' as const, observedAt: new Date().toISOString(), expectedHash: 'a'.repeat(64) },
+        {
+          path: testFile1,
+          status: 'modified' as const,
+          observedAt: new Date().toISOString(),
+          expectedHash: 'a'.repeat(64),
+          actualHash: 'b'.repeat(64),
+        },
+        {
+          path: testFile2,
+          status: 'deleted' as const,
+          observedAt: new Date().toISOString(),
+          expectedHash: 'a'.repeat(64),
+        },
       ],
     };
     const notice = formatResumeValidationNotice(validation, testRoot);
@@ -219,7 +240,13 @@ describe('formatResumeValidationNotice', () => {
       checkedAt: new Date().toISOString(),
       checkedFileCount: 1,
       staleFiles: [
-        { path: outsideFile, status: 'outside_project' as const, observedAt: new Date().toISOString(), expectedHash: 'a'.repeat(64), detail: 'outside project' },
+        {
+          path: outsideFile,
+          status: 'outside_project' as const,
+          observedAt: new Date().toISOString(),
+          expectedHash: 'a'.repeat(64),
+          detail: 'outside project',
+        },
       ],
     };
     const notice = formatResumeValidationNotice(validation, testRoot);
@@ -306,7 +333,9 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when stat returns a non-file entry', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) =>
+      String(p),
+    );
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => false, size: 100 } as any);
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('unreadable');
@@ -315,7 +344,9 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks deleted when readFile fails with ENOENT after stat succeeds', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) =>
+      String(p),
+    );
     vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
     vi.mocked(fsp.readFile).mockRejectedValue(
       Object.assign(new Error('ENOENT'), { code: 'ENOENT' }),
@@ -326,11 +357,11 @@ describe('validateResumeFileObservations — edge cases', () => {
 
   it('marks unreadable when readFile fails with a non-ENOENT error', async () => {
     const events = [makeObservation(testFile1, 'a'.repeat(64))];
-    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) => String(p));
-    vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
-    vi.mocked(fsp.readFile).mockRejectedValue(
-      Object.assign(new Error('EIO'), { code: 'EIO' }),
+    vi.mocked(fsp.realpath).mockImplementation(async (p: Parameters<typeof fsp.realpath>[0]) =>
+      String(p),
     );
+    vi.mocked(fsp.stat).mockResolvedValue({ isFile: () => true, size: 100 } as any);
+    vi.mocked(fsp.readFile).mockRejectedValue(Object.assign(new Error('EIO'), { code: 'EIO' }));
     const result = await validateResumeFileObservations(events, testRoot);
     expect(result.staleFiles[0]?.status).toBe('unreadable');
   });

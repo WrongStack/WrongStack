@@ -1,18 +1,18 @@
 // Backend types for WebUI server
 // These are the internal types used by the server-side code
 
-import type { WebSocket } from 'ws';
+import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { TrustBoundary } from '@wrongstack/core/security';
+import type { JournalEntry } from '@wrongstack/core/storage';
 import type {
   ConfigStore,
   ModelsRegistry,
   SecretVault,
   SessionStore,
 } from '@wrongstack/core/types';
-import type { JournalEntry } from '@wrongstack/core/storage';
-import type { Agent, AgentPipelines } from '@wrongstack/core/agent';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type { ToolRegistry } from '@wrongstack/core/registry';
+import type { WebSocket } from 'ws';
 
 /** Compatibility envelope; new boundaries should decode to CanonicalServerMessage. */
 export interface WSServerMessage {
@@ -94,9 +94,22 @@ export interface WebUIOptions {
    * `cli/webui-server.ts`) own the engine lifecycle and merely hand the
    * webui an observer slot.
    */
-  subscribeEternalIteration?:
-    | ((fn: (entry: JournalEntry) => void) => () => void)
-    | undefined;
+  subscribeEternalIteration?: ((fn: (entry: JournalEntry) => void) => () => void) | undefined;
+
+  /**
+   * Stop every subagent that ONE session spawned.
+   *
+   * Aborting a session's run only unwinds the workers the leader is blocked
+   * on. Anything started with `spawn_subagent` + `assign_task` keeps running
+   * because nothing asked it to stop — so a tab's Stop button silenced the
+   * leader while its fleet ground on in the background. The host owns the
+   * Director, so it supplies the cascade; the webui server only knows WHICH
+   * session was stopped.
+   *
+   * Session-scoped by contract: with four tabs live, stopping one tab must
+   * never reach into another tab's fleet.
+   */
+  stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
 }
 
 export interface BackendServices {
@@ -113,7 +126,22 @@ export interface BackendServices {
 
 export interface ConnectedClient {
   ws: WebSocket;
+  /**
+   * The session this connection last acted on. Kept for the abort-on-close
+   * path and for surfaces that only ever show one session at a time.
+   */
   sessionId: string | null;
+  /**
+   * EVERY session this connection is displaying.
+   *
+   * One browser page holds up to four tabs on ONE socket, so `sessionId`
+   * alone describes only whichever tab the user last touched — filtering
+   * broadcasts by it dropped the other three tabs' runs before they left the
+   * server. The client declares its open set with `session.subscribe`; an
+   * empty set means "not declared", and such a client falls back to the
+   * single-session filter.
+   */
+  sessionIds?: Set<string> | undefined;
   connectedAt: number;
   /** Remote socket address captured for verbose rejection logging. */
   remoteAddress?: string;

@@ -8,6 +8,16 @@ export interface AutonomyRouteHandlers {
   switchMode: (ws: WebSocket, msg: WSClientMessage) => Promise<void> | void;
 }
 
+/** The session a WS request originated from, when the client stamped one. */
+function requestSessionId(msg: WSClientMessage): string | undefined {
+  const payload = msg.payload;
+  const value =
+    payload && typeof payload === 'object'
+      ? (payload as { sessionId?: unknown }).sessionId
+      : undefined;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 export function createAutonomyRouteHandlers(ctx: PrefsHandlerContext): AutonomyRouteHandlers {
   return {
     switchMode: (ws, message) => {
@@ -16,7 +26,7 @@ export function createAutonomyRouteHandlers(ctx: PrefsHandlerContext): AutonomyR
         sendResult(ws, false, parsed.message);
         return;
       }
-      handleAutonomySwitch(ctx, ws, parsed.value.mode);
+      handleAutonomySwitch(ctx, ws, parsed.value.mode, requestSessionId(message));
     },
   };
 }

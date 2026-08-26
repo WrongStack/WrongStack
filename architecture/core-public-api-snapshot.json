@@ -238,6 +238,7 @@
         "export const AGENTS_BY_PHASE",
         "export const AGENT_CATALOG",
         "export const ALL_AGENT_DEFINITIONS",
+        "export const ROLE_DISPATCH_RATIONALE",
         "export function getAgentDefinition"
       ]
     },
@@ -306,7 +307,7 @@
         "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
         "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
         "export { ToolErrorCategory } from './tool.js';",
-        "export { classifyProviderError, effectiveInputTokens, freshInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, ProviderError, promptCacheHitRatio, REASONING_EFFORT_LEVELS, StreamHangError, } from './provider.js';",
+        "export { classifyProviderError, effectiveInputTokens, freshInputTokens, isContextOverflowShaped, isFallbackWorthy, isReasoningEffort, isRetryableKind, ProviderError, promptCacheHitRatio, REASONING_EFFORT_LEVELS, StreamHangError, totalUsageTokens, } from './provider.js';",
         "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
@@ -712,6 +713,7 @@
         "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from '../session-catalog/registry.js';",
         "export { resolveSessionId, type SessionIdResolution, sessionIdResolutionError, } from './session-id-resolver.js';",
         "export { scrubPersistedSessionData, scrubPersistedSessionEvent, scrubPersistedSessionSummary, } from './session-read-scrubber.js';",
+        "export { stampAgentId, withAgentAttribution } from './session-agent-attribution.js';",
         "export { type AbandonedSession, RecoveryLock, type RecoveryLockOptions, } from './recovery-lock.js';",
         "export { type Annotation, AnnotationsStore, type AnnotationsStoreOptions, } from './annotations-store.js';",
         "export { type ApplyRewindOptions, type ApplyRewindResult, applyRewindToConversation, type RewindableConversation, } from './session-rewind-apply.js';",
@@ -780,13 +782,13 @@
       },
       "source": "packages/core/src/infrastructure/index.ts",
       "declarations": [
+        "export { CONTEXT_MANAGER_TOOL_NAME, type ContextManagerAction, type ContextManagerInput, type ContextManagerResult, type ContextManagerToolOptions, contextManagerTool, createContextManagerTool, } from './context-manager.js';",
         "export { DefaultLogger, type DefaultLoggerOptions, type LogFormat } from './logger.js';",
         "export { DefaultPathResolver } from './path-resolver.js';",
         "export { DefaultTokenCounter } from './token-counter.js';",
         "export { ProviderCacheLedger } from './provider-cache-ledger.js';",
-        "export { assertProjectRootOutsideStateDir, bootConfig, flagsToConfigPatch, type BootConfigOptions, type BootConfigResult, } from '../boot.js';",
-        "export { contextManagerTool, createContextManagerTool, type ContextManagerInput, type ContextManagerResult, type ContextManagerAction, type ContextManagerToolOptions, } from './context-manager.js';",
-        "export { filesystemServer, githubServer, context7Server, braveSearchServer, blockServer, everArtServer, slackServer, awsServer, googleMapsServer, sentinelServer, zaiVisionServer, miniMaxVisionServer, playwrightServer, sshManagerServer, allServers, } from './mcp-servers.js';"
+        "export { allServers, awsServer, blockServer, braveSearchServer, context7Server, everArtServer, filesystemServer, githubServer, googleMapsServer, miniMaxVisionServer, playwrightServer, sentinelServer, slackServer, sshManagerServer, zaiVisionServer, } from './mcp-servers.js';",
+        "export { assertProjectRootOutsideStateDir, type BootConfigOptions, type BootConfigResult, bootConfig, flagsToConfigPatch, } from '../boot.js';"
       ]
     },
     {
@@ -1119,21 +1121,21 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 9690
+      "sourceLines": 10119
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 170,
-      "sourceLines": 49199
+      "sourceFiles": 168,
+      "sourceLines": 49467
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 45,
-      "sourceLines": 11779
+      "sourceLines": 11784
     },
     {
       "directory": "design",
@@ -1182,14 +1184,14 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused infrastructure package",
       "sourceFiles": 7,
-      "sourceLines": 1650
+      "sourceLines": 1684
     },
     {
       "directory": "kernel",
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3732
+      "sourceLines": 3814
     },
     {
       "directory": "models",
@@ -1258,8 +1260,8 @@
       "directory": "session-catalog",
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
-      "sourceFiles": 12,
-      "sourceLines": 4007
+      "sourceFiles": 13,
+      "sourceLines": 4335
     },
     {
       "directory": "skills",
@@ -1272,8 +1274,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 89,
-      "sourceLines": 19701
+      "sourceFiles": 90,
+      "sourceLines": 19629
     },
     {
       "directory": "tasking",
@@ -1294,7 +1296,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11617
+      "sourceLines": 11727
     },
     {
       "directory": "utils",

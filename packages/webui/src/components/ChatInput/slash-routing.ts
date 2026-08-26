@@ -1,10 +1,10 @@
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { navigateToView, openMainView, showPanel } from '@/lib/view-navigation';
 import { useSessionStore, useUIStore } from '@/stores';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import type { WSClientMessage } from '@/types';
 import { downloadChatAsMarkdown } from '../CommandPalette/export-utils.js';
 import { SLASH_COMMANDS } from './slash-commands.js';
-import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 interface ChatAssistantMessage {
   role: 'assistant';
@@ -187,6 +187,9 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       return true;
     case '/agents':
       useUIStore.getState().setAgentsMonitorOpen(true);
+      return true;
+    case '/roster':
+      openMainView('roster');
       return true;
     case '/autonomy': {
       // Mirrors the CLI's /autonomy: off | suggest | auto | eternal | eternal-parallel.

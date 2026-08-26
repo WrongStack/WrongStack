@@ -35,7 +35,7 @@ const THREAT_MODELER_META = {
   ] as const,
   differentiatesFrom:
     'security-reviewer finds defects in code; threat-modeler designs the threat surface before code exists.',
-};
+} satisfies RoleDispatcherSignal;
 
 const SECURE_CODING_COACH_META = {
   rationale:
@@ -52,7 +52,7 @@ const SECURE_CODING_COACH_META = {
   ] as const,
   differentiatesFrom:
     'security-scanner detects issues; secure-coding-coach produces prescriptive safe-by-default code and guidance.',
-};
+} satisfies RoleDispatcherSignal;
 
 const RESILIENCE_ENGINEER_META = {
   rationale:
@@ -69,7 +69,7 @@ const RESILIENCE_ENGINEER_META = {
   ] as const,
   differentiatesFrom:
     'chaos injects faults to test existing code; resilience-engineer designs the protective mechanisms ahead of time.',
-};
+} satisfies RoleDispatcherSignal;
 
 const CHAOS_ENGINEER_META = {
   rationale:
@@ -85,7 +85,7 @@ const CHAOS_ENGINEER_META = {
   ] as const,
   differentiatesFrom:
     'chaos verifies fault behavior; chaos-engineer designs the experiments and runs them safely.',
-};
+} satisfies RoleDispatcherSignal;
 
 const COMPLIANCE_AUDITOR_META = {
   rationale:
@@ -102,7 +102,7 @@ const COMPLIANCE_AUDITOR_META = {
   ] as const,
   differentiatesFrom:
     'compliance reviews the design; compliance-auditor produces traceable evidence for an external audit.',
-};
+} satisfies RoleDispatcherSignal;
 
 const PRIVACY_ENGINEER_META = {
   rationale:
@@ -119,103 +119,7 @@ const PRIVACY_ENGINEER_META = {
   ] as const,
   differentiatesFrom:
     'compliance audits controls; privacy-engineer implements privacy-by-design in code and pipelines.',
-};
-
-const PLUGIN_AUTHOR_META = {
-  rationale:
-    'Builds, packages and ships runnable WrongStack plugins; plugin-author is the production counterpart to skill-manage.',
-  signals: [
-    'plugin',
-    'plugin api',
-    'lifecycle',
-    'health',
-    'teardown',
-    'packaging',
-    'distribution',
-  ] as const,
-  differentiatesFrom:
-    'skill-manage authors skills; plugin-author authors full lifecycle plugins with health and teardown.',
-};
-
-const TOOL_AUTHOR_META = {
-  rationale:
-    'Designs tool schemas, capability declarations and error contracts; tool-author is the narrow, security-focused counterpart to plugin-author.',
-  signals: [
-    'tool',
-    'tool schema',
-    'capability',
-    'permission',
-    'tool contract',
-    'tool error',
-    'tool lifecycle',
-  ] as const,
-  differentiatesFrom:
-    'plugin-author writes full plugin lifecycle; tool-author focuses on a single tool contract and capability set.',
-};
-
-const PROMPT_EVALUATOR_META = {
-  rationale:
-    'Builds rubrics and runs adversarial / regression tests on prompts; prompt-evaluator is the independent measurement counterpart to prompt.',
-  signals: [
-    'prompt eval',
-    'prompt regression',
-    'rubric',
-    'adversarial prompt',
-    'prompt benchmark',
-    'judge prompt',
-    'eval suite',
-  ] as const,
-  differentiatesFrom:
-    'prompt authors prompts; prompt-evaluator independently measures them with rubrics and adversarial inputs.',
-};
-
-const BENCHMARK_ENGINEER_META = {
-  rationale:
-    'Designs reproducible benchmarks and methodology for comparing models and agent setups; benchmark-engineer is the measurement-infrastructure counterpart to performance.',
-  signals: [
-    'benchmark',
-    'reproducible',
-    'evaluation harness',
-    'regression suite',
-    'metric methodology',
-    'baseline',
-    'deterministic run',
-  ] as const,
-  differentiatesFrom:
-    'performance optimizes product code; benchmark-engineer builds the measurement infrastructure that supports comparison.',
-};
-
-const MEMORY_CURATOR_META = {
-  rationale:
-    'Validates, merges and de-duplicates long-term memory entries with audience scope; memory-curator is the quality counterpart to context.',
-  signals: [
-    'memory',
-    'curate',
-    'memory audit',
-    'memory merge',
-    'memory expiry',
-    'audience scope',
-    'memory recall quality',
-  ] as const,
-  differentiatesFrom:
-    'context manages the active context window; memory-curator curates the long-term memory store for accuracy.',
-};
-
-const FLEET_COORDINATOR_META = {
-  rationale:
-    'Owns job partitioning, capacity and result synthesis across many workers; fleet-coordinator is the multi-agent execution counterpart to planner.',
-  signals: [
-    'fleet',
-    'fan out',
-    'parallel agents',
-    'synthesis',
-    'subagent capacity',
-    'coordinator',
-    'result aggregation',
-  ] as const,
-  differentiatesFrom:
-    'planner designs ordered steps for one worker; fleet-coordinator runs many workers in parallel and merges their results.',
-};
+} satisfies RoleDispatcherSignal;
 
 export const WAVE2_AGENTS: AgentDefinition[] = [
   {
@@ -231,6 +135,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'review',
       summary:
         'Models trust boundaries, abuse cases and data flow before code is written; produces a threat model with attack trees.',
+      rationale: THREAT_MODELER_META,
       keywords: [
         ...THREAT_MODELER_META.signals,
         'threat-modeler',
@@ -257,6 +162,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'review',
       summary:
         'Teaches secure patterns, produces safe defaults and walks engineers through prescriptive fixes.',
+      rationale: SECURE_CODING_COACH_META,
       keywords: [
         ...SECURE_CODING_COACH_META.signals,
         'secure-coding',
@@ -280,6 +186,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'verify',
       summary:
         'Designs retry, timeout, circuit breaker, bulkhead and graceful-degradation patterns ahead of time.',
+      rationale: RESILIENCE_ENGINEER_META,
       keywords: [
         ...RESILIENCE_ENGINEER_META.signals,
         'resilience',
@@ -304,6 +211,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'verify',
       summary:
         'Builds and runs controlled fault-injection experiments with a defined blast radius, steady state and hypothesis.',
+      rationale: CHAOS_ENGINEER_META,
       keywords: [
         ...CHAOS_ENGINEER_META.signals,
         'chaos-engineer',
@@ -326,6 +234,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'review',
       summary:
         'Produces auditable control evidence, traceability and evidence maps for SOC2, ISO and similar frameworks.',
+      rationale: COMPLIANCE_AUDITOR_META,
       keywords: [
         ...COMPLIANCE_AUDITOR_META.signals,
         'compliance-auditor',
@@ -350,6 +259,7 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
       phase: 'review',
       summary:
         'Implements data minimization, consent, retention and deletion; privacy-by-design across the stack.',
+      rationale: PRIVACY_ENGINEER_META,
       keywords: [
         ...PRIVACY_ENGINEER_META.signals,
         'privacy-engineer',
@@ -363,22 +273,5 @@ export const WAVE2_AGENTS: AgentDefinition[] = [
     },
   },
 ];
-
-export const WAVE2_ROLE_METAS: Record<string, RoleDispatcherSignal> = {
-  'threat-modeler': THREAT_MODELER_META,
-  'secure-coding-coach': SECURE_CODING_COACH_META,
-  'resilience-engineer': RESILIENCE_ENGINEER_META,
-  'chaos-engineer': CHAOS_ENGINEER_META,
-  'compliance-auditor': COMPLIANCE_AUDITOR_META,
-  'privacy-engineer': PRIVACY_ENGINEER_META,
-  'plugin-author': PLUGIN_AUTHOR_META,
-  'tool-author': TOOL_AUTHOR_META,
-  'prompt-evaluator': PROMPT_EVALUATOR_META,
-  'benchmark-engineer': BENCHMARK_ENGINEER_META,
-  'memory-curator': MEMORY_CURATOR_META,
-  'fleet-coordinator': FLEET_COORDINATOR_META,
-};
-
-export const WAVE2_ROLES = new Set<string>(Object.keys(WAVE2_ROLE_METAS));
 
 void skillSet;

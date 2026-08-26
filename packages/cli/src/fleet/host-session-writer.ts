@@ -1,8 +1,17 @@
+import { stampAgentId } from '@wrongstack/core/storage';
 import type { SessionWriter } from '@wrongstack/core/types';
 
 /**
  * Session writer for a subagent that has no journal of its own: its events are
  * interleaved into the parent's JSONL.
+ *
+ * Pass `agentId` so those interleaved events carry attribution. Without it the
+ * subagent's `tool_call_start`, `llm_response` and error records are byte-for-
+ * byte indistinguishable from the leader's in the one file that holds both,
+ * and every consumer that reads the leader transcript — resume timeline,
+ * `/diag`, the HQ ledger, cost roll-ups — silently credits the leader for
+ * work it did not do. It is optional only so existing callers that have not
+ * resolved a name yet keep compiling; every real spawn site should pass one.
  *
  * Lifecycle and rewind *control* stay no-ops — `writeCheckpoint`,
  * `writeInFlightMarker`, `truncateToCheckpoint`, `clearSession` and `close`
@@ -16,15 +25,20 @@ import type { SessionWriter } from '@wrongstack/core/types';
  * parent writer files them against its own `activePromptIndex`, which is
  * exactly the prompt a user rewinding this work would target.
  */
-export function createParentSubagentSessionWriter(parentSession: SessionWriter): SessionWriter {
+export function createParentSubagentSessionWriter(
+  parentSession: SessionWriter,
+  agentId?: string,
+): SessionWriter {
+  const attribute = (event: Parameters<SessionWriter['append']>[0]) =>
+    agentId ? stampAgentId({ ...event }, agentId) : { ...event };
   return {
     id: parentSession.id,
     transcriptPath: parentSession.transcriptPath,
     get pendingToolUses(): string[] {
       return [];
     },
-    append: (event) => parentSession.append({ ...event }),
-    appendBatch: (events) => parentSession.appendBatch(events.map((event) => ({ ...event }))),
+    append: (event) => parentSession.append(attribute(event)),
+    appendBatch: (events) => parentSession.appendBatch(events.map(attribute)),
     flush: () => parentSession.flush(),
     close: async () => {},
     recordFileChange: (input) => parentSession.recordFileChange(input),

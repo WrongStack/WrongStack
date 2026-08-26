@@ -9,7 +9,14 @@ export interface SetupEventsFleetBroadcasterDeps {
   wpaths?: WstackPaths | undefined;
   context: Context;
   clients: Map<WebSocket, ConnectedClient>;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   onFleetBroadcaster?: ((fn: () => Promise<void>) => void) | undefined;
   isDisposed: () => boolean;
 }

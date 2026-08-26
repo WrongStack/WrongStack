@@ -7,11 +7,11 @@ import {
   createChronicleContext,
   startChronicleFileObserver,
 } from '../../src/chronicle/index.js';
-import { EventBus } from '../../src/kernel/events.js';
 import type { ChronicleJournalStats } from '../../src/chronicle/journal.js';
 import type { ChronicleEventSink } from '../../src/chronicle/sink.js';
-import { CHRONICLE_SCHEMA_VERSION } from '../../src/chronicle/types.js';
 import type { ChronicleEvent, ChronicleEventInput } from '../../src/chronicle/types.js';
+import { CHRONICLE_SCHEMA_VERSION } from '../../src/chronicle/types.js';
+import { EventBus } from '../../src/kernel/events.js';
 
 const tempDirs: string[] = [];
 
@@ -494,7 +494,11 @@ describe('startChronicleFileObserver', () => {
 
     const sink = new FlakyBatchSink(1);
     const bus = new EventBus();
-    const activities: Array<{ filePath: string; source: string; toolUseId?: string }> = [];
+    const activities: Array<{
+      filePath: string;
+      source: string;
+      toolUseId?: string | undefined;
+    }> = [];
     bus.on('file.activity', (payload) => activities.push(payload));
     const context = createChronicleContext(
       { installationId: 'i', machineId: 'm', projectId: 'p' },
@@ -534,7 +538,8 @@ describe('startChronicleFileObserver', () => {
     // It never degraded to an external mutation.
     expect(
       sink.recorded.some(
-        (input) => input.eventType === 'file.external.modified' && input.resource?.path === 'tool-file.ts',
+        (input) =>
+          input.eventType === 'file.external.modified' && input.resource?.path === 'tool-file.ts',
       ),
     ).toBe(false);
     // The failed attempt emitted nothing; the committed retry emitted

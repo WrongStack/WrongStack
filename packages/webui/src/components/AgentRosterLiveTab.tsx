@@ -10,11 +10,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
 import { openPanel } from '@/components/activity-bar/nav';
+import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { useFleetStore, useSessionStore, useUIStore } from '@/stores';
+import { useFleetStore, useSessionLeaderId, useSessionStore, useUIStore } from '@/stores';
 
 const STATUS_META: Record<
   string,
@@ -87,14 +88,16 @@ function fmtCost(n: number | undefined | null): string {
 export function LiveFleetTab({ nowTick }: { nowTick: number }) {
   const { t } = useAppTranslation();
   const fleetAgents = useFleetStore((s) => s.agents);
-  const leaderId = useFleetStore((s) => s.leaderId);
   const currentSessionId = useSessionStore((s) => s.session?.id);
+  // This tab's leader. The process-wide pointer put the crown on whichever
+  // session promoted a leader last, in every tab's roster at once.
+  const leaderId = useSessionLeaderId(currentSessionId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'running' | 'done' | 'failed'>('all');
 
   const sessionAgents = useMemo(() => {
-    return Array.from(fleetAgents.values()).filter(
-      (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
+    return Array.from(fleetAgents.values()).filter((a) =>
+      agentBelongsToSession(a.sessionId, currentSessionId),
     );
   }, [fleetAgents, currentSessionId]);
 
@@ -147,9 +150,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
         <div className="text-center space-y-3">
           <Bot className="h-10 w-10 mx-auto opacity-30" />
           <p className="text-sm">{t('activity:agentRoster.noActiveFleetAgents')}</p>
-          <p className="text-xs text-muted-foreground/70">
-            {t('activity:agentRoster.liveEmpty')}
-          </p>
+          <p className="text-xs text-muted-foreground/70">{t('activity:agentRoster.liveEmpty')}</p>
         </div>
       </div>
     );
@@ -179,7 +180,8 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
               )}
             >
               {f === 'all' && t('activity:agentRoster.filterAll', { count: counts.total })}
-              {f === 'running' && t('activity:agentRoster.filterRunning', { count: counts.running })}
+              {f === 'running' &&
+                t('activity:agentRoster.filterRunning', { count: counts.running })}
               {f === 'done' && t('activity:agentRoster.filterDone', { count: counts.completed })}
               {f === 'failed' && t('activity:agentRoster.filterFailed', { count: counts.failed })}
             </button>
@@ -269,7 +271,8 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
 
         {/* Bottom bar */}
         <div className="shrink-0 border-t border-border/50 px-3 py-2 flex items-center gap-2 text-[10px] text-muted-foreground">
-          <span className="font-medium tabular-nums">{counts.total}</span> {t('activity:agentRoster.agentsTotal')}
+          <span className="font-medium tabular-nums">{counts.total}</span>{' '}
+          {t('activity:agentRoster.agentsTotal')}
           <span className="text-muted-foreground/50">·</span>
           <span className="text-success tabular-nums">{counts.running}</span> running
           <span className="text-muted-foreground/50">·</span>
@@ -312,7 +315,7 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
         : '-';
   const ctxPct = Math.min(100, Math.max(0, agent.ctxPct));
   const hasTool = agent.currentTool || agent.lastTool;
-  const leaderId = useFleetStore((s) => s.leaderId);
+  const leaderId = useSessionLeaderId(agent.sessionId);
 
   return (
     <div className="space-y-4">
@@ -364,13 +367,17 @@ function AgentDetailCard({ agent, nowTick }: { agent: SubagentView; nowTick: num
           <div className="text-lg font-mono font-semibold mt-0.5">{agent.toolCalls}</div>
         </div>
         <div className="rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('activity:agentRoster.cost')}</span>
+          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+            {t('activity:agentRoster.cost')}
+          </span>
           <div className="text-lg font-mono font-semibold mt-0.5 text-success">
             {fmtCost(agent.costUsd)}
           </div>
         </div>
         <div className="rounded-lg border bg-card p-2">
-          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('activity:agentRoster.context')}</span>
+          <span className="text-[9px] text-muted-foreground uppercase tracking-wider">
+            {t('activity:agentRoster.context')}
+          </span>
           <div className="text-lg font-mono font-semibold mt-0.5">{ctxPct}%</div>
         </div>
       </div>

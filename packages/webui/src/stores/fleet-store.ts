@@ -1,6 +1,7 @@
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { create } from 'zustand';
 import { compareAgentsByActivity } from '@/lib/agent-status';
+import { useSessionStore } from './session-store.js';
 import type {
   AgentTranscriptEntry,
   AgentTranscriptKind,
@@ -277,13 +278,18 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
 
       // leader_updated: mark the new leader and demote the old one.
       if (e.kind === 'leader_updated' && e.subagentId) {
-        const prevLeaderId = state.leaderId;
-        if (prevLeaderId && prevLeaderId !== e.subagentId) {
-          const prevLeader = agents.get(prevLeaderId);
-          if (prevLeader) agents.set(prevLeaderId, { ...prevLeader, isLeader: false });
+        const leader = agents.get(e.subagentId) ?? blankAgent(e.subagentId, e.name, e.sessionId);
+        const leaderSession = e.sessionId || leader.sessionId;
+        // Demote only the outgoing leader of the SAME session. Demoting
+        // whoever held the process-wide pointer took the crown off another
+        // tab's leader every time a second tab promoted one, and that tab then
+        // listed its own leader among its subagents.
+        for (const [id, agent] of agents) {
+          if (id === e.subagentId || !agent.isLeader) continue;
+          if (leaderSession && agent.sessionId && agent.sessionId !== leaderSession) continue;
+          agents.set(id, { ...agent, isLeader: false });
         }
         leaderId = e.subagentId;
-        const leader = agents.get(e.subagentId) ?? blankAgent(e.subagentId, e.name, e.sessionId);
         agents.set(e.subagentId, {
           ...leader,
           isLeader: true,
@@ -616,3 +622,119 @@ export const selectSortedAgentList = (state: FleetState): SubagentView[] => {
 /** Selector: O(1) lookup of the leader agent's name via the agents Map. */
 export const selectLeaderName = (state: FleetState): string | undefined =>
   state.leaderId ? state.agents.get(state.leaderId)?.name : undefined;
+
+// ── Per-session fleet accounting ───────────────────────────────────────────
+//
+// `leaderId` and `fleetTokensIn/Out` above are process-wide: one leader
+// pointer and one running total for the whole roster. With four tabs open
+// that is wrong in both directions — tab 1's crown lands on tab 3's card, and
+// the Inspector shows the SUM of four sessions' subagent tokens as if it were
+// this session's cost.
+//
+// The roster already knows better: every agent carries its own `sessionId`,
+// `isLeader`, `tokensIn/Out`, status and cost. So rather than maintaining a
+// second set of incremental counters per session — the existing global ones
+// need three separate correction paths (removal, eviction, clear) precisely
+// because incremental counters drift — the per-session view is DERIVED from
+// the roster and cached against the `agents` Map identity. The Map is
+// replaced on every applied event, so this recomputes at most once per event
+// over a roster capped at 200, and it cannot disagree with what is displayed.
+
+export interface SessionFleetTotals {
+  /** The leader of THIS session, or undefined when it has none. */
+  leaderId: string | undefined;
+  tokensIn: number;
+  tokensOut: number;
+  totalCost: number;
+  running: number;
+  completed: number;
+  failed: number;
+  total: number;
+}
+
+const EMPTY_SESSION_TOTALS: SessionFleetTotals = Object.freeze({
+  leaderId: undefined,
+  tokensIn: 0,
+  tokensOut: 0,
+  totalCost: 0,
+  running: 0,
+  completed: 0,
+  failed: 0,
+  total: 0,
+});
+
+/**
+ * Agents with no `sessionId` at all. They belong to no tab, so they are
+ * counted once under this key rather than added to every tab's totals.
+ */
+const UNATTRIBUTED = ' unattributed';
+
+const totalsCache = new WeakMap<Map<string, SubagentView>, Map<string, SessionFleetTotals>>();
+
+function totalsBySession(agents: Map<string, SubagentView>): Map<string, SessionFleetTotals> {
+  const cached = totalsCache.get(agents);
+  if (cached) return cached;
+  const out = new Map<string, SessionFleetTotals>();
+  for (const agent of agents.values()) {
+    const key = agent.sessionId || UNATTRIBUTED;
+    let bucket = out.get(key);
+    if (!bucket) {
+      bucket = { ...EMPTY_SESSION_TOTALS };
+      out.set(key, bucket);
+    }
+    bucket.total++;
+    if (agent.status === 'running') bucket.running++;
+    else if (agent.status === 'completed') bucket.completed++;
+    else if (agent.status === 'failed' || agent.status === 'timeout') bucket.failed++;
+    if (Number.isFinite(agent.costUsd) && agent.costUsd > 0) bucket.totalCost += agent.costUsd;
+    bucket.tokensIn += agent.tokensIn ?? 0;
+    bucket.tokensOut += agent.tokensOut ?? 0;
+    if (agent.isLeader) bucket.leaderId = agent.id;
+  }
+  totalsCache.set(agents, out);
+  return out;
+}
+
+/** Fleet totals for ONE session. Never mutate the result — it is cached. */
+export const selectSessionFleetTotals = (
+  state: FleetState,
+  sessionId: string | undefined,
+): SessionFleetTotals => {
+  if (!sessionId) return EMPTY_SESSION_TOTALS;
+  return totalsBySession(state.agents).get(sessionId) ?? EMPTY_SESSION_TOTALS;
+};
+
+/**
+ * The leader of ONE session.
+ *
+ * Falls back to the process-wide `leaderId` only when that agent actually
+ * belongs to the session asked about — a leader that belongs to another tab
+ * must never be reported here, which is exactly the crown-on-the-wrong-card
+ * bug this replaces.
+ */
+export const selectSessionLeaderId = (
+  state: FleetState,
+  sessionId: string | undefined,
+): string | undefined => {
+  if (!sessionId) return state.leaderId;
+  const derived = totalsBySession(state.agents).get(sessionId)?.leaderId;
+  if (derived) return derived;
+  const global = state.leaderId;
+  if (!global) return undefined;
+  const agent = state.agents.get(global);
+  return agent && agent.sessionId === sessionId ? global : undefined;
+};
+
+/** Hook: the leader of the tab in front (or of `sessionId` when given). */
+export function useSessionLeaderId(sessionId?: string | undefined): string | undefined {
+  const active = useSessionStore((s) => s.session?.id);
+  const target = sessionId ?? active;
+  return useFleetStore((s) => selectSessionLeaderId(s, target));
+}
+
+/** Hook: fleet totals for the tab in front (or for `sessionId` when given). */
+export function useSessionFleetTotals(sessionId?: string | undefined): SessionFleetTotals {
+  const active = useSessionStore((s) => s.session?.id);
+  const target = sessionId ?? active;
+  return useFleetStore((s) => selectSessionFleetTotals(s, target));
+}

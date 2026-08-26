@@ -10,7 +10,14 @@ import type { ConnectedClient, WSServerMessage } from './types.js';
 
 export function registerSetupEventsToolHandlers(options: {
   on: <E extends EventName>(event: E, listener: Listener<E>) => void;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   clients: Map<WebSocket, ConnectedClient>;
   context: Context;
   pendingConfirms: Map<string, PendingConfirm>;
@@ -209,11 +216,17 @@ export function registerSetupEventsToolHandlers(options: {
   });
 
   on('file.activity', (e) => {
-    broadcast(clients, { type: 'codemap.file_event', payload: e });
+    broadcast(clients, {
+      type: 'codemap.file_event',
+      payload: sessionPayload(e as unknown as Record<string, unknown>),
+    });
   });
 
   on('codemap.index_updated', (e) => {
-    broadcast(clients, { type: 'codemap.index_updated', payload: e });
+    broadcast(clients, {
+      type: 'codemap.index_updated',
+      payload: sessionPayload(e as unknown as Record<string, unknown>),
+    });
   });
 
   on('file.event', (e) => {

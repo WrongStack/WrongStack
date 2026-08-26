@@ -2,15 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
-import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
-import {
-  CHRONICLE_SQLITE_FILE,
-  LEGACY_JSONL_BOUNDARY_KEY,
-  LEGACY_JSONL_MIGRATION_KEY,
-} from './sqlite-journal.js';
-import type { ChronicleEvent } from './types.js';
 import {
   asString,
+  type ChronicleMetricsRefreshResult,
   durationMs,
   eventDay,
   loadDatabaseSync,
@@ -23,8 +17,14 @@ import {
   SQLITE_INGEST_BATCH,
   SQLITE_SOURCE_PREFIX,
   stringAt,
-  type ChronicleMetricsRefreshResult,
 } from './metrics-schema.js';
+import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
+import {
+  CHRONICLE_SQLITE_FILE,
+  LEGACY_JSONL_BOUNDARY_KEY,
+  LEGACY_JSONL_MIGRATION_KEY,
+} from './sqlite-journal.js';
+import type { ChronicleEvent } from './types.js';
 
 /** ingest_state sentinel recording a completed projection rebuild. Lives under
  *  the sqlite: prefix so `pruneOffsets` never mistakes it for a partition file
@@ -73,8 +73,7 @@ export class ChronicleMetricsIngester {
       }
       try {
         const migrated = source !== null && this.legacyJsonlConsumed(source);
-        const boundary =
-          migrated && source !== null ? this.loadJsonlBoundary(source) : null;
+        const boundary = migrated && source !== null ? this.loadJsonlBoundary(source) : null;
         const rebuilt = migrated && this.needsSqliteRebuild(offsets);
         if (rebuilt && source !== null) {
           // One-time repair: the projection may hold pre-migration JSONL counts
@@ -378,7 +377,11 @@ export class ChronicleMetricsIngester {
     const type = event.eventType;
     if (type.startsWith('provider.attempt.') || type === 'provider.fallback') {
       this.ingestProvider(event);
-    } else if (type === 'token.accounted') {
+    } else if (type === 'token.accounted' || type === 'subagent.token_accounted') {
+      // Both names feed the same table. A subagent's counter emits on its
+      // private EventBus, so its spend reaches the host — and therefore
+      // Chronicle — only under the bridged `subagent.` name; scope.agentId is
+      // what keeps its row distinct from the leader's.
       this.ingestTokenCost(event);
     } else if (/^(?:sdd|subagent|kanban)\.task[._]/.test(type)) {
       this.ingestTask(event);
@@ -500,18 +503,52 @@ export class ChronicleMetricsIngester {
   }
 
   private ingestTokenCost(event: ChronicleEvent): void {
-    const cost = readPath(event.attributes ?? {}, 'cost.total');
-    if (typeof cost !== 'number' || !Number.isFinite(cost)) return;
+    const attributes = event.attributes ?? {};
+    const cost = readPath(attributes, 'cost.total');
+    // Tokens are authoritative even when pricing is not: subscription-plan
+    // providers resolve to cost 0, so gating the whole row on a finite cost
+    // discarded every one of those sessions along with the token counts the
+    // cost was derived from. Keep the row when EITHER is usable.
+    const usage = {
+      input: numberAt(event, 'usage.input'),
+      output: numberAt(event, 'usage.output'),
+      cacheRead: numberAt(event, 'usage.cacheRead'),
+      cacheWrite: numberAt(event, 'usage.cacheWrite'),
+    };
+    const finiteCost = typeof cost === 'number' && Number.isFinite(cost) ? cost : undefined;
+    const anyTokens =
+      usage.input > 0 || usage.output > 0 || usage.cacheRead > 0 || usage.cacheWrite > 0;
+    if (finiteCost === undefined && !anyTokens) return;
     const scopeKey = `${event.scope.projectId ?? ''}\0${event.scope.sessionId ?? ''}\0${event.scope.agentId ?? ''}`;
     const occurredAt = event.occurredAt ?? event.observedAt;
     this.stmt(
-      `INSERT INTO token_cost (scope_key, day, occurred_at, sequence, cost) VALUES (?, ?, ?, ?, ?)
+      `INSERT INTO token_cost (
+         scope_key, day, occurred_at, sequence, cost,
+         input_tokens, output_tokens, cache_read_tokens, cache_write_tokens,
+         provider, model
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(scope_key) DO UPDATE SET
          day = excluded.day, occurred_at = excluded.occurred_at,
-         sequence = excluded.sequence, cost = excluded.cost
+         sequence = excluded.sequence, cost = excluded.cost,
+         input_tokens = excluded.input_tokens, output_tokens = excluded.output_tokens,
+         cache_read_tokens = excluded.cache_read_tokens,
+         cache_write_tokens = excluded.cache_write_tokens,
+         provider = excluded.provider, model = excluded.model
        WHERE excluded.occurred_at > token_cost.occurred_at
           OR (excluded.occurred_at = token_cost.occurred_at AND excluded.sequence > token_cost.sequence)`,
-    ).run(scopeKey, eventDay(event), occurredAt, event.sequence, cost);
+    ).run(
+      scopeKey,
+      eventDay(event),
+      occurredAt,
+      event.sequence,
+      finiteCost ?? 0,
+      usage.input,
+      usage.output,
+      usage.cacheRead,
+      usage.cacheWrite,
+      event.runtime?.providerId ?? stringAt(attributes, 'provider') ?? '',
+      event.runtime?.modelId ?? stringAt(attributes, 'model') ?? '',
+    );
   }
 
   private ingestTask(event: ChronicleEvent): void {
@@ -576,24 +613,24 @@ export class ChronicleMetricsIngester {
          provenance_confidence, source)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
-        event.eventId,
-        normalizeKey(filePath),
-        normalizePathKey(filePath),
-        operation,
-        event.occurredAt ?? event.observedAt,
-        event.scope.sessionId ?? '',
-        event.scope.agentId ?? '',
-        event.scope.taskId ?? stringAt(attributes, 'taskId') ?? '',
-        event.scope.kanbanBoardId ?? stringAt(attributes, 'boardId') ?? '',
-        stringAt(attributes, 'runId') ?? '',
-        stringAt(attributes, 'toolName') ?? '',
-        event.runtime?.providerId ?? stringAt(attributes, 'provider') ?? '',
-        event.runtime?.modelId ?? stringAt(attributes, 'model') ?? '',
-        event.correlation.logicalRequestId ?? stringAt(attributes, 'logicalRequestId') ?? '',
-        event.correlation.promptManifestId ?? stringAt(attributes, 'promptManifestId') ?? '',
-        provenanceConfidence(attributes),
-        stringAt(attributes, 'source') ?? (event.eventType === 'file.event' ? 'tool' : 'external'),
-      );
+      event.eventId,
+      normalizeKey(filePath),
+      normalizePathKey(filePath),
+      operation,
+      event.occurredAt ?? event.observedAt,
+      event.scope.sessionId ?? '',
+      event.scope.agentId ?? '',
+      event.scope.taskId ?? stringAt(attributes, 'taskId') ?? '',
+      event.scope.kanbanBoardId ?? stringAt(attributes, 'boardId') ?? '',
+      stringAt(attributes, 'runId') ?? '',
+      stringAt(attributes, 'toolName') ?? '',
+      event.runtime?.providerId ?? stringAt(attributes, 'provider') ?? '',
+      event.runtime?.modelId ?? stringAt(attributes, 'model') ?? '',
+      event.correlation.logicalRequestId ?? stringAt(attributes, 'logicalRequestId') ?? '',
+      event.correlation.promptManifestId ?? stringAt(attributes, 'promptManifestId') ?? '',
+      provenanceConfidence(attributes),
+      stringAt(attributes, 'source') ?? (event.eventType === 'file.event' ? 'tool' : 'external'),
+    );
   }
 }
 
@@ -601,7 +638,5 @@ function provenanceConfidence(
   attributes: Record<string, unknown>,
 ): 'explicit' | 'correlated' | 'inferred' | 'unknown' {
   const value = attributes['provenanceConfidence'];
-  return value === 'explicit' || value === 'correlated' || value === 'inferred'
-    ? value
-    : 'unknown';
+  return value === 'explicit' || value === 'correlated' || value === 'inferred' ? value : 'unknown';
 }

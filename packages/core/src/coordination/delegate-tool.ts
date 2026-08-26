@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
+import type { EventBus, EventMap } from '../kernel/events.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
@@ -76,11 +76,13 @@ export interface CreateDelegateToolOptions {
   subagentTimeoutBufferMs?: number | undefined;
   /**
    * Host EventBus. When supplied, `delegate` emits `delegate.started`
-   * (before it blocks on the subagent) and `delegate.completed` (once the
-   * subagent settles) so UIs / the Telegram bridge can render readable
-   * start/finish lines instead of inferring them from the truncated
-   * `tool.executed` JSON preview. Optional — emits are best-effort and a
-   * missing bus never affects delegation behaviour.
+   * (before it blocks on the subagent) and, once the subagent settles, both
+   * `delegate.completed` and `subagent.done` — see `emitDelegateCompleted`
+   * below for why the outcome goes out on two names. UIs / the Telegram
+   * bridge render readable start/finish lines from these instead of
+   * inferring them from the truncated `tool.executed` JSON preview.
+   * Optional — emits are best-effort and a missing bus never affects
+   * delegation behaviour.
    */
   events?: EventBus | undefined;
 }
@@ -103,6 +105,27 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
   // provide one; the Director can extend it while the worker makes progress.
   const defaultTimeoutMs = opts.defaultTimeoutMs ?? 4 * 60 * 60 * 1000;
   const rosterIds = opts.roster ? Object.keys(opts.roster) : [];
+
+  /**
+   * Publish one delegation outcome on both wire names.
+   *
+   * `delegate.completed` carries the full lifecycle payload the WebUI timeline
+   * and the Telegram bridge render. `subagent.done` is the narrower kernel
+   * event declared for exactly this moment (see `kernel/events/agent-events.ts`)
+   * and has no other emitter anywhere: the agent run loop folds it into
+   * `RunResult.delegateSummaries`, the bundled `agent-handoff` plugin posts its
+   * mailbox note from it, and the collab mirror forwards it to observers. Both
+   * emits must stay in this one helper — five separate call sites each raising
+   * only `delegate.completed` is how those three consumers went silent.
+   */
+  const emitDelegateCompleted = (payload: EventMap['delegate.completed']): void => {
+    opts.events?.emit('delegate.completed', payload);
+    opts.events?.emit('subagent.done', {
+      sessionId: payload.sessionId,
+      summary: payload.summary,
+      ok: payload.ok,
+    });
+  };
 
   const inputSchema: JSONSchema = {
     type: 'object',
@@ -191,7 +214,11 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
     inputSchema,
     async execute(input: unknown, _ctx?: unknown, execOpts?: { signal?: AbortSignal }) {
-      const sessionId = opts.directorRunId;
+      const sessionId =
+        (_ctx as { session?: { id?: string }; activeRunSessionId?: string } | undefined)
+          ?.activeRunSessionId ??
+        (_ctx as { session?: { id?: string } } | undefined)?.session?.id ??
+        opts.directorRunId;
       // Executor-provided abort signal (leader interrupt, Esc, timeout).
       // Without honoring it, this tool blocks the whole agent loop until the
       // subagent finishes — /interrupt could never unwind a delegating run.
@@ -453,7 +480,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
               /* best-effort */
             }
             const partial = await readSubagentPartial(opts, subagentId);
-            opts.events?.emit('delegate.completed', {
+            emitDelegateCompleted({
               sessionId,
               target,
               task: i.task,
@@ -483,7 +510,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
               /* best-effort */
             }
             const partial = await readSubagentPartial(opts, subagentId);
-            opts.events?.emit('delegate.completed', {
+            emitDelegateCompleted({
               sessionId,
               target,
               task: i.task,
@@ -509,7 +536,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
 
           if ('__emptyResult' in result) {
             const partial = await readSubagentPartial(opts, subagentId);
-            opts.events?.emit('delegate.completed', {
+            emitDelegateCompleted({
               sessionId,
               target,
               task: i.task,
@@ -582,7 +609,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           } catch {
             costUsd = undefined;
           }
-          opts.events?.emit('delegate.completed', {
+          emitDelegateCompleted({
             sessionId,
             target,
             task: i.task,
@@ -628,7 +655,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         // Resolve any "started" line the UI is showing — without this a
         // spawn/assign failure after delegate.started would leave a
         // dangling "Delegating…" entry with no outcome.
-        opts.events?.emit('delegate.completed', {
+        emitDelegateCompleted({
           sessionId,
           target,
           task: i.task,

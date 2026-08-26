@@ -13,11 +13,11 @@
 
 import { AlertCircle, Bot, Brain, Check, CircleDot, Info, Wrench, X } from 'lucide-react';
 import { memo, useEffect, useRef } from 'react';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
-import { LazyMarkdown as ReactMarkdown } from '../MessageBubble/LazyMarkdown.js';
+import { cn } from '@/lib/utils';
 import type { AgentTranscriptEntry } from '@/stores';
 import { EMPTY_AGENT_TRANSCRIPT, useFleetStore } from '@/stores';
+import { LazyMarkdown as ReactMarkdown } from '../MessageBubble/LazyMarkdown.js';
 
 /** Status chip tone for the slim identity header — mirrors AgentRosterCard. */
 const STATUS_CHIP: Record<string, string> = {
@@ -31,7 +31,11 @@ const STATUS_CHIP: Record<string, string> = {
 function formatTime(ts: string): string {
   const time = Date.parse(ts);
   if (!Number.isFinite(time)) return '';
-  return new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(time).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 const TranscriptRow = memo(function TranscriptRow({ entry }: { entry: AgentTranscriptEntry }) {
@@ -69,7 +73,11 @@ const TranscriptRow = memo(function TranscriptRow({ entry }: { entry: AgentTrans
               iter {entry.iteration}
             </span>
           )}
-          {time && <span className="ml-auto font-mono text-[9px] normal-case text-muted-foreground">{time}</span>}
+          {time && (
+            <span className="ml-auto font-mono text-[9px] normal-case text-muted-foreground">
+              {time}
+            </span>
+          )}
         </summary>
         <pre className="mt-2 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-foreground/75">
           {entry.content}
@@ -109,7 +117,11 @@ const TranscriptRow = memo(function TranscriptRow({ entry }: { entry: AgentTrans
               {entry.toolName}
             </span>
           )}
-          {time && <span className="ml-auto shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">{time}</span>}
+          {time && (
+            <span className="ml-auto shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">
+              {time}
+            </span>
+          )}
         </div>
         {entry.content && (
           <pre className="mt-1.5 max-h-64 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-foreground/80">
@@ -129,7 +141,11 @@ const TranscriptRow = memo(function TranscriptRow({ entry }: { entry: AgentTrans
           <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-destructive">
             {t('activity:transcript.kindError')}
           </span>
-          {time && <span className="ml-auto shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">{time}</span>}
+          {time && (
+            <span className="ml-auto shrink-0 font-mono text-[9px] tabular-nums text-muted-foreground">
+              {time}
+            </span>
+          )}
         </div>
         <pre className="mt-1.5 whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-destructive/90">
           {entry.content}
@@ -145,7 +161,9 @@ const TranscriptRow = memo(function TranscriptRow({ entry }: { entry: AgentTrans
       <div className="flex max-w-full items-center gap-1.5 rounded-full border border-border/50 bg-muted/25 px-3 py-1 text-[10px] text-muted-foreground">
         <Icon className="h-3 w-3 shrink-0" />
         <span className="truncate">{entry.content}</span>
-        {time && <span className="shrink-0 font-mono text-[9px] tabular-nums opacity-70">{time}</span>}
+        {time && (
+          <span className="shrink-0 font-mono text-[9px] tabular-nums opacity-70">{time}</span>
+        )}
       </div>
     </div>
   );
@@ -182,7 +200,9 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
       {/* Slim identity strip — who am I reading, at what state */}
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-1.5">
         <Bot className="h-3.5 w-3.5 shrink-0 text-primary" />
-        <span className="truncate text-xs font-semibold text-foreground">{agent?.name ?? agentId}</span>
+        <span className="truncate text-xs font-semibold text-foreground">
+          {agent?.name ?? agentId}
+        </span>
         {agent && (
           <span
             className={cn(
@@ -205,6 +225,13 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
           </>
         )}
       </div>
+
+      {/* Task / Description brief */}
+      {agent?.description && (
+        <div className="shrink-0 border-b border-border/40 bg-muted/10 px-3 py-1.5 text-xs text-muted-foreground leading-relaxed">
+          <span className="font-semibold text-foreground/80">Task:</span> {agent.description}
+        </div>
+      )}
 
       {/* Transcript body */}
       <div

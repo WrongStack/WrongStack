@@ -8,13 +8,22 @@
  * Auto-refreshes via the server's event-driven side_effects push.
  */
 
+import {
+  Activity,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Globe,
+  Package,
+  RefreshCw,
+  Terminal,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { usePagination } from '@/hooks/usePagination';
 import { useAppTranslation } from '@/i18n';
-import { Activity, RefreshCw, Terminal, Package, Globe, ChevronUp, ChevronDown, Download } from 'lucide-react';
-import { useSideEffectStore } from '@/stores';
-import type { SideEffectEntry } from '@/stores';
 import { cn } from '@/lib/utils';
+import type { SideEffectEntry } from '@/stores';
+import { useSessionStore, useSideEffectStore } from '@/stores';
 import { Pagination } from './ui/pagination';
 
 const RISK_ICONS: Record<string, typeof Terminal> = {
@@ -70,7 +79,8 @@ function csvEscape(value: string): string {
 function exportCSV(entries: SideEffectEntry[]): void {
   const header = 'timestamp,tool,risk,detail,outcome';
   const rows = entries.map((se) => {
-    const detail = se.input['command'] ?? se.input['url'] ?? se.input['packages'] ?? JSON.stringify(se.input);
+    const detail =
+      se.input['command'] ?? se.input['url'] ?? se.input['packages'] ?? JSON.stringify(se.input);
     return [
       csvEscape(se.ts),
       csvEscape(se.toolName),
@@ -98,17 +108,30 @@ export function SideEffectTimeline() {
   const [sortKey, setSortKey] = useState<SortKey>('time');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
+  // The request must NAME the session it is about. The server answers from
+  // the named session's agent and stamps the reply with it, and the browser
+  // files the reply by that stamp — unnamed, both ends fall back to the
+  // runtime's session, which is a different tab from the one on screen as
+  // often as not once four are open.
+  const sessionId = useSessionStore((s) => s.session?.id);
+
   useEffect(() => {
     useSideEffectStore.getState().setLoading(true);
     import('@/lib/ws-client').then(({ getWSClient }) => {
-      getWSClient().send({ type: 'side_effects.list' });
+      getWSClient().send({
+        type: 'side_effects.list',
+        ...(sessionId ? { payload: { sessionId } } : {}),
+      });
     });
-  }, []);
+  }, [sessionId]);
 
   const refresh = () => {
     useSideEffectStore.getState().setLoading(true);
     import('@/lib/ws-client').then(({ getWSClient }) => {
-      getWSClient().send({ type: 'side_effects.list' });
+      getWSClient().send({
+        type: 'side_effects.list',
+        ...(sessionId ? { payload: { sessionId } } : {}),
+      });
     });
   };
 
@@ -122,9 +145,8 @@ export function SideEffectTimeline() {
   };
 
   const filtered = useMemo(() => {
-    const result = riskFilter === 'all'
-      ? [...sideEffects]
-      : sideEffects.filter((se) => se.risk === riskFilter);
+    const result =
+      riskFilter === 'all' ? [...sideEffects] : sideEffects.filter((se) => se.risk === riskFilter);
 
     result.sort((a, b) => {
       let cmp = 0;
@@ -143,16 +165,18 @@ export function SideEffectTimeline() {
       <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
         <Activity className="h-8 w-8 opacity-40" />
         <p className="text-sm">{t('activity:sideEffects.empty')}</p>
-        <p className="text-xs text-muted-foreground/75">
-          {t('activity:sideEffects.emptyHint')}
-        </p>
+        <p className="text-xs text-muted-foreground/75">{t('activity:sideEffects.emptyHint')}</p>
       </div>
     );
   }
 
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column) return <span className="opacity-30">↕</span>;
-    return sortDir === 'asc' ? <ChevronUp className="inline h-3 w-3" /> : <ChevronDown className="inline h-3 w-3" />;
+    return sortDir === 'asc' ? (
+      <ChevronUp className="inline h-3 w-3" />
+    ) : (
+      <ChevronDown className="inline h-3 w-3" />
+    );
   };
 
   return (
@@ -160,10 +184,12 @@ export function SideEffectTimeline() {
       {/* Header: title + refresh */}
       <div className="flex items-center justify-between border-b border-border/70 bg-card/70 px-3 py-2">
         <h3 className="text-xs font-semibold uppercase text-muted-foreground">
-          {t('activity:sideEffects.heading')} ({filtered.length}{riskFilter !== 'all' ? `/${sideEffects.length}` : ''})
+          {t('activity:sideEffects.heading')} ({filtered.length}
+          {riskFilter !== 'all' ? `/${sideEffects.length}` : ''})
         </h3>
         <div className="flex items-center gap-1">
-          <button type="button"
+          <button
+            type="button"
             onClick={() => exportCSV(filtered)}
             disabled={filtered.length === 0}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
@@ -172,7 +198,8 @@ export function SideEffectTimeline() {
             <Download className="h-3 w-3" />
             CSV
           </button>
-          <button type="button"
+          <button
+            type="button"
             onClick={refresh}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
@@ -185,7 +212,8 @@ export function SideEffectTimeline() {
       {/* Filter bar */}
       <div className="flex items-center gap-1 border-b border-border/60 bg-muted/20 px-2 py-1">
         {RISK_FILTERS.map((risk) => (
-          <button type="button"
+          <button
+            type="button"
             key={risk}
             onClick={() => setRiskFilter(risk)}
             className={cn(
@@ -223,8 +251,12 @@ export function SideEffectTimeline() {
               >
                 {t('activity:sideEffects.colRisk')} <SortIcon column="risk" />
               </th>
-              <th className="px-2 py-1 text-left font-medium">{t('activity:sideEffects.colDetail')}</th>
-              <th className="px-2 py-1 text-left font-medium">{t('activity:sideEffects.colOutcome')}</th>
+              <th className="px-2 py-1 text-left font-medium">
+                {t('activity:sideEffects.colDetail')}
+              </th>
+              <th className="px-2 py-1 text-left font-medium">
+                {t('activity:sideEffects.colOutcome')}
+              </th>
             </tr>
           </thead>
           <tbody>

@@ -62,6 +62,9 @@ function lastMessage(): Record<string, unknown> | undefined {
   return msgs[msgs.length - 1];
 }
 
+const { readLane } = await import('../../src/stores/chat-lanes');
+const { readSessionLane } = await import('../../src/stores/session-lanes');
+
 describe('root ws-handler map', () => {
   beforeEach(() => {
     for (const fn of Object.values(toast)) fn.mockReset();
@@ -141,7 +144,9 @@ describe('root ws-handler map', () => {
     });
 
     it('omits the parameter list for a no-arg tool', () => {
-      handleToolsList(msg('tools.list', { tools: [{ name: 'ping', description: 'Ping', params: [] }] }));
+      handleToolsList(
+        msg('tools.list', { tools: [{ name: 'ping', description: 'Ping', params: [] }] }),
+      );
       expect(chat()).toContain('`ping` — Ping');
     });
 
@@ -296,7 +301,9 @@ describe('root ws-handler map', () => {
           },
         }),
       );
-      expect(chat()).toContain('**Total:** 10 · Active: 6 · Stale: 3 · Archived: 1 · Graph edges: 12');
+      expect(chat()).toContain(
+        '**Total:** 10 · Active: 6 · Stale: 3 · Archived: 1 · Graph edges: 12',
+      );
       // Zero-count kinds are dropped from the summary.
       expect(chat()).toContain('**Kinds:** fact=7, feedback=3');
       expect(chat()).not.toContain('unused');
@@ -411,9 +418,7 @@ describe('root ws-handler map', () => {
     });
 
     it('renders an em dash for empty tags and anchors', () => {
-      handleMemorySageGet(
-        msg('memory.sage.get', { memory: { ...memory, tags: [], anchors: [] } }),
-      );
+      handleMemorySageGet(msg('memory.sage.get', { memory: { ...memory, tags: [], anchors: [] } }));
       expect(chat()).toContain('**Tags:** —');
       expect(chat()).toContain('**Anchors:** —');
     });
@@ -624,6 +629,11 @@ describe('root ws-handler map', () => {
   // ── diag / stats ──────────────────────────────────────────────────────────
 
   describe('diag.get', () => {
+    // The reply names its session, so it lands in that session's lane —
+    // bind the surface to it, the way the tab that typed `/diag` is.
+    beforeEach(() => {
+      useSessionStore.setState({ session: { id: 's1' } } as never);
+    });
     const diag = {
       provider: 'anthropic',
       model: 'opus',
@@ -660,15 +670,20 @@ describe('root ws-handler map', () => {
       expect(chat()).toContain('memory=✓ · skills=✗ · modelsRegistry=✓');
     });
 
-    it('is dropped for a non-active session', () => {
+    it('lands in the named session, never in the tab in front', () => {
       useSessionStore.setState({ session: { id: 's1' } } as never);
       handleDiagGet(msg('diag.get', { ...diag, sessionId: 'other' } as never));
-      // sessionId is inside the payload, so the gate applies.
+      // The foreground transcript is untouched...
       expect(useChatStore.getState().messages).toHaveLength(0);
+      // ...and the reply is waiting in the tab it actually belongs to.
+      expect(readLane('other').messages).toHaveLength(1);
     });
   });
 
   describe('stats.get', () => {
+    beforeEach(() => {
+      useSessionStore.setState({ session: { id: 's1' } } as never);
+    });
     const stats = {
       sessionId: 's1',
       provider: 'anthropic',
@@ -765,12 +780,16 @@ describe('root ws-handler map', () => {
       expect(useSessionStore.getState().todos).toEqual([]);
     });
 
-    it('is dropped for a non-active session', () => {
+    it('lands in the named session, never in the tab in front', () => {
       useSessionStore.setState({ session: { id: 's1' }, todos: [] } as never);
       handleTodosUpdated(
-        msg('todos.updated', { sessionId: 'other', todos: [{ id: 'x', content: 'y', status: 'pending' }] }),
+        msg('todos.updated', {
+          sessionId: 'other',
+          todos: [{ id: 'x', content: 'y', status: 'pending' }],
+        }),
       );
       expect(useSessionStore.getState().todos).toEqual([]);
+      expect(readSessionLane('other').todos).toHaveLength(1);
     });
   });
 

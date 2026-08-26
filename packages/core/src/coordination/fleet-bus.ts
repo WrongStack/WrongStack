@@ -158,6 +158,17 @@ export class FleetBus {
  * lean on summaries for the next task").
  */
 export interface FleetUsage {
+  /**
+   * Cumulative spend for the WHOLE run, retired subagents included.
+   *
+   * This used to be decremented when a subagent was retired, which made the
+   * figure mean "currently-live subagents" while every reader — the director's
+   * budget reasoning, `fleet.json`, `director-state.json` — treated it as the
+   * run total. A long orchestration that retires workers as it goes therefore
+   * under-reported its own spend, and the number could only ever fall.
+   * Retirement now moves a subagent's contribution into {@link retired}
+   * instead of erasing it.
+   */
   total: {
     input: number;
     output: number;
@@ -165,7 +176,22 @@ export interface FleetUsage {
     cacheWrite: number;
     cost: number;
   };
+  /** Live subagents only — retirement drops the entry to bound memory. */
   perSubagent: Record<string, SubagentUsageSnapshot>;
+  /**
+   * The share of {@link total} contributed by subagents no longer in
+   * `perSubagent`. `total` minus `retired` is the live-only figure the old
+   * decrementing behavior produced, so any consumer that genuinely wants
+   * "currently live" can still compute it.
+   */
+  retired: {
+    subagents: number;
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+    cost: number;
+  };
 }
 
 export interface SubagentUsageSnapshot {
@@ -193,6 +219,14 @@ export interface SubagentUsageSnapshot {
 export class FleetUsageAggregator {
   private readonly perSubagent = new Map<string, SubagentUsageSnapshot>();
   private readonly total = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 };
+  private readonly retired = {
+    subagents: 0,
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheWrite: 0,
+    cost: 0,
+  };
   private readonly unsub = [] as (() => void)[];
 
   constructor(
@@ -219,20 +253,25 @@ export class FleetUsageAggregator {
   }
 
   /**
-   * Remove a terminated subagent's data from the aggregator and subtract its
-   * contribution from the running totals. Call this when a subagent is removed
-   * from the fleet so the aggregator doesn't accumulate unbounded data for
-   * entities that will never emit events again.
+   * Drop a terminated subagent's per-agent entry, folding its spend into
+   * {@link FleetUsage.retired} so the run total stays whole.
+   *
+   * The per-agent map is what needed bounding — one entry per spawn, for
+   * entities that will never emit again. Deducting from `total` as well (the
+   * original behavior) also un-spent real tokens: a run that retires each
+   * worker on completion reported a total that shrank as it made progress, and
+   * the director budgets against that number.
    */
   removeSubagent(subagentId: string): void {
     const snap = this.perSubagent.get(subagentId);
     if (!snap) return;
     this.perSubagent.delete(subagentId);
-    this.total.input -= snap.input;
-    this.total.output -= snap.output;
-    this.total.cacheRead -= snap.cacheRead;
-    this.total.cacheWrite -= snap.cacheWrite;
-    this.total.cost -= snap.cost;
+    this.retired.subagents += 1;
+    this.retired.input += snap.input;
+    this.retired.output += snap.output;
+    this.retired.cacheRead += snap.cacheRead;
+    this.retired.cacheWrite += snap.cacheWrite;
+    this.retired.cost += snap.cost;
   }
 
   /** Disposes all fleet-bus subscriptions. Call when the aggregator is no longer needed. */
@@ -248,6 +287,7 @@ export class FleetUsageAggregator {
       perSubagent: Object.fromEntries(
         Array.from(this.perSubagent.entries()).map(([k, v]) => [k, { ...v }]),
       ),
+      retired: { ...this.retired },
     };
   }
 

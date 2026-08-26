@@ -235,11 +235,111 @@ export interface LocalPrefs {
    */
   wrongProxyUrl: string;
 
+  /**
+   * Per-session overrides for the keys in `SESSION_SCOPED_PREF_KEYS`.
+   *
+   * The flat fields above are the EFFECTIVE view of the tab in front, so
+   * existing readers (`useLocalPrefs((s) => s.autonomy)`) keep working and
+   * automatically describe the right tab. This map is what makes them
+   * per-tab rather than one value the four tabs fight over.
+   */
+  bySession: Record<string, Partial<LocalPrefs>>;
+  /**
+   * What a NEWLY opened tab inherits for the session-scoped keys — the last
+   * value the user chose, mirroring the server, which persists the same keys
+   * to config as the default a new tab starts from.
+   */
+  sessionDefaults: Partial<LocalPrefs>;
+  /** Which session the flat fields currently describe. */
+  activeSessionId: string | null;
+
   set: (patch: Partial<LocalPrefs>) => void;
+  /** Point the flat fields at a tab, materialising its overrides. */
+  bindSession: (sessionId: string | null) => void;
+  /**
+   * Apply a server-sent patch. `sessionId` names the tab it belongs to; a
+   * patch for a BACKGROUND tab updates that tab's override and leaves the
+   * fields the UI is rendering alone.
+   */
+  applyRemote: (patch: Partial<LocalPrefs>, sessionId?: string | undefined) => void;
+  /** Forget a closed tab's overrides. */
+  forgetSession: (sessionId: string) => void;
   reset: () => void;
 }
 
-const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
+/**
+ * Preferences that belong to ONE session rather than to the browser.
+ *
+ * Must stay in step with `SESSION_SCOPED_PREF_KEYS` on the server
+ * (`webui-server/src/server/prefs-handlers.ts`) — the server already keys
+ * these off the calling tab's context meta, and a client that treats them as
+ * global shows tab 1's autonomy while tab 3 is on screen.
+ */
+export const SESSION_SCOPED_PREFS = [
+  'autonomy',
+  'autonomyDelayMs',
+  'autoProceedMaxIterations',
+  'yolo',
+  'maxIterations',
+  'contextStrategy',
+  'contextMode',
+  'contextAutoCompact',
+  'tokenSavingTier',
+  'systemPromptVariant',
+  'reasoningMode',
+  'reasoningEffort',
+  'reasoningPreserve',
+  'nextPrediction',
+  'nextStepsTool',
+] as const satisfies ReadonlyArray<string>;
+
+const SESSION_SCOPED_PREF_SET: ReadonlySet<string> = new Set(SESSION_SCOPED_PREFS);
+
+/**
+ * The effective value of a session-scoped preference for ONE session.
+ *
+ * Reading the flat field answers for the tab IN FRONT, which is wrong whenever
+ * the question is about another tab. The dangerous instance was `yolo`: a
+ * background tab's tool-approval prompt was auto-approved because the tab the
+ * user happened to be looking at had YOLO on — approving a tool in a session
+ * the user never put in that mode.
+ */
+export function sessionPref<K extends keyof LocalPrefs>(
+  sessionId: string | null | undefined,
+  key: K,
+): LocalPrefs[K] {
+  const state = useLocalPrefs.getState();
+  if (!sessionId || sessionId === state.activeSessionId) return state[key];
+  const override = state.bySession[sessionId]?.[key];
+  if (override !== undefined) return override as LocalPrefs[K];
+  const fallback = state.sessionDefaults[key];
+  return (fallback !== undefined ? fallback : state[key]) as LocalPrefs[K];
+}
+
+/** Split a patch into the half that belongs to a tab and the half that does not. */
+function splitScoped(patch: Partial<LocalPrefs>): {
+  scoped: Partial<LocalPrefs>;
+  shared: Partial<LocalPrefs>;
+} {
+  const scoped: Record<string, unknown> = {};
+  const shared: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    // Every scoped key holds data; anything else — including an action
+    // override — passes through as a plain top-level write rather than being
+    // silently dropped.
+    if (SESSION_SCOPED_PREF_SET.has(key) && typeof value !== 'function') scoped[key] = value;
+    else shared[key] = value;
+  }
+  return { scoped: scoped as Partial<LocalPrefs>, shared: shared as Partial<LocalPrefs> };
+}
+
+/** The data half of the store — everything except the action methods. */
+type LocalPrefsData = Omit<
+  LocalPrefs,
+  'set' | 'reset' | 'bindSession' | 'applyRemote' | 'forgetSession'
+>;
+
+const DEFAULTS: LocalPrefsData = {
   // Default to self-driving + auto-approve, matching the core config defaults
   // (config.autonomy.defaultMode='auto', config.yolo=true). Existing browsers
   // are synced from the server's prefs snapshot on connect (handlePrefsUpdated),
@@ -341,18 +441,118 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   // ships silent; URL defaults to the dev-script daemon's documented port.
   wrongProxyEnabled: false,
   wrongProxyUrl: 'http://localhost:3444',
+  bySession: {},
+  sessionDefaults: {},
+  activeSessionId: null,
 };
 
 export const useLocalPrefs = create<LocalPrefs>()(
   persist(
     (set) => ({
-      .../** @see LocalPrefs */ (DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>),
-      set: (patch) => set(patch),
-      reset: () => set(/** @see LocalPrefs */ DEFAULTS as Omit<LocalPrefs, 'set' | 'reset'>),
+      ...(DEFAULTS as LocalPrefsData),
+
+      /**
+       * A local edit. Session-scoped keys land on the tab in front (and become
+       * the default the next new tab inherits); everything else is browser-wide.
+       * The flat fields always mirror the active tab, so the UI updates either
+       * way.
+       */
+      set: (patch) =>
+        set((state) => {
+          const { scoped, shared } = splitScoped(patch);
+          if (Object.keys(scoped).length === 0) return { ...shared };
+          const sid = state.activeSessionId;
+          return {
+            ...shared,
+            ...scoped,
+            sessionDefaults: { ...state.sessionDefaults, ...scoped },
+            ...(sid
+              ? {
+                  bySession: {
+                    ...state.bySession,
+                    [sid]: { ...(state.bySession[sid] ?? {}), ...scoped },
+                  },
+                }
+              : {}),
+          };
+        }),
+
+      bindSession: (sessionId) =>
+        set((state) => {
+          if (state.activeSessionId === sessionId) return {};
+          // Park the outgoing tab's current values so an edit made before the
+          // server echoed it back is not lost on the way out.
+          const bySession = { ...state.bySession };
+          if (state.activeSessionId) {
+            const outgoing: Record<string, unknown> = {};
+            for (const key of SESSION_SCOPED_PREFS) {
+              outgoing[key] = (state as unknown as Record<string, unknown>)[key];
+            }
+            bySession[state.activeSessionId] = {
+              ...(bySession[state.activeSessionId] ?? {}),
+              ...(outgoing as Partial<LocalPrefs>),
+            };
+          }
+          // A tab we have never seen inherits the current defaults, which is
+          // what the server hands a freshly created session too.
+          const incoming = sessionId
+            ? { ...state.sessionDefaults, ...(bySession[sessionId] ?? {}) }
+            : state.sessionDefaults;
+          return { ...incoming, bySession, activeSessionId: sessionId };
+        }),
+
+      applyRemote: (patch, sessionId) =>
+        set((state) => {
+          const { scoped, shared } = splitScoped(patch);
+          // Untagged, or addressed at the tab in front: it describes what the
+          // UI is showing.
+          if (!sessionId || sessionId === state.activeSessionId) {
+            const sid = sessionId ?? state.activeSessionId;
+            return {
+              ...shared,
+              ...scoped,
+              ...(sid && Object.keys(scoped).length > 0
+                ? {
+                    bySession: {
+                      ...state.bySession,
+                      [sid]: { ...(state.bySession[sid] ?? {}), ...scoped },
+                    },
+                  }
+                : {}),
+            };
+          }
+          // A background tab's settings changed. Record them against that tab
+          // and leave the visible pickers alone — writing them here is exactly
+          // how one tab's autonomy ended up displayed on another's.
+          if (Object.keys(scoped).length === 0) return { ...shared };
+          return {
+            ...shared,
+            bySession: {
+              ...state.bySession,
+              [sessionId]: { ...(state.bySession[sessionId] ?? {}), ...scoped },
+            },
+          };
+        }),
+
+      forgetSession: (sessionId) =>
+        set((state) => {
+          if (!(sessionId in state.bySession)) return {};
+          const { [sessionId]: _gone, ...rest } = state.bySession;
+          return { bySession: rest };
+        }),
+
+      reset: () => set(DEFAULTS as LocalPrefsData),
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 16,
+      version: 17,
+      // v17 (2026-08-26): session-scoped preferences. `bySession` /
+      // `sessionDefaults` / `activeSessionId` carry per-tab overrides for the
+      // keys in `SESSION_SCOPED_PREFS`; the flat fields stay the EFFECTIVE
+      // view of the tab in front, so every existing reader is untouched. Older
+      // stores have none of the three and are backfilled by the DEFAULTS
+      // spread in `merge`, plus the shape guard below.
+      //
       // v16 (2026-08-24): added WrongProxy / WrongTrace toggles. The
       // master switch defaults to off (existing users see no behavior
       // change); the URL defaults to http://localhost:3444 (the dev-script
@@ -590,6 +790,21 @@ export const useLocalPrefs = create<LocalPrefs>()(
         ) {
           p.preRefineSeconds = 3;
         }
+        // v17 shape guards — a hand-edited or truncated store must not turn
+        // the override registry into a non-object and take the whole app down
+        // on the first tab switch.
+        if (typeof p.bySession !== 'object' || p.bySession === null || Array.isArray(p.bySession)) {
+          p.bySession = {};
+        }
+        if (
+          typeof p.sessionDefaults !== 'object' ||
+          p.sessionDefaults === null ||
+          Array.isArray(p.sessionDefaults)
+        ) {
+          p.sessionDefaults = {};
+        }
+        if (typeof p.activeSessionId !== 'string') p.activeSessionId = null;
+
         if (
           typeof p.multiDiffSummaryThreshold !== 'number' ||
           !Number.isFinite(p.multiDiffSummaryThreshold) ||

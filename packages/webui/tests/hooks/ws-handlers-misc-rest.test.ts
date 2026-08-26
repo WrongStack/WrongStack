@@ -12,8 +12,10 @@ vi.mock('@/components/Toaster', () => ({ toast }));
 const send = vi.fn();
 const refineModel = vi.fn();
 const sendMessage = vi.fn();
+const getGitChanges = vi.fn();
+const getGitInfo = vi.fn();
 vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({ send, refineModel, sendMessage }),
+  getWSClient: () => ({ send, refineModel, sendMessage, getGitChanges, getGitInfo }),
 }));
 
 const {
@@ -40,6 +42,7 @@ const {
   handleCronJobFired,
   handleCronSnapshot,
   handleEternalIteration,
+  handleGitActionResult,
   handleGitChanges,
   handleGitDiff,
   handleGitInfo,
@@ -64,6 +67,8 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
     send.mockReset();
     refineModel.mockReset();
     sendMessage.mockReset();
+    getGitChanges.mockReset();
+    getGitInfo.mockReset();
     useChatStore.setState({ messages: [], pendingRefinement: null } as never);
     useSessionStore.setState({ session: null } as never);
     useUIStore.setState({ refinePanel: null } as never);
@@ -768,6 +773,26 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
       handleGitChanges(msg('git.changes', { error: 'not a repo' }));
       expect(useGitChangesStore.getState().files).toEqual([]);
       expect(useGitChangesStore.getState().error).toBe('not a repo');
+    });
+  });
+
+  describe('git.action_result', () => {
+    it('refreshes git state after a successful mutation', () => {
+      handleGitActionResult(msg('git.action_result', { action: 'stage', ok: true }));
+
+      expect(getGitChanges).toHaveBeenCalledOnce();
+      expect(getGitInfo).toHaveBeenCalledOnce();
+      expect(toast.error).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a failed mutation without refreshing stale state', () => {
+      handleGitActionResult(
+        msg('git.action_result', { action: 'commit', ok: false, error: 'commit failed' }),
+      );
+
+      expect(toast.error).toHaveBeenCalledWith('commit failed');
+      expect(getGitChanges).not.toHaveBeenCalled();
+      expect(getGitInfo).not.toHaveBeenCalled();
     });
   });
 

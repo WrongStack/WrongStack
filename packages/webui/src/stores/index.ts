@@ -20,8 +20,18 @@ export type {
   VoteValue,
 } from './coordinator-monitor-store.js';
 export { useCoordinatorMonitorStore } from './coordinator-monitor-store.js';
+export type { CouncilPanelEntry, CouncilSeatVote } from './council-log-store.js';
+export {
+  isCouncilPanelAdverse,
+  MAX_COUNCIL_PANELS,
+  summarizeCouncilPanel,
+  toCouncilSeatVote,
+  useCouncilLogStore,
+} from './council-log-store.js';
 export type { CronJobView, CronSnapshot } from './cron-store.js';
 export { useCronStore } from './cron-store.js';
+export type { FallbackCandidate, FallbackPendingState } from './fallback-store.js';
+export { useFallbackStore } from './fallback-store.js';
 export type { FileReference, FileReferenceInput } from './file-reference-store.js';
 export {
   refLabel,
@@ -30,8 +40,19 @@ export {
 } from './file-reference-store.js';
 export type { OpenFile, TreeNode } from './file-store.js';
 export { useFileStore } from './file-store.js';
-export { EMPTY_AGENT_TRANSCRIPT, selectFleetSummary, selectLeaderName, selectSortedAgentList, shallow, useFleetStore } from './fleet-store.js';
-export type { FleetSummary } from './fleet-store.js';
+export type { FleetSummary, SessionFleetTotals } from './fleet-store.js';
+export {
+  EMPTY_AGENT_TRANSCRIPT,
+  selectFleetSummary,
+  selectLeaderName,
+  selectSessionFleetTotals,
+  selectSessionLeaderId,
+  selectSortedAgentList,
+  shallow,
+  useFleetStore,
+  useSessionFleetTotals,
+  useSessionLeaderId,
+} from './fleet-store.js';
 export type { GitChangedFile, GitDiffContent } from './git-changes-store.js';
 export { useGitChangesStore } from './git-changes-store.js';
 export type { GitInfo } from './git-info-store.js';
@@ -57,8 +78,6 @@ export {
   type ProviderHealthState,
   useProviderStatusStore,
 } from './provider-status-store.js';
-export { useFallbackStore } from './fallback-store.js';
-export type { FallbackCandidate, FallbackPendingState } from './fallback-store.js';
 export {
   type SddBoardFeedEntry,
   type SddBoardSnapshotUI,
@@ -72,7 +91,22 @@ export {
   type SddWizardSnapshot,
   useSddWizardStore,
 } from './sdd-wizard-store.js';
-export { useSessionStore } from './session-store.js';
+/** The lane pointer — the single answer to "which tab is in front". */
+export { activeSessionLaneId, useActiveSessionId } from './session-lanes.js';
+export {
+  accrueBackgroundUsage,
+  memorySessionSnapshots,
+  useSessionStore,
+} from './session-store.js';
+export {
+  isTabBusy,
+  MAX_OPEN_TABS,
+  slotOf,
+  summarizeTab,
+  summarizeTabs,
+  type TabSummary,
+  useSessionTabStore,
+} from './session-tab-store.js';
 export { type SideEffectEntry, useSideEffectStore } from './side-effect-store.js';
 export {
   type BoardTaskItem,
@@ -119,15 +153,6 @@ export {
   SIDEBAR_MIN_WIDTH,
   useUIStore,
 } from './ui-store.js';
-export type { CouncilPanelEntry, CouncilSeatVote } from './council-log-store.js';
-export {
-  isCouncilPanelAdverse,
-  MAX_COUNCIL_PANELS,
-  summarizeCouncilPanel,
-  toCouncilSeatVote,
-  useCouncilLogStore,
-} from './council-log-store.js';
 export type { VizEdge, VizEvent, VizNode } from './viz-store.js';
 export { useVizStore } from './viz-store.js';
 export { useWorktreeStore } from './worktree-store.js';
-export { useSessionTabStore, MAX_OPEN_TABS } from './session-tab-store.js';

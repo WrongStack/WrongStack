@@ -64,7 +64,9 @@ describe('createModeHandlers', () => {
       sessionId: 'session-1',
       mode: 'review',
     });
-    const context = { session: { id: 'session-1' }, systemPrompt: 'old prompt' };
+    // A real Context always carries a meta bag — the mode is stamped on it so
+    // the session reports the mode ITS tab is running.
+    const context = { session: { id: 'session-1' }, systemPrompt: 'old prompt', meta: {} };
     const toolRegistry = {
       list: vi.fn(() => [{ name: 'read_file' }]),
       listForProvider: vi.fn(() => [{ name: 'read_file' }]),
@@ -125,7 +127,7 @@ describe('createModeHandlers', () => {
       memoryStore: {} as never,
       skillLoader: undefined,
       modelCapabilities: {} as never,
-      context: { session: {}, systemPrompt: '' } as never,
+      context: { session: {}, systemPrompt: '', meta: {} } as never,
       toolRegistry: { list: () => [], listForProvider: () => [] } as never,
       config: { provider: 'openai', model: 'gpt-5.6', features },
       projectRoot: 'D:\\repo',

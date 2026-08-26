@@ -23,11 +23,11 @@ import {
   type PrefsHandlerContext,
 } from './prefs-handlers.js';
 import type { WSClientMessage } from './types.js';
-import { send } from './ws-utils.js';
+import { messageSessionId, send } from './ws-utils.js';
 
 export interface PrefsRouteHandlers {
-  /** Respond to the WS client with the current pref snapshot. */
-  getPrefs: (ws: WebSocket) => Promise<void>;
+  /** Respond to the WS client with one session's pref snapshot. */
+  getPrefs: (ws: WebSocket, sessionId?: string) => Promise<void>;
   /**
    * Merge the supplied pref payload into context.meta, persist the durable
    * keys to config.json, apply any runtime effects (YOLO toggle, feature-flag
@@ -51,8 +51,21 @@ export function createPrefsRouteHandlers(
   doctorConfig?: PrefsRouteHandlers['doctorConfig'],
 ): PrefsRouteHandlers {
   return {
-    getPrefs: async (ws) => handlePrefsGet(ctx, ws),
-    updatePrefs: async (ws, payload) => handlePrefsUpdate(ctx, ws, payload),
+    getPrefs: async (ws, sessionId) => handlePrefsGet(ctx, ws, sessionId),
+    updatePrefs: async (ws, payload) => {
+      // `sessionId` is routing context, not a preference — pull it out before
+      // validation (which rejects unknown keys) and hand it to the handler so
+      // session-scoped prefs land on the calling tab.
+      const { sessionId, ...prefs } = payload as Record<string, unknown> & {
+        sessionId?: unknown;
+      };
+      return handlePrefsUpdate(
+        ctx,
+        ws,
+        prefs,
+        typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
+      );
+    },
     getSystemPrompt: async (ws) => handleSystemPromptGet(ctx, ws),
     ...(doctorConfig !== undefined ? { doctorConfig } : {}),
   };
@@ -79,7 +92,9 @@ export async function handlePrefsRoute(
 ): Promise<boolean> {
   switch (msg.type) {
     case 'prefs.get': {
-      await handlers.getPrefs(ws);
+      // A tab asks for ITS prefs; the session-scoped half of the answer is
+      // meaningless without knowing which tab asked.
+      await handlers.getPrefs(ws, messageSessionId(msg));
       return true;
     }
     case 'prefs.update': {

@@ -10,6 +10,12 @@ interface ModelSwitchPayload {
   provider: string;
   model: string;
   requestId?: string | undefined;
+  /**
+   * The tab that asked. Every WebUI tab runs its own session with its own
+   * model, so a switch applies to the requesting session's context — not to
+   * whichever session the runtime last had in front.
+   */
+  sessionId?: string | undefined;
 }
 
 export function validateModelSwitchPayload(
@@ -33,12 +39,16 @@ export function validateModelSwitchPayload(
   if (requestId !== undefined && (typeof requestId !== 'string' || requestId.trim().length === 0)) {
     return { ok: false, message: 'model.switch payload.requestId must be a non-empty string' };
   }
+  const sessionId = payload['sessionId'];
   return {
     ok: true,
     value: {
       provider: provider.trim(),
       model: model.trim(),
       ...(typeof requestId === 'string' ? { requestId: requestId.trim() } : {}),
+      ...(typeof sessionId === 'string' && sessionId.trim().length > 0
+        ? { sessionId: sessionId.trim() }
+        : {}),
     },
   };
 }
@@ -243,7 +253,10 @@ export function validateMailboxSendPayload(
     return { ok: false, message: 'mailbox.send payload.requestId must be a non-empty string' };
   }
   if (rawFrom !== undefined && (typeof rawFrom !== 'string' || rawFrom.trim().length === 0)) {
-    return { ok: false, message: 'mailbox.send payload.from must be a non-empty string when provided' };
+    return {
+      ok: false,
+      message: 'mailbox.send payload.from must be a non-empty string when provided',
+    };
   }
   if (typeof rawTo !== 'string' || rawTo.trim().length === 0) {
     return { ok: false, message: 'mailbox.send payload.to must be a non-empty string' };
@@ -831,15 +844,21 @@ function parsePathsPayload(payload: unknown, op: string): PayloadValidationResul
   return { ok: true, value: { paths: [] } };
 }
 
-export function validateGitStagePayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+export function validateGitStagePayload(
+  payload: unknown,
+): PayloadValidationResult<GitPathsPayload> {
   return parsePathsPayload(payload, 'git.stage');
 }
 
-export function validateGitUnstagePayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+export function validateGitUnstagePayload(
+  payload: unknown,
+): PayloadValidationResult<GitPathsPayload> {
   return parsePathsPayload(payload, 'git.unstage');
 }
 
-export function validateGitDiscardPayload(payload: unknown): PayloadValidationResult<GitPathsPayload> {
+export function validateGitDiscardPayload(
+  payload: unknown,
+): PayloadValidationResult<GitPathsPayload> {
   return parsePathsPayload(payload, 'git.discard');
 }
 
@@ -847,7 +866,9 @@ export interface GitCommitPayload {
   message: string;
 }
 
-export function validateGitCommitPayload(payload: unknown): PayloadValidationResult<GitCommitPayload> {
+export function validateGitCommitPayload(
+  payload: unknown,
+): PayloadValidationResult<GitCommitPayload> {
   if (!isRecord(payload)) {
     return { ok: false, message: 'git.commit payload must be an object' };
   }

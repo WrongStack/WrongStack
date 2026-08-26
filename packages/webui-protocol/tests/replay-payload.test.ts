@@ -9,11 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  buildReplayPayload,
-  REPLAY_MESSAGE_CAP,
-  type ReplaySource,
-} from '../src/index.js';
+import { buildReplayPayload, REPLAY_MESSAGE_CAP, type ReplaySource } from '../src/index.js';
 
 function message(id: string): ReplaySource['messages'][number] {
   return {
@@ -33,8 +29,8 @@ describe('buildReplayPayload — messages', () => {
   it('copies the messages verbatim when under the cap', () => {
     const out = buildReplayPayload({ messages: [message('a'), message('b')] });
     expect(out.replayMessages).toHaveLength(2);
-    expect(out.replayMessages?.[0].id).toBe('a');
-    expect(out.replayMessages?.[1].id).toBe('b');
+    expect((out.replayMessages?.[0] as { id?: string } | undefined)?.id).toBe('a');
+    expect((out.replayMessages?.[1] as { id?: string } | undefined)?.id).toBe('b');
   });
 
   it('returns a fresh array (caller cannot mutate the source)', () => {
@@ -49,8 +45,8 @@ describe('buildReplayPayload — messages', () => {
     const messages = Array.from({ length: cap + 50 }, (_, i) => message(`m${i}`));
     const out = buildReplayPayload({ messages });
     expect(out.replayMessages).toHaveLength(cap);
-    expect(out.replayMessages?.[0].id).toBe('m50');
-    expect(out.replayMessages?.[cap - 1].id).toBe(`m${cap + 49}`);
+    expect((out.replayMessages?.[0] as { id?: string } | undefined)?.id).toBe('m50');
+    expect((out.replayMessages?.[cap - 1] as { id?: string } | undefined)?.id).toBe(`m${cap + 49}`);
   });
 
   it('REPLAY_MESSAGE_CAP is exported and equals 2000', () => {
@@ -113,9 +109,9 @@ describe('buildReplayPayload — events / markers', () => {
   });
 
   it('skips events that project to zero markers', () => {
-    const event = { kind: 'noise' } as unknown as ReplaySource['events'] extends readonly (infer E)[]
-      ? E
-      : never;
+    const event = {
+      kind: 'noise',
+    } as unknown as ReplaySource['events'] extends readonly (infer E)[] ? E : never;
     const out = buildReplayPayload({ messages: [message('a')], events: [event] });
     expect(out.replayMarkers).toBeUndefined();
   });

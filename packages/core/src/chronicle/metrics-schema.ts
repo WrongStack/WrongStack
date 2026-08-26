@@ -4,7 +4,7 @@ import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning
 import type { ChronicleSignalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 export const READ_CHUNK_BYTES = 1024 * 1024;
 export const SQLITE_SOURCE_PREFIX = 'sqlite:';
 export const SQLITE_INGEST_BATCH = 2_000;
@@ -180,13 +180,30 @@ export function ensureMetricsSchema(db: DatabaseSync): void {
     );
     CREATE INDEX IF NOT EXISTS idx_file_lineage_path ON file_lineage(path_key, occurred_at);
     CREATE INDEX IF NOT EXISTS idx_file_lineage_task ON file_lineage(task_id);
+    -- Latest cumulative token snapshot per (project, session, agent) scope.
+    -- token.accounted carries a running total, so last-write-wins is the
+    -- correct reduction; the WHERE guard on ingest keeps it order-independent.
+    --
+    -- The token columns exist because cost alone was unusable: subscription
+    -- providers price at 0, so a table holding only cost reported nothing for
+    -- most real sessions while the token counts it was derived from were
+    -- discarded. provider/model are recorded for the same reason the session
+    -- journal now stamps them on llm_response: a spend row that cannot name
+    -- the model it paid for cannot be attributed.
     CREATE TABLE IF NOT EXISTS token_cost (
       scope_key TEXT PRIMARY KEY,
       day TEXT NOT NULL,
       occurred_at TEXT NOT NULL,
       sequence INTEGER NOT NULL,
-      cost REAL NOT NULL
+      cost REAL NOT NULL,
+      input_tokens INTEGER NOT NULL DEFAULT 0,
+      output_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+      cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+      provider TEXT NOT NULL DEFAULT '',
+      model TEXT NOT NULL DEFAULT ''
     );
+    CREATE INDEX IF NOT EXISTS idx_token_cost_model ON token_cost(provider, model);
     CREATE TABLE IF NOT EXISTS daily_counters (
       day TEXT PRIMARY KEY,
       tool_calls INTEGER NOT NULL DEFAULT 0,

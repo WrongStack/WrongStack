@@ -1,9 +1,9 @@
-import { Search } from 'lucide-react';
+import { Search, Star } from 'lucide-react';
 import { type ReactElement, useEffect, useMemo, useRef, useState } from 'react';
 import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModels';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { useAppTranslation } from '@/i18n';
 
 export type { ModelCandidate } from '@/hooks/useProviderModels';
 
@@ -125,13 +125,18 @@ export function ModelPickDialog({
                     {c.label !== c.model && (
                       <span className="truncate text-muted-foreground">{c.label}</span>
                     )}
+                    {c.isFavorite && (
+                      <Star className="h-3 w-3 fill-warning text-warning shrink-0 ml-auto" />
+                    )}
                   </button>
                 </div>
               );
             })
           )}
         </div>
-        <p className="text-[10px] text-muted-foreground">{t('activity:modelPickDialog.navigateEnterSelectEscClose')}</p>
+        <p className="text-[10px] text-muted-foreground">
+          {t('activity:modelPickDialog.navigateEnterSelectEscClose')}
+        </p>
       </DialogContent>
     </Dialog>
   );

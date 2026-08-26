@@ -68,7 +68,12 @@ function survivorIdsOf(desc: string): string[] {
   return [...desc.matchAll(/^- ([\w-]+#\d+#\d+) \|/gm)].map((m) => m[1]!);
 }
 
-const TARGET_FILE = 'packages/core/tests/coordination/__mutation_fixture__/subject.ts';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const WORKSPACE_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+const FIXTURE_PATH = fileURLToPath(new URL('./__mutation_fixture__/subject.ts', import.meta.url));
+const TARGET_FILE = path.relative(WORKSPACE_ROOT, FIXTURE_PATH).replace(/\\/g, '/');
 
 describe('makeMutationTestTool', () => {
   it('refuses to run without a chaos-monkey roster entry — no silent prompt/tools strip', async () => {
@@ -83,10 +88,10 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, undefined, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, undefined, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -100,10 +105,10 @@ describe('makeMutationTestTool', () => {
 
   it('errors cleanly when no mutable sites exist', async () => {
     const { director } = makeFakeDirector({ chaos: () => '{}' });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: ['no/such/file.ts'], testCommand: 'vitest' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(out['verdict']).toBe('inconclusive');
@@ -118,10 +123,10 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed', evidence: 'assert failed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -151,7 +156,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: (ids) => `strengthened ${ids.length} survivors`,
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -159,7 +164,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 2,
         repairSubagentId: 'repair-sub',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -175,10 +180,10 @@ describe('makeMutationTestTool', () => {
 
   it('treats a failed chaos task as skipped mutants, never as kills', async () => {
     const { director } = makeFakeDirector({ chaos: () => undefined });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(out['skipped']).toBeGreaterThan(0);
@@ -204,10 +209,10 @@ describe('makeMutationTestTool', () => {
         });
       },
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -248,18 +253,18 @@ describe('makeMutationTestTool', () => {
         return 'strengthened';
       },
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       // repairSubagentId is load-bearing: without it the strengthen loop
       // is disabled and the no-strengthen assertions below would pass
       // vacuously. With it enabled, a killed-by-hang row wrongly kept
       // in the worklist would spawn a strengthen task and fail this.
       { targets: [TARGET_FILE], testCommand: 'pnpm test', repairSubagentId: 'repair-sub' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
-    expect(out['killed']).toBe((out['planned'] as number)); // hangs count as kills
+    expect(out['killed']).toBe(out['planned'] as number); // hangs count as kills
     expect(out['killedByHang']).toBe(out['planned']); // hang-heavy: breakout equals total
     expect(out['survived']).toBe(0);
     expect(out['skipped']).toBe(0);
@@ -295,10 +300,10 @@ describe('makeMutationTestTool', () => {
         });
       },
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -323,11 +328,11 @@ describe('makeMutationTestTool', () => {
         });
       },
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     for (let i = 0; i < 2; i++) {
       await tool.execute(
         { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-        { projectRoot: process.cwd() } as never,
+        { projectRoot: WORKSPACE_ROOT } as never,
         { signal: new AbortController().signal },
       );
     }
@@ -372,19 +377,19 @@ describe('makeMutationTestTool', () => {
     };
 
     // 1. Default: no chaosWorktree passed → caller default `'off'`.
-    const t1 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const t1 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     await t1.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(seenWorktree[0]).toBe('off');
 
     // 2. Explicit `'auto'` propagates verbatim.
-    const t2 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const t2 = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     await t2.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: 'auto' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(seenWorktree[1]).toBe('auto');
@@ -417,22 +422,24 @@ describe('makeMutationTestTool', () => {
         return { completed: [], pending: ids };
       },
     };
-    const roster = { 'chaos-monkey': { ...FLEET_ROSTER['chaos-monkey']!, worktree: 'required' as const } };
+    const roster = {
+      'chaos-monkey': { ...FLEET_ROSTER['chaos-monkey']!, worktree: 'required' as const },
+    };
 
     // No chaosWorktree input → the roster's policy is the default.
-    const t1 = makeMutationTestTool(director, roster, { projectRoot: process.cwd() });
+    const t1 = makeMutationTestTool(director, roster, { projectRoot: WORKSPACE_ROOT });
     await t1.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(seenWorktree[0]).toBe('required');
 
     // Explicit input still overrides the roster policy.
-    const t2 = makeMutationTestTool(director, roster, { projectRoot: process.cwd() });
+    const t2 = makeMutationTestTool(director, roster, { projectRoot: WORKSPACE_ROOT });
     await t2.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: false },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(seenWorktree[1]).toBe(false);
@@ -465,10 +472,10 @@ describe('makeMutationTestTool', () => {
         return { completed: [], pending: ids };
       },
     };
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     await tool.execute(
       { targets: [TARGET_FILE], testCommand: 'pnpm test', chaosWorktree: 'sometimes' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     // 'sometimes' is not boolean|auto|required|off → dropped by
@@ -489,10 +496,10 @@ describe('makeMutationTestTool', () => {
             .map((m) => ({ ...m, status: 'killed', evidence: 'assert failed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       { targets: [TARGET_FILE, TARGET_FILE], testCommand: 'pnpm test' },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(out['planned']).toBe(4); // 2 mutants × 2 copies
@@ -526,7 +533,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -534,7 +541,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 1,
         repairSubagentId: 'repair-sub',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -588,7 +595,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -596,7 +603,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 1,
         repairSubagentId: 'repair-sub',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -644,7 +651,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -652,7 +659,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 2,
         repairSubagentId: 'repair-sub',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -701,7 +708,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -709,7 +716,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 2,
         repairSubagentId: 'repair-sub',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -792,7 +799,7 @@ describe('makeMutationTestTool', () => {
       },
     };
     const tool = makeMutationTestTool(failRepairDirector, FLEET_ROSTER, {
-      projectRoot: process.cwd(),
+      projectRoot: WORKSPACE_ROOT,
     });
     const out = (await tool.execute(
       {
@@ -802,7 +809,7 @@ describe('makeMutationTestTool', () => {
         repairSubagentId: 'repair-sub',
         maxStrengthenAttempts: 3,
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -837,7 +844,7 @@ describe('makeMutationTestTool', () => {
       },
       strengthen: () => 'strengthened',
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -846,7 +853,7 @@ describe('makeMutationTestTool', () => {
         repairSubagentId: 'repair-sub',
         maxStrengthenAttempts: 3,
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
 
@@ -905,7 +912,7 @@ describe('makeMutationTestTool', () => {
       },
     };
     void director;
-    const t = makeMutationTestTool(dir2, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const t = makeMutationTestTool(dir2, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await t.execute(
       {
         targets: [TARGET_FILE],
@@ -914,7 +921,7 @@ describe('makeMutationTestTool', () => {
         repairSubagentId: 'repair-sub',
         maxStrengthenAttempts: 999,
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(out['strengthenAttempts']).toBeLessThanOrEqual(5);
@@ -932,7 +939,7 @@ describe('makeMutationTestTool', () => {
         return 'strengthened';
       },
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -941,7 +948,7 @@ describe('makeMutationTestTool', () => {
         repairSubagentId: 'repair-sub',
         reportOnly: true,
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(strengthenAssigns).toBe(0);
@@ -960,14 +967,14 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     await tool.execute(
       {
         targets: [TARGET_FILE, TARGET_FILE],
         testCommand: 'pnpm test',
         maxPerFile: 2,
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(assigns).toHaveLength(1);
@@ -980,7 +987,7 @@ describe('makeMutationTestTool', () => {
   it('returns `inconclusive` when no mutable sites exist across all targets', async () => {
     // Two unreadable targets + one masked target → empty plan → inconclusive.
     const { director } = makeFakeDirector({ chaos: () => '{}' });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [
@@ -991,7 +998,7 @@ describe('makeMutationTestTool', () => {
         ],
         testCommand: 'pnpm test',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     // Fixture file has mutants, so this won't be inconclusive. Pin that
@@ -1009,14 +1016,14 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'killed' })),
         }),
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     await tool.execute(
       {
         targets: [TARGET_FILE],
         testCommand: 'pnpm test',
         cwd: 'packages/core',
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     );
     expect(assigns[0]!.description).toContain('cwd: packages/core');
@@ -1039,7 +1046,7 @@ describe('makeMutationTestTool', () => {
           mutants: task.mutants.map((m) => ({ ...m, status: 'survived' })),
         }),
     });
-    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: process.cwd() });
+    const tool = makeMutationTestTool(director, FLEET_ROSTER, { projectRoot: WORKSPACE_ROOT });
     const out = (await tool.execute(
       {
         targets: [TARGET_FILE],
@@ -1047,7 +1054,7 @@ describe('makeMutationTestTool', () => {
         maxPerFile: 1,
         // Note: no repairSubagentId.
       },
-      { projectRoot: process.cwd() } as never,
+      { projectRoot: WORKSPACE_ROOT } as never,
       { signal: new AbortController().signal },
     )) as Record<string, unknown>;
     expect(out['survived']).toBeGreaterThan(0);

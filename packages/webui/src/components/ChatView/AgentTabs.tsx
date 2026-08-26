@@ -11,14 +11,15 @@
 
 import { Bot, CheckCircle2, Crown, Loader2 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
+import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import {
-  selectLeaderName,
   selectSortedAgentList,
   useChatStore,
   useFleetStore,
+  useSessionLeaderId,
   useSessionStore,
   useUIStore,
 } from '@/stores';
@@ -37,16 +38,21 @@ export function AgentTabs() {
   const currentSessionId = useSessionStore((s) => s.session?.id);
   const isLoading = useChatStore((s) => s.isLoading);
   const allAgents = useFleetStore(useShallow(selectSortedAgentList));
-  const leaderId = useFleetStore((s) => s.leaderId);
-  const leaderName = useFleetStore(selectLeaderName);
+  // This tab's leader, not the process-wide one — otherwise a second tab
+  // promoting its leader made this tab list its own leader as a subagent.
+  const leaderId = useSessionLeaderId(currentSessionId);
+  // Named from THIS tab's leader — `selectLeaderName` resolves the
+  // process-wide pointer, which names another tab's leader as often as not.
+  const leaderName = useFleetStore((s) => (leaderId ? s.agents.get(leaderId)?.name : undefined));
   const focusId = useUIStore((s) => s.subagentChatFocusId);
   const setFocus = useUIStore((s) => s.setSubagentChatFocus);
 
   // The leader already owns the dedicated first tab — never list it twice.
-  // Only show agents belonging to this session.
-  const agents = allAgents.filter(
-    (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
-  );
+  //
+  // Agents are listed fail-CLOSED: an agent must name this session to appear.
+  // The old `!a.sessionId ||` allowance meant one untagged agent showed up in
+  // all four tabs at once, which is the roster half of the cross-tab bleed.
+  const agents = allAgents.filter((a) => agentBelongsToSession(a.sessionId, currentSessionId));
   const subagents = agents.filter((a) => a.id !== leaderId);
   if (subagents.length === 0 && focusId == null && !isLoading) return null;
 
@@ -79,7 +85,9 @@ export function AgentTabs() {
           )}
         >
           <Crown className="h-3 w-3 shrink-0 text-warning" />
-          <span className="max-w-[10rem] truncate">{leaderName ?? t('activity:agents.leaderTab')}</span>
+          <span className="max-w-[10rem] truncate">
+            {leaderName ?? t('activity:agents.leaderTab')}
+          </span>
         </button>
         {subagents.map((a) => {
           const meta = TAB_LED[a.status] ?? TAB_LED.stopped;

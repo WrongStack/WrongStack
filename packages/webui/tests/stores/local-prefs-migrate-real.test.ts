@@ -23,7 +23,7 @@ describe('local-prefs migrate() — persist option (real implementation)', () =>
   it('is wired into the persist middleware at the current version', () => {
     const opts = useLocalPrefs.persist.getOptions();
     expect(opts.name).toBe('wrongstack-local-prefs');
-    expect(opts.version).toBe(16);
+    expect(opts.version).toBe(17);
     expect(typeof opts.migrate).toBe('function');
   });
 

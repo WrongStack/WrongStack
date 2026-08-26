@@ -279,11 +279,19 @@ export async function spawn(
   host.subagentBridges.set(result.subagentId, subagentBridge);
   // Emit subagent.spawned on the FleetBus so the TUI can track collab agents
   // (which bypass MultiAgentHost.spawn and go through director.spawn directly).
+  const currentSessionId =
+    typeof (host.coordinator as unknown as { currentSessionId?: () => string | undefined })
+      .currentSessionId === 'function'
+      ? (
+          host.coordinator as unknown as { currentSessionId: () => string | undefined }
+        ).currentSessionId()
+      : undefined;
   host.fleet.emit({
     subagentId: result.subagentId,
     ts: Date.now(),
     type: 'subagent.spawned',
     payload: {
+      ...(currentSessionId ? { sessionId: currentSessionId } : {}),
       subagentId: result.subagentId,
       taskId: '', // taskId will be set when assign() is called
       name: config.name,

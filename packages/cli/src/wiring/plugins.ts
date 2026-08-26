@@ -418,8 +418,14 @@ export async function setupPlugins(
         llm: params.llm,
         sessionWriter: {
           transcriptPath: sessionWriter.transcriptPath,
+          // Plugins declare an open event shape, so this crosses from an
+          // untyped record into the closed `SessionEvent` union. `unknown`
+          // is the honest intermediate: a direct assertion only compiled
+          // while some union member happened to overlap structurally, which
+          // is not a check — it silently stopped being one the moment the
+          // union changed shape.
           append: (e: Record<string, unknown> & { type: string; ts: string }) =>
-            sessionWriter.append(e as Parameters<typeof sessionWriter.append>[0]),
+            sessionWriter.append(e as unknown as Parameters<typeof sessionWriter.append>[0]),
         },
         metricsSink,
         configStore,

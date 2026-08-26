@@ -687,6 +687,26 @@ export class Director implements DirectorFleetHost, ICoordinator {
     }
   }
 
+  /**
+   * Terminate every subagent spawned by ONE session.
+   *
+   * What a tab's Stop button needs. `terminateAll()` is the wrong tool once
+   * several sessions share a director: it would kill three other tabs' fleets
+   * along with this one's. Aborting the leader's run only unwinds workers the
+   * leader is BLOCKED on (the delegate tool terminates those itself); anything
+   * started with `spawn_subagent` + `assign_task` keeps running because nobody
+   * asked it to stop. This is that ask, scoped to the session that owns them.
+   */
+  async terminateSession(sessionId: string): Promise<void> {
+    if (!sessionId) return;
+    const ids = this.coordinator.subagentIdsForSession(sessionId);
+    if (ids.length === 0) return;
+    await this.coordinator.stopSession(sessionId);
+    for (const id of ids) {
+      void this.remove(id).catch((err) => this.logShutdownError('terminate_session_remove', err));
+    }
+  }
+
   async remove(subagentId: string): Promise<void> {
     this.clearSubagentIdleRetirement(subagentId);
     this.subagentIdleDelayMs.delete(subagentId);

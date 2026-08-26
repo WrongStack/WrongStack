@@ -59,7 +59,14 @@ export interface ProviderHandlerDeps {
   setConfigWriteLock: (lock: Promise<void>) => void;
   getConfigWriteLock: () => Promise<void>;
   /** Broadcast a message to all connected WebUI clients */
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   /** Connected WebUI clients map */
   clients: Map<WebSocket, ConnectedClient>;
   /** Used by the ChatGPT OAuth flow's tier-2 model lookup (best-effort). */

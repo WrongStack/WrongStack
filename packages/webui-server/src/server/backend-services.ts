@@ -29,6 +29,10 @@ import type {
   BrainRuntime,
 } from '@wrongstack/core/execution';
 import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import {
+  CONTEXT_MANAGER_TOOL_NAME,
+  createContextManagerTool,
+} from '@wrongstack/core/infrastructure';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
@@ -50,8 +54,6 @@ import type {
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 
 import { Agent } from '@wrongstack/core/agent';
-import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
-import { createWrongTraceHookPair, recordGateDecision, snapshotGateDecisions, persistWrongTraceGateCounters } from '@wrongstack/wrongtrace';
 import {
   BrainDecisionLedger,
   BrainMonitor,
@@ -64,7 +66,6 @@ import {
   ObservableBrainArbiter as ObservableBrainArbiterCtor,
 } from '@wrongstack/core/coordination';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
-import { installVibeProtocol } from '@wrongstack/sdd';
 import {
   AutoCompactionMiddleware as AutoCompactionMiddlewareCtor,
   createBrainRuntime,
@@ -72,11 +73,12 @@ import {
   resolveBrainConfigDefaults,
   ToolExecutor,
 } from '@wrongstack/core/execution';
+import { HookRegistry, HookRunner } from '@wrongstack/core/hooks';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { type AnnotationsStore, SessionMemoryConsolidator } from '@wrongstack/core/storage';
 import {
-  type Config,
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
+  type Config,
   DEFAULT_TOOLS_CONFIG,
   type ProviderConfig,
   resolveContextWindowPolicy,
@@ -89,6 +91,13 @@ import {
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeLightSubagentFactory } from '@wrongstack/runtime';
 import { getSageService, setupSage } from '@wrongstack/sage';
+import { installVibeProtocol } from '@wrongstack/sdd';
+import {
+  createWrongTraceHookPair,
+  persistWrongTraceGateCounters,
+  recordGateDecision,
+  snapshotGateDecisions,
+} from '@wrongstack/wrongtrace';
 import { setupWebUICodebaseIndexing } from './codebase-indexing.js';
 import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { discoverMailboxBridgeForWebui } from './discover-mailbox-bridge.js';
@@ -132,6 +141,12 @@ interface AgentServicesInput {
   sessionGetter: () => Session;
   /** Read-only session reader (collab replay-on-join). */
   sessionReader: SessionReader;
+  /**
+   * True while `sessionId` has an in-flight run. Consulted before evicting a
+   * session agent: the registry is capped at the tab limit, so without this a
+   * fifth lookup would drop a tab that is mid-turn and strand its transcript.
+   */
+  isRunActive?: ((sessionId: string) => boolean) | undefined;
   /** Annotations store (collab notes). */
   annotationsStore: AnnotationsStore;
   /**
@@ -157,7 +172,13 @@ interface AgentServices {
   brainSettings: { maxAutoRisk: BrainAutoRisk };
   /** Live-editable Brain config owner (brain.config.get/set routes). */
   brainRuntime: BrainRuntime;
-  brainLog: Array<{ at: number; kind: string; question: string; outcome: string }>;
+  brainLog: Array<{
+    at: number;
+    kind: string;
+    question: string;
+    outcome: string;
+    sessionId?: string | undefined;
+  }>;
   brainMonitor: BrainMonitor;
   /** LIVE persistent decision ledger (undefined when disabled). Read via the
    *  services object at shutdown — ledger toggles swap the instance. */
@@ -267,6 +288,31 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     summarizerModel: config.context?.summarizerModel,
     llmSelector: config.context?.llmSelector,
   });
+
+  // `context_manager` — registered HERE, not in `registerCanonicalHostTools`.
+  //
+  // The CLI passes `contextTool` into that canonical call because it builds its
+  // compactor first. This server can't: `createPreContextServices` builds the
+  // tool registry (start-webui.ts) long before `createAgentServices` builds the
+  // compactor above, so the canonical call runs with no compactor to hand it.
+  // The result was a surface gap — the model could self-manage its context
+  // under `wstack` but not in the desktop app or the standalone server, both of
+  // which boot through this path.
+  //
+  // `registerDefault` matches the canonical registration exactly (no-op if some
+  // other owner already claimed the name), and `exposeToProvider` mirrors the
+  // `directNames.add(contextTool.name)` branch — it self-cancels when the tier
+  // is 'off', because that leaves `_providerToolNames` undefined and the whole
+  // catalog is already exposed.
+  //
+  // The disabled check is NOT redundant: `applyDisabled` ran during the
+  // canonical call, and `ToolRegistry.disable()` ignores names that aren't
+  // registered yet. Registering afterwards would otherwise resurrect a tool the
+  // operator turned off in `tools.disabledTools`.
+  if (!(config.tools?.disabledTools ?? []).includes(CONTEXT_MANAGER_TOOL_NAME)) {
+    toolRegistry.registerDefault(createContextManagerTool({ compactor }));
+    toolRegistry.exposeToProvider(CONTEXT_MANAGER_TOOL_NAME);
+  }
 
   // Per-model catalog facts FIRST — mirrors the CLI's resolveRuntimeMaxContext
   // chain. `config.context.effectiveMaxContext` is a single model-agnostic
@@ -576,7 +622,16 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   container.bind(TOKENS.BrainArbiter, () => brain);
 
   // Decision log for the /brain command — last 20 decisions, newest last.
-  const brainLog: Array<{ at: number; kind: string; question: string; outcome: string }> = [];
+  // `sessionId` is carried so a tab can be shown ITS decisions: the Brain is
+  // project-wide, but a decision is always about one session's tool call, and
+  // an unlabelled mixture of four tabs' decisions answers nobody's question.
+  const brainLog: Array<{
+    at: number;
+    kind: string;
+    question: string;
+    outcome: string;
+    sessionId?: string | undefined;
+  }> = [];
   const pushBrainLog = (entry: (typeof brainLog)[number]) => {
     brainLog.push(entry);
     if (brainLog.length > 20) brainLog.shift();
@@ -585,6 +640,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     events.on('brain.decision_answered', (e) =>
       pushBrainLog({
         at: e.at,
+        sessionId: e.sessionId,
         kind: 'answered',
         question: e.request.question,
         outcome: e.decision.type === 'answer' ? (e.decision.optionId ?? e.decision.text) : '',
@@ -593,6 +649,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     events.on('brain.decision_ask_human', (e) =>
       pushBrainLog({
         at: e.at,
+        sessionId: e.sessionId,
         kind: 'ask_human',
         question: e.request.question,
         outcome: 'needs human judgement',
@@ -601,6 +658,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     events.on('brain.decision_denied', (e) =>
       pushBrainLog({
         at: e.at,
+        sessionId: e.sessionId,
         kind: 'denied',
         question: e.request.question,
         outcome: e.decision.type === 'deny' ? e.decision.reason : '',
@@ -632,9 +690,16 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     fileChurnWindowMs: brainCfg.monitor?.fileChurnWindowMs,
     fileEditTools: brainCfg.monitor?.fileEditTools,
     cooldownMs: brainCfg.monitor?.cooldownMs,
-    sessionId: () => context.session?.id,
-    intervene: async ({ subject, body }) => {
-      const tag = mailboxSessionTag(input.sessionGetter().id);
+    // Watch the session that is actually in front. Pinning this to the ROOT
+    // context meant the monitor kept watching whichever session the host
+    // booted on, while `intervene` steered the live one — with several
+    // sessions under one host those are different tabs.
+    sessionId: () => input.sessionGetter().id,
+    intervene: async ({ subject, body, sessionId }) => {
+      // Steer the session whose distress triggered this, not "the current
+      // one": by the time an LLM-backed engagement resolves, the user may
+      // have switched tabs.
+      const tag = mailboxSessionTag(sessionId || input.sessionGetter().id);
       await brainMailbox.send({
         from: `brain@${tag}`,
         to: `leader@${tag}`,
@@ -760,12 +825,33 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     }
 
     if (sessionAgents.size >= MAX_CONCURRENT_SESSION_AGENTS) {
-      const oldestKey = sessionAgents.keys().next().value;
-      if (oldestKey) {
-        const evicted = sessionAgents.get(oldestKey);
+      // Evict the oldest IDLE session. A running one owns a live transcript
+      // that only exists in its context, so dropping it would lose the turn
+      // and hand the tab a fresh, empty agent when the user clicks back.
+      // When every slot is busy the registry is allowed to exceed the cap:
+      // over-cap memory is recoverable, a destroyed in-flight turn is not.
+      let evictedAny = false;
+      for (const key of sessionAgents.keys()) {
+        if (key === context.session?.id) continue;
+        if (input.isRunActive?.(key)) continue;
+        const evicted = sessionAgents.get(key);
         evicted?.ctx.readFiles.clear();
         evicted?.ctx.fileMtimes.clear();
-        sessionAgents.delete(oldestKey);
+        sessionAgents.delete(key);
+        evictedAny = true;
+        break;
+      }
+      if (!evictedAny) {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'webui.session_agents_over_cap',
+            size: sessionAgents.size,
+            cap: MAX_CONCURRENT_SESSION_AGENTS,
+            reason: 'every session agent is running; kept them all rather than killing a turn',
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
     }
     const sessionCtx = new Context({
@@ -792,7 +878,8 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       refreshSystemPrompt: true,
       context: sessionCtx,
       maxIterations: config.tools?.maxIterations ?? DEFAULT_TOOLS_CONFIG.maxIterations,
-      iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
+      iterationTimeoutMs:
+        config.tools?.iterationTimeoutMs ?? DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
       executionStrategy:
         config.tools?.defaultExecutionStrategy ?? DEFAULT_TOOLS_CONFIG.defaultExecutionStrategy,
       perIterationOutputCapBytes:

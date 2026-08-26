@@ -17,7 +17,7 @@
   - *How:* `.gitignore`
   - *How:* `dist/`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=54; wins=54 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=57; wins=57 -->
 - **Always verify React component wiring in `packages/webui/src` with an exact-text grep of the component name — never from `codebase-incoming-calls` returning zero or a `codebase-skeleton` import block, because JSX render edges are invisible to both (verified: AgentTabs showed 0 incoming calls while `ChatView/index.tsx` imported it at L21 and rendered it at L102). Key takeaway: the map shows a feature that is ~90% landed — the real remaining work is tests and polish, and any consumer must treat exact line numbers as perishable while a peer edits concurrently.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src`
@@ -80,7 +80,7 @@
   - *How:* `PanelControllersOptions`
   - *How:* `createPanelOpenDispatcher`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=86; wins=85 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=87; wins=86 -->
 - **Treat the exports map in `packages/webui/package.json` as packaging metadata, not a live API: no workspace code imports `@wrongstack/webui` or `@wrongstack/webui/types`; only `packages/cli` and `apps/desktop` declare it, as a presence pin. Its real delivery path is the Vite bundle from `packages/webui/src/main.tsx` served by `@wrongstack/webui-server`, so probing "who imports this package" must grep import statements, not just dependency declarations.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `packages/webui/package.json`

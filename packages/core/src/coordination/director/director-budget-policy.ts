@@ -81,11 +81,7 @@ export class DirectorBudgetPolicy {
         }
         const payload = event.payload as BudgetThresholdPayload;
         if (payload.kind === 'timeout' || payload.kind === 'idle_timeout') {
-          this.handleTimeoutThreshold(
-            event.subagentId,
-            event.taskId,
-            payload,
-          );
+          this.handleTimeoutThreshold(event.subagentId, event.taskId, payload);
           return;
         }
 
@@ -105,13 +101,7 @@ export class DirectorBudgetPolicy {
         }
 
         const grant = () =>
-          this.grantBoundedExtension(
-            event.subagentId,
-            event.taskId,
-            payload,
-            guardKey,
-            prior,
-          );
+          this.grantBoundedExtension(event.subagentId, event.taskId, payload, guardKey, prior);
         if (payload.kind !== 'cost' || !this.deps.brain) {
           grant();
           return;
@@ -275,12 +265,18 @@ export class DirectorBudgetPolicy {
   ): void {
     const total = (this.extendTotals.get(subagentId) ?? 0) + 1;
     this.extendTotals.set(subagentId, total);
+    const sessionId = this.deps.currentSessionId?.();
     this.deps.fleet.emit({
       subagentId,
       taskId,
       ts: Date.now(),
       type: 'budget.extended',
-      payload: { kind, newLimit, totalExtensions: total },
+      payload: {
+        ...(sessionId ? { sessionId } : {}),
+        kind,
+        newLimit,
+        totalExtensions: total,
+      },
     });
   }
 

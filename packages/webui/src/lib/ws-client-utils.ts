@@ -1,6 +1,25 @@
-import type { WSServerMessage } from '../types';
+import {
+  activeLaneId,
+  type ChatLaneActions,
+  chatLane,
+  DEFAULT_LANE_ID,
+  ensureLane,
+  hasLane,
+  laneIds,
+  MAX_LANES,
+} from '../stores/chat-lanes';
+import {
+  activeSessionLaneId,
+  ensureSessionLane,
+  hasSessionLane,
+  SESSION_DEFAULT_LANE_ID,
+  type SessionLaneActions,
+  sessionLane,
+  sessionLaneIds,
+} from '../stores/session-lanes';
 import { useSessionStore } from '../stores/session-store';
 import { useVizStore, wsToVizEvent } from '../stores/viz-store';
+import type { WSServerMessage } from '../types';
 
 /**
  * Generic event handler. When the consumer knows the literal message type K,
@@ -12,6 +31,30 @@ import { useVizStore, wsToVizEvent } from '../stores/viz-store';
 export type EventHandler<K extends WSServerMessage['type'] = WSServerMessage['type']> = (
   msg: Extract<WSServerMessage, { type: K }>,
 ) => void;
+
+/**
+ * The session the user is looking at, or `null` when none is bound yet.
+ *
+ * There is exactly ONE answer to "which tab is in front": the lane pointer.
+ * Every other candidate drifts from it —
+ *
+ *  - `useSessionStore().session?.id` is the lane's SessionInfo record, which
+ *    is null from the moment a tab is opened until its `session.start` lands,
+ *    and again after `endSession`;
+ *  - the WS client's own `sessionId` is whichever session announced last on
+ *    the socket, which in a four-tab window is routinely a BACKGROUND tab.
+ *
+ * Both were used as stand-ins for the pointer on the send path, which is how
+ * a message typed in tab 2 started a run in tab 1's session. Read the pointer
+ * here and let the callers share it.
+ */
+export function foregroundSessionId(): string | null {
+  const pointer = activeSessionLaneId();
+  if (pointer && pointer !== SESSION_DEFAULT_LANE_ID) return pointer;
+  // Pre-session (boot, setup screen): the lane pointer is deliberately unbound
+  // and there is no session to address.
+  return useSessionStore.getState().session?.id ?? null;
+}
 
 /**
  * Returns true when a server message is intended for the currently-active
@@ -29,6 +72,125 @@ export function isActiveSessionMessage(msg: WSServerMessage): boolean {
   const activeId = useSessionStore.getState().session?.id;
   if (sessionId === '') return false;
   return !sessionId || !activeId || sessionId === activeId;
+}
+
+/**
+ * Read the session a message belongs to, or `null` when it names none.
+ * Empty-string counts as "none": the server stamps `sessionId: ''` when its
+ * context has no session, and that must never widen into "every session".
+ */
+export function messageSessionId(msg: WSServerMessage): string | null {
+  const sessionId = (msg.payload as { sessionId?: string | undefined } | undefined)?.sessionId;
+  return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : null;
+}
+
+/**
+ * Resolve the chat LANE a message belongs to — the only way a WS handler is
+ * allowed to touch chat state.
+ *
+ * This is positive routing: the message names its session and the write lands
+ * in that session's lane, in the foreground or not. Compare with the guard it
+ * replaces, which asked "is this for the tab in front?" and dropped everything
+ * else — one forgotten guard mis-delivered a run's tokens into a neighbouring
+ * transcript, and even a correct guard threw away background tabs' own output.
+ *
+ * Returns `null` (drop the event) when:
+ *  - the message carries no sessionId — a server regression, warned once per
+ *    message type, because silently dropping looks like "the model stopped";
+ *  - the session has no lane and all four lanes are taken. A fifth session
+ *    gets no tab, so its events belong to nobody.
+ */
+export function chatFor(msg: WSServerMessage): ChatLaneActions | null {
+  const sessionId = messageSessionId(msg);
+  if (sessionId) {
+    if (hasLane(sessionId)) return chatLane(sessionId);
+    if (laneIds().length < MAX_LANES) {
+      ensureLane(sessionId);
+      return chatLane(sessionId);
+    }
+    warnLaneOverflow(msg.type, sessionId);
+    return null;
+  }
+
+  // Untagged. With NO session in front there is no transcript it could
+  // corrupt, so it lands in the pre-session lane — a server build that forgets
+  // to stamp must not make the boot/setup surface look dead. Once a session IS
+  // in front, "the obvious tab" does not exist (there may be three more behind
+  // it) and guessing is precisely the bleed, so drop it and say so once per
+  // message type.
+  const active = activeLaneId();
+  if (active === DEFAULT_LANE_ID) return chatLane(DEFAULT_LANE_ID);
+  warnUntaggedChatEvent(msg.type);
+  return null;
+}
+
+/**
+ * Resolve the SESSION-ACCOUNTING lane a message belongs to — tokens, cost,
+ * iteration, todos, context ceiling. Same positive-routing contract as
+ * `chatFor`: a background run's numbers land on the background tab's counters,
+ * never on the tab in front.
+ */
+export function sessionFor(msg: WSServerMessage): SessionLaneActions | null {
+  const sessionId = messageSessionId(msg);
+  if (sessionId) {
+    if (hasSessionLane(sessionId)) return sessionLane(sessionId);
+    if (sessionLaneIds().length < MAX_LANES) {
+      ensureSessionLane(sessionId);
+      return sessionLane(sessionId);
+    }
+    return null;
+  }
+  // Same pre-session allowance as `chatFor`.
+  const active = activeSessionLaneId();
+  if (active === SESSION_DEFAULT_LANE_ID) return sessionLane(SESSION_DEFAULT_LANE_ID);
+  return null;
+}
+
+/**
+ * Session-scoped variant kept for the handful of non-chat surfaces that still
+ * key off "the tab in front" (panels that render only foreground state).
+ * Chat/transcript writers must use `chatFor` instead.
+ */
+export function isChatMessageForActiveSession(msg: WSServerMessage): boolean {
+  const sessionId = messageSessionId(msg);
+  const activeId = useSessionStore.getState().session?.id;
+  if (!activeId) return true;
+  if (!sessionId) {
+    warnUntaggedChatEvent(msg.type);
+    return false;
+  }
+  return sessionId === activeId;
+}
+
+const warnedUntaggedTypes = new Set<string>();
+function warnUntaggedChatEvent(type: string): void {
+  if (warnedUntaggedTypes.has(type)) return;
+  warnedUntaggedTypes.add(type);
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'ws_client.untagged_chat_event',
+      messageType: type,
+      reason: 'chat event carried no sessionId; dropped to protect other tabs',
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
+const warnedOverflowSessions = new Set<string>();
+function warnLaneOverflow(type: string, sessionId: string): void {
+  if (warnedOverflowSessions.has(sessionId)) return;
+  warnedOverflowSessions.add(sessionId);
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'ws_client.chat_lane_overflow',
+      messageType: type,
+      sessionId,
+      reason: 'no lane for this session and all four lanes are taken; event dropped',
+      timestamp: new Date().toISOString(),
+    }),
+  );
 }
 
 /**
@@ -202,9 +364,10 @@ export function defaultWsUrl(): string {
   const token = getTokenFromPageUrl();
   const query = token ? `?token=${encodeURIComponent(token)}` : '';
   // Use the page's own host and port (WS shares the HTTP port)
-  const hostPart = host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1'
-    ? '127.0.0.1'
-    : host;
+  const hostPart =
+    host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1'
+      ? '127.0.0.1'
+      : host;
   return `${protocol}://${hostPart}${port ? `:${port}` : ''}${query}`;
 }
 

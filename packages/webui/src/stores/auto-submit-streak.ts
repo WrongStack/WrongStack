@@ -1,11 +1,11 @@
+import type { TodoItem } from '@wrongstack/core/agent';
 import {
   createAutoProceedLoopGuard,
   createContinuationAttemptTracker,
   generateAdvancementPrompt,
-  matchTodoIdFromPrompt,
   MAX_ADVANCEMENT_ATTEMPTS,
+  matchTodoIdFromPrompt,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
-import type { TodoItem } from '@wrongstack/core/agent';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocalPrefs } from './local-prefs.js';
 import { useSessionStore } from './session-store.js';
@@ -65,46 +65,103 @@ interface UseAutoSubmitStreak {
   resetCapWarned: () => void;
 }
 
-// Module-level state so the streak persists across component unmounts/remounts.
-// This is NOT a React state — it's a mutable counter shared by all hook instances.
-let _streak = 0;
-let _capWarned = false;
-let _loopHalted = false;
-const _loopGuard = createAutoProceedLoopGuard();
-const _continuationTracker = createContinuationAttemptTracker();
+/**
+ * Auto-submit bookkeeping for ONE session.
+ *
+ * This lives outside React so the streak survives component unmount/remount —
+ * but it must also survive a TAB SWITCH. It used to be five module-level
+ * variables that the session-change effect ZEROED, which meant the cap and the
+ * repetition guard were both defeated by clicking another tab and back:
+ * `autoProceedMaxIterations` never fired, and a prompt loop that the guard had
+ * already halted started over. One record per session fixes both, and keeps
+ * four concurrent tabs from sharing a counter in the first place.
+ */
+interface SessionStreakState {
+  streak: number;
+  capWarned: boolean;
+  loopHalted: boolean;
+  loopGuard: ReturnType<typeof createAutoProceedLoopGuard>;
+  continuationTracker: ReturnType<typeof createContinuationAttemptTracker>;
+}
 
-/** Module-level streak — reset when the page hard-reloads (acceptable tradeoff) */
+/** Before a session exists. Adopted by the first real session it binds to. */
+const UNBOUND_STREAK_KEY = '__unbound__';
+
+/**
+ * Four tabs, but a long-lived page cycles through many sessions; bound the map
+ * so a day of resumes cannot grow it without limit. Insertion order is
+ * eviction order, and the four open tabs are re-created on demand.
+ */
+const MAX_TRACKED_STREAK_SESSIONS = 8;
+
+const streakBySession = new Map<string, SessionStreakState>();
+
+function blankStreakState(): SessionStreakState {
+  return {
+    streak: 0,
+    capWarned: false,
+    loopHalted: false,
+    loopGuard: createAutoProceedLoopGuard(),
+    continuationTracker: createContinuationAttemptTracker(),
+  };
+}
+
+function streakStateFor(sessionId: string | null): SessionStreakState {
+  const key = sessionId ?? UNBOUND_STREAK_KEY;
+  const existing = streakBySession.get(key);
+  if (existing) return existing;
+  if (streakBySession.size >= MAX_TRACKED_STREAK_SESSIONS) {
+    const oldest = streakBySession.keys().next().value;
+    if (oldest !== undefined) streakBySession.delete(oldest);
+  }
+  const fresh = blankStreakState();
+  streakBySession.set(key, fresh);
+  return fresh;
+}
+
+/** Drop a closed tab's bookkeeping. */
+export function disposeStreakState(sessionId: string): void {
+  streakBySession.delete(sessionId);
+}
+
+/** Per-session streak — reset when the page hard-reloads (acceptable tradeoff) */
 export function useAutoSubmitStreak(): UseAutoSubmitStreak {
   const autoProceedMaxIterations = useLocalPrefs((s) => s.autoProceedMaxIterations);
   const autonomy = useLocalPrefs((s) => s.autonomy);
   const sessionId = useSessionStore((s) => s.session?.id ?? null);
 
-  // Use refs for the mutable values that don't need to trigger re-renders
-  const streakRef = useRef(_streak);
-  const capWarnedRef = useRef(_capWarned);
-  // Track session/mode switches so shared module state never crosses a
-  // backend session boundary.
+  /** This tab's own bookkeeping — never another tab's. */
+  const state = streakStateFor(sessionId);
+
+  // Refs mirror the record for render; the record is the source of truth.
+  const streakRef = useRef(state.streak);
+  const capWarnedRef = useRef(state.capWarned);
   const prevAutonomyRef = useRef(autonomy);
   const prevSessionIdRef = useRef(sessionId);
 
-  // Sync from module level on first render
   useEffect(() => {
-    streakRef.current = _streak;
-    capWarnedRef.current = _capWarned;
+    streakRef.current = state.streak;
+    capWarnedRef.current = state.capWarned;
   });
 
-  // A new backend session starts a fresh automatic-submission history.
+  // Switching tabs RE-POINTS at that session's history; it does not clear it.
+  // Clearing here is what let a tab switch reset the cap and release a halted
+  // prompt loop.
   useEffect(() => {
-    if (prevSessionIdRef.current !== sessionId) {
-      _streak = 0;
-      streakRef.current = 0;
-      _capWarned = false;
-      capWarnedRef.current = false;
-      _loopHalted = false;
-      _loopGuard.reset();
-      _continuationTracker.reset();
-      prevSessionIdRef.current = sessionId;
+    if (prevSessionIdRef.current === sessionId) return;
+    // Anything counted before a session existed belongs to the first real one,
+    // mirroring how the chat lane adopts the pre-session transcript.
+    if (prevSessionIdRef.current === null && sessionId) {
+      const unbound = streakBySession.get(UNBOUND_STREAK_KEY);
+      if (unbound && !streakBySession.has(sessionId)) {
+        streakBySession.set(sessionId, unbound);
+        streakBySession.delete(UNBOUND_STREAK_KEY);
+      }
     }
+    const next = streakStateFor(sessionId);
+    streakRef.current = next.streak;
+    capWarnedRef.current = next.capWarned;
+    prevSessionIdRef.current = sessionId;
   }, [sessionId]);
 
   // When autonomy changes, evaluate BOTH transition branches BEFORE updating
@@ -120,7 +177,7 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     // gets a fresh cap window. Streak is preserved (a mode switch is not a
     // manual input — the user just changed a setting).
     if (!wasAuto && isAuto) {
-      _capWarned = false;
+      state.capWarned = false;
       capWarnedRef.current = false;
     }
 
@@ -132,51 +189,55 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     // the user is stepping out of the auto-submit loop, so it is no longer
     // meaningful. Cap warning is preserved so a quick off/on doesn't lose state.
     if (wasAuto && !isAuto) {
-      _streak = 0;
+      state.streak = 0;
       streakRef.current = 0;
-      _loopHalted = false;
-      _loopGuard.reset();
-      _continuationTracker.reset();
+      state.loopHalted = false;
+      state.loopGuard.reset();
+      state.continuationTracker.reset();
     }
 
     prevAutonomyRef.current = autonomy;
-  }, [autonomy]);
+  }, [autonomy, state]);
 
   const canAutoSubmit = useCallback((): boolean => {
-    if (_loopHalted) return false;
+    if (state.loopHalted) return false;
     if (autoProceedMaxIterations <= 0) return true; // 0 = unlimited
-    return streakRef.current < autoProceedMaxIterations;
-  }, [autoProceedMaxIterations]);
+    return state.streak < autoProceedMaxIterations;
+  }, [autoProceedMaxIterations, state]);
 
   const recordAutoSubmit = useCallback((): boolean => {
     const max = autoProceedMaxIterations;
-    if (max > 0 && streakRef.current >= max) {
+    if (max > 0 && state.streak >= max) {
       // Cap already hit — shouldn't happen if canAutoSubmit was checked first,
       // but guard anyway.
       return false;
     }
-    _streak = ++streakRef.current;
-    if (max > 0 && _streak >= max) {
-      _capWarned = true;
+    state.streak += 1;
+    streakRef.current = state.streak;
+    if (max > 0 && state.streak >= max) {
+      state.capWarned = true;
       capWarnedRef.current = true;
     }
     return true;
-  }, [autoProceedMaxIterations]);
+  }, [autoProceedMaxIterations, state]);
 
-  const recordPrompt = useCallback((prompt: string): boolean => {
-    if (_loopHalted) return false;
-    const signal = _loopGuard.record(prompt);
-    if (signal.shouldHalt) _loopHalted = true;
-    return !signal.shouldHalt;
-  }, []);
+  const recordPrompt = useCallback(
+    (prompt: string): boolean => {
+      if (state.loopHalted) return false;
+      const signal = state.loopGuard.record(prompt);
+      if (signal.shouldHalt) state.loopHalted = true;
+      return !signal.shouldHalt;
+    },
+    [state],
+  );
 
   const recordGroundedPrompt = useCallback(
     (
       prompt: string,
       todos: readonly TodoItem[],
     ): { canFeed: boolean; advancement?: string; halted?: boolean } => {
-      if (_loopHalted) return { canFeed: false, halted: true };
-      const signal = _loopGuard.recordGrounded(prompt);
+      if (state.loopHalted) return { canFeed: false, halted: true };
+      const signal = state.loopGuard.recordGrounded(prompt);
       if (!signal.shouldHalt) {
         // No repetition yet — feed as-is (or with steer).
         return { canFeed: true };
@@ -184,17 +245,17 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
       // Repetition detected — try to advance to the next todo.
       const stalled = matchTodoIdFromPrompt(todos, prompt);
       if (stalled) {
-        const attemptCount = _continuationTracker.recordAttempt(stalled.id);
-        _continuationTracker.markSkipped(stalled.id);
+        const attemptCount = state.continuationTracker.recordAttempt(stalled.id);
+        state.continuationTracker.markSkipped(stalled.id);
         // Cap total advancement attempts to prevent infinite cycling.
-        const totalAdvancements = Object.values(_continuationTracker.snapshot()).reduce(
+        const totalAdvancements = Object.values(state.continuationTracker.snapshot()).reduce(
           (sum, e) => sum + e.attempts,
           0,
         );
         if (totalAdvancements <= MAX_ADVANCEMENT_ATTEMPTS) {
           const nextTodo = todos
             .filter((t) => t.status !== 'completed')
-            .find((t) => t.id !== stalled.id && !_continuationTracker.isSkipped(t.id));
+            .find((t) => t.id !== stalled.id && !state.continuationTracker.isSkipped(t.id));
           if (nextTodo) {
             // ── Guaranteed marking ─────────────────────────────
             // Directly demote the stalled todo off "in_progress"
@@ -211,31 +272,31 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
               attemptCount,
               todos,
             );
-            _loopGuard.reset();
+            state.loopGuard.reset();
             return { canFeed: false, advancement };
           }
         }
       }
-      _loopHalted = true;
+      state.loopHalted = true;
       return { canFeed: false, halted: true };
     },
-    [],
+    [state],
   );
 
   const reset = useCallback(() => {
-    _streak = 0;
+    state.streak = 0;
     streakRef.current = 0;
-    _capWarned = false;
+    state.capWarned = false;
     capWarnedRef.current = false;
-    _loopHalted = false;
-    _loopGuard.reset();
-    _continuationTracker.reset();
-  }, []);
+    state.loopHalted = false;
+    state.loopGuard.reset();
+    state.continuationTracker.reset();
+  }, [state]);
 
   const resetCapWarned = useCallback(() => {
-    _capWarned = false;
+    state.capWarned = false;
     capWarnedRef.current = false;
-  }, []);
+  }, [state]);
 
   return {
     streak: streakRef.current,

@@ -130,6 +130,24 @@ export function freshInputTokens(usage: Usage): number {
 }
 
 /**
+ * Every token this request moved — the complete prompt the model loaded plus
+ * what it generated.
+ *
+ * The single definition of `SessionSummary.tokenTotal`. Three call sites
+ * compute that field (the live writer's tracker, the disk-rebuild summary
+ * builder, and the SQLite catalog's transcript summarizer) and they had
+ * drifted: two summed only `input + output` while the third also counted the
+ * cache buckets. With prompt caching on, `cacheRead` is the bulk of a real
+ * prompt, so the narrow reading under-reported long sessions by more than an
+ * order of magnitude — one measured session listed 118,719 tokens against an
+ * actual 2,466,978. Route every tokenTotal through here so the three cannot
+ * disagree again.
+ */
+export function totalUsageTokens(usage: Usage): number {
+  return effectiveInputTokens(usage) + usage.output;
+}
+
+/**
  * Cache-read share of the complete prompt context, normalized to [0, 1].
  *
  * Keeping the clamp at the shared telemetry boundary protects every UI from

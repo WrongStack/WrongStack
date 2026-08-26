@@ -140,6 +140,11 @@ export {
   type EmbeddedSessionOptions,
 } from './embedded-host-adapters.js';
 export {
+  createSessionAgentRegistry,
+  type SessionAgentRegistry,
+  type SessionAgentRegistryOptions,
+} from './session-agent-registry.js';
+export {
   type AnnounceWebuiReadyParams,
   announceWebuiReady,
   createWebuiShutdown,
@@ -369,17 +374,6 @@ export {
   type PrefsHandlerContext,
 } from './prefs-handlers.js';
 export {
-  buildSystemPromptInfo,
-  type SystemPromptInfoPayload,
-  type SystemPromptSurface,
-  type SystemPromptVariantInfo,
-  unavailableSystemPromptInfo,
-} from './system-prompt-handlers.js';
-export {
-  rebuildSystemPrompt,
-  type SystemPromptRebuildDeps,
-} from './system-prompt-rebuild.js';
-export {
   createPrefsRouteHandlers,
   handlePrefsRoute,
   type PrefsRouteHandlers,
@@ -464,7 +458,11 @@ export {
   scheduleOwnerlessEmptySessionCleanup,
 } from './session-cleanup-scheduler.js';
 export { deleteWebUISession } from './session-deletion.js';
-export { createSessionHandlers, type SessionHandlersContext } from './session-handlers.js';
+export {
+  createSessionHandlers,
+  createSessionTransitionGate,
+  type SessionHandlersContext,
+} from './session-handlers.js';
 export {
   type SessionHistoryWireEntry,
   toSessionHistoryEntries,
@@ -502,6 +500,17 @@ export {
   type StreamCoalescerDeps,
   type ToolProgressPayload,
 } from './stream-coalescer.js';
+export {
+  buildSystemPromptInfo,
+  type SystemPromptInfoPayload,
+  type SystemPromptSurface,
+  type SystemPromptVariantInfo,
+  unavailableSystemPromptInfo,
+} from './system-prompt-handlers.js';
+export {
+  rebuildSystemPrompt,
+  type SystemPromptRebuildDeps,
+} from './system-prompt-rebuild.js';
 export { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 export {
   type ContextBreakdown,

@@ -18,6 +18,7 @@
  * architecture-health regen.
  */
 
+import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,21 +28,16 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL('../../../..', import.meta.
 const STORAGE_INDEX = path.resolve(REPO_ROOT, 'packages/core/src/storage/index.ts');
 const SNAPSHOT = path.resolve(REPO_ROOT, 'architecture/core-public-api-snapshot.json');
 
-const CONSUMER_FILES = [
-  'packages/webui-server/tests/standalone-session-identity.test.ts',
-];
+const CONSUMER_FILES = ['packages/webui-server/tests/standalone-session-identity.test.ts'];
 
 async function grepRepoForConsumer(): Promise<string[]> {
   const consumers: string[] = [];
   const needle = 'LegacySessionRegistry';
-  const stack = [
-    path.resolve(REPO_ROOT, 'packages'),
-    path.resolve(REPO_ROOT, 'apps'),
-  ];
+  const stack = [path.resolve(REPO_ROOT, 'packages'), path.resolve(REPO_ROOT, 'apps')];
   while (stack.length > 0) {
     const dir = stack.pop();
     if (!dir) continue;
-    let entries: Awaited<ReturnType<typeof fs.readdir>>;
+    let entries: Dirent<string>[];
     try {
       entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {

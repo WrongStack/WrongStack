@@ -2,21 +2,21 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Config } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
 import { builtinToolsPack, TIER1_TOOLS } from '@wrongstack/tools';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { setupTools } from '../src/wiring/tools.js';
+import { buildCliToolSurface } from './cli-tool-surface.js';
 import { makeFakeMemoryStore } from './fake-memory-store.js';
 
 /**
  * MEASUREMENT TEST — empirical token-count audit of `tokenSavingMode` tiers.
  *
- * Builds the real system prompt at each tier using `setupTools()` (the same
- * path production uses) and reports:
+ * Builds the real system prompt at each tier through `buildCliToolSurface`,
+ * which calls `setupCliPromptAndTools` — the wiring `cli-main.ts` runs on every
+ * boot. (It used to call `wiring/tools.ts` `setupTools`, which no production
+ * path invoked; the numbers below were measured against a tool surface the
+ * product did not ship.) Reports:
  *   - char count of the joined prompt text
  *   - token estimate at 3.5 chars/token (the project's heuristic)
  *   - token estimate at 4.0 chars/token (Anthropic Claude closer-to-reality)
@@ -39,30 +39,8 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
-function makeWpaths(): WstackPaths {
-  return {
-    configDir: tmp,
-    globalConfig: path.join(tmp, 'config.json'),
-    projectDir: tmp,
-    projectSessions: tmp,
-    globalRoot: tmp,
-    logFile: path.join(tmp, 'log.txt'),
-    historyFile: path.join(tmp, 'history'),
-    modelsCache: path.join(tmp, 'models.json'),
-    inProjectAgentsFile: path.join(tmp, 'AGENTS.md'),
-    projectMemory: path.join(tmp, 'project-memory.md'),
-    globalMemory: path.join(tmp, 'global-memory.md'),
-  } as WstackPaths;
-}
-
 function makeMemoryStore(): ReturnType<typeof makeFakeMemoryStore> {
   return makeFakeMemoryStore();
-}
-
-function makeContainer() {
-  const c = new Container();
-  c.bind(TOKENS.Compactor, () => ({ compact: async () => ({ ok: true }) }) as never);
-  return c;
 }
 
 function fakeConfig(tier: string, overrides: Partial<Config> = {}): Config {
@@ -90,20 +68,6 @@ function fakeConfig(tier: string, overrides: Partial<Config> = {}): Config {
   } as Config;
 }
 
-function makeModelsRegistry() {
-  return {
-    getModel: async () => ({
-      id: 'anthropic-test-model',
-      capabilities: { maxContext: 200_000, tools: true, vision: false, reasoning: true },
-    }),
-    getProvider: () => undefined,
-    listProviders: async () => [],
-    suggestModel: async () => undefined,
-    refresh: async () => undefined,
-    listProvidersWithModels: async () => [],
-  };
-}
-
 const RoughTokenEstimate = (text: string, charsPerToken = 3.5): number =>
   Math.max(1, Math.ceil(text.length / charsPerToken));
 
@@ -118,19 +82,18 @@ interface Measurement {
 }
 
 async function measureTier(tier: string): Promise<Measurement> {
-  const toolRegistry = new ToolRegistry();
-  const memoryStore = makeMemoryStore();
-  const result = await setupTools({
+  const { toolRegistry, buildSystemPrompt } = await buildCliToolSurface({
     config: fakeConfig(tier),
-    toolRegistry,
-    modelsRegistry: makeModelsRegistry() as never,
-    memoryStore,
-    wpaths: makeWpaths(),
-    projectRoot: tmp,
-    cwd: tmp,
-    container: makeContainer() as never,
+    memoryStore: makeMemoryStore(),
+    tmp,
+    modelCapabilities: {
+      maxContextTokens: 200_000,
+      supportsTools: true,
+      supportsVision: false,
+      supportsReasoning: true,
+    },
   });
-  const blocks = await result.systemPrompt;
+  const blocks = await buildSystemPrompt();
   const joined = blocks.map((b) => b.text).join('\n');
   const toolCount = toolRegistry.listForProvider().length;
   return {

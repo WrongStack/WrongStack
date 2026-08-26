@@ -2,21 +2,32 @@ import { toast } from '@/components/Toaster';
 import { i18n } from '@/i18n';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
-import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
-import { useChatStore, useConfigStore, useSessionStore } from '@/stores';
+import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
+import { useConfigStore } from '@/stores';
+import { activeChatLane, activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
+import { readSessionLane, setSessionGlobals } from '@/stores/session-lanes';
 import type { WSServerMessage } from '@/types';
 
 export const warnedCostModels = new Set<string>();
 
-export function flushThinkingLogForCurrentIteration(): void {
-  streamCoalescer.flush('__thinking__');
-  const current = useSessionStore.getState().iteration;
-  useChatStore.getState().flushThinkingLog(Math.max(1, current?.index ?? 1));
-  useChatStore.getState().clearThinking();
+/**
+ * Land the reasoning buffered for ONE lane's current iteration.
+ *
+ * Defaults to the lane in front, which is the only lane an untagged
+ * (deliberately fail-open) `error` event can legitimately be about.
+ */
+export function flushThinkingLogForCurrentIteration(
+  lane: ChatLaneActions = activeChatLane(),
+): void {
+  streamCoalescer.flush(`__thinking__:${lane.sessionId}`);
+  const current = readSessionLane(lane.sessionId).iteration;
+  lane.flushThinkingLog(Math.max(1, current?.index ?? 1));
+  lane.clearThinking();
 }
 
 export function handleContextDebug(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   const p = msg.payload as {
     total: number;
     systemPrompt: number;
@@ -30,7 +41,7 @@ export function handleContextDebug(msg: WSServerMessage) {
   const fmt = (n: number) => n.toLocaleString();
   const topTools = [...p.tools.breakdown].sort((a, b) => b.tokens - a.tokens).slice(0, 8);
   const topMsgs = [...p.messages.breakdown].sort((a, b) => b.tokens - a.tokens).slice(0, 8);
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'assistant',
     content: [
       `📊 **Context breakdown** (heuristic — 4 chars/token)`,
@@ -68,8 +79,14 @@ export function handleKeyOperationResult(msg: WSServerMessage) {
   client.listSavedProviders();
 }
 
+/**
+ * A successful model switch is broadcast to every surface, so it has to be
+ * applied to the tab that ASKED for it. Applying it to whatever session was in
+ * front is why switching the model in tab 2 re-labelled tab 1. It now
+ * addresses the named lane; only the foreground's provider/model pickers,
+ * which describe the tab on screen, follow along.
+ */
 export function handleModelSwitchResult(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     success: boolean;
     provider?: string | undefined;
@@ -80,22 +97,30 @@ export function handleModelSwitchResult(msg: WSServerMessage) {
   };
   if (!p.success || !p.provider || !p.model) return;
 
-  useConfigStore.getState().setProvider(p.provider);
-  useConfigStore.getState().setModel(p.model);
-  const currentSession = useSessionStore.getState().session;
-  if (currentSession) {
-    useSessionStore.getState().setSession({
-      ...currentSession,
-      provider: p.provider,
-      model: p.model,
-    });
+  const chat = chatFor(msg);
+  const meta = sessionFor(msg);
+  if (!chat || !meta) return;
+
+  const laneSession = meta.data.session;
+  meta.setSession({
+    id: laneSession?.id ?? chat.sessionId,
+    startedAt: laneSession?.startedAt ?? Date.now(),
+    provider: p.provider,
+    model: p.model,
+    ...(laneSession?.title ? { title: laneSession.title } : {}),
+  });
+
+  if (chat.sessionId === activeLaneId()) {
+    useConfigStore.getState().setProvider(p.provider);
+    useConfigStore.getState().setModel(p.model);
   }
+
   const from =
     p.previousProvider && p.previousModel
       ? `${p.previousProvider} / ${p.previousModel}`
       : i18n.t('settings:toast.previousModel');
   const to = `${p.provider} / ${p.model}`;
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'system',
     content: i18n.t(
       p.runActive
@@ -107,7 +132,8 @@ export function handleModelSwitchResult(msg: WSServerMessage) {
 }
 
 export function handleContextCompacted(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   const payload = msg.payload as {
     before: number;
@@ -125,15 +151,18 @@ export function handleContextCompacted(msg: WSServerMessage) {
     : 'no-op';
   if (payload.repaired)
     summary += `; repaired ${payload.repaired.removedToolUses?.length ?? 0} tool_use, ${payload.repaired.removedToolResults?.length ?? 0} tool_result, ${payload.repaired.removedMessages} empty messages`;
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'system',
     content: `🗜️ Context compacted: ${payload.before} → ${payload.after} tokens (saved ~${payload.saved}). ${summary}`,
   });
-  useSessionStore.setState({ lastInputTokens: payload.after });
+  // The post-compaction size belongs to the compacted session's own context
+  // bar, not to the tab in front.
+  sessionFor(msg)?.patch({ lastInputTokens: payload.after });
 }
 
 export function handleCompactionFailed(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   const payload = msg.payload as {
     message: string;
@@ -155,12 +184,12 @@ export function handleCompactionFailed(msg: WSServerMessage) {
         : 0;
     label = 'context';
   }
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'assistant',
     content: `Compaction failed at ${payload.level} (${load}% ${label}): ${payload.message}`,
     isError: payload.fatal,
   });
-  toast.error(`Compaction failed: ${payload.message}`);
+  if (chat.sessionId === activeLaneId()) toast.error(`Compaction failed: ${payload.message}`);
 }
 
 export function handleTrustPersisted(msg: WSServerMessage) {
@@ -172,7 +201,8 @@ export function handleTrustPersisted(msg: WSServerMessage) {
 }
 
 export function handleContextRepaired(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   const payload = msg.payload as {
     removedToolUses: string[];
@@ -187,21 +217,23 @@ export function handleContextRepaired(msg: WSServerMessage) {
     payload.beforeMessages !== undefined && payload.afterMessages !== undefined
       ? ` Messages: ${payload.beforeMessages} -> ${payload.afterMessages}.`
       : '';
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'assistant',
     content: `Context repaired: removed ${removed} orphan protocol item(s).${msgCount} tool_use ${payload.removedToolUses.length}, tool_result ${payload.removedToolResults.length}.`,
   });
 }
 
 export function handleContextPct(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const meta = sessionFor(msg);
+  if (!meta) return;
   pipeViz(msg);
   const p = msg.payload as { load: number; tokens: number; maxContext: number };
-  useSessionStore.getState().setContextUsage(p.tokens, p.maxContext);
+  meta.setContextUsage(p.tokens, p.maxContext);
 }
 
 export function handleContextMaxContext(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const meta = sessionFor(msg);
+  if (!meta) return;
   const p = msg.payload as {
     providerId?: string | undefined;
     modelId?: string | undefined;
@@ -210,31 +242,32 @@ export function handleContextMaxContext(msg: WSServerMessage) {
     source?: 'configured' | 'provider' | 'provider_overflow' | undefined;
     decreased?: boolean | undefined;
   };
-  const store = useSessionStore.getState();
-  store.setEnv({ maxContext: p.maxContext });
+  meta.setEnvRates({ maxContext: p.maxContext });
+  const lane = meta.data;
   if (
     p.source === 'provider' &&
     p.decreased === true &&
     typeof p.previousMaxContext === 'number' &&
     p.previousMaxContext > p.maxContext
   ) {
-    store.setContextLimitWarning({
+    meta.setContextLimitWarning({
       previousMaxContext: p.previousMaxContext,
       maxContext: p.maxContext,
-      providerId: p.providerId ?? store.session?.provider ?? 'provider',
-      modelId: p.modelId ?? store.session?.model ?? 'model',
+      providerId: p.providerId ?? lane.session?.provider ?? 'provider',
+      modelId: p.modelId ?? lane.session?.model ?? 'model',
     });
   } else if (p.decreased === false || p.source === 'configured') {
-    store.setContextLimitWarning(null);
+    meta.setContextLimitWarning(null);
   }
 }
 
 export function handleTokenThreshold(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const meta = sessionFor(msg);
+  if (!meta) return;
   const p = msg.payload as { used: number; limit: number };
-  useSessionStore.getState().setContextUsage(p.used, p.limit);
+  meta.setContextUsage(p.used, p.limit);
   const pct = p.limit > 0 ? Math.round((p.used / p.limit) * 100) : 0;
-  toast.warn(`Token threshold reached (${pct}%)`);
+  if (meta.sessionId === activeLaneId()) toast.warn(`Token threshold reached (${pct}%)`);
 }
 
 export function handleTokenCostEstimateUnavailable(msg: WSServerMessage) {
@@ -261,8 +294,9 @@ export function handleContextModesList(msg: WSServerMessage) {
       custom?: boolean | undefined;
     }>;
   };
-  useSessionStore.getState().setContextModes(
-    p.modes.map((m) => ({
+  // The catalog is project-wide; which one is active is per-tab.
+  setSessionGlobals({
+    contextModes: p.modes.map((m) => ({
       id: m.id,
       name: m.name,
       description: m.description,
@@ -271,25 +305,38 @@ export function handleContextModesList(msg: WSServerMessage) {
       eliseThreshold: m.eliseThreshold,
       custom: m.custom,
     })),
-  );
-  useSessionStore.getState().setEnv({ contextMode: p.activeId });
+  });
+  (sessionFor(msg) ?? null)?.setEnvRates({ contextMode: p.activeId });
 }
 
 export function handleContextModeChanged(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const meta = sessionFor(msg);
+  if (!meta) return;
   const p = msg.payload as { id: string; name?: string | undefined };
-  useSessionStore.getState().setEnv({ contextMode: p.id });
+  meta.setEnvRates({ contextMode: p.id });
 }
 
 export function handleError(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
   const payload = msg.payload as { phase: string; message: string };
   if (payload.phase === 'todos.get') return;
-  flushThinkingLogForCurrentIteration();
-  useChatStore.getState().addMessage({
+  // Routed by session, NEVER gated on "is this the tab in front".
+  //
+  // This handler owns per-lane state — the error bubble and, critically,
+  // `setLoading(false)`. Dropping a BACKGROUND tab's error (which the
+  // foreground gate here used to do) left that lane's run flag stuck true
+  // forever with nothing on screen to explain it: the tab reported itself busy,
+  // refused to close without the "stop and close" prompt, and never showed the
+  // failure that actually ended its run — "Agent is already processing a
+  // request" among them.
+  //
+  // `error` stays fail-OPEN — protocol and validation errors legitimately
+  // carry no sessionId — so an untagged one lands on the lane in front.
+  const chat = chatFor(msg) ?? activeChatLane();
+  flushThinkingLogForCurrentIteration(chat);
+  chat.addMessage({
     role: 'assistant',
     content: `[${payload.phase}] ${payload.message}`,
     isError: true,
   });
-  useChatStore.getState().setLoading(false);
+  chat.setLoading(false);
 }

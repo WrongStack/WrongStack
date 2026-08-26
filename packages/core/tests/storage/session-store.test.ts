@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { DefaultSessionStore } from '../../src/storage/session-store.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { EventBus } from '../../src/kernel/events.js';
+import { DefaultSessionStore } from '../../src/storage/session-store.js';
 
 let tmpDir: string;
 
@@ -95,9 +95,7 @@ describe('DefaultSessionStore — basic lifecycle', () => {
     // No empty assistant turn remains to break strict providers.
     for (const msg of reloaded.messages) {
       if (msg.role !== 'assistant' || !Array.isArray(msg.content)) continue;
-      expect(
-        msg.content.some((b) => b.type !== 'text' || b.text.trim().length > 0),
-      ).toBe(true);
+      expect(msg.content.some((b) => b.type !== 'text' || b.text.trim().length > 0)).toBe(true);
     }
   });
 
@@ -113,6 +111,7 @@ describe('DefaultSessionStore — basic lifecycle', () => {
       type: 'llm_response',
       ts: new Date().toISOString(),
       content: [{ type: 'text', text: 'hi back' }],
+      stopReason: 'end_turn',
       usage: { input: 10, output: 5 },
       model: 'm',
     });

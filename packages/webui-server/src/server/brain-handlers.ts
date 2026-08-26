@@ -1,8 +1,8 @@
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk, BrainConfigPatch, BrainRuntime } from '@wrongstack/core/execution';
 import { BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
-import type { WebSocket } from 'ws';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 
 /**
@@ -46,6 +46,13 @@ export interface BrainLogEntry {
   kind: string;
   question: string;
   outcome: string;
+  /**
+   * The session the decision was about. The Brain is project-wide, but each
+   * decision concerns one session's tool call — a tab asking `/brain` wants
+   * ITS decisions, not an unlabelled mixture of every open tab's.
+   * Undefined for decisions that named no session.
+   */
+  sessionId?: string | undefined;
 }
 
 export interface BrainTransportContext {
@@ -77,13 +84,22 @@ function sendResult(
   ctx.send(ws, { type: 'key.operation_result', payload: { success, message } });
 }
 
-export function handleBrainStatus(ctx: BrainHandlerContext, ws: WebSocket): void {
+export function handleBrainStatus(
+  ctx: BrainHandlerContext,
+  ws: WebSocket,
+  sessionId?: string | undefined,
+): void {
   const snapshot = ctx.brainRuntime?.getSnapshot();
+  const log = ctx.getBrainLog?.() ?? [];
   ctx.send(ws, {
     type: 'brain.status',
     payload: {
       maxAutoRisk: ctx.brainSettings?.maxAutoRisk ?? snapshot?.maxAutoRisk ?? 'medium',
-      log: ctx.getBrainLog?.() ?? [],
+      sessionId,
+      // Show the asking tab its own decisions plus the unattributed ones.
+      // Without the filter, `/brain` in one tab reported three other tabs'
+      // decisions as if they were its own.
+      log: sessionId ? log.filter((e) => !e.sessionId || e.sessionId === sessionId) : log,
       // Additive enrichment — only present when a BrainRuntime is wired.
       ...(snapshot
         ? {

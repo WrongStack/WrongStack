@@ -197,6 +197,18 @@ export interface BrainEventMap {
    */
   'token.accounted': {
     sessionId?: string | undefined;
+    /**
+     * Agent that burned these tokens. Absent means the leader.
+     *
+     * Every subagent runs on its own `DefaultTokenCounter` but reports the
+     * LEADER's session id (its counter is constructed with the host session so
+     * live cost UIs stay on one row). Without this field, a subagent's usage is
+     * indistinguishable from the leader's in every downstream consumer —
+     * Chronicle's domain adapter keys `scope.agentId` off it, and 2,402
+     * measured `token.accounted` rows landed with a null agent because nothing
+     * ever set it.
+     */
+    agentId?: string | undefined;
     usage: Usage;
     /** Usage contributed by this one accounting call (not cumulative). */
     deltaUsage?: Usage | undefined;

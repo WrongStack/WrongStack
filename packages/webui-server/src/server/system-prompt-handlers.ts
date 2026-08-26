@@ -32,7 +32,14 @@ export interface SystemPromptSurface {
    * prefs layer's job; this only refreshes the in-memory prompt so the change
    * takes effect on the next turn instead of the next boot.
    */
-  applyVariant?: ((variant: SystemInstructionVariant) => void | Promise<void>) | undefined;
+  /**
+   * Rebuild the live identity prompt. `sessionId` names the tab that asked —
+   * each WebUI tab runs its own context, so the rebuild has to land on that
+   * one rather than on whichever session the runtime is currently pointing at.
+   */
+  applyVariant?:
+    | ((variant: SystemInstructionVariant, sessionId?: string) => void | Promise<void>)
+    | undefined;
 }
 
 export interface SystemPromptVariantInfo {

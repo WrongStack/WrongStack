@@ -1,31 +1,59 @@
-import { expectDefined } from '@wrongstack/core/utils/expect-defined';
-import { parseNextSteps } from '@wrongstack/tools/next-steps';
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { safeId } from '@/lib/utils';
+/**
+ * chat-store.ts — Foreground view over the lane registry.
+ *
+ * The chat surface's real state lives in `chat-lanes.ts`, one lane per session
+ * tab. This module is the read/write facade the FOREGROUND components use: it
+ * projects `lanes[activeSessionId]` behind the historical `useChatStore` API so
+ * a component that renders the tab in front keeps working unchanged.
+ *
+ * Rules that keep the four tabs from bleeding into each other:
+ *
+ *  - WS handlers MUST NOT use this facade. They route by `payload.sessionId`
+ *    through `chatFor(msg)` / `chatLane(sessionId)`. Writing through the facade
+ *    from a handler is exactly the "wrote to whichever tab happened to be in
+ *    front" bug; `tests/hooks/ws-handlers-lane-routing.test.ts` fails the build
+ *    if a handler reaches for it.
+ *  - The facade has no cross-lane reach. `useChatStore.getState()` can only see
+ *    and touch the active lane; there is no path from here to lane 2.
+ */
+
+import { useStore } from 'zustand';
 import {
-  BTW_DISPATCH_GRACE_MS,
-  cancelDispatchedGraceTimer,
-  dispatchedGraceTimers,
-  nextQueueItemId,
-  normalizeQueuedItem,
-  setEnqueueSequence,
-} from './chat-queue-helpers';
-import {
-  boundChatField,
-  dedupeRepeatedBlocks,
-  indexToolMessages,
-  MAX_CHAT_FIELD_CHARS,
-  MAX_CHAT_RETAINED_BYTES,
-  retainWebChatMessages,
-} from './chat-retention';
-import type { ChatState, QueuedItem, ToolExecution } from './chat-store-types';
-import type { ChatMessage } from './types.js';
+  activeChatLane,
+  activeLaneId,
+  type ChatLaneData,
+  chatLane,
+  DEFAULT_LANE_ID,
+  disposeLane,
+  EMPTY_LANE,
+  overrideLaneActions,
+  setActiveLane,
+  useChatLanes,
+} from './chat-lanes';
+import type { ChatState } from './chat-store-types';
 
 export const MAX_CHAT_MESSAGES = 1000;
 export const MAX_PERSISTED_MESSAGES = 200;
 
-export * from './chat-store-types';
+export {
+  activeChatLane,
+  activeLaneId,
+  adoptDefaultLane,
+  type ChatLaneActions,
+  type ChatLaneData,
+  chatLane,
+  DEFAULT_LANE_ID,
+  disposeLane,
+  ensureLane,
+  hasLane,
+  laneIds,
+  MAX_LANES,
+  overrideLaneActions,
+  readLane,
+  setActiveLane,
+  useChatLanes,
+} from './chat-lanes';
+export { BTW_DISPATCH_GRACE_MS } from './chat-queue-helpers';
 export {
   boundChatField,
   dedupeRepeatedBlocks,
@@ -34,572 +62,168 @@ export {
   MAX_CHAT_RETAINED_BYTES,
   retainWebChatMessages,
 } from './chat-retention';
-export { BTW_DISPATCH_GRACE_MS } from './chat-queue-helpers';
+export * from './chat-store-types';
 
-interface SessionMemoryCache {
-  messages: ChatMessage[];
-  currentAssistantMessageId: string | null;
-  currentToolId: string | null;
-  isLoading: boolean;
-  executions: Map<string, ToolExecution>;
-  toolMessageIdsByUseId: Map<string, string>;
-  thinkingBuffer: string;
-  thinkingStartedAt: number | null;
-  thinkingLogBuffer: string;
-  thinkingLogStartedAt: number | null;
-  runStart: { at: number; cost: number } | null;
+// ---------------------------------------------------------------------------
+// Active-lane projection
+// ---------------------------------------------------------------------------
+
+type LanesState = ReturnType<typeof useChatLanes.getState>;
+
+/**
+ * One view object per lanes-state identity. The cache matters: selectors like
+ * `(s) => s.messages` must return the SAME array across unrelated store
+ * updates or every lane touch re-renders the whole transcript.
+ */
+const viewCache = new WeakMap<LanesState, ChatState>();
+
+function projectActiveLane(state: LanesState): ChatState {
+  const cached = viewCache.get(state);
+  if (cached) return cached;
+
+  const sessionId = state.activeSessionId;
+  const lane: ChatLaneData = state.lanes[sessionId] ?? EMPTY_LANE;
+  // Action identities come from `chatLane`'s per-session cache, so they stay
+  // referentially stable for the lifetime of the lane.
+  const actions = chatLane(sessionId);
+
+  const view: ChatState = {
+    messages: lane.messages,
+    currentAssistantMessageId: lane.currentAssistantMessageId,
+    currentToolId: lane.currentToolId,
+    isLoading: lane.isLoading,
+    abortController: lane.abortController,
+    executions: lane.executions,
+    toolMessageIdsByUseId: lane.toolMessageIdsByUseId,
+    queue: lane.queue,
+    runStart: lane.runStart,
+    refining: lane.refining,
+    pendingRefinement: lane.pendingRefinement,
+    thinkingBuffer: lane.thinkingBuffer,
+    thinkingStartedAt: lane.thinkingStartedAt,
+    thinkingLogBuffer: lane.thinkingLogBuffer,
+    thinkingLogStartedAt: lane.thinkingLogStartedAt,
+    boundSessionId: sessionId === DEFAULT_LANE_ID ? null : sessionId,
+
+    addMessage: actions.addMessage,
+    setMessages: actions.setMessages,
+    updateMessage: actions.updateMessage,
+    appendToMessage: actions.appendToMessage,
+    finalizeMessage: actions.finalizeMessage,
+    setToolResult: actions.setToolResult,
+    appendToolProgress: actions.appendToolProgress,
+    appendToolProgressLines: actions.appendToolProgressLines,
+    getToolMessageId: actions.getToolMessageId,
+    setToolResultByUseId: actions.setToolResultByUseId,
+    appendToolProgressLinesByUseId: actions.appendToolProgressLinesByUseId,
+    setLoading: actions.setLoading,
+    setAbortController: actions.setAbortController,
+    clearMessages: actions.clearMessages,
+    setBoundSessionId: bindActiveLane,
+    setCurrentAssistantMessage: actions.setCurrentAssistantMessage,
+    setCurrentToolId: actions.setCurrentToolId,
+    truncateAfter: actions.truncateAfter,
+    addExecution: actions.addExecution,
+    updateExecution: actions.updateExecution,
+    enqueue: actions.enqueue,
+    dequeue: actions.dequeue,
+    dequeueDrainable: actions.dequeueDrainable,
+    removeQueued: actions.removeQueued,
+    clearQueue: actions.clearQueue,
+    setRefining: actions.setRefining,
+    setPendingRefinement: actions.setPendingRefinement,
+    removeMessage: actions.removeMessage,
+    updateLastUserMessage: actions.updateLastUserMessage,
+    setRunStart: actions.setRunStart,
+    appendThinking: actions.appendThinking,
+    clearThinking: actions.clearThinking,
+    flushThinkingLog: actions.flushThinkingLog,
+    clearThinkingLog: actions.clearThinkingLog,
+    switchSession: bindActiveLane,
+  };
+
+  viewCache.set(state, view);
+  return view;
 }
 
-export const memorySessionCaches = new Map<string, SessionMemoryCache>();
+/**
+ * Point the foreground at another lane.
+ *
+ * There is nothing to park and nothing to restore — every lane keeps its own
+ * transcript, queue, thinking buffer and run flag at all times, whether or not
+ * it is the one on screen. Switching tabs is a pointer move.
+ */
+function bindActiveLane(sessionId: string | null): void {
+  setActiveLane(sessionId);
+}
 
-export const useChatStore = create<ChatState>()(
-  persist(
-    (set, get) => ({
-      messages: [],
-      currentAssistantMessageId: null,
-      currentToolId: null,
-      isLoading: false,
-      abortController: null,
-      executions: new Map(),
-      toolMessageIdsByUseId: new Map(),
-      queue: [],
-      runStart: null,
-      refining: false,
-      pendingRefinement: null,
-      thinkingBuffer: '',
-      thinkingStartedAt: null,
-      thinkingLogBuffer: '',
-      thinkingLogStartedAt: null,
-      boundSessionId: null as string | null,
+// ---------------------------------------------------------------------------
+// The facade
+// ---------------------------------------------------------------------------
 
-      addMessage: (msg) => {
-        const id = msg.id ?? `msg_${Date.now()}_${safeId().slice(0, 8)}`;
-        const fullMsg: ChatMessage = { ...msg, id, timestamp: msg.timestamp ?? Date.now() };
-        set((state) => {
-          const messages = retainWebChatMessages([...state.messages, fullMsg]);
-          const toolMessageIdsByUseId = indexToolMessages(messages);
-          let executions: Map<string, ToolExecution> = state.executions;
-          if (executions.size > 0) {
-            const nextExecutions = new Map<string, ToolExecution>();
-            let execChanged = false;
-            for (const [execId, exec] of executions) {
-              if (toolMessageIdsByUseId.has(execId)) {
-                nextExecutions.set(execId, exec);
-              } else {
-                execChanged = true;
-              }
-            }
-            if (execChanged) executions = nextExecutions;
-          }
-          const next: Partial<ChatState> = {
-            messages,
-            currentAssistantMessageId:
-              msg.role === 'assistant' ? id : state.currentAssistantMessageId,
-            toolMessageIdsByUseId,
-          };
-          if (fullMsg.role === 'tool' && fullMsg.toolUseId) {
-            const nextIndex = new Map(toolMessageIdsByUseId);
-            nextIndex.set(fullMsg.toolUseId, id);
-            next.toolMessageIdsByUseId = nextIndex;
-          }
-          if (executions !== state.executions) {
-            next.executions = executions;
-          }
-          return next;
-        });
-        return id;
-      },
+function getState(): ChatState {
+  return projectActiveLane(useChatLanes.getState());
+}
 
-      setMessages: (messages) => {
-        const retainedMessages = retainWebChatMessages(messages);
-        set({
-          messages: retainedMessages,
-          currentAssistantMessageId: null,
-          currentToolId: null,
-          executions: new Map(),
-          toolMessageIdsByUseId: indexToolMessages(retainedMessages),
-          thinkingBuffer: '',
-          thinkingStartedAt: null,
-          thinkingLogBuffer: '',
-          thinkingLogStartedAt: null,
-        });
-      },
+/**
+ * Merge a patch into the ACTIVE lane. Kept for components and tests that drive
+ * the store directly; `boundSessionId` is honoured as a lane switch.
+ */
+function setState(partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)): void {
+  const patch = typeof partial === 'function' ? partial(getState()) : partial;
+  if (!patch) return;
+  const { boundSessionId, ...rest } = patch as Partial<ChatState> & {
+    boundSessionId?: string | null;
+  };
+  if (boundSessionId !== undefined) bindActiveLane(boundSessionId);
+  const laneFields: Partial<ChatLaneData> = {};
+  const actionOverrides: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rest)) {
+    // A function-valued key is an ACTION override, not data — the single-store
+    // API allowed substituting one, and callers still rely on it.
+    if (typeof value === 'function') actionOverrides[key] = value;
+    else (laneFields as Record<string, unknown>)[key] = value;
+  }
+  if (Object.keys(laneFields).length > 0) activeChatLane().patch(laneFields);
+  if (Object.keys(actionOverrides).length > 0) {
+    overrideLaneActions(activeLaneId(), actionOverrides);
+  }
+}
 
-      updateMessage: (id, updates) => {
-        set((state) => ({
-          messages: state.messages.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-        }));
-      },
+function subscribe(listener: (state: ChatState, prev: ChatState) => void): () => void {
+  return useChatLanes.subscribe((state, prev) =>
+    listener(projectActiveLane(state), projectActiveLane(prev)),
+  );
+}
 
-      appendToMessage: (id, text) => {
-        set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id ? { ...m, content: boundChatField(m.content + text) } : m,
-          ),
-        }));
-      },
+interface ChatStoreFacade {
+  <T>(selector: (state: ChatState) => T): T;
+  getState: typeof getState;
+  getInitialState: typeof getState;
+  setState: typeof setState;
+  subscribe: typeof subscribe;
+  /** The lane registry's own persist API (rehydrate/flush/clearStorage). */
+  persist: (typeof useChatLanes)['persist'];
+}
 
-      finalizeMessage: (id, opts) => {
-        const final = opts?.final !== false;
-        set((state) => ({
-          messages: state.messages.map((m) => {
-            if (m.id !== id) return m;
-            if (m.role !== 'assistant') {
-              return { ...m, content: dedupeRepeatedBlocks(m.content), streaming: false };
-            }
-            const parsed = parseNextSteps(m.content);
-            const nextSteps =
-              final && parsed.steps.length > 0 ? { steps: parsed.steps } : undefined;
-            return {
-              ...m,
-              content: dedupeRepeatedBlocks(parsed.stripped),
-              streaming: false,
-              ...(nextSteps ? { nextSteps } : {}),
-            };
-          }),
-        }));
-      },
-
-      setToolResult: (id, result, ok) => {
-        set((state) => ({
-          messages: state.messages.map((m) =>
-            m.id === id
-              ? {
-                  ...m,
-                  toolResult: boundChatField(result),
-                  isError: !ok,
-                  progressLines: undefined,
-                }
-              : m,
-          ),
-        }));
-      },
-
-      appendToolProgress: (id, line) => {
-        get().appendToolProgressLines(id, [line]);
-      },
-
-      appendToolProgressLines: (id, lines) => {
-        if (lines.length === 0) return;
-        set((state) => ({
-          messages: state.messages.map((m) => {
-            if (m.id !== id) return m;
-            const prev = m.progressLines ?? [];
-            prev.push(...lines);
-            if (prev.length > 30) prev.splice(0, prev.length - 30);
-            return { ...m, progressLines: prev };
-          }),
-        }));
-      },
-
-      getToolMessageId: (toolUseId) => get().toolMessageIdsByUseId.get(toolUseId),
-
-      setToolResultByUseId: (toolUseId, result, ok) => {
-        const id = get().toolMessageIdsByUseId.get(toolUseId);
-        if (id) get().setToolResult(id, result, ok);
-      },
-
-      appendToolProgressLinesByUseId: (toolUseId, lines) => {
-        const id = get().toolMessageIdsByUseId.get(toolUseId);
-        if (id) get().appendToolProgressLines(id, lines);
-      },
-
-      setLoading: (loading) => set({ isLoading: loading }),
-      setAbortController: (ctrl) => set({ abortController: ctrl }),
-
-      clearMessages: () =>
-        set({
-          messages: [],
-          currentAssistantMessageId: null,
-          currentToolId: null,
-          executions: new Map(),
-          toolMessageIdsByUseId: new Map(),
-          thinkingBuffer: '',
-          thinkingStartedAt: null,
-          thinkingLogBuffer: '',
-          thinkingLogStartedAt: null,
-          boundSessionId: null,
-        }),
-
-      setBoundSessionId: (id) => set({ boundSessionId: id }),
-
-      setCurrentAssistantMessage: (id) => set({ currentAssistantMessageId: id }),
-      setCurrentToolId: (id) => set({ currentToolId: id }),
-
-      truncateAfter: (id) =>
-        set((state) => {
-          const idx = state.messages.findIndex((m) => m.id === id);
-          if (idx === -1) return state;
-          const messages = state.messages.slice(0, idx + 1);
-          return {
-            messages,
-            currentAssistantMessageId: null,
-            currentToolId: null,
-            toolMessageIdsByUseId: indexToolMessages(messages),
-          };
-        }),
-
-      addExecution: (exec) => {
-        set((state) => {
-          const newExecutions = new Map(state.executions);
-          newExecutions.set(exec.id, exec);
-          return { executions: newExecutions };
-        });
-      },
-
-      updateExecution: (id, updates) => {
-        set((state) => {
-          const newExecutions = new Map(state.executions);
-          const existing = newExecutions.get(id);
-          if (existing) {
-            newExecutions.set(id, { ...existing, ...updates });
-          }
-          return { executions: newExecutions };
-        });
-      },
-
-      setRefining: (v) => set({ refining: v }),
-      setPendingRefinement: (text, images, mode = 'queue') =>
-        set({
-          pendingRefinement: text !== null ? { text, images: images ?? [], mode } : null,
-        }),
-      enqueue: (text, mode = 'queue', images, alreadyDispatched) => {
-        const addedAt = Date.now();
-        const itemId = nextQueueItemId();
-        set((state) => ({
-          queue: [
-            ...state.queue,
-            {
-              text,
-              mode,
-              addedAt,
-              itemId,
-              ...(images?.length ? { images } : {}),
-              ...(alreadyDispatched ? { alreadyDispatched: true } : {}),
-            },
-          ],
-        }));
-        if (alreadyDispatched) {
-          const handle = setTimeout(() => {
-            dispatchedGraceTimers.delete(itemId);
-            let bubblePayload: {
-              role: 'user';
-              content: string;
-              attachments?: Array<{
-                id: string;
-                kind: 'image';
-                dataUrl: string;
-                mediaType: string;
-                bytes: number;
-                name?: string | undefined;
-              }>;
-            } | null = null;
-            useChatStore.setState((state) => {
-              const target = state.queue.find(
-                (q) => q.itemId === itemId && q.alreadyDispatched === true,
-              );
-              if (target && target.bubbleAdded !== true) {
-                const images = target.images ?? [];
-                bubblePayload = {
-                  role: 'user',
-                  content: target.text,
-                  ...(images.length > 0
-                    ? {
-                        attachments: images.map((img) => ({
-                          id: img.id,
-                          kind: 'image' as const,
-                          dataUrl: img.dataUrl,
-                          mediaType: img.mediaType,
-                          bytes: img.bytes,
-                          name: img.name,
-                        })),
-                      }
-                    : {}),
-                };
-              }
-              return {
-                queue: state.queue.filter(
-                  (q) => !(q.itemId === itemId && q.alreadyDispatched === true),
-                ),
-              };
-            });
-            if (bubblePayload) {
-              useChatStore.getState().addMessage(bubblePayload);
-            }
-          }, BTW_DISPATCH_GRACE_MS);
-          dispatchedGraceTimers.set(itemId, handle);
-        }
-      },
-      dequeue: () => {
-        const { queue } = get();
-        if (queue.length === 0) return null;
-        const [next, ...rest] = queue;
-        if (next?.itemId !== undefined) cancelDispatchedGraceTimer(next.itemId);
-        set({ queue: rest });
-        return expectDefined(next);
-      },
-      dequeueDrainable: () => {
-        const wrapper: {
-          popped: QueuedItem | null;
-          leadingBubbles: Array<Parameters<ChatState['addMessage']>[0]>;
-        } = { popped: null, leadingBubbles: [] };
-        set((state) => {
-          const idx = state.queue.findIndex((q) => q.alreadyDispatched !== true);
-          if (idx === -1) {
-            for (const q of state.queue) {
-              if (q.alreadyDispatched === true && q.bubbleAdded !== true) {
-                const images = q.images ?? [];
-                wrapper.leadingBubbles.push({
-                  role: 'user',
-                  content: q.text,
-                  ...(images.length > 0
-                    ? {
-                        attachments: images.map((img) => ({
-                          id: img.id,
-                          kind: 'image' as const,
-                          dataUrl: img.dataUrl,
-                          mediaType: img.mediaType,
-                          bytes: img.bytes,
-                          name: img.name,
-                        })),
-                      }
-                    : {}),
-                });
-              }
-            }
-            if (wrapper.leadingBubbles.length === 0) return {};
-            return {
-              queue: state.queue.filter(
-                (q) => !(q.alreadyDispatched === true && q.bubbleAdded !== true),
-              ),
-            };
-          }
-          for (let i = 0; i < idx; i += 1) {
-            const q = state.queue[i]!;
-            if (q.bubbleAdded === true) continue;
-            const images = q.images ?? [];
-            wrapper.leadingBubbles.push({
-              role: 'user',
-              content: q.text,
-              ...(images.length > 0
-                ? {
-                    attachments: images.map((img) => ({
-                      id: img.id,
-                      kind: 'image' as const,
-                      dataUrl: img.dataUrl,
-                      mediaType: img.mediaType,
-                      bytes: img.bytes,
-                      name: img.name,
-                    })),
-                  }
-                : {}),
-            });
-          }
-          const next = state.queue[idx]!;
-          const stampedRest = state.queue
-            .map((q, i) =>
-              i < idx && q.bubbleAdded !== true && q.alreadyDispatched === true
-                ? { ...q, bubbleAdded: true }
-                : q,
-            )
-            .slice(0, idx)
-            .concat(
-              state.queue
-                .map((q, i) =>
-                  i < idx && q.bubbleAdded !== true && q.alreadyDispatched === true
-                    ? { ...q, bubbleAdded: true }
-                    : q,
-                )
-                .slice(idx + 1),
-            );
-          wrapper.popped = next;
-          return { queue: stampedRest };
-        });
-        for (const payload of wrapper.leadingBubbles) {
-          useChatStore.getState().addMessage(payload);
-        }
-        const poppedItem: QueuedItem | null = wrapper.popped;
-        if (poppedItem?.itemId !== undefined) {
-          cancelDispatchedGraceTimer(poppedItem.itemId);
-        }
-        return poppedItem;
-      },
-      removeQueued: (idx) =>
-        set((state) => {
-          const removed = state.queue[idx];
-          if (removed?.itemId !== undefined) cancelDispatchedGraceTimer(removed.itemId);
-          return { queue: state.queue.filter((_, i) => i !== idx) };
-        }),
-      clearQueue: () => {
-        const handles = Array.from(dispatchedGraceTimers.values());
-        dispatchedGraceTimers.clear();
-        for (const handle of handles) clearTimeout(handle);
-        set({ queue: [] });
-      },
-      removeMessage: (id) =>
-        set((state) => {
-          const messages = state.messages.filter((m) => m.id !== id);
-          return { messages, toolMessageIdsByUseId: indexToolMessages(messages) };
-        }),
-      updateLastUserMessage: (text) =>
-        set((state) => {
-          const messages = state.messages;
-          for (let i = messages.length - 1; i >= 0; i--) {
-            if (messages[i].role === 'user') {
-              const updated = { ...messages[i], content: text };
-              const newMessages = [...messages];
-              newMessages[i] = updated;
-              return { messages: newMessages };
-            }
-          }
-          return state;
-        }),
-      setRunStart: (s) => set({ runStart: s }),
-      appendThinking: (text) =>
-        set((state) => ({
-          thinkingBuffer: boundChatField(state.thinkingBuffer + text),
-          thinkingStartedAt: state.thinkingStartedAt ?? Date.now(),
-          thinkingLogBuffer: boundChatField(state.thinkingLogBuffer + text),
-          thinkingLogStartedAt: state.thinkingLogStartedAt ?? Date.now(),
-        })),
-      clearThinking: () => set({ thinkingBuffer: '', thinkingStartedAt: null }),
-      flushThinkingLog: (iteration) => {
-        const { thinkingLogBuffer, thinkingLogStartedAt } = get();
-        const text = thinkingLogBuffer.trim();
-        if (!text) return;
-        const startedAt = thinkingLogStartedAt ?? Date.now();
-        get().addMessage({
-          role: 'system',
-          content: '',
-          thinkingLog: {
-            iteration,
-            text,
-            startedAt,
-            durationMs: Math.max(0, Date.now() - startedAt),
-          },
-        });
-        get().clearThinkingLog();
-      },
-      clearThinkingLog: () => set({ thinkingLogBuffer: '', thinkingLogStartedAt: null }),
-      switchSession: (newSessionId) => {
-        const state = get();
-        if (state.boundSessionId === newSessionId) return;
-
-        // 1. Snapshot current active session into memorySessionCaches
-        if (state.boundSessionId) {
-          memorySessionCaches.set(state.boundSessionId, {
-            messages: state.messages,
-            currentAssistantMessageId: state.currentAssistantMessageId,
-            currentToolId: state.currentToolId,
-            isLoading: state.isLoading,
-            executions: new Map(state.executions),
-            toolMessageIdsByUseId: new Map(state.toolMessageIdsByUseId),
-            thinkingBuffer: state.thinkingBuffer,
-            thinkingStartedAt: state.thinkingStartedAt,
-            thinkingLogBuffer: state.thinkingLogBuffer,
-            thinkingLogStartedAt: state.thinkingLogStartedAt,
-            runStart: state.runStart,
-          });
-        }
-
-        // 2. Restore cached session if available, else clean slate for new session
-        const cached = memorySessionCaches.get(newSessionId);
-        if (cached) {
-          set({
-            boundSessionId: newSessionId,
-            messages: cached.messages,
-            currentAssistantMessageId: cached.currentAssistantMessageId,
-            currentToolId: cached.currentToolId,
-            isLoading: cached.isLoading,
-            executions: cached.executions,
-            toolMessageIdsByUseId: cached.toolMessageIdsByUseId,
-            thinkingBuffer: cached.thinkingBuffer,
-            thinkingStartedAt: cached.thinkingStartedAt,
-            thinkingLogBuffer: cached.thinkingLogBuffer,
-            thinkingLogStartedAt: cached.thinkingLogStartedAt,
-            runStart: cached.runStart,
-          });
-        } else {
-          set({
-            boundSessionId: newSessionId,
-            messages: [],
-            currentAssistantMessageId: null,
-            currentToolId: null,
-            isLoading: false,
-            executions: new Map(),
-            toolMessageIdsByUseId: new Map(),
-            thinkingBuffer: '',
-            thinkingStartedAt: null,
-            thinkingLogBuffer: '',
-            thinkingLogStartedAt: null,
-            runStart: null,
-          });
-        }
-      },
-    }),
-    {
-      name: 'wrongstack-chat',
-      version: 3,
-      partialize: (s) => ({
-        messages: s.messages
-          .slice(-MAX_PERSISTED_MESSAGES)
-          .map((m) =>
-            m.attachments?.some((a) => a.dataUrl)
-              ? { ...m, attachments: m.attachments.map((a) => ({ ...a, dataUrl: undefined })) }
-              : m,
-          ),
-        queue: s.queue
-          .filter((q) => q.alreadyDispatched !== true)
-          .map((q) => (q.images ? { ...q, images: undefined } : q)),
-        boundSessionId: s.boundSessionId,
-        thinkingLogBuffer: s.thinkingLogBuffer,
-      }),
-      migrate: (persisted, version) => {
-        if (version > 3) {
-          return null as never as {
-            messages: ChatState['messages'];
-            queue: ChatState['queue'];
-            boundSessionId: string | null;
-            thinkingLogBuffer: string;
-          };
-        }
-        const p = (persisted ?? {}) as Partial<ChatState> & {
-          messages?: unknown;
-          queue?: unknown;
-        };
-        const safeMessages = Array.isArray(p.messages) ? p.messages : [];
-        let safeQueue = Array.isArray(p.queue) ? p.queue : [];
-        if (version < 3) {
-          safeQueue = safeQueue.filter(
-            (item): item is QueuedItem =>
-              typeof item === 'object' &&
-              item !== null &&
-              (item as QueuedItem).alreadyDispatched !== true,
-          );
-        }
-        const stampedQueue: ChatState['queue'] = safeQueue.flatMap((raw): ChatState['queue'] => {
-          const normalized = normalizeQueuedItem(raw);
-          if (normalized) {
-            setEnqueueSequence(Math.max(normalized.itemId, 0));
-            return [normalized];
-          }
-          return [];
-        });
-        return {
-          messages: retainWebChatMessages(safeMessages as ChatState['messages']),
-          queue: stampedQueue,
-          boundSessionId: typeof p.boundSessionId === 'string' ? p.boundSessionId : null,
-          thinkingLogBuffer: typeof p.thinkingLogBuffer === 'string' ? p.thinkingLogBuffer : '',
-        };
-      },
-      onRehydrateStorage: () => (_state, error) => {
-        if (error) return;
-        if (typeof window !== 'undefined') {
-          (
-            window as unknown as { __wrongstackChatRehydrated?: boolean }
-          ).__wrongstackChatRehydrated = true;
-        }
-      },
-    },
-  ),
+/**
+ * Foreground chat state. Reads and writes the ACTIVE lane only.
+ *
+ * Not a real Zustand store — a projection over `useChatLanes`. Everything a
+ * component needs (selector subscription, `getState`, `setState`, `subscribe`)
+ * is here; what is deliberately absent is any way to name another session.
+ */
+export const useChatStore: ChatStoreFacade = Object.assign(
+  function useChatStoreHook<T>(selector: (state: ChatState) => T): T {
+    return useStore(useChatLanes, (state) => selector(projectActiveLane(state)));
+  },
+  { getState, getInitialState: getState, setState, subscribe, persist: useChatLanes.persist },
 );
+
+/**
+ * Retire a lane whose tab was closed. Frees its transcript, queue and timers —
+ * a closed tab must not keep accruing memory or fire deferred bubbles.
+ */
+export function closeChatLane(sessionId: string): void {
+  disposeLane(sessionId);
+}

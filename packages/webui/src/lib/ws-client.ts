@@ -23,12 +23,11 @@ import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
+import type { WSSendOptions } from './ws-client-contracts';
 import {
   installWsClientDomainMethods,
   type WsClientDomainMethods,
 } from './ws-client-domain-methods';
-import type { WSSendOptions } from './ws-client-contracts';
-import { useSessionStore } from '../stores/session-store';
 import {
   buildClearModelsMessage,
   buildProviderUpdateMessage,
@@ -37,6 +36,7 @@ import {
 import {
   defaultWsUrl,
   type EventHandler,
+  foregroundSessionId,
   getTokenFromPageUrl,
   getTokenFromWsUrl,
   httpOriginForAuth,
@@ -115,6 +115,28 @@ function wsUrlCanUseAuthCookie(wsUrl: string): boolean {
     return true;
   }
 }
+/**
+ * Stand-in target for a `session.new`: the client asked the server to create a
+ * session and cannot name it until the answer arrives. Never a real id — the
+ * server issues opaque ids, and the leading `#` is not in that alphabet.
+ */
+const NEW_SESSION_SWAP_TARGET = '#pending-new-session';
+
+/** Bound on `seenSessionIds`; four tabs plus a long tail of retired ones. */
+const MAX_SEEN_SESSION_IDS = 64;
+
+/**
+ * The session a swap request is asking to land on, or `null` when the message
+ * is not a swap request at all. `session.resume` names its target in
+ * `payload.id`; `session.new` has none yet.
+ */
+function resolveSwapTarget(message: WSClientMessage): string | null {
+  if (message.type === 'session.new') return NEW_SESSION_SWAP_TARGET;
+  if (message.type !== 'session.resume') return null;
+  const id = (message as { payload?: { id?: unknown } }).payload?.id;
+  return typeof id === 'string' && id.length > 0 ? id : NEW_SESSION_SWAP_TARGET;
+}
+
 class WrongStackWebSocketClientBase {
   private ws: WebSocket | null = null;
   private url: string;
@@ -157,7 +179,39 @@ class WrongStackWebSocketClientBase {
    */
   private static readonly PENDING_CONFIRM_TTL_MS = 60_000;
   private sessionId: string | null = null;
-  private sessionSwapPending = false;
+  /**
+   * The session this client is currently waiting to be switched to, or
+   * `NEW_SESSION_SWAP_TARGET` when it asked the server to CREATE one and does
+   * not know the id yet. `null` means no swap is outstanding.
+   *
+   * This used to be a bare boolean (`sessionSwapPending`), and that is what
+   * made four tabs fight each other: `session.start` arrives for background
+   * sessions too (another tab's resume answer landing late, a server-side
+   * re-announce, a broadcast), and an unkeyed flag was consumed by whichever
+   * announcement happened to arrive first. The grant meant for the tab the
+   * user clicked was then spent on a DIFFERENT session — which took the
+   * foreground — and the click's own answer, arriving with the flag already
+   * cleared, was treated as an unrequested re-announce and ignored. That is
+   * exactly "I click tab 2 and get tab 1's transcript".
+   */
+  private pendingSwapTarget: string | null = null;
+  /**
+   * The session id of the `session.start` currently being dispatched, when it
+   * is the answer to THIS client's swap request. Set in `handleMessage`
+   * immediately before `emit`, read (and cleared) by `handleSessionStart` via
+   * `consumeRequestedSwitch`. Keyed by session id so a grant can never be
+   * spent on a different session than the one it was issued for.
+   */
+  private requestedSwitchSessionId: string | null = null;
+  /**
+   * Session ids this client has already seen a `session.start` for. Used to
+   * recognise the answer to a `session.new`, whose id the client cannot know
+   * in advance: the answer is the first RESET announcement naming a session
+   * this client has never seen.
+   */
+  private readonly seenSessionIds = new Set<string>();
+  /** Last declared open-tab set — see `subscribeSessions`. */
+  private subscribedSessionIds: string[] = [];
   /** Stored last close reason / error message so the UI can show "what
    *  went wrong" while reconnecting instead of a generic spinner. */
   private lastErrorText: string | undefined;
@@ -201,9 +255,35 @@ class WrongStackWebSocketClientBase {
     this.url = url ?? defaultWsUrl();
   }
 
-  withSession<T extends Record<string, unknown>>(payload: T): T & { sessionId?: string } {
-    const activeId = useSessionStore.getState().session?.id || this.sessionId;
-    return activeId ? { ...payload, sessionId: activeId } : payload;
+  /**
+   * Stamp the outgoing payload with the session it belongs to.
+   *
+   * `sessionId` is an explicit override for anything sent on behalf of a tab
+   * that is NOT in front — draining a background lane's queue, aborting a
+   * background run. Without it the payload inherits the foreground session and
+   * the background tab's message starts a run in the wrong session; that is
+   * the send-side twin of the cross-tab transcript bleed.
+   *
+   * "The foreground" is the LANE POINTER — the same value the chat surface
+   * renders from — and nothing else. Two weaker sources used to stand in for
+   * it and both mis-addressed runs:
+   *
+   *  - `useSessionStore().session?.id` is the lane's SessionInfo, which is
+   *    null between opening a tab and its `session.start` landing. A message
+   *    typed in that window fell through to the next fallback.
+   *  - `this.sessionId` is whatever session announced LAST on this socket,
+   *    background tabs included. Stamping it sent the foreground tab's message
+   *    into another tab's session: its transcript grew there, its `isLoading`
+   *    never cleared here (no `run.result` for a session this tab never ran),
+   *    and when that other session was mid-run the server answered with
+   *    "Agent.run() is already in progress on this instance".
+   */
+  withSession<T extends Record<string, unknown>>(
+    payload: T,
+    sessionId?: string | undefined,
+  ): T & { sessionId?: string } {
+    const targetId = sessionId || foregroundSessionId();
+    return targetId ? { ...payload, sessionId: targetId } : payload;
   }
 
   /**
@@ -398,7 +478,10 @@ class WrongStackWebSocketClientBase {
 
         ws.onclose = (ev) => {
           if (this.socketGeneration !== gen) return; // stale socket
-          this.sessionSwapPending = false;
+          // The outstanding swap died with the socket; a reconnect re-announces
+          // from scratch and must not inherit a grant nobody is waiting on.
+          this.pendingSwapTarget = null;
+          this.requestedSwitchSessionId = null;
           if (!established) {
             clearTimeout(connectTimeout);
             const reason = ev.reason || `Closed with code ${ev.code}`;
@@ -558,6 +641,7 @@ class WrongStackWebSocketClientBase {
       // the URL or relies on the cookie. See ws-auth.ts.
       const payload = msg.payload as {
         sessionId: string;
+        reset?: boolean;
         protocolVersion?: number;
         protocolCapabilities?: string[];
       };
@@ -565,15 +649,66 @@ class WrongStackWebSocketClientBase {
       this.sessionId = payload.sessionId;
       this.protocolVersion = negotiation.version;
       this.protocolCapabilities = new Set(negotiation.capabilities);
-      this.sessionSwapPending = false;
+      // Did THIS client ask for THIS session? `session.start` also arrives
+      // unrequested (boot, model switch, a server-side re-announce, another
+      // tab's answer landing late), and an unrequested one must update its own
+      // lane WITHOUT yanking the user out of the tab they are working in.
+      //
+      // Matching is by session id, never "a swap was outstanding": an answer
+      // for some other session must leave the outstanding grant alone so the
+      // tab the user actually clicked can still claim it.
+      this.requestedSwitchSessionId = this.matchesPendingSwap(payload) ? payload.sessionId : null;
+      if (this.requestedSwitchSessionId) this.pendingSwapTarget = null;
+      this.rememberSeenSession(payload.sessionId);
     } else if (
       msg.type === 'error' &&
       (msg.payload.phase === 'session.new' || msg.payload.phase === 'session.resume')
     ) {
-      this.sessionSwapPending = false;
+      this.pendingSwapTarget = null;
     }
 
     this.emit(msg);
+  }
+
+  /**
+   * Is this `session.start` the answer to the swap this client is waiting on?
+   *
+   * A resume names its target, so it matches by id. A `session.new` cannot —
+   * the server invents the id — so its answer is recognised as the first RESET
+   * announcement naming a session this client has never seen. Requiring
+   * `reset` keeps an unrelated first-sight announcement (a background tab the
+   * server announces on its own) from consuming the grant.
+   */
+  private matchesPendingSwap(payload: { sessionId: string; reset?: boolean }): boolean {
+    const target = this.pendingSwapTarget;
+    if (!target || !payload.sessionId) return false;
+    if (target !== NEW_SESSION_SWAP_TARGET) return target === payload.sessionId;
+    return payload.reset === true && !this.seenSessionIds.has(payload.sessionId);
+  }
+
+  private rememberSeenSession(sessionId: string): void {
+    if (!sessionId) return;
+    if (this.seenSessionIds.size >= MAX_SEEN_SESSION_IDS) {
+      // Insertion-ordered: drop the oldest rather than the whole set, so the
+      // four live tabs are never forgotten in one step.
+      const oldest = this.seenSessionIds.values().next();
+      if (!oldest.done) this.seenSessionIds.delete(oldest.value);
+    }
+    this.seenSessionIds.add(sessionId);
+  }
+
+  /**
+   * Claim the "this client asked to switch here" grant for ONE session.
+   *
+   * Read by `handleSessionStart` to decide whether the announced session takes
+   * the foreground or merely updates its own lane. Keyed by session id and
+   * one-shot: a later re-announce of the same session does not inherit the
+   * grant, and an announce for a DIFFERENT session cannot spend it.
+   */
+  consumeRequestedSwitch(sessionId: string): boolean {
+    if (!sessionId || this.requestedSwitchSessionId !== sessionId) return false;
+    this.requestedSwitchSessionId = null;
+    return true;
   }
 
   /**
@@ -649,9 +784,18 @@ class WrongStackWebSocketClientBase {
       );
       return false;
     }
-    const sessionSwap = message.type === 'session.new' || message.type === 'session.resume';
-    if (sessionSwap && this.sessionSwapPending) return false;
-    if (sessionSwap) this.sessionSwapPending = true;
+    // A swap request names where the user wants to go. Two rapid requests for
+    // the SAME target are a double-click and are deduped; two requests for
+    // DIFFERENT targets are the user changing their mind, and the newest one
+    // must win. The old guard dropped the second unconditionally, so clicking
+    // tab A then tab B before A's answer landed left the server on A while
+    // this client had already pointed its lane at B — and A's answer then
+    // dragged the surface back to A. Nothing ever re-asked for B.
+    const swapTarget = resolveSwapTarget(message);
+    if (swapTarget) {
+      if (this.pendingSwapTarget === swapTarget) return false;
+      this.pendingSwapTarget = swapTarget;
+    }
     if (options.echoToChat === false) {
       const responseType = CHAT_ECHO_RESPONSE_BY_REQUEST[message.type];
       if (responseType) {
@@ -664,12 +808,16 @@ class WrongStackWebSocketClientBase {
         this.ensureEchoSweep();
       }
     }
-    if (
-      message.type === 'context.clear' ||
-      message.type === 'session.new' ||
-      message.type === 'session.resume'
-    ) {
+    if (message.type === 'context.clear') {
+      // The conversation in front is being emptied — buffered tokens have
+      // nowhere to land.
       streamCoalescer.dropAll();
+    } else if (message.type === 'session.new' || message.type === 'session.resume') {
+      // A tab swap must NOT discard the outgoing tab's buffered tokens:
+      // dropping them truncated a streaming reply mid-sentence whenever the
+      // user opened or switched a tab. Flush them into the session they
+      // belong to instead; handleSessionStart snapshots that transcript.
+      streamCoalescer.flushAll();
     }
     if (socketOpen) {
       this.ws?.send(serialized);
@@ -791,17 +939,25 @@ class WrongStackWebSocketClientBase {
     this.handlers.get(eventType)?.delete(handler as EventHandler);
   }
 
-  sendMessage(content: string, images?: WSUserMessageImage[], freshContext = false): string {
+  sendMessage(
+    content: string,
+    images?: WSUserMessageImage[],
+    freshContext = false,
+    sessionId?: string | undefined,
+  ): string {
     const id = `msg_${Date.now()}_${safeId().slice(0, 8)}`;
     this.send({
       type: 'user_message',
-      payload: this.withSession({
-        id,
-        content,
-        timestamp: Date.now(),
-        ...(freshContext ? { freshContext: true } : {}),
-        ...(images && images.length > 0 ? { images } : {}),
-      }),
+      payload: this.withSession(
+        {
+          id,
+          content,
+          timestamp: Date.now(),
+          ...(freshContext ? { freshContext: true } : {}),
+          ...(images && images.length > 0 ? { images } : {}),
+        },
+        sessionId,
+      ),
     });
     return id;
   }
@@ -843,28 +999,57 @@ class WrongStackWebSocketClientBase {
 
   /** Send a mailbox message of the given type (btw, steer, note, etc.)
    *  to a target agent/role. Returns the requestId for response tracking. */
-  sendMailboxMessage(opts: WSMailboxSendOptions): string {
+  sendMailboxMessage(opts: WSMailboxSendOptions, sessionId?: string | undefined): string {
     const requestId = `mbox_${Date.now()}_${safeId().slice(0, 8)}`;
     this.send({
       type: 'mailbox.send',
-      payload: {
-        requestId,
-        to: opts.to,
-        type: opts.type,
-        audience: opts.audience ?? 'all',
-        subject: opts.subject,
-        body: opts.body,
-        priority: opts.priority ?? 'normal',
-      },
+      payload: this.withSession(
+        {
+          requestId,
+          to: opts.to,
+          type: opts.type,
+          audience: opts.audience ?? 'all',
+          subject: opts.subject,
+          body: opts.body,
+          priority: opts.priority ?? 'normal',
+        },
+        sessionId,
+      ),
     });
     return requestId;
   }
 
-  sendAbort() {
+  sendAbort(sessionId?: string | undefined) {
     this.send({
       type: 'abort',
-      payload: this.withSession({}),
+      payload: this.withSession({}, sessionId),
     });
+  }
+
+  /**
+   * Tell the server every session this page is displaying.
+   *
+   * Four tabs share ONE socket, so the server cannot infer the open set from
+   * the last message's `sessionId` — it would filter the other three tabs'
+   * runs out of every broadcast, and a background tab would simply stop
+   * producing output. Re-sent in full on every tab open/close (it replaces,
+   * it does not merge) and re-sent on reconnect, since the server forgets the
+   * set with the connection.
+   */
+  subscribeSessions(sessionIds: string[]): void {
+    const unique = Array.from(new Set(sessionIds.filter((id) => typeof id === 'string' && id)));
+    if (unique.length === 0) return;
+    if (unique.length === this.subscribedSessionIds.length) {
+      const same = unique.every((id, i) => id === this.subscribedSessionIds[i]);
+      if (same) return;
+    }
+    this.subscribedSessionIds = unique;
+    this.send({ type: 'session.subscribe', payload: this.withSession({ sessionIds: unique }) });
+  }
+
+  /** Forget the declared set so the next call re-sends it (used on reconnect). */
+  clearSessionSubscription(): void {
+    this.subscribedSessionIds = [];
   }
 
   sendConfirm(id: string, decision: 'yes' | 'no' | 'always' | 'deny') {
@@ -971,7 +1156,8 @@ class WrongStackWebSocketClientBase {
     // at worst (e.g. an old 'session.new' overriding the user's new one).
     this.messageQueue.length = 0;
     this.messageQueueChars = 0;
-    this.sessionSwapPending = false;
+    this.pendingSwapTarget = null;
+    this.requestedSwitchSessionId = null;
     // Drop any unresolved permission prompts. Even expired entries can linger
     // if a `tool.confirm_needed` doesn't recur to sweep them; on explicit
     // teardown release everything unconditionally so a long-lived tab that

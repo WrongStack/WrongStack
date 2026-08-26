@@ -1,20 +1,17 @@
 import type { Agent, AgentInput, RunResult } from '../core/agent.js';
-import type { EventBus } from '../kernel/events.js';
 import { setBtwNote } from '../core/btw.js';
+import type { EventBus } from '../kernel/events.js';
+import { AgentError, ERROR_CODES } from '../types/errors.js';
 import type {
   SubagentConfig,
   SubagentRunContext,
-  SubagentRunOutcome,
   SubagentRunner,
+  SubagentRunOutcome,
   TaskSpec,
 } from '../types/multi-agent.js';
-import { AgentError, ERROR_CODES } from '../types/errors.js';
-import {
-  BudgetExceededError,
-  BudgetThresholdSignal,
-} from './subagent-budget.js';
-import { resolveGracefulFinish } from './subagent-finish.js';
 import type { FleetBus } from './fleet-bus.js';
+import { BudgetExceededError, BudgetThresholdSignal } from './subagent-budget.js';
+import { resolveGracefulFinish } from './subagent-finish.js';
 import { readSubagentStructuredReport } from './subagent-result-tool.js';
 
 /**
@@ -68,7 +65,7 @@ export interface AgentFactoryResult {
    * thrown here are swallowed so a flaky cleanup can't mask the task's
    * real result.
    */
-  dispose?: ((() => Promise<void> | void)) | undefined;
+  dispose?: (() => Promise<void> | void) | undefined;
 }
 
 export interface AgentRunnerOptions {
@@ -123,9 +120,7 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
       ? (taskContext['telemetryTaskId'] as string)
       : task.id;
     const telemetryRunId =
-      typeof taskContext['telemetryRunId'] === 'string'
-        ? taskContext['telemetryRunId']
-        : undefined;
+      typeof taskContext['telemetryRunId'] === 'string' ? taskContext['telemetryRunId'] : undefined;
     const telemetryBoardId =
       typeof taskContext['telemetryBoardId'] === 'string'
         ? taskContext['telemetryBoardId']
@@ -141,6 +136,22 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
         };
       }
     ).ctx;
+    /**
+     * The session that owns this worker.
+     *
+     * `ctx.sessionId` is the coordinator's spawn-time stamp and is the only
+     * source that stays put: it names the tab that started this subagent, for
+     * the worker's whole life. The two fallbacks below read the HOST's live
+     * session, which moves every time the user switches tabs — a summary or a
+     * completion firing after a tab switch was filed under the wrong tab, so
+     * they are last resorts for runners driven outside the coordinator.
+     */
+    const owningSessionId = (): string | undefined =>
+      ctx.sessionId ??
+      (agentContext as { session?: { id?: string }; activeRunSessionId?: string } | undefined)
+        ?.activeRunSessionId ??
+      (agentContext as { session?: { id?: string } } | undefined)?.session?.id ??
+      (taskContext['sessionId'] as string | undefined);
     if (agentContext?.meta) {
       agentContext.meta['subagentTaskId'] = task.id;
       const kanbanContext = taskContext['kanban'];
@@ -208,13 +219,7 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
       // Hard stop (BudgetExceededError or other)
       aborter.abort();
       budgetError =
-        err instanceof BudgetExceededError
-          ? err
-          : new BudgetExceededError(
-              'tool_calls',
-              0,
-              0,
-            );
+        err instanceof BudgetExceededError ? err : new BudgetExceededError('tool_calls', 0, 0);
       // Attach the real error detail so the task result surfaces
       // something actionable instead of a generic budget message.
       if (budgetError !== err && err instanceof Error) {
@@ -305,7 +310,9 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
         const since = u.iterations - lastSummaryAtIteration;
         if (since >= SUMMARY_INTERVAL) {
           lastSummaryAtIteration = u.iterations;
+          const subagentSessionId = owningSessionId();
           events.emit('subagent.iteration_summary', {
+            ...(subagentSessionId ? { sessionId: subagentSessionId } : {}),
             subagentId: ctx.subagentId,
             iteration: u.iterations,
             toolCalls: u.toolCalls,
@@ -394,7 +401,9 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
       }
       // Emit task_completed BEFORE the finally block unsubscribes the
       // FleetBus — this lets the WebUI see the subagent's final output.
+      const subagentSessionId = owningSessionId();
       events.emit('subagent.task_completed', {
+        ...(subagentSessionId ? { sessionId: subagentSessionId } : {}),
         subagentId: ctx.subagentId,
         taskId: task.id,
         status: result.status === 'done' ? 'success' : 'failed',
@@ -459,7 +468,10 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
       throw result.error instanceof AgentError
         ? result.error
         : new AgentError({
-            message: result.error instanceof Error ? result.error.message : String(result.error ?? 'agent failed'),
+            message:
+              result.error instanceof Error
+                ? result.error.message
+                : String(result.error ?? 'agent failed'),
             code: ERROR_CODES.AGENT_RUN_FAILED,
             cause: result.error,
           });

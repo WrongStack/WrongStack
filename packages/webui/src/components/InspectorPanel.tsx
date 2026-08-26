@@ -8,22 +8,34 @@
  * task, node and message detail surfaces can join the same shell next.
  */
 
-import { Activity, Bot, ChevronLeft, Columns3, PanelRightOpen, Scale, Users, X } from 'lucide-react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
-  EventTimeline,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui';
-import { useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
+  Activity,
+  Bot,
+  ChevronLeft,
+  Columns3,
+  PanelRightOpen,
+  Scale,
+  Users,
+  X,
+} from 'lucide-react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { openPanel } from '@/components/activity-bar/nav';
-import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
-import { useCouncilLogStore, useFleetStore, useKanbanStore, useSessionStore, useSideEffectStore, useUIStore } from '@/stores';
-import { AgentCard } from './AgentCard';
+import { EventTimeline, Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui';
 import { FleetAgentRow } from '@/components/ui/fleet-agent-row';
+import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
+import { cn } from '@/lib/utils';
+import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
+import {
+  useCouncilLogStore,
+  useFleetStore,
+  useKanbanStore,
+  useSessionFleetTotals,
+  useSessionStore,
+  useSideEffectStore,
+  useUIStore,
+} from '@/stores';
+import { AgentCard } from './AgentCard';
 import { CouncilLogTimeline } from './CouncilLogTimeline';
 import { SideEffectTimeline } from './SideEffectTimeline';
 import {
@@ -76,8 +88,7 @@ export function InspectorTrigger(): React.ReactElement {
     (s) =>
       Array.from(s.agents.values()).filter(
         (agent) =>
-          (!agent.sessionId || !currentSessionId || agent.sessionId === currentSessionId) &&
-          agent.status === 'running',
+          agentBelongsToSession(agent.sessionId, currentSessionId) && agent.status === 'running',
       ).length,
   );
   const badge = runningCount;
@@ -121,15 +132,19 @@ export function InspectorPanel() {
   // Fleet-wide signals (subscribed narrowly so tab switches / typing in the
   // chat don't re-render this component).
   const fleetAgents = useFleetStore((s) => s.agents);
-  const leaderId = useFleetStore((s) => s.leaderId);
-  const fleetTokensIn = useFleetStore((s) => s.fleetTokensIn);
-  const fleetTokensOut = useFleetStore((s) => s.fleetTokensOut);
+  // Leader and token totals for THIS tab. The process-wide `leaderId` /
+  // `fleetTokensIn/Out` are the sum of every open tab's subagents, so the
+  // header used to bill four sessions' tokens to whichever one was on screen.
+  const sessionFleet = useSessionFleetTotals(currentSessionId);
+  const leaderId = sessionFleet.leaderId;
+  const fleetTokensIn = sessionFleet.tokensIn;
+  const fleetTokensOut = sessionFleet.tokensOut;
   const eventTimeline = useFleetStore((s) => s.eventTimeline);
 
   const sessionFleetAgents = useMemo(() => {
     const m = new Map<string, SubagentView>();
     for (const [k, v] of fleetAgents) {
-      if (!v.sessionId || !currentSessionId || v.sessionId === currentSessionId) {
+      if (agentBelongsToSession(v.sessionId, currentSessionId)) {
         m.set(k, v);
       }
     }
@@ -149,10 +164,15 @@ export function InspectorPanel() {
   // card is expanded. Kept inside the component so fleet-tab interactions
   // don't reset it.
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  // Resolved from THIS tab's roster, never the unfiltered one. The selection
+  // is component state that survives a tab switch, so looking it up in the
+  // global map showed another tab's agent detail next to this tab's list —
+  // and the list itself is session-filtered, so the card had no row.
+  // Falling back to this session's first agent keeps the panel populated.
   const selectedAgent = useMemo(() => {
     if (!selectedAgentId) return fleetList[0] ?? null;
-    return fleetAgents.get(selectedAgentId) ?? fleetList[0] ?? null;
-  }, [selectedAgentId, fleetList, fleetAgents]);
+    return sessionFleetAgents.get(selectedAgentId) ?? fleetList[0] ?? null;
+  }, [selectedAgentId, fleetList, sessionFleetAgents]);
 
   const sideEffectCount = useSideEffectStore((s) => s.sideEffects.length);
   // Subscribed as two scalars rather than the panel array: the array changes
@@ -214,11 +234,14 @@ export function InspectorPanel() {
                 <span className="text-muted-foreground/40">/</span>
                 <SheetTitle className="flex items-center gap-1.5 text-sm font-semibold truncate">
                   <Columns3 className="h-4 w-4 text-primary shrink-0" />
-                  <span className="truncate">{inspectorTarget.title || inspectorTarget.taskId}</span>
+                  <span className="truncate">
+                    {inspectorTarget.title || inspectorTarget.taskId}
+                  </span>
                 </SheetTitle>
               </div>
               <SheetDescription className="text-[11px] font-mono text-muted-foreground truncate">
-                Task ID: {inspectorTarget.taskId} {inspectorTarget.boardId ? `· Board: ${inspectorTarget.boardId}` : ''}
+                Task ID: {inspectorTarget.taskId}{' '}
+                {inspectorTarget.boardId ? `· Board: ${inspectorTarget.boardId}` : ''}
               </SheetDescription>
               <SheetClose asChild>
                 <button
@@ -318,7 +341,10 @@ export function InspectorPanel() {
                 />
               </TabsList>
 
-              <TabsContent value="fleet" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+              <TabsContent
+                value="fleet"
+                className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+              >
                 <FleetTabContent
                   fleetList={fleetList}
                   leaderId={leaderId}
@@ -327,7 +353,10 @@ export function InspectorPanel() {
                   onSelectAgent={handleSelectAgent}
                 />
               </TabsContent>
-              <TabsContent value="agents" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+              <TabsContent
+                value="agents"
+                className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+              >
                 <AgentsTabContent
                   fleetList={fleetList}
                   selectedAgent={selectedAgent}
@@ -336,10 +365,16 @@ export function InspectorPanel() {
                   onSelectAgent={setSelectedAgentId}
                 />
               </TabsContent>
-              <TabsContent value="sideEffects" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+              <TabsContent
+                value="sideEffects"
+                className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+              >
                 <SideEffectTimeline />
               </TabsContent>
-              <TabsContent value="council" className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain">
+              <TabsContent
+                value="council"
+                className="mt-0 min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+              >
                 <CouncilLogTimeline />
               </TabsContent>
             </Tabs>
@@ -404,11 +439,17 @@ function TaskInspectorContent({
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded border border-border/60 p-2 bg-card/40">
           <div className="text-[10px] uppercase text-muted-foreground font-semibold">Priority</div>
-          <div className="font-mono text-xs text-foreground mt-0.5 capitalize">{task.priority || 'Medium'}</div>
+          <div className="font-mono text-xs text-foreground mt-0.5 capitalize">
+            {task.priority || 'Medium'}
+          </div>
         </div>
         <div className="rounded border border-border/60 p-2 bg-card/40">
-          <div className="text-[10px] uppercase text-muted-foreground font-semibold">Assigned Agent</div>
-          <div className="font-mono text-xs text-foreground mt-0.5">{task.assignedAgent || task.assignee || task.assignment?.agentId || 'Unassigned'}</div>
+          <div className="text-[10px] uppercase text-muted-foreground font-semibold">
+            Assigned Agent
+          </div>
+          <div className="font-mono text-xs text-foreground mt-0.5">
+            {task.assignedAgent || task.assignee || task.assignment?.agentId || 'Unassigned'}
+          </div>
         </div>
       </div>
     </div>

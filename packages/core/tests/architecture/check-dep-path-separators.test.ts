@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -22,11 +22,7 @@ function makeFixture(name: string): string {
   return dir;
 }
 
-function writeMember(
-  root: string,
-  relativeDir: string,
-  manifest: Record<string, unknown>,
-): void {
+function writeMember(root: string, relativeDir: string, manifest: Record<string, unknown>): void {
   const memberDir = path.join(root, relativeDir);
   mkdirSync(memberDir, { recursive: true });
   writeFileSync(path.join(memberDir, 'package.json'), JSON.stringify(manifest, null, 2));
@@ -131,14 +127,14 @@ describe('expandWorkspaceMembers', () => {
     mkdirSync(path.join(root, 'packages', '.hidden-skipped'), { recursive: true });
     writeMember(root, 'website', { name: 'website' });
 
-    const members = expandWorkspaceMembers(root, ['packages/*', 'website']).map((member) =>
+    const members = expandWorkspaceMembers(root, ['packages/*', 'website']).map((member: string) =>
       path.relative(root, member).replaceAll('\\', '/'),
     );
     expect(members[0]).toBe('');
     expect(members).toContain('packages/alpha');
     expect(members).toContain('packages/beta');
     expect(members).toContain('website');
-    expect(members.some((member) => member.includes('.hidden-skipped'))).toBe(false);
+    expect(members.some((member: string) => member.includes('.hidden-skipped'))).toBe(false);
   });
 });
 
@@ -168,22 +164,24 @@ describe('collectFindings (end to end)', () => {
 
     const findings = collectFindings(root);
     expect(findings).toContain('package.json dependencies.wrongstack: "link:apps\\wrongstack"');
-    expect(findings).toContain(
-      'packages/alpha/package.json dependencies.sibling: "link:..\\beta"',
-    );
+    expect(findings).toContain('packages/alpha/package.json dependencies.sibling: "link:..\\beta"');
     expect(findings).toContain('pnpm-workspace.yaml overrides.wrongstack: "link:apps\\wrongstack"');
     // The clean member produces no finding (match its manifest path — the
     // alpha finding's spec text itself contains "beta" via `link:..\beta`).
-    expect(findings.some((finding) => finding.includes('packages/beta/'))).toBe(false);
+    expect(findings.some((finding: string) => finding.includes('packages/beta/'))).toBe(false);
   });
 
   it('returns no findings for an all-forward-slash workspace', () => {
     const root = makeFixture('clean');
     writeFileSync(
       path.join(root, 'pnpm-workspace.yaml'),
-      ['packages:', '  - "packages/*"', 'overrides:', '  wrongstack: link:apps/wrongstack', ''].join(
-        '\n',
-      ),
+      [
+        'packages:',
+        '  - "packages/*"',
+        'overrides:',
+        '  wrongstack: link:apps/wrongstack',
+        '',
+      ].join('\n'),
     );
     writeFileSync(
       path.join(root, 'package.json'),

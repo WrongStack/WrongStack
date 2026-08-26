@@ -11,8 +11,8 @@ import { PromptUsageStore } from '@wrongstack/core/storage';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   type BrainHandlerContext,
-  createMailboxRouteHandlers,
   type CustomModeStore,
+  createMailboxRouteHandlers,
   type DesignContext,
   type EmbeddedAgentConfigContext,
   type EmbeddedConversationContext,
@@ -22,11 +22,12 @@ import {
   type PendingConfirm,
   type PrefsHandlerContext,
   type PromptsContext,
+  rebuildSystemPrompt,
   type SkillsContext,
 } from '@wrongstack/webui-server';
-import { rebuildSystemPrompt } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
 import type { CliWebUIOptions } from '../webui-server-options.js';
+import type { Agent } from '@wrongstack/core/agent';
 import type { WSServerMessage } from './contracts.js';
 import { loadSavedProviders } from './provider-config.js';
 
@@ -38,11 +39,23 @@ export interface RouteContextsParams {
   sessionStartedAt: number;
   currentSessionId: () => string;
   getCustomModeStore: () => Promise<CustomModeStore>;
-  buildSessionStartPayload: (overrides?: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  buildSessionStartPayload: (
+    overrides?: Record<string, unknown>,
+  ) => Promise<Record<string, unknown>>;
   prefSnapshot: () => Record<string, unknown>;
   persistPrefs: (patch: Record<string, unknown>) => Promise<void>;
   pendingConfirms: Map<string, PendingConfirm>;
   abortControllers: Map<string, AbortController>;
+  /**
+   * The Agent that owns one session's runs — one per open tab.
+   *
+   * Handing every tab the single leader Agent is what made a second tab answer
+   * with "Agent.run() is already in progress on this instance": the guard is
+   * right, one instance for four tabs was not.
+   */
+  getSessionAgent: (sessionId?: string | undefined) => Agent;
+  /** Stop the subagents one session spawned, when that session is aborted. */
+  stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
   getAbortController: () => AbortController | null;
   clearAbortController: () => void;
   send: (ws: WebSocket, msg: WSServerMessage) => void;
@@ -62,6 +75,8 @@ export function createWebuiRouteContexts({
   persistPrefs,
   pendingConfirms,
   abortControllers,
+  getSessionAgent,
+  stopSessionFleet,
   getAbortController,
   clearAbortController,
   send,
@@ -179,7 +194,10 @@ export function createWebuiRouteContexts({
       // file, and the builder reads the variant off the in-memory object.
       applyVariant: async (variant) => {
         if (opts.appConfig) {
-          opts.appConfig.systemPrompt = { ...(opts.appConfig.systemPrompt ?? {}), variant };
+          opts.appConfig = {
+            ...opts.appConfig,
+            systemPrompt: { ...(opts.appConfig.systemPrompt ?? {}), variant },
+          };
         }
         const tools = opts.agent.tools as
           | import('@wrongstack/core/registry').ToolRegistry
@@ -242,6 +260,9 @@ export function createWebuiRouteContexts({
     opts,
     buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
     getCustomModeStore,
+    // Session transitions must re-point the TARGET session's context, not the
+    // leader's — resuming tab 2 was rewriting the context tab 1 ran in.
+    getAgent: getSessionAgent,
     send,
     broadcast,
     log: (m) => console.log(m),
@@ -249,8 +270,10 @@ export function createWebuiRouteContexts({
 
   const connectionCtx: EmbeddedConversationContext = {
     agent: opts.agent,
+    getAgent: getSessionAgent,
     abortControllers,
     pendingConfirms,
+    ...(stopSessionFleet ? { stopSessionFleet } : {}),
     send,
     broadcast,
     log: (m) => console.log(m),

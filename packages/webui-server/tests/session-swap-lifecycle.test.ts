@@ -25,9 +25,13 @@ describe('standalone WebUI session swap lifecycle', () => {
     const next = writer('2026-07-12/sess_new');
     const harness = makeHarness({ root, sessionsDir, current: old, created: next });
 
+    // Retiring the previous session is opt-in via `replaceSessionId`.
+    // `payload.sessionId` only says which session the request came FROM — the
+    // WebUI stamps it on every message, so treating it as "retire this" made
+    // opening a second tab abort and close the first one's session.
     await harness.routes.newSession(harness.ws, {
       type: 'session.new',
-      payload: { sessionId: old.id },
+      payload: { replaceSessionId: old.id },
     });
 
     expect(old.append).toHaveBeenCalledWith(expect.objectContaining({ type: 'session_end' }));
@@ -151,7 +155,7 @@ describe('standalone WebUI session swap lifecycle', () => {
 
     await harness.routes.newSession(harness.ws, {
       type: 'session.new',
-      payload: { sessionId: old.id },
+      payload: { replaceSessionId: old.id },
     });
 
     expect(abortActiveRun).toHaveBeenCalledOnce();

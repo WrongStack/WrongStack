@@ -38,8 +38,10 @@ export interface ModeHandlersContext {
   projectRoot: string;
   globalRoot: string;
   clients: Map<WebSocket, ConnectedClient>;
-  setModeId: (id: string) => void;
-  sessionStartPayload: () => Promise<SessionStartPayload>;
+  setModeId: (id: string, sessionId?: string) => void;
+  sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
+  /** Resolve a session's own Context so the rebuild targets the right tab. */
+  getSessionContext?: ((sessionId?: string) => Context | undefined) | undefined;
 }
 
 export function createModeHandlers(context: ModeHandlersContext) {
@@ -48,14 +50,22 @@ export function createModeHandlers(context: ModeHandlersContext) {
     getSession: () => context.context.session,
     applyModeId: context.setModeId,
     send,
-    afterSwitch: async (id) => {
+    afterSwitch: async (id, sessionId) => {
+      // Rebuild the prompt of the TAB that switched. `context.context` is the
+      // root context: with four sessions live it belongs to whichever tab the
+      // runtime happens to be pointing at, so rebuilding it here would swap a
+      // different conversation's system prompt.
+      const targetCtx = context.getSessionContext?.(sessionId) ?? context.context;
+      // Stamp the mode on that session so its own `session.start` — and any
+      // later one — reports the mode this tab is actually running.
+      targetCtx.meta['modeId'] = id;
       await rebuildSystemPrompt(
         {
           modeStore: context.modeStore,
           memoryStore: context.memoryStore,
           skillLoader: context.skillLoader,
           modelCapabilities: context.modelCapabilities,
-          context: context.context,
+          context: targetCtx,
           toolRegistry: context.toolRegistry,
           getConfig: () => context.getConfig?.() ?? context.config,
           projectRoot: context.projectRoot,
@@ -65,7 +75,9 @@ export function createModeHandlers(context: ModeHandlersContext) {
       );
       broadcast(context.clients, {
         type: 'session.start',
-        payload: { ...(await context.sessionStartPayload()) },
+        payload: {
+          ...(await context.sessionStartPayload(sessionId ? { sessionId } : undefined)),
+        },
       });
     },
   });

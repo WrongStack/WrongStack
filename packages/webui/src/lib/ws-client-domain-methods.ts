@@ -1,9 +1,5 @@
 import { safeId } from '@/lib/utils';
-import type {
-  WSClientMessage,
-  WSServerMessage,
-  WSModelSwitchResult,
-} from '../types';
+import type { WSClientMessage, WSModelSwitchResult, WSServerMessage } from '../types';
 import type { ProviderCustomModelWire } from '../types/client-message';
 import type { ContextEditorMessage, ContextEditorRemoval } from '../types/runtime';
 import type { WSSendOptions } from './ws-client-contracts';
@@ -15,7 +11,10 @@ import {
 
 export interface WsClientDomainHost {
   send(message: WSClientMessage, options?: WSSendOptions): boolean;
-  withSession<T extends Record<string, unknown>>(payload: T): T & { sessionId?: string };
+  withSession<T extends Record<string, unknown>>(
+    payload: T,
+    sessionId?: string | undefined,
+  ): T & { sessionId?: string };
 }
 
 export const domainMethods = {
@@ -62,8 +61,19 @@ export const domainMethods = {
     this.send({ type: 'provider.status.clear', payload: { providerId, model } });
   },
 
-  newSession(this: WsClientDomainHost) {
-    this.send({ type: 'session.new', payload: {} });
+  /**
+   * Open an ADDITIONAL session (a new WebUI tab).
+   *
+   * Deliberately does NOT go through `withSession()`: stamping the live
+   * session id made the server read it as "the session being replaced", so
+   * it aborted that session's in-flight run and closed its journal writer.
+   * Retiring a session alongside the new one is opt-in via `replaceSessionId`.
+   */
+  newSession(
+    this: WsClientDomainHost,
+    payload?: { systemPromptVariant?: string; replaceSessionId?: string },
+  ) {
+    this.send({ type: 'session.new', payload: { ...(payload ?? {}) } });
   },
 
   /** Ask for the identity-prompt catalogue (variants, token estimates, current). */
@@ -77,7 +87,10 @@ export const domainMethods = {
    * fresh `system_prompt.info` broadcast once the live prompt is rebuilt.
    */
   setSystemPromptVariant(this: WsClientDomainHost, variant: 'lite' | 'default' | 'pro') {
-    this.send({ type: 'prefs.update', payload: { systemPromptVariant: variant } });
+    this.send({
+      type: 'prefs.update',
+      payload: this.withSession({ systemPromptVariant: variant }),
+    });
   },
 
   listProviders(this: WsClientDomainHost) {
@@ -141,7 +154,11 @@ export const domainMethods = {
     this.send({ type: 'provider.remove', payload: { providerId } });
   },
 
-  startOAuth(this: WsClientDomainHost, kind: 'chatgpt' | 'claude' | 'copilot', providerId?: string) {
+  startOAuth(
+    this: WsClientDomainHost,
+    kind: 'chatgpt' | 'claude' | 'copilot',
+    providerId?: string,
+  ) {
     this.send({
       type: 'auth.oauth.start',
       payload: providerId ? { kind, providerId } : { kind },
@@ -293,23 +310,30 @@ export const domainMethods = {
   },
 
   switchAutonomy(this: WsClientDomainHost, mode: string) {
-    this.send({ type: 'autonomy.switch', payload: { mode } });
+    // Autonomy is per-tab — a tab left on `eternal` must not drag the others.
+    this.send({ type: 'autonomy.switch', payload: this.withSession({ mode }) });
   },
 
   updatePrefs(this: WsClientDomainHost, prefs: Record<string, unknown>) {
-    this.send({ type: 'prefs.update', payload: prefs });
+    // The server routes session-scoped keys (autonomy, yolo, context strategy,
+    // prompt variant, reasoning) to this tab and leaves the rest process-wide.
+    this.send({ type: 'prefs.update', payload: this.withSession(prefs) });
   },
 
-  getPrefs(this: WsClientDomainHost) {
-    this.send({ type: 'prefs.get' });
+  /**
+   * Re-read preferences for ONE tab. Called on connect and on every tab
+   * switch: the session-scoped half of the snapshot belongs to whichever
+   * session asked, so an untagged `prefs.get` answers about whatever session
+   * the runtime happens to be on — a different tab from the asking one as
+   * often as not once four are open.
+   */
+  getPrefs(this: WsClientDomainHost, sessionId?: string) {
+    this.send({ type: 'prefs.get', payload: this.withSession({}, sessionId) });
   },
 };
 
-export function installWsClientDomainMethods(
-  ctor: { prototype: any },
-): void {
+export function installWsClientDomainMethods(ctor: { prototype: any }): void {
   Object.assign(ctor.prototype, domainMethods);
 }
 
 export type WsClientDomainMethods = typeof domainMethods;
-

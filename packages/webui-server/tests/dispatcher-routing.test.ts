@@ -28,8 +28,8 @@
 
 import type { WSClientMessage } from '@wrongstack/webui-server';
 import {
-  handleGoalRoute,
   handleBrainRoute,
+  handleGoalRoute,
   handleMailboxRoute,
   handleMcpRoute,
   handleModeRoute,
@@ -210,7 +210,7 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     const out = await handlePrefsRoute(
       ws,
       { type: 'config.doctor', payload: { apply: true } },
-      { getPrefs: vi.fn(), updatePrefs: vi.fn(), doctorConfig },
+      { getPrefs: vi.fn(), updatePrefs: vi.fn(), getSystemPrompt: vi.fn(), doctorConfig },
     );
     expect(out).toBe(true);
     expect(doctorConfig).toHaveBeenCalledWith(ws, true);

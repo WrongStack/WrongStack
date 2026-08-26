@@ -42,6 +42,13 @@ export interface ConversationOperationsContext {
   send: (ws: WebSocket, message: OutboundMessage) => void;
   notifyAbort: (ws: WebSocket, message: OutboundMessage) => void;
   getMaxIterations?: () => number | undefined;
+  /**
+   * Serialiser shared with the session handlers. Run setup is wrapped in it so
+   * a turn can never start on a context that a concurrent session.new /
+   * session.resume is halfway through re-pointing. Defaults to running the
+   * callback directly when the host does not wire one.
+   */
+  withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
   busyPhase?: string;
   busyMessage?: string;
 }
@@ -127,46 +134,70 @@ export function createConversationOperations(
         images?: IncomingImagePayload[] | undefined;
         imageBase64?: string | undefined;
       };
-      const requested = typeof payload.sessionId === 'string' && payload.sessionId ? payload.sessionId : undefined;
+      const requested =
+        typeof payload.sessionId === 'string' && payload.sessionId ? payload.sessionId : undefined;
       const originSessionId = requested ?? ctx.getSessionId();
       const requestId = typeof payload.id === 'string' ? payload.id : undefined;
-      const controller = ctx.runControl.begin(ws, originSessionId);
-      if (!controller) {
-        ctx.send(ws, {
-          type: 'error',
-          payload: sessionPayload({
-            phase: ctx.busyPhase ?? 'user_message',
-            message:
-              ctx.busyMessage ??
-              'Agent is already processing a request. Wait for the current run to finish.',
-          }),
-        });
-        return;
-      }
 
-      // originSessionId was captured before begin() so both the run and
-      // every catch branch stamp the result with the session the user
-      // started in — not whatever session is live when the run unwinds.
+      // Session setup (fresh-topic reset, image routing) reads and mutates the
+      // target agent's context, so it must not interleave with a session
+      // transition that is re-pointing contexts underneath it. The run itself
+      // is deliberately started OUTSIDE the gate: holding it for a whole turn
+      // would serialise the four tabs into one.
+      const gate: <T>(fn: () => Promise<T>) => Promise<T> =
+        ctx.withSessionTransition ?? (<T>(fn: () => Promise<T>) => fn());
+
+      // Claiming the run lock and preparing the turn both happen INSIDE the
+      // transition gate: the busy check, `getAgent(originSessionId)` and the
+      // fresh-topic reset all read runtime state that a concurrent
+      // session.new / session.resume is in the middle of re-pointing.
+      //
+      // `agent.run()` is deliberately started OUTSIDE the gate — holding it
+      // for a whole turn would serialise the four tabs back into one.
+      let controller: AbortController | undefined;
       try {
-        const agent = ctx.getAgent(originSessionId);
-        if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
-        const content = typeof payload.content === 'string' ? payload.content : '';
-        let input: string | ContentBlock[] = content;
-        const imageBlocks = parseIncomingImages(payload.images, payload.imageBase64);
-        if (imageBlocks.length > 0) {
-          const routed = await routeImagesForModel(buildUserContentBlocks(content, imageBlocks), {
-            supportsVision: agent.ctx.provider.capabilities.vision,
-            adapters: () => createToolVisionAdapters(agent.tools),
-            ctx: agent.ctx,
-            signal: controller.signal,
-            providerId: agent.ctx.provider.id,
-            model: agent.ctx.model,
+        const prepared = await gate(async () => {
+          const claimed = ctx.runControl.begin(ws, originSessionId);
+          if (!claimed) return null;
+          controller = claimed;
+          const agent = ctx.getAgent(originSessionId);
+          if (payload.freshContext === true) await startFreshTopicContext(agent.ctx);
+          const content = typeof payload.content === 'string' ? payload.content : '';
+          let input: string | ContentBlock[] = content;
+          const imageBlocks = parseIncomingImages(payload.images, payload.imageBase64);
+          if (imageBlocks.length > 0) {
+            const routed = await routeImagesForModel(buildUserContentBlocks(content, imageBlocks), {
+              supportsVision: agent.ctx.provider.capabilities.vision,
+              adapters: () => createToolVisionAdapters(agent.tools),
+              ctx: agent.ctx,
+              signal: claimed.signal,
+              providerId: agent.ctx.provider.id,
+              model: agent.ctx.model,
+            });
+            input = routed.blocks;
+          }
+          return { agent, input, signal: claimed.signal };
+        });
+        if (!prepared) {
+          ctx.send(ws, {
+            type: 'error',
+            payload: sessionPayload({
+              // Stamped with the session that was refused. Falling back to the
+              // runtime's current session sent the "already processing" error
+              // to whichever tab was in front instead of the busy one.
+              sessionId: originSessionId,
+              phase: ctx.busyPhase ?? 'user_message',
+              message:
+                ctx.busyMessage ??
+                'Agent is already processing a request. Wait for the current run to finish.',
+            }),
           });
-          input = routed.blocks;
+          return;
         }
+        const { agent, input } = prepared;
         const maxIterations = ctx.getMaxIterations?.();
         const runResult = await agent.run(input, {
-          signal: controller.signal,
+          signal: prepared.signal,
           ...(maxIterations !== undefined ? { maxIterations } : {}),
         });
         ctx.send(ws, {
@@ -214,7 +245,9 @@ export function createConversationOperations(
           });
         }
       } finally {
-        ctx.runControl.end(ws, originSessionId, controller);
+        // Undefined only when the lock was never claimed (busy session) —
+        // releasing then would hand another tab's controller back.
+        if (controller) ctx.runControl.end(ws, originSessionId, controller);
       }
     },
     abort: (ws, msg) => {
@@ -223,7 +256,7 @@ export function createConversationOperations(
       ctx.runControl.abort(ws, sessionId);
       ctx.notifyAbort(ws, {
         type: 'error',
-        payload: sessionPayload({ phase: 'abort', message: 'User aborted' }),
+        payload: sessionPayload({ sessionId, phase: 'abort', message: 'User aborted' }),
       });
     },
     ping: (ws) => ctx.send(ws, { type: 'pong', payload: {} }),

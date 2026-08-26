@@ -135,6 +135,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Android platform specialist: Kotlin, Jetpack Compose, Android SDK, lifecycle and Play Store delivery.',
+      rationale: ANDROID_META,
       keywords: [...ANDROID_META.signals, 'android', 'kotlin', 'compose', 'gradle', 'playstore'],
     },
   },
@@ -151,6 +152,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Desktop application specialist: Electron or Tauri, native packaging, IPC and OS integration.',
+      rationale: DESKTOP_META,
       keywords: [...DESKTOP_META.signals, 'desktop', 'electron', 'tauri', 'ipc', 'tray'],
     },
   },
@@ -167,6 +169,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'verify',
       summary:
         'Realtime transport specialist: WebSocket, SSE, presence, heartbeat, reconnect and backpressure.',
+      rationale: REALTIME_META,
       keywords: [
         ...REALTIME_META.signals,
         'realtime',
@@ -191,6 +194,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'domain',
       summary:
         'Distributed-systems engineer: consistency, partitioning, idempotency, saga and coordination at the implementation level.',
+      rationale: DISTRIBUTED_SYSTEMS_META,
       keywords: [
         ...DISTRIBUTED_SYSTEMS_META.signals,
         'distributed-systems',
@@ -215,6 +219,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'build',
       summary:
         'Concurrency engineer: race conditions, locks, worker pools, async lifecycle and shared-state safety.',
+      rationale: CONCURRENCY_META,
       keywords: [
         ...CONCURRENCY_META.signals,
         'concurrency',
@@ -238,6 +243,7 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
       phase: 'delivery',
       summary:
         'Platform engineer: monorepo, build graph, internal tooling and developer experience.',
+      rationale: PLATFORM_ENGINEER_META,
       keywords: [
         ...PLATFORM_ENGINEER_META.signals,
         'platform',
@@ -250,14 +256,3 @@ export const WAVE1_AGENTS: AgentDefinition[] = [
     },
   },
 ];
-
-export const WAVE1_ROLE_METAS: Record<string, RoleDispatcherSignal> = {
-  android: ANDROID_META,
-  desktop: DESKTOP_META,
-  realtime: REALTIME_META,
-  'distributed-systems': DISTRIBUTED_SYSTEMS_META,
-  concurrency: CONCURRENCY_META,
-  'platform-engineer': PLATFORM_ENGINEER_META,
-};
-
-export const WAVE1_ROLES = new Set<string>(Object.keys(WAVE1_ROLE_METAS));

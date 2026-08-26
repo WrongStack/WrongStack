@@ -177,12 +177,8 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     a.events.emit('tool.executed', {
       sessionId: resolveEventSessionId(a.ctx),
       ...(a.ctx.traceId ? { traceId: a.ctx.traceId } : {}),
-      ...(a.ctx.activeLogicalRequestId
-        ? { logicalRequestId: a.ctx.activeLogicalRequestId }
-        : {}),
-      ...(a.ctx.activePromptManifestId
-        ? { promptManifestId: a.ctx.activePromptManifestId }
-        : {}),
+      ...(a.ctx.activeLogicalRequestId ? { logicalRequestId: a.ctx.activeLogicalRequestId } : {}),
+      ...(a.ctx.activePromptManifestId ? { promptManifestId: a.ctx.activePromptManifestId } : {}),
       agentId: a.ctx.agentId,
       agentName: a.ctx.agentName,
       id: toolUseId,
@@ -359,7 +355,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     // single batch write, avoiding N-1 function calls, scrub/observe cycles,
     // and timer rescheduling overhead.
     if (sessionEvents.length > 0) {
-      await a.ctx.session.appendBatch(sessionEvents);
+      await (a.ctx.activeRunSessionWriter ?? a.ctx.session).appendBatch(sessionEvents);
     }
 
     // Merge any pending PostToolUse separate context as a leading text block
@@ -383,7 +379,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     // half-journaled conversation.
     try {
       await a.ctx.flushConversationJournal();
-      await a.ctx.session.flush();
+      await (a.ctx.activeRunSessionWriter ?? a.ctx.session).flush();
     } catch (err) {
       (a.logger.debug ?? a.logger.warn)?.(
         `tool result boundary flush failed: ${toErrorMessage(err)}`,

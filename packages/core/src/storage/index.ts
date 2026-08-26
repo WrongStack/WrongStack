@@ -210,6 +210,7 @@ export {
   type ReplayLogStoreOptions,
 } from './replay-log-store.js';
 export { SessionAnalyzer } from './session-analyzer.js';
+export { stampAgentId, withAgentAttribution } from './session-agent-attribution.js';
 export {
   type CheckpointGitResult,
   SessionCheckpointCas,

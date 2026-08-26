@@ -7,14 +7,22 @@
  * - Configuration block (provider, model, description, taskId)
  */
 
-import { Check, ChevronDown, ChevronUp, ExternalLink, MessageSquare, RotateCcw, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  MessageSquare,
+  RotateCcw,
+  X,
+} from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { AgentTranscript } from '@/components/AgentTranscript';
 import { useAppTranslation } from '@/i18n';
+import { fmtDuration } from '@/lib/agent-status';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { EMPTY_AGENT_TRANSCRIPT, useFleetStore, useUIStore } from '@/stores';
-import { fmtDuration } from '@/lib/agent-status';
-import { AgentTranscript } from '@/components/AgentTranscript';
+import { EMPTY_AGENT_TRANSCRIPT, selectSessionLeaderId, useFleetStore, useUIStore } from '@/stores';
 
 export interface AgentDetailSectionProps {
   agent: SubagentView;
@@ -103,13 +111,20 @@ export function AgentDetailSection({
                 <button
                   type="button"
                   onClick={() => setShowAllTools(!showAllTools)}
-                  aria-label={showAllTools ? t('activity:agents.showFewer') : t('activity:agents.showAll')}
+                  aria-label={
+                    showAllTools ? t('activity:agents.showFewer') : t('activity:agents.showAll')
+                  }
                   className="flex items-center gap-0.5 text-[10px] text-primary hover:text-primary/80 transition-colors"
                 >
                   {showAllTools ? (
-                    <><ChevronUp className="h-2.5 w-2.5" /> {t('activity:agents.showFewer')}</>
+                    <>
+                      <ChevronUp className="h-2.5 w-2.5" /> {t('activity:agents.showFewer')}
+                    </>
                   ) : (
-                    <><ChevronDown className="h-2.5 w-2.5" /> {t('activity:agents.showAll')} ({toolLog.length})</>
+                    <>
+                      <ChevronDown className="h-2.5 w-2.5" /> {t('activity:agents.showAll')} (
+                      {toolLog.length})
+                    </>
                   )}
                 </button>
               )}
@@ -132,83 +147,90 @@ export function AgentDetailSection({
           </div>
         )}
 
-      {/* ── Failure detail (failed/timeout only) ── */}
-      {(agent.status === 'failed' || agent.status === 'timeout') && (
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1">
-            <span
-              className={cn(
-                'text-[10px] font-semibold uppercase tracking-wider',
-                agent.status === 'failed' ? 'text-destructive' : 'text-warning',
-              )}
-            >
-              {agent.status === 'failed' ? t('activity:agents.failure') : t('activity:agents.timeout')}
-            </span>
-            <span className="flex-1" />
-            {/* Re-run button placeholder (wired in a future phase) */}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); }}
-              className="flex items-center gap-0.5 rounded border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-              title={t('activity:agents.reRunTitle')}
-            >
-              <RotateCcw className="h-2.5 w-2.5" />
-              {t('activity:agents.reRun')}
-            </button>
-          </div>
-
-          {/* Error kind + message */}
-          {(agent.failureReason || agent.error) && (
-            <div
-              className={cn(
-                'rounded p-1.5 text-[10px] leading-snug',
-                agent.status === 'failed'
-                  ? 'bg-destructive/5 text-destructive'
-                  : 'bg-warning/5 text-warning',
-              )}
-            >
-              {agent.failureReason && (
-                <div className="font-medium">{agent.failureReason}</div>
-              )}
-              {agent.error && (
-                <div className={cn('mt-0.5', agent.status === 'failed' ? 'text-destructive/80' : 'text-warning/80')}>
-                  {agent.error.kind && <span className="font-mono">[{agent.error.kind}] </span>}
-                  {agent.error.message}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Last 3 tool calls before failure */}
-          {toolLog.length > 0 && (
-            <div className="space-y-0.5">
-              <span className="text-[10px] text-muted-foreground">
-                {t('activity:agents.lastToolCalls', { count: Math.min(3, toolLog.length) })}
+        {/* ── Failure detail (failed/timeout only) ── */}
+        {(agent.status === 'failed' || agent.status === 'timeout') && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1">
+              <span
+                className={cn(
+                  'text-[10px] font-semibold uppercase tracking-wider',
+                  agent.status === 'failed' ? 'text-destructive' : 'text-warning',
+                )}
+              >
+                {agent.status === 'failed'
+                  ? t('activity:agents.failure')
+                  : t('activity:agents.timeout')}
               </span>
-              <div className="space-y-0.5">
-                {toolLog.slice(0, 3).map((tlog) => (
-                  <div
-                    key={tlog.at}
-                    className="flex items-center gap-1 text-[10px] font-mono min-w-0"
-                  >
-                    {tlog.ok ? (
-                      <Check className="h-2.5 w-2.5 shrink-0 text-success" />
-                    ) : (
-                      <X className="h-2.5 w-2.5 shrink-0 text-destructive" />
-                    )}
-                    <span className={cn('truncate', tlog.ok ? '' : 'text-destructive')}>
-                      {tlog.name}
-                    </span>
-                    <span className="tabular-nums text-muted-foreground ml-auto shrink-0">
-                      {fmtDuration(tlog.durationMs)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <span className="flex-1" />
+              {/* Re-run button placeholder (wired in a future phase) */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className="flex items-center gap-0.5 rounded border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                title={t('activity:agents.reRunTitle')}
+              >
+                <RotateCcw className="h-2.5 w-2.5" />
+                {t('activity:agents.reRun')}
+              </button>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Error kind + message */}
+            {(agent.failureReason || agent.error) && (
+              <div
+                className={cn(
+                  'rounded p-1.5 text-[10px] leading-snug',
+                  agent.status === 'failed'
+                    ? 'bg-destructive/5 text-destructive'
+                    : 'bg-warning/5 text-warning',
+                )}
+              >
+                {agent.failureReason && <div className="font-medium">{agent.failureReason}</div>}
+                {agent.error && (
+                  <div
+                    className={cn(
+                      'mt-0.5',
+                      agent.status === 'failed' ? 'text-destructive/80' : 'text-warning/80',
+                    )}
+                  >
+                    {agent.error.kind && <span className="font-mono">[{agent.error.kind}] </span>}
+                    {agent.error.message}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Last 3 tool calls before failure */}
+            {toolLog.length > 0 && (
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-muted-foreground">
+                  {t('activity:agents.lastToolCalls', { count: Math.min(3, toolLog.length) })}
+                </span>
+                <div className="space-y-0.5">
+                  {toolLog.slice(0, 3).map((tlog) => (
+                    <div
+                      key={tlog.at}
+                      className="flex items-center gap-1 text-[10px] font-mono min-w-0"
+                    >
+                      {tlog.ok ? (
+                        <Check className="h-2.5 w-2.5 shrink-0 text-success" />
+                      ) : (
+                        <X className="h-2.5 w-2.5 shrink-0 text-destructive" />
+                      )}
+                      <span className={cn('truncate', tlog.ok ? '' : 'text-destructive')}>
+                        {tlog.name}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground ml-auto shrink-0">
+                        {fmtDuration(tlog.durationMs)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Configuration block ── */}
         {configItems.length > 0 && (
@@ -241,9 +263,13 @@ export function AgentDetailSection({
                   className="ml-auto flex items-center gap-0.5 text-[10px] text-primary hover:text-primary/80 transition-colors"
                 >
                   {showAllTranscript ? (
-                    <><ChevronUp className="h-2.5 w-2.5" /> {t('activity:agents.showFewer')}</>
+                    <>
+                      <ChevronUp className="h-2.5 w-2.5" /> {t('activity:agents.showFewer')}
+                    </>
                   ) : (
-                    <><ChevronDown className="h-2.5 w-2.5" /> {t('activity:agents.showAll')}</>
+                    <>
+                      <ChevronDown className="h-2.5 w-2.5" /> {t('activity:agents.showAll')}
+                    </>
                   )}
                 </button>
               )}
@@ -263,7 +289,10 @@ export function AgentDetailSection({
           {onOpenInspector && (
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); onOpenInspector(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenInspector();
+              }}
               className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"
             >
               <ExternalLink className="h-2.5 w-2.5" />
@@ -276,7 +305,10 @@ export function AgentDetailSection({
               e.stopPropagation();
               // The leader already owns the main chat pane — ignore stray
               // open-chat clicks on its own roster card.
-              if (useFleetStore.getState().leaderId === agent.id) return;
+              // Compare against the leader of the agent's OWN session; the
+              // process-wide pointer belongs to whichever tab set it last.
+              if (selectSessionLeaderId(useFleetStore.getState(), agent.sessionId) === agent.id)
+                return;
               const ui = useUIStore.getState();
               ui.setSubagentChatFocus(agent.id);
               ui.setCurrentView('chat');

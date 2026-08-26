@@ -1,12 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { EnhanceFailureKind } from '@wrongstack/core/execution';
-import type {
-  Config,
-  MemoryPort,
-  ModelsRegistry,
-  Provider,
-  ProviderConfig,
-} from '@wrongstack/core/types';
 import {
   buildRefinerContextSections,
   enhanceUserPrompt,
@@ -16,6 +9,13 @@ import {
   resolveConfiguredRefinerRef,
   resolveEnhanceFallbackRef,
 } from '@wrongstack/core/execution';
+import type {
+  Config,
+  MemoryPort,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+} from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';
@@ -39,8 +39,10 @@ export interface ModelOperationsContext {
   getConfig: () => Config | undefined;
   getLiveProviderId: () => string;
   buildProvider: (providerId: string, config: ProviderConfig) => Provider | Promise<Provider>;
-  applyModelSwitch: (providerId: string, modelId: string) => Promise<void>;
-  isRunActive?: (() => boolean) | undefined;
+  applyModelSwitch: (providerId: string, modelId: string, sessionId?: string) => Promise<void>;
+  isRunActive?: ((sessionId?: string) => boolean) | undefined;
+  /** Resolve a session's own Context; falls back to the root when unknown. */
+  getSessionContext?: ((sessionId?: string) => Context | undefined) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
   broadcast?: ((message: WSServerMessage) => void) | undefined;
   log?: ((message: string) => void) | undefined;
@@ -58,6 +60,13 @@ function sendResult(
     previousProvider?: string | undefined;
     previousModel?: string | undefined;
     runActive: boolean;
+    /**
+     * The tab this result belongs to. A successful switch is BROADCAST (other
+     * surfaces mirror the same session), so without it every client applied
+     * the new model to whatever session it had in front — switching a model
+     * in tab 2 silently re-labelled tab 1.
+     */
+    sessionId?: string | undefined;
   },
   legacyResult = false,
 ): void {
@@ -96,18 +105,22 @@ export function createModelOperations(context: ModelOperationsContext) {
       );
       return;
     }
-    const { provider, model, requestId } = parsed.value;
+    const { provider, model, requestId, sessionId } = parsed.value;
     const queued = switchQueue.then(async () => {
-      const previousProvider = context.getLiveProviderId();
-      const previousModel = context.context.model;
-      const runActive = context.isRunActive?.() ?? false;
+      // Report the switch against the TAB that asked, so a "switched from X"
+      // toast in tab 2 never quotes tab 3's model.
+      const targetCtx = context.getSessionContext?.(sessionId) ?? context.context;
+      const previousProvider = targetCtx.provider?.id ?? context.getLiveProviderId();
+      const previousModel = targetCtx.model;
+      const runActive = context.isRunActive?.(sessionId) ?? false;
       try {
-        await context.applyModelSwitch(provider, model);
+        await context.applyModelSwitch(provider, model, sessionId);
         sendResult(
           context,
           ws,
           {
             ...(requestId ? { requestId } : {}),
+            ...(sessionId ? { sessionId } : {}),
             success: true,
             message: `Switched to ${provider} / ${model}`,
             provider,
@@ -124,6 +137,7 @@ export function createModelOperations(context: ModelOperationsContext) {
           ws,
           {
             ...(requestId ? { requestId } : {}),
+            ...(sessionId ? { sessionId } : {}),
             success: false,
             message: `Switch failed: ${toErrorMessage(error)}`,
             provider,

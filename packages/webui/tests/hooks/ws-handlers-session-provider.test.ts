@@ -12,9 +12,7 @@ vi.mock('@/components/Toaster', () => ({ toast }));
 const wsClient = { send: vi.fn(), sendAbort: vi.fn() };
 vi.mock('@/lib/ws-client', () => ({ getWSClient: () => wsClient }));
 
-const { useChatStore, useFleetStore, useSessionStore } = await import(
-  '../../src/stores'
-);
+const { useChatStore, useFleetStore, useSessionStore } = await import('../../src/stores');
 const { useProviderStatusStore } = await import('../../src/stores/provider-status-store');
 const { useFallbackStore } = await import('../../src/stores/fallback-store');
 const { useVizStore } = await import('../../src/stores/viz-store');
@@ -306,9 +304,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
 
     it('stays quiet when it was already blocked', () => {
       useProviderStatusStore.setState({ update: vi.fn() } as never);
-      handleProviderStatusChanged(
-        msg('provider.status_changed', { ...base, oldState: 'blocked' }),
-      );
+      handleProviderStatusChanged(msg('provider.status_changed', { ...base, oldState: 'blocked' }));
       expect(toast.warn).not.toHaveBeenCalled();
     });
 
@@ -363,9 +359,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
       const applySnapshot = vi.fn();
       const setError = vi.fn();
       useProviderStatusStore.setState({ applySnapshot, setError } as never);
-      handleProviderStatusSnapshot(
-        msg('provider.status_snapshot', { error: 'not supported' }),
-      );
+      handleProviderStatusSnapshot(msg('provider.status_snapshot', { error: 'not supported' }));
       expect(setError).toHaveBeenCalledWith('Provider status tracking not available');
       expect(applySnapshot).not.toHaveBeenCalled();
     });
@@ -679,15 +673,11 @@ describe('session ws-handlers — provider / delegate / context', () => {
   describe('token.cost_estimate_unavailable', () => {
     it('warns once per model and stays quiet afterwards', () => {
       const model = `model-${Math.random().toString(36).slice(2)}`;
-      handleTokenCostEstimateUnavailable(
-        msg('token.cost_estimate_unavailable', { model }),
-      );
+      handleTokenCostEstimateUnavailable(msg('token.cost_estimate_unavailable', { model }));
       expect(toast.warn).toHaveBeenCalledWith(`Cost estimate unavailable for ${model}`);
 
       toast.warn.mockReset();
-      handleTokenCostEstimateUnavailable(
-        msg('token.cost_estimate_unavailable', { model }),
-      );
+      handleTokenCostEstimateUnavailable(msg('token.cost_estimate_unavailable', { model }));
       expect(toast.warn).not.toHaveBeenCalled();
     });
 
@@ -703,6 +693,8 @@ describe('session ws-handlers — provider / delegate / context', () => {
   // ── session lifecycle ─────────────────────────────────────────────────────
 
   it('session.damaged reports the detail', () => {
+    // The report belongs to the damaged session's tab; put that tab in front.
+    useSessionStore.setState({ session: { id: 's1' } } as never);
     handleSessionDamaged(msg('session.damaged', { sessionId: 's1', detail: 'truncated JSONL' }));
     expect(chat()).toBe('Session s1 is damaged: truncated JSONL');
     expect(lastMessage()?.isError).toBe(true);
@@ -717,9 +709,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
         removedEvents: 12,
       }),
     );
-    expect(chat()).toBe(
-      'Session rewound to prompt #3. Removed 12 event(s); reverted 2 file(s).',
-    );
+    expect(chat()).toBe('Session rewound to prompt #3. Removed 12 event(s); reverted 2 file(s).');
     expect(toast.info).toHaveBeenCalledWith('Session rewound');
   });
 
@@ -756,8 +746,16 @@ describe('session ws-handlers — provider / delegate / context', () => {
   // ── session gating ────────────────────────────────────────────────────────
 
   it.each([
-    ['iteration.limit_reached', handleIterationLimitReached, { currentIterations: 1, currentLimit: 1 }],
-    ['provider.error', handleProviderError, { providerId: 'p', status: 1, description: '', retryable: false }],
+    [
+      'iteration.limit_reached',
+      handleIterationLimitReached,
+      { currentIterations: 1, currentLimit: 1 },
+    ],
+    [
+      'provider.error',
+      handleProviderError,
+      { providerId: 'p', status: 1, description: '', retryable: false },
+    ],
     ['session.damaged', handleSessionDamaged, { sessionId: 's', detail: 'd' }],
     ['context.max_context', handleContextMaxContext, { maxContext: 1 }],
   ] as Array<[string, (m: never) => void, Record<string, unknown>]>)(

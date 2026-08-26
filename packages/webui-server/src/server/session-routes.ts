@@ -23,6 +23,8 @@ export interface SessionRouteHandlers {
   inspectSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listCheckpoints: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   rewindSession: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  /** Declare which sessions this connection is displaying (its open tabs). */
+  subscribeSessions: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
 }
 
 export async function handleSessionRoute(
@@ -93,6 +95,9 @@ export async function handleSessionRoute(
       return true;
     case 'session.rewind':
       await handlers.rewindSession(ws, msg);
+      return true;
+    case 'session.subscribe':
+      await handlers.subscribeSessions(ws, msg);
       return true;
     default:
       return false;

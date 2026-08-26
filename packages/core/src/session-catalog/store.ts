@@ -5,7 +5,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { loadDatabaseSync } from '../coordination/sqlite-mailbox-schema.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
 import type { SessionRegistryEntry } from './session-registry-types.js';
-import type { SessionSummary } from '../types/session.js';
+import type { SessionEvent, SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';
 import type {
@@ -21,6 +21,7 @@ import {
   SESSION_CATALOG_DEFAULT_RESERVATION_MS,
   SESSION_CATALOG_MAX_AGENTS,
 } from './protocol.js';
+import { deriveSessionAgents, type SessionAgentRecord } from './session-agents.js';
 import {
   rebuildCatalogIndex,
   walkSessionFiles,
@@ -41,6 +42,7 @@ import {
   MAX_RESERVATION_MS,
   parseJson,
   type ReservationRow,
+  type SessionAgentRow,
   secretMatches,
 } from './store-schema.js';
 
@@ -605,6 +607,128 @@ export class SessionCatalogStore {
       .prepare('SELECT * FROM sessions WHERE session_id=?')
       .get(sessionId) as unknown as CatalogRow | undefined;
     return row ? this.catalogRecord(row) : null;
+  }
+
+  /**
+   * The agent roster of one session, derived from its journal.
+   *
+   * Cached in `session_agents`, keyed to the transcript's size and mtime: the
+   * journal is the authority, so the cache is a memo of a pure function over
+   * it rather than a second place agents get recorded. When the file has grown
+   * (the usual case — a live session) the rows are re-derived from scratch, so
+   * a partial read can never leave a half-updated roster behind.
+   *
+   * Returns `[]` for a session with no transcript on disk. A caller cannot
+   * distinguish that from "a real session that spawned nothing", and should
+   * not need to: both mean there is no agent to show.
+   */
+  listSessionAgents(sessionId: string): SessionAgentRecord[] {
+    assertId(sessionId);
+    const summary = this.getSummary(sessionId);
+    if (!summary) return [];
+    const file = path.join(this.sessionsDir, summary.transcriptRelativePath);
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(file);
+    } catch {
+      return [];
+    }
+
+    const cached = this.db
+      .prepare('SELECT transcript_size, transcript_mtime_ms FROM session_agent_index WHERE session_id=?')
+      .get(sessionId) as { transcript_size: number; transcript_mtime_ms: number } | undefined;
+    if (
+      cached &&
+      Number(cached.transcript_size) === stat.size &&
+      Number(cached.transcript_mtime_ms) === stat.mtimeMs
+    ) {
+      return this.readSessionAgentRows(sessionId);
+    }
+
+    let raw: string;
+    try {
+      raw = fs.readFileSync(file, 'utf8');
+    } catch {
+      return [];
+    }
+    const events: SessionEvent[] = [];
+    for (const line of raw.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        events.push(JSON.parse(trimmed) as SessionEvent);
+      } catch {
+        // A torn trailing line is normal on a live journal — skip it. The
+        // next call re-derives anyway, because mtime will have moved.
+      }
+    }
+    const derived = deriveSessionAgents(events);
+    this.writeSessionAgentRows(sessionId, derived, stat.size, stat.mtimeMs);
+    return derived;
+  }
+
+  private readSessionAgentRows(sessionId: string): SessionAgentRecord[] {
+    const rows = this.db
+      .prepare('SELECT * FROM session_agents WHERE session_id=? ORDER BY ordinal ASC')
+      .all(sessionId) as unknown as SessionAgentRow[];
+    return rows.map((row) => ({
+      agentId: row.agent_id,
+      ...(row.role !== null ? { role: row.role } : {}),
+      ...(row.provider !== null ? { provider: row.provider } : {}),
+      ...(row.model !== null ? { model: row.model } : {}),
+      ...(row.agent_session_id !== null ? { agentSessionId: row.agent_session_id } : {}),
+      ...(row.transcript_path !== null ? { transcriptPath: row.transcript_path } : {}),
+      ...(row.parent_agent_id !== null ? { parentAgentId: row.parent_agent_id } : {}),
+      ...(row.spawned_at !== null ? { spawnedAt: row.spawned_at } : {}),
+      ...(row.ended_at !== null ? { endedAt: row.ended_at } : {}),
+      status: row.status as SessionAgentRecord['status'],
+      ...(row.error !== null ? { error: row.error } : {}),
+      interleavedEventCount: Number(row.interleaved_event_count),
+      ...(row.usage_json !== null ? { usage: parseJson<SessionAgentRecord['usage']>(row.usage_json) } : {}),
+    }));
+  }
+
+  private writeSessionAgentRows(
+    sessionId: string,
+    records: readonly SessionAgentRecord[],
+    size: number,
+    mtimeMs: number,
+  ): void {
+    this.transaction(() => {
+      // Full replace, not upsert: an agent can only disappear from the roster
+      // if the journal was rewritten (rewind, repair, clear), and in that case
+      // a leftover row would be a ghost nothing ever deletes.
+      this.db.prepare('DELETE FROM session_agents WHERE session_id=?').run(sessionId);
+      const insert = this.db.prepare(
+        `INSERT INTO session_agents(session_id,agent_id,role,provider,model,agent_session_id,transcript_path,parent_agent_id,spawned_at,ended_at,status,error,interleaved_event_count,usage_json,ordinal)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      );
+      records.forEach((record, ordinal) => {
+        insert.run(
+          sessionId,
+          record.agentId,
+          record.role ?? null,
+          record.provider ?? null,
+          record.model ?? null,
+          record.agentSessionId ?? null,
+          record.transcriptPath ?? null,
+          record.parentAgentId ?? null,
+          record.spawnedAt ?? null,
+          record.endedAt ?? null,
+          record.status,
+          record.error ?? null,
+          record.interleavedEventCount,
+          record.usage ? JSON.stringify(record.usage) : null,
+          ordinal,
+        );
+      });
+      this.db
+        .prepare(
+          `INSERT INTO session_agent_index(session_id,transcript_size,transcript_mtime_ms,derived_at)
+           VALUES (?,?,?,?) ON CONFLICT(session_id) DO UPDATE SET transcript_size=excluded.transcript_size,transcript_mtime_ms=excluded.transcript_mtime_ms,derived_at=excluded.derived_at`,
+        )
+        .run(sessionId, size, mtimeMs, new Date().toISOString());
+    });
   }
 
   resolveId(query: string): string {

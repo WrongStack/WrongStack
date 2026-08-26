@@ -1,10 +1,12 @@
-
 import { lazy, Suspense, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesktopBridge } from '@/hooks/useDesktopBridge';
 import { useF5Resilience } from '@/hooks/useF5Resilience';
 import { useGlobalKeyboardShortcuts } from '@/hooks/useGlobalKeyboardShortcuts';
+import { useSessionSubscription } from '@/hooks/useSessionSubscription';
+import { useViewport } from '@/hooks/useViewport';
 import { useWebSocketBootstrap } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -17,32 +19,28 @@ import {
   useUIStore,
 } from '@/stores';
 import { ActivityBar } from './components/activity-bar';
-import { useViewport } from '@/hooks/useViewport';
-import { navigateToView, openMainView, } from './components/activity-bar/nav';
-import {
-  WorkbenchTopbar,
-} from './components/WorkbenchTopbar';
+import { navigateToView, openMainView } from './components/activity-bar/nav';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { SystemPromptDialog } from './components/SystemPromptDialog';
-import { useSystemPromptStore } from './stores/system-prompt-store';
 import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
-import { UpdateBanner } from './components/UpdateBanner';
 import { ContextBreakdownModal } from './components/ContextBreakdownModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { InspectorPanel, } from './components/InspectorPanel';
+import { FallbackModal } from './components/FallbackModal';
+import { InspectorPanel } from './components/InspectorPanel';
 import { PromptLibraryModal } from './components/PromptLibraryModal';
 import { QuickModelSwitcher } from './components/QuickModelSwitcher';
-import { FallbackModal } from './components/FallbackModal';
+import { SessionTabBar } from './components/SessionTabBar';
 import { ShortcutsOverlay } from './components/ShortcutsOverlay';
 import { SidePanel } from './components/SidePanel';
+import { SystemPromptDialog } from './components/SystemPromptDialog';
 import { ThemeProvider, useTheme } from './components/ThemeProvider';
 import { Toaster } from './components/Toaster';
-import { WorkspaceDockInspector } from './components/WorkspaceDock';
-import { SessionTabBar } from './components/SessionTabBar';
+import { UpdateBanner } from './components/UpdateBanner';
 import { ViewRouter } from './components/ViewRouter';
-import { useAppTranslation } from '@/i18n';
+import { WorkbenchTopbar } from './components/WorkbenchTopbar';
+import { WorkspaceDockInspector } from './components/WorkspaceDock';
+import { useSystemPromptStore } from './stores/system-prompt-store';
 
 // ── Lazy-loaded views ──────────────────────────────────────────────────────
 // These pull heavy libraries (Monaco ~4MB, @xyflow, xterm) or are themselves
@@ -55,7 +53,9 @@ const _CodeMap = lazy(() => import('./components/CodeMap').then((m) => ({ defaul
 const _ChronicleDashboard = lazy(() =>
   import('./components/ChronicleDashboard').then((m) => ({ default: m.ChronicleDashboard })),
 );
-const _GoalView = lazy(() => import('./components/GoalView').then((m) => ({ default: m.GoalView })));
+const _GoalView = lazy(() =>
+  import('./components/GoalView').then((m) => ({ default: m.GoalView })),
+);
 const _ChangesView = lazy(() =>
   import('./components/ChangesView').then((m) => ({ default: m.ChangesView })),
 );
@@ -117,7 +117,6 @@ const _TerminalPanel = lazy(() =>
 
 // WorkbenchTopbar, useServerProcessMetrics, ServerProcessMetrics, formatCompactBytes,
 // and viewLabel have been extracted to ./components/WorkbenchTopbar.tsx
-
 
 function AppInner() {
   const { t } = useAppTranslation();
@@ -279,6 +278,10 @@ function AppInner() {
   // the duplicate-handler trap this avoids.
   useWebSocketBootstrap();
 
+  // Four tabs share one socket: the server has to be told which sessions this
+  // page displays or it filters three of them out of every broadcast.
+  useSessionSubscription();
+
   useF5Resilience();
 
   // Reflect the agent's run state + session identity in the browser tab
@@ -350,17 +353,19 @@ function AppInner() {
             isLoading={isLoading}
             iteration={iteration ?? null}
             onPalette={() => setPaletteOpen(true)}
-            onSearch={() => setSearchOpen(true)}
-            onModel={() => setModelSwitcherOpen(true)}
             onSettings={() => openMainView('settings')}
           />
         )}
         {currentView !== 'setup' && <SessionTabBar />}
         {currentView !== 'setup' && <ConnectionBanner />}
         {currentView !== 'setup' && <UpdateBanner />}
-        {/* Main view content — routed by ViewRouter */}
-        <ViewRouter sessionId={sessionId ?? null} desktopShell={desktopShell} />
-
+        {/* Main view content — routed by ViewRouter.
+            `relative` is the positioning context parked views anchor to: chat
+            stays mounted behind whatever view is in front, sized to this box
+            so its virtualized transcript keeps measuring. */}
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          <ViewRouter sessionId={sessionId ?? null} desktopShell={desktopShell} />
+        </div>
       </main>
 
       {/* Right-side inspectors overlay the work surface without shrinking it.

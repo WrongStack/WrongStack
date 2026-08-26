@@ -21,7 +21,6 @@
  */
 import path from 'node:path';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { ObservableBrainArbiter } from '@wrongstack/core/coordination';
 import type {
   AutoCompactionMiddleware,
@@ -46,6 +45,7 @@ import type {
   SessionStore,
   SkillLoader,
 } from '@wrongstack/core/types';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket, WebSocketServer } from 'ws';
 
 type Session = Awaited<ReturnType<SessionStore['create']>>;
@@ -53,10 +53,6 @@ type Session = Awaited<ReturnType<SessionStore['create']>>;
 import type { Config } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
-import {
-  applyWrongProxyPrefs as applyWrongProxyPrefsRuntime,
-  routeProviderCfgThroughProxy,
-} from './proxy-runtime.js';
 import { type AutonomyRouteHandlers, createAutonomyRouteHandlers } from './autonomy-routes.js';
 import { patchConfig } from './boot.js';
 import {
@@ -102,10 +98,10 @@ import {
 } from './mcp-handlers.js';
 import type { McpRouteHandlers } from './mcp-routes.js';
 import { createModeHandlers } from './mode-handlers.js';
-import { rebuildSystemPrompt } from './system-prompt-rebuild.js';
 import type { ModeRouteHandlers } from './mode-routes.js';
 import { createModelOperations } from './model-operations.js';
 import type { PendingConfirm } from './pending-confirms.js';
+import { prefSnapshot as prefSnapshotImpl } from './pref-helpers.js';
 import type { PrefsHandlerContext } from './prefs-handlers.js';
 import { createPrefsRouteHandlers, type PrefsRouteHandlers } from './prefs-routes.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
@@ -113,6 +109,10 @@ import { createProjectHandlers } from './project-handlers.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
 import { createProviderHandlers } from './provider-handlers.js';
 import type { ProviderRouteHandlers } from './provider-routes.js';
+import {
+  applyWrongProxyPrefs as applyWrongProxyPrefsRuntime,
+  routeProviderCfgThroughProxy,
+} from './proxy-runtime.js';
 import type { SddBoardRouteHandlers } from './sdd-board-routes.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import type { SddWizardRouteHandlers } from './sdd-wizard-routes.js';
@@ -129,6 +129,7 @@ import {
 import type { SpecsRouteHandlers } from './specs-routes.js';
 import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
+import { rebuildSystemPrompt } from './system-prompt-rebuild.js';
 import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { ConnectedClient } from './types.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
@@ -140,7 +141,7 @@ import {
   validateGitUnstagePayload,
   validateShellOpenPayload,
 } from './ws-payload-validation.js';
-import { broadcast, send, sendResult } from './ws-utils.js';
+import { broadcast, messageSessionId, send, sendResult } from './ws-utils.js';
 
 /**
  * Mutable session-scoped state. Handlers always read LIVE values through
@@ -174,8 +175,16 @@ export interface WebuiMutableState {
    * route layer just calls a single hook.
    */
   abortRunLock: (sessionId?: string) => void;
-  /** True while the leader agent owns the shared run lock. */
+  /** True while `sessionId` (or any session, when omitted) owns a run lock. */
   isRunActive: (sessionId?: string) => boolean;
+  /** Every session id with an in-flight run — one per busy WebUI tab. */
+  getRunningSessionIds: () => string[];
+  /**
+   * Host-wide serialiser for session transitions. Shared by the session
+   * handlers and the conversation ops so run setup never lands on a context
+   * that a concurrent session swap is halfway through re-pointing.
+   */
+  withSessionTransition: <T>(operation: () => Promise<T>) => Promise<T>;
   /** Read-only reference to the live WS clients map. */
   getClients(): Map<WebSocket, ConnectedClient>;
 }
@@ -247,7 +256,12 @@ export interface WebuiDeps {
  * delegates without storing state of its own.
  */
 export interface WebuiCallbacks {
-  sessionStartPayload: () => Promise<{
+  /**
+   * Build a `session.start` payload. `overrides.sessionId` selects WHICH
+   * session it describes — with four tabs live, the runtime's own "current"
+   * session is not necessarily the one being reported on.
+   */
+  sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<{
     sessionId: string;
     model: string;
     provider: string;
@@ -331,8 +345,26 @@ export function buildRoutes(
   // provider, refresh the auto-compaction denominator, persist, and broadcast a
   // fresh session.start. Shared by the `model.switch` handler and the
   // adopt-on-first-add path. Throws on provider-construction failure.
-  async function applyModelSwitchCore(newProvider: string, newModel: string): Promise<void> {
-    await deps.context.runModelTransition(async () => {
+  /**
+   * Resolve the Context a session-scoped operation should act on. Each WebUI
+   * tab owns its own Context (see backend-services' session agent registry);
+   * `deps.context` is only the ROOT one, which is a different tab's state as
+   * often as not once four sessions are live.
+   */
+  function sessionContext(sessionId?: string): Context {
+    if (!sessionId) return deps.context;
+    return deps.getAgent?.(sessionId)?.ctx ?? deps.context;
+  }
+
+  async function applyModelSwitchCore(
+    newProvider: string,
+    newModel: string,
+    sessionId?: string,
+  ): Promise<void> {
+    // Target the requesting tab's context. Without a sessionId (the
+    // adopt-first-provider boot path) this is still the root context.
+    const targetCtx = sessionContext(sessionId);
+    await targetCtx.runModelTransition(async () => {
       const cur = state.getConfig();
       const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
       const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
@@ -340,11 +372,7 @@ export function buildRoutes(
       // through the shared helper so the live WebUI session honors the
       // proxy toggle, same as the CLI's `/model` switch path. `newCfg.baseUrl`
       // is the fallback when the saved cfg carries no explicit baseUrl.
-      const routedCfg = routeProviderCfgThroughProxy(
-        providerCfg,
-        newCfg.baseUrl,
-        newProvider,
-      );
+      const routedCfg = routeProviderCfgThroughProxy(providerCfg, newCfg.baseUrl, newProvider);
       const built = deps.providerRegistry.has(newProvider)
         ? deps.providerRegistry.create({ ...routedCfg, type: newProvider } as never)
         : makeProviderFromConfig(newProvider, routedCfg);
@@ -365,10 +393,13 @@ export function buildRoutes(
         config.model = newModel;
       }, 'model.switch');
 
+      // The global config keeps tracking the most recent choice so it is the
+      // default a NEW tab starts from and survives a restart — but the LIVE
+      // swap lands only on the session that asked for it.
       state.setConfig(newCfg);
       deps.configStore.update({ provider: newProvider, model: newModel });
-      deps.context.model = newModel;
-      deps.context.provider = newProv;
+      targetCtx.model = newModel;
+      targetCtx.provider = newProv;
       // Capability refresh is best-effort after the atomic live swap. A catalog
       // outage must not report the switch as failed after it already committed.
       // Pass the POST-rewrite routedCfg (the same config the provider was built
@@ -379,7 +410,9 @@ export function buildRoutes(
 
       broadcast(state.getClients(), {
         type: 'session.start',
-        payload: await cb.sessionStartPayload(),
+        payload: await cb.sessionStartPayload(
+          sessionId ? { sessionId, model: newModel, provider: newProvider } : {},
+        ),
       });
     });
   }
@@ -396,6 +429,7 @@ export function buildRoutes(
         : makeProviderFromConfig(providerId, providerConfig),
     applyModelSwitch: applyModelSwitchCore,
     isRunActive: state.isRunActive,
+    getSessionContext: (sessionId?: string) => sessionContext(sessionId),
     send,
     broadcast: (message) => broadcast(state.getClients(), message),
     log: (message) => console.warn(message),
@@ -430,7 +464,59 @@ export function buildRoutes(
     },
   };
 
+  const systemPromptAdapter = {
+    paths: () => {
+      const wpaths = resolveWstackPaths({
+        projectRoot: state.getProjectRoot(),
+        globalRoot: deps.wpaths.globalRoot,
+      });
+      return {
+        globalDir: wpaths.globalInstructions,
+        projectDir: wpaths.inProjectInstructions,
+      };
+    },
+    profileConfigPath: deps.profileConfigPath,
+    current: () => state.getConfig().systemPrompt?.variant ?? 'default',
+    // Mutate the live Config *before* rebuilding: `persistPrefsToConfig`
+    // writes the file, not the in-memory object, and the builder reads the
+    // variant off the object. Without this the rebuild would faithfully
+    // recompose the prompt the session already had.
+    applyVariant: async (variant: string, sessionId?: string) => {
+      const config = state.getConfig();
+      state.setConfig(
+        patchConfig(config, {
+          systemPrompt: { ...(config.systemPrompt ?? {}), variant: variant as never },
+        }),
+      );
+      // Rebuild the asking tab's prompt. The container rebind stays global on
+      // purpose: it only changes which builder NEW subagents are composed
+      // from, which is a default rather than live conversation state.
+      const targetCtx = sessionContext(sessionId);
+      const modeId =
+        typeof targetCtx.meta['modeId'] === 'string' && targetCtx.meta['modeId']
+          ? (targetCtx.meta['modeId'] as string)
+          : state.getModeId();
+      targetCtx.meta['systemPromptVariant'] = variant;
+      await rebuildSystemPrompt(
+        {
+          modeStore: deps.modeStore,
+          memoryStore: deps.memoryStore,
+          skillLoader: deps.skillLoader,
+          modelCapabilities: (() => state.getModelCapabilities()) as never,
+          context: targetCtx,
+          toolRegistry: deps.toolRegistry,
+          getConfig: state.getConfig,
+          projectRoot: state.getProjectRoot(),
+          globalRoot: deps.wpaths.globalRoot,
+          container: deps.container,
+        },
+        modeId,
+      );
+    },
+  };
+
   const sessionRoutes: SessionRouteHandlers = createSessionHandlers({
+    withSessionTransition: state.withSessionTransition,
     config: state.getConfig(),
     clients: state.getClients(),
     context: deps.context,
@@ -453,6 +539,7 @@ export function buildRoutes(
     getAgent: deps.getAgent,
     hasSession: deps.hasSession,
     sessionStartPayload: cb.sessionStartPayload,
+    systemPrompt: systemPromptAdapter,
   });
 
   const projectRoutes: ProjectRouteHandlers = createProjectHandlers({
@@ -490,51 +577,21 @@ export function buildRoutes(
     clients: state.getClients(),
     setModeId: state.setModeId,
     sessionStartPayload: cb.sessionStartPayload,
+    getSessionContext: (sessionId?: string) => sessionContext(sessionId),
   });
 
   const prefsContext: PrefsHandlerContext = {
     meta: deps.context.meta,
-    snapshot: cb.prefSnapshot,
+    // Session-scoped prefs (autonomy, yolo, context strategy, prompt variant,
+    // reasoning) land on the calling tab's own context meta.
+    metaFor: (sessionId?: string) => sessionContext(sessionId).meta,
+    // Session-aware: the scoped keys live on that tab's own context meta.
+    snapshot: (sessionId?: string) =>
+      sessionId ? prefSnapshotImpl(sessionContext(sessionId).meta) : cb.prefSnapshot(),
     persist: cb.persistPrefsToConfig,
     pendingConfirms: deps.pendingConfirms,
     configStore: deps.configStore,
-    systemPrompt: {
-      paths: () => {
-        const wpaths = resolveWstackPaths({
-          projectRoot: state.getProjectRoot(),
-          globalRoot: deps.wpaths.globalRoot,
-        });
-        return {
-          globalDir: wpaths.globalInstructions,
-          projectDir: wpaths.inProjectInstructions,
-        };
-      },
-      profileConfigPath: deps.profileConfigPath,
-      current: () => state.getConfig().systemPrompt?.variant ?? 'default',
-      // Mutate the live Config *before* rebuilding: `persistPrefsToConfig`
-      // writes the file, not the in-memory object, and the builder reads the
-      // variant off the object. Without this the rebuild would faithfully
-      // recompose the prompt the session already had.
-      applyVariant: async (variant) => {
-        const config = state.getConfig();
-        config.systemPrompt = { ...(config.systemPrompt ?? {}), variant };
-        await rebuildSystemPrompt(
-          {
-            modeStore: deps.modeStore,
-            memoryStore: deps.memoryStore,
-            skillLoader: deps.skillLoader,
-            modelCapabilities: (() => state.getModelCapabilities()) as never,
-            context: deps.context,
-            toolRegistry: deps.toolRegistry,
-            getConfig: state.getConfig,
-            projectRoot: state.getProjectRoot(),
-            globalRoot: deps.wpaths.globalRoot,
-            container: deps.container,
-          },
-          state.getModeId(),
-        );
-      },
-    },
+    systemPrompt: systemPromptAdapter,
     setYolo: (enabled) =>
       (deps.permissionPolicy as { setYolo?: (value: boolean) => void }).setYolo?.(enabled),
     applyConfigPrefs: (payload) => {
@@ -740,7 +797,7 @@ export function buildRoutes(
     getSessionId: () => deps.context.session?.id,
   };
   const brainRoutes: BrainRouteHandlers = {
-    status: (ws) => handleBrainStatus(brainContext, ws),
+    status: (ws, msg) => handleBrainStatus(brainContext, ws, messageSessionId(msg)),
     risk: (ws, msg) =>
       handleBrainRisk(
         brainContext,

@@ -101,6 +101,19 @@ interface SessionStartPayloadGetters {
   getContextMode(): string;
   getNeedsSetup(): boolean;
   modelsRegistry: ModelsRegistry;
+  /**
+   * Resolve a session's own Context. Each WebUI tab runs its own session with
+   * its own model, mode and context strategy; without this the payload would
+   * describe the runtime's current session for every tab.
+   */
+  getSessionContext?: ((sessionId: string) => SessionRuntimeContext | undefined) | undefined;
+}
+
+/** The slice of a session Context this payload reads. */
+interface SessionRuntimeContext {
+  model?: string | undefined;
+  provider?: { id?: string | undefined } | undefined;
+  meta?: Record<string, unknown> | undefined;
 }
 
 /**
@@ -108,7 +121,15 @@ interface SessionStartPayloadGetters {
  * runtime state. Reads live values through getters so post-/new, post-resume,
  * and post-model.switch all broadcast the same shape.
  */
-export function createSessionStartPayload(g: SessionStartPayloadGetters): () => Promise<{
+/** Read a string value from a session Context's meta bag, if present. */
+function readSessionMeta(ctx: SessionRuntimeContext | undefined, key: string): string | undefined {
+  const value = ctx?.meta?.[key];
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+export function createSessionStartPayload(g: SessionStartPayloadGetters): (
+  overrides?: Record<string, unknown>,
+) => Promise<{
   sessionId: string;
   model: string;
   provider: string;
@@ -125,9 +146,25 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
   protocolCapabilities: string[];
   needsSetup?: boolean | undefined;
   reasoningEffortLevels?: string[] | undefined;
+  [key: string]: unknown;
 }> {
-  return async () => {
-    const config = g.getConfig();
+  return async (overrides?: Record<string, unknown>) => {
+    const globalConfig = g.getConfig();
+    // Which session is this payload describing? With four tabs live, the
+    // runtime's own "current" session is frequently NOT the one being
+    // reported on (a model switch in a background tab, a resume that
+    // answers a different tab), so the target is taken from the overrides
+    // and its own runtime values win over the global defaults.
+    const targetSessionId =
+      typeof overrides?.['sessionId'] === 'string' && overrides['sessionId']
+        ? (overrides['sessionId'] as string)
+        : g.getSessionId();
+    const sessionCtx = g.getSessionContext?.(targetSessionId);
+    const config = {
+      ...globalConfig,
+      provider: sessionCtx?.provider?.id ?? globalConfig.provider,
+      model: sessionCtx?.model ?? globalConfig.model,
+    };
     let maxContext = 0;
     let inputCost = 0;
     let outputCost = 0;
@@ -187,8 +224,9 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
       protocolCapabilities: string[];
       needsSetup?: boolean | undefined;
       reasoningEffortLevels?: string[] | undefined;
+      [key: string]: unknown;
     } = {
-      sessionId: g.getSessionId(),
+      sessionId: targetSessionId,
       model: config.model,
       provider: config.provider,
       maxContext,
@@ -198,9 +236,13 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): () => 
       projectName: path.basename(projectRoot) || projectRoot,
       projectRoot,
       cwd: g.getWorkingDir(),
-      mode: g.getModeId(),
-      contextMode: g.getContextMode(),
+      // Mode and context strategy are per-session too: both are stamped on
+      // the session's own Context meta when its tab changes them, and only
+      // fall back to the global default for a session that never did.
+      mode: readSessionMeta(sessionCtx, 'modeId') ?? g.getModeId(),
+      contextMode: readSessionMeta(sessionCtx, 'contextWindowMode') ?? g.getContextMode(),
       ...protocolAdvertisement(),
+      ...(overrides ?? {}),
     };
     if (reasoningEffortLevels) result.reasoningEffortLevels = reasoningEffortLevels;
     if (g.getNeedsSetup()) result.needsSetup = true;

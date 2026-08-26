@@ -46,10 +46,16 @@ import { useChatStore } from '../../src/stores/chat-store';
 import { useSessionStore } from '../../src/stores/session-store';
 import type { WSServerMessage } from '../../src/types';
 
+/** The session every payload in this suite belongs to. */
+const STREAM_SESSION = 'sess_stream';
+
 function delta(messageId: string, text: string): WSServerMessage {
   return {
     type: 'provider.text_delta',
-    payload: { text, messageId, sessionId: undefined },
+    // Chat events are always session-stamped on the wire (the server routes
+    // every one through `sessionPayload`), and the client drops untagged ones
+    // so a background tab's stream cannot append to the tab in front.
+    payload: { text, messageId, sessionId: STREAM_SESSION },
   } as unknown as WSServerMessage;
 }
 

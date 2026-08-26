@@ -10,7 +10,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const send = vi.fn();
 const listSavedProviders = vi.fn();
-vi.mock('@/lib/ws-client', () => ({ getWSClient: () => ({ send, listSavedProviders }) }));
+vi.mock('@/lib/ws-client', () => ({
+  // `consumeRequestedSwitch` is how the real client tells the handler that
+  // THIS surface asked for the swap, so the session may take the foreground.
+  // Without it a `session.start` only fills its own lane, which is what keeps
+  // a background re-announce from yanking the user out of the tab they are in.
+  getWSClient: () => ({ send, listSavedProviders, consumeRequestedSwitch: () => true }),
+}));
 
 const toast = { success: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() };
 vi.mock('@/components/Toaster', () => ({ toast }));
@@ -26,6 +32,8 @@ const { useChatStore, useConfigStore, useFleetStore, useSessionStore, useUIStore
   '../../src/stores'
 );
 const { useProviderStatusStore } = await import('../../src/stores/provider-status-store');
+const { useChatLanes } = await import('../../src/stores/chat-lanes');
+const { useSessionLanes } = await import('../../src/stores/session-lanes');
 const {
   handleCompactionFailed,
   handleContextCompacted,
@@ -68,9 +76,13 @@ beforeEach(() => {
   });
   isDesktopShell.mockReturnValue(false);
   history.pushState(null, '', '/');
+  // Every test opens `sess_branch` as if for the first time; a lane left over
+  // from the previous test would make the second `start()` look like a
+  // re-announce of an already-open tab.
+  useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+  useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   useChatStore.getState().clearMessages();
   useChatStore.getState().setLoading(false);
-  useChatStore.getState().setBoundSessionId(null);
   useConfigStore.setState({ provider: '', model: '' });
   useSessionStore.setState({ session: null, todos: [], lastInputTokens: 0 });
   useFleetStore.setState({ agents: new Map() });
@@ -238,12 +250,15 @@ describe('session.start — fleet eviction', () => {
     expect(agents.has('b')).toBe(true);
   });
 
-  it('clears the whole roster when no specific session is named', () => {
+  it('keeps every roster when no session is being retired', () => {
+    // Opening a tab is not a fleet reset. Wiping the whole roster here deleted
+    // the running subagents of the three tabs the user did not touch; only a
+    // named `clearedSessionId` evicts anything.
     useFleetStore.setState({
       agents: new Map([agent('a', 'sess_gone'), agent('b', 'sess_other')] as never),
     });
     start({});
-    expect(useFleetStore.getState().agents.size).toBe(0);
+    expect([...useFleetStore.getState().agents.keys()].sort()).toEqual(['a', 'b']);
   });
 });
 
@@ -337,7 +352,13 @@ describe('context.debug', () => {
 
   it('renders the breakdown with the largest entries first', () => {
     activate();
-    handleContextDebug({ type: 'context.debug', payload } as never);
+    // Session-stamped, as the server sends it: these handlers write the chat
+    // transcript, so an untagged payload is dropped rather than risking one
+    // tab's context report landing in another tab's conversation.
+    handleContextDebug({
+      type: 'context.debug',
+      payload: { ...payload, sessionId: SESSION },
+    } as never);
 
     const out = chat();
     expect(out).toContain(`**Total estimate:** ${n(123_456)} tokens`);
@@ -350,7 +371,10 @@ describe('context.debug', () => {
 
   it('substitutes a placeholder for an empty message preview', () => {
     activate();
-    handleContextDebug({ type: 'context.debug', payload } as never);
+    handleContextDebug({
+      type: 'context.debug',
+      payload: { ...payload, sessionId: SESSION },
+    } as never);
     expect(chat()).toContain('(empty)');
   });
 
@@ -391,12 +415,24 @@ describe('context.compacted', () => {
     activate();
     handleContextCompacted({
       type: 'context.compacted',
-      payload: { before: 100, after: 40, saved: 60, reductions: [], ...payload },
+      payload: {
+        sessionId: SESSION,
+        before: 100,
+        after: 40,
+        saved: 60,
+        reductions: [],
+        ...payload,
+      },
     } as never);
   }
 
   it('summarises each reduction phase', () => {
-    compact({ reductions: [{ phase: 'dedupe', saved: 40 }, { phase: 'trim', saved: 20 }] });
+    compact({
+      reductions: [
+        { phase: 'dedupe', saved: 40 },
+        { phase: 'trim', saved: 20 },
+      ],
+    });
     expect(chat()).toContain('dedupe: 40, trim: 20');
   });
 
@@ -440,6 +476,7 @@ describe('compaction.failed', () => {
     handleCompactionFailed({
       type: 'compaction.failed',
       payload: {
+        sessionId: SESSION,
         message: 'provider refused',
         level: 'aggressive',
         tokens: 50,

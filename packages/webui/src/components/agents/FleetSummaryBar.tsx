@@ -13,11 +13,12 @@
 import { Crown } from 'lucide-react';
 import { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
-import { ConcurrencyGauge } from '@/components/ui/concurrency-gauge';
 import { fmtCost } from '@/components/dashboard-primitives';
+import { ConcurrencyGauge } from '@/components/ui/concurrency-gauge';
+import { useAppTranslation } from '@/i18n';
 import { fmtTok } from '@/lib/agent-status';
+import { cn } from '@/lib/utils';
+import { openMainView } from '@/lib/view-navigation';
 import { selectFleetSummary, useFleetStore, useUIStore } from '@/stores';
 
 export interface FleetSummaryBarProps {
@@ -36,9 +37,7 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
   const recentEvents = eventTimeline.slice(0, 3);
 
   const openFleetInspector = useCallback(() => {
-    const ui = useUIStore.getState();
-    ui.setInspectorTab('fleet');
-    ui.setInspectorOpen(true);
+    openMainView('roster');
   }, []);
 
   return (
@@ -106,11 +105,7 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
       {/* Line 2: Concurrency + tokens + lifetime spawn budget */}
       {(hasActivity || summary.maxSpawns !== undefined) && (
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          <ConcurrencyGauge
-            current={summary.concurrency}
-            max={summary.concurrencyMax}
-            showLabel
-          />
+          <ConcurrencyGauge current={summary.concurrency} max={summary.concurrencyMax} showLabel />
 
           {summary.maxSpawns !== undefined && summary.usedSpawns !== undefined && (
             <>
@@ -128,7 +123,8 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
                       : 'Lifetime spawn budget'
                 }
               >
-                spawns {summary.usedSpawns}/{Number.isFinite(summary.maxSpawns) ? summary.maxSpawns : '∞'}
+                spawns {summary.usedSpawns}/
+                {Number.isFinite(summary.maxSpawns) ? summary.maxSpawns : '∞'}
                 {summary.remainingSpawns !== undefined
                   ? ` (${Number.isFinite(summary.remainingSpawns) ? summary.remainingSpawns : '∞'} left)`
                   : ''}
@@ -140,7 +136,9 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
             <>
               <span className="text-muted-foreground/50">·</span>
               <span className="tabular-nums font-mono text-muted-foreground count-transition">
-                {'\u2193'}{fmtTok(summary.tokensIn)} {'\u2191'}{fmtTok(summary.tokensOut)}
+                {'\u2193'}
+                {fmtTok(summary.tokensIn)} {'\u2191'}
+                {fmtTok(summary.tokensOut)}
               </span>
             </>
           )}

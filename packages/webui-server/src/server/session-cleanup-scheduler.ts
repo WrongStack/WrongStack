@@ -15,6 +15,18 @@ export interface EmptySessionCleanupContext extends SessionDeletionContext {
   logger: Pick<Logger, 'info' | 'error'>;
 }
 
+/**
+ * Sessions this sweep must not touch: the runtime's own, plus every session a
+ * connected surface is displaying. A WebUI page holds up to four tabs, and a
+ * freshly-opened one is EMPTY by definition — deleting it out from under the
+ * user is exactly what an "ownerless empty session" sweep would do if it only
+ * knew about the tab in front.
+ */
+function protectedSessionIds(ctx: EmptySessionCleanupContext): Set<string> {
+  const ids = ctx.getActiveSessionIds ? ctx.getActiveSessionIds() : [ctx.getActiveSessionId()];
+  return new Set(ids.filter(Boolean));
+}
+
 export interface EmptySessionCleanupResult {
   deleted: number;
   errors: number;
@@ -64,7 +76,7 @@ export async function cleanupOwnerlessEmptySessions(
 
   for (const candidate of sessions) {
     const sessionId = candidate.id;
-    if (sessionId === ctx.getActiveSessionId() || ctx.hasParticipants(sessionId)) continue;
+    if (protectedSessionIds(ctx).has(sessionId) || ctx.hasParticipants(sessionId)) continue;
 
     try {
       // Stores without a strict persisted-journal check are not eligible for
@@ -76,7 +88,7 @@ export async function cleanupOwnerlessEmptySessions(
       // project switch can replace the live store while this async scan runs.
       if (
         store !== ctx.getSessionStore() ||
-        sessionId === ctx.getActiveSessionId() ||
+        protectedSessionIds(ctx).has(sessionId) ||
         ctx.hasParticipants(sessionId)
       ) {
         continue;
@@ -84,6 +96,7 @@ export async function cleanupOwnerlessEmptySessions(
       await deleteWebUISession(
         {
           getActiveSessionId: ctx.getActiveSessionId,
+          ...(ctx.getActiveSessionIds ? { getActiveSessionIds: ctx.getActiveSessionIds } : {}),
           getSessionStore: () => store,
           refreshSessions: ctx.refreshSessions,
         },

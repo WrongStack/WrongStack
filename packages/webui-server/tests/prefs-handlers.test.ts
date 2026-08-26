@@ -79,7 +79,16 @@ describe('canonical preference handlers', () => {
     expect(state.updateConfig).toHaveBeenCalledWith({ fallbackModels: ['openai/gpt-5'] });
     expect(state.setAutoCompact).toHaveBeenCalledWith(false);
     expect(state.setLogLevel).toHaveBeenCalledWith('warn');
-    expect(state.broadcasts.at(-1)).toEqual({ type: 'prefs.updated', payload });
+    // The echo is split in two: session-scoped keys addressed at the tab
+    // that set them, project-wide keys untagged for everyone. Between them
+    // they still carry the whole snapshot.
+    const echoed = Object.assign(
+      {},
+      ...state.broadcasts
+        .filter((b) => b.type === 'prefs.updated')
+        .map((b) => b.payload as Record<string, unknown>),
+    );
+    expect(echoed).toMatchObject(payload);
   });
 
   it('rejects unknown preferences before changing runtime state', async () => {

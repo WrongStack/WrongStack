@@ -339,9 +339,6 @@
     ],
     "packages/core/src/storage/goal-store.ts": ["updateGoal"],
     "packages/core/src/storage/session-writer/session-writer-flush.ts": ["flushBufferSync"],
-    "packages/core/src/storage/session-writer/session-writer-summary-tracker.ts": [
-      "SessionWriterSummaryTracker"
-    ],
     "packages/core/src/types/provider.ts": ["MAX_RESET_HINT_MS"],
     "packages/core/src/types/runtime-capability-manifest.ts": [
       "isDeprecatedRuntimeToolAlias",
@@ -656,7 +653,6 @@
     ],
     "packages/tui/src/auth-panel-model.ts": ["filterAuthCatalog"],
     "packages/tui/src/brain-panel-model.ts": ["personaCycle"],
-    "packages/tui/src/git-info.ts": ["branchLabel"],
     "packages/tui/src/components/agents-monitor.tsx": [
       "agentRisk",
       "fmtExactTokens",
@@ -732,6 +728,7 @@
     "packages/tui/src/cron-slash.ts": ["renderCronList"],
     "packages/tui/src/esc-close-panels.ts": ["ESC_CLOSE_PANELS"],
     "packages/tui/src/file-search.ts": ["invalidateFileCache"],
+    "packages/tui/src/git-info.ts": ["branchLabel"],
     "packages/tui/src/history-archive.ts": ["MAX_MEMORY_ENTRIES"],
     "packages/tui/src/history-retention.ts": [
       "TUI_HISTORY_MAX_BYTES",
@@ -840,7 +837,9 @@
       "restartKanbanServer"
     ],
     "packages/webui-server/src/server/governance-runtime.ts": ["webUiGovernanceRuntimeEnabled"],
+    "packages/webui-server/src/server/kanban-route-helpers.ts": ["actingSessionId"],
     "packages/webui-server/src/server/mcp-handlers.ts": ["toView"],
+    "packages/webui-server/src/server/prefs-handlers.ts": ["SESSION_SCOPED_PREF_KEYS"],
     "packages/webui-server/src/server/provider-config-standalone.ts": ["vaultKeyFileForConfigPath"],
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
@@ -848,6 +847,7 @@
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": ["resolveTerminalShell"],
     "packages/webui-server/src/server/ws-payload-validation.ts": ["validateBrainConfigSetPayload"],
+    "packages/webui-server/src/server/ws-utils.ts": ["clientWantsSession"],
     "packages/webui/src/components/activity-bar/index.tsx": [
       "calculateDesktopActivityCapacity",
       "splitDesktopActivityBarItems"
@@ -925,6 +925,7 @@
       "handleToolsList"
     ],
     "packages/webui/src/hooks/ws-handlers/chat-handlers.ts": [
+      "forgetLaneRunState",
       "handleIterationStarted",
       "handleRunResult",
       "handleToolConfirmNeeded"

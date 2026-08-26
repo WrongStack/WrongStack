@@ -3,9 +3,8 @@ import { toast } from '@/components/Toaster';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { normalizedEqual } from '@/lib/core-browser-shim';
 import { getWSClient } from '@/lib/ws-client';
-import { isActiveSessionMessage } from '@/lib/ws-client-utils';
+import { chatFor, isActiveSessionMessage, messageSessionId } from '@/lib/ws-client-utils';
 import {
-  useChatStore,
   useCouncilLogStore,
   useCronStore,
   useFileStore,
@@ -17,6 +16,7 @@ import {
   useUIStore,
   useVizStore,
 } from '@/stores';
+import { activeChatLane, resolvePendingConfirm } from '@/stores/chat-lanes';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useMemoryLifecycleStore } from '@/stores/memory-lifecycle-store';
@@ -160,12 +160,22 @@ export function handleGoalUpdated(msg: WSServerMessage) {
 
 export function handlePrefsUpdated(msg: WSServerMessage) {
   const p = msg.payload as Record<string, unknown>;
-  (useLocalPrefs.getState().set as (patch: Record<string, unknown>) => void)(p);
-  if (p['yolo'] === true) {
-    const confirm = useUIStore.getState().confirmInfo;
-    if (confirm) {
-      useUIStore.getState().hideConfirm();
-    }
+  const sessionId = messageSessionId(msg);
+  // Session-scoped keys (autonomy, yolo, context strategy, reasoning…) are
+  // filed against the tab they belong to. Applying every snapshot to one
+  // global store is how tab 2 turning on YOLO flipped the switch tab 1 was
+  // looking at — and, worse, dismissed tab 1's open confirm below.
+  useLocalPrefs.getState().applyRemote(p as never, sessionId ?? undefined);
+
+  if (p['yolo'] !== true) return;
+  // Only the tab in front owns the visible confirm modal.
+  if (sessionId && sessionId !== useLocalPrefs.getState().activeSessionId) return;
+  const confirm = useUIStore.getState().confirmInfo;
+  if (confirm) {
+    // The server auto-approves everything pending when YOLO goes on; drop the
+    // parked copy so it cannot re-open on the next tab switch.
+    resolvePendingConfirm(confirm.id);
+    useUIStore.getState().hideConfirm();
   }
 }
 
@@ -177,6 +187,9 @@ export function handleSystemPromptInfo(msg: WSServerMessage) {
 
 export function handleBrainStatus(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
+  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
+  // untagged. A tagged one still lands in its own lane.
+  const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     maxAutoRisk: string;
     log: Array<{ at: number; kind: string; question: string; outcome: string }>;
@@ -204,11 +217,14 @@ export function handleBrainStatus(msg: WSServerMessage) {
       );
     }
   }
-  useChatStore.getState().addMessage({ role: 'assistant', content: lines.join('\n') });
+  chat.addMessage({ role: 'assistant', content: lines.join('\n') });
 }
 
 export function handleBrainAnswer(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
+  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
+  // untagged. A tagged one still lands in its own lane.
+  const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     question: string;
     decision: { type: string; text?: string; rationale?: string; reason?: string };
@@ -225,7 +241,7 @@ export function handleBrainAnswer(msg: WSServerMessage) {
   } else {
     content = '🧠 The Brain escalated this question back to you — it needs human judgement.';
   }
-  useChatStore.getState().addMessage({ role: 'assistant', content });
+  chat.addMessage({ role: 'assistant', content });
 }
 
 /**
@@ -243,6 +259,9 @@ export function handleBrainAnswer(msg: WSServerMessage) {
  */
 export function handleBrainEvent(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
+  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
+  // untagged. A tagged one still lands in its own lane.
+  const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     event: string;
     intervened?: boolean;
@@ -327,7 +346,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
     ]
       .filter(Boolean)
       .join(' · ');
-    useChatStore.getState().addMessage({
+    chat.addMessage({
       role: 'assistant',
       content: [headline, ...seatLines, ...(p.warnings ?? []).map((w) => `> ⚠ ${w}`)]
         .filter(Boolean)
@@ -341,7 +360,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
     const headline = p.intervened
       ? '🧠 **Brain intervention** — corrective guidance was sent to the agent.'
       : '🧠 **Brain check** — a distress signal was reviewed; no action needed.';
-    useChatStore.getState().addMessage({
+    chat.addMessage({
       role: 'assistant',
       content: [headline, p.request?.question ?? '', guidance ? `_${guidance}_` : '']
         .filter(Boolean)
@@ -475,11 +494,11 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     refinedWith?: { provider: string; model: string } | undefined;
   };
   const refinePanel = useUIStore.getState().refinePanel;
-  const pendingRef = useChatStore.getState().pendingRefinement;
+  const pendingRef = activeChatLane().pendingRefinement;
 
   // Pre-queue refinement path: ChatInput offered refinement before enqueuing.
   if (!refinePanel && pendingRef) {
-    useChatStore.getState().setRefining(false);
+    activeChatLane().setRefining(false);
     const original = pendingRef.text;
     // Carry images from the refinement request so they aren't dropped when
     // the message is enqueued. pendingRef.images uses { data, mime } format;
@@ -502,16 +521,16 @@ export function handleModelRefineResult(msg: WSServerMessage) {
 
     if (p.error) {
       // Refinement failed — enqueue original as-is with images.
-      useChatStore.getState().setPendingRefinement(null);
-      useChatStore.getState().enqueue(original, failMode, refImages);
+      activeChatLane().setPendingRefinement(null);
+      activeChatLane().enqueue(original, failMode, refImages);
       return;
     }
 
     const refined = p.refined ?? '';
     if (!refined || normalizedEqual(refined, original)) {
       // No-op refinement — enqueue original with images.
-      useChatStore.getState().setPendingRefinement(null);
-      useChatStore.getState().enqueue(original, failMode, refImages);
+      activeChatLane().setPendingRefinement(null);
+      activeChatLane().enqueue(original, failMode, refImages);
       return;
     }
 
@@ -520,7 +539,7 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     // the panel from scratch (no prior panel to spread from), and decisions
     // are handled by the onDecision prop on the <RefinePanel> component
     // rather than through the store's resolve slot.
-    useChatStore.getState().setPendingRefinement(null);
+    activeChatLane().setPendingRefinement(null);
     useUIStore.getState().setRefinePanel({
       original,
       refined,
@@ -571,8 +590,8 @@ export function handleModelRefineResult(msg: WSServerMessage) {
   const original = refinePanel.original;
   if (normalizedEqual(p.refined, original)) {
     useUIStore.getState().setRefinePanel(null);
-    useChatStore.getState().addMessage({ role: 'user', content: original });
-    useChatStore.getState().setLoading(true);
+    activeChatLane().addMessage({ role: 'user', content: original });
+    activeChatLane().setLoading(true);
     getWSClient().sendMessage(original);
     return;
   }
@@ -606,9 +625,7 @@ export function handleGitChanges(msg: WSServerMessage) {
     repoPrefix?: string | undefined;
     error?: string | undefined;
   };
-  useGitChangesStore
-    .getState()
-    .setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '');
+  useGitChangesStore.getState().setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '');
 }
 
 export function handleGitDiff(msg: WSServerMessage) {
@@ -629,6 +646,22 @@ export function handleGitDiff(msg: WSServerMessage) {
     tooLarge: p.tooLarge,
     error: p.error,
   });
+}
+
+export function handleGitActionResult(msg: WSServerMessage) {
+  const p = msg.payload as {
+    action: 'stage' | 'unstage' | 'discard' | 'commit';
+    ok: boolean;
+    error?: string | undefined;
+  };
+  if (!p.ok) {
+    toast.error(p.error ?? `Git ${p.action} failed`);
+    return;
+  }
+
+  const client = getWSClient();
+  client.getGitChanges();
+  client.getGitInfo();
 }
 
 // ── Cron event handlers ─────────────────────────────────────────────────
@@ -697,6 +730,7 @@ export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'git.info': handleGitInfo,
   'git.changes': handleGitChanges,
   'git.diff': handleGitDiff,
+  'git.action_result': handleGitActionResult,
   'cron.snapshot': handleCronSnapshot,
   'cron.job_fired': handleCronJobFired,
   'chimera.report_available': handleChimeraReportAvailable,

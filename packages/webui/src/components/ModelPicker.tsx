@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Cpu, RotateCcw, X } from 'lucide-react';
+import { Check, ChevronDown, Cpu, RotateCcw, Star, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ModelCandidate } from '@/hooks/useProviderModels';
 import { useAppTranslation } from '@/i18n';
@@ -65,7 +65,11 @@ export function ModelPicker({
             value ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          {value ? (provider ? `${provider}/${value}` : value) : (placeholder ?? t('activity:model.runDefault'))}
+          {value
+            ? provider
+              ? `${provider}/${value}`
+              : value
+            : (placeholder ?? t('activity:model.runDefault'))}
         </span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       </button>
@@ -123,7 +127,12 @@ export function ModelPicker({
                     <span className="w-3 shrink-0" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate">{c.label}</span>
+                    <span className="flex items-center gap-1">
+                      <span className="truncate">{c.label}</span>
+                      {c.isFavorite && (
+                        <Star className="h-3 w-3 fill-warning text-warning shrink-0" />
+                      )}
+                    </span>
                     {c.description && (
                       <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
                         {c.description}
@@ -138,7 +147,9 @@ export function ModelPicker({
             })}
             {filtered.length === 0 && (
               <div className="px-2 py-3 text-center text-[11px] text-muted-foreground">
-                {candidates.length === 0 ? t('activity:model.loading') : t('activity:model.noMatch')}
+                {candidates.length === 0
+                  ? t('activity:model.loading')
+                  : t('activity:model.noMatch')}
               </div>
             )}
           </div>

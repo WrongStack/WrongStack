@@ -67,6 +67,31 @@ type SessionStartPayload = {
   contextMode: string;
 };
 
+/**
+ * Every session a connected surface is currently displaying.
+ *
+ * `client.sessionId` alone is the tab the connection last acted on; a WebUI
+ * page holds up to four on one socket and declares them with
+ * `session.subscribe`. Deleting or garbage-collecting a session that a
+ * background tab is showing is the same class of bug as broadcasting to the
+ * wrong tab, so both guards read the declared set.
+ */
+export function collectDisplayedSessionIds(ctx: {
+  getSession: () => { id: string };
+  clients?: Map<WebSocket, ConnectedClient> | undefined;
+}): string[] {
+  const ids = new Set<string>();
+  ids.add(ctx.getSession().id);
+  for (const client of ctx.clients?.values() ?? []) {
+    if (client.sessionId) ids.add(client.sessionId);
+    for (const id of client.sessionIds ?? []) ids.add(id);
+  }
+  return Array.from(ids);
+}
+
+/** Hard ceiling on declared tabs per connection — mirrors the UI's four slots. */
+const MAX_SUBSCRIBED_SESSIONS = 4;
+
 export interface SessionHandlersContext {
   config: { provider: string; model: string };
   getConfig?: () => { provider: string; model: string };
@@ -111,6 +136,37 @@ export interface SessionHandlersContext {
   hasSession?: ((id: string) => boolean) | undefined;
   getAgent?: ((sessionId?: string) => Agent) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
+  systemPrompt?: { applyVariant?: (variant: string) => Promise<void> } | undefined;
+  /**
+   * Host-owned serialiser shared with `createConversationOperations`. When
+   * omitted the handlers create a private one, which still orders session
+   * transitions against each other but not against run setup.
+   */
+  withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
+}
+
+/**
+ * Serialiser for operations that re-point a session's runtime context.
+ *
+ * Session transitions (session.new / session.resume) swap writers, contexts
+ * and todo sidecars in several steps. A turn that begins mid-swap would read
+ * a half-applied context, so `user_message` setup runs through the SAME gate
+ * — which is why this is created once per host and shared, rather than being
+ * private to the session handlers.
+ *
+ * Only the SETUP is gated; agent runs proceed outside it so four tabs still
+ * stream concurrently.
+ */
+export function createSessionTransitionGate(): <T>(operation: () => Promise<T>) => Promise<T> {
+  let tail: Promise<unknown> = Promise.resolve();
+  return <T>(operation: () => Promise<T>): Promise<T> => {
+    const current = tail.then(operation, operation);
+    tail = current.then(
+      () => undefined,
+      () => undefined,
+    );
+    return current;
+  };
 }
 
 export function createSessionHandlers(ctx: SessionHandlersContext): SessionRouteHandlers {
@@ -153,11 +209,16 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     usage?: Parameters<TokenCounter['account']>[0],
     todos: TodoItem[] = [],
   ): Promise<void> => {
-    ctx.setSession(next);
+    // Resolve the TARGET session's agent while the runtime still reports the
+    // previous session as current. `getAgent` adopts the shared root agent
+    // when the id it is handed matches the live session, so re-pointing first
+    // would hand a session that is mid-run to the incoming tab — and the very
+    // next `replaceMessages` would wipe that run's transcript.
     const targetAgent = ctx.getAgent?.(next.id);
     const targetCtx = targetAgent?.ctx ?? ctx.context;
-
     const isRunning = ctx.isRunActive?.(next.id) ?? false;
+
+    ctx.setSession(next);
     targetCtx.session = next;
 
     if (!isRunning) {
@@ -182,7 +243,11 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       sessionScopedPath(sessionsDirectory(), next.id, '.tasks.json'),
     );
     if (usage && !isRunning) {
-      ctx.tokenCounter.account(usage, currentConfig().model, targetCtx.provider?.id ?? ctx.context.provider.id);
+      ctx.tokenCounter.account(
+        usage,
+        currentConfig().model,
+        targetCtx.provider?.id ?? ctx.context.provider.id,
+      );
       if (typeof usage.input === 'number' && usage.input > 0) {
         targetCtx.lastRequestTokens = usage.input;
       }
@@ -210,6 +275,31 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       ? (payload as { sessionId: string }).sessionId
       : undefined;
   };
+  /**
+   * Explicit "retire this session as part of the same operation" target.
+   * Deliberately a DIFFERENT key from `sessionId` (which merely says which
+   * session the request originated from) so routing context can never be
+   * mistaken for a destructive intent.
+   */
+  const replacedSessionId = (msg: WSMessageLike): string | undefined => {
+    const payload = msg.payload;
+    const value =
+      payload && typeof payload === 'object'
+        ? (payload as { replaceSessionId?: unknown }).replaceSessionId
+        : undefined;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  };
+  /**
+   * Resolve the Context belonging to the session that SENT this message.
+   * With up to four tabs live, `ctx.context` (the shared root) is only
+   * coincidentally the caller's session — reading it directly leaks one
+   * tab's transcript into another tab's request.
+   */
+  const contextForMessage = (msg: WSMessageLike): Context => {
+    const requested = requestedSessionId(msg);
+    if (!requested) return ctx.context;
+    return ctx.getAgent?.(requested)?.ctx ?? ctx.context;
+  };
   const ensureCurrentSession = (ws: WebSocket, msg: WSMessageLike, op: string): boolean => {
     const requested = requestedSessionId(msg);
     const current = currentSessionId();
@@ -225,15 +315,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     });
     return false;
   };
-  let sessionTransitionTail = Promise.resolve();
-  const serializeSessionTransition = async <T>(operation: () => Promise<T>): Promise<T> => {
-    const current = sessionTransitionTail.then(operation, operation);
-    sessionTransitionTail = current.then(
-      () => undefined,
-      () => undefined,
-    );
-    return current;
-  };
+  // Shared with the conversation ops when the host wires one, so a turn's
+  // setup and a session swap can never interleave.
+  const serializeSessionTransition = ctx.withSessionTransition ?? createSessionTransitionGate();
   const finalizeSession = async (writer: Session): Promise<void> => {
     await writer
       .append({
@@ -249,7 +333,24 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     newSession: (ws, msg) =>
       serializeSessionTransition(async () => {
         if (!ensureCurrentSession(ws, msg, 'session.new')) return;
-        const explicitTarget = requestedSessionId(msg);
+        const requestedVariant = (msg as { payload?: { systemPromptVariant?: unknown } })?.payload
+          ?.systemPromptVariant;
+        if (typeof requestedVariant === 'string' && ctx.systemPrompt?.applyVariant) {
+          try {
+            await ctx.systemPrompt.applyVariant(requestedVariant);
+          } catch {
+            // best-effort
+          }
+        }
+        // `session.new` opens an ADDITIONAL session (a new WebUI tab). It must
+        // never touch an existing one. The old code read `payload.sessionId` —
+        // which every client stamps with the *currently active* session — as
+        // "the session being replaced", then aborted its run and closed its
+        // journal writer. Opening a tab killed whatever was running.
+        //
+        // Replacement is now opt-in and explicit: only `replaceSessionId`
+        // requests it, and only for a session that actually exists.
+        const explicitTarget = replacedSessionId(msg);
         if (explicitTarget) {
           try {
             ctx.abortActiveRun?.(explicitTarget);
@@ -257,7 +358,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             // best-effort
           }
         }
-        const clearedSessionId = explicitTarget ?? currentSessionId();
+        const clearedSessionId = explicitTarget;
         if (ctx.canSwapSessions?.() !== false) {
           const store = ctx.getSessionStore();
           const config = currentConfig();
@@ -293,7 +394,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           }
         } else {
           try {
-            ctx.abortActiveRun?.(clearedSessionId);
+            ctx.abortActiveRun?.(clearedSessionId ?? currentSessionId());
           } catch {
             // Aborting is best-effort
           }
@@ -310,7 +411,11 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         if (client) {
           client.sessionId = nextId;
         }
-        const startPayload = await ctx.sessionStartPayload({ reset: true, clearedSessionId, sessionId: nextId });
+        const startPayload = await ctx.sessionStartPayload({
+          reset: true,
+          ...(clearedSessionId ? { clearedSessionId } : {}),
+          sessionId: nextId,
+        });
         sendSessionStart(ws, startPayload);
         try {
           const list = await ctx.getSessionStore().list(200);
@@ -436,13 +541,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       if (!ensureCurrentSession(ws, msg, 'context.editor.validate')) return;
       const payload = isRecordPayload(msg.payload) ? msg.payload : {};
       const validation = validateContextEditorProposal({
-        ctx: ctx.context,
+        ctx: contextForMessage(msg),
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
         removals: payload['removals'],
         allowRepair: payload['allowRepair'] === true,
-        runActive: ctx.isRunActive?.() === true,
+        runActive: ctx.isRunActive?.(requestedSessionId(msg) ?? currentSessionId()) === true,
       });
       sendTo(ws, {
         type: 'context.editor.validation',
@@ -453,13 +558,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       if (!ensureCurrentSession(ws, msg, 'context.editor.apply')) return;
       const payload = isRecordPayload(msg.payload) ? msg.payload : {};
       const applied = await applyContextEditorProposal({
-        ctx: ctx.context,
+        ctx: contextForMessage(msg),
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
         removals: payload['removals'],
         allowRepair: payload['allowRepair'] === true,
-        runActive: ctx.isRunActive?.() === true,
+        runActive: ctx.isRunActive?.(requestedSessionId(msg) ?? currentSessionId()) === true,
       });
       if ('ok' in applied) {
         sendTo(ws, {
@@ -625,23 +730,18 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     deleteSession: async (ws, msg) => {
       const { id } = (msg as { payload: { id: string } }).payload;
       if (ctx.isRunActive?.(id)) {
-        result(ws, false, 'Cannot delete session while an agent run is active. Please stop the run first.');
+        result(
+          ws,
+          false,
+          'Cannot delete session while an agent run is active. Please stop the run first.',
+        );
         return;
       }
       try {
         await deleteWebUISession(
           {
             getActiveSessionId: () => ctx.getSession().id,
-            getActiveSessionIds: () => {
-              const ids = new Set<string>();
-              ids.add(ctx.getSession().id);
-              if (ctx.clients) {
-                for (const client of ctx.clients.values()) {
-                  if (client.sessionId) ids.add(client.sessionId);
-                }
-              }
-              return Array.from(ids);
-            },
+            getActiveSessionIds: () => collectDisplayedSessionIds(ctx),
             getSessionStore: ctx.getSessionStore,
             refreshSessions: async () => {
               const list = await ctx.getSessionStore().list(200);
@@ -705,9 +805,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             if (client) {
               client.sessionId = canonicalId;
             }
-            const liveMessages = ctx.context?.state?.messages ?? [];
-            const currentTodos = ctx.context?.state?.todos ?? [];
-            const isRunning = ctx.isRunActive?.() ?? false;
+            // Read the TARGET session's own agent, not the shared root
+            // context — with several sessions live, the root context may be
+            // pointing at a different tab entirely.
+            const activeAgent = ctx.getAgent?.(canonicalId);
+            const activeCtx = activeAgent?.ctx ?? ctx.context;
+            const liveMessages = activeCtx?.state?.messages ?? [];
+            const currentTodos = activeCtx?.state?.todos ?? [];
+            const isRunning = ctx.isRunActive?.(canonicalId) ?? false;
             const startPayload = await ctx.sessionStartPayload({
               reset: true,
               sessionId: canonicalId,
@@ -892,6 +997,34 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       } catch (err) {
         result(ws, false, errMessage(err));
       }
+    },
+
+    /**
+     * Declare the sessions this connection is displaying.
+     *
+     * A WebUI page holds up to four tabs on ONE socket, so the server cannot
+     * infer the open set from the last message's `sessionId` — doing that
+     * filtered the other three tabs' runs out of every broadcast, which looks
+     * from the browser exactly like a background tab that stopped working.
+     * The client re-sends the whole set whenever a tab opens or closes, so
+     * this is a replace, not a merge: a closed tab must actually stop
+     * receiving.
+     */
+    subscribeSessions: async (ws, msg) => {
+      const payload = (msg as { payload?: { sessionIds?: unknown } }).payload ?? {};
+      const raw = Array.isArray(payload.sessionIds) ? payload.sessionIds : [];
+      const client = ctx.clients?.get(ws);
+      if (!client) return;
+      const next = new Set<string>();
+      for (const id of raw) {
+        if (typeof id !== 'string' || id.length === 0) continue;
+        next.add(id);
+        if (next.size >= MAX_SUBSCRIBED_SESSIONS) break;
+      }
+      // The session this connection is acting on is always part of its set,
+      // even if the strip has not caught up with it yet.
+      if (client.sessionId) next.add(client.sessionId);
+      client.sessionIds = next.size > 0 ? next : undefined;
     },
   };
 }

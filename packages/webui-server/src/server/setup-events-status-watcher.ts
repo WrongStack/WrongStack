@@ -18,7 +18,14 @@ export interface SetupEventsStatusWatcherDeps {
   wpaths?: WstackPaths | undefined;
   watcherMetrics?: FileWatcherMetrics | undefined;
   clients: Map<WebSocket, ConnectedClient>;
-  broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+  broadcast: (
+    clients: Map<WebSocket, ConnectedClient>,
+    msg: WSServerMessage,
+    /** Deliver to the tab that owns this session, overriding the id on the
+     *  payload. Needed when the payload names a SUBAGENT's session, which no
+     *  tab subscribes to. */
+    targetSessionId?: string,
+  ) => void;
   on: <E extends EventName>(event: E, listener: Listener<E>) => (() => void) | void;
   isDisposed: () => boolean;
 }

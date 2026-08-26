@@ -2,6 +2,15 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { SessionRegistryEntry } from './session-registry-types.js';
 
+/**
+ * Bumped ONLY for breaking changes — a mismatch throws and takes the catalog
+ * with it (`initializeCatalogSchema`), and there is no downgrade path.
+ *
+ * Purely additive tables do not qualify and must not bump it: every statement
+ * below is `IF NOT EXISTS`, so a new binary adds what it needs on open and an
+ * older binary reading the same file simply never queries the extra tables.
+ * `session_agents` / `session_agent_index` were added this way.
+ */
 export const SCHEMA_VERSION = 1;
 export const MAX_LEASE_MS = 120_000;
 export const MAX_RESERVATION_MS = 60_000;
@@ -28,6 +37,24 @@ export interface ReservationRow {
   requester_instance_id: string;
   current_session_id: string | null;
   expires_at: number;
+}
+
+export interface SessionAgentRow {
+  session_id: string;
+  agent_id: string;
+  role: string | null;
+  provider: string | null;
+  model: string | null;
+  agent_session_id: string | null;
+  transcript_path: string | null;
+  parent_agent_id: string | null;
+  spawned_at: string | null;
+  ended_at: string | null;
+  status: string;
+  error: string | null;
+  interleaved_event_count: number;
+  usage_json: string | null;
+  ordinal: number;
 }
 
 export interface CatalogRow {
@@ -142,6 +169,30 @@ export function initializeCatalogSchema(db: DatabaseSync): void {
       lease_id TEXT NOT NULL UNIQUE,
       acquired_at INTEGER NOT NULL,
       expires_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS session_agents (
+      session_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      role TEXT,
+      provider TEXT,
+      model TEXT,
+      agent_session_id TEXT,
+      transcript_path TEXT,
+      parent_agent_id TEXT,
+      spawned_at TEXT,
+      ended_at TEXT,
+      status TEXT NOT NULL,
+      error TEXT,
+      interleaved_event_count INTEGER NOT NULL DEFAULT 0,
+      usage_json TEXT,
+      ordinal INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (session_id, agent_id)
+    );
+    CREATE TABLE IF NOT EXISTS session_agent_index (
+      session_id TEXT PRIMARY KEY,
+      transcript_size INTEGER NOT NULL,
+      transcript_mtime_ms REAL NOT NULL,
+      derived_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_sessions_activity ON sessions(indexed_at DESC);
     CREATE INDEX IF NOT EXISTS idx_leases_expiry ON session_leases(lease_expires_at);

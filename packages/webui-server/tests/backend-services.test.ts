@@ -6,14 +6,26 @@ vi.mock('@wrongstack/core/agent', () => ({
   Agent: class FakeAgent {
     ctx: any;
     extensions = { register: vi.fn() };
-    constructor(opts: any) { this.ctx = opts.context; }
+    constructor(opts: any) {
+      this.ctx = opts.context;
+    }
   },
 }));
 
 vi.mock('@wrongstack/core/coordination', () => ({
-  BrainDecisionLedger: class { start = vi.fn(async () => undefined); stop = vi.fn(async () => undefined); failureStreakFor = vi.fn(() => 0); digestFor = vi.fn(() => undefined); },
-  BrainMonitor: class { start = vi.fn(); reconfigure = vi.fn(); },
-  CollaborationBus: class { onInjectionConsumed = vi.fn(() => () => undefined); },
+  BrainDecisionLedger: class {
+    start = vi.fn(async () => undefined);
+    stop = vi.fn(async () => undefined);
+    failureStreakFor = vi.fn(() => 0);
+    digestFor = vi.fn(() => undefined);
+  },
+  BrainMonitor: class {
+    start = vi.fn();
+    reconfigure = vi.fn();
+  },
+  CollaborationBus: class {
+    onInjectionConsumed = vi.fn(() => () => undefined);
+  },
   collabInjectMiddleware: vi.fn(() => ({ name: 'collab-inject', handler: vi.fn() })),
   collabPauseMiddleware: vi.fn(() => ({ name: 'collab-pause', handler: vi.fn() })),
   EscalationRoutingBrainArbiter: class {},
@@ -23,7 +35,11 @@ vi.mock('@wrongstack/core/coordination', () => ({
 }));
 
 vi.mock('@wrongstack/core/execution', () => ({
-  AutoCompactionMiddleware: class { handler = vi.fn(() => vi.fn()); setMaxContext = vi.fn(); setEnabled = vi.fn(); },
+  AutoCompactionMiddleware: class {
+    handler = vi.fn(() => vi.fn());
+    setMaxContext = vi.fn();
+    setEnabled = vi.fn();
+  },
   createBrainRuntime: vi.fn(() => ({
     arbiter: { decide: vi.fn() },
     getMaxAutoRisk: vi.fn(() => 'medium'),
@@ -31,7 +47,9 @@ vi.mock('@wrongstack/core/execution', () => ({
   })),
   createStrategyCompactor: vi.fn(() => ({ compact: vi.fn() })),
   resolveBrainConfigDefaults: vi.fn(() => ({
-    monitor: { enabled: false }, ledger: { enabled: false }, fallbackModels: [],
+    monitor: { enabled: false },
+    ledger: { enabled: false },
+    fallbackModels: [],
   })),
   ToolExecutor: class {},
 }));
@@ -61,29 +79,51 @@ vi.mock('../src/server/goal-ws-handler.js', () => ({
   },
 }));
 vi.mock('../src/server/specs-ws-handler.js', () => ({
-  SpecsWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  SpecsWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/sdd-board-ws-handler.js', () => ({
-  SddBoardWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  SddBoardWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/sdd-wizard-ws-handler.js', () => ({
-  SddWizardWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  SddWizardWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/sdd-wizard-wiring.js', () => ({ buildSddWizardDeps: vi.fn(() => ({})) }));
 vi.mock('../src/server/worktree-ws-handler.js', () => ({
-  WorktreeWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  WorktreeWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/terminal-ws-handler.js', () => ({
-  TerminalWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  TerminalWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/collaboration-ws-handler.js', () => ({
-  CollaborationWebSocketHandler: class { handleMessage = vi.fn(async () => undefined); dispose = vi.fn(); },
+  CollaborationWebSocketHandler: class {
+    handleMessage = vi.fn(async () => undefined);
+    dispose = vi.fn();
+  },
 }));
 vi.mock('../src/server/codebase-indexing.js', () => ({
   setupWebUICodebaseIndexing: vi.fn(() => ({ onFileWritten: vi.fn(), dispose: vi.fn() })),
 }));
-vi.mock('../src/server/discover-mailbox-bridge.js', () => ({ discoverMailboxBridgeForWebui: vi.fn(async () => undefined) }));
-vi.mock('../src/server/model-catalog.js', () => ({ resolveProviderModelMetadata: vi.fn(async () => null) }));
+vi.mock('../src/server/discover-mailbox-bridge.js', () => ({
+  discoverMailboxBridgeForWebui: vi.fn(async () => undefined),
+}));
+vi.mock('../src/server/model-catalog.js', () => ({
+  resolveProviderModelMetadata: vi.fn(async () => null),
+}));
 
 import { createStrategyCompactor } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
@@ -112,7 +152,15 @@ function makeInput(): any {
       projectSddSession: '/tmp/proj/.wrongstack/sdd-session',
       globalSkills: '/tmp/skills',
     },
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn(), child: vi.fn(function (this: any) { return this; }) },
+    logger: {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      child: vi.fn(function (this: any) {
+        return this;
+      }),
+    },
     projectRoot: '/tmp/proj',
     workingDir: '/tmp/proj',
     context: {
@@ -133,13 +181,30 @@ function makeInput(): any {
       has: vi.fn(() => false),
       bind: vi.fn(),
     },
-    toolRegistry: { get: vi.fn(() => undefined) } as any,
+    // `createAgentServices` registers `context_manager` here (it owns the
+    // compactor; the canonical registration in pre-context-services runs
+    // before one exists), so the double needs the two registry methods that
+    // late registration uses.
+    toolRegistry: {
+      get: vi.fn(() => undefined),
+      registerDefault: vi.fn(),
+      exposeToProvider: vi.fn(),
+    } as any,
     providerRegistry: { create: vi.fn(() => ({ id: 'openai' })) } as any,
-    modelsRegistry: { refresh: vi.fn(async () => undefined), getModel: vi.fn(async () => undefined), getProvider: vi.fn(async () => undefined) } as any,
+    modelsRegistry: {
+      refresh: vi.fn(async () => undefined),
+      getModel: vi.fn(async () => undefined),
+      getProvider: vi.fn(async () => undefined),
+    } as any,
     events: { on: vi.fn(() => () => undefined), emit: vi.fn(), off: vi.fn() } as any,
     mcpRegistry: {} as any,
     memoryStore: { readAll: vi.fn(async () => '') } as any,
-    modeStore: { list: vi.fn(async () => []), get: vi.fn(async () => null), set: vi.fn(), remove: vi.fn() } as any,
+    modeStore: {
+      list: vi.fn(async () => []),
+      get: vi.fn(async () => null),
+      set: vi.fn(),
+      remove: vi.fn(),
+    } as any,
     customModeStore: { list: vi.fn(async () => []), get: vi.fn(async () => null) } as any,
     skillLoader: undefined,
     skillInstaller: undefined,
@@ -174,6 +239,31 @@ describe('createAgentServices', () => {
     );
     expect(userNames).toContain('VibeProtocolInput');
     expect(responseNames).toContain('VibeProtocolAuditor');
+  });
+
+  // The CLI hands `contextTool` to `registerCanonicalHostTools`; this server
+  // cannot, because `createPreContextServices` builds the tool registry before
+  // `createAgentServices` builds the compactor. That ordering silently left the
+  // desktop app and the standalone server without `context_manager` — the model
+  // could self-manage its context under `wstack` but nowhere else.
+  it('registers context_manager once the compactor exists', async () => {
+    const input = makeInput();
+    await createAgentServices(input);
+    expect(input.toolRegistry.registerDefault).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'context_manager' }),
+    );
+    expect(input.toolRegistry.exposeToProvider).toHaveBeenCalledWith('context_manager');
+  });
+
+  it('honours tools.disabledTools for the late context_manager registration', async () => {
+    // `applyDisabled` already ran during the canonical registration, and
+    // `ToolRegistry.disable()` ignores names that are not registered yet — so
+    // without an explicit check the late registration would resurrect a tool
+    // the operator turned off.
+    const input = makeInput();
+    input.config.tools = { ...(input.config.tools ?? {}), disabledTools: ['context_manager'] };
+    await createAgentServices(input);
+    expect(input.toolRegistry.registerDefault).not.toHaveBeenCalled();
   });
 
   it('constructs and returns AgentServices with expected shape', async () => {

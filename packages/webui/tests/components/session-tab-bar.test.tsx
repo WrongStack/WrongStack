@@ -29,8 +29,9 @@ describe('SessionTabBar component', () => {
       session: {
         id: 'sess-12345678',
         title: 'Initial Session',
-        cwd: '/project',
-        createdAt: new Date().toISOString(),
+        startedAt: Date.now(),
+        provider: 'test',
+        model: 'test-model',
       },
     });
     useHistoryStore.setState({
@@ -39,15 +40,21 @@ describe('SessionTabBar component', () => {
           id: 'sess-12345678',
           name: 'Initial Session',
           title: 'Initial Session',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          model: 'test-model',
+          provider: 'test',
+          tokenTotal: 0,
+          isCurrent: true,
         },
         {
           id: 'sess-87654321',
           name: 'Secondary Session',
           title: 'Secondary Session',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+          model: 'test-model',
+          provider: 'test',
+          tokenTotal: 0,
+          isCurrent: false,
         },
       ],
     });

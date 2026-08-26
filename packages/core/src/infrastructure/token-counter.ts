@@ -31,12 +31,25 @@ export class DefaultTokenCounter implements TokenCounter {
   private cacheSaved = 0;
   private readonly cacheByProvider = new Map<
     string,
-    { input: number; cacheRead: number; cacheWrite: number; cacheWrite5m: number; cacheWrite1h: number }
+    {
+      input: number;
+      cacheRead: number;
+      cacheWrite: number;
+      cacheWrite5m: number;
+      cacheWrite1h: number;
+    }
   >();
   private readonly registry?: ModelsRegistry | undefined;
   private readonly providerId?: string | (() => string | undefined) | undefined;
   private readonly events?: EventBus | undefined;
   private sessionId?: string | (() => string | undefined) | undefined;
+  /**
+   * Agent this counter belongs to, stamped onto every `token.accounted`.
+   * Undefined for the leader. Subagent counters are constructed with the HOST
+   * session id (so live cost UIs stay on one row), which makes this the only
+   * thing separating a subagent's tokens from the leader's downstream.
+   */
+  private readonly agentId?: string | (() => string | undefined) | undefined;
   private priceCache = new Map<string, PriceEntry>();
   /** Most recently accounted request's tokens. Used for per-request context pressure. */
   private lastInput = 0;
@@ -49,12 +62,14 @@ export class DefaultTokenCounter implements TokenCounter {
       providerId?: string | (() => string | undefined) | undefined;
       events?: EventBus | undefined;
       sessionId?: string | (() => string | undefined) | undefined;
+      agentId?: string | (() => string | undefined) | undefined;
     } = {},
   ) {
     this.registry = opts.registry;
     this.providerId = opts.providerId;
     this.events = opts.events;
     this.sessionId = opts.sessionId;
+    this.agentId = opts.agentId;
   }
 
   setSessionId(sessionId: string | (() => string | undefined) | undefined): void {
@@ -215,7 +230,9 @@ export class DefaultTokenCounter implements TokenCounter {
     return {
       readTokens: this.cacheRead,
       writeTokens: this.cacheWrite,
-      ...(exposeTtlSplit ? { cacheWrite5m: this.cacheWrite5m, cacheWrite1h: this.cacheWrite1h } : {}),
+      ...(exposeTtlSplit
+        ? { cacheWrite5m: this.cacheWrite5m, cacheWrite1h: this.cacheWrite1h }
+        : {}),
       hitRatio: promptCacheHitRatio({
         input: this.input,
         output: this.output,
@@ -249,8 +266,10 @@ export class DefaultTokenCounter implements TokenCounter {
     providerId = this.currentProviderId(),
     deltaUsage?: Usage,
   ): void {
+    const agentId = this.currentAgentId();
     this.events?.emit('token.accounted', {
       ...(sessionId ? { sessionId } : {}),
+      ...(agentId ? { agentId } : {}),
       usage: this.total(),
       ...(deltaUsage ? { deltaUsage: { ...deltaUsage } } : {}),
       cost: {
@@ -270,6 +289,11 @@ export class DefaultTokenCounter implements TokenCounter {
 
   private currentProviderId(): string | undefined {
     const value = typeof this.providerId === 'function' ? this.providerId() : this.providerId;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private currentAgentId(): string | undefined {
+    const value = typeof this.agentId === 'function' ? this.agentId() : this.agentId;
     return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
@@ -295,11 +319,19 @@ export class DefaultTokenCounter implements TokenCounter {
     });
   }
 
-  private recordProviderCache(usage: Usage, providerId: string | undefined, derivedCacheWrite: number): void {
+  private recordProviderCache(
+    usage: Usage,
+    providerId: string | undefined,
+    derivedCacheWrite: number,
+  ): void {
     const key = providerId ?? 'unknown';
-    const current =
-      this.cacheByProvider.get(key) ??
-      { input: 0, cacheRead: 0, cacheWrite: 0, cacheWrite5m: 0, cacheWrite1h: 0 };
+    const current = this.cacheByProvider.get(key) ?? {
+      input: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      cacheWrite5m: 0,
+      cacheWrite1h: 0,
+    };
     current.input += usage.input;
     current.cacheRead += usage.cacheRead ?? 0;
     // Use the caller-derived aggregate so per-provider cacheWrite agrees

@@ -8,10 +8,11 @@ import { setFaviconStatus } from '@/lib/favicon';
 import { ensureNotificationPermission, notifyIfHidden } from '@/lib/notify';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
-import { isActiveSessionMessage, pipeViz, safePayload } from '@/lib/ws-client-utils';
-import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '@/stores';
+import { chatFor, pipeViz, safePayload, sessionFor } from '@/lib/ws-client-utils';
+import { useConfigStore, useSessionStore, useSessionTabStore, useUIStore } from '@/stores';
+import { activeLaneId, type ChatLaneActions, onLaneDisposed } from '@/stores/chat-lanes';
 import type { QueuedItem } from '@/stores/chat-store';
-import { useLocalPrefs } from '@/stores/local-prefs';
+import { sessionPref } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
 export const chatHandlers = {
@@ -36,30 +37,81 @@ export const chatHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'run.result': handleRunResult,
 };
 
-const nextStepsByToolId = new Map<string, ReturnType<typeof projectNextStepsToolInput>>();
-let completedToolNextSteps: ReturnType<typeof projectNextStepsToolInput> = [];
+type NextSteps = ReturnType<typeof projectNextStepsToolInput>;
+
+/**
+ * Per-lane run bookkeeping. These used to be two module-level globals, which
+ * meant tab 2's `nextsteps` tool output became tab 1's suggestion chips the
+ * moment both were running. Everything scoped to a run is now keyed by the
+ * session that owns the run.
+ */
+const nextStepsByToolId = new Map<string, Map<string, NextSteps>>();
+const completedToolNextSteps = new Map<string, NextSteps>();
+
+function laneNextSteps(sessionId: string): Map<string, NextSteps> {
+  let map = nextStepsByToolId.get(sessionId);
+  if (!map) {
+    map = new Map();
+    nextStepsByToolId.set(sessionId, map);
+  }
+  return map;
+}
+
+/** Coalescer key for a lane's thinking buffer. Shared keys merged two tabs'
+ *  reasoning into one stream, so the key carries the session. */
+function thinkingKey(sessionId: string): string {
+  return `__thinking__:${sessionId}`;
+}
+
+/**
+ * True when this lane is the one on screen. DOM-level side effects (the
+ * composer's next-step countdown, the favicon) belong to the foreground only:
+ * a background run finishing must not reach into the tab the user is typing in.
+ */
+function isForeground(chat: ChatLaneActions): boolean {
+  return chat.sessionId === activeLaneId();
+}
+
+/** Forget a retired lane's run bookkeeping. */
+export function forgetLaneRunState(sessionId: string): void {
+  nextStepsByToolId.delete(sessionId);
+  completedToolNextSteps.delete(sessionId);
+  streamCoalescer.drop(thinkingKey(sessionId));
+}
+
+// Closing a tab disposes its lane; these maps have to go with it. Exported and
+// never called, they leaked a retired session's pending next-steps and its
+// thinking buffer for the life of the page — and would have resurfaced them if
+// the id were ever reused.
+onLaneDisposed(forgetLaneRunState);
 
 export function handleIterationStarted(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   if ((msg.payload as { index?: unknown }).index === 1) {
-    nextStepsByToolId.clear();
-    completedToolNextSteps = [];
+    nextStepsByToolId.delete(chat.sessionId);
+    completedToolNextSteps.delete(chat.sessionId);
   }
   const payload = msg.payload as { index: number; maxIterations?: number | undefined };
-  useSessionStore
-    .getState()
-    .setIteration({ index: payload.index, max: payload.maxIterations ?? 0 });
-  useChatStore.getState().setLoading(true);
-  if (typeof document !== 'undefined' && document.hidden) setFaviconStatus('running');
-  if (useChatStore.getState().runStart === null) {
-    useChatStore.getState().setRunStart({ at: Date.now(), cost: useSessionStore.getState().cost });
+  // Iteration and cost belong to the SESSION that is iterating, not to the tab
+  // in front. Reading `useSessionStore` here is what made a background run
+  // drive the foreground's iteration chip.
+  const meta = sessionFor(msg);
+  meta?.setIteration({ index: payload.index, max: payload.maxIterations ?? 0 });
+  chat.setLoading(true);
+  if (typeof document !== 'undefined' && document.hidden && isForeground(chat)) {
+    setFaviconStatus('running');
   }
-  useChatStore.getState().setCurrentAssistantMessage(null);
+  if (chat.runStart === null) {
+    chat.setRunStart({ at: Date.now(), cost: meta?.data.cost ?? 0 });
+  }
+  chat.setCurrentAssistantMessage(null);
 }
 
 export function handleTextDelta(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   // Per-token viz push removed — text_delta fires dozens of times per
   // assistant message during streaming, and a per-token viz-store update
   // has no visible effect on the cinematic view (it scrolls past faster
@@ -67,57 +119,57 @@ export function handleTextDelta(msg: WSServerMessage) {
   // through, so viz reflects the structural shape of the run.
   const payload = projectChatMessage(msg);
   if (payload?.kind !== 'text-delta') return;
-  streamCoalescer.flush('__thinking__');
-  useChatStore.getState().clearThinking();
-  let id = useChatStore.getState().currentAssistantMessageId;
+  streamCoalescer.flush(thinkingKey(chat.sessionId));
+  chat.clearThinking();
+  let id = chat.currentAssistantMessageId;
   if (!id) {
-    id = useChatStore.getState().addMessage({ role: 'assistant', content: '', streaming: true });
-    useChatStore.getState().setCurrentAssistantMessage(id);
+    id = chat.addMessage({ role: 'assistant', content: '', streaming: true });
+    chat.setCurrentAssistantMessage(id);
   }
-  streamCoalescer.push(id, payload.text, (mid, text) =>
-    useChatStore.getState().appendToMessage(mid, text),
-  );
+  streamCoalescer.push(id, payload.text, (mid, text) => chat.appendToMessage(mid, text));
 }
 
 export function handleThinkingDelta(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   // Per-token viz push removed (same reasoning as handleTextDelta).
   const payload = projectChatMessage(msg);
   if (payload?.kind !== 'thinking-delta') return;
-  streamCoalescer.push('__thinking__', payload.text, (_k, text) =>
-    useChatStore.getState().appendThinking(text),
+  streamCoalescer.push(thinkingKey(chat.sessionId), payload.text, (_k, text) =>
+    chat.appendThinking(text),
   );
 }
 
 export function handleToolStarted(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   const payload = projectToolMessage(msg);
   if (payload?.kind !== 'started') return;
   if (payload.name === 'nextsteps' && payload.id) {
-    nextStepsByToolId.set(payload.id, projectNextStepsToolInput(payload.input));
+    laneNextSteps(chat.sessionId).set(payload.id, projectNextStepsToolInput(payload.input));
   }
-  const existingId = useChatStore.getState().getToolMessageId(payload.id);
+  const existingId = chat.getToolMessageId(payload.id);
   if (existingId) {
-    useChatStore.getState().setCurrentToolId(existingId);
+    chat.setCurrentToolId(existingId);
     return;
   }
   streamCoalescer.flushAll();
-  useChatStore.getState().clearThinking();
-  const assistantId = useChatStore.getState().currentAssistantMessageId;
+  chat.clearThinking();
+  const assistantId = chat.currentAssistantMessageId;
   // A tool bubble follows, so this assistant text is mid-turn: strip its
   // <nextsteps> block but do not persist the steps.
-  if (assistantId) useChatStore.getState().finalizeMessage(assistantId, { final: false });
-  useChatStore.getState().setCurrentAssistantMessage(null);
-  const id = useChatStore.getState().addMessage({
+  if (assistantId) chat.finalizeMessage(assistantId, { final: false });
+  chat.setCurrentAssistantMessage(null);
+  const id = chat.addMessage({
     role: 'tool',
     content: '',
     toolName: payload.name,
     toolInput: payload.input,
     toolUseId: payload.id,
   });
-  useChatStore.getState().setCurrentToolId(id);
-  useChatStore.getState().addExecution({
+  chat.setCurrentToolId(id);
+  chat.addExecution({
     id: payload.id,
     name: payload.name,
     input: payload.input,
@@ -127,16 +179,17 @@ export function handleToolStarted(msg: WSServerMessage) {
 }
 
 export function handleToolProgress(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   const payload = projectToolMessage(msg);
   if (payload?.kind !== 'progress') return;
   const text = payload.text;
   if (!text) return;
-  const ownerId = useChatStore.getState().getToolMessageId(payload.id);
+  const ownerId = chat.getToolMessageId(payload.id);
   if (!ownerId) return;
   const prefix = payload.eventType === 'warning' ? '⚠ ' : '';
   streamCoalescer.push(ownerId, `${prefix}${text}\n`, (_oid, buffered) =>
-    useChatStore.getState().appendToolProgressLinesByUseId(
+    chat.appendToolProgressLinesByUseId(
       payload.id,
       buffered.split('\n').filter((l) => l.length > 0),
     ),
@@ -144,25 +197,27 @@ export function handleToolProgress(msg: WSServerMessage) {
 }
 
 export function handleToolExecuted(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   pipeViz(msg);
   const payload = projectToolMessage(msg);
   if (payload?.kind !== 'executed') return;
   if (payload.name === 'nextsteps' && payload.id) {
-    const steps = nextStepsByToolId.get(payload.id) ?? [];
-    nextStepsByToolId.delete(payload.id);
-    if (payload.ok && steps.length > 0) completedToolNextSteps = steps;
+    const lane = laneNextSteps(chat.sessionId);
+    const steps = lane.get(payload.id) ?? [];
+    lane.delete(payload.id);
+    if (payload.ok && steps.length > 0) completedToolNextSteps.set(chat.sessionId, steps);
   }
-  const { currentToolId } = useChatStore.getState();
-  const ownerId = payload.id ? useChatStore.getState().getToolMessageId(payload.id) : currentToolId;
+  const { currentToolId } = chat;
+  const ownerId = payload.id ? chat.getToolMessageId(payload.id) : currentToolId;
   if (ownerId) {
     streamCoalescer.drop(ownerId);
     if (payload.id) {
-      useChatStore.getState().setToolResultByUseId(payload.id, payload.output ?? '', payload.ok);
+      chat.setToolResultByUseId(payload.id, payload.output ?? '', payload.ok);
     } else {
-      useChatStore.getState().setToolResult(ownerId, payload.output ?? '', payload.ok);
+      chat.setToolResult(ownerId, payload.output ?? '', payload.ok);
     }
-    useChatStore.getState().updateMessage(ownerId, {
+    chat.updateMessage(ownerId, {
       toolDurationMs: payload.durationMs,
       // SAGE memory arrives as its own field; keep it off `toolResult` so the
       // block can only ever render as a memory card.
@@ -170,17 +225,18 @@ export function handleToolExecuted(msg: WSServerMessage) {
     });
   }
   if (payload.id)
-    useChatStore.getState().updateExecution(payload.id, {
+    chat.updateExecution(payload.id, {
       completedAt: Date.now(),
       durationMs: payload.durationMs,
       output: payload.output,
       ok: payload.ok,
     });
-  if (currentToolId && ownerId === currentToolId) useChatStore.getState().setCurrentToolId(null);
+  if (currentToolId && ownerId === currentToolId) chat.setCurrentToolId(null);
 }
 
 export function handleToolConfirmNeeded(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   const payload = msg.payload as {
     id: string;
     toolName: string;
@@ -190,11 +246,33 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
     riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
     boundaryReason?: string | undefined;
   };
-  if (useLocalPrefs.getState().yolo === true && !payload.boundaryReason) {
+  // YOLO belongs to the session that raised the prompt. Reading the flat
+  // field asks the tab in FRONT, which auto-approved a background tab's tool
+  // because a different tab happened to be in YOLO — an approval the user
+  // never gave for that session.
+  if (sessionPref(chat.sessionId, 'yolo') === true && !payload.boundaryReason) {
     getWSClient(useConfigStore.getState().wsUrl).sendConfirm(payload.id, 'yes');
     useUIStore.getState().hideConfirm();
     return;
   }
+  if (!isForeground(chat)) {
+    // A background tab's approval prompt must not open over the tab the user
+    // is working in — a modal is the loudest possible cross-tab bleed. Park it
+    // on that tab's lane and flag the tab; `session-tab-store.activate()`
+    // opens it when the user switches there. Without the park the prompt was
+    // discarded and the run sat blocked behind an attention dot with no way
+    // to answer it.
+    chat.setPendingConfirm(payload);
+    useSessionTabStore.getState().setAttention(chat.sessionId, true);
+    void ensureNotificationPermission();
+    notifyIfHidden(
+      `${useSessionStore.getState().projectName || 'Agent'} needs approval`,
+      `Another tab is waiting on "${payload.toolName}".`,
+      'agent-confirm',
+    );
+    return;
+  }
+  chat.setPendingConfirm(payload);
   useUIStore.getState().showConfirm({
     id: payload.id,
     toolName: payload.toolName,
@@ -220,7 +298,8 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
 }
 
 export function handleRunResult(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   const payload = safePayload<{
     requestId?: string;
     status: string;
@@ -238,34 +317,30 @@ export function handleRunResult(msg: WSServerMessage) {
     },
   );
   if (!payload) return;
-  const currentSessionId = useSessionStore.getState().session?.id;
-  const targetSessionId = (payload as { sessionId?: string }).sessionId;
-  if (targetSessionId && currentSessionId && targetSessionId !== currentSessionId) {
-    return;
-  }
   // iterations is optional on the wire (some server builds omit it on
   // early-exit paths); default to 1 so downstream math + copy stays sane.
   const iterations = payload.iterations ?? 1;
   streamCoalescer.flushAll();
-  useChatStore.getState().flushThinkingLog(Math.max(1, iterations));
-  useSessionStore.getState().setIteration(null);
-  useChatStore.getState().setLoading(false);
+  chat.flushThinkingLog(Math.max(1, iterations));
+  const meta = sessionFor(msg);
+  meta?.setIteration(null);
+  chat.setLoading(false);
   // Finalize the streaming assistant message so the UI stops showing the
   // typing indicator. Previously the message stayed `streaming: true` even
   // after run.result, leaving a perpetual "typing…" bubble if no later
   // message superseded it.
-  const streamingId = useChatStore.getState().currentAssistantMessageId;
+  const streamingId = chat.currentAssistantMessageId;
   const finalText = payload.status === 'done' ? payload.finalText?.trim() : undefined;
   if (streamingId) {
-    const streamed = useChatStore.getState().messages.find((m) => m.id === streamingId);
-    useChatStore.getState().updateMessage(streamingId, {
+    const streamed = chat.messages.find((m) => m.id === streamingId);
+    chat.updateMessage(streamingId, {
       content: streamed?.content?.trim()
         ? streamed.content
         : (finalText ?? streamed?.content ?? ''),
     });
     // The run is over — this is the turn's final answer, so its suggestions
     // are the ones the user should see.
-    useChatStore.getState().finalizeMessage(streamingId, { final: true });
+    chat.finalizeMessage(streamingId, { final: true });
   } else if (finalText) {
     // Defensive fallback: a run may complete with finalText even if the live
     // text_delta/provider.response path failed to create a visible assistant
@@ -273,9 +348,9 @@ export function handleRunResult(msg: WSServerMessage) {
     // so compare against both the raw final text and its visible (nextsteps-
     // stripped) form before adding anything. Otherwise the same reply lands
     // twice, with the fallback copy still exposing the raw XML block.
-    const runStart = useChatStore.getState().runStart;
+    const runStart = chat.runStart;
     const visibleFinalText = parseNextSteps(finalText).stripped.trim();
-    const messages = useChatStore.getState().messages;
+    const messages = chat.messages;
     let lastRunAssistant: (typeof messages)[number] | undefined;
     for (let i = messages.length - 1; i >= 0; i--) {
       const candidate = messages[i];
@@ -289,32 +364,29 @@ export function handleRunResult(msg: WSServerMessage) {
       existingContent !== undefined &&
       (existingContent === finalText || existingContent === visibleFinalText);
     if (!hasSameFinalText) {
-      const messageId = useChatStore
-        .getState()
-        .addMessage({ role: 'assistant', content: finalText });
-      useChatStore.getState().finalizeMessage(messageId, { final: true });
+      const messageId = chat.addMessage({ role: 'assistant', content: finalText });
+      chat.finalizeMessage(messageId, { final: true });
     }
   }
-  if (payload.status === 'done' && completedToolNextSteps.length > 0) {
-    const hasRenderedSuggestions = useChatStore
-      .getState()
-      .messages.some(
-        (message) => message.role === 'assistant' && (message.nextSteps?.steps.length ?? 0) > 0,
-      );
+  const laneNextStepSuggestions = completedToolNextSteps.get(chat.sessionId) ?? [];
+  if (payload.status === 'done' && laneNextStepSuggestions.length > 0) {
+    const hasRenderedSuggestions = chat.messages.some(
+      (message) => message.role === 'assistant' && (message.nextSteps?.steps.length ?? 0) > 0,
+    );
     if (!hasRenderedSuggestions) {
-      useChatStore.getState().addMessage({
+      chat.addMessage({
         role: 'assistant',
         content: '',
-        nextSteps: { steps: completedToolNextSteps },
+        nextSteps: { steps: laneNextStepSuggestions },
       });
     }
-    completedToolNextSteps = [];
+    completedToolNextSteps.delete(chat.sessionId);
   }
-  useChatStore.getState().setCurrentAssistantMessage(null);
-  useChatStore.getState().clearThinking();
-  const runStart = useChatStore.getState().runStart;
+  chat.setCurrentAssistantMessage(null);
+  chat.clearThinking();
+  const runStart = chat.runStart;
   if (runStart && payload.status === 'done') {
-    const all = useChatStore.getState().messages;
+    const all = chat.messages;
     let lastAssistantIdx = -1;
     let toolCount = 0;
     for (let i = all.length - 1; i >= 0; i--) {
@@ -324,8 +396,8 @@ export function handleRunResult(msg: WSServerMessage) {
       if (m.role === 'user' && m.timestamp <= runStart.at) break;
     }
     if (lastAssistantIdx !== -1) {
-      const sessionCost = useSessionStore.getState().cost;
-      useChatStore.getState().updateMessage(all[lastAssistantIdx]?.id, {
+      const sessionCost = meta?.data.cost ?? 0;
+      chat.updateMessage(all[lastAssistantIdx]?.id, {
         runSummary: {
           iterations,
           tools: toolCount,
@@ -335,15 +407,18 @@ export function handleRunResult(msg: WSServerMessage) {
       });
     }
   }
-  useChatStore.getState().setRunStart(null);
+  chat.setRunStart(null);
   if (payload.status !== 'done' && payload.error) {
     if (payload.requestId) {
-      useChatStore.getState().updateMessage(payload.requestId, { status: 'failed' });
+      chat.updateMessage(payload.requestId, { status: 'failed' });
     }
-    useChatStore
-      .getState()
-      .addMessage({ role: 'assistant', content: `Error: ${payload.error.message}`, isError: true });
-    const isSilentAbort = payload.error.message === 'User aborted' || payload.error.message === 'aborted';
+    chat.addMessage({
+      role: 'assistant',
+      content: `Error: ${payload.error.message}`,
+      isError: true,
+    });
+    const isSilentAbort =
+      payload.error.message === 'User aborted' || payload.error.message === 'aborted';
     if (!isSilentAbort) {
       toast.error(`Run ended: ${payload.error.message}`);
     }
@@ -351,7 +426,9 @@ export function handleRunResult(msg: WSServerMessage) {
       `${useSessionStore.getState().projectName || 'Agent'} run failed`,
       payload.error.message,
     );
-    if (typeof document !== 'undefined' && document.hidden) setFaviconStatus('error');
+    if (typeof document !== 'undefined' && document.hidden && isForeground(chat)) {
+      setFaviconStatus('error');
+    }
   } else if (payload.status === 'done') {
     if (typeof document !== 'undefined' && document.hidden) {
       toast.success(`Run completed in ${iterations} iteration${iterations === 1 ? '' : 's'}`);
@@ -359,7 +436,7 @@ export function handleRunResult(msg: WSServerMessage) {
         `${useSessionStore.getState().projectName || 'Agent'} run finished`,
         `Completed in ${iterations} iteration${iterations === 1 ? '' : 's'}.`,
       );
-      setFaviconStatus('ready');
+      if (isForeground(chat)) setFaviconStatus('ready');
     }
     void ensureNotificationPermission();
     if (useConfigStore.getState().soundOnComplete) {
@@ -372,11 +449,11 @@ export function handleRunResult(msg: WSServerMessage) {
     // Signal NextStepsBar to start a timed auto-fill countdown that places
     // the first suggestion into the input without auto-submitting. The user
     // can still modify it or press Enter to send.
-    if (typeof document !== 'undefined') {
+    if (typeof document !== 'undefined' && isForeground(chat)) {
       document.dispatchEvent(new CustomEvent('chat:next-step-countdown'));
     }
   }
-  const store = useChatStore.getState();
+  const store = chat;
   // ── Drain target selection ───────────────────────────────────────────
   // Peek at the front without popping. If the front is a BTW chip that
   // is already wire-sent (mid-way through its visible SENT grace window,
@@ -391,17 +468,17 @@ export function handleRunResult(msg: WSServerMessage) {
     // `bubbleAdded` flag gates idempotency: a second `run.result`
     // landing inside the grace window must NOT add a duplicate bubble.
     // The grace timer still owns the chip's removal from the queue.
-    addBubbleFor(front);
+    addBubbleFor(chat, front);
     const drained = store.dequeueDrainable();
     if (!drained) return;
-    return runDrain(drained);
+    return runDrain(chat, drained);
   }
   // Front is a pending item — pop it and drain. Cancels any pending
   // grace timer for it (none should exist since `alreadyDispatched`
   // is false, but the cancel is idempotent and safe).
   const drained = store.dequeue();
   if (!drained) return;
-  return runDrain(drained);
+  return runDrain(chat, drained);
 }
 
 /**
@@ -418,10 +495,10 @@ export function handleRunResult(msg: WSServerMessage) {
  * bubble's `attachments` carry the same image chips a typed send
  * would produce.
  */
-function addBubbleFor(next: QueuedItem): void {
+function addBubbleFor(chat: ChatLaneActions, next: QueuedItem): void {
   if (next.bubbleAdded === true) return;
   const images = next.images ?? [];
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'user',
     content: next.text,
     ...(images.length > 0
@@ -457,10 +534,10 @@ function addBubbleFor(next: QueuedItem): void {
  * - 'queue' / 'steer' (default): sends as a regular user_message,
  *   starting a fresh run after the current one finishes.
  */
-function runDrain(next: QueuedItem): void {
+function runDrain(chat: ChatLaneActions, next: QueuedItem): void {
   const client = getWSClient(useConfigStore.getState().wsUrl);
   const images = next.images ?? [];
-  useChatStore.getState().addMessage({
+  chat.addMessage({
     role: 'user',
     content: next.text,
     ...(images.length > 0
@@ -480,20 +557,31 @@ function runDrain(next: QueuedItem): void {
   // ── Mode-aware dispatch ──────────────────────────────────────────────
   if (next.mode === 'btw') {
     if (next.alreadyDispatched !== true) {
-      client.sendMailboxMessage({
-        type: 'btw',
-        to: 'leader',
-        subject: 'btw from WebUI',
-        body: next.text,
-        priority: 'normal',
-        audience: 'all',
-      });
+      client.sendMailboxMessage(
+        {
+          type: 'btw',
+          to: 'leader',
+          subject: 'btw from WebUI',
+          body: next.text,
+          priority: 'normal',
+          audience: 'all',
+        },
+        chat.sessionId,
+      );
     }
     // Don't set loading — we're not starting a run, the mailbox
     // injection will fold into the existing run's next iteration.
     return;
   }
 
-  useChatStore.getState().setLoading(true);
-  client.sendMessage(next.text, images.length > 0 ? toWireImages(images) : undefined);
+  chat.setLoading(true);
+  // Address the send at the lane that owns the queue, NOT the tab in front:
+  // a background run finishing drains ITS queue, and the default stamping
+  // would have started that run in whichever session the user was looking at.
+  client.sendMessage(
+    next.text,
+    images.length > 0 ? toWireImages(images) : undefined,
+    false,
+    chat.sessionId,
+  );
 }

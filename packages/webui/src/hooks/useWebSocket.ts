@@ -3,6 +3,7 @@ import { installFaviconVisibilityReset } from '@/lib/favicon';
 import type { WrongStackWebSocketClient, WSSendOptions } from '@/lib/ws-client';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useHistoryStore, useUIStore } from '@/stores';
+import { resolvePendingConfirm } from '@/stores/chat-lanes';
 import type { ProviderCustomModelWire } from '@/types';
 import { WS_HANDLERS } from './ws-handlers.js';
 
@@ -143,6 +144,9 @@ export function useWebSocket() {
   const sendConfirm = useCallback(
     (id: string, decision: 'yes' | 'no' | 'always' | 'deny') => {
       client.sendConfirm(id, decision);
+      // Retire the parked copy too, or switching back to this tab re-opens a
+      // prompt that has already been answered.
+      resolvePendingConfirm(id);
       hideConfirm();
     },
     [client, hideConfirm],
@@ -231,10 +235,8 @@ export function useWebSocket() {
     [client],
   );
   const searchSageBreakdown = useCallback(
-    (
-      params: { query: string; limit?: number; includeStale?: boolean },
-      options?: WSSendOptions,
-    ) => client.searchSageBreakdown(params, options),
+    (params: { query: string; limit?: number; includeStale?: boolean }, options?: WSSendOptions) =>
+      client.searchSageBreakdown(params, options),
     [client],
   );
   const listMemoryCandidates = useCallback(

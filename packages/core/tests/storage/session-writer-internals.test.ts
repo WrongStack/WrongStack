@@ -3,12 +3,12 @@ import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
+import { SessionSummaryTracker } from '../../src/storage/session-summary-tracker.js';
 import {
   flushBufferSync,
   isClosedHandleError,
 } from '../../src/storage/session-writer/session-writer-flush.js';
-import { SessionWriterSummaryTracker } from '../../src/storage/session-writer/session-writer-summary-tracker.js';
+import type { SessionEvent, SessionMetadata } from '../../src/types/session.js';
 
 const STARTED_AT = '2026-01-01T00:00:00.000Z';
 const META: Omit<SessionMetadata, 'startedAt'> = {
@@ -53,13 +53,13 @@ describe('session writer internals', () => {
     expect(fs.statSync(filePath).size).toBeGreaterThan(0);
   });
 
-  it('tracks observed events, finalizes a summary, and resets state', () => {
-    const tracker = new SessionWriterSummaryTracker(
-      'session-test',
-      STARTED_AT,
-      META,
-      false,
-    );
+  it('tracks observed events, finalizes a summary, and resets state', async () => {
+    const tracker = new SessionSummaryTracker({
+      id: 'session-test',
+      startedAt: STARTED_AT,
+      meta: META,
+      resumed: false,
+    });
 
     const events: SessionEvent[] = [
       { type: 'user_input', ts: '2026-01-01T00:00:01.000Z', content: 'Investigate storage' },
@@ -100,7 +100,11 @@ describe('session writer internals', () => {
     for (const event of events) tracker.observe(event);
 
     expect(tracker.pendingToolUses).toEqual([]);
-    expect(tracker.finalize('2026-01-01T00:00:08.000Z')).toMatchObject({
+    const finalized = await tracker.finalize();
+    // finalize() stamps endedAt itself, and lastActivityAt clamps forward to
+    // it whenever the wall clock is past the newest observed event.
+    expect(finalized.lastActivityAt).toBe(finalized.endedAt);
+    expect(finalized).toMatchObject({
       title: 'Investigate storage',
       tokenTotal: 8,
       messageCount: 2,
@@ -110,12 +114,15 @@ describe('session writer internals', () => {
       toolBreakdown: { read: 1 },
       fileChangeCount: 2,
       compactionCount: 1,
-      outcome: 'error',
-      lastActivityAt: '2026-01-01T00:00:08.000Z',
+      // The fixture's last event is `in_flight_start` — the exact signature of
+      // a process that died mid-operation. It used to read 'error', latched
+      // from the errored tool_result partway through; 'aborted' says what the
+      // journal actually shows. See resolveSessionOutcome.
+      outcome: 'aborted',
     });
 
     tracker.reset('2026-01-02T00:00:00.000Z');
-    expect(tracker.summary).toMatchObject({
+    expect(tracker.currentSummary).toMatchObject({
       id: 'session-test',
       title: '(empty session)',
       startedAt: '2026-01-02T00:00:00.000Z',
@@ -142,12 +149,12 @@ describe('session writer internals', () => {
       'utf8',
     );
 
-    const tracker = new SessionWriterSummaryTracker(
-      'session-test',
-      STARTED_AT,
-      META,
-      true,
-      {
+    const tracker = new SessionSummaryTracker({
+      id: 'session-test',
+      startedAt: STARTED_AT,
+      meta: META,
+      resumed: true,
+      initialSummary: {
         id: 'old-id',
         title: 'Old title',
         startedAt: STARTED_AT,
@@ -156,18 +163,20 @@ describe('session writer internals', () => {
         tokenTotal: 99,
         outcome: 'completed',
       },
-    );
+    });
 
     await tracker.recomputeFromDisk(filePath);
     await tracker.recomputeFromDisk(path.join(tempDir, 'missing.jsonl'));
 
-    expect(tracker.finalize('2026-01-01T00:00:03.000Z')).toMatchObject({
+    expect(await tracker.finalize()).toMatchObject({
       id: 'session-test',
       title: 'Replay this',
       tokenTotal: 6,
       messageCount: 2,
       lastUserMessage: 'Replay this',
-      outcome: 'completed',
+      // Replayed journal has no session_end and no error, so there is no
+      // verdict to report. 'completed' here was an unfounded default.
+      outcome: undefined,
     });
   });
 });

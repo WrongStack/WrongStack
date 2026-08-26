@@ -422,9 +422,12 @@ describe('misc ws-handlers — goal run', () => {
   describe('prefs.updated', () => {
     it('applies the patch to local prefs', () => {
       const set = vi.fn();
-      useLocalPrefs.setState({ set } as never);
+      // Session-scoped keys are filed against the tab the payload names, so
+      // the handler goes through `applyRemote(patch, sessionId)` rather than
+      // writing every snapshot into one global `set`.
+      useLocalPrefs.setState({ applyRemote: set } as never);
       handlePrefsUpdated(msg('prefs.updated', { yolo: false, maxIterations: 12 }));
-      expect(set).toHaveBeenCalledWith({ yolo: false, maxIterations: 12 });
+      expect(set).toHaveBeenCalledWith({ yolo: false, maxIterations: 12 }, undefined);
     });
 
     it('dismisses a pending confirm when YOLO is switched on', () => {

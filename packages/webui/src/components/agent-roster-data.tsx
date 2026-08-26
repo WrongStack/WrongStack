@@ -1,4 +1,4 @@
-import { Activity, Bookmark, BookOpen, Settings } from 'lucide-react';
+import { Activity, Bookmark, BookOpen, BrainCircuit, Building2, Settings } from 'lucide-react';
 
 export const ROSTER_UPDATE_DEBOUNCE_MS = 300;
 
@@ -80,7 +80,7 @@ export interface CustomRosterStats {
 
 // ── Tab definitions ────────────────────────────────────────────────────
 
-export type RosterTab = 'live' | 'catalog' | 'learning' | 'customize';
+export type RosterTab = 'live' | 'officemap' | 'catalog' | 'learning' | 'memory' | 'customize';
 
 interface TabDef {
   id: RosterTab;
@@ -92,6 +92,11 @@ interface TabDef {
 export const TABS: TabDef[] = [
   { id: 'live', icon: <Activity className="h-4 w-4" />, labelKey: 'activity:agentRoster.tabLive' },
   {
+    id: 'officemap',
+    icon: <Building2 className="h-4 w-4" />,
+    labelKey: 'activity:agentRoster.tabOfficeMap',
+  },
+  {
     id: 'catalog',
     icon: <Bookmark className="h-4 w-4" />,
     labelKey: 'activity:agentRoster.tabCatalog',
@@ -100,6 +105,11 @@ export const TABS: TabDef[] = [
     id: 'learning',
     icon: <BookOpen className="h-4 w-4" />,
     labelKey: 'activity:agentRoster.tabLearning',
+  },
+  {
+    id: 'memory',
+    icon: <BrainCircuit className="h-4 w-4" />,
+    labelKey: 'activity:agentRoster.tabMemory',
   },
   {
     id: 'customize',

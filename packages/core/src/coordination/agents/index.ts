@@ -24,7 +24,7 @@ import { WAVE3_AGENTS } from './phase8-wave3-products.js';
 import { META_AGENTS } from './phase9-meta.js';
 import { WAVE4_AGENTS } from './phase9-wave4-platform-meta.js';
 import { assignSkillsToAgents, ROLE_SKILL_SETS, SHADOW_AGENT_SKILLS } from './role-skills.js';
-import type { AgentDefinition, AgentPhase } from './types.js';
+import type { AgentCapability, AgentDefinition, AgentPhase } from './types.js';
 
 export * from './capability-manifest.js';
 export * from './phase3-wave1-platform.js';
@@ -106,6 +106,30 @@ export const AGENT_CATALOG: Record<string, AgentDefinition> = (() => {
 export function getAgentDefinition(role: string): AgentDefinition | undefined {
   return AGENT_CATALOG[role];
 }
+
+/**
+ * Role → dispatcher rationale, for every role that declares one.
+ *
+ * Derived from the catalog rather than hand-listed. There used to be four
+ * hand-maintained `WAVE*_ROLE_METAS` maps beside the agent arrays; nothing
+ * read them, and `WAVE2_ROLE_METAS` had drifted to carry six roles that live
+ * in `WAVE4_AGENTS` — a duplicate set no consumer would ever have noticed
+ * because the map itself was dead. Deriving from `AGENT_CATALOG` makes that
+ * class of drift impossible: a role is listed here exactly when its own
+ * `capability.rationale` is set.
+ */
+export const ROLE_DISPATCH_RATIONALE: Record<
+  string,
+  NonNullable<AgentCapability['rationale']>
+> = (() => {
+  const map: Record<string, NonNullable<AgentCapability['rationale']>> = {};
+  for (const def of ALL_AGENT_DEFINITIONS) {
+    const role = def.config.role;
+    const rationale = def.capability.rationale;
+    if (role && rationale) map[role] = rationale;
+  }
+  return map;
+})();
 
 // Re-export the skill-set aliases that some callers historically imported
 // from this module so the wave-1/2/3/4 surface keeps backward compatibility.

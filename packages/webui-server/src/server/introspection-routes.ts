@@ -4,9 +4,26 @@ import type { WebSocket } from 'ws';
 import { resolveProviderModelMetadata } from './model-catalog.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 import { computeUsageCost, getCostRates } from './usage-cost.js';
+import { messageSessionId } from './ws-utils.js';
 
 export interface IntrospectionRouteContext {
+  /** The runtime's agent — the fallback when the host has no registry. */
   agent: Agent;
+  /**
+   * Resolve the agent that owns ONE session.
+   *
+   * `diag.get`, `stats.get` and `side_effects.list` describe a single
+   * conversation: its token counter, its message count, its side effects. The
+   * runtime's `agent` is the session it last SWITCHED to, which with four tabs
+   * open is a different tab from the asking one as often as not — so a
+   * background tab asking for its stats was answered with the foreground's
+   * numbers, stamped with the foreground's id (and then dropped by the
+   * browser's own session filter, leaving the panel blank).
+   *
+   * Hosts with a per-session agent registry pass this; single-session hosts
+   * omit it and keep exactly their old behaviour.
+   */
+  getAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
   modelsRegistry?: ModelsRegistry | undefined;
   configStore?: ConfigStore | undefined;
   getConfig: () => Config;
@@ -80,12 +97,30 @@ export async function handleIntrospectionRoute(
   ws: WebSocket,
   message: WSClientMessage,
 ): Promise<boolean> {
-  const actx = ctx.agent.ctx;
+  // The agent this request is ABOUT — the one the tab named, not the one the
+  // runtime happens to be sitting on. Resolved without calling
+  // `getSessionId()`: this function also sees message types it does not
+  // handle, and must not require host accessors to answer them.
+  const agent = ctx.getAgent?.(messageSessionId(message)) ?? ctx.agent;
+  const actx = agent.ctx;
   const config = ctx.getConfig();
+  /** The id to stamp a reply with — the asking tab's, falling back to the runtime's. */
+  const askingSessionId = (): string => messageSessionId(message) ?? ctx.getSessionId();
+  /**
+   * When the asking session is not the runtime's, `getSessionStartedAt()`
+   * measures the wrong conversation; the session's own metadata is the only
+   * per-session clock available here.
+   */
+  const startedAt = (): number => {
+    if (askingSessionId() === ctx.getSessionId()) return ctx.getSessionStartedAt();
+    const iso = (actx.session as { startedAt?: string } | undefined)?.startedAt;
+    const parsed = iso ? Date.parse(iso) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : ctx.getSessionStartedAt();
+  };
   switch (message.type) {
     case 'diag.get': {
       if (!sessionAllowed(ctx, ws, message)) return true;
-      const registry = ctx.agent.tools as unknown as {
+      const registry = agent.tools as unknown as {
         list: () => ToolLike[];
         listForProvider?: () => ToolLike[];
       };
@@ -96,7 +131,7 @@ export async function handleIntrospectionRoute(
           provider: actx.provider.id,
           model: actx.model,
           cwd: ctx.getProjectRoot(),
-          sessionId: ctx.getSessionId(),
+          sessionId: askingSessionId(),
           tools: { count: tools.length, names: tools.map((tool) => tool.name) },
           maxTools: (actx.provider as { maxToolsCount?: number }).maxToolsCount ?? 0,
           droppedTools: (() => {
@@ -118,9 +153,18 @@ export async function handleIntrospectionRoute(
     }
     case 'stats.get': {
       if (!sessionAllowed(ctx, ws, message)) return true;
-      const usage = typeof actx.tokenCounter?.total === 'function' ? actx.tokenCounter.total() : { input: 0, output: 0, total: 0 };
-      const cache = typeof actx.tokenCounter?.cacheStats === 'function' ? actx.tokenCounter.cacheStats() : { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
-      const currentRequest = typeof actx.tokenCounter?.currentRequestTokens === 'function' ? actx.tokenCounter.currentRequestTokens() : 0;
+      const usage =
+        typeof actx.tokenCounter?.total === 'function'
+          ? actx.tokenCounter.total()
+          : { input: 0, output: 0, total: 0 };
+      const cache =
+        typeof actx.tokenCounter?.cacheStats === 'function'
+          ? actx.tokenCounter.cacheStats()
+          : { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+      const currentRequest =
+        typeof actx.tokenCounter?.currentRequestTokens === 'function'
+          ? actx.tokenCounter.currentRequestTokens()
+          : 0;
       const metadata = ctx.modelsRegistry
         ? await resolveProviderModelMetadata(
             ctx.modelsRegistry,
@@ -132,7 +176,7 @@ export async function handleIntrospectionRoute(
       ctx.send(ws, {
         type: 'stats.get',
         payload: {
-          sessionId: ctx.getSessionId(),
+          sessionId: askingSessionId(),
           provider: actx.provider.id,
           model: actx.model,
           usage,
@@ -145,9 +189,9 @@ export async function handleIntrospectionRoute(
           cost: metadata ? computeUsageCost(usage, getCostRates(metadata)) : null,
           messages: actx.messages.length,
           readFiles: actx.readFiles.size,
-          tools: ctx.agent.tools.list().length,
+          tools: agent.tools.list().length,
           sideEffectCount: actx.sideEffects?.length ?? 0,
-          elapsedMs: Date.now() - ctx.getSessionStartedAt(),
+          elapsedMs: Date.now() - startedAt(),
         },
       });
       return true;
@@ -157,7 +201,7 @@ export async function handleIntrospectionRoute(
       ctx.send(ws, {
         type: 'side_effects',
         payload: {
-          sessionId: ctx.getSessionId(),
+          sessionId: askingSessionId(),
           sideEffects: (actx.sideEffects ?? []).slice(-50).map((effect) => ({
             toolUseId: effect.toolUseId,
             toolName: effect.toolName,

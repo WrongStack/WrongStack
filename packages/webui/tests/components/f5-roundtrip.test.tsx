@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RefreshDebugView } from '../../src/components/RefreshDebugView';
 import { useChatStore } from '../../src/stores/chat-store';
 import { useSessionStore } from '../../src/stores/session-store';
@@ -35,8 +35,8 @@ import { useUIStore } from '../../src/stores/ui-store';
 
 // ── helpers ────────────────────────────────────────────────────────
 
-const SESSION_KEY = 'wrongstack-session';
-const CHAT_KEY = 'wrongstack-chat';
+const SESSION_KEY = 'wrongstack-session-lanes';
+const CHAT_KEY = 'wrongstack-chat-lanes';
 const UI_KEY = 'wrongstack-ui';
 
 function clearStorage(): void {

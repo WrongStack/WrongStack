@@ -145,6 +145,7 @@ export interface WebUIDispatchContext {
     | undefined;
   /** Live fleet budget for WebUI concurrency/spawn gauges (issue #323). */
   getFleetBudget?: CliWebUIOptions['getFleetBudget'];
+  stopSessionFleet?: CliWebUIOptions['stopSessionFleet'];
   /** Internal one-session child launch metadata, when --webui-session-child is active. */
   webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
@@ -191,6 +192,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sddSubagentFactory,
     onKanbanDispatch,
     getFleetBudget,
+    stopSessionFleet,
     webuiSessionChild,
   } = ctx;
   const isSessionChild = Boolean(webuiSessionChild);
@@ -338,6 +340,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     subscribeEternalIteration,
     sessionStore,
     ...(getFleetBudget ? { getFleetBudget } : {}),
+    ...(stopSessionFleet ? { stopSessionFleet } : {}),
     sessionsDir: projectSessionsDir,
     claimSession: activateSessionIdentity
       ? async (sessionId: string) => {

@@ -21,7 +21,17 @@ export function createModeRouteHandlers(context: ModeOperationsContext): ModeRou
         });
         return;
       }
-      await operations.switchMode(ws, parsed.value.id);
+      const payload = message.payload;
+      const rawSessionId =
+        payload && typeof payload === 'object'
+          ? (payload as { sessionId?: unknown }).sessionId
+          : undefined;
+      // The mode belongs to the tab that switched it, not to the process.
+      await operations.switchMode(
+        ws,
+        parsed.value.id,
+        typeof rawSessionId === 'string' && rawSessionId.length > 0 ? rawSessionId : undefined,
+      );
     },
   };
 }

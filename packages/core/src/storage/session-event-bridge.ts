@@ -97,6 +97,7 @@ const STANDARD_AUDIT_EVENTS = new Set<SessionEvent['type']>([
   // at the DEFAULT level and the resume timeline would lose them silently.
   'mode_changed',
   'agent_spawned',
+  'agent_session_linked',
   'agent_stopped',
   'agent_error',
   'task_created',
@@ -276,12 +277,22 @@ export function resolveAuditLevel(
  */
 export function resolveSessionLoggingConfig(
   cfg?: {
-    session?: {
-      auditLevel?: AuditLevel | undefined;
-      sampling?: {
-        toolProgress?: { sampleRate?: number | undefined };
-      };
-    };
+    // Every optional here spells out `| undefined` so callers holding a real
+    // `Config` can pass it directly. Under `exactOptionalPropertyTypes` an
+    // optional property whose type omits `undefined` rejects a source that
+    // includes it, which is why both existing call sites had to launder the
+    // argument through `as never as Parameters<...>[0]` — a cast that would
+    // have silently swallowed any genuine shape drift here.
+    session?:
+      | {
+          auditLevel?: AuditLevel | undefined;
+          sampling?:
+            | {
+                toolProgress?: { sampleRate?: number | undefined } | undefined;
+              }
+            | undefined;
+        }
+      | undefined;
   } | null,
 ): {
   auditLevel: AuditLevel;

@@ -54,6 +54,12 @@ export interface AgentCapability {
    * Optional `RoleDispatcherSignal` attached to the role. Wave-1/2/3/4 roles
    * carry this to make the "why this role wins" rationale auditable; legacy
    * roles omit it and the dispatcher falls back to `summary` + `keywords`.
+   *
+   * Set it on the definition itself — `ROLE_DISPATCH_RATIONALE` in
+   * `agents/index.ts` is derived from the catalog, and the LLM classifier
+   * reads `differentiatesFrom` from here. For a long stretch the wave files
+   * declared these blocks but only spread `.signals` into `keywords`, so the
+   * rationale and contrast text were authored and then dropped on the floor.
    */
   rationale?: RoleDispatcherSignal | undefined;
 }
@@ -71,8 +77,13 @@ export interface RoleDispatcherSignal {
   signals: readonly string[];
   /**
    * One-line description of how this role differs from its closest sibling
-   * ("X finds defects; Y designs threats before code exists"). Used by tests
-   * to assert distinct boundaries and by docs to explain routing.
+   * ("X finds defects; Y designs threats before code exists").
+   *
+   * Handed to the LLM dispatch classifier as a `vs. siblings:` line beside the
+   * candidate's summary (see `makeLLMClassifier`), which is the moment it
+   * matters: the classifier only runs when the heuristic could not separate
+   * roles that share vocabulary. Also asserted by
+   * `tests/coordination/role-dispatch-rationale.test.ts`.
    */
   differentiatesFrom: string;
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildModelCandidates,
   type CatalogModelLite,
+  isModelInFavorites,
   type SavedProviderLite,
 } from '../../src/components/QuickModelSwitcher.filter';
 
@@ -16,11 +17,7 @@ import {
  * the filter + sort logic the user actually sees in the dropdown.
  */
 
-const saved: SavedProviderLite[] = [
-  { id: 'anthropic' },
-  { id: 'openai' },
-  { id: 'google' },
-];
+const saved: SavedProviderLite[] = [{ id: 'anthropic' }, { id: 'openai' }, { id: 'google' }];
 
 const models: Record<string, CatalogModelLite[]> = {
   anthropic: [
@@ -36,9 +33,7 @@ const models: Record<string, CatalogModelLite[]> = {
     { id: 'gpt-5', name: 'GPT-5', contextWindow: 128000 },
     { id: 'o3', name: 'o3', contextWindow: 200000 },
   ],
-  google: [
-    { id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', contextWindow: 1000000 },
-  ],
+  google: [{ id: 'gemini-2-5-pro', name: 'Gemini 2.5 Pro', contextWindow: 1000000 }],
 };
 
 describe('buildModelCandidates — flattening', () => {
@@ -160,13 +155,7 @@ describe('buildModelCandidates — current-model flag + sort', () => {
   it('combines filter + active-flag sort', () => {
     // Active is anthropic/claude-opus-4-7; filter to 'claude' should
     // bring both claude models back, with the active one first.
-    const out = buildModelCandidates(
-      saved,
-      models,
-      'claude',
-      'anthropic',
-      'claude-opus-4-7',
-    );
+    const out = buildModelCandidates(saved, models, 'claude', 'anthropic', 'claude-opus-4-7');
     expect(out).toHaveLength(2);
     expect(out[0]?.isCurrent).toBe(true);
     expect(out[0]?.model).toBe('claude-opus-4-7');
@@ -217,14 +206,7 @@ describe('buildModelCandidates — provider filter', () => {
   });
 
   it('combines provider filter + active-flag sort', () => {
-    const out = buildModelCandidates(
-      saved,
-      models,
-      '',
-      'openai',
-      'o3',
-      'openai',
-    );
+    const out = buildModelCandidates(saved, models, '', 'openai', 'o3', 'openai');
     expect(out).toHaveLength(2);
     expect(out[0]?.isCurrent).toBe(true);
     expect(out[0]?.model).toBe('o3');
@@ -235,5 +217,104 @@ describe('buildModelCandidates — provider filter', () => {
     // When providerFilter is 'openai', searching 'anthropic' matches nothing
     const out = buildModelCandidates(saved, models, 'anthropic', undefined, undefined, 'openai');
     expect(out).toEqual([]);
+  });
+});
+
+describe('isModelInFavorites — matching logic', () => {
+  it('returns false when favoriteModels is undefined, null, or empty', () => {
+    expect(isModelInFavorites('openai', 'gpt-5', undefined)).toBe(false);
+    expect(isModelInFavorites('openai', 'gpt-5', null)).toBe(false);
+    expect(isModelInFavorites('openai', 'gpt-5', [])).toBe(false);
+  });
+
+  it('matches qualified "provider/model" exactly', () => {
+    expect(isModelInFavorites('openai', 'gpt-5', ['openai/gpt-5'])).toBe(true);
+    expect(isModelInFavorites('anthropic', 'gpt-5', ['openai/gpt-5'])).toBe(false);
+  });
+
+  it('matches bare "model" against any provider', () => {
+    expect(isModelInFavorites('openai', 'gpt-5', ['gpt-5'])).toBe(true);
+    expect(isModelInFavorites('azure', 'gpt-5', ['gpt-5'])).toBe(true);
+    expect(isModelInFavorites('openai', 'o3', ['gpt-5'])).toBe(false);
+  });
+
+  it('matches case-insensitively and handles whitespace', () => {
+    expect(isModelInFavorites('OpenAI', 'GPT-5', [' openai/gpt-5 '])).toBe(true);
+    expect(isModelInFavorites('openai', 'gpt-5', [' OPENAI / GPT-5 '])).toBe(true);
+    expect(isModelInFavorites('google', 'gemini-2-5-pro', ['google gemini-2-5-pro'])).toBe(true);
+  });
+});
+
+describe('buildModelCandidates — favoritesOnly filter & isFavorite flag', () => {
+  const favorites = ['openai/gpt-5', 'claude-opus-4-7'];
+
+  it('sets isFavorite=true on matching candidates and isFavorite=false on others', () => {
+    const out = buildModelCandidates(
+      saved,
+      models,
+      '',
+      undefined,
+      undefined,
+      null,
+      false,
+      favorites,
+    );
+    expect(out).toHaveLength(5);
+    const gpt5 = out.find((c) => c.provider === 'openai' && c.model === 'gpt-5');
+    const opus = out.find((c) => c.provider === 'anthropic' && c.model === 'claude-opus-4-7');
+    const gemini = out.find((c) => c.provider === 'google' && c.model === 'gemini-2-5-pro');
+
+    expect(gpt5?.isFavorite).toBe(true);
+    expect(opus?.isFavorite).toBe(true);
+    expect(gemini?.isFavorite).toBe(false);
+  });
+
+  it('filters candidates to only favorites when favoritesOnly is true', () => {
+    const out = buildModelCandidates(
+      saved,
+      models,
+      '',
+      undefined,
+      undefined,
+      null,
+      true,
+      favorites,
+    );
+    expect(out).toHaveLength(2);
+    expect(out.map((c) => `${c.provider}/${c.model}`)).toEqual([
+      'anthropic/claude-opus-4-7',
+      'openai/gpt-5',
+    ]);
+    expect(out.every((c) => c.isFavorite)).toBe(true);
+  });
+
+  it('returns empty list when favoritesOnly is true but no favorites configured', () => {
+    const out = buildModelCandidates(saved, models, '', undefined, undefined, null, true, []);
+    expect(out).toEqual([]);
+  });
+
+  it('combines favoritesOnly + providerFilter + search query (AND semantics)', () => {
+    const out = buildModelCandidates(
+      saved,
+      models,
+      'gpt',
+      undefined,
+      undefined,
+      'openai',
+      true,
+      favorites,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]?.provider).toBe('openai');
+    expect(out[0]?.model).toBe('gpt-5');
+    expect(out[0]?.isFavorite).toBe(true);
+  });
+
+  it('combines favoritesOnly + active model sorting', () => {
+    const out = buildModelCandidates(saved, models, '', 'openai', 'gpt-5', null, true, favorites);
+    expect(out).toHaveLength(2);
+    expect(out[0]?.isCurrent).toBe(true);
+    expect(out[0]?.model).toBe('gpt-5');
+    expect(out[1]?.model).toBe('claude-opus-4-7');
   });
 });

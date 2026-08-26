@@ -1,9 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
-import type {
-  KanbanBoard,
-  KanbanEventContext,
-  KanbanTask,
-} from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanEventContext, KanbanTask } from '@wrongstack/kanban';
 import { touchKanbanPresence } from '@wrongstack/kanban';
 import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { WebSocket } from 'ws';
@@ -14,6 +10,22 @@ export interface KanbanRouteHelperContext {
   projectRoot: string;
   context?: Context | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
+  /**
+   * The session of the tab that sent THIS message.
+   *
+   * Board contents are addressed by `boardId`, so they never crossed tabs —
+   * but every activity entry and presence ping was stamped with
+   * `context.session`, the session the runtime last switched to. With four
+   * tabs open, tab 3 moving a card was recorded as tab 1's work. Set per
+   * message by `handleKanbanRoute`; absent on single-session hosts, where the
+   * runtime session is the only answer there is.
+   */
+  requestSessionId?: string | undefined;
+}
+
+/** Who is acting: the tab that asked, falling back to the runtime session. */
+export function actingSessionId(ctx: KanbanRouteHelperContext): string | undefined {
+  return ctx.requestSessionId ?? ctx.context?.session?.id;
 }
 
 export async function syncSessionSource(
@@ -49,7 +61,7 @@ export function activityContext(
   actor?: string,
   note?: string,
 ): KanbanEventContext {
-  const sessionId = ctx.context?.session?.id;
+  const sessionId = actingSessionId(ctx);
   return {
     ...(sessionId ? { sessionId } : {}),
     ...(actor ? { actor } : {}),
@@ -63,7 +75,7 @@ export async function touchTaskPresence(
   taskId: string,
 ): Promise<KanbanBoard | null> {
   const context = ctx.context;
-  const sessionId = context?.session?.id;
+  const sessionId = actingSessionId(ctx);
   if (!context || !sessionId) return null;
   try {
     return await touchKanbanPresence(ctx.projectRoot, boardId, {

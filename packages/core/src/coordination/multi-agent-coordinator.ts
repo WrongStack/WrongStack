@@ -9,22 +9,22 @@ import type {
   SpawnResult,
   SubagentConfig,
   SubagentContext,
-  SubagentRunContext,
   SubagentPartialResult,
+  SubagentRunContext,
   SubagentRunner,
   TaskResult,
   TaskSpec,
 } from '../types/multi-agent.js';
-import {
-  type BudgetSessionIdSource,
-  BudgetExceededError,
-  SubagentBudget,
-} from './subagent-budget.js';
-import { resolveGracefulFinish, type GracefulFinish } from './subagent-finish.js';
 import { classifySubagentError } from './coordinator/error-classifier.js';
 import { applyRosterBudget } from './fleet.js';
-import { assignNickname } from './subagent-nicknames.js';
 import { executeSubagentWithTimeout } from './multi-agent-timeout.js';
+import {
+  BudgetExceededError,
+  type BudgetSessionIdSource,
+  SubagentBudget,
+} from './subagent-budget.js';
+import { type GracefulFinish, resolveGracefulFinish } from './subagent-finish.js';
+import { assignNickname } from './subagent-nicknames.js';
 
 type SubagentStatus = 'running' | 'idle' | 'stopped' | 'error';
 
@@ -36,6 +36,19 @@ interface SubagentEntry {
   abortController: AbortController;
   /** Lazily created on first dispatch — budget is per-task, not per-subagent. */
   activeBudget?: SubagentBudget | undefined;
+  /**
+   * The session that SPAWNED this subagent, captured once and never re-read.
+   *
+   * A subagent belongs to the session that created it for its whole life. The
+   * coordinator's `sessionId` option is a live getter ("which session is the
+   * host on right now"), which is the correct source at spawn time and the
+   * wrong one at every moment after: with four tabs open, reading it again
+   * when an event fires stamps this worker's lifecycle, budget and spend with
+   * whichever tab happened to be in front — so tab A's subagent showed up
+   * under tab B, tab B looked busy when it was idle, and no caller could ask
+   * "stop the subagents belonging to session X" because nothing recorded X.
+   */
+  sessionId?: string | undefined;
 }
 
 export interface MultiAgentCoordinatorOptions {
@@ -125,6 +138,59 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   }
 
   /**
+   * The session that owns a subagent — its spawn-time stamp.
+   *
+   * Every per-subagent emission routes through here instead of
+   * `currentSessionId()`. The fallback covers ids the coordinator never
+   * spawned (a caller reporting `completeTask` for an unknown worker); a
+   * subagent this coordinator created always has its own stamp.
+   */
+  private sessionOf(subagentId: string): string | undefined {
+    const entry = this.subagents.get(subagentId);
+    if (entry) return entry.sessionId;
+    return this.currentSessionId();
+  }
+
+  /** Every subagent this coordinator holds for one session. */
+  subagentIdsForSession(sessionId: string): string[] {
+    if (!sessionId) return [];
+    const ids: string[] = [];
+    for (const [id, entry] of this.subagents) {
+      if (entry.sessionId === sessionId) ids.push(id);
+    }
+    return ids;
+  }
+
+  /**
+   * Stop every subagent belonging to ONE session, and drop that session's
+   * still-queued tasks.
+   *
+   * This is what a tab's Stop button needs. `stopAll()` is the wrong tool with
+   * four tabs live — it would kill three other tabs' work — and until subagents
+   * carried a session stamp there was no way to express the narrower intent, so
+   * stopping a run left its workers grinding on in the background.
+   *
+   * Pending tasks pinned to those subagents are drained as aborted so anything
+   * awaiting them (the delegate tool, report-back) resolves instead of hanging.
+   */
+  async stopSession(sessionId: string): Promise<void> {
+    if (!sessionId) return;
+    const ids = new Set(this.subagentIdsForSession(sessionId));
+    if (ids.size === 0) return;
+    const orphaned = this.pendingTasks.filter(
+      (t) => t.subagentId !== undefined && ids.has(t.subagentId),
+    );
+    this.pendingTasks = this.pendingTasks.filter(
+      (t) => t.subagentId === undefined || !ids.has(t.subagentId),
+    );
+    for (const t of orphaned) {
+      this.emitPendingAborted(t, `Session "${sessionId}" was stopped while task "${t.id}" was pending`);
+    }
+    // allSettled so one failure doesn't leave the rest of this session running.
+    await Promise.allSettled([...ids].map((id) => this.stop(id)));
+  }
+
+  /**
    * Replace the runner after construction. Used when the runner depends
    * on infrastructure (e.g. FleetBus) that isn't available until after
    * the coordinator's owning Director is built.
@@ -203,20 +269,26 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       maxConcurrent: this.config.maxConcurrent ?? 16,
     };
 
+    // Read the host's session ONCE, here, and keep it. From this line on the
+    // worker belongs to that session no matter which tab is in front later.
+    const sessionId = this.currentSessionId();
+
     this.subagents.set(id, {
       config: { ...cfg, id },
       context,
       status: 'idle',
       abortController: new AbortController(),
+      sessionId,
     });
 
-    this.emit('subagent.started', { subagent: { ...cfg, id } });
+    this.emit('subagent.started', { subagent: { ...cfg, id }, ...(sessionId ? { sessionId } : {}) });
 
     this.fleetBus?.emit({
       subagentId: id,
       ts: Date.now(),
       type: 'subagent.assigned',
       payload: {
+        ...(sessionId ? { sessionId } : {}),
         subagentId: id,
         name: subagent.name,
         provider: subagent.provider,
@@ -272,11 +344,16 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
 
     this.emit('subagent.stopped', { subagentId, reason: 'stopped by coordinator' });
 
+    const sessionId = subagent.sessionId;
     this.fleetBus?.emit({
       subagentId,
       ts: Date.now(),
       type: 'subagent.stopped',
-      payload: { subagentId, reason: 'stopped by coordinator' },
+      payload: {
+        ...(sessionId ? { sessionId } : {}),
+        subagentId,
+        reason: 'stopped by coordinator',
+      },
     });
 
     this.emitCoordinatorStats();
@@ -336,7 +413,13 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       taskId: s.currentTask ?? '',
       status: s.status,
       assigned: s.context.parentBridge !== null,
+      // Each worker's OWN session, so a consumer can split one coordinator's
+      // roster across the tabs that spawned it.
+      ...(s.sessionId ? { sessionId: s.sessionId } : {}),
     }));
+    // Coordinator-level, deliberately: this event describes the whole
+    // coordinator, not one worker. Per-worker attribution is on the entries
+    // above; never read this field to decide which tab a subagent belongs to.
     const sessionId = this.currentSessionId();
     this.fleetBus?.emit({
       subagentId: this.coordinatorId,
@@ -442,10 +525,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * inherit `config.timeoutMs` — a "return whatever is done" call has no
    * business timing out unless the caller asks for a window explicitly.
    */
-  async awaitTasksAny(
-    taskIds: string[],
-    opts?: { timeoutMs?: number },
-  ): Promise<AwaitAnyResult> {
+  async awaitTasksAny(taskIds: string[], opts?: { timeoutMs?: number }): Promise<AwaitAnyResult> {
     const ids = new Set(taskIds);
     const completed = this.completedResults.filter((r) => ids.has(r.taskId));
     if (completed.length > 0 || ids.size === 0) {
@@ -535,9 +615,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
         // We DO NOT drain when subagents are busy (status='running'):
         // those will free up and accept the work normally.
         if (this.pendingTasks.length > 0 && !this.hasLiveSubagent()) {
-          this.drainPendingAsAborted(
-            'No live subagent available — all stopped or mid-termination',
-          );
+          this.drainPendingAsAborted('No live subagent available — all stopped or mid-termination');
         }
         return;
       }
@@ -701,6 +779,15 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     subagent.status = 'running';
     subagent.currentTask = task.id;
     task.subagentId = subagentId;
+    // Carry the owning session on the task itself. Agent factories receive
+    // `(config, task)` and nothing else, so without this the only session they
+    // could read was the HOST's live one — which moves every time the user
+    // switches tabs, filing a worker's transcript and token spend under
+    // whichever tab happened to be in front when it spawned. An explicit
+    // stamp on the task already wins; this only fills the gap.
+    if (subagent.sessionId) {
+      task.context = { sessionId: subagent.sessionId, ...(task.context ?? {}) };
+    }
     subagent.context.tasks.push(task);
     // Bound the per-subagent task history: a worker runs one task at a time, so
     // the completing task is always among the most recent entries. This keeps a
@@ -713,12 +800,17 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       );
     }
 
+    const sessionId = subagent.sessionId;
     this.fleetBus?.emit({
       subagentId,
       taskId: task.id,
       ts: Date.now(),
       type: 'subagent.running',
-      payload: { subagentId, taskId: task.id },
+      payload: {
+        ...(sessionId ? { sessionId } : {}),
+        subagentId,
+        taskId: task.id,
+      },
     });
 
     this.emit('task.assigned', { task, subagentId });
@@ -739,19 +831,27 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     const budget = new SubagentBudget(
       {
         maxIterations:
-          rawMaxIterations ?? this.config.defaultBudget?.maxIterations ?? configWithRosterDefaults.maxIterations,
+          rawMaxIterations ??
+          this.config.defaultBudget?.maxIterations ??
+          configWithRosterDefaults.maxIterations,
         maxToolCalls:
           rawMaxToolCalls ??
           this.config.defaultBudget?.maxToolCalls ??
           configWithRosterDefaults.maxToolCalls,
         maxTokens:
-          rawMaxTokens ?? this.config.defaultBudget?.maxTokens ?? configWithRosterDefaults.maxTokens,
+          rawMaxTokens ??
+          this.config.defaultBudget?.maxTokens ??
+          configWithRosterDefaults.maxTokens,
         maxCostUsd:
-          rawMaxCostUsd ?? this.config.defaultBudget?.maxCostUsd ?? configWithRosterDefaults.maxCostUsd,
+          rawMaxCostUsd ??
+          this.config.defaultBudget?.maxCostUsd ??
+          configWithRosterDefaults.maxCostUsd,
         // Wall-clock cap is opt-in (explicit config / defaultBudget only); the
         // roster no longer supplies one. Idle is the default reaper.
         timeoutMs:
-          rawTimeoutMs ?? this.config.defaultBudget?.timeoutMs ?? configWithRosterDefaults.timeoutMs,
+          rawTimeoutMs ??
+          this.config.defaultBudget?.timeoutMs ??
+          configWithRosterDefaults.timeoutMs,
         idleTimeoutMs:
           rawIdleTimeoutMs ??
           this.config.defaultBudget?.idleTimeoutMs ??
@@ -759,7 +859,9 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       },
       'auto',
       {
-        sessionId: () => this.currentSessionId(),
+        // The spawning session, not "whichever tab is in front now": this
+        // worker's token and cost accrual belongs to the tab that started it.
+        sessionId: () => this.sessionOf(subagentId),
         subagentId,
         // Graceful-finish runs own wall-clock enforcement to the watchdog so
         // the notify-then-bound lifecycle cannot be raced by tool.progress
@@ -789,6 +891,10 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       config: subagent.config,
       budget,
       signal: subagent.abortController.signal,
+      // The spawning session travels with the run, so the runner stamps its
+      // own events with the tab that owns this worker rather than re-deriving
+      // "the host's current session" when the event happens to fire.
+      ...(subagent.sessionId ? { sessionId: subagent.sessionId } : {}),
       bridge: subagent.context.parentBridge || null,
       reportProgress: (partial) => {
         const text = partial.text.trim();
@@ -828,7 +934,8 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       // which also flips `signal.aborted=true`. Inspect the error first so we
       // surface 'timeout' rather than masking it as 'stopped'.
       const status: TaskResult['status'] =
-        err instanceof BudgetExceededError && (err.kind === 'timeout' || err.kind === 'idle_timeout')
+        err instanceof BudgetExceededError &&
+        (err.kind === 'timeout' || err.kind === 'idle_timeout')
           ? 'timeout'
           : subagent.abortController.signal.aborted
             ? 'stopped'
@@ -867,7 +974,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       preemptFraction,
       gracefulFinish,
       abortSubagent: (subagentId) => this.subagents.get(subagentId)?.abortController.abort(),
-      currentSessionId: () => this.currentSessionId(),
+      currentSessionId: () => this.sessionOf(ctx.subagentId),
     });
   }
 
@@ -910,11 +1017,15 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
         subagent.abortController = new AbortController();
       }
 
+      const sessionId = subagent.sessionId;
       this.fleetBus?.emit({
         subagentId: result.subagentId,
         ts: Date.now(),
         type: 'subagent.idle',
-        payload: { subagentId: result.subagentId },
+        payload: {
+          ...(sessionId ? { sessionId } : {}),
+          subagentId: result.subagentId,
+        },
       });
     }
     // Clear the terminating flag now that the worker has a terminal
@@ -927,12 +1038,14 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       result,
     });
 
+    const completedSessionId = this.sessionOf(result.subagentId);
     this.fleetBus?.emit({
       subagentId: result.subagentId,
       taskId: result.taskId,
       ts: Date.now(),
       type: 'subagent.completed',
       payload: {
+        ...(completedSessionId ? { sessionId: completedSessionId } : {}),
         subagentId: result.subagentId,
         taskId: result.taskId,
         status: result.status,
@@ -967,6 +1080,9 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   async remove(subagentId: string): Promise<void> {
     const subagent = this.subagents.get(subagentId);
     if (!subagent) return;
+    // Captured before the entry is deleted below — after that there is nothing
+    // left to ask which session this worker belonged to.
+    const removedSessionId = subagent.sessionId;
 
     // Gracefully stop first — same logic as stop() but don't block on it.
     if (subagent.status === 'running' || subagent.status === 'idle') {
@@ -1006,7 +1122,10 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       subagentId,
       ts: Date.now(),
       type: 'subagent.removed',
-      payload: { subagentId },
+      payload: {
+        ...(removedSessionId ? { sessionId: removedSessionId } : {}),
+        subagentId,
+      },
     });
 
     this.emitCoordinatorStats();

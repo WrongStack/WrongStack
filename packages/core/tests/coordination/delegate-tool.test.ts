@@ -774,6 +774,71 @@ describe('createDelegateTool', () => {
     expect(completed[0]!.summary).toMatch(/bug-hunter/);
   });
 
+  // `subagent.done` has exactly one emitter in the whole repo — the delegate
+  // tool — but three production subscribers: the agent run loop (which fills
+  // `RunResult.delegateSummaries`), the bundled `agent-handoff` plugin, and the
+  // webui collab mirror. It once had ZERO emitters, because each completion
+  // branch raised only `delegate.completed`, and all three consumers were
+  // silently dead. Assert the pairing so a new branch cannot drop it again.
+  async function collectCompletionPair(
+    dir: Director,
+    input: Record<string, unknown>,
+  ): Promise<{
+    completed: Array<{ ok: boolean; summary: string }>;
+    done: Array<{ ok: boolean; summary: string }>;
+  }> {
+    const hostBus = new EventBus();
+    const completed: Array<{ ok: boolean; summary: string }> = [];
+    const done: Array<{ ok: boolean; summary: string }> = [];
+    hostBus.on('delegate.completed', (e) => completed.push({ ok: e.ok, summary: e.summary }));
+    hostBus.on('subagent.done', (e) => done.push({ ok: e.ok, summary: e.summary }));
+    const tool = createDelegateTool({
+      host: buildHost(dir),
+      roster: FLEET_ROSTER,
+      events: hostBus,
+    });
+    await tool.execute({ role: 'bug-hunter', ...BOUNDARY, ...input }, null as never, {
+      signal: new AbortController().signal,
+    });
+    return { completed, done };
+  }
+
+  it('emits subagent.done alongside delegate.completed when a delegation succeeds', async () => {
+    director = buildLiveDirector();
+    const { completed, done } = await collectCompletionPair(director, {
+      task: 'audit src/parser.ts',
+    });
+    expect(completed).toHaveLength(1);
+    expect(completed[0]!.ok).toBe(true);
+    // Same verdict and same summary text on both names.
+    expect(done).toEqual(completed);
+  });
+
+  it('emits subagent.done alongside delegate.completed on a failing outcome', async () => {
+    const runner = vi.fn(
+      () =>
+        new Promise<SubagentRunOutcome>(() => {
+          /* never resolves — the host await window expires instead */
+        }),
+    );
+    director = new Director({
+      config: {
+        coordinatorId: 'done-pairing-timeout-director',
+        doneCondition: { type: 'all_tasks_done' },
+        maxConcurrent: 1,
+      },
+      runner,
+    });
+    const { completed, done } = await collectCompletionPair(director, {
+      task: 'wait forever',
+      timeoutMs: 30,
+    });
+    expect(completed).toHaveLength(1);
+    expect(completed[0]!.ok).toBe(false);
+    expect(done).toEqual(completed);
+    await director.shutdown();
+  });
+
   it('uses the free-form name as the delegate.* target when no role is given', async () => {
     director = buildLiveDirector();
     const hostBus = new EventBus();

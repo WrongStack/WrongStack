@@ -33,6 +33,7 @@ import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
+import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import type {
   Config,
   Provider,
@@ -59,6 +60,7 @@ import {
   createParentSubagentSessionWriter,
   withParentFileSnapshots,
 } from './host-session-writer.js';
+import { installSubagentSessionAudit } from './host-subagent-session-audit.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
 export interface HostSubagentFactoryContext {
@@ -258,25 +260,62 @@ export function createHostSubagentFactory(
       // File mutations are mirrored onto the parent because the rewinder only
       // ever reads the session being rewound — a subagent's own JSONL is not
       // in that path, so without this its edits survive a `/rewind` silently.
-      subSession = withParentFileSnapshots(
-        await host.sessionFactory.createSubagentSession({
-          subagentId: subagentName,
+      const ownSession = await host.sessionFactory.createSubagentSession({
+        subagentId: subagentName,
+        provider: effProvider,
+        model: effModel,
+        title: `subagent: ${subagentName}`,
+      });
+      subSession = withParentFileSnapshots(ownSession, host.deps.session);
+      // Bind the agent to the transcript it is about to fill. This is the only
+      // point in the process where both handles exist at once: the fleet layer
+      // that emits `agent_spawned` never sees the writer, and the writer never
+      // learns which spawn record it belongs to. Appended to the LEADER's
+      // journal, because that is the file a reader starts from when asking
+      // "which agents ran in this session, and where did they write".
+      void host.deps.session
+        .append({
+          type: 'agent_session_linked',
+          ts: new Date().toISOString(),
+          agentId: subagentName,
+          agentSessionId: ownSession.id,
+          ...(ownSession.transcriptPath ? { transcriptPath: ownSession.transcriptPath } : {}),
           provider: effProvider,
           model: effModel,
-          title: `subagent: ${subagentName}`,
-        }),
-        host.deps.session,
-      );
+        })
+        .catch(() => {
+          // Best-effort, same contract as every other session append: a
+          // missing link degrades discovery, it must not fail the spawn.
+        });
     } else {
-      subSession = createParentSubagentSessionWriter(host.deps.session);
+      // No journal of its own — its events land in the leader's file, so they
+      // need the stamp to stay attributable once they are interleaved.
+      subSession = createParentSubagentSessionWriter(host.deps.session, subagentName);
     }
 
     const tools = effectiveCfg.tools ? [...effectiveCfg.tools] : undefined;
+    // Fixed for this worker's lifetime. The coordinator stamps the spawning
+    // session onto the task; the host's live session is the last resort for
+    // spawns that never went through it.
+    const owningSessionId =
+      (typeof task?.context?.['sessionId'] === 'string'
+        ? (task.context['sessionId'] as string)
+        : undefined) ?? host.deps.session.id;
     const subTokenCounter = new DefaultTokenCounter({
       registry: host.deps.modelsRegistry,
       providerId: effProvider,
       events,
-      sessionId: () => host.deps.session.id,
+      // The session that SPAWNED this subagent — its spend belongs to that
+      // tab's roll-ups and live UIs, and `agentId` keeps it distinguishable
+      // from leader spend (without it, Chronicle's scope.agentId cannot tell
+      // the two apart and every subagent token lands unattributed).
+      //
+      // Deliberately NOT a live read of `host.deps.session.id`: with four tabs
+      // open the host's session moves whenever the user switches, so a lazy
+      // read charged this worker's tokens to whichever tab was in front when
+      // the usage happened to be counted.
+      sessionId: () => owningSessionId,
+      agentId: subagentName,
     });
 
     const ctx = new Context({
@@ -398,6 +437,22 @@ export function createHostSubagentFactory(
       projectRoot: ctx.projectRoot,
       effectiveCfg,
       subCfg,
+      tokenCounter: subTokenCounter,
+      subagentProvider: effProvider,
+      subagentModel: effModel,
+    });
+
+    // Tool-lifecycle + session_end records for the subagent's OWN transcript.
+    // The leader's copies come from session-event-wiring, which listens on the
+    // host bus; this subagent runs on a private one. See the module docs.
+    const sessionAudit = installSubagentSessionAudit({
+      events,
+      session: subSession,
+      tokenCounter: subTokenCounter,
+      bridge: createSessionEventBridge(
+        subSession,
+        resolveSessionLoggingConfig(mergedConfig).auditLevel,
+      ),
     });
 
     const dispose = async () => {
@@ -415,6 +470,9 @@ export function createHostSubagentFactory(
       } catch {
         // Cleanup must not mask the task result.
       }
+      // Terminal marker BEFORE close(): close() finalizes the summary
+      // sidecar, so a session_end appended after it would not be observed.
+      await sessionAudit.finalize();
       try {
         await subSession.close?.();
       } catch {

@@ -24,27 +24,21 @@
 
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  getProxyConfig,
-  __resetProxyConfigForTests,
-} from '@wrongstack/core/wiring/proxy-rewrite';
 import type { Provider, ProviderConfig } from '@wrongstack/core/types';
+import { __resetProxyConfigForTests, getProxyConfig } from '@wrongstack/core/wiring/proxy-rewrite';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 
 vi.mock('@wrongstack/providers', () => ({
   makeProviderFromConfig: vi.fn(
-    (id: string, cfg: ProviderConfig) =>
-      ({ id, capabilities: {}, cfg }) as unknown as Provider,
+    (id: string, cfg: ProviderConfig) => ({ id, capabilities: {}, cfg }) as unknown as Provider,
   ),
-  withCatalogCapabilities: vi.fn(
-    async (_m: unknown, _id: string, provider: Provider) => provider,
-  ),
+  withCatalogCapabilities: vi.fn(async (_m: unknown, _id: string, provider: Provider) => provider),
 }));
 
-import { applyWrongProxyPrefs as applyWrongProxyPrefsRuntime } from '../src/server/proxy-runtime.js';
 import type { PendingConfirm } from '../src/server/pending-confirms.js';
 import { handlePrefsUpdate } from '../src/server/prefs-handlers.js';
+import { applyWrongProxyPrefs as applyWrongProxyPrefsRuntime } from '../src/server/proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from '../src/server/routes.js';
 import { setupWebuiProxyInstantApply } from '../src/server/start-webui-proxy-apply.js';
 
@@ -70,8 +64,7 @@ function startDaemonStub(): Promise<{ url: string; close: () => Promise<void> }>
       const { port } = server.address() as AddressInfo;
       resolve({
         url: `http://127.0.0.1:${port}`,
-        close: () =>
-          new Promise((resolveClose) => server.close(() => resolveClose())),
+        close: () => new Promise((resolveClose) => server.close(() => resolveClose())),
       });
     });
   });
@@ -132,9 +125,13 @@ function makeSession() {
 
 /** Real prefs-handler context; applyWrongProxyPrefs is the REAL runtime fn. */
 function makePrefsCtx() {
+  const meta: Record<string, unknown> = {};
   return {
-    meta: {} as Record<string, unknown>,
-    snapshot: () => ({}),
+    meta,
+    // Mirrors the real host: the snapshot IS the meta bag. The handler now
+    // skips an echo with nothing in it, so a stub that always answers `{}`
+    // would report no broadcast at all.
+    snapshot: () => ({ ...meta }),
     persist: vi.fn(async () => {}),
     pendingConfirms: new Map<string, PendingConfirm>(),
     // Identical injection to routes.ts:531 in the standalone server.
@@ -162,7 +159,7 @@ afterEach(async () => {
 describe('WrongProxy Settings toggle — e2e through the real prefs pipeline', () => {
   it('rejects a malformed toggle before any runtime effect (real validator active)', async () => {
     const ctx = makePrefsCtx();
-    await handlePrefsUpdate(ctx, ws, {  wrongProxyEnabled: 'yes-not-a-boolean'  });
+    await handlePrefsUpdate(ctx, ws, { wrongProxyEnabled: 'yes-not-a-boolean' });
     expect(ctx.send).toHaveBeenCalledWith(
       ws,
       expect.objectContaining({ type: 'key.operation_result' }),
@@ -176,15 +173,13 @@ describe('WrongProxy Settings toggle — e2e through the real prefs pipeline', (
     const s = makeSession();
     const ctx = makePrefsCtx();
 
-    await handlePrefsUpdate(ctx, ws, {  wrongProxyEnabled: true, wrongProxyUrl: daemon.url  });
+    await handlePrefsUpdate(ctx, ws, { wrongProxyEnabled: true, wrongProxyUrl: daemon.url });
     await flushAsync();
 
     // Handler side effects: meta mirrors the toggle, prefs.updated broadcast.
     expect(ctx.meta['wrongProxyEnabled']).toBe(true);
     expect(ctx.meta['wrongProxyUrl']).toBe(daemon.url);
-    expect(ctx.broadcast).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'prefs.updated' }),
-    );
+    expect(ctx.broadcast).toHaveBeenCalledWith(expect.objectContaining({ type: 'prefs.updated' }));
     // The probe really reached the daemon stub and flipped active.
     expect(getProxyConfig()).toEqual({ enabled: true, url: daemon.url, active: true });
     // The rebuild ran through the transition gate with the ROUTED URL.
@@ -204,11 +199,11 @@ describe('WrongProxy Settings toggle — e2e through the real prefs pipeline', (
     const ctx = makePrefsCtx();
 
     // Full on → off cycle through the prefs pipeline only.
-    await handlePrefsUpdate(ctx, ws, {  wrongProxyEnabled: true, wrongProxyUrl: daemon.url  });
+    await handlePrefsUpdate(ctx, ws, { wrongProxyEnabled: true, wrongProxyUrl: daemon.url });
     await flushAsync();
     expect(makeProviderFromConfig).toHaveBeenCalledTimes(1);
 
-    await handlePrefsUpdate(ctx, ws, {  wrongProxyEnabled: false  });
+    await handlePrefsUpdate(ctx, ws, { wrongProxyEnabled: false });
     await flushAsync();
 
     // Second rebuild built DIRECT: no proxy-prefixed baseUrl anywhere.
@@ -231,7 +226,7 @@ describe('WrongProxy Settings toggle — e2e through the real prefs pipeline', (
 
     // The original complaint: proxy on but unreachable must not blow up.
     await expect(
-      handlePrefsUpdate(ctx, ws, {  wrongProxyEnabled: true, wrongProxyUrl: deadUrl  }),
+      handlePrefsUpdate(ctx, ws, { wrongProxyEnabled: true, wrongProxyUrl: deadUrl }),
     ).resolves.toBeUndefined();
     await flushAsync();
 

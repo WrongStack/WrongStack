@@ -209,6 +209,10 @@ describe('setupEvents session scoping', () => {
           ],
         }),
       }),
+      // Delivered to the PARENT tab. `payload.sessionId` names the subagent's
+      // own session so CodeMap can attribute the node, but no tab subscribes
+      // to a subagent session — routing on it dropped the event at the wire.
+      'session-live',
     );
     dispose();
   });

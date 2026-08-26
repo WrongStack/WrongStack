@@ -8,11 +8,19 @@
 import { Bot, CheckCircle2, LayoutGrid, ListFilter, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { cn } from '@/lib/utils';
-import { selectLeaderName, selectSortedAgentList, useFleetStore, useSessionStore, useUIStore } from '@/stores';
-import { useAppTranslation } from '@/i18n';
-import { FleetSummaryBar } from '@/components/agents/FleetSummaryBar';
 import { AgentRosterCard } from '@/components/agents/AgentRosterCard';
+import { FleetSummaryBar } from '@/components/agents/FleetSummaryBar';
+import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
+import { cn } from '@/lib/utils';
+import { openMainView, showPanel } from '@/lib/view-navigation';
+import {
+  selectSortedAgentList,
+  useFleetStore,
+  useSessionLeaderId,
+  useSessionStore,
+  useUIStore,
+} from '@/stores';
 
 type AgentFilter = 'all' | 'running' | 'completed' | 'failed';
 
@@ -31,10 +39,12 @@ export function AgentsPanel() {
   // through useSyncExternalStore, so the selected snapshot must keep its
   // reference while the underlying values are unchanged.
   const fleetList = useFleetStore(useShallow(selectSortedAgentList));
-  const leaderId = useFleetStore((s) => s.leaderId);
-  const leaderName = useFleetStore(selectLeaderName);
   const clearFinishedAgents = useFleetStore((s) => s.clearFinishedAgents);
   const currentSessionId = useSessionStore((s) => s.session?.id);
+  // Leader and its name come from THIS tab — the process-wide pointer and
+  // `selectLeaderName` name whichever session promoted a leader last.
+  const leaderId = useSessionLeaderId(currentSessionId);
+  const leaderName = useFleetStore((s) => (leaderId ? s.agents.get(leaderId)?.name : undefined));
   const { t } = useAppTranslation();
 
   const [filter, setFilter] = useState<AgentFilter>('all');
@@ -44,10 +54,7 @@ export function AgentsPanel() {
   const [showHint, setShowHint] = useState(true);
 
   const sessionFleetList = useMemo(
-    () =>
-      fleetList.filter(
-        (a) => !a.sessionId || !currentSessionId || a.sessionId === currentSessionId,
-      ),
+    () => fleetList.filter((a) => agentBelongsToSession(a.sessionId, currentSessionId)),
     [fleetList, currentSessionId],
   );
 
@@ -63,19 +70,15 @@ export function AgentsPanel() {
 
   // Agents are bounded (active fleet), show all without pagination.
 
-  const hasFinished = sessionFleetList.some(
-    (a) => a.status !== 'running',
-  );
+  const hasFinished = sessionFleetList.some((a) => a.status !== 'running');
 
   const openFleetInspector = useCallback((agentId?: string) => {
-    const ui = useUIStore.getState();
     if (agentId) {
-      ui.setInspectorFocusedAgentId(agentId);
-      ui.setInspectorTab('agents');
+      useUIStore.getState().setSubagentChatFocus(agentId);
+      showPanel('chat');
     } else {
-      ui.setInspectorTab('fleet');
+      openMainView('roster');
     }
-    ui.setInspectorOpen(true);
   }, []);
 
   const toggleAgent = useCallback((id: string) => {
@@ -83,44 +86,47 @@ export function AgentsPanel() {
   }, []);
 
   // ── Keyboard navigation ─────────────────────────────────────────
-  const handleRosterKeyDown = useCallback((e: React.KeyboardEvent) => {
-    const page = filteredList;
-    if (page.length === 0) return;
+  const handleRosterKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const page = filteredList;
+      if (page.length === 0) return;
 
-    switch (e.key) {
-      case 'ArrowDown': {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.min(prev + 1, page.length - 1);
-          setShowHint(false);
-          return next;
-        });
-        break;
-      }
-      case 'ArrowUp': {
-        e.preventDefault();
-        setFocusedIndex((prev) => {
-          const next = Math.max(prev - 1, 0);
-          setShowHint(false);
-          return next;
-        });
-        break;
-      }
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < page.length) {
-          toggleAgent(page[focusedIndex]!.id);
+      switch (e.key) {
+        case 'ArrowDown': {
+          e.preventDefault();
+          setFocusedIndex((prev) => {
+            const next = Math.min(prev + 1, page.length - 1);
+            setShowHint(false);
+            return next;
+          });
+          break;
         }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        if (expandedAgentId) {
-          setExpandedAgentId(null);
+        case 'ArrowUp': {
+          e.preventDefault();
+          setFocusedIndex((prev) => {
+            const next = Math.max(prev - 1, 0);
+            setShowHint(false);
+            return next;
+          });
+          break;
         }
-        break;
-    }
-  }, [filteredList, focusedIndex, toggleAgent, expandedAgentId]);
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          if (focusedIndex >= 0 && focusedIndex < page.length) {
+            toggleAgent(page[focusedIndex]!.id);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          if (expandedAgentId) {
+            setExpandedAgentId(null);
+          }
+          break;
+      }
+    },
+    [filteredList, focusedIndex, toggleAgent, expandedAgentId],
+  );
 
   // Focus the card element when focusedIndex changes.
   useEffect(() => {
@@ -133,9 +139,7 @@ export function AgentsPanel() {
 
   // ── Empty states ──────────────────────────────────────────────────
   // Three distinct states: no agents ever, filtered out, all finished.
-  const allFinished =
-    fleetList.length > 0 &&
-    fleetList.every((a) => a.status !== 'running');
+  const allFinished = fleetList.length > 0 && fleetList.every((a) => a.status !== 'running');
 
   if (fleetList.length === 0) {
     return (
@@ -163,7 +167,9 @@ export function AgentsPanel() {
               <ListFilter className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-semibold text-foreground">{t('activity:agents.emptyFilteredTitle')}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {t('activity:agents.emptyFilteredTitle')}
+              </p>
               <p className="mt-1 text-xs">{t('activity:agents.emptyFilteredHint')}</p>
             </div>
             <button
@@ -189,12 +195,15 @@ export function AgentsPanel() {
               <CheckCircle2 className="h-5 w-5" />
             </span>
             <div>
-              <p className="text-sm font-semibold text-foreground">{t('activity:agents.emptyFinishedTitle')}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {t('activity:agents.emptyFinishedTitle')}
+              </p>
               <p className="mt-1 text-xs">{t('activity:agents.emptyFinishedHint')}</p>
               <p className="mt-2 text-[11px] tabular-nums text-muted-foreground">
                 {t('activity:agents.emptyFinishedStats', {
                   completed: fleetList.filter((a) => a.status === 'completed').length,
-                  failed: fleetList.filter((a) => a.status === 'failed' || a.status === 'timeout').length,
+                  failed: fleetList.filter((a) => a.status === 'failed' || a.status === 'timeout')
+                    .length,
                 })}
               </p>
             </div>
@@ -256,7 +265,9 @@ export function AgentsPanel() {
         ref={rosterRef}
         role="listbox"
         aria-label={t('activity:agentsPanel.agentRoster')}
-        aria-activedescendant={focusedIndex >= 0 ? `agent-card-${filteredList[focusedIndex]?.id}` : undefined}
+        aria-activedescendant={
+          focusedIndex >= 0 ? `agent-card-${filteredList[focusedIndex]?.id}` : undefined
+        }
         tabIndex={0}
         onKeyDown={handleRosterKeyDown}
         className="min-h-0 min-w-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.35)] p-2"

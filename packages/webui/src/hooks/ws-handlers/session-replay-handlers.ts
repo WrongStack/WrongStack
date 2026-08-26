@@ -10,16 +10,32 @@ import { getWSClient } from '@/lib/ws-client';
 import type { ChatMessage, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
-  useChatStore,
   useConfigStore,
   useFileStore,
   useFleetStore,
   useProviderStatusStore,
   useSessionStore,
+  useSessionTabStore,
   useUIStore,
 } from '@/stores';
-import { memorySessionSnapshots } from '@/stores/session-store';
+import {
+  activeLaneId,
+  adoptDefaultLane,
+  chatLane,
+  DEFAULT_LANE_ID,
+  ensureLane,
+  hasLane,
+  MAX_LANES,
+  setActiveLane,
+} from '@/stores/chat-lanes';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
+import {
+  adoptDefaultSessionLane,
+  ensureSessionLane,
+  sessionLane,
+  setActiveSessionLane,
+  setSessionGlobals,
+} from '@/stores/session-lanes';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 
@@ -196,6 +212,21 @@ export function hydrateReplayMessages(
   return messages;
 }
 
+/**
+ * `session.start` is how EVERY tab change arrives: `session.new` and
+ * `session.resume` both answer with one, and the server also re-announces on
+ * model switch and at boot.
+ *
+ * Under the lane model this handler has one job — fill the NAMED session's
+ * lane — and one decision: does this session come to the front?
+ *
+ * What it deliberately no longer does is park, snapshot, restore or clear
+ * anybody else's state. Every lane keeps its own transcript whether or not it
+ * is on screen, so there is nothing to save on the way out and nothing to
+ * rebuild on the way in. That bookkeeping is where the cross-tab damage lived:
+ * a swap that cleared instead of parked lost the outgoing transcript, and one
+ * that restored under a stale key handed it to the wrong tab.
+ */
 export function handleSessionStart(msg: WSServerMessage) {
   const vizStart = wsToVizEvent('session.start', msg.payload as Record<string, unknown>);
   if (vizStart) {
@@ -209,6 +240,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     provider: unknown;
     maxContext?: number | undefined;
     projectName?: string | undefined;
+    projectRoot?: string | undefined;
     cwd?: string | undefined;
     mode?: string | undefined;
     contextMode?: string | undefined;
@@ -216,9 +248,16 @@ export function handleSessionStart(msg: WSServerMessage) {
     outputCost?: number | undefined;
     cacheReadCost?: number | undefined;
     lastInputTokens?: number | undefined;
+    reasoningEffortLevels?: string[] | undefined;
+    isRunning?: boolean | undefined;
     reset?: boolean | undefined;
     clearedSessionId?: string | undefined;
     needsSetup?: boolean | undefined;
+    replayMessages?: ReplayMessage[] | undefined;
+    replayMarkers?: SessionMarker[] | undefined;
+    replayUsage?:
+      | { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+      | undefined;
     providerStatuses?: Array<{
       providerId: string;
       model: string;
@@ -231,24 +270,18 @@ export function handleSessionStart(msg: WSServerMessage) {
     latestVersion?: unknown;
     updateAvailable?: unknown;
   };
-  const currentConfig = useConfigStore.getState();
-  const currentSession = useSessionStore.getState().session;
-  const rawProvider = sessionRouteIdentifier(payload.provider);
-  const rawModel = sessionRouteIdentifier(payload.model);
-  const provider = rawProvider || currentConfig.provider || currentSession?.provider || '';
-  const model = rawModel || currentConfig.model || currentSession?.model || '';
-  const prev = useSessionStore.getState().session?.id;
-  const isNew = !prev || prev !== payload.sessionId;
-  const isReset = isNew || payload.reset;
 
+  const sessionId = payload.sessionId;
+  if (!sessionId) return;
+
+  // -- Project-wide state (shared by all four tabs) ---------------------
   if (payload.appVersion || payload.latestVersion) {
-    useSessionStore.getState().setUpdateInfo({
+    setSessionGlobals({
       appVersion: String(payload.appVersion ?? ''),
       latestVersion: String(payload.latestVersion ?? ''),
       updateAvailable: Boolean(payload.updateAvailable),
     });
   }
-
   if (Array.isArray(payload.providerStatuses)) {
     useProviderStatusStore.getState().hydrate(
       payload.providerStatuses.map((status) => ({
@@ -261,165 +294,182 @@ export function handleSessionStart(msg: WSServerMessage) {
       })),
     );
   }
+  if (payload.needsSetup) navigateToView('setup');
 
-  if (payload.needsSetup) {
-    navigateToView('setup');
-  }
+  const globals: Parameters<typeof setSessionGlobals>[0] = {};
+  if (payload.projectRoot !== undefined) globals.projectRoot = payload.projectRoot;
+  if (payload.projectName !== undefined) globals.projectName = payload.projectName;
+  if (payload.cwd !== undefined) globals.cwd = payload.cwd;
+  if (Object.keys(globals).length > 0) setSessionGlobals(globals);
 
-  const sessionId = payload.sessionId;
-  const currentActiveSessionId = useSessionStore.getState().session?.id;
-  const isCurrentActive = !sessionId || currentActiveSessionId === sessionId;
+  // -- The lane this announcement is about ------------------------------
+  const isFirstSightOfLane = !hasLane(sessionId);
+  // Anything typed before a session existed belongs to the first real one.
+  adoptDefaultLane(sessionId);
+  adoptDefaultSessionLane(sessionId);
+  ensureLane(sessionId);
+  ensureSessionLane(sessionId);
 
-  if (sessionId) {
-    const existing = memorySessionSnapshots.get(sessionId);
-    memorySessionSnapshots.set(sessionId, {
-      session: {
-        id: sessionId,
-        startedAt: existing?.startTime ?? Date.now(),
-        model,
-        provider,
-      },
-      provider: provider || existing?.provider,
-      model: model || existing?.model,
-      mode: payload.mode || existing?.mode || 'default',
-      contextMode: payload.contextMode || existing?.contextMode || 'balanced',
-      totalTokens: existing?.totalTokens ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      lastInputTokens: (payload as { lastInputTokens?: number }).lastInputTokens ?? existing?.lastInputTokens ?? 0,
-      cost: existing?.cost ?? 0,
-      startTime: existing?.startTime ?? Date.now(),
-      maxContext: payload.maxContext ?? existing?.maxContext ?? 0,
-      reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] }).reasoningEffortLevels ?? existing?.reasoningEffortLevels,
-      cacheStats: existing?.cacheStats ?? null,
-      iteration: existing?.iteration ?? null,
-      todos: existing?.todos ?? [],
-    });
-  }
+  const chat = chatLane(sessionId);
+  const meta = sessionLane(sessionId);
+
+  const currentConfig = useConfigStore.getState();
+  const laneSession = meta.data.session;
+  const rawProvider = sessionRouteIdentifier(payload.provider);
+  const rawModel = sessionRouteIdentifier(payload.model);
+  const provider = rawProvider || laneSession?.provider || currentConfig.provider || '';
+  const model = rawModel || laneSession?.model || currentConfig.model || '';
+
+  const isRunning = Boolean(payload.isRunning);
+  // Switching BACK to a tab we already hold answers with `reset: true` as well
+  // — the session id changed from the server's point of view. Treating that as
+  // a reset is what zeroed a tab's transcript and counters the moment you
+  // returned to it, so a lane we already know is only reset when it is the one
+  // already in front (a genuine in-place clear).
+  const returningToKnownTab = !isFirstSightOfLane && activeLaneId() !== sessionId;
+  const isReset = isFirstSightOfLane || (payload.reset === true && !returningToKnownTab);
 
   if (isReset) {
+    meta.startSession({ id: sessionId, startedAt: Date.now(), model, provider });
     useMemoryInjectorTraceStore.getState().clear();
-    useSessionStore.getState().startSession({
-      id: payload.sessionId,
-      startedAt: Date.now(),
-      model,
-      provider,
-    });
   } else {
-    useSessionStore.getState().setSession({
-      id: payload.sessionId,
-      startedAt: useSessionStore.getState().session?.startedAt ?? Date.now(),
+    meta.setSession({
+      id: sessionId,
+      startedAt: laneSession?.startedAt ?? Date.now(),
       model,
       provider,
+      ...(laneSession?.title ? { title: laneSession.title } : {}),
     });
   }
 
-  useSessionStore.getState().setEnv({
+  meta.setEnvRates({
     maxContext: payload.maxContext,
-    projectRoot: (payload as { projectRoot?: string }).projectRoot ?? '',
-    projectName: payload.projectName,
-    cwd: payload.cwd,
     mode: payload.mode,
     contextMode: payload.contextMode,
     inputCost: payload.inputCost,
     outputCost: payload.outputCost,
     cacheReadCost: payload.cacheReadCost,
-    // Always pass the key (even undefined) so the store's key-presence
-    // semantics replace a previous model's list on switch.
-    reasoningEffortLevels: (payload as { reasoningEffortLevels?: string[] }).reasoningEffortLevels,
+    reasoningEffortLevels: payload.reasoningEffortLevels,
+    // Key-presence: an omitted list means "this model advertises none".
+    hasReasoningEffortKey: 'reasoningEffortLevels' in payload,
   });
-  if (provider && model) {
-    useConfigStore.getState().setConfig({ provider, model });
-  } else if (provider) {
-    useConfigStore.getState().setConfig({ provider });
+
+  // -- Transcript -------------------------------------------------------
+  const replay = payload.replayMessages;
+  const hydrated =
+    replay && replay.length > 0 ? hydrateReplayMessages(replay, payload.replayMarkers ?? []) : [];
+  const hasLiveTranscript = chat.messages.length > 0;
+  if (hydrated.length > 0 && !(isRunning && hasLiveTranscript)) {
+    // Server replay wins, except for a lane whose run is still streaming: its
+    // in-memory transcript is ahead of anything the journal can replay.
+    chat.setMessages(hydrated);
+  } else if (isReset && payload.reset === true && hydrated.length === 0 && !isRunning) {
+    chat.clearMessages();
+  }
+  if (!isRunning) chat.clearThinking();
+  chat.setLoading(isRunning);
+
+  // -- Replay accounting ------------------------------------------------
+  const usage = payload.replayUsage;
+  if (replay && usage) {
+    const rates = meta.data;
+    const input = usage.input ?? 0;
+    const output = usage.output ?? 0;
+    const cacheRead = usage.cacheRead ?? 0;
+    const cacheWrite = usage.cacheWrite ?? 0;
+    meta.patch({
+      totalTokens: { input, output, cacheRead, cacheWrite },
+      cost:
+        ((input + cacheWrite) * rates.inputCost +
+          output * rates.outputCost +
+          cacheRead * rates.cacheReadCost) /
+        1_000_000,
+    });
+  }
+  const serverLastInput = payload.lastInputTokens;
+  if (typeof serverLastInput === 'number' && serverLastInput > 0) {
+    meta.patch({ lastInputTokens: serverLastInput });
+  } else if (usage) {
+    const totalPrompt = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+    if (totalPrompt > 0) meta.patch({ lastInputTokens: totalPrompt });
   }
 
-  const isRunning = Boolean((payload as { isRunning?: boolean }).isRunning);
+  // -- Subagents belong to their session --------------------------------
+  // Retiring one session must not wipe the fleets of the tabs still running.
+  const retiredSessionId = payload.clearedSessionId;
+  if (retiredSessionId) {
+    const survivors = new Map<string, SubagentView>();
+    for (const [id, agent] of useFleetStore.getState().agents) {
+      if (agent.sessionId !== retiredSessionId) survivors.set(id, agent);
+    }
+    useFleetStore.setState({ agents: survivors });
+  }
+
+  // -- Does this session come to the front? -----------------------------
+  // Only when THIS client asked for it, or when nothing is in front yet.
+  // A server-side re-announce for a background tab (model switch, a
+  // re-broadcast) updates the lane above and stops here — yanking the user out
+  // of the tab they are typing in is exactly the "tabs go haywire" symptom
+  // this design exists to remove.
+  const activeId = activeLaneId();
+  const nothingInFront = activeId === DEFAULT_LANE_ID || !hasLane(activeId);
+  const requested = claimRequestedSwitch(sessionId);
+  const tabStore = useSessionTabStore.getState();
+  if (!requested && !nothingInFront && activeId !== sessionId) {
+    if (!tabStore.openTabIds.includes(sessionId)) {
+      // Give it a slot so the tab strip shows it, but leave the pointer alone.
+      tabStore.setOpenTabIds([...tabStore.openTabIds, sessionId].slice(-MAX_LANES));
+    }
+    return;
+  }
+
+  // Bring it forward. `openTab` owns slot assignment AND the lane pointer;
+  // there is no second path that binds a session to the surface.
+  if (!tabStore.openTabIds.includes(sessionId)) {
+    tabStore.openTab(sessionId, {});
+  } else {
+    setActiveLane(sessionId);
+    setActiveSessionLane(sessionId);
+    tabStore.markSeen(sessionId);
+  }
+
+  if (provider && model) useConfigStore.getState().setConfig({ provider, model });
+  else if (provider) useConfigStore.getState().setConfig({ provider });
+
+  setFaviconStatus(isRunning ? 'running' : 'ready');
+
   if (isReset) {
     if (!payload.needsSetup && isDesktopShell() && !isRoutePinnedView()) {
       resetUiNavigationToHome({ sidebarOpen: false });
     }
-    if (!isRunning) {
-      streamCoalescer.dropAll();
-      useChatStore.getState().clearThinking();
-    }
-    useChatStore.getState().setCurrentAssistantMessage(null);
-    useChatStore.getState().setCurrentToolId(null);
-    useChatStore.getState().setBoundSessionId(payload.sessionId);
     useUIStore.getState().setSearchActiveMessageId(null);
-    useChatStore.getState().setLoading(isRunning);
-    useSessionStore.setState({ todos: [] });
-    setFaviconStatus(isRunning ? 'running' : 'ready');
-
-    const fleet = useFleetStore.getState();
-    if (payload.clearedSessionId) {
-      const survivors = new Map<string, SubagentView>();
-      for (const [id, agent] of fleet.agents) {
-        if (agent.sessionId !== payload.clearedSessionId) {
-          survivors.set(id, agent);
-        }
-      }
-      useFleetStore.setState({ agents: survivors });
-    } else {
-      fleet.clear();
-    }
-
     useFileStore.getState().setTreeLoading(true);
     reconcileFileTabsAfterEnvChange(useSessionStore.getState().projectRoot);
     getWSClient().send({ type: 'files.tree', payload: { path: useSessionStore.getState().cwd } });
   }
 
-  const replay = (payload as { replayMessages?: ReplayMessage[] }).replayMessages;
-  const replayMarkers = (payload as { replayMarkers?: SessionMarker[] }).replayMarkers ?? [];
-
-  if (replay && replay.length > 0) {
-    const chat = useChatStore.getState();
-    chat.setMessages(hydrateReplayMessages(replay, replayMarkers));
-    chat.setBoundSessionId(payload.sessionId);
-    if (isRunning) {
-      chat.setLoading(true);
-      setFaviconStatus('running');
-    }
-  } else if (isReset) {
-    useChatStore.getState().clearMessages();
-    useChatStore.getState().setBoundSessionId(payload.sessionId);
-    useChatStore.getState().setLoading(isRunning);
-    setFaviconStatus(isRunning ? 'running' : 'ready');
+  if (replay && !payload.needsSetup && !isRoutePinnedView()) {
+    if (isDesktopShell()) resetUiNavigationToHome({ sidebarOpen: false });
+    else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
   }
-  if (replay) {
-    const usage = (
-      payload as {
-        replayUsage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number };
-      }
-    ).replayUsage;
-    if (usage) {
-      const rates = useSessionStore.getState();
-      const input = usage.input ?? 0;
-      const output = usage.output ?? 0;
-      const cacheRead = usage.cacheRead ?? 0;
-      const cacheWrite = usage.cacheWrite ?? 0;
-      useSessionStore.setState({
-        totalTokens: { input, output, cacheRead, cacheWrite },
-        cost:
-          ((input + cacheWrite) * rates.inputCost +
-            output * rates.outputCost +
-            cacheRead * rates.cacheReadCost) /
-          1_000_000,
-      });
-    }
-    const serverLastInput = (payload as { lastInputTokens?: number }).lastInputTokens;
-    if (typeof serverLastInput === 'number' && serverLastInput > 0) {
-      useSessionStore.setState({ lastInputTokens: serverLastInput });
-    } else if (usage) {
-      const totalPrompt = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
-      if (totalPrompt > 0) useSessionStore.setState({ lastInputTokens: totalPrompt });
-    }
-    if (isReset && !payload.needsSetup) {
-      if (!isRoutePinnedView()) {
-        if (isDesktopShell()) resetUiNavigationToHome({ sidebarOpen: false });
-        else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
-      }
-    }
-    if (isMobileViewport()) {
-      useUIStore.getState().setSidebarOpen(false);
-    }
+  if (replay && isMobileViewport()) useUIStore.getState().setSidebarOpen(false);
+}
+
+/**
+ * Claim the "this client asked to switch HERE" grant for one session.
+ *
+ * Keyed by session id, and one-shot in both directions: a later unrequested
+ * announce for the same session does not inherit the grant, and — the part
+ * that matters with four tabs live — an announce for a DIFFERENT session
+ * cannot spend it. `session.start` arrives constantly for sessions nobody
+ * clicked (a background tab's answer landing late, a server re-announce), and
+ * while the grant was a bare boolean the first such arrival took the
+ * foreground and left the tab the user actually clicked looking unrequested.
+ */
+function claimRequestedSwitch(sessionId: string): boolean {
+  try {
+    return getWSClient().consumeRequestedSwitch(sessionId);
+  } catch {
+    return false;
   }
 }

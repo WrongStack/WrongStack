@@ -405,7 +405,10 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
           `Repaired context tool adjacency: removed ${repaired.report.removedToolUses.length} tool_use block(s), ` +
             `${repaired.report.removedToolResults.length} tool_result block(s), ` +
             `${repaired.report.removedMessages} empty message(s)` +
-            formatAdjacencyRepairIds(repaired.report.removedToolUses, repaired.report.removedToolResults),
+            formatAdjacencyRepairIds(
+              repaired.report.removedToolUses,
+              repaired.report.removedToolResults,
+            ),
         );
       }
     }
@@ -514,6 +517,12 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
         content: res.content,
         stopReason: res.stopReason,
         usage: res.usage,
+        // Stamp the routed identity alongside the usage it produced. Both are
+        // already resolved here (they are what tokenCounter.account was just
+        // handed), and without them the journal's only token record is
+        // unattributable — see the `model`/`provider` docs on SessionEvent.
+        model: req.model,
+        provider: requestProvider.id,
       });
       a.ctx.state.appendMessage({ role: 'assistant', content: res.content });
       // If the assistant emitted tool_use blocks, mark the message adjacency

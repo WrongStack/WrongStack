@@ -7,25 +7,34 @@ describe('WrongStackWebSocketClient session transitions', () => {
     streamCoalescer.dropAll();
   });
 
-  it('drops pending streams before requesting a new session', () => {
+  // Opening or switching a tab is NOT a discard: the buffered tokens belong to
+  // the session being left, which stays open and will be clicked back into.
+  // Dropping them truncated a streaming reply mid-sentence. They are flushed
+  // into that session instead, before handleSessionStart snapshots it.
+  it('flushes pending streams into the outgoing session when opening a new one', () => {
     const flush = vi.fn();
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
     streamCoalescer.push('__thinking__', 'stale thinking', flush);
 
     client.newSession();
-    streamCoalescer.flushAll();
 
+    expect(flush).toHaveBeenCalledWith('__thinking__', 'stale thinking');
+    // Nothing is left buffered for the incoming tab to inherit.
+    flush.mockClear();
+    streamCoalescer.flushAll();
     expect(flush).not.toHaveBeenCalled();
   });
 
-  it('drops pending streams before resuming a session', () => {
+  it('flushes pending streams into the outgoing session when resuming another', () => {
     const flush = vi.fn();
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
     streamCoalescer.push('assistant_1', 'stale assistant text', flush);
 
     client.resumeSessionById('sess_1');
-    streamCoalescer.flushAll();
 
+    expect(flush).toHaveBeenCalledWith('assistant_1', 'stale assistant text');
+    flush.mockClear();
+    streamCoalescer.flushAll();
     expect(flush).not.toHaveBeenCalled();
   });
 
@@ -48,7 +57,6 @@ describe('WrongStackWebSocketClient session transitions', () => {
 
     expect(flush).not.toHaveBeenCalled();
   });
-
 });
 
 describe('WrongStackWebSocketClient auth bootstrap', () => {

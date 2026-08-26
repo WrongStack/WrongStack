@@ -1,16 +1,34 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { shouldSkipSessionDirectoryEntry } from '../storage/session-store/directory-scan.js';
+import { totalUsageTokens } from '../types/provider.js';
 import type { SessionEvent, SessionSummary } from '../types/session.js';
 import { isSessionTranscriptFileName } from '../utils/session-scoped-path.js';
 import { parseJson } from './store-schema.js';
 
+/**
+ * Collect the transcript/summary files this catalog indexes.
+ *
+ * Skips exactly what `DefaultSessionStore`'s own directory scan skips — see
+ * `shouldSkipSessionDirectoryEntry`. The two disagreed: the store excluded
+ * `subagents/` (and `shared/`, `attachments/`) from what counts as a session,
+ * while this walk descended into them, so a full rebuild pushed subagent
+ * transcripts into the table backing the user's session list. On a real project
+ * that is 3,156 worker transcripts against 170 actual sessions; the five
+ * subagent rows found in a live catalog were this leak already in progress.
+ *
+ * Subagent transcripts are not unindexed — each director run maintains its own
+ * `_index.jsonl` beside them. They just are not user-resumable sessions.
+ */
 export function walkSessionFiles(root: string, suffix: string): string[] {
   const result: string[] = [];
   const visit = (dir: string): void => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       if (entry.isDirectory()) {
-        if (entry.name !== '_cas' && entry.name !== '_trash') visit(path.join(dir, entry.name));
+        if (entry.name === '_cas' || entry.name === '_trash') continue;
+        if (shouldSkipSessionDirectoryEntry(entry.name)) continue;
+        visit(path.join(dir, entry.name));
       } else if (entry.isFile() && entry.name.endsWith(suffix))
         result.push(path.join(dir, entry.name));
     }
@@ -29,6 +47,8 @@ export function summarizeTranscriptFile(transcriptFilePath: string, id: string):
   let toolCallCount = 0;
   let compactionCount = 0;
   let tokenTotal = 0;
+  let routedModel: string | undefined;
+  let routedProvider: string | undefined;
   for (const line of lines) {
     if (!line) continue;
     let event: SessionEvent;
@@ -47,11 +67,13 @@ export function summarizeTranscriptFile(transcriptFilePath: string, id: string):
       messageCount++;
     if (event.type === 'llm_response') {
       iterationCount++;
-      tokenTotal +=
-        event.usage.input +
-        event.usage.output +
-        (event.usage.cacheRead ?? 0) +
-        (event.usage.cacheWrite ?? 0);
+      tokenTotal += totalUsageTokens(event.usage);
+      // session_start pins the model the session OPENED with; a mid-session
+      // switch or fallback rotation only shows up on the response that used
+      // it. Last writer wins, matching the live tracker and the disk-rebuild
+      // summary builder so all three agree on one row.
+      if (event.model) routedModel = event.model;
+      if (event.provider) routedProvider = event.provider;
     }
     if (event.type === 'tool_call_end') toolCallCount++;
     if (event.type === 'compaction') compactionCount++;
@@ -62,8 +84,8 @@ export function summarizeTranscriptFile(transcriptFilePath: string, id: string):
     title: id,
     startedAt: start.ts,
     ...(endedAt ? { endedAt } : {}),
-    model: start.model,
-    provider: start.provider,
+    model: routedModel ?? start.model,
+    provider: routedProvider ?? start.provider,
     tokenTotal,
     ...(lastActivityAt ? { lastActivityAt } : {}),
     messageCount,

@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // ws-handlers reaches for the live socket (files.tree refetch, mailbox
 // re-query) — stub it so handlers run without a server.
 vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({ send: vi.fn() }),
+  // `consumeRequestedSwitch` is how the real client tells the handler that
+  // THIS surface asked for the swap, so the session may take the foreground.
+  // Without it a `session.start` only fills its own lane, which is what keeps
+  // a background re-announce from yanking the user out of the tab they are in.
+  getWSClient: () => ({ send: vi.fn(), consumeRequestedSwitch: () => true }),
 }));
 
 import { WS_HANDLERS } from '../../src/hooks/ws-handlers';
+import { chatLane, useChatLanes } from '../../src/stores/chat-lanes';
 import { useChatStore } from '../../src/stores/chat-store';
 import { useConfigStore } from '../../src/stores/config-store';
+import { useSessionLanes } from '../../src/stores/session-lanes';
 import { useSessionStore } from '../../src/stores/session-store';
 import { useUIStore } from '../../src/stores/ui-store';
 import type { WSSessionStart } from '../../src/types';
@@ -56,6 +62,10 @@ describe('session.start resume transition', () => {
       })),
     });
     delete (window as unknown as { wrongstackDesktopHost?: unknown }).wrongstackDesktopHost;
+    // Each test resumes `sess_resumed` as if for the first time; a lane left
+    // over from the previous test turns the next resume into a re-announce.
+    useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
     useChatStore.getState().clearMessages();
     useChatStore.getState().setLoading(false);
     useConfigStore.setState({ provider: '', model: '' });
@@ -212,8 +222,18 @@ describe('session.start resume transition', () => {
             { type: 'text', text: 'checking' },
             { type: 'tool_use', id: 'toolu_1', name: 'read', input: { path: 'a.ts' } },
             { type: 'tool_use', id: 'toolu_2', name: 'grep', input: { pattern: 'x' } },
-            { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file contents', is_error: false },
-            { type: 'tool_result', tool_use_id: 'toolu_2', content: [{ type: 'text', text: 'no matches' }], is_error: true },
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_1',
+              content: 'file contents',
+              is_error: false,
+            },
+            {
+              type: 'tool_result',
+              tool_use_id: 'toolu_2',
+              content: [{ type: 'text', text: 'no matches' }],
+              is_error: true,
+            },
             { type: 'text', text: 'done' },
           ],
         },
@@ -237,16 +257,25 @@ describe('session.start resume transition', () => {
   });
 
   it('hydrates replayed messages with one bulk chat-store update', () => {
-    const addSpy = vi.spyOn(useChatStore.getState(), 'addMessage');
-    const setToolResultSpy = vi.spyOn(useChatStore.getState(), 'setToolResult');
-    const setMessagesSpy = vi.spyOn(useChatStore.getState(), 'setMessages');
+    // Spy on the LANE the payload names: hydration is addressed at that
+    // session, not at whichever tab happens to be in front.
+    const lane = chatLane(BASE_PAYLOAD.sessionId);
+    const addSpy = vi.spyOn(lane, 'addMessage');
+    const setToolResultSpy = vi.spyOn(lane, 'setToolResult');
+    const setMessagesSpy = vi.spyOn(lane, 'setMessages');
 
     fireSessionStart({
       ...BASE_PAYLOAD,
       reset: true,
       replayMessages: [
         { role: 'user', content: 'hello' },
-        { role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_1', name: 'read' }, { type: 'tool_result', tool_use_id: 'toolu_1', content: 'ok' }] },
+        {
+          role: 'assistant',
+          content: [
+            { type: 'tool_use', id: 'toolu_1', name: 'read' },
+            { type: 'tool_result', tool_use_id: 'toolu_1', content: 'ok' },
+          ],
+        },
       ],
     });
 
@@ -261,7 +290,11 @@ describe('session.start resume transition', () => {
       reset: true,
       replayMessages: [
         { role: 'user', content: 'hello', ts: '2026-06-11T10:00:00Z' },
-        { role: 'assistant', content: [{ type: 'text', text: 'world' }], ts: '2026-06-11T10:00:30Z' },
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: 'world' }],
+          ts: '2026-06-11T10:00:30Z',
+        },
       ],
       replayMarkers: [
         {

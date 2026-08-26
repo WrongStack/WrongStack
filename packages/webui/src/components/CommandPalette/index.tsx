@@ -1,6 +1,7 @@
 import {
   ArchiveRestore,
   BarChart3,
+  Bot,
   Brain,
   Cpu,
   Database,
@@ -35,12 +36,13 @@ import { streamCoalescer } from '@/lib/stream-coalescer';
 import { cn } from '@/lib/utils';
 import { navigateToView, openMainView, showPanel } from '@/lib/view-navigation';
 import {
-  useGoalRunStore,
   useChatStore,
   useConfigStore,
+  useGoalRunStore,
   useHistoryStore,
   useUIStore,
 } from '@/stores';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { SLASH_COMMANDS } from '../ChatInput/slash-commands.js';
 import {
   type RunChatSlashCommandOptions,
@@ -48,7 +50,6 @@ import {
 } from '../ChatInput/slash-routing.js';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
 import { downloadChatAsHtml, downloadChatAsMarkdown } from './export-utils.js';
-import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 interface PaletteItem {
   id: string;
@@ -236,6 +237,14 @@ export function CommandPalette() {
         icon: SettingsIcon,
         keywords: ['settings', 'config'],
         run: () => openMainView('settings'),
+      },
+      {
+        id: 'roster',
+        category: 'Command',
+        label: t('activity:agentRoster.heading'),
+        icon: Bot,
+        keywords: ['agents', 'roster', 'fleet', 'office', 'subagents'],
+        run: () => openMainView('roster'),
       },
       {
         id: 'model',

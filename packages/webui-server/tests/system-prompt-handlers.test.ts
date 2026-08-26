@@ -118,7 +118,9 @@ describe('prefs.update systemPromptVariant', () => {
     await handlePrefsUpdate(context, {} as never, { systemPromptVariant: 'pro' });
 
     expect(persist).toHaveBeenCalledWith({ systemPromptVariant: 'pro' });
-    expect(applyVariant).toHaveBeenCalledWith('pro');
+    // Second arg is the requesting session: per-tab prompt variants mean the
+    // rebuild has to name which tab it is for (undefined = no tab stamped).
+    expect(applyVariant).toHaveBeenCalledWith('pro', undefined);
     expect(broadcast.mock.calls.map((c) => (c[0] as { type: string }).type)).toContain(
       'system_prompt.info',
     );
@@ -139,7 +141,7 @@ describe('prefs.update systemPromptVariant', () => {
     const failure = send.mock.calls
       .map((c) => c[1] as { payload?: { success?: boolean; message?: string } })
       .find((m) => m.payload?.success === false);
-    expect(failure?.message ?? failure?.payload?.message).toContain('builder exploded');
+    expect(failure?.payload?.message).toContain('builder exploded');
   });
 
   it('rejects a variant that is not on the menu', async () => {

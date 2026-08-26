@@ -67,13 +67,20 @@ function input(): HTMLInputElement {
 }
 
 function rows(): HTMLButtonElement[] {
-  return screen.getAllByRole('button') as HTMLButtonElement[];
+  const candidateButtons = screen
+    .getAllByRole('button')
+    .filter((b) => b.hasAttribute('data-model-candidate')) as HTMLButtonElement[];
+  return candidateButtons.length > 0
+    ? candidateButtons
+    : (screen.getAllByRole('button') as HTMLButtonElement[]);
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   handlers.clear();
   switchModel.mockResolvedValue({ success: true, runActive: false, message: 'ok' });
+  const { useLocalPrefs } = await import('@/stores/local-prefs');
+  useLocalPrefs.setState({ favoriteModels: [] } as never);
   useUIStore.setState({ modelSwitcherOpen: false, paletteOpen: false } as never);
   useConfigStore.setState({ wsUrl: 'ws://x', provider: 'openai', model: 'gpt-4' } as never);
 });
@@ -444,6 +451,54 @@ describe('provider filter', () => {
     await waitFor(() => {
       const reset = screen.getByRole('combobox') as HTMLSelectElement;
       expect(reset.value).toBe('');
+    });
+  });
+});
+
+describe('favorites only filter', () => {
+  it('shows favorites only toggle button', async () => {
+    await openWithCatalogue();
+    expect(screen.getByRole('button', { name: /favorites only/i })).toBeTruthy();
+  });
+
+  it('filters candidates to favorite models when toggled', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ favoriteModels: ['openai/gpt-5'] } as never);
+
+    await openWithCatalogue();
+    expect(screen.getByText('GPT-5')).toBeTruthy();
+    expect(screen.getByText('GPT-4')).toBeTruthy();
+
+    const favToggle = screen.getByRole('button', { name: /favorites only/i });
+    fireEvent.click(favToggle);
+
+    await waitFor(() => {
+      expect(screen.getByText('GPT-5')).toBeTruthy();
+      expect(screen.queryByText('GPT-4')).toBeNull();
+    });
+  });
+
+  it('resets favorites filter when the modal reopens', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ favoriteModels: ['openai/gpt-5'] } as never);
+
+    render(<QuickModelSwitcher />);
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+    emit('providers.saved', { providers: [provider('openai')] });
+    emit('provider.models', { provider: 'openai', models: [model('gpt-5'), model('gpt-4')] });
+
+    await waitFor(() => expect(screen.getByText('GPT-5')).toBeTruthy());
+
+    const favToggle = screen.getByRole('button', { name: /favorites only/i });
+    fireEvent.click(favToggle);
+    await waitFor(() => expect(screen.queryByText('GPT-4')).toBeNull());
+
+    act(() => useUIStore.getState().setModelSwitcherOpen(false));
+    act(() => useUIStore.getState().setModelSwitcherOpen(true));
+
+    await waitFor(() => {
+      expect(screen.getByText('GPT-5')).toBeTruthy();
+      expect(screen.getByText('GPT-4')).toBeTruthy();
     });
   });
 });

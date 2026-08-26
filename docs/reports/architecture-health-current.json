@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-25T20:39:46.809Z",
+  "generatedAt": "2026-08-26T18:46:32.778Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,26 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3374,
-    "testFiles": 2912,
-    "sourceLines": 802528,
+    "sourceFiles": 3376,
+    "testFiles": 2948,
+    "sourceLines": 807669,
     "workspaceEdges": 125,
-    "moduleEdges": 10402,
+    "moduleEdges": 10442,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 826
+    "testOnlyExports": 829
   },
-  "errors": [],
+  "errors": [
+    "packages/core/src/coordination/delegate-tool.ts: hotspot grew from 1017 to 1040 lines; review and update the ratchet in the same change",
+    "packages/webui/src/lib/ws-client.ts: hotspot grew from 1109 to 1229 lines; review and update the ratchet in the same change",
+    "packages/webui/src/lib/ws-client.ts: relative import fan-out decreased from 11 to 10; review and update the ratchet in the same change",
+    "packages/webui-server/src/server/backend-services.ts: hotspot grew from 891 to 920 lines; review and update the ratchet in the same change",
+    "packages/core/src/coordination/agents/index.ts: \"ROLE_DISPATCH_RATIONALE\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json",
+    "packages/cli/src/wiring/tools.ts: \"setupTools\" is no longer test-only; remove it from architecture/test-only-exports.json in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -138,8 +145,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 472,
-      "testFiles": 436,
+      "sourceFiles": 471,
+      "testFiles": 437,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -178,7 +185,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 436
+          "testFiles": 437
         }
       ]
     },
@@ -208,8 +215,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 766,
-      "testFiles": 649,
+      "sourceFiles": 764,
+      "testFiles": 660,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -224,7 +231,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 649
+          "testFiles": 660
         }
       ]
     },
@@ -232,7 +239,7 @@
       "name": "@wrongstack/desktop",
       "dir": "apps/desktop",
       "sourceFiles": 37,
-      "testFiles": 17,
+      "testFiles": 18,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/webui",
@@ -248,7 +255,7 @@
         {
           "path": "apps/desktop/tsconfig.test.json",
           "error": null,
-          "testFiles": 17
+          "testFiles": 18
         }
       ]
     },
@@ -366,7 +373,7 @@
       "name": "@wrongstack/persistence",
       "dir": "packages/persistence",
       "sourceFiles": 6,
-      "testFiles": 5,
+      "testFiles": 6,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -377,7 +384,7 @@
         {
           "path": "packages/persistence/tsconfig.test.json",
           "error": null,
-          "testFiles": 5
+          "testFiles": 6
         }
       ]
     },
@@ -428,7 +435,7 @@
     {
       "name": "@wrongstack/plugins",
       "dir": "packages/plugins",
-      "sourceFiles": 86,
+      "sourceFiles": 83,
       "testFiles": 122,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -798,8 +805,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 468,
-      "testFiles": 347,
+      "sourceFiles": 475,
+      "testFiles": 355,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -823,7 +830,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 347
+          "testFiles": 355
         }
       ]
     },
@@ -855,7 +862,7 @@
       "name": "@wrongstack/webui-protocol",
       "dir": "packages/webui-protocol",
       "sourceFiles": 16,
-      "testFiles": 0,
+      "testFiles": 4,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -864,14 +871,19 @@
           "path": "packages/webui-protocol/tsconfig.json",
           "error": null,
           "testFiles": 0
+        },
+        {
+          "path": "packages/webui-protocol/tsconfig.test.json",
+          "error": null,
+          "testFiles": 4
         }
       ]
     },
     {
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
-      "sourceFiles": 196,
-      "testFiles": 159,
+      "sourceFiles": 197,
+      "testFiles": 168,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -896,7 +908,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 159
+          "testFiles": 168
         }
       ]
     },
@@ -923,11 +935,27 @@
       "name": "wrongstack",
       "dir": "apps/wrongstack",
       "sourceFiles": 1,
-      "testFiles": 0,
+      "testFiles": 1,
       "workspaceDependencies": [
         "@wrongstack/cli"
       ],
-      "tsconfigs": []
+      "tsconfigs": [
+        {
+          "path": "apps/wrongstack/tsconfig.build.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "apps/wrongstack/tsconfig.json",
+          "error": null,
+          "testFiles": 0
+        },
+        {
+          "path": "apps/wrongstack/tsconfig.tests.json",
+          "error": null,
+          "testFiles": 1
+        }
+      ]
     }
   ],
   "cycles": {
@@ -1116,6 +1144,12 @@
         ]
       },
       {
+        "file": "apps/desktop/tests/no-bare-core-imports.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "apps/desktop/tests/renderer-csp.test.ts",
         "projects": [
           "root-node"
@@ -1159,6 +1193,12 @@
       },
       {
         "file": "apps/desktop/tests/webui-controller-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "apps/wrongstack/tests/shim-delegates.test.ts",
         "projects": [
           "root-node"
         ]
@@ -2287,6 +2327,12 @@
       },
       {
         "file": "packages/cli/tests/fleet/subagent-file-snapshots.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/fleet/subagent-session-audit.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4296,6 +4342,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/barrel-imports-ratchet.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/build-allowlist-freshness.test.ts",
         "projects": [
           "root-node"
@@ -4351,6 +4403,12 @@
       },
       {
         "file": "packages/core/tests/architecture/daemon-metadata-lifecycle.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/architecture/deprecated-export-tracker.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4429,6 +4487,12 @@
       },
       {
         "file": "packages/core/tests/architecture/spawn-convention.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/architecture/stale-exception-cleanup.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4537,6 +4601,12 @@
       },
       {
         "file": "packages/core/tests/chronicle/metrics-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/chronicle/metrics-token-attribution.test.ts",
         "projects": [
           "root-node"
         ]
@@ -4717,6 +4787,12 @@
       },
       {
         "file": "packages/core/tests/coordination/brain-ledger.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/brain-monitor-session-targeting.test.ts",
         "projects": [
           "root-node"
         ]
@@ -5022,6 +5098,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/fleet-usage-cumulative.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/hq-mailbox-wiring.test.ts",
         "projects": [
           "root-node"
@@ -5281,6 +5363,12 @@
       },
       {
         "file": "packages/core/tests/coordination/remote-mailbox-credential-store.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/role-dispatch-rationale.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6468,6 +6556,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/infrastructure/token-counter-agent-attribution.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/infrastructure/token-counter.test.ts",
         "projects": [
           "root-node"
@@ -7398,6 +7492,18 @@
         ]
       },
       {
+        "file": "packages/core/tests/storage/session-crash-recovery-e2e.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-crash-sigkill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/storage/session-event-bridge-extra.test.ts",
         "projects": [
           "root-node"
@@ -7573,6 +7679,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-summary.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-token-attribution.test.ts",
         "projects": [
           "root-node"
         ]
@@ -8989,6 +9101,12 @@
       },
       {
         "file": "packages/persistence/tests/project-endpoint.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/persistence/tests/skip-budget-guard.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15480,6 +15598,30 @@
         ]
       },
       {
+        "file": "packages/webui-protocol/tests/connection-fsm.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/decoder.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/registry.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-protocol/tests/replay-payload.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/agent-roster-handlers.test.ts",
         "projects": [
           "root-node"
@@ -15774,7 +15916,19 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/introspection-per-session.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/introspection-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/kanban-activity-attribution.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15793,6 +15947,12 @@
       },
       {
         "file": "packages/webui-server/tests/kanban-decomposition-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/kanban-delete-live-boards.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15888,6 +16048,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/message-dispatcher-session-gate.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/message-dispatcher.test.ts",
         "projects": [
           "root-node"
@@ -15918,6 +16084,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/multi-tab-broadcast.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/network-info.test.ts",
         "projects": [
           "root-node"
@@ -15942,6 +16114,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/parallel-session-runs.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/path-containment.test.ts",
         "projects": [
           "root-node"
@@ -15949,6 +16127,12 @@
       },
       {
         "file": "packages/webui-server/tests/pending-confirms.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/per-session-runtime.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15973,6 +16157,12 @@
       },
       {
         "file": "packages/webui-server/tests/prefs-handlers.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/prefs-per-session-echo.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16368,6 +16558,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/webui-status-logger.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/worklist-dispatcher.test.ts",
         "projects": [
           "root-node"
@@ -16549,6 +16745,12 @@
       },
       {
         "file": "packages/webui/tests/components/chat-input-session-reset.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/chat-keep-alive.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -17256,6 +17458,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/hooks/background-tool-confirm.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/hooks/provider-status-snapshot.test.ts",
         "projects": [
           "webui-jsdom"
@@ -17418,6 +17626,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/hooks/ws-handlers-lane-routing.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/hooks/ws-handlers-loop-detection.test.ts",
         "projects": [
           "webui-jsdom"
@@ -17473,6 +17687,12 @@
       },
       {
         "file": "packages/webui/tests/hooks/ws-handlers-session-start-branches.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/hooks/ws-handlers-session-tab-isolation.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -17653,6 +17873,12 @@
       },
       {
         "file": "packages/webui/tests/lib/file-icons.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/foreground-session-id.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -18270,6 +18496,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/auto-submit-streak-per-session.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/auto-submit-streak.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -18420,6 +18652,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/lane-teardown.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/local-prefs-migrate-real.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18451,6 +18689,12 @@
       },
       {
         "file": "packages/webui/tests/stores/office-map-store.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/stores/per-session-prefs.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -18692,7 +18936,7 @@
     },
     {
       "file": "packages/core/src/chronicle/query.ts",
-      "lines": 920,
+      "lines": 924,
       "relativeImports": 3
     },
     {
@@ -18707,7 +18951,7 @@
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
-      "lines": 1006,
+      "lines": 1040,
       "relativeImports": 9
     },
     {
@@ -18727,7 +18971,7 @@
     },
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1035,
+      "lines": 1057,
       "relativeImports": 11
     },
     {
@@ -18827,7 +19071,7 @@
     },
     {
       "file": "packages/core/src/types/provider.ts",
-      "lines": 872,
+      "lines": 890,
       "relativeImports": 7
     },
     {
@@ -19092,7 +19336,7 @@
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 983,
+      "lines": 1012,
       "relativeImports": 18
     },
     {
@@ -19147,7 +19391,7 @@
     },
     {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
-      "lines": 876,
+      "lines": 902,
       "relativeImports": 0
     },
     {
@@ -19162,13 +19406,23 @@
     },
     {
       "file": "packages/webui/src/hooks/ws-handlers.ts",
-      "lines": 881,
+      "lines": 890,
       "relativeImports": 7
     },
     {
       "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1041,
+      "lines": 1229,
       "relativeImports": 10
+    },
+    {
+      "file": "packages/webui/src/stores/chat-lanes.ts",
+      "lines": 883,
+      "relativeImports": 4
+    },
+    {
+      "file": "packages/webui/src/stores/local-prefs.ts",
+      "lines": 842,
+      "relativeImports": 0
     },
     {
       "file": "packages/webui/src/stores/viz-store.ts",
@@ -19196,6 +19450,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/webui-server/src/server/backend-services.ts",
+      "lines": 920,
+      "relativeImports": 12
+    },
+    {
       "file": "packages/webui-server/src/server/context-editor.ts",
       "lines": 1020,
       "relativeImports": 1
@@ -19212,22 +19471,27 @@
     },
     {
       "file": "packages/webui-server/src/server/kanban-routes.ts",
-      "lines": 982,
-      "relativeImports": 10
+      "lines": 1010,
+      "relativeImports": 11
+    },
+    {
+      "file": "packages/webui-server/src/server/routes.ts",
+      "lines": 854,
+      "relativeImports": 45
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 807,
+      "lines": 1036,
       "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 868,
-      "relativeImports": 26
+      "lines": 969,
+      "relativeImports": 28
     },
     {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
-      "lines": 1001,
+      "lines": 1011,
       "relativeImports": 1
     },
     {
@@ -19246,6 +19510,11 @@
       "file": "packages/tui/src/theme-presets.ts",
       "lines": 1424,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/webui/src/lib/ws-client.ts",
+      "lines": 1229,
+      "relativeImports": 10
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
@@ -19273,19 +19542,24 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
+      "lines": 1057,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
     },
     {
-      "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1041,
-      "relativeImports": 10
+      "file": "packages/core/src/coordination/delegate-tool.ts",
+      "lines": 1040,
+      "relativeImports": 9
     },
     {
-      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1035,
-      "relativeImports": 11
+      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "lines": 1036,
+      "relativeImports": 10
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
@@ -19338,19 +19612,29 @@
       "relativeImports": 9
     },
     {
+      "file": "packages/webui/src/components/ChatInput.tsx",
+      "lines": 1012,
+      "relativeImports": 18
+    },
+    {
+      "file": "packages/webui-server/src/server/ws-payload-validation.ts",
+      "lines": 1011,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/plugins/src/git-autocommit/index.ts",
       "lines": 1010,
       "relativeImports": 0
     },
     {
+      "file": "packages/webui-server/src/server/kanban-routes.ts",
+      "lines": 1010,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1007,
       "relativeImports": 48
-    },
-    {
-      "file": "packages/core/src/coordination/delegate-tool.ts",
-      "lines": 1006,
-      "relativeImports": 9
     },
     {
       "file": "packages/tui/src/components/kanban-panel.tsx",
@@ -19361,11 +19645,6 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/webui-server/src/server/ws-payload-validation.ts",
-      "lines": 1001,
-      "relativeImports": 1
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
@@ -19423,19 +19702,9 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 983,
-      "relativeImports": 18
-    },
-    {
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
       "lines": 982,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/webui-server/src/server/kanban-routes.ts",
-      "lines": 982,
-      "relativeImports": 10
     },
     {
       "file": "packages/tui/src/kanban-slash.ts",
@@ -19468,6 +19737,11 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/webui-server/src/server/start-webui.ts",
+      "lines": 969,
+      "relativeImports": 28
+    },
+    {
       "file": "packages/kanban/src/types.ts",
       "lines": 968,
       "relativeImports": 1
@@ -19481,16 +19755,6 @@
       "file": "packages/tui/src/app-key-handler.ts",
       "lines": 962,
       "relativeImports": 18
-    },
-    {
-      "file": "packages/tui/src/components/status-bar-rails.tsx",
-      "lines": 961,
-      "relativeImports": 12
-    },
-    {
-      "file": "packages/core/src/execution/eternal-autonomy.ts",
-      "lines": 957,
-      "relativeImports": 8
     }
   ],
   "testOnlyExports": [
@@ -20183,10 +20447,6 @@
       "name": "setupSlashCommands"
     },
     {
-      "file": "packages/cli/src/wiring/tools.ts",
-      "name": "setupTools"
-    },
-    {
       "file": "packages/cli/src/wiring/wrongtrace-telemetry.ts",
       "name": "buildWrongTraceTelemetryReport"
     },
@@ -20205,6 +20465,10 @@
     {
       "file": "packages/core/src/coordination/agents/agent-prompts.ts",
       "name": "agentPromptCacheSize"
+    },
+    {
+      "file": "packages/core/src/coordination/agents/index.ts",
+      "name": "ROLE_DISPATCH_RATIONALE"
     },
     {
       "file": "packages/core/src/coordination/agents/phase3-techstack.ts",
@@ -20573,10 +20837,6 @@
     {
       "file": "packages/core/src/storage/session-writer/session-writer-flush.ts",
       "name": "flushBufferSync"
-    },
-    {
-      "file": "packages/core/src/storage/session-writer/session-writer-summary-tracker.ts",
-      "name": "SessionWriterSummaryTracker"
     },
     {
       "file": "packages/core/src/types/provider.ts",
@@ -22255,8 +22515,16 @@
       "name": "webUiGovernanceRuntimeEnabled"
     },
     {
+      "file": "packages/webui-server/src/server/kanban-route-helpers.ts",
+      "name": "actingSessionId"
+    },
+    {
       "file": "packages/webui-server/src/server/mcp-handlers.ts",
       "name": "toView"
+    },
+    {
+      "file": "packages/webui-server/src/server/prefs-handlers.ts",
+      "name": "SESSION_SCOPED_PREF_KEYS"
     },
     {
       "file": "packages/webui-server/src/server/provider-config-standalone.ts",
@@ -22277,6 +22545,10 @@
     {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "name": "validateBrainConfigSetPayload"
+    },
+    {
+      "file": "packages/webui-server/src/server/ws-utils.ts",
+      "name": "clientWantsSession"
     },
     {
       "file": "packages/webui/src/components/activity-bar/index.tsx",
@@ -22513,6 +22785,10 @@
     {
       "file": "packages/webui/src/hooks/ws-handlers.ts",
       "name": "handleToolsList"
+    },
+    {
+      "file": "packages/webui/src/hooks/ws-handlers/chat-handlers.ts",
+      "name": "forgetLaneRunState"
     },
     {
       "file": "packages/webui/src/hooks/ws-handlers/chat-handlers.ts",

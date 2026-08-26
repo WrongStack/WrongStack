@@ -61,10 +61,22 @@ export interface DispatchResult {
  * Provider-agnostic classifier seam. Given the task and the candidate agents
  * (role + summary), return the chosen role (and optional reason), or null to
  * decline. Wire via `makeLLMClassifier`.
+ *
+ * `differentiatesFrom` is present for roles that declare a
+ * `capability.rationale`. The classifier only ever runs on an ambiguous task —
+ * that is exactly when two siblings share vocabulary and a summary alone
+ * cannot separate them — so the contrast line is the most useful thing to hand
+ * it. Optional: legacy roles omit the rationale and the classifier falls back
+ * to `summary` for those.
  */
 export type DispatchClassifier = (
   task: string,
-  candidates: { role: string; name: string; summary: string }[],
+  candidates: {
+    role: string;
+    name: string;
+    summary: string;
+    differentiatesFrom?: string | undefined;
+  }[],
 ) => Promise<{ role: string; reason?: string | undefined } | null>;
 
 export interface DispatchOptions {
@@ -173,6 +185,9 @@ export async function dispatchAgent(
       role: d.config.role as string,
       name: d.config.name,
       summary: d.capability.summary,
+      ...(d.capability.rationale
+        ? { differentiatesFrom: d.capability.rationale.differentiatesFrom }
+        : {}),
     }));
     try {
       const choice = await opts.classifier(task, pool);
@@ -224,7 +239,14 @@ export function makeLLMClassifier(
   complete: (prompt: string) => Promise<string>,
 ): DispatchClassifier {
   return async (task, candidates) => {
-    const list = candidates.map((c, i) => `${i + 1}. ${c.role} — ${c.summary}`).join('\n');
+    const list = candidates
+      .map((c, i) => {
+        const line = `${i + 1}. ${c.role} — ${c.summary}`;
+        // Only roles that declare a rationale contribute a contrast line; the
+        // prompt stays byte-identical for legacy roles that don't.
+        return c.differentiatesFrom ? `${line}\n   vs. siblings: ${c.differentiatesFrom}` : line;
+      })
+      .join('\n');
     const prompt = renderInstructionTemplate(readBundledInstructionText('llm/agent-router.md'), {
       task,
       agents: list,

@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  boundChatField,
   BTW_DISPATCH_GRACE_MS,
+  boundChatField,
   retainWebChatMessages,
+  useChatLanes,
   useChatStore,
 } from '../../src/stores/chat-store';
 import type { ChatMessage } from '../../src/stores/types.js';
@@ -55,7 +56,10 @@ beforeEach(() => {
   // Clear any persisted chat blob so each test starts from the
   // default state rather than whatever the previous test left in
   // localStorage.
-  localStorage.removeItem('wrongstack-chat');
+  localStorage.removeItem('wrongstack-chat-lanes');
+  // Four tabs means four lanes; a test that leaves one behind would hand its
+  // transcript to the next test.
+  useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
 });
 
 afterEach(() => {
@@ -976,25 +980,51 @@ describe('flushThinkingLog', () => {
 //   • runStart (resets per turn)
 //   • toolMessageIdsByUseId (rebuilt from messages via indexToolMessages)
 describe('F5 resilience — chat transcript persistence', () => {
-  it('persists messages + queue + boundSessionId via the localStorage key', () => {
+  const laneOptions = useChatStore.persist.getOptions();
+  const activeLane = (blob: {
+    state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+  }) => blob.state.lanes[blob.state.activeSessionId]!;
+
+  function readBlob() {
+    const raw = localStorage.getItem('wrongstack-chat-lanes');
+    expect(raw).toBeTruthy();
+    return JSON.parse(raw!) as {
+      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+    };
+  }
+
+  it('persists messages + queue + the active tab under the lane key', () => {
+    useChatStore.getState().setBoundSessionId('sess-LIVE');
     addMsg({ role: 'user', content: 'pre-refresh message' });
     useChatStore.getState().enqueue('typed but not sent', 'queue');
-    useChatStore.getState().setBoundSessionId('sess-LIVE');
 
-    const api = (useChatStore as unknown as { persist?: { flush?: () => void } }).persist;
-    api?.flush?.();
+    useChatStore.persist.flush?.();
 
-    const raw = localStorage.getItem('wrongstack-chat');
-    expect(raw).toBeTruthy();
-    const blob = JSON.parse(raw!) as { state: Record<string, unknown> };
-    const persisted = blob.state;
-    expect(Array.isArray(persisted.messages)).toBe(true);
-    expect((persisted.messages as unknown[]).length).toBeGreaterThan(0);
-    expect(persisted.boundSessionId).toBe('sess-LIVE');
-    expect(Array.isArray(persisted.queue)).toBe(true);
+    const blob = readBlob();
+    expect(blob.state.activeSessionId).toBe('sess-LIVE');
+    const lane = activeLane(blob);
+    expect(Array.isArray(lane.messages)).toBe(true);
+    expect((lane.messages as unknown[]).length).toBeGreaterThan(0);
+    expect(Array.isArray(lane.queue)).toBe(true);
+  });
+
+  it('persists a background tab too, so a reload restores all four', () => {
+    // The whole point of lanes: a refresh must not empty the three tabs that
+    // were not in front.
+    useChatStore.getState().setBoundSessionId('sess-A');
+    addMsg({ role: 'user', content: 'tab A' });
+    useChatStore.getState().setBoundSessionId('sess-B');
+    addMsg({ role: 'user', content: 'tab B' });
+
+    useChatStore.persist.flush?.();
+    const blob = readBlob();
+    expect(blob.state.activeSessionId).toBe('sess-B');
+    expect(blob.state.lanes['sess-A']?.messages).toHaveLength(1);
+    expect(blob.state.lanes['sess-B']?.messages).toHaveLength(1);
   });
 
   it('does NOT persist non-serializable runtime fields', () => {
+    useChatStore.getState().setBoundSessionId('sess-LIVE');
     const ac = new AbortController();
     useChatStore.setState({
       isLoading: true,
@@ -1008,115 +1038,112 @@ describe('F5 resilience — chat transcript persistence', () => {
       thinkingStartedAt: 999,
     });
     useChatStore.getState().enqueue('keep this');
-    const api = (useChatStore as unknown as { persist?: { flush?: () => void } }).persist;
-    api?.flush?.();
-    const raw = localStorage.getItem('wrongstack-chat');
-    expect(raw).toBeTruthy();
-    const blob = JSON.parse(raw!) as { state: Record<string, unknown> };
-    const persisted = blob.state;
-    expect(persisted.isLoading).toBeUndefined();
-    expect(persisted.abortController).toBeUndefined();
-    expect(persisted.runStart).toBeUndefined();
-    expect(persisted.currentAssistantMessageId).toBeUndefined();
-    expect(persisted.currentToolId).toBeUndefined();
-    expect(persisted.executions).toBeUndefined();
-    expect(persisted.toolMessageIdsByUseId).toBeUndefined();
-    expect(persisted.thinkingBuffer).toBeUndefined();
-    expect(persisted.thinkingStartedAt).toBeUndefined();
+    useChatStore.persist.flush?.();
+    const lane = activeLane(readBlob());
+    for (const field of [
+      'isLoading',
+      'abortController',
+      'runStart',
+      'currentAssistantMessageId',
+      'currentToolId',
+      'executions',
+      'toolMessageIdsByUseId',
+      'thinkingBuffer',
+      'thinkingStartedAt',
+    ]) {
+      expect(lane[field], field).toBeUndefined();
+    }
+    expect(Array.isArray(lane.queue)).toBe(true);
   });
 
-  it('migrate() drops payloads whose messages/queue are not arrays', () => {
-    setChatPersisted({
-      state: { messages: 'not-an-array', queue: null, boundSessionId: 'X' },
-      version: 1,
-    });
-    const api = (
-      useChatStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const restored = api
-      ?.getOptions?.()
-      .migrate?.({ messages: 'not-an-array', queue: null, boundSessionId: 'X' }, 1);
-    expect(restored).toMatchObject({
-      messages: [],
-      queue: [],
-      boundSessionId: 'X',
-    });
+  it('merge() tolerates a lane whose messages/queue are not arrays', () => {
+    const merged = laneOptions.merge?.(
+      { activeSessionId: 'X', lanes: { X: { messages: 'not-an-array', queue: null } } },
+      { lanes: {}, activeSessionId: '__unbound__' } as never,
+    ) as {
+      activeSessionId: string;
+      lanes: Record<string, { messages: unknown[]; queue: unknown[] }>;
+    };
+    expect(merged.activeSessionId).toBe('X');
+    expect(merged.lanes.X?.messages).toEqual([]);
+    expect(merged.lanes.X?.queue).toEqual([]);
   });
 
-  it('migrate() rejects future versions', () => {
-    const api = (
-      useChatStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const result = api?.getOptions?.().migrate?.({ messages: [] }, 99);
-    expect(result).toBeNull();
+  it('merge() falls back to the pre-session lane when the blob names none', () => {
+    const merged = laneOptions.merge?.({}, {
+      lanes: {},
+      activeSessionId: 'ignored',
+    } as never) as { activeSessionId: string; lanes: Record<string, unknown> };
+    expect(merged.activeSessionId).toBe('__unbound__');
+    expect(merged.lanes).toEqual({});
   });
 
-  it('migrate() stamps `itemId` on v2 queue items that lack one (CHIMERA fix)', () => {
-    // Legacy v2 blob: persisted pending items had no `itemId` field. The v3
-    // schema declares `itemId: number` as required on every QueuedItem, so
-    // migrate must stamp one — otherwise a rehydrated queue would violate the
-    // type contract and `removeQueued`/`dequeue` would see `itemId === undefined`.
-    const api = (
-      useChatStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    const restored = api
-      ?.getOptions?.()
-      .migrate?.(
-        {
-          messages: [],
-          queue: [{ text: 'legacy pending', mode: 'queue', addedAt: 1 }],
-          boundSessionId: null,
-        },
-        2,
-      ) as { queue: Array<{ itemId: number }> } | null;
-    expect(restored).not.toBeNull();
-    expect(restored?.queue).toHaveLength(1);
-    expect(typeof restored?.queue[0]?.itemId).toBe('number');
-    expect(restored?.queue[0]?.itemId).toBeGreaterThan(0);
-  });
-
-  it('migrate() seeds enqueueSequence from max persisted itemId (no id collision after F5)', () => {
-    // After migrate sees a rehydrated itemId, the next live enqueue must
-    // produce a fresh id strictly greater than the persisted one — otherwise
-    // a fade-in's first enqueue could collide with a rehydrated chip's id,
-    // and `removeQueued` would cancel the new chip's grace timer.
-    const api = (
-      useChatStore as unknown as {
-        persist?: { getOptions?: () => { migrate?: (p: unknown, v: number) => unknown } };
-      }
-    ).persist;
-    api?.getOptions?.().migrate?.(
+  it('merge() stamps `itemId` on legacy queue items that lack one (CHIMERA fix)', () => {
+    // Legacy blobs had no `itemId` on persisted pending items, but the current
+    // schema declares it required — `removeQueued`/`dequeue` would otherwise
+    // see `undefined` and cancel the wrong grace timer.
+    const merged = laneOptions.merge?.(
       {
-        messages: [],
-        queue: [{ text: 'rehydrated', mode: 'queue', addedAt: 1, itemId: 42 }],
-        boundSessionId: null,
+        activeSessionId: 'X',
+        lanes: {
+          X: { messages: [], queue: [{ text: 'legacy pending', mode: 'queue', addedAt: 1 }] },
+        },
       },
-      3,
+      { lanes: {}, activeSessionId: '__unbound__' } as never,
+    ) as { lanes: Record<string, { queue: Array<{ itemId: number }> }> };
+    expect(merged.lanes.X?.queue).toHaveLength(1);
+    expect(typeof merged.lanes.X?.queue[0]?.itemId).toBe('number');
+    expect(merged.lanes.X?.queue[0]?.itemId).toBeGreaterThan(0);
+  });
+
+  it('merge() seeds enqueueSequence from the max persisted itemId (no collision after F5)', () => {
+    laneOptions.merge?.(
+      {
+        activeSessionId: 'X',
+        lanes: {
+          X: {
+            messages: [],
+            queue: [{ text: 'rehydrated', mode: 'queue', addedAt: 1, itemId: 42 }],
+          },
+        },
+      },
+      { lanes: {}, activeSessionId: '__unbound__' } as never,
     );
     useChatStore.getState().enqueue('fresh', 'queue');
-    const fresh = useChatStore.getState().queue[0]!;
+    const fresh = useChatStore.getState().queue.at(-1)!;
     expect(fresh.itemId).toBeGreaterThan(42);
   });
 
-  it('clearMessages() also clears boundSessionId (so a rehydrate detects cross-session bleed)', () => {
+  it('merge() keeps at most MAX_LANES lanes', () => {
+    const lanes: Record<string, unknown> = {};
+    for (let i = 0; i < 9; i++) lanes[`s${i}`] = { messages: [], queue: [] };
+    const merged = laneOptions.merge?.({ activeSessionId: 's0', lanes }, {
+      lanes: {},
+      activeSessionId: '__unbound__',
+    } as never) as { lanes: Record<string, unknown> };
+    expect(Object.keys(merged.lanes)).toHaveLength(4);
+  });
+
+  it('clearMessages() empties the lane but leaves the tab bound', () => {
+    // Under lanes the binding IS the tab, not a marker for bleed detection:
+    // clearing a transcript must not orphan the tab that is still on screen.
     useChatStore.getState().setBoundSessionId('sess-A');
     useChatStore.getState().addMessage({ role: 'user', content: 'session A msg' });
     useChatStore.getState().clearMessages();
-    expect(useChatStore.getState().boundSessionId).toBeNull();
+    expect(useChatStore.getState().boundSessionId).toBe('sess-A');
     expect(useChatStore.getState().messages).toEqual([]);
   });
 
-  it('setBoundSessionId() round-trips so the cross-session bleed check has a real signal', () => {
+  it('setBoundSessionId() switches which lane the surface renders', () => {
     useChatStore.getState().setBoundSessionId('sess-A');
-    expect(useChatStore.getState().boundSessionId).toBe('sess-A');
-    useChatStore.getState().setBoundSessionId(null);
-    expect(useChatStore.getState().boundSessionId).toBeNull();
+    useChatStore.getState().addMessage({ role: 'user', content: 'A only' });
+    useChatStore.getState().setBoundSessionId('sess-B');
+    expect(useChatStore.getState().boundSessionId).toBe('sess-B');
+    expect(useChatStore.getState().messages).toEqual([]);
+
+    // ...and switching back finds tab A exactly as it was left.
+    useChatStore.getState().setBoundSessionId('sess-A');
+    expect(useChatStore.getState().messages.map((m) => m.content)).toEqual(['A only']);
   });
 
   it('addMessage caps messages at MAX_CHAT_MESSAGES (1000) and drops oldest', () => {
@@ -1147,8 +1174,8 @@ describe('F5 resilience — chat transcript persistence', () => {
 
 function setChatPersisted(value: Record<string, unknown> | null): void {
   if (value === null) {
-    localStorage.removeItem('wrongstack-chat');
+    localStorage.removeItem('wrongstack-chat-lanes');
     return;
   }
-  localStorage.setItem('wrongstack-chat', JSON.stringify(value));
+  localStorage.setItem('wrongstack-chat-lanes', JSON.stringify(value));
 }

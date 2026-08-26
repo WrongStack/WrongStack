@@ -1,8 +1,10 @@
 import { createReadStream } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import { createInterface } from 'node:readline';
+import { effectiveInputTokens, totalUsageTokens } from '../types/provider.js';
 import type { SessionEvent, SessionMetadata, SessionSummary } from '../types/session.js';
 import { sessionContentPreview, userInputTitle } from './session-helpers.js';
+import { isSessionErrorEvent, resolveSessionOutcome } from './session-outcome.js';
 
 export interface SessionSummaryTrackerOptions {
   id: string;
@@ -34,7 +36,14 @@ export class SessionSummaryTracker {
   private messageCount = 0;
   private lastUserMessage: string | undefined;
   private lastActivityAt: string;
-  private outcome: SessionSummary['outcome'] = undefined;
+  /**
+   * Whether an `error`/`provider_error` was seen. Not a latched outcome — see
+   * {@link resolveSessionOutcome} for why a trailing terminal marker outranks
+   * it, and why a failed tool_result is deliberately not counted here.
+   */
+  private hadSessionError = false;
+  /** Type of the newest observed event; the terminal-marker signal. */
+  private lastEventType: SessionEvent['type'] | undefined;
   private openToolUses = new Set<string>();
 
   constructor(opts: SessionSummaryTrackerOptions) {
@@ -65,7 +74,10 @@ export class SessionSummaryTracker {
     this.messageCount = this.summary.messageCount ?? 0;
     this.lastUserMessage = this.summary.lastUserMessage;
     this.lastActivityAt = this.summary.lastActivityAt ?? this.summary.endedAt ?? opts.startedAt;
-    this.outcome = this.resumed ? undefined : this.summary.outcome;
+    // A resumed session re-derives its outcome from the events it goes on to
+    // observe; carrying the prior 'error' forward is what made the verdict
+    // unclearable across resumes.
+    this.hadSessionError = this.resumed ? false : this.summary.outcome === 'error';
   }
 
   get currentSummary(): Readonly<SessionSummary> {
@@ -92,7 +104,10 @@ export class SessionSummaryTracker {
       compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
       toolBreakdown: { ...this.toolBreakdown },
       lastActivityAt: this.lastActivityAt,
-      ...(this.outcome !== undefined ? { outcome: this.outcome } : {}),
+      ...(() => {
+        const outcome = resolveSessionOutcome(this.lastEventType, this.hadSessionError);
+        return outcome !== undefined ? { outcome } : {};
+      })(),
     };
   }
 
@@ -101,6 +116,7 @@ export class SessionSummaryTracker {
   }
 
   observe(event: SessionEvent): void {
+    this.lastEventType = event.type;
     const eventActivityMs = Date.parse(event.ts);
     const lastActivityMs = Date.parse(this.lastActivityAt);
     if (
@@ -122,18 +138,17 @@ export class SessionSummaryTracker {
       this.toolBreakdown[event.name] = (this.toolBreakdown[event.name] ?? 0) + 1;
     } else if (event.type === 'tool_result') {
       this.openToolUses.delete(event.id);
-      if (event.isError) {
-        this.toolErrorCount++;
-        this.outcome = 'error';
-      }
+      // Counted, but NOT an errored session: a failed tool call is ordinary
+      // agent operation. See isSessionErrorEvent.
+      if (event.isError) this.toolErrorCount++;
     } else if (event.type === 'file_snapshot') {
       this.fileChangeCount += event.files.length;
     } else if (event.type === 'compaction') {
       this.compactionCount++;
     }
 
-    if (event.type === 'error' || event.type === 'provider_error') {
-      this.outcome = 'error';
+    if (isSessionErrorEvent(event)) {
+      this.hadSessionError = true;
     }
     if (event.type === 'user_input') {
       if (this.summary.title === '(empty session)') {
@@ -143,14 +158,21 @@ export class SessionSummaryTracker {
       this.messageCount++;
     } else if (event.type === 'llm_response') {
       this.messageCount++;
-      this.tokenIn += event.usage.input;
+      this.tokenIn += effectiveInputTokens(event.usage);
       this.tokenOut += event.usage.output;
       this.summary = {
         ...this.summary,
         tokenTotal: this.baseTokenTotal + this.tokenIn + this.tokenOut,
+        // Track the routed identity, not the one the session opened with. A
+        // mid-session /model switch or a fallback rotation leaves the
+        // create-time metadata stale, and this summary is what every session
+        // listing, picker and catalog row shows. Older journals have no
+        // model/provider on llm_response — those keep the create-time value.
+        ...(event.model !== undefined ? { model: event.model } : {}),
+        ...(event.provider !== undefined ? { provider: event.provider } : {}),
       };
     } else if (event.type === 'session_end') {
-      const total = event.usage.input + event.usage.output;
+      const total = totalUsageTokens(event.usage);
       if (total > 0) {
         this.summary = {
           ...this.summary,
@@ -179,7 +201,8 @@ export class SessionSummaryTracker {
     this.messageCount = 0;
     this.lastUserMessage = undefined;
     this.lastActivityAt = this.startedAt;
-    this.outcome = undefined;
+    this.hadSessionError = false;
+    this.lastEventType = undefined;
     this.openToolUses = new Set<string>();
     this.tokenIn = 0;
     this.tokenOut = 0;
@@ -239,7 +262,7 @@ export class SessionSummaryTracker {
       fileChangeCount: this.fileChangeCount,
       compactionCount: this.compactionCount > 0 ? this.compactionCount : undefined,
       toolBreakdown: { ...this.toolBreakdown },
-      outcome: this.outcome ?? 'completed',
+      outcome: resolveSessionOutcome(this.lastEventType, this.hadSessionError),
     };
 
     const resolvedName = this.resolveNameCb ? await this.resolveNameCb().catch(() => null) : null;
@@ -268,7 +291,8 @@ export class SessionSummaryTracker {
     this.messageCount = 0;
     this.lastUserMessage = undefined;
     this.lastActivityAt = resetAt;
-    this.outcome = undefined;
+    this.hadSessionError = false;
+    this.lastEventType = undefined;
     this.openToolUses = new Set<string>();
     this.summary = {
       id: this.id,

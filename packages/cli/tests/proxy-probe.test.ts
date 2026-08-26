@@ -19,19 +19,19 @@
  *    the assertions observe the same singleton the probe writes to.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  __resetProxyConfigForTests,
   applyProxyConfig,
   getProxyConfig,
-  setProxyTransitionLogger,
   type ProxyTransitionLogger,
-  __resetProxyConfigForTests,
+  setProxyTransitionLogger,
 } from '@wrongstack/core/wiring/proxy-rewrite';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  __resetProxyProbeForTests,
+  type ProbeRunner,
   startProxyProbe,
   stopProxyProbe,
-  type ProbeRunner,
-  __resetProxyProbeForTests,
 } from '../src/wiring/proxy-probe.js';
 
 /** Disable the periodic interval so no tick interferes with explicit pokes. */
@@ -252,9 +252,9 @@ describe('proxy-probe transition logging', () => {
 
     const activations = lines.filter((l) => l.message.includes('active=true'));
     expect(activations).toHaveLength(1);
-    expect(activations[0].level).toBe('info');
-    expect(activations[0].message).toContain('rewrites ON');
-    expect(activations[0].message).toContain('http://localhost:3444');
+    expect(activations[0]!.level).toBe('info');
+    expect(activations[0]!.message).toContain('rewrites ON');
+    expect(activations[0]!.message).toContain('http://localhost:3444');
   });
 
   it('logs deactivation with the failure-streak reason', async () => {
@@ -276,9 +276,9 @@ describe('proxy-probe transition logging', () => {
 
     const deactivations = lines.filter((l) => l.message.includes('active=false'));
     expect(deactivations).toHaveLength(1);
-    expect(deactivations[0].level).toBe('warn');
-    expect(deactivations[0].message).toContain('2 consecutive failed health checks');
-    expect(deactivations[0].message).toContain('rewrites OFF');
+    expect(deactivations[0]!.level).toBe('warn');
+    expect(deactivations[0]!.message).toContain('2 consecutive failed health checks');
+    expect(deactivations[0]!.message).toContain('rewrites OFF');
   });
 
   it('soft single failures do NOT log a transition', async () => {
@@ -300,9 +300,7 @@ describe('proxy-probe transition logging', () => {
       url: 'http://localhost:3444/?key=secret-token#frag',
       active: false,
     });
-    const fetchImpl = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(okResponse()); // auto-poke → activate
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(okResponse()); // auto-poke → activate
     startProxyProbe({ ...NO_INTERVAL, fetchImpl });
 
     // Await the auto-poke (microtask) so the activation line has fired.
@@ -311,8 +309,8 @@ describe('proxy-probe transition logging', () => {
 
     const activations = lines.filter((l) => l.message.includes('active=true'));
     expect(activations).toHaveLength(1);
-    expect(activations[0].message).not.toContain('secret-token');
-    expect(activations[0].message).toContain('http://localhost:3444/');
+    expect(activations[0]!.message).not.toContain('secret-token');
+    expect(activations[0]!.message).toContain('http://localhost:3444/');
   });
 
   it('redacts a fragment-only credential on an unparseable URL (no query delimiter)', async () => {
@@ -333,8 +331,8 @@ describe('proxy-probe transition logging', () => {
 
     const activations = lines.filter((l) => l.message.includes('active=true'));
     expect(activations).toHaveLength(1);
-    expect(activations[0].message).not.toContain('secret-token');
-    expect(activations[0].message).toContain('localhost 3444');
+    expect(activations[0]!.message).not.toContain('secret-token');
+    expect(activations[0]!.message).toContain('localhost 3444');
   });
 
   it('a throwing logger never breaks the probe: state still flips', async () => {

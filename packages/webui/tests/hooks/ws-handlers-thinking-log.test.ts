@@ -2,25 +2,50 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ws-handlers reaches for the live socket — stub it so handlers run server-less.
 vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => ({ send: vi.fn() }),
+  // `consumeRequestedSwitch` is how the real client tells the handler that
+  // THIS surface asked for the swap, so the session may take the foreground.
+  // Without it a `session.start` only fills its own lane, which is what keeps
+  // a background re-announce from yanking the user out of the tab they are in.
+  getWSClient: () => ({ send: vi.fn(), consumeRequestedSwitch: () => true }),
 }));
 
+import { handleError, WS_HANDLERS } from '../../src/hooks/ws-handlers';
 import { streamCoalescer } from '../../src/lib/stream-coalescer';
-import { WS_HANDLERS, handleError } from '../../src/hooks/ws-handlers';
+import { useChatLanes } from '../../src/stores/chat-lanes';
 import { useChatStore } from '../../src/stores/chat-store';
+import { useSessionLanes } from '../../src/stores/session-lanes';
 import { useSessionStore } from '../../src/stores/session-store';
 import type { WSServerMessage } from '../../src/types';
 
+/**
+ * Fire a server message the way the server actually sends it: chat events are
+ * always session-stamped (the server routes every one through
+ * `sessionPayload`), and the client drops untagged ones so a background tab's
+ * stream cannot append to the transcript in front. Tests that care about
+ * cross-session routing pass an explicit `sessionId`.
+ */
 function fire(type: WSServerMessage['type'], payload: Record<string, unknown>) {
-  WS_HANDLERS[type]?.({ type, payload } as never);
+  const activeSessionId = useSessionStore.getState().session?.id;
+  const stamped =
+    'sessionId' in payload || !activeSessionId
+      ? payload
+      : { ...payload, sessionId: activeSessionId };
+  WS_HANDLERS[type]?.({ type, payload: stamped } as never);
 }
 
 describe('thinking log ws-handlers', () => {
   beforeEach(() => {
     streamCoalescer.flushAll();
+    // Each test starts from four empty lanes; a reasoning buffer left in
+    // another tab's lane would prepend itself to the next archive.
+    useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
     useChatStore.getState().clearMessages();
     useChatStore.getState().setLoading(false);
     useSessionStore.setState({ iteration: null });
+    useSessionStore
+      .getState()
+      .setSession({ id: 'sess_thinking', startedAt: Date.now(), model: 'm', provider: 'p' });
   });
 
   it('preserves pending thinking deltas when provider.response clears the live bubble', () => {

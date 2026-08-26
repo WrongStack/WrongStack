@@ -1,7 +1,4 @@
-import type {
-  WSClientMessage,
-  WSCompletionRequest,
-} from '../types';
+import type { WSClientMessage, WSCompletionRequest } from '../types';
 import type { WSSendOptions } from './ws-client-contracts';
 
 export interface WsClientActionHost {
@@ -23,10 +20,7 @@ export interface WsClientActionMethods {
     },
     options?: WSSendOptions,
   ): void;
-  listMemoryCandidates(
-    params?: { includeResolved?: boolean },
-    options?: WSSendOptions,
-  ): void;
+  listMemoryCandidates(params?: { includeResolved?: boolean }, options?: WSSendOptions): void;
   /**
    * Search SAGE memory and return the per-channel score breakdown
    * (lexical / vector / RRF final / source attribution). Used by the
@@ -178,10 +172,7 @@ const actionMethods = {
     params?: { includeResolved?: boolean },
     options?: WSSendOptions,
   ) {
-    this.send(
-      { type: 'memory.sage.listCandidates', payload: { ...params } },
-      options,
-    );
+    this.send({ type: 'memory.sage.listCandidates', payload: { ...params } }, options);
   },
 
   searchSageBreakdown(
@@ -399,7 +390,8 @@ const actionMethods = {
   },
 
   switchMode(this: WsClientActionHost, id: string) {
-    this.send({ type: 'mode.switch', payload: { id } });
+    // Stamped with the active session: the mode belongs to this tab only.
+    this.send({ type: 'mode.switch', payload: this.withSession({ id }) });
   },
 
   listFiles(this: WsClientActionHost, query?: string, limit?: number, path?: string) {
@@ -509,8 +501,6 @@ const actionMethods = {
   },
 } satisfies WsClientActionMethods;
 
-export function installWsClientActionMethods(
-  ctor: { prototype: WsClientActionHost },
-): void {
+export function installWsClientActionMethods(ctor: { prototype: WsClientActionHost }): void {
   Object.assign(ctor.prototype, actionMethods);
 }

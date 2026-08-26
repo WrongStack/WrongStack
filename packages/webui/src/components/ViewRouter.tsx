@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { useAppTranslation } from '@/i18n';
 import { useShallow } from 'zustand/react/shallow';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { useUIStore } from '@/stores';
 import { showPanel } from './activity-bar/nav';
 import { ChatView } from './ChatView';
 import { ContextDashboard } from './ContextDashboard';
@@ -8,7 +10,6 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { PanelSuspense } from './PanelSuspense';
 import { SettingsPanel } from './SettingsPanel';
 import { WorkspaceDock } from './WorkspaceDock';
-import { useUIStore } from '@/stores';
 
 // Lazy-loaded views
 const AnalyticsDashboard = lazy(() =>
@@ -93,18 +94,27 @@ export function ViewRouter({
 
   return (
     <>
-      {currentView === 'chat' && (
-        <>
-          {hasSession && (
-            <div className="ws-workspace-dock-wrap shrink-0 px-3 pt-2 sm:px-4">
-              <WorkspaceDock />
-            </div>
-          )}
-          <ErrorBoundary level="panel" name={t('activity:panels.chat')}>
-            <ChatView />
-          </ErrorBoundary>
-        </>
-      )}
+      {/* Chat is MOUNTED FOR THE LIFETIME OF THE SESSION and parked when
+          another view is in front — never unmounted. It owns a virtualized
+          transcript, a scroll position, an unsent composer draft and the live
+          stream target; tearing all of that down on every trip to Files or
+          Kanban is what made coming back to chat re-render from scratch. */}
+      <div
+        className={cn(
+          'flex min-h-0 min-w-0 flex-1 flex-col',
+          currentView !== 'chat' && 'ws-view-parked',
+        )}
+        {...(currentView !== 'chat' ? { inert: true, 'aria-hidden': true } : {})}
+      >
+        {hasSession && (
+          <div className="ws-workspace-dock-wrap shrink-0 px-3 pt-2 sm:px-4">
+            <WorkspaceDock />
+          </div>
+        )}
+        <ErrorBoundary level="panel" name={t('activity:panels.chat')}>
+          <ChatView />
+        </ErrorBoundary>
+      </div>
       {currentView === 'settings' && (
         <ErrorBoundary level="panel" name={t('activity:panels.settings')}>
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
@@ -114,7 +124,13 @@ export function ViewRouter({
       )}
       {currentView === 'memory' && (
         <ErrorBoundary level="panel" name={t('activity:panels.sageMemory')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.sageMemory') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.sageMemory') })}
+              />
+            }
+          >
             {/* Vector memory lives inside SageTabs as its third lens —
                 strictly opt-in; the panel renders a "disabled" placeholder
                 when the host doesn't wire a vector store. */}
@@ -124,7 +140,13 @@ export function ViewRouter({
       )}
       {currentView === 'roster' && (
         <ErrorBoundary level="panel" name={t('activity:panels.agentRoster')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.agentRoster') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.agentRoster') })}
+              />
+            }
+          >
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
               <AgentRosterView />
             </div>
@@ -183,7 +205,13 @@ export function ViewRouter({
       )}
       {currentView === 'session-inspect' && (
         <ErrorBoundary level="panel" name={t('activity:panels.sessionInspect')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.sessionInspect') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.sessionInspect') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SessionInspectView />
             </div>
@@ -210,7 +238,13 @@ export function ViewRouter({
       )}
       {currentView === 'prompts' && (
         <ErrorBoundary level="panel" name={t('activity:nav.prompts')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:nav.prompts') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:nav.prompts') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <PromptJournalView />
             </div>
@@ -237,7 +271,13 @@ export function ViewRouter({
       )}
       {currentView === 'files' && (
         <ErrorBoundary level="panel" name={t('activity:panels.editor')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.editor') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.editor') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <CodeEditor />
             </div>
@@ -246,7 +286,13 @@ export function ViewRouter({
       )}
       {currentView === 'changes' && (
         <ErrorBoundary level="panel" name={t('activity:panels.changes')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.changes') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.changes') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <ChangesView className="h-full min-h-0" />
             </div>
@@ -282,7 +328,13 @@ export function ViewRouter({
       )}
       {currentView === 'officemap' && (
         <ErrorBoundary level="panel" name={t('activity:panels.officeMap')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.officeMap') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.officeMap') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <OfficeMapPanel />
             </div>
@@ -300,7 +352,13 @@ export function ViewRouter({
       )}
       {currentView === 'codemap' && (
         <ErrorBoundary level="panel" name={t('activity:panels.codemap')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.codemap') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.codemap') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <CodeMap />
             </div>
@@ -309,7 +367,13 @@ export function ViewRouter({
       )}
       {currentView === 'techstack' && (
         <ErrorBoundary level="panel" name={t('activity:panels.techstack')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.techstack') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.techstack') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <TechStackView />
             </div>
@@ -318,7 +382,13 @@ export function ViewRouter({
       )}
       {currentView === 'deadcode' && (
         <ErrorBoundary level="panel" name={t('activity:panels.deadcode')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.deadcode') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.deadcode') })}
+              />
+            }
+          >
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">
               <DeadCodeScanPanel />
             </div>
@@ -329,7 +399,13 @@ export function ViewRouter({
       {/* Terminal bottom dock */}
       {terminalOpen && (
         <ErrorBoundary level="panel" name={t('activity:panels.terminal')}>
-          <Suspense fallback={<PanelSuspense label={t('common:loadingNamed', { name: t('activity:panels.terminal') })} />}>
+          <Suspense
+            fallback={
+              <PanelSuspense
+                label={t('common:loadingNamed', { name: t('activity:panels.terminal') })}
+              />
+            }
+          >
             <TerminalPanelLazy desktopShell={desktopShell} onClose={() => setTerminalOpen(false)} />
           </Suspense>
         </ErrorBoundary>

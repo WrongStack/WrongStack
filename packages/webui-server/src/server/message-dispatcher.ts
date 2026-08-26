@@ -44,6 +44,7 @@ import { handleProcessKill, handleProcessKillAll, handleProcessList } from './pr
 import type { ProcessRouteHandlers } from './process-routes.js';
 import { createRouteFamilyDispatcher } from './route-family-dispatcher.js';
 import type { AllRoutes, WebuiDeps, WebuiMutableState } from './routes.js';
+import { collectDisplayedSessionIds } from './session-handlers.js';
 import type { ConnectedClient, WSClientMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import { broadcast, send, sendResult } from './ws-utils.js';
@@ -55,11 +56,23 @@ import { broadcast, send, sendResult } from './ws-utils.js';
  * tear down the in-flight run.
  */
 interface RunLockControl {
-  get(): AbortController | null;
-  set(ctrl: AbortController | null): void;
-  /** Session ID that owns the active run, or null when idle. */
+  /** Controller for `sessionId`, or the most-recent run when omitted. */
+  get(sessionId?: string): AbortController | null;
+  /**
+   * Register/release the controller for `sessionId`. The sessionId argument
+   * is NOT optional in practice: omitting it used to leave the host's
+   * per-session map empty, which made `isRunActive(id)` report `false` for
+   * every running session and let a tab switch wipe a live transcript.
+   */
+  set(ctrl: AbortController | null, sessionId?: string): void;
+  /** Session ID that owns the most recent run, or null when idle. */
   getSession(): string | null;
   setSession(id: string | null): void;
+  has(sessionId: string): boolean;
+  hasAny(): boolean;
+  delete(sessionId: string): void;
+  /** Snapshot of every session id that currently holds a run lock. */
+  sessionIds(): string[];
 }
 interface MessageDispatcherOptions {
   state: WebuiMutableState;
@@ -181,8 +194,6 @@ export function createMessageDispatcher(
     return false;
   }
 
-  const sessionRunControllers = new Map<string, AbortController>();
-
   const worklistRoutes = createWorklistRouteHandlers({
     getContext: makeWorklistContext,
     allowMessage: (ws, msg) => ensureCurrentSession(ws, msg, msg.type),
@@ -238,40 +249,38 @@ export function createMessageDispatcher(
   const conversationRoutes = createConversationOperations({
     getAgent: (sessionId?: string) => deps.getAgent?.(sessionId) ?? deps.agent,
     getSessionId: () => state.getSession().id,
+    withSessionTransition: state.withSessionTransition,
     hasSession: (id: string) => (deps.hasSession ? deps.hasSession(id) : false),
     runControl: {
+      // The host's per-session lock map is the ONLY registry. A second
+      // dispatcher-local map used to shadow it, so the host's
+      // `isRunActive(sessionId)` never saw a running session.
       begin: (_ws, sessionId) => {
         const key = sessionId || state.getSession().id || '__default__';
-        if (sessionRunControllers.has(key)) return undefined;
+        if (runLock.has(key)) return undefined;
         const controller = new AbortController();
-        sessionRunControllers.set(key, controller);
-        runLock.set(controller);
+        runLock.set(controller, key);
         runLock.setSession(key);
         return controller;
       },
       end: (_ws, sessionId, controller) => {
         const key = sessionId || state.getSession().id || '__default__';
-        if (sessionRunControllers.get(key) === controller) {
-          sessionRunControllers.delete(key);
-        }
-        if (runLock.get() === controller) {
-          runLock.set(null);
-          runLock.setSession(null);
-        }
+        // Release only when this controller still owns the slot: a retry
+        // for the same session may already have installed a newer one.
+        if (runLock.get(key) === controller) runLock.set(null, key);
       },
       abort: (_ws, sessionId) => {
         if (sessionId) {
-          sessionRunControllers.get(sessionId)?.abort();
-          sessionRunControllers.delete(sessionId);
-        } else {
-          for (const ctrl of sessionRunControllers.values()) {
-            ctrl.abort();
-          }
-          sessionRunControllers.clear();
-          runLock.get()?.abort();
-          runLock.set(null);
-          runLock.setSession(null);
+          // Session-scoped abort NEVER reaches another tab's run.
+          runLock.get(sessionId)?.abort();
+          runLock.set(null, sessionId);
+          return;
         }
+        for (const key of runLock.sessionIds()) {
+          runLock.get(key)?.abort();
+          runLock.set(null, key);
+        }
+        runLock.setSession(null);
       },
     },
     pendingConfirms,
@@ -337,6 +346,9 @@ export function createMessageDispatcher(
     projectRoot: state.getProjectRoot(),
     context: deps.context,
     broadcast: (message: object) => broadcast(state.getClients(), message),
+    // Every board a tab is displaying is live, not just the runtime's.
+    getDisplayedSessionIds: () =>
+      collectDisplayedSessionIds({ getSession: state.getSession, clients: state.getClients() }),
     supervisor: kanbanSupervisor,
   });
   const kanbanHostRoutes: KanbanHostRouteHandlers = {
@@ -435,6 +447,9 @@ export function createMessageDispatcher(
     chronicle: { getProjectRoot: state.getProjectRoot, send },
     introspection: {
       agent: deps.agent,
+      // Answer `diag.get` / `stats.get` / `side_effects.list` from the agent
+      // that owns the ASKING session, not the one the runtime last switched to.
+      getAgent: (sessionId?: string) => deps.getAgent?.(sessionId),
       modelsRegistry: deps.modelsRegistry,
       configStore: deps.configStore,
       getConfig: state.getConfig,

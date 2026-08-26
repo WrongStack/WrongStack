@@ -1,9 +1,10 @@
-import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
+import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
 import type { SideEffectEntry } from '@/stores';
 import {
   type AgentTranscriptKind,
+  extractActivitiesFromMessage,
   type SessionHistoryEntry,
-  useChatStore,
+  useCodemapActivityStore,
   useConfigStore,
   useFleetStore,
   useGoalAssessStore,
@@ -14,11 +15,11 @@ import {
   useSessionStore,
   useSideEffectStore,
   useSpecsStore,
-  extractActivitiesFromMessage,
-  useCodemapActivityStore,
 } from '@/stores';
+import { activeChatLane, type ChatLaneActions } from '@/stores/chat-lanes';
 import { useCodemapIndexStore } from '@/stores/codemap-index-store';
-import type { WSServerMessage, WSGoalAssessResult } from '@/types';
+import { activeSessionLane, type SessionLaneActions } from '@/stores/session-lanes';
+import type { WSGoalAssessResult, WSServerMessage } from '@/types';
 
 // Chat domain handlers extracted to chat-handlers.ts
 import {
@@ -34,15 +35,15 @@ import { filesMailboxHandlerMap, queryMailbox } from './ws-handlers/files-mailbo
 // Fleet domain handlers extracted to fleet-handlers.ts
 import { fleetHandlerMap } from './ws-handlers/fleet-handlers.js';
 // Misc domain handlers extracted to misc-handlers.ts
-import { miscHandlerMap, handleMemoryEvent } from './ws-handlers/misc-handlers.js';
-import { techStackHandlerMap } from './ws-handlers/techstack-handlers.js';
+import { handleMemoryEvent, miscHandlerMap } from './ws-handlers/misc-handlers.js';
 // Session domain handlers extracted to session-handlers.ts
 import {
-  handleError as handleSessionDomainError,
   handleProviderResponse,
+  handleError as handleSessionDomainError,
   handleSessionStart,
   sessionHandlerMap,
 } from './ws-handlers/session-handlers.js';
+import { techStackHandlerMap } from './ws-handlers/techstack-handlers.js';
 
 // Re-export for backward compat (tests import WS_HANDLERS from this file)
 export type { WSServerMessage } from '@/types';
@@ -55,13 +56,28 @@ export function handleSessionEnd() {
   useConfigStore.getState().setWsConnected(false);
 }
 
+/**
+ * Command replies (`/tools`, `/memory`, `/doctor`, `/stats`, …) belong to the
+ * tab that issued the command. When the server names the session we honour it;
+ * an unnamed reply lands in the tab in front, which is the only tab that could
+ * have typed the command.
+ */
+function replyLane(msg: WSServerMessage): ChatLaneActions {
+  return chatFor(msg) ?? activeChatLane();
+}
+
+/** Session-accounting twin of `replyLane`. */
+function replyMeta(msg: WSServerMessage): SessionLaneActions {
+  return sessionFor(msg) ?? activeSessionLane();
+}
+
 // ── Info / misc handlers ──
 
 export function handleToolsList(msg: WSServerMessage) {
   const p = msg.payload as {
     tools: Array<{ name: string; description: string; params: string[] }>;
   };
-  useChatStore.getState().addMessage({
+  replyLane(msg).addMessage({
     role: 'assistant',
     content: [
       `🛠️ **Registered tools** (${p.tools.length})`,
@@ -77,7 +93,7 @@ export function handleToolsList(msg: WSServerMessage) {
 export function handleMemoryList(msg: WSServerMessage) {
   const p = msg.payload as { text: string; error?: string | undefined };
   const body = p.text?.trim();
-  useChatStore.getState().addMessage({
+  replyLane(msg).addMessage({
     role: 'assistant',
     content: p.error
       ? `Memory read failed: ${p.error}`
@@ -97,7 +113,7 @@ export function handleConfigDoctorResult(msg: WSServerMessage) {
     backupPath?: string | undefined;
     error?: string | undefined;
   };
-  const chat = useChatStore.getState();
+  const chat = replyLane(msg);
   if (!p.success) {
     chat.addMessage({
       role: 'assistant',
@@ -155,7 +171,7 @@ export function handleMemorySageList(msg: WSServerMessage) {
     error?: string | undefined;
   };
   if (p.error) {
-    useChatStore.getState().addMessage({ role: 'assistant', content: `❌ ${p.error}` });
+    replyLane(msg).addMessage({ role: 'assistant', content: `❌ ${p.error}` });
     return;
   }
   const memories = p.memories ?? [];
@@ -190,7 +206,7 @@ export function handleMemorySageList(msg: WSServerMessage) {
   }
   lines.push('');
   lines.push('*Use `/memory` in the TUI or build a Memory Manager panel for full editing.*');
-  useChatStore.getState().addMessage({ role: 'assistant', content: lines.join('\n') });
+  replyLane(msg).addMessage({ role: 'assistant', content: lines.join('\n') });
 }
 
 export function handleMemorySageGet(msg: WSServerMessage) {
@@ -210,11 +226,11 @@ export function handleMemorySageGet(msg: WSServerMessage) {
     error?: string | undefined;
   };
   if (p.error) {
-    useChatStore.getState().addMessage({ role: 'assistant', content: `❌ ${p.error}` });
+    replyLane(msg).addMessage({ role: 'assistant', content: `❌ ${p.error}` });
     return;
   }
   if (!p.memory) {
-    useChatStore.getState().addMessage({ role: 'assistant', content: '❌ Memory not found.' });
+    replyLane(msg).addMessage({ role: 'assistant', content: '❌ Memory not found.' });
     return;
   }
   const m = p.memory;
@@ -230,38 +246,33 @@ export function handleMemorySageGet(msg: WSServerMessage) {
     `**Tags:** ${tags}`,
     `**Anchors:** ${anchors}`,
   ];
-  useChatStore.getState().addMessage({ role: 'assistant', content: lines.join('\n') });
+  replyLane(msg).addMessage({ role: 'assistant', content: lines.join('\n') });
 }
 
 export function handleMemorySageUpdate(msg: WSServerMessage) {
   const p = msg.payload as { memory?: Record<string, unknown>; error?: string | undefined };
   if (p.error) {
-    useChatStore
-      .getState()
-      .addMessage({ role: 'assistant', content: `❌ Update failed: ${p.error}` });
+    replyLane(msg).addMessage({ role: 'assistant', content: `❌ Update failed: ${p.error}` });
     return;
   }
   if (p.memory) {
     const id = String(p.memory['id'] ?? '');
-    useChatStore
-      .getState()
-      .addMessage({ role: 'assistant', content: `✅ Memory \`${id}\` updated.` });
+    replyLane(msg).addMessage({ role: 'assistant', content: `✅ Memory \`${id}\` updated.` });
   }
 }
 
 export function handleMemorySageRemember(msg: WSServerMessage) {
   const p = msg.payload as { memory?: Record<string, unknown>; error?: string | undefined };
   if (p.error) {
-    useChatStore
-      .getState()
-      .addMessage({ role: 'assistant', content: `❌ Failed to create memory: ${p.error}` });
+    replyLane(msg).addMessage({
+      role: 'assistant',
+      content: `❌ Failed to create memory: ${p.error}`,
+    });
     return;
   }
   if (p.memory) {
     const id = String(p.memory['id'] ?? '');
-    useChatStore
-      .getState()
-      .addMessage({ role: 'assistant', content: `✅ Memory \`${id}\` created.` });
+    replyLane(msg).addMessage({ role: 'assistant', content: `✅ Memory \`${id}\` created.` });
   }
 }
 
@@ -272,7 +283,7 @@ export function handleMemorySageRecover(msg: WSServerMessage) {
     activeId?: string;
     error?: string | undefined;
   };
-  const chat = useChatStore.getState();
+  const chat = replyLane(msg);
   if (p.error) {
     chat.addMessage({ role: 'assistant', content: `❌ Recover failed: ${p.error}` });
     return;
@@ -297,7 +308,7 @@ export function handleMemorySageCandidateResolve(msg: WSServerMessage) {
     resolvedAction?: 'accept' | 'reject';
     error?: string | undefined;
   };
-  const chat = useChatStore.getState();
+  const chat = replyLane(msg);
   if (p.error) {
     chat.addMessage({ role: 'assistant', content: `❌ Candidate resolve failed: ${p.error}` });
     return;
@@ -318,7 +329,7 @@ export function handleMemorySageBackfillRecoverable(msg: WSServerMessage) {
     dryRun?: boolean;
     error?: string | undefined;
   };
-  const chat = useChatStore.getState();
+  const chat = replyLane(msg);
   if (p.error) {
     chat.addMessage({ role: 'assistant', content: `❌ Backfill failed: ${p.error}` });
     return;
@@ -347,7 +358,7 @@ export function handleSkillsList(msg: WSServerMessage) {
     }>;
   };
   if (!p.enabled) {
-    useChatStore.getState().addMessage({
+    replyLane(msg).addMessage({
       role: 'assistant',
       content: '🎯 **Skills** \n\n_disabled (config.features.skills = false)_',
     });
@@ -364,11 +375,11 @@ export function handleSkillsList(msg: WSServerMessage) {
         )),
   ];
   if (p.error) lines.push('', `⚠ ${p.error}`);
-  useChatStore.getState().addMessage({ role: 'assistant', content: lines.join('\n') });
+  replyLane(msg).addMessage({ role: 'assistant', content: lines.join('\n') });
 }
 
 export function handleDiagGet(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  // `/diag` names the session it describes; the reply belongs in that tab.
   const p = msg.payload as {
     provider: string;
     model: string;
@@ -386,8 +397,8 @@ export function handleDiagGet(msg: WSServerMessage) {
   // Store the dropped count for the status-bar chip (reactive).
   // Defense-in-depth: guard against maxTools=0 (no limit) even though
   // the server already sends droppedTools=0 in that case.
-  useSessionStore.getState().setDroppedTools((p.maxTools ?? 0) > 0 ? (p.droppedTools ?? 0) : 0);
-  useChatStore.getState().addMessage({
+  replyMeta(msg).setDroppedTools((p.maxTools ?? 0) > 0 ? (p.droppedTools ?? 0) : 0);
+  replyLane(msg).addMessage({
     role: 'assistant',
     content: [
       '🩺 **Runtime diagnostics**',
@@ -418,20 +429,18 @@ export function handleStatsGet(msg: WSServerMessage) {
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
     };
-    cache:
-      | {
-          readTokens: number;
-          writeTokens: number;
-          hitRatio: number;
-          providers?: Array<{
-            provider: string;
-            input: number;
-            cacheRead: number;
-            cacheWrite: number;
-            hitRatio: number;
-          }>;
-        }
-      | null;
+    cache: {
+      readTokens: number;
+      writeTokens: number;
+      hitRatio: number;
+      providers?: Array<{
+        provider: string;
+        input: number;
+        cacheRead: number;
+        cacheWrite: number;
+        hitRatio: number;
+      }>;
+    } | null;
     currentRequest?: { input: number; cacheRead: number; cacheWrite: number } | undefined;
     cost: number;
     messages: number;
@@ -455,9 +464,9 @@ export function handleStatsGet(msg: WSServerMessage) {
   // what was actually sent. `usage.cacheRead` would be cumulative and
   // misleading here. `null` clears the field when the server reports
   // no cache yet.
-  const lastInputTokens = useSessionStore.getState().lastInputTokens;
+  const lastInputTokens = replyMeta(msg).data.lastInputTokens;
   const currentRequestCacheRead = p.currentRequest?.cacheRead ?? 0;
-  useSessionStore.getState().setCacheStats(
+  replyMeta(msg).setCacheStats(
     p.cache
       ? {
           readTokens: p.cache.readTokens,
@@ -469,7 +478,7 @@ export function handleStatsGet(msg: WSServerMessage) {
       : null,
   );
 
-  useChatStore.getState().addMessage({
+  replyLane(msg).addMessage({
     role: 'assistant',
     content: [
       '📈 **Session stats**',
@@ -493,7 +502,8 @@ export function handleStatsGet(msg: WSServerMessage) {
 }
 
 export function handleTodosUpdated(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  // A tab's worklist belongs to that tab. Dropping a background session's
+  // update left its todo list frozen at whatever it held when you looked away.
   const p = msg.payload as {
     todos: Array<{
       id: string;
@@ -506,7 +516,7 @@ export function handleTodosUpdated(msg: WSServerMessage) {
       kanbanTaskId?: string | undefined;
     }>;
   };
-  useSessionStore.getState().setTodos(p.todos ?? []);
+  replyMeta(msg).setTodos(p.todos ?? []);
 }
 
 export function handleModesList(msg: WSServerMessage) {
@@ -517,7 +527,7 @@ export function handleModesList(msg: WSServerMessage) {
   useSessionStore
     .getState()
     .setModes(p.modes.map((m) => ({ id: m.id, name: m.name, description: m.description })));
-  useSessionStore.getState().setEnv({ mode: p.activeId });
+  replyMeta(msg).setEnvRates({ mode: p.activeId });
 }
 
 export function handleContextModesList(msg: WSServerMessage) {
@@ -545,12 +555,12 @@ export function handleContextModesList(msg: WSServerMessage) {
       custom: m.custom,
     })),
   );
-  useSessionStore.getState().setEnv({ contextMode: p.activeId });
+  replyMeta(msg).setEnvRates({ contextMode: p.activeId });
 }
 
 export function handleContextModeChanged(msg: WSServerMessage) {
   const p = msg.payload as { id: string; name?: string | undefined };
-  useSessionStore.getState().setEnv({ contextMode: p.id });
+  replyMeta(msg).setEnvRates({ contextMode: p.id });
 }
 
 export function handleSessionsList(msg: WSServerMessage) {
@@ -719,9 +729,9 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     // The standalone server broadcasts `todos.cleared` on clear (the CLI server
     // sends `todos.updated` with an empty list); handle both so the worklist
     // empties in the UI regardless of which server is driving.
-    'todos.cleared': (_msg: WSServerMessage) => {
-      if (!isActiveSessionMessage(_msg)) return;
-      useSessionStore.getState().setTodos([]);
+    'todos.cleared': (msg: WSServerMessage) => {
+      if (!isActiveSessionMessage(msg)) return;
+      replyMeta(msg).setTodos([]);
     },
     'agent.timeline.message': (msg: WSServerMessage) => {
       if (!isActiveSessionMessage(msg)) return;

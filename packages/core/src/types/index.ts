@@ -383,7 +383,7 @@ export type {
   StreamEvent,
   Usage,
 } from './provider.js';
-// ── provider (23 symbols) ──
+// ── provider (24 symbols) ──
 export {
   classifyProviderError,
   effectiveInputTokens,
@@ -396,6 +396,7 @@ export {
   promptCacheHitRatio,
   REASONING_EFFORT_LEVELS,
   StreamHangError,
+  totalUsageTokens,
 } from './provider.js';
 // ── provider-runner (2 symbols) ──
 export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';

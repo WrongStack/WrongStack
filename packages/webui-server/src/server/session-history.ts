@@ -192,6 +192,8 @@ function labelForEvent(e: SessionEvent): string {
       return `Skill: ${e.skillName}`;
     case 'skill_deactivated':
       return `Skill done: ${e.skillName}`;
+    case 'agent_session_linked':
+      return `Agent ${e.agentId} → session ${e.agentSessionId}`;
     default: {
       // Exhaustiveness check — fires typecheck error if a new event
       // kind is added without a case here. The `never` cast silences
@@ -292,6 +294,8 @@ function detailForEvent(e: SessionEvent): string {
       return `at ${e.skillName}`;
     case 'skill_deactivated':
       return `at ${e.skillName}`;
+    case 'agent_session_linked':
+      return e.agentSessionId;
     default: {
       // Exhaustiveness check — fires typecheck error if a new SessionEvent
       // kind is added without a label case here.

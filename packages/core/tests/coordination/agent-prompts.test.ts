@@ -2,10 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  agentPrompt,
-  agentPromptCacheSize,
-} from '../../src/coordination/agents/agent-prompts.js';
+import { agentPrompt, agentPromptCacheSize } from '../../src/coordination/agents/agent-prompts.js';
 import { captureLearnedFromAgentOutputDetailed } from '../../src/coordination/agents/project-agent-identity.js';
 
 /**
@@ -39,10 +36,15 @@ describe('agentPrompt overlay fingerprint', () => {
     fs.rmSync(projectRoot, { recursive: true, force: true });
   });
 
+  let mtimeSeq = 1000;
   function writeIdentity(content: string): void {
     const dir = path.join(projectRoot, '.wrongstack', 'agents', 'executor');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'identity.md'), content);
+    const file = path.join(dir, 'identity.md');
+    fs.writeFileSync(file, content);
+    mtimeSeq += 1000;
+    const date = new Date(Date.now() + mtimeSeq);
+    fs.utimesSync(file, date, date);
   }
 
   it('serves the cached prompt while the overlay is unchanged', () => {

@@ -128,17 +128,42 @@ export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {
 
 export interface EmbeddedConversationContext extends EmbeddedHostTransport {
   agent: Agent;
+  /**
+   * The Agent that owns ONE session's runs.
+   *
+   * Without this every tab was handed `ctx.agent`, the single leader instance,
+   * and the second tab to start a run walked straight into `Agent.run()`'s
+   * concurrency guard — "already in progress on this instance". The guard is
+   * correct; one Agent for four tabs was not. Hosts supply a per-session
+   * registry (see `session-agent-registry.ts`); omitting it keeps the old
+   * single-agent behaviour for hosts that genuinely have one session.
+   */
+  getAgent?: ((sessionId?: string | undefined) => Agent) | undefined;
   /** Session-keyed abort controllers — one active run per session. */
   abortControllers: Map<string, AbortController>;
   pendingConfirms: Map<string, PendingConfirm>;
+  /**
+   * Stop the subagents a session spawned. Called when that session's run is
+   * aborted: killing the leader's controller only unwinds workers it is
+   * blocked on, so async ones keep running unless someone asks them to stop.
+   */
+  stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
 }
 
 export function createEmbeddedConversationRoutes(
   ctx: EmbeddedConversationContext,
 ): ConversationRouteHandlers {
+  const resolveAgent = (sessionId?: string | undefined): Agent =>
+    ctx.getAgent?.(sessionId) ?? ctx.agent;
   return createConversationOperations({
-    getAgent: () => ctx.agent,
+    getAgent: resolveAgent,
     getSessionId: () => ctx.agent.ctx.session?.id ?? '',
+    // Four tabs share one socket, so "the runtime's current session" is only
+    // ever ONE of them. Without this, every request from a background tab was
+    // refused with "Request targeted session X, but this WebUI runtime is
+    // currently on Y" — correct for a single-session host, fatal for four.
+    // A session this host has an agent for is a session it can serve.
+    hasSession: (id: string) => (ctx.getAgent ? ctx.getAgent(id) !== undefined : false),
     runControl: {
       begin: (_ws, sessionId) => {
         if (ctx.abortControllers.has(sessionId)) return undefined;
@@ -150,7 +175,14 @@ export function createEmbeddedConversationRoutes(
         if (ctx.abortControllers.get(sessionId) === controller)
           ctx.abortControllers.delete(sessionId);
       },
-      abort: (_ws, sessionId) => ctx.abortControllers.get(sessionId)?.abort(),
+      abort: (_ws, sessionId) => {
+        ctx.abortControllers.get(sessionId)?.abort();
+        // Stopping a run means stopping the work, and this session's subagents
+        // are part of it. Session-scoped so one tab's Stop never reaches
+        // another tab's fleet. Fire-and-forget: the run is already aborted and
+        // a teardown failure must not surface instead of the stop.
+        stopFleet(ctx, sessionId);
+      },
     },
     pendingConfirms: ctx.pendingConfirms,
     send: ctx.send,
@@ -158,6 +190,16 @@ export function createEmbeddedConversationRoutes(
     busyPhase: 'agent.run',
     busyMessage: 'A run is already in progress. Abort it first.',
   });
+}
+
+/** Best-effort cascade of a session stop into the fleet it spawned. */
+function stopFleet(ctx: EmbeddedConversationContext, sessionId: string): void {
+  if (!sessionId || !ctx.stopSessionFleet) return;
+  try {
+    void Promise.resolve(ctx.stopSessionFleet(sessionId)).catch(() => undefined);
+  } catch {
+    // A synchronous throw from the host hook is best-effort too.
+  }
 }
 
 export interface EmbeddedSessionOptions {
@@ -182,6 +224,13 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
   opts: EmbeddedSessionOptions;
   buildSessionStart: (overrides?: Record<string, unknown>) => Promise<unknown>;
   getCustomModeStore: () => Promise<CustomModeStore>;
+  /**
+   * The Agent that owns one session — the same registry the conversation
+   * routes use. Session transitions re-point a CONTEXT (writer, messages,
+   * todos, plan/task paths); without this they re-point the leader's, so
+   * resuming tab 2 rewrote the context tab 1 was running in.
+   */
+  getAgent?: ((sessionId?: string | undefined) => Agent) | undefined;
   /** When sessionId is provided, abort only that session's run; otherwise abort all. */
   abortActiveRun?: ((sessionId?: string) => void) | undefined;
   /** True while an embedded agent run is active. */
@@ -224,6 +273,10 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
     abortActiveRun: ctx.abortActiveRun,
     isRunActive: ctx.isRunActive,
+    ...(ctx.getAgent ? { getAgent: ctx.getAgent } : {}),
+    // Same reason as the conversation routes: a request naming a background
+    // tab's session is legitimate here, not a mismatch to refuse.
+    ...(ctx.getAgent ? { hasSession: (_id: string) => true } : {}),
     sessionStartPayload: async (overrides) => (await ctx.buildSessionStart(overrides)) as never,
     sendMessage: ctx.send,
     broadcastMessage: ctx.broadcast,

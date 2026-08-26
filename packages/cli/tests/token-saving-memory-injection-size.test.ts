@@ -2,12 +2,10 @@ import { execFileSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { ToolRegistry } from '@wrongstack/core/registry';
+import { DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import type { Config } from '@wrongstack/core/types';
-import type { WstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { setupTools } from '../src/wiring/tools.js';
+import { buildCliToolSurface } from './cli-tool-surface.js';
 import { makeFakeMemoryStore } from './fake-memory-store.js';
 
 /**
@@ -43,22 +41,6 @@ afterEach(async () => {
   await fs.rm(tmp, { recursive: true, force: true });
 });
 
-function makeWpaths(): WstackPaths {
-  return {
-    configDir: tmp,
-    globalConfig: path.join(tmp, 'config.json'),
-    projectDir: tmp,
-    projectSessions: tmp,
-    globalRoot: tmp,
-    logFile: path.join(tmp, 'log.txt'),
-    historyFile: path.join(tmp, 'history'),
-    modelsCache: path.join(tmp, 'models.json'),
-    inProjectAgentsFile: path.join(tmp, 'AGENTS.md'),
-    projectMemory: path.join(tmp, 'project-memory.md'),
-    globalMemory: path.join(tmp, 'global-memory.md'),
-  } as WstackPaths;
-}
-
 function fakeConfig(tier: string): Config {
   return {
     version: 1,
@@ -83,17 +65,10 @@ function fakeConfig(tier: string): Config {
   } as unknown as Config;
 }
 
-function fakeCompactor() {
-  return { compact: async () => ({ ok: true }) } as never;
-}
-
 async function measureMemoryBlock(
   tier: string,
 ): Promise<{ tier: string; total: number; memory: number }> {
-  const toolRegistry = new ToolRegistry();
   const memoryStore = makeFakeMemoryStore();
-  const container = new Container();
-  container.bind(TOKENS.Compactor, () => fakeCompactor());
 
   // Seed 8 bash-tagged entries — the relevance scorer ranks by tag/tool
   // overlap, so tagging every entry with 'bash' (the always-present tool)
@@ -139,22 +114,41 @@ async function measureMemoryBlock(
     tags: ['bash', 'security'],
   });
 
-  const result = await setupTools({
+  const { toolRegistry } = await buildCliToolSurface({
     config: fakeConfig(tier),
-    toolRegistry,
-    modelsRegistry: {
-      getModel: async () => ({
-        id: 'anthropic-test-model',
-        capabilities: { maxContext: 200_000, tools: true, vision: false, reasoning: true },
-      }),
-    } as never,
     memoryStore,
-    wpaths: makeWpaths(),
-    projectRoot: tmp,
-    cwd: tmp,
-    container: container as never,
+    tmp,
+    modelCapabilities: {
+      maxContextTokens: 200_000,
+      supportsTools: true,
+      supportsVision: false,
+      supportsReasoning: true,
+    },
   });
-  const blocks = await result.systemPrompt;
+
+  // Deliberately opt IN to the static section. Every production builder passes
+  // `injectMemory: false` — SAGE's turn middleware is the single memory
+  // channel — so the shipped prompt carries no `# Relevant Memory` block at
+  // all (pinned by the second test below). What this measurement guards is
+  // `buildMemoryAndSkills()` itself, for any consumer that does opt in: it
+  // must not silently double in size. The tool surface still comes from the
+  // real CLI wiring so each tier's prompt is measured against its real tools.
+  const builder = new DefaultSystemPromptBuilder({
+    memoryStore: memoryStore as never,
+    injectMemory: true,
+    modeId: 'default',
+    modePrompt: '',
+    tokenSavingMode: fakeConfig(tier).features.tokenSavingMode,
+    instructionPaths: { globalDir: tmp, projectDir: tmp },
+  });
+  const blocks = await builder.build({
+    cwd: tmp,
+    projectRoot: tmp,
+    tools: toolRegistry.listForProvider(),
+    catalogTools: toolRegistry.list(),
+    provider: 'anthropic',
+    model: 'anthropic-test-model',
+  });
   const joined = blocks.map((b) => b.text).join('\n');
   const memStart = joined.indexOf('# Relevant Memory');
   const memEnd = memStart >= 0 ? joined.indexOf('\n\n', memStart + 18) : -1;
@@ -192,5 +186,29 @@ describe('memory injection size by tier', () => {
     // block must remain materially smaller than both full-format tiers.
     const aggressive = results.find((r) => r.tier === 'aggressive')!;
     expect(aggressive.memory).toBeLessThan(Math.min(...full) * 0.75);
+  });
+
+  // The single-memory-channel invariant. Every production builder
+  // (`cli/src/boot/system-prompt-builder.ts`, `boot/tui-project-switch.ts`,
+  // `runtime/src/container.ts`, and both webui-server sites) passes
+  // `injectMemory: false` so SAGE's turn middleware stays the only injector.
+  // The one builder that omitted it lived in `wiring/tools.ts`, which no
+  // production path called — and the measurement above used to be taken
+  // through THAT builder, so it reported healthy numbers for a block the
+  // product never emits. Pin the shipped behaviour directly.
+  it('the shipped CLI prompt carries no static memory section', async () => {
+    const memoryStore = makeFakeMemoryStore();
+    await memoryStore.remember('Use pnpm not npm', 'project-memory', {
+      type: 'convention',
+      priority: 'critical',
+      tags: ['bash'],
+    });
+    const { buildSystemPrompt } = await buildCliToolSurface({
+      config: fakeConfig('off'),
+      memoryStore,
+      tmp,
+    });
+    const joined = (await buildSystemPrompt()).map((b) => b.text).join('\n');
+    expect(joined).not.toContain('# Relevant Memory');
   });
 });

@@ -50,7 +50,9 @@ export function SystemPromptDialog() {
     if (selected && selected !== info?.current) {
       client.setSystemPromptVariant(selected as 'lite' | 'default' | 'pro');
     }
-    if (pickerStartsSession) client.newSession();
+    if (pickerStartsSession) {
+      client.newSession({ systemPromptVariant: selected ?? undefined });
+    }
     closePicker();
   };
 

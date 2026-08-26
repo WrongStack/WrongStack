@@ -24,6 +24,7 @@ import {
   createCustomModeStore,
   createEmbeddedMessageRouter,
   createEmbeddedProviderOperations,
+  createSessionAgentRegistry,
   type EmbeddedProviderContext,
   envFlag,
   findFreePort,
@@ -397,6 +398,20 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       embeddedProviderOperations.broadcastSaved(providers as Record<string, ProviderConfig>),
   });
 
+  /**
+   * One Agent per open tab.
+   *
+   * The embedded host used to hand every tab the same leader Agent, so the
+   * second tab to start a run hit `Agent.run()`'s concurrency guard —
+   * "already in progress on this instance". Four tabs need four Agents; the
+   * registry clones the leader's wiring and gives each session its own
+   * `Context`, which is the state a run actually mutates.
+   */
+  const sessionAgents = createSessionAgentRegistry({
+    template: opts.agent,
+    isRunActive: (sessionId) => abortControllers.has(sessionId),
+  });
+
   const routeContexts = createWebuiRouteContexts({
     opts,
     profileConfigPath,
@@ -410,6 +425,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     persistPrefs,
     pendingConfirms,
     abortControllers,
+    getSessionAgent: (sessionId) => sessionAgents.get(sessionId),
+    ...(opts.stopSessionFleet ? { stopSessionFleet: opts.stopSessionFleet } : {}),
     getAbortController: () => abortController,
     clearAbortController: () => {
       abortController = null;

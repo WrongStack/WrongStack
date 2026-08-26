@@ -103,7 +103,7 @@ describe('WrongStackWebSocketClient session-swap double-fire guard', () => {
     ws.onmessage!({
       data: JSON.stringify({
         type: 'session.start',
-        payload: { sessionId: 'sess_new', model: 'gpt-5', provider: 'openai' },
+        payload: { sessionId: 'sess_new', reset: true, model: 'gpt-5', provider: 'openai' },
       }),
     });
 
@@ -122,7 +122,8 @@ describe('WrongStackWebSocketClient session-swap double-fire guard', () => {
         type: 'error',
         payload: {
           phase: 'session.new',
-          message: 'Request targeted session sess_old, but this WebUI runtime is currently on sess_current.',
+          message:
+            'Request targeted session sess_old, but this WebUI runtime is currently on sess_current.',
         },
       }),
     });
@@ -136,13 +137,95 @@ describe('WrongStackWebSocketClient session-swap double-fire guard', () => {
 
     client.newSession();
     expect(sentTypesOf('session.new')).toBe(1);
-    expect(client['sessionSwapPending']).toBe(true);
+    expect(client['pendingSwapTarget']).not.toBe(null);
 
     ws.readyState = 3;
     ws.onclose!({ code: 1006, reason: 'lost connection' });
 
-    expect(client['sessionSwapPending']).toBe(false);
+    expect(client['pendingSwapTarget']).toBe(null);
     client['shouldReconnect'] = false;
     if (client['reconnectTimer']) clearTimeout(client['reconnectTimer']);
+  });
+
+  // The guard exists to swallow a double-click, NOT to swallow the user
+  // changing their mind. Clicking tab A then tab B before A's answer lands
+  // used to drop B's request entirely: the server stayed on A, this client had
+  // already pointed its lane at B, and A's answer then dragged the surface
+  // back to A — "I clicked tab 2 and got tab 1's transcript".
+  it('supersedes a pending resume when a DIFFERENT session is requested', async () => {
+    const { client } = await connectedClient();
+
+    client.resumeSession('sess_a');
+    client.resumeSession('sess_b');
+
+    expect(sentTypesOf('session.resume')).toBe(2);
+    expect(client['pendingSwapTarget']).toBe('sess_b');
+  });
+
+  it('still dedupes a repeated resume of the SAME session', async () => {
+    const { client } = await connectedClient();
+
+    client.resumeSession('sess_a');
+    client.resumeSession('sess_a');
+
+    expect(sentTypesOf('session.resume')).toBe(1);
+  });
+
+  // A `session.start` for a session nobody clicked must not spend the grant
+  // issued for the one they did.
+  it('grants focus only to the requested session', async () => {
+    const { client, ws } = await connectedClient();
+
+    client.resumeSession('sess_b');
+
+    ws.onmessage!({
+      data: JSON.stringify({
+        type: 'session.start',
+        payload: { sessionId: 'sess_a', reset: true, model: 'gpt-5', provider: 'openai' },
+      }),
+    });
+    expect(client.consumeRequestedSwitch('sess_a')).toBe(false);
+    expect(client['pendingSwapTarget']).toBe('sess_b');
+
+    ws.onmessage!({
+      data: JSON.stringify({
+        type: 'session.start',
+        payload: { sessionId: 'sess_b', reset: true, model: 'gpt-5', provider: 'openai' },
+      }),
+    });
+    expect(client.consumeRequestedSwitch('sess_b')).toBe(true);
+    // One-shot: a re-announce of the same session does not inherit the grant.
+    expect(client.consumeRequestedSwitch('sess_b')).toBe(false);
+    expect(client['pendingSwapTarget']).toBe(null);
+  });
+
+  it('matches a session.new answer by first-sight + reset, not by arrival order', async () => {
+    const { client, ws } = await connectedClient();
+
+    // A session this client already knows about announces itself first.
+    ws.onmessage!({
+      data: JSON.stringify({
+        type: 'session.start',
+        payload: { sessionId: 'sess_known', reset: true, model: 'gpt-5', provider: 'openai' },
+      }),
+    });
+
+    client.newSession();
+
+    ws.onmessage!({
+      data: JSON.stringify({
+        type: 'session.start',
+        payload: { sessionId: 'sess_known', reset: true, model: 'gpt-5', provider: 'openai' },
+      }),
+    });
+    expect(client.consumeRequestedSwitch('sess_known')).toBe(false);
+
+    ws.onmessage!({
+      data: JSON.stringify({
+        type: 'session.start',
+        payload: { sessionId: 'sess_fresh', reset: true, model: 'gpt-5', provider: 'openai' },
+      }),
+    });
+    expect(client.consumeRequestedSwitch('sess_fresh')).toBe(true);
   });
 });

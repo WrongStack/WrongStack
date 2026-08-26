@@ -12,21 +12,14 @@ import * as path from 'node:path';
 import { createDefaultPipelines } from '@wrongstack/core/agent';
 import { getSharedProjectMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import {
-  createSessionEventBridge,
-  resolveSessionLoggingConfig,
-} from '@wrongstack/core/storage';
+import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID } from '@wrongstack/core/types';
-import {
-  expectDefined,
-  startSharedHeapWatchdog,
-  wstackGlobalRoot,
-} from '@wrongstack/core/utils';
+import { expectDefined, startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { ensureSessionShell } from '@wrongstack/tools';
 import {
+  startFirstBootSageSync,
   TransformersEmbeddingProvider,
   VectorMemoryStore,
-  startFirstBootSageSync,
 } from '@wrongstack/vector-memory';
 
 import { createAgentServices } from './backend-services.js';
@@ -37,6 +30,7 @@ import { setupWebUiGovernance } from './governance-runtime.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
 import { formatExternalAccessUrls } from './network-info.js';
 import type { PendingConfirm } from './pending-confirms.js';
+import { isStrictPort, listenWithRetry } from './port-utils.js';
 import { createPreContextServices } from './pre-context-services.js';
 import {
   type ConfigWriteLockHolder,
@@ -45,13 +39,13 @@ import {
   prefSnapshot as prefSnapshotImpl,
   updateGlobalConfig as updateGlobalConfigImpl,
 } from './pref-helpers.js';
-import { bootstrapWrongProxyFromConfig } from './proxy-runtime.js';
 import {
   ensureProjectDataDir,
   generateProjectSlug,
   loadManifest,
   saveManifest,
 } from './projects-manifest.js';
+import { bootstrapWrongProxyFromConfig } from './proxy-runtime.js';
 import {
   buildRoutes,
   type WebuiCallbacks,
@@ -65,8 +59,8 @@ import {
   resolvePorts,
   startHttpServer,
 } from './server-runtime.js';
-import { isStrictPort, listenWithRetry } from './port-utils.js';
 import { scheduleOwnerlessEmptySessionCleanup } from './session-cleanup-scheduler.js';
+import { collectDisplayedSessionIds, createSessionTransitionGate } from './session-handlers.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import type { FileWatcherMetrics } from './setup-events.js';
 import { setupCompanionServer } from './start-webui-companion.js';
@@ -75,8 +69,8 @@ import { setupWebuiProxyInstantApply } from './start-webui-proxy-apply.js';
 import { createPackageOperationExecutor } from './start-webui-remediation.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
-import { startWebUILiveStatusLogger } from './webui-status-logger.js';
 import type { WebUIOptions } from './types.js';
+import { startWebUILiveStatusLogger } from './webui-status-logger.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
 
 export { createStandaloneTodosCheckpointLifecycle };
@@ -326,6 +320,13 @@ export async function startWebUI(
         })
       : undefined;
   const installToolBoundary = opts.installToolBoundary ?? governanceHandle?.installToolBoundary;
+  // Per-session run locks. Up to MAX_CONCURRENT_SESSION_AGENTS sessions run
+  // concurrently (one per WebUI tab), so this map — never a single global
+  // controller — is the authority on what is running. Declared here, ahead of
+  // `createAgentServices`, because the session-agent registry consults it
+  // before evicting an agent.
+  const _sessionRunLocks = new Map<string, AbortController>();
+
   const agentServices = await createAgentServices({
     trustBoundary,
     config,
@@ -351,6 +352,8 @@ export async function startWebUI(
     ...(installToolBoundary ? { installToolBoundary } : {}),
     modelCapabilitiesRef,
     sessionGetter: () => session,
+    // Never evict a session agent that is mid-run (see the registry cap).
+    isRunActive: (sessionId: string) => _sessionRunLocks.has(sessionId),
     sessionReader,
     annotationsStore,
     // Brain settings persist to the GLOBAL config only (config.brain is on
@@ -402,6 +405,9 @@ export async function startWebUI(
       String(context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID),
     getNeedsSetup: () => needsSetup,
     modelsRegistry,
+    // Per-tab truth: a session that switched model/mode/context strategy
+    // reports its OWN values, not the process-wide defaults.
+    getSessionContext: (sessionId: string) => getAgent?.(sessionId)?.ctx,
   });
 
   const watcherMetricsRef: FileWatcherMetrics = {
@@ -478,43 +484,99 @@ export async function startWebUI(
     );
   }
 
-  const _sessionRunLocks = new Map<string, AbortController>();
-  let _runLock: AbortController | null = null;
   let _runLockSession: string | null = null;
   const runLockControl = {
-    get: (sessionId?: string) => (sessionId ? (_sessionRunLocks.get(sessionId) ?? null) : _runLock),
+    get: (sessionId?: string): AbortController | null => {
+      if (sessionId) return _sessionRunLocks.get(sessionId) ?? null;
+      return _runLockSession ? (_sessionRunLocks.get(_runLockSession) ?? null) : null;
+    },
     set: (ctrl: AbortController | null, sessionId?: string) => {
-      _runLock = ctrl;
-      if (sessionId) {
-        if (ctrl) _sessionRunLocks.set(sessionId, ctrl);
-        else _sessionRunLocks.delete(sessionId);
-      }
+      const key = sessionId ?? _runLockSession;
+      if (!key) return;
+      if (ctrl) _sessionRunLocks.set(key, ctrl);
+      else _sessionRunLocks.delete(key);
     },
     getSession: () => _runLockSession,
     setSession: (id: string | null) => {
       _runLockSession = id;
     },
     has: (sessionId: string) => _sessionRunLocks.has(sessionId),
-    hasAny: () => _sessionRunLocks.size > 0 || _runLock !== null,
+    hasAny: () => _sessionRunLocks.size > 0,
     delete: (sessionId: string) => {
       _sessionRunLocks.delete(sessionId);
     },
+    sessionIds: () => [..._sessionRunLocks.keys()],
+  };
+
+  /**
+   * Cascade a session's stop into the subagents it spawned. Fire-and-forget:
+   * the run is already aborted, and a fleet teardown failure must not turn
+   * Stop into an error the user sees instead of a stopped run.
+   */
+  const stopSessionFleet = (sessionId: string): void => {
+    if (!sessionId || !opts.stopSessionFleet) return;
+    try {
+      void Promise.resolve(opts.stopSessionFleet(sessionId)).catch((err) => {
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'webui.stop_session_fleet_failed',
+            sessionId,
+            message: err instanceof Error ? err.message : String(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      });
+    } catch {
+      // A synchronous throw from the host hook is best-effort too.
+    }
   };
 
   const pendingConfirms = new Map<string, PendingConfirm>();
+
+  // One gate per host, shared by session transitions and run setup.
+  const sessionTransitionGate = createSessionTransitionGate();
 
   // Audit-level-aware session log bridge — persists tool/error/provider
   // events to the session JSONL with the same contract as the CLI. The
   // getter form resolves the CURRENT writer on every append so events
   // follow session.new / session.resume swaps.
-  const sessionLogging = resolveSessionLoggingConfig(
-    config as never as Parameters<typeof resolveSessionLoggingConfig>[0],
-  );
+  const sessionLogging = resolveSessionLoggingConfig(config);
   const sessionBridge = createSessionEventBridge(
     () => context.session ?? session,
     sessionLogging.auditLevel,
     { sampling: sessionLogging.sampling },
   );
+
+  /**
+   * One audit bridge per session, bound to THAT session's writer.
+   *
+   * The single bridge above resolves "the current writer", so audit events for
+   * a background tab had nowhere to go and were dropped — the tab worked, but
+   * resuming it later showed a run with no tool history. Each tab's agent owns
+   * its own writer, so the bridge is built from the agent registry and cached
+   * per session; a session with no agent (never opened, already retired) has
+   * no writer to address and yields undefined.
+   */
+  const sessionBridges = new Map<string, ReturnType<typeof createSessionEventBridge>>();
+  const bridgeForSession = (sessionId: string) => {
+    if (!sessionId) return undefined;
+    const existing = sessionBridges.get(sessionId);
+    if (existing) return existing;
+    const agent = deps.getAgent?.(sessionId);
+    const writer = agent?.ctx?.session;
+    if (!writer) return undefined;
+    const bridge = createSessionEventBridge(
+      () => deps.getAgent?.(sessionId)?.ctx?.session,
+      sessionLogging.auditLevel,
+      { sampling: sessionLogging.sampling },
+    );
+    // Bounded: the tab ceiling is four, and a handful of retired sessions may
+    // linger until the next miss.
+    if (sessionBridges.size >= 16) sessionBridges.clear();
+    sessionBridges.set(sessionId, bridge);
+    return bridge;
+  };
 
   // Event arming + WS error handlers live in ./server-runtime.ts (Phase 1e).
   // The WS server's 'listening' event fires when the shared HTTP server
@@ -533,6 +595,7 @@ export async function startWebUI(
       pendingConfirms,
       globalConfigPath,
       sessionBridge,
+      bridgeForSession,
       wpaths,
     },
     watcherMetricsRef,
@@ -648,34 +711,30 @@ export async function startWebUI(
     },
     abortRunLock: (sessionId?: string) => {
       if (sessionId) {
-        const ctrl = _sessionRunLocks.get(sessionId);
-        if (ctrl) {
-          ctrl.abort();
-          _sessionRunLocks.delete(sessionId);
-        }
-        if (runLockControl.getSession() === sessionId) {
-          const globalCtrl = runLockControl.get();
-          if (globalCtrl) {
-            globalCtrl.abort();
-            runLockControl.set(null);
-            runLockControl.setSession(null);
-          }
-        }
-      } else {
-        for (const ctrl of _sessionRunLocks.values()) {
-          ctrl.abort();
-        }
-        _sessionRunLocks.clear();
-        const globalCtrl = runLockControl.get();
-        if (globalCtrl) {
-          globalCtrl.abort();
-          runLockControl.set(null);
-          runLockControl.setSession(null);
-        }
+        // Strictly session-scoped. The previous fallback — "if this is the
+        // most-recent run session, also abort the global controller" — is
+        // what let opening a new tab kill a different tab's in-flight run.
+        _sessionRunLocks.get(sessionId)?.abort();
+        _sessionRunLocks.delete(sessionId);
+        if (runLockControl.getSession() === sessionId) runLockControl.setSession(null);
+        // Stopping a run means stopping the WORK, and this session's
+        // subagents are part of that work. Aborting the leader's controller
+        // only unwinds workers it is blocked on; async ones (spawn_subagent +
+        // assign_task) keep going unless someone asks them to stop. Scoped to
+        // this session so a tab's Stop never reaches another tab's fleet.
+        stopSessionFleet(sessionId);
+        return;
       }
+      const running = [..._sessionRunLocks.keys()];
+      for (const ctrl of _sessionRunLocks.values()) ctrl.abort();
+      _sessionRunLocks.clear();
+      runLockControl.setSession(null);
+      for (const id of running) stopSessionFleet(id);
     },
     isRunActive: (sessionId?: string) =>
       sessionId ? _sessionRunLocks.has(sessionId) : runLockControl.hasAny(),
+    getRunningSessionIds: () => [..._sessionRunLocks.keys()],
+    withSessionTransition: sessionTransitionGate,
     getClients: () => clients,
   };
 
@@ -779,7 +838,7 @@ export async function startWebUI(
       ),
       webClients: clients.size,
       pendingConfirms: pendingConfirms.size,
-      runActive: runLockControl.get() !== null,
+      runActive: runLockControl.hasAny(),
     }),
   });
 
@@ -789,6 +848,7 @@ export async function startWebUI(
       const activeIds = new Set<string>();
       for (const client of clients.values()) {
         if (client.sessionId) activeIds.add(client.sessionId);
+        for (const id of client.sessionIds ?? []) activeIds.add(id);
       }
       const currentId = state.getSession().id;
       if (activeIds.size === 0 && currentId) {
@@ -813,6 +873,11 @@ export async function startWebUI(
   const stopEmptySessionCleanup = scheduleOwnerlessEmptySessionCleanup({
     getSessionStore: state.getSessionStore,
     getActiveSessionId: () => state.getSession().id,
+    // Every tab the browser declared, not just the one in front — a
+    // background tab's brand-new session is empty and would otherwise be
+    // swept out from under it.
+    getActiveSessionIds: () =>
+      collectDisplayedSessionIds({ getSession: state.getSession, clients }),
     hasParticipants: (sessionId) => collabHandler.hasParticipants(sessionId),
     refreshSessions: async () => {
       const list = await state.getSessionStore().list(200);

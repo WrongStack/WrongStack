@@ -50,7 +50,7 @@ export type WSClientMessageCore =
       payload: SessionScopedPayload & { requestId: string; prompt: string };
     }
   | WSToolConfirmResult
-  | { type: 'side_effects.list'; payload?: Record<string, never> }
+  | { type: 'side_effects.list'; payload?: { sessionId?: string | undefined } | undefined }
   | {
       type: 'goal.start';
       payload: {
@@ -210,9 +210,21 @@ export type WSClientMessageCore =
   | { type: 'abort'; payload: SessionScopedPayload }
   | { type: 'session.resume'; payload: { id: string } & SessionScopedPayload }
   | { type: 'session.inspect'; payload: { id: string } }
-  | { type: 'session.new'; payload?: SessionScopedPayload }
+  | {
+      type: 'session.new';
+      payload?: ({ systemPromptVariant?: string } & SessionScopedPayload) | SessionScopedPayload;
+    }
   | { type: 'session.checkpoints'; payload?: SessionScopedPayload }
   | { type: 'session.rewind'; payload: { checkpointIndex: number } & SessionScopedPayload }
+  /**
+   * Declare every session this connection is displaying (its open tabs).
+   *
+   * A WebUI page holds up to four tabs on ONE socket, so the server cannot
+   * infer the open set from the last message's `sessionId`. Without this the
+   * broadcast filter drops the other three tabs' runs at the wire. Re-sent in
+   * full whenever a tab opens or closes — it replaces, it does not merge.
+   */
+  | { type: 'session.subscribe'; payload: { sessionIds: string[] } & SessionScopedPayload }
   | { type: 'context.clear'; payload?: SessionScopedPayload }
   | { type: 'context.compact'; payload: { aggressive: boolean } & SessionScopedPayload }
   | { type: 'context.repair'; payload?: SessionScopedPayload }
@@ -425,13 +437,15 @@ export type WSClientMessageCore =
   | {
       type: 'prompts.journal';
       payload?: {
-        filter?: {
-          sessionId?: string | undefined;
-          category?: string | undefined;
-          date?: string | undefined;
-          month?: string | undefined;
-          limit?: number | undefined;
-        } | undefined;
+        filter?:
+          | {
+              sessionId?: string | undefined;
+              category?: string | undefined;
+              date?: string | undefined;
+              month?: string | undefined;
+              limit?: number | undefined;
+            }
+          | undefined;
       };
     }
   | {
@@ -565,7 +579,7 @@ export type WSClientMessageCore =
   | { type: 'goal-state.get' }
   | { type: 'autonomy.switch'; payload: { mode: string } }
   | { type: 'prefs.update'; payload: Record<string, unknown> }
-  | { type: 'prefs.get' }
+  | { type: 'prefs.get'; payload?: { sessionId?: string | undefined } | undefined }
   | { type: 'system_prompt.get' }
   | { type: 'projects.list' }
   | { type: 'projects.add'; payload: { root: string; name?: string | undefined } }

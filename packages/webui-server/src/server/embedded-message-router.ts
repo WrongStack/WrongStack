@@ -4,7 +4,6 @@ import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger, MemoryPort, ProviderConfig } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
@@ -86,6 +85,7 @@ import type { ProcessRouteHandlers } from './process-routes.js';
 import type { PromptsContext } from './prompts-handlers.js';
 import { createProviderOperations } from './provider-handlers.js';
 import type { ProviderRouteHandlers } from './provider-routes.js';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { createRouteFamilyDispatcher } from './route-family-dispatcher.js';
 import type { SddBoardRouteHandlers } from './sdd-board-routes.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
@@ -100,6 +100,7 @@ import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
+import { messageSessionId } from './ws-utils.js';
 
 export interface EmbeddedMessageRouterOptions {
   agent: Agent;
@@ -439,7 +440,7 @@ export function createEmbeddedMessageRouter(
   });
   const prefs = createPrefsRouteHandlers(deps.prefsCtx);
   const brain: BrainRouteHandlers = {
-    status: (ws) => handleBrainStatus(deps.brainCtx, ws),
+    status: (ws, msg) => handleBrainStatus(deps.brainCtx, ws, messageSessionId(msg)),
     risk: (ws, msg) =>
       handleBrainRisk(
         deps.brainCtx,

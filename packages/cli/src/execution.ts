@@ -652,6 +652,14 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         statusTracker,
         updateInfo: bootUpdateInfo,
         webuiSessionChild,
+        // Stopping a tab's run stops the work that tab started — its
+        // subagents included. Aborting the leader's controller only unwinds
+        // workers it is BLOCKED on; anything started with `spawn_subagent` +
+        // `assign_task` keeps going unless asked to stop. Scoped to the
+        // session so one tab's Stop never reaches another tab's fleet.
+        stopSessionFleet: async (sessionId: string) => {
+          await getDirector?.()?.terminateSession(sessionId);
+        },
         getFleetBudget: () => {
           const d = getDirector?.() ?? null;
           if (!d) return null;

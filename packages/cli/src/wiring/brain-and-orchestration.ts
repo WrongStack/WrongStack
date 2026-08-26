@@ -28,11 +28,11 @@ import {
 } from '@wrongstack/core/types';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
 import { createSubagentWrongTraceHookRunner } from '../fleet/subagent-hook-runner.js';
-import { recordGateDecision } from './wrongtrace-gate-counters.js';
 import { MultiAgentHost } from '../multi-agent.js';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 import { buildProviderForId } from './provider-runtime.js';
+import { recordGateDecision } from './wrongtrace-gate-counters.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -350,10 +350,23 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
     // leader's own activity — subagent tool failures or stalls must not
     // trigger corrective steers to the leader agent.
     leaderSessionId: () => context.session?.id ?? session.id,
-    intervene: async ({ subject, body }: { subject: string; body: string }) => {
-      const leaderUniqueId = `leader@${mailboxSessionTag(session.id)}`;
+    intervene: async ({
+      subject,
+      body,
+      sessionId,
+    }: {
+      subject: string;
+      body: string;
+      sessionId?: string | undefined;
+    }) => {
+      // Steer the session whose distress triggered this. The CLI host runs one
+      // session, so this normally resolves to the same id — but taking it from
+      // the signal rather than from a captured `session` keeps the steer
+      // correct across a session swap that lands mid-engagement.
+      const tag = mailboxSessionTag(sessionId || context.session?.id || session.id);
+      const leaderUniqueId = `leader@${tag}`;
       await brainMailbox.send({
-        from: `brain@${mailboxSessionTag(session.id)}`,
+        from: `brain@${tag}`,
         to: leaderUniqueId,
         type: 'steer',
         subject,

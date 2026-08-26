@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { SubagentConfig } from '@wrongstack/core/types';
+import type { SubagentConfig, TokenCounter, Usage } from '@wrongstack/core/types';
 
 const BRIDGE_TEXT_CAP = 360;
 const BRIDGE_OUTPUT_CAP = 4_096;
@@ -108,8 +108,23 @@ export function installSubagentEventBridge(opts: {
   projectRoot: string;
   effectiveCfg: SubagentConfig;
   subCfg: SubagentConfig;
+  /** The subagent's own counter, for the cumulative snapshot on each emit. */
+  tokenCounter?: Pick<TokenCounter, 'total'> | undefined;
+  /** Routed provider/model, used when an event omits its own. */
+  subagentProvider?: string | undefined;
+  subagentModel?: string | undefined;
 }): () => void {
-  const { events, hostEvents, hostSessionId, projectRoot, effectiveCfg, subCfg } = opts;
+  const {
+    events,
+    hostEvents,
+    hostSessionId,
+    projectRoot,
+    effectiveCfg,
+    subCfg,
+    tokenCounter,
+    subagentProvider,
+    subagentModel,
+  } = opts;
   const subagentId = (): string => effectiveCfg.id ?? effectiveCfg.name ?? 'subagent';
   const agentName = (name?: string | undefined): string => name ?? subCfg.name;
 
@@ -189,11 +204,94 @@ export function installSubagentEventBridge(opts: {
     });
   });
 
+  // ── Token + provider attribution ────────────────────────────────────────
+  // These are the events that made subagent spend invisible. Chronicle's
+  // adapters subscribe to the HOST bus; a subagent's `token.accounted` and
+  // `provider.attempt.*` are emitted on its private bus and stopped there. A
+  // 287 MB journal held 2,402 `token.accounted` rows and 2,033
+  // `provider.attempt.completed` rows — every single one attributed to the
+  // leader, while 419 distinct subagents showed up in the `subagent.*` family
+  // with no spend or reliability data attached to any of them.
+  //
+  // Re-namespaced rather than re-emitted verbatim, for the same reason
+  // `tool.executed` becomes `subagent.tool_executed` above: host subscribers
+  // of `provider.attempt.*` and `token.accounted` (statusline, cost bridge,
+  // fallback management, the leader's own status tracker) treat them as
+  // LEADER activity. Replaying subagent events under those names would make
+  // the leader's own numbers wrong to fix the subagents'. Chronicle's domain
+  // adapter picks the new names up through the `subagent.` prefix and reads
+  // `subagentId` into `scope.agentId` plus `provider`/`model` into `runtime`.
+  const offTokenBridge = events.on('token.accounted', (e) => {
+    hostEvents.emit('subagent.token_accounted', {
+      sessionId: hostSessionId,
+      subagentId: subagentId(),
+      agentName: agentName(),
+      provider: e.provider ?? subagentProvider,
+      model: e.model ?? subagentModel,
+      // The subagent counter's own running total, not the leader's.
+      usage: tokenCounter ? tokenCounter.total() : e.usage,
+      deltaUsage: e.deltaUsage,
+      cost: e.cost,
+    });
+  });
+
+  const bridgeAttempt = (
+    outcome: 'started' | 'completed' | 'failed',
+    e: {
+      attempt?: number | undefined;
+      providerId?: string | undefined;
+      model?: string | undefined;
+      durationMs?: number | undefined;
+      stopReason?: string | undefined;
+      usage?: Usage | undefined;
+      description?: string | undefined;
+      status?: number | undefined;
+      failureKind?: string | undefined;
+      retryable?: boolean | undefined;
+      traceId?: string | undefined;
+      logicalRequestId?: string | undefined;
+      promptManifestId?: string | undefined;
+      attemptId?: string | undefined;
+    },
+  ): void => {
+    hostEvents.emit('subagent.provider_attempt', {
+      sessionId: hostSessionId,
+      subagentId: subagentId(),
+      agentName: agentName(),
+      outcome,
+      provider: e.providerId ?? subagentProvider,
+      model: e.model ?? subagentModel,
+      attempt: e.attempt,
+      durationMs: e.durationMs,
+      stopReason: e.stopReason,
+      usage: e.usage,
+      description: e.description,
+      status: e.status,
+      failureKind: e.failureKind,
+      retryable: e.retryable,
+      traceId: e.traceId,
+      logicalRequestId: e.logicalRequestId,
+      promptManifestId: e.promptManifestId,
+      attemptId: e.attemptId,
+    });
+  };
+  const offAttemptStarted = events.on('provider.attempt.started', (e) =>
+    bridgeAttempt('started', e),
+  );
+  const offAttemptCompleted = events.on('provider.attempt.completed', (e) =>
+    bridgeAttempt('completed', e),
+  );
+  const offAttemptFailed = events.on('provider.attempt.failed', (e) => bridgeAttempt('failed', e));
+
   return () => {
     offToolStartedBridge();
     offToolProgressBridge();
     offToolBridge();
     offSummaryBridge();
     offCtxBridge();
+    offTokenBridge();
+    offAttemptStarted();
+    offAttemptCompleted();
+    offAttemptFailed();
   };
 }

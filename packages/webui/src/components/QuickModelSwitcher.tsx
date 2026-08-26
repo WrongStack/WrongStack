@@ -1,15 +1,16 @@
+import { ArrowRight, Cpu, Filter, Search, Star } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
-import { useAppTranslation } from '@/i18n';
-import { toast } from '@/components/Toaster';
 import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
+import { useLocalPrefs } from '@/stores/local-prefs';
 import { memorySessionSnapshots } from '@/stores/session-store';
 import type { WSServerMessage } from '@/types';
-import { ArrowRight, Cpu, Filter, Search } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { buildModelCandidates } from './QuickModelSwitcher.filter';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 
 interface SavedProvider {
   id: string;
@@ -34,8 +35,10 @@ export function QuickModelSwitcher() {
   const { t } = useAppTranslation();
   const open = useUIStore((s) => s.modelSwitcherOpen);
   const setOpen = useUIStore((s) => s.setModelSwitcherOpen);
+  const favoriteModels = useLocalPrefs((s) => s.favoriteModels);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [selected, setSelected] = useState(0);
   const [saved, setSaved] = useState<SavedProvider[]>([]);
   const [modelsByProvider, setModelsByProvider] = useState<Record<string, CatalogModel[]>>({});
@@ -102,6 +105,7 @@ export function QuickModelSwitcher() {
     if (!open) return;
     setQuery('');
     setProviderFilter(null);
+    setFavoritesOnly(false);
     setSelected(0);
     listSavedProviders();
     // Auto-focus the search input after the dialog paints. requestAnimationFrame
@@ -127,8 +131,9 @@ export function QuickModelSwitcher() {
   );
 
   /** Flatten into a single list of {provider, model} candidates, then apply
-   *  the search filter and optional provider filter. The active row floats
-   *  to the top so the user can see what they're currently on. */
+   *  the search filter, optional provider filter, and optional favorites-only
+   *  filter. The active row floats to the top so the user can see what they're
+   *  currently on. */
   const candidates = useMemo(
     () =>
       buildModelCandidates(
@@ -138,8 +143,19 @@ export function QuickModelSwitcher() {
         currentProvider,
         currentModel,
         providerFilter,
+        favoritesOnly,
+        favoriteModels,
       ),
-    [saved, modelsByProvider, query, currentProvider, currentModel, providerFilter],
+    [
+      saved,
+      modelsByProvider,
+      query,
+      currentProvider,
+      currentModel,
+      providerFilter,
+      favoritesOnly,
+      favoriteModels,
+    ],
   );
 
   useEffect(() => {
@@ -218,7 +234,7 @@ export function QuickModelSwitcher() {
           {t('activity:modelSwitcher.filterPlaceholder')}
         </DialogDescription>
         <div className="flex items-center gap-2 border-b px-3 py-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
+          <Search className="h-4 w-4 text-muted-foreground shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -240,10 +256,38 @@ export function QuickModelSwitcher() {
             }}
             placeholder={t('activity:modelSwitcher.filterPlaceholder')}
             aria-label={t('activity:modelSwitcher.filterPlaceholder')}
-            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground min-w-0"
           />
+
+          <button
+            type="button"
+            onClick={() => {
+              setFavoritesOnly((v) => !v);
+              setSelected(0);
+            }}
+            title={t('activity:modelSwitcher.favoritesOnly')}
+            aria-label={t('activity:modelSwitcher.favoritesOnly')}
+            aria-pressed={favoritesOnly}
+            className={cn(
+              'flex items-center gap-1 rounded-md px-2 py-1 text-xs transition-colors border shrink-0',
+              favoritesOnly
+                ? 'bg-warning/15 border-warning/40 text-warning font-medium'
+                : 'bg-transparent border-border/70 text-muted-foreground hover:text-foreground hover:bg-muted/50',
+            )}
+          >
+            <Star
+              className={cn(
+                'h-3.5 w-3.5',
+                favoritesOnly ? 'fill-warning text-warning' : 'text-muted-foreground',
+              )}
+            />
+            <span className="text-[11px] whitespace-nowrap">
+              {t('activity:modelSwitcher.favoritesOnly')}
+            </span>
+          </button>
+
           {providerList.length > 1 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <select
                 value={providerFilter ?? ''}
@@ -263,7 +307,7 @@ export function QuickModelSwitcher() {
               </select>
             </div>
           )}
-          <span className="text-[10px] text-muted-foreground font-mono">
+          <span className="text-[10px] text-muted-foreground font-mono shrink-0">
             {switchingTarget
               ? t('settings:toast.switchingToTarget', { target: switchingTarget })
               : '↑↓ · Enter · Esc'}
@@ -276,12 +320,17 @@ export function QuickModelSwitcher() {
                 ? t('activity:modelSwitcher.noSavedProviders')
                 : Object.keys(modelsByProvider).length === 0
                   ? t('activity:model.loading')
-                  : t('activity:modelSwitcher.noMatch')}
+                  : favoritesOnly
+                    ? favoriteModels?.length === 0
+                      ? t('activity:modelSwitcher.noFavoritesConfigured')
+                      : t('activity:modelSwitcher.noFavoritesMatch')
+                    : t('activity:modelSwitcher.noMatch')}
             </div>
           ) : (
             candidates.map((c, idx) => (
               <button
                 type="button"
+                data-model-candidate="true"
                 key={`${c.provider}:${c.model}`}
                 onClick={() => void commit(idx)}
                 disabled={switchingTarget !== null}
@@ -299,10 +348,15 @@ export function QuickModelSwitcher() {
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate">
+                  <div className="flex items-center gap-1.5 truncate">
                     <span className="text-muted-foreground">{c.provider}</span>
-                    <span className="mx-1 text-muted-foreground/65">·</span>
-                    <span>{c.modelName}</span>
+                    <span className="text-muted-foreground/65">·</span>
+                    <span className="truncate">{c.modelName}</span>
+                    {c.isFavorite && (
+                      <span title={t('activity:modelSwitcher.favoriteModel')}>
+                        <Star className="h-3 w-3 fill-warning text-warning shrink-0" />
+                      </span>
+                    )}
                   </div>
                   {c.contextWindow && (
                     <div className="text-[10px] text-muted-foreground font-mono">
