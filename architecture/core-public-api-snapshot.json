@@ -706,6 +706,7 @@
         "export { attachTodosCheckpoint, loadTodosCheckpoint, saveTodosCheckpoint, type TodosCheckpointFile, } from './todos-checkpoint.js';",
         "export { cleanOrphanLocks, type OrphanLockCleanResult, } from './orphan-lock-cleaner.js';",
         "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
+        "export { deriveSessionAgents, type SessionAgentRecord, type SessionAgentStatus, } from '../session-catalog/session-agents.js';",
         "export { emptyTaskFile, loadTasks, mutateTasks, saveTasks, type TaskFile, } from './task-store.js';",
         "export { extractInterruptedTools, type InterruptedToolDetail, type RecoveryPlan, SessionRecovery, type StaleSession, } from './session-recovery.js';",
         "export { formatPlanTemplates, getPlanTemplate, listPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
@@ -744,6 +745,7 @@
         "export * from './endpoint.js';",
         "export * from './protocol.js';",
         "export * from './registry.js';",
+        "export * from './session-agents.js';",
         "export * from './store.js';"
       ]
     },
@@ -1128,7 +1130,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 168,
-      "sourceLines": 49467
+      "sourceLines": 49473
     },
     {
       "directory": "core",
@@ -1261,7 +1263,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4335
+      "sourceLines": 4354
     },
     {
       "directory": "skills",
@@ -1275,7 +1277,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 90,
-      "sourceLines": 19629
+      "sourceLines": 19633
     },
     {
       "directory": "tasking",

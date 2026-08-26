@@ -32,6 +32,7 @@ function handlers(): SessionRouteHandlers {
     inspectSession: vi.fn(async () => undefined),
     listCheckpoints: vi.fn(async () => undefined),
     rewindSession: vi.fn(async () => undefined),
+    subscribeSessions: vi.fn(async () => undefined),
   };
 }
 

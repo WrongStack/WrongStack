@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BrainMonitor } from '../../src/coordination/brain-monitor.js';
+import { BrainMonitor, type BrainInterventionInput } from '../../src/coordination/brain-monitor.js';
 import { EventBus } from '../../src/kernel/events.js';
 
 /**
@@ -23,7 +23,11 @@ import { EventBus } from '../../src/kernel/events.js';
 
 function makeMonitor(opts: { leaderSessionId?: string } = {}) {
   const events = new EventBus();
-  const intervene = vi.fn(async () => undefined);
+  // Type the intervene mock as `(input: BrainInterventionInput) => Promise<void>`
+  // so it satisfies the `BrainMonitor` constructor AND `mock.calls` infers as
+  // `BrainInterventionInput[][]` — no empty-tuple `noUncheckedIndexedAccess`
+  // complaint on `calls[0]?.[0].sessionId`.
+  const intervene = vi.fn(async (_input: BrainInterventionInput) => undefined);
   const monitor = new BrainMonitor({
     events,
     brain: {
@@ -59,7 +63,9 @@ describe('BrainMonitor attributes distress to the session that produced it', () 
     failTool(events, 'tab-2', 2);
     await vi.waitFor(() => expect(intervene).toHaveBeenCalled());
 
-    expect(intervene.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'tab-2' });
+    expect((intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string })).toMatchObject({
+      sessionId: 'tab-2',
+    });
     stop();
   });
 
@@ -83,7 +89,7 @@ describe('BrainMonitor attributes distress to the session that produced it', () 
     await vi.waitFor(() => expect(intervene).toHaveBeenCalledTimes(2));
 
     const targets = intervene.mock.calls.map(
-      (call) => (call[0] as { sessionId?: string }).sessionId,
+      (call) => (call as unknown as readonly [{ sessionId?: string }])[0].sessionId,
     );
     expect(targets).toEqual(['tab-1', 'tab-2']);
     stop();
@@ -100,7 +106,9 @@ describe('BrainMonitor attributes distress to the session that produced it', () 
 
     failTool(events, 'the-only-one', 2);
     await vi.waitFor(() => expect(intervene).toHaveBeenCalledTimes(1));
-    expect(intervene.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'the-only-one' });
+    expect((intervene.mock.calls[0]?.[0] as unknown as { sessionId?: string })).toMatchObject({
+      sessionId: 'the-only-one',
+    });
     stop();
   });
 });

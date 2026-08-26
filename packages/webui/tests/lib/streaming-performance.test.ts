@@ -85,7 +85,7 @@ describe('Streaming performance', () => {
   describe('chat-store under message load', () => {
     // Reset the store between tests so counts don't accumulate
     afterEach(() => {
-      useChatStore.setState({ messages: [], streamingText: '', streamingMessageId: null });
+      useChatStore.setState({ messages: [] });
     });
 
     it('handles 1,000 messages without performance degradation', () => {
@@ -139,7 +139,7 @@ describe('Streaming performance', () => {
           });
         }
         // Simulate a session clear
-        useChatStore.setState({ messages: [], streamingText: '', streamingMessageId: null });
+        useChatStore.setState({ messages: [] });
       }
 
       // After all cycles, the store should be empty

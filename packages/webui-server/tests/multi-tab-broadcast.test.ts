@@ -3,8 +3,8 @@ import { WebSocket } from 'ws';
 
 vi.mock('ws', () => {
   const MockWebSocket = vi.fn();
-  MockWebSocket.OPEN = 1;
-  MockWebSocket.CLOSED = 3;
+  (MockWebSocket as unknown as { OPEN: number; CLOSED: number }).OPEN = 1;
+  (MockWebSocket as unknown as { OPEN: number; CLOSED: number }).CLOSED = 3;
   return { WebSocket: MockWebSocket };
 });
 

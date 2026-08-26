@@ -25,7 +25,6 @@ function resetPrefs() {
     yolo: false,
     contextStrategy: 'hybrid',
     reasoningEffort: 'medium',
-    theme: useLocalPrefs.getState().theme,
     bySession: {},
     sessionDefaults: {},
     activeSessionId: null,

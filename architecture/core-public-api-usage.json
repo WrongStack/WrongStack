@@ -141,7 +141,7 @@
     "@wrongstack/core/storage": {
       "files": 110,
       "typeOnly": 31,
-      "runtimeOrMixed": 111
+      "runtimeOrMixed": 112
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -154,8 +154,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1010,
-      "typeOnly": 933,
+      "files": 1011,
+      "typeOnly": 934,
       "runtimeOrMixed": 246
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -181,7 +181,7 @@
     "@wrongstack/core/utils": {
       "files": 546,
       "typeOnly": 58,
-      "runtimeOrMixed": 515
+      "runtimeOrMixed": 516
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -8655,7 +8655,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/slash-commands/session.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -10706,6 +10706,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/webui-server/provider-config.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/webui-server/route-contexts.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16605,7 +16611,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/session.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 1
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/utils",

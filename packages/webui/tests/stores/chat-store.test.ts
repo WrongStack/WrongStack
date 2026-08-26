@@ -998,7 +998,9 @@ describe('F5 resilience — chat transcript persistence', () => {
     addMsg({ role: 'user', content: 'pre-refresh message' });
     useChatStore.getState().enqueue('typed but not sent', 'queue');
 
-    useChatStore.persist.flush?.();
+    // zustand's persist middleware writes synchronously; no flush hook exists.
+    // (The old `persist.flush?.()` was a no-op — the optional call hid the
+    // missing method.) Read directly from localStorage via `readBlob()`.
 
     const blob = readBlob();
     expect(blob.state.activeSessionId).toBe('sess-LIVE');
@@ -1016,7 +1018,9 @@ describe('F5 resilience — chat transcript persistence', () => {
     useChatStore.getState().setBoundSessionId('sess-B');
     addMsg({ role: 'user', content: 'tab B' });
 
-    useChatStore.persist.flush?.();
+    // zustand's persist middleware writes synchronously; no flush hook exists.
+    // (The old `persist.flush?.()` was a no-op — the optional call hid the
+    // missing method.) Read directly from localStorage via `readBlob()`.
     const blob = readBlob();
     expect(blob.state.activeSessionId).toBe('sess-B');
     expect(blob.state.lanes['sess-A']?.messages).toHaveLength(1);
@@ -1038,7 +1042,9 @@ describe('F5 resilience — chat transcript persistence', () => {
       thinkingStartedAt: 999,
     });
     useChatStore.getState().enqueue('keep this');
-    useChatStore.persist.flush?.();
+    // zustand's persist middleware writes synchronously; no flush hook exists.
+    // (The old `persist.flush?.()` was a no-op — the optional call hid the
+    // missing method.) Read directly from localStorage via `readBlob()`.
     const lane = activeLane(readBlob());
     for (const field of [
       'isLoading',

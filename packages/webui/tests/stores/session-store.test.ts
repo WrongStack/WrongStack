@@ -456,7 +456,7 @@ describe('F5 resilience — persistence', () => {
         },
       },
       useSessionStore.persist.getOptions() as never,
-    ) as {
+    ) as unknown as {
       activeSessionId: string;
       projectName: string;
       cwd: string;

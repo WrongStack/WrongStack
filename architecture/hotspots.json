@@ -43,7 +43,7 @@
       "relativeImports": 8
     },
     "packages/core/src/chronicle/query.ts": {
-      "lines": 924,
+      "lines": 1297,
       "relativeImports": 3
     },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
@@ -55,7 +55,7 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
-      "lines": 1017,
+      "lines": 1033,
       "relativeImports": 9
     },
     "packages/core/src/coordination/director-tools.ts": {
@@ -63,7 +63,7 @@
       "relativeImports": 16
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 921,
+      "lines": 941,
       "relativeImports": 39
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
@@ -71,7 +71,7 @@
       "relativeImports": 6
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1057,
+      "lines": 1160,
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
@@ -139,8 +139,8 @@
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
-      "lines": 828,
-      "relativeImports": 10
+      "lines": 953,
+      "relativeImports": 11
     },
     "packages/core/src/storage/file-session-writer.ts": {
       "lines": 1023,
@@ -153,6 +153,10 @@
     "packages/core/src/types/provider.ts": {
       "lines": 890,
       "relativeImports": 7
+    },
+    "packages/core/src/types/session.ts": {
+      "lines": 847,
+      "relativeImports": 4
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
       "lines": 863,
@@ -419,15 +423,15 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 890,
+      "lines": 891,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1109,
-      "relativeImports": 11
+      "lines": 1229,
+      "relativeImports": 10
     },
     "packages/webui/src/stores/chat-lanes.ts": {
-      "lines": 883,
+      "lines": 880,
       "relativeImports": 4
     },
     "packages/webui/src/stores/local-prefs.ts": {
@@ -439,7 +443,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 974,
+      "lines": 976,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -455,7 +459,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/backend-services.ts": {
-      "lines": 891,
+      "lines": 926,
       "relativeImports": 12
     },
     "packages/webui-server/src/server/context-editor.ts": {
@@ -471,23 +475,23 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/kanban-routes.ts": {
-      "lines": 1010,
+      "lines": 1008,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 854,
+      "lines": 850,
       "relativeImports": 45
     },
     "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1036,
+      "lines": 1112,
       "relativeImports": 10
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 969,
+      "lines": 995,
       "relativeImports": 28
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {
-      "lines": 1011,
+      "lines": 1022,
       "relativeImports": 1
     },
     "apps/desktop/src/main/runtime-manager.ts": {

@@ -1132,7 +1132,13 @@ describe('FileSessionWriter — observeForSummary event types + scheduled flush'
       input: {},
     } as SessionEvent);
     await w.append({ type: 'compaction', ts: now() } as SessionEvent);
-    await w.append({ type: 'provider_error', ts: now(), message: 'rate limited' } as SessionEvent);
+    await w.append({
+      type: 'provider_error',
+      ts: now(),
+      providerId: 'openai',
+      description: 'rate limited',
+      retryable: true,
+    } as SessionEvent);
     await w.close();
     const summaries = await store.list();
     const s = summaries.find((x) => x.id === 'obs');
