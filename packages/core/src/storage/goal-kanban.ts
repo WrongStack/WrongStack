@@ -14,8 +14,8 @@
  *   formatGoalKanbanChoicePrompt()                      → string (selection screen)
  */
 
-import { boardStore, tryBoardStore } from './board-store-port.js';
 import { color } from '../utils/color.js';
+import { boardStore, tryBoardStore } from './board-store-port.js';
 import type { GoalFile } from './goal-store.js';
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -33,10 +33,14 @@ const GOAL_BOARD_TAG_PREFIX = 'goal:';
  *   deliverable. The board id is stored on `goalFile.kanbanBoardId`.
  *
  * Returns the board id. Returns null when the project root is unavailable.
+ *
+ * `sessionId` is the session that set the goal: the deliverable tasks it seeds
+ * are durable board events, and they belong to that session.
  */
 export async function createGoalKanbanBoard(
   projectRoot: string,
   goalFile: GoalFile,
+  sessionId: string,
 ): Promise<string | null> {
   if (!projectRoot) return null;
 
@@ -77,16 +81,21 @@ export async function createGoalKanbanBoard(
       const cleaned = d.replace(/^\[[x✓]\]|✅|\(done\)\s*/i, '').trim();
       if (cleaned) {
         await store
-          .addTask(projectRoot, board.id, {
-            title: cleaned,
-            columnId: targetColumnId,
-            description: `Deliverable for goal: ${displayGoal}`,
-            priority: 'medium',
-            origin: {
-              system: 'goal',
-              taskId: `deliverable:${index}`,
+          .addTask(
+            projectRoot,
+            board.id,
+            {
+              title: cleaned,
+              columnId: targetColumnId,
+              description: `Deliverable for goal: ${displayGoal}`,
+              priority: 'medium',
+              origin: {
+                system: 'goal',
+                taskId: `deliverable:${index}`,
+              },
             },
-          })
+            { sessionId, actor: 'goal' },
+          )
           .catch(() => {
             // Best-effort: a task-add failure for one deliverable won't crash the goal
           });

@@ -82,21 +82,33 @@ beforeEach(() => {
 describe('createGoalKanbanBoard', () => {
   it('creates a board with deliverables as tasks', async () => {
     const goal = makeGoal();
-    const boardId = await createGoalKanbanBoard('/project', goal);
+    const boardId = await createGoalKanbanBoard(
+      '/project',
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(boardId).toBe('board-123');
     expect(mockCreateBoard).toHaveBeenCalledTimes(1);
     expect(mockAddTask).toHaveBeenCalledTimes(3); // 3 deliverables
   });
 
   it('returns null when projectRoot is empty', async () => {
-    const result = await createGoalKanbanBoard('', makeGoal());
+    const result = await createGoalKanbanBoard(
+      '',
+      makeGoal(),
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(result).toBeNull();
     expect(mockCreateBoard).not.toHaveBeenCalled();
   });
 
   it('reuses existing board when kanbanBoardId is set and board exists', async () => {
     const goal = { ...makeGoal(), kanbanBoardId: 'existing-board' } as never;
-    const result = await createGoalKanbanBoard('/project', goal);
+    const result = await createGoalKanbanBoard(
+      '/project',
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(result).toBe('existing-board');
     expect(mockCreateBoard).not.toHaveBeenCalled();
   });
@@ -104,21 +116,29 @@ describe('createGoalKanbanBoard', () => {
   it('creates a new board when existing board is not found', async () => {
     mockGetBoard.mockRejectedValueOnce(new Error('not found'));
     const goal = { ...makeGoal(), kanbanBoardId: 'dead-board' } as never;
-    const result = await createGoalKanbanBoard('/project', goal);
+    const result = await createGoalKanbanBoard(
+      '/project',
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(result).toBe('board-123');
     expect(mockCreateBoard).toHaveBeenCalledTimes(1);
   });
 
   it('handles goal with no deliverables', async () => {
     const goal = makeGoal({ deliverables: [] });
-    const boardId = await createGoalKanbanBoard('/project', goal);
+    const boardId = await createGoalKanbanBoard(
+      '/project',
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(boardId).toBe('board-123');
     expect(mockAddTask).not.toHaveBeenCalled();
   });
 
   it('truncates long goal titles', async () => {
     const goal = makeGoal({ goal: 'A'.repeat(200) });
-    await createGoalKanbanBoard('/project', goal);
+    await createGoalKanbanBoard('/project', goal, '2026-08-26/sess_01TESTGOALKANBAN00000000');
     const callArgs = mockCreateBoard.mock.calls[0]?.[1] as { title: string };
     expect(callArgs.title.length).toBeLessThan(100);
   });

@@ -245,7 +245,7 @@ export interface CliWebUIOptions {
    */
   onAutonomySwitch?: ((mode: string) => void) | undefined;
   /** Forward browser YOLO changes to the host's live permission policy. */
-  onYoloSwitch?: ((enabled: boolean) => void) | undefined;
+  onYoloSwitch?: ((enabled: boolean, sessionId?: string | undefined) => void) | undefined;
   /**
    * Forward `wrongProxyEnabled` / `wrongProxyUrl` changes from the
    * browser to the runtime probe (`@wrongstack/cli/wiring/proxy-wiring`).

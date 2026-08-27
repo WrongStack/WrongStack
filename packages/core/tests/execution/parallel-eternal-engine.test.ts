@@ -1,10 +1,9 @@
-
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ParallelEternalEngine } from '../../src/execution/parallel-eternal-engine.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type { Agent } from '../../src/core/agent.js';
+import { ParallelEternalEngine } from '../../src/execution/parallel-eternal-engine.js';
 import type { GoalFile, JournalEntry } from '../../src/storage/goal-store.js';
 import type { SubagentConfig } from '../../src/types/multi-agent.js';
 
@@ -21,7 +20,13 @@ function makeMockAgent(overrides: Partial<Agent> = {}): Agent {
       messages: [],
       systemPrompt: '',
       signal: new AbortController().signal,
-      session: { append: vi.fn(), close: vi.fn() } as never,
+      session: {
+        id: '2026-08-26/sess_01TESTPARALLELENGINE00000',
+        append: vi.fn(),
+        close: vi.fn(),
+      } as never,
+      // The coordinator stamps each spawned worker with the owning session.
+      eventSessionId: () => '2026-08-26/sess_01TESTPARALLELENGINE00000',
       state: {} as never,
       tokenCounter: {
         currentRequestTokens: () => ({ input: 100, output: 50, cacheRead: 0, cacheWrite: 0 }),

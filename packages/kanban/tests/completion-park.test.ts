@@ -12,21 +12,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  addCheckToTask,
-  addTask,
-  assignTask,
-  createBoard,
-  getBoard,
-  updateTaskAssignment,
-} from '../src/manager.js';
-import {
   dependencyIncompleteMessage,
   formatDependencyReadinessIssues,
   getDependencyReadinessIssues,
 } from '../src/manager/task-readiness.js';
 import { readKanbanEvents } from '../src/storage.js';
 import type { KanbanBoard, KanbanTask } from '../src/types.js';
-import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 import {
   applyGateRefusal,
   clearGateRefusals,
@@ -35,6 +26,15 @@ import {
   isParked,
   maxVerificationAttempts,
 } from '../src/verification/completion-park.js';
+import {
+  addCheckToTask,
+  addTask,
+  assignTask,
+  createBoard,
+  finalizeTaskCompletion,
+  getBoard,
+  updateTaskAssignment,
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -211,7 +211,13 @@ describe('parked dependencies', () => {
           columnId: 'c',
           park: { reason: 'acceptance criteria never passed', parkedAt: 'now', attempts: 2 },
         },
-        { id: 'waiter', title: 'Backfill rows', status: 'ready', columnId: 'c', dependsOn: ['blocker'] },
+        {
+          id: 'waiter',
+          title: 'Backfill rows',
+          status: 'ready',
+          columnId: 'c',
+          dependsOn: ['blocker'],
+        },
       ],
     }) as unknown as KanbanBoard;
 

@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-
+import { AgentDetailSection } from '../../src/components/agents/AgentDetailSection.js';
 import {
   AgentTabs,
   shouldAutoClearSubagentFocus,
 } from '../../src/components/ChatView/AgentTabs.js';
 import { SubagentTranscriptView } from '../../src/components/ChatView/SubagentTranscriptView.js';
-import { AgentDetailSection } from '../../src/components/agents/AgentDetailSection.js';
+import { taskBriefPreview } from '../../src/lib/task-brief-preview.js';
 import type { AgentTranscriptEntry, SubagentView } from '../../src/stores/index.js';
 import { useFleetStore, useUIStore } from '../../src/stores/index.js';
 
@@ -100,9 +100,7 @@ describe('subagent chat tabs', () => {
     act(() => {
       useUIStore.setState({ subagentChatFocusId: 's1' });
     });
-    expect(screen.getByRole('tab', { name: /Alpha/ }).getAttribute('aria-selected')).toBe(
-      'true',
-    );
+    expect(screen.getByRole('tab', { name: /Alpha/ }).getAttribute('aria-selected')).toBe('true');
   });
 
   it('does not throw when a subagent has a non-canonical status', () => {
@@ -113,6 +111,20 @@ describe('subagent chat tabs', () => {
     useFleetStore.setState({ agents, leaderId: 'ldr' });
     expect(() => render(<AgentTabs />)).not.toThrow();
     expect(screen.getByRole('tab', { name: /Alpha/ })).toBeTruthy();
+  });
+
+  it('clips a long subagent description on the tab tooltip', () => {
+    const longTask = 'Review the session.\n'.repeat(80);
+    const agents = new Map([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ['s1', { ...makeAgent('s1', { name: 'Alpha' }), description: longTask }],
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    render(<AgentTabs />);
+    const tab = screen.getByRole('tab', { name: /Alpha/ });
+    expect(tab.getAttribute('title')).toBe(taskBriefPreview(longTask, 180));
+    expect((tab.getAttribute('title') ?? '').length).toBeLessThan(200);
   });
 
   it('renders nothing to switch when only the leader exists', () => {
@@ -167,6 +179,64 @@ describe('subagent chat tabs', () => {
     const root = screen.getByTestId('subagent-transcript-view');
     expect(root.querySelector('textarea')).toBeNull();
     expect(root.querySelector('input')).toBeNull();
+  });
+
+  it('collapses a long task brief to one line and expands it in a modal', async () => {
+    const longTask = `Review the session diff.\nScope: everything.\nOut of scope: nothing.`.repeat(
+      40,
+    );
+    const agents = new Map([
+      ['s1', { ...makeAgent('s1', { name: 'Alpha' }), description: longTask }],
+    ]);
+    useFleetStore.setState({ agents });
+
+    render(<SubagentTranscriptView agentId="s1" />);
+    const root = screen.getByTestId('subagent-transcript-view');
+    const preview = screen.getByTestId('subagent-task-preview');
+
+    // Compact contract: the pin holds a short one-line preview, never the
+    // full multi-KB brief. The complete text lives behind the modal.
+    expect(preview.textContent).toBe(taskBriefPreview(longTask));
+    expect(preview.textContent!.length).toBeLessThan(160);
+    expect(root.textContent).not.toContain(longTask);
+    expect(root.querySelector('[data-testid="subagent-task-strip"]')?.className).toContain(
+      'max-h-8',
+    );
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /show full task brief/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(screen.getByTestId('subagent-task-full').textContent).toBe(longTask);
+    expect(dialog.textContent).toContain('Review the session diff.');
+  });
+
+  it('taskBriefPreview collapses whitespace and clips long briefs', () => {
+    expect(taskBriefPreview('short')).toBe('short');
+    expect(taskBriefPreview('line one\n\nline two', 20)).toBe('line one line two');
+    const clipped = taskBriefPreview('alpha beta gamma delta', 12);
+    expect(clipped.endsWith('…')).toBe(true);
+    expect(clipped.length).toBeLessThanOrEqual(13);
+    expect(clipped.startsWith('alpha')).toBe(true);
+  });
+
+  it('renders no task preview when the agent has no description', () => {
+    const agents = new Map([['s1', makeAgent('s1', { name: 'Alpha' })]]);
+    useFleetStore.setState({ agents });
+
+    render(<SubagentTranscriptView agentId="s1" />);
+    expect(screen.queryByTestId('subagent-task-preview')).toBeNull();
+    expect(screen.queryByRole('button', { name: /show full task brief/i })).toBeNull();
+  });
+
+  it('returns focus to the leader chat from the compact header', () => {
+    const agents = new Map([['s1', makeAgent('s1', { name: 'Alpha' })]]);
+    useFleetStore.setState({ agents });
+    useUIStore.setState({ subagentChatFocusId: 's1' });
+
+    render(<SubagentTranscriptView agentId="s1" />);
+    fireEvent.click(screen.getByRole('button', { name: /return to chat/i }));
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
   });
 });
 

@@ -290,12 +290,6 @@ export async function handleTaskUpdate(
 
 export async function handlePlanGet(ctx: WorklistContext, ws: WebSocket): Promise<void> {
   const planPath = planPathOf(ctx);
-  const emptySnapshot = () => ({
-    version: 1,
-    sessionId: currentSessionId(ctx),
-    updatedAt: new Date().toISOString(),
-    items: [],
-  });
   if (!planPath) {
     ctx.send(ws, {
       type: 'plan.updated',
@@ -307,15 +301,23 @@ export async function handlePlanGet(ctx: WorklistContext, ws: WebSocket): Promis
     return;
   }
   try {
-    const plan = await loadPlan(planPath);
+    let plan = await loadPlan(planPath);
+    if (!plan) {
+      // A PLAN is session state, not a shared UI placeholder. Create the
+      // session's sidecar on first access so subsequent tab switches, agent
+      // runs, and status mutations all observe the same durable empty list.
+      // mutatePlan takes the file lock and re-loads inside it, so a concurrent
+      // writer cannot be overwritten by this lazy initialization.
+      plan = await mutatePlan(planPath, currentSessionId(ctx), (current) => current);
+    }
     ctx.send(ws, {
       type: 'plan.updated',
-      payload: sessionPayload(ctx, { plan: plan ?? emptySnapshot() }),
+      payload: sessionPayload(ctx, { plan }),
     });
   } catch {
     ctx.send(ws, {
       type: 'plan.updated',
-      payload: sessionPayload(ctx, { plan: emptySnapshot() }),
+      payload: sessionPayload(ctx, { plan: emptyPlan(currentSessionId(ctx)) }),
     });
   }
 }

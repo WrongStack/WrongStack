@@ -16,9 +16,10 @@ import type { SubagentRunOutcome, TaskSpec } from '../../src/types/multi-agent.j
 type DirectorOpts = ConstructorParameters<typeof Director>[0];
 const tick = () => new Promise((r) => setImmediate(r));
 
-function makeDirector(
-  directorWideIdleMs?: number,
-): { d: Director; runner: ReturnType<typeof vi.fn> } {
+function makeDirector(directorWideIdleMs?: number): {
+  d: Director;
+  runner: ReturnType<typeof vi.fn>;
+} {
   const runner = vi.fn(
     async (task: TaskSpec): Promise<SubagentRunOutcome> => ({
       result: `done:${task.description}`,
@@ -27,8 +28,13 @@ function makeDirector(
     }),
   );
   const opts: Partial<DirectorOpts> = {
-    config: { coordinatorId: 'idle-override', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+    config: {
+      coordinatorId: 'idle-override',
+      doneCondition: { type: 'all_tasks_done' },
+      maxConcurrent: 4,
+    },
     runner,
+    sessionId: 'sess_test',
     retireSubagentOnTaskComplete: false,
     ...(directorWideIdleMs !== undefined ? { subagentIdleTimeoutMs: directorWideIdleMs } : {}),
   };

@@ -10,13 +10,17 @@
  * - backward-compatibility: Director works identically with and without
  *   an injected FleetManager (same behavior, different code path)
  */
-import { describe, expect, it, vi } from 'vitest';
-import { FleetManager } from '../../src/coordination/fleet-manager.js';
-import { FleetBus } from '../../src/coordination/fleet-bus.js';
-import type { SubagentConfig } from '../../src/types/multi-agent.js';
+
 import * as fsp from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { FleetBus } from '../../src/coordination/fleet-bus.js';
+import { FleetManager } from '../../src/coordination/fleet-manager.js';
+import type { SubagentConfig } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 /**
  * Poll for a debounced manifest write instead of sleeping a fixed window —
@@ -206,7 +210,11 @@ describe('FleetManager', () => {
     it('stores subagentMeta for getSubagentMeta()', () => {
       const fm = new FleetManager();
       fm.recordSpawn('sub-1', makeConfig({ name: 'worker', provider: 'openai', model: 'gpt-4o' }));
-      expect(fm.getSubagentMeta('sub-1')).toEqual({ provider: 'openai', model: 'gpt-4o', name: 'worker' });
+      expect(fm.getSubagentMeta('sub-1')).toEqual({
+        provider: 'openai',
+        model: 'gpt-4o',
+        name: 'worker',
+      });
     });
 
     it('stores priceLookup for cost attribution', () => {
@@ -279,7 +287,15 @@ describe('FleetManager', () => {
       const manifestPath = path.join(tmpDir, 'fleet.json');
 
       const fm = new FleetManager({ manifestPath });
-      fm.recordSpawn('sub-1', makeConfig({ name: 'worker', role: 'researcher', provider: 'anthropic', model: 'anthropic-test-model' }));
+      fm.recordSpawn(
+        'sub-1',
+        makeConfig({
+          name: 'worker',
+          role: 'researcher',
+          provider: 'anthropic',
+          model: 'anthropic-test-model',
+        }),
+      );
       fm.addTaskToSubagent('sub-1', 'task-1');
 
       const written = await fm.writeManifest();
@@ -308,7 +324,9 @@ describe('FleetManager', () => {
         subagentId: 'sub-1',
         ts: Date.now(),
         type: 'provider.response',
-        payload: { usage: { input: 1_000_000, output: 500_000, cacheRead: 200_000, cacheWrite: 0 } },
+        payload: {
+          usage: { input: 1_000_000, output: 500_000, cacheRead: 200_000, cacheWrite: 0 },
+        },
       });
 
       const written = await fm.writeManifest();
@@ -406,8 +424,18 @@ describe('FleetManager', () => {
       fm.recordSpawn('a', makeConfig({ name: 'agent-a' }), priceLookup());
       fm.recordSpawn('b', makeConfig({ name: 'agent-b' }), priceLookup());
 
-      fm.fleet.emit({ subagentId: 'a', ts: 1, type: 'provider.response', payload: { usage: { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 } } });
-      fm.fleet.emit({ subagentId: 'b', ts: 2, type: 'provider.response', payload: { usage: { input: 3_000_000, output: 0, cacheRead: 0, cacheWrite: 0 } } });
+      fm.fleet.emit({
+        subagentId: 'a',
+        ts: 1,
+        type: 'provider.response',
+        payload: { usage: { input: 1_000_000, output: 0, cacheRead: 0, cacheWrite: 0 } },
+      });
+      fm.fleet.emit({
+        subagentId: 'b',
+        ts: 2,
+        type: 'provider.response',
+        payload: { usage: { input: 3_000_000, output: 0, cacheRead: 0, cacheWrite: 0 } },
+      });
 
       const snap = fm.snapshot();
       expect(snap.total.input).toBe(4_000_000);
@@ -549,7 +577,11 @@ describe('FleetManager', () => {
     it('getSubagentMeta returns data for known subagent', () => {
       const fm = new FleetManager();
       fm.recordSpawn('sub-1', makeConfig({ provider: 'openai', model: 'gpt-4o' }));
-      expect(fm.getSubagentMeta('sub-1')).toEqual({ provider: 'openai', model: 'gpt-4o', name: 'test-subagent' });
+      expect(fm.getSubagentMeta('sub-1')).toEqual({
+        provider: 'openai',
+        model: 'gpt-4o',
+        name: 'test-subagent',
+      });
     });
 
     it('writeManifest returns string path when configured', async () => {
@@ -577,7 +609,12 @@ describe('FleetManager', () => {
         return { result: 'ok', iterations: 1, toolCalls: 1 };
       });
       const director = new Director({
-        config: { coordinatorId: 'compat-test', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+        sessionId: TEST_SESSION_ID,
+        config: {
+          coordinatorId: 'compat-test',
+          doneCondition: { type: 'all_tasks_done' },
+          maxConcurrent: 4,
+        },
         runner,
       });
       expect(director.fleet).toBeInstanceOf(FleetBus);
@@ -593,7 +630,12 @@ describe('FleetManager', () => {
         return { result: 'ok', iterations: 1, toolCalls: 1 };
       });
       const director = new Director({
-        config: { coordinatorId: 'fm-delegation-test', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+        sessionId: TEST_SESSION_ID,
+        config: {
+          coordinatorId: 'fm-delegation-test',
+          doneCondition: { type: 'all_tasks_done' },
+          maxConcurrent: 4,
+        },
         runner,
         fleetManager: fm,
       });
@@ -612,12 +654,19 @@ describe('FleetManager', () => {
       const fm = new FleetManager({ maxSpawns: 1 });
       const runner = vi.fn(async () => ({ result: 'ok', iterations: 1, toolCalls: 1 }));
       const director = new Director({
-        config: { coordinatorId: 'budget-boundary', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+        sessionId: TEST_SESSION_ID,
+        config: {
+          coordinatorId: 'budget-boundary',
+          doneCondition: { type: 'all_tasks_done' },
+          maxConcurrent: 4,
+        },
         runner,
         fleetManager: fm,
       });
       await director.spawn(makeConfig({ name: 'first' }));
-      await expect(director.spawn(makeConfig({ name: 'second' }))).rejects.toThrow(FleetSpawnBudgetError);
+      await expect(director.spawn(makeConfig({ name: 'second' }))).rejects.toThrow(
+        FleetSpawnBudgetError,
+      );
       await director.shutdown();
     });
 
@@ -626,7 +675,12 @@ describe('FleetManager', () => {
       const fm = new FleetManager({ maxSpawns: 5 });
       const runner = vi.fn(async () => ({ result: 'ok', iterations: 1, toolCalls: 1 }));
       const director = new Director({
-        config: { coordinatorId: 'stateful-fm', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+        sessionId: TEST_SESSION_ID,
+        config: {
+          coordinatorId: 'stateful-fm',
+          doneCondition: { type: 'all_tasks_done' },
+          maxConcurrent: 4,
+        },
         runner,
         fleetManager: fm,
       });

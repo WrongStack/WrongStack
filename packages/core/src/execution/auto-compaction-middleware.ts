@@ -217,11 +217,27 @@ export class AutoCompactionMiddleware {
     this._enabled = enabled;
   }
 
+  /**
+   * Is auto-compaction on for THIS conversation?
+   *
+   * `contextAutoCompact` is a per-tab preference, and a WebUI runs four tabs
+   * through this one middleware instance. The host used to express "off" by
+   * removing the middleware from the shared pipeline, which turned it off for
+   * every tab at once; a session that sets its own value now decides for
+   * itself, and `this._enabled` remains the answer for hosts that keep no
+   * per-session value.
+   */
+  private enabledFor(ctx: Context): boolean {
+    const scoped = (ctx.meta as Record<string, unknown> | undefined)?.['contextAutoCompact'];
+    return typeof scoped === 'boolean' ? scoped : this._enabled;
+  }
+
   handler(): MiddlewareHandler<Context> {
     return async (ctx, next) => {
       // Runtime gate — when auto-compaction is turned off via /settings the
-      // middleware stays installed but does nothing.
-      if (!this._enabled) return next(ctx);
+      // middleware stays installed but does nothing, for the tab that turned
+      // it off and no other.
+      if (!this.enabledFor(ctx)) return next(ctx);
 
       let tokens = this.estimateContextTokens(ctx);
       // A provider overflow can teach the session a route-specific effective

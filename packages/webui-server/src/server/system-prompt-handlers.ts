@@ -64,8 +64,19 @@ export interface SystemPromptInfoPayload {
  * instruction files, so a failure there (unreadable override dir, for instance)
  * degrades to zero counts rather than denying the user the picker entirely.
  */
+/**
+ * The variant catalogue, plus which variant is live.
+ *
+ * The catalogue (labels, token costs, whether the user has ever chosen) is a
+ * project fact and the same for every tab. `current` is NOT: the identity
+ * variant is a per-session preference, so a tab that picked "lite" must not be
+ * told it is on the "pro" another tab just selected. `currentOverride` carries
+ * the asking session's own value; without one the config default stands, which
+ * is what a single-session host wants.
+ */
 export async function buildSystemPromptInfo(
   surface: SystemPromptSurface,
+  currentOverride?: string | undefined,
 ): Promise<SystemPromptInfoPayload> {
   let tokens: Partial<Record<SystemInstructionVariant, number>> = {};
   let error: string | undefined;
@@ -81,7 +92,7 @@ export async function buildSystemPromptInfo(
     chosen = false;
   }
   return {
-    current: surface.current(),
+    current: (currentOverride as SystemInstructionVariant | undefined) ?? surface.current(),
     chosen,
     variants: SYSTEM_PROMPT_VARIANT_OPTIONS.map((option) => ({
       variant: option.variant,

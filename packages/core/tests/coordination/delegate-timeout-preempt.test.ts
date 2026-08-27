@@ -12,12 +12,15 @@
  * i.e. the ask happened before the deadline.
  */
 import { describe, expect, it } from 'vitest';
-import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
+import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 const makeConfig = (overrides: Record<string, unknown> = {}) => ({
   coordinatorId: 'preempt-coord',
@@ -80,7 +83,10 @@ describe('delegate timeout pre-emption (proactive extend)', () => {
       return { agent: makeTimedAgent({ durationMs: timeoutMs * 2, events }), events };
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1', timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -115,7 +121,10 @@ describe('delegate timeout pre-emption (proactive extend)', () => {
       return { agent: makeTimedAgent({ durationMs: 120, events }), events };
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     // No timeoutMs on the subagent → only the idle reaper applies, and a
     // continuously-active agent never trips it.

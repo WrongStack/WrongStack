@@ -580,7 +580,7 @@ export type WSClientMessageCore =
   | { type: 'autonomy.switch'; payload: { mode: string } }
   | { type: 'prefs.update'; payload: Record<string, unknown> }
   | { type: 'prefs.get'; payload?: { sessionId?: string | undefined } | undefined }
-  | { type: 'system_prompt.get' }
+  | { type: 'system_prompt.get'; payload?: { sessionId?: string } }
   | { type: 'projects.list' }
   | { type: 'projects.add'; payload: { root: string; name?: string | undefined } }
   | { type: 'projects.select'; payload: { root: string; name?: string | undefined } }
@@ -670,7 +670,7 @@ export type WSClientMessageCore =
   | { type: 'skills.export'; payload?: Record<string, unknown> }
   | { type: 'skills.edit'; payload: { name: string; body: string } }
   // ── Design Studio client messages ────────────────────────────────────────────
-  | { type: 'design.list' }
+  | { type: 'design.list'; payload?: { sessionId?: string } }
   | {
       type: 'design.use';
       payload: {
@@ -700,7 +700,7 @@ export type WSClientMessageCore =
       type: 'design.materialize';
       payload?: { stack?: string | undefined; out?: string | undefined } | undefined;
     }
-  | { type: 'design.verify' }
+  | { type: 'design.verify'; payload?: { sessionId?: string } }
   | { type: 'config.doctor'; payload?: { apply?: boolean } | undefined }
   // ── MCP client messages (requests to server) ─────────────────────────────────
   | { type: 'mcp.list' }

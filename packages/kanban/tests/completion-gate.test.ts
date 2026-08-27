@@ -2,22 +2,20 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { validateDefinitionOfDone } from '../src/manager/lifecycle.js';
+import { readKanbanEvents } from '../src/storage.js';
+import type { KanbanBoard, KanbanCheckStatus } from '../src/types.js';
+import { resolveGateEnforcement } from '../src/verification/completion-gate.js';
 import {
   addCheckToTask,
   addTask,
   assignTask,
   createBoard,
-  getBoard,
-  updateTaskAssignment,
-} from '../src/manager.js';
-import { validateDefinitionOfDone } from '../src/manager/lifecycle.js';
-import {
   enforceCompletionGate,
   finalizeTaskCompletion,
-  resolveGateEnforcement,
-} from '../src/verification/completion-gate.js';
-import { readKanbanEvents } from '../src/storage.js';
-import type { KanbanBoard, KanbanCheckStatus } from '../src/types.js';
+  getBoard,
+  updateTaskAssignment,
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -113,7 +111,10 @@ describe('enforceCompletionGate', () => {
         },
       },
     });
-    const added = await addTask(tmpDir, board.id, { title: 'Managed task', description: 'Completion gate enforcement test card.' });
+    const added = await addTask(tmpDir, board.id, {
+      title: 'Managed task',
+      description: 'Completion gate enforcement test card.',
+    });
 
     const gate = await enforceCompletionGate(tmpDir, board.id, added!.task.id, {
       enforcement: 'off',

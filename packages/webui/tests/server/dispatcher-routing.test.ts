@@ -28,8 +28,8 @@
 
 import type { WSClientMessage } from '@wrongstack/webui-server';
 import {
-  handleGoalRoute,
   handleBrainRoute,
+  handleGoalRoute,
   handleMailboxRoute,
   handleMcpRoute,
   handleModeRoute,
@@ -197,6 +197,19 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     expect(out).toBe(true);
     expect(updatePrefs).toHaveBeenCalledOnce();
     expect(updatePrefs).toHaveBeenCalledWith(ws, { yolo: true });
+  });
+
+  it('handlePrefsRoute: carries the asking tab through system_prompt.get', async () => {
+    const getSystemPrompt = vi.fn();
+    const out = await handlePrefsRoute(
+      ws,
+      { type: 'system_prompt.get', payload: { sessionId: 'tab-3' } } as never,
+      { getPrefs: vi.fn(), updatePrefs: vi.fn(), getSystemPrompt } as never,
+    );
+    expect(out).toBe(true);
+    // The identity variant is per session; an unstamped answer overwrites
+    // whichever tab the browser is showing.
+    expect(getSystemPrompt).toHaveBeenCalledWith(ws, 'tab-3');
   });
 
   it('handlePrefsRoute: returns false for foreign message type', async () => {

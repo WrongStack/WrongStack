@@ -1,14 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
+import { addTask, updateTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addTask, createBoard, getBoard, listBoards, removeBoard, updateTask } from '@wrongstack/kanban';
 import type { Agent } from '../../src/core/agent.js';
 import { EternalAutonomyEngine } from '../../src/execution/eternal-autonomy.js';
 import { EventBus } from '../../src/kernel/events.js';
+import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 import { createGoalKanbanBoard, findGoalKanbanBoard } from '../../src/storage/goal-kanban.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';
-import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 
 setBoardStorePort({ addTask, createBoard, getBoard, listBoards, removeBoard, updateTask });
 
@@ -27,6 +28,9 @@ function makeMockAgent(setup: MockAgentSetup = {}): Agent {
   const ctx = {
     todos: setup.todos ?? [],
     tokenCounter: setup.tokenCounter,
+    // Goal coordination writes durable board events for the session running
+    // the autonomy loop.
+    eventSessionId: () => '2026-08-26/sess_01TESTETERNALAUTONOMY000',
   } as any;
   const runMock = vi.fn(async (input: unknown) => {
     if (setup.runImpl) return setup.runImpl(input);
@@ -438,7 +442,11 @@ describe('EternalAutonomyEngine', () => {
       ...emptyGoal('Close the adaptive loop'),
       deliverables: ['Implement parser', 'Verify the loop'],
     };
-    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    const boardId = await createGoalKanbanBoard(
+      projectRoot,
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     goal.kanbanBoardId = boardId ?? undefined;
     await saveGoal(goalPath, goal);
 
@@ -491,7 +499,11 @@ describe('EternalAutonomyEngine', () => {
       ...emptyGoal('Adaptive vs legacy'),
       deliverables: ['A', 'B'],
     };
-    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    const boardId = await createGoalKanbanBoard(
+      projectRoot,
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     goal.kanbanBoardId = boardId ?? undefined;
     await saveGoal(goalPath, goal);
 
@@ -536,7 +548,11 @@ describe('EternalAutonomyEngine', () => {
       ...emptyGoal('Partial completion'),
       deliverables: ['First half', 'Second half'],
     };
-    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    const boardId = await createGoalKanbanBoard(
+      projectRoot,
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     goal.kanbanBoardId = boardId ?? undefined;
     await saveGoal(goalPath, goal);
 

@@ -1,19 +1,19 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { TodoItem } from '../core/context.js';
+import { coordinateGoalIteration } from '../storage/goal-coordination.js';
 import {
   appendJournal,
-  loadGoal,
-  saveGoal,
+  type GoalFile,
   goalFilePath,
+  type JournalEntry,
+  loadGoal,
   parseProgressFromText,
   recordProgress,
-  type GoalFile,
-  type JournalEntry,
+  saveGoal,
 } from '../storage/goal-store.js';
-import { coordinateGoalIteration } from '../storage/goal-coordination.js';
-import { sleep } from '../utils/sleep.js';
 import { toErrorMessage } from '../utils/error.js';
+import { sleep } from '../utils/sleep.js';
 import { formatDecisionSummary } from './autonomy-brain.js';
 
 const execFileP = promisify(execFile);
@@ -33,8 +33,17 @@ const execFileP = promisify(execFile);
  * with a different source on the next tick.
  */
 
-export type { EternalAutonomyOptions, EternalEngineState, IterationStage } from './eternal-autonomy-types.js';
-import type { EternalAutonomyOptions, EternalEngineState, IterationStage } from './eternal-autonomy-types.js';
+export type {
+  EternalAutonomyOptions,
+  EternalEngineState,
+  IterationStage,
+} from './eternal-autonomy-types.js';
+
+import type {
+  EternalAutonomyOptions,
+  EternalEngineState,
+  IterationStage,
+} from './eternal-autonomy-types.js';
 
 interface DecidedAction {
   source: JournalEntry['source'];
@@ -128,10 +137,11 @@ export class EternalAutonomyEngine {
     // races with an in-flight iteration's write, the journal write wins
     // (engineState is metadata, not durable correctness).
     void this.persistEngineState('stopped').catch((err) => {
-      this.logError(
-        'Engine persist state failed',
-        { event: 'engine.persist_state_failed', message: toErrorMessage(err), context: { expectedState: 'stopped' } },
-      );
+      this.logError('Engine persist state failed', {
+        event: 'engine.persist_state_failed',
+        message: toErrorMessage(err),
+        context: { expectedState: 'stopped' },
+      });
     });
     this.state = 'stopped';
   }
@@ -162,7 +172,10 @@ export class EternalAutonomyEngine {
           iterationOk = await this.runOneIteration();
         } catch (err) {
           this.consecutiveFailures++;
-          this.opts.onError?.(err instanceof Error ? err : new Error(String(err)), this.consecutiveFailures);
+          this.opts.onError?.(
+            err instanceof Error ? err : new Error(String(err)),
+            this.consecutiveFailures,
+          );
           await this.appendFailure('engine error', toErrorMessage(err));
         }
 
@@ -228,10 +241,7 @@ export class EternalAutonomyEngine {
 
     const ctrl = new AbortController();
     this.currentCtrl = ctrl;
-    const timer = setTimeout(
-      () => ctrl.abort(),
-      this.opts.iterationTimeoutMs ?? 5 * 60_000,
-    );
+    const timer = setTimeout(() => ctrl.abort(), this.opts.iterationTimeoutMs ?? 5 * 60_000);
     let status: JournalEntry['status'] = 'success';
     let note: string | undefined;
     let finalText = '';
@@ -286,7 +296,8 @@ export class EternalAutonomyEngine {
         if (tail) note = tail;
       }
     } catch (err) {
-      const isAbort = err instanceof Error && (err.name === 'AbortError' || err.message.includes('abort'));
+      const isAbort =
+        err instanceof Error && (err.name === 'AbortError' || err.message.includes('abort'));
       status = isAbort ? 'aborted' : 'failure';
       note = toErrorMessage(err);
       // Surface .recoverable on the thrown WrongStackError too — provider
@@ -350,10 +361,11 @@ export class EternalAutonomyEngine {
       const reloaded = await this.loadGoal();
       iterationIndex = reloaded?.iterations ?? 0;
     } catch (err) {
-      this.logError(
-        'Goal reload failed',
-        { event: 'autonomy.goal_reload_failed', message: toErrorMessage(err), context: { goalPath: this.goalPath } },
-      );
+      this.logError('Goal reload failed', {
+        event: 'autonomy.goal_reload_failed',
+        message: toErrorMessage(err),
+        context: { goalPath: this.goalPath },
+      });
     }
     this.opts.onIteration?.({
       at: (this.opts.now?.() ?? new Date()).toISOString(),
@@ -406,7 +418,7 @@ export class EternalAutonomyEngine {
         goalPath: this.goalPath,
         finalText,
         brain: this.opts.brain,
-        sessionId: this.opts.agent.ctx.session?.id,
+        sessionId: this.opts.agent.ctx.eventSessionId(),
         events: this.opts.events,
         now: this.opts.now,
       });
@@ -655,10 +667,10 @@ export class EternalAutonomyEngine {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 60_000);
       try {
-        const result = await this.opts.agent.run(
-          [{ type: 'text' as const, text: directive }],
-          { signal: ctrl.signal, maxIterations: 1 },
-        );
+        const result = await this.opts.agent.run([{ type: 'text' as const, text: directive }], {
+          signal: ctrl.signal,
+          maxIterations: 1,
+        });
         if (result.status !== 'done') return null;
         const text = (result.finalText ?? '').trim();
         if (!text) return null;
@@ -667,7 +679,10 @@ export class EternalAutonomyEngine {
         // conflated "no work" with "engine failure" and looped forever.
         if (/^DONE\.?$/i.test(text)) return BRAINSTORM_DONE;
         // Take the first non-empty line and clip to 240 chars.
-        const firstLine = text.split('\n').find((l) => l.trim().length > 0)?.trim();
+        const firstLine = text
+          .split('\n')
+          .find((l) => l.trim().length > 0)
+          ?.trim();
         if (!firstLine) return null;
         if (/^DONE\.?$/i.test(firstLine)) return BRAINSTORM_DONE;
         return firstLine.slice(0, 240);
@@ -675,10 +690,11 @@ export class EternalAutonomyEngine {
         clearTimeout(timer);
       }
     } catch (err) {
-      this.logError(
-        'Brainstorm failed',
-        { event: 'autonomy.brainstorm_failed', message: toErrorMessage(err), context: { goal: goal.goal.slice(0, 100) } },
-      );
+      this.logError('Brainstorm failed', {
+        event: 'autonomy.brainstorm_failed',
+        message: toErrorMessage(err),
+        context: { goal: goal.goal.slice(0, 100) },
+      });
       return null;
     }
   }
@@ -686,7 +702,10 @@ export class EternalAutonomyEngine {
   private buildDirective(goal: GoalFile, source: JournalEntry['source'], task: string): string {
     const recentJournal = goal.journal
       .slice(-5)
-      .map((e) => `  #${e.iteration} [${e.status}] ${e.task}${e.note ? ` — ${e.note.slice(0, 80)}` : ''}`)
+      .map(
+        (e) =>
+          `  #${e.iteration} [${e.status}] ${e.task}${e.note ? ` — ${e.note.slice(0, 80)}` : ''}`,
+      )
       .join('\n');
     return [
       '═══ ETERNAL AUTONOMY — iteration directive ═══',
@@ -706,7 +725,7 @@ export class EternalAutonomyEngine {
       '1. EXECUTE END-TO-END',
       '   • Use multiple tool calls freely. Emit `[continue]` on its own line',
       '     to chain to the next internal step without returning.',
-      '   • When this iteration\'s Task is finished (real artifact / passing',
+      "   • When this iteration's Task is finished (real artifact / passing",
       '     test / applied diff / clean output), emit `[done]` on its own line.',
       '   • Do not stop on the first obstacle — try at least 3 distinct',
       '     approaches before giving up. YOLO is active unless an explicit',
@@ -869,9 +888,10 @@ export class EternalAutonomyEngine {
     const deliverablesStatus = goal.deliverables?.length
       ? `\nDeliverables: ${goal.deliverables.length} total, progress ${goal.progress ?? 'unknown'}%`
       : '';
-    const recentJournal = goal.journal.slice(-5).map(e =>
-      `  #${e.iteration} [${e.status}] ${e.task}`
-    ).join('\n');
+    const recentJournal = goal.journal
+      .slice(-5)
+      .map((e) => `  #${e.iteration} [${e.status}] ${e.task}`)
+      .join('\n');
 
     try {
       const decision = await this.opts.brain.decide({

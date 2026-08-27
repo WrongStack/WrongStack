@@ -10,6 +10,8 @@ import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type {
+  AutoThinConfig,
+  DisabledToolMeta,
   MemoryPort,
   TokenSavingTier,
   ToolDescriptionModeConfig,
@@ -33,6 +35,8 @@ interface RegisterBuiltinToolsDeps {
           descriptionMode?: ToolDescriptionModeConfig | undefined;
           resultRenderMode?: ToolResultRenderModeConfig | undefined;
           disabledTools?: string[] | undefined;
+          disabledToolMeta?: Record<string, DisabledToolMeta> | undefined;
+          autoThin?: AutoThinConfig | undefined;
           nextsteps?: { enabled?: boolean | undefined } | undefined;
           exec?:
             | {
@@ -78,6 +82,9 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
     descriptionMode: deps.config.tools?.descriptionMode,
     resultRenderMode: deps.config.tools?.resultRenderMode,
     disabledTools: deps.config.tools?.disabledTools,
+    disabledToolMeta: deps.config.tools?.disabledToolMeta,
+    autoThin: deps.config.tools?.autoThin,
+    events: deps.events,
   });
   // Apply the configured exec command policy (DEFAULT ∪ allow − deny). `allow`
   // is trusted-config-only — the config loader strips `tools.exec.allow` from

@@ -12,6 +12,9 @@ import type {
   TaskSpec,
 } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const tempRoots: string[] = [];
 const openStores: SqliteMailbox[] = [];
 
@@ -211,6 +214,7 @@ describe('multi-agent outcome journeys', () => {
 
 function makeDirector(runner: SubagentRunner): Director {
   return new Director({
+    sessionId: TEST_SESSION_ID,
     config: makeConfig(),
     runner,
     maxSpawns: 16,

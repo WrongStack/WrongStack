@@ -4,17 +4,19 @@ import * as path from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { loadPlan, loadTasks, savePlan, saveTasks } from '@wrongstack/core/storage';
 import {
-  addDependency,
-  addTask,
   compactSessionMirrorBoard,
   createBoard,
   getBoard,
+  type KanbanTask,
   listBoards,
+} from '@wrongstack/kanban';
+import {
+  addDependency,
+  addTask,
+  getKanbanPath,
   moveTask,
   updateTask,
-  type KanbanTask,
-} from '@wrongstack/kanban';
-import { getKanbanPath } from '@wrongstack/kanban/test-support';
+} from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applySessionKanbanBoardToTodos,
@@ -37,6 +39,9 @@ import {
   todoListToSerializedGraph,
   todosNeedingSessionMirror,
 } from '../src/session-kanban.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 describe('unified session kanban', () => {
   let dir: string;
@@ -260,6 +265,7 @@ describe('unified session kanban', () => {
     await fs.writeFile(stalePath, JSON.stringify(raw), 'utf8');
 
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       todos: [],
       meta: {},
@@ -490,6 +496,7 @@ describe('unified session kanban', () => {
       'live-session',
     );
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       session: { id: 'live-session' },
       meta: {},
@@ -508,6 +515,7 @@ describe('unified session kanban', () => {
   it('replaces session todos when an agent reassesses and changes the board', async () => {
     const todos: TodoItem[] = [{ id: 'initial', content: 'Initial work', status: 'pending' }];
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       todos,
       meta: {},
@@ -564,6 +572,7 @@ describe('unified session kanban', () => {
     );
     let replacements = 0;
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       todos: [],
       meta: {},
@@ -608,6 +617,7 @@ describe('unified session kanban', () => {
 
     const todos: TodoItem[] = [{ id: 'todo-1', content: 'Todo', status: 'pending' }];
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       todos,
       meta: { 'task.path': taskPath, 'plan.path': planPath },
@@ -687,6 +697,7 @@ describe('applySessionKanbanTaskToSource — missing source path', () => {
 
   it('throws when a session-task card is reflected with no task.path configured', async () => {
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: '/tmp/project',
       todos: [],
       meta: {},
@@ -701,6 +712,7 @@ describe('applySessionKanbanTaskToSource — missing source path', () => {
 
   it('throws when a session-plan card is reflected with no plan.path configured', async () => {
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: '/tmp/project',
       todos: [],
       meta: {},
@@ -753,6 +765,7 @@ describe('todosNeedingSessionMirror', () => {
       { id: 'todo-1', content: 'Do something', status: 'pending', kanbanTaskId: 'task-xyz' },
     ];
     const context = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       todos,
       state: {
         replaceTodos(next: TodoItem[]) {
@@ -777,4 +790,3 @@ describe('todosNeedingSessionMirror', () => {
     expect(todos[0]?.content).toBe('Do something updated');
   });
 });
-

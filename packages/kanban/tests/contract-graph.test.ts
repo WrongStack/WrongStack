@@ -5,22 +5,79 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { evaluateContractGraph, evaluateContractGraphReadiness } from '../src/contract-graph.js';
 import { validateDefinitionOfDone } from '../src/manager/lifecycle.js';
 import {
-  addCheckToTask,
-  addContractEdge,
-  addGoalMetricToTask,
-  addTask,
-  configureContractGraph,
+  addCheckToTask as addCheckToTaskDomain,
+  addContractEdge as addContractEdgeDomain,
+  addGoalMetricToTask as addGoalMetricToTaskDomain,
+  addTask as addTaskDomain,
+  configureContractGraph as configureContractGraphDomain,
   createBoard,
   duplicateBoard,
   evaluateTaskContractGraph,
   exportBoardAsMarkdown,
   getBoard,
-  removeTask,
+  removeTask as removeTaskDomain,
   taskContractEndpoint,
-  updateCheckOnTask,
-  updateGoalMetricOnTask,
-  upsertContractNode,
-} from '../src/manager.js';
+  updateCheckOnTask as updateCheckOnTaskDomain,
+  updateGoalMetricOnTask as updateGoalMetricOnTaskDomain,
+  upsertContractNode as upsertContractNodeDomain,
+} from './helpers/session-manager.js';
+
+const EVENT_CONTEXT = {
+  sessionId: '2026-08-26/sess_01TESTCONTRACTGRAPH00000000',
+  actor: 'contract-graph-test',
+};
+
+function addTask(
+  ...args: [string, string, Parameters<typeof addTaskDomain>[2]]
+): ReturnType<typeof addTaskDomain> {
+  return addTaskDomain(...args, EVENT_CONTEXT);
+}
+
+function addGoalMetricToTask(
+  ...args: [string, string, string, Parameters<typeof addGoalMetricToTaskDomain>[3]]
+): ReturnType<typeof addGoalMetricToTaskDomain> {
+  return addGoalMetricToTaskDomain(...args, EVENT_CONTEXT);
+}
+
+function addCheckToTask(
+  ...args: [string, string, string, Parameters<typeof addCheckToTaskDomain>[3]]
+): ReturnType<typeof addCheckToTaskDomain> {
+  return addCheckToTaskDomain(...args, EVENT_CONTEXT);
+}
+
+function configureContractGraph(
+  ...args: [string, string, Parameters<typeof configureContractGraphDomain>[2]]
+): ReturnType<typeof configureContractGraphDomain> {
+  return configureContractGraphDomain(...args, EVENT_CONTEXT);
+}
+
+function upsertContractNode(
+  ...args: [string, string, Parameters<typeof upsertContractNodeDomain>[2]]
+): ReturnType<typeof upsertContractNodeDomain> {
+  return upsertContractNodeDomain(...args, EVENT_CONTEXT);
+}
+
+function addContractEdge(
+  ...args: [string, string, Parameters<typeof addContractEdgeDomain>[2]]
+): ReturnType<typeof addContractEdgeDomain> {
+  return addContractEdgeDomain(...args, EVENT_CONTEXT);
+}
+
+function updateGoalMetricOnTask(
+  ...args: [string, string, string, string, Parameters<typeof updateGoalMetricOnTaskDomain>[4]]
+): ReturnType<typeof updateGoalMetricOnTaskDomain> {
+  return updateGoalMetricOnTaskDomain(...args, EVENT_CONTEXT);
+}
+
+function updateCheckOnTask(
+  ...args: [string, string, string, string, Parameters<typeof updateCheckOnTaskDomain>[4]]
+): ReturnType<typeof updateCheckOnTaskDomain> {
+  return updateCheckOnTaskDomain(...args, EVENT_CONTEXT);
+}
+
+function removeTask(...args: [string, string, string]): ReturnType<typeof removeTaskDomain> {
+  return removeTaskDomain(...args, EVENT_CONTEXT);
+}
 
 let tmpDir: string;
 

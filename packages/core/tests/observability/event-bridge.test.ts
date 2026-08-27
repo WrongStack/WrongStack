@@ -206,17 +206,47 @@ describe('wireMetricsToEvents', () => {
     expect(counter).toHaveBeenCalledWith('agent.errors.total', 1, { phase: 'provider' });
   });
 
-  it('returns an unsubscribe function that detaches every listener', () => {
+  it('returns a handle whose dispose() detaches every listener', () => {
     const bus = new EventBus();
     const { sink, counter } = makeSink();
-    const unsubscribe = wireMetricsToEvents(bus, sink);
+    const handle = wireMetricsToEvents(bus, sink);
     bus.emit('session.started', { id: 's1' });
     expect(counter).toHaveBeenCalledTimes(1);
     counter.mockClear();
-    unsubscribe();
+    handle.dispose();
     bus.emit('session.started', { id: 's2' });
     bus.emit('iteration.completed', { ctx: {} as never, index: 1 });
     bus.emit('compaction.fired', { before: 100, after: 50 });
     expect(counter).not.toHaveBeenCalled();
+  });
+
+  it('exposes the in-process tool-usage Map and updates it on every event', () => {
+    const bus = new EventBus();
+    const { sink } = makeSink();
+    const handle = wireMetricsToEvents(bus, sink);
+    expect(handle.getToolUsage().size).toBe(0);
+    bus.emit('tool.started', { name: 'read', id: 't1' });
+    bus.emit('tool.executed', { name: 'read', durationMs: 25, ok: true });
+    bus.emit('tool.executed', { name: 'bash', durationMs: 100, ok: false });
+    const usage = handle.getToolUsage();
+    expect(usage.get('read')?.invocations).toBe(2);
+    expect(usage.get('read')?.failures).toBe(0);
+    expect(usage.get('read')?.durationMsTotal).toBe(25);
+    expect(usage.get('bash')?.invocations).toBe(1);
+    expect(usage.get('bash')?.failures).toBe(1);
+    expect(usage.get('bash')?.durationMsTotal).toBe(100);
+    handle.dispose();
+  });
+
+  it('collapses mcp__ tool names into mcp_proxy in the usage Map', () => {
+    const bus = new EventBus();
+    const { sink } = makeSink();
+    const handle = wireMetricsToEvents(bus, sink);
+    bus.emit('tool.started', { name: 'mcp__srv__tool', id: 't1' });
+    bus.emit('tool.executed', { name: 'mcp__srv__tool', durationMs: 5, ok: true });
+    const usage = handle.getToolUsage();
+    expect(usage.get('mcp_proxy')?.invocations).toBe(2);
+    expect(usage.has('mcp__srv__tool')).toBe(false);
+    handle.dispose();
   });
 });

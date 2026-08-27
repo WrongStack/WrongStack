@@ -2,6 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+// New-seam helpers exported via the directory convention (per memory
+// `01KZTS94JCBZFAQG2HT39K8A7W`): tests import the same path the slash
+// command uses (`@wrongstack/kanban/manager/lifecycle`) so a build-profile
+// regression would fail tests rather than just runtime.
+import { preflightManagedTransition, validateTickChecks } from '../src/manager/lifecycle/index.js';
 import {
   adoptManagedLifecycle,
   createManagedLifecyclePolicy,
@@ -13,14 +18,13 @@ import {
   validateManagedLifecyclePolicy,
   validateManagedTaskTransition,
 } from '../src/manager/lifecycle.js';
-// New-seam helpers exported via the directory convention (per memory
-// `01KZTS94JCBZFAQG2HT39K8A7W`): tests import the same path the slash
-// command uses (`@wrongstack/kanban/manager/lifecycle`) so a build-profile
-// regression would fail tests rather than just runtime.
-import {
-  preflightManagedTransition,
-  validateTickChecks,
-} from '../src/manager/lifecycle/index.js';
+import { writeBoard } from '../src/storage.js';
+import type {
+  KanbanBoard,
+  KanbanCheck,
+  KanbanTask,
+  KanbanVerificationReport,
+} from '../src/types.js';
 import {
   addTask,
   createBoard,
@@ -29,14 +33,7 @@ import {
   transitionTask,
   updateTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import { writeBoard } from '../src/storage.js';
-import type {
-  KanbanBoard,
-  KanbanCheck,
-  KanbanTask,
-  KanbanVerificationReport,
-} from '../src/types.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -647,9 +644,7 @@ describe('validateManagedTaskTransition', () => {
     // wipLimit is defined on columns and the default "In Progress" ships with
     // wipLimit: 5, but nothing enforced it — the UI showed [3/5] while 7 cards
     // could pile up. A forward transition into an at-limit column must refuse.
-    const cols = COLS.map((c) =>
-      c.id === 'in-progress' ? { ...c, wipLimit: 1 } : c,
-    );
+    const cols = COLS.map((c) => (c.id === 'in-progress' ? { ...c, wipLimit: 1 } : c));
     const b = { ...emptyBoard(cols), lifecycle: policy };
     // One card already occupying the running column.
     const occupant = card({
@@ -673,9 +668,7 @@ describe('validateManagedTaskTransition', () => {
   });
 
   it('allows todo→running when the running column has room under its WIP limit', () => {
-    const cols = COLS.map((c) =>
-      c.id === 'in-progress' ? { ...c, wipLimit: 2 } : c,
-    );
+    const cols = COLS.map((c) => (c.id === 'in-progress' ? { ...c, wipLimit: 2 } : c));
     const b = { ...emptyBoard(cols), lifecycle: policy };
     const occupant = card({
       id: 'occupant',
@@ -699,9 +692,7 @@ describe('validateManagedTaskTransition', () => {
   it('treats wipLimit 0 as unlimited (never blocks)', () => {
     // All default columns ship with wipLimit: 0 (Backlog/Todo/Review/Done).
     // That must mean unlimited, not "zero cards allowed".
-    const cols = COLS.map((c) =>
-      c.id === 'in-progress' ? { ...c, wipLimit: 0 } : c,
-    );
+    const cols = COLS.map((c) => (c.id === 'in-progress' ? { ...c, wipLimit: 0 } : c));
     const b = { ...emptyBoard(cols), lifecycle: policy };
     // Pile many cards into running.
     b.tasks = Array.from({ length: 10 }, (_, i) =>
@@ -1108,7 +1099,13 @@ const tickCheckInputBoard = () => {
     status: 'in_progress',
     successCriteria: [
       { id: 'check-manual', description: 'manual review', type: 'manual', status: 'pending' },
-      { id: 'check-command', description: 'run tests', type: 'command', status: 'pending', notes: 'true' },
+      {
+        id: 'check-command',
+        description: 'run tests',
+        type: 'command',
+        status: 'pending',
+        notes: 'true',
+      },
     ],
     assignment: {
       status: 'completed',
@@ -1172,17 +1169,13 @@ describe('validateTickChecks', () => {
 
   it('returns acceptance-criteria-incomplete when target is non-manual', () => {
     const { task } = tickCheckInputBoard();
-    const issues = validateTickChecks(task, [
-      { checkId: 'check-command', checkStatus: 'passed' },
-    ]);
+    const issues = validateTickChecks(task, [{ checkId: 'check-command', checkStatus: 'passed' }]);
     expect(issues.map((i) => i.code)).toContain('acceptance-criteria-incomplete');
   });
 
   it('returns no issues for valid manual flips', () => {
     const { task } = tickCheckInputBoard();
-    const issues = validateTickChecks(task, [
-      { checkId: 'check-manual', checkStatus: 'passed' },
-    ]);
+    const issues = validateTickChecks(task, [{ checkId: 'check-manual', checkStatus: 'passed' }]);
     expect(issues).toEqual([]);
   });
 });

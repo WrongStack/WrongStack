@@ -21,6 +21,9 @@ import type {
   TaskSpec,
 } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 function makeGate(): { release: () => void; promise: Promise<void> } {
   let release: () => void = () => undefined;
   const promise = new Promise<void>((r) => {
@@ -58,6 +61,7 @@ function buildGatedDirector(notifier?: (n: TaskResultNotification) => void) {
     },
   );
   const director = new Director({
+    sessionId: TEST_SESSION_ID,
     config: {
       coordinatorId: 'await-any-director',
       doneCondition: { type: 'all_tasks_done' },
@@ -221,7 +225,10 @@ describe('Director.awaitTasksAny', () => {
       // Use a microtask to let the settled assignment run.
       await vi.advanceTimersByTimeAsync(0);
       expect(settled).not.toBeNull();
-      const result = settled as { completed: Array<{ taskId: string; status: string }>; pending: string[] };
+      const result = settled as {
+        completed: Array<{ taskId: string; status: string }>;
+        pending: string[];
+      };
       expect(result.completed).toHaveLength(1);
       expect(result.completed[0]?.taskId).toBe('t-never');
       expect(result.completed[0]?.status).toBe('stopped');

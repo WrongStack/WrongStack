@@ -4,7 +4,7 @@ import { withSqliteExperimentalWarningSuppressed } from '../utils/sqlite-warning
 import type { ChronicleSignalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 export const READ_CHUNK_BYTES = 1024 * 1024;
 export const SQLITE_SOURCE_PREFIX = 'sqlite:';
 export const SQLITE_INGEST_BATCH = 2_000;
@@ -43,6 +43,16 @@ export interface ChronicleProviderDailyRow {
   cacheWriteTokens: number;
   avgDurationMs: number;
   maxDurationMs: number;
+}
+
+/** A row of {@link ChronicleMetricsStore.underusedTools}. */
+export interface ChronicleUnderusedToolRow {
+  toolName: string;
+  invocations: number;
+  failures: number;
+  durationMsTotal: number;
+  lastInvokedAt: number | null;
+  daysSinceLastUse: number | null;
 }
 
 export interface ChronicleTaskOutcomeRow {
@@ -120,7 +130,8 @@ export function ensureMetricsSchema(db: DatabaseSync): void {
         'DROP TABLE IF EXISTS task_outcomes; DROP TABLE IF EXISTS file_lineage;' +
         'DROP TABLE IF EXISTS token_cost; DROP TABLE IF EXISTS daily_counters;' +
         'DROP TABLE IF EXISTS family_daily; DROP TABLE IF EXISTS agent_daily;' +
-        'DROP TABLE IF EXISTS logical_request_daily; DROP TABLE IF EXISTS file_seen_daily;',
+        'DROP TABLE IF EXISTS logical_request_daily; DROP TABLE IF EXISTS file_seen_daily;' +
+        'DROP TABLE IF EXISTS tool_daily;',
     );
   }
   db.exec(`
@@ -231,6 +242,20 @@ export function ensureMetricsSchema(db: DatabaseSync): void {
     CREATE TABLE IF NOT EXISTS agent_daily (day TEXT NOT NULL, agent_id TEXT NOT NULL, PRIMARY KEY (day, agent_id));
     CREATE TABLE IF NOT EXISTS logical_request_daily (day TEXT NOT NULL, logical_request_id TEXT NOT NULL, PRIMARY KEY (day, logical_request_id));
     CREATE TABLE IF NOT EXISTS file_seen_daily (day TEXT NOT NULL, path_key TEXT NOT NULL, PRIMARY KEY (day, path_key));
+    -- Per-tool daily rollup for the auto-thinning pipeline. Distinct from
+    -- daily_counters (which is name-agnostic): this is keyed by tool_name so
+    -- underusedTools() can pick candidates without scanning the journal.
+    CREATE TABLE IF NOT EXISTS tool_daily (
+      day TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      invocations INTEGER NOT NULL DEFAULT 0,
+      failures INTEGER NOT NULL DEFAULT 0,
+      duration_ms_total REAL NOT NULL DEFAULT 0,
+      duration_ms_max REAL NOT NULL DEFAULT 0,
+      last_invoked_at INTEGER,
+      PRIMARY KEY (day, tool_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_tool_daily_name ON tool_daily(tool_name, day);
     PRAGMA user_version = ${SCHEMA_VERSION};
   `);
 }

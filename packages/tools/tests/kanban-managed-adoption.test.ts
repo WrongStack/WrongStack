@@ -7,6 +7,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
 
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
+
 describe('kanban tool — managed lifecycle adoption', () => {
   let dir: string;
 
@@ -18,7 +21,8 @@ describe('kanban tool — managed lifecycle adoption', () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  const ctx = () => ({ projectRoot: dir }) as unknown as Context;
+  const ctx = () =>
+    ({ eventSessionId: () => TEST_CONTEXT_SESSION_ID, projectRoot: dir }) as unknown as Context;
 
   it('adopts five existing columns without moving cards', async () => {
     const board = await createBoard(dir, {

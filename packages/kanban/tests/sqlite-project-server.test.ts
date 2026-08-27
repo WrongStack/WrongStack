@@ -5,7 +5,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-
+import { SqliteKanbanStorage } from '../src/server/sqlite-storage.js';
+import { appendKanbanEvent, createBoardObject, getKanbanDir, writeBoard } from '../src/storage.js';
 import {
   bridgeKanbanSupervisor,
   createBoard,
@@ -22,9 +23,7 @@ import {
   listKanbanWorkflowStates,
   readKanbanWorkflowState,
   writeKanbanWorkflowState,
-} from '../src/index.js';
-import { SqliteKanbanStorage } from '../src/server/sqlite-storage.js';
-import { appendKanbanEvent, createBoardObject, getKanbanDir, writeBoard } from '../src/storage.js';
+} from './helpers/session-manager.js';
 
 const distServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
 const roots: string[] = [];
@@ -52,6 +51,7 @@ describe('SQLite Kanban storage', () => {
       id: 'legacy-event',
       boardId: board.id,
       type: 'task.activity',
+      sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000',
       ts: new Date().toISOString(),
       actor: 'test',
       after: { source: 'legacy' },
@@ -132,6 +132,7 @@ describe('SQLite Kanban storage', () => {
       id: 'event-1',
       boardId: board.id,
       type: 'task.activity',
+      sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000',
       ts: '2026-07-29T00:00:00.000Z',
       actor: 'test',
     };
@@ -234,7 +235,11 @@ describe('SQLite Kanban storage', () => {
       payload: { reason: 'test' },
     });
     const store = getServerKanbanStore(root);
-    await store.addTask(board.id, { title: 'SQLite task' });
+    await store.addTask(
+      board.id,
+      { title: 'SQLite task' },
+      { sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000', actor: 'kanban-test' },
+    );
     const loaded = await store.getBoard(board.id);
     const events = await listKanbanEvents(root, board.id);
     const exported = await store.exportTaskGraph(board.id);

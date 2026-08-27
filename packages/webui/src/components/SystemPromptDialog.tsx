@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores/config-store';
-import { useSystemPromptStore } from '@/stores/system-prompt-store';
+import { useActiveSessionId } from '@/stores/session-lanes';
+import { systemPromptCurrent, useSystemPromptStore } from '@/stores/system-prompt-store';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -34,20 +35,34 @@ export function SystemPromptDialog() {
   const { t } = useAppTranslation();
   const { wsUrl } = useConfigStore();
   const { info, pickerOpen, pickerStartsSession, closePicker } = useSystemPromptStore();
+  const sessionId = useActiveSessionId();
+  // Which variant is live HERE. The catalogue is shared between tabs; the
+  // choice is not.
+  const current = useSystemPromptStore((s) => systemPromptCurrent(s, sessionId));
   const [selected, setSelected] = useState<string | null>(null);
 
   // Re-seed the selection from the live variant each time the dialog opens, so
   // an abandoned pick does not linger into the next open.
   useEffect(() => {
-    if (pickerOpen) setSelected(info?.current ?? 'default');
-  }, [pickerOpen, info?.current]);
+    if (pickerOpen) setSelected(current);
+  }, [pickerOpen, current]);
+
+  // Only one `system_prompt.get` is sent per connection, so a tab opened later
+  // has never had its own variant answered for and would fall back to the last
+  // tab that did. Ask for this one on open — the reply is stamped and lands in
+  // its own slot.
+  useEffect(() => {
+    if (!pickerOpen || !sessionId) return;
+    if (useSystemPromptStore.getState().currentBySession[sessionId] !== undefined) return;
+    getWSClient(wsUrl).getSystemPrompt();
+  }, [pickerOpen, sessionId, wsUrl]);
 
   const variants = info?.variants ?? [];
   const unavailable = variants.length === 0;
 
   const confirm = () => {
     const client = getWSClient(wsUrl);
-    if (selected && selected !== info?.current) {
+    if (selected && selected !== current) {
       client.setSystemPromptVariant(selected as 'lite' | 'default' | 'pro');
     }
     if (pickerStartsSession) {
@@ -102,7 +117,7 @@ export function SystemPromptDialog() {
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {t('activity:systemPrompt.tokens', { count: v.tokens })}
                       </span>
-                      {v.variant === info?.current && (
+                      {v.variant === current && (
                         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                           {t('activity:systemPrompt.current')}
                         </span>

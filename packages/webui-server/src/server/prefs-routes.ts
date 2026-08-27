@@ -41,7 +41,8 @@ export interface PrefsRouteHandlers {
    * the user has ever chosen. Setting a variant goes through `prefs.update`
    * with `systemPromptVariant`, so this side stays read-only.
    */
-  getSystemPrompt: (ws: WebSocket) => Promise<void>;
+  /** `sessionId` names the tab asking: the live variant is per session. */
+  getSystemPrompt: (ws: WebSocket, sessionId?: string | undefined) => Promise<void>;
   /** Preview/apply canonical defaults in the active profile config. */
   doctorConfig?: ((ws: WebSocket, apply: boolean) => Promise<void>) | undefined;
 }
@@ -66,7 +67,7 @@ export function createPrefsRouteHandlers(
         typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : undefined,
       );
     },
-    getSystemPrompt: async (ws) => handleSystemPromptGet(ctx, ws),
+    getSystemPrompt: async (ws, sessionId) => handleSystemPromptGet(ctx, ws, sessionId),
     ...(doctorConfig !== undefined ? { doctorConfig } : {}),
   };
 }
@@ -102,7 +103,9 @@ export async function handlePrefsRoute(
       return true;
     }
     case 'system_prompt.get': {
-      await handlers.getSystemPrompt(ws);
+      // Same reason as `prefs.get`: the catalogue is shared but `current` is
+      // this tab's own variant.
+      await handlers.getSystemPrompt(ws, messageSessionId(msg));
       return true;
     }
     case 'config.doctor': {

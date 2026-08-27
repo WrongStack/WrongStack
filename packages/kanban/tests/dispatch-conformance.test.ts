@@ -13,7 +13,7 @@ import {
   reserveKanbanDispatch,
   startKanbanDispatch,
   transitionTask,
-} from '../src/manager.js';
+} from './helpers/session-manager.js';
 
 // ---------------------------------------------------------------------------
 // Cross-surface dispatch conformance tests.
@@ -68,7 +68,12 @@ function fullDetails() {
     labels: ['conformance'],
     childTaskIds: ['child-1'],
     successCriteria: [
-      { id: 'sc1', description: 'All tests pass', type: 'manual' as const, status: 'pending' as const },
+      {
+        id: 'sc1',
+        description: 'All tests pass',
+        type: 'manual' as const,
+        status: 'pending' as const,
+      },
     ],
   };
 }

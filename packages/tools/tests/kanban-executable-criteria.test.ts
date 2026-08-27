@@ -2,7 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { addTask, createBoard, createDefaultRegistry, getBoard } from '@wrongstack/kanban';
+import { createBoard, createDefaultRegistry, getBoard } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { KANBAN_INPUT_SCHEMA } from '../src/kanban-tool-schema.js';
@@ -41,7 +42,9 @@ describe('kanban tool — every offered checkType has a verifier', () => {
  */
 describe('kanban tool — acceptance criteria can be executable', () => {
   let dir: string;
-  const ctx = () => ({ projectRoot: dir }) as unknown as Context;
+  const eventContext = { sessionId: '2026-08-26/sess_TESTCRITERIA' };
+  const ctx = () =>
+    ({ projectRoot: dir, eventSessionId: () => eventContext.sessionId }) as unknown as Context;
 
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-exec-criteria-'));
@@ -56,7 +59,12 @@ describe('kanban tool — acceptance criteria can be executable', () => {
       title: 'Executable criteria board',
       columns: [{ id: 'todo', title: 'Todo', order: 0 }],
     });
-    const created = await addTask(dir, board.id, { title: 'Card under verification' });
+    const created = await addTask(
+      dir,
+      board.id,
+      { title: 'Card under verification' },
+      eventContext,
+    );
     return { boardId: board.id, taskId: created!.task.id };
   }
 

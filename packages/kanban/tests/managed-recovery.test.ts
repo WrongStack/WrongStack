@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { KanbanBoard } from '../src/types.js';
 import {
   addTask,
   assignTask,
@@ -11,8 +12,7 @@ import {
   releaseTaskClaim,
   transitionTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import type { KanbanBoard } from '../src/types.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 

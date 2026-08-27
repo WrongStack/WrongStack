@@ -40,6 +40,7 @@
   "dependencies": {
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
+    "@wrongstack/primitives": "workspace:*",
     "@wrongstack/mcp": "workspace:*",
     "@wrongstack/tools": "workspace:*"
   },

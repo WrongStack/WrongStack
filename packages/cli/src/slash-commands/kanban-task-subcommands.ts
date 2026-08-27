@@ -1,4 +1,5 @@
 import { color } from '@wrongstack/core/utils';
+import type { KanbanEventContext } from '@wrongstack/kanban';
 import {
   addCheckToTask,
   addDependency,
@@ -27,6 +28,7 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { preflightManagedTransition } from '@wrongstack/kanban/manager/lifecycle';
+import { requireSessionId } from '@wrongstack/primitives';
 import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { SlashCommandContext } from './command-context.js';
 import { buildKanbanAgentPrompt, parseKanbanAgentFlags, splitCsv } from './kanban-agent-helpers.js';
@@ -73,6 +75,12 @@ export async function handleTaskSubcommand(
     return showHelp();
   }
 
+  // Every board write below is attributed to the session running this command.
+  const eventContext: KanbanEventContext = {
+    sessionId: requireSessionId(opts.context?.eventSessionId(), 'kanban slash command'),
+    actor: 'cli-operator',
+  };
+
   if (sub === 'ready') {
     const results = await listReadyTasks(projectRoot, {
       ...(boardId ? { boardId } : {}),
@@ -87,11 +95,15 @@ export async function handleTaskSubcommand(
     if (!agentId) {
       return { message: color.red('Usage: /kanban task claim [boardId] <agentId>') };
     }
-    const result = await claimReadyTask(projectRoot, {
-      ...(scopedBoardId ? { boardId: scopedBoardId } : {}),
-      agentId,
-      status: 'queued',
-    });
+    const result = await claimReadyTask(
+      projectRoot,
+      {
+        ...(scopedBoardId ? { boardId: scopedBoardId } : {}),
+        agentId,
+        status: 'queued',
+      },
+      eventContext,
+    );
     if (!result) return { message: color.yellow('No ready kanban task matched the claim.') };
     return {
       message: `${color.green('✅ Task claimed:')} ${result.task.title}\n  ${color.dim(`${result.board.id}:${result.task.id}`)}`,
@@ -120,10 +132,15 @@ export async function handleTaskSubcommand(
   if (sub === 'add') {
     const title = rest.join(' ');
     if (!title) return { message: color.red('Usage: /kanban task add <boardId> <title>') };
-    const result = await addTask(projectRoot, boardId, {
-      title,
-      columnId: board.columns[0]?.id ?? 'backlog',
-    });
+    const result = await addTask(
+      projectRoot,
+      boardId,
+      {
+        title,
+        columnId: board.columns[0]?.id ?? 'backlog',
+      },
+      eventContext,
+    );
     if (!result) return { message: color.red('Failed to add task') };
     await syncTaskToContext(opts, result.task);
     return {
@@ -180,6 +197,7 @@ export async function handleTaskSubcommand(
       const [to] = stageEntry;
       try {
         const result = await transitionTask(projectRoot, boardId, taskId, {
+          sessionId: eventContext.sessionId,
           to: to as 'backlog' | 'todo' | 'running' | 'review' | 'done',
           actor: 'kanban-slash:move',
           action: moveNote
@@ -206,10 +224,20 @@ export async function handleTaskSubcommand(
         throw err;
       }
     }
-    const updated = await moveTask(projectRoot, boardId, taskId, resolvedColumnId);
+    const updated = await moveTask(
+      projectRoot,
+      boardId,
+      taskId,
+      resolvedColumnId,
+      undefined,
+      eventContext,
+    );
     if (!updated)
       return { message: color.red('Failed to move task. Check board/task/column IDs.') };
-    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
+    await syncTaskToContext(
+      opts,
+      updated.tasks.find((t) => t.id === taskId),
+    );
     return { message: color.green('✅ Task moved.') };
   }
 
@@ -222,7 +250,9 @@ export async function handleTaskSubcommand(
         ),
       };
     }
-    const { attachment, note, tickChecks, positional, warnings } = parseTaskEvidenceFlags(rest.slice(1));
+    const { attachment, note, tickChecks, positional, warnings } = parseTaskEvidenceFlags(
+      rest.slice(1),
+    );
     if (positional.length > 0) {
       return {
         message: color.red(
@@ -286,6 +316,7 @@ export async function handleTaskSubcommand(
       for (const to of path) {
         const transitionInput = {
           to,
+          sessionId: eventContext.sessionId,
           actor: 'kanban-slash:done',
           action: `${noteText} (${to})`,
           comment: `${noteText} (${to})`,
@@ -308,6 +339,7 @@ export async function handleTaskSubcommand(
       try {
         for (const to of path) {
           await transitionTask(projectRoot, boardId, taskId, {
+            sessionId: eventContext.sessionId,
             to: to as 'backlog' | 'todo' | 'running' | 'review' | 'done',
             actor: 'kanban-slash:done',
             action: noteText ? `${noteText} (${to})` : '',
@@ -325,7 +357,10 @@ export async function handleTaskSubcommand(
           });
         }
         const finalBoard = await getBoard(projectRoot, boardId);
-        await syncTaskToContext(opts, finalBoard?.tasks.find((t) => t.id === taskId));
+        await syncTaskToContext(
+          opts,
+          finalBoard?.tasks.find((t) => t.id === taskId),
+        );
         return { message: color.green('✅ Task marked completed.') };
       } catch (err) {
         if (decodeLifecycleIssues(err).length > 0) {
@@ -337,12 +372,21 @@ export async function handleTaskSubcommand(
     const completedCol = board.columns.find((c) =>
       ['done', 'completed', 'finished'].includes(c.id),
     );
-    const updated = await updateTask(projectRoot, boardId, taskId, {
-      status: 'completed',
-      ...(completedCol?.id ? { columnId: completedCol.id } : {}),
-    });
+    const updated = await updateTask(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        status: 'completed',
+        ...(completedCol?.id ? { columnId: completedCol.id } : {}),
+      },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
-    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
+    await syncTaskToContext(
+      opts,
+      updated.tasks.find((t) => t.id === taskId),
+    );
     return {
       message: color.green('✅ Task marked completed.'),
     };
@@ -364,9 +408,18 @@ export async function handleTaskSubcommand(
           `blocker (\`/kanban task note <boardId> <taskId> <reason>\`) so reviewers see the context.`,
       };
     }
-    const updated = await updateTask(projectRoot, boardId, taskId, { status: 'blocked' });
+    const updated = await updateTask(
+      projectRoot,
+      boardId,
+      taskId,
+      { status: 'blocked' },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
-    await syncTaskToContext(opts, updated.tasks.find((t) => t.id === taskId));
+    await syncTaskToContext(
+      opts,
+      updated.tasks.find((t) => t.id === taskId),
+    );
     return { message: color.yellow('🚫 Task marked blocked.') };
   }
 
@@ -374,7 +427,7 @@ export async function handleTaskSubcommand(
     const taskId = rest[0];
     if (!taskId) return { message: color.red('Usage: /kanban task remove <boardId> <taskId>') };
     const taskToDelete = board.tasks.find((t) => t.id === taskId);
-    const updated = await removeTask(projectRoot, boardId, taskId);
+    const updated = await removeTask(projectRoot, boardId, taskId, eventContext);
     if (!updated) return { message: color.red('Task not found') };
     if (taskToDelete) {
       await syncTaskToContext(opts, taskToDelete, { remove: true });
@@ -385,9 +438,15 @@ export async function handleTaskSubcommand(
   if (sub === 'release') {
     const taskId = rest[0];
     if (!taskId) return { message: color.red('Usage: /kanban task release <boardId> <taskId>') };
-    const updated = await releaseTaskClaim(projectRoot, boardId, taskId, {
-      reason: rest.slice(1).join(' ') || 'released from slash command',
-    });
+    const updated = await releaseTaskClaim(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        reason: rest.slice(1).join(' ') || 'released from slash command',
+      },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
     return { message: color.green('✅ Task claim released.') };
   }
@@ -406,11 +465,17 @@ export async function handleTaskSubcommand(
         ),
       };
     }
-    const result = await splitTask(projectRoot, boardId, taskId, {
-      titles,
-      chainChildren: true,
-      rewireDependents: true,
-    });
+    const result = await splitTask(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        titles,
+        chainChildren: true,
+        rewireDependents: true,
+      },
+      eventContext,
+    );
     if (!result) return { message: color.red('Board or task not found') };
     return {
       message: `${color.green('✅ Task split into children:')}\n${result.children
@@ -427,11 +492,16 @@ export async function handleTaskSubcommand(
         message: color.red('Usage: /kanban task merge <boardId> <taskA,taskB> <merged title>'),
       };
     }
-    const result = await mergeTasks(projectRoot, boardId, {
-      taskIds,
-      title,
-      closeSourceTasks: true,
-    });
+    const result = await mergeTasks(
+      projectRoot,
+      boardId,
+      {
+        taskIds,
+        title,
+        closeSourceTasks: true,
+      },
+      eventContext,
+    );
     if (!result) return { message: color.red('Board or task not found') };
     return {
       message: `${color.green('✅ Tasks merged:')} ${result.task.title}\n  ${color.dim(result.task.id)}`,
@@ -455,10 +525,15 @@ export async function handleTaskSubcommand(
         message: color.red('Usage: /kanban task chain <boardId> <taskA> <taskB> [...]'),
       };
     }
-    const result = await setTaskChain(projectRoot, boardId, {
-      taskIds,
-      enforceDependencies: true,
-    });
+    const result = await setTaskChain(
+      projectRoot,
+      boardId,
+      {
+        taskIds,
+        enforceDependencies: true,
+      },
+      eventContext,
+    );
     if (!result) return { message: color.red('Board or task not found') };
     return {
       message: `${color.green('✅ Chain set:')} ${result.chainId}\n${formatTaskChain(result.tasks)}`,
@@ -481,9 +556,11 @@ export async function handleTaskSubcommand(
       sub === 'copy'
         ? await copyTaskToBoard(projectRoot, boardId, taskId, targetBoardId, {
             ...(targetColumnId ? { targetColumnId } : {}),
+            eventContext,
           })
         : await transferTaskToBoard(projectRoot, boardId, taskId, targetBoardId, {
             ...(targetColumnId ? { targetColumnId } : {}),
+            eventContext,
           });
     if (!result) return { message: color.red('Board or task not found') };
     return {
@@ -507,9 +584,15 @@ export async function handleTaskSubcommand(
     if (!valid.includes(priority)) {
       return { message: color.red(`Invalid priority. Valid: ${valid.join(', ')}`) };
     }
-    const updated = await updateTask(projectRoot, boardId, taskId, {
-      priority: priority as KanbanTask['priority'],
-    });
+    const updated = await updateTask(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        priority: priority as KanbanTask['priority'],
+      },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
     return { message: color.green(`✅ Priority set to ${priority}.`) };
   }
@@ -525,17 +608,23 @@ export async function handleTaskSubcommand(
         ),
       };
     }
-    const updated = await assignTask(projectRoot, boardId, taskId, {
-      agentId,
-      name: parsed.flags.name,
-      role: parsed.flags.role,
-      provider: parsed.flags.provider,
-      model: parsed.flags.model,
-      fallbackProfile: parsed.flags.fallbackProfile,
-      fallbackModels: parsed.flags.fallbackModels,
-      tools: parsed.flags.tools,
-      allowedCapabilities: parsed.flags.allowedCapabilities,
-    });
+    const updated = await assignTask(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        agentId,
+        name: parsed.flags.name,
+        role: parsed.flags.role,
+        provider: parsed.flags.provider,
+        model: parsed.flags.model,
+        fallbackProfile: parsed.flags.fallbackProfile,
+        fallbackModels: parsed.flags.fallbackModels,
+        tools: parsed.flags.tools,
+        allowedCapabilities: parsed.flags.allowedCapabilities,
+      },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
     return {
       message: color.green(
@@ -572,7 +661,7 @@ export async function handleTaskSubcommand(
       status: 'queued' as const,
       dispatchedAt: new Date().toISOString(),
     };
-    await assignTask(projectRoot, boardId, taskId, assignment);
+    await assignTask(projectRoot, boardId, taskId, assignment, eventContext);
     try {
       const prompt = buildKanbanAgentPrompt(freshBoard, task, assignment);
       const summary = await opts.onSpawn(prompt, {
@@ -587,19 +676,31 @@ export async function handleTaskSubcommand(
         context: { kanban: { boardId, taskId, projectRoot } },
       });
       const subagentId = extractSpawnedSubagentId(summary);
-      await updateTaskAssignment(projectRoot, boardId, taskId, {
-        ...assignment,
-        status: 'running',
-        ...(subagentId ? { subagentId } : {}),
-        lastResult: summary,
-      });
+      await updateTaskAssignment(
+        projectRoot,
+        boardId,
+        taskId,
+        {
+          ...assignment,
+          status: 'running',
+          ...(subagentId ? { subagentId } : {}),
+          lastResult: summary,
+        },
+        eventContext,
+      );
       return { message: `${color.green('✅ Kanban task dispatched.')}\n${summary}` };
     } catch (err) {
-      await updateTaskAssignment(projectRoot, boardId, taskId, {
-        ...assignment,
-        status: 'failed',
-        error: err instanceof Error ? err.message : String(err),
-      });
+      await updateTaskAssignment(
+        projectRoot,
+        boardId,
+        taskId,
+        {
+          ...assignment,
+          status: 'failed',
+          error: err instanceof Error ? err.message : String(err),
+        },
+        eventContext,
+      );
       return {
         message: color.red(`Dispatch failed: ${err instanceof Error ? err.message : String(err)}`),
       };
@@ -614,7 +715,7 @@ export async function handleTaskSubcommand(
     }
     const task = await getTask(projectRoot, boardId, taskId);
     if (!task) return { message: color.red('Task not found') };
-    const updated = await addDependency(projectRoot, boardId, taskId, depId);
+    const updated = await addDependency(projectRoot, boardId, taskId, depId, eventContext);
     if (!updated) return { message: color.red('Failed to add dependency') };
     return { message: color.green(`✅ Dependency added: ${task.title} → ${depId}`) };
   }
@@ -633,11 +734,17 @@ export async function handleTaskSubcommand(
           ),
         };
       }
-      const updated = await addGoalMetricToTask(projectRoot, boardId, taskId, {
-        name,
-        ...(target !== undefined ? { target } : {}),
-        ...(unit !== undefined ? { unit } : {}),
-      });
+      const updated = await addGoalMetricToTask(
+        projectRoot,
+        boardId,
+        taskId,
+        {
+          name,
+          ...(target !== undefined ? { target } : {}),
+          ...(unit !== undefined ? { unit } : {}),
+        },
+        eventContext,
+      );
       if (!updated) return { message: color.red('Task not found') };
       return { message: color.green(`✅ Metric added: ${name}`) };
     }
@@ -656,10 +763,17 @@ export async function handleTaskSubcommand(
       if (status && !validStatuses.includes(status)) {
         return { message: color.red(`Invalid metric status. Valid: ${validStatuses.join(', ')}`) };
       }
-      const updated = await updateGoalMetricOnTask(projectRoot, boardId, taskId, metricId, {
-        current,
-        ...(status ? { status: status as 'pending' | 'met' | 'missed' | 'waived' } : {}),
-      });
+      const updated = await updateGoalMetricOnTask(
+        projectRoot,
+        boardId,
+        taskId,
+        metricId,
+        {
+          current,
+          ...(status ? { status: status as 'pending' | 'met' | 'missed' | 'waived' } : {}),
+        },
+        eventContext,
+      );
       if (!updated) return { message: color.red('Metric not found') };
       return { message: color.green('✅ Metric updated.') };
     }
@@ -674,10 +788,16 @@ export async function handleTaskSubcommand(
     if (!taskId || !content) {
       return { message: color.red('Usage: /kanban task note <boardId> <taskId> <text>') };
     }
-    const updated = await addNoteToTask(projectRoot, boardId, taskId, {
-      author: 'user',
-      content,
-    });
+    const updated = await addNoteToTask(
+      projectRoot,
+      boardId,
+      taskId,
+      {
+        author: 'user',
+        content,
+      },
+      eventContext,
+    );
     if (!updated) return { message: color.red('Task not found') };
     return { message: color.green('✅ Note added.') };
   }
@@ -687,10 +807,16 @@ export async function handleTaskSubcommand(
     const taskId = rest[1];
     if (checkSub === 'add' && taskId && rest.slice(2).join(' ')) {
       const desc = rest.slice(2).join(' ');
-      const updated = await addCheckToTask(projectRoot, boardId, taskId, {
-        description: desc,
-        type: 'manual',
-      });
+      const updated = await addCheckToTask(
+        projectRoot,
+        boardId,
+        taskId,
+        {
+          description: desc,
+          type: 'manual',
+        },
+        eventContext,
+      );
       if (!updated) return { message: color.red('Task not found') };
       return { message: color.green(`✅ Check added to task: ${desc}`) };
     }

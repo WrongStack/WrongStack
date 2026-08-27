@@ -51,7 +51,16 @@ export async function seedConfigToMeta(opts: CliWebUIOptions): Promise<void> {
 }
 
 export interface PrefsSeeding {
-  prefSnapshot: () => PrefSnapshot;
+  /**
+   * The preference snapshot for one tab.
+   *
+   * Session-scoped preferences (autonomy, yolo, context strategy, reasoning,
+   * the identity variant…) live on each session's OWN context meta, so a
+   * snapshot built from the leader's meta describes whichever conversation
+   * the leader happens to hold — not the tab that asked. Pass the meta of the
+   * asking session; omit it for a single-session host.
+   */
+  prefSnapshot: (meta?: Record<string, unknown> | undefined) => PrefSnapshot;
   persistPrefs: (payload: PrefSnapshot) => Promise<void>;
 }
 
@@ -135,7 +144,7 @@ export function createPrefsSeeding(opts: CliWebUIOptions): PrefsSeeding {
   };
 
   return {
-    prefSnapshot: () => snapshotPrefs(opts.agent.ctx.meta),
+    prefSnapshot: (meta) => snapshotPrefs(meta ?? opts.agent.ctx.meta),
     persistPrefs,
   };
 }

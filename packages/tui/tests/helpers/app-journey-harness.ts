@@ -1,7 +1,7 @@
 import type { Agent, TodoItem } from '@wrongstack/core/agent';
-import type { AttachmentStore, Message } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { AttachmentStore, Message } from '@wrongstack/core/types';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { vi } from 'vitest';
@@ -49,14 +49,15 @@ export function createJourneyAgent(messages: Message[] = []): Agent {
         capabilities: { maxContext: 200_000, supportsVision: true },
       },
       session: { id: 'test-session', writeEvent: vi.fn() },
+      // Panels and slash commands stamp their board writes with the session
+      // driving the TUI, same as a real Context derives it.
+      eventSessionId: () => 'test-session',
       sideEffects: [],
       signal: new AbortController().signal,
       tokenCounter: {
         countTokens: vi.fn().mockReturnValue(0),
         estimateCost: vi.fn().mockReturnValue({ total: 0 }),
-        total: vi
-          .fn()
-          .mockReturnValue({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
+        total: vi.fn().mockReturnValue({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }),
       },
       cwd: '/test/project',
       workingDir: '/test/project',
@@ -101,10 +102,7 @@ export function createAppJourney(agent = createJourneyAgent()): AppJourney {
   };
 }
 
-export async function waitForJourney(
-  predicate: () => boolean,
-  timeoutMs = 2_000,
-): Promise<void> {
+export async function waitForJourney(predicate: () => boolean, timeoutMs = 2_000): Promise<void> {
   const started = Date.now();
   while (!predicate()) {
     if (Date.now() - started > timeoutMs) {

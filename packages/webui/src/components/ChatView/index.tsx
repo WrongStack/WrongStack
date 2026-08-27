@@ -141,21 +141,6 @@ export function ChatView() {
           )}
           {...(!subagentMode ? { inert: true, 'aria-hidden': true } : {})}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-primary/20 bg-primary/10 px-3 py-1.5 text-xs text-primary font-medium">
-            <div className="flex items-center gap-2 truncate">
-              <Bot className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">
-                Subagent Transcript: <strong>{focusedSubagentId}</strong> (Read-only)
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSubagentChatFocus(null)}
-              className="ml-2 inline-flex shrink-0 items-center gap-1 rounded bg-primary/20 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/30"
-            >
-              ✕ Return to Chat
-            </button>
-          </div>
           <div className="min-h-0 flex-1 overflow-hidden">
             {/* Only mounted while a subagent is focused: its transcript is a
                 plain scroller with nothing worth preserving, and keying it by

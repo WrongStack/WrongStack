@@ -182,6 +182,7 @@ export async function transitionTask(
       await recordCompletionRefusal(projectRoot, boardId, taskId, {
         reason: error.issues[0]?.message ?? 'Done transition refused.',
         issues: error.issues.map((issue) => issue.message),
+        eventContext: { sessionId: input.sessionId, actor: input.actor },
       }).catch(() => undefined);
     }
     throw error;

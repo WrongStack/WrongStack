@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { requireSessionId } from '@wrongstack/primitives';
 import { normalizeKanbanBoundaryPolicy } from './boundary.js';
 import { STALE_WRITE_PREFIX, StaleWriteError } from './manager/lifecycle-error.js';
 import { getProductionKanbanStorage } from './server/remote-storage.js';
@@ -263,6 +264,7 @@ export async function appendKanbanEvent(
   boardId: string,
   event: KanbanEvent,
 ): Promise<void> {
+  requireSessionId(event.sessionId, `kanban event ${event.type}`);
   const backend = runtimeStorage(projectRoot);
   if (backend) return backend.appendEvent(boardId, event);
   const filePath = getKanbanEventsPath(projectRoot, boardId);

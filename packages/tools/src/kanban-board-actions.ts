@@ -38,6 +38,10 @@ export async function handleKanbanBoardAction(
   input: KanbanToolInput,
   ctx: Context,
 ): Promise<KanbanToolOutput | undefined> {
+  const eventContext = {
+    sessionId: ctx.eventSessionId(),
+    ...(ctx.agentId !== undefined ? { actor: ctx.agentId } : {}),
+  };
   switch (input.action) {
     case 'list_boards': {
       const boards = await listBoards(projectRoot);
@@ -124,7 +128,7 @@ export async function handleKanbanBoardAction(
         input.description,
         board.columns[0]?.id ?? 'backlog',
       )) {
-        await addTask(projectRoot, board.id, tInput);
+        await addTask(projectRoot, board.id, tInput, eventContext);
       }
       return okBoard((await getBoard(projectRoot, board.id)) ?? board, 'Board generated.');
     }

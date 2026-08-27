@@ -34,7 +34,11 @@ import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
 export interface KanbanPanelProps {
   projectRoot: string;
-  sessionId?: string | null | undefined;
+  /**
+   * Session driving the panel. Required: every board mutation the panel makes
+   * writes a durable event attributed to this session.
+   */
+  sessionId: string;
   sessionContext?: Context | undefined;
   onClose: () => void;
   /**
@@ -65,6 +69,8 @@ export function KanbanPanel({
   terminalWidth = 100,
   initialBoardId,
 }: KanbanPanelProps): React.ReactElement {
+  // Every mutation below stamps its event with the session driving the panel.
+  const eventContext = { sessionId, actor: 'tui-operator' };
   const [boards, setBoards] = useState<KanbanBoardSummary[]>([]);
   const [selectedBoard, setSelectedBoard] = useState(0);
   const [selectedTask, setSelectedTask] = useState(0);
@@ -166,7 +172,7 @@ export function KanbanPanel({
       setPrompt(null);
       await runMutation(async () => {
         if (!board) return null;
-        const nextBoard = await removeTask(projectRoot, board.id, prompt.task.id);
+        const nextBoard = await removeTask(projectRoot, board.id, prompt.task.id, eventContext);
         await syncSource(nextBoard, prompt.task.id, true, prompt.task);
         return `Deleted task: ${prompt.task.title}`;
       });
@@ -180,10 +186,10 @@ export function KanbanPanel({
       setPrompt(null);
       await runMutation(async () => {
         if (!board) return null;
-        const actor = sessionId ?? 'tui-operator';
         const result = await transitionTask(projectRoot, board.id, task.id, {
           to: target,
-          actor,
+          sessionId,
+          actor: 'tui-operator',
           comment,
         });
         if (result) await syncSource(result.board, task.id, false, task);
@@ -204,10 +210,12 @@ export function KanbanPanel({
           return `Created board: ${created.title}`;
         }
         if (!board) return null;
-        const added = await addTask(projectRoot, board.id, {
-          title: value,
-          columnId: sortedColumns[0]?.id ?? 'backlog',
-        });
+        const added = await addTask(
+          projectRoot,
+          board.id,
+          { title: value, columnId: sortedColumns[0]?.id ?? 'backlog' },
+          eventContext,
+        );
         return added ? `Added task: ${added.task.title}` : 'Task add failed';
       },
       kind === 'createBoard' ? { boardIndex: 0, taskIndex: 0 } : { taskIndex: board?.tasks.length },
@@ -324,7 +332,14 @@ export function KanbanPanel({
         const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
         if (nextColumn) {
           void runMutation(async () => {
-            const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, nextColumn.id);
+            const nextBoard = await moveTask(
+              projectRoot,
+              board.id,
+              activeTask.id,
+              nextColumn.id,
+              undefined,
+              eventContext,
+            );
             await syncSource(nextBoard, activeTask.id);
             return `Moved to ${nextColumn.title}`;
           });
@@ -339,7 +354,14 @@ export function KanbanPanel({
         const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
         if (prevColumn) {
           void runMutation(async () => {
-            const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, prevColumn.id);
+            const nextBoard = await moveTask(
+              projectRoot,
+              board.id,
+              activeTask.id,
+              prevColumn.id,
+              undefined,
+              eventContext,
+            );
             await syncSource(nextBoard, activeTask.id);
             return `Moved to ${prevColumn.title}`;
           });
@@ -349,14 +371,19 @@ export function KanbanPanel({
     }
     if (shortcutsEnabled && (input === ' ' || input === 'D') && board && activeTask) {
       if (isManagedBoard(board)) {
-        setNotice('Managed cards advance via → or t (transition). Use a non-managed board for direct status edits.');
+        setNotice(
+          'Managed cards advance via → or t (transition). Use a non-managed board for direct status edits.',
+        );
         return;
       }
       void runMutation(async () => {
-        const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
-          status: 'completed',
-          columnId: doneColumnId(board) ?? activeTask.columnId,
-        });
+        const nextBoard = await updateTask(
+          projectRoot,
+          board.id,
+          activeTask.id,
+          { status: 'completed', columnId: doneColumnId(board) ?? activeTask.columnId },
+          eventContext,
+        );
         await syncSource(nextBoard, activeTask.id);
         return `Completed task: ${activeTask.title}`;
       });
@@ -364,13 +391,19 @@ export function KanbanPanel({
     }
     if (shortcutsEnabled && input === 'b' && board && activeTask) {
       if (isManagedBoard(board)) {
-        setNotice('Managed cards advance via → or t (transition); "blocked" is a status, not a lifecycle stage.');
+        setNotice(
+          'Managed cards advance via → or t (transition); "blocked" is a status, not a lifecycle stage.',
+        );
         return;
       }
       void runMutation(async () => {
-        const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
-          status: 'blocked',
-        });
+        const nextBoard = await updateTask(
+          projectRoot,
+          board.id,
+          activeTask.id,
+          { status: 'blocked' },
+          eventContext,
+        );
         await syncSource(nextBoard, activeTask.id);
         return `Blocked task: ${activeTask.title}`;
       });
@@ -408,7 +441,9 @@ export function KanbanPanel({
     }
     if (shortcutsEnabled && input === 'C' && board && activeTask && transferTarget) {
       void runMutation(async () => {
-        await copyTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id);
+        await copyTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
+          eventContext,
+        });
         return `Copied task to ${transferTarget.title}`;
       });
       return;
@@ -417,6 +452,7 @@ export function KanbanPanel({
       void runMutation(async () => {
         await transferTaskToBoard(projectRoot, board.id, activeTask.id, transferTarget.id, {
           preserveAssignment: true,
+          eventContext,
         });
         return `Transferred task to ${transferTarget.title}`;
       });
@@ -662,9 +698,7 @@ const MANAGED_STAGE_ORDER: readonly KanbanLifecycleStage[] = [
  */
 export function nextManagedStage(current: KanbanLifecycleStage): KanbanLifecycleStage | null {
   const idx = MANAGED_STAGE_ORDER.indexOf(current);
-  return idx >= 0 && idx < MANAGED_STAGE_ORDER.length - 1
-    ? MANAGED_STAGE_ORDER[idx + 1]!
-    : null;
+  return idx >= 0 && idx < MANAGED_STAGE_ORDER.length - 1 ? MANAGED_STAGE_ORDER[idx + 1]! : null;
 }
 
 /**

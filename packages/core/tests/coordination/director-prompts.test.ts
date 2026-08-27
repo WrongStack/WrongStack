@@ -9,6 +9,9 @@ import {
 } from '../../src/coordination/director-prompts.js';
 import type { MultiAgentConfig, SubagentConfig } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const baseConfig: MultiAgentConfig = {
   coordinatorId: 'test-director',
   doneCondition: { type: 'all_tasks_done' },
@@ -242,6 +245,7 @@ describe('rosterSummaryFromConfigs', () => {
 describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
   it('leaderSystemPrompt composes preamble + base by default', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         ...baseConfig,
         leaderSystemPrompt: 'BASE LEADER PROMPT',
@@ -254,6 +258,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
 
   it('leaderSystemPrompt accepts an explicit base override', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: { ...baseConfig, leaderSystemPrompt: 'IGNORED' },
     });
     const out = director.leaderSystemPrompt('EXPLICIT');
@@ -263,6 +268,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
 
   it('leaderSystemPrompt includes roster summary when roster is provided', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: baseConfig,
       roster: {
         coder: { name: 'Coder', provider: 'openai', model: 'gpt-5', prompt: 'Codes things.' },
@@ -275,6 +281,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
 
   it('directorPreamble option overrides the built-in preamble', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: baseConfig,
       directorPreamble: 'MY CUSTOM PREAMBLE',
     });
@@ -284,7 +291,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
   });
 
   it('subagentSystemPrompt composes baseline + role + override', () => {
-    const director = new Director({ config: baseConfig });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: baseConfig });
     const cfg: SubagentConfig = {
       name: 'reviewer',
       prompt: 'You review code.',
@@ -300,6 +307,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
 
   it('subagentBaseline option overrides the bridge-contract baseline', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: baseConfig,
       subagentBaseline: 'CUSTOM BASELINE',
     });
@@ -309,7 +317,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
   });
 
   it('omitting taskBrief drops the Task section', () => {
-    const director = new Director({ config: baseConfig });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: baseConfig });
     const out = director.subagentSystemPrompt({ name: 'x', prompt: 'r' });
     expect(out).not.toContain('Task:');
     expect(out).toContain('Role:\nr');
@@ -317,6 +325,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
 
   it('director with sharedScratchpadPath injects path into every subagent prompt', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: baseConfig,
       sharedScratchpadPath: '/tmp/fleet/shared',
     });
@@ -327,7 +336,7 @@ describe('Director.leaderSystemPrompt / subagentSystemPrompt', () => {
   });
 
   it('director.sharedScratchpadPath is null when not configured', () => {
-    const director = new Director({ config: baseConfig });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: baseConfig });
     expect(director.sharedScratchpadPath).toBeNull();
     const out = director.subagentSystemPrompt({ name: 'x', prompt: 'r' });
     expect(out).not.toContain('Shared notes:');

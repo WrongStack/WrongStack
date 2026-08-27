@@ -1,4 +1,12 @@
 export {
+  isSystemSessionId,
+  requireSessionId,
+  SESSION_ID_REQUIRED,
+  SessionIdRequiredError,
+  SYSTEM_SESSION_PREFIX,
+  systemSessionId,
+} from '@wrongstack/primitives';
+export {
   assertProjectRootOutsideStateDir,
   type BootConfigOptions,
   type BootConfigResult,
@@ -118,6 +126,12 @@ export {
   CollaborationBus,
   type ConsumedInjectionInfo,
 } from './coordination/collab-bus.js';
+export {
+  type CollabPauseMiddlewareOptions,
+  collabInjectMiddleware,
+  collabPauseMiddleware,
+  type InjectedToolResult as CollabInjectedToolResult,
+} from './coordination/collab-pause.js';
 export {
   assessCommitSafety,
   type CommitSafetyOptions,
@@ -456,28 +470,6 @@ export {
   renderDomainGlossary,
 } from './core/system-prompt-glossary.js';
 export { AutoCompactionMiddleware } from './execution/auto-compaction-middleware.js';
-export { DefaultErrorHandler } from './execution/error-handler.js';
-export { DefaultSkillLoader, type SkillLoaderOptions } from './execution/skill-loader.js';
-export {
-  DefaultLogger,
-  type DefaultLoggerOptions,
-  type LogFormat,
-} from './infrastructure/logger.js';
-export { type CompactorOptions, HybridCompactor } from './execution/compactor.js';
-export {
-  type CompactorStrategy,
-  createStrategyCompactor,
-  type StrategyCompactorOptions,
-} from './execution/strategy-compactor.js';
-export {
-  IntelligentCompactor,
-  type IntelligentCompactorOptions,
-} from './execution/intelligent-compactor.js';
-export { installSubagentAutoCompaction } from './execution/subagent-compaction.js';
-export {
-  SelectiveCompactor,
-  type SelectiveCompactorOptions,
-} from './execution/selective-compactor.js';
 export {
   type AutonomyBrainOptions,
   type BrainAutoRisk,
@@ -542,6 +534,7 @@ export {
   hasTextContent,
   scoreMessage,
 } from './execution/compaction-core.js';
+export { type CompactorOptions, HybridCompactor } from './execution/compactor.js';
 export {
   COUNCIL_REFUSE_OPTION_ID,
   type CouncilBrainOptions,
@@ -599,6 +592,11 @@ export {
   resolveConfiguredRefinerRef,
   resolveEnhanceFallbackRef,
 } from './execution/enhance-recovery.js';
+export { DefaultErrorHandler } from './execution/error-handler.js';
+export {
+  IntelligentCompactor,
+  type IntelligentCompactorOptions,
+} from './execution/intelligent-compactor.js';
 export {
   applyModelRuntime,
   type ModelRuntimeMiddlewareOptions,
@@ -625,6 +623,17 @@ export {
   recentTextTurns,
   shouldEnhance,
 } from './execution/prompt-enhancer.js';
+export {
+  SelectiveCompactor,
+  type SelectiveCompactorOptions,
+} from './execution/selective-compactor.js';
+export { DefaultSkillLoader, type SkillLoaderOptions } from './execution/skill-loader.js';
+export {
+  type CompactorStrategy,
+  createStrategyCompactor,
+  type StrategyCompactorOptions,
+} from './execution/strategy-compactor.js';
+export { installSubagentAutoCompaction } from './execution/subagent-compaction.js';
 // Extension API
 export {
   type AfterIterationHook,
@@ -682,6 +691,11 @@ export {
   shellHooksEqual,
 } from './hooks/index.js';
 export * from './hq/index.js';
+export {
+  DefaultLogger,
+  type DefaultLoggerOptions,
+  type LogFormat,
+} from './infrastructure/logger.js';
 export { allServers } from './infrastructure/mcp-servers.js';
 export {
   type ProviderCacheEntry,
@@ -689,12 +703,6 @@ export {
 } from './infrastructure/provider-cache-ledger.js';
 export * from './kernel/index.js';
 export { attachMailboxChecker } from './mailbox-attach.js';
-export {
-  type CollabPauseMiddlewareOptions,
-  collabInjectMiddleware,
-  collabPauseMiddleware,
-  type InjectedToolResult as CollabInjectedToolResult,
-} from './coordination/collab-pause.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
   type NotificationChannel,
@@ -807,6 +815,15 @@ export type {
 export { createSkillsPlugin } from './plugins/skills-plugin.js';
 export { createSyncPlugin } from './plugins/sync-plugin.js';
 export * from './prompts/index.js';
+export {
+  ensureGitignore,
+  getPromptJournalEntries,
+  type PromptCategory,
+  type PromptJournalEntry,
+  type PromptJournalFilter,
+  type RecordPromptOptions,
+  recordPromptJournalEntry,
+} from './prompts/index.js';
 export { type ProviderFactory, ProviderRegistry } from './registry/provider-registry.js';
 export {
   type SlashCommand,
@@ -932,6 +949,7 @@ export {
 } from './tools/plugin-manager.js';
 export type { Compactor, CompactReport } from './types/compactor.js';
 export {
+  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   CONTEXT_WINDOW_MODES,
   type ContextWindowAggressiveOn,
   type ContextWindowConfigLike,
@@ -949,7 +967,6 @@ export {
   isContextWindowModeSelectionId,
   isDeprecatedContextWindowModeId,
   LARGE_WINDOW_DEEP_MODE_THRESHOLD,
-  CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   listContextWindowModes,
   normalizeContextWindowModeId,
   resolveContextWindowPolicy,
@@ -1018,12 +1035,3 @@ export {
   type WorktreeRunResult,
   type WorktreeStatus,
 } from './worktree/index.js';
-export {
-  ensureGitignore,
-  getPromptJournalEntries,
-  recordPromptJournalEntry,
-  type PromptCategory,
-  type PromptJournalEntry,
-  type PromptJournalFilter,
-  type RecordPromptOptions,
-} from './prompts/index.js';

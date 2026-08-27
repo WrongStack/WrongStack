@@ -19,6 +19,8 @@ import type { WSServerMessage } from './types.js';
 export interface KanbanTaskRouteContext {
   projectRoot: string;
   context?: Context | undefined;
+  /** Tab that sent the request — the session every emitted event belongs to. */
+  requestSessionId?: string | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
 }
 
@@ -75,7 +77,7 @@ async function handleTaskRemove(
     fail(ws, type, 'Board or task not found');
     return;
   }
-  const board = await removeTask(ctx.projectRoot, boardId, taskId);
+  const board = await removeTask(ctx.projectRoot, boardId, taskId, activityContext(ctx));
   if (!board) {
     fail(ws, type, 'Board or task not found');
     return;

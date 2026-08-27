@@ -25,6 +25,8 @@ export interface RunOneAcpTaskOptions {
   signal?: AbortSignal | undefined;
   onProgress?: ACPProgressHandler | undefined;
   permissionPolicy?: PermissionPolicy | undefined;
+  /** Owning WrongStack session for session-scoped ACP operations. */
+  sessionId?: string | undefined;
 }
 
 export interface RunOneAcpTaskResult {
@@ -64,6 +66,7 @@ export async function runOneAcpTask(opts: RunOneAcpTaskOptions): Promise<RunOneA
       config: { id: role, name: role, role, provider: 'acp', prompt: '' },
       budget,
       signal: opts.signal ?? new AbortController().signal,
+      ...(opts.sessionId !== undefined ? { sessionId: opts.sessionId } : {}),
       bridge: null,
     };
     const result = await runner({ id: `acp-${role}`, description: opts.task }, ctx);

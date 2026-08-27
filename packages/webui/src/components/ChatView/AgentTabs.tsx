@@ -13,6 +13,7 @@ import { Bot, CheckCircle2, Crown, Loader2 } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
+import { taskBriefPreview } from '@/lib/task-brief-preview';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import {
@@ -98,7 +99,7 @@ export function AgentTabs() {
               type="button"
               role="tab"
               aria-selected={active}
-              title={a.description ?? a.name}
+              title={a.description ? taskBriefPreview(a.description, 180) : a.name}
               onClick={() => setFocus(a.id)}
               className={cn(
                 'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',

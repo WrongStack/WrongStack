@@ -17,6 +17,9 @@ import type {
   TaskSpec,
 } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 /**
  * Valid boundary shared by the happy-path calls. `delegate` enforces an
  * explicit scope plus at least one concrete out-of-scope non-goal on every
@@ -74,6 +77,7 @@ describe('createDelegateTool', () => {
       },
     );
     const d = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'delegate-test',
         doneCondition: { type: 'all_tasks_done' },
@@ -373,6 +377,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'hang-director',
         doneCondition: { type: 'all_tasks_done' },
@@ -438,6 +443,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'partial-test',
         doneCondition: { type: 'all_tasks_done' },
@@ -518,6 +524,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'partial-test',
         doneCondition: { type: 'all_tasks_done' },
@@ -657,6 +664,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'scan-test',
         doneCondition: { type: 'all_tasks_done' },
@@ -822,6 +830,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'done-pairing-timeout-director',
         doneCondition: { type: 'all_tasks_done' },
@@ -859,6 +868,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'timeout-event-director',
         doneCondition: { type: 'all_tasks_done' },
@@ -904,6 +914,7 @@ describe('createDelegateTool', () => {
       },
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'abort-director',
         doneCondition: { type: 'all_tasks_done' },
@@ -973,6 +984,7 @@ describe('createDelegateTool', () => {
         }),
     );
     director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'skip-test',
         doneCondition: { type: 'all_tasks_done' },

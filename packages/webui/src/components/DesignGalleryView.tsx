@@ -11,12 +11,13 @@
 
 import { Check, Download, Palette, Search, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAppTranslation, i18n } from '@/i18n';
-import { useWebSocket } from '@/hooks/useWebSocket';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { i18n, useAppTranslation } from '@/i18n';
 import { colorToHex } from '@/lib/color';
 import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
+import { useActiveSessionId } from '@/stores/session-lanes';
 
 type Tokens = Record<string, string>;
 type ThemeName = 'light' | 'dark';
@@ -68,7 +69,10 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
   const shadow = t['shadow-2'] ?? (t.shadow && t.shadow !== 'none' ? t.shadow : undefined);
 
   return (
-    <div style={{ background: bg, color: fg, fontFamily: fontSans }} className="flex min-w-0 flex-col gap-2 overflow-hidden p-3">
+    <div
+      style={{ background: bg, color: fg, fontFamily: fontSans }}
+      className="flex min-w-0 flex-col gap-2 overflow-hidden p-3"
+    >
       <div className="text-[9px] uppercase tracking-wide" style={{ color: muted }}>
         {label}
       </div>
@@ -134,7 +138,9 @@ function ColorEditor({
   return (
     <div className="mt-1 rounded-lg border border-border/60 p-2 bg-muted/30">
       <div className="flex items-center gap-2 mb-1.5">
-        <span className="text-[10px] font-semibold uppercase text-muted-foreground">{t('activity:design.colors')}</span>
+        <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+          {t('activity:design.colors')}
+        </span>
         <div className="ml-auto inline-flex rounded border border-border/60 overflow-hidden">
           {(['light', 'dark'] as ThemeName[]).map((th) => (
             <button
@@ -157,7 +163,7 @@ function ColorEditor({
           return (
             <label
               key={tok}
-          className="flex min-w-[2rem] flex-col items-center gap-0.5"
+              className="flex min-w-[2rem] flex-col items-center gap-0.5"
               title={`${tok}: ${merged[tok]}`}
             >
               <input
@@ -198,12 +204,28 @@ function TuneEditor({ onTune }: { onTune: (tune: Record<string, string>) => void
   );
   return (
     <div className="mt-1 flex flex-col gap-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
-      <span className="text-[10px] font-semibold uppercase text-muted-foreground">{t('activity:designStudio.tune')}</span>
-      <Row label={t('activity:designStudio.radius')} knob="radius" values={['none', 'sm', 'md', 'lg', 'xl', 'full']} />
-      <Row label={t('activity:designStudio.density')} knob="density" values={['compact', 'cozy', 'comfortable']} />
-      <Row label={t('activity:designStudio.motion')} knob="motion" values={['snappy', 'smooth', 'none']} />
+      <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+        {t('activity:designStudio.tune')}
+      </span>
+      <Row
+        label={t('activity:designStudio.radius')}
+        knob="radius"
+        values={['none', 'sm', 'md', 'lg', 'xl', 'full']}
+      />
+      <Row
+        label={t('activity:designStudio.density')}
+        knob="density"
+        values={['compact', 'cozy', 'comfortable']}
+      />
+      <Row
+        label={t('activity:designStudio.motion')}
+        knob="motion"
+        values={['snappy', 'smooth', 'none']}
+      />
       <div className="flex items-center gap-1.5">
-        <span className="w-16 shrink-0 text-[9px] uppercase text-muted-foreground">{t('activity:designStudio.font')}</span>
+        <span className="w-16 shrink-0 text-[9px] uppercase text-muted-foreground">
+          {t('activity:designStudio.font')}
+        </span>
         <input
           value={font}
           onChange={(e) => setFont(e.target.value)}
@@ -227,6 +249,10 @@ function TuneEditor({ onTune }: { onTune: (tune: Record<string, string>) => void
 
 export function DesignGalleryView({ className }: { className?: string }) {
   const { client } = useWebSocket();
+  // The active kit is pinned per conversation, so the gallery re-reads it when
+  // the user switches tabs — otherwise it keeps showing, and lets the user
+  // "tune", the kit of the tab they just left.
+  const sessionId = useActiveSessionId();
   const { t } = useAppTranslation();
   const [kits, setKits] = useState<Kit[]>([]);
   const [activeKit, setActiveKit] = useState<string | null>(null);
@@ -275,7 +301,11 @@ export function DesignGalleryView({ className }: { className?: string }) {
     };
     const onMat = (msg: unknown) => {
       const p = (msg as { payload?: { ok?: boolean; path?: string; error?: string } }).payload;
-      setStatus(p?.ok ? i18n.t('activity:design.wrote', { path: p.path }) : i18n.t('activity:design.materializeFailed', { error: p?.error ?? 'error' }));
+      setStatus(
+        p?.ok
+          ? i18n.t('activity:design.wrote', { path: p.path })
+          : i18n.t('activity:design.materializeFailed', { error: p?.error ?? 'error' }),
+      );
     };
     const onVer = (msg: unknown) => {
       const p = (
@@ -296,7 +326,11 @@ export function DesignGalleryView({ className }: { className?: string }) {
       const pct = Math.round((p.score ?? 1) * 100);
       setStatus(
         p.violationCount
-          ? i18n.t('activity:design.verifyOffPalette', { pct, count: p.violationCount, files: p.filesScanned })
+          ? i18n.t('activity:design.verifyOffPalette', {
+              pct,
+              count: p.violationCount,
+              files: p.filesScanned,
+            })
           : i18n.t('activity:design.verifyClean', { files: p.filesScanned }),
       );
     };
@@ -307,7 +341,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
     client.on('design.swap', onSwap);
     client.on('design.materialize', onMat);
     client.on('design.verify', onVer);
-    client.send({ type: 'design.list' });
+    client.send({ type: 'design.list', payload: client.withSession({}) });
     return () => {
       client.off('design.list', onList);
       client.off('design.use', onUse);
@@ -317,10 +351,11 @@ export function DesignGalleryView({ className }: { className?: string }) {
       client.off('design.materialize', onMat);
       client.off('design.verify', onVer);
     };
-  }, [client]);
+  }, [client, sessionId]);
 
   const useKit = useCallback(
-    (id: string) => client?.send({ type: 'design.use', payload: { kit: id, stack } }),
+    (id: string) =>
+      client?.send({ type: 'design.use', payload: client.withSession({ kit: id, stack }) }),
     [client, stack],
   );
 
@@ -328,25 +363,29 @@ export function DesignGalleryView({ className }: { className?: string }) {
   const setOverride = useCallback(
     (key: string, hex: string) => {
       setOverrides((prev) => ({ ...prev, [key]: hex }));
-      client?.send({ type: 'design.set', payload: { overrides: { [key]: hex } } });
+      client?.send({
+        type: 'design.set',
+        payload: client.withSession({ overrides: { [key]: hex } }),
+      });
     },
     [client],
   );
 
   // Send high-level knobs; resolved overrides return via `design.tune`.
   const tuneKit = useCallback(
-    (tune: Record<string, string>) => client?.send({ type: 'design.tune', payload: { tune } }),
+    (tune: Record<string, string>) =>
+      client?.send({ type: 'design.tune', payload: client.withSession({ tune }) }),
     [client],
   );
 
   const materialize = useCallback(() => {
     setStatus(i18n.t('activity:design.writing'));
-    client?.send({ type: 'design.materialize', payload: { stack } });
+    client?.send({ type: 'design.materialize', payload: client.withSession({ stack }) });
   }, [client, stack]);
 
   const verify = useCallback(() => {
     setStatus(i18n.t('activity:design.scanning'));
-    client?.send({ type: 'design.verify' });
+    client?.send({ type: 'design.verify', payload: client.withSession({}) });
   }, [client]);
 
   const filtered = useMemo(() => {
@@ -365,7 +404,12 @@ export function DesignGalleryView({ className }: { className?: string }) {
   // Design kits are bounded (catalog), show all without pagination.
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[hsl(var(--surface-2)/0.45)]', className)}>
+    <div
+      className={cn(
+        'flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[hsl(var(--surface-2)/0.45)]',
+        className,
+      )}
+    >
       <div className="border-b border-border/60 p-3">
         <div className="rounded-xl border border-border/70 bg-card/75 p-3 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -375,7 +419,9 @@ export function DesignGalleryView({ className }: { className?: string }) {
               </span>
               <div className="min-w-0">
                 <h2 className="truncate text-sm font-semibold">{t('activity:design.heading')}</h2>
-                <p className="text-xs text-muted-foreground">{t('activity:design.kitsCount', { count: filtered.length })}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t('activity:design.kitsCount', { count: filtered.length })}
+                </p>
               </div>
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
@@ -418,86 +464,99 @@ export function DesignGalleryView({ className }: { className?: string }) {
         </div>
       </div>
 
-      <div ref={useScrollPosition('design-gallery')} className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
+      <div
+        ref={useScrollPosition('design-gallery')}
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4"
+      >
         {filtered.length === 0 ? (
           <div className="ws-surface mx-auto mt-8 flex max-w-md flex-col items-center gap-3 rounded-xl p-6 text-center text-muted-foreground">
             <Palette className="h-8 w-8 text-primary/60" />
-            <p className="text-sm font-medium text-foreground">{t('activity:design.kitsCount', { count: 0 })}</p>
+            <p className="text-sm font-medium text-foreground">
+              {t('activity:design.kitsCount', { count: 0 })}
+            </p>
             <p className="text-xs">{t('activity:design.searchPlaceholder')}</p>
           </div>
         ) : (
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
-          {filtered.map((kit) => {
-            const isActive = activeKit === kit.id;
-            const ov = isActive ? overrides : {};
-            return (
-              <div
-                key={kit.id}
-                className={cn(
-                  'flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card/75 shadow-sm',
-                  isActive ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border/70',
-                )}
-              >
-                {/* Live light + dark previews (override-applied for the active kit) */}
-                <div className="grid min-h-[12rem] grid-cols-1 sm:grid-cols-2">
-                  <KitPreview t={applyOv(kit.light, ov, 'light')} label={t('activity:designStudio.light')} />
-                  <KitPreview t={applyOv(kit.dark, ov, 'dark')} label={t('activity:designStudio.dark')} />
-                </div>
-                <div className="flex min-w-0 flex-col gap-2 border-t border-border/60 bg-card p-3">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="text-sm font-semibold truncate">{kit.name}</h3>
-                    <code className="text-[10px] text-muted-foreground">{kit.id}</code>
-                    {isActive && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase text-primary ml-auto">
-                        <Check className="w-3 h-3" /> {t('activity:design.active')}
-                      </span>
-                    )}
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
+            {filtered.map((kit) => {
+              const isActive = activeKit === kit.id;
+              const ov = isActive ? overrides : {};
+              return (
+                <div
+                  key={kit.id}
+                  className={cn(
+                    'flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card/75 shadow-sm',
+                    isActive ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border/70',
+                  )}
+                >
+                  {/* Live light + dark previews (override-applied for the active kit) */}
+                  <div className="grid min-h-[12rem] grid-cols-1 sm:grid-cols-2">
+                    <KitPreview
+                      t={applyOv(kit.light, ov, 'light')}
+                      label={t('activity:designStudio.light')}
+                    />
+                    <KitPreview
+                      t={applyOv(kit.dark, ov, 'dark')}
+                      label={t('activity:designStudio.dark')}
+                    />
                   </div>
-                  <p className="text-[11px] text-muted-foreground leading-snug">{kit.aesthetic}</p>
-                  <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => useKit(kit.id)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1 text-[11px] font-medium transition',
-                        isActive
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-primary text-primary-foreground hover:opacity-90',
+                  <div className="flex min-w-0 flex-col gap-2 border-t border-border/60 bg-card p-3">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="text-sm font-semibold truncate">{kit.name}</h3>
+                      <code className="text-[10px] text-muted-foreground">{kit.id}</code>
+                      {isActive && (
+                        <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase text-primary ml-auto">
+                          <Check className="w-3 h-3" /> {t('activity:design.active')}
+                        </span>
                       )}
-                    >
-                      {isActive ? t('activity:design.reapply') : t('activity:design.use')}
-                    </button>
-                    {isActive && (
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      {kit.aesthetic}
+                    </p>
+                    <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                       <button
                         type="button"
-                        onClick={materialize}
-                        className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
-                        title={t('activity:design.materializeTitle', { stack })}
+                        onClick={() => useKit(kit.id)}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-[11px] font-medium transition',
+                          isActive
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-primary text-primary-foreground hover:opacity-90',
+                        )}
                       >
-                        <Download className="w-3 h-3" /> {t('activity:design.materialize')}
+                        {isActive ? t('activity:design.reapply') : t('activity:design.use')}
                       </button>
-                    )}
-                    {isActive && (
-                      <button
-                        type="button"
-                        onClick={verify}
-                        className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
-                        title={t('activity:design.verifyTitle')}
-                      >
-                        <ShieldCheck className="w-3 h-3" /> {t('activity:design.verify')}
-                      </button>
-                    )}
-                    <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
-                      {kit.bestFor}
-                    </span>
+                      {isActive && (
+                        <button
+                          type="button"
+                          onClick={materialize}
+                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
+                          title={t('activity:design.materializeTitle', { stack })}
+                        >
+                          <Download className="w-3 h-3" /> {t('activity:design.materialize')}
+                        </button>
+                      )}
+                      {isActive && (
+                        <button
+                          type="button"
+                          onClick={verify}
+                          className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
+                          title={t('activity:design.verifyTitle')}
+                        >
+                          <ShieldCheck className="w-3 h-3" /> {t('activity:design.verify')}
+                        </button>
+                      )}
+                      <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
+                        {kit.bestFor}
+                      </span>
+                    </div>
+                    {isActive && <ColorEditor kit={kit} overrides={ov} onSet={setOverride} />}
+                    {isActive && <TuneEditor onTune={tuneKit} />}
                   </div>
-                  {isActive && <ColorEditor kit={kit} overrides={ov} onSet={setOverride} />}
-                  {isActive && <TuneEditor onTune={tuneKit} />}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

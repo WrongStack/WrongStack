@@ -46,6 +46,7 @@ describe('Kanban event log I/O', () => {
       id: 'event-latest',
       boardId,
       type: 'task.moved' as const,
+      sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000',
       ts: '2026-07-21T00:00:00.000Z',
       taskId: 'latest',
       fromColumn: 'todo',

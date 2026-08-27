@@ -4,6 +4,9 @@ import { Director } from '../../src/coordination/director.js';
 import { phaseForRole } from '../../src/coordination/model-matrix.js';
 import type { SubagentRunner } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const role = Object.keys(AGENT_CATALOG)[0]!;
 const phase = phaseForRole(role)!;
 
@@ -23,6 +26,7 @@ function makeDirector(
   session?: { provider?: string; model?: string },
 ): Director {
   return new Director({
+    sessionId: TEST_SESSION_ID,
     config: {
       coordinatorId: 'mm-test',
       doneCondition: { type: 'all_tasks_done' },
@@ -145,7 +149,7 @@ describe('Director model matrix', () => {
   it('fills only the missing provider from session when matrix provides only model', async () => {
     const d = makeDirector(
       { [role]: { model: 'matrix-model' } },
-      { provider: 'anthropic' },  // no sessionModel
+      { provider: 'anthropic' }, // no sessionModel
     );
     director = d;
     const spawned = captureSpawned(d);
@@ -157,7 +161,7 @@ describe('Director model matrix', () => {
   it('fills only the missing model from session when matrix provides only provider', async () => {
     const d = makeDirector(
       { [role]: { provider: 'minimax' } },
-      { model: 'session-model' },  // no sessionProvider
+      { model: 'session-model' }, // no sessionProvider
     );
     director = d;
     const spawned = captureSpawned(d);
@@ -169,7 +173,7 @@ describe('Director model matrix', () => {
   it('does not let a partial session override a fully-resolved matrix entry', async () => {
     const d = makeDirector(
       { [role]: { provider: 'zai', model: 'glm-5-turbo' } },
-      { provider: 'anthropic' },  // partial session, not needed
+      { provider: 'anthropic' }, // partial session, not needed
     );
     director = d;
     const spawned = captureSpawned(d);
@@ -179,7 +183,7 @@ describe('Director model matrix', () => {
   });
 
   it('fills only the available session field when matrix resolves nothing', async () => {
-    const d = makeDirector(undefined, { provider: 'anthropic' });  // no sessionModel
+    const d = makeDirector(undefined, { provider: 'anthropic' }); // no sessionModel
     director = d;
     const spawned = captureSpawned(d);
     await d.spawn({ name: role, role });

@@ -9,8 +9,9 @@ import {
   useFleetStore,
   useHistoryStore,
   useProviderStatusStore,
+  useSessionTabStore,
 } from '@/stores';
-import { activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
+import { activeLaneId, type ChatLaneActions, readLane } from '@/stores/chat-lanes';
 import { useVizStore } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 import { providerResponseText } from './session-replay-handlers';
@@ -142,8 +143,12 @@ export function handleProviderRetry(msg: WSServerMessage) {
     description: string;
   };
   const seconds = Math.max(0, Math.round(payload.delayMs / 100) / 10);
-  toast.warn(
-    `${payload.providerId} retry ${payload.attempt} after ${seconds}s (${payload.status})`,
+  // A retry belongs to the run that hit it. Announced page-wide, a background
+  // tab's backoff reads as a stall in the conversation the user is watching.
+  toastIfForeground(chat, () =>
+    toast.warn(
+      `${payload.providerId} retry ${payload.attempt} after ${seconds}s (${payload.status})`,
+    ),
   );
 }
 
@@ -172,6 +177,32 @@ export function handleProviderError(msg: WSServerMessage) {
   );
 }
 
+/**
+ * Record a provider/model change on the lane that made it, and update the
+ * global chip only when that lane is the one on screen.
+ *
+ * `useConfigStore` holds ONE provider/model pair — it is what the top-bar chip,
+ * the model switcher's "current" and the refiner's model label all read. Both
+ * callers below used to write it unconditionally, so a background tab hitting a
+ * provider fallback (or a model switch answered late) silently relabelled the
+ * tab the user was looking at, and the switcher offered to change a model that
+ * tab was not running.
+ */
+function recordRouteChange(
+  chat: ChatLaneActions,
+  msg: WSServerMessage,
+  to: { providerId: string; model: string },
+): void {
+  const meta = sessionFor(msg);
+  const current = meta?.data.session;
+  if (meta && current) {
+    meta.setSession({ ...current, provider: to.providerId, model: to.model });
+  }
+  if (chat.sessionId === activeLaneId()) {
+    useConfigStore.getState().setConfig({ provider: to.providerId, model: to.model });
+  }
+}
+
 export function handleProviderFallback(msg: WSServerMessage) {
   const chat = chatFor(msg);
   if (!chat) return;
@@ -184,14 +215,21 @@ export function handleProviderFallback(msg: WSServerMessage) {
   };
   const from = `${payload.from.providerId}/${payload.from.model}`;
   const to = `${payload.to.providerId}/${payload.to.model}`;
-  useConfigStore.getState().setConfig({ provider: payload.to.providerId, model: payload.to.model });
+  recordRouteChange(chat, msg, payload.to);
   chat.addMessage({
     role: 'assistant',
     content: `Provider fallback: \`${from}\` returned ${payload.status}; switching to \`${to}\`${payload.providerSwitched ? ' with provider change' : ''}.`,
   });
   toastIfForeground(chat, () => toast.warn(`Fallback to ${to}`));
+  // The switch settled the question. Retire the copy parked on the tab that
+  // asked it, wherever that tab is, so it cannot reopen as a dead dialog on
+  // the next switch.
+  const parked = readLane(chat.sessionId).pendingFallback;
+  if (parked) chat.setPendingFallback(null);
   const pending = useFallbackStore.getState().pending;
   if (!pending) return;
+  // …and take the VISIBLE dialog down only when it is this tab's.
+  if (chat.sessionId !== activeLaneId()) return;
   const sameFrom =
     pending.from.providerId === payload.from.providerId &&
     pending.from.model === payload.from.model;
@@ -212,7 +250,7 @@ export function handleProviderModelSwitched(msg: WSServerMessage) {
   };
   const to = `${payload.to.providerId}/${payload.to.model}`;
   const from = payload.from ? `${payload.from.providerId}/${payload.from.model}` : '';
-  useConfigStore.getState().setConfig({ provider: payload.to.providerId, model: payload.to.model });
+  recordRouteChange(chat, msg, payload.to);
   chat.addMessage({
     role: 'assistant',
     content: from ? `Model switched: \`${from}\` → \`${to}\`` : `Model switched to \`${to}\``,
@@ -221,7 +259,8 @@ export function handleProviderModelSwitched(msg: WSServerMessage) {
 }
 
 export function handleProviderFallbackPending(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const chat = chatFor(msg);
+  if (!chat) return;
   const payload = msg.payload as {
     from: { providerId: string; model: string };
     status: number;
@@ -229,14 +268,24 @@ export function handleProviderFallbackPending(msg: WSServerMessage) {
     autoSwitchSeconds: number;
     requestId: string;
   };
-  useFallbackStore.getState().setPending({
+  const prompt = {
     requestId: payload.requestId,
     from: payload.from,
     status: payload.status,
     candidates: payload.candidates,
     autoSwitchSeconds: payload.autoSwitchSeconds,
     timestamp: Date.now(),
-  });
+  };
+  // Park it on the tab that hit the failure. This used to be dropped outright
+  // for a background tab, so its run waited behind a question nobody could
+  // answer until the server's countdown switched the model on its own — a
+  // route change the user never chose, on a conversation they never saw.
+  chat.setPendingFallback(prompt);
+  if (chat.sessionId === activeLaneId()) {
+    useFallbackStore.getState().setPending(prompt);
+    return;
+  }
+  useSessionTabStore.getState().setAttention(chat.sessionId, true);
 }
 
 export function handleProviderStatusChanged(msg: WSServerMessage) {

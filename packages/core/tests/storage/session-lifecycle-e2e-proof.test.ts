@@ -196,6 +196,7 @@ describe('Session Lifecycle & Invariant Verification Suite (Code-Proven)', () =>
       '[QUEUED MESSAGES — 1 task pending',
       '[SESSION RESUME FILE VALIDATION] 2 files changed',
       '[SESSION RESUME INTERRUPTED WORK] 1 tool call was in flight',
+      '[session.resume] Request targeted session 2026-08-26/sess_old, but this WebUI runtime is currently on 2026-08-26/sess_a.',
     ];
 
     for (const injection of systemInjections) {

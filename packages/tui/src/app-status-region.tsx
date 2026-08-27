@@ -285,7 +285,7 @@ export function AppStatusRegion({
         ) : state.kanbanPanelOpen && routedToBottom('kanban') ? (
           <KanbanPanel
             projectRoot={agent.ctx.projectRoot}
-            sessionId={agent.ctx.session?.id ?? null}
+            sessionId={agent.ctx.eventSessionId()}
             sessionContext={agent.ctx}
             onClose={() => dispatch({ type: 'toggleKanbanPanel' })}
             initialBoardId={focusedBoardId ?? undefined}

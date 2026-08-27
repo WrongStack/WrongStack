@@ -9,6 +9,7 @@ export const SYSTEM_INJECTION_PREFIXES = [
   '[loop-detector]',
   '[SESSION RESUME FILE VALIDATION]',
   '[SESSION RESUME INTERRUPTED WORK]',
+  '[session.resume] Request targeted session',
 ] as const;
 
 export function isSystemInjectedMessage(text: string): boolean {

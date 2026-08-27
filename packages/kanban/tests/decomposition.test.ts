@@ -2,13 +2,15 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  proposeTaskDecomposition,
-  resolveDecompositionProposal,
-} from '../src/manager/decomposition.js';
-import { addTask, createBoard, getBoard } from '../src/manager.js';
 import { readKanbanEvents } from '../src/storage.js';
 import type { KanbanDecompositionSubtask } from '../src/types.js';
+import {
+  addTask,
+  createBoard,
+  getBoard,
+  proposeTaskDecomposition,
+  resolveDecompositionProposal,
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 

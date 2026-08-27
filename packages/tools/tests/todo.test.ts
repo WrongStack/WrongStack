@@ -8,18 +8,17 @@ import {
   saveTasks,
   type TaskFile,
 } from '@wrongstack/core/storage';
+import { createBoard, getBoard } from '@wrongstack/kanban';
 import {
   addCheckToTask,
   addGoalMetricToTask,
   addTask,
   configureContractGraph,
-  createBoard,
-  getBoard,
   splitTask,
-  updateTask,
   updateGoalMetricOnTask,
+  updateTask,
   upsertContractNode,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { planTool } from '../src/plan.js';

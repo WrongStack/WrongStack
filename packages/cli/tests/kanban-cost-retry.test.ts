@@ -1,16 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createBoard, getBoard } from '@wrongstack/kanban';
 import {
   addTask,
   assignTask,
   claimReadyTask,
-  createBoard,
-  getBoard,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { kanbanTool } from '@wrongstack/tools/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Session that owns the board events these queue tests write. */
+const TEST_QUEUE_SESSION_ID = '2026-08-26/sess_01TESTKANBANQUEUE0000000';
 
 let tmpDir = '';
 
@@ -96,7 +98,7 @@ describe('Kanban cost ceiling and retry policy (Sprint 2 fields)', () => {
         costCeilingUsd: 0.5,
         retryPolicy: 'incremental',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
 

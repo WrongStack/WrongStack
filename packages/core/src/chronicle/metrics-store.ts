@@ -11,29 +11,31 @@
 
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 import { ChronicleMetricsIngester } from './metrics-ingest.js';
 import {
+  type ChronicleFileLineageRow,
+  type ChronicleMetricsRefreshResult,
+  type ChronicleMetricsSummary,
+  type ChronicleProviderDailyRow,
+  type ChronicleTaskOutcomeRow,
+  type ChronicleUnderusedToolRow,
   clampLimit,
   EMPTY_FAMILIES,
   ensureMetricsSchema,
   isChronicleMetricsAvailable,
   loadDatabaseSync,
   normalizePathKey,
-  type ChronicleFileLineageRow,
-  type ChronicleMetricsRefreshResult,
-  type ChronicleMetricsSummary,
-  type ChronicleProviderDailyRow,
-  type ChronicleTaskOutcomeRow,
 } from './metrics-schema.js';
+import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 
 export {
-  isChronicleMetricsAvailable,
   type ChronicleFileLineageRow,
   type ChronicleMetricsRefreshResult,
   type ChronicleMetricsSummary,
   type ChronicleProviderDailyRow,
   type ChronicleTaskOutcomeRow,
+  type ChronicleUnderusedToolRow,
+  isChronicleMetricsAvailable,
 };
 
 export class ChronicleMetricsStore {
@@ -229,7 +231,8 @@ export class ChronicleMetricsStore {
       modelId: row.model_id!,
       logicalRequestId: row.logical_request_id!,
       promptManifestId: row.prompt_manifest_id!,
-      provenanceConfidence: row.provenance_confidence as ChronicleFileLineageRow['provenanceConfidence'],
+      provenanceConfidence:
+        row.provenance_confidence as ChronicleFileLineageRow['provenanceConfidence'],
       source: row.source!,
     }));
   }
@@ -264,6 +267,69 @@ export class ChronicleMetricsStore {
       files: { mutations: Number(files.n), uniquePaths: Number(files.p) },
       estimatedCostUsd: Number(cost.c),
     };
+  }
+
+  /**
+   * Per-tool candidates for the auto-thinning pipeline. Returns one row per
+   * tool that has at least one day in `[fromDay, toDay]` (default: last 30
+   * days), with `invocations` summed across the window and `lastInvokedAt`
+   * taken as the max. The caller is responsible for the "underused" filter
+   * (`invocations <= maxInvocations`, `lastInvokedAt` older than
+   * `toDay - idleDays`) and for excluding tools still active in the window.
+   *
+   * The query intentionally does NOT pre-filter by threshold — the policy
+   * layer owns that decision so the same data feeds both the dry-run
+   * (`/tool autothin candidates`) and the apply path.
+   */
+  underusedTools(
+    options: { from?: string; to?: string; limit?: number } = {},
+  ): ChronicleUnderusedToolRow[] {
+    const fromDay = options.from?.slice(0, 10);
+    const toDay = options.to?.slice(0, 10);
+    const clauses: string[] = [];
+    const params: Array<string | number> = [];
+    if (fromDay) {
+      clauses.push('day >= ?');
+      params.push(fromDay);
+    }
+    if (toDay) {
+      clauses.push('day <= ?');
+      params.push(toDay);
+    }
+    const where = clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '';
+    params.push(clampLimit(options.limit, 500));
+    const rows = this.db
+      .prepare(
+        `SELECT tool_name, SUM(invocations) invocations, SUM(failures) failures,
+                SUM(duration_ms_total) duration_total, MAX(last_invoked_at) last_invoked
+         FROM tool_daily${where}
+         GROUP BY tool_name
+         ORDER BY invocations ASC, tool_name ASC
+         LIMIT ?`,
+      )
+      .all(...params) as Array<{
+      tool_name: string;
+      invocations: number;
+      failures: number;
+      duration_total: number;
+      last_invoked: number | null;
+    }>;
+    const anchorMs = Date.now();
+    return rows.map((row) => {
+      const lastInvokedAt = row.last_invoked === null ? null : Number(row.last_invoked);
+      const daysSinceLastUse =
+        lastInvokedAt === null
+          ? null
+          : Math.max(0, Math.floor((anchorMs - lastInvokedAt) / 86_400_000));
+      return {
+        toolName: String(row.tool_name),
+        invocations: Number(row.invocations),
+        failures: Number(row.failures),
+        durationMsTotal: Number(row.duration_total),
+        lastInvokedAt,
+        daysSinceLastUse,
+      };
+    });
   }
 
   /**

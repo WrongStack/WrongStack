@@ -26,24 +26,24 @@ import {
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
 export {
   alwaysAllowUnavailableReason,
-  matchesTrust,
-  matchesCommandTrust,
   hasShellSubject,
+  inputPathLooksSensitive,
+  matchesCommandTrust,
+  matchesTrust,
   permissionFingerprint,
   shellCommandLineFromInput,
-  inputPathLooksSensitive,
   shellCommandReadsSensitivePath,
 } from './permission-helpers.js';
 
 import {
-  matchesTrust,
-  matchesCommandTrust,
-  hasShellSubject,
   alwaysAllowUnavailableReason,
-  permissionFingerprint,
-  shellCommandLineFromInput,
+  hasShellSubject,
   isInsideAgentStateRoot,
   isSensitiveReadCall,
+  matchesCommandTrust,
+  matchesTrust,
+  permissionFingerprint,
+  shellCommandLineFromInput,
 } from './permission-helpers.js';
 
 function fsWriteTargetPaths(input: unknown): string[] {
@@ -152,7 +152,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
   }
 
   private yoloBlockedAsDestructive(tool: Tool, input: unknown, ctx: Context): boolean {
-    if (!this.yolo || this.yoloDestructive) return false;
+    if (!this.effectiveYolo(ctx) || this.yoloDestructive) return false;
     if (this.hasAgentStateWriteTarget(tool, input, ctx)) return true;
 
     // Binding a well-known third-party credential to a provider endpoint is an
@@ -173,6 +173,21 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
 
   setPromptDelegate(delegate: PermissionPolicyOptions['promptDelegate']): void {
     this.promptDelegate = delegate;
+  }
+
+  /**
+   * YOLO as it applies to ONE conversation.
+   *
+   * `this.yolo` is a process-wide switch, which is right for a CLI or a TUI —
+   * one process, one conversation. A WebUI holds four at once, and YOLO is a
+   * per-tab preference stored on each session's own context meta, so reading
+   * the process switch meant turning YOLO on in one tab auto-approved the
+   * tools of the other three. The instance flag stays as the fallback for
+   * hosts (and tests) that never write the meta key.
+   */
+  private effectiveYolo(ctx?: Pick<Context, 'meta'> | undefined): boolean {
+    const scoped = ctx?.meta?.['yolo'];
+    return typeof scoped === 'boolean' ? scoped : this.yolo;
   }
 
   setYolo(enabled: boolean): void {
@@ -274,7 +289,18 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
     const entry = mergeTrustEntries(this.policy[tool.name], namespaceEntry);
     const subject = subjectForToolInput(tool.name, input, tool.subjectKey, tool.subjectFields);
     const cacheKey = `${tool.name}::${subject ?? tool.name}`;
-    const evalKey = `${cacheKey}::${permissionFingerprint(tool)}`;
+    // The DECISION CACHE is scoped to the conversation and to the YOLO value
+    // that produced the decision. Shared across four tabs it replayed one
+    // tab's YOLO "auto" onto another tab's identical call — the cache would
+    // have made the per-session YOLO below decorative.
+    //
+    // `sessionDenied` / `sessionAllowed` stay process-wide on purpose: a "no"
+    // is the user refusing a command, which is a fail-CLOSED answer worth
+    // honouring everywhere, and the one-shot allow is consumed by the very
+    // call that requested it.
+    const evalKey = `${ctx.session?.id ?? '__default__'}::${cacheKey}::${permissionFingerprint(tool)}::y${
+      this.effectiveYolo(ctx) ? 1 : 0
+    }`;
 
     if (tool.name !== 'write' && !this.hasAgentStateWriteTarget(tool, input, ctx)) {
       const cached = this._evalCache.get(evalKey);
@@ -348,7 +374,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       return decision;
     }
 
-    if (!this.yolo && this.isSensitiveReadCall(tool, input)) {
+    if (!this.effectiveYolo(ctx) && this.isSensitiveReadCall(tool, input)) {
       if (this.promptDelegate) {
         const userDecision = await this.promptDelegate(tool, input, subject ?? tool.name);
         if (userDecision === 'always') {
@@ -385,7 +411,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       };
     }
 
-    if (this.yolo) {
+    if (this.effectiveYolo(ctx)) {
       if (this.yoloBlockedAsDestructive(tool, input, ctx)) {
         return {
           permission: 'confirm',
@@ -521,7 +547,7 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
         wildcardEntries: this.wildcardEntries,
         sessionDenied: this.sessionDenied,
         sessionAllowed: this.sessionAllowed,
-        yolo: this.yolo,
+        yolo: this.effectiveYolo(ctx),
         promptDelegatePresent: this.promptDelegate !== undefined,
         isSensitiveReadCall: (t, inp) => this.isSensitiveReadCall(t, inp),
         yoloBlockedAsDestructive: (t, inp, c) => this.yoloBlockedAsDestructive(t, inp, c),

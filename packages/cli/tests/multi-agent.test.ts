@@ -1,15 +1,15 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createBoard } from '@wrongstack/kanban';
 import {
   addCheckToTask,
   addTask,
-  createBoard,
   transitionTask,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+} from '@wrongstack/kanban/test-support';
 import { wireKanbanPorts } from '@wrongstack/runtime';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 wireKanbanPorts();
 

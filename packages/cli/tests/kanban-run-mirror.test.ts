@@ -294,7 +294,8 @@ describe('KanbanRunMirror SDD verification + field preservation', () => {
       });
       await settle();
 
-      const { getBoard, listBoards: list, updateTask } = await import('@wrongstack/kanban');
+      const { getBoard, listBoards: list } = await import('@wrongstack/kanban');
+      const { updateTask } = await import('@wrongstack/kanban/test-support');
       const summary = (await list(dir)).find((b) => b.tags?.includes('run:sdd-v1'));
       expect(summary).toBeDefined();
       let board = await getBoard(dir, summary!.id);

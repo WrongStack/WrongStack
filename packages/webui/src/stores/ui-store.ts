@@ -330,6 +330,17 @@ interface UIState {
      *  enqueue path can forward them (mirrors the error/no-op paths in
      *  misc-handlers that pass refImages to enqueue). */
     images?: QueuedItem['images'];
+    /**
+     * The tab this refinement belongs to.
+     *
+     * The panel is a single global surface sitting above one shared composer,
+     * but the text in it was typed in ONE tab. Approving it — or letting the
+     * countdown expire — sends through the foreground facade, so with four
+     * tabs open an unstamped panel could deliver tab 1's prompt into tab 2's
+     * session, without the user touching anything. ChatInput takes the panel
+     * down when the foreground leaves the tab that opened it.
+     */
+    sessionId?: string | undefined;
   } | null;
 
   /** Prompt library modal (browse/search/insert prompts) open state. */

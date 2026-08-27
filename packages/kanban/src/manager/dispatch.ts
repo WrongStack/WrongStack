@@ -69,6 +69,11 @@ export interface DispatchBudget {
 }
 
 export interface ReserveDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId?: string | undefined;
   taskId?: string | undefined;
   query?: string | undefined;
@@ -87,6 +92,11 @@ export interface ReserveDispatchResult {
 }
 
 export interface StartDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId: string;
   taskId: string;
   leaseId: string;
@@ -123,6 +133,11 @@ export interface StartDispatchResult {
 }
 
 export interface CompleteDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId: string;
   taskId: string;
   leaseId: string;
@@ -144,6 +159,11 @@ export interface CompleteDispatchResult {
 }
 
 export interface FailDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId: string;
   taskId: string;
   leaseId: string;
@@ -152,6 +172,11 @@ export interface FailDispatchInput {
 }
 
 export interface CancelDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId: string;
   taskId: string;
   leaseId: string;
@@ -160,6 +185,11 @@ export interface CancelDispatchInput {
 }
 
 export interface HeartbeatDispatchInput {
+  /**
+   * Session that owns this dispatch. Every board event the operation emits is
+   * attributed to it, so a tab can find (and stop) the work it started.
+   */
+  sessionId: string;
   boardId: string;
   taskId: string;
   leaseId: string;
@@ -207,6 +237,7 @@ async function recordLifecycleTransitionFailure(
   task: KanbanTask,
   operation: string,
   error: unknown,
+  sessionId: string,
 ): Promise<DispatchLifecycleError | undefined> {
   const message = error instanceof Error ? error.message : String(error);
   // Recover the structured issues when present. A real KanbanLifecycleError
@@ -226,6 +257,7 @@ async function recordLifecycleTransitionFailure(
     await emitKanbanEvent(
       projectRoot,
       createKanbanEvent(boardId, task, 'task.lifecycle_transition_failed', {
+        sessionId,
         note: `${operation}: ${message}`,
         ...(issues.length > 0 ? { after: { issues } } : {}),
       }),
@@ -255,36 +287,42 @@ export async function reserveKanbanDispatch(
   const lease = buildLease(effectiveTtl);
   const r = input.routing;
 
-  const claimed = await claimReadyTask(projectRoot, {
-    ...(input.boardId !== undefined ? { boardId: input.boardId } : {}),
-    ...(input.taskId !== undefined ? { taskId: input.taskId } : {}),
-    ...(r?.agentId !== undefined ? { agentId: r.agentId } : {}),
-    ...(r?.name !== undefined ? { name: r.name } : {}),
-    ...(r?.role !== undefined ? { role: r.role } : {}),
-    ...(r?.provider !== undefined ? { provider: r.provider } : {}),
-    ...(r?.model !== undefined ? { model: r.model } : {}),
-    ...(r?.fallbackProfile !== undefined ? { fallbackProfile: r.fallbackProfile } : {}),
-    ...(r?.fallbackModels !== undefined ? { fallbackModels: r.fallbackModels } : {}),
-    ...(r?.skills !== undefined ? { skills: r.skills } : {}),
-    ...(r?.tools !== undefined ? { tools: r.tools } : {}),
-    ...(r?.allowedCapabilities !== undefined ? { allowedCapabilities: r.allowedCapabilities } : {}),
-    ...(input.budget?.costCeilingUsd !== undefined
-      ? { costCeilingUsd: input.budget.costCeilingUsd }
-      : {}),
-    ...(input.budget?.retryPolicy !== undefined ? { retryPolicy: input.budget.retryPolicy } : {}),
-    ...(input.budget?.maxAttempts !== undefined ? { maxAttempts: input.budget.maxAttempts } : {}),
-    leaseId: lease.leaseId,
-    claimedAt: lease.claimedAt,
-    heartbeatAt: lease.heartbeatAt,
-    leaseExpiresAt: lease.leaseExpiresAt,
-    status: 'queued',
-    ...(input.includeBoardKinds !== undefined
-      ? { includeBoardKinds: input.includeBoardKinds }
-      : {}),
-    ...(input.excludeBoardKinds !== undefined
-      ? { excludeBoardKinds: input.excludeBoardKinds }
-      : {}),
-  });
+  const claimed = await claimReadyTask(
+    projectRoot,
+    {
+      ...(input.boardId !== undefined ? { boardId: input.boardId } : {}),
+      ...(input.taskId !== undefined ? { taskId: input.taskId } : {}),
+      ...(r?.agentId !== undefined ? { agentId: r.agentId } : {}),
+      ...(r?.name !== undefined ? { name: r.name } : {}),
+      ...(r?.role !== undefined ? { role: r.role } : {}),
+      ...(r?.provider !== undefined ? { provider: r.provider } : {}),
+      ...(r?.model !== undefined ? { model: r.model } : {}),
+      ...(r?.fallbackProfile !== undefined ? { fallbackProfile: r.fallbackProfile } : {}),
+      ...(r?.fallbackModels !== undefined ? { fallbackModels: r.fallbackModels } : {}),
+      ...(r?.skills !== undefined ? { skills: r.skills } : {}),
+      ...(r?.tools !== undefined ? { tools: r.tools } : {}),
+      ...(r?.allowedCapabilities !== undefined
+        ? { allowedCapabilities: r.allowedCapabilities }
+        : {}),
+      ...(input.budget?.costCeilingUsd !== undefined
+        ? { costCeilingUsd: input.budget.costCeilingUsd }
+        : {}),
+      ...(input.budget?.retryPolicy !== undefined ? { retryPolicy: input.budget.retryPolicy } : {}),
+      ...(input.budget?.maxAttempts !== undefined ? { maxAttempts: input.budget.maxAttempts } : {}),
+      leaseId: lease.leaseId,
+      claimedAt: lease.claimedAt,
+      heartbeatAt: lease.heartbeatAt,
+      leaseExpiresAt: lease.leaseExpiresAt,
+      status: 'queued',
+      ...(input.includeBoardKinds !== undefined
+        ? { includeBoardKinds: input.includeBoardKinds }
+        : {}),
+      ...(input.excludeBoardKinds !== undefined
+        ? { excludeBoardKinds: input.excludeBoardKinds }
+        : {}),
+    },
+    { sessionId: input.sessionId },
+  );
 
   if (!claimed) return null;
 
@@ -317,7 +355,7 @@ export async function startKanbanDispatch(
       // Renew lease from actual dispatch moment.
       heartbeatAt: nowIso(),
     },
-    { expectedLeaseId: input.leaseId },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
   );
 
   if (!updated) return null;
@@ -329,6 +367,7 @@ export async function startKanbanDispatch(
       try {
         const tr = await transitionTask(projectRoot, input.boardId, input.taskId, {
           to: 'running',
+          sessionId: input.sessionId,
           actor: input.actor,
           comment: 'Dispatch started.',
         });
@@ -351,6 +390,7 @@ export async function startKanbanDispatch(
           managedTask,
           'startKanbanDispatch',
           error,
+          input.sessionId,
         );
         const task = updated.tasks.find((t) => t.id === input.taskId);
         return task
@@ -389,7 +429,7 @@ export async function completeKanbanDispatch(
       status: 'completed',
       ...(input.result !== undefined ? { lastResult: input.result } : {}),
     },
-    { expectedLeaseId: input.leaseId },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
   );
 
   if (!updated) return null;
@@ -403,6 +443,7 @@ export async function completeKanbanDispatch(
       try {
         const tr = await transitionTask(projectRoot, input.boardId, input.taskId, {
           to: 'review',
+          sessionId: input.sessionId,
           actor: input.actor,
           comment: input.result?.slice(0, 1000) ?? 'Work completed.',
           ...(input.evidence
@@ -435,6 +476,7 @@ export async function completeKanbanDispatch(
           task,
           'completeKanbanDispatch',
           error,
+          input.sessionId,
         );
         return {
           board: updated,
@@ -449,7 +491,7 @@ export async function completeKanbanDispatch(
   // Legacy: run the completion gate.
   try {
     const finalized = await finalizeTaskCompletion(projectRoot, input.boardId, input.taskId, {
-      eventContext: { expectedLeaseId: input.leaseId },
+      eventContext: { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
     });
     if (finalized) {
       return { board: finalized.board, task: finalized.task, gate: finalized.gate };
@@ -465,6 +507,7 @@ export async function completeKanbanDispatch(
       task,
       'completeKanbanDispatch',
       error,
+      input.sessionId,
     );
     return {
       board: updated,
@@ -495,7 +538,7 @@ export async function failKanbanDispatch(
       status: 'failed',
       error: input.error,
     },
-    { expectedLeaseId: input.leaseId },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
   );
 }
 
@@ -516,7 +559,7 @@ export async function cancelKanbanDispatch(
     input.boardId,
     input.taskId,
     { status: 'cancelled', error: input.reason },
-    { expectedLeaseId: input.leaseId },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
   );
 
   if (!current) return null;
@@ -526,10 +569,13 @@ export async function cancelKanbanDispatch(
   // recovered and reclaimed by a new agent — an unfenced release then
   // deleted the NEW owner's claim (the exact zombie-release hole the
   // expectedLeaseId token exists for).
-  return releaseTaskClaim(projectRoot, input.boardId, input.taskId, {
-    reason: input.reason,
-    expectedLeaseId: input.leaseId,
-  });
+  return releaseTaskClaim(
+    projectRoot,
+    input.boardId,
+    input.taskId,
+    { reason: input.reason, expectedLeaseId: input.leaseId },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
+  );
 }
 
 /**
@@ -542,8 +588,14 @@ export async function heartbeatKanbanDispatch(
   projectRoot: string,
   input: HeartbeatDispatchInput,
 ): Promise<KanbanBoard | null> {
-  return heartbeatTaskAssignment(projectRoot, input.boardId, input.taskId, {
-    expectedLeaseId: input.leaseId,
-    ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
-  });
+  return heartbeatTaskAssignment(
+    projectRoot,
+    input.boardId,
+    input.taskId,
+    {
+      expectedLeaseId: input.leaseId,
+      ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+    },
+    { sessionId: input.sessionId, expectedLeaseId: input.leaseId },
+  );
 }

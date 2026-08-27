@@ -17,9 +17,9 @@
  *
  * @priority C1
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
+import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type {
   BudgetKind,
   BudgetLimits,
@@ -28,6 +28,9 @@ import type {
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -62,7 +65,12 @@ function makeFrequentProgressAgent(opts: {
         // Emit tool.started + tool.executed in rapid succession — this mirrors
         // a streaming tool that calls tool_progress between start and done.
         events.emit('tool.started', { name: 'work', id: `t${iteration}` });
-        events.emit('tool.executed', { name: 'work', id: `t${iteration}`, durationMs: 1, ok: true });
+        events.emit('tool.executed', {
+          name: 'work',
+          id: `t${iteration}`,
+          durationMs: 1,
+          ok: true,
+        });
         // tool_progress is what triggers checkTimeout() in the runner.
         events.emit('tool.progress', {
           name: 'work',
@@ -130,10 +138,7 @@ describe('watchdogActive guard', () => {
       return 'continue';
     };
 
-    const budget = new SubagentBudget(
-      { timeoutMs: 100, idleTimeoutMs: 50 },
-      'auto',
-    );
+    const budget = new SubagentBudget({ timeoutMs: 100, idleTimeoutMs: 50 }, 'auto');
     budget.onThreshold = handler;
     budget._events = events as never as EventBus;
     budget.start();
@@ -245,7 +250,10 @@ describe('dual-path race: watchdog vs checkTimeout (T2)', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1', timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -302,7 +310,12 @@ describe('dual-path race: watchdog vs checkTimeout (T2)', () => {
           events.emit('iteration.started', { ctx: undefined as never, index: 0 });
           while (Date.now() - startedAt < 40) {
             if (runOpts.signal.aborted) return { status: 'aborted', iterations: i };
-            events.emit('tool.progress', { name: 'work', id: `t${i}`, durationMs: 0, elapsedMs: Date.now() - startedAt });
+            events.emit('tool.progress', {
+              name: 'work',
+              id: `t${i}`,
+              durationMs: 0,
+              elapsedMs: Date.now() - startedAt,
+            });
             i++;
             await new Promise((r) => setTimeout(r, 1));
           }
@@ -317,7 +330,10 @@ describe('dual-path race: watchdog vs checkTimeout (T2)', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's2', name: 'S2', timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -375,7 +391,10 @@ describe('idle_timeout enforcement is independent of watchdogActive', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's3', name: 'S3', idleTimeoutMs, timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {

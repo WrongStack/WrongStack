@@ -59,7 +59,7 @@ export class ServerKanbanStore {
   addTask(
     boardId: string,
     input: DomainArgs<'addTask'>[1],
-    eventContext: NonNullable<DomainArgs<'addTask'>[2]> = {},
+    eventContext: NonNullable<DomainArgs<'addTask'>[2]>,
   ) {
     return this.callDomain('addTask', boardId, input, eventContext);
   }
@@ -67,7 +67,7 @@ export class ServerKanbanStore {
     boardId: string,
     taskId: string,
     patch: DomainArgs<'updateTask'>[2],
-    eventContext: NonNullable<DomainArgs<'updateTask'>[3]> = {},
+    eventContext: NonNullable<DomainArgs<'updateTask'>[3]>,
   ) {
     return this.callDomain('updateTask', boardId, taskId, patch, eventContext);
   }
@@ -75,13 +75,17 @@ export class ServerKanbanStore {
     boardId: string,
     taskId: string,
     targetColumnId: string,
-    order?: number,
-    eventContext: NonNullable<DomainArgs<'moveTask'>[4]> = {},
+    order: number | undefined,
+    eventContext: NonNullable<DomainArgs<'moveTask'>[4]>,
   ) {
     return this.callDomain('moveTask', boardId, taskId, targetColumnId, order, eventContext);
   }
-  deleteTask(boardId: string, taskId: string) {
-    return this.callDomain('removeTask', boardId, taskId);
+  deleteTask(
+    boardId: string,
+    taskId: string,
+    eventContext: NonNullable<DomainArgs<'removeTask'>[2]>,
+  ) {
+    return this.callDomain('removeTask', boardId, taskId, eventContext);
   }
   getTask(boardId: string, taskId: string) {
     return this.callDomain('getTask', boardId, taskId);
@@ -90,13 +94,20 @@ export class ServerKanbanStore {
     boardId: string,
     taskId: string,
     targetBoardId: string,
-    options: NonNullable<DomainArgs<'copyTaskToBoard'>[3]> = {},
+    options: NonNullable<DomainArgs<'copyTaskToBoard'>[3]>,
   ) {
     return this.callDomain('copyTaskToBoard', boardId, taskId, targetBoardId, options);
   }
-  transferTask(boardId: string, taskId: string, targetBoardId: string, targetColumnId?: string) {
+  transferTask(
+    boardId: string,
+    taskId: string,
+    targetBoardId: string,
+    eventContext: NonNullable<DomainArgs<'transferTaskToBoard'>[3]>['eventContext'],
+    targetColumnId?: string,
+  ) {
     return this.callDomain('transferTaskToBoard', boardId, taskId, targetBoardId, {
       ...(targetColumnId !== undefined ? { targetColumnId } : {}),
+      eventContext,
     });
   }
 
@@ -115,21 +126,25 @@ export class ServerKanbanStore {
   ) {
     return this.callDomain('repairManagedTaskProjection', boardId, taskId, input);
   }
-  claimReadyTask(input: NonNullable<DomainArgs<'claimReadyTask'>[0]> = {}) {
-    return this.callDomain('claimReadyTask', input);
+  claimReadyTask(
+    input: NonNullable<DomainArgs<'claimReadyTask'>[0]>,
+    eventContext: NonNullable<DomainArgs<'claimReadyTask'>[1]>,
+  ) {
+    return this.callDomain('claimReadyTask', input, eventContext);
   }
   releaseTaskClaim(
     boardId: string,
     taskId: string,
-    input: NonNullable<DomainArgs<'releaseTaskClaim'>[2]> = {},
+    input: NonNullable<DomainArgs<'releaseTaskClaim'>[2]>,
+    eventContext: NonNullable<DomainArgs<'releaseTaskClaim'>[3]>,
   ) {
-    return this.callDomain('releaseTaskClaim', boardId, taskId, input);
+    return this.callDomain('releaseTaskClaim', boardId, taskId, input, eventContext);
   }
   assignTask(
     boardId: string,
     taskId: string,
     input: DomainArgs<'assignTask'>[2],
-    eventContext: NonNullable<DomainArgs<'assignTask'>[3]> = {},
+    eventContext: NonNullable<DomainArgs<'assignTask'>[3]>,
   ) {
     return this.callDomain('assignTask', boardId, taskId, input, eventContext);
   }
@@ -137,14 +152,14 @@ export class ServerKanbanStore {
     boardId: string,
     taskId: string,
     patch: DomainArgs<'updateTaskAssignment'>[2],
-    eventContext: NonNullable<DomainArgs<'updateTaskAssignment'>[3]> = {},
+    eventContext: NonNullable<DomainArgs<'updateTaskAssignment'>[3]>,
   ) {
     return this.callDomain('updateTaskAssignment', boardId, taskId, patch, eventContext);
   }
   finalizeTaskCompletion(
     boardId: string,
     taskId: string,
-    options: NonNullable<DomainArgs<'finalizeTaskCompletion'>[2]> = {},
+    options: NonNullable<DomainArgs<'finalizeTaskCompletion'>[2]>,
   ) {
     return this.callDomain('finalizeTaskCompletion', boardId, taskId, options);
   }
@@ -172,25 +187,30 @@ export class ServerKanbanStore {
   heartbeatTaskAssignment(
     boardId: string,
     taskId: string,
-    input: NonNullable<DomainArgs<'heartbeatTaskAssignment'>[2]> = {},
+    input: NonNullable<DomainArgs<'heartbeatTaskAssignment'>[2]>,
+    eventContext: NonNullable<DomainArgs<'heartbeatTaskAssignment'>[3]>,
   ) {
-    return this.callDomain('heartbeatTaskAssignment', boardId, taskId, input);
+    return this.callDomain('heartbeatTaskAssignment', boardId, taskId, input, eventContext);
   }
   recoverStaleTaskAssignments(
     input: NonNullable<DomainArgs<'recoverStaleTaskAssignments'>[1]> & {
       boardId: string;
+      eventContext: NonNullable<DomainArgs<'recoverStaleTaskAssignments'>[2]>;
     },
   ) {
-    const { boardId, ...options } = input;
-    return this.callDomain('recoverStaleTaskAssignments', boardId, options);
+    const { boardId, eventContext, ...options } = input;
+    return this.callDomain('recoverStaleTaskAssignments', boardId, options, eventContext);
   }
   getKanbanOrchestrationSnapshot(
     input: NonNullable<DomainArgs<'getKanbanOrchestrationSnapshot'>[0]> = {},
   ) {
     return this.callDomain('getKanbanOrchestrationSnapshot', input);
   }
-  reconcileBoard(boardId: string) {
-    return this.callDomain('reconcileKanbanBoard', boardId);
+  reconcileBoard(
+    boardId: string,
+    eventContext: NonNullable<DomainArgs<'reconcileKanbanBoard'>[1]>,
+  ) {
+    return this.callDomain('reconcileKanbanBoard', boardId, eventContext);
   }
 
   // ─── Chains ─────────────────────────────────────────────────────────────
@@ -199,8 +219,9 @@ export class ServerKanbanStore {
     boardId: string,
     taskIds: string[],
     options: { chainId?: string; enforceDependencies?: boolean } = {},
+    eventContext: NonNullable<DomainArgs<'setTaskChain'>[2]>,
   ) {
-    return this.callDomain('setTaskChain', boardId, { taskIds, ...options });
+    return this.callDomain('setTaskChain', boardId, { taskIds, ...options }, eventContext);
   }
   getChain(boardId: string, opts: { taskId?: string; chainId?: string }) {
     const taskOrChainId = opts.chainId ?? opts.taskId;
@@ -254,7 +275,7 @@ export class ServerKanbanStore {
   assessTaskAtomicity(
     boardId: string,
     taskId: string,
-    options: NonNullable<DomainArgs<'assessTaskAtomicity'>[2]> = {},
+    options: NonNullable<DomainArgs<'assessTaskAtomicity'>[2]>,
   ) {
     return this.callDomain('assessTaskAtomicity', boardId, taskId, options);
   }

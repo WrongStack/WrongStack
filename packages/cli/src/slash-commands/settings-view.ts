@@ -31,6 +31,10 @@ export const SETTINGS_HELP = [
   '  /settings context-auto-compact on|off   Auto-compact context when thresholds crossed',
   '  /settings token-saving off|minimal|light|medium|aggressive   Token-saving mode',
   '  /settings nextsteps-tool on|off   Give the leader a `nextsteps` tool alongside the <nextsteps> block (next session)',
+  '  /settings autothin on|off|status   Stats-driven tool auto-thinning (off by default)',
+  '  /settings autothin-idle <days>     Tools idle for N days are candidates (default 30)',
+  '  /settings autothin-min <count>     Max invocations in window for candidate (default 3)',
+  '  /settings autothin-boot on|off     Auto-apply candidates on every boot',
   '  /settings mcp on|off            Load MCP servers declared in config',
   '  /settings plugins on|off        Load npm plugins declared in config',
   '  /settings memory on|off         Register remember/forget tools',
@@ -96,9 +100,9 @@ export function formatCurrentSettingsView(opts: SlashCommandContext): string {
   const enhanceDelay = autonomy?.enhanceDelayMs ?? 60_000;
   const enhanceLanguage = (autonomy?.enhanceLanguage as string) ?? 'original';
   const semverPart =
-    ((
-      opts.configStore.get().extensions?.['semver-bump'] as Record<string, unknown> | undefined
-    )?.['defaultPart'] as string) ?? 'patch';
+    ((opts.configStore.get().extensions?.['semver-bump'] as Record<string, unknown> | undefined)?.[
+      'defaultPart'
+    ] as string) ?? 'patch';
   const cb = opts.configStore.get().circuitBreaker;
   const breakerEnabled = cb?.enabled === true;
   const breakerTimeout = cb?.autoKillResetMs ?? 60_000;
@@ -106,11 +110,15 @@ export function formatCurrentSettingsView(opts: SlashCommandContext): string {
   const contextMode = (context?.mode as string) ?? 'balanced';
   const contextStrategy = (context?.strategy as string) ?? 'hybrid';
   const contextAutoCompact = context?.autoCompact !== false;
-  const features = opts.configStore.get().features as never as
-    | Record<string, unknown>
-    | undefined;
+  const features = opts.configStore.get().features as never as Record<string, unknown> | undefined;
   const tokenSavingTier = (features?.tokenSavingMode as string) ?? 'off';
   const nextStepsToolEnabled = opts.configStore.get().tools?.nextsteps?.enabled === true;
+  const autoThinRaw = opts.configStore.get().tools?.autoThin;
+  const autoThinEnabled = autoThinRaw?.enabled === true;
+  const autoThinApplyOnBoot = autoThinRaw?.applyOnBoot === true;
+  const autoThinIdleDays = typeof autoThinRaw?.idleDays === 'number' ? autoThinRaw.idleDays : 30;
+  const autoThinMinInvocations =
+    typeof autoThinRaw?.minInvocations === 'number' ? autoThinRaw.minInvocations : 3;
   const maxConcurrent = opts.configStore.get().maxConcurrent ?? 4;
   const titleAnimation =
     (autonomy as { terminalTitleAnimation?: boolean } | undefined)?.terminalTitleAnimation !==
@@ -174,6 +182,10 @@ export function formatCurrentSettingsView(opts: SlashCommandContext): string {
     `  context auto-compact:       ${contextAutoCompact ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings context-auto-compact on|off')}`,
     `  token-saving:               ${color.cyan(tokenSavingTier)}   ${color.dim('change: /settings token-saving off|minimal|light|medium|aggressive')}`,
     `  nextsteps tool:             ${nextStepsToolEnabled ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings nextsteps-tool on|off')}`,
+    `  auto-thinning:              ${autoThinEnabled ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings autothin on|off|status')}`,
+    `  auto-thinning boot-apply:  ${autoThinApplyOnBoot ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings autothin-boot on|off')}`,
+    `  auto-thinning idle window: ${color.cyan(`${autoThinIdleDays}d`)}   ${color.dim('change: /settings autothin-idle <days>')}`,
+    `  auto-thinning min invocations: ${color.cyan(String(autoThinMinInvocations))}   ${color.dim('change: /settings autothin-min <count>')}`,
     `  MCP features:               ${feats?.mcp !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings mcp on|off')}`,
     `  plugin features:            ${feats?.plugins !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings plugins on|off')}`,
     `  memory features:            ${feats?.memory !== false ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings memory on|off')}`,

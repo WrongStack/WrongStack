@@ -204,7 +204,7 @@ export class ChronicleMetricsIngester {
       'DELETE FROM ingest_state; DELETE FROM provider_daily; DELETE FROM task_outcomes;' +
         ' DELETE FROM file_lineage; DELETE FROM token_cost; DELETE FROM daily_counters;' +
         ' DELETE FROM family_daily; DELETE FROM agent_daily; DELETE FROM logical_request_daily;' +
-        ' DELETE FROM file_seen_daily;',
+        ' DELETE FROM file_seen_daily; DELETE FROM tool_daily;',
     );
     // Propagate failures: the projection is now partial and the marker is not
     // yet written, so a throw leaves the next refresh re-entering the rebuild.
@@ -422,17 +422,31 @@ export class ChronicleMetricsIngester {
     const type = event.eventType;
     if (type === 'decision.requested') bump('decisions = decisions + 1');
     else if (type === 'decision.escalated') bump('escalations = escalations + 1');
-    else if (type === 'tool.started') bump('tool_calls = tool_calls + 1');
-    else if (type === 'tool.executed' || type === 'tool.failed') {
+    else if (type === 'tool.started') {
+      bump('tool_calls = tool_calls + 1');
+      this.ingestToolDaily(event, day, 'invocation', 0);
+    } else if (type === 'tool.executed') {
       const dur = durationMs(event);
       const durationCount = dur > 0 ? 1 : 0;
       bump(
-        `${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} = ${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} + 1,
-         tool_duration_ms_total = tool_duration_ms_total + ?, tool_duration_ms_max = MAX(tool_duration_ms_max, ?), tool_duration_count = tool_duration_count + ?`,
+        'completed_tools = completed_tools + 1, tool_duration_ms_total = tool_duration_ms_total + ?, tool_duration_ms_max = MAX(tool_duration_ms_max, ?), tool_duration_count = tool_duration_count + ?',
         dur,
         dur,
         durationCount,
       );
+      this.ingestToolDaily(event, day, 'invocation', dur);
+    } else if (type === 'tool.failed') {
+      // tool.failed is terminal: the matching tool.started already
+      // counted the invocation, so here we only bump failures + duration.
+      const dur = durationMs(event);
+      const durationCount = dur > 0 ? 1 : 0;
+      bump(
+        'failed_tools = failed_tools + 1, tool_duration_ms_total = tool_duration_ms_total + ?, tool_duration_ms_max = MAX(tool_duration_ms_max, ?), tool_duration_count = tool_duration_count + ?',
+        dur,
+        dur,
+        durationCount,
+      );
+      this.ingestToolDaily(event, day, 'failure', dur);
     } else if (type === 'process.started') bump('processes = processes + 1');
     else if (type === 'process.completed' && event.outcome === 'failure')
       bump('failed_processes = failed_processes + 1');
@@ -446,6 +460,43 @@ export class ChronicleMetricsIngester {
         );
       }
     }
+  }
+
+  /**
+   * Per-tool fold used by the auto-thinning pipeline. Distinct from
+   * `daily_counters` (which is name-agnostic): keyed by `(day, tool_name)`
+   * so `underusedTools()` can pick candidates without scanning the journal.
+   *
+   * `kind` selects which counter increments:
+   *   - `invocation` — `tool.started` and `tool.executed` (success)
+   *   - `failure`    — `tool.failed` and `tool.executed` with `!ok`
+   *
+   * `lastInvokedAt` is the event's wall-clock at fold time, not the tool's
+   * internal duration; the auto-thinning policy uses it to compute
+   * "days since last use" relative to the request's anchor day.
+   */
+  private ingestToolDaily(
+    event: ChronicleEvent,
+    day: string,
+    kind: 'invocation' | 'failure',
+    durationMs: number,
+  ): void {
+    const toolName = stringAt(event.attributes ?? {}, 'toolName');
+    if (!toolName) return;
+    const occurredAtMs = Date.parse(event.occurredAt ?? event.observedAt);
+    const lastInvokedAt = Number.isFinite(occurredAtMs) ? occurredAtMs : Date.now();
+    this.stmt('INSERT OR IGNORE INTO tool_daily (day, tool_name) VALUES (?, ?)').run(day, toolName);
+    const invocations = kind === 'invocation' ? 1 : 0;
+    const failures = kind === 'failure' ? 1 : 0;
+    this.stmt(
+      `UPDATE tool_daily
+       SET invocations = invocations + ?,
+           failures = failures + ?,
+           duration_ms_total = duration_ms_total + ?,
+           duration_ms_max = MAX(duration_ms_max, ?),
+           last_invoked_at = MAX(COALESCE(last_invoked_at, 0), ?)
+       WHERE day = ? AND tool_name = ?`,
+    ).run(invocations, failures, durationMs, durationMs, lastInvokedAt, day, toolName);
   }
 
   private ingestProvider(event: ChronicleEvent): void {

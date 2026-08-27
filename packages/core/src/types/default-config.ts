@@ -33,6 +33,20 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
     windowSize: number;
     callRepeatThreshold: number;
   }>,
+  // Off by default — the user opts in via `/settings autothin on`. The
+  // `disabledToolMeta` field starts empty; the pipeline writes it on the
+  // first successful `apply` and clears it on `undo`.
+  autoThin: Object.freeze({
+    enabled: false,
+    idleDays: 30,
+    minInvocations: 3,
+    applyOnBoot: false,
+  }) as Readonly<{
+    enabled: boolean;
+    idleDays: number;
+    minInvocations: number;
+    applyOnBoot: boolean;
+  }>,
 });
 
 /** Default context config — mirrors CONFIG_BEHAVIOR_DEFAULTS.context. */

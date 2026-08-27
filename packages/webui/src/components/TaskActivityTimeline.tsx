@@ -1,10 +1,10 @@
 import type { KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { Activity, Check, Copy, Download, RefreshCw, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { cn } from '@/lib/utils';
 import { usePagination } from '@/hooks/usePagination';
-import { Pagination } from './ui/pagination';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { Pagination } from './ui/pagination';
 
 interface TaskActivityTimelineProps {
   task: KanbanTask;
@@ -164,14 +164,16 @@ function eventDescription(event: KanbanEvent): string | undefined {
     const toolName = text(after['toolName']);
     const durationMs = typeof after['durationMs'] === 'number' ? after['durationMs'] : undefined;
     const lines = typeof after['lines'] === 'number' ? after['lines'] : undefined;
-    return [
-      filePath,
-      toolName ? `tool:${toolName}` : undefined,
-      durationMs !== undefined ? `${durationMs}ms` : undefined,
-      lines !== undefined ? `${lines} lines` : undefined,
-    ]
-      .filter(Boolean)
-      .join(' · ') || undefined;
+    return (
+      [
+        filePath,
+        toolName ? `tool:${toolName}` : undefined,
+        durationMs !== undefined ? `${durationMs}ms` : undefined,
+        lines !== undefined ? `${lines} lines` : undefined,
+      ]
+        .filter(Boolean)
+        .join(' · ') || undefined
+    );
   }
   if (event.type.startsWith('task.activity.')) {
     return (
@@ -268,7 +270,7 @@ export function buildTaskActivity(
       taskId: task.id,
       type: 'task.created',
       ts: task.createdAt,
-      ...(fallbackSessionId ? { sessionId: fallbackSessionId } : {}),
+      sessionId: fallbackSessionId || '',
       after: { title: task.title, status: 'created', columnId: task.columnId },
     });
   }
@@ -290,7 +292,7 @@ export function buildTaskActivity(
       type: 'task.lifecycle.transition',
       ts: transition.at,
       actor: transition.actor,
-      ...(fallbackSessionId ? { sessionId: fallbackSessionId } : {}),
+      sessionId: fallbackSessionId || '',
       before: transition.from ? { stage: transition.from } : undefined,
       after: { stage: transition.to, action: transition.action, attachment: transition.attachment },
       note: transition.comment,
@@ -314,7 +316,7 @@ export function buildTaskActivity(
       type: 'task.note.added',
       ts: note.createdAt,
       actor: note.author,
-      ...(fallbackSessionId ? { sessionId: fallbackSessionId } : {}),
+      sessionId: fallbackSessionId || '',
       note: note.content,
     });
   }
@@ -337,7 +339,7 @@ export function buildTaskActivity(
         task.assignment.claimedAt ??
         task.updatedAt,
       actor: task.assignment.agentId ?? task.assignment.name ?? task.assignment.role,
-      ...(fallbackSessionId ? { sessionId: fallbackSessionId } : {}),
+      sessionId: fallbackSessionId || '',
       subagentId: task.assignment.subagentId,
       runTaskId: task.assignment.runTaskId,
       after: { ...task.assignment },
@@ -490,7 +492,9 @@ export function TaskActivityTimeline({
     <section aria-label={t('activity:taskTimeline.taskActivity')} className="mt-5">
       <div className="mb-2 flex items-center gap-2">
         <Activity className="size-3.5 text-primary" />
-        <h3 className="text-xs font-semibold uppercase text-muted-foreground">{t('activity:taskTimeline.activityLedger')}</h3>
+        <h3 className="text-xs font-semibold uppercase text-muted-foreground">
+          {t('activity:taskTimeline.activityLedger')}
+        </h3>
         <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {visible.length}/{activity.length}
         </span>

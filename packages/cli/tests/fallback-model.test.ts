@@ -24,6 +24,9 @@ function makeCtx(providerId: string, model: string) {
   return {
     provider: fakeProvider(providerId),
     model,
+    // Every event the fallback chain emits is stamped with the session that
+    // owns the in-flight run; a context without one is rejected at emit time.
+    activeRunSessionId: 'sess_test',
   } as never as import('@wrongstack/core/agent').Context;
 }
 

@@ -1,10 +1,10 @@
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useConfigStore } from '@/stores';
 import { Clock, History, Rewind } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { useConfigStore, useSessionStore } from '@/stores';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -68,15 +68,26 @@ export function CheckpointTimeline({
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const offRef = useRef<(() => void) | null>(null);
 
-  // Fetch checkpoints when opened
+  // Fetch checkpoints when opened, and again whenever the foreground moves.
+  // Rewind is the most destructive control in the product, so the list it
+  // offers must belong to the tab on screen: unaddressed, it listed the
+  // checkpoints of whichever session the runtime was pointing at, and a reply
+  // meant for another tab overwrote the list under the user's cursor.
+  const sessionId = useSessionStore((s) => s.session?.id);
   useEffect(() => {
     if (!open || !wsConnected || !ws.client?.isConnected) return;
+    setCheckpoints([]);
 
-    ws.client.send?.({ type: 'session.checkpoints' });
+    ws.client.send?.({ type: 'session.checkpoints', payload: ws.client.withSession({}) });
 
     offRef.current =
       ws.client.on?.('session.checkpoints', (msg: unknown) => {
-        const payload = (msg as { payload?: { checkpoints?: ServerCheckpoint[] } })?.payload;
+        const payload = (
+          msg as { payload?: { checkpoints?: ServerCheckpoint[]; sessionId?: string } }
+        )?.payload;
+        if (payload?.sessionId !== undefined && sessionId !== undefined) {
+          if (payload.sessionId !== sessionId) return;
+        }
         if (payload?.checkpoints) {
           setCheckpoints(payload.checkpoints.map(mapCheckpoint));
         }
@@ -85,12 +96,15 @@ export function CheckpointTimeline({
     return () => {
       offRef.current?.();
     };
-  }, [open, wsConnected, ws.client]);
+  }, [open, wsConnected, ws.client, sessionId]);
 
   const handleRewind = useCallback(
     async (index: number) => {
       setRewinding(true);
-      ws.client.send?.({ type: 'session.rewind', payload: { checkpointIndex: index } });
+      ws.client.send?.({
+        type: 'session.rewind',
+        payload: ws.client.withSession({ checkpointIndex: index }),
+      });
       setTimeout(() => {
         onClose();
         setRewinding(false);
@@ -100,9 +114,17 @@ export function CheckpointTimeline({
   );
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent
-        className={cn('max-w-md gap-0 overflow-hidden border-border/80 bg-card p-0 pt-[10dvh] flex flex-col max-h-[75dvh]', className)}
+        className={cn(
+          'max-w-md gap-0 overflow-hidden border-border/80 bg-card p-0 pt-[10dvh] flex flex-col max-h-[75dvh]',
+          className,
+        )}
       >
         <DialogTitle className="sr-only">{t('activity:checkpoint.heading')}</DialogTitle>
         <DialogDescription className="sr-only">
@@ -148,9 +170,7 @@ export function CheckpointTimeline({
                     disabled={rewinding}
                     className={cn(
                       'w-full flex items-start gap-3 px-4 py-3 text-left transition-colors group',
-                      isLatest
-                        ? 'bg-primary/5 hover:bg-primary/10'
-                        : 'hover:bg-accent/40',
+                      isLatest ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent/40',
                       rewinding && 'opacity-50 pointer-events-none',
                     )}
                   >

@@ -14,7 +14,8 @@ function mockContext(_tokenEstimate: number): Context {
     fileMtimes: new Map(),
     systemPrompt: [],
     provider: {} as any,
-    session: {} as any,
+    // Compaction emits agent events, and every one names the owning session.
+    session: { id: '2026-08-26/sess_01TESTAUTOCOMPACTION00000' } as any,
     signal: new AbortController().signal,
     tokenCounter: {} as any,
     cwd: '/tmp',
@@ -608,7 +609,13 @@ describe('AutoCompactionMiddleware', () => {
     const noopCompactor: Compactor = {
       async compact() {
         // Report the real full-request size so `stillHard` is genuinely true.
-        return { before: 114_000, after: 114_000, fullRequestTokensBefore: 114_000, fullRequestTokensAfter: 114_000, reductions: [] };
+        return {
+          before: 114_000,
+          after: 114_000,
+          fullRequestTokensBefore: 114_000,
+          fullRequestTokensAfter: 114_000,
+          reductions: [],
+        };
       },
     };
     const events = new EventBus();
@@ -862,7 +869,13 @@ describe('AutoCompactionMiddleware', () => {
       calls: 0,
       async compact() {
         this.calls++;
-        return { before: 1000, after: 1000, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 1000, reductions: [] };
+        return {
+          before: 1000,
+          after: 1000,
+          fullRequestTokensBefore: 1000,
+          fullRequestTokensAfter: 1000,
+          reductions: [],
+        };
       },
     };
     const events = new EventBus();
@@ -892,7 +905,13 @@ describe('AutoCompactionMiddleware', () => {
       calls: 0,
       async compact() {
         this.calls++;
-        return { before: 459_607, after: 459_253, fullRequestTokensBefore: 459_607, fullRequestTokensAfter: 459_253, reductions: [] };
+        return {
+          before: 459_607,
+          after: 459_253,
+          fullRequestTokensBefore: 459_607,
+          fullRequestTokensAfter: 459_253,
+          reductions: [],
+        };
       },
     };
     const mw = new AutoCompactionMiddleware(
@@ -914,7 +933,13 @@ describe('AutoCompactionMiddleware', () => {
       calls: 0,
       async compact() {
         this.calls++;
-        return { before: 1000, after: 1000, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 1000, reductions: [] };
+        return {
+          before: 1000,
+          after: 1000,
+          fullRequestTokensBefore: 1000,
+          fullRequestTokensAfter: 1000,
+          reductions: [],
+        };
       },
     };
     let currentRaw = 8000;
@@ -947,7 +972,13 @@ describe('AutoCompactionMiddleware', () => {
       calls: 0,
       async compact() {
         this.calls++;
-        return { before: 1000, after: 1000, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 1000, reductions: [] };
+        return {
+          before: 1000,
+          after: 1000,
+          fullRequestTokensBefore: 1000,
+          fullRequestTokensAfter: 1000,
+          reductions: [],
+        };
       },
     };
     let currentRaw = 7800; // 78% load → soft band (above soft=75%, below hard=90%)
@@ -975,7 +1006,13 @@ describe('AutoCompactionMiddleware', () => {
       calls: 0,
       async compact() {
         this.calls++;
-        return { before: 1000, after: 1000, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 1000, reductions: [] };
+        return {
+          before: 1000,
+          after: 1000,
+          fullRequestTokensBefore: 1000,
+          fullRequestTokensAfter: 1000,
+          reductions: [],
+        };
       },
     };
     let currentRaw = 8000;

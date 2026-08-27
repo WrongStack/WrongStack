@@ -11,7 +11,7 @@ import {
   normalizeKanbanBoundaryPolicy,
   resolveKanbanBoundaryLayers,
   splitTask,
-} from '../src/index.js';
+} from './helpers/session-manager.js';
 
 const roots: string[] = [];
 
@@ -108,7 +108,9 @@ describe('Kanban boundaries', () => {
         deny: [{ kind: 'glob', path: 'packages/webui/**', access: 'read_write' }],
       },
     });
-    expect(evaluateKanbanBoundaryPath(denyLayers, 'packages/webui', 'write').decision).toBe('block');
+    expect(evaluateKanbanBoundaryPath(denyLayers, 'packages/webui', 'write').decision).toBe(
+      'block',
+    );
   });
 
   it('rejects absolute and upward-traversal selectors', () => {
@@ -187,8 +189,12 @@ describe('Kanban boundaries', () => {
 
   it('falls back to board when task has no boundary policy', () => {
     const layers = resolveKanbanBoundaryLayers({ boundary: boardPolicy }, {});
-    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui/src/App.tsx', 'write').decision).toBe('allow');
-    expect(evaluateKanbanBoundaryPath(layers, 'packages/core/src/index.ts', 'write').decision).toBe('confirm');
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui/src/App.tsx', 'write').decision).toBe(
+      'allow',
+    );
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/core/src/index.ts', 'write').decision).toBe(
+      'confirm',
+    );
   });
 
   it('applies deny-first precedence over allow', () => {
@@ -261,9 +267,7 @@ describe('normalizeKanbanBoundaryPolicy inactive-rules warning', () => {
     expect(calls.length).toBeGreaterThanOrEqual(1);
     const [msg, opts] = calls[0]!;
     expect(String(msg)).toContain('inert');
-    expect((opts as { code?: string }).code).toBe(
-      'WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE',
-    );
+    expect((opts as { code?: string }).code).toBe('WRONGSTACK_KANBAN_BOUNDARY_RULES_INACTIVE');
   });
 
   it('does not warn when enabled is true', () => {

@@ -12,11 +12,14 @@
  *     between assign() and the reset)
  */
 import { describe, expect, it, vi } from 'vitest';
-import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
+import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 const makeConfig = (overrides: Record<string, unknown> = {}) => ({
   coordinatorId: 'race-coord',
@@ -30,9 +33,10 @@ const makeConfig = (overrides: Record<string, unknown> = {}) => ({
  * coordinator ops (stop, assign) with the in-flight run. The agent
  * returns when the test releases the gate.
  */
-function makeGatedAgent(
-  gate: { release: () => void; promise: Promise<void> },
-): { agent: Agent; events: EventBus } {
+function makeGatedAgent(gate: { release: () => void; promise: Promise<void> }): {
+  agent: Agent;
+  events: EventBus;
+} {
   const events = new EventBus();
   const ctx = {} as never;
   const agent = {
@@ -75,12 +79,13 @@ describe('coordinator races + invariants (D2)', () => {
       return makeGatedAgent(gate);
     });
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'dup', name: 'first' });
-    await expect(coord.spawn({ id: 'dup', name: 'second' })).rejects.toThrow(
-      /already exists/i,
-    );
+    await expect(coord.spawn({ id: 'dup', name: 'second' })).rejects.toThrow(/already exists/i);
     // The first subagent should still be observable, not overwritten.
     const status = coord.getStatus();
     const dup = status.subagents.find((s) => s.id === 'dup');
@@ -95,7 +100,10 @@ describe('coordinator races + invariants (D2)', () => {
     gate.release(); // not needed; the assigned task should never reach the agent
     const factory = vi.fn(async () => makeGatedAgent(gate));
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1' });
     await coord.stop('s1');
@@ -123,10 +131,10 @@ describe('coordinator races + invariants (D2)', () => {
     gate.release();
     const factory = vi.fn(async () => makeGatedAgent(gate));
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(
-      makeConfig({ maxConcurrent: 1 }),
-      { runner },
-    );
+    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 1 }), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1' });
 
@@ -201,7 +209,10 @@ describe('coordinator races + invariants (D2)', () => {
       return { agent, events };
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'b1', name: 'B1', maxToolCalls: 1 });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -253,7 +264,10 @@ describe('coordinator races + invariants (D2)', () => {
       return { agent, events };
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'r1', name: 'R1' });
 

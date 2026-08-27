@@ -7,8 +7,9 @@
  * view is active, ensuring the user sees every model switch.
  */
 import { useEffect, useRef, useState } from 'react';
-import { useFallbackStore } from '@/stores/fallback-store';
 import { getWSClient } from '@/lib/ws-client';
+import { resolvePendingFallback } from '@/stores/chat-lanes';
+import { useFallbackStore } from '@/stores/fallback-store';
 
 export function FallbackModal() {
   const pending = useFallbackStore((s) => s.pending);
@@ -151,25 +152,23 @@ export function FallbackModal() {
   );
 }
 
-/** Send the user's choice back to the server via WS. */
-function sendChoice(
-  requestId: string,
-  choice: { providerId: string; model: string } | null,
-): void {
+/**
+ * Send the user's choice back to the server via WS.
+ *
+ * Addressed at the tab whose request stalled — the dialog is one surface over
+ * four conversations, and an unaddressed answer is applied to whichever
+ * session the runtime is pointing at. The parked copy is retired here too, so
+ * an answered prompt cannot reopen on the next tab switch.
+ */
+function sendChoice(requestId: string, choice: { providerId: string; model: string } | null): void {
+  resolvePendingFallback(requestId);
   try {
     const client = getWSClient();
-    if (choice) {
-      client.send({
-        type: 'model.fallback_choice',
-        payload: { requestId, providerId: choice.providerId, model: choice.model },
-      });
-    } else {
-      // null = auto-switch (countdown expired or Esc); tell the server to proceed.
-      client.send({
-        type: 'model.fallback_choice',
-        payload: { requestId, autoSwitch: true },
-      });
-    }
+    const base = choice
+      ? { requestId, providerId: choice.providerId, model: choice.model }
+      : // null = auto-switch (countdown expired or Esc); tell the server to proceed.
+        { requestId, autoSwitch: true };
+    client.send({ type: 'model.fallback_choice', payload: client.withSession(base) });
   } catch {
     // Best-effort — the countdown will auto-switch anyway.
   }

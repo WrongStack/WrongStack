@@ -18,7 +18,11 @@ import type {
   WSCollabPauseReleased,
   WSCollabState,
 } from './collab.js';
-import type { AutoHealStatusEvent, ConnectionsHealthReport, ServiceActionResult } from './connections.js';
+import type {
+  AutoHealStatusEvent,
+  ConnectionsHealthReport,
+  ServiceActionResult,
+} from './connections.js';
 import type {
   WSAgentStatusChanged,
   WSAgentTimelineMessage,
@@ -56,6 +60,7 @@ import type {
   WSProviderStreamError,
   WSRunResult,
   WSSessionEnd,
+  WSSessionRunState,
   WSSessionStart,
   WSTextDelta,
   WSThinkingDelta,
@@ -164,6 +169,7 @@ export type WSServerMessage =
   | WSProviderActiveBlocked
   | WSProviderStreamError
   | WSRunResult
+  | WSSessionRunState
   | WSSessionStats
   | WSError
   | WSToolConfirmNeeded

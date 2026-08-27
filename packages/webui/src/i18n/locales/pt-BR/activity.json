@@ -1061,8 +1061,16 @@
     "kindStatus": "Status",
     "kindSystem": "Sistema",
     "title": "Histórico do chat",
-    "copyTitle": "Copiar histórico de chat do agente",
-    "empty": "Ainda não há histórico de chat para este agente."
+    "copyTitle": "Copiar histórico do chat do agente",
+    "empty": "Ainda não há histórico de chat para este agente.",
+    "taskLabel": "Tarefa",
+    "taskChars": "{{count}} caracteres",
+    "taskExpand": "Ver",
+    "taskExpandTitle": "Ver a descrição completa da tarefa",
+    "taskModalTitle": "Descrição da tarefa",
+    "taskModalDescription": "A tarefa completa para a qual este agente foi iniciado.",
+    "readOnly": "Somente leitura",
+    "returnToLeader": "Voltar ao chat"
   },
   "autonomy": {
     "heading": "Modo de autonomia",

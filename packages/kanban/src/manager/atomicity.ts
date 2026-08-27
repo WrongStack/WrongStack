@@ -20,14 +20,15 @@ export interface AssessTaskAtomicityOptions {
   /** Overrides the board policy's rule-set config for this run only. */
   config?: AtomicityRuleSetConfig | undefined;
   assessedBy?: KanbanAtomicityAssessment['assessedBy'] | undefined;
-  eventContext?: KanbanEventContext | undefined;
+  /** Session that owns this assessment — stamped on the event it emits. */
+  eventContext: KanbanEventContext;
 }
 
 export async function assessTaskAtomicity(
   projectRoot: string,
   boardId: string,
   taskId: string,
-  options: AssessTaskAtomicityOptions = {},
+  options: AssessTaskAtomicityOptions,
 ): Promise<{
   board: KanbanBoard;
   task: KanbanTask;

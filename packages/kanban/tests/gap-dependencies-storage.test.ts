@@ -7,14 +7,22 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { areDependenciesMet, findBlockedTasks, getTaskChain } from '../src/manager/dependencies.js';
 import {
-  addDependency, getTaskChain, areDependenciesMet, findBlockedTasks,
-} from '../src/manager/dependencies.js';
-import {
-  getKanbanPath, readBoard, deleteBoard, mutateBoard,
-  appendKanbanEvent, listBoardIds,
+  appendKanbanEvent,
+  deleteBoard,
+  getKanbanPath,
+  listBoardIds,
+  mutateBoard,
+  readBoard,
 } from '../src/storage.js';
-import { createBoard, addTask, setTaskChain } from '../src/manager.js';
+import {
+  addDependency,
+  addTask,
+  createBoard,
+  setTaskChain,
+  TEST_EVENT_CONTEXT,
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -142,6 +150,7 @@ describe('event log trim', () => {
         boardId: board.id,
         taskId: 'task-1',
         type: 'test.event',
+        sessionId: TEST_EVENT_CONTEXT.sessionId,
         ts: new Date().toISOString(),
       });
     }
@@ -169,6 +178,7 @@ describe('deleteBoard event file cleanup', () => {
       boardId: board.id,
       taskId: 'task-1',
       type: 'test.event',
+      sessionId: TEST_EVENT_CONTEXT.sessionId,
       ts: new Date().toISOString(),
     });
     const deleted = await deleteBoard(tmpDir, board.id);

@@ -44,12 +44,18 @@ import {
   type SkillsContext,
 } from './skills-handlers.js';
 import type { WSClientMessage } from './types.js';
+import { messageSessionId } from './ws-utils.js';
 
 export interface ContentRouteContext {
   getProjectRoot: () => string;
   getSkillsContext: () => SkillsContext;
   getPromptsContext: () => PromptsContext;
-  getDesignContext: () => DesignContext;
+  /**
+   * The design kit is pinned on a conversation's own meta, so the tab that
+   * picked it is the one whose prompts carry it. Without the id every pick
+   * landed on the leader — tab 3 choosing a kit re-styled tab 1's next turn.
+   */
+  getDesignContext: (sessionId?: string | undefined) => DesignContext;
   onFileWritten?: ((filePath: string) => void) | undefined;
 }
 
@@ -138,28 +144,28 @@ export async function handleContentRoute(
       await handlePromptsJournal(ws, message, ctx.getProjectRoot());
       return true;
     case 'design.list':
-      await handleDesignList(ws, ctx.getDesignContext());
+      await handleDesignList(ws, ctx.getDesignContext(messageSessionId(message)));
       return true;
     case 'design.use':
-      await handleDesignUse(ws, ctx.getDesignContext(), message);
+      await handleDesignUse(ws, ctx.getDesignContext(messageSessionId(message)), message);
       return true;
     case 'design.state':
-      await handleDesignState(ws, ctx.getDesignContext());
+      await handleDesignState(ws, ctx.getDesignContext(messageSessionId(message)));
       return true;
     case 'design.set':
-      await handleDesignSet(ws, ctx.getDesignContext(), message);
+      await handleDesignSet(ws, ctx.getDesignContext(messageSessionId(message)), message);
       return true;
     case 'design.tune':
-      await handleDesignTune(ws, ctx.getDesignContext(), message);
+      await handleDesignTune(ws, ctx.getDesignContext(messageSessionId(message)), message);
       return true;
     case 'design.swap':
-      await handleDesignSwap(ws, ctx.getDesignContext(), message);
+      await handleDesignSwap(ws, ctx.getDesignContext(messageSessionId(message)), message);
       return true;
     case 'design.materialize':
-      await handleDesignMaterialize(ws, ctx.getDesignContext(), message);
+      await handleDesignMaterialize(ws, ctx.getDesignContext(messageSessionId(message)), message);
       return true;
     case 'design.verify':
-      await handleDesignVerify(ws, ctx.getDesignContext());
+      await handleDesignVerify(ws, ctx.getDesignContext(messageSessionId(message)));
       return true;
     default:
       return false;

@@ -352,6 +352,7 @@ async function runSingle(
       task,
       cwd: opts.cwd,
       projectRoot: opts.projectRoot,
+      sessionId: opts.context?.eventSessionId(),
       permissionPolicy: defaultPermissionPolicy,
       onProgress: (event) => {
         const line = formatProgress(event);

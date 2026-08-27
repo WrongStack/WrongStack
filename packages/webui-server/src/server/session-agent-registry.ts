@@ -21,7 +21,8 @@
  */
 
 import { Agent, Context } from '@wrongstack/core/agent';
-import type { SessionStore } from '@wrongstack/core/types';
+import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import type { ModelsRegistry, SessionStore, TokenCounter } from '@wrongstack/core/types';
 
 /** Session-writer shape, as `SessionStore.create()` produces it. */
 type Session = Awaited<ReturnType<SessionStore['create']>>;
@@ -41,15 +42,92 @@ export interface SessionAgentRegistryOptions {
   isRunActive?: ((sessionId: string) => boolean) | undefined;
   /** Called once, right after a new session agent is constructed. */
   onCreate?: ((agent: Agent, sessionId: string) => void) | undefined;
+  /** Models registry, so a session's own counter can price its own usage. */
+  modelsRegistry?: ModelsRegistry | undefined;
+  /**
+   * Override how a session's Agent is built. The default clones the template's
+   * wiring; a caller that already owns an Agent per session (or a test that
+   * does not want a whole container) supplies its own.
+   */
+  createAgent?: ((sessionId: string) => Agent) | undefined;
+  /**
+   * Is any connected surface currently showing this session?
+   *
+   * Consulted before eviction. Without it the victim is simply the oldest
+   * non-running entry, which is routinely a tab the user still has open while
+   * the agents of tabs they closed minutes ago sit untouched — the open tab
+   * then loses its in-memory transcript and comes back empty.
+   */
+  isDisplayed?: ((sessionId: string) => boolean) | undefined;
 }
 
 export interface SessionAgentRegistry {
-  /** The Agent for a session; the leader's when no session is named. */
+  /**
+   * The Agent for a session; the leader's when no session is named.
+   *
+   * CREATES one when the id is unknown, so this is for callers that own the
+   * session (a run, a session transition). Read-only callers must use `peek`:
+   * `get` on a stale id materialises an agent and can evict a live one.
+   */
   get(sessionId?: string | undefined): Agent;
+  /** The Agent for a session, or undefined. Never creates, never evicts. */
+  peek(sessionId?: string | undefined): Agent | undefined;
+  /**
+   * Does this session have an agent with a REAL session writer?
+   *
+   * A freshly created agent carries a placeholder writer until the session
+   * transition that owns the id installs the real one, so `has` alone does not
+   * mean the session can be written to.
+   */
+  isLive(sessionId: string): boolean;
   has(sessionId: string): boolean;
   ids(): string[];
   /** Forget a session's agent — its tab closed. */
   drop(sessionId: string): void;
+}
+
+/**
+ * A token counter that answers for ONE session while still feeding the
+ * process-wide one.
+ *
+ * Four tabs shared a single counter, so every per-session question it was
+ * asked came back as the sum of all four: the Inspector's token, cost and
+ * cache figures for a tab, the usage stamped into a session's `session_end`
+ * record, the before/after numbers on a compaction report. Reads here are this
+ * session's own; `account` still forwards, so process-wide consumers (budget
+ * watchdog, shutdown totals, project switch) keep seeing everything.
+ *
+ * Deliberately constructed WITHOUT an event bus: the root counter already
+ * emits `token.accounted` for every call, and a second emitter would double
+ * every downstream tally.
+ */
+export function createSessionTokenCounter(opts: {
+  root: TokenCounter;
+  sessionId: string;
+  registry?: ModelsRegistry | undefined;
+  providerId?: (() => string | undefined) | undefined;
+}): TokenCounter {
+  const own = new DefaultTokenCounter({
+    ...(opts.registry ? { registry: opts.registry } : {}),
+    ...(opts.providerId ? { providerId: opts.providerId } : {}),
+    sessionId: opts.sessionId,
+  });
+  return {
+    account(usage, model, providerId) {
+      own.account(usage, model, providerId);
+      return opts.root.account(usage, model, providerId);
+    },
+    // Resetting must never reach the root: /clear in one tab would zero the
+    // numbers of the three beside it.
+    reset: () => own.reset(),
+    total: () => own.total(),
+    estimateCost: () => own.estimateCost(),
+    cacheStats: () => own.cacheStats(),
+    currentRequestTokens: () => own.currentRequestTokens(),
+    setCurrentRequestTokens: (input, cacheRead, cacheWrite) =>
+      own.setCurrentRequestTokens(input, cacheRead, cacheWrite),
+    setSessionId: (sessionId) => own.setSessionId?.(sessionId),
+  };
 }
 
 const DEFAULT_MAX_AGENTS = 4;
@@ -70,13 +148,27 @@ export function createSessionAgentRegistry(
     // the tab a fresh, empty agent when the user clicks back. When every slot
     // is busy the registry is allowed to exceed the cap: over-cap memory is
     // recoverable, a destroyed in-flight turn is not.
-    for (const key of agents.keys()) {
-      if (key === template.ctx.session?.id) continue;
-      if (opts.isRunActive?.(key)) continue;
-      const evicted = agents.get(key);
+    //
+    // Two passes, and the order is the point: a session nobody is looking at
+    // goes first. Insertion order alone picks the OLDEST tab, which is usually
+    // one the user still has open, while the agent of a tab closed ten minutes
+    // ago survives because it was created later.
+    const candidates = (displayed: boolean): string[] => {
+      const out: string[] = [];
+      for (const key of agents.keys()) {
+        if (key === template.ctx.session?.id) continue;
+        if (opts.isRunActive?.(key)) continue;
+        if ((opts.isDisplayed?.(key) ?? false) !== displayed) continue;
+        out.push(key);
+      }
+      return out;
+    };
+    const victim = candidates(false)[0] ?? candidates(true)[0];
+    if (victim !== undefined) {
+      const evicted = agents.get(victim);
       evicted?.ctx.readFiles.clear();
       evicted?.ctx.fileMtimes.clear();
-      agents.delete(key);
+      agents.delete(victim);
       return;
     }
     console.warn(
@@ -109,7 +201,12 @@ export function createSessionAgentRegistry(
       agentName: 'Leader Agent',
       allowOutsideProjectRoot: root.allowOutsideProjectRoot,
       signal: root.signal,
-      tokenCounter: root.tokenCounter,
+      tokenCounter: createSessionTokenCounter({
+        root: root.tokenCounter,
+        sessionId,
+        ...(opts.modelsRegistry ? { registry: opts.modelsRegistry } : {}),
+        providerId: () => root.provider?.id,
+      }),
       tools: root.tools,
       catalogTools: root.catalogTools,
     });
@@ -136,6 +233,7 @@ export function createSessionAgentRegistry(
     opts.onCreate?.(agent, sessionId);
     return agent;
   };
+  const build = (sessionId: string): Agent => opts.createAgent?.(sessionId) ?? create(sessionId);
 
   return {
     get(sessionId) {
@@ -148,9 +246,21 @@ export function createSessionAgentRegistry(
         return template;
       }
       if (agents.size >= cap) evictOneIdle();
-      const agent = create(sessionId);
+      const agent = build(sessionId);
       agents.set(sessionId, agent);
       return agent;
+    },
+    peek(sessionId) {
+      if (!sessionId) return template;
+      return (
+        agents.get(sessionId) ?? (template.ctx.session?.id === sessionId ? template : undefined)
+      );
+    },
+    isLive(sessionId) {
+      const agent =
+        agents.get(sessionId) ?? (template.ctx.session?.id === sessionId ? template : undefined);
+      const writer = agent?.ctx.session as { id?: string; append?: unknown } | undefined;
+      return Boolean(writer && writer.id === sessionId && typeof writer.append === 'function');
     },
     has: (sessionId) => agents.has(sessionId),
     ids: () => [...agents.keys()],

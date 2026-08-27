@@ -3,13 +3,16 @@ import {
   type ChatLaneActions,
   chatLane,
   DEFAULT_LANE_ID,
+  disposeLane,
   ensureLane,
   hasLane,
   laneIds,
   MAX_LANES,
+  readLane,
 } from '../stores/chat-lanes';
 import {
   activeSessionLaneId,
+  disposeSessionLane,
   ensureSessionLane,
   hasSessionLane,
   SESSION_DEFAULT_LANE_ID,
@@ -18,6 +21,7 @@ import {
   sessionLaneIds,
 } from '../stores/session-lanes';
 import { useSessionStore } from '../stores/session-store';
+import { useSessionTabStore } from '../stores/session-tab-store';
 import { useVizStore, wsToVizEvent } from '../stores/viz-store';
 import type { WSServerMessage } from '../types';
 
@@ -100,11 +104,37 @@ export function messageSessionId(msg: WSServerMessage): string | null {
  *  - the session has no lane and all four lanes are taken. A fifth session
  *    gets no tab, so its events belong to nobody.
  */
+/**
+ * Free a lane that no tab owns any more, so a real tab can have its slot.
+ *
+ * The four-lane ceiling is a hard one — an event for a fifth session is
+ * dropped rather than mis-delivered. That is right, but it made ORPHAN lanes
+ * dangerous: a lane whose slot is gone (a tab closed while its run was still
+ * emitting, a lane/slot pair that came back out of step from localStorage)
+ * kept counting against the ceiling forever, and the tab the user had just
+ * opened was the one whose events got dropped.
+ *
+ * Only a lane with no slot, not in front and not streaming is reclaimed, so
+ * this can never take a lane away from a tab that is using it.
+ */
+function reclaimOrphanLane(): boolean {
+  const slots = new Set(useSessionTabStore.getState().openTabIds);
+  const active = activeLaneId();
+  for (const id of laneIds()) {
+    if (id === DEFAULT_LANE_ID || id === active || slots.has(id)) continue;
+    if (readLane(id).isLoading) continue;
+    disposeLane(id);
+    disposeSessionLane(id);
+    return true;
+  }
+  return false;
+}
+
 export function chatFor(msg: WSServerMessage): ChatLaneActions | null {
   const sessionId = messageSessionId(msg);
   if (sessionId) {
     if (hasLane(sessionId)) return chatLane(sessionId);
-    if (laneIds().length < MAX_LANES) {
+    if (laneIds().length < MAX_LANES || reclaimOrphanLane()) {
       ensureLane(sessionId);
       return chatLane(sessionId);
     }
@@ -134,7 +164,7 @@ export function sessionFor(msg: WSServerMessage): SessionLaneActions | null {
   const sessionId = messageSessionId(msg);
   if (sessionId) {
     if (hasSessionLane(sessionId)) return sessionLane(sessionId);
-    if (sessionLaneIds().length < MAX_LANES) {
+    if (sessionLaneIds().length < MAX_LANES || reclaimOrphanLane()) {
       ensureSessionLane(sessionId);
       return sessionLane(sessionId);
     }

@@ -9,8 +9,8 @@ import {
   runtimeFallbackChain,
 } from '../../src/core/fallback-model.js';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
-import { EventBus } from '../../src/kernel/events.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
+import { EventBus } from '../../src/kernel/events.js';
 import type { Config } from '../../src/types/config.js';
 import { ProviderError } from '../../src/types/provider.js';
 
@@ -31,8 +31,7 @@ function cfg(over: Record<string, unknown> = {}): Config {
   } as unknown as Config;
 }
 
-const fakeProvider = (id: string) =>
-  ({ id, capabilities: { maxContext: 200_000 } }) as never;
+const fakeProvider = (id: string) => ({ id, capabilities: { maxContext: 200_000 } }) as never;
 
 describe('routing fields cleared by the config watcher', () => {
   // The hot-reload watcher clears a field no config layer defines. It used to
@@ -62,7 +61,11 @@ describe('routing fields cleared by the config watcher', () => {
       buildProvider: (id) => fakeProvider(id),
       events: new EventBus(),
     });
-    const ctx = { provider: fakeProvider('p1'), model: 'm1' } as never as {
+    const ctx = {
+      provider: fakeProvider('p1'),
+      model: 'm1',
+      activeRunSessionId: '2026-08-26/sess_01TESTFALLBACKRESILIENCE0',
+    } as never as {
       provider: { id: string };
       model: string;
     };
@@ -112,9 +115,7 @@ describe('named profile selection', () => {
   it('ignores a selection naming a profile that no longer exists', () => {
     const mgr = new FallbackProfileManager(withProfiles({ fallbackProfile: 'deleted' }));
     expect(mgr.activeProfileName()).toBeUndefined();
-    expect(
-      mgr.resolveCandidates({ providerId: 'p1', model: 'm1' }, {}).length,
-    ).toBeGreaterThan(0);
+    expect(mgr.resolveCandidates({ providerId: 'p1', model: 'm1' }, {}).length).toBeGreaterThan(0);
   });
 
   it('lets an explicit caller profile override the selected one', () => {
@@ -189,18 +190,27 @@ describe('live fallbackStickiness', () => {
       },
       events: new EventBus(),
     });
-    const ctx = { provider: fakeProvider('p2'), model: 'm2' } as never as {
+    const ctx = {
+      provider: fakeProvider('p2'),
+      model: 'm2',
+      activeRunSessionId: '2026-08-26/sess_01TESTFALLBACKRESILIENCE0',
+    } as never as {
       provider: { id: string };
       model: string;
     };
     // Force a hop so the extension is "dirty" and beforeRun starts probing.
     let calls = 0;
     await (ext.wrapProviderRunner as any)(
-      { provider: fakeProvider('p1'), model: 'm1' },
+      {
+        provider: fakeProvider('p1'),
+        model: 'm1',
+        activeRunSessionId: '2026-08-26/sess_01TESTFALLBACKRESILIENCE0',
+      },
       { model: 'm1' },
       async () => {
         calls += 1;
-        if (calls === 1) throw new ProviderError('overloaded', 529, true, 'p1', { kind: 'overloaded' });
+        if (calls === 1)
+          throw new ProviderError('overloaded', 529, true, 'p1', { kind: 'overloaded' });
         return { content: [{ type: 'text', text: 'ok' }] } as never;
       },
     );

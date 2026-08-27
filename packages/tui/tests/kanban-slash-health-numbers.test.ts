@@ -1,13 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {
-  addDependency,
-  addTask,
-  createBoard,
-  getKanbanQueueHealth,
-  listReadyTasks,
-} from '@wrongstack/kanban';
+import { createBoard, getKanbanQueueHealth, listReadyTasks } from '@wrongstack/kanban';
+import { addDependency, addTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { renderHealthReport } from '../src/kanban-slash.js';
 

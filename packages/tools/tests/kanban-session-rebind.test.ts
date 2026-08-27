@@ -2,14 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import {
-  addTask,
-  createBoard,
-  touchKanbanPresence,
-  updateTaskAssignment,
-} from '@wrongstack/kanban';
+import { createBoard, touchKanbanPresence } from '@wrongstack/kanban';
+import { addTask, updateTaskAssignment } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rebindSessionKanbanTask } from '../src/session-kanban.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 /**
  * A resumed session must come back knowing which card it is on.
@@ -39,6 +38,7 @@ describe('rebindSessionKanbanTask', () => {
   function makeCtx(sessionId: string, overrides: Partial<Context> = {}) {
     const setCurrentKanbanTask = vi.fn();
     const ctx = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       session: { id: sessionId },
       setCurrentKanbanTask,
@@ -122,7 +122,11 @@ describe('rebindSessionKanbanTask', () => {
   it('is a no-op without a session id', async () => {
     await seedRunningCard('session-a');
     const setCurrentKanbanTask = vi.fn();
-    const ctx = { projectRoot: dir, setCurrentKanbanTask } as unknown as Context;
+    const ctx = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+      projectRoot: dir,
+      setCurrentKanbanTask,
+    } as unknown as Context;
 
     expect(await rebindSessionKanbanTask(ctx)).toBeNull();
     expect(setCurrentKanbanTask).not.toHaveBeenCalled();

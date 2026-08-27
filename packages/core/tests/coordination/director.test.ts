@@ -5,9 +5,17 @@
  * spawn budget enforcement, task completion notification) using mock runners
  * and the shared test harness.
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
-import type { MultiAgentConfig, SubagentRunner, TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
+import type {
+  MultiAgentConfig,
+  SubagentRunner,
+  TaskResult,
+  TaskSpec,
+} from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 function makeConfig(overrides: Partial<MultiAgentConfig> = {}): MultiAgentConfig {
   return {
@@ -49,20 +57,14 @@ describe('Director — construction & basic API', () => {
   });
 
   it('constructs with minimal config', () => {
-    const director = new Director({
-      config: makeConfig(),
-      runner,
-    });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: makeConfig(), runner });
     expect(director.id).toBeTruthy();
     expect(director.fleet).toBeDefined();
     expect(director.usage).toBeDefined();
   });
 
   it('status returns coordinator snapshot', () => {
-    const director = new Director({
-      config: makeConfig(),
-      runner,
-    });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: makeConfig(), runner });
     const status = director.status();
     expect(status).toBeDefined();
     // Status fields may vary by coordinator implementation; just verify
@@ -71,10 +73,7 @@ describe('Director — construction & basic API', () => {
   });
 
   it('usage snapshot is accessible', () => {
-    const director = new Director({
-      config: makeConfig(),
-      runner,
-    });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: makeConfig(), runner });
     const usage = director.usage.snapshot();
     expect(usage).toBeDefined();
   });
@@ -88,7 +87,7 @@ describe('Director — context pressure', () => {
   });
 
   it('setLeaderContextPressure and get round-trip', () => {
-    const director = new Director({ config: makeConfig(), runner });
+    const director = new Director({ sessionId: TEST_SESSION_ID, config: makeConfig(), runner });
     expect(director.getLeaderContextPressure()).toBe(0);
     director.setLeaderContextPressure(50000);
     expect(director.getLeaderContextPressure()).toBe(50000);
@@ -96,17 +95,20 @@ describe('Director — context pressure', () => {
 });
 
 describe('Director — budget tracking', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('getRemainingBudgetUsd returns undefined when no cap', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     expect(director.getRemainingBudgetUsd()).toBeUndefined();
   });
 
   it('getRemainingBudgetUsd returns remaining when cap set', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: makeConfig({ maxFleetCostUsd: 10.0 }),
       runner: makeRunner(),
     });
@@ -119,25 +121,35 @@ describe('Director — budget tracking', () => {
 });
 
 describe('Director — BTW notes', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('setLeaderBtwNote stores and getLeaderBtwNotes retrieves', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     director.setLeaderBtwNote('check the database');
     expect(director.getLeaderBtwNotes()).toContain('check the database');
   });
 
   it('peekLeaderBtwNotes does not drain', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     director.setLeaderBtwNote('note1');
     director.peekLeaderBtwNotes();
     expect(director.getLeaderBtwNotes()).toHaveLength(1);
   });
 
   it('drainLeaderBtwNotes clears the buffer', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     director.setLeaderBtwNote('temp');
     director.drainLeaderBtwNotes();
     expect(director.getLeaderBtwNotes()).toHaveLength(0);
@@ -145,12 +157,14 @@ describe('Director — BTW notes', () => {
 });
 
 describe('Director — tools factory', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('tools() returns an array of Tool objects', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     const tools = director.tools();
     expect(Array.isArray(tools)).toBe(true);
     expect(tools.length).toBeGreaterThan(0);
@@ -161,7 +175,11 @@ describe('Director — tools factory', () => {
   });
 
   it('tools include spawn, assign, await_tasks, terminate', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     const names = director.tools().map((t) => t.name);
     expect(names).toContain('spawn_subagent');
     expect(names).toContain('assign_task');
@@ -171,27 +189,30 @@ describe('Director — tools factory', () => {
 });
 
 describe('Director — workComplete', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('workComplete sets stopped state without throwing', () => {
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
     expect(() => director.workComplete()).not.toThrow();
   });
 });
 
 describe('Director — task result notifier', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('fires taskResultNotifier on fire-and-forget task completion', async () => {
     const notifications: any[] = [];
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: makeConfig(),
       runner: makeRunner(),
-      taskResultNotifier: (n) => { notifications.push(n); },
+      taskResultNotifier: (n) => {
+        notifications.push(n);
+      },
     });
 
     // Assign a fire-and-forget task (no awaitTasks)
@@ -212,9 +233,7 @@ describe('Director — task result notifier', () => {
 });
 
 describe('Director — removeSubagent per-subagent Map cleanup', () => {
-
-  beforeEach(() => {
-  });
+  beforeEach(() => {});
 
   it('drops subagentMeta and priceLookups entries for the retired subagent', async () => {
     // Regression: Director.remove previously cleared subagentBridges,
@@ -224,13 +243,20 @@ describe('Director — removeSubagent per-subagent Map cleanup', () => {
     // and lightweight consumers), those Maps live on the Director itself
     // and accumulated one entry per retired subagent for the lifetime of
     // the leader process. Same leak FleetManager already fixed internally.
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
 
     // Simulate fleet-spawn.ts:254 / fleet-manager.ts:361: the per-subagent
     // metadata and price-lookup entries that recordSpawn would normally
     // populate. The Director exposes these Maps publicly (readonly) so
     // production spawn flows fill them; here we set them directly.
-    (director.subagentMeta as Map<string, unknown>).set('s1', { provider: 'anthropic', model: 'm' });
+    (director.subagentMeta as Map<string, unknown>).set('s1', {
+      provider: 'anthropic',
+      model: 'm',
+    });
     (director.subagentMeta as Map<string, unknown>).set('s2', { provider: 'openai', model: 'gpt' });
     (director.priceLookups as Map<string, unknown>).set('anthropic/m', { input: 3 });
     (director.priceLookups as Map<string, unknown>).set('openai/gpt', { input: 5 });
@@ -251,7 +277,11 @@ describe('Director — removeSubagent per-subagent Map cleanup', () => {
     // Long-running fleet sessions retire dozens of subagents; each remove()
     // must fully release its per-subagent Map entries so a 1000-subagent
     // run does not balloon the Map to 1000 entries.
-    const director = new Director({ config: makeConfig(), runner: makeRunner() });
+    const director = new Director({
+      sessionId: TEST_SESSION_ID,
+      config: makeConfig(),
+      runner: makeRunner(),
+    });
 
     for (let i = 0; i < 50; i++) {
       const id = `s${i}`;

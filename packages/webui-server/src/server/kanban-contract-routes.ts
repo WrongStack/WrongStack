@@ -11,6 +11,8 @@
  * Every mutation broadcasts the updated board so the open panels repaint,
  * matching how the other kanban write routes behave.
  */
+
+import type { Context } from '@wrongstack/core/agent';
 import {
   addContractEdge,
   configureContractGraph,
@@ -27,11 +29,14 @@ import {
 } from '@wrongstack/kanban';
 import type { WebSocket } from 'ws';
 import { publishKanbanBoard } from './kanban-broadcast.js';
-import { fail, ok } from './kanban-route-helpers.js';
+import { activityContext, fail, ok } from './kanban-route-helpers.js';
 import type { WSServerMessage } from './types.js';
 
 export interface KanbanContractRouteContext {
   projectRoot: string;
+  context?: Context | undefined;
+  /** Tab that sent the request — the session every emitted event belongs to. */
+  requestSessionId?: string | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
 }
 
@@ -112,9 +117,13 @@ async function handleConfigure(
 ): Promise<void> {
   const boardId = str(payload, 'boardId');
   if (!boardId) return fail(ws, type, 'boardId required');
-  const enforcement = (str(payload, 'enforcement') ??
-    'advisory') as KanbanContractGraphEnforcement;
-  const board = await configureContractGraph(ctx.projectRoot, boardId, enforcement);
+  const enforcement = (str(payload, 'enforcement') ?? 'advisory') as KanbanContractGraphEnforcement;
+  const board = await configureContractGraph(
+    ctx.projectRoot,
+    boardId,
+    enforcement,
+    activityContext(ctx),
+  );
   if (!board) return fail(ws, type, 'Board not found');
   await publishBoard(ctx, board);
   ok(ws, type, { boardId, graph: board.contractGraph ?? null });
@@ -142,33 +151,38 @@ async function handleNodeUpsert(
     return fail(ws, type, 'A waived contract node requires waiverActor and waiverReason');
   }
   try {
-    const result = await upsertContractNode(ctx.projectRoot, boardId, {
-      taskId,
-      kind,
-      title,
-      ...(str(payload, 'nodeId') !== undefined ? { id: str(payload, 'nodeId')! } : {}),
-      ...(str(payload, 'description') !== undefined
-        ? { description: str(payload, 'description')! }
-        : {}),
-      ...(state !== undefined ? { state } : {}),
-      ...(str(payload, 'enforcement') !== undefined
-        ? { enforcement: str(payload, 'enforcement') as KanbanContractEnforcement }
-        : {}),
-      ...(str(payload, 'checkId') !== undefined ? { checkId: str(payload, 'checkId')! } : {}),
-      ...(str(payload, 'metricId') !== undefined ? { metricId: str(payload, 'metricId')! } : {}),
-      ...(state === 'waived'
-        ? {
-            waiver: {
-              actor: waiverActor!,
-              reason: waiverReason!,
-              at: new Date().toISOString(),
-            },
-          }
-        : {}),
-      ...(str(payload, 'createdBy') !== undefined
-        ? { createdBy: str(payload, 'createdBy')! }
-        : { createdBy: 'webui' }),
-    });
+    const result = await upsertContractNode(
+      ctx.projectRoot,
+      boardId,
+      {
+        taskId,
+        kind,
+        title,
+        ...(str(payload, 'nodeId') !== undefined ? { id: str(payload, 'nodeId')! } : {}),
+        ...(str(payload, 'description') !== undefined
+          ? { description: str(payload, 'description')! }
+          : {}),
+        ...(state !== undefined ? { state } : {}),
+        ...(str(payload, 'enforcement') !== undefined
+          ? { enforcement: str(payload, 'enforcement') as KanbanContractEnforcement }
+          : {}),
+        ...(str(payload, 'checkId') !== undefined ? { checkId: str(payload, 'checkId')! } : {}),
+        ...(str(payload, 'metricId') !== undefined ? { metricId: str(payload, 'metricId')! } : {}),
+        ...(state === 'waived'
+          ? {
+              waiver: {
+                actor: waiverActor!,
+                reason: waiverReason!,
+                at: new Date().toISOString(),
+              },
+            }
+          : {}),
+        ...(str(payload, 'createdBy') !== undefined
+          ? { createdBy: str(payload, 'createdBy')! }
+          : { createdBy: 'webui' }),
+      },
+      activityContext(ctx),
+    );
     if (!result) return fail(ws, type, 'Board or task not found');
     await publishBoard(ctx, result.board);
     ok(ws, type, { boardId, node: result.node, graph: result.board.contractGraph ?? null });
@@ -189,7 +203,7 @@ async function handleNodeRemove(
   const boardId = str(payload, 'boardId');
   const nodeId = str(payload, 'nodeId');
   if (!boardId || !nodeId) return fail(ws, type, 'boardId and nodeId required');
-  const board = await removeContractNode(ctx.projectRoot, boardId, nodeId);
+  const board = await removeContractNode(ctx.projectRoot, boardId, nodeId, activityContext(ctx));
   if (!board) return fail(ws, type, 'Contract node not found');
   await publishBoard(ctx, board);
   ok(ws, type, { boardId, graph: board.contractGraph ?? null });
@@ -209,18 +223,23 @@ async function handleEdgeAdd(
     return fail(ws, type, 'boardId, from, to, and edgeType required');
   }
   try {
-    const result = await addContractEdge(ctx.projectRoot, boardId, {
-      from,
-      to,
-      type: edgeType,
-      ...(str(payload, 'enforcement') !== undefined
-        ? { enforcement: str(payload, 'enforcement') as KanbanContractEnforcement }
-        : {}),
-      ...(str(payload, 'rationale') !== undefined
-        ? { rationale: str(payload, 'rationale')! }
-        : {}),
-      createdBy: str(payload, 'createdBy') ?? 'webui',
-    });
+    const result = await addContractEdge(
+      ctx.projectRoot,
+      boardId,
+      {
+        from,
+        to,
+        type: edgeType,
+        ...(str(payload, 'enforcement') !== undefined
+          ? { enforcement: str(payload, 'enforcement') as KanbanContractEnforcement }
+          : {}),
+        ...(str(payload, 'rationale') !== undefined
+          ? { rationale: str(payload, 'rationale')! }
+          : {}),
+        createdBy: str(payload, 'createdBy') ?? 'webui',
+      },
+      activityContext(ctx),
+    );
     if (!result) return fail(ws, type, 'Board not found');
     await publishBoard(ctx, result.board);
     ok(ws, type, { boardId, edge: result.edge, graph: result.board.contractGraph ?? null });
@@ -239,7 +258,7 @@ async function handleEdgeRemove(
   const boardId = str(payload, 'boardId');
   const edgeId = str(payload, 'edgeId');
   if (!boardId || !edgeId) return fail(ws, type, 'boardId and edgeId required');
-  const board = await removeContractEdge(ctx.projectRoot, boardId, edgeId);
+  const board = await removeContractEdge(ctx.projectRoot, boardId, edgeId, activityContext(ctx));
   if (!board) return fail(ws, type, 'Contract edge not found');
   await publishBoard(ctx, board);
   ok(ws, type, { boardId, graph: board.contractGraph ?? null });

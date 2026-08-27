@@ -52,6 +52,15 @@ export interface SetupEventsDeps {
    * of being dropped for not being the session in front.
    */
   bridgeForSession?: ((sessionId: string) => SessionEventBridge | undefined) | undefined;
+  /**
+   * The Context of a NAMED session, without creating one.
+   *
+   * Event payloads describe the session that produced them, and some of what
+   * they carry is a per-tab setting — the iteration ceiling above all. Reading
+   * it off the shared root context told a background tab it was on "3 / 500"
+   * when its own cap was something else entirely.
+   */
+  sessionContext?: ((sessionId: string) => Context | undefined) | undefined;
   /** Optional wpaths for writing status.json file. */
   wpaths?: WstackPaths | undefined;
   /** Optional live file-watcher metrics sink. */
@@ -120,9 +129,13 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   );
 
   on('iteration.started', (e) => {
+    // The ceiling belongs to the session that started the iteration, not to
+    // whichever session the runtime is currently pointing at.
+    const iterMeta =
+      (e.sessionId ? deps.sessionContext?.(e.sessionId)?.meta : undefined) ?? context.meta;
     const maxIt =
-      typeof context.meta['maxIterations'] === 'number'
-        ? context.meta['maxIterations']
+      typeof iterMeta['maxIterations'] === 'number'
+        ? iterMeta['maxIterations']
         : (config.tools?.maxIterations ?? 100);
     broadcast(clients, {
       type: 'iteration.started',

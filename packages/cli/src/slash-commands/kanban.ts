@@ -10,6 +10,7 @@ import {
   removeBoard,
   updateBoard as updateBoardManager,
 } from '@wrongstack/kanban';
+import { requireSessionId } from '@wrongstack/primitives';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import {
@@ -120,7 +121,10 @@ export function buildKanbanCommand(opts: SlashCommandContext): SlashCommand {
 
       // ── generate ───────────────────────────────────────────────────
       if (cmd === 'generate') {
-        return handleBoardGenerate(projectRoot, restJoined);
+        return handleBoardGenerate(projectRoot, restJoined, {
+          sessionId: requireSessionId(opts.context?.eventSessionId(), 'kanban slash command'),
+          actor: 'cli-operator',
+        });
       }
 
       // ── snapshot ───────────────────────────────────────────────────

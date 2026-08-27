@@ -129,6 +129,7 @@ const OPERATION_KEYS: Record<SessionCatalogOperationName, readonly string[]> = {
   ],
   resolve_id: ['query'],
   get_summary: ['sessionId'],
+  list_session_agents: ['sessionId'],
   rename: ['sessionId', 'name'],
   acquire_maintenance: ['sessionId', 'operation', 'holderId', 'leaseMs', 'holderPid'],
   release_maintenance: ['lease'],
@@ -340,6 +341,10 @@ async function dispatch<O extends SessionCatalogOperationName>(
         value.maxAgeDays,
         value.holderId,
       ) as SessionCatalogOperations[O]['result'];
+    }
+    case 'list_session_agents': {
+      const value = args as SessionCatalogOperations['list_session_agents']['args'];
+      return catalog.listSessionAgents(value.sessionId) as SessionCatalogOperations[O]['result'];
     }
     case 'rebuild_catalog':
       return catalog.rebuildCatalog() as SessionCatalogOperations[O]['result'];

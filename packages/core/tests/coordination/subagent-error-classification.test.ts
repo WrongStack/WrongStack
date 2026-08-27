@@ -8,16 +8,19 @@
  * tests.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import {
-  DefaultMultiAgentCoordinator,
   classifySubagentError,
+  DefaultMultiAgentCoordinator,
 } from '../../src/coordination/multi-agent-coordinator.js';
 import { BudgetExceededError } from '../../src/coordination/subagent-budget.js';
-import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
-import { ProviderError } from '../../src/types/provider.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+import { ProviderError } from '../../src/types/provider.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 // ──────────────────────────────────────────────────────────────────────
 // Direct classifier unit tests — each kind gets one anchor case.
@@ -226,7 +229,7 @@ describe('TaskResult.error envelope through the runner', () => {
         doneCondition: { type: 'all_tasks_done' as const },
         maxConcurrent: 1,
       },
-      { runner },
+      { runner, sessionId: TEST_SESSION_ID },
     );
     await coord.spawn({ id: 'a', name: 'A' });
     const done = waitForCompletion(coord);
@@ -253,7 +256,7 @@ describe('TaskResult.error envelope through the runner', () => {
         doneCondition: { type: 'all_tasks_done' as const },
         maxConcurrent: 1,
       },
-      { runner },
+      { runner, sessionId: TEST_SESSION_ID },
     );
     await coord.spawn({ id: 'a', name: 'A' });
     const done = waitForCompletion(coord);
@@ -281,7 +284,7 @@ describe('TaskResult.error envelope through the runner', () => {
         doneCondition: { type: 'all_tasks_done' as const },
         maxConcurrent: 1,
       },
-      { runner },
+      { runner, sessionId: TEST_SESSION_ID },
     );
     await coord.spawn({ id: 'a', name: 'A' });
     const done = waitForCompletion(coord);
@@ -307,7 +310,7 @@ describe('TaskResult.error envelope through the runner', () => {
         doneCondition: { type: 'all_tasks_done' as const },
         maxConcurrent: 1,
       },
-      { runner },
+      { runner, sessionId: TEST_SESSION_ID },
     );
     await coord.spawn({ id: 'a', name: 'A' });
     const done = waitForCompletion(coord);

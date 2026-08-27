@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
+import { requireSessionId } from '@wrongstack/primitives';
 import type { AgentBridge, BridgeMessage } from '../types/agent-bridge.js';
 import type {
   AwaitAnyResult,
@@ -48,7 +49,7 @@ interface SubagentEntry {
    * under tab B, tab B looked busy when it was idle, and no caller could ask
    * "stop the subagents belonging to session X" because nothing recorded X.
    */
-  sessionId?: string | undefined;
+  sessionId: string;
 }
 
 export interface MultiAgentCoordinatorOptions {
@@ -132,9 +133,9 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     this.sessionId = options.sessionId;
   }
 
-  private currentSessionId(): string | undefined {
+  private currentSessionId(): string {
     const value = typeof this.sessionId === 'function' ? this.sessionId() : this.sessionId;
-    return typeof value === 'string' && value.length > 0 ? value : undefined;
+    return requireSessionId(value, 'subagent operation');
   }
 
   /**
@@ -145,7 +146,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * spawned (a caller reporting `completeTask` for an unknown worker); a
    * subagent this coordinator created always has its own stamp.
    */
-  private sessionOf(subagentId: string): string | undefined {
+  private sessionOf(subagentId: string): string {
     const entry = this.subagents.get(subagentId);
     if (entry) return entry.sessionId;
     return this.currentSessionId();
@@ -184,7 +185,10 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       (t) => t.subagentId === undefined || !ids.has(t.subagentId),
     );
     for (const t of orphaned) {
-      this.emitPendingAborted(t, `Session "${sessionId}" was stopped while task "${t.id}" was pending`);
+      this.emitPendingAborted(
+        t,
+        `Session "${sessionId}" was stopped while task "${t.id}" was pending`,
+      );
     }
     // allSettled so one failure doesn't leave the rest of this session running.
     await Promise.allSettled([...ids].map((id) => this.stop(id)));
@@ -281,14 +285,17 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       sessionId,
     });
 
-    this.emit('subagent.started', { subagent: { ...cfg, id }, ...(sessionId ? { sessionId } : {}) });
+    this.emit('subagent.started', {
+      subagent: { ...cfg, id },
+      sessionId,
+    });
 
     this.fleetBus?.emit({
       subagentId: id,
       ts: Date.now(),
       type: 'subagent.assigned',
       payload: {
-        ...(sessionId ? { sessionId } : {}),
+        sessionId,
         subagentId: id,
         name: subagent.name,
         provider: subagent.provider,
@@ -350,7 +357,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ts: Date.now(),
       type: 'subagent.stopped',
       payload: {
-        ...(sessionId ? { sessionId } : {}),
+        sessionId,
         subagentId,
         reason: 'stopped by coordinator',
       },
@@ -415,7 +422,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       assigned: s.context.parentBridge !== null,
       // Each worker's OWN session, so a consumer can split one coordinator's
       // roster across the tabs that spawned it.
-      ...(s.sessionId ? { sessionId: s.sessionId } : {}),
+      sessionId: s.sessionId,
     }));
     // Coordinator-level, deliberately: this event describes the whole
     // coordinator, not one worker. Per-worker attribution is on the entries
@@ -426,7 +433,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ts: Date.now(),
       type: 'coordinator.stats',
       payload: {
-        ...(sessionId ? { sessionId } : {}),
+        sessionId,
         ...stats,
         subagentStatuses,
       },
@@ -807,7 +814,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ts: Date.now(),
       type: 'subagent.running',
       payload: {
-        ...(sessionId ? { sessionId } : {}),
+        sessionId,
         subagentId,
         taskId: task.id,
       },
@@ -894,7 +901,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       // The spawning session travels with the run, so the runner stamps its
       // own events with the tab that owns this worker rather than re-deriving
       // "the host's current session" when the event happens to fire.
-      ...(subagent.sessionId ? { sessionId: subagent.sessionId } : {}),
+      sessionId: subagent.sessionId,
       bridge: subagent.context.parentBridge || null,
       reportProgress: (partial) => {
         const text = partial.text.trim();
@@ -1023,7 +1030,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
         ts: Date.now(),
         type: 'subagent.idle',
         payload: {
-          ...(sessionId ? { sessionId } : {}),
+          sessionId,
           subagentId: result.subagentId,
         },
       });
@@ -1045,7 +1052,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ts: Date.now(),
       type: 'subagent.completed',
       payload: {
-        ...(completedSessionId ? { sessionId: completedSessionId } : {}),
+        sessionId: completedSessionId,
         subagentId: result.subagentId,
         taskId: result.taskId,
         status: result.status,
@@ -1123,7 +1130,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       ts: Date.now(),
       type: 'subagent.removed',
       payload: {
-        ...(removedSessionId ? { sessionId: removedSessionId } : {}),
+        sessionId: removedSessionId,
         subagentId,
       },
     });

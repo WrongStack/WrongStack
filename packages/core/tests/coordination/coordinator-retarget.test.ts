@@ -17,6 +17,9 @@ import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const makeConfig = (overrides: Record<string, unknown> = {}) => ({
   coordinatorId: 'retarget-coord',
   doneCondition: { type: 'all_tasks_done' as const },
@@ -72,7 +75,10 @@ function makeCoord(ids: string[]) {
     return makeGatedAgent(gate, `${id} done`);
   };
   const runner = makeAgentSubagentRunner({ factory: factory as never });
-  const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+  const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+    runner,
+    sessionId: TEST_SESSION_ID,
+  });
   return { coord, gates, runBySubagent };
 }
 

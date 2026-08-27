@@ -2,13 +2,23 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { renderInstructionLayer } from '../../src/core/instruction-template.js';
 import { Director } from '../../src/coordination/director.js';
 import { DEFAULT_SUBAGENT_BASELINE } from '../../src/coordination/director-prompts.js';
+import { renderInstructionLayer } from '../../src/core/instruction-template.js';
 import type { MultiAgentConfig } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const BASELINE = readFileSync(
-  join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'instructions', 'coordination', 'subagent-baseline.md'),
+  join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'instructions',
+    'coordination',
+    'subagent-baseline.md',
+  ),
   'utf8',
 );
 
@@ -81,6 +91,7 @@ describe('subagent baseline — tool-gated discovery', () => {
 
   it('director render uses the live subagent tool slice', () => {
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'test-director',
         doneCondition: { type: 'all_tasks_done' },
@@ -101,7 +112,15 @@ describe('subagent baseline — tool-gated discovery', () => {
       name: 'Explore',
       role: 'explore',
       prompt: 'You are the Explore agent.',
-      tools: ['read', 'grep', 'glob', 'tree', 'codebase-search', 'codebase-repo-map', 'codebase-skeleton'],
+      tools: [
+        'read',
+        'grep',
+        'glob',
+        'tree',
+        'codebase-search',
+        'codebase-repo-map',
+        'codebase-skeleton',
+      ],
     });
     expect(explorer).toContain('`codebase-search`');
     expect(explorer).toContain('`codebase-repo-map`');

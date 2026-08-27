@@ -99,9 +99,11 @@ describe('Context', () => {
       expect(ctx.eventSessionId()).toBe('session-new');
     });
 
-    it('tolerates stub contexts without a session', () => {
+    it('rejects stub contexts without a session id', () => {
       const stub = { activeRunSessionId: undefined, session: undefined } as unknown as Context;
-      expect(resolveEventSessionId(stub)).toBe('');
+      expect(() => resolveEventSessionId(stub)).toThrow(
+        expect.objectContaining({ code: 'SESSION_ID_REQUIRED' }),
+      );
     });
 
     it('persists late file events through the run-pinned writer after a session swap', () => {

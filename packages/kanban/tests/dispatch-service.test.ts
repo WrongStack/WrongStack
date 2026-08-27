@@ -4,17 +4,15 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   addTask,
-  createBoard,
-  updateTask,
-} from '../src/manager.js';
-import {
   cancelKanbanDispatch,
   completeKanbanDispatch,
+  createBoard,
   failKanbanDispatch,
   heartbeatKanbanDispatch,
   reserveKanbanDispatch,
   startKanbanDispatch,
-} from '../src/manager/dispatch.js';
+  updateTask,
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -128,8 +126,12 @@ describe('startKanbanDispatch', () => {
       childTaskIds: ['child-1'],
       successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'pending' }],
     });
-    const { transitionTask } = await import('../src/manager.js');
-    await transitionTask(tmpDir, b.id, added!.task.id, { to: 'todo', actor: 'agent', comment: 'Ready.' });
+    const { transitionTask } = await import('./helpers/session-manager.js');
+    await transitionTask(tmpDir, b.id, added!.task.id, {
+      to: 'todo',
+      actor: 'agent',
+      comment: 'Ready.',
+    });
 
     const reserved = await reserveKanbanDispatch(tmpDir, { boardId: b.id });
     expect(reserved).not.toBeNull();
@@ -187,8 +189,12 @@ describe('startKanbanDispatch', () => {
       childTaskIds: ['child-1'],
       successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'pending' }],
     });
-    const { transitionTask } = await import('../src/manager.js');
-    await transitionTask(tmpDir, b.id, added!.task.id, { to: 'todo', actor: 'agent', comment: 'Ready.' });
+    const { transitionTask } = await import('./helpers/session-manager.js');
+    await transitionTask(tmpDir, b.id, added!.task.id, {
+      to: 'todo',
+      actor: 'agent',
+      comment: 'Ready.',
+    });
 
     const reserved = await reserveKanbanDispatch(tmpDir, { boardId: b.id });
     expect(reserved).not.toBeNull();
@@ -255,8 +261,12 @@ describe('completeKanbanDispatch', () => {
       childTaskIds: ['child-1'],
       successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'pending' }],
     });
-    const { transitionTask } = await import('../src/manager.js');
-    await transitionTask(tmpDir, b.id, added!.task.id, { to: 'todo', actor: 'agent', comment: 'Ready.' });
+    const { transitionTask } = await import('./helpers/session-manager.js');
+    await transitionTask(tmpDir, b.id, added!.task.id, {
+      to: 'todo',
+      actor: 'agent',
+      comment: 'Ready.',
+    });
 
     const reserved = await reserveKanbanDispatch(tmpDir, { boardId: b.id });
     await startKanbanDispatch(tmpDir, {

@@ -1,19 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {
-  addCheckToTask,
-  addTask,
-  createBoard,
-  getBoard,
-  proposeTaskDecomposition,
-} from '@wrongstack/kanban';
-import type { WebSocket } from 'ws';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addCheckToTask, addTask, proposeTaskDecomposition } from '@wrongstack/kanban/test-support';
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  handleKanbanRoute,
-  KANBAN_CLIENT_MESSAGE_TYPES,
-} from '../src/server/kanban-routes.js';
+import type { WebSocket } from 'ws';
+import { handleKanbanRoute, KANBAN_CLIENT_MESSAGE_TYPES } from '../src/server/kanban-routes.js';
 import type { WSServerMessage } from '../src/server/types.js';
 
 let tmpDir: string;
@@ -43,6 +35,9 @@ function makeCtx() {
   return {
     ctx: {
       projectRoot: tmpDir,
+      // The tab that sent the request; every board event it triggers is
+      // attributed to it.
+      requestSessionId: '2026-08-26/sess_01TESTWEBUIKANBANROUTE00',
       broadcast: (message: WSServerMessage) => {
         broadcasts.push(message);
       },
@@ -111,9 +106,9 @@ describe('kanban.decomposition.approve/reject routes', () => {
     expect(board!.tasks).toHaveLength(1);
     expect(board!.tasks[0]?.decomposition?.status).toBe('rejected');
     const resolved = broadcasts.find((message) => message.type === 'kanban.decomposition.resolved');
-    expect(
-      (resolved?.payload as { data?: { boardId?: string } } | undefined)?.data?.boardId,
-    ).toBe(boardId);
+    expect((resolved?.payload as { data?: { boardId?: string } } | undefined)?.data?.boardId).toBe(
+      boardId,
+    );
   });
 
   it('fails cleanly for an unknown proposal', async () => {
@@ -146,7 +141,10 @@ describe('kanban.task.verify route', () => {
     const { ctx, broadcasts } = makeCtx();
     await handleKanbanRoute(
       ws,
-      { type: 'kanban.task.verify', payload: { boardId: board.id, taskId: added!.task.id } } as never,
+      {
+        type: 'kanban.task.verify',
+        payload: { boardId: board.id, taskId: added!.task.id },
+      } as never,
       ctx as never,
     );
     expect(sent[0]?.payload.success).toBe(true);

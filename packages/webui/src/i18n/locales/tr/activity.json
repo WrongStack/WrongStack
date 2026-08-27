@@ -1062,7 +1062,15 @@
     "kindSystem": "Sistem",
     "title": "Sohbet geçmişi",
     "copyTitle": "Aracı sohbet geçmişini kopyala",
-    "empty": "Bu aracı için henüz sohbet geçmişi yok."
+    "empty": "Bu aracı için henüz sohbet geçmişi yok.",
+    "taskLabel": "Görev",
+    "taskChars": "{{count}} karakter",
+    "taskExpand": "Göster",
+    "taskExpandTitle": "Görevin tam açıklamasını göster",
+    "taskModalTitle": "Görev açıklaması",
+    "taskModalDescription": "Bu aracın başlatıldığı tam görev.",
+    "readOnly": "Salt okunur",
+    "returnToLeader": "Sohbete dön"
   },
   "autonomy": {
     "heading": "Otonomi modu",

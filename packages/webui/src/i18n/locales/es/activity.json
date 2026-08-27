@@ -1062,7 +1062,15 @@
     "kindSystem": "Sistema",
     "title": "Historial del chat",
     "copyTitle": "Copiar historial de chat del agente",
-    "empty": "Aún no hay historial de chat para este agente."
+    "empty": "Aún no hay historial de chat para este agente.",
+    "taskLabel": "Tarea",
+    "taskChars": "{{count}} caracteres",
+    "taskExpand": "Ver",
+    "taskExpandTitle": "Ver la descripción completa de la tarea",
+    "taskModalTitle": "Descripción de la tarea",
+    "taskModalDescription": "La tarea completa para la que se inició este agente.",
+    "readOnly": "Solo lectura",
+    "returnToLeader": "Volver al chat"
   },
   "autonomy": {
     "heading": "Modo de autonomía",

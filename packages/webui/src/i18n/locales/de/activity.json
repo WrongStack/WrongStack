@@ -1062,7 +1062,15 @@
     "kindSystem": "System",
     "title": "Chat-Verlauf",
     "copyTitle": "Agenten-Chatverlauf kopieren",
-    "empty": "Noch kein Chat-Verlauf für diesen Agenten."
+    "empty": "Noch kein Chat-Verlauf für diesen Agenten.",
+    "taskLabel": "Aufgabe",
+    "taskChars": "{{count}} Zeichen",
+    "taskExpand": "Anzeigen",
+    "taskExpandTitle": "Vollständige Aufgabenbeschreibung anzeigen",
+    "taskModalTitle": "Aufgabenbeschreibung",
+    "taskModalDescription": "Die vollständige Aufgabe, für die dieser Agent gestartet wurde.",
+    "readOnly": "Nur lesen",
+    "returnToLeader": "Zurück zum Chat"
   },
   "autonomy": {
     "heading": "Autonomiemodus",

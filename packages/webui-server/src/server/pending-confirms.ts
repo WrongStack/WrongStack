@@ -24,10 +24,27 @@ export function isDestructivePendingConfirm(confirm: PendingConfirm): boolean {
   return confirm.riskTier === 'destructive' || confirm.decisionSource === 'yolo_destructive';
 }
 
+/**
+ * Answer "yes" to the prompts YOLO now covers — for ONE session.
+ *
+ * `pendingConfirms` is one process-wide map holding the prompts of every open
+ * tab. YOLO is a per-tab preference, so sweeping the whole map meant turning
+ * it on in one tab silently approved the tool waiting on a prompt in another —
+ * a conversation the user was not even looking at. Passing no session keeps
+ * the old blanket behaviour for single-session hosts.
+ */
 export function resolveYoloEligiblePendingConfirms(
   pendingConfirms: Map<string, PendingConfirm>,
+  sessionId?: string | undefined,
 ): void {
   for (const [id, confirm] of pendingConfirms) {
+    // A prompt with no recorded owner belongs to the only session there is.
+    if (
+      sessionId !== undefined &&
+      confirm.sessionId !== undefined &&
+      confirm.sessionId !== sessionId
+    )
+      continue;
     if (confirm.boundaryReason) continue;
     // WS-022: this skipped only `boundaryReason` (set solely for kanban gate
     // violations), so flipping YOLO on blanket-answered "yes" to every prompt

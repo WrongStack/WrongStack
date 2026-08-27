@@ -180,9 +180,11 @@ export function handlePrefsUpdated(msg: WSServerMessage) {
 }
 
 export function handleSystemPromptInfo(msg: WSServerMessage) {
-  const payload = msg.payload as WSSystemPromptInfo;
+  const payload = msg.payload as WSSystemPromptInfo & { sessionId?: string };
   if (!payload || !Array.isArray(payload.variants)) return;
-  useSystemPromptStore.getState().setInfo(payload);
+  // The variant is per tab; the catalogue is not. Record `current` against the
+  // session that answered so the picker in tab 3 stops reporting tab 1's size.
+  useSystemPromptStore.getState().setInfo(payload, payload.sessionId);
 }
 
 export function handleBrainStatus(msg: WSServerMessage) {
@@ -557,6 +559,10 @@ export function handleModelRefineResult(msg: WSServerMessage) {
       ...(p.refinedWith ? { provider: p.refinedWith.provider, model: p.refinedWith.model } : {}),
       error: undefined,
       errorKind: undefined,
+      // The tab this prompt was typed in. Approving the panel — or letting it
+      // time out — sends through the foreground, so an unstamped panel can
+      // deliver one tab's prompt into another tab's session.
+      sessionId: activeChatLane().sessionId,
       resolve: () => {},
     });
     return;

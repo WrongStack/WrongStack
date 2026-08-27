@@ -118,8 +118,8 @@ describe('StatusBar overflow handling (width-budget)', () => {
     const lines = frame.split('\n');
     const line1 = lines[0] ?? '';
     const line2 = lines[1] ?? '';
-    // Line 1 (workspace rail) is now the overflow-prone line: project +
-    // workdir + git + model + theme + sessions + tools. It must append a
+    // Line 1 (workspace rail) is the overflow-prone line: project +
+    // workdir + git + model + mode + prompt_variant. It must append a
     // `+N` marker rather than wrap or silently truncate, and its leading
     // identity chips must survive the drop.
     expect(line1.length).toBeLessThanOrEqual(100);

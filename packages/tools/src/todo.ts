@@ -147,10 +147,17 @@ async function createMissingManagedCards(
     try {
       // A managed board rejects a card without a description, so derive one
       // rather than letting creation fail and silently drop the row.
-      const result = await addTask(ctx.projectRoot, board.id, {
-        title: item.content,
-        description: item.activeForm?.trim() || `Added from the session todo list: ${item.content}`,
-      });
+      const result = await addTask(
+        ctx.projectRoot,
+        board.id,
+        {
+          title: item.content,
+          description:
+            item.activeForm?.trim() || `Added from the session todo list: ${item.content}`,
+        },
+        // The card mirrors this session's todo row, so the session owns it.
+        { sessionId: ctx.eventSessionId(), actor: 'todo' },
+      );
       if (!result) {
         warnings.push(`Could not open a Kanban card for "${item.content}": board not found.`);
         continue;

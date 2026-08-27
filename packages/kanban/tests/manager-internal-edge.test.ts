@@ -19,7 +19,6 @@
  * - addDependencyToTask: handles self and cycle detection
  */
 import { describe, expect, it } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   addDependencyToTask,
   assignmentEventType,
@@ -27,14 +26,15 @@ import {
   cloneChecks,
   cloneGoalMetrics,
   createKanbanEvent,
+  emitKanbanEvent,
+  normalizeAllColumnTaskOrders,
   normalizeColumns,
   normalizeDependencyIds,
+  reconcileTaskColumns,
   setChainMetadata,
   stampAtomicityAssessment,
-  reconcileTaskColumns,
-  normalizeAllColumnTaskOrders,
-  emitKanbanEvent,
 } from '../src/manager/_internal.js';
+import type { KanbanBoard, KanbanTask } from '../src/types.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────
 
@@ -81,13 +81,7 @@ describe('normalizeColumns', () => {
   it('always returns the 5 standard DEFAULT_COLUMNS', () => {
     const result = normalizeColumns([]);
     expect(result).toHaveLength(5);
-    expect(result.map((c) => c.id)).toEqual([
-      'backlog',
-      'todo',
-      'in-progress',
-      'review',
-      'done',
-    ]);
+    expect(result.map((c) => c.id)).toEqual(['backlog', 'todo', 'in-progress', 'review', 'done']);
     expect(result.map((c) => c.order)).toEqual([0, 1, 2, 3, 4]);
   });
 
@@ -157,7 +151,12 @@ describe('buildAssignment', () => {
 describe('cloneChecks', () => {
   it('creates new check objects with new UUIDs', () => {
     const checks = [
-      { id: 'original-1', description: 'Check 1', type: 'manual' as const, status: 'pending' as const },
+      {
+        id: 'original-1',
+        description: 'Check 1',
+        type: 'manual' as const,
+        status: 'pending' as const,
+      },
     ];
     const cloned = cloneChecks(checks);
     expect(cloned).toHaveLength(1);
@@ -172,9 +171,7 @@ describe('cloneChecks', () => {
 
 describe('cloneGoalMetrics', () => {
   it('creates new metric objects with new UUIDs and updatedAt', () => {
-    const metrics = [
-      { id: 'm1', name: 'Metric 1', status: 'pending' as const },
-    ];
+    const metrics = [{ id: 'm1', name: 'Metric 1', status: 'pending' as const }];
     const cloned = cloneGoalMetrics(metrics);
     expect(cloned).toHaveLength(1);
     expect(cloned[0]!.id).not.toBe('m1');
@@ -260,18 +257,30 @@ describe('normalizeAllColumnTaskOrders', () => {
 describe('createKanbanEvent', () => {
   it('creates an event with the required fields', () => {
     const t = task({ id: 't1', assignment: { status: 'running', agentId: 'agent-1' } });
-    const event = createKanbanEvent('board-1', t, 'task.created');
+    const event = createKanbanEvent('board-1', t, 'task.created', {
+      sessionId: '2026-08-26/sess_01TESTSESSION',
+    });
     expect(event.id).toBeTruthy();
     expect(event.boardId).toBe('board-1');
     expect(event.taskId).toBe('t1');
     expect(event.type).toBe('task.created');
     expect(event.ts).toBeTruthy();
+    expect(event.sessionId).toBe('2026-08-26/sess_01TESTSESSION');
     expect(event.actor).toBe('agent-1');
+  });
+
+  it('rejects an event without an owning session id', () => {
+    const t = task({ id: 't1' });
+
+    expect(() => createKanbanEvent('board-1', t, 'task.created')).toThrow(
+      expect.objectContaining({ code: 'SESSION_ID_REQUIRED' }),
+    );
   });
 
   it('includes details when provided', () => {
     const t = task({ id: 't1' });
     const event = createKanbanEvent('board-1', t, 'task.moved', {
+      sessionId: '2026-08-26/sess_01TESTSESSION',
       before: { columnId: 'backlog' },
       after: { columnId: 'in-progress' },
     });
@@ -284,7 +293,9 @@ describe('createKanbanEvent', () => {
       id: 't1',
       assignment: { status: 'running', subagentId: 'sub-1', runTaskId: 'run-1', agentId: 'a1' },
     });
-    const event = createKanbanEvent('board-1', t, 'task.claimed');
+    const event = createKanbanEvent('board-1', t, 'task.claimed', {
+      sessionId: '2026-08-26/sess_01TESTSESSION',
+    });
     expect(event.subagentId).toBe('sub-1');
     expect(event.runTaskId).toBe('run-1');
   });
@@ -295,13 +306,16 @@ describe('createKanbanEvent', () => {
 describe('emitKanbanEvent', () => {
   it('swallows errors (observability-only)', async () => {
     // Should not throw even with an invalid path
-    await expect(emitKanbanEvent('/non/existent/path', {
-      id: 'e1',
-      boardId: 'b1',
-      taskId: 't1',
-      type: 'test',
-      ts: 'now',
-    })).resolves.toBeUndefined();
+    await expect(
+      emitKanbanEvent('/non/existent/path', {
+        id: 'e1',
+        boardId: 'b1',
+        taskId: 't1',
+        type: 'test',
+        ts: 'now',
+        sessionId: '2026-08-26/sess_01TESTSESSION',
+      }),
+    ).resolves.toBeUndefined();
   });
 });
 
@@ -334,33 +348,33 @@ describe('assignmentEventType', () => {
 
 describe('setChainMetadata', () => {
   it('sets chain with previous/next references', () => {
-    const b = board([
-      task({ id: 'a' }),
-      task({ id: 'b' }),
-      task({ id: 'c' }),
-    ]);
+    const b = board([task({ id: 'a' }), task({ id: 'b' }), task({ id: 'c' })]);
     setChainMetadata(b, [b.tasks[0]!, b.tasks[1]!, b.tasks[2]!], 'chain-1', false);
 
     expect(b.tasks[0]!.chain).toMatchObject({
-      chainId: 'chain-1', order: 0, nextTaskId: 'b',
+      chainId: 'chain-1',
+      order: 0,
+      nextTaskId: 'b',
     });
     expect(b.tasks[0]!.chain!.previousTaskId).toBeUndefined();
 
     expect(b.tasks[1]!.chain).toMatchObject({
-      chainId: 'chain-1', order: 1, previousTaskId: 'a', nextTaskId: 'c',
+      chainId: 'chain-1',
+      order: 1,
+      previousTaskId: 'a',
+      nextTaskId: 'c',
     });
 
     expect(b.tasks[2]!.chain).toMatchObject({
-      chainId: 'chain-1', order: 2, previousTaskId: 'b',
+      chainId: 'chain-1',
+      order: 2,
+      previousTaskId: 'b',
     });
     expect(b.tasks[2]!.chain!.nextTaskId).toBeUndefined();
   });
 
   it('adds dependencies when enforceDependencies is true', () => {
-    const b = board([
-      task({ id: 'a' }),
-      task({ id: 'b' }),
-    ]);
+    const b = board([task({ id: 'a' }), task({ id: 'b' })]);
     setChainMetadata(b, [b.tasks[0]!, b.tasks[1]!], 'chain-1', true);
     expect(b.tasks[1]!.dependsOn).toContain('a');
   });
@@ -377,10 +391,7 @@ describe('addDependencyToTask', () => {
   });
 
   it('throws when adding a cycle', () => {
-    const b = board([
-      task({ id: 'a', dependsOn: ['b'] }),
-      task({ id: 'b', dependsOn: ['a'] }),
-    ]);
+    const b = board([task({ id: 'a', dependsOn: ['b'] }), task({ id: 'b', dependsOn: ['a'] })]);
     expect(() => addDependencyToTask(b, b.tasks[0]!, b.tasks[1]!)).toThrow(
       'would create a dependency cycle',
     );
@@ -419,10 +430,7 @@ describe('normalizeDependencyIds', () => {
   });
 
   it('throws for circular dependency', () => {
-    const b = board([
-      task({ id: 'a', dependsOn: ['b'] }),
-      task({ id: 'b' }),
-    ]);
+    const b = board([task({ id: 'a', dependsOn: ['b'] }), task({ id: 'b' })]);
     expect(() => normalizeDependencyIds(b, 'b', ['a'])).toThrow('would create a dependency cycle');
   });
 });

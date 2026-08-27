@@ -76,9 +76,15 @@ export const domainMethods = {
     this.send({ type: 'session.new', payload: { ...(payload ?? {}) } });
   },
 
-  /** Ask for the identity-prompt catalogue (variants, token estimates, current). */
+  /**
+   * Ask for the identity-prompt catalogue (variants, token estimates, current).
+   *
+   * Stamped with the asking tab: the catalogue is shared but `current` is that
+   * session's own variant, and the reply comes back stamped so it lands on the
+   * right tab instead of overwriting whichever one asked last.
+   */
   getSystemPrompt(this: WsClientDomainHost) {
-    this.send({ type: 'system_prompt.get' });
+    this.send({ type: 'system_prompt.get', payload: this.withSession({}) });
   },
 
   /**

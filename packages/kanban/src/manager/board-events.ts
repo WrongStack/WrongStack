@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { requireSessionId } from '@wrongstack/primitives';
 import { appendBoardHistory, appendKanbanEvent } from '../storage.js';
 import type {
   KanbanAgentRunStatus,
@@ -12,20 +13,30 @@ export function createKanbanEvent(
   boardId: string,
   task: KanbanTask,
   type: string,
-  details: Partial<Omit<KanbanEvent, 'id' | 'boardId' | 'taskId' | 'type' | 'ts'>> = {},
+  details: Partial<Omit<KanbanEvent, 'id' | 'boardId' | 'taskId' | 'type' | 'ts' | 'sessionId'>> & {
+    sessionId: string;
+  },
 ): KanbanEvent {
+  // Read defensively: the type makes `details` required, but an untyped caller
+  // that omits it should hear the domain's own "session id is required", not a
+  // TypeError about reading a property of undefined.
+  const sessionId = requireSessionId(details?.sessionId, `kanban event ${type}`);
   return {
     id: randomUUID(),
     boardId,
     taskId: task.id,
     type,
     ts: nowIso(),
+    // Assignment-derived attribution first, caller details second: an explicit
+    // `actor` on the request describes who asked for this mutation and outranks
+    // whoever the card happens to be assigned to.
     ...(task.assignment?.agentId !== undefined ? { actor: task.assignment.agentId } : {}),
     ...(task.assignment?.subagentId !== undefined
       ? { subagentId: task.assignment.subagentId }
       : {}),
     ...(task.assignment?.runTaskId !== undefined ? { runTaskId: task.assignment.runTaskId } : {}),
-    ...details,
+    ...(details ?? {}),
+    sessionId,
   };
 }
 

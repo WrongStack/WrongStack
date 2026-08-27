@@ -133,7 +133,11 @@ describe('retry MODEL_RETRIES times, then the next model in the chain', () => {
       events,
       logger,
     });
-    const ctx = { provider: build('p1'), model: 'm1' } as never as {
+    const ctx = {
+      provider: build('p1'),
+      model: 'm1',
+      activeRunSessionId: '2026-08-26/sess_01TESTRETRYTHENHOP0000000',
+    } as never as {
       provider: { id: string };
       model: string;
     };

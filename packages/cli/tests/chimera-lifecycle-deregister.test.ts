@@ -26,6 +26,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createFleetStatusBroadcaster } from '../src/fleet/status-broadcast.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 type Runner = (task: TaskSpec, ctx: SubagentRunContext) => Promise<SubagentRunOutcome>;
 
 function makeFakeMailbox() {
@@ -63,6 +66,7 @@ describe('chimera subagent lifecycle → mailbox deregister', () => {
     }));
 
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'chimera-e2e',
         doneCondition: { type: 'all_tasks_done' },

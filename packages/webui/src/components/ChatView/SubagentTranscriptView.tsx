@@ -11,13 +11,25 @@
  * scrolling up releases the pin so long histories can be read in place.
  */
 
-import { AlertCircle, Bot, Brain, Check, CircleDot, Info, Wrench, X } from 'lucide-react';
-import { memo, useEffect, useRef } from 'react';
+import {
+  AlertCircle,
+  Bot,
+  Brain,
+  Check,
+  CircleDot,
+  Info,
+  Maximize2,
+  Wrench,
+  X,
+} from 'lucide-react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { TASK_PREVIEW_CHARS, taskBriefPreview } from '@/lib/task-brief-preview';
 import { cn } from '@/lib/utils';
 import type { AgentTranscriptEntry } from '@/stores';
-import { EMPTY_AGENT_TRANSCRIPT, useFleetStore } from '@/stores';
+import { EMPTY_AGENT_TRANSCRIPT, useFleetStore, useUIStore } from '@/stores';
 import { LazyMarkdown as ReactMarkdown } from '../MessageBubble/LazyMarkdown.js';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 
 /** Status chip tone for the slim identity header — mirrors AgentRosterCard. */
 const STATUS_CHIP: Record<string, string> = {
@@ -173,6 +185,8 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
   const { t } = useAppTranslation();
   const agent = useFleetStore((s) => s.agents.get(agentId));
   const entries = useFleetStore((s) => s.agentTranscripts.get(agentId) ?? EMPTY_AGENT_TRANSCRIPT);
+  const setSubagentChatFocus = useUIStore((s) => s.setSubagentChatFocus);
+  const [taskOpen, setTaskOpen] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const pinnedRef = useRef(true);
@@ -197,41 +211,82 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
 
   return (
     <div className="flex h-full min-h-0 flex-col" data-testid="subagent-transcript-view">
-      {/* Slim identity strip — who am I reading, at what state */}
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 bg-muted/20 px-3 py-1.5">
+      {/* Single chrome row: identity + clipped task preview + return.
+          Chimera briefs are multi-KB; only a one-line preview lives here. */}
+      <div
+        data-testid="subagent-task-strip"
+        className="flex h-8 max-h-8 shrink-0 items-center gap-1.5 overflow-hidden border-b border-border/60 bg-muted/20 px-3 text-xs"
+      >
         <Bot className="h-3.5 w-3.5 shrink-0 text-primary" />
-        <span className="truncate text-xs font-semibold text-foreground">
+        <span className="max-w-[9rem] shrink-0 truncate font-semibold text-foreground">
           {agent?.name ?? agentId}
         </span>
         {agent && (
           <span
             className={cn(
-              'rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider',
+              'shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wider',
               STATUS_CHIP[agent.status] ?? STATUS_CHIP.stopped,
             )}
           >
             {agent.status}
           </span>
         )}
-        <span className="flex-1" />
-        {agent != null && (
+        <span className="shrink-0 text-[9px] font-medium uppercase tracking-wider text-muted-foreground/80">
+          {t('activity:transcript.readOnly')}
+        </span>
+        {agent?.description ? (
           <>
-            <span className="tabular-nums text-[10px] text-muted-foreground">
-              iter {agent.iteration} · {agent.toolCalls} {t('activity:agents.tcSuffix')}
+            <span className="shrink-0 text-border" aria-hidden="true">
+              ·
             </span>
-            <span className="tabular-nums text-[10px] text-muted-foreground">
-              ${agent.costUsd.toFixed(4)}
+            <span className="shrink-0 font-semibold uppercase tracking-wide text-foreground/70">
+              {t('activity:transcript.taskLabel')}
             </span>
+            <button
+              type="button"
+              data-testid="subagent-task-preview"
+              onClick={() => setTaskOpen(true)}
+              title={t('activity:transcript.taskExpandTitle')}
+              className="min-w-0 flex-1 truncate text-left text-muted-foreground hover:text-foreground"
+            >
+              {taskBriefPreview(agent.description)}
+            </button>
+            {agent.description.length > TASK_PREVIEW_CHARS && (
+              <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground/70">
+                {t('activity:transcript.taskChars', { count: agent.description.length })}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setTaskOpen(true)}
+              title={t('activity:transcript.taskExpandTitle')}
+              aria-label={t('activity:transcript.taskExpandTitle')}
+              aria-expanded={taskOpen}
+              className="flex shrink-0 items-center gap-1 rounded border border-border/60 bg-background/70 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              <Maximize2 className="h-3 w-3" />
+              {t('activity:transcript.taskExpand')}
+            </button>
           </>
+        ) : (
+          <span className="flex-1" />
         )}
+        {agent != null && (
+          <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">
+            iter {agent.iteration} · {agent.toolCalls} {t('activity:agents.tcSuffix')} · $
+            {agent.costUsd.toFixed(4)}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setSubagentChatFocus(null)}
+          aria-label={t('activity:transcript.returnToLeader')}
+          className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/25"
+        >
+          <X className="h-3 w-3" />
+          {t('activity:transcript.returnToLeader')}
+        </button>
       </div>
-
-      {/* Task / Description brief */}
-      {agent?.description && (
-        <div className="shrink-0 border-b border-border/40 bg-muted/10 px-3 py-1.5 text-xs text-muted-foreground leading-relaxed">
-          <span className="font-semibold text-foreground/80">Task:</span> {agent.description}
-        </div>
-      )}
 
       {/* Transcript body */}
       <div
@@ -256,6 +311,31 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
           </div>
         )}
       </div>
+
+      {/* Full task brief — on-demand modal (opened from the strip above) */}
+      {agent?.description && (
+        <Dialog open={taskOpen} onOpenChange={setTaskOpen}>
+          <DialogContent className="flex max-h-[85dvh] max-w-3xl flex-col gap-3 overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 pr-6 text-base">
+                <Bot className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate">
+                  {agent.name ?? agentId} · {t('activity:transcript.taskModalTitle')}
+                </span>
+              </DialogTitle>
+              <DialogDescription className="sr-only">
+                {t('activity:transcript.taskModalDescription')}
+              </DialogDescription>
+            </DialogHeader>
+            <pre
+              data-testid="subagent-task-full"
+              className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-md border border-border/60 bg-muted/30 px-3 py-2.5 font-mono text-xs leading-relaxed text-foreground/85"
+            >
+              {agent.description}
+            </pre>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

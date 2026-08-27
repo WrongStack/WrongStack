@@ -1,5 +1,5 @@
-import type React from 'react';
 import { systemPromptVariantLabel } from '@wrongstack/core/agent';
+import type React from 'react';
 import { Text } from '../ink.js';
 import { activeMemoryContextCount } from '../memory-context-monitor.js';
 import { getActiveThemeName, theme } from '../theme.js';
@@ -15,20 +15,9 @@ import {
   renderMeter,
   truncateChip,
 } from './status-bar-format.js';
-import {
-  countdownColor,
-  formatSuggestionLabel,
-  modeIcon,
-} from './status-bar-helpers.js';
-import {
-  chipColor,
-  STATUSLINE_ICONS,
-} from './status-bar-icons.js';
-import type {
-  FleetAgentDetail,
-  MailboxStatus,
-  StatusBarProps,
-} from './status-bar-types.js';
+import { countdownColor, formatSuggestionLabel, modeIcon } from './status-bar-helpers.js';
+import { chipColor, STATUSLINE_ICONS } from './status-bar-icons.js';
+import type { FleetAgentDetail, MailboxStatus, StatusBarProps } from './status-bar-types.js';
 import type { StatuslineItem } from './statusline-picker.js';
 
 export interface StatusBarRailBuildParams {
@@ -119,7 +108,19 @@ export interface StatusBarRailBuildParams {
 }
 
 export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactElement[] {
-  const { context, showTokenDisplay, cost, cache, showChip, isNoColor, displayTokens, contextStrategy, queueCount, hint, breakerCountdown } = p;
+  const {
+    context,
+    showTokenDisplay,
+    cost,
+    cache,
+    showChip,
+    isNoColor,
+    displayTokens,
+    contextStrategy,
+    queueCount,
+    hint,
+    breakerCountdown,
+  } = p;
   return [
     (context || showTokenDisplay || (cost?.total ?? 0) > 0 || (cache?.hitRatio ?? 0) > 0) &&
     (showChip('context') || showChip('tokens') || showChip('cost') || showChip('cache'))
@@ -210,18 +211,7 @@ export function buildWorkspaceChipEntries(
   p: StatusBarRailBuildParams,
   modelStatusChip: React.ReactElement | null,
 ): RailSpanEntry[] {
-  const {
-    showChip,
-    isNoColor,
-    projectName,
-    workingDir,
-    git,
-    modeLabel,
-    themeName,
-    sessionCount,
-    toolCount,
-    promptVariant,
-  } = p;
+  const { showChip, isNoColor, projectName, workingDir, git, modeLabel, promptVariant } = p;
   return (
     [
       {
@@ -280,39 +270,6 @@ export function buildWorkspaceChipEntries(
             </Text>
           ) : null,
       },
-      {
-        id: 'theme',
-        node:
-          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
-            <Text color={chipColor(theme.brand, isNoColor)}>
-              {isNoColor
-                ? truncateChip(themeName ?? getActiveThemeName(), 24)
-                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
-            </Text>
-          ) : null,
-      },
-      {
-        id: 'sessions',
-        node:
-          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-      },
-      {
-        id: 'tools',
-        node:
-          toolCount != null && showChip('tools') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-      },
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
@@ -331,6 +288,9 @@ export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanE
     sideEffectCount,
     showEternalStage,
     eternalStage,
+    sessionCount,
+    toolCount,
+    themeName,
   } = p;
   return (
     [
@@ -412,12 +372,64 @@ export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanE
             </Text>
           ) : null,
       },
+      {
+        id: 'sessions',
+        node:
+          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'tools',
+        node:
+          toolCount != null && showChip('tools') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'theme',
+        node:
+          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
+            <Text color={chipColor(theme.brand, isNoColor)}>
+              {isNoColor
+                ? truncateChip(themeName ?? getActiveThemeName(), 24)
+                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
+            </Text>
+          ) : null,
+      },
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
 
 export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactElement[] {
-  const { showChip, thinking, statePrefix, stateLabel, animationStyle, spinnerIdx, cycleTick, isNoColor, stateColor, model, provider, context, showTokenDisplay, displayTokens, yolo, autonomy, fleetWorkingTime, minimalWorkParts } = p;
+  const {
+    showChip,
+    thinking,
+    statePrefix,
+    stateLabel,
+    animationStyle,
+    spinnerIdx,
+    cycleTick,
+    isNoColor,
+    stateColor,
+    model,
+    provider,
+    context,
+    showTokenDisplay,
+    displayTokens,
+    yolo,
+    autonomy,
+    fleetWorkingTime,
+    minimalWorkParts,
+  } = p;
   return [
     showChip('state') && thinking ? (
       <ThinkingChip
@@ -456,9 +468,7 @@ export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactEleme
       : null,
     showTokenDisplay && showChip('tokens') ? (
       <Text color={chipColor(theme.textSecondary, isNoColor)}>
-        ↑
-        <Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.input)}</Text>{' '}
-        ↓
+        ↑<Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.input)}</Text> ↓
         <Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.output)}</Text>
       </Text>
     ) : null,
@@ -750,7 +760,9 @@ export function buildWorkRowEntries(p: StatusBarRailBuildParams): RailSpanEntry[
         node:
           droppedTools && droppedTools > 0 && showChip('dropped_tools') ? (
             <Text color={isNoColor ? undefined : theme.warn}>
-              {isNoColor ? `-${droppedTools} tools` : `${STATUSLINE_ICONS.dropped_tools} -${droppedTools}`}
+              {isNoColor
+                ? `-${droppedTools} tools`
+                : `${STATUSLINE_ICONS.dropped_tools} -${droppedTools}`}
             </Text>
           ) : null,
       },
@@ -845,7 +857,6 @@ export function buildConnectivityChipEntries(p: StatusBarRailBuildParams): RailS
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
 
-
 export function buildIndexStatusChip(
   indexState: StatusBarProps['indexState'],
   showChip: (item: StatuslineItem) => boolean,
@@ -903,7 +914,9 @@ export function buildMemoryDetailChips(
   // an index-only line 4 renders the index chip without a bare `✦ Memory`.
   if (!Sage && !memorySummary) return [];
   const memoryDetailChips: React.ReactElement[] = [];
-  const liveActive = memoryContextMonitor ? activeMemoryContextCount(memoryContextMonitor as never) : 0;
+  const liveActive = memoryContextMonitor
+    ? activeMemoryContextCount(memoryContextMonitor as never)
+    : 0;
   const reportedActive = memoryContextMonitor ? liveActive : (Sage?.activeInContext ?? 0);
   memoryDetailChips.push(
     <Text color={chipColor(theme.accent, isNoColor)} key="mem-label">

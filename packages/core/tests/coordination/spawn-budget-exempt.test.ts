@@ -16,9 +16,12 @@ import { Director, FleetSpawnBudgetError } from '../../src/coordination/director
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
 import type {
   MultiAgentConfig,
-  SubagentRunOutcome,
   SubagentRunner,
+  SubagentRunOutcome,
 } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 function makeConfig(): MultiAgentConfig {
   return {
@@ -52,6 +55,7 @@ describe('spawnBudgetExempt — FleetManager path (production default)', () => {
   it('ladder exhaustion + rung termination does not consume the leader spawn budget', async () => {
     const fleetManager = new FleetManager({ maxSpawns: 1 });
     const d = new Director({
+      sessionId: TEST_SESSION_ID,
       config: makeConfig(),
       runner: makeRunner(),
       maxSpawns: 1,
@@ -74,6 +78,7 @@ describe('spawnBudgetExempt — FleetManager path (production default)', () => {
   it('admits exempt spawns even when the leader budget is already exhausted', async () => {
     const fleetManager = new FleetManager({ maxSpawns: 1 });
     const d = new Director({
+      sessionId: TEST_SESSION_ID,
       config: makeConfig(),
       runner: makeRunner(),
       maxSpawns: 1,
@@ -95,6 +100,7 @@ describe('spawnBudgetExempt — FleetManager path (production default)', () => {
 describe('spawnBudgetExempt — inline path (no FleetManager)', () => {
   it('does not increment Director.spawnCount and bypasses only the max_spawns check', async () => {
     const d = new Director({
+      sessionId: TEST_SESSION_ID,
       config: makeConfig(),
       runner: makeRunner(),
       maxSpawns: 1,

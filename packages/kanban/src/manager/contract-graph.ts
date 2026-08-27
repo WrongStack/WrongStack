@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import { requireSessionId } from '@wrongstack/primitives';
 import {
   createEmptyContractGraph,
   evaluateContractGraph,
   taskContractEndpoint,
 } from '../contract-graph.js';
 import { mutateBoard, readBoard } from '../storage.js';
-import type { KanbanBoard, KanbanEvent, KanbanTask } from '../types.js';
+import type { KanbanBoard, KanbanEvent, KanbanEventContext, KanbanTask } from '../types.js';
 import type {
   KanbanContractEdge,
   KanbanContractEdgeType,
@@ -69,7 +70,9 @@ export async function configureContractGraph(
   projectRoot: string,
   boardId: string,
   enforcement: KanbanContractGraphEnforcement,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
+  const sessionId = requireSessionId(eventContext.sessionId, 'configure kanban contract graph');
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const now = nowIso();
@@ -82,6 +85,8 @@ export async function configureContractGraph(
       boardId: board.id,
       type: 'contract.graph.configured',
       ts: now,
+      sessionId,
+      ...(eventContext.actor !== undefined ? { actor: eventContext.actor } : {}),
       after: { enforcement },
     };
     return true;
@@ -94,7 +99,9 @@ export async function upsertContractNode(
   projectRoot: string,
   boardId: string,
   input: UpsertKanbanContractNodeInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; node: KanbanContractNode } | null> {
+  const sessionId = requireSessionId(eventContext.sessionId, 'upsert kanban contract node');
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, input.taskId);
@@ -179,9 +186,14 @@ export async function upsertContractNode(
       task,
       existing ? 'contract.node.updated' : 'contract.node.added',
       {
+        sessionId,
         ...(before ? { before } : {}),
         after: { ...node },
-        ...(input.createdBy ? { actor: input.createdBy } : {}),
+        ...(eventContext.actor !== undefined
+          ? { actor: eventContext.actor }
+          : input.createdBy
+            ? { actor: input.createdBy }
+            : {}),
       },
     );
     return node;
@@ -194,7 +206,9 @@ export async function addContractEdge(
   projectRoot: string,
   boardId: string,
   input: AddKanbanContractEdgeInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; edge: KanbanContractEdge } | null> {
+  const sessionId = requireSessionId(eventContext.sessionId, 'add kanban contract edge');
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const now = nowIso();
@@ -225,8 +239,13 @@ export async function addContractEdge(
     const ownerTask = taskForEndpoint(board, graph, from) ?? taskForEndpoint(board, graph, to);
     if (ownerTask) {
       event = createKanbanEvent(board.id, ownerTask, 'contract.edge.added', {
+        sessionId,
         after: { ...edge },
-        ...(input.createdBy ? { actor: input.createdBy } : {}),
+        ...(eventContext.actor !== undefined
+          ? { actor: eventContext.actor }
+          : input.createdBy
+            ? { actor: input.createdBy }
+            : {}),
       });
     }
     return edge;
@@ -239,7 +258,9 @@ export async function removeContractNode(
   projectRoot: string,
   boardId: string,
   nodeId: string,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
+  const sessionId = requireSessionId(eventContext.sessionId, 'remove kanban contract node');
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const graph = board.contractGraph;
@@ -252,7 +273,13 @@ export async function removeContractNode(
     graph.edges = graph.edges.filter((edge) => edge.from !== nodeId && edge.to !== nodeId);
     graph.updatedAt = nowIso();
     board.updatedAt = graph.updatedAt;
-    if (task) event = createKanbanEvent(board.id, task, 'contract.node.removed', { before: node });
+    if (task) {
+      event = createKanbanEvent(board.id, task, 'contract.node.removed', {
+        sessionId,
+        before: node,
+        ...(eventContext.actor !== undefined ? { actor: eventContext.actor } : {}),
+      });
+    }
     return true;
   });
   if (updated?.result && event) await emitKanbanEvent(projectRoot, event);
@@ -263,7 +290,9 @@ export async function removeContractEdge(
   projectRoot: string,
   boardId: string,
   edgeId: string,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
+  const sessionId = requireSessionId(eventContext.sessionId, 'remove kanban contract edge');
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const graph = board.contractGraph;
@@ -278,7 +307,11 @@ export async function removeContractEdge(
       ? (taskForEndpoint(board, graph, removed.from) ?? taskForEndpoint(board, graph, removed.to))
       : undefined;
     if (task && removed) {
-      event = createKanbanEvent(board.id, task, 'contract.edge.removed', { before: removed });
+      event = createKanbanEvent(board.id, task, 'contract.edge.removed', {
+        sessionId,
+        before: removed,
+        ...(eventContext.actor !== undefined ? { actor: eventContext.actor } : {}),
+      });
     }
     return true;
   });

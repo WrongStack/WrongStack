@@ -5,9 +5,11 @@
  */
 
 import * as path from 'node:path';
+import type { Agent } from '@wrongstack/core/agent';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import { PromptUsageStore } from '@wrongstack/core/storage';
+import type { SessionWriter } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   type BrainHandlerContext,
@@ -27,7 +29,6 @@ import {
 } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
 import type { CliWebUIOptions } from '../webui-server-options.js';
-import type { Agent } from '@wrongstack/core/agent';
 import type { WSServerMessage } from './contracts.js';
 import { loadSavedProviders } from './provider-config.js';
 
@@ -42,7 +43,8 @@ export interface RouteContextsParams {
   buildSessionStartPayload: (
     overrides?: Record<string, unknown>,
   ) => Promise<Record<string, unknown>>;
-  prefSnapshot: () => Record<string, unknown>;
+  /** Preference snapshot for one tab's meta; the leader's when none is named. */
+  prefSnapshot: (meta?: Record<string, unknown> | undefined) => Record<string, unknown>;
   persistPrefs: (patch: Record<string, unknown>) => Promise<void>;
   pendingConfirms: Map<string, PendingConfirm>;
   abortControllers: Map<string, AbortController>;
@@ -54,6 +56,19 @@ export interface RouteContextsParams {
    * right, one instance for four tabs was not.
    */
   getSessionAgent: (sessionId?: string | undefined) => Agent;
+  /** Does the host already hold an open writer for that session? */
+  isSessionLive: (sessionId: string) => boolean;
+  /**
+   * The host's foreground-session pointer. Kept OUT of the leader agent's
+   * context: that context is the boot tab's runtime, and using it as the
+   * pointer made every resume re-point the boot tab.
+   */
+  getForegroundSession: () => SessionWriter;
+  setForegroundSession: (next: SessionWriter) => void;
+  /** Live connections, so `session.subscribe` has somewhere to land. */
+  clients: Map<WebSocket, { sessionId: string | null; sessionIds?: Set<string> | undefined }>;
+  /** Retire the per-tab agents of sessions nobody is displaying any more. */
+  onSessionsUndisplayed: (sessionIds: string[]) => void;
   /** Stop the subagents one session spawned, when that session is aborted. */
   stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
   getAbortController: () => AbortController | null;
@@ -76,6 +91,11 @@ export function createWebuiRouteContexts({
   pendingConfirms,
   abortControllers,
   getSessionAgent,
+  isSessionLive,
+  getForegroundSession,
+  setForegroundSession,
+  clients,
+  onSessionsUndisplayed,
   stopSessionFleet,
   getAbortController,
   clearAbortController,
@@ -148,10 +168,16 @@ export function createWebuiRouteContexts({
     ),
   };
 
-  const designCtx: DesignContext = {
+  /**
+   * The Design Studio kit is a conversation-level choice — it rides the
+   * system prompt and changes what the agent writes. Pinned on the leader it
+   * re-styled whichever tab happened to boot the process, so it is resolved
+   * against the tab that picked it.
+   */
+  const designCtx = (sessionId?: string | undefined): DesignContext => ({
     projectRoot: skillsProjectRoot,
-    agentMeta: opts.agent.ctx,
-  };
+    agentMeta: (sessionId ? getSessionAgent(sessionId)?.ctx : undefined) ?? opts.agent.ctx,
+  });
 
   const agentConfigCtx: EmbeddedAgentConfigContext = {
     agent: opts.agent,
@@ -171,9 +197,22 @@ export function createWebuiRouteContexts({
   const promptProjectRoot = (): string =>
     opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string | undefined }).projectRoot ?? '';
 
+  /**
+   * The meta bag of one tab.
+   *
+   * Session-scoped preferences are written to, and read from, the session's
+   * own context. This host used to hand the prefs handlers only the leader's
+   * meta, so every tab's autonomy / yolo / reasoning / context-strategy write
+   * landed on the leader and every read answered from it — the per-session
+   * preference work never applied to the host people actually run.
+   */
+  const metaForSession = (sessionId?: string | undefined): Record<string, unknown> =>
+    (sessionId ? getSessionAgent(sessionId)?.ctx.meta : undefined) ?? opts.agent.ctx.meta;
+
   const prefsCtx: PrefsHandlerContext = {
     meta: opts.agent.ctx.meta,
-    snapshot: prefSnapshot,
+    metaFor: metaForSession,
+    snapshot: (sessionId) => prefSnapshot(sessionId ? metaForSession(sessionId) : undefined),
     persist: persistPrefs,
     setYolo: opts.onYoloSwitch,
     setAutonomy: opts.onAutonomySwitch,
@@ -192,7 +231,7 @@ export function createWebuiRouteContexts({
       current: () => opts.appConfig?.systemPrompt?.variant ?? 'default',
       // Patch the live config before rebuilding — `persistPrefs` writes the
       // file, and the builder reads the variant off the in-memory object.
-      applyVariant: async (variant) => {
+      applyVariant: async (variant, sessionId) => {
         if (opts.appConfig) {
           opts.appConfig = {
             ...opts.appConfig,
@@ -203,6 +242,13 @@ export function createWebuiRouteContexts({
           | import('@wrongstack/core/registry').ToolRegistry
           | undefined;
         if (!tools || !opts.appConfig) return;
+        // Rebuild the prompt of the tab that asked. This used to rebuild the
+        // LEADER's — the boot tab's runtime — so picking a lighter identity in
+        // one tab quietly rewrote the system prompt of the conversation in
+        // another. The variant is a per-session preference; the config write
+        // above is only the default a new tab inherits.
+        const targetCtx = sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx;
+        targetCtx.meta['systemPromptVariant'] = variant;
         await rebuildSystemPrompt(
           {
             modeStore: opts.modeStore,
@@ -214,15 +260,15 @@ export function createWebuiRouteContexts({
               supportsVision: !!opts.agent.ctx.provider?.capabilities?.vision,
               supportsReasoning: !!opts.agent.ctx.provider?.capabilities?.reasoning,
             },
-            context: opts.agent.ctx,
+            context: targetCtx,
             toolRegistry: tools,
             getConfig: () => opts.appConfig as NonNullable<typeof opts.appConfig>,
             projectRoot: promptProjectRoot(),
             globalRoot,
             container: opts.agent.container,
           },
-          typeof opts.agent.ctx.meta['mode'] === 'string'
-            ? (opts.agent.ctx.meta['mode'] as string)
+          typeof targetCtx.meta['mode'] === 'string'
+            ? (targetCtx.meta['mode'] as string)
             : 'default',
         );
       },
@@ -233,6 +279,8 @@ export function createWebuiRouteContexts({
 
   const projectsCtx: EmbeddedProjectContext = {
     opts,
+    getForegroundSession,
+    setForegroundSession,
     abortControllers,
     abortLegacyRun: () => {
       const controller = getAbortController();
@@ -263,6 +311,15 @@ export function createWebuiRouteContexts({
     // Session transitions must re-point the TARGET session's context, not the
     // leader's — resuming tab 2 was rewriting the context tab 1 ran in.
     getAgent: getSessionAgent,
+    // Session-keyed, so "is this tab running" is answered per tab and not
+    // "is anything running in this process".
+    isRunActive: (sessionId) =>
+      sessionId ? abortControllers.has(sessionId) : abortControllers.size > 0,
+    isSessionLive,
+    getForegroundSession,
+    setForegroundSession,
+    clients,
+    onSessionsUndisplayed,
     send,
     broadcast,
     log: (m) => console.log(m),

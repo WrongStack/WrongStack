@@ -94,12 +94,10 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'hq-url') {
       const raw = rest.join(' ').trim();
-      if (!raw)
-        return { message: `${color.amber('Usage:')} /settings hq-url <http://host:3499>` };
+      if (!raw) return { message: `${color.amber('Usage:')} /settings hq-url <http://host:3499>` };
       try {
         const url = new URL(raw);
-        if (url.protocol !== 'http:' && url.protocol !== 'https:')
-          throw new Error('bad protocol');
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('bad protocol');
       } catch {
         return { message: `${color.red('Invalid URL')}: ${raw}` };
       }
@@ -114,8 +112,7 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'hq-token') {
       const token = rest.join(' ').trim();
-      if (!token)
-        return { message: `${color.amber('Usage:')} /settings hq-token <client-token>` };
+      if (!token) return { message: `${color.amber('Usage:')} /settings hq-token <client-token>` };
       await persistConfigSetting({ ...persistDeps, forceGlobal: true }, (cfg) => {
         const hq = (cfg.hq as Record<string, unknown> | undefined) ?? {};
         hq.token = token;
@@ -315,9 +312,8 @@ export async function executeSettingsSubcommand(
 
     if (sub === 'refiner-model') {
       const raw = rest.join(' ').trim();
-      const currentModel = (
-        opts.configStore.get().autonomy as Record<string, unknown> | undefined
-      )?.refinerModel as string | undefined;
+      const currentModel = (opts.configStore.get().autonomy as Record<string, unknown> | undefined)
+        ?.refinerModel as string | undefined;
       if (!raw) {
         return {
           message: `${color.amber('Usage:')} /settings refiner-model <modelId>   ${color.dim('(must be a favorite or the active model; e.g. "gpt-4o-mini")' + (currentModel ? ` Current: ${currentModel}` : ''))}`,
@@ -369,8 +365,7 @@ export async function executeSettingsSubcommand(
         };
       }
       await persistConfigSetting({ ...persistDeps, inProjectConfigPath: undefined }, (cfg) => {
-        const ext =
-          (cfg.extensions as Record<string, Record<string, unknown>> | undefined) ?? {};
+        const ext = (cfg.extensions as Record<string, Record<string, unknown>> | undefined) ?? {};
         ext['semver-bump'] = { ...ext['semver-bump'], defaultPart: raw };
         cfg.extensions = ext;
       });
@@ -491,6 +486,74 @@ export async function executeSettingsSubcommand(
       });
       return {
         message: `${color.green('✓')} nextsteps tool → ${on ? color.cyan('on') : color.dim('off')}   ${color.dim('takes effect in the next session')}`,
+      };
+    }
+
+    // ── Auto-thinning (tools.autoThin) ────────────────────────────────
+    if (sub === 'autothin' || sub === 'auto-thin') {
+      const raw = (rest[0] ?? '').toLowerCase();
+      if (!['on', 'off', 'status'].includes(raw)) {
+        return { message: `${color.amber('Usage:')} /settings autothin on|off|status` };
+      }
+      if (raw === 'status') {
+        return { message: 'Use `/tool autothin status` for the live read-out.' };
+      }
+      const on = raw === 'on';
+      await persistConfigSetting(persistDeps, (cfg) => {
+        const tools = (cfg.tools as Record<string, unknown>) ?? {};
+        const existing = (tools.autoThin as Record<string, unknown> | undefined) ?? {};
+        tools.autoThin = { ...existing, enabled: on };
+        cfg.tools = tools;
+      });
+      return {
+        message: `${color.green('✓')} tools.autoThin.enabled → ${on ? color.cyan('true') : color.dim('false')}   ${color.dim('use /tool autothin candidates|apply|undo')}`,
+      };
+    }
+
+    if (sub === 'autothin-idle') {
+      const n = Number(rest[0]);
+      if (!Number.isFinite(n) || n < 0) {
+        return { message: `${color.amber('Usage:')} /settings autothin-idle <days>` };
+      }
+      await persistConfigSetting(persistDeps, (cfg) => {
+        const tools = (cfg.tools as Record<string, unknown>) ?? {};
+        const existing = (tools.autoThin as Record<string, unknown> | undefined) ?? {};
+        tools.autoThin = { ...existing, idleDays: n };
+        cfg.tools = tools;
+      });
+      return { message: `${color.green('✓')} tools.autoThin.idleDays → ${color.cyan(String(n))}` };
+    }
+
+    if (sub === 'autothin-min') {
+      const n = Number(rest[0]);
+      if (!Number.isFinite(n) || n < 0) {
+        return { message: `${color.amber('Usage:')} /settings autothin-min <count>` };
+      }
+      await persistConfigSetting(persistDeps, (cfg) => {
+        const tools = (cfg.tools as Record<string, unknown>) ?? {};
+        const existing = (tools.autoThin as Record<string, unknown> | undefined) ?? {};
+        tools.autoThin = { ...existing, minInvocations: n };
+        cfg.tools = tools;
+      });
+      return {
+        message: `${color.green('✓')} tools.autoThin.minInvocations → ${color.cyan(String(n))}`,
+      };
+    }
+
+    if (sub === 'autothin-boot') {
+      const raw = (rest[0] ?? '').toLowerCase();
+      if (!['on', 'off'].includes(raw)) {
+        return { message: `${color.amber('Usage:')} /settings autothin-boot on|off` };
+      }
+      const on = raw === 'on';
+      await persistConfigSetting(persistDeps, (cfg) => {
+        const tools = (cfg.tools as Record<string, unknown>) ?? {};
+        const existing = (tools.autoThin as Record<string, unknown> | undefined) ?? {};
+        tools.autoThin = { ...existing, applyOnBoot: on };
+        cfg.tools = tools;
+      });
+      return {
+        message: `${color.green('✓')} tools.autoThin.applyOnBoot → ${on ? color.cyan('true') : color.dim('false')}`,
       };
     }
 
@@ -834,8 +897,7 @@ export async function executeSettingsSubcommand(
         return {
           message: `${color.amber('Usage:')} /settings thinking-word <word>   ${color.dim('single short word, e.g. "thinking", "vibing", "cooking"')}`,
         };
-      if (raw.length > 16)
-        return { message: `${color.red('Word too long')}: max 16 characters.` };
+      if (raw.length > 16) return { message: `${color.red('Word too long')}: max 16 characters.` };
       await persistAutonomySetting(persistDeps, (autonomy) => {
         (autonomy as Record<string, unknown>).thinkingWord = raw;
       });

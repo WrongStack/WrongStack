@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createBoard, getBoard, pruneSessionBoards } from '../src/manager.js';
 import { writeBoard } from '../src/storage.js';
+import { createBoard, getBoard, pruneSessionBoards } from './helpers/session-manager.js';
 
 let tmpDir: string;
 

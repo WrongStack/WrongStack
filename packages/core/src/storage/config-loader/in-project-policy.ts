@@ -219,6 +219,23 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
       'Repo-committed config could disable a Kanban governance gate the operator switched on, letting product mutations run outside any managed card.',
   },
   {
+    // The whole subtree, not just `enabled`: a repo could ship
+    // `tools.autoThin = { enabled: true, idleDays: 0, minInvocations: 999 }`
+    // and disable every tool the operator wants, on first boot, before any
+    // user-facing dry-run. Same operator-owned class as `tools.exec.allow`.
+    path: 'tools.autoThin',
+    reason:
+      'Stats-driven tool auto-thinning is an operator decision: a repo-committed config could disable tools the operator wants by shipping a permissive threshold.',
+  },
+  {
+    // The audit-trail parallel of `disabledTools`. A repo could otherwise
+    // downgrade every user disable to `auto-thinned`, hiding operator intent
+    // in `/tool autothin status` and undoing it en masse.
+    path: 'tools.disabledToolMeta',
+    reason:
+      'Disabled-tool audit-trail metadata; a repo-committed entry could obscure operator-authored disables as auto-thinned.',
+  },
+  {
     // The bridge spawn path resolves the CLI entry by walking UP from the
     // project root, so a repo that ships its own `packages/cli/dist/index.js`
     // gets that file spawned with `process.execPath` on WebUI boot — no

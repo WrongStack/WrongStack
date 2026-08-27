@@ -13,7 +13,18 @@ import {
   recoverStaleTaskAssignments,
   resolveGateEnforcement,
 } from '@wrongstack/kanban';
+import { systemSessionId } from '@wrongstack/primitives';
 import { publishKanbanBoard } from './kanban-broadcast.js';
+
+/**
+ * The supervisor repairs boards on a timer, not on a tab's request, so its
+ * events are attributed to the daemon rather than to whichever session
+ * happens to be open.
+ */
+const SUPERVISOR_EVENT_CONTEXT = {
+  sessionId: systemSessionId('kanban-supervisor'),
+  actor: 'kanban-supervisor',
+} as const;
 
 export interface KanbanSupervisorDispatchOptions {
   provider?: string | undefined;
@@ -152,7 +163,11 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
       return snapshot;
     }
 
-    const reconciled = await reconcileKanbanBoard(resolveProjectRoot(deps), board.id);
+    const reconciled = await reconcileKanbanBoard(
+      resolveProjectRoot(deps),
+      board.id,
+      SUPERVISOR_EVENT_CONTEXT,
+    );
     // Completion-gate sweep: catch tasks whose worker marked its assignment
     // completed through a path that never called finalizeTaskCompletion
     // (third-party board writers). They are parked in review by
@@ -160,10 +175,15 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     const gateSwept = await sweepGateParkedTasks(deps, reconciled?.board ?? board);
     let health = await getKanbanQueueHealth(resolveProjectRoot(deps), { boardId: board.id });
     const recovered = health.staleAssignments.count
-      ? await recoverStaleTaskAssignments(resolveProjectRoot(deps), board.id, {
-          mode: config.recoveryMode ?? 'auto',
-          reason: 'Kanban supervisor found an expired worker lease.',
-        })
+      ? await recoverStaleTaskAssignments(
+          resolveProjectRoot(deps),
+          board.id,
+          {
+            mode: config.recoveryMode ?? 'auto',
+            reason: 'Kanban supervisor found an expired worker lease.',
+          },
+          SUPERVISOR_EVENT_CONTEXT,
+        )
       : null;
     if (recovered)
       health = await getKanbanQueueHealth(resolveProjectRoot(deps), { boardId: board.id });
@@ -389,7 +409,7 @@ async function sweepGateParkedTasks(
   for (const task of parked) {
     try {
       const finalized = await finalizeTaskCompletion(resolveProjectRoot(deps), board.id, task.id, {
-        eventContext: { actor: 'kanban-supervisor' },
+        eventContext: SUPERVISOR_EVENT_CONTEXT,
       });
       if (finalized) lastBoard = finalized.board;
     } catch (error) {

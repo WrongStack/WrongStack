@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { addTask, createBoard, getBoard } from '@wrongstack/kanban';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
 import { handleKanbanRoute, KANBAN_CLIENT_MESSAGE_TYPES } from '../src/server/kanban-routes.js';
@@ -43,6 +44,9 @@ function makeCtx() {
   return {
     ctx: {
       projectRoot: tmpDir,
+      // The tab that sent the request; every board event it triggers is
+      // attributed to it.
+      requestSessionId: '2026-08-26/sess_01TESTWEBUIKANBANROUTE00',
       broadcast: (message: WSServerMessage) => {
         broadcasts.push(message);
       },

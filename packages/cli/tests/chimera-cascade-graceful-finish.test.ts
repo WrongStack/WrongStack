@@ -24,6 +24,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReviewerAttempt } from '../src/chimera-reviewer-policy.js';
 import { runSubagentModelLadder } from '../src/chimera-subagent-ladder.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 type Runner = (task: TaskSpec, ctx: SubagentRunContext) => Promise<SubagentRunOutcome>;
 
 /** Two rungs, mirroring a cascade ladder — rung 1 must never be reached. */
@@ -68,6 +71,7 @@ describe('cascade ladder × graceful finish (integrated)', () => {
     });
 
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'cascade-graceful-finish',
         doneCondition: { type: 'all_tasks_done' },

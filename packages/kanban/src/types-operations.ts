@@ -13,6 +13,7 @@ import type {
   KanbanColumn,
   KanbanCompletionGatePolicy,
   KanbanDecompositionProposal,
+  KanbanEventContext,
   KanbanExpectedFileChange,
   KanbanGoalMetric,
   KanbanGoalMetricStatus,
@@ -187,6 +188,12 @@ export interface UpdateKanbanTaskInput {
 export interface KanbanTaskTransitionInput {
   to: KanbanLifecycleStage;
   actor: string;
+  /**
+   * Session that owns this transition. A refused Done transition records a
+   * gate refusal, and that refusal is a durable board event — so the caller
+   * must name the session it belongs to even on the failure path.
+   */
+  sessionId: string;
   action?: string | undefined;
   comment?: string | undefined;
   attachment?: KanbanLink | undefined;
@@ -247,7 +254,16 @@ export interface CopyKanbanTaskOptions {
   targetOrder?: number | undefined;
   preserveAssignment?: boolean | undefined;
   preserveDependencies?: boolean | undefined;
+  /** Session that owns the copy — stamped on the events it emits. */
+  eventContext: KanbanEventContext;
 }
+
+/**
+ * Shape of a task clone that emits nothing. `cloneTaskForBoard` builds a task
+ * object in memory; the caller that persists it owns the event, so this half
+ * of the options carries no session.
+ */
+export type CloneTaskForBoardOptions = Omit<CopyKanbanTaskOptions, 'eventContext'>;
 
 export interface AssignKanbanTaskInput {
   agentId?: string | undefined;

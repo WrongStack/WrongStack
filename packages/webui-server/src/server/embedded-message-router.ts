@@ -133,7 +133,11 @@ export interface EmbeddedMessageRouterDeps {
   introspectionCtx: IntrospectionRouteContext;
   skillsCtx: SkillsContext;
   promptsCtx: PromptsContext;
-  designCtx: DesignContext;
+  /**
+   * Built per tab: the active design kit is pinned on the picking session's
+   * own meta, so the CLI host resolves that session's context here.
+   */
+  designCtx: DesignContext | ((sessionId?: string | undefined) => DesignContext);
   agentConfigCtx: EmbeddedAgentConfigContext;
   prefsCtx: PrefsHandlerContext;
   projectCtx: EmbeddedProjectContext;
@@ -589,7 +593,8 @@ export function createEmbeddedMessageRouter(
       getProjectRoot: projectRoot,
       getSkillsContext: () => deps.skillsCtx,
       getPromptsContext: () => deps.promptsCtx,
-      getDesignContext: () => deps.designCtx,
+      getDesignContext: (sessionId) =>
+        typeof deps.designCtx === 'function' ? deps.designCtx(sessionId) : deps.designCtx,
     },
     chronicle: { getProjectRoot: projectRoot, send },
     introspection: deps.introspectionCtx,

@@ -17,18 +17,21 @@
  *
  * @priority T1, T4
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
-import { TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
+import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import type {
   BudgetKind,
   BudgetLimits,
   BudgetThresholdDecision,
 } from '../../src/coordination/subagent-budget.js';
+import { TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -46,10 +49,7 @@ const makeConfig = (overrides: Record<string, unknown> = {}) => ({
  * (no further tool.executed / iteration.started events). Used to trigger
  * the heartbeat gate deny at the pre-empt point.
  */
-function makeStoppedProgressAgent(opts: {
-  progressMs: number;
-  events: EventBus;
-}): Agent {
+function makeStoppedProgressAgent(opts: { progressMs: number; events: EventBus }): Agent {
   const { progressMs, events } = opts;
   return {
     async run(_input: unknown, runOpts: { signal: AbortSignal }): Promise<RunResult> {
@@ -113,7 +113,10 @@ describe('T1: denied pre-empt falls through to deadline', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1', timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -179,7 +182,10 @@ describe('T1: denied pre-empt falls through to deadline', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's2', name: 'S2', timeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -234,10 +240,7 @@ describe('T4: concurrent multi-kind exceeded reports correct kind to handler', (
       return 'continue';
     };
 
-    const budget = new SubagentBudget(
-      { maxIterations: 5, maxTokens: 1000 },
-      'auto',
-    );
+    const budget = new SubagentBudget({ maxIterations: 5, maxTokens: 1000 }, 'auto');
     budget.onThreshold = handler;
     budget._events = events as never as EventBus;
     budget.start();
@@ -304,10 +307,10 @@ describe('T4: concurrent multi-kind exceeded reports correct kind to handler', (
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(
-      makeConfig(),
-      { runner },
-    );
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     // maxIterations=5, maxToolCalls=10
     await coord.spawn({ id: 's3', name: 'S3', timeoutMs, maxIterations: 5, maxToolCalls: 10 });

@@ -26,6 +26,7 @@ import type {
   KanbanBoundaryPolicy,
   KanbanBoundarySelectorKind,
   KanbanColumn,
+  KanbanEventContext,
   KanbanQueueHealth,
 } from '@wrongstack/kanban';
 import {
@@ -70,8 +71,11 @@ export interface KanbanSlashDeps {
    * subdirectory of the project.
    */
   projectRoot: string;
-  /** Optional session id; when present, prefer a `session:<id>`-tagged board. */
-  sessionId?: string | null | undefined;
+  /**
+   * Session running the TUI. Used to prefer a `session:<id>`-tagged board, and
+   * to attribute every board event `/kanban` writes.
+   */
+  sessionId: string;
   /**
    * Panel-open bridge installed by `App`. Calling `onPanelOpen.current(...)`
    * with `'toggleKanbanPanel'` opens the kanban panel — same mechanism the
@@ -168,6 +172,7 @@ export function createKanbanSlashCommand(deps: KanbanSlashDeps): SlashCommand {
             target,
             parsed.title,
             parsed.description,
+            slashEventContext(deps),
           );
           if (!created) {
             return {
@@ -427,8 +432,15 @@ async function applyBoundaryCommand(
   }
 
   if (command.action === 'clear') {
-    if (task) await updateTask(deps.projectRoot, board.id, task.id, { boundary: null });
-    else await updateBoard(deps.projectRoot, board.id, { boundary: null });
+    if (task) {
+      await updateTask(
+        deps.projectRoot,
+        board.id,
+        task.id,
+        { boundary: null },
+        slashEventContext(deps),
+      );
+    } else await updateBoard(deps.projectRoot, board.id, { boundary: null });
     return `Removed ${task ? 'task' : 'board'} boundary layer.`;
   }
 
@@ -456,8 +468,15 @@ async function applyBoundaryCommand(
         ? { deny: base.deny }
         : {}),
   };
-  if (task) await updateTask(deps.projectRoot, board.id, task.id, { boundary: policy });
-  else await updateBoard(deps.projectRoot, board.id, { boundary: policy });
+  if (task) {
+    await updateTask(
+      deps.projectRoot,
+      board.id,
+      task.id,
+      { boundary: policy },
+      slashEventContext(deps),
+    );
+  } else await updateBoard(deps.projectRoot, board.id, { boundary: policy });
   return `Saved ${task ? 'task' : 'board'} boundary: ${command.action} ${selector.access} ${selector.kind}:${selector.path}.`;
 }
 
@@ -900,18 +919,24 @@ function severityRank(severity: 'error' | 'warning'): number {
  * Add a task to the resolved board/column. Returns the created task so the
  * command can echo its id and column placement.
  */
+/** Attribution for every board write `/kanban` makes on the user's behalf. */
+function slashEventContext(deps: Pick<KanbanSlashDeps, 'sessionId'>): KanbanEventContext {
+  return { sessionId: deps.sessionId, actor: 'tui-operator' };
+}
+
 async function addTaskToBoard(
   cwd: string,
   target: KanbanAddTarget,
   title: string,
-  description?: string,
+  description: string | undefined,
+  eventContext: KanbanEventContext,
 ): Promise<{ title: string; columnId: string; id: string } | null> {
   const input: CreateKanbanTaskInput = {
     title,
     columnId: target.columnId,
     ...(description ? { description } : {}),
   };
-  const result = await addTask(cwd, target.boardId, input);
+  const result = await addTask(cwd, target.boardId, input, eventContext);
   if (!result) return null;
   return { title: result.task.title, columnId: result.task.columnId, id: result.task.id };
 }

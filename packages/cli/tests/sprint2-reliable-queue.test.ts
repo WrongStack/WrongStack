@@ -4,23 +4,28 @@ import * as path from 'node:path';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
 import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
 import {
+  createBoard,
+  getBoard,
+  getKanbanQueueHealth,
+  listKanbanEvents,
+  listReadyTasks,
+} from '@wrongstack/kanban';
+import {
   addDependency,
   addTask,
   assignTask,
   claimReadyTask,
-  createBoard,
-  getBoard,
-  getKanbanQueueHealth,
   heartbeatTaskAssignment,
-  listKanbanEvents,
-  listReadyTasks,
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
-import { kanbanTool } from '@wrongstack/tools/kanban';
+} from '@wrongstack/kanban/test-support';
 import { wireKanbanPorts } from '@wrongstack/runtime';
+import { kanbanTool } from '@wrongstack/tools/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Session that owns the board events these queue tests write. */
+const TEST_QUEUE_SESSION_ID = '2026-08-26/sess_01TESTKANBANQUEUE0000000';
 
 wireKanbanPorts();
 
@@ -145,7 +150,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         taskId: claimed!.task.id,
         heartbeatAt: '2026-07-07T00:04:00.000Z',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(toolHeartbeat).toMatchObject({ ok: true });
@@ -201,7 +206,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         recoveryNow: '2026-07-07T00:02:00.000Z',
         releaseReason: 'worker unavailable',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(released).toMatchObject({ ok: true, recoveredTasks: [{ status: 'ready' }] });
@@ -325,7 +330,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         tools: ['bash'],
         allowedCapabilities: ['fs.write'],
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(created).toMatchObject({ ok: true });
@@ -341,7 +346,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         agentId: 'worker-tool',
         status: 'running' as never,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(claimed).toMatchObject({ ok: true, message: 'Task claimed.' });
@@ -392,7 +397,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         leaseTtlMs: 120_000,
         awaitCompletion: true,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(result).toMatchObject({ ok: true, count: 1 });
@@ -465,7 +470,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
 
     const toolResult = await kanbanTool.execute(
       { action: 'queue_health', boardId: board.id },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(toolResult).toMatchObject({ ok: true });
@@ -544,7 +549,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         costCeilingUsd: 0.5,
         retryPolicy: 'incremental',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(created).toMatchObject({ ok: true });
@@ -703,7 +708,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
         retryPolicy: 'incremental',
         costCeilingUsd: 2.5,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(result).toMatchObject({ ok: true });
@@ -753,7 +758,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
     const tool = makeKanbanQueueTool(fakeDirector as never);
     await tool.execute(
       { boardId: board.id, awaitCompletion: true },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(assignments[0]?.description).toContain('Retry policy:');
@@ -799,7 +804,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
     const tool = makeKanbanQueueTool(fakeDirector as never);
     await tool.execute(
       { boardId: board.id, awaitCompletion: true },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(spawns[0]?.maxCostUsd).toBe(3);
@@ -826,9 +831,13 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
       awaitTasks: async (_taskIds: string[]): Promise<TaskResult[]> => [],
     };
     const tool = makeKanbanQueueTool(fakeDirector as never);
-    const result = await tool.execute({ boardId: board.id }, { projectRoot: tmpDir } as never, {
-      signal: new AbortController().signal,
-    });
+    const result = await tool.execute(
+      { boardId: board.id },
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
+      {
+        signal: new AbortController().signal,
+      },
+    );
     // The dispatch should complete but the task should be marked failed with a budget error.
     expect(result).toMatchObject({ ok: false, count: 0 });
     expect((result as { errors?: unknown[] })?.errors).toBeDefined();

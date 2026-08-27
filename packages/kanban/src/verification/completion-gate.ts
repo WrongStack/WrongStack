@@ -47,7 +47,8 @@ export interface CompletionGateOptions {
   registry?: VerifierRegistry | undefined;
   /** Overrides the board-resolved enforcement for this run. */
   enforcement?: KanbanCompletionGateEnforcement | undefined;
-  eventContext?: KanbanEventContext | undefined;
+  /** Session that owns this completion — stamped on every gate event. */
+  eventContext: KanbanEventContext;
 }
 
 export interface CompletionGateResult {
@@ -95,7 +96,7 @@ export async function enforceCompletionGate(
   projectRoot: string,
   boardId: string,
   taskId: string,
-  options: CompletionGateOptions = {},
+  options: CompletionGateOptions,
 ): Promise<CompletionGateResult> {
   const board = await getBoard(projectRoot, boardId);
   if (!board) throw new Error(`Board not found: ${boardId}`);
@@ -178,7 +179,7 @@ export async function finalizeTaskCompletion(
   projectRoot: string,
   boardId: string,
   taskId: string,
-  options: CompletionGateOptions = {},
+  options: CompletionGateOptions,
 ): Promise<FinalizeTaskCompletionResult | null> {
   const gate = await enforceCompletionGate(projectRoot, boardId, taskId, options).catch((error) => {
     if (error instanceof Error && /not found/i.test(error.message)) return null;

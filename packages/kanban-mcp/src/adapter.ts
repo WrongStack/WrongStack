@@ -6,6 +6,7 @@ import {
   type MCPServerTool,
   type MCPServerToolHost,
 } from '@wrongstack/mcp';
+import { systemSessionId } from '@wrongstack/primitives';
 import { kanbanTool } from '@wrongstack/tools/kanban';
 import {
   type KanbanMcpAction,
@@ -34,6 +35,14 @@ export interface KanbanMcpDependencies {
 
 export interface KanbanMcpToolHostOptions extends KanbanMcpPolicyOptions {
   actor?: string | undefined;
+  /**
+   * Session that owns every board mutation this host performs. An external MCP
+   * client has no WrongStack session of its own, so it supplies a stable
+   * connection-scoped id here — the durable events it writes are attributed to
+   * it, and "whose work is this?" has an answer. Defaults to a `system:` id
+   * derived from the actor when the caller names none.
+   */
+  sessionId?: string | undefined;
   dependencies?: KanbanMcpDependencies | undefined;
 }
 
@@ -90,7 +99,7 @@ function toolDescriptor(
   };
 }
 
-function createContext(projectRoot: string, actor: string): Context {
+function createContext(projectRoot: string, actor: string, sessionId: string): Context {
   return {
     systemPrompt: [],
     cwd: projectRoot,
@@ -101,6 +110,9 @@ function createContext(projectRoot: string, actor: string): Context {
     meta: { source: 'kanban-mcp' },
     agentId: actor,
     agentName: actor,
+    // The kanban tool stamps every board event with this. A fake context that
+    // omitted it made each mutation throw at the event-creation boundary.
+    eventSessionId: () => sessionId,
   } as unknown as Context;
 }
 
@@ -163,7 +175,8 @@ export function createKanbanMcpToolHost(
   const policy = selectKanbanMcpTools(opts);
   const allowed = new Map(policy.map((entry) => [entry.name, entry.actions]));
   const actor = opts.actor?.trim() || 'external-kanban-mcp';
-  const context = createContext(projectRoot, actor);
+  const sessionId = opts.sessionId?.trim() || systemSessionId(`kanban-mcp:${actor}`);
+  const context = createContext(projectRoot, actor, sessionId);
   const executeKanban =
     opts.dependencies?.executeKanban ??
     (async (args: Record<string, unknown>, ctx: Context, signal: AbortSignal) =>

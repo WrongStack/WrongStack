@@ -4,6 +4,9 @@ import { BudgetExceededError } from '../../src/coordination/subagent-budget.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { SubagentRunner, TaskResult } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const makeConfig = (overrides: Record<string, unknown> = {}) => ({
   coordinatorId: 'coord1',
   doneCondition: { type: 'all_tasks_done' as const },
@@ -52,7 +55,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       iterations: 3,
       toolCalls: 5,
     }));
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const donePromise = waitForDone(coord);
@@ -73,7 +79,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       seen.push(ctx.subagentId);
       return { result: ctx.subagentId, iterations: 1, toolCalls: 0 };
     });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     await coord.spawn({ id: 'a2', name: 'A2' });
@@ -92,7 +101,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       ctx.budget.recordToolCall(); // 2nd call exceeds maxToolCalls=1
       return { result: undefined, iterations: 1, toolCalls: 2 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1', maxToolCalls: 1 });
     const donePromise = waitForDone(coord);
@@ -110,7 +122,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       expect(ctx.budget.limits.maxToolCalls).toBe(2);
       return { result: undefined, iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
     await coord.spawn({ id: 'a1', name: 'A1', maxToolCalls: 10 });
     const donePromise = waitForDone(coord);
     await coord.assign({ id: 't1', description: 'tight task', maxToolCalls: 2 });
@@ -134,7 +149,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       });
       return { result: 'too late', iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1', timeoutMs: 30 });
     const donePromise = waitForDone(coord);
@@ -182,7 +200,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       });
       return { result: 'finished', iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1', timeoutMs: 20 });
     const donePromise = waitForDone(coord);
@@ -209,7 +230,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       });
       return { result: 'too late', iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
     // idleTimeoutMs only (no wall-clock cap).
     await coord.spawn({ id: 'a1', name: 'A1', idleTimeoutMs: 40 });
     const donePromise = waitForDone(coord);
@@ -234,7 +258,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       }
       return { result: 'finished', iterations: 1, toolCalls: 8 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
     await coord.spawn({ id: 'a1', name: 'A1', idleTimeoutMs: 250 });
     const donePromise = waitForDone(coord);
     await coord.assign({ id: 't1', description: 'busy but slow' });
@@ -253,7 +280,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       active--;
       return { result: undefined, iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 2 }), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 2 }), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     for (let i = 0; i < 4; i++) await coord.spawn({ id: `a${i}`, name: `A${i}` });
     const completions = waitForCompletions(coord, 5);
@@ -281,7 +311,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       await allStarted;
       return { result: undefined, iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 2 }), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 2 }), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     await coord.spawn({ id: 'a2', name: 'A2' });
@@ -306,7 +339,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       });
       return { result: undefined, iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const donePromise = waitForDone(coord);
@@ -325,7 +361,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
     const runner: SubagentRunner = async () => {
       throw new Error('runner kaboom');
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const donePromise = waitForDone(coord);
@@ -345,7 +384,7 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
     };
     const coord = new DefaultMultiAgentCoordinator(
       makeConfig({ defaultBudget: { maxIterations: 7 } }),
-      { runner },
+      { runner, sessionId: TEST_SESSION_ID },
     );
 
     await coord.spawn({ id: 'a1', name: 'A1' });
@@ -366,7 +405,10 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
       if (n === 1) throw new Error('first crash');
       return { result: 'second-ok', iterations: 1, toolCalls: 0 };
     };
-    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 1 }), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 1 }), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const completions = waitForCompletions(coord, 2);
@@ -404,13 +446,14 @@ describe('DefaultMultiAgentCoordinator with runner', () => {
         abortRunner = onAbort;
       });
 
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
     const warnings: Array<{ type: string }> = [];
     coord.on('warning', (w: { type: string }) => warnings.push(w));
     const completed = new Set<string>();
-    coord.on('task.completed', (e: { result: TaskResult }) =>
-      completed.add(e.result.taskId),
-    );
+    coord.on('task.completed', (e: { result: TaskResult }) => completed.add(e.result.taskId));
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     // taskA dispatches and blocks the single worker (inFlight=1).

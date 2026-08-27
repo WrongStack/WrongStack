@@ -2,27 +2,27 @@ import { mkdir, mkdtemp, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  addCheckToTask,
-  addTask,
-  assignTask,
   createBoard,
-  readBoard,
-  transitionTask,
-  updateTaskAssignment,
-  writeBoard,
-} from '@wrongstack/kanban';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
   evaluateContractGraphReadiness,
   evaluateKanbanBoundaryOpaque,
   evaluateKanbanBoundaryPath,
+  readBoard,
   resolveKanbanBoundaryLayers,
+  writeBoard,
 } from '@wrongstack/kanban';
-import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
+import {
+  addCheckToTask,
+  addTask,
+  assignTask,
+  transitionTask,
+  updateTaskAssignment,
+} from '@wrongstack/kanban/test-support';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus, type EventMap } from '../../src/kernel/events.js';
 import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.js';
+import { setKanbanGovernance } from '../../src/security/kanban-governance-port.js';
 import type { Tool } from '../../src/types/tool.js';
 
 const roots: string[] = [];

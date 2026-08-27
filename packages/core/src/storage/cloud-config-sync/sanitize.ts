@@ -75,6 +75,7 @@ const CORE_RUNTIME_TREE: ContractNode = {
     restrictToProjectRoot: true,
     descriptionMode: true,
     disabledTools: true,
+    disabledToolMeta: true,
     maxToolTimeoutMs: true,
     loopDetection: {
       mode: true,
@@ -82,6 +83,13 @@ const CORE_RUNTIME_TREE: ContractNode = {
       cutThreshold: true,
       windowSize: true,
       callRepeatThreshold: true,
+    },
+    autoThin: {
+      enabled: true,
+      idleDays: true,
+      minInvocations: true,
+      neverAutoThin: true,
+      applyOnBoot: true,
     },
   },
   log: { level: true, format: true },
@@ -328,6 +336,17 @@ const INBOUND_DENIED_PATHS: ReadonlyArray<{
     namespace: 'core.runtime',
     path: 'tools.disabledTools',
     reason: 'Could re-enable a tool the operator deliberately switched off.',
+  },
+  {
+    namespace: 'core.runtime',
+    path: 'tools.disabledToolMeta',
+    reason: 'Could rewrite the disabled-tool audit trail to hide operator intent.',
+  },
+  {
+    namespace: 'core.runtime',
+    path: 'tools.autoThin',
+    reason:
+      'Could switch on or tune the auto-thinning pipeline without operator consent, silently disabling tools on remote pulls.',
   },
   {
     namespace: 'ui.preferences',

@@ -43,6 +43,7 @@ export const SERVER_CONVERSATION_MESSAGE_TYPES = [
   'session.end',
   'session.inspect',
   'session.rewound',
+  'session.run_state',
   'session.start',
   'session.stats',
   'sessions.list',

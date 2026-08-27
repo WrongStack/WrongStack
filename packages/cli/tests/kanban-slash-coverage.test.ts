@@ -117,6 +117,8 @@ function makeCtx(): SlashCommandContext {
   return {
     projectRoot: '/tmp/proj',
     onPanelOpen: { current: undefined },
+    // /kanban writes durable board events, attributed to the running session.
+    context: { eventSessionId: () => '2026-08-26/sess_01TESTKANBANSLASH0000000' },
   } as any;
 }
 

@@ -1,5 +1,5 @@
-import { describe, expect, it, } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
+import { describe, expect, it } from 'vitest';
+import type { Context } from '../../src/core/context.js';
 import {
   buildResponse,
   createStreamingState,
@@ -18,10 +18,15 @@ import {
   safeJsonOrRaw,
   streamProviderToResponse,
 } from '../../src/core/streaming-response-builder.js';
-import type { Context } from '../../src/core/context.js';
+import { EventBus } from '../../src/kernel/events.js';
 import type { Provider, Request } from '../../src/types/provider.js';
 
-const fakeCtx = { messages: [] } as never as Context;
+// Every agent event carries the session that owns the run; a context without
+// one is rejected at emit time.
+const fakeCtx = {
+  messages: [],
+  activeRunSessionId: '2026-08-26/sess_01TESTSTREAMBUILDER000000',
+} as never as Context;
 
 const noopLogger = {
   level: 'info' as const,
@@ -30,7 +35,9 @@ const noopLogger = {
   info() {},
   debug() {},
   trace() {},
-  child() { return noopLogger; },
+  child() {
+    return noopLogger;
+  },
 };
 
 function fakeProvider(events: Array<Record<string, unknown>>): Provider {
@@ -293,7 +300,14 @@ describe('streamProviderToResponse', () => {
       { type: 'message_stop', stopReason: 'end_turn', usage: { input: 10, output: 5 } },
     ];
     const ctrl = new AbortController();
-    const r = await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, new EventBus(), noopLogger);
+    const r = await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      new EventBus(),
+      noopLogger,
+    );
     const textBlock = r.content.find((b) => b.type === 'text');
     expect(textBlock).toEqual({ type: 'text', text: 'hello world' });
     const toolBlock = r.content.find((b) => b.type === 'tool_use');
@@ -311,7 +325,14 @@ describe('streamProviderToResponse', () => {
       { type: 'message_stop' },
     ];
     const ctrl = new AbortController();
-    const r = await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, new EventBus(), noopLogger);
+    const r = await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      new EventBus(),
+      noopLogger,
+    );
     const thinkBlock = r.content.find((b) => b.type === 'thinking');
     expect(thinkBlock).toMatchObject({
       type: 'thinking',
@@ -337,7 +358,14 @@ describe('streamProviderToResponse', () => {
         throw new Error('aborted');
       },
     };
-    const r = await streamProviderToResponse(provider, req, ctrl.signal, fakeCtx, new EventBus(), noopLogger);
+    const r = await streamProviderToResponse(
+      provider,
+      req,
+      ctrl.signal,
+      fakeCtx,
+      new EventBus(),
+      noopLogger,
+    );
     // Partial text was preserved even though stream threw
     const text = r.content.find((b) => b.type === 'text');
     expect(text).toEqual({ type: 'text', text: 'partial-text' });
@@ -378,7 +406,14 @@ describe('streamProviderToResponse', () => {
     bus.on('provider.tool_use_stop', () => seen.push('tool_stop'));
     bus.on('provider.thinking_delta', () => seen.push('think'));
     const ctrl = new AbortController();
-    await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, bus, noopLogger);
+    await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      bus,
+      noopLogger,
+    );
     expect(seen).toEqual(['text', 'tool_start', 'tool_stop', 'think']);
   });
 
@@ -400,7 +435,14 @@ describe('streamProviderToResponse', () => {
     const texts: string[] = [];
     bus.on('provider.text_delta', (p) => texts.push(p.text));
     const ctrl = new AbortController();
-    await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, bus, noopLogger);
+    await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      bus,
+      noopLogger,
+    );
     // 8 deltas batched at 4 = 2 emits, each containing concatenated text.
     expect(texts).toEqual(['1234', '5678']);
   });
@@ -418,7 +460,14 @@ describe('streamProviderToResponse', () => {
     const texts: string[] = [];
     bus.on('provider.text_delta', (p) => texts.push(p.text));
     const ctrl = new AbortController();
-    await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, bus, noopLogger);
+    await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      bus,
+      noopLogger,
+    );
     expect(texts).toEqual(['abc']);
   });
 
@@ -435,7 +484,14 @@ describe('streamProviderToResponse', () => {
     bus.on('provider.text_delta', (p) => seen.push(`text:${p.text}`));
     bus.on('provider.tool_use_start', () => seen.push('tool_start'));
     const ctrl = new AbortController();
-    await streamProviderToResponse(fakeProvider(events), req, ctrl.signal, fakeCtx, bus, noopLogger);
+    await streamProviderToResponse(
+      fakeProvider(events),
+      req,
+      ctrl.signal,
+      fakeCtx,
+      bus,
+      noopLogger,
+    );
     // Text must appear before tool_start to preserve event ordering.
     expect(seen).toEqual(['text:hello', 'tool_start']);
   });

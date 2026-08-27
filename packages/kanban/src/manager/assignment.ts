@@ -72,6 +72,7 @@ let lastGlobalClaimBoardId: string | undefined;
 export async function reconcileKanbanBoard(
   projectRoot: string,
   boardId: string,
+  eventContext: KanbanEventContext,
 ): Promise<ReconcileKanbanBoardResult | null> {
   const reconciled: KanbanTask[] = [];
   const events: KanbanEvent[] = [];
@@ -123,6 +124,7 @@ export async function reconcileKanbanBoard(
       });
       events.push(
         createKanbanEvent(board.id, task, 'task.reconciled', {
+          ...eventContext,
           before: { status: beforeStatus, columnId: beforeColumnId },
           after: { status: task.status, columnId: task.columnId },
           note: 'Kanban supervisor repaired task/assignment drift.',
@@ -150,7 +152,7 @@ export async function assignTask(
   boardId: string,
   taskId: string,
   input: AssignKanbanTaskInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -184,7 +186,7 @@ export async function updateTaskAssignment(
   boardId: string,
   taskId: string,
   patch: Partial<KanbanAgentAssignment> & { status?: KanbanAgentRunStatus | undefined },
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   let gatePending = false;
@@ -337,6 +339,7 @@ export async function heartbeatTaskAssignment(
   boardId: string,
   taskId: string,
   input: HeartbeatKanbanTaskAssignmentInput = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -358,6 +361,7 @@ export async function heartbeatTaskAssignment(
     task.updatedAt = now;
     board.updatedAt = now;
     event = createKanbanEvent(board.id, task, 'task.assignment.heartbeat', {
+      ...eventContext,
       before: beforeAssignment,
       after: { ...task.assignment },
     });
@@ -371,6 +375,7 @@ export async function recoverStaleTaskAssignments(
   projectRoot: string,
   boardId: string,
   input: RecoverStaleKanbanAssignmentsInput = {},
+  eventContext: KanbanEventContext,
 ): Promise<RecoverStaleKanbanAssignmentsResult | null> {
   const recoveredTasks: KanbanTask[] = [];
   const events: KanbanEvent[] = [];
@@ -543,6 +548,7 @@ export async function recoverStaleTaskAssignments(
       });
       events.push(
         createKanbanEvent(board.id, task, 'task.stale_recovered', {
+          ...eventContext,
           before: beforeAssignment,
           after: task.assignment ? { ...task.assignment } : undefined,
           note: reason,
@@ -567,6 +573,7 @@ export async function recoverStaleTaskAssignments(
     try {
       const walked = await transitionTask(projectRoot, boardId, taskId, {
         to: 'todo',
+        sessionId: eventContext.sessionId,
         actor: 'kanban-supervisor',
         comment: `Stale assignment recovered (${mode}); card returned to the work queue.`,
       });
@@ -587,8 +594,11 @@ export async function claimReadyTask(
     includeBoardKinds?: readonly KanbanBoardKind[];
     excludeBoardKinds?: readonly KanbanBoardKind[];
   } = {},
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
-  if (input.boardId) return claimReadyTaskOnBoard(projectRoot, input.boardId, input);
+  if (input.boardId) {
+    return claimReadyTaskOnBoard(projectRoot, input.boardId, input, eventContext);
+  }
   const kindResolved = resolveKindFilter({
     ...(input.includeBoardKinds !== undefined
       ? { includeBoardKinds: input.includeBoardKinds }
@@ -622,7 +632,7 @@ export async function claimReadyTask(
       : ordered;
   for (const board of rotated) {
     try {
-      const claimed = await claimReadyTaskOnBoard(projectRoot, board.id, input);
+      const claimed = await claimReadyTaskOnBoard(projectRoot, board.id, input, eventContext);
       if (claimed) {
         lastGlobalClaimBoardId = claimed.board.id;
         return claimed;
@@ -645,6 +655,7 @@ export async function releaseTaskClaim(
   boardId: string,
   taskId: string,
   input: ReleaseKanbanTaskClaimInput = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -692,6 +703,7 @@ export async function releaseTaskClaim(
     task.updatedAt = now;
     board.updatedAt = now;
     event = createKanbanEvent(board.id, task, 'task.released', {
+      ...eventContext,
       before: beforeAssignment,
       after: undefined,
       note: input.reason,

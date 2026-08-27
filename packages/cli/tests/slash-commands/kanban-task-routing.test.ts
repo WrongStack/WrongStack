@@ -47,6 +47,9 @@ function commandFor(projectRoot: string) {
   return buildKanbanCommand({
     projectRoot,
     onPanelOpen: { current: null },
+    // /kanban writes durable board events; they belong to the session running
+    // the command.
+    context: { eventSessionId: () => '2026-08-26/sess_01TESTKANBANSLASH0000000' },
   } as unknown as SlashCommandContext);
 }
 
@@ -813,9 +816,7 @@ describe('/kanban task done — managed preflight on todo stage', () => {
     expect(card.columnId).toBe(doneColumnId);
     expect(card.columnId).not.toBe(runningColumnId);
     const history = card.lifecycle?.history ?? [];
-    expect(history.map((entry) => entry.to)).toEqual(
-      expect.arrayContaining(['review', 'done']),
-    );
+    expect(history.map((entry) => entry.to)).toEqual(expect.arrayContaining(['review', 'done']));
     expect(history.every((entry) => entry.attachment === undefined)).toBe(true);
   });
 });

@@ -262,4 +262,17 @@ export interface ToolEventMap {
   'mcp.server.connected': { name: string; toolCount: number };
   'mcp.server.reconnected': { name: string; toolCount: number };
   'mcp.server.disconnected': { name: string; reason: string };
+  /**
+   * Fired by `ToolRegistry.thinUnderused()` after auto-thinning disables
+   * one or more tools. The names are the tools that actually flipped
+   * (registered + not already disabled). `reason` is the human-readable
+   * caller label (e.g. `'boot-time auto-thin'`, `'manual apply'`); the
+   * audit-trail reason `'auto-thinned'` is also written to
+   * `disabledToolMeta` so the decision survives restarts.
+   */
+  'tool.thinned': {
+    names: string[];
+    reason: string;
+    at: number;
+  };
 }

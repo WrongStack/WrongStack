@@ -15,16 +15,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import {
-  addTask,
-  createBoard,
-  getBoard,
-  transitionTask,
-  updateTaskAssignment,
-} from '@wrongstack/kanban';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addTask, transitionTask, updateTaskAssignment } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 function managedBoardColumns() {
   // Columns are locked to DEFAULT_COLUMNS; this helper is kept for the lifecycle
@@ -53,6 +51,7 @@ describe('kanban mark_assignment — managed lifecycle auto-transition', () => {
 
   const ctx = () =>
     ({
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       agentId: 'test-agent',
     }) as unknown as Context;

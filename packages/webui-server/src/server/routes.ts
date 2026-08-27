@@ -196,7 +196,15 @@ export interface WebuiDeps {
   trustBoundary: import('@wrongstack/core/security').TrustBoundary;
   agent: Agent;
   getAgent?: ((sessionId?: string) => Agent) | undefined;
+  /**
+   * The Agent for a session WITHOUT creating one. Read-only callers use this;
+   * `getAgent` creates, so asking about a stale id materialises an agent for
+   * it and can evict a live tab's.
+   */
+  peekAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
   hasSession?: ((id: string) => boolean) | undefined;
+  /** Does this host already hold an open journal writer for that session? */
+  isSessionLive?: ((id: string) => boolean) | undefined;
   context: Context;
   container: Container;
   toolRegistry: ToolRegistry;
@@ -538,6 +546,7 @@ export function buildRoutes(
     isRunActive: state.isRunActive,
     getAgent: deps.getAgent,
     hasSession: deps.hasSession,
+    isSessionLive: deps.isSessionLive,
     sessionStartPayload: cb.sessionStartPayload,
     systemPrompt: systemPromptAdapter,
   });
@@ -642,13 +651,19 @@ export function buildRoutes(
     // the server-local runtime module.
     applyWrongProxyPrefs: (payload) => applyWrongProxyPrefsRuntime(payload),
     setAutoCompact: (enabled) => {
-      deps.pipelines.contextWindow.remove('AutoCompaction', { optional: true });
-      if (enabled && deps.autoCompactor) {
+      // Keep the middleware INSTALLED and let it decide per conversation.
+      // Adding and removing it on the shared pipeline was a process-wide
+      // switch driven by a per-tab preference: turning auto-compaction off in
+      // one tab stopped it for the three running beside it, and turning it
+      // back on re-armed it for all of them.
+      if (!deps.autoCompactor) return;
+      if (!deps.pipelines.contextWindow.list().includes('AutoCompaction')) {
         deps.pipelines.contextWindow.use({
           name: 'AutoCompaction',
           handler: deps.autoCompactor.handler(),
         });
       }
+      deps.autoCompactor.setEnabled(enabled);
     },
     setLogLevel: (level) => {
       (deps.logger as { level: string }).level = level;

@@ -4,7 +4,6 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { loadDatabaseSync } from '../coordination/sqlite-mailbox-schema.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { SessionRegistryEntry } from './session-registry-types.js';
 import type { SessionEvent, SessionSummary } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { isPidAlive } from '../utils/pid.js';
@@ -22,10 +21,8 @@ import {
   SESSION_CATALOG_MAX_AGENTS,
 } from './protocol.js';
 import { deriveSessionAgents, type SessionAgentRecord } from './session-agents.js';
-import {
-  rebuildCatalogIndex,
-  walkSessionFiles,
-} from './store-rebuild.js';
+import type { SessionRegistryEntry } from './session-registry-types.js';
+import { rebuildCatalogIndex, walkSessionFiles } from './store-rebuild.js';
 import {
   assertId,
   boundedMs,
@@ -635,7 +632,9 @@ export class SessionCatalogStore {
     }
 
     const cached = this.db
-      .prepare('SELECT transcript_size, transcript_mtime_ms FROM session_agent_index WHERE session_id=?')
+      .prepare(
+        'SELECT transcript_size, transcript_mtime_ms FROM session_agent_index WHERE session_id=?',
+      )
       .get(sessionId) as { transcript_size: number; transcript_mtime_ms: number } | undefined;
     if (
       cached &&
@@ -684,7 +683,9 @@ export class SessionCatalogStore {
       status: row.status as SessionAgentRecord['status'],
       ...(row.error !== null ? { error: row.error } : {}),
       interleavedEventCount: Number(row.interleaved_event_count),
-      ...(row.usage_json !== null ? { usage: parseJson<SessionAgentRecord['usage']>(row.usage_json) } : {}),
+      ...(row.usage_json !== null
+        ? { usage: parseJson<SessionAgentRecord['usage']>(row.usage_json) }
+        : {}),
     }));
   }
 

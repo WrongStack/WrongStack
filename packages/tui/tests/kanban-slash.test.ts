@@ -138,7 +138,8 @@ function makeDeps(
   const { onPanelOpen: overridePanel, onBoardFocus: overrideFocus, ...rest } = overrides;
   return {
     projectRoot: '/tmp/project',
-    sessionId: null,
+    // A TUI always runs inside a session; board writes are attributed to it.
+    sessionId: 'abc123',
     onPanelOpen: overridePanel ?? { current: vi.fn(() => true) },
     onBoardFocus: overrideFocus ?? { current: vi.fn(() => true) },
     terminalWidth: 100,
@@ -334,7 +335,12 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
     const cmd = createKanbanSlashCommand(deps);
 
     const result = await cmd.run('create My board');
-    expect(mockCreateBoard).toHaveBeenCalledWith('/tmp/project', { title: 'My board' });
+    // A board created from inside a session carries that session's tag, which
+    // is how `/kanban add` later finds "this session's board" first.
+    expect(mockCreateBoard).toHaveBeenCalledWith('/tmp/project', {
+      title: 'My board',
+      tags: ['session:abc123'],
+    });
     expect((result as { message?: string }).message).toContain('Created board');
     expect(deps.onPanelOpen.current).toHaveBeenCalledWith('toggleKanbanPanel');
   });
@@ -393,6 +399,7 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
       '/tmp/project',
       'board-session',
       expect.objectContaining({ title: 'next attempt', columnId: 'backlog' }),
+      expect.objectContaining({ sessionId: 'abc123' }),
     );
     expect(deps.onPanelOpen.current).toHaveBeenCalledWith('toggleKanbanPanel');
   });
@@ -415,8 +422,9 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
       task: task('t1', 'backlog', 'next'),
     });
 
-    // sessionId deliberately absent so the fallback branch runs.
-    const deps = makeDeps({ sessionId: null });
+    // A session with no `session:<id>`-tagged board, so the most-recently-
+    // updated fallback branch runs.
+    const deps = makeDeps({ sessionId: 'session-with-no-board' });
     const target = await resolveAddTarget(deps, null);
     expect(target?.boardId).toBe('board-new');
     expect(target?.boardTitle).toBe('Newer board');
@@ -439,6 +447,7 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
       '/tmp/project',
       'b',
       expect.objectContaining({ columnId: 'review' }),
+      expect.objectContaining({ sessionId: 'abc123' }),
     );
     expect((result as { message?: string }).message).toContain('review');
 
@@ -453,6 +462,7 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
       '/tmp/project',
       'b',
       expect.objectContaining({ columnId: 'review' }),
+      expect.objectContaining({ sessionId: 'abc123' }),
     );
   });
 
@@ -521,16 +531,18 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
       board(
         'mb',
         'Managed',
-        [
-          column('backlog', 'Backlog', 0),
-          column('todo', 'To Do', 1),
-          column('done', 'Done', 2),
-        ],
+        [column('backlog', 'Backlog', 0), column('todo', 'To Do', 1), column('done', 'Done', 2)],
         [],
         {
           lifecycle: {
             mode: 'managed',
-            columns: { backlog: 'backlog', todo: 'todo', running: 'todo', review: 'todo', done: 'done' },
+            columns: {
+              backlog: 'backlog',
+              todo: 'todo',
+              running: 'todo',
+              review: 'todo',
+              done: 'done',
+            },
           },
         },
       ),
@@ -557,6 +569,7 @@ describe('createKanbanSlashCommand — dispatch routing', () => {
         columnId: 'backlog',
         description: 'configure github actions',
       }),
+      expect.objectContaining({ sessionId: 'abc123' }),
     );
     const message = (result as { message?: string }).message ?? '';
     expect(message).toContain('Added task');

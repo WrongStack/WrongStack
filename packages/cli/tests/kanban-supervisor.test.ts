@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { addTask, createBoard, deleteBoard, getBoard } from '@wrongstack/kanban';
+import { createBoard, deleteBoard, getBoard } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createKanbanSupervisor } from '../src/webui-server/kanban-supervisor.js';
 

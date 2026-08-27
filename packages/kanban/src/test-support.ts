@@ -9,3 +9,11 @@ export { buildKanbanWorkbench } from './manager/workbench.js';
  * runtime dependency.
  */
 export { createBoardObject, getKanbanPath } from './storage.js';
+
+/**
+ * Session-bound domain calls for tests in every package. See
+ * `test-support-session.ts`: the mutators there fill in the owning session so a
+ * test that does not care about attribution reads as it did before the
+ * invariant landed.
+ */
+export * from './test-support-session.js';

@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { compareTasksForWork } from '../src/manager/_internal.js';
+import type { KanbanTask } from '../src/types.js';
 import {
   addTask,
   assignTask,
@@ -10,9 +12,7 @@ import {
   transitionTask,
   updateTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import { compareTasksForWork } from '../src/manager/_internal.js';
-import type { KanbanTask } from '../src/types.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -84,7 +84,9 @@ async function advanceToRunning(boardId: string, taskId: string): Promise<void> 
     leaseExpiresAt: '2026-12-31T00:00:00.000Z',
   });
   await transitionTask(tmpDir, boardId, taskId, {
-    to: 'running', actor: 'agent-1', comment: 'Working.',
+    to: 'running',
+    actor: 'agent-1',
+    comment: 'Working.',
   });
 }
 
@@ -125,7 +127,9 @@ async function fillChildDetailsAndAdvanceToTodo(boardId: string, childId: string
     successCriteria: [{ id: 'cc', description: 'Child done', type: 'manual', status: 'pending' }],
   });
   await transitionTask(tmpDir, boardId, childId, {
-    to: 'todo', actor: 'agent-1', comment: 'Child ready.',
+    to: 'todo',
+    actor: 'agent-1',
+    comment: 'Child ready.',
   });
 }
 
@@ -141,7 +145,9 @@ describe('Phase 4: parent/child atomic gate', () => {
 
     // Pass criteria so the only remaining gate is the parent-child check.
     await updateTask(tmpDir, boardId, parentId, {
-      successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'passed' as const }],
+      successCriteria: [
+        { id: 'c1', description: 'Pass', type: 'manual', status: 'passed' as const },
+      ],
     });
 
     // Parent cannot reach Done — children are not completed.
@@ -169,7 +175,9 @@ describe('Phase 4: parent/child atomic gate', () => {
     await transitionTask(tmpDir, boardId, parentId, { to: 'todo', actor: 'a', comment: 'c' });
     await advanceToReview(boardId, parentId);
     await updateTask(tmpDir, boardId, parentId, {
-      successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'passed' as const }],
+      successCriteria: [
+        { id: 'c1', description: 'Pass', type: 'manual', status: 'passed' as const },
+      ],
     });
     // Should succeed — all children are done.
     await transitionTask(tmpDir, boardId, parentId, {

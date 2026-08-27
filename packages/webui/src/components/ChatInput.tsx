@@ -8,6 +8,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
+  useActiveSessionId,
   useChatStore,
   useConfigStore,
   useFileReferenceStore,
@@ -16,23 +17,24 @@ import {
   useUIStore,
 } from '@/stores';
 import { useAutoSubmitStreak } from '@/stores/auto-submit-streak.js';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 import type { QueueMode } from '@/stores/chat-store';
 import { refsToMarkdown } from '@/stores/file-reference-store.js';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { ComposerButtonBar } from './ChatInput/composer-button-bar.js';
 import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
-import { toWireImages, type ImageAttachment } from './ChatInput/image-attachments.js';
+import { type ImageAttachment, toWireImages } from './ChatInput/image-attachments.js';
 import { handleNextList, handleNextSelect } from './ChatInput/next-steps-helpers.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
 import { detectAtMention, matchSlash } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
-import { useSpeechRecognition } from './ChatInput/use-speech-recognition.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { useChatInputMcp } from './ChatInput/use-chat-input-mcp.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
 import { useRefineTimeout } from './ChatInput/use-refine-timeout.js';
+import { useSpeechRecognition } from './ChatInput/use-speech-recognition.js';
 import { confirmModalChoice, useConfirmModalStore } from './ConfirmModal.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
@@ -42,10 +44,29 @@ export function resolveCancelInput(prev: string, original: string): string {
   return prev.trim() ? prev : original;
 }
 
+/**
+ * One unsent draft per tab: text, image attachments and file chips.
+ *
+ * There is a single ChatInput for all four tabs (the chat surface is parked,
+ * never unmounted), so without this the tab you switch to inherits the text
+ * you were typing in the tab you left.
+ *
+ * Keyed by session id and freed with the lane, so a closed tab's draft cannot
+ * come back on a session that is later handed the same id — and the map does
+ * not grow for the life of the page.
+ */
 const sessionDraftMap = new Map<
   string,
-  { input: string; images: ImageAttachment[]; refs: ReturnType<typeof useFileReferenceStore.getState>['refs'] }
+  {
+    input: string;
+    images: ImageAttachment[];
+    refs: ReturnType<typeof useFileReferenceStore.getState>['refs'];
+  }
 >();
+
+onLaneDisposed((sessionId) => {
+  sessionDraftMap.delete(sessionId);
+});
 
 export function ChatInput({
   onOpenBreakdown,
@@ -166,7 +187,12 @@ export function ChatInput({
     useUIStore.getState().setDraftInput(input);
   }, [input]);
 
-  const sessionId = useSessionStore((s) => s.session?.id ?? null);
+  // The lane POINTER, not the lane's SessionInfo record. That record is null
+  // from the moment a tab is opened until its `session.start` answer lands, so
+  // keying drafts on it meant a draft typed in a brand-new tab was filed under
+  // `null` — shared with every other not-yet-started tab, and dropped on the
+  // way out.
+  const sessionId = useActiveSessionId();
   const prevSessionIdRef = useRef<string | null>(sessionId);
   useEffect(() => {
     if (prevSessionIdRef.current === sessionId) return;
@@ -179,6 +205,25 @@ export function ChatInput({
       });
     }
     prevSessionIdRef.current = sessionId;
+
+    // A refinement in flight belongs to the tab it was typed in. The panel is
+    // one global surface over one shared composer, and both of its exits —
+    // the user approving it and the 105s timeout firing on its own — dispatch
+    // through the FOREGROUND. Left standing across a tab switch it therefore
+    // delivers one tab's prompt into another tab's session, the timeout doing
+    // so with nobody touching anything. Take it down and hand the text back
+    // to the tab that typed it, which still has it when the user returns.
+    const panel = useUIStore.getState().refinePanel;
+    const panelOwner = panel?.sessionId ?? oldId;
+    if (panel && panelOwner !== sessionId) {
+      useUIStore.getState().setRefinePanel(null);
+      if (panelOwner) {
+        const saved = sessionDraftMap.get(panelOwner) ?? { input: '', images: [], refs: [] };
+        if (!saved.input.trim()) {
+          sessionDraftMap.set(panelOwner, { ...saved, input: panel.original });
+        }
+      }
+    }
 
     if (sessionId && sessionDraftMap.has(sessionId)) {
       const saved = sessionDraftMap.get(sessionId)!;
@@ -208,6 +253,44 @@ export function ChatInput({
     const ta = textareaRef.current;
     if (ta) ta.style.height = 'auto';
   }, [sessionId]);
+
+  /**
+   * Refinement was switched off while a panel was still open: send the
+   * original prompt instead of leaving it stranded.
+   *
+   * This used to run INSIDE render — it cleared the store and sent a message
+   * as a side effect of drawing the composer, which React warns about and
+   * which fired before any of the session bookkeeping below could see the
+   * panel. With four tabs that mattered: the send goes through the foreground
+   * facade, so a panel belonging to another tab was delivered into the tab on
+   * screen. It now runs after render, and only for the tab that owns it —
+   * a foreign panel is taken down by the session-change effect instead.
+   */
+  useEffect(() => {
+    if (!refinePanel || enhanceEnabled) return;
+    if (refinePanel.sessionId !== undefined && refinePanel.sessionId !== sessionId) return;
+    const panel = refinePanel;
+    setRefinePanel(null);
+    if (client?.isConnected) {
+      addMessage({ role: 'user', content: panel.original });
+      setLoading(true);
+      if (panel.freshContext === true) sendMessage(panel.original, undefined, true);
+      else sendMessage(panel.original);
+    } else {
+      setInput(panel.original);
+      toast.error(t('chat:input.notConnectedDraftKept'));
+    }
+  }, [
+    refinePanel,
+    enhanceEnabled,
+    sessionId,
+    setRefinePanel,
+    client,
+    addMessage,
+    setLoading,
+    sendMessage,
+    t,
+  ]);
 
   useEffect(() => {
     if (promptInsertRequest == null) return;
@@ -484,6 +567,8 @@ export function ChatInput({
               resolve: (_decision) => {},
               provider: displayedProvider,
               model: displayedModel,
+              // Stamped so the panel cannot outlive the tab it belongs to.
+              ...(sessionId ? { sessionId } : {}),
               ...(freshContext ? { freshContext: true } : {}),
             });
           } else {
@@ -832,23 +917,6 @@ export function ChatInput({
       )}
 
       <QueuedMessages queue={queue} onClear={clearQueue} onRemove={removeQueued} />
-
-      {refinePanel &&
-        !enhanceEnabled &&
-        (() => {
-          const panel = refinePanel;
-          setRefinePanel(null);
-          if (client?.isConnected) {
-            addMessage({ role: 'user', content: panel.original });
-            setLoading(true);
-            if (panel.freshContext === true) sendMessage(panel.original, undefined, true);
-            else sendMessage(panel.original);
-          } else {
-            setInput(panel.original);
-            toast.error(t('chat:input.notConnectedDraftKept'));
-          }
-          return null;
-        })()}
 
       <ChatInputRefinePanelHost
         enhanceEnabled={enhanceEnabled}

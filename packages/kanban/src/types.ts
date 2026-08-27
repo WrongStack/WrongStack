@@ -347,8 +347,8 @@ export interface KanbanEvent {
   ts: string;
   taskId?: string | undefined;
   actor?: string | undefined;
-  /** Session that initiated or observed this task mutation, when known. */
-  sessionId?: string | undefined;
+  /** Session that initiated or observed this task mutation. */
+  sessionId: string;
   before?: unknown;
   after?: unknown;
   correlationId?: string | undefined;
@@ -384,7 +384,14 @@ export interface KanbanBoardHistoryEntry {
 /** Request-scoped identity copied into durable Kanban activity events. */
 export interface KanbanEventContext {
   actor?: string | undefined;
-  sessionId?: string | undefined;
+  /**
+   * Session that owns this mutation. Required: every durable Kanban event is
+   * attributed to the session that caused it, so "show this tab's board
+   * activity" and "stop this session's work" have a key to filter on. A
+   * mutation with no owning session is rejected at event-creation time, so a
+   * caller that cannot name one is a wiring bug, not a tolerated case.
+   */
+  sessionId: string;
   correlationId?: string | undefined;
   /** Human or system explanation for why this mutation happened. */
   note?: string | undefined;

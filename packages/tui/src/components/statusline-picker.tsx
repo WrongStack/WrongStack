@@ -158,9 +158,6 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   model: 1,
   mode: 1,
   prompt_variant: 1,
-  theme: 1,
-  sessions: 1,
-  tools: 1,
   version: 1,
   // Line 2 — run state & safety: live telemetry + permission band.
   // queue/hint/breaker render inside primaryChips BEFORE processes/elapsed.
@@ -179,6 +176,9 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   elapsed: 2,
   token_saving: 2,
   side_effects: 2,
+  sessions: 2,
+  tools: 2,
+  theme: 2,
   // Line 3 — active work & countdowns (conditional)
   goal: 3,
   todos: 3,
@@ -226,9 +226,6 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'model',
   'mode',
   'prompt_variant',
-  'theme',
-  'sessions',
-  'tools',
   'version',
   // Line 2 — run state & safety
   'state',
@@ -246,6 +243,9 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'elapsed',
   'token_saving',
   'side_effects',
+  'sessions',
+  'tools',
+  'theme',
   // Line 3 — active work & countdowns
   'goal',
   'todos',

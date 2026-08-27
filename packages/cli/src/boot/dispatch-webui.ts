@@ -446,7 +446,13 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
         onAutonomy?.(mode as AutonomyMode);
       }
     },
-    onYoloSwitch: (enabled: boolean) => {
+    onYoloSwitch: (enabled: boolean, sessionId?: string) => {
+      // The prefs handler has already written the ASKING tab's own context
+      // meta, and that is what the permission policy reads. `applyLiveSettings`
+      // additionally writes the LEADER's context — the boot tab's runtime — so
+      // routing another tab's change through it would turn YOLO on for a
+      // conversation the user was never in.
+      if (sessionId !== undefined && sessionId !== agent.ctx.session?.id) return;
       applyLiveSettings?.({ yolo: enabled });
     },
     onWrongProxyPrefsChange: (payload: Record<string, unknown>) => {

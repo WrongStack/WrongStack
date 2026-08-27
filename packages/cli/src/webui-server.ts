@@ -15,7 +15,7 @@
 import type { Server as HttpServer } from 'node:http';
 import * as path from 'node:path';
 import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
-import type { ProviderConfig } from '@wrongstack/core/types';
+import type { ProviderConfig, SessionWriter } from '@wrongstack/core/types';
 import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import {
@@ -32,6 +32,7 @@ import {
   isStrictPort,
   type PendingConfirm,
   resolveAuthToken,
+  type SessionAgentRegistry,
   sendSerialized,
 } from '@wrongstack/webui-server';
 import { type WebSocket, WebSocketServer } from 'ws';
@@ -160,7 +161,31 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   const { prefSnapshot, persistPrefs } = createPrefsSeeding(opts);
   const sessionStartedAt = Date.now();
-  const buildSessionStartPayload = createSessionStartPayloadBuilder(opts);
+  /**
+   * Forward reference to the per-tab agent registry, which cannot be built
+   * until the abort map exists further down. Everything that describes "one
+   * session" reads through this, so a payload built for a background tab
+   * reports that tab's model, mode and context window rather than the
+   * leader's.
+   */
+  let sessionAgentsRef: SessionAgentRegistry | undefined;
+  const buildSessionStartPayload = createSessionStartPayloadBuilder({
+    ...opts,
+    // Read through to the live `opts`, do NOT snapshot: `projects.select`
+    // re-roots the host by assigning `opts.projectRoot` / `opts.session` on
+    // this very object. A spread copy froze both at boot, so every
+    // `session.start` broadcast after a project switch still announced the
+    // previous project's root — the switch looked like it had not happened.
+    get projectRoot() {
+      return opts.projectRoot;
+    },
+    get session() {
+      return opts.session;
+    },
+    // `peek`, never `get`: building a payload must not materialise an agent
+    // for a session id that arrived from a stale browser tab.
+    getSessionContext: (sessionId) => sessionAgentsRef?.peek(sessionId)?.ctx,
+  });
 
   const { register: registerWebuiClient, unregister: unregisterWebuiClient } =
     createWebuiClientRegistration({
@@ -294,7 +319,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     );
   }
 
-  const currentSessionId = (): string => opts.agent.ctx.session?.id ?? opts.session.id;
+  /**
+   * Which tab this host considers to be in front.
+   *
+   * Deliberately its OWN binding rather than `opts.agent.ctx.session`. The
+   * leader agent is not a neutral pointer — it is the runtime of the boot
+   * tab — so using its writer as "the current session" meant that resuming
+   * any other tab re-pointed the boot tab's context at that tab's journal.
+   * Everything the boot tab appended afterwards (mid-run included) landed in
+   * the wrong session's file. The pointer moves; contexts do not.
+   */
+  let foregroundSession: SessionWriter = opts.agent.ctx.session ?? opts.session;
+  const currentSessionId = (): string => foregroundSession.id;
 
   const registryBaseDir = globalRoot;
   let webuiInstanceRegistered = false;
@@ -356,6 +392,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   } = createStreamCoalescer({ broadcast, sessionPayload });
 
   const setupEvents = createSetupEvents({
+    sessionContext: (sessionId) => sessionAgentsRef?.peek(sessionId)?.ctx,
     events: opts.events,
     agent: opts.agent,
     subscribeEternalIteration: opts.subscribeEternalIteration,
@@ -409,8 +446,50 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
    */
   const sessionAgents = createSessionAgentRegistry({
     template: opts.agent,
+    ...(opts.modelsRegistry ? { modelsRegistry: opts.modelsRegistry } : {}),
     isRunActive: (sessionId) => abortControllers.has(sessionId),
+    // A tab that is still on screen must outlive one that was closed, whatever
+    // order their agents were created in.
+    isDisplayed: (sessionId: string) => {
+      for (const client of clients.values()) {
+        if (client.sessionId === sessionId) return true;
+        if (client.sessionIds?.has(sessionId) === true) return true;
+      }
+      return false;
+    },
   });
+  sessionAgentsRef = sessionAgents;
+
+  /**
+   * Retire the runtime of a tab that was closed.
+   *
+   * A closed tab used to leave everything behind: its Agent, that agent's
+   * whole in-memory transcript, and an OPEN journal writer with a live file
+   * handle. Nothing ever asked for them again, and the next session to need a
+   * slot evicted a tab the user still had open instead.
+   *
+   * Two refusals, both deliberate:
+   *   - a session with a live run keeps its agent, because the run outlives
+   *     the tab that started it and still needs somewhere to write;
+   *   - the boot session keeps its agent, because that agent IS the leader
+   *     the whole host is wired to.
+   */
+  const retireUndisplayedSessions = (sessionIds: string[]): void => {
+    for (const sessionId of sessionIds) {
+      if (!sessionId || sessionId === opts.session.id) continue;
+      if (sessionId === foregroundSession.id) continue;
+      if (abortControllers.has(sessionId)) continue;
+      const agent = sessionAgents.peek(sessionId);
+      if (!agent || agent === opts.agent) continue;
+      const writer = agent.ctx.session;
+      sessionAgents.drop(sessionId);
+      // Close the journal LAST and best-effort: the handle is the scarce
+      // resource, but a failed close must not stop the drop.
+      if (writer && writer.id === sessionId) {
+        void Promise.resolve(writer.close?.()).catch(() => undefined);
+      }
+    }
+  };
 
   const routeContexts = createWebuiRouteContexts({
     opts,
@@ -426,6 +505,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     pendingConfirms,
     abortControllers,
     getSessionAgent: (sessionId) => sessionAgents.get(sessionId),
+    onSessionsUndisplayed: retireUndisplayedSessions,
+    isSessionLive: (sessionId) => sessionAgents.isLive(sessionId),
+    getForegroundSession: () => foregroundSession,
+    setForegroundSession: (next) => {
+      foregroundSession = next;
+    },
+    clients,
     ...(opts.stopSessionFleet ? { stopSessionFleet: opts.stopSessionFleet } : {}),
     getAbortController: () => abortController,
     clearAbortController: () => {

@@ -2,7 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { addTask, createBoard, getBoard } from '@wrongstack/kanban';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
@@ -30,7 +31,13 @@ beforeEach(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-deadends-'));
 });
 
-const ctx = () => ({ projectRoot: dir, setCurrentKanbanTask() {} }) as unknown as Context;
+const eventContext = { sessionId: '2026-08-26/sess_TESTDEADENDS' };
+const ctx = () =>
+  ({
+    projectRoot: dir,
+    eventSessionId: () => eventContext.sessionId,
+    setCurrentKanbanTask() {},
+  }) as unknown as Context;
 const run = (input: Record<string, unknown>) =>
   kanbanTool.execute(input as never, ctx(), { signal: newSignal() });
 
@@ -59,7 +66,12 @@ async function managedBoard(): Promise<string> {
 }
 
 const card = (boardId: string, title: string) =>
-  addTask(dir, boardId, { title, description: `${title} description`, assignee: 'agent-1' });
+  addTask(
+    dir,
+    boardId,
+    { title, description: `${title} description`, assignee: 'agent-1' },
+    eventContext,
+  );
 
 const taskOf = async (boardId: string, taskId: string) =>
   (await getBoard(dir, boardId))!.tasks.find((t) => t.id === taskId);

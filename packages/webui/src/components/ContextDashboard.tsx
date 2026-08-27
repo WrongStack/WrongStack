@@ -10,8 +10,6 @@
  *   - context.debug WS: detailed breakdown (system prompt, tools, messages)
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -27,17 +25,24 @@ import {
   Users,
   Wrench,
 } from 'lucide-react';
-import { useAppTranslation } from '@/i18n';
-import { useScrollPosition } from '@/hooks/useScrollPosition';
-import { ContextMemoryMonitor } from './ContextMemoryMonitor';
-import { MemoryLifecycleTrace } from './MemoryManager/MemoryLifecycleTrace';
-import { getWSClient } from '@/lib/ws-client';
-import { cn } from '@/lib/utils';
-import { useConfigStore, useFleetStore, useSessionStore, type SubagentView } from '@/stores';
+import { useEffect, useRef, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { ContextBar, ContextFillBar } from '@/components/ContextBar';
 import { fmtTok } from '@/components/dashboard-primitives';
 import { Button } from '@/components/ui/button';
-import { useUIStore } from '@/stores';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
+import {
+  type SubagentView,
+  useConfigStore,
+  useFleetStore,
+  useSessionStore,
+  useUIStore,
+} from '@/stores';
+import { ContextMemoryMonitor } from './ContextMemoryMonitor';
+import { MemoryLifecycleTrace } from './MemoryManager/MemoryLifecycleTrace';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -71,10 +76,50 @@ interface ZoneConfig {
 }
 
 const ZONES: ZoneConfig[] = [
-  { labelKey: 'activity:ctxDash.zoneSafe', emoji: '🟢', color: 'text-success', bg: 'bg-success/10', text: 'text-success', cssColor: 'hsl(var(--success))', from: 0, to: 60, descKey: 'activity:ctxDash.zoneSafeDesc' },
-  { labelKey: 'activity:ctxDash.zoneWarning', emoji: '🟡', color: 'text-warning', bg: 'bg-warning/10', text: 'text-warning', cssColor: 'hsl(var(--warning))', from: 60, to: 85, descKey: 'activity:ctxDash.zoneWarningDesc' },
-  { labelKey: 'activity:ctxDash.zoneCritical', emoji: '🔴', color: 'text-destructive', bg: 'bg-destructive/10', text: 'text-destructive', cssColor: 'hsl(var(--destructive))', from: 85, to: 95, descKey: 'activity:ctxDash.zoneCriticalDesc' },
-  { labelKey: 'activity:ctxDash.zoneDanger', emoji: '⚫', color: 'text-brand-orange', bg: 'bg-brand-orange/15', text: 'text-brand-orange', cssColor: 'hsl(var(--brand-orange))', from: 95, to: 100, descKey: 'activity:ctxDash.zoneDangerDesc' },
+  {
+    labelKey: 'activity:ctxDash.zoneSafe',
+    emoji: '🟢',
+    color: 'text-success',
+    bg: 'bg-success/10',
+    text: 'text-success',
+    cssColor: 'hsl(var(--success))',
+    from: 0,
+    to: 60,
+    descKey: 'activity:ctxDash.zoneSafeDesc',
+  },
+  {
+    labelKey: 'activity:ctxDash.zoneWarning',
+    emoji: '🟡',
+    color: 'text-warning',
+    bg: 'bg-warning/10',
+    text: 'text-warning',
+    cssColor: 'hsl(var(--warning))',
+    from: 60,
+    to: 85,
+    descKey: 'activity:ctxDash.zoneWarningDesc',
+  },
+  {
+    labelKey: 'activity:ctxDash.zoneCritical',
+    emoji: '🔴',
+    color: 'text-destructive',
+    bg: 'bg-destructive/10',
+    text: 'text-destructive',
+    cssColor: 'hsl(var(--destructive))',
+    from: 85,
+    to: 95,
+    descKey: 'activity:ctxDash.zoneCriticalDesc',
+  },
+  {
+    labelKey: 'activity:ctxDash.zoneDanger',
+    emoji: '⚫',
+    color: 'text-brand-orange',
+    bg: 'bg-brand-orange/15',
+    text: 'text-brand-orange',
+    cssColor: 'hsl(var(--brand-orange))',
+    from: 95,
+    to: 100,
+    descKey: 'activity:ctxDash.zoneDangerDesc',
+  },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -139,7 +184,13 @@ function SectionCard({
       )}
     >
       <div className="flex items-center gap-2 text-sm font-bold tracking-tight text-foreground">
-        <span className={cn('flex items-center justify-center h-6 w-6 rounded-lg', accentBg, accent !== 'default' && 'ring-1 ring-inset')}>
+        <span
+          className={cn(
+            'flex items-center justify-center h-6 w-6 rounded-lg',
+            accentBg,
+            accent !== 'default' && 'ring-1 ring-inset',
+          )}
+        >
           <Icon className={cn('h-3.5 w-3.5', accentColor)} />
         </span>
         {title}
@@ -153,7 +204,12 @@ function MetricRow({ label, value, color }: { label: string; value: string; colo
   return (
     <div className="flex items-center justify-between text-xs py-0.5">
       <span className="text-muted-foreground">{label}</span>
-      <span className={cn('tabular-nums font-mono font-semibold px-1.5 py-0.5 rounded', color ?? 'text-foreground')}>
+      <span
+        className={cn(
+          'tabular-nums font-mono font-semibold px-1.5 py-0.5 rounded',
+          color ?? 'text-foreground',
+        )}
+      >
         {value}
       </span>
     </div>
@@ -205,7 +261,13 @@ function AnimatedDonutGauge({
         style={{ transformOrigin: 'center', transform: 'rotate(-90deg)' }}
       />
       {/* Center percentage */}
-      <circle cx={size / 2} cy={size / 2} r={r - strokeWidth / 2 + 2} fill="hsl(var(--card))" className="drop-shadow-sm" />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={r - strokeWidth / 2 + 2}
+        fill="hsl(var(--card))"
+        className="drop-shadow-sm"
+      />
       <text
         x={size / 2}
         y={size / 2}
@@ -259,10 +321,17 @@ function AnimatedCounter({
       }
     };
     rafRef.current = requestAnimationFrame(animate);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [value, duration]);
 
-  return <>{display.toLocaleString()}{suffix}</>;
+  return (
+    <>
+      {display.toLocaleString()}
+      {suffix}
+    </>
+  );
 }
 
 function PressureSection({
@@ -276,17 +345,19 @@ function PressureSection({
 }) {
   const { t } = useAppTranslation();
   const zone = zoneFor(pct);
-  const accent =
-    pct > 85 ? 'danger' : pct > 60 ? 'warning' : 'success';
+  const accent = pct > 85 ? 'danger' : pct > 60 ? 'warning' : 'success';
 
   return (
     <SectionCard title={t('activity:ctxDash.contextPressure')} icon={Gauge} accent={accent}>
       <div className="flex flex-col sm:flex-row items-center gap-4">
         {/* Donut gauge */}
-        <div className={cn(
-          'shrink-0 transition-all duration-500',
-          pct > 85 && 'animate-[pulse_2s_ease-in-out_infinite] drop-shadow-[0_0_12px_hsl(var(--destructive)/0.35)]',
-        )}>
+        <div
+          className={cn(
+            'shrink-0 transition-all duration-500',
+            pct > 85 &&
+              'animate-[pulse_2s_ease-in-out_infinite] drop-shadow-[0_0_12px_hsl(var(--destructive)/0.35)]',
+          )}
+        >
           <AnimatedDonutGauge pct={pct} size={96} strokeWidth={10} />
         </div>
 
@@ -295,26 +366,38 @@ function PressureSection({
           <div className="flex items-center gap-3">
             <span className="text-xl">{zone.emoji}</span>
             <div className="flex-1">
-              <ContextBar pct={Math.round(pct)} tokens={tokens} maxTokens={maxTokens} segments={10} variant="iridescent" />
+              <ContextBar
+                pct={Math.round(pct)}
+                tokens={tokens}
+                maxTokens={maxTokens}
+                segments={10}
+                variant="iridescent"
+              />
             </div>
           </div>
 
           {/* Token counts with animation */}
           <div className="grid grid-cols-3 gap-1 text-[10px] font-mono tabular-nums">
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.used')}</span>
+              <span className="text-muted-foreground block text-[9px]">
+                {t('activity:ctxDash.used')}
+              </span>
               <span className={cn('font-bold', zone.color)}>
                 <AnimatedCounter value={tokens} />
               </span>
             </div>
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.free')}</span>
+              <span className="text-muted-foreground block text-[9px]">
+                {t('activity:ctxDash.free')}
+              </span>
               <span className="font-bold text-muted-foreground/80">
                 <AnimatedCounter value={Math.max(0, maxTokens - tokens)} />
               </span>
             </div>
             <div className="rounded bg-muted/30 px-2 py-1 text-center">
-              <span className="text-muted-foreground block text-[9px]">{t('activity:ctxDash.capacity')}</span>
+              <span className="text-muted-foreground block text-[9px]">
+                {t('activity:ctxDash.capacity')}
+              </span>
               <span className="font-bold text-muted-foreground/80">
                 <AnimatedCounter value={maxTokens} />
               </span>
@@ -352,12 +435,14 @@ function PressureSection({
           className="absolute top-0 -translate-x-1/2 flex flex-col items-center transition-all duration-500"
           style={{ left: `${Math.min(95, pct)}%` }}
         >
-          <span className={cn(
-            'text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors',
-            zone.bg,
-            zone.text,
-            'border-current/30',
-          )}>
+          <span
+            className={cn(
+              'text-[9px] font-mono px-1.5 py-0.5 rounded border transition-colors',
+              zone.bg,
+              zone.text,
+              'border-current/30',
+            )}
+          >
             ◀ {pct.toFixed(0)}%
           </span>
         </div>
@@ -366,7 +451,13 @@ function PressureSection({
   );
 }
 
-function CompositionSection({ data, loading }: { data: ContextDebugPayload | null; loading: boolean }) {
+function CompositionSection({
+  data,
+  loading,
+}: {
+  data: ContextDebugPayload | null;
+  loading: boolean;
+}) {
   const { t } = useAppTranslation();
   if (loading) {
     return (
@@ -389,9 +480,24 @@ function CompositionSection({ data, loading }: { data: ContextDebugPayload | nul
   }
 
   const items = [
-    { icon: FileText, label: t('activity:ctxDash.systemPrompt'), value: data.systemPrompt, className: 'bg-info' },
-    { icon: Wrench, label: t('activity:ctxDash.tools'), value: data.tools.total, className: 'bg-warning' },
-    { icon: MessageSquare, label: t('activity:ctxDash.messages'), value: data.messages.total, className: 'bg-success' },
+    {
+      icon: FileText,
+      label: t('activity:ctxDash.systemPrompt'),
+      value: data.systemPrompt,
+      className: 'bg-info',
+    },
+    {
+      icon: Wrench,
+      label: t('activity:ctxDash.tools'),
+      value: data.tools.total,
+      className: 'bg-warning',
+    },
+    {
+      icon: MessageSquare,
+      label: t('activity:ctxDash.messages'),
+      value: data.messages.total,
+      className: 'bg-success',
+    },
   ];
 
   return (
@@ -404,7 +510,10 @@ function CompositionSection({ data, loading }: { data: ContextDebugPayload | nul
           return (
             <span
               key={item.label}
-              className={cn('h-full first:rounded-l-full last:rounded-r-full transition-all', item.className)}
+              className={cn(
+                'h-full first:rounded-l-full last:rounded-r-full transition-all',
+                item.className,
+              )}
               style={{ width: `${width}%` }}
             />
           );
@@ -470,16 +579,15 @@ function ThresholdSection({ pct }: { pct: number }) {
           return (
             <div
               key={t(z.labelKey)}
-              className={cn(
-                'flex items-center px-2 py-1 rounded',
-                active ? z.bg : '',
-              )}
+              className={cn('flex items-center px-2 py-1 rounded', active ? z.bg : '')}
             >
               <span className="w-5">{z.emoji}</span>
               <span className={cn('w-20 font-medium', active ? z.text : 'text-muted-foreground')}>
                 {t(z.labelKey)}
               </span>
-              <span className="w-16 text-muted-foreground">{z.from}%–{z.to}%</span>
+              <span className="w-16 text-muted-foreground">
+                {z.from}%–{z.to}%
+              </span>
               <span className="flex-1 text-muted-foreground">{t(z.descKey)}</span>
               {active && <span className="text-xs font-mono">◀</span>}
             </div>
@@ -503,15 +611,21 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
   const recoveryEst = Math.round(maxTokens * 0.18);
   const triggerAt = Math.round(maxTokens * 0.85);
   const needsCompact = pct > 65;
-  const compactPct = maxTokens > 0 ? (pct / 100) : 0;
+  const compactPct = maxTokens > 0 ? pct / 100 : 0;
 
   return (
-    <SectionCard title={t('activity:ctxDash.compactionEngine')} icon={HardDrive} accent={needsCompact ? 'warning' : 'success'}>
+    <SectionCard
+      title={t('activity:ctxDash.compactionEngine')}
+      icon={HardDrive}
+      accent={needsCompact ? 'warning' : 'success'}
+    >
       <div className="space-y-2 text-xs">
         <div className="flex items-center gap-2">
           <span className="text-muted-foreground">{t('activity:ctxDash.strategy')}</span>
           <span className="font-semibold text-foreground/90">hybrid</span>
-          <span className="text-success bg-success/10 px-1.5 rounded text-[9px] font-semibold">{t('activity:ctxDash.auto')}</span>
+          <span className="text-success bg-success/10 px-1.5 rounded text-[9px] font-semibold">
+            {t('activity:ctxDash.auto')}
+          </span>
         </div>
 
         {/* Visual trigger meter */}
@@ -540,10 +654,7 @@ function CompactionSection({ pct, maxTokens }: { pct: number; maxTokens: number 
           </div>
         </div>
 
-        <MetricRow
-          label={t('activity:ctxDash.nextTrigger')}
-          value={`${fmtTok(triggerAt)} (85%)`}
-        />
+        <MetricRow label={t('activity:ctxDash.nextTrigger')} value={`${fmtTok(triggerAt)} (85%)`} />
         <div className="flex items-center justify-between text-xs py-0.5">
           <span className="text-muted-foreground">{t('activity:ctxDash.estRecovery')}</span>
           <span className="tabular-nums font-mono font-semibold px-1.5 py-0.5 rounded text-success bg-success/10">
@@ -690,25 +801,32 @@ export function ContextDashboard() {
   const setCurrentView = useUIStore((s) => s.setCurrentView);
 
   // Session data
-  const { lastInputTokens, maxContext, mode, contextMode, startTime, session, iteration, projectName, cwd } =
-    useSessionStore(
-      useShallow((s) => ({
-        lastInputTokens: s.lastInputTokens,
-        maxContext: s.maxContext,
-        mode: s.mode,
-        contextMode: s.contextMode,
-        startTime: s.startTime,
-        session: s.session,
-        iteration: s.iteration,
-        projectName: s.projectName,
-        cwd: s.cwd,
-      })),
-    );
+  const {
+    lastInputTokens,
+    maxContext,
+    mode,
+    contextMode,
+    startTime,
+    session,
+    iteration,
+    projectName,
+    cwd,
+  } = useSessionStore(
+    useShallow((s) => ({
+      lastInputTokens: s.lastInputTokens,
+      maxContext: s.maxContext,
+      mode: s.mode,
+      contextMode: s.contextMode,
+      startTime: s.startTime,
+      session: s.session,
+      iteration: s.iteration,
+      projectName: s.projectName,
+      cwd: s.cwd,
+    })),
+  );
 
   // Fleet data — useShallow stabilizes derived array reference
-  const fleetAgents = useFleetStore(
-    useShallow((s) => [...s.agents.values()]),
-  );
+  const fleetAgents = useFleetStore(useShallow((s) => [...s.agents.values()]));
 
   // Debug data from context.debug WS
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -733,7 +851,11 @@ export function ContextDashboard() {
     setLoading(true);
     setDebugError(null);
 
-    ws.send({ type: 'context.debug' }, { echoToChat: false });
+    // Addressed at the tab on screen. Unaddressed, the server answers from
+    // whichever session it is pointing at, so this panel showed another tab's
+    // breakdown — and a reply meant for another tab overwrote it.
+    const askedFor = ws.withSession({}).sessionId;
+    ws.send({ type: 'context.debug', payload: ws.withSession({}) }, { echoToChat: false });
     // Cancelled flag prevents the timeout from overwriting a successful response
     // and the response handler from acting on a stale timeout. The first
     // completion (response or timeout) sets it; the other becomes a no-op.
@@ -744,6 +866,8 @@ export function ContextDashboard() {
       if (cancelled) return;
       if (msg.type !== 'context.debug') return;
       if (debugGenRef.current !== gen) return;
+      const replyFor = (msg.payload as { sessionId?: string } | undefined)?.sessionId;
+      if (askedFor !== undefined && replyFor !== undefined && replyFor !== askedFor) return;
       cancelled = true;
       if (timeoutId !== undefined) clearTimeout(timeoutId);
       setDebugData(msg.payload as ContextDebugPayload);
@@ -764,7 +888,12 @@ export function ContextDashboard() {
     }, 5000);
   };
 
+  // Refetch when the foreground moves, not only when the socket changes: the
+  // panel is not unmounted between tabs, so without this it kept showing the
+  // previous tab's breakdown until the user pressed refresh.
+  const debugSessionId = useSessionStore((s) => s.session?.id);
   useEffect(() => {
+    setDebugData(null);
     fetchDebug();
     return () => {
       // Invalidate any in-flight request and clean up the WS listener
@@ -774,7 +903,7 @@ export function ContextDashboard() {
       debugUnsubRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wsUrl]);
+  }, [wsUrl, debugSessionId]);
 
   // Derived values
   const model = session?.model ?? '—';
@@ -790,7 +919,10 @@ export function ContextDashboard() {
   });
 
   return (
-    <div ref={useScrollPosition('context')} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+    <div
+      ref={useScrollPosition('context')}
+      className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+    >
       {/* Inject fadeInUp keyframes once */}
       <style>{`
         @keyframes fadeInUp {
@@ -813,7 +945,9 @@ export function ContextDashboard() {
           <span className="text-lg">{zone.emoji}</span>
           <Sparkles className="h-3.5 w-3.5 text-primary/60" />
           <h1 className="text-sm font-semibold">{t('activity:ctxDash.contextDashboard')}</h1>
-          <span className={cn('text-[10px] font-mono px-1.5 py-0.5 rounded-full', zone.bg, zone.text)}>
+          <span
+            className={cn('text-[10px] font-mono px-1.5 py-0.5 rounded-full', zone.bg, zone.text)}
+          >
             {t(zone.labelKey)}
           </span>
         </div>
@@ -824,7 +958,9 @@ export function ContextDashboard() {
           className="p-1 rounded hover:bg-accent transition-colors"
           title={t('activity:ctxDash.refreshDebugData')}
         >
-          <RefreshCw className={cn('h-3.5 w-3.5 text-muted-foreground', loading && 'animate-spin')} />
+          <RefreshCw
+            className={cn('h-3.5 w-3.5 text-muted-foreground', loading && 'animate-spin')}
+          />
         </button>
       </div>
 
@@ -884,7 +1020,10 @@ export function ContextDashboard() {
 
         {/* Error banner */}
         {debugError && (
-          <div className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive" style={staggerDelay(7)}>
+          <div
+            className="rounded-md bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive"
+            style={staggerDelay(7)}
+          >
             {debugError}
           </div>
         )}

@@ -27,6 +27,30 @@ export interface ToolsConfig {
    */
   disabledTools?: string[] | undefined;
   /**
+   * Per-tool audit-trail metadata for `disabledTools`. Parallel to
+   * `disabledTools` (which is `string[]` for backward compatibility) so a
+   * `user` disable and an `auto-thinned` disable can be distinguished on
+   * the next boot. Missing entries default to `user`.
+   *
+   * Owners of this config should not hand-write this object — the
+   * `/tool autothin apply` and `undo` commands are the source of truth.
+   */
+  disabledToolMeta?: Record<string, DisabledToolMeta> | undefined;
+  /**
+   * Stats-driven tool auto-thinning. Off by default. When enabled, the
+   * host either applies candidates on every boot (`applyOnBoot: true`) or
+   * surfaces them only via `/tool autothin candidates` (the default).
+   *
+   * The candidate set comes from the Chronicle `tool_daily` rollup when
+   * available, and falls back to the in-process event-bridge Map. The
+   * default window is 30 days, default threshold is 3 invocations.
+   *
+   * SECURITY: this is operator-owned; the in-project policy denies the
+   * whole `tools.autoThin` subtree (same posture as `tools.exec.allow`)
+   * so a repo-committed config cannot disable a tool the operator wants.
+   */
+  autoThin?: AutoThinConfig | undefined;
+  /**
    * When true (default), the agent automatically extends its iteration
    * limit by 100 when hit. Set to false to require user confirmation.
    */
@@ -327,3 +351,54 @@ export type ToolDescriptionModeConfig = Record<string, ToolDescriptionMode | und
  */
 export type ToolResultRenderMode = 'extend' | 'simple';
 export type ToolResultRenderModeConfig = Record<string, ToolResultRenderMode | undefined>;
+
+/** Per-tool audit-trail entry for `ToolsConfig.disabledToolMeta`. */
+export interface DisabledToolMeta {
+  /** `user` for a manual `/tool disable`, `auto-thinned` for the stats pipeline. */
+  reason: 'user' | 'auto-thinned';
+  /** Epoch ms when the disable was recorded. */
+  at: number;
+  /** Free-form caller label, e.g. `'boot-time auto-thin'`, `'manual apply'`. */
+  caller?: string;
+}
+
+/**
+ * Stats-driven tool auto-thinning (`tools.autoThin`).
+ *
+ * The pipeline runs `underusedTools()` against the Chronicle rollup (or the
+ * in-process event-bridge Map when Chronicle is unavailable), filters with
+ * the policy in {@link filterUnderused}, and disables the survivors via
+ * `ToolRegistry.thinUnderused()`. The decision is recorded in
+ * `disabledToolMeta` so it survives restarts; `/tool autothin undo` re-enables
+ * the auto-thinned subset.
+ */
+export interface AutoThinConfig {
+  /**
+   * Master switch. When false, no auto-thinning runs and `/tool autothin
+   * candidates` is a no-op. Default: false.
+   */
+  enabled?: boolean | undefined;
+  /**
+   * Window in calendar days. Tools not invoked in this window AND with
+   * `invocations <= minInvocations` in the window are candidates. Default: 30.
+   */
+  idleDays?: number | undefined;
+  /**
+   * Upper bound on invocations within the window. Default: 3.
+   */
+  minInvocations?: number | undefined;
+  /**
+   * Optional allow-list of tool names the auto-thinning pipeline must
+   * NEVER disable, regardless of stats. Use this for tools the user
+   * expects to be available even if Chronicle shows zero invocations
+   * (e.g. an emergency `bash` escape hatch).
+   */
+  neverAutoThin?: string[] | undefined;
+  /**
+   * When true, the host runs the auto-thinning pipeline on every boot.
+   * When false, the user must run `/tool autothin apply` explicitly. The
+   * dry-run command `/tool autothin candidates` is always available
+   * regardless of this flag. Default: false.
+   */
+  applyOnBoot?: boolean | undefined;
+}

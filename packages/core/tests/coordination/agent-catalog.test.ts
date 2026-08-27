@@ -19,6 +19,9 @@ import type {
   TaskSpec,
 } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const PHASES: AgentPhase[] = [
   'discovery',
   'planning',
@@ -155,12 +158,7 @@ describe('fleet roster derivation', () => {
       expect(FLEET_ROSTER[legacy]).toBeDefined();
     }
     // Standalone operational roles registered outside the phase catalog.
-    for (const operational of [
-      'shadow-agent',
-      'generic',
-      'explore-companion',
-      'chaos-monkey',
-    ]) {
+    for (const operational of ['shadow-agent', 'generic', 'explore-companion', 'chaos-monkey']) {
       expect(FLEET_ROSTER[operational]).toBeDefined();
     }
     // Every catalog role is in the roster.
@@ -199,6 +197,7 @@ describe('catalog spawnability (real Director + spawn tool)', () => {
       _ctx: SubagentRunContext,
     ): Promise<SubagentRunOutcome> => ({ iterations: 1, toolCalls: 1 });
     return new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'catalog',
         doneCondition: { type: 'all_tasks_done' },
@@ -214,11 +213,9 @@ describe('catalog spawnability (real Director + spawn tool)', () => {
     const spawnedIds: string[] = [];
 
     for (const role of Object.keys(FLEET_ROSTER)) {
-      const result = (await spawn.execute(
-        { role },
-        {} as never,
-        { signal: new AbortController().signal },
-      )) as { subagentId?: string; error?: string };
+      const result = (await spawn.execute({ role }, {} as never, {
+        signal: new AbortController().signal,
+      })) as { subagentId?: string; error?: string };
       expect(result.error, `spawn error for role "${role}"`).toBeUndefined();
       expect(result.subagentId, `no subagentId for role "${role}"`).toBeTruthy();
       spawnedIds.push(result.subagentId!);

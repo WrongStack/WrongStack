@@ -8,7 +8,7 @@ import {
   listBoards,
   touchKanbanPresence,
   withLiveKanbanPresence,
-} from '../src/manager.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -62,12 +62,10 @@ describe('Kanban board presence', () => {
     });
 
     expect(
-      withLiveKanbanPresence(touched!, new Date('2026-07-16T10:00:00.500Z')).presence?.[0]
-        ?.active,
+      withLiveKanbanPresence(touched!, new Date('2026-07-16T10:00:00.500Z')).presence?.[0]?.active,
     ).toBe(true);
     expect(
-      withLiveKanbanPresence(touched!, new Date('2026-07-16T10:00:02.000Z')).presence?.[0]
-        ?.active,
+      withLiveKanbanPresence(touched!, new Date('2026-07-16T10:00:02.000Z')).presence?.[0]?.active,
     ).toBe(false);
   });
 });

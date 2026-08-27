@@ -60,9 +60,14 @@ import { handleKanbanDetailAction } from '../src/kanban-detail-actions.js';
 
 describe('handleKanbanDetailAction', () => {
   const projectRoot = '/fake/project';
+  const ctx = {
+    eventSessionId: () => '2026-08-26/sess_TESTDETAIL',
+  } as unknown as import('@wrongstack/core/agent').Context;
+  const run = (input: Parameters<typeof handleKanbanDetailAction>[1]) =>
+    handleKanbanDetailAction(projectRoot, input, ctx);
 
   it('returns undefined for unknown action', async () => {
-    const result = await handleKanbanDetailAction(projectRoot, {
+    const result = await run({
       action: 'list_boards' as never,
     });
     expect(result).toBeUndefined();
@@ -70,7 +75,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('add_dependency', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_dependency',
       });
       expect(result?.ok).toBe(false);
@@ -78,7 +83,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('adds a dependency with valid params', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_dependency',
         boardId: 'b1',
         taskId: 't1',
@@ -91,7 +96,7 @@ describe('handleKanbanDetailAction', () => {
     it('fails when task not found', async () => {
       const { addDependency } = await import('@wrongstack/kanban');
       vi.mocked(addDependency).mockResolvedValueOnce(null);
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_dependency',
         boardId: 'b1',
         taskId: 't1',
@@ -104,7 +109,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('add_goal_metric', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_goal_metric',
       });
       expect(result?.ok).toBe(false);
@@ -112,7 +117,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('adds a goal metric with optional fields', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_goal_metric',
         boardId: 'b1',
         taskId: 't1',
@@ -130,7 +135,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('update_goal_metric', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'update_goal_metric',
       });
       expect(result?.ok).toBe(false);
@@ -138,7 +143,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('updates goal metric with all fields', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'update_goal_metric',
         boardId: 'b1',
         taskId: 't1',
@@ -157,7 +162,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('add_check', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_check',
       });
       expect(result?.ok).toBe(false);
@@ -165,7 +170,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('adds a check with description and status', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_check',
         boardId: 'b1',
         taskId: 't1',
@@ -179,7 +184,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('update_check', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'update_check',
       });
       expect(result?.ok).toBe(false);
@@ -187,7 +192,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('updates check description and status', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'update_check',
         boardId: 'b1',
         taskId: 't1',
@@ -202,7 +207,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('add_note', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_note',
       });
       expect(result?.ok).toBe(false);
@@ -210,7 +215,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('adds a note with author', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_note',
         boardId: 'b1',
         taskId: 't1',
@@ -224,7 +229,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('add_link', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_link',
       });
       expect(result?.ok).toBe(false);
@@ -232,7 +237,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('adds a link with title', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'add_link',
         boardId: 'b1',
         taskId: 't1',
@@ -247,7 +252,7 @@ describe('handleKanbanDetailAction', () => {
 
   describe('split_atomic', () => {
     it('fails when required params missing', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'split_atomic',
       });
       expect(result?.ok).toBe(false);
@@ -255,7 +260,7 @@ describe('handleKanbanDetailAction', () => {
     });
 
     it('splits a task with atomic flag', async () => {
-      const result = await handleKanbanDetailAction(projectRoot, {
+      const result = await run({
         action: 'split_atomic',
         boardId: 'b1',
         taskId: 't1',

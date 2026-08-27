@@ -1,4 +1,5 @@
 import { color } from '@wrongstack/core/utils';
+import type { KanbanEventContext } from '@wrongstack/kanban';
 import {
   addTask,
   createBoard,
@@ -151,13 +152,14 @@ export async function handleGraphSubcommand(
 export async function handleBoardGenerate(
   projectRoot: string,
   restJoined: string,
+  eventContext: KanbanEventContext,
 ): Promise<{ message: string }> {
   if (!restJoined) return { message: color.red('Usage: /kanban generate <description>') };
   const genInput = createBoardFromText({ description: restJoined });
   const board = await createBoard(projectRoot, genInput);
   const tasks = parseLinesIntoTasks(restJoined, board.columns[0]?.id ?? 'backlog');
   for (const taskInput of tasks) {
-    await addTask(projectRoot, board.id, taskInput);
+    await addTask(projectRoot, board.id, taskInput, eventContext);
   }
   return {
     message: `${color.green('✅ Board generated:')} ${color.bold(board.title)}\n  ${color.dim(board.id)}\n  ${board.tasks.length + tasks.length} tasks created`,

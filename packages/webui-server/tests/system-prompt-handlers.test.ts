@@ -94,6 +94,46 @@ describe('handleSystemPromptGet', () => {
     expect(msg.payload.variants).toHaveLength(3);
   });
 
+  it('answers with the ASKING tab’s variant, not the host default', async () => {
+    const send = vi.fn();
+    await handleSystemPromptGet(
+      ctx({
+        send,
+        systemPrompt: surface(path.join(tmp, 'config.json')),
+        // Four tabs on one runtime each carry their own `systemPromptVariant`;
+        // `surface.current()` only knows the host-wide default, so answering
+        // from it told tab 3 it was running tab 1's identity prompt.
+        metaFor: (id) => (id === 'tab-pro' ? { systemPromptVariant: 'pro' } : {}),
+      }),
+      {} as never,
+      'tab-pro',
+    );
+
+    const msg = send.mock.calls[0]![1] as {
+      payload: { current: string; sessionId?: string };
+    };
+    expect(msg.payload.current).toBe('pro');
+    // Stamped, so the browser files it under the tab that asked instead of
+    // over whichever one it is showing.
+    expect(msg.payload.sessionId).toBe('tab-pro');
+  });
+
+  it('falls back to the host default for a tab that never chose', async () => {
+    const send = vi.fn();
+    await handleSystemPromptGet(
+      ctx({
+        send,
+        systemPrompt: surface(path.join(tmp, 'config.json')),
+        metaFor: () => ({}),
+      }),
+      {} as never,
+      'tab-fresh',
+    );
+
+    const msg = send.mock.calls[0]![1] as { payload: { current: string } };
+    expect(msg.payload.current).toBe('default');
+  });
+
   it('answers explicitly when the host did not wire it', async () => {
     const send = vi.fn();
     await handleSystemPromptGet(ctx({ send }), {} as never);

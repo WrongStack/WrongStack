@@ -44,7 +44,11 @@ function makeFakeStore(): TaskStore {
       return g ? clone(g) : null;
     },
     async listGraphs() {
-      return [...graphs.values()].map((g) => ({ id: g.id, title: g.title, updatedAt: g.updatedAt }));
+      return [...graphs.values()].map((g) => ({
+        id: g.id,
+        title: g.title,
+        updatedAt: g.updatedAt,
+      }));
     },
     async deleteGraph(id) {
       graphs.delete(id);
@@ -119,6 +123,7 @@ describe('startSddRun — kanban transport', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -141,6 +146,7 @@ describe('startSddRun — kanban transport', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -150,9 +156,15 @@ describe('startSddRun — kanban transport', () => {
     });
 
     await expect
-      .poll(() => warnSpy.mock.calls.some(([line]: [unknown]) => /sdd\.control_drain_failed/.test(String(line))), {
-        timeout: 3000,
-      })
+      .poll(
+        () =>
+          warnSpy.mock.calls.some(([line]: [unknown]) =>
+            /sdd\.control_drain_failed/.test(String(line)),
+          ),
+        {
+          timeout: 3000,
+        },
+      )
       .toBe(true);
     release();
     await handle.completion;
@@ -175,6 +187,7 @@ describe('startSddRun — kanban transport', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -184,9 +197,15 @@ describe('startSddRun — kanban transport', () => {
     });
 
     await expect
-      .poll(() => warnSpy.mock.calls.some(([line]: [unknown]) => /sdd\.control_drain_failed/.test(String(line))), {
-        timeout: 3000,
-      })
+      .poll(
+        () =>
+          warnSpy.mock.calls.some(([line]: [unknown]) =>
+            /sdd\.control_drain_failed/.test(String(line)),
+          ),
+        {
+          timeout: 3000,
+        },
+      )
       .toBe(true);
     release();
     await handle.completion;
@@ -203,6 +222,7 @@ describe('startSddRun — kanban transport', () => {
     const handleA = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -218,6 +238,7 @@ describe('startSddRun — kanban transport', () => {
     const handleB = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -239,13 +260,16 @@ describe('startSddRun — kanban transport', () => {
     );
     const unsubscribed = vi.fn();
     let gate!: () => void;
-    const factory = gatedFactory(new Promise<void>((r) => {
-      gate = r;
-    }));
+    const factory = gatedFactory(
+      new Promise<void>((r) => {
+        gate = r;
+      }),
+    );
 
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -284,6 +308,7 @@ describe('startSddRun — kanban transport', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -304,20 +329,15 @@ describe('startSddRun — kanban transport', () => {
   it('short-circuits a drain fired after the run disposed (:236)', async () => {
     const { tracker, graph } = await makeSuccessfulGraph();
     let capturedCallback: (() => void) | undefined;
-    kanban.subscribe.mockImplementation(
-      async (
-        _root: string,
-        _id: string,
-        cb: () => void,
-      ) => {
-        capturedCallback = cb;
-        return () => undefined;
-      },
-    );
+    kanban.subscribe.mockImplementation(async (_root: string, _id: string, cb: () => void) => {
+      capturedCallback = cb;
+      return () => undefined;
+    });
 
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -356,6 +376,7 @@ describe('startSddRun — legacy-file initial drain commands (:300, :310)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -385,6 +406,7 @@ describe('startSddRun — legacy-file initial drain commands (:300, :310)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -419,6 +441,7 @@ describe('startSddRun — legacy-file initial drain commands (:300, :310)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),

@@ -60,6 +60,9 @@ export async function mkSandbox(): Promise<Sandbox> {
     },
     todos,
     meta: {},
+    // Board and ledger writes are stamped with the owning session, same as a
+    // real Context derives it from `session.id`.
+    eventSessionId: () => 'test',
     session: {
       id: 'test',
       append: async () => undefined,

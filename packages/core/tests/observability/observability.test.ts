@@ -280,7 +280,7 @@ describe('wireMetricsToEvents', () => {
   it('translates EventBus events into metrics', () => {
     const bus = new EventBus();
     const sink = new InMemoryMetricsSink();
-    const unwire = wireMetricsToEvents(bus, sink);
+    const handle = wireMetricsToEvents(bus, sink);
 
     bus.emit('iteration.completed', { ctx: {} as any, index: 0 });
     bus.emit('iteration.completed', { ctx: {} as any, index: 1 });
@@ -310,7 +310,7 @@ describe('wireMetricsToEvents', () => {
     expect(find('provider.tokens.cache_read')?.values.value).toBe(200);
     expect(find('compaction.fired.total')?.values.value).toBe(1);
 
-    unwire();
+    handle.dispose();
     bus.emit('iteration.completed', { ctx: {} as any, index: 2 });
     // After unwire the counter must not advance
     expect(
@@ -321,7 +321,7 @@ describe('wireMetricsToEvents', () => {
   it('translates every wired event type into the matching metric', () => {
     const bus = new EventBus();
     const sink = new InMemoryMetricsSink();
-    const unwire = wireMetricsToEvents(bus, sink);
+    const handle = wireMetricsToEvents(bus, sink);
 
     bus.emit('session.started', { id: 's1' });
     bus.emit('session.ended', {
@@ -379,7 +379,7 @@ describe('wireMetricsToEvents', () => {
     expect(has('mcp.disconnects.total')).toBe(true);
     expect(has('agent.errors.total')).toBe(true);
 
-    unwire();
+    handle.dispose();
   });
 
   it('listener exception in metrics does not crash EventBus', () => {

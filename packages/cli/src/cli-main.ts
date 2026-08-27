@@ -3,6 +3,7 @@ import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { writeErr } from '@wrongstack/core/utils';
+import { setProxyTransitionLogger } from '@wrongstack/core/wiring/proxy-rewrite';
 import { wireEventWiring } from './boot/event-wiring.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import type { CliContext } from './cli-context.js';
@@ -34,8 +35,7 @@ import {
   adoptResumedProvider,
   registerProviderUtilityTools,
 } from './wiring/provider-utility-tools.js';
-import { setProxyTransitionLogger } from '@wrongstack/core/wiring/proxy-rewrite';
-import { bootstrapWrongProxy, awaitFirstWrongProxyProbe } from './wiring/proxy-wiring.js';
+import { awaitFirstWrongProxyProbe, bootstrapWrongProxy } from './wiring/proxy-wiring.js';
 import { setupReplayAndGovernance } from './wiring/replay-governance-setup.js';
 import { prepareRuntimeDispatch } from './wiring/runtime-dispatch-state.js';
 import { setupSessionEstablishment } from './wiring/session-establishment.js';
@@ -572,6 +572,7 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     renderer,
     reader,
     permissionPolicy: container.resolve(TOKENS.PermissionPolicy),
+    contextMeta: agent.ctx.meta,
   });
 
   setupCliSlashCommands({

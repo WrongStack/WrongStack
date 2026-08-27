@@ -15,6 +15,10 @@ export async function handleKanbanDecompositionAction(
   input: KanbanToolInput,
   ctx: Context,
 ): Promise<KanbanToolOutput | undefined> {
+  const eventContext = {
+    sessionId: ctx.eventSessionId(),
+    ...(ctx.agentId !== undefined ? { actor: ctx.agentId } : {}),
+  };
   switch (input.action) {
     case 'assess_atomicity': {
       if (!input.boardId || !input.taskId) {
@@ -22,7 +26,7 @@ export async function handleKanbanDecompositionAction(
       }
       const result = await assessTaskAtomicity(projectRoot, input.boardId, input.taskId, {
         assessedBy: 'agent',
-        ...(ctx.agentId !== undefined ? { eventContext: { actor: ctx.agentId } } : {}),
+        eventContext,
       });
       if (!result) return fail('Task not found.');
       const failing = result.assessment.criteria
@@ -60,7 +64,7 @@ export async function handleKanbanDecompositionAction(
           ...(input.note !== undefined ? { rationale: input.note } : {}),
           ...(ctx.agentId !== undefined ? { proposedBy: ctx.agentId } : {}),
         },
-        ctx.agentId !== undefined ? { actor: ctx.agentId } : {},
+        eventContext,
       );
       if (!result) return fail('Task not found.');
       const message =
@@ -74,10 +78,16 @@ export async function handleKanbanDecompositionAction(
         return fail('verify_completion requires boardId and taskId.');
       }
       const verResult = await verifyTaskCompletion(projectRoot, input.boardId, input.taskId);
-      const persistedBoard = await updateTask(projectRoot, input.boardId, input.taskId, {
-        verificationReport: verResult.report,
-        successCriteria: verResult.task.successCriteria,
-      });
+      const persistedBoard = await updateTask(
+        projectRoot,
+        input.boardId,
+        input.taskId,
+        {
+          verificationReport: verResult.report,
+          successCriteria: verResult.task.successCriteria,
+        },
+        eventContext,
+      );
       if (!persistedBoard) {
         return {
           ok: false,

@@ -331,6 +331,9 @@ export async function runCliExecution(params: {
         agent,
         setPermissionYolo: (enabled) => {
           container.resolve(TOKENS.PermissionPolicy).setYolo?.(enabled);
+          // The policy decides YOLO per conversation and only falls back to
+          // its process flag, so the live context has to move with it.
+          agent.ctx.meta['yolo'] = enabled;
         },
         setLogLevel: (level) => {
           container.resolve(TOKENS.Logger).level = level;

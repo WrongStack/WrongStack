@@ -24,6 +24,7 @@ export const chatHandlers = {
   handleToolExecuted,
   handleToolConfirmNeeded,
   handleRunResult,
+  handleSessionRunState,
 };
 
 export const chatHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
@@ -35,6 +36,7 @@ export const chatHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'tool.executed': handleToolExecuted,
   'tool.confirm_needed': handleToolConfirmNeeded,
   'run.result': handleRunResult,
+  'session.run_state': handleSessionRunState,
 };
 
 type NextSteps = ReturnType<typeof projectNextStepsToolInput>;
@@ -70,6 +72,32 @@ function thinkingKey(sessionId: string): string {
  */
 function isForeground(chat: ChatLaneActions): boolean {
   return chat.sessionId === activeLaneId();
+}
+
+/**
+ * How a tab is named in a desktop notification.
+ *
+ * A run that ends in a background tab is still worth telling the user about —
+ * they may be in another app entirely — but a bare "run finished" over four
+ * open conversations is a riddle. The nickname is what the tab strip shows, so
+ * it is the label the user can actually match against.
+ */
+function tabLabel(sessionId: string): string {
+  const nickname = useUIStore.getState().sessionNicknames[sessionId];
+  return nickname ?? `session ${sessionId.slice(0, 8)}`;
+}
+
+/**
+ * Run notifications are tagged PER SESSION.
+ *
+ * `notifyIfHidden` collapses same-tag notifications so a single run cannot
+ * litter the notification centre — but with four tabs on one page that same
+ * collapse silently swallowed three of four completions, and the one that
+ * survived was whichever landed last. One tag per session keeps the collapse
+ * within a conversation, which is what it was for.
+ */
+function runTag(sessionId: string): string {
+  return `wrongstack-run:${sessionId}`;
 }
 
 /** Forget a retired lane's run bookkeeping. */
@@ -297,6 +325,42 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
   if (typeof document !== 'undefined' && document.hidden) setFaviconStatus('attention');
 }
 
+/**
+ * Reconcile one tab's spinner with the server's answer.
+ *
+ * Sent per declared tab in reply to `session.subscribe`, which the client
+ * re-sends on every reconnect. `run.result` — the message that stops a lane
+ * spinning — is broadcast exactly once, so a background tab whose run ended
+ * while the socket was down had no way to learn about it: it span forever,
+ * counted as busy, could not be recycled, and offered to abort a run that was
+ * long finished. Positive routing as usual: an answer for a session with no
+ * lane is dropped, never applied to the tab in front.
+ *
+ * On run-end this is a PARTIAL teardown only. The real reply finalization,
+ * chime, queue drain and message bookkeeping still arrive in `run.result`;
+ * the only fields that would otherwise drift across a reconnect gap are the
+ * per-run scratch ones that have no meaning without the run. Clearing them
+ * here stops the NEXT run from inheriting a stale `runStart` (which would
+ * inflate its `durationMs`/`costDelta`) and lets the spinner + thinking-log
+ * reset cleanly before the final `run.result` lands.
+ */
+export function handleSessionRunState(msg: WSServerMessage) {
+  const chat = chatFor(msg);
+  if (!chat) return;
+  const payload = safePayload<{ isRunning: boolean }>(msg, { isRunning: 'boolean' }, {});
+  if (!payload) return;
+  if (chat.isLoading === payload.isRunning) return;
+  chat.setLoading(payload.isRunning);
+  if (!payload.isRunning) {
+    streamCoalescer.flushAll();
+    chat.flushThinkingLog(1);
+    const meta = sessionFor(msg);
+    meta?.setIteration(null);
+    chat.clearThinking();
+    chat.setRunStart(null);
+  }
+}
+
 export function handleRunResult(msg: WSServerMessage) {
   const chat = chatFor(msg);
   if (!chat) return;
@@ -419,24 +483,44 @@ export function handleRunResult(msg: WSServerMessage) {
     });
     const isSilentAbort =
       payload.error.message === 'User aborted' || payload.error.message === 'aborted';
+    const foreground = isForeground(chat);
     if (!isSilentAbort) {
-      toast.error(`Run ended: ${payload.error.message}`);
+      // A toast is a foreground interruption with no room to say WHICH
+      // conversation failed, so a background tab's failure reads as this
+      // tab's. Its own transcript already carries the error bubble; the strip
+      // carries the flag.
+      if (foreground) toast.error(`Run ended: ${payload.error.message}`);
+      else useSessionTabStore.getState().setAttention(chat.sessionId, true);
     }
     notifyIfHidden(
-      `${useSessionStore.getState().projectName || 'Agent'} run failed`,
+      foreground
+        ? `${useSessionStore.getState().projectName || 'Agent'} run failed`
+        : `${tabLabel(chat.sessionId)} run failed`,
       payload.error.message,
+      runTag(chat.sessionId),
     );
     if (typeof document !== 'undefined' && document.hidden && isForeground(chat)) {
       setFaviconStatus('error');
     }
   } else if (payload.status === 'done') {
     if (typeof document !== 'undefined' && document.hidden) {
-      toast.success(`Run completed in ${iterations} iteration${iterations === 1 ? '' : 's'}`);
+      const foreground = isForeground(chat);
+      // The toast is queued while the page is hidden and surfaces when the
+      // user comes back — in whatever tab is in front by then, which is not
+      // necessarily the one that finished.
+      if (foreground) {
+        toast.success(`Run completed in ${iterations} iteration${iterations === 1 ? '' : 's'}`);
+      } else {
+        useSessionTabStore.getState().setAttention(chat.sessionId, true);
+      }
       notifyIfHidden(
-        `${useSessionStore.getState().projectName || 'Agent'} run finished`,
+        foreground
+          ? `${useSessionStore.getState().projectName || 'Agent'} run finished`
+          : `${tabLabel(chat.sessionId)} run finished`,
         `Completed in ${iterations} iteration${iterations === 1 ? '' : 's'}.`,
+        runTag(chat.sessionId),
       );
-      if (isForeground(chat)) setFaviconStatus('ready');
+      if (foreground) setFaviconStatus('ready');
     }
     void ensureNotificationPermission();
     if (useConfigStore.getState().soundOnComplete) {

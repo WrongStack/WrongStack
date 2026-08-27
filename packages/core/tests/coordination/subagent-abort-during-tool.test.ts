@@ -31,6 +31,9 @@ import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const makeConfig = (overrides: Record<string, unknown> = {}) => ({
   coordinatorId: 'abort-coord',
   doneCondition: { type: 'all_tasks_done' as const },
@@ -86,7 +89,10 @@ describe('subagent abort during tool execution (D5/T3)', () => {
       };
     });
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1' });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -154,7 +160,10 @@ describe('subagent abort during tool execution (D5/T3)', () => {
       return { agent, events };
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1' });
     const completion = new Promise<TaskResult>((resolve) => {

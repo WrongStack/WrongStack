@@ -16,6 +16,10 @@ const mockClient = {
   send: (m: { type: string; payload?: unknown }) => {
     sends.push(m);
   },
+  // Every design message names the tab that sent it: the active kit is pinned
+  // on that conversation's own context, so an unstamped pick re-styles the
+  // leader's next turn instead.
+  withSession: <T extends Record<string, unknown>>(p: T) => ({ ...p, sessionId: 'tab-1' }),
   on: (type: string, h: (m: unknown) => void) => {
     handlers[type] = h;
   },
@@ -56,7 +60,7 @@ afterEach(() => {
 describe('DesignGalleryView', () => {
   it('requests the kit list on mount and renders kits from design.list', () => {
     render(<DesignGalleryView />);
-    expect(sends).toContainEqual({ type: 'design.list' });
+    expect(sends).toContainEqual({ type: 'design.list', payload: { sessionId: 'tab-1' } });
     emit('design.list', { kits: [KIT], activeKit: null, overrides: {} });
     expect(screen.getByText('Kit One')).toBeTruthy();
     expect(screen.getByText('kit-one')).toBeTruthy();
@@ -66,16 +70,22 @@ describe('DesignGalleryView', () => {
     render(<DesignGalleryView />);
     emit('design.list', { kits: [KIT], activeKit: null, overrides: {} });
     fireEvent.click(screen.getByText('Use'));
-    expect(sends).toContainEqual({ type: 'design.use', payload: { kit: 'kit-one', stack: 'web' } });
+    expect(sends).toContainEqual({
+      type: 'design.use',
+      payload: { kit: 'kit-one', stack: 'web', sessionId: 'tab-1' },
+    });
   });
 
   it('shows Materialize + Verify on the active kit and they send the right messages', () => {
     render(<DesignGalleryView />);
     emit('design.list', { kits: [KIT], activeKit: 'kit-one', overrides: {} });
     fireEvent.click(screen.getByText('Materialize'));
-    expect(sends).toContainEqual({ type: 'design.materialize', payload: { stack: 'web' } });
+    expect(sends).toContainEqual({
+      type: 'design.materialize',
+      payload: { stack: 'web', sessionId: 'tab-1' },
+    });
     fireEvent.click(screen.getByText('Verify'));
-    expect(sends).toContainEqual({ type: 'design.verify' });
+    expect(sends).toContainEqual({ type: 'design.verify', payload: { sessionId: 'tab-1' } });
   });
 
   it('a color picker change sends design.set with a theme-scoped override', () => {

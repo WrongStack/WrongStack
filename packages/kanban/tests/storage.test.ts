@@ -16,8 +16,8 @@ import {
   resolveBoardRef,
   writeBoard,
 } from '../src/storage.js';
-import { createBoard } from '../src/manager.js';
 import type { KanbanEvent } from '../src/types.js';
+import { createBoard } from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -43,6 +43,7 @@ function moveEvent(boardId: string, taskId: string): KanbanEvent {
     type: 'task.moved',
     ts: new Date().toISOString(),
     taskId,
+    sessionId: '2026-08-26/sess_01TESTSESSION',
     before: { columnId: 'c1' },
     after: { columnId: 'c2' },
   };
@@ -470,6 +471,17 @@ describe('writeBoard', () => {
 // ── appendKanbanEvent ───────────────────────────────────────────────
 
 describe('appendKanbanEvent', () => {
+  it('rejects appending an event without an owning session id', async () => {
+    const { appendKanbanEvent } = await import('../src/storage.js');
+    const board = await makeBoard();
+    const event = { ...moveEvent(board.id, 't1'), sessionId: undefined };
+
+    await expect(appendKanbanEvent(tmpDir, board.id, event)).rejects.toMatchObject({
+      code: 'SESSION_ID_REQUIRED',
+    });
+    await expect(readKanbanEvents(tmpDir, board.id)).resolves.toEqual([]);
+  });
+
   it('appends an event and reads it back', async () => {
     const { appendKanbanEvent } = await import('../src/storage.js');
     const board = await makeBoard();
@@ -635,9 +647,7 @@ describe('appendKanbanEvent', () => {
 
     // appendFile will still try to write to the path-as-dir and fail. The
     // appendKanbanEvent promise rejects, but the cache should be cleared.
-    await expect(
-      appendKanbanEvent(tmpDir, board.id, moveEvent(board.id, 't2')),
-    ).rejects.toThrow();
+    await expect(appendKanbanEvent(tmpDir, board.id, moveEvent(board.id, 't2'))).rejects.toThrow();
 
     // Restore the file with a valid payload and confirm a fresh cache entry
     // is built on the next successful append.

@@ -59,7 +59,15 @@ export interface PrefsHandlerContext {
   persist: (payload: Record<string, unknown>) => Promise<void>;
   pendingConfirms: Map<string, PendingConfirm>;
   configStore?: ConfigStore | undefined;
-  setYolo?: ((enabled: boolean) => void) | undefined;
+  /**
+   * Flip the host's process-wide YOLO fallback.
+   *
+   * `sessionId` names the tab that asked. A host whose "apply" path also
+   * writes a context meta must NOT write the leader's when a tab is named —
+   * the leader context is the boot tab's runtime, so that write would turn
+   * YOLO on for a conversation the user was not in.
+   */
+  setYolo?: ((enabled: boolean, sessionId?: string | undefined) => void) | undefined;
   setAutonomy?: ((mode: string) => void) | undefined;
   applyConfigPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
   setAutoCompact?: ((enabled: boolean) => void) | undefined;
@@ -134,11 +142,22 @@ export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket, sessionI
 export async function handleSystemPromptGet(
   ctx: PrefsHandlerContext,
   ws: WebSocket,
+  sessionId?: string,
 ): Promise<void> {
   const payload = ctx.systemPrompt
-    ? await buildSystemPromptInfo(ctx.systemPrompt)
+    ? await buildSystemPromptInfo(ctx.systemPrompt, sessionVariant(ctx, sessionId))
     : unavailableSystemPromptInfo();
-  ctx.send(ws, { type: 'system_prompt.info', payload });
+  ctx.send(ws, {
+    type: 'system_prompt.info',
+    payload: sessionId ? { ...payload, sessionId } : payload,
+  });
+}
+
+/** The identity variant this tab is actually running, if it has its own. */
+function sessionVariant(ctx: PrefsHandlerContext, sessionId?: string): string | undefined {
+  if (!sessionId) return undefined;
+  const value = ctx.metaFor?.(sessionId)?.['systemPromptVariant'];
+  return typeof value === 'string' ? value : undefined;
 }
 
 export async function handlePrefsUpdate(
@@ -175,8 +194,8 @@ export async function handlePrefsUpdate(
   }
 
   if (typeof payload['yolo'] === 'boolean') {
-    ctx.setYolo?.(payload['yolo']);
-    if (payload['yolo']) resolveYoloEligiblePendingConfirms(ctx.pendingConfirms);
+    ctx.setYolo?.(payload['yolo'], sessionId);
+    if (payload['yolo']) resolveYoloEligiblePendingConfirms(ctx.pendingConfirms, sessionId);
   }
 
   ctx.applyConfigPrefs?.(payload);
@@ -244,9 +263,15 @@ export async function handlePrefsUpdate(
         }`,
       );
     }
+    // The catalogue is broadcast (it is the same everywhere), but `current`
+    // belongs to the tab that changed it — an untagged one told every other
+    // picker it had switched too.
     ctx.broadcast({
       type: 'system_prompt.info',
-      payload: await buildSystemPromptInfo(ctx.systemPrompt),
+      payload: {
+        ...(await buildSystemPromptInfo(ctx.systemPrompt, sessionVariant(ctx, sessionId))),
+        ...(sessionId ? { sessionId } : {}),
+      },
     });
   }
 

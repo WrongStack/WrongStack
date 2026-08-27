@@ -3,8 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { evaluateContractGraphReadiness } from '../src/contract-graph.js';
-import { classifyTaskForQueue } from '../src/manager/task-classifier.js';
 import { validateManagedTaskTransition } from '../src/manager/lifecycle.js';
+import { classifyTaskForQueue } from '../src/manager/task-classifier.js';
+import { writeBoard } from '../src/storage.js';
+import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   addTask,
   assignTask,
@@ -16,9 +18,7 @@ import {
   recoverStaleTaskAssignments,
   transitionTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import { writeBoard } from '../src/storage.js';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
+} from './helpers/session-manager.js';
 
 /**
  * "Can this card be started?" had four implementations. Three of them —
@@ -138,9 +138,12 @@ describe('managed card detail predicates agree', () => {
     ['missing description', { description: '  ' }],
     ['missing owner', { assignee: undefined }],
     ['missing success criteria', { successCriteria: [] }],
-    ['success criterion with a blank description', {
-      successCriteria: [{ id: 'c', description: '  ', type: 'manual', status: 'pending' }],
-    }],
+    [
+      'success criterion with a blank description',
+      {
+        successCriteria: [{ id: 'c', description: '  ', type: 'manual', status: 'pending' }],
+      },
+    ],
     ['composite parent with children', { atomic: true, childTaskIds: ['child-1'] }],
     ['composite parent with NO children', { atomic: true, childTaskIds: [] }],
     ['composite parent with blank child ids', { atomic: true, childTaskIds: ['  '] }],
@@ -171,7 +174,9 @@ describe('managed card detail predicates agree', () => {
       to: 'running',
       actor: 'tester',
       comment: 'parity probe',
-    }).some((issue) => issue.code === 'task-detail-missing' && DETAIL_FIELDS.has(issue.field ?? ''));
+    }).some(
+      (issue) => issue.code === 'task-detail-missing' && DETAIL_FIELDS.has(issue.field ?? ''),
+    );
 
     expect({ queueComplete, gateComplete }).toEqual({
       queueComplete: transitionComplete,

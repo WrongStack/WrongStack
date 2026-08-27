@@ -60,7 +60,7 @@ const { handleError, handleSessionStart } = await import(
 const { handleIterationStarted, handleTextDelta, handleThinkingDelta } = await import(
   '../../src/hooks/ws-handlers/chat-handlers'
 );
-const { handleProviderResponse } = await import(
+const { handleProviderFallback, handleProviderResponse } = await import(
   '../../src/hooks/ws-handlers/session-execution-handlers'
 );
 const { streamCoalescer } = await import('../../src/lib/stream-coalescer');
@@ -205,6 +205,50 @@ describe('session.start — tab isolation', () => {
       model: 'model-a',
       provider: 'prov-a',
     });
+  });
+
+  it('keeps a background tab’s provider fallback off the foreground’s model chip', () => {
+    start('sess_a');
+    start('sess_b');
+    useConfigStore.getState().setConfig({ provider: 'prov-b', model: 'model-b' });
+
+    // A fallback is a route change that happens to the tab whose request hit
+    // the error. Writing the global pair unconditionally relabelled whatever
+    // tab was on screen — and told the model switcher that tab was running a
+    // model it had never been given.
+    handleProviderFallback({
+      type: 'provider.fallback',
+      payload: {
+        sessionId: 'sess_a',
+        from: { providerId: 'prov-a', model: 'model-a' },
+        to: { providerId: 'prov-f', model: 'model-f' },
+        status: 429,
+        providerSwitched: true,
+      },
+    } as never);
+
+    expect(useConfigStore.getState().model).toBe('model-b');
+    expect(readSessionLane('sess_a').session).toMatchObject({
+      provider: 'prov-f',
+      model: 'model-f',
+    });
+  });
+
+  it('does move the chip when the fallback belongs to the tab in front', () => {
+    start('sess_a');
+
+    handleProviderFallback({
+      type: 'provider.fallback',
+      payload: {
+        sessionId: 'sess_a',
+        from: { providerId: 'prov-a', model: 'model-a' },
+        to: { providerId: 'prov-f', model: 'model-f' },
+        status: 429,
+        providerSwitched: true,
+      },
+    } as never);
+
+    expect(useConfigStore.getState().model).toBe('model-f');
   });
 
   it('applies a foreground tab model switch normally', () => {
@@ -383,6 +427,38 @@ describe('a background run reaches its own tab and no other', () => {
     expect(useChatStore.getState().messages).toHaveLength(0);
     expect(useChatStore.getState().isLoading).toBe(false);
   });
+
+  /**
+   * A tab switch can race the server's session pointer: the client asks to
+   * resume session X while the runtime still fronts session Y, and the
+   * session-swap guard answers with an error frame tagged `requestedSessionId`.
+   * That frame is routing noise — the request never ran, no run ended — and
+   * the server tags it with the session in FRONT. Delivering it dropped a
+   * "[session.resume] Request targeted session …" bubble into whatever chat
+   * was visible (mid-stream, on every switch) and cleared that lane's run
+   * flag. It must vanish without a trace.
+   */
+  it('drops a session-swap guard rejection without touching any lane', () => {
+    start('sess_a');
+    fire('iteration.started', 'sess_a', { index: 1, maxIterations: 10 });
+    expect(readLane('sess_a').isLoading).toBe(true);
+
+    handleError({
+      type: 'error',
+      payload: {
+        sessionId: 'sess_a',
+        phase: 'session.resume',
+        message:
+          'Request targeted session 2026-08-26/sess_old, but this WebUI runtime is currently on 2026-08-26/sess_a.',
+        requestedSessionId: '2026-08-26/sess_old',
+      },
+    } as never);
+
+    // No bubble anywhere, and the live run is left exactly as it was.
+    expect(readLane('sess_a').messages).toHaveLength(0);
+    expect(readLane('sess_a').isLoading).toBe(true);
+    expect(useChatStore.getState().messages).toHaveLength(0);
+  });
 });
 
 describe('the four slots', () => {
@@ -423,6 +499,32 @@ describe('the four slots', () => {
     expect(result).toMatchObject({ success: false, reason: 'tabs_full' });
     expect(useSessionTabStore.getState().openTabIds).toHaveLength(4);
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('never evicts an open slot to make room for an unrequested announce', () => {
+    for (const id of ['s1', 's2', 's3', 's4']) {
+      start(id);
+      chatLane(id).addMessage({ role: 'user', content: 'work in progress' });
+    }
+
+    // A fifth session announces itself with nobody asking — a re-broadcast,
+    // another surface opening a session, a stale client. This used to append
+    // and `slice(-4)`, which silently dropped s1 (running or not) and took its
+    // lane with it.
+    reannounce('s5');
+
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['s1', 's2', 's3', 's4']);
+    expect(readLane('s1').messages).toHaveLength(1);
+  });
+
+  it('gives an unrequested announce a slot while one is free', () => {
+    start('s1');
+
+    reannounce('s2');
+
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['s1', 's2']);
+    // …and without stealing the foreground from the tab the user is typing in.
+    expect(useChatStore.getState().boundSessionId).toBe('s1');
   });
 
   it('frees the lane when a slot closes, so nothing keeps accruing off-screen', () => {

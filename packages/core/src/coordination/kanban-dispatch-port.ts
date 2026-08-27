@@ -49,13 +49,14 @@ export interface KanbanDispatchPort {
     boardId: string,
     taskId: string,
     patch: Partial<KanbanAgentAssignment> & { status?: KanbanAgentRunStatus | undefined },
-    eventContext?: KanbanEventContext,
+    eventContext: KanbanEventContext,
   ): Promise<KanbanBoard | null>;
   heartbeatTaskAssignment(
     projectRoot: string,
     boardId: string,
     taskId: string,
-    input?: HeartbeatKanbanTaskAssignmentInput,
+    input: HeartbeatKanbanTaskAssignmentInput,
+    eventContext: KanbanEventContext,
   ): Promise<KanbanBoard | null>;
 }
 
@@ -65,7 +66,7 @@ const notWired = (): never => {
   );
 };
 
-let port: KanbanDispatchPort | undefined = undefined;
+let port: KanbanDispatchPort | undefined;
 
 /** Composition-root hook: register the real kanban-backed implementation. */
 export function setKanbanDispatch(impl: KanbanDispatchPort): void {

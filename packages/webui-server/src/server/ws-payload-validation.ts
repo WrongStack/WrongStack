@@ -231,6 +231,15 @@ export interface MailboxSendPayload {
   body: string;
   priority: 'low' | 'normal' | 'high';
   replyTo?: string | undefined;
+  /**
+   * The tab this message was composed in.
+   *
+   * Carried because `to: 'leader'` is AMBIGUOUS once a WebUI page holds four
+   * sessions: every tab's agent is registered as a leader, so an unscoped
+   * message addressed that way is folded into whichever of them happens to
+   * poll the mailbox — a "btw" typed in tab 3 steering the run in tab 1.
+   */
+  sessionId?: string | undefined;
 }
 
 export function validateMailboxSendPayload(
@@ -248,6 +257,7 @@ export function validateMailboxSendPayload(
   const rawBody = payload['body'];
   const rawPriority = payload['priority'];
   const rawReplyTo = payload['replyTo'];
+  const rawSessionId = payload['sessionId'];
 
   if (typeof requestId !== 'string' || requestId.trim().length === 0) {
     return { ok: false, message: 'mailbox.send payload.requestId must be a non-empty string' };
@@ -282,6 +292,9 @@ export function validateMailboxSendPayload(
   if (rawReplyTo !== undefined && typeof rawReplyTo !== 'string') {
     return { ok: false, message: 'mailbox.send payload.replyTo must be a string when provided' };
   }
+  if (rawSessionId !== undefined && typeof rawSessionId !== 'string') {
+    return { ok: false, message: 'mailbox.send payload.sessionId must be a string when provided' };
+  }
 
   const type = rawType as MailboxSendPayload['type'];
   const to = type === 'broadcast' ? '*' : rawTo.trim();
@@ -304,6 +317,9 @@ export function validateMailboxSendPayload(
       body: rawBody.trim(),
       priority: rawPriority,
       ...(rawReplyTo !== undefined ? { replyTo: rawReplyTo } : {}),
+      ...(typeof rawSessionId === 'string' && rawSessionId.length > 0
+        ? { sessionId: rawSessionId }
+        : {}),
     },
   };
 }

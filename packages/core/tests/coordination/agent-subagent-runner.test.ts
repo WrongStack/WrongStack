@@ -6,6 +6,9 @@ import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 /**
  * Stub agent that emits the events a real Agent would emit during one run.
  * Lets us exercise the adapter's budget bookkeeping without dragging in the
@@ -70,7 +73,12 @@ function makeStubAgent(opts: {
             timestamp: '2026-07-18T12:00:00.000Z',
           });
         }
-        events.emit('provider.response', { ctx, usage, stopReason: 'end_turn', model: 'test-model' });
+        events.emit('provider.response', {
+          ctx,
+          usage,
+          stopReason: 'end_turn',
+          model: 'test-model',
+        });
         events.emit('iteration.completed', { ctx, index: i });
         if (opts.durationMs) {
           await new Promise<void>((r) => setTimeout(r, opts.durationMs));
@@ -125,7 +133,10 @@ describe('makeAgentSubagentRunner', () => {
       }),
     );
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const completion = waitForCompletion(coord);
@@ -167,11 +178,15 @@ describe('makeAgentSubagentRunner', () => {
         emitFileEvent: true,
         toolInput: { command: 'echo pwd=short-secret' },
       });
-      (built.agent as Agent & { ctx: Record<string, unknown> }).ctx['setCurrentKanbanTask'] = setCurrentKanbanTask;
+      (built.agent as Agent & { ctx: Record<string, unknown> }).ctx['setCurrentKanbanTask'] =
+        setCurrentKanbanTask;
       return built;
     });
     const runner = makeAgentSubagentRunner({ factory, hostEvents });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const completion = waitForCompletion(coord);
@@ -211,7 +226,10 @@ describe('makeAgentSubagentRunner', () => {
     // failure.
     const factory = async () => makeStubAgent({ iterations: 5, toolCallsPerIteration: 2 });
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1', maxToolCalls: 3 });
     const completion = waitForCompletion(coord);
@@ -231,7 +249,10 @@ describe('makeAgentSubagentRunner', () => {
   it('records iterations and respects iteration budget', async () => {
     const factory = async () => makeStubAgent({ iterations: 10 });
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1', maxIterations: 2 });
     const completion = waitForCompletion(coord);
@@ -251,7 +272,10 @@ describe('makeAgentSubagentRunner', () => {
         streamedText: 'evidence collected before failure',
       });
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const completion = waitForCompletion(coord);
@@ -281,7 +305,10 @@ describe('makeAgentSubagentRunner', () => {
       return stub;
     };
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'A1' });
     const completion = waitForCompletion(coord);
@@ -309,7 +336,10 @@ describe('makeAgentSubagentRunner', () => {
       factory,
       formatTaskInput: (task, config) => `[${config.name}] ${task.description}`,
     });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 'a1', name: 'Researcher' });
     const completion = waitForCompletion(coord);

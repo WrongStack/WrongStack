@@ -3,17 +3,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
 import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
-import {
-  addTask,
-  assignTask,
-  createBoard,
-  getBoard,
-  listKanbanEvents,
-  listReadyTasks,
-  recoverStaleTaskAssignments,
-} from '@wrongstack/kanban';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createBoard, getBoard, listKanbanEvents, listReadyTasks } from '@wrongstack/kanban';
+import { addTask, assignTask, recoverStaleTaskAssignments } from '@wrongstack/kanban/test-support';
 import { wireKanbanPorts } from '@wrongstack/runtime';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Session that owns the board events these queue tests write. */
+const TEST_QUEUE_SESSION_ID = '2026-08-26/sess_01TESTKANBANQUEUE0000000';
 
 wireKanbanPorts();
 
@@ -121,7 +117,7 @@ describe('Kanban recovery E2E (file-backed dispatch + recover_stale + retry)', (
         heartbeatIntervalMs: 30_000,
         leaseTtlMs: 120_000,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
 
@@ -188,7 +184,7 @@ describe('Kanban recovery E2E (file-backed dispatch + recover_stale + retry)', (
         heartbeatIntervalMs: 30_000,
         leaseTtlMs: 120_000,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
 

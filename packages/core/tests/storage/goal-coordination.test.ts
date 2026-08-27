@@ -1,16 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {
-  addTask,
-  createBoard,
-  getBoard,
-  listBoards,
-  removeBoard,
-  updateTask,
-} from '@wrongstack/kanban';
+import { createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
+import { addTask, updateTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { BrainArbiter, BrainDecisionRequest } from '../../src/coordination/brain.js';
+import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 import {
   applyGoalDeliverableCompletions,
   coordinateGoalIteration,
@@ -19,7 +14,6 @@ import {
 } from '../../src/storage/goal-coordination.js';
 import { createGoalKanbanBoard, findGoalKanbanBoard } from '../../src/storage/goal-kanban.js';
 import { emptyGoal, goalFilePath, loadGoal, saveGoal } from '../../src/storage/goal-store.js';
-import { setBoardStorePort } from '../../src/storage/board-store-port.js';
 
 beforeAll(() => {
   setBoardStorePort({ addTask, createBoard, getBoard, listBoards, removeBoard, updateTask });
@@ -62,10 +56,19 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     const goal = { ...emptyGoal('Authority'), deliverables: ['✅ Ship the task'] };
-    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    const boardId = await createGoalKanbanBoard(
+      projectRoot,
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     await saveGoal(goalPath, goal);
 
-    const repaired = await coordinateGoalIteration({ projectRoot, goalPath, finalText: '' });
+    const repaired = await coordinateGoalIteration({
+      projectRoot,
+      goalPath,
+      finalText: '',
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    });
     expect(repaired?.goal.deliverables).toEqual(['Ship the task']);
     expect(repaired?.goal.progress).toBe(0);
 
@@ -75,7 +78,12 @@ describe('goal coordination', () => {
       columnId: done!.id,
       status: 'completed',
     });
-    const projected = await coordinateGoalIteration({ projectRoot, goalPath, finalText: '' });
+    const projected = await coordinateGoalIteration({
+      projectRoot,
+      goalPath,
+      finalText: '',
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    });
     expect(projected?.goal.deliverables).toEqual(['✅ Ship the task']);
     expect(projected?.goal.progress).toBe(100);
   });
@@ -91,7 +99,11 @@ describe('goal coordination', () => {
       refinedGoal: 'Ship adaptive coordination',
       deliverables: ['Implement marker parser', 'Verify full loop'],
     };
-    const boardId = await createGoalKanbanBoard(projectRoot, goal);
+    const boardId = await createGoalKanbanBoard(
+      projectRoot,
+      goal,
+      '2026-08-26/sess_01TESTGOALKANBAN00000000',
+    );
     expect(boardId).toBeTruthy();
     goal.kanbanBoardId = boardId ?? undefined;
     await saveGoal(goalPath, goal);
@@ -105,11 +117,11 @@ describe('goal coordination', () => {
     const brain: BrainArbiter = { decide };
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 1]\n[DONE: verify full]',
       brain,
-      sessionId: 'test-session',
       now: () => new Date('2026-07-17T12:00:00.000Z'),
     });
 
@@ -141,13 +153,18 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     const goal = { ...emptyGoal('Need verification'), deliverables: ['Only task'] };
-    await createGoalKanbanBoard(projectRoot, goal);
+    await createGoalKanbanBoard(projectRoot, goal, '2026-08-26/sess_01TESTGOALKANBAN00000000');
     await saveGoal(goalPath, goal);
     const brain: BrainArbiter = {
-      decide: vi.fn(async () => ({ type: 'answer' as const, optionId: 'keep_working', text: 'Not yet.' })),
+      decide: vi.fn(async () => ({
+        type: 'answer' as const,
+        optionId: 'keep_working',
+        text: 'Not yet.',
+      })),
     };
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 1]',
@@ -165,9 +182,16 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     await saveGoal(goalPath, emptyGoal('Empty mission'));
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'answer' as const, optionId: 'goal_reached', text: 'ok' })) };
+    const brain: BrainArbiter = {
+      decide: vi.fn(async () => ({
+        type: 'answer' as const,
+        optionId: 'goal_reached',
+        text: 'ok',
+      })),
+    };
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 1]',
@@ -183,11 +207,14 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     const goal = { ...emptyGoal('Deny'), deliverables: ['Only deliverable'] };
-    await createGoalKanbanBoard(projectRoot, goal);
+    await createGoalKanbanBoard(projectRoot, goal, '2026-08-26/sess_01TESTGOALKANBAN00000000');
     await saveGoal(goalPath, goal);
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'still risky' })) };
+    const brain: BrainArbiter = {
+      decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'still risky' })),
+    };
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 1]',
@@ -205,17 +232,22 @@ describe('goal coordination', () => {
     const goalPath = goalFilePath(projectRoot);
     await fs.mkdir(path.dirname(goalPath), { recursive: true });
     const goal = { ...emptyGoal('Duplicates'), deliverables: ['Touch one'] };
-    await createGoalKanbanBoard(projectRoot, goal);
+    await createGoalKanbanBoard(projectRoot, goal, '2026-08-26/sess_01TESTGOALKANBAN00000000');
     await saveGoal(goalPath, goal);
-    const brain: BrainArbiter = { decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'never' })) };
+    const brain: BrainArbiter = {
+      decide: vi.fn(async () => ({ type: 'deny' as const, reason: 'never' })),
+    };
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 1]\n[DONE: 1]\n[DONE: 1]',
       brain,
     });
-    const deliverableJournal = result?.goal.journal.filter((entry) => entry.source === 'deliverable');
+    const deliverableJournal = result?.goal.journal.filter(
+      (entry) => entry.source === 'deliverable',
+    );
     // Duplicate markers must collapse to a single deliverable journal entry —
     // we deduplicate via `seen` in the parser. Brain is still consulted once
     // because allComplete is now true.
@@ -232,6 +264,7 @@ describe('goal coordination', () => {
     await saveGoal(goalPath, { ...emptyGoal('No match'), deliverables: ['Alpha', 'Beta'] });
 
     const result = await coordinateGoalIteration({
+      sessionId: '2026-08-26/sess_01TESTGOALKANBAN00000000',
       projectRoot,
       goalPath,
       finalText: '[DONE: 99]\n[DONE: gamma]',

@@ -1,5 +1,6 @@
-import type { SessionRegistryEntry } from './session-registry-types.js';
 import type { SessionSummary } from '../types/session.js';
+import type { SessionAgentRecord } from './session-agents.js';
+import type { SessionRegistryEntry } from './session-registry-types.js';
 
 export const SESSION_CATALOG_PROTOCOL_VERSION = 1;
 export const SESSION_CATALOG_MAX_FRAME_CHARS = 4 * 1024 * 1024;
@@ -163,6 +164,12 @@ export interface SessionCatalogOperations {
   list_catalog: { args: SessionCatalogListArgs; result: CatalogSessionRecord[] };
   resolve_id: { args: { query: string }; result: string };
   get_summary: { args: { sessionId: string }; result: CatalogSessionRecord | null };
+  /**
+   * Agent roster of one session, derived from its journal. Read-only: there
+   * is no write op, because the rows are a projection of the transcript and
+   * a writer would create a second authority that can disagree with it.
+   */
+  list_session_agents: { args: { sessionId: string }; result: SessionAgentRecord[] };
   rename: { args: { sessionId: string; name: string }; result: CatalogSessionRecord };
   acquire_maintenance: {
     args: {

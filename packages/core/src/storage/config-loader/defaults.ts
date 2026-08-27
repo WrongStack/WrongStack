@@ -41,6 +41,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     restrictToProjectRoot: DEFAULT_TOOLS_CONFIG.restrictToProjectRoot,
     kanbanGovernance: DEFAULT_TOOLS_CONFIG.kanbanGovernance,
     loopDetection: DEFAULT_TOOLS_CONFIG.loopDetection,
+    autoThin: { ...DEFAULT_TOOLS_CONFIG.autoThin },
   },
   log: { level: 'info' },
   features: {

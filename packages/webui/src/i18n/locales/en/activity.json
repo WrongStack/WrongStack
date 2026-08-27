@@ -1067,7 +1067,15 @@
     "kindSystem": "System",
     "title": "Chat history",
     "copyTitle": "Copy agent chat history",
-    "empty": "No chat history for this agent yet."
+    "empty": "No chat history for this agent yet.",
+    "taskLabel": "Task",
+    "taskChars": "{{count}} chars",
+    "taskExpand": "Show",
+    "taskExpandTitle": "Show full task brief",
+    "taskModalTitle": "Task brief",
+    "taskModalDescription": "The complete task this agent was spawned to run.",
+    "readOnly": "Read-only",
+    "returnToLeader": "Return to chat"
   },
   "autonomy": {
     "heading": "Autonomy Mode",

@@ -2,11 +2,15 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import { addTask, createBoard, getBoard } from '@wrongstack/kanban';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { todoTool } from '../src/todo.js';
 import { newSignal } from './fixtures.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 /**
  * The whole loop, as it is actually lived: todo rows ARE Kanban cards, one row
@@ -29,6 +33,7 @@ beforeEach(async () => {
 function makeCtx(): Context {
   const todos: TodoItem[] = [];
   const ctx = {
+    eventSessionId: () => TEST_CONTEXT_SESSION_ID,
     projectRoot: dir,
     session: { id: 'flow-session' },
     agentId: 'agent-1',

@@ -1,14 +1,13 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createBoard, getBoard } from '@wrongstack/kanban';
 import {
   addTask,
   claimReadyTask,
-  createBoard,
-  getBoard,
   recoverStaleTaskAssignments,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 let tmpDir = '';

@@ -12,6 +12,14 @@ import type { StreamCoalescer } from './stream-coalescer.js';
 export interface SetupEventsDeps {
   events: EventBus;
   agent: { ctx: Context };
+  /**
+   * The Context of a NAMED session, without creating one.
+   *
+   * Event payloads describe the session that produced them, and the iteration
+   * ceiling they carry is a per-tab setting — read off the leader it told a
+   * background tab it was capped at a number the user set in another tab.
+   */
+  sessionContext?: ((sessionId: string) => Context | undefined) | undefined;
   subscribeEternalIteration?: ((fn: (entry: JournalEntry) => void) => () => void) | undefined;
   broadcast: (msg: { type: string; payload: unknown }) => void;
   sessionPayload: <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
@@ -92,6 +100,7 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
         },
       },
       context: deps.agent.ctx,
+      ...(deps.sessionContext ? { sessionContext: deps.sessionContext } : {}),
       pendingConfirms: deps.pendingConfirms,
       globalConfigPath: deps.globalConfigPath,
       onFleetBroadcaster: deps.onFleetBroadcaster,

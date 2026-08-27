@@ -2,8 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard } from '../src/types.js';
+import {
+  applyTaskPatch,
+  buildAssignment,
+  cloneTaskForBoard,
+  createTaskObject,
+} from '../src/manager/_internal.js';
 import type { TaskGraph } from '../src/types/task-graph.js';
+import type { KanbanBoard } from '../src/types.js';
 import {
   addDependency,
   assignTask,
@@ -20,13 +26,7 @@ import {
   splitTask,
   transferTaskToBoard,
   updateTaskAssignment,
-} from '../src/manager.js';
-import {
-  applyTaskPatch,
-  buildAssignment,
-  cloneTaskForBoard,
-  createTaskObject,
-} from '../src/manager/_internal.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -212,7 +212,11 @@ describe('applyTaskPatch field handlers', () => {
     expect(task.verificationReport!.verdict).toBe('passed');
 
     // Clear with null
-    applyTaskPatch(board, task, { atomic: null, expectedFileChanges: null, verificationReport: null });
+    applyTaskPatch(board, task, {
+      atomic: null,
+      expectedFileChanges: null,
+      verificationReport: null,
+    });
     expect(task.atomic).toBeUndefined();
     expect(task.expectedFileChanges).toBeUndefined();
     expect(task.verificationReport).toBeUndefined();
@@ -433,7 +437,11 @@ describe('async edge coverage', () => {
   it('mergeTasks throws when target column does not exist', async () => {
     const b = await createBoard(tmpDir, { title: 'X', tasks: [{ title: 'A' }, { title: 'B' }] });
     await expect(
-      mergeTasks(tmpDir, b.id, { taskIds: [b.tasks[0]!.id, b.tasks[1]!.id], title: 'M', targetColumnId: 'ghost' }),
+      mergeTasks(tmpDir, b.id, {
+        taskIds: [b.tasks[0]!.id, b.tasks[1]!.id],
+        title: 'M',
+        targetColumnId: 'ghost',
+      }),
     ).rejects.toThrow('Column not found');
   });
 
@@ -477,7 +485,10 @@ describe('async edge coverage', () => {
   });
 
   it('searchKanban filters by label and chainId', async () => {
-    const b = await createBoard(tmpDir, { title: 'X', tasks: [{ title: 'A', labels: ['red'] }, { title: 'B' }] });
+    const b = await createBoard(tmpDir, {
+      title: 'X',
+      tasks: [{ title: 'A', labels: ['red'] }, { title: 'B' }],
+    });
     const aId = b.tasks[0]!.id;
     const bId = b.tasks[1]!.id;
     await setTaskChain(tmpDir, b.id, { taskIds: [aId, bId], chainId: 'ch1' });
@@ -494,7 +505,19 @@ describe('async edge coverage', () => {
       specId: 's1',
       title: 'G',
       nodes: new Map([
-        ['node-x', { id: 'node-x', title: 'From graph', description: '', type: 'feature', priority: 'medium', status: 'pending', createdAt: Date.now(), updatedAt: Date.now() }],
+        [
+          'node-x',
+          {
+            id: 'node-x',
+            title: 'From graph',
+            description: '',
+            type: 'feature',
+            priority: 'medium',
+            status: 'pending',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ],
       ]),
       edges: [],
       rootNodes: ['node-x'],
@@ -502,7 +525,9 @@ describe('async edge coverage', () => {
       updatedAt: Date.now(),
     };
     const { board } = await createBoardFromTaskGraph(tmpDir, g);
-    const exported = await exportBoardToTaskGraph(tmpDir, board.id, { preserveOriginTaskIds: true });
+    const exported = await exportBoardToTaskGraph(tmpDir, board.id, {
+      preserveOriginTaskIds: true,
+    });
     expect(exported!.graph.nodes.has('node-x')).toBe(true);
   });
 
@@ -515,12 +540,28 @@ describe('async edge coverage', () => {
   it('duplicateBoard with a managed source resets copied lifecycle', async () => {
     const managed = {
       mode: 'managed' as const,
-      columns: { backlog: 'backlog', todo: 'todo', running: 'in-progress', review: 'review', done: 'done' },
+      columns: {
+        backlog: 'backlog',
+        todo: 'todo',
+        running: 'in-progress',
+        review: 'review',
+        done: 'done',
+      },
     };
     const b = await createBoard(tmpDir, {
       title: 'M',
       lifecycle: managed,
-      tasks: [{ title: 'Card', description: 'd', dueDate: '2026-08-01', assignee: 'a', labels: ['x'], childTaskIds: ['c1'], successCriteria: [{ id: 'c1', description: 'c', type: 'manual', status: 'pending' }] }],
+      tasks: [
+        {
+          title: 'Card',
+          description: 'd',
+          dueDate: '2026-08-01',
+          assignee: 'a',
+          labels: ['x'],
+          childTaskIds: ['c1'],
+          successCriteria: [{ id: 'c1', description: 'c', type: 'manual', status: 'pending' }],
+        },
+      ],
     });
     const dup = await duplicateBoard(tmpDir, b.id);
     const card = dup!.tasks[0]!;

@@ -1,6 +1,9 @@
-import type { WebSocket } from 'ws';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from '../src/server/kanban-dispatch.js';
+import type { WebSocket } from 'ws';
+import {
+  handleKanbanTaskDispatch,
+  type KanbanTaskDispatcher,
+} from '../src/server/kanban-dispatch.js';
 
 const mockStore = vi.hoisted(() => ({
   getBoard: vi.fn(),
@@ -107,14 +110,18 @@ describe('handleKanbanTaskDispatch dispatch service integration', () => {
 
   it('reserves via dispatch service, starts dispatch, and reports success', async () => {
     const ws = mockWs();
-    const dispatchTask = vi.fn<KanbanTaskDispatcher>().mockResolvedValue(
-      'Spawned subagent sub-1 (test-provider / test-model) for task run-1.',
-    );
+    const dispatchTask = vi
+      .fn<KanbanTaskDispatcher>()
+      .mockResolvedValue('Spawned subagent sub-1 (test-provider / test-model) for task run-1.');
 
     await handleKanbanTaskDispatch(
       ws,
       { boardId: 'board-1', taskId: 'task-1', agentId: 'agent-1', name: 'WebUI Worker' },
-      { projectRoot: '/tmp/project', dispatchTask },
+      {
+        projectRoot: '/tmp/project',
+        requestSessionId: '2026-08-26/sess_01TESTWEBUIDISPATCH0000',
+        dispatchTask,
+      },
     );
 
     // reserveKanbanDispatch was called with boardId, taskId, and routing metadata.
@@ -147,18 +154,23 @@ describe('handleKanbanTaskDispatch dispatch service integration', () => {
 
   it('completes via dispatch service when the dispatched worker finishes', async () => {
     const ws = mockWs();
-    let onDone:
-      | NonNullable<NonNullable<Parameters<KanbanTaskDispatcher>[1]>['onDone']>
-      | undefined;
-    const dispatchTask = vi.fn<KanbanTaskDispatcher>().mockImplementation(async (_description, opts) => {
-      onDone = opts?.onDone;
-      return 'Spawned subagent sub-1 (test-provider / test-model) for task run-1.';
-    });
+    let onDone: NonNullable<NonNullable<Parameters<KanbanTaskDispatcher>[1]>['onDone']> | undefined;
+    const dispatchTask = vi
+      .fn<KanbanTaskDispatcher>()
+      .mockImplementation(async (_description, opts) => {
+        onDone = opts?.onDone;
+        return 'Spawned subagent sub-1 (test-provider / test-model) for task run-1.';
+      });
 
     await handleKanbanTaskDispatch(
       ws,
       { boardId: 'board-1', taskId: 'task-1', agentId: 'agent-1', name: 'WebUI Worker' },
-      { projectRoot: '/tmp/project', dispatchTask, broadcast: vi.fn() },
+      {
+        projectRoot: '/tmp/project',
+        requestSessionId: '2026-08-26/sess_01TESTWEBUIDISPATCH0000',
+        dispatchTask,
+        broadcast: vi.fn(),
+      },
     );
     expect(onDone).toBeTypeOf('function');
 

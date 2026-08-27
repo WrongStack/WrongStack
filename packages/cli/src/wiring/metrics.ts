@@ -203,6 +203,7 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
   let metricsSink: MetricsSink | undefined;
   let healthRegistry: HealthRegistry | undefined;
   let metricsServerHandle: MetricsServerHandle | undefined;
+  let metricsWiredHandle: ReturnType<typeof wireMetricsToEvents> | undefined;
   const metricsStatus: MetricsRuntimeStatus = {
     collectionEnabled: false,
     httpExporter: 'disabled',
@@ -221,7 +222,7 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
     maxSeriesPerMetric: MAX_METRIC_SERIES_PER_NAME,
   });
   metricsStatus.collectionEnabled = true;
-  wireMetricsToEvents(events, metricsSink);
+  metricsWiredHandle = wireMetricsToEvents(events, metricsSink);
   healthRegistry = new DefaultHealthRegistry();
   healthRegistry.register({
     name: 'session-store',
@@ -272,6 +273,7 @@ export function setupMetrics(params: MetricsWiringDeps): MetricsWiringResult {
   const dispose = () => {
     process.removeListener('exit', onExit);
     void metricsServerHandle?.close().catch(() => {});
+    metricsWiredHandle?.dispose();
   };
 
   if (metricsPort !== undefined && Number.isFinite(metricsPort)) {

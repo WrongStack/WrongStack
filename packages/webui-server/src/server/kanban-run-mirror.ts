@@ -35,6 +35,7 @@ import {
   syncBoardFromTaskGraph,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
+import { systemSessionId } from '@wrongstack/primitives';
 import type { SddBoardSnapshot, SddBoardTask } from '@wrongstack/sdd';
 import { kanbanBoardMessage, kanbanListMessage } from './kanban-broadcast.js';
 
@@ -190,7 +191,15 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
       const task = byOrigin.get(originKey(item.taskId, item.phaseId));
       if (!task) continue;
       if (assignmentUnchanged(task.assignment, item.assignment)) continue;
-      const updated = await updateTaskAssignment(projectRoot, boardId, task.id, item.assignment);
+      const updated = await updateTaskAssignment(
+        projectRoot,
+        boardId,
+        task.id,
+        item.assignment,
+        // The mirror projects a live run onto the board on its own schedule;
+        // no tab asked for this write, so it is attributed to the daemon.
+        { sessionId: systemSessionId('kanban-run-mirror'), actor: 'kanban-run-mirror' },
+      );
       if (updated) board = updated;
     }
     return board;

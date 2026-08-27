@@ -118,6 +118,7 @@ vi.mock('@/components/ChatInput/use-paste-drop', () => ({
 }));
 
 import { ChatInput } from '../../src/components/ChatInput.js';
+import { disposeLane } from '../../src/stores/chat-lanes.js';
 import { useChatStore } from '../../src/stores/chat-store.js';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store.js';
 import { useLocalPrefs } from '../../src/stores/local-prefs.js';
@@ -192,6 +193,93 @@ describe('ChatInput — session-change composer reset', () => {
     expect(mocks.pasteHintHolder.current).toBeNull();
     // Text input is also cleared by the same effect.
     expect(textarea.value).toBe('');
+  });
+
+  it('hands each tab back its own unsent draft', () => {
+    render(<ChatInput />);
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'half a thought for A' } });
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
+      });
+    });
+    // Tab B starts empty — it must not inherit what was being typed in A.
+    expect(textarea.value).toBe('');
+    fireEvent.change(textarea, { target: { value: 'something else for B' } });
+
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
+      });
+    });
+
+    expect(textarea.value).toBe('half a thought for A');
+  });
+
+  it('does not resurrect the draft of a tab that was closed', () => {
+    render(<ChatInput />);
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+
+    fireEvent.change(textarea, { target: { value: 'typed before closing' } });
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
+      });
+    });
+    // The tab is closed: its lane goes, and the draft must go with it. A
+    // session later handed the same id is a DIFFERENT conversation and must
+    // not open with someone else's half-written message.
+    act(() => {
+      disposeLane('session-A');
+    });
+
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-A', startedAt: 3, provider: 'test', model: 'test' },
+      });
+    });
+
+    expect(textarea.value).toBe('');
+  });
+
+  it('takes a refinement down when the foreground leaves the tab that started it', () => {
+    // Refinement ON, or the panel is flushed immediately by the
+    // "enhance was switched off" path instead of staying open.
+    useLocalPrefs.setState({ enhanceEnabled: true });
+    render(<ChatInput />);
+
+    act(() => {
+      useUIStore.getState().setRefinePanel({
+        original: 'the prompt tab A typed',
+        refined: 'the prompt tab A typed',
+        english: 'the prompt tab A typed',
+        status: 'countdown',
+        resolve: () => {},
+        sessionId: 'session-A',
+      });
+    });
+
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
+      });
+    });
+
+    // Both of the panel's exits — approval and the 105s timeout — dispatch
+    // through the foreground, so leaving it standing sends tab A's prompt into
+    // tab B's session with nobody touching anything.
+    expect(useUIStore.getState().refinePanel).toBeNull();
+
+    // …and the text is handed back to the tab that typed it.
+    const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
+      });
+    });
+    expect(textarea.value).toBe('the prompt tab A typed');
   });
 
   it('aborts an in-flight topic check on session switch so no cross-session modal leaks', async () => {

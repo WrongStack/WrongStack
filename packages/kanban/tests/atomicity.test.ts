@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { AtomicityCandidate } from '../src/atomicity/index.js';
 import {
   assessAtomicity,
   candidateFromKanbanTask,
@@ -9,16 +10,15 @@ import {
   hashAtomicityConfig,
   resolveAtomicityConfig,
 } from '../src/atomicity/index.js';
-import type { AtomicityCandidate } from '../src/atomicity/index.js';
+import { readKanbanEvents } from '../src/storage.js';
+import type { KanbanTask } from '../src/types.js';
 import {
   addTask,
   assessTaskAtomicity,
   createBoard,
   listReadyTasks,
   splitTask,
-} from '../src/manager.js';
-import { readKanbanEvents } from '../src/storage.js';
-import type { KanbanTask } from '../src/types.js';
+} from './helpers/session-manager.js';
 
 function candidate(overrides: Partial<AtomicityCandidate> = {}): AtomicityCandidate {
   return {

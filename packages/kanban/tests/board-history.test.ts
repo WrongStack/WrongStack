@@ -7,6 +7,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { readBoardHistory } from '../src/storage.js';
 import {
   adoptManagedLifecycle,
   createBoard,
@@ -14,8 +15,7 @@ import {
   listBoardHistory,
   removeBoard,
   updateBoard,
-} from '../src/manager.js';
-import { readBoardHistory } from '../src/storage.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 

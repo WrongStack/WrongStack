@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { mutateBoard, readBoard } from '../storage.js';
-import type { KanbanBoard, KanbanBoundaryPolicy, KanbanEvent, KanbanTask } from '../types.js';
+import type {
+  KanbanBoard,
+  KanbanBoundaryPolicy,
+  KanbanEvent,
+  KanbanEventContext,
+  KanbanTask,
+} from '../types.js';
 import type {
   KanbanSearchInput,
   KanbanSearchResult,
@@ -46,6 +52,7 @@ export async function addDependency(
   boardId: string,
   taskId: string,
   dependencyTaskId: string,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -56,6 +63,7 @@ export async function addDependency(
     task.updatedAt = nowIso();
     board.updatedAt = task.updatedAt;
     event = createKanbanEvent(board.id, task, 'task.dependency.added', {
+      ...eventContext,
       after: { dependsOn: dependency.id },
     });
     return task;
@@ -69,6 +77,7 @@ export async function splitTask(
   boardId: string,
   taskId: string,
   input: SplitKanbanTaskInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; parent: KanbanTask; children: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -157,6 +166,7 @@ export async function splitTask(
     normalizeColumnTaskOrders(board, childColumnId);
     board.updatedAt = now;
     event = createKanbanEvent(board.id, parent, 'task.split', {
+      ...eventContext,
       after: { children: children.map((child) => child.id) },
     });
     return { parent, children };
@@ -169,6 +179,7 @@ export async function mergeTasks(
   projectRoot: string,
   boardId: string,
   input: MergeKanbanTasksInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask; sourceTasks: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -220,6 +231,7 @@ export async function mergeTasks(
     rewireDependents(board, [...sourceIds], [merged.id], [merged.id, ...sourceIds]);
     board.updatedAt = now;
     event = createKanbanEvent(board.id, merged, 'task.merged', {
+      ...eventContext,
       note: `merged ${sourceTasks.length} tasks`,
     });
     return { task: merged, sourceTasks };
@@ -291,6 +303,7 @@ export async function setTaskChain(
   projectRoot: string,
   boardId: string,
   input: SetKanbanTaskChainInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; chainId: string; tasks: KanbanTask[] } | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -308,7 +321,12 @@ export async function setTaskChain(
     for (const task of tasks) task.updatedAt = now;
     board.updatedAt = now;
     const head = tasks[0];
-    if (head) event = createKanbanEvent(board.id, head, 'task.chain.set', { after: { chainId } });
+    if (head) {
+      event = createKanbanEvent(board.id, head, 'task.chain.set', {
+        ...eventContext,
+        after: { chainId },
+      });
+    }
     return { chainId, tasks };
   });
   if (updated?.result && event) await emitKanbanEvent(projectRoot, event);

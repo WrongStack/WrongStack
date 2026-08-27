@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'node:http';
 import type { Message, SessionEvent, Usage } from '@wrongstack/core/types';
+import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-protocol';
 import type {
   GoalWebSocketHandler,
   PendingConfirm,
@@ -13,13 +14,23 @@ import {
   createConnectionLifecycle,
   verifyClient as verifyWsClient,
 } from '@wrongstack/webui-server';
-import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './contracts.js';
 
 export interface ConnectedClient {
   ws: WebSocket;
+  /** The session this connection last acted on. */
   sessionId: string | null;
+  /**
+   * EVERY session this connection is displaying, as declared by
+   * `session.subscribe`.
+   *
+   * One browser page holds up to four tabs on ONE socket, so `sessionId` is
+   * only the tab last touched. Anything that asks "is this session still on
+   * someone's screen" — the delete guard, per-tab agent eviction — needs the
+   * whole set, or it treats three open tabs as abandoned.
+   */
+  sessionIds?: Set<string> | undefined;
 }
 
 export interface ConnectionHandlerDeps {

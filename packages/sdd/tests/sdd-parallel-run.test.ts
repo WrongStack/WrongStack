@@ -62,6 +62,8 @@ async function makeHarness(overrides: Record<string, unknown> = {}) {
     graph,
     agent: fakeAgent(),
     projectRoot: '/proj',
+    // Every event the run emits is stamped with the session that started it.
+    sessionId: '2026-08-26/sess_01TESTSDDPARALLELRUN00000',
     ...overrides,
   });
   return { run, tracker, graph, t1, t2 };
@@ -1513,17 +1515,21 @@ describe('SddParallelRun — coverage edge paths', () => {
       }
     ).emit('sdd.wave', { runId: staticSession.run.runId, wave: 0, batchSize: 1 });
 
+    // A blank session source is a wiring bug, not a run to emit unattributed
+    // events from: the emit is refused rather than filed under nobody.
     const emptyFunction = await makeHarness({ events, sessionId: () => '' });
-    (
-      emptyFunction.run as never as {
-        emit: (
-          event: 'sdd.wave',
-          payload: { runId: string; wave: number; batchSize: number },
-        ) => void;
-      }
-    ).emit('sdd.wave', { runId: emptyFunction.run.runId, wave: 1, batchSize: 1 });
+    const emitWithNoSession = () =>
+      (
+        emptyFunction.run as never as {
+          emit: (
+            event: 'sdd.wave',
+            payload: { runId: string; wave: number; batchSize: number },
+          ) => void;
+        }
+      ).emit('sdd.wave', { runId: emptyFunction.run.runId, wave: 1, batchSize: 1 });
+    expect(emitWithNoSession).toThrow(expect.objectContaining({ code: 'SESSION_ID_REQUIRED' }));
 
-    expect(sessionIds).toEqual(['session-static', undefined]);
+    expect(sessionIds).toEqual(['session-static']);
   });
 
   it('builds a coordinator budget with an opted-in timeout', async () => {

@@ -1,12 +1,6 @@
 // Storage domain: sessions, memory, attachments, config, recovery, session analysis
 
 export {
-  type BoardStorePort,
-  boardStore,
-  setBoardStorePort,
-} from './board-store-port.js';
-
-export {
   type CatalogSessionRecord,
   type MaintenanceLease,
   type ResumeReservation,
@@ -21,6 +15,11 @@ export {
   hasProjectSessionRegistry as hasSessionRegistry,
   ProjectSessionRegistry as SessionRegistry,
 } from '../session-catalog/registry.js';
+export {
+  deriveSessionAgents,
+  type SessionAgentRecord,
+  type SessionAgentStatus,
+} from '../session-catalog/session-agents.js';
 export type {
   AgentEntry,
   AgentLiveStatus,
@@ -45,6 +44,11 @@ export {
   type AttachmentStoreOptions,
   DefaultAttachmentStore,
 } from './attachment-store.js';
+export {
+  type BoardStorePort,
+  boardStore,
+  setBoardStorePort,
+} from './board-store-port.js';
 export {
   applyNamespacePayload,
   buildNamespacePayloads,
@@ -153,6 +157,10 @@ export {
   type GraphMemoryBackendOptions,
 } from './memory-graph-backend.js';
 export {
+  cleanOrphanLocks,
+  type OrphanLockCleanResult,
+} from './orphan-lock-cleaner.js';
+export {
   addPlanItem,
   attachPlanCheckpoint,
   clearPlan,
@@ -201,16 +209,12 @@ export {
   type RecoveryLockOptions,
 } from './recovery-lock.js';
 export {
-  cleanOrphanLocks,
-  type OrphanLockCleanResult,
-} from './orphan-lock-cleaner.js';
-export {
   type ReplayEntry,
   ReplayLogStore,
   type ReplayLogStoreOptions,
 } from './replay-log-store.js';
-export { SessionAnalyzer } from './session-analyzer.js';
 export { stampAgentId, withAgentAttribution } from './session-agent-attribution.js';
+export { SessionAnalyzer } from './session-analyzer.js';
 export {
   type CheckpointGitResult,
   SessionCheckpointCas,

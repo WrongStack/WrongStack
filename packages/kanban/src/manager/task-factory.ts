@@ -9,7 +9,7 @@ import type {
   KanbanTaskPriority,
 } from '../types.js';
 import {
-  type CopyKanbanTaskOptions,
+  type CloneTaskForBoardOptions,
   type CreateKanbanTaskInput,
   DEFAULT_COLUMNS,
   type UpdateKanbanTaskInput,
@@ -100,7 +100,7 @@ export function createTaskObject(board: KanbanBoard, input: CreateKanbanTaskInpu
 export function cloneTaskForBoard(
   board: KanbanBoard,
   source: KanbanTask,
-  options: CopyKanbanTaskOptions,
+  options: CloneTaskForBoardOptions,
 ): KanbanTask {
   const now = nowIso();
   const columnId =

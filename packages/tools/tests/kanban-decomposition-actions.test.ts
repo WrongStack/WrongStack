@@ -60,6 +60,8 @@ const mockCtx = () =>
   ({
     agentId: 'test-agent',
     projectRoot: '/fake',
+    // Board events are stamped with the session that owns the request.
+    eventSessionId: () => '2026-08-26/sess_01TESTDECOMPOSITION000000',
   }) as never;
 
 describe('handleKanbanDecompositionAction', () => {

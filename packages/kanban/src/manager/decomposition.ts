@@ -70,22 +70,29 @@ async function applyProposal(
   boardId: string,
   taskId: string,
   subtasks: KanbanDecompositionSubtask[],
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; parent: KanbanTask; children: KanbanTask[] } | null> {
-  return splitTask(projectRoot, boardId, taskId, {
-    titles: subtasks.map((subtask) => subtask.title),
-    childSpecs: subtasks.map((subtask) => {
-      const successCriteria = checksFromCriteria(subtask.successCriteria);
-      return {
-        ...(subtask.description !== undefined ? { description: subtask.description } : {}),
-        ...(successCriteria ? { successCriteria } : {}),
-        ...(subtask.expectedFileChanges !== undefined
-          ? { expectedFileChanges: subtask.expectedFileChanges }
-          : {}),
-      };
-    }),
-    // Proactive decomposition always opts the parent into subtree verification.
-    atomic: true,
-  });
+  return splitTask(
+    projectRoot,
+    boardId,
+    taskId,
+    {
+      titles: subtasks.map((subtask) => subtask.title),
+      childSpecs: subtasks.map((subtask) => {
+        const successCriteria = checksFromCriteria(subtask.successCriteria);
+        return {
+          ...(subtask.description !== undefined ? { description: subtask.description } : {}),
+          ...(successCriteria ? { successCriteria } : {}),
+          ...(subtask.expectedFileChanges !== undefined
+            ? { expectedFileChanges: subtask.expectedFileChanges }
+            : {}),
+        };
+      }),
+      // Proactive decomposition always opts the parent into subtree verification.
+      atomic: true,
+    },
+    eventContext,
+  );
 }
 
 /** Wire intra-proposal dependsOnIndex edges onto the created children. */
@@ -131,7 +138,7 @@ export async function proposeTaskDecomposition(
   boardId: string,
   taskId: string,
   input: ProposeTaskDecompositionInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask; proposal: KanbanDecompositionProposal } | null> {
   if (input.subtasks.length < 2) {
     throw new Error('A decomposition proposal requires at least two subtasks.');
@@ -197,7 +204,7 @@ export async function resolveDecompositionProposal(
   taskId: string,
   proposalId: string,
   input: ResolveDecompositionInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask; proposal: KanbanDecompositionProposal } | null> {
   // Phase 1: validate + (reject | mark approved) inside the lock.
   const marked = await mutateBoard(projectRoot, boardId, (board) => {
@@ -237,7 +244,7 @@ export async function resolveDecompositionProposal(
 
   // Phase 2: apply the approved split (its own mutations; splitTask emits task.split).
   const subtasks = marked.result.proposal.proposedSubtasks;
-  const applied = await applyProposal(projectRoot, boardId, taskId, subtasks);
+  const applied = await applyProposal(projectRoot, boardId, taskId, subtasks, eventContext);
   if (!applied) return null;
   await wireProposalDependencies(
     projectRoot,

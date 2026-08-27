@@ -42,8 +42,12 @@ describe('kanban activity attribution', () => {
     expect(event).toEqual({ sessionId: 'tab-2', actor: 'webui', note: 'moved to review' });
   });
 
-  it('omits the session entirely when there is none to name', () => {
-    const event = activityContext({ projectRoot: '/repo' }, 'webui');
-    expect(event.sessionId).toBeUndefined();
+  it('refuses to attribute a mutation when there is no session to name', () => {
+    // Every WebUI board mutation arrives on a tab's socket. A context with no
+    // acting session is a route that dropped `requestSessionId`, not a state
+    // worth writing an unattributed durable event from.
+    expect(() => activityContext({ projectRoot: '/repo' }, 'webui')).toThrow(
+      expect.objectContaining({ code: 'SESSION_ID_REQUIRED' }),
+    );
   });
 });

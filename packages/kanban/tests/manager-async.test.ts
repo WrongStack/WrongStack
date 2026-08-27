@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import type { PhaseGraph } from '../src/types/phase-graph.js';
+import type { TaskGraph, TaskNode } from '../src/types/task-graph.js';
 import {
   addColumn,
   addDependency,
@@ -40,9 +42,7 @@ import {
   updateGoalMetricOnTask,
   updateTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import type { PhaseGraph } from '../src/types/phase-graph.js';
-import type { TaskGraph, TaskNode } from '../src/types/task-graph.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -409,7 +409,12 @@ describe('addColumn edges', () => {
   it('throws — columns are locked', async () => {
     const b = await makeBoard();
     await expect(
-      addColumn(tmpDir, b.id, { title: 'Custom Col', description: 'd', color: '#fff', wipLimit: 3 }),
+      addColumn(tmpDir, b.id, {
+        title: 'Custom Col',
+        description: 'd',
+        color: '#fff',
+        wipLimit: 3,
+      }),
     ).rejects.toThrow(/Columns are locked/);
   });
 });

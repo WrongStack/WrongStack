@@ -1,20 +1,22 @@
 import type { Context } from '@wrongstack/core/agent';
 import {
+  type KanbanDecompositionSubtask,
   listBoards,
   resolveDecompositionProposal,
   updateTask,
   verifyTaskCompletion,
-  type KanbanDecompositionSubtask,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
-import { kanbanBoardMessage, publishKanbanBoard } from './kanban-broadcast.js';
 import type { WebSocket } from 'ws';
+import { kanbanBoardMessage, publishKanbanBoard } from './kanban-broadcast.js';
+import { activityContext, fail, ok } from './kanban-route-helpers.js';
 import type { WSServerMessage } from './types.js';
-import { fail, ok } from './kanban-route-helpers.js';
 
 export interface KanbanDecompositionRouteContext {
   projectRoot: string;
   context?: Context | undefined;
+  /** Tab that sent the request — the session every emitted event belongs to. */
+  requestSessionId?: string | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
 }
 
@@ -66,12 +68,19 @@ async function handleDecompositionResolution(
     }
     edits = rawEdits;
   }
-  const resolved = await resolveDecompositionProposal(ctx.projectRoot, boardId, taskId, proposalId, {
-    action,
-    ...(typeof payload?.reason === 'string' ? { reason: payload.reason } : {}),
-    ...(edits ? { editedSubtasks: edits } : {}),
-    resolvedBy: 'webui',
-  });
+  const resolved = await resolveDecompositionProposal(
+    ctx.projectRoot,
+    boardId,
+    taskId,
+    proposalId,
+    {
+      action,
+      ...(typeof payload?.reason === 'string' ? { reason: payload.reason } : {}),
+      ...(edits ? { editedSubtasks: edits } : {}),
+      resolvedBy: 'webui',
+    },
+    activityContext(ctx, 'webui'),
+  );
   if (!resolved) {
     fail(ws, type, `Proposal not found or already resolved: ${proposalId}`);
     return;
@@ -114,10 +123,16 @@ async function handleTaskVerification(
   });
   try {
     const verResult = await verifyTaskCompletion(ctx.projectRoot, boardId, taskId);
-    const persisted = await updateTask(ctx.projectRoot, boardId, taskId, {
-      verificationReport: verResult.report,
-      successCriteria: verResult.task.successCriteria,
-    });
+    const persisted = await updateTask(
+      ctx.projectRoot,
+      boardId,
+      taskId,
+      {
+        verificationReport: verResult.report,
+        successCriteria: verResult.task.successCriteria,
+      },
+      activityContext(ctx, 'webui'),
+    );
     const freshTask =
       persisted?.tasks.find((candidate) => candidate.id === verResult.task.id) ?? verResult.task;
     if (ctx.context) recordKanbanVerificationEvidence(ctx.context, verResult.report);

@@ -140,11 +140,6 @@ export {
   type EmbeddedSessionOptions,
 } from './embedded-host-adapters.js';
 export {
-  createSessionAgentRegistry,
-  type SessionAgentRegistry,
-  type SessionAgentRegistryOptions,
-} from './session-agent-registry.js';
-export {
   type AnnounceWebuiReadyParams,
   announceWebuiReady,
   createWebuiShutdown,
@@ -450,6 +445,11 @@ export {
   startSddRunFromGraph,
 } from './sdd-wizard-wiring.js';
 export { type SddWizardDeps, SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
+export {
+  createSessionAgentRegistry,
+  type SessionAgentRegistry,
+  type SessionAgentRegistryOptions,
+} from './session-agent-registry.js';
 export {
   cleanupOwnerlessEmptySessions,
   DEFAULT_EMPTY_SESSION_CLEANUP_INTERVAL_MS,

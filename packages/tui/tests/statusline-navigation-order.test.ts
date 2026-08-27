@@ -48,18 +48,7 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     // The exact left-to-right render order of each rail, so picker
     // navigation mirrors what the user sees on screen.
     const expected: Record<number, StatuslineItem[]> = {
-      1: [
-        'project',
-        'working_dir',
-        'git',
-        'model',
-        'mode',
-        'prompt_variant',
-        'theme',
-        'sessions',
-        'tools',
-        'version',
-      ],
+      1: ['project', 'working_dir', 'git', 'model', 'mode', 'prompt_variant', 'version'],
       2: [
         'state',
         'yolo',
@@ -76,6 +65,9 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
         'elapsed',
         'token_saving',
         'side_effects',
+        'sessions',
+        'tools',
+        'theme',
       ],
       3: [
         'goal',
@@ -87,15 +79,7 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
         'enhance',
         'dropped_tools',
       ],
-      4: [
-        'fleet',
-        'fleet_agents',
-        'mailbox',
-        'brain',
-        'debug_stream',
-        'memory_context',
-        'index',
-      ],
+      4: ['fleet', 'fleet_agents', 'mailbox', 'brain', 'debug_stream', 'memory_context', 'index'],
     };
     for (const [line, items] of Object.entries(expected)) {
       const actual = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === Number(line));

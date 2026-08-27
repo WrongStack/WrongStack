@@ -1,17 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { createBoard, getBoard, getKanbanQueueHealth } from '@wrongstack/kanban';
 import {
   addDependency,
   addTask,
   claimReadyTask,
-  createBoard,
-  getBoard,
-  getKanbanQueueHealth,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { kanbanTool } from '@wrongstack/tools/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Session that owns the board events these queue tests write. */
+const TEST_QUEUE_SESSION_ID = '2026-08-26/sess_01TESTKANBANQUEUE0000000';
 
 let tmpDir = '';
 
@@ -111,7 +112,7 @@ describe('Kanban queue health (Sprint 2 helper)', () => {
         action: 'queue_health',
         boardId: board.id,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
 

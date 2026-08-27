@@ -23,17 +23,24 @@ import {
   Square,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { Pagination } from '@/components/ui/pagination';
 import { usePagination } from '@/hooks/usePagination';
+import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import { cn } from '@/lib/utils';
-import { Pagination } from '@/components/ui/pagination';
 import { showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
-import { useSystemPromptStore } from '@/stores/system-prompt-store';
-import { useChatStore, useConfigStore, useFleetStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
+import {
+  useChatStore,
+  useConfigStore,
+  useFleetStore,
+  useHistoryStore,
+  useSessionStore,
+  useUIStore,
+} from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
+import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { fmtTok } from '../ChatView/utils';
 import { downloadChatAsMarkdown } from '../CommandPalette';
 import { confirmModal } from '../ConfirmModal';
@@ -233,8 +240,21 @@ export function SessionPanel() {
   const todoPage = usePagination(todos, 12, session?.id);
   const pinnedPage = usePagination(pinnedRows, 8, session?.id);
 
-  const send = (msg: Parameters<NonNullable<ReturnType<typeof getWSClient>>['send']>[0]) =>
-    getWSClient(wsUrl)?.send?.(msg);
+  /**
+   * Send, addressed at the tab this panel is describing.
+   *
+   * The panel is one surface over four sessions, so a bare `send` lands on
+   * whichever session the server is currently pointing at: Stop aborted
+   * another tab's run, Compact compacted another tab's conversation and Clear
+   * emptied it.
+   */
+  const send = (msg: { type: string; payload?: Record<string, unknown> | undefined }) => {
+    const client = getWSClient(wsUrl);
+    if (!client?.send) return;
+    client.send({ ...msg, payload: client.withSession({ ...(msg.payload ?? {}) }) } as Parameters<
+      NonNullable<typeof client.send>
+    >[0]);
+  };
 
   // Fetch the session list when connected so the History section populates.
   useEffect(() => {
@@ -308,28 +328,45 @@ export function SessionPanel() {
 
       {/* ── Live stats ── */}
       <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
-        <SectionHeading icon={<Cpu className="h-3 w-3" />} label={t('activity:sessionPanel.sessionLabel')} />
+        <SectionHeading
+          icon={<Cpu className="h-3 w-3" />}
+          label={t('activity:sessionPanel.sessionLabel')}
+        />
         <div className="grid grid-cols-2 gap-1.5">
           <StatBox label={t('activity:sessionPanel.stats.messages')} value={messages.length} />
-          <StatBox label={t('activity:sessionPanel.stats.elapsed')} value={startedAt ? fmtElapsed(now - startedAt) : '--'} />
+          <StatBox
+            label={t('activity:sessionPanel.stats.elapsed')}
+            value={startedAt ? fmtElapsed(now - startedAt) : '--'}
+          />
           <StatBox
             label={t('activity:sessionPanel.stats.tokens')}
             value={fmtTok(totalTokens.input + totalTokens.output)}
-            sub={t('activity:sessionPanel.stats.tokensSub', { in: fmtTok(totalTokens.input), out: fmtTok(totalTokens.output) })}
+            sub={t('activity:sessionPanel.stats.tokensSub', {
+              in: fmtTok(totalTokens.input),
+              out: fmtTok(totalTokens.output),
+            })}
           />
           <StatBox label={t('activity:sessionPanel.stats.cost')} value={fmtCost(cost)} />
           {iteration && (
             <StatBox
               label={t('activity:sessionPanel.stats.iteration')}
               value={iteration.index}
-              sub={iteration.max ? t('activity:sessionPanel.stats.iterationOf', { max: iteration.max }) : undefined}
+              sub={
+                iteration.max
+                  ? t('activity:sessionPanel.stats.iterationOf', { max: iteration.max })
+                  : undefined
+              }
             />
           )}
           {fleetAgents.size > 0 && (
             <StatBox
               label={t('activity:sessionPanel.stats.agents')}
               value={fleetAgents.size}
-              sub={runningAgents > 0 ? t('activity:sessionPanel.stats.agentsRunning', { count: runningAgents }) : undefined}
+              sub={
+                runningAgents > 0
+                  ? t('activity:sessionPanel.stats.agentsRunning', { count: runningAgents })
+                  : undefined
+              }
             />
           )}
         </div>
@@ -419,7 +456,7 @@ export function SessionPanel() {
 
       {/* ── Pinned answers ── */}
       {pinnedRows.length > 0 && (
-      <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
+        <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
           <SectionHeading
             icon={<Pin className="h-3 w-3 text-warning" />}
             label={t('activity:sessionPanel.pinned')}
@@ -472,7 +509,10 @@ export function SessionPanel() {
 
       {/* ── Quick settings — the mid-session knobs ── */}
       <div className="space-y-1 border-b border-border/70 px-3 py-2.5">
-        <SectionHeading icon={<SlidersHorizontal className="h-3 w-3" />} label={t('activity:sessionPanel.quickSettings')} />
+        <SectionHeading
+          icon={<SlidersHorizontal className="h-3 w-3" />}
+          label={t('activity:sessionPanel.quickSettings')}
+        />
         <QuickToggle
           label={t('activity:sessionPanel.autonomy')}
           title={t('activity:sessionPanel.autonomyTitle')}
@@ -530,7 +570,9 @@ export function SessionPanel() {
                 <button
                   key={entry.id}
                   type="button"
-                  onClick={() => getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(entry.id)}
+                  onClick={() =>
+                    getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(entry.id)
+                  }
                   className={cn(
                     'w-full text-left px-2 py-1.5 rounded text-xs leading-snug transition-colors',
                     entry.isCurrent
@@ -550,7 +592,6 @@ export function SessionPanel() {
           </div>
         );
       })()}
-
     </div>
   );
 }

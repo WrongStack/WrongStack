@@ -36,6 +36,9 @@ import { MockProvider, type ScriptedResponse } from '../helpers/mock-provider.js
 
 import { fileURLToPath } from 'node:url';
 
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
+
 const WORKSPACE_ROOT = fileURLToPath(new URL('../../..', import.meta.url));
 const FIXTURE_PATH = fileURLToPath(new URL('./__mutation_fixture__/subject.ts', import.meta.url));
 const FIXTURE_REL = path.relative(WORKSPACE_ROOT, FIXTURE_PATH).replace(/\\/g, '/');
@@ -152,6 +155,7 @@ describe('mutation_test through a real Agent.run()', () => {
       factory: async () => ({ agent, events }),
     });
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'chaos-itest',
         doneCondition: { type: 'all_tasks_done' },
@@ -240,6 +244,7 @@ describe('mutation_test through a real Agent.run()', () => {
     });
 
     const director = new Director({
+      sessionId: TEST_SESSION_ID,
       config: {
         coordinatorId: 'chaos-itest-2',
         doneCondition: { type: 'all_tasks_done' },

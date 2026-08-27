@@ -1062,7 +1062,15 @@
     "kindSystem": "Sistema",
     "title": "Cronologia chat",
     "copyTitle": "Copia cronologia chat agente",
-    "empty": "Nessuna cronologia chat per questo agente ancora."
+    "empty": "Nessuna cronologia chat per questo agente ancora.",
+    "taskLabel": "Attività",
+    "taskChars": "{{count}} caratteri",
+    "taskExpand": "Mostra",
+    "taskExpandTitle": "Mostra la descrizione completa dell'attività",
+    "taskModalTitle": "Descrizione dell'attività",
+    "taskModalDescription": "L'attività completa per cui questo agente è stato avviato.",
+    "readOnly": "Sola lettura",
+    "returnToLeader": "Torna alla chat"
   },
   "autonomy": {
     "heading": "Modalità autonomia",

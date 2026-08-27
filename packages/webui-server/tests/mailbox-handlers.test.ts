@@ -1,15 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { WebSocket } from 'ws';
 import {
   createProjectMailbox,
   type RemoteMailbox,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
-import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMailboxRouteHandlers, handleMailboxMessages } from '@wrongstack/webui-server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
+import { disposeProjectMailbox, removeMailboxTempRoot } from './helpers/mailbox-daemon.js';
 
 function mockWs(): WebSocket & { send: ReturnType<typeof vi.fn> } {
   return { readyState: 1, send: vi.fn() } as never as WebSocket & {
@@ -51,6 +51,64 @@ describe('mailbox handlers', () => {
     await mailbox.close().catch(() => undefined);
     await disposeProjectMailbox(resolveProjectDir(projectRoot, globalRoot));
     await removeMailboxTempRoot(root);
+  });
+
+  it('binds a leader-addressed send to the tab that composed it', async () => {
+    const ws = mockWs();
+    const routes = createMailboxRouteHandlers({
+      getProjectRoot: () => projectRoot,
+      getGlobalRoot: () => globalRoot,
+    });
+
+    await routes.send(ws, {
+      type: 'mailbox.send',
+      payload: {
+        requestId: 'r1',
+        to: 'leader',
+        type: 'btw',
+        audience: 'all',
+        subject: 'btw from WebUI',
+        body: 'while you are in there, check the retries',
+        priority: 'normal',
+        sessionId: 'tab-3',
+      },
+    });
+
+    const messages = await mailbox.query({ to: 'leader' });
+    const sent = messages.find((m) => m.subject === 'btw from WebUI');
+    // `leader` is the alias for "this session's leader", and four tabs have
+    // four of them. Without the affinity token every running tab folds this
+    // note into its own run — a "btw" typed in tab 3 steering tab 1.
+    expect(sent?.sessionAffinity).toEqual({ sessionId: 'tab-3' });
+    expect(sent?.senderSessionId).toBe('tab-3');
+  });
+
+  it('leaves a message addressed to a named agent unscoped', async () => {
+    const ws = mockWs();
+    const routes = createMailboxRouteHandlers({
+      getProjectRoot: () => projectRoot,
+      getGlobalRoot: () => globalRoot,
+    });
+
+    await routes.send(ws, {
+      type: 'mailbox.send',
+      payload: {
+        requestId: 'r2',
+        to: 'agent-a',
+        type: 'note',
+        audience: 'all',
+        subject: 'named recipient',
+        body: 'for you specifically',
+        priority: 'normal',
+        sessionId: 'tab-3',
+      },
+    });
+
+    const messages = await mailbox.query({ to: 'agent-a' });
+    const sent = messages.find((m) => m.subject === 'named recipient');
+    // A named agent is already exactly one recipient; narrowing it further
+    // would change what the user asked for rather than resolve an ambiguity.
+    expect(sent?.sessionAffinity).toBeUndefined();
   });
 
   it('filters mailbox messages by agent recipient and broadcast visibility', async () => {

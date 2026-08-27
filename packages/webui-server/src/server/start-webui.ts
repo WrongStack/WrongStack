@@ -326,6 +326,15 @@ export async function startWebUI(
   // `createAgentServices`, because the session-agent registry consults it
   // before evicting an agent.
   const _sessionRunLocks = new Map<string, AbortController>();
+  /**
+   * Late-bound view of "which sessions are on someone's screen".
+   *
+   * The connection map does not exist yet — it is built with the WebSocket
+   * servers further down — but the session-agent registry is created inside
+   * `createAgentServices` and needs the answer at eviction time, which is
+   * always later than that.
+   */
+  let displayedSessionIds: (() => Set<string>) | undefined;
 
   const agentServices = await createAgentServices({
     trustBoundary,
@@ -354,6 +363,9 @@ export async function startWebUI(
     sessionGetter: () => session,
     // Never evict a session agent that is mid-run (see the registry cap).
     isRunActive: (sessionId: string) => _sessionRunLocks.has(sessionId),
+    // A tab still on screen outlives one that was closed, whatever order their
+    // agents happened to be created in.
+    isDisplayed: (sessionId: string) => displayedSessionIds?.().has(sessionId) ?? false,
     sessionReader,
     annotationsStore,
     // Brain settings persist to the GLOBAL config only (config.brain is on
@@ -368,6 +380,8 @@ export async function startWebUI(
     autoCompactor,
     agent,
     getAgent,
+    peekAgent,
+    isSessionLive,
     toolExecutor,
     permissionPolicy,
     pipelines,
@@ -407,7 +421,9 @@ export async function startWebUI(
     modelsRegistry,
     // Per-tab truth: a session that switched model/mode/context strategy
     // reports its OWN values, not the process-wide defaults.
-    getSessionContext: (sessionId: string) => getAgent?.(sessionId)?.ctx,
+    // `peek`: building a payload must not materialise an agent for a session
+    // id that arrived from a stale browser tab.
+    getSessionContext: (sessionId: string) => peekAgent?.(sessionId)?.ctx,
   });
 
   const watcherMetricsRef: FileWatcherMetrics = {
@@ -467,6 +483,10 @@ export async function startWebUI(
 
   const wsResult = createWsServers(httpServer, ports, accessToken);
   const { wssPrimary, wssSecondary, clients } = wsResult;
+  // Now the connection map exists, the registry can tell an open tab from a
+  // closed one.
+  displayedSessionIds = () =>
+    new Set(collectDisplayedSessionIds({ getSession: () => session, clients }));
 
   // Subscribe to working directory changes from the CLI.
   context.onWorkingDirChanged((newDir) => {
@@ -596,6 +616,7 @@ export async function startWebUI(
       globalConfigPath,
       sessionBridge,
       bridgeForSession,
+      ...(peekAgent ? { sessionContext: (id: string) => peekAgent(id)?.ctx } : {}),
       wpaths,
     },
     watcherMetricsRef,
@@ -742,6 +763,8 @@ export async function startWebUI(
     trustBoundary,
     agent,
     getAgent,
+    ...(peekAgent ? { peekAgent } : {}),
+    ...(isSessionLive ? { isSessionLive } : {}),
     hasSession: (_id: string) => true,
     context,
     container,
@@ -855,7 +878,7 @@ export async function startWebUI(
         activeIds.add(currentId);
       }
       return Array.from(activeIds).map((id) => {
-        const ag = deps.getAgent?.(id);
+        const ag = deps.peekAgent?.(id) ?? undefined;
         const cfg = state.getConfig();
         const isRunning = state.isRunActive(id);
         return {
@@ -866,7 +889,8 @@ export async function startWebUI(
         };
       });
     },
-    getAgent: (sessionId) => deps.getAgent?.(sessionId),
+    // Read-only: a status line must not create the agent it is describing.
+    getAgent: (sessionId) => deps.peekAgent?.(sessionId),
   });
 
   const routes = buildRoutes(state, deps, cb);

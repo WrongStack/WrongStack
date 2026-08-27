@@ -3,22 +3,22 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { makeKanbanQueueTool } from '@wrongstack/core/coordination';
 import type { SubagentConfig, TaskResult, TaskSpec } from '@wrongstack/core/types';
+import { createBoard, getBoard, listKanbanEvents, listReadyTasks } from '@wrongstack/kanban';
 import {
   addTask,
   assignTask,
   claimReadyTask,
-  createBoard,
-  getBoard,
   heartbeatTaskAssignment,
-  listKanbanEvents,
-  listReadyTasks,
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   updateTaskAssignment,
-} from '@wrongstack/kanban';
-import { kanbanTool } from '@wrongstack/tools/kanban';
+} from '@wrongstack/kanban/test-support';
 import { wireKanbanPorts } from '@wrongstack/runtime';
+import { kanbanTool } from '@wrongstack/tools/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+
+/** Session that owns the board events these queue tests write. */
+const TEST_QUEUE_SESSION_ID = '2026-08-26/sess_01TESTKANBANQUEUE0000000';
 
 wireKanbanPorts();
 
@@ -150,7 +150,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         taskId: claimed!.task.id,
         heartbeatAt: '2026-07-07T00:04:00.000Z',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(toolResult).toMatchObject({ ok: true });
@@ -220,7 +220,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         recoveryNow: '2026-07-07T00:02:00.000Z',
         releaseReason: 'worker unavailable',
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(released).toMatchObject({ ok: true, recoveredTasks: [{ status: 'ready' }] });
@@ -331,7 +331,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         action: 'events',
         boardId: board.id,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(toolEvents).toMatchObject({ ok: true });
@@ -404,7 +404,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         tools: ['bash'],
         allowedCapabilities: ['fs.write'],
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(created).toMatchObject({ ok: true });
@@ -426,7 +426,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         agentId: 'worker-tool',
         status: 'running' as never,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(claimed).toMatchObject({ ok: true, message: 'Task claimed.' });
@@ -438,7 +438,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         recoveryMode: 'release',
         // No expired leases exist; call should return ok with empty list.
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
     expect(recovered).toMatchObject({ ok: true, recoveredTasks: [] });
@@ -494,7 +494,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
         leaseTtlMs: 120_000,
         awaitCompletion: true,
       },
-      { projectRoot: tmpDir } as never,
+      { projectRoot: tmpDir, eventSessionId: () => TEST_QUEUE_SESSION_ID } as never,
       { signal: new AbortController().signal },
     );
 

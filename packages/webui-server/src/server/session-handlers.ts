@@ -134,6 +134,26 @@ export interface SessionHandlersContext {
   abortActiveRun?: ((sessionId?: string) => void) | undefined;
   isRunActive?: ((sessionId?: string) => boolean) | undefined;
   hasSession?: ((id: string) => boolean) | undefined;
+  /**
+   * Does this host ALREADY hold an open writer for this session?
+   *
+   * Distinct from `hasSession`, which every multi-session host answers `true`
+   * to (it only says "this runtime can serve that id"). Re-opening the journal
+   * for a session that is already live leaks a second `FileSessionWriter` and
+   * file handle onto the same file, and with four tabs that happens on every
+   * single tab click. Hosts that cannot tell leave it undefined and keep the
+   * old behaviour.
+   */
+  isSessionLive?: ((id: string) => boolean) | undefined;
+  /**
+   * Sessions that just stopped being displayed by ANY connection.
+   *
+   * A closed tab leaves its per-session agent — context, transcript, open
+   * journal writer — behind, and nothing ever asked for it again. The host
+   * uses this to retire them; it must still refuse to retire one whose run is
+   * live, because a background run outlives the tab that started it.
+   */
+  onSessionsUndisplayed?: ((sessionIds: string[]) => void) | undefined;
   getAgent?: ((sessionId?: string) => Agent) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
   systemPrompt?: { applyVariant?: (variant: string) => Promise<void> } | undefined;
@@ -226,9 +246,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       await targetCtx.flushConversationJournal?.().catch(() => undefined);
       await ctx.onBeforeSessionTodosReplaced?.(next.id, sessionsDirectory());
       targetCtx.state.replaceTodos(todos);
+      // The counter belongs to the session being activated; the shared one is
+      // only a safe fallback when that session IS the root context.
+      (
+        targetCtx.tokenCounter ?? (targetCtx === ctx.context ? ctx.tokenCounter : undefined)
+      )?.reset?.();
       if (targetCtx === ctx.context) {
         resetContextAccounting();
-        ctx.tokenCounter.reset?.();
       }
       targetCtx.clearMemoryEvidence?.();
       targetCtx.readFiles.clear();
@@ -243,7 +267,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       sessionScopedPath(sessionsDirectory(), next.id, '.tasks.json'),
     );
     if (usage && !isRunning) {
-      ctx.tokenCounter.account(
+      (targetCtx.tokenCounter ?? ctx.tokenCounter).account(
         usage,
         currentConfig().model,
         targetCtx.provider?.id ?? ctx.context.provider.id,
@@ -300,6 +324,18 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     if (!requested) return ctx.context;
     return ctx.getAgent?.(requested)?.ctx ?? ctx.context;
   };
+  /**
+   * The session a request ACTS ON: the one it named, else the foreground.
+   *
+   * Everything below that reads or mutates a conversation — clear, compact,
+   * repair, rewind, the context editor, the context-window mode — used to work
+   * on `ctx.context`, the shared root. With four tabs live that is the tab the
+   * runtime happens to be pointing at, not the tab whose button was pressed:
+   * pressing Compact in tab 3 compacted tab 1, and Rewind cut a conversation
+   * the user was not looking at.
+   */
+  const actingSessionId = (msg: WSMessageLike): string =>
+    requestedSessionId(msg) ?? currentSessionId();
   const ensureCurrentSession = (ws: WebSocket, msg: WSMessageLike, op: string): boolean => {
     const requested = requestedSessionId(msg);
     const current = currentSessionId();
@@ -319,11 +355,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
   // setup and a session swap can never interleave.
   const serializeSessionTransition = ctx.withSessionTransition ?? createSessionTransitionGate();
   const finalizeSession = async (writer: Session): Promise<void> => {
+    // This session's own usage, not the process total. Sharing one counter
+    // across four tabs stamped every `session_end` with the sum of all of them.
+    const counter = ctx.getAgent?.(writer.id)?.ctx.tokenCounter ?? ctx.tokenCounter;
     await writer
       .append({
         type: 'session_end',
         ts: new Date().toISOString(),
-        usage: ctx.tokenCounter.total(),
+        usage: counter.total(),
       })
       .catch(() => undefined);
     await writer.close().catch(() => undefined);
@@ -431,13 +470,20 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }),
     clearContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.clear')) return;
-      ctx.context.state.replaceMessages([]);
-      ctx.context.state.replaceTodos([]);
-      resetContextAccounting();
-      ctx.context.clearMemoryEvidence?.();
-      ctx.context.readFiles.clear();
-      ctx.context.fileMtimes.clear();
-      ctx.tokenCounter.reset?.();
+      const target = contextForMessage(msg);
+      target.state.replaceMessages([]);
+      target.state.replaceTodos([]);
+      // This session's own counter. Falling back to the shared one is only
+      // safe for the root context — doing it for a session agent would zero
+      // the numbers of the three tabs beside it.
+      const counter =
+        target.tokenCounter ?? (target === ctx.context ? ctx.tokenCounter : undefined);
+      counter?.reset?.();
+      // The meta keys `resetContextAccounting` clears live on the root context.
+      if (target === ctx.context) resetContextAccounting();
+      target.clearMemoryEvidence?.();
+      target.readFiles.clear();
+      target.fileMtimes.clear();
       result(ws, true, 'Context cleared');
       broadcastToAll({
         type: 'session.start',
@@ -446,18 +492,20 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     debugContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.debug')) return;
+      const target = contextForMessage(msg);
       const breakdown = estimateContextBreakdown({
-        systemPrompt: ctx.context.systemPrompt,
+        systemPrompt: target.systemPrompt,
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list() ?? [],
-        messages: ctx.context.messages,
+        messages: target.messages,
       });
       sendTo(ws, {
         type: 'context.debug',
-        payload: sessionPayload({
+        payload: {
           ...breakdown,
-          mode: ctx.context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
-          policy: ctx.context.meta['contextWindowPolicy'],
-        }),
+          mode: target.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
+          policy: target.meta['contextWindowPolicy'],
+          sessionId: actingSessionId(msg),
+        },
       });
     },
     compactContext: async (ws, msg) => {
@@ -470,9 +518,11 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           result(ws, false, 'Compactor not available');
           return;
         }
-        const beforeUsage = ctx.tokenCounter.total();
-        const report = await compactor.compact(ctx.context, { aggressive });
-        const afterUsage = ctx.tokenCounter.total();
+        const target = contextForMessage(msg);
+        const counter = target.tokenCounter ?? ctx.tokenCounter;
+        const beforeUsage = counter.total();
+        const report = await compactor.compact(target, { aggressive });
+        const afterUsage = counter.total();
         const before =
           typeof report.before === 'number'
             ? report.before
@@ -500,20 +550,21 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     repairContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.repair')) return;
-      const beforeMessages = ctx.context.messages.length;
-      const repaired = repairToolUseAdjacency(ctx.context.messages);
+      const target = contextForMessage(msg);
+      const beforeMessages = target.messages.length;
+      const repaired = repairToolUseAdjacency(target.messages);
       if (repaired.report.changed) {
-        ctx.context.state.replaceMessages(repaired.messages);
+        target.state.replaceMessages(repaired.messages);
       }
       const payload = {
-        sessionId: currentSessionId(),
+        sessionId: actingSessionId(msg),
         removedToolUses: repaired.report.removedToolUses,
         removedToolResults: repaired.report.removedToolResults,
         removedMessages: repaired.report.removedMessages,
         beforeMessages,
-        afterMessages: ctx.context.messages.length,
+        afterMessages: target.messages.length,
       };
-      broadcastToAll({ type: 'context.repaired', payload: sessionPayload(payload) });
+      broadcastToAll({ type: 'context.repaired', payload });
       const removed =
         payload.removedToolUses.length +
         payload.removedToolResults.length +
@@ -529,12 +580,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     openContextEditor: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.editor.open')) return;
       const snapshot = buildContextEditorSnapshot(
-        ctx.context,
+        contextForMessage(msg),
         ctx.listTools?.() ?? ctx.toolRegistry?.list(),
       );
       sendTo(ws, {
         type: 'context.editor.snapshot',
-        payload: sessionPayload(snapshot),
+        payload: { ...snapshot, sessionId: actingSessionId(msg) },
       });
     },
     validateContextEditor: async (ws, msg) => {
@@ -586,7 +637,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     listContextModes: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.modes.list')) return;
       const active = String(
-        ctx.context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
+        contextForMessage(msg).meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
       );
       const store = await modeStore();
       const allModes = store.list().map((m) => ({
@@ -601,7 +652,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }));
       sendTo(ws, {
         type: 'context.modes.list',
-        payload: sessionPayload({ activeId: active, modes: allModes }),
+        payload: { activeId: active, modes: allModes, sessionId: actingSessionId(msg) },
       });
     },
     switchContextMode: async (ws, msg) => {
@@ -612,7 +663,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         return;
       }
       const { id } = parsed.value;
-      let policy = resolveContextWindowPolicy({}, id, readSessionWindowTokens(ctx.context));
+      const target = contextForMessage(msg);
+      let policy = resolveContextWindowPolicy({}, id, readSessionWindowTokens(target));
       // A built-in id always resolves (a ≥1M window swaps the balanced default
       // to Deep); only a NON-built-in id that failed to resolve can be a custom
       // mode — without the guard, that swap would make "balanced" read as
@@ -628,15 +680,20 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         }
         policy = custom as never as typeof policy;
       }
-      ctx.context.meta['contextWindowMode'] = policy.id;
-      ctx.context.meta['contextWindowPolicy'] = policy;
+      target.meta['contextWindowMode'] = policy.id;
+      target.meta['contextWindowPolicy'] = policy;
       // The user picked this policy for the session — later window changes
       // (model switch) must not overwrite it.
-      ctx.context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] = true;
+      target.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY] = true;
       result(ws, true, `Context mode switched to ${policy.id}`);
       broadcastToAll({
         type: 'context.mode.changed',
-        payload: sessionPayload({ id: policy.id, name: policy.name, policy }),
+        payload: {
+          id: policy.id,
+          name: policy.name,
+          policy,
+          sessionId: actingSessionId(msg),
+        },
       });
     },
     createContextMode: async (ws, msg) => {
@@ -697,15 +754,24 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         return;
       }
       const { id } = parsed.value;
-      if (String(ctx.context.meta['contextWindowMode'] ?? '') === id) {
+      // A deleted mode has to be replaced everywhere it is in use, not just on
+      // the tab that pressed delete — the mode store is project-wide, so a tab
+      // left pointing at a mode that no longer exists resolves to nothing.
+      const affected = new Set<Context>([ctx.context, contextForMessage(msg)]);
+      for (const sessionId of collectDisplayedSessionIds(ctx)) {
+        const agentCtx = ctx.getAgent?.(sessionId)?.ctx;
+        if (agentCtx) affected.add(agentCtx);
+      }
+      for (const target of affected) {
+        if (String(target.meta['contextWindowMode'] ?? '') !== id) continue;
         const policy = resolveContextWindowPolicy(
           {},
           DEFAULT_CONTEXT_WINDOW_MODE_ID,
-          readSessionWindowTokens(ctx.context),
+          readSessionWindowTokens(target),
         );
-        ctx.context.meta['contextWindowMode'] = policy.id;
-        ctx.context.meta['contextWindowPolicy'] = policy;
-        delete ctx.context.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY];
+        target.meta['contextWindowMode'] = policy.id;
+        target.meta['contextWindowPolicy'] = policy;
+        delete target.meta[CONTEXT_WINDOW_MODE_PINNED_META_KEY];
       }
       const store = await modeStore();
       const operation = store.remove(id);
@@ -800,7 +866,15 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           const store = ctx.getSessionStore();
           const canonicalId = store.resolveId ? await store.resolveId(id) : id;
           const isCurrentSession = canonicalId === current.id;
-          if (isCurrentSession) {
+          // Already open in this process — either it IS the runtime's current
+          // session, or it is one of the other tabs, whose writer is still
+          // held by its own agent. Both are served from memory. Going down the
+          // full resume path for a live session opens a SECOND writer and file
+          // handle on the same journal (the first is never closed) and re-reads
+          // the whole transcript from disk, and with four tabs that is the cost
+          // of every tab click.
+          const isLiveHere = isCurrentSession || (ctx.isSessionLive?.(canonicalId) ?? false);
+          if (isLiveHere) {
             const client = ctx.clients?.get(ws);
             if (client) {
               client.sessionId = canonicalId;
@@ -813,6 +887,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             const liveMessages = activeCtx?.state?.messages ?? [];
             const currentTodos = activeCtx?.state?.todos ?? [];
             const isRunning = ctx.isRunActive?.(canonicalId) ?? false;
+            if (!isCurrentSession) {
+              // Move the host's "current session" onto the writer this tab
+              // already owns, so presence, identity and the untagged legacy
+              // paths follow the foreground — WITHOUT re-opening anything.
+              const liveWriter = activeCtx?.session;
+              if (liveWriter && liveWriter.id === canonicalId) ctx.setSession(liveWriter);
+              await ctx.onSessionSwapped?.(canonicalId);
+            }
             const startPayload = await ctx.sessionStartPayload({
               reset: true,
               sessionId: canonicalId,
@@ -821,7 +903,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
                 messages: liveMessages,
                 events: [],
                 usage: {
-                  input: ctx.context?.lastRequestTokens ?? 0,
+                  // This session's own pre-flight estimate. Reading the root
+                  // context reported the foreground tab's number on a
+                  // background tab's context bar.
+                  input: activeCtx?.lastRequestTokens ?? 0,
                   output: 0,
                 },
               }),
@@ -962,10 +1047,16 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         const { DefaultSessionRewinder } = await import('@wrongstack/core/storage');
         const projectRoot = ctx.getProjectRoot();
         const rewinder = new DefaultSessionRewinder(sessionsDirectory(), projectRoot);
-        const checkpoints = await rewinder.listCheckpoints(ctx.getSession().id);
-        sendTo(ws, { type: 'session.checkpoints', payload: sessionPayload({ checkpoints }) });
+        const checkpoints = await rewinder.listCheckpoints(actingSessionId(msg));
+        sendTo(ws, {
+          type: 'session.checkpoints',
+          payload: { checkpoints, sessionId: actingSessionId(msg) },
+        });
       } catch {
-        sendTo(ws, { type: 'session.checkpoints', payload: sessionPayload({ checkpoints: [] }) });
+        sendTo(ws, {
+          type: 'session.checkpoints',
+          payload: { checkpoints: [], sessionId: actingSessionId(msg) },
+        });
       }
     },
     rewindSession: async (ws, msg) => {
@@ -977,14 +1068,23 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         );
         const projectRoot = ctx.getProjectRoot();
         const rewinder = new DefaultSessionRewinder(sessionsDirectory(), projectRoot);
-        const reverted = await rewinder.rewindToCheckpoint(ctx.getSession().id, checkpointIndex);
-        // Cut the live conversation too — sessionStartPayload() below replays
-        // from ctx.context.state, so truncating only the JSONL would replay the
+        const targetSessionId = actingSessionId(msg);
+        const target = contextForMessage(msg);
+        // Refuse to rewind a session whose journal this process does not
+        // actually hold open: cutting the file while another context still
+        // appends to it leaves the two out of step.
+        if (target.session?.id !== targetSessionId) {
+          result(ws, false, `Session ${targetSessionId} is not open in this runtime`);
+          return;
+        }
+        const reverted = await rewinder.rewindToCheckpoint(targetSessionId, checkpointIndex);
+        // Cut the live conversation too — the replay below comes from the
+        // session's own state, so truncating only the JSONL would replay the
         // rewound turns straight back to the client and leave them in the
         // model's working set.
         await applyRewindToConversation({
-          session: ctx.context.session,
-          state: ctx.context.state,
+          session: target.session,
+          state: target.state,
           sessionsDir: sessionsDirectory(),
           promptIndex: checkpointIndex,
           revertedFiles: reverted.revertedFiles,
@@ -992,7 +1092,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         result(ws, true, `Rewound to checkpoint ${checkpointIndex}`);
         broadcastToAll({
           type: 'session.start',
-          payload: await ctx.sessionStartPayload({ reset: true }),
+          payload: await ctx.sessionStartPayload({ reset: true, sessionId: targetSessionId }),
         });
       } catch (err) {
         result(ws, false, errMessage(err));
@@ -1015,6 +1115,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       const raw = Array.isArray(payload.sessionIds) ? payload.sessionIds : [];
       const client = ctx.clients?.get(ws);
       if (!client) return;
+      const previous = client.sessionIds;
       const next = new Set<string>();
       for (const id of raw) {
         if (typeof id !== 'string' || id.length === 0) continue;
@@ -1025,6 +1126,37 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       // even if the strip has not caught up with it yet.
       if (client.sessionId) next.add(client.sessionId);
       client.sessionIds = next.size > 0 ? next : undefined;
+
+      // Answer, per declared tab, whether its run is still live.
+      //
+      // Only the foreground tab is re-announced with `session.start` after a
+      // reconnect, and `run.result` — the message that stops a lane's
+      // spinner — was broadcast once, while the socket was down. Without this
+      // the other tabs spin forever: they count as busy, refuse to be
+      // recycled, and offer to abort a run that finished minutes ago. The
+      // client re-declares its whole set on every reconnect, so this arrives
+      // exactly when it is needed.
+      // A host that cannot answer stays silent rather than reporting `false`
+      // for a tab that is genuinely running.
+      const runActive = ctx.isRunActive;
+      if (runActive) {
+        for (const id of next) {
+          sendTo(ws, {
+            type: 'session.run_state',
+            payload: { sessionId: id, isRunning: runActive(id) },
+          });
+        }
+      }
+
+      if (!ctx.onSessionsUndisplayed || !previous) return;
+      // Dropped by THIS connection and claimed by no other one. Computed after
+      // the assignment above so a second page showing the same session keeps
+      // it alive.
+      const stillShown = new Set(
+        collectDisplayedSessionIds({ getSession: ctx.getSession, clients: ctx.clients }),
+      );
+      const gone = [...previous].filter((id) => !stillShown.has(id));
+      if (gone.length > 0) ctx.onSessionsUndisplayed(gone);
     },
   };
 }

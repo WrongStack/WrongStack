@@ -2,13 +2,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { TaskGraph } from '../src/types/task-graph.js';
 import {
   buildTaskGraphFromKanbanBoard,
   createBoardFromTaskGraph,
   removeTask,
   syncBoardFromTaskGraph,
-} from '../src/manager.js';
-import type { TaskGraph } from '../src/types/task-graph.js';
+} from './helpers/session-manager.js';
 
 describe('Kanban task graph requirement coverage', () => {
   let projectRoot: string;

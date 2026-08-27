@@ -48,10 +48,11 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           projectRoot,
           input,
           input.author ?? input.agentId,
+          ctx.eventSessionId(),
         );
         if (contractResult !== undefined) return contractResult;
 
-        const detailResult = await handleKanbanDetailAction(projectRoot, input);
+        const detailResult = await handleKanbanDetailAction(projectRoot, input, ctx);
         if (detailResult !== undefined) return detailResult;
 
         return fail(`Unknown kanban action: ${(input as { action: string }).action}`);

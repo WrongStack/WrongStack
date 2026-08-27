@@ -223,6 +223,11 @@ export function projectSessionMarkers(
  * as `user`/`system`-role messages by the agent loop at runtime (mailbox,
  * fleet pulse, loop detector, resume validation notices) but should NOT appear
  * in the human-facing chat history on session resume/replay.
+ *
+ * Also covers routing-noise error bubbles that the WebUI client has already
+ * swallowed live (`handleError` drops them) but that earlier turns may have
+ * persisted to the on-disk transcript — replay must not resurrect them into
+ * the human-visible chat.
  */
 export const SYSTEM_INJECTION_PREFIXES: readonly string[] = [
   '[MAILBOX]',
@@ -233,6 +238,7 @@ export const SYSTEM_INJECTION_PREFIXES: readonly string[] = [
   '[loop-detector]',
   '[SESSION RESUME FILE VALIDATION]',
   '[SESSION RESUME INTERRUPTED WORK]',
+  '[session.resume] Request targeted session',
 ];
 
 /**

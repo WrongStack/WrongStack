@@ -317,8 +317,20 @@ export function handleContextModeChanged(msg: WSServerMessage) {
 }
 
 export function handleError(msg: WSServerMessage) {
-  const payload = msg.payload as { phase: string; message: string };
+  const payload = msg.payload as {
+    phase: string;
+    message: string;
+    requestedSessionId?: unknown;
+  };
   if (payload.phase === 'todos.get') return;
+  // Session-swap guard rejections — "Request targeted session X, but this
+  // WebUI runtime is currently on Y" — are routing noise, not run failures:
+  // the request never executed, so no run ended and nothing needs unblocking.
+  // The server tags them with the session in FRONT, so delivering one here
+  // dropped a bubble into whatever chat was visible (mid-stream, on every tab
+  // switch) and cleared THAT lane's loading flag. The client's own swap state
+  // is already unwound in ws-client.handleMessage; swallow the frame.
+  if (typeof payload.requestedSessionId === 'string') return;
   // Routed by session, NEVER gated on "is this the tab in front".
   //
   // This handler owns per-lane state — the error bubble and, critically,

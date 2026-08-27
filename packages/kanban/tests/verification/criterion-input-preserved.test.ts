@@ -21,7 +21,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { verifyTaskCompletion } from '../../src/verification/completion-protocol.js';
+import { verifyTaskCompletion } from '../helpers/session-manager.js';
 
 const roots: string[] = [];
 
@@ -32,7 +32,9 @@ afterEach(async () => {
 async function seed() {
   const root = await mkdtemp(join(tmpdir(), 'wstack-criterion-input-'));
   roots.push(root);
-  const { createBoard, addTask, addCheckToTask, getBoard } = await import('../../src/manager.js');
+  const { createBoard, addTask, addCheckToTask, getBoard } = await import(
+    '../helpers/session-manager.js'
+  );
   const board = await createBoard(root, { title: 'Re-verification board' });
   const added = await addTask(root, board.id, { title: 'Card' });
   if (!added) throw new Error('Failed to add task');

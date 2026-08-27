@@ -14,14 +14,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { verifyTaskCompletion } from '../../src/verification/completion-protocol.js';
-import { VerifierRegistry } from '../../src/verification/verifier-registry.js';
-import type {
-  KanbanCheck,
-  KanbanVerificationCheckResult,
-} from '../../src/types.js';
+import type { KanbanCheck, KanbanVerificationCheckResult } from '../../src/types.js';
 import type { VerificationContext } from '../../src/verification/verification-context.js';
 import type { VerifierPlugin } from '../../src/verification/verifier-plugin.js';
+import { VerifierRegistry } from '../../src/verification/verifier-registry.js';
+import { verifyTaskCompletion } from '../helpers/session-manager.js';
 
 const roots: string[] = [];
 
@@ -31,12 +28,9 @@ afterEach(async () => {
 
 // ── Helper to create a minimal board JSON ────────────────────────────────
 
-async function createMinimalBoard(
-  root: string,
-  taskOverrides?: Record<string, unknown>,
-) {
+async function createMinimalBoard(root: string, taskOverrides?: Record<string, unknown>) {
   // Re-use the createBoard from manager to get proper storage
-  const { createBoard, addTask, addCheckToTask } = await import('../../src/manager.js');
+  const { createBoard, addTask, addCheckToTask } = await import('../helpers/session-manager.js');
   const board = await createBoard(root, { title: 'Test Board' });
   const added = await addTask(root, board.id, {
     title: 'Test task',
@@ -151,20 +145,20 @@ describe('verifyTaskCompletion', () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-noboard-'));
     roots.push(root);
 
-    await expect(
-      verifyTaskCompletion(root, 'non-existent-board', 'task-1'),
-    ).rejects.toThrow('Board not found');
+    await expect(verifyTaskCompletion(root, 'non-existent-board', 'task-1')).rejects.toThrow(
+      'Board not found',
+    );
   });
 
   it('throws for a missing task', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-notask-'));
     roots.push(root);
-    const { createBoard } = await import('../../src/manager.js');
+    const { createBoard } = await import('../helpers/session-manager.js');
     const board = await createBoard(root, { title: 'Test' });
 
-    await expect(
-      verifyTaskCompletion(root, board.id, 'non-existent-task'),
-    ).rejects.toThrow('Task not found');
+    await expect(verifyTaskCompletion(root, board.id, 'non-existent-task')).rejects.toThrow(
+      'Task not found',
+    );
   });
 
   it('uses the default registry when none is provided', async () => {
@@ -187,7 +181,7 @@ describe('verifyTaskCompletion', () => {
   it('handles atomic tasks with child tasks', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-atomic-'));
     roots.push(root);
-    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
+    const { createBoard, addTask, updateTask } = await import('../helpers/session-manager.js');
 
     const board = await createBoard(root, { title: 'Test' });
     const parent = await addTask(root, board.id, { title: 'Parent', atomic: true });
@@ -214,8 +208,10 @@ describe('verifyTaskCompletion', () => {
   it('uses existing child verification report when present', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-child-report-'));
     roots.push(root);
-    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
-    const { buildVerificationReport } = await import('../../src/verification/verification-report.js');
+    const { createBoard, addTask, updateTask } = await import('../helpers/session-manager.js');
+    const { buildVerificationReport } = await import(
+      '../../src/verification/verification-report.js'
+    );
 
     const board = await createBoard(root, { title: 'Test' });
     const parent = await addTask(root, board.id, { title: 'Parent', atomic: true });
@@ -259,7 +255,7 @@ describe('verifyTaskCompletion', () => {
   it('rejects a cyclic parent/child task graph instead of recursing forever', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-cycle-'));
     roots.push(root);
-    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
+    const { createBoard, addTask, updateTask } = await import('../helpers/session-manager.js');
 
     const board = await createBoard(root, { title: 'Test' });
     const a = await addTask(root, board.id, { title: 'A', atomic: true });
@@ -279,7 +275,7 @@ describe('verifyTaskCompletion', () => {
   it('verifies a task reachable through two parents without reporting a cycle', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-diamond-'));
     roots.push(root);
-    const { createBoard, addTask, updateTask } = await import('../../src/manager.js');
+    const { createBoard, addTask, updateTask } = await import('../helpers/session-manager.js');
 
     const board = await createBoard(root, { title: 'Test' });
     const top = await addTask(root, board.id, { title: 'Top', atomic: true });
@@ -347,14 +343,12 @@ describe('verifyTaskCompletion', () => {
   it('includes expectedFileChanges analysis when task has file expectations', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-files-'));
     roots.push(root);
-    const { createBoard, addTask } = await import('../../src/manager.js');
+    const { createBoard, addTask } = await import('../helpers/session-manager.js');
 
     const board = await createBoard(root, { title: 'File scope test' });
     const added = await addTask(root, board.id, {
       title: 'File scope task',
-      expectedFileChanges: [
-        { path: 'src/test.ts', operation: 'modify' },
-      ],
+      expectedFileChanges: [{ path: 'src/test.ts', operation: 'modify' }],
     });
     if (!added) throw new Error('Failed to add task');
 

@@ -1,21 +1,21 @@
 import { realpathSync } from 'node:fs';
 import * as path from 'node:path';
+import { requireSessionId } from '@wrongstack/primitives';
 import type { TextBlock } from '../types/blocks.js';
+// Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
+// (single source of truth, acyclic); re-exported here for existing import paths.
+import type { AgentContext, ContextMessageLimits, TodoItem } from '../types/context.js';
 import type { ContextEvidenceState } from '../types/context-evidence.js';
 import type { FileEventRecord } from '../types/file-event-record.js';
 import type { Message } from '../types/messages.js';
 import type { Provider, Usage } from '../types/provider.js';
+import type { RunEnv } from '../types/run-env.js';
 import type { SessionEvent, SessionWriter } from '../types/session.js';
 import type { TokenCounter } from '../types/token-counter.js';
 import type { Tool } from '../types/tool.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
-import type { AgentContext, ContextMessageLimits } from '../types/context.js';
-import type { RunEnv } from '../types/run-env.js';
 import { ConversationState } from './conversation-state.js';
 
-// Roadmap 10A: TodoItem's canonical home is the types/context.ts leaf
-// (single source of truth, acyclic); re-exported here for existing import paths.
-import type { TodoItem } from '../types/context.js';
 export type { TodoItem };
 
 export interface RunOptions {
@@ -1009,7 +1009,9 @@ export class Context implements RunEnv, AgentContext {
  * `session` may be missing despite the non-optional type.
  */
 export function resolveEventSessionId(ctx: AgentContext): string {
-  if (ctx.activeRunSessionId) return ctx.activeRunSessionId;
+  if (ctx.activeRunSessionId) {
+    return requireSessionId(ctx.activeRunSessionId, 'agent event emission');
+  }
   const session: SessionWriter | undefined = ctx.session;
-  return session?.id ?? '';
+  return requireSessionId(session?.id, 'agent event emission');
 }

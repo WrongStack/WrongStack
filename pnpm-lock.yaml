@@ -338,6 +338,9 @@ importers:
       '@wrongstack/mcp':
         specifier: workspace:*
         version: link:../mcp
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@wrongstack/tools':
         specifier: workspace:*
         version: link:../tools
@@ -608,6 +611,9 @@ importers:
       '@wrongstack/kanban':
         specifier: workspace:*
         version: link:../kanban
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@wrongstack/requirement-intake':
         specifier: workspace:*
         version: link:../requirement-intake
@@ -1139,6 +1145,9 @@ importers:
       '@wrongstack/mcp':
         specifier: workspace:*
         version: link:../mcp
+      '@wrongstack/primitives':
+        specifier: workspace:*
+        version: link:../primitives
       '@wrongstack/providers':
         specifier: workspace:*
         version: link:../providers

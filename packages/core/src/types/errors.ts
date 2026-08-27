@@ -55,6 +55,7 @@ export const ERROR_CODES = {
   SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
   SESSION_CORRUPTED: 'SESSION_CORRUPTED',
   SESSION_WRITE_FAILED: 'SESSION_WRITE_FAILED',
+  SESSION_ID_REQUIRED: 'SESSION_ID_REQUIRED',
   // Container / Registry
   CONTAINER_TOKEN_ALREADY_BOUND: 'CONTAINER_TOKEN_ALREADY_BOUND',
   CONTAINER_TOKEN_NOT_BOUND: 'CONTAINER_TOKEN_NOT_BOUND',
@@ -303,7 +304,10 @@ export class AgentError extends WrongStackError {
  */
 export function toWrongStackError(
   err: unknown,
-  code: Extract<ErrorCode, 'AGENT_RUN_FAILED' | 'AGENT_ABORTED' | 'UNKNOWN'> = ERROR_CODES.AGENT_RUN_FAILED,
+  code: Extract<
+    ErrorCode,
+    'AGENT_RUN_FAILED' | 'AGENT_ABORTED' | 'UNKNOWN'
+  > = ERROR_CODES.AGENT_RUN_FAILED,
 ): WrongStackError {
   // Duck-typed, NOT `instanceof`: a ProviderError thrown by
   // `@wrongstack/providers` extends the `@wrongstack/core/types` copy of
@@ -328,7 +332,10 @@ export class SessionError extends WrongStackError {
 
   constructor(opts: {
     message: string;
-    code: Extract<ErrorCode, 'SESSION_NOT_FOUND' | 'SESSION_CORRUPTED' | 'SESSION_WRITE_FAILED'>;
+    code: Extract<
+      ErrorCode,
+      'SESSION_NOT_FOUND' | 'SESSION_CORRUPTED' | 'SESSION_WRITE_FAILED' | 'SESSION_ID_REQUIRED'
+    >;
     sessionId?: string | undefined;
     context?: Record<string, unknown> | undefined;
     cause?: unknown | undefined;
@@ -384,7 +391,11 @@ export class FsError extends WrongStackError {
     message: string;
     code: Extract<
       ErrorCode,
-      'FS_READ_FAILED' | 'FS_WRITE_FAILED' | 'FS_MKDIR_FAILED' | 'FS_DELETE_FAILED' | 'FS_ATOMIC_WRITE_FAILED'
+      | 'FS_READ_FAILED'
+      | 'FS_WRITE_FAILED'
+      | 'FS_MKDIR_FAILED'
+      | 'FS_DELETE_FAILED'
+      | 'FS_ATOMIC_WRITE_FAILED'
     >;
     path?: string | undefined;
     context?: Record<string, unknown> | undefined;

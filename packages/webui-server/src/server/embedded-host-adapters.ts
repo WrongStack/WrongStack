@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
-import { TOKENS, type EventBus } from '@wrongstack/core/kernel';
+import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type {
   Config,
@@ -13,7 +13,6 @@ import type {
   SessionWriter,
 } from '@wrongstack/core/types';
 import { toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
-import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { createConversationOperations } from './conversation-operations.js';
@@ -23,7 +22,8 @@ import type { PendingConfirm } from './pending-confirms.js';
 import { createProjectHandlers } from './project-handlers.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
 import { createProviderOperations } from './provider-handlers.js';
-import { createSessionHandlers } from './session-handlers.js';
+import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
+import { createSessionHandlers, type SessionHandlersContext } from './session-handlers.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { WSServerMessage } from './types.js';
@@ -163,7 +163,11 @@ export function createEmbeddedConversationRoutes(
     // refused with "Request targeted session X, but this WebUI runtime is
     // currently on Y" — correct for a single-session host, fatal for four.
     // A session this host has an agent for is a session it can serve.
-    hasSession: (id: string) => (ctx.getAgent ? ctx.getAgent(id) !== undefined : false),
+    // NOT `getAgent(id) !== undefined`: the registry's `get` CREATES on read,
+    // so asking the question materialised an agent for every id a client ever
+    // typed — including stale ones from a refreshed browser — and each one
+    // could evict a live tab's agent.
+    hasSession: () => ctx.getAgent !== undefined,
     runControl: {
       begin: (_ws, sessionId) => {
         if (ctx.abortControllers.has(sessionId)) return undefined;
@@ -231,6 +235,35 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
    * resuming tab 2 rewrote the context tab 1 was running in.
    */
   getAgent?: ((sessionId?: string | undefined) => Agent) | undefined;
+  /**
+   * The host's own "which tab is in front" pointer, and its setter.
+   *
+   * Multi-session hosts MUST supply both. Without them the pointer is the
+   * leader agent's `ctx.session` — but the leader agent is simultaneously the
+   * RUNTIME of the boot tab, so re-pointing it to another tab's writer made
+   * the boot tab write into that tab's journal, and did so mid-run if the boot
+   * tab was busy. With them, the pointer moves and no agent's context is
+   * touched except the one that owns the session.
+   */
+  getForegroundSession?: (() => SessionWriter) | undefined;
+  setForegroundSession?: ((next: SessionWriter) => void) | undefined;
+  /** Does this host already hold an open writer for that session? */
+  isSessionLive?: ((sessionId: string) => boolean) | undefined;
+  /**
+   * Per-connection display registry, so `session.subscribe` is honoured and
+   * "which sessions are on screen right now" has an answer.
+   *
+   * Only the two session fields are read through this path (the embedded host
+   * supplies its own send/broadcast), so a host may keep a leaner client
+   * record than the standalone server's `ConnectedClient`. Without it a
+   * background tab's session is invisible to the delete guard and to agent
+   * eviction — both then treat an open tab as abandoned.
+   */
+  clients?:
+    | Map<WebSocket, { sessionId: string | null; sessionIds?: Set<string> | undefined }>
+    | undefined;
+  /** Sessions no connection is displaying any more — retire their agents. */
+  onSessionsUndisplayed?: ((sessionIds: string[]) => void) | undefined;
   /** When sessionId is provided, abort only that session's run; otherwise abort all. */
   abortActiveRun?: ((sessionId?: string) => void) | undefined;
   /** True while an embedded agent run is active. */
@@ -259,13 +292,20 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     getCustomModeStore: ctx.getCustomModeStore,
     tokenCounter: actx.tokenCounter,
     getProjectRoot,
-    getSession: () => actx.session ?? opts.session,
+    getSession: () => ctx.getForegroundSession?.() ?? actx.session ?? opts.session,
     getSessionStore: () => sessionStoreFor(opts),
     canSwapSessions: () => opts.sessionStore !== undefined,
     getSessionsDir: () =>
       opts.sessionsDir ?? path.join(getProjectRoot(), '.wrongstack', 'sessions'),
     setSession: (next) => {
-      actx.session = next;
+      ctx.setForegroundSession?.(next);
+      // Re-point a CONTEXT only when it is the context that owns this session.
+      // `activateSession` already installs the writer on the target session's
+      // own agent; the leader's context is a tab's runtime too, and assigning
+      // another tab's writer to it is how a run ended up appending to a
+      // different session's journal. A single-session host has no separate
+      // foreground pointer, so it keeps the original assignment.
+      if (!ctx.setForegroundSession || actx.session?.id === next.id) actx.session = next;
     },
     claimSession: opts.claimSession,
     onBeforeSessionTodosReplaced: async (sessionId, sessionsDir) =>
@@ -277,6 +317,14 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     // Same reason as the conversation routes: a request naming a background
     // tab's session is legitimate here, not a mismatch to refuse.
     ...(ctx.getAgent ? { hasSession: (_id: string) => true } : {}),
+    ...(ctx.isSessionLive ? { isSessionLive: ctx.isSessionLive } : {}),
+    ...(ctx.onSessionsUndisplayed ? { onSessionsUndisplayed: ctx.onSessionsUndisplayed } : {}),
+    // Structural: the handlers only read `sessionId`/`sessionIds` off these
+    // records, and never broadcast through the map (this host passes its own
+    // `broadcastMessage`).
+    ...(ctx.clients
+      ? { clients: ctx.clients as unknown as NonNullable<SessionHandlersContext['clients']> }
+      : {}),
     sessionStartPayload: async (overrides) => (await ctx.buildSessionStart(overrides)) as never,
     sendMessage: ctx.send,
     broadcastMessage: ctx.broadcast,
@@ -299,6 +347,14 @@ export interface EmbeddedProjectContext extends EmbeddedHostTransport {
   abortControllers: Map<string, AbortController>;
   abortLegacyRun: () => void;
   buildSessionStart: (overrides?: Record<string, unknown>) => Promise<unknown>;
+  /**
+   * The host's foreground-session pointer — the same one the session routes
+   * move. A project switch retires every session in the process, so the
+   * pointer has to follow it here too or the host keeps naming a session that
+   * belongs to the previous project.
+   */
+  getForegroundSession?: (() => SessionWriter) | undefined;
+  setForegroundSession?: ((next: SessionWriter) => void) | undefined;
 }
 
 export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): ProjectRouteHandlers {
@@ -313,7 +369,7 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
     config: { model: actx.model, provider: actx.provider.id },
     getConfig: () => ({ model: actx.model, provider: actx.provider.id }),
     getProjectRoot: () => opts.projectRoot ?? actx.projectRoot,
-    getSession: () => actx.session ?? opts.session,
+    getSession: () => ctx.getForegroundSession?.() ?? actx.session ?? opts.session,
     setProjectRoot: (projectRoot) => {
       opts.projectRoot = projectRoot;
     },
@@ -323,6 +379,7 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
     setSession: (session) => {
       opts.session = session;
       actx.session = session;
+      ctx.setForegroundSession?.(session);
     },
     setSessionStore: (store) => {
       opts.sessionStore = store;

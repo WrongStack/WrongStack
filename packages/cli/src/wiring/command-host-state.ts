@@ -44,6 +44,15 @@ export interface CommandHostStateInput {
   renderer: TerminalRenderer;
   reader: ReadlineInputReader;
   permissionPolicy: { setYolo?(enabled: boolean): void; getYolo?(): boolean };
+  /**
+   * The live conversation's meta bag.
+   *
+   * YOLO is decided per conversation — the permission policy reads
+   * `ctx.meta.yolo` and falls back to its own process-wide flag — so a runtime
+   * toggle has to write BOTH. Leaving the meta stale would let a boot-time
+   * value keep overriding the switch the user just flipped.
+   */
+  contextMeta?: Record<string, unknown> | undefined;
 }
 
 export async function setupCommandHostState(input: CommandHostStateInput) {
@@ -85,6 +94,7 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   const setYoloMode = (enabled?: boolean): boolean => {
     if (enabled !== undefined) {
       input.permissionPolicy.setYolo?.(enabled);
+      if (input.contextMeta) input.contextMeta['yolo'] = enabled;
       input.setConfig(patchConfig(input.getConfig(), { yolo: enabled }));
       return enabled;
     }

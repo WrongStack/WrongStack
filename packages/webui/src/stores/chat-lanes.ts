@@ -90,6 +90,26 @@ export interface ChatLaneData {
    * attention dot with no way to answer it.
    */
   pendingConfirm: PendingConfirm | null;
+  /**
+   * A provider-fallback prompt raised while this tab was in the BACKGROUND.
+   *
+   * Same reasoning as `pendingConfirm`: the fallback dialog is one global
+   * surface, so a background tab's prompt must not open over the tab in front.
+   * It used to be DROPPED instead — the run then sat behind a question nobody
+   * could answer until the server's countdown auto-switched the model on its
+   * own, which is a route change the user never chose.
+   */
+  pendingFallback: LaneFallbackPrompt | null;
+}
+
+/** The provider-fallback prompt payload, as the dialog needs it. */
+export interface LaneFallbackPrompt {
+  requestId: string;
+  from: { providerId: string; model: string };
+  status: number;
+  candidates: Array<{ providerId: string; model: string }>;
+  autoSwitchSeconds: number;
+  timestamp: number;
 }
 
 /** The tool-approval prompt payload, as the dialog needs it. */
@@ -121,6 +141,7 @@ export function createLaneData(): ChatLaneData {
     thinkingLogBuffer: '',
     thinkingLogStartedAt: null,
     pendingConfirm: null,
+    pendingFallback: null,
   };
 }
 
@@ -395,6 +416,7 @@ export interface ChatLaneActions {
   setRefining: (v: boolean) => void;
   /** Park (or clear) this tab's unanswered approval prompt. */
   setPendingConfirm: (confirm: PendingConfirm | null) => void;
+  setPendingFallback: (prompt: LaneFallbackPrompt | null) => void;
   setPendingRefinement: (
     text: string | null,
     images?: Array<{ data: string; mime: string }>,
@@ -431,6 +453,21 @@ export function resolvePendingConfirm(confirmId: string): void {
   for (const [sessionId, lane] of Object.entries(lanes)) {
     if (lane.pendingConfirm?.id !== confirmId) continue;
     mutate(sessionId, () => ({ pendingConfirm: null }));
+  }
+}
+
+/**
+ * Retire a parked fallback prompt by request id, wherever it is parked.
+ *
+ * The answer (or the server's own countdown) settles the request for good, so
+ * the copy must not survive to open a dead dialog on the next tab switch —
+ * the same retirement `resolvePendingConfirm` performs for approvals.
+ */
+export function resolvePendingFallback(requestId: string): void {
+  const { lanes } = useChatLanes.getState();
+  for (const [sessionId, lane] of Object.entries(lanes)) {
+    if (lane.pendingFallback?.requestId !== requestId) continue;
+    mutate(sessionId, () => ({ pendingFallback: null }));
   }
 }
 
@@ -662,6 +699,8 @@ export function chatLane(sessionId: string): ChatLaneActions {
 
     setRefining: (v) => mutate(sid, () => ({ refining: v })),
     setPendingConfirm: (confirm) => mutate(sid, () => ({ pendingConfirm: confirm })),
+
+    setPendingFallback: (prompt) => mutate(sid, () => ({ pendingFallback: prompt })),
 
     setPendingRefinement: (text, images, mode = 'queue') =>
       mutate(sid, () => ({

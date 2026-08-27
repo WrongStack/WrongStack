@@ -34,15 +34,8 @@ import type {
   TaskResult,
 } from '@wrongstack/core/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
+import { requireSessionId } from '@wrongstack/primitives';
 import { splitGraphNode } from './graph-split.js';
-import { executeSddTask } from './sdd-task-execution.js';
-import { SddTaskDecomposer, type TaskBatch } from './sdd-task-decomposer.js';
-import {
-  allocateTaskWorktrees,
-  resolveTaskWorktrees,
-  integrateTaskWorktree,
-  forgetTaskWorktree,
-} from './sdd-worktree-integration.js';
 import type {
   RunResult,
   SddParallelRunOptions,
@@ -52,6 +45,15 @@ import type {
   TaskOutcome,
   WaveResult,
 } from './sdd-parallel-run-types.js';
+import { SddTaskDecomposer, type TaskBatch } from './sdd-task-decomposer.js';
+import { executeSddTask } from './sdd-task-execution.js';
+import {
+  allocateTaskWorktrees,
+  forgetTaskWorktree,
+  integrateTaskWorktree,
+  resolveTaskWorktrees,
+} from './sdd-worktree-integration.js';
+
 export type {
   RunResult,
   SddParallelRunOptions,
@@ -158,10 +160,10 @@ export class SddParallelRun {
     );
   }
 
-  private currentSessionId(): string | undefined {
+  private currentSessionId(): string {
     const value =
       typeof this.sessionIdSource === 'function' ? this.sessionIdSource() : this.sessionIdSource;
-    return typeof value === 'string' && value.length > 0 ? value : undefined;
+    return requireSessionId(value, 'SDD session operation');
   }
 
   // -------------------------------------------------------------------
@@ -688,7 +690,9 @@ export class SddParallelRun {
         ...(this.timeoutMs ? { timeoutMs: this.timeoutMs } : {}),
       },
     };
-    this.coordinator = new DefaultMultiAgentCoordinator(config);
+    this.coordinator = new DefaultMultiAgentCoordinator(config, {
+      sessionId: () => this.currentSessionId(),
+    });
     // Wrap factory with disabled tool filtering to prevent subagents from
     // using the delegate tool (or any other disabledTools in their config)
     const baseFactory = this.opts.subagentFactory ?? this.defaultFactory();

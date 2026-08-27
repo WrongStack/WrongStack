@@ -1,4 +1,4 @@
-import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
+import type { KanbanBoard, KanbanEventContext, KanbanTask } from '@wrongstack/kanban';
 import { getBoard, splitTask } from '@wrongstack/kanban';
 import { fail } from './kanban-tool-results.js';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
@@ -8,6 +8,7 @@ export async function handleSplitTask(
   projectRoot: string,
   input: KanbanToolInput,
   extraSplitOptions: Record<string, unknown>,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanToolOutput> {
   const boardId = input.boardId;
   const taskId = input.taskId;
@@ -27,18 +28,24 @@ export async function handleSplitTask(
     chainChildren,
     rewireDependents,
   } = input;
-  const result = await splitTask(projectRoot, boardId, taskId, {
-    titles: childTitles,
-    ...extraSplitOptions,
-    ...(targetColumnId !== undefined ? { columnId: targetColumnId } : {}),
-    ...(inheritAssignment !== undefined ? { inheritAssignment } : {}),
-    ...(inheritLabels !== undefined ? { inheritLabels } : {}),
-    ...(inheritSuccessCriteria !== undefined ? { inheritSuccessCriteria } : {}),
-    ...(inheritGoalMetrics !== undefined ? { inheritGoalMetrics } : {}),
-    ...(inheritDependencies !== undefined ? { inheritDependencies } : {}),
-    ...(chainChildren !== undefined ? { chainChildren } : {}),
-    ...(rewireDependents !== undefined ? { rewireDependents } : {}),
-  });
+  const result = await splitTask(
+    projectRoot,
+    boardId,
+    taskId,
+    {
+      titles: childTitles,
+      ...extraSplitOptions,
+      ...(targetColumnId !== undefined ? { columnId: targetColumnId } : {}),
+      ...(inheritAssignment !== undefined ? { inheritAssignment } : {}),
+      ...(inheritLabels !== undefined ? { inheritLabels } : {}),
+      ...(inheritSuccessCriteria !== undefined ? { inheritSuccessCriteria } : {}),
+      ...(inheritGoalMetrics !== undefined ? { inheritGoalMetrics } : {}),
+      ...(inheritDependencies !== undefined ? { inheritDependencies } : {}),
+      ...(chainChildren !== undefined ? { chainChildren } : {}),
+      ...(rewireDependents !== undefined ? { rewireDependents } : {}),
+    },
+    eventContext,
+  );
   if (!result) return fail('Task not found.');
   const freshParent = result.board.tasks?.find((t: KanbanTask) => t.id === taskId);
   if (!freshParent) {

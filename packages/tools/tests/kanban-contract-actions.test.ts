@@ -2,10 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { addCheckToTask, addTask, createBoard, getBoard } from '@wrongstack/kanban';
+import { createBoard, getBoard } from '@wrongstack/kanban';
+import { addCheckToTask, addTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 /**
  * The card contract map, reachable at last.
@@ -23,7 +27,8 @@ import { newSignal } from './fixtures.js';
  */
 describe('kanban tool — contract map', () => {
   let dir: string;
-  const ctx = () => ({ projectRoot: dir }) as unknown as Context;
+  const ctx = () =>
+    ({ eventSessionId: () => TEST_CONTEXT_SESSION_ID, projectRoot: dir }) as unknown as Context;
 
   beforeEach(async () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-kanban-contract-'));

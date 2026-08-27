@@ -122,6 +122,9 @@ vi.mock('@wrongstack/kanban', () => ({
 // wire it to this suite's mocked @wrongstack/kanban surface. The factory
 // functions above compose the primitive mocks, so wiring them preserves
 // every assertion in this suite verbatim.
+// This suite mocks '@wrongstack/kanban' wholesale, so it must import from the
+// mocked module — not the session-bound test surface, which would pull the real
+// one in behind the mock's back.
 import {
   completeKanbanDispatch,
   failKanbanDispatch,
@@ -184,7 +187,11 @@ const emitFleet = (subagentId: string, event: Record<string, unknown>): void => 
   for (const handler of fleetHandlers.get(subagentId) ?? []) handler(event);
 };
 const asDir = () => director as never as Director;
-const ctx = { projectRoot: 'D:/tmp/proj' } as never;
+// The session running kanban_queue owns every board event the pass emits.
+const ctx = {
+  projectRoot: 'D:/tmp/proj',
+  eventSessionId: () => '2026-08-26/sess_01TESTKANBANQUEUETOOL000',
+} as never;
 
 beforeEach(() => {
   vi.useRealTimers();

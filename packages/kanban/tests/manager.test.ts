@@ -3,6 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as internalModule from '../src/manager/_internal.js';
+import type { KanbanBoard, KanbanEventContext } from '../src/types.js';
+import type { ClaimKanbanTaskInput } from '../src/types-operations.js';
+import { CURRENT_KANBAN_VERSION } from '../src/types-operations.js';
 import {
   addCheckToTask,
   addColumn,
@@ -21,6 +24,7 @@ import {
   duplicateBoard,
   exportBoardAsMarkdown,
   exportBoardToTaskGraph,
+  finalizeTaskCompletion,
   findBlockedTasks,
   getBoard,
   getKanbanQueueHealth,
@@ -48,11 +52,7 @@ import {
   updateColumn,
   updateTask,
   updateTaskAssignment,
-} from '../src/manager.js';
-import type { KanbanBoard } from '../src/types.js';
-import type { ClaimKanbanTaskInput } from '../src/types-operations.js';
-import { CURRENT_KANBAN_VERSION } from '../src/types-operations.js';
-import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
+} from './helpers/session-manager.js';
 
 // hoisted: makes _internal.js exports mockable so vi.spyOn intercepts
 // imports from assignment.ts (named imports create separate live bindings
@@ -1487,12 +1487,17 @@ describe('claimReadyTask', () => {
     const spy = vi.spyOn(internalModule, 'claimReadyTaskOnBoard');
     let callIndex = 0;
     spy.mockImplementation(
-      async (projectRoot: string, boardId: string, input: ClaimKanbanTaskInput) => {
+      async (
+        projectRoot: string,
+        boardId: string,
+        input: ClaimKanbanTaskInput,
+        eventContext: KanbanEventContext,
+      ) => {
         callIndex++;
         if (callIndex <= 1) {
           throw new StaleWriteError('Stale write detected');
         }
-        return originalFn(projectRoot, boardId, input);
+        return originalFn(projectRoot, boardId, input, eventContext);
       },
     );
 

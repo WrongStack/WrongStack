@@ -232,7 +232,9 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
         }
         const interruptedTools = extractInterruptedTools(plan);
         if (interruptedTools.length > 0) {
-          lines.push(`  Interrupted tool call(s) in flight: ${color.yellow(String(interruptedTools.length))}`);
+          lines.push(
+            `  Interrupted tool call(s) in flight: ${color.yellow(String(interruptedTools.length))}`,
+          );
           for (const tool of interruptedTools) {
             const args = tool.argsSummary ? color.dim(` (${tool.argsSummary})`) : '';
             lines.push(`    - ${color.yellow(tool.name)}${args}`);
@@ -502,7 +504,7 @@ async function sessionStatusDetail(sessionId: string): Promise<{ message: string
   ];
 
   if (entry.agents.length > 0) {
-    lines.push(color.bold('Agents:'));
+    lines.push(color.bold('Live agents:'));
     for (const agent of entry.agents) {
       lines.push(fmtAgentLine(agent));
       lines.push(color.dim(`       last activity: ${agent.lastActivityAt}`));
@@ -510,7 +512,61 @@ async function sessionStatusDetail(sessionId: string): Promise<{ message: string
     lines.push('');
   }
 
+  lines.push(...(await recordedAgentLines(entry)));
+
   return { message: lines.join('\n') };
+}
+
+/**
+ * The agents this session RECORDED, read back from its own journal.
+ *
+ * Distinct from the live list above, which is presence held by the
+ * SessionRegistry: that list empties the moment a session ends, so a finished
+ * or crashed run could never answer "what ran in here, and where did it
+ * write". The journal can, because the roster is derived from it.
+ *
+ * Best-effort by design. It goes through the project daemon with
+ * `callExisting`, which will not WAKE a daemon — inspecting a session is not
+ * authority to start that project's IPC owner — so a project whose daemon is
+ * down contributes nothing to the panel instead of failing the command.
+ */
+async function recordedAgentLines(entry: {
+  sessionId: string;
+  projectRoot: string;
+}): Promise<string[]> {
+  try {
+    const { SessionCatalogProjectClient } = await import('@wrongstack/core/storage');
+    const { resolveWstackPaths } = await import('@wrongstack/core/utils');
+    const wpaths = resolveWstackPaths({ projectRoot: entry.projectRoot });
+    const client = new SessionCatalogProjectClient({
+      projectDir: wpaths.projectDir,
+      projectRoot: entry.projectRoot,
+    });
+    const agents = await client.callExisting('list_session_agents', {
+      sessionId: entry.sessionId,
+    });
+    if (agents.length === 0) return [];
+    const lines = [color.bold('Recorded agents (from journal):')];
+    for (const agent of agents) {
+      const role = agent.role ? color.dim(` (${agent.role})`) : '';
+      const model = agent.model ? color.dim(` · ${agent.model}`) : '';
+      lines.push(`    ${agentStatusIcon(agent.status)} ${agent.agentId}${role}${model}`);
+      if (agent.transcriptPath) {
+        lines.push(color.dim(`       transcript: ${agent.transcriptPath}`));
+      } else if (agent.interleavedEventCount > 0) {
+        lines.push(
+          color.dim(
+            `       ${agent.interleavedEventCount} event(s) interleaved into this transcript`,
+          ),
+        );
+      }
+      if (agent.error) lines.push(color.dim(`       error: ${agent.error}`));
+    }
+    lines.push('');
+    return lines;
+  } catch {
+    return [];
+  }
 }
 
 async function listLiveAgents(): Promise<{ message: string }> {

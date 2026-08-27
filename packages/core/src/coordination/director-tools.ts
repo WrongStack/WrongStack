@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import { kanbanDispatch } from './kanban-dispatch-port.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
@@ -21,6 +20,7 @@ import {
   resultToText,
 } from './director-kanban-queue-helpers.js';
 import { dispatchAgent } from './dispatcher.js';
+import { kanbanDispatch } from './kanban-dispatch-port.js';
 
 export {
   makeAskResultTool,
@@ -37,8 +37,8 @@ export {
   makeFleetEmitTool,
   makeWorkCompleteTool,
 } from './director-collab-tools.js';
-export { makeQualityGateTool } from './director-quality-gate-tool.js';
 export { makeMutationTestTool } from './director-mutation-test-tool.js';
+export { makeQualityGateTool } from './director-quality-gate-tool.js';
 export {
   applyMutation,
   type MutationKind,
@@ -312,6 +312,10 @@ export function makeKanbanQueueTool(
       }
       const projectRoot = ctx.projectRoot;
       if (!projectRoot) return { error: 'kanban_queue requires ctx.projectRoot.' };
+      // The session that ran kanban_queue owns every board event this dispatch
+      // pass emits — claims, starts, completions and failures alike — so a tab
+      // can find (and stop) the queue work it started.
+      const sessionId = ctx.eventSessionId();
       const maxTasks = Math.max(1, Math.min(20, Math.floor(i.maxTasks ?? 1)));
       const baseLeaseTtlMs = Math.max(1000, Math.floor(i.leaseTtlMs ?? 5 * 60 * 1000));
       // When awaitCompletion is true, the lease must survive until the task timeout
@@ -383,6 +387,7 @@ export function makeKanbanQueueTool(
 
         // ── Reserve: claim a ready task and seed lease via the shared dispatch service.
         const reserved = await kanbanDispatch().reserveKanbanDispatch(projectRoot, {
+          sessionId,
           ...(i.boardId !== undefined ? { boardId: i.boardId } : {}),
           ...(candidateTaskId !== undefined ? { taskId: candidateTaskId } : {}),
           routing: {
@@ -430,7 +435,7 @@ export function makeKanbanQueueTool(
                 status: 'failed',
                 error: budgetError,
               },
-              { expectedLeaseId: ourLeaseId },
+              { sessionId, expectedLeaseId: ourLeaseId },
             );
             errors.push({
               taskId: claim.task.id,
@@ -477,6 +482,7 @@ export function makeKanbanQueueTool(
           // The service fences by leaseId, stamps the running assignment with
           // subagent/run metadata, and advances managed lifecycle todo → running.
           const started = await kanbanDispatch().startKanbanDispatch(projectRoot, {
+            sessionId,
             boardId: claim.board.id,
             taskId: claim.task.id,
             leaseId: ourLeaseId,
@@ -531,6 +537,7 @@ export function makeKanbanQueueTool(
           // The service fences by leaseId so a stale failure write is a no-op
           // when ownership was lost during spawn/assign.
           await kanbanDispatch().failKanbanDispatch(projectRoot, {
+            sessionId,
             boardId: claim.board.id,
             taskId: claim.task.id,
             leaseId: ourLeaseId,
@@ -578,6 +585,7 @@ export function makeKanbanQueueTool(
             // heartbeatTaskAssignment's mutateBoard lock makes a stale
             // renewal a no-op; transient write errors simply retry next tick.
             void renewAndRevokeLease({
+              sessionId,
               projectRoot,
               boardId: dispatch.boardId,
               taskId: dispatch.taskId,
@@ -671,6 +679,7 @@ export function makeKanbanQueueTool(
                   leaseExpiresAt: refreshedExpiry,
                   expectedLeaseId: dispatch.leaseId,
                 },
+                { sessionId, expectedLeaseId: dispatch.leaseId },
               );
             } catch {
               // Heartbeat failure is non-fatal: the next tick retries, and
@@ -705,6 +714,7 @@ export function makeKanbanQueueTool(
           // lifecycle running → review, and never auto-advances to Done.
           if (result.status === 'success') {
             const completed = await kanbanDispatch().completeKanbanDispatch(projectRoot, {
+              sessionId,
               boardId: dispatch.boardId,
               taskId: dispatch.taskId,
               leaseId: dispatch.leaseId,
@@ -722,6 +732,7 @@ export function makeKanbanQueueTool(
             }
           } else {
             const failed = await kanbanDispatch().failKanbanDispatch(projectRoot, {
+              sessionId,
               boardId: dispatch.boardId,
               taskId: dispatch.taskId,
               leaseId: dispatch.leaseId,
@@ -783,6 +794,8 @@ async function renewAndRevokeLease(opts: {
   runTaskId: string;
   ourLeaseId: string;
   refreshedExpiry: string;
+  /** Session that owns the dispatch this lease belongs to. */
+  sessionId: string;
   director: Host.DirectorLeaseRecoveryPort;
   disposers: Map<string, () => void>;
 }): Promise<void> {
@@ -794,6 +807,7 @@ async function renewAndRevokeLease(opts: {
     runTaskId,
     ourLeaseId,
     refreshedExpiry,
+    sessionId,
     director,
     disposers,
   } = opts;
@@ -827,10 +841,13 @@ async function renewAndRevokeLease(opts: {
   }
   if (!revoked) {
     await kanbanDispatch()
-      .heartbeatTaskAssignment(projectRoot, boardId, taskId, {
-        leaseExpiresAt: refreshedExpiry,
-        expectedLeaseId: ourLeaseId,
-      })
+      .heartbeatTaskAssignment(
+        projectRoot,
+        boardId,
+        taskId,
+        { leaseExpiresAt: refreshedExpiry, expectedLeaseId: ourLeaseId },
+        { sessionId, expectedLeaseId: ourLeaseId },
+      )
       .catch(() => {});
   }
 }

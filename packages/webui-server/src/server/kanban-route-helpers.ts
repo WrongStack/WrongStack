@@ -1,6 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { KanbanBoard, KanbanEventContext, KanbanTask } from '@wrongstack/kanban';
 import { touchKanbanPresence } from '@wrongstack/kanban';
+import { requireSessionId } from '@wrongstack/primitives';
 import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
@@ -56,14 +57,22 @@ export function has(payload: Record<string, unknown> | undefined, key: string): 
   return payload !== undefined && Object.hasOwn(payload, key);
 }
 
+/**
+ * Event context for a board mutation requested over the WebUI socket.
+ *
+ * Throws when no acting session can be resolved. Every WebUI board mutation
+ * arrives on a tab's socket, so a missing session is a wiring bug in the route
+ * (a handler that dropped `requestSessionId`), not a state to write an
+ * unattributed event from.
+ */
 export function activityContext(
   ctx: KanbanRouteHelperContext,
   actor?: string,
   note?: string,
 ): KanbanEventContext {
-  const sessionId = actingSessionId(ctx);
+  const sessionId = requireSessionId(actingSessionId(ctx), 'kanban board mutation');
   return {
-    ...(sessionId ? { sessionId } : {}),
+    sessionId,
     ...(actor ? { actor } : {}),
     ...(note?.trim() ? { note: note.trim() } : {}),
   };

@@ -10,11 +10,11 @@ import {
   useEffect,
   useMemo,
 } from 'react';
-import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
+import type { AppProps } from '../app-props.js';
 import type { State } from '../app-state.js';
-import { createContextSlashCommand } from '../context-slash.js';
 import { createConnectionsSlashCommand } from '../connections-slash.js';
+import { createContextSlashCommand } from '../context-slash.js';
 import { createCronJobsGetter, createCronSlashCommand } from '../cron-slash.js';
 import { createKanbanSlashCommand } from '../kanban-slash.js';
 import { createKillSlashCommand } from '../kill-slash.js';
@@ -84,10 +84,7 @@ export function useCoreTuiCommands({
     );
     if (memoryStore) {
       cleanups.push(
-        registerSlashCommandLifecycle(
-          slashRegistry,
-          createMemorySlashCommand({ memoryStore }),
-        ),
+        registerSlashCommandLifecycle(slashRegistry, createMemorySlashCommand({ memoryStore })),
       );
     }
 
@@ -119,17 +116,14 @@ export function useCoreTuiCommands({
     );
 
     cleanups.push(
-      registerSlashCommandLifecycle(
-        slashRegistry,
-        createConnectionsSlashCommand({ onPanelOpen }),
-      ),
+      registerSlashCommandLifecycle(slashRegistry, createConnectionsSlashCommand({ onPanelOpen })),
     );
     cleanups.push(
       registerSlashCommandLifecycle(
         slashRegistry,
         createKanbanSlashCommand({
           projectRoot: agent.ctx.projectRoot,
-          sessionId: agent.ctx.session?.id ?? null,
+          sessionId: agent.ctx.eventSessionId(),
           onPanelOpen,
           onBoardFocus: boardFocusRef.current
             ? boardFocusRef.current

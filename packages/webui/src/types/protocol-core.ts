@@ -311,6 +311,22 @@ export interface WSProviderStreamError {
   };
 }
 
+/**
+ * Whether one session's run is live, answered per declared tab.
+ *
+ * A reconnect is the hole this closes. `run.result` is what clears a lane's
+ * spinner, and it is broadcast once — a tab whose run finished while the
+ * socket was down never hears it, so it spins forever, counts as busy, refuses
+ * to be recycled and asks to abort a run that ended long ago. Only the tab in
+ * front gets a `session.start` on reconnect; this answers for all four.
+ */
+export interface WSSessionRunState {
+  type: 'session.run_state';
+  payload: SessionScopedPayload & {
+    isRunning: boolean;
+  };
+}
+
 export interface WSRunResult {
   type: 'run.result';
   payload: SessionScopedPayload & {

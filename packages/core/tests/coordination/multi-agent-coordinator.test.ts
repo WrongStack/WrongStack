@@ -28,27 +28,32 @@ describe('DefaultMultiAgentCoordinator', () => {
     ...overrides,
   });
 
+  const makeCoordinator = (config: ReturnType<typeof makeConfig>): DefaultMultiAgentCoordinator =>
+    new DefaultMultiAgentCoordinator(config, {
+      sessionId: '2026-08-26/sess_01TESTCOORDINATOR000000000',
+    });
+
   it('has correct coordinator id', () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     expect(coord.coordinatorId).toBe('coord1');
   });
 
   it('spawn returns subagent id', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     const result = await coord.spawn({ id: 'agent1', name: 'Agent 1' });
     expect(result.subagentId).toBe('agent1');
     expect(result.agentId).toBe('agent1');
   });
 
   it('spawn auto-generates id if not provided', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     const result = await coord.spawn({ name: 'Agent' });
     expect(result.subagentId).toBeDefined();
   });
 
   it('getStatus returns status with done=true when no pending tasks', () => {
     // isDone for all_tasks_done returns true when pendingTasks.length === 0
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     const status = coord.getStatus();
     expect(status.coordinatorId).toBe('coord1');
     expect(status.subagents).toEqual([]);
@@ -58,14 +63,14 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('assign queues task', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.assign({ id: 'task1' });
     const status = coord.getStatus();
     expect(status.pendingTasks).toBe(1);
   });
 
   it('stop removes subagent', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.spawn({ id: 'agent1', name: 'A1' });
     await coord.stop('agent1');
     const status = coord.getStatus();
@@ -79,7 +84,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   // synthetic-completes every task the caller keeps assigning, and with no real
   // completion ever running the trim, the results array grew without bound.
   it('caps completedResults on the synthetic dead-fleet path too', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.spawn({ id: 'a1', name: 'A1' });
     await coord.stop('a1');
 
@@ -96,7 +101,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('stopAll stops all subagents', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.spawn({ id: 'a1', name: 'A1' });
     await coord.spawn({ id: 'a2', name: 'A2' });
     await coord.stopAll();
@@ -105,7 +110,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('delegate throws for unknown subagent', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await expect(
       coord.delegate('ghost', {
         id: '1',
@@ -119,7 +124,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('setSubagentBridge wires up subagent', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.spawn({ id: 'agent1', name: 'A1' });
     const mockBridge = {
       send: vi.fn().mockResolvedValue(undefined),
@@ -133,7 +138,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('completeTask shifts pending and marks subagent idle', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     await coord.spawn({ id: 'agent1', name: 'A1' });
     await coord.assign({ id: 'task1' });
     coord.completeTask({ subagentId: 'agent1', taskId: 'task1', status: 'success', iterations: 1 });
@@ -143,7 +148,7 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('emits events', async () => {
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     const events: any[] = [];
     coord.on('subagent.started', (e) => events.push(e));
     await coord.spawn({ id: 'agent1', name: 'A1' });
@@ -151,14 +156,12 @@ describe('DefaultMultiAgentCoordinator', () => {
   });
 
   it('done=true when all_tasks_done and no pending', () => {
-    const coord = new DefaultMultiAgentCoordinator(
-      makeConfig({ doneCondition: { type: 'all_tasks_done' } }),
-    );
+    const coord = makeCoordinator(makeConfig({ doneCondition: { type: 'all_tasks_done' } }));
     expect(coord.getStatus().done).toBe(true); // no pending tasks
   });
 
   it('done=true when maxIterations reached via completeTask', async () => {
-    const coord = new DefaultMultiAgentCoordinator(
+    const coord = makeCoordinator(
       makeConfig({ doneCondition: { type: 'max_iterations', maxIterations: 1 } }),
     );
     await coord.spawn({ id: 'agent1', name: 'A1' });
@@ -174,7 +177,7 @@ describe('DefaultMultiAgentCoordinator', () => {
     // underflow. The warning that used to fire on every such completion
     // was noise — it should only fire on true double-completion (runner
     // wired but inFlight already at 0).
-    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+    const coord = makeCoordinator(makeConfig());
     const warnings: any[] = [];
     coord.on('warning' as any, (e: any) => warnings.push(e));
     await coord.spawn({ id: 'agent1', name: 'A1' });
@@ -185,9 +188,11 @@ describe('DefaultMultiAgentCoordinator', () => {
 
   describe('public API: setters + results + awaitTasks', () => {
     it('setRunner wires a runner that drives dispatch to completion', async () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig());
+      const coord = makeCoordinator(makeConfig());
       coord.setRunner((async (task: { id: string }) => ({
-        result: `done:${task.id}`, iterations: 1, toolCalls: 0,
+        result: `done:${task.id}`,
+        iterations: 1,
+        toolCalls: 0,
       })) as never);
       await coord.spawn({ id: 'a1', name: 'A1' });
       await coord.assign({ id: 't1' });
@@ -196,7 +201,7 @@ describe('DefaultMultiAgentCoordinator', () => {
     });
 
     it('setFleetBus routes lifecycle events to the fleet bus', async () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig());
+      const coord = makeCoordinator(makeConfig());
       const emitted: string[] = [];
       coord.setFleetBus({ emit: (e: { type: string }) => emitted.push(e.type) } as never);
       await coord.spawn({ id: 'a1', name: 'A1' });
@@ -204,41 +209,65 @@ describe('DefaultMultiAgentCoordinator', () => {
     });
 
     it('setMaxConcurrent accepts a valid cap and rejects an invalid one', () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig({ maxConcurrent: 2 }));
+      const coord = makeCoordinator(makeConfig({ maxConcurrent: 2 }));
       expect(() => coord.setMaxConcurrent(8)).not.toThrow();
       expect(() => coord.setMaxConcurrent(0)).toThrow(/maxConcurrent/);
       expect(() => coord.setMaxConcurrent(Number.NaN)).toThrow(/maxConcurrent/);
     });
 
     it('results() exposes completed task results', async () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig());
+      const coord = makeCoordinator(makeConfig());
       await coord.spawn({ id: 'a1', name: 'A1' });
-      coord.completeTask({ subagentId: 'a1', taskId: 't1', status: 'success', result: 'x', iterations: 1, toolCalls: 0, durationMs: 5 });
+      coord.completeTask({
+        subagentId: 'a1',
+        taskId: 't1',
+        status: 'success',
+        result: 'x',
+        iterations: 1,
+        toolCalls: 0,
+        durationMs: 5,
+      });
       expect(coord.results().some((r) => r.taskId === 't1')).toBe(true);
     });
 
     it('awaitTasks returns a cached result immediately and polls a pending one', async () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig());
+      const coord = makeCoordinator(makeConfig());
       await coord.spawn({ id: 'a1', name: 'A1' });
-      coord.completeTask({ subagentId: 'a1', taskId: 'cached', status: 'success', result: 'c', iterations: 1, toolCalls: 0, durationMs: 1 });
+      coord.completeTask({
+        subagentId: 'a1',
+        taskId: 'cached',
+        status: 'success',
+        result: 'c',
+        iterations: 1,
+        toolCalls: 0,
+        durationMs: 1,
+      });
       const cached = await coord.awaitTasks(['cached']);
       expect(cached[0]?.taskId).toBe('cached');
 
       const pollP = coord.awaitTasks(['pending']);
-      coord.completeTask({ subagentId: 'a1', taskId: 'pending', status: 'success', result: 'p', iterations: 1, toolCalls: 0, durationMs: 1 });
+      coord.completeTask({
+        subagentId: 'a1',
+        taskId: 'pending',
+        status: 'success',
+        result: 'p',
+        iterations: 1,
+        toolCalls: 0,
+        durationMs: 1,
+      });
       const polled = await pollP;
       expect(polled[0]?.taskId).toBe('pending');
     });
 
     it('awaitTasks rejects on timeout for a never-completing task', async () => {
-      const coord = new DefaultMultiAgentCoordinator(makeConfig({ timeoutMs: 20 }));
+      const coord = makeCoordinator(makeConfig({ timeoutMs: 20 }));
       await expect(coord.awaitTasks(['never'])).rejects.toThrow(/timed out/);
     });
 
     it('awaitTasks honors a per-call timeoutMs over config.timeoutMs', async () => {
       // A long config default must not cut a caller's explicit budget short,
       // and an explicit short budget must apply despite a long config.
-      const coord = new DefaultMultiAgentCoordinator(makeConfig({ timeoutMs: 60_000 }));
+      const coord = makeCoordinator(makeConfig({ timeoutMs: 60_000 }));
       await expect(coord.awaitTasks(['never'], { timeoutMs: 20 })).rejects.toThrow(/timed out/);
     });
   });

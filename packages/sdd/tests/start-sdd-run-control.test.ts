@@ -170,6 +170,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot,
       events: new EventBus(),
@@ -309,6 +310,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -348,6 +350,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -384,6 +387,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -431,6 +435,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -479,6 +484,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -538,6 +544,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -587,6 +594,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -623,6 +631,7 @@ describe('startSddRun — control-drain branches', () => {
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,

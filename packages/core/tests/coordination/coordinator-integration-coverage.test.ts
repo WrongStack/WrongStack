@@ -15,12 +15,18 @@
  *   agent-subagent-runner.ts   — budget wiring, heartbeat → markActivity
  */
 import { describe, expect, it } from 'vitest';
-import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { makeAgentSubagentRunner } from '../../src/coordination/agent-subagent-runner.js';
-import { SubagentBudget, TIMEOUT_PREEMPT_FRACTION } from '../../src/coordination/subagent-budget.js';
+import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
+import {
+  SubagentBudget,
+  TIMEOUT_PREEMPT_FRACTION,
+} from '../../src/coordination/subagent-budget.js';
 import type { Agent, RunResult } from '../../src/core/agent.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { TaskResult } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
@@ -96,7 +102,10 @@ describe('IC1: pre-empt fires before deadline (used < limit)', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's1', name: 'S1', timeoutMs });
     await coord.assign({ id: 't1', description: 'pre-empt fires before deadline' });
@@ -144,7 +153,10 @@ describe('IC2: granted pre-empt — fresh 85% window at new ceiling', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's2', name: 'S2', timeoutMs });
     await coord.assign({ id: 't2', description: 'grant extends ceiling' });
@@ -181,7 +193,7 @@ describe('IC2: granted pre-empt — fresh 85% window at new ceiling', () => {
 describe('IC3: denied pre-empt — deadline fires at 100% (idle timeout)', () => {
   it('stalled agent killed by idle timeout; status is timeout (not stopped)', async () => {
     const idleTimeoutMs = 80; // short enough to fire quickly
-    const timeoutMs = 500;   // generous wall-clock so idle fires first
+    const timeoutMs = 500; // generous wall-clock so idle fires first
 
     const factory = async () => {
       const events = new EventBus();
@@ -210,7 +222,10 @@ describe('IC3: denied pre-empt — deadline fires at 100% (idle timeout)', () =>
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's3', name: 'S3', timeoutMs, idleTimeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -259,7 +274,10 @@ describe('IC4: H4 — after deny at deadline, pre-empt is locked (no pre-empt pi
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's4', name: 'S4', timeoutMs });
     await coord.assign({ id: 't4', description: 'continue ping-pong' });
@@ -319,7 +337,10 @@ describe('IC5: idle timeout fires independently of wall-clock negotiation', () =
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's5', name: 'S5', timeoutMs, idleTimeoutMs });
     const completion = new Promise<TaskResult>((resolve) => {
@@ -389,8 +410,8 @@ describe('IC7: patchLimits updates only provided fields', () => {
     expect(b.limits.timeoutMs).toBe(999);
     expect(b.limits.maxIterations).toBe(100); // unchanged
     expect(b.limits.maxToolCalls).toBe(200); // unchanged
-    expect(b.limits.maxTokens).toBe(300);    // unchanged
-    expect(b.limits.maxCostUsd).toBe(1.0);   // unchanged
+    expect(b.limits.maxTokens).toBe(300); // unchanged
+    expect(b.limits.maxCostUsd).toBe(1.0); // unchanged
     expect(b.limits.idleTimeoutMs).toBe(500); // unchanged
 
     // Patch multiple
@@ -418,7 +439,10 @@ describe('IC7: patchLimits updates only provided fields', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's7', name: 'S7', timeoutMs });
     await coord.assign({ id: 't7', description: 'patchLimits integration' });
@@ -450,7 +474,10 @@ describe('IC8: continuous heartbeat resets idle clock; agent completes normally'
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's8', name: 'S8', timeoutMs, idleTimeoutMs });
     await coord.assign({ id: 't8', description: 'continuous heartbeat' });
@@ -472,6 +499,7 @@ describe('IC9: doneCondition all_tasks_done', () => {
   it('stopAll() sets done=true by draining pending queue first', async () => {
     const coord = new DefaultMultiAgentCoordinator(
       makeConfig({ doneCondition: { type: 'all_tasks_done' } }),
+      { sessionId: TEST_SESSION_ID },
     );
 
     await coord.spawn({ id: 's10', name: 'S10' });
@@ -489,6 +517,7 @@ describe('IC9: doneCondition all_tasks_done', () => {
   it('done=true after completeTask', async () => {
     const coord = new DefaultMultiAgentCoordinator(
       makeConfig({ doneCondition: { type: 'all_tasks_done' } }),
+      { sessionId: TEST_SESSION_ID },
     );
 
     await coord.spawn({ id: 's11', name: 'S11' });
@@ -527,7 +556,10 @@ describe('IC10: no wall-clock cap — timeout pre-empt never fires', () => {
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     // No timeoutMs, no idleTimeoutMs → executeWithTimeout returns immediately
     await coord.spawn({ id: 's12', name: 'S12' });
@@ -574,7 +606,10 @@ describe('IC11: C1 watchdogActive — exactly one timeout event per deadline cro
     };
 
     const runner = makeAgentSubagentRunner({ factory });
-    const coord = new DefaultMultiAgentCoordinator(makeConfig(), { runner });
+    const coord = new DefaultMultiAgentCoordinator(makeConfig(), {
+      runner,
+      sessionId: TEST_SESSION_ID,
+    });
 
     await coord.spawn({ id: 's13', name: 'S13', timeoutMs });
     await coord.assign({ id: 't13', description: 'dual path race' });

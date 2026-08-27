@@ -2,19 +2,20 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
+import { createBoard, createManagedLifecyclePolicy, getBoard } from '@wrongstack/kanban';
 import {
   addCheckToTask,
   addTask,
   assignTask,
-  createBoard,
-  createManagedLifecyclePolicy,
-  getBoard,
   transitionTask,
   updateTask,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 describe('kanban tool — universal completion gate', () => {
   let dir: string;
@@ -29,7 +30,8 @@ describe('kanban tool — universal completion gate', () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  const ctx = () => ({ projectRoot: dir }) as unknown as Context;
+  const ctx = () =>
+    ({ eventSessionId: () => TEST_CONTEXT_SESSION_ID, projectRoot: dir }) as unknown as Context;
 
   async function seedTask(opts: {
     gate?: 'strict' | 'soft' | 'off';

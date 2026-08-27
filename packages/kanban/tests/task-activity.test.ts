@@ -17,7 +17,7 @@ import {
   updateGoalMetricOnTask,
   updateTask,
   updateTaskAssignment,
-} from '../src/manager.js';
+} from './helpers/session-manager.js';
 
 const roots: string[] = [];
 

@@ -8,9 +8,9 @@ import {
   claimReadyTask,
   copyTaskToBoard,
   createBoard,
+  getBoard,
   resolveGateEnforcement,
-} from '../src/manager.js';
-import { getBoard } from '../src/manager.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -48,9 +48,7 @@ function managedLifecycle() {
 describe('managed-board task creation', () => {
   it('rejects a title-only task on a managed board at creation', async () => {
     const b = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle() });
-    await expect(addTask(tmpDir, b.id, { title: 'No description' })).rejects.toThrow(
-      'description',
-    );
+    await expect(addTask(tmpDir, b.id, { title: 'No description' })).rejects.toThrow('description');
   });
 
   it('accepts a task with description on a managed board', async () => {
@@ -74,9 +72,9 @@ describe('managed-board task creation', () => {
     const legacy = await createBoard(tmpDir, { title: 'Legacy' });
     const managed = await createBoard(tmpDir, { title: 'M', lifecycle: managedLifecycle() });
     const source = await addTask(tmpDir, legacy.id, { title: 'No desc' });
-    await expect(
-      copyTaskToBoard(tmpDir, legacy.id, source!.task.id, managed.id),
-    ).rejects.toThrow('description');
+    await expect(copyTaskToBoard(tmpDir, legacy.id, source!.task.id, managed.id)).rejects.toThrow(
+      'description',
+    );
   });
 
   it('accepts copyTaskToBoard to a managed board when source has description', async () => {

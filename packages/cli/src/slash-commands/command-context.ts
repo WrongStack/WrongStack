@@ -586,6 +586,24 @@ export interface SlashCommandContext {
     | undefined;
   /** Config store for reading/writing config sections at runtime (e.g. settings menu). */
   configStore: import('@wrongstack/core/types').ConfigStore;
+  /**
+   * Optional accessor for the Chronicle metrics store. When wired, the
+   * `/tool autothin candidates` and `apply` commands can read the
+   * cross-session `tool_daily` rollup. Hosts that have not opened
+   * Chronicle (e.g. the bare TUI) leave this undefined and the
+   * in-process event-bridge Map is used as fallback.
+   */
+  getChronicle?:
+    | (() => import('@wrongstack/core/chronicle').ChronicleMetricsStore | undefined)
+    | undefined;
+  /**
+   * Optional accessor for the in-process per-tool usage Map populated by
+   * `wireMetricsToEvents`. Used as the auto-thinning fallback when
+   * Chronicle is unavailable.
+   */
+  getToolUsage?:
+    | (() => import('@wrongstack/core/observability').ToolUsageSnapshot | undefined)
+    | undefined;
   /** Models registry for looking up provider/model capabilities. */
   modelsRegistry?: import('@wrongstack/core/types').ModelsRegistry | undefined;
   /** Terminal reader for interactive user input (e.g. settings menu, auth menu). */

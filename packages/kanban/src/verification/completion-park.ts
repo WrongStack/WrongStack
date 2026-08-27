@@ -152,7 +152,7 @@ export async function recordCompletionRefusal(
   projectRoot: string,
   boardId: string,
   taskId: string,
-  input: GateRefusalInput & { eventContext?: KanbanEventContext | undefined },
+  input: GateRefusalInput & { eventContext: KanbanEventContext },
 ): Promise<GateRefusalOutcome | null> {
   let outcome: GateRefusalOutcome | null = null;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {

@@ -1,19 +1,21 @@
-import { expectDefined } from '../utils/expect-defined.js';
-import { toErrorMessage } from '../utils/error.js';
 import { randomUUID } from 'node:crypto';
-import type { Agent } from '../core/agent.js';
 import type { AgentFactory } from '../coordination/agent-subagent-runner.js';
-import { makeAgentSubagentRunner, withDisabledToolFiltering } from '../coordination/agent-subagent-runner.js';
-import { dispatchAgent } from '../coordination/dispatcher.js';
+import {
+  makeAgentSubagentRunner,
+  withDisabledToolFiltering,
+} from '../coordination/agent-subagent-runner.js';
 import type { DispatchClassifier, DispatchResult } from '../coordination/dispatcher.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
-import type { SubagentConfig, TaskResult } from '../types/multi-agent.js';
-import type { JournalEntry, GoalFile } from '../storage/goal-store.js';
-import { loadGoal, saveGoal, appendJournal, goalFilePath } from '../storage/goal-store.js';
-import type { Compactor } from '../types/compactor.js';
+import { dispatchAgent } from '../coordination/dispatcher.js';
 import { DefaultMultiAgentCoordinator } from '../coordination/multi-agent-coordinator.js';
-import type { MultiAgentConfig } from '../types/multi-agent.js';
+import type { Agent } from '../core/agent.js';
+import type { EventBus } from '../kernel/events.js';
+import type { GoalFile, JournalEntry } from '../storage/goal-store.js';
+import { appendJournal, goalFilePath, loadGoal, saveGoal } from '../storage/goal-store.js';
+import type { Compactor } from '../types/compactor.js';
+import type { Logger } from '../types/logger.js';
+import type { MultiAgentConfig, SubagentConfig, TaskResult } from '../types/multi-agent.js';
+import { toErrorMessage } from '../utils/error.js';
+import { expectDefined } from '../utils/expect-defined.js';
 import { sleep } from '../utils/sleep.js';
 // ---------------------------------------------------------------------------
 // Types
@@ -55,12 +57,12 @@ export interface ParallelEternalOptions {
   parallelSlots?: number | undefined;
   /** Per-subagent default timeout in ms. Default: 300_000 (5 min). */
   iterationTimeoutMs?: number | undefined;
-  onIteration?: (((entry: JournalEntry) => void)) | undefined;
+  onIteration?: ((entry: JournalEntry) => void) | undefined;
   onError?: (err: Error | undefined, iteration: number) => void;
   /** Per-tick phase notifications for live UI/status updates. */
-  onStage?: (((stage: ParallelIterationStage) => void)) | undefined;
-  gitStatusReader?: ((() => Promise<string>)) | undefined;
-  now?: ((() => Date)) | undefined;
+  onStage?: ((stage: ParallelIterationStage) => void) | undefined;
+  gitStatusReader?: (() => Promise<string>) | undefined;
+  now?: (() => Date) | undefined;
   compactor?: Compactor | undefined;
   compactEveryNIterations?: number | undefined;
   aggressiveCompactRatio?: number | undefined;
@@ -170,10 +172,11 @@ export class ParallelEternalEngine {
   stop(): void {
     this.stopRequested = true;
     void this.persistState('stopped').catch((err) => {
-      this.logError(
-        'Engine persist state failed',
-        { event: 'engine.persist_state_failed', message: toErrorMessage(err), context: { expectedState: 'stopped' } },
-      );
+      this.logError('Engine persist state failed', {
+        event: 'engine.persist_state_failed',
+        message: toErrorMessage(err),
+        context: { expectedState: 'stopped' },
+      });
     });
     this.state = 'stopped';
   }
@@ -193,7 +196,9 @@ export class ParallelEternalEngine {
       maxConcurrent: this.slots,
       doneCondition: { type: 'all_tasks_done' },
     };
-    this.coordinator = new DefaultMultiAgentCoordinator(config);
+    this.coordinator = new DefaultMultiAgentCoordinator(config, {
+      sessionId: () => this.opts.agent.ctx.eventSessionId(),
+    });
     // Wrap factory with disabled tool filtering to prevent subagents from
     // using the delegate tool (or any other disabledTools in their config)
     const filteredFactory = withDisabledToolFiltering(this.agentFactory);
@@ -210,10 +215,7 @@ export class ParallelEternalEngine {
             err instanceof Error ? err : new Error(String(err)),
             this.consecutiveFailures,
           );
-          await this.appendFailure(
-            'engine error',
-            toErrorMessage(err),
-          );
+          await this.appendFailure('engine error', toErrorMessage(err));
         }
         if (this.stopRequested) break;
         await sleep(2000);
@@ -254,7 +256,9 @@ export class ParallelEternalEngine {
         maxConcurrent: this.slots,
         doneCondition: { type: 'all_tasks_done' },
       };
-      this.coordinator = new DefaultMultiAgentCoordinator(config);
+      this.coordinator = new DefaultMultiAgentCoordinator(config, {
+        sessionId: () => this.opts.agent.ctx.eventSessionId(),
+      });
       // Wrap factory with disabled tool filtering to prevent subagents from
       // using the delegate tool (or any other disabledTools in their config)
       const filteredFactory = withDisabledToolFiltering(this.agentFactory);
@@ -439,10 +443,11 @@ export class ParallelEternalEngine {
             taskIds.push(taskId);
             await coordinator.assign(spec);
           } catch (err) {
-            this.logError(
-              'Parallel spawn failed',
-              { event: 'parallel_engine.spawn_failed', message: toErrorMessage(err), context: { slot: i, task, subagentId } },
-            );
+            this.logError('Parallel spawn failed', {
+              event: 'parallel_engine.spawn_failed',
+              message: toErrorMessage(err),
+              context: { slot: i, task, subagentId },
+            });
           }
         })(),
       );
@@ -475,10 +480,11 @@ export class ParallelEternalEngine {
         timeoutMs: Math.max(this.timeoutMs * 2, 7200_000),
       });
     } catch (err) {
-      this.logError(
-        'Brainstorm results failed',
-        { event: 'parallel_engine.brainstorm_results_failed', message: toErrorMessage(err), context: { slotCount, taskIds } },
-      );
+      this.logError('Brainstorm results failed', {
+        event: 'parallel_engine.brainstorm_results_failed',
+        message: toErrorMessage(err),
+        context: { slotCount, taskIds },
+      });
       results = coordinator.results().slice(-taskIds.length);
     }
 
@@ -531,10 +537,11 @@ export class ParallelEternalEngine {
           }
         }
       } catch (err) {
-        this.logError(
-          'Git status failed',
-          { event: 'parallel_engine.git_status_failed', message: toErrorMessage(err), context: { projectRoot: this.opts.projectRoot } },
-        );
+        this.logError('Git status failed', {
+          event: 'parallel_engine.git_status_failed',
+          message: toErrorMessage(err),
+          context: { projectRoot: this.opts.projectRoot },
+        });
       }
     }
 

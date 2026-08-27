@@ -2,17 +2,14 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { boardPassesKindFilter, resolveKindFilter } from '../src/manager/board-kind-filter.js';
+import type { KanbanBoard } from '../src/types.js';
 import {
   addTask,
   createBoard,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
-} from '../src/manager.js';
-import {
-  boardPassesKindFilter,
-  resolveKindFilter,
-} from '../src/manager/board-kind-filter.js';
-import type { KanbanBoard } from '../src/types.js';
+} from './helpers/session-manager.js';
 
 let tmpDir: string;
 
@@ -113,8 +110,12 @@ describe('resolveKindFilter', () => {
       version: 1,
       kind: 'session_mirror',
     };
-    expect(boardPassesKindFilter(board, { include: new Set(['session_mirror']), exclude: new Set() })).toBe(true);
-    expect(boardPassesKindFilter(board, { include: new Set(['project']), exclude: new Set() })).toBe(false);
+    expect(
+      boardPassesKindFilter(board, { include: new Set(['session_mirror']), exclude: new Set() }),
+    ).toBe(true);
+    expect(
+      boardPassesKindFilter(board, { include: new Set(['project']), exclude: new Set() }),
+    ).toBe(false);
   });
 
   it('boardPassesKindFilter checks exclude set', () => {
@@ -128,8 +129,12 @@ describe('resolveKindFilter', () => {
       version: 1,
       kind: 'session_mirror',
     };
-    expect(boardPassesKindFilter(board, { include: undefined, exclude: new Set(['session_mirror']) })).toBe(false);
-    expect(boardPassesKindFilter(board, { include: undefined, exclude: new Set(['archive']) })).toBe(true);
+    expect(
+      boardPassesKindFilter(board, { include: undefined, exclude: new Set(['session_mirror']) }),
+    ).toBe(false);
+    expect(
+      boardPassesKindFilter(board, { include: undefined, exclude: new Set(['archive']) }),
+    ).toBe(true);
   });
 });
 

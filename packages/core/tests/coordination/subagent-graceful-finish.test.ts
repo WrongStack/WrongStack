@@ -19,13 +19,20 @@ import { describe, expect, it } from 'vitest';
 import { DefaultMultiAgentCoordinator } from '../../src/coordination/multi-agent-coordinator.js';
 import { executeSubagentWithTimeout } from '../../src/coordination/multi-agent-timeout.js';
 import {
+  BudgetExceededError,
+  BudgetThresholdSignal,
+  SubagentBudget,
+} from '../../src/coordination/subagent-budget.js';
+import {
   DEFAULT_SUBAGENT_FINISH_GRACE_MS,
   resolveGracefulFinish,
   SUBAGENT_FINISH_REQUESTED_EVENT,
 } from '../../src/coordination/subagent-finish.js';
-import { BudgetExceededError, BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { SubagentRunner, TaskSpec } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 const task = (id: string): TaskSpec => ({ id, description: 'review the diff' });
 
@@ -66,11 +73,10 @@ describe('resolveGracefulFinish', () => {
 describe('SubagentBudget.notifyFinish', () => {
   it('emits the in-band notification once and grants grace when asked', () => {
     const events = new EventBus();
-    const budget = new SubagentBudget(
-      { timeoutMs: 1_000 },
-      'auto',
-      { subagentId: 'rev-1', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ timeoutMs: 1_000 }, 'auto', {
+      subagentId: 'rev-1',
+      wallClockWatchdogOwned: true,
+    });
     budget._events = events;
     budget.start();
 
@@ -177,11 +183,10 @@ describe('SubagentBudget.notifyFinish', () => {
 describe('executeSubagentWithTimeout graceful-finish path', () => {
   it('notifies instead of killing at the deadline; a model that finishes succeeds', async () => {
     const events = new EventBus();
-    const budget = new SubagentBudget(
-      { timeoutMs: 60 },
-      'auto',
-      { subagentId: 'rev-a', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ timeoutMs: 60 }, 'auto', {
+      subagentId: 'rev-a',
+      wallClockWatchdogOwned: true,
+    });
     budget._events = events;
     budget.start();
 
@@ -213,11 +218,10 @@ describe('executeSubagentWithTimeout graceful-finish path', () => {
 
   it('stops a subagent that ignores the notification only after the grace window', async () => {
     const events = new EventBus();
-    const budget = new SubagentBudget(
-      { timeoutMs: 40 },
-      'auto',
-      { subagentId: 'rev-b', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ timeoutMs: 40 }, 'auto', {
+      subagentId: 'rev-b',
+      wallClockWatchdogOwned: true,
+    });
     budget._events = events;
     budget.start();
 
@@ -247,11 +251,10 @@ describe('executeSubagentWithTimeout graceful-finish path', () => {
   });
 
   it('applies the terminal stop when notification is undeliverable (no bus)', async () => {
-    const budget = new SubagentBudget(
-      { timeoutMs: 40 },
-      'auto',
-      { subagentId: 'rev-c', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ timeoutMs: 40 }, 'auto', {
+      subagentId: 'rev-c',
+      wallClockWatchdogOwned: true,
+    });
     budget.start();
 
     await expect(
@@ -272,11 +275,10 @@ describe('executeSubagentWithTimeout graceful-finish path', () => {
     // to, so the policy must NOT disable the idle reaper — otherwise the run
     // has no bound at all. The stalled runner below must still be reaped.
     const events = new EventBus();
-    const budget = new SubagentBudget(
-      { idleTimeoutMs: 60 },
-      'auto',
-      { subagentId: 'rev-idle', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ idleTimeoutMs: 60 }, 'auto', {
+      subagentId: 'rev-idle',
+      wallClockWatchdogOwned: true,
+    });
     budget._events = events;
     budget.start();
 
@@ -316,11 +318,10 @@ describe('executeSubagentWithTimeout graceful-finish path', () => {
       e.deny();
     });
 
-    const budget = new SubagentBudget(
-      { timeoutMs: 40, idleTimeoutMs: 20 },
-      'auto',
-      { subagentId: 'rev-race', wallClockWatchdogOwned: true },
-    );
+    const budget = new SubagentBudget({ timeoutMs: 40, idleTimeoutMs: 20 }, 'auto', {
+      subagentId: 'rev-race',
+      wallClockWatchdogOwned: true,
+    });
     budget._events = events;
     budget.onThreshold = ({ requestDecision }) => requestDecision();
     budget.start();
@@ -359,11 +360,14 @@ describe('executeSubagentWithTimeout graceful-finish path', () => {
 
 describe('coordinator.requestFinish', () => {
   it('notifies running opted-in subagents in-band without granting grace', async () => {
-    const coordinator = new DefaultMultiAgentCoordinator({
-      coordinatorId: 'finish-coord',
-      doneCondition: { type: 'all_tasks_done' },
-      maxConcurrent: 2,
-    });
+    const coordinator = new DefaultMultiAgentCoordinator(
+      {
+        coordinatorId: 'finish-coord',
+        doneCondition: { type: 'all_tasks_done' },
+        maxConcurrent: 2,
+      },
+      { sessionId: TEST_SESSION_ID },
+    );
 
     let release!: () => void;
     const gate = new Promise<void>((r) => {
@@ -411,11 +415,14 @@ describe('coordinator.requestFinish', () => {
   });
 
   it('leaves legacy subagents untouched', async () => {
-    const coordinator = new DefaultMultiAgentCoordinator({
-      coordinatorId: 'finish-coord-legacy',
-      doneCondition: { type: 'all_tasks_done' },
-      maxConcurrent: 1,
-    });
+    const coordinator = new DefaultMultiAgentCoordinator(
+      {
+        coordinatorId: 'finish-coord-legacy',
+        doneCondition: { type: 'all_tasks_done' },
+        maxConcurrent: 1,
+      },
+      { sessionId: TEST_SESSION_ID },
+    );
 
     let sawFinishEvent = false;
     const runner: SubagentRunner = async (_t, ctx) => {
@@ -447,11 +454,14 @@ describe('coordinator.requestFinish', () => {
     // it reads the notice at its FIRST iteration, before examining anything,
     // and a compliant model emits a truncated review. The not-yet-started
     // gate skips it; the watchdog deadline remains its in-band path.
-    const coordinator = new DefaultMultiAgentCoordinator({
-      coordinatorId: 'finish-coord-fresh',
-      doneCondition: { type: 'all_tasks_done' },
-      maxConcurrent: 1,
-    });
+    const coordinator = new DefaultMultiAgentCoordinator(
+      {
+        coordinatorId: 'finish-coord-fresh',
+        doneCondition: { type: 'all_tasks_done' },
+        maxConcurrent: 1,
+      },
+      { sessionId: TEST_SESSION_ID },
+    );
 
     let sawFinishEvent = false;
     let release!: () => void;

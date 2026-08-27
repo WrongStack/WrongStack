@@ -35,14 +35,14 @@ export interface BoardStorePort {
     projectRoot: string,
     boardId: string,
     input: CreateKanbanTaskInput,
-    eventContext?: KanbanEventContext,
+    eventContext: KanbanEventContext,
   ): Promise<{ board: KanbanBoard; task: KanbanTask } | null>;
   updateTask(
     projectRoot: string,
     boardId: string,
     taskId: string,
     input: UpdateKanbanTaskInput,
-    eventContext?: KanbanEventContext,
+    eventContext: KanbanEventContext,
   ): Promise<KanbanBoard | null>;
 }
 
@@ -52,7 +52,7 @@ const notWired = (): never => {
   );
 };
 
-let port: BoardStorePort | undefined = undefined;
+let port: BoardStorePort | undefined;
 
 /** Composition-root hook: register the real kanban-backed implementation. */
 export function setBoardStorePort(impl: BoardStorePort): void {

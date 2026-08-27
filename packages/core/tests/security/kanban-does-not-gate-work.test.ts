@@ -2,7 +2,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import {
-  addTask,
   createBoard,
   evaluateContractGraphReadiness,
   evaluateKanbanBoundaryOpaque,
@@ -10,6 +9,7 @@ import {
   readBoard,
   resolveKanbanBoundaryLayers,
 } from '@wrongstack/kanban';
+import { addTask } from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { evaluateToolKanbanBoundary } from '../../src/security/kanban-boundary.js';

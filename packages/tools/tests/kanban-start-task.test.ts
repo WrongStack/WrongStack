@@ -2,20 +2,22 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
+import { createBoard, getBoard } from '@wrongstack/kanban';
 import {
   addCheckToTask,
   addDependency,
   addGoalMetricToTask,
   addTask,
   configureContractGraph,
-  createBoard,
-  getBoard,
   updateTask,
   upsertContractNode,
-} from '@wrongstack/kanban';
+} from '@wrongstack/kanban/test-support';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
+
+/** Session that owns the board events these tests write. */
+const TEST_CONTEXT_SESSION_ID = '2026-08-26/sess_01TESTTOOLSCONTEXT0000000';
 
 describe('kanban tool — start_task governance binding', () => {
   let dir: string;
@@ -109,7 +111,11 @@ describe('kanban tool — start_task governance binding', () => {
   it('starts a detailed card without making Contract Map setup a prerequisite', async () => {
     const { boardId, taskId } = await seedReadyTask();
     const setCurrentKanbanTask = vi.fn();
-    const ctx = { projectRoot: dir, setCurrentKanbanTask } as unknown as Context;
+    const ctx = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+      projectRoot: dir,
+      setCurrentKanbanTask,
+    } as unknown as Context;
 
     const result = await kanbanTool.execute(
       {
@@ -142,7 +148,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Operator policy is satisfied; implementation starting.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -162,7 +172,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Starting from the real card contract.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -174,6 +188,7 @@ describe('kanban tool — start_task governance binding', () => {
     const { boardId, taskId } = await seedReadyTask();
     const setCurrentKanbanTask = vi.fn();
     const ctx = {
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
       projectRoot: dir,
       agentId: 'agent-1',
       setCurrentKanbanTask,
@@ -239,7 +254,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Start.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -290,7 +309,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Start.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -315,7 +338,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Start.',
       },
-      { projectRoot: dir, setCurrentKanbanTask: vi.fn() } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask: vi.fn(),
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -343,7 +370,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Trying to start too early.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -378,7 +409,11 @@ describe('kanban tool — start_task governance binding', () => {
         author: 'agent-1',
         transitionComment: 'Starting ordinary work on a plain board.',
       },
-      { projectRoot: dir, setCurrentKanbanTask } as unknown as Context,
+      {
+        eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+        projectRoot: dir,
+        setCurrentKanbanTask,
+      } as unknown as Context,
       { signal: newSignal() },
     );
 
@@ -401,7 +436,12 @@ describe('kanban tool — one board per line of work', () => {
     await fs.rm(dir, { recursive: true, force: true });
   });
 
-  const ctx = () => ({ projectRoot: dir, setCurrentKanbanTask: vi.fn() }) as unknown as Context;
+  const ctx = () =>
+    ({
+      eventSessionId: () => TEST_CONTEXT_SESSION_ID,
+      projectRoot: dir,
+      setCurrentKanbanTask: vi.fn(),
+    }) as unknown as Context;
 
   it('names the boards that already exist when a second one is created', async () => {
     // Work fragmenting across boards is the reported symptom: the same card in

@@ -2,6 +2,7 @@ import { useCallback, useEffect } from 'react';
 import { installFaviconVisibilityReset } from '@/lib/favicon';
 import type { WrongStackWebSocketClient, WSSendOptions } from '@/lib/ws-client';
 import { getWSClient } from '@/lib/ws-client';
+import { foregroundSessionId } from '@/lib/ws-client-utils';
 import { useConfigStore, useHistoryStore, useUIStore } from '@/stores';
 import { resolvePendingConfirm } from '@/stores/chat-lanes';
 import type { ProviderCustomModelWire } from '@/types';
@@ -82,7 +83,13 @@ export function useWebSocketBootstrap(): void {
         // Pull the current preference snapshot from the server so the
         // client starts with the server's truth — surviving a page refresh
         // without losing any settings changed in another tab.
-        ws.getPrefs();
+        //
+        // ADDRESSED to the tab in front. An untagged `prefs.get` is answered
+        // from whichever session the runtime happens to be on, and an untagged
+        // answer is applied to the foreground tab's pickers — so after a
+        // refresh that restored four tabs, the tab on screen could be shown
+        // another tab's autonomy, YOLO and reasoning settings.
+        ws.getPrefs(foregroundSessionId() ?? undefined);
         // Same reason, for the identity-prompt catalogue: the first-run picker
         // needs to know whether a variant was ever chosen before the user gets
         // a chance to type, so it is pulled on connect rather than on open.

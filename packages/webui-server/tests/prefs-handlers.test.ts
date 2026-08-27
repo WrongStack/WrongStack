@@ -74,7 +74,9 @@ describe('canonical preference handlers', () => {
 
     expect(state.meta).toMatchObject(payload);
     expect(state.persist).toHaveBeenCalledWith(payload);
-    expect(state.setYolo).toHaveBeenCalledWith(true);
+    // The session that asked travels with the flag: a host whose apply path
+    // writes a context meta must not write the leader's for another tab.
+    expect(state.setYolo).toHaveBeenCalledWith(true, undefined);
     expect(state.applyConfigPrefs).toHaveBeenCalledWith(payload);
     expect(state.updateConfig).toHaveBeenCalledWith({ fallbackModels: ['openai/gpt-5'] });
     expect(state.setAutoCompact).toHaveBeenCalledWith(false);

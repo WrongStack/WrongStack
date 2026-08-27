@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
+import { BudgetThresholdSignal, SubagentBudget } from '../../src/coordination/subagent-budget.js';
 import { EventBus } from '../../src/kernel/events.js';
-import {
-  SubagentBudget,
-  BudgetThresholdSignal,
-} from '../../src/coordination/subagent-budget.js';
 import type {
   SubagentRunContext,
   SubagentRunOutcome,
   TaskSpec,
 } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 /**
  * End-to-end proof of the never-die timeout chain that two bugs had broken:
@@ -30,6 +30,7 @@ function makeDirector(): Director {
     _ctx: SubagentRunContext,
   ): Promise<SubagentRunOutcome> => ({ iterations: 1, toolCalls: 1 });
   return new Director({
+    sessionId: TEST_SESSION_ID,
     config: { coordinatorId: 'e2e', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
     runner,
   });

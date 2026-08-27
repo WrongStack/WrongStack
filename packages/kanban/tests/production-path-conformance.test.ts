@@ -18,7 +18,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
-
+import { getProductionKanbanStorage } from '../src/server/remote-storage.js';
 import {
   addTask,
   claimReadyTask,
@@ -33,8 +33,7 @@ import {
   StaleWriteError,
   transitionTask,
   updateTaskAssignment,
-} from '../src/index.js';
-import { getProductionKanbanStorage } from '../src/server/remote-storage.js';
+} from './helpers/session-manager.js';
 
 const distServer = fileURLToPath(new URL('../dist/project-server.js', import.meta.url));
 const roots: string[] = [];

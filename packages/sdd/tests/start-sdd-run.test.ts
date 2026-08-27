@@ -111,6 +111,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events: new EventBus(),
@@ -138,6 +139,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -194,6 +196,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -254,6 +257,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -333,6 +337,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
@@ -380,6 +385,7 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const handle = startSddRun({
       tracker,
       graph,
+      sessionId: '2026-08-26/sess_01TESTSDDRUN000000000000',
       agent: fakeLeader(),
       // Real, existing cwd so the verifier's child process can chdir + run.
       projectRoot: os.tmpdir(),

@@ -96,7 +96,7 @@ export async function addTask(
   projectRoot: string,
   boardId: string,
   input: CreateKanbanTaskInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -126,7 +126,7 @@ export async function copyTaskToBoard(
   sourceBoardId: string,
   taskId: string,
   targetBoardId: string,
-  options: CopyKanbanTaskOptions = {},
+  options: CopyKanbanTaskOptions,
 ): Promise<{ sourceBoard: KanbanBoard; targetBoard: KanbanBoard; task: KanbanTask } | null> {
   const sourceBoard = await readBoard(projectRoot, sourceBoardId);
   if (!sourceBoard) return null;
@@ -157,6 +157,7 @@ export async function copyTaskToBoard(
     placeTaskInColumn(targetBoard, task, task.columnId, task.order);
     targetBoard.updatedAt = nowIso();
     event = createKanbanEvent(targetBoard.id, task, 'task.copied', {
+      ...options.eventContext,
       note: `from board ${sourceBoard.id}`,
     });
     return task;
@@ -171,7 +172,7 @@ export async function transferTaskToBoard(
   sourceBoardId: string,
   taskId: string,
   targetBoardId: string,
-  options: CopyKanbanTaskOptions = {},
+  options: CopyKanbanTaskOptions,
 ): Promise<{ sourceBoard: KanbanBoard; targetBoard: KanbanBoard; task: KanbanTask } | null> {
   const sourceBoard = await readBoard(projectRoot, sourceBoardId);
   if (!sourceBoard) return null;
@@ -185,6 +186,7 @@ export async function transferTaskToBoard(
       sourceTask.id,
       options.targetColumnId ?? sourceTask.columnId,
       options.targetOrder,
+      options.eventContext,
     );
     const task = moved ? findTask(moved, sourceTask.id) : undefined;
     return moved && task ? { sourceBoard: moved, targetBoard: moved, task } : null;
@@ -196,7 +198,12 @@ export async function transferTaskToBoard(
     preserveDependencies: options.preserveDependencies ?? false,
   });
   if (!copied) return null;
-  const sourceAfterRemoval = await removeTask(projectRoot, sourceBoard.id, sourceTask.id);
+  const sourceAfterRemoval = await removeTask(
+    projectRoot,
+    sourceBoard.id,
+    sourceTask.id,
+    options.eventContext,
+  );
   return {
     sourceBoard: sourceAfterRemoval ?? sourceBoard,
     targetBoard: copied.targetBoard,
@@ -209,7 +216,7 @@ export async function updateTask(
   boardId: string,
   taskId: string,
   input: UpdateKanbanTaskInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -241,8 +248,8 @@ export async function moveTask(
   boardId: string,
   taskId: string,
   targetColumnId: string,
-  targetOrder?: number,
-  eventContext: KanbanEventContext = {},
+  targetOrder: number | undefined,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   return updateTask(
     projectRoot,
@@ -260,6 +267,7 @@ export async function removeTask(
   projectRoot: string,
   boardId: string,
   taskId: string,
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -300,7 +308,7 @@ export async function removeTask(
     }
     const index = board.tasks.findIndex((task) => task.id === taskToRemove.id);
     if (index === -1) return false;
-    event = createKanbanEvent(board.id, taskToRemove, 'task.removed');
+    event = createKanbanEvent(board.id, taskToRemove, 'task.removed', eventContext);
     board.tasks.splice(index, 1);
     removeTaskContractGraphState(board, taskToRemove.id);
     for (const task of board.tasks) {
@@ -366,7 +374,7 @@ export async function recordTaskActivity(
   boardId: string,
   taskId: string,
   input: RecordKanbanTaskActivityInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -430,7 +438,7 @@ export async function addGoalMetricToTask(
   boardId: string,
   taskId: string,
   metric: AddKanbanGoalMetricInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -467,7 +475,7 @@ export async function updateGoalMetricOnTask(
   taskId: string,
   metricId: string,
   patch: UpdateKanbanGoalMetricInput,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -503,7 +511,7 @@ export async function addCheckToTask(
   boardId: string,
   taskId: string,
   check: Omit<KanbanCheck, 'id' | 'status'> & { status?: KanbanCheckStatus | undefined },
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -537,7 +545,7 @@ export async function updateCheckOnTask(
   taskId: string,
   checkId: string,
   patch: Partial<Omit<KanbanCheck, 'id'>>,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -581,7 +589,7 @@ export async function removeCheckFromTask(
   boardId: string,
   taskId: string,
   checkId: string,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -610,7 +618,7 @@ export async function addNoteToTask(
   boardId: string,
   taskId: string,
   note: { author: string; content: string },
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -640,7 +648,7 @@ export async function addLinkToTask(
   boardId: string,
   taskId: string,
   link: KanbanLink,
-  eventContext: KanbanEventContext = {},
+  eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {

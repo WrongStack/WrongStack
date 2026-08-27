@@ -88,6 +88,29 @@ export async function handleMailboxAction(
   }
 }
 
+/**
+ * Bind a browser-composed message to the tab that composed it.
+ *
+ * `to: 'leader'` is the alias for "this session's leader agent", and with one
+ * session it is unambiguous. With four tabs it is not: every tab's agent is
+ * registered as a leader, they all poll the same project mailbox, and a
+ * message with no affinity token is accepted by ALL of them
+ * (`acceptMailboxMessageForSession` treats "no affinity" as "for everyone").
+ * A "btw" typed in tab 3 while tab 1 was running therefore steered tab 1 too.
+ *
+ * Deliberately narrow: only the ambiguous alias is scoped. A message addressed
+ * to a NAMED agent already identifies exactly one recipient, and an explicit
+ * broadcast means what it says — scoping either of those would change what the
+ * user asked for rather than fix an ambiguity.
+ */
+function scopeToSenderSession(
+  payload: MailboxSendPayload,
+): { sessionAffinity: { sessionId: string } } | Record<string, never> {
+  if (!payload.sessionId) return {};
+  if (payload.to.trim().toLowerCase() !== 'leader') return {};
+  return { sessionAffinity: { sessionId: payload.sessionId } };
+}
+
 /** Persist a human-authored WebUI message in the shared project mailbox. */
 export async function handleMailboxSend(
   ws: WebSocket,
@@ -116,6 +139,8 @@ export async function handleMailboxSend(
       body: payload.body,
       priority: payload.priority,
       replyTo: payload.replyTo,
+      ...(payload.sessionId ? { senderSessionId: payload.sessionId } : {}),
+      ...scopeToSenderSession(payload),
     });
     send(ws, {
       type: 'mailbox.sent',
@@ -199,8 +224,10 @@ export async function handleMailboxMessages(
       payload: {
         ...(payload?.unreadOnly === true ? { unreadOnly: true } : {}),
         messages: visibleMessages.map((m) => {
-          const readByMe = payload?.agentId !== undefined ? (payload.agentId as string) in m.readBy : false;
-          const completedByMe = payload?.agentId !== undefined ? m.completedBy === payload.agentId : false;
+          const readByMe =
+            payload?.agentId !== undefined ? (payload.agentId as string) in m.readBy : false;
+          const completedByMe =
+            payload?.agentId !== undefined ? m.completedBy === payload.agentId : false;
           const actionRequiredForMe =
             payload?.agentId !== undefined
               ? MAILBOX_TYPE_PROPERTIES[m.type]?.requiresAction === true &&
@@ -208,26 +235,29 @@ export async function handleMailboxMessages(
                 m.deletedAt === undefined
               : false;
           return {
-          id: m.id,
-          from: m.from,
-          to: m.to,
-          type: m.type,
-          audience: m.audience ?? 'all',
-          subject: m.subject,
-          body: m.body,
-          priority: m.priority,
-          readBy: m.readBy,
-          readByCount: Object.keys(m.readBy).length,
-          completed: m.completed,
-          completedBy: m.completedBy,
-          completedAt: m.completedAt,
-          outcome: m.outcome,
-          timestamp: m.timestamp,
-          replyTo: m.replyTo,
-          senderSessionId: m.senderSessionId,
-          taskContext: m.taskContext,
-          ...(payload?.agentId !== undefined ? { readByMe, completedByMe, actionRequiredForMe } : {}),
-        };}),
+            id: m.id,
+            from: m.from,
+            to: m.to,
+            type: m.type,
+            audience: m.audience ?? 'all',
+            subject: m.subject,
+            body: m.body,
+            priority: m.priority,
+            readBy: m.readBy,
+            readByCount: Object.keys(m.readBy).length,
+            completed: m.completed,
+            completedBy: m.completedBy,
+            completedAt: m.completedAt,
+            outcome: m.outcome,
+            timestamp: m.timestamp,
+            replyTo: m.replyTo,
+            senderSessionId: m.senderSessionId,
+            taskContext: m.taskContext,
+            ...(payload?.agentId !== undefined
+              ? { readByMe, completedByMe, actionRequiredForMe }
+              : {}),
+          };
+        }),
       },
     });
   } catch (err) {

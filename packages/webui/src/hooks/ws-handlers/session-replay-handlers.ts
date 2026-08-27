@@ -4,7 +4,6 @@ import { isMobileViewport } from '@/hooks/useViewport';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
-import { streamCoalescer } from '@/lib/stream-coalescer';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import type { ChatMessage, SubagentView } from '@/stores';
@@ -416,9 +415,15 @@ export function handleSessionStart(msg: WSServerMessage) {
   const requested = claimRequestedSwitch(sessionId);
   const tabStore = useSessionTabStore.getState();
   if (!requested && !nothingInFront && activeId !== sessionId) {
-    if (!tabStore.openTabIds.includes(sessionId)) {
+    if (!tabStore.openTabIds.includes(sessionId) && tabStore.openTabIds.length < MAX_LANES) {
       // Give it a slot so the tab strip shows it, but leave the pointer alone.
-      tabStore.setOpenTabIds([...tabStore.openTabIds, sessionId].slice(-MAX_LANES));
+      //
+      // Only when one is FREE. This used to `slice(-MAX_LANES)`, which meant an
+      // announce for a fifth session — a re-broadcast, another surface opening
+      // a session, a stale client — silently evicted the oldest tab, running or
+      // not, and took its lane with it. A session with no free slot stays out
+      // of the strip; it is still one click away in the history list.
+      tabStore.setOpenTabIds([...tabStore.openTabIds, sessionId]);
     }
     return;
   }

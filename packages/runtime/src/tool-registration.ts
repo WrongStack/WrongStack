@@ -1,6 +1,9 @@
+import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type {
+  AutoThinConfig,
   ConcreteTokenSavingTier,
+  DisabledToolMeta,
   MemoryPort,
   Tool,
   ToolDescriptionModeConfig,
@@ -16,8 +19,8 @@ import {
   searchMemoryTool,
 } from '@wrongstack/tools/memory';
 import { registerBuiltinToolTier, selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
-import { wireKanbanPorts } from './kanban-ports.js';
 import { createVectorMemoryTools, type VectorMemoryStore } from '@wrongstack/vector-memory';
+import { wireKanbanPorts } from './kanban-ports.js';
 
 const DIRECT_LAZY_GATEWAYS = ['tool_search', 'tool_use', 'tool_help'] as const;
 
@@ -54,6 +57,25 @@ export interface CanonicalHostToolRegistrationOptions {
   descriptionMode?: ToolDescriptionModeConfig | undefined;
   resultRenderMode?: ToolResultRenderModeConfig | undefined;
   disabledTools?: readonly string[] | undefined;
+  /**
+   * Audit-trail metadata for `disabledTools` — written by `/tool autothin
+   * apply` and consumed by `boot-time auto-thin` so the decision survives
+   * restarts. Pair with `disabledTools`: the names live in both, the
+   * `reason`/`at` lives here.
+   */
+  disabledToolMeta?: Readonly<Record<string, DisabledToolMeta>> | undefined;
+  /**
+   * Stats-driven tool auto-thinning policy (`tools.autoThin`). When provided,
+   * the host's boot-time auto-apply uses it to disable underused tools.
+   * Pair with `events` so the registry can emit `tool.thinned`.
+   */
+  autoThin?: AutoThinConfig | undefined;
+  /**
+   * EventBus the registry should publish `tool.thinned` on. Optional —
+   * `thinUnderused()` is a no-op (with a warning) if the registry has no
+   * bus. Hosts that wire `wireMetricsToEvents` already have one.
+   */
+  events?: EventBus | undefined;
 }
 
 export interface CanonicalHostToolRegistrationResult {
@@ -144,7 +166,9 @@ export function registerCanonicalHostTools(
 
   applyToolDescriptionModes(options.registry, options.descriptionMode);
   applyToolResultRenderModes(options.registry, options.resultRenderMode);
+  if (options.events) options.registry.setEventBus(options.events);
   if (options.disabledTools) options.registry.applyDisabled([...options.disabledTools]);
+  if (options.disabledToolMeta) options.registry.applyDisabledMeta(options.disabledToolMeta);
 
   return { builtinTools, memoryBackend };
 }

@@ -4,6 +4,7 @@ import type {
   KanbanAgentAssignment,
   KanbanBoard,
   KanbanEvent,
+  KanbanEventContext,
   KanbanTask,
   KanbanTaskPriority,
 } from '../types.js';
@@ -135,6 +136,7 @@ export async function claimReadyTaskOnBoard(
   projectRoot: string,
   boardId: string,
   input: ClaimKanbanTaskInput,
+  eventContext: KanbanEventContext,
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
@@ -226,6 +228,7 @@ export async function claimReadyTaskOnBoard(
       task.updatedAt = nowIso();
       board.updatedAt = task.updatedAt;
       event = createKanbanEvent(board.id, task, 'task.claimed', {
+        ...eventContext,
         before: current ? { ...current } : undefined,
         after: { ...assignment },
       });
@@ -305,6 +308,7 @@ export async function claimReadyTaskOnBoard(
     task.updatedAt = nowIso();
     board.updatedAt = task.updatedAt;
     event = createKanbanEvent(board.id, task, 'task.claimed', {
+      ...eventContext,
       before: current ? { ...current } : undefined,
       after: { ...assignment },
     });

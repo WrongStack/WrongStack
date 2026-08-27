@@ -1,14 +1,58 @@
 import type { EventBus } from '../kernel/events.js';
 import type { MetricsSink } from '../types/observability.js';
 
+/** Per-tool usage record maintained by the event-bridge for the auto-thinning
+ *  pipeline's in-process fallback. The Chronicle rollup is the cross-session
+ *  source of truth; this Map only fills the gap when Chronicle is unavailable
+ *  (no node:sqlite at runtime) or hasn't refreshed yet. */
+export interface ToolUsageRecord {
+  invocations: number;
+  failures: number;
+  durationMsTotal: number;
+  lastInvokedAt: number;
+  firstInvokedAt: number;
+}
+
+export type ToolUsageSnapshot = ReadonlyMap<string, ToolUsageRecord>;
+
+/** The wireMetricsToEvents return value: the metrics sink plus the in-process
+ *  tool-usage Map (read-only snapshot, updated in place by the listener), plus
+ *  a `dispose()` that detaches every listener. */
+export interface WiredMetricsHandle {
+  sink: MetricsSink;
+  getToolUsage(): ToolUsageSnapshot;
+  dispose(): void;
+}
+
 /**
- * Subscribes a MetricsSink to the EventBus. Returns an unsubscribe function
- * that detaches all listeners. This is the single integration point between
- * the agent's event stream and the observability layer — no metric calls
- * leak into core call sites.
+ * Subscribes a MetricsSink to the EventBus. Returns a handle with the sink
+ * and a `getToolUsage()` accessor for the in-process per-tool usage Map.
+ * This is the single integration point between the agent's event stream
+ * and the observability layer — no metric calls leak into core call sites.
  */
-export function wireMetricsToEvents(events: EventBus, sink: MetricsSink): () => void {
+export function wireMetricsToEvents(events: EventBus, sink: MetricsSink): WiredMetricsHandle {
   const unsubs: Array<() => void> = [];
+  const toolUsage = new Map<string, ToolUsageRecord>();
+
+  const record = (name: string, ok: boolean, durationMs: number): void => {
+    const metricName = metricToolName(name);
+    const now = Date.now();
+    const existing = toolUsage.get(metricName);
+    if (existing) {
+      existing.invocations += 1;
+      if (!ok) existing.failures += 1;
+      existing.durationMsTotal += durationMs;
+      existing.lastInvokedAt = now;
+    } else {
+      toolUsage.set(metricName, {
+        invocations: 1,
+        failures: ok ? 0 : 1,
+        durationMsTotal: durationMs,
+        lastInvokedAt: now,
+        firstInvokedAt: now,
+      });
+    }
+  };
 
   unsubs.push(
     events.on('session.started', () => sink.counter('agent.sessions.started')),
@@ -40,13 +84,17 @@ export function wireMetricsToEvents(events: EventBus, sink: MetricsSink): () => 
         retryable: String(e.retryable),
       }),
     ),
-    events.on('tool.started', (e) =>
-      sink.counter('tool.starts.total', 1, { tool: metricToolName(e.name) }),
-    ),
+    events.on('tool.started', (e) => {
+      sink.counter('tool.starts.total', 1, { tool: metricToolName(e.name) });
+      // `started` carries no durationMs; record as success-only so the
+      // failure-rate and avg-duration histograms stay correct.
+      record(e.name, true, 0);
+    }),
     events.on('tool.executed', (e) => {
       const tool = metricToolName(e.name);
       sink.counter('tool.executions.total', 1, { tool, ok: String(e.ok) });
       sink.histogram('tool.duration_ms', e.durationMs, { tool });
+      record(e.name, e.ok, e.durationMs);
     }),
     events.on('token.threshold', (e) => sink.gauge('agent.tokens.used', e.used)),
     events.on('compaction.fired', (e) => {
@@ -62,8 +110,14 @@ export function wireMetricsToEvents(events: EventBus, sink: MetricsSink): () => 
     events.on('error', (e) => sink.counter('agent.errors.total', 1, { phase: e.phase })),
   );
 
-  return () => {
-    for (const u of unsubs) u();
+  return {
+    sink,
+    getToolUsage(): ToolUsageSnapshot {
+      return toolUsage;
+    },
+    dispose(): void {
+      for (const u of unsubs) u();
+    },
   };
 }
 

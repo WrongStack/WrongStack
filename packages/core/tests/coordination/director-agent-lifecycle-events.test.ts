@@ -6,14 +6,22 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { Director } from '../../src/coordination/director.js';
+import type {
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '../../src/types/multi-agent.js';
 import type { SessionEvent } from '../../src/types/session.js';
-import type { SubagentRunContext, SubagentRunOutcome, TaskSpec } from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 function makeDirector(opts: {
   appended: SessionEvent[];
   runner?: (task: TaskSpec, ctx: SubagentRunContext) => Promise<SubagentRunOutcome>;
 }): Director {
   return new Director({
+    sessionId: TEST_SESSION_ID,
     config: {
       coordinatorId: 'agent-lifecycle-test',
       doneCondition: { type: 'all_tasks_done' },
@@ -24,8 +32,7 @@ function makeDirector(opts: {
         opts.appended.push(ev);
       },
     } as never,
-    runner:
-      opts.runner ?? (async () => ({ result: 'done', iterations: 1, toolCalls: 0 })),
+    runner: opts.runner ?? (async () => ({ result: 'done', iterations: 1, toolCalls: 0 })),
   });
 }
 

@@ -14,4 +14,12 @@ export {
   compileUserRegex,
   MAX_SUBJECT_LEN,
 } from './regex-guard.js';
+export {
+  isSystemSessionId,
+  requireSessionId,
+  SESSION_ID_REQUIRED,
+  SessionIdRequiredError,
+  SYSTEM_SESSION_PREFIX,
+  systemSessionId,
+} from './session-id.js';
 export { nowIso } from './time.js';

@@ -5,9 +5,10 @@ import {
   type KanbanBoard,
   type KanbanTask,
 } from '@wrongstack/kanban';
+import { requireSessionId } from '@wrongstack/primitives';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
-import { kanbanBoardMessage } from './kanban-broadcast.js';
 import type { WebSocket } from 'ws';
+import { kanbanBoardMessage } from './kanban-broadcast.js';
 import type { WSServerMessage } from './types.js';
 import { send } from './ws-utils.js';
 
@@ -40,6 +41,8 @@ export type KanbanTaskDispatcher = (
 export interface KanbanDispatchContext {
   projectRoot: string;
   context?: Context | undefined;
+  /** Tab that asked for the dispatch — the session that owns the work. */
+  requestSessionId?: string | undefined;
   broadcast?: ((message: WSServerMessage) => void) | undefined;
   dispatchTask?: KanbanTaskDispatcher | undefined;
 }
@@ -93,6 +96,12 @@ export async function handleKanbanTaskDispatch(
     );
     return;
   }
+  // The tab that pressed Dispatch owns every board event this run emits, from
+  // the claim through the terminal complete/fail write.
+  const sessionId = requireSessionId(
+    ctx.requestSessionId ?? ctx.context?.session?.id,
+    'kanban task dispatch',
+  );
   const store = getServerKanbanStore(ctx.projectRoot);
   const board = await store.getBoard(boardId);
   const task = board ? findTask(board.tasks, taskId) : undefined;
@@ -103,7 +112,12 @@ export async function handleKanbanTaskDispatch(
 
   // Check task readiness — don't dispatch if dependencies are unmet.
   if (task.dependsOn && task.dependsOn.length > 0 && !areDependenciesMet(board, task.id)) {
-    reply(ws, 'kanban.task.dispatch', false, `Task "${task.title}" has unmet dependencies and cannot be dispatched yet.`);
+    reply(
+      ws,
+      'kanban.task.dispatch',
+      false,
+      `Task "${task.title}" has unmet dependencies and cannot be dispatched yet.`,
+    );
     return;
   }
 
@@ -140,10 +154,12 @@ export async function handleKanbanTaskDispatch(
 
   // ── Reserve: claim the task and seed lease via the shared dispatch service.
   const reserved = await store.reserveKanbanDispatch({
+    sessionId,
     boardId,
     taskId: task.id,
     routing: {
-      agentId: (payload?.agentId as string | undefined) ?? task.assignment?.agentId ?? task.assignedAgent,
+      agentId:
+        (payload?.agentId as string | undefined) ?? task.assignment?.agentId ?? task.assignedAgent,
       name: (payload?.name as string | undefined) ?? task.assignment?.name ?? task.assignedAgent,
       role: (payload?.role as string | undefined) ?? task.assignment?.role,
       modelRouting,
@@ -157,21 +173,35 @@ export async function handleKanbanTaskDispatch(
         modelRouting === 'fallback_profile'
           ? ((payload?.fallbackProfile as string | undefined) ?? task.assignment?.fallbackProfile)
           : undefined,
-      fallbackModels: (payload?.fallbackModels as string[] | undefined) ?? task.assignment?.fallbackModels,
+      fallbackModels:
+        (payload?.fallbackModels as string[] | undefined) ?? task.assignment?.fallbackModels,
       skills: (payload?.skills as string[] | undefined) ?? task.assignment?.skills,
       tools: (payload?.tools as string[] | undefined) ?? task.assignment?.tools,
-      allowedCapabilities: (payload?.allowedCapabilities as string[] | undefined) ?? task.assignment?.allowedCapabilities,
+      allowedCapabilities:
+        (payload?.allowedCapabilities as string[] | undefined) ??
+        task.assignment?.allowedCapabilities,
     },
     budget: {
       maxAttempts: (payload?.maxAttempts as number | undefined) ?? task.assignment?.maxAttempts,
-      costCeilingUsd: (payload?.costCeilingUsd as number | undefined) ?? task.assignment?.costCeilingUsd ?? task.costCeilingUsd,
-      retryPolicy: (payload?.retryPolicy as KanbanTask['retryPolicy'] | undefined) ?? task.assignment?.retryPolicy ?? task.retryPolicy,
+      costCeilingUsd:
+        (payload?.costCeilingUsd as number | undefined) ??
+        task.assignment?.costCeilingUsd ??
+        task.costCeilingUsd,
+      retryPolicy:
+        (payload?.retryPolicy as KanbanTask['retryPolicy'] | undefined) ??
+        task.assignment?.retryPolicy ??
+        task.retryPolicy,
     },
     leaseTtlMs,
     heartbeatIntervalMs: Math.floor(leaseTtlMs / 2),
   });
   if (!reserved) {
-    reply(ws, 'kanban.task.dispatch', false, `Failed to reserve task "${task.title}". The task may have been claimed by another agent or removed.`);
+    reply(
+      ws,
+      'kanban.task.dispatch',
+      false,
+      `Failed to reserve task "${task.title}". The task may have been claimed by another agent or removed.`,
+    );
     return;
   }
   // Use the dispatch service's lease for all subsequent fencing.
@@ -179,67 +209,86 @@ export async function handleKanbanTaskDispatch(
 
   try {
     const assignment = reserved.task.assignment ?? { status: 'queued' as const };
-    const summary = await ctx.dispatchTask(buildKanbanAgentPrompt(board, task, assignment, dispatchLeaseId), {
-      ...(assignment.provider ? { provider: assignment.provider } : {}),
-      ...(assignment.model ? { model: assignment.model } : {}),
-      ...(assignment.fallbackModels ? { fallbackModels: assignment.fallbackModels } : {}),
-      ...(assignment.fallbackProfile ? { fallbackProfile: assignment.fallbackProfile } : {}),
-      ...(assignment.skills ? { skills: assignment.skills } : {}),
-      ...(assignment.tools ? { tools: assignment.tools } : {}),
-      ...(assignment.name ? { name: assignment.name } : {}),
-      ...(assignment.allowedCapabilities ? { allowedCapabilities: assignment.allowedCapabilities } : {}),
-      context: { kanban: { boardId, taskId: task.id, projectRoot: ctx.projectRoot, leaseId: dispatchLeaseId } },
-      onDone: async (result) => {
-        // ── Complete/Fail via the shared dispatch service.
-        // The service fences by leaseId, writes the terminal assignment,
-        // runs the legacy completion gate or transitions managed lifecycle,
-        // and never auto-advances to Done.
-        if (result.status === 'completed') {
-          const completed = await store.completeKanbanDispatch({
+    const summary = await ctx.dispatchTask(
+      buildKanbanAgentPrompt(board, task, assignment, dispatchLeaseId),
+      {
+        ...(assignment.provider ? { provider: assignment.provider } : {}),
+        ...(assignment.model ? { model: assignment.model } : {}),
+        ...(assignment.fallbackModels ? { fallbackModels: assignment.fallbackModels } : {}),
+        ...(assignment.fallbackProfile ? { fallbackProfile: assignment.fallbackProfile } : {}),
+        ...(assignment.skills ? { skills: assignment.skills } : {}),
+        ...(assignment.tools ? { tools: assignment.tools } : {}),
+        ...(assignment.name ? { name: assignment.name } : {}),
+        ...(assignment.allowedCapabilities
+          ? { allowedCapabilities: assignment.allowedCapabilities }
+          : {}),
+        context: {
+          kanban: {
             boardId,
             taskId: task.id,
+            projectRoot: ctx.projectRoot,
             leaseId: dispatchLeaseId,
-            actor: ctx.context?.agentId ?? 'kanban-agent',
-            result: result.result,
-            evidence: result.result
-              ? { url: `kanban://task/${task.id}/result`, title: 'Worker completion result', type: 'file' as const }
-              : undefined,
-          });
-          // Evidence bridge: link verification report into the session ledger.
-          if (completed?.task.verificationReport && ctx.context) {
-            recordKanbanVerificationEvidence(ctx.context, completed.task.verificationReport);
+          },
+        },
+        onDone: async (result) => {
+          // ── Complete/Fail via the shared dispatch service.
+          // The service fences by leaseId, writes the terminal assignment,
+          // runs the legacy completion gate or transitions managed lifecycle,
+          // and never auto-advances to Done.
+          if (result.status === 'completed') {
+            const completed = await store.completeKanbanDispatch({
+              sessionId,
+              boardId,
+              taskId: task.id,
+              leaseId: dispatchLeaseId,
+              actor: ctx.context?.agentId ?? 'kanban-agent',
+              result: result.result,
+              evidence: result.result
+                ? {
+                    url: `kanban://task/${task.id}/result`,
+                    title: 'Worker completion result',
+                    type: 'file' as const,
+                  }
+                : undefined,
+            });
+            // Evidence bridge: link verification report into the session ledger.
+            if (completed?.task.verificationReport && ctx.context) {
+              recordKanbanVerificationEvidence(ctx.context, completed.task.verificationReport);
+            }
+          } else {
+            await store.failKanbanDispatch({
+              sessionId,
+              boardId,
+              taskId: task.id,
+              leaseId: dispatchLeaseId,
+              actor: ctx.context?.agentId ?? 'kanban-agent',
+              error: result.error ?? 'Task failed.',
+            });
           }
-        } else {
-          await store.failKanbanDispatch({
-            boardId,
-            taskId: task.id,
-            leaseId: dispatchLeaseId,
-            actor: ctx.context?.agentId ?? 'kanban-agent',
-            error: result.error ?? 'Task failed.',
+          const reconciled = await store.reconcileBoard(boardId, { sessionId });
+          const completedBoard = reconciled?.board ?? (await store.getBoard(boardId));
+          const completedTask =
+            completedBoard?.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ?? task;
+          ctx.broadcast?.({
+            type: 'kanban.task.update',
+            payload: { success: true, data: { boardId: board.id, task: completedTask } },
           });
-        }
-        const reconciled = await store.reconcileBoard(boardId);
-        const completedBoard = reconciled?.board ?? (await store.getBoard(boardId));
-        const completedTask =
-          completedBoard?.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ?? task;
-        ctx.broadcast?.({
-          type: 'kanban.task.update',
-          payload: { success: true, data: { boardId: board.id, task: completedTask } },
-        });
-        if (completedBoard) {
-          ctx.broadcast?.(kanbanBoardMessage(completedBoard));
-        }
-        ctx.broadcast?.({
-          type: 'kanban.list',
-          payload: { success: true, data: await store.listBoards() },
-        });
+          if (completedBoard) {
+            ctx.broadcast?.(kanbanBoardMessage(completedBoard));
+          }
+          ctx.broadcast?.({
+            type: 'kanban.list',
+            payload: { success: true, data: await store.listBoards() },
+          });
+        },
       },
-    });
+    );
     const subagentId = summary.match(/Spawned subagent\s+([^\s]+)/)?.[1];
     const runTaskId = summary.match(/\bfor task\s+([^\s.]+)/i)?.[1];
 
     // ── Start: transition to Running via the shared dispatch service.
     const started = await store.startKanbanDispatch({
+      sessionId,
       boardId,
       taskId: task.id,
       leaseId: dispatchLeaseId,
@@ -249,7 +298,8 @@ export async function handleKanbanTaskDispatch(
     });
     const runningTask =
       started?.task ??
-      (started?.board.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ?? task);
+      started?.board.tasks.find((candidate: KanbanTask) => candidate.id === task.id) ??
+      task;
     ctx.broadcast?.({
       type: 'kanban.task.update',
       payload: { success: true, data: { boardId: board.id, task: runningTask } },
@@ -262,6 +312,7 @@ export async function handleKanbanTaskDispatch(
     const message = error instanceof Error ? error.message : String(error);
     // ── Fail via the shared dispatch service.
     await store.failKanbanDispatch({
+      sessionId,
       boardId,
       taskId: task.id,
       leaseId: dispatchLeaseId,
@@ -327,15 +378,17 @@ function buildKanbanAgentPrompt(
     '',
     'Work the task end-to-end. Use the kanban tool, not direct file edits, to update this task.',
     'Stay inside this task: its description and success criteria define the boundary. If you notice problems outside this task while working, do not fix them — note them in lastResult instead.',
-    ...(leaseId ? [
-      'LEASE CONTRACT:',
-      `- Your leaseId is "${leaseId}". Include expectedLeaseId "${leaseId}" in every mark_assignment and heartbeat_assignment call.`,
-      '- The expectedLeaseId fence makes your write a safe no-op if recover_stale already reassigned the task because your lease expired (e.g. if you take too long).',
-      '- If your lease expires, call heartbeat_assignment with expectedLeaseId to extend it, or release_task so another worker can claim.',
-      'On failure the host may call recover_stale; respect its decisions and do not duplicate work.',
-    ] : []),
+    ...(leaseId
+      ? [
+          'LEASE CONTRACT:',
+          `- Your leaseId is "${leaseId}". Include expectedLeaseId "${leaseId}" in every mark_assignment and heartbeat_assignment call.`,
+          '- The expectedLeaseId fence makes your write a safe no-op if recover_stale already reassigned the task because your lease expired (e.g. if you take too long).',
+          '- If your lease expires, call heartbeat_assignment with expectedLeaseId to extend it, or release_task so another worker can claim.',
+          'On failure the host may call recover_stale; respect its decisions and do not duplicate work.',
+        ]
+      : []),
     `When you start or finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running", "completed", or "failed"${leaseId ? `, and expectedLeaseId "${leaseId}"` : ''}. Include lastResult or error when you finish. On managed lifecycle boards, mark_assignment(completed) will automatically advance your card from Running to Review — a separate verification step is required before the card reaches Done.`,
-    'When finished, report what changed, what you verified, any remaining blockers, and any issues you noticed outside this task\'s scope.',
+    "When finished, report what changed, what you verified, any remaining blockers, and any issues you noticed outside this task's scope.",
   ]
     .filter(Boolean)
     .join('\n');

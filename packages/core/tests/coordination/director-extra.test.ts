@@ -2,12 +2,20 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Director } from '../../src/coordination/director.js';
 import type { DirectorTaskRegistry } from '../../src/coordination/director/director-task-registry.js';
+import { Director } from '../../src/coordination/director.js';
 import { FleetManager } from '../../src/coordination/fleet-manager.js';
 import type { WorktreeTaskStateUpdate } from '../../src/coordination/worktree-task-runner.js';
 import { EventBus } from '../../src/kernel/events.js';
-import type { SubagentConfig, SubagentRunContext, SubagentRunOutcome, TaskSpec } from '../../src/types/multi-agent.js';
+import type {
+  SubagentConfig,
+  SubagentRunContext,
+  SubagentRunOutcome,
+  TaskSpec,
+} from '../../src/types/multi-agent.js';
+
+/** Owning session for coordinator-scoped work under test. */
+const TEST_SESSION_ID = 'sess_test';
 
 type DirectorOpts = ConstructorParameters<typeof Director>[0];
 type Runner = (task: TaskSpec, ctx: SubagentRunContext) => Promise<SubagentRunOutcome>;
@@ -25,7 +33,10 @@ afterEach(async () => {
   tmpDirs = [];
 });
 
-function makeDirector(extra: Partial<DirectorOpts> = {}, customRunner?: Runner): {
+function makeDirector(
+  extra: Partial<DirectorOpts> = {},
+  customRunner?: Runner,
+): {
   d: Director;
   buses: Map<string, EventBus>;
   runner: ReturnType<typeof vi.fn>;
@@ -35,12 +46,22 @@ function makeDirector(extra: Partial<DirectorOpts> = {}, customRunner?: Runner):
     customRunner ??
       (async (task: TaskSpec, ctx: SubagentRunContext): Promise<SubagentRunOutcome> => {
         const bus = buses.get(ctx.subagentId);
-        bus?.emit('provider.response', { ctx: null as never, model: 'test-model', usage: { input: 100, output: 20 }, stopReason: 'end_turn' });
+        bus?.emit('provider.response', {
+          ctx: null as never,
+          model: 'test-model',
+          usage: { input: 100, output: 20 },
+          stopReason: 'end_turn',
+        });
         return { result: `done:${task.description}`, iterations: 1, toolCalls: 1 };
       }),
   );
   const d = new Director({
-    config: { coordinatorId: 'd-extra', doneCondition: { type: 'all_tasks_done' }, maxConcurrent: 4 },
+    sessionId: TEST_SESSION_ID,
+    config: {
+      coordinatorId: 'd-extra',
+      doneCondition: { type: 'all_tasks_done' },
+      maxConcurrent: 4,
+    },
     runner,
     ...extra,
   } as DirectorOpts);
@@ -48,7 +69,11 @@ function makeDirector(extra: Partial<DirectorOpts> = {}, customRunner?: Runner):
 }
 
 /** Emit a budget.threshold_reached event and capture extend/deny. */
-function emitBudget(d: Director, kind: string, over: Record<string, unknown> = {}): { extended: Record<string, unknown> | null; denied: boolean } {
+function emitBudget(
+  d: Director,
+  kind: string,
+  over: Record<string, unknown> = {},
+): { extended: Record<string, unknown> | null; denied: boolean } {
   const captured = { extended: null as Record<string, unknown> | null, denied: false };
   d.fleet.emit({
     subagentId: 'agent-1',
@@ -73,7 +98,11 @@ function emitBudget(d: Director, kind: string, over: Record<string, unknown> = {
 }
 
 /** Spawn + attach a per-subagent bus so the runner can emit on it. */
-async function spawnWithBus(d: Director, buses: Map<string, EventBus>, config: SubagentConfig): Promise<string> {
+async function spawnWithBus(
+  d: Director,
+  buses: Map<string, EventBus>,
+  config: SubagentConfig,
+): Promise<string> {
   const id = await d.spawn(config);
   const bus = new EventBus();
   buses.set(id, bus);
@@ -117,7 +146,12 @@ describe('Director accessors', () => {
     expect(() => d.cancelCollabSession('nope')).not.toThrow();
     const seen: unknown[] = [];
     const unsub = d.onCollabAlert((a) => seen.push(a));
-    d.fleet.emit({ subagentId: 's', ts: Date.now(), type: 'collab.warning', payload: { level: 'warning', message: 'careful' } as never });
+    d.fleet.emit({
+      subagentId: 's',
+      ts: Date.now(),
+      type: 'collab.warning',
+      payload: { level: 'warning', message: 'careful' } as never,
+    });
     expect(seen).toHaveLength(1);
     unsub();
   });
@@ -127,7 +161,9 @@ describe('Director.spawn budget rejections', () => {
   it('refuses spawning after workComplete()', async () => {
     const { d } = makeDirector();
     d.workComplete();
-    await expect(d.spawn({ name: 'x', provider: 'anthropic', model: 'm' })).rejects.toThrow(/max_spawns|workComplete/);
+    await expect(d.spawn({ name: 'x', provider: 'anthropic', model: 'm' })).rejects.toThrow(
+      /max_spawns|workComplete/,
+    );
   });
 
   it('refuses spawning beyond the max spawn depth', async () => {
@@ -146,7 +182,10 @@ describe('Director.spawn budget rejections', () => {
   });
 
   it('refuses spawning when leader context pressure exceeds the load threshold', async () => {
-    const { d } = makeDirector({ maxLeaderContextLoad: 0.5, maxContext: 1000 } as Partial<DirectorOpts>);
+    const { d } = makeDirector({
+      maxLeaderContextLoad: 0.5,
+      maxContext: 1000,
+    } as Partial<DirectorOpts>);
     d.setLeaderContextPressure(900); // 900 >= 0.5 * 1000
     await expect(d.spawn({ name: 'x', provider: 'anthropic', model: 'm' })).rejects.toThrow();
   });
@@ -188,7 +227,10 @@ describe('Director.readSession', () => {
   it('parses the subagent JSONL transcript and supports tailing', async () => {
     const root = await mkTmp('dir-sess-');
     const runId = 'run-1';
-    const { d } = makeDirector({ sessionsRoot: root, directorRunId: runId } as Partial<DirectorOpts>);
+    const { d } = makeDirector({
+      sessionsRoot: root,
+      directorRunId: runId,
+    } as Partial<DirectorOpts>);
     await fs.mkdir(path.join(root, runId), { recursive: true });
     const lines = [
       JSON.stringify({ type: 'assistant', text: 'hello' }),
@@ -220,7 +262,10 @@ describe('Director manifest scheduling', () => {
   it('writes the manifest synchronously when debounce is 0', async () => {
     const root = await mkTmp('dir-manifest-');
     const manifestPath = path.join(root, 'manifest.json');
-    const { d, buses } = makeDirector({ manifestPath, manifestDebounceMs: 0 } as Partial<DirectorOpts>);
+    const { d, buses } = makeDirector({
+      manifestPath,
+      manifestDebounceMs: 0,
+    } as Partial<DirectorOpts>);
     await spawnWithBus(d, buses, { name: 'Worker', provider: 'anthropic', model: 'm' });
     // synchronous flush path → file exists shortly after
     await vi.waitFor(async () => {
@@ -232,7 +277,10 @@ describe('Director manifest scheduling', () => {
   it('disables manifest writes when debounce is negative', async () => {
     const root = await mkTmp('dir-manifest-neg-');
     const manifestPath = path.join(root, 'manifest.json');
-    const { d, buses } = makeDirector({ manifestPath, manifestDebounceMs: -1 } as Partial<DirectorOpts>);
+    const { d, buses } = makeDirector({
+      manifestPath,
+      manifestDebounceMs: -1,
+    } as Partial<DirectorOpts>);
     await spawnWithBus(d, buses, { name: 'NoWrite', provider: 'anthropic', model: 'm' });
     await expect(fs.readFile(manifestPath, 'utf8')).rejects.toThrow(); // never written
   });
@@ -365,23 +413,31 @@ describe('Director defensive teardown paths', () => {
 });
 
 describe('Director budget-threshold extension policy (brain)', () => {
-  const brainDir = (decide: DirectorOpts['brain'] extends infer B ? (B extends { decide: infer D } ? D : never) : never) =>
-    makeDirector({ brain: { decide } as DirectorOpts['brain'] });
+  const brainDir = (
+    decide: DirectorOpts['brain'] extends infer B
+      ? B extends { decide: infer D }
+        ? D
+        : never
+      : never,
+  ) => makeDirector({ brain: { decide } as DirectorOpts['brain'] });
 
   it.each([
     ['iterations', 'maxIterations'],
     ['tool_calls', 'maxToolCalls'],
     ['tokens', 'maxTokens'],
-  ] as const)('auto-extends routine %s limits without consulting the brain', async (kind, field) => {
-    const decide = vi.fn(async () => ({ type: 'deny' }) as never);
-    const { d } = brainDir(decide as never);
-    const cap = emitBudget(d, kind);
-    await tick();
-    await tick();
-    expect(decide).not.toHaveBeenCalled();
-    expect(cap.denied).toBe(false);
-    expect(cap.extended?.[field]).toBeGreaterThan(0);
-  });
+  ] as const)(
+    'auto-extends routine %s limits without consulting the brain',
+    async (kind, field) => {
+      const decide = vi.fn(async () => ({ type: 'deny' }) as never);
+      const { d } = brainDir(decide as never);
+      const cap = emitBudget(d, kind);
+      await tick();
+      await tick();
+      expect(decide).not.toHaveBeenCalled();
+      expect(cap.denied).toBe(false);
+      expect(cap.extended?.[field]).toBeGreaterThan(0);
+    },
+  );
 
   it('denies a cost extension on a deny decision', async () => {
     const { d } = brainDir(async () => ({ type: 'deny' }) as never);
@@ -410,7 +466,9 @@ describe('Director budget-threshold extension policy (brain)', () => {
   });
 
   it('extends cost on an answer that is not "stop"', async () => {
-    const { d } = brainDir(async () => ({ type: 'answer', optionId: 'extend', text: 'extend' }) as never);
+    const { d } = brainDir(
+      async () => ({ type: 'answer', optionId: 'extend', text: 'extend' }) as never,
+    );
     const cap = emitBudget(d, 'cost');
     await tick();
     await tick();
@@ -422,7 +480,11 @@ describe('Director.assign after workComplete + rollUp formatting', () => {
   it('synthesizes a stopped result for tasks assigned after workComplete', async () => {
     const { d } = makeDirector();
     d.workComplete();
-    const taskId = await d.assign({ id: 't-late', description: 'too late', subagentId: 'unassigned' });
+    const taskId = await d.assign({
+      id: 't-late',
+      description: 'too late',
+      subagentId: 'unassigned',
+    });
     const [res] = await d.awaitTasks([taskId]);
     expect(res?.status).toBe('stopped');
     expect(res?.error?.kind).toBe('aborted_by_parent');
@@ -431,7 +493,8 @@ describe('Director.assign after workComplete + rollUp formatting', () => {
   it('formats error, string, object, and empty results in a roll-up', async () => {
     const runner: Runner = async (task) => {
       if (task.description === 'err') throw new Error('kaboom');
-      if (task.description === 'obj') return { result: { hello: 'world' }, iterations: 1, toolCalls: 0 };
+      if (task.description === 'obj')
+        return { result: { hello: 'world' }, iterations: 1, toolCalls: 0 };
       if (task.description === 'undef') return { result: undefined, iterations: 1, toolCalls: 0 };
       return { result: 'plain text', iterations: 1, toolCalls: 0 };
     };
@@ -621,14 +684,22 @@ describe('Director misc coverage', () => {
 
   it('frees the nickname slot on remove (no FleetManager)', async () => {
     const { d, buses } = makeDirector();
-    const id = await spawnWithBus(d, buses, { name: 'adhoc', role: 'coder', provider: 'p', model: 'm' });
+    const id = await spawnWithBus(d, buses, {
+      name: 'adhoc',
+      role: 'coder',
+      provider: 'p',
+      model: 'm',
+    });
     await expect(d.remove(id)).resolves.toBeUndefined();
   });
 
   it('writes the manifest when the debounce timer fires', async () => {
     const root = await mkTmp('dir-manifest-timer-');
     const manifestPath = path.join(root, 'm.json');
-    const { d, buses } = makeDirector({ manifestPath, manifestDebounceMs: 5 } as Partial<DirectorOpts>);
+    const { d, buses } = makeDirector({
+      manifestPath,
+      manifestDebounceMs: 5,
+    } as Partial<DirectorOpts>);
     await spawnWithBus(d, buses, { name: 'T', provider: 'p', model: 'm' });
     await vi.waitFor(async () => {
       expect(await fs.readFile(manifestPath, 'utf8')).toContain('directorRunId');
@@ -641,7 +712,11 @@ describe('Director.shutdown', () => {
     const root = await mkTmp('dir-shutdown-');
     const manifestPath = path.join(root, 'manifest.json');
     const stateCheckpointPath = path.join(root, 'checkpoint.json');
-    const { d, buses } = makeDirector({ manifestPath, stateCheckpointPath, manifestDebounceMs: 5000 } as Partial<DirectorOpts>);
+    const { d, buses } = makeDirector({
+      manifestPath,
+      stateCheckpointPath,
+      manifestDebounceMs: 5000,
+    } as Partial<DirectorOpts>);
     await spawnWithBus(d, buses, { name: 'S', provider: 'anthropic', model: 'm' }); // schedules a debounced timer
     await d.shutdown();
     expect(await fs.readFile(manifestPath, 'utf8')).toContain('directorRunId');
@@ -650,21 +725,42 @@ describe('Director.shutdown', () => {
   it('logShutdownError emits a process warning without throwing', () => {
     const { d } = makeDirector();
     const warn = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
-    (d as never as { logShutdownError: (p: string, e: unknown) => void }).logShutdownError('test_phase', new Error('boom'));
+    (d as never as { logShutdownError: (p: string, e: unknown) => void }).logShutdownError(
+      'test_phase',
+      new Error('boom'),
+    );
     expect(warn).toHaveBeenCalled();
   });
 });
 
 describe('Director.spawnCollab', () => {
-  const snapshot = () => ({ id: 'snap', createdAt: new Date().toISOString(), files: [{ path: 'a.ts', content: 'export const x = 1;' }] });
+  const snapshot = () => ({
+    id: 'snap',
+    createdAt: new Date().toISOString(),
+    files: [{ path: 'a.ts', content: 'export const x = 1;' }],
+  });
 
-  const taskResult = () => [{ taskId: 't', subagentId: 's', status: 'success', result: '{}', iterations: 1, toolCalls: 0, durationMs: 1 }];
+  const taskResult = () => [
+    {
+      taskId: 't',
+      subagentId: 's',
+      status: 'success',
+      result: '{}',
+      iterations: 1,
+      toolCalls: 0,
+      durationMs: 1,
+    },
+  ];
 
   it('runs a collab session and clears it from the active set on completion', async () => {
     const { d } = makeDirector();
     // The real CollabSession awaits on subagent ids; drive completion via awaitTasks.
     vi.spyOn(d, 'awaitTasks').mockResolvedValue(taskResult() as never);
-    const report = await d.spawnCollab({ targetPaths: ['a.ts'], prebuiltSnapshot: snapshot() as never, timeoutMs: 5000 });
+    const report = await d.spawnCollab({
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snapshot() as never,
+      timeoutMs: 5000,
+    });
     expect(report.sessionId).toBeDefined();
     expect(d.activeCollabSessions()).toEqual([]);
   });
@@ -674,7 +770,11 @@ describe('Director.spawnCollab', () => {
     // awaitTasks hangs so the session stays active; cancelCollabSession() runs
     // its teardown synchronously, so we don't await the (intentionally stuck) run.
     vi.spyOn(d, 'awaitTasks').mockReturnValue(new Promise<never>(() => {}));
-    const p = d.spawnCollab({ targetPaths: ['a.ts'], prebuiltSnapshot: snapshot() as never, timeoutMs: 10_000 });
+    const p = d.spawnCollab({
+      targetPaths: ['a.ts'],
+      prebuiltSnapshot: snapshot() as never,
+      timeoutMs: 10_000,
+    });
     void p.catch(() => {}); // never settles (real director can't resolve subagent-id awaits); swallow
     await tick();
     const ids = d.activeCollabSessions();
@@ -686,7 +786,11 @@ describe('Director.spawnCollab', () => {
     const { d } = makeDirector();
     vi.spyOn(d, 'awaitTasks').mockRejectedValue(new Error('collab failure'));
     await expect(
-      d.spawnCollab({ targetPaths: ['a.ts'], prebuiltSnapshot: snapshot() as never, timeoutMs: 5000 }),
+      d.spawnCollab({
+        targetPaths: ['a.ts'],
+        prebuiltSnapshot: snapshot() as never,
+        timeoutMs: 5000,
+      }),
     ).rejects.toThrow();
     expect(d.activeCollabSessions()).toEqual([]);
   });

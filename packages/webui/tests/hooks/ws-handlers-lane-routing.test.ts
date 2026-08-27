@@ -138,7 +138,6 @@ const PROJECT_WIDE_STORES = new Set([
   'useSddWizardStore',
   'useSessionTabStore',
   'useSpecsStore',
-  'useSystemPromptStore',
   'useTechStackStore',
   'useUIStore',
   'useVizStore',
@@ -151,6 +150,9 @@ const PROJECT_WIDE_STORES = new Set([
  */
 const SELF_KEYED_STORES = new Set([
   'useCodemapActivityStore',
+  // The variant catalogue is one project fact, but WHICH variant is live is a
+  // per-tab preference and is kept in `currentBySession`.
+  'useSystemPromptStore',
   'useFleetStore',
   // `useSessionStore` is a facade over BOTH the project globals (cwd,
   // projectRoot, modes) and the foreground lane. A blanket ban here would

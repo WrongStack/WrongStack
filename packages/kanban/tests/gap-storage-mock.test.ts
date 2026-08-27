@@ -6,8 +6,16 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { listBoardIds, resolveBoardRef, readBoard, boardMeta, listBoardSummaries, getKanbanPath, getKanbanEventsPath } from '../src/storage.js';
-import { createBoard } from '../src/manager.js';
+import {
+  boardMeta,
+  getKanbanEventsPath,
+  getKanbanPath,
+  listBoardIds,
+  listBoardSummaries,
+  readBoard,
+  resolveBoardRef,
+} from '../src/storage.js';
+import { createBoard } from './helpers/session-manager.js';
 
 // Mock node:fs/promises for spying
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -16,7 +24,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   for (const key of Object.keys(actual) as Array<keyof typeof actual>) {
     const origFn = actual[key];
     if (typeof origFn === 'function') {
-      (wrapped as any)[key] = vi.fn().mockImplementation((...args: any[]) => (origFn as any)(...args));
+      (wrapped as any)[key] = vi
+        .fn()
+        .mockImplementation((...args: any[]) => (origFn as any)(...args));
     } else {
       (wrapped as any)[key] = origFn;
     }
@@ -58,7 +68,9 @@ describe('storage non-ENOENT re-throws', () => {
     const sharedPrefix = b1.id.substring(0, 8);
     // Only works if both IDs share that prefix
     if (b2.id.startsWith(sharedPrefix)) {
-      await expect(resolveBoardRef(tmpDir, sharedPrefix)).rejects.toThrow('Ambiguous kanban board id');
+      await expect(resolveBoardRef(tmpDir, sharedPrefix)).rejects.toThrow(
+        'Ambiguous kanban board id',
+      );
     }
     // If they don't share a prefix, this test is still valid logic
   });

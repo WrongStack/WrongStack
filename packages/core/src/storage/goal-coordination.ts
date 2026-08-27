@@ -1,5 +1,5 @@
-import { boardStore } from './board-store-port.js';
 import type { BrainArbiter } from '../coordination/brain.js';
+import { boardStore } from './board-store-port.js';
 import type { EventBus } from './event-bus-port.js';
 import { findGoalBoardByTag, findGoalKanbanBoard, type GoalFileWithKanban } from './goal-kanban.js';
 import { appendJournal, type GoalFile, loadGoal, recordProgress, saveGoal } from './goal-store.js';
@@ -24,7 +24,12 @@ export interface CoordinateGoalIterationOptions {
   goalPath: string;
   finalText: string;
   brain?: BrainArbiter | undefined;
-  sessionId?: string | undefined;
+  /**
+   * Session running this autonomy iteration. Required: closing a deliverable
+   * writes durable Kanban events, and those are attributed to the session that
+   * produced the `[DONE:]` marker.
+   */
+  sessionId: string;
   events?: EventBus | undefined;
   now?: (() => Date) | undefined;
 }
@@ -129,7 +134,13 @@ export async function coordinateGoalIteration(
   if (board) {
     // Kanban owns durable deliverable status. Marker output is a requested
     // transition; goal.json is rebuilt from the committed board state.
-    kanbanUpdatedTaskIds = await refreshGoalKanban(options.projectRoot, current, completed, board);
+    kanbanUpdatedTaskIds = await refreshGoalKanban(
+      options.projectRoot,
+      current,
+      completed,
+      options.sessionId,
+      board,
+    );
     goal = await recomputeGoalProgressFromKanban(options.projectRoot, current);
     const confirmed = completed.filter(
       (item) =>
@@ -215,6 +226,7 @@ async function refreshGoalKanban(
   projectRoot: string,
   goal: GoalFile,
   completed: readonly CompletedGoalDeliverable[],
+  sessionId: string,
   resolvedBoard?: Awaited<ReturnType<typeof resolveGoalBoard>>,
 ): Promise<string[]> {
   if (completed.length === 0) return [];
@@ -246,6 +258,7 @@ async function refreshGoalKanban(
       task.id,
       { columnId: doneColumn.id, status: 'completed' },
       {
+        sessionId,
         actor: 'goal-coordinator',
         note: originMatch
           ? `deliverable-completed: Matched by origin ${task.origin!.taskId}.`
