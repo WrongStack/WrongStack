@@ -3,9 +3,9 @@
    Consolidated from a 4,340-line monolith into 6 focused modules.
    =========================================================================== */
 
-@import './styles/theme.css';
-@import './styles/shell.css';
-@import './styles/shared.css';
-@import './styles/fleet.css';
-@import './styles/console.css';
-@import './styles/screens.css';
+@import "./styles/theme.css";
+@import "./styles/shell.css";
+@import "./styles/shared.css";
+@import "./styles/fleet.css";
+@import "./styles/console.css";
+@import "./styles/screens.css";
