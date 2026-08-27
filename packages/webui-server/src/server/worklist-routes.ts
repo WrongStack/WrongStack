@@ -19,14 +19,20 @@ export interface WorklistRouteHandlers {
 }
 
 export interface WorklistRouteContext {
-  getContext: () => WorklistContext;
+  /**
+   * Resolve the worklist context for ONE request. The message is handed over
+   * so a multi-session host can bind to the session the payload names instead
+   * of whichever session the shared root context currently points at.
+   * Hosts that ignore it keep the single-context behaviour.
+   */
+  getContext: (message?: WorklistMessage) => WorklistContext;
   allowMessage?: ((ws: WebSocket, message: WSClientMessage) => boolean) | undefined;
 }
 
 export function createWorklistRouteHandlers(ctx: WorklistRouteContext): WorklistRouteHandlers {
   const dispatch = async (ws: WebSocket, message: WSClientMessage): Promise<void> => {
     if (ctx.allowMessage && !ctx.allowMessage(ws, message)) return;
-    await handleWorklistMessage(ctx.getContext(), ws, message as WorklistMessage);
+    await handleWorklistMessage(ctx.getContext(message as WorklistMessage), ws, message);
   };
   return {
     getTodos: dispatch,

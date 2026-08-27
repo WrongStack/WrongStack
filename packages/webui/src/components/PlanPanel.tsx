@@ -1,8 +1,9 @@
-import { getWSClient } from '@/lib/ws-client';
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
+import { useActiveSessionId } from '@/stores';
 
 interface PlanItem {
   id: string;
@@ -11,10 +12,25 @@ interface PlanItem {
   status: 'open' | 'in_progress' | 'done';
 }
 
-const STATUS_CONFIG: Record<PlanItem['status'], { icon: React.ReactNode; labelKey: string; color: string }> = {
-  open: { icon: <Circle className="w-3.5 h-3.5" />, labelKey: 'statusOpen', color: 'text-muted-foreground/70' },
-  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-warning' },
-  done: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-success' },
+const STATUS_CONFIG: Record<
+  PlanItem['status'],
+  { icon: React.ReactNode; labelKey: string; color: string }
+> = {
+  open: {
+    icon: <Circle className="w-3.5 h-3.5" />,
+    labelKey: 'statusOpen',
+    color: 'text-muted-foreground/70',
+  },
+  in_progress: {
+    icon: <Clock className="w-3.5 h-3.5 animate-spin" />,
+    labelKey: 'statusInProgress',
+    color: 'text-warning',
+  },
+  done: {
+    icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+    labelKey: 'statusDone',
+    color: 'text-success',
+  },
 };
 
 /**
@@ -34,21 +50,34 @@ export function PlanPanel(): React.ReactElement | null {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const ws = getWSClient();
-  const offRef = useRef<(() => void) | null>(null);
+  // The plan board belongs to the tab in front. Reading the lane pointer (not
+  // `session?.id`, which is null until the resumed tab's `session.start`
+  // lands) means the refetch below fires the moment the switch happens.
+  const sessionId = useActiveSessionId();
 
   useEffect(() => {
+    // Drop the previous tab's items immediately so a slow `plan.get` round
+    // trip cannot briefly render one tab's plan under another tab's name.
+    setItems([]);
     ws.getPlan();
-    offRef.current = ws.on('plan.updated', (msg: unknown) => {
-      const payload = (msg as { payload?: { plan?: { items?: PlanItem[] } } })?.payload;
+    const off = ws.on('plan.updated', (msg: unknown) => {
+      const payload = (msg as { payload?: { sessionId?: string; plan?: { items?: PlanItem[] } } })
+        ?.payload;
+      // The server stamps every worklist frame with the session it served.
+      // Untagged frames (older server, embedded host) stay compatible.
+      if (payload?.sessionId && sessionId && payload.sessionId !== sessionId) return;
       if (payload?.plan?.items) setItems(payload.plan.items);
     });
-    return () => { offRef.current?.(); };
-  }, [ws]);
+    return () => {
+      off();
+    };
+  }, [sessionId, ws]);
 
   const toggle = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -100,59 +129,75 @@ export function PlanPanel(): React.ReactElement | null {
               onClick={() => toggle(status)}
               className="w-full px-3 py-1 flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="tabular">{isCollapsed ? '▶' : '▼'} {group.length} {t(`activity:plan.${cfg.labelKey}`)}</span>
+              <span className="tabular">
+                {isCollapsed ? '▶' : '▼'} {group.length} {t(`activity:plan.${cfg.labelKey}`)}
+              </span>
             </button>
-            {!isCollapsed && group.map((it) => (
-              <div
-                key={it.id}
-                className={cn(
-                  'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
-                  it.status === 'in_progress' ? 'bg-warning/8' : '',
-                )}
-              >
-                <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>
-                <span className={cn(
-                  'leading-snug flex-1 min-w-0',
-                  it.status === 'done' ? 'text-muted-foreground line-through' : 'text-foreground/80',
-                )}>
-                  {it.title}
-                </span>
+            {!isCollapsed &&
+              group.map((it) => (
+                <div
+                  key={it.id}
+                  className={cn(
+                    'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
+                    it.status === 'in_progress' ? 'bg-warning/8' : '',
+                  )}
+                >
+                  <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>
+                  <span
+                    className={cn(
+                      'leading-snug flex-1 min-w-0',
+                      it.status === 'done'
+                        ? 'text-muted-foreground line-through'
+                        : 'text-foreground/80',
+                    )}
+                  >
+                    {it.title}
+                  </span>
 
-                {/* Quick Actions */}
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  {it.status === 'open' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(it, 'in_progress'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-                      title={t('activity:plan.startTitle')}
-                    >
-                      {t('common:action.start')}
-                    </button>
-                  )}
-                  {it.status !== 'done' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(it, 'done'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
-                      title={t('activity:plan.doneTitle')}
-                    >
-                      {t('activity:plan.statusDone')}
-                    </button>
-                  )}
-                  {it.status === 'done' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(it, 'open'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                      title={t('activity:plan.reopenTitle')}
-                    >
-                      {t('activity:plan.reopen')}
-                    </button>
-                  )}
+                  {/* Quick Actions */}
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {it.status === 'open' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(it, 'in_progress');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+                        title={t('activity:plan.startTitle')}
+                      >
+                        {t('common:action.start')}
+                      </button>
+                    )}
+                    {it.status !== 'done' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(it, 'done');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
+                        title={t('activity:plan.doneTitle')}
+                      >
+                        {t('activity:plan.statusDone')}
+                      </button>
+                    )}
+                    {it.status === 'done' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(it, 'open');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-muted text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                        title={t('activity:plan.reopenTitle')}
+                      >
+                        {t('activity:plan.reopen')}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         );
       })}

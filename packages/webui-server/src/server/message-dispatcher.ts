@@ -18,7 +18,6 @@
  */
 
 import path from 'node:path';
-import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
@@ -33,7 +32,6 @@ import {
 import { createConversationOperations } from './conversation-operations.js';
 import { handleGoalGet } from './goal-handlers.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
-import type { WorklistContext } from './handlers/index.js';
 import type { HostRouteHandlers } from './host-routes.js';
 import type { KanbanHostRouteHandlers } from './kanban-host-routes.js';
 import { handleKanbanRoute } from './kanban-routes.js';
@@ -47,6 +45,7 @@ import type { AllRoutes, WebuiDeps, WebuiMutableState } from './routes.js';
 import { collectDisplayedSessionIds } from './session-handlers.js';
 import type { ConnectedClient, WSClientMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
+import { createSessionAwareWorklistContext } from './worklist-session-context.js';
 import { broadcast, send, sendResult } from './ws-utils.js';
 
 /**
@@ -106,33 +105,14 @@ export function createMessageDispatcher(
 ): (ws: WebSocket, _client: ConnectedClient, msg: WSClientMessage) => Promise<void> {
   const { state, deps, routes, promptsCtx, codebaseIndexing, runLock, pendingConfirms } = opts;
 
-  function makeWorklistContext(): WorklistContext {
-    return {
-      context: {
-        todos: deps.context.todos,
-        meta: deps.context.meta as Record<string, unknown>,
-        session: deps.context.session ? { id: deps.context.session.id } : null,
-      },
-      send: (w, m) => send(w, m),
-      broadcast: (m) => broadcast(state.getClients(), m),
-      replaceTodos: (todos) => deps.context.state.replaceTodos(todos),
-      mutateTodos: async (todos) => {
-        const result = await todoTool.execute({ todos }, deps.context, {
-          signal: AbortSignal.timeout(30_000),
-        });
-        return {
-          todos: [...deps.context.todos],
-          ...(result.kanban_warnings ? { warnings: result.kanban_warnings } : {}),
-        };
-      },
-      mutateTaskStatus: async (id, status) =>
-        taskTool.execute({ action: 'status', id, status }, deps.context, {
-          signal: AbortSignal.timeout(30_000),
-        }),
-      mutatePlan: async (operation) =>
-        planTool.execute(operation, deps.context, { signal: AbortSignal.timeout(30_000) }),
-    };
-  }
+  const worklistSessionContext = createSessionAwareWorklistContext({
+    rootContext: deps.context,
+    peekAgent: deps.peekAgent,
+    getAgent: deps.getAgent,
+    sessionsDir: deps.wpaths.projectSessions,
+    send: (w, m) => send(w, m),
+    broadcast: (m) => broadcast(state.getClients(), m),
+  });
 
   function makeSkillsContext() {
     const projectRoot = state.getProjectRoot();
@@ -195,7 +175,7 @@ export function createMessageDispatcher(
   }
 
   const worklistRoutes = createWorklistRouteHandlers({
-    getContext: makeWorklistContext,
+    getContext: (message) => worklistSessionContext(message),
     allowMessage: (ws, msg) => ensureCurrentSession(ws, msg, msg.type),
   });
   const processRoutes: ProcessRouteHandlers = {
@@ -286,10 +266,11 @@ export function createMessageDispatcher(
     pendingConfirms,
     send,
     notifyAbort: (_ws, message) => broadcast(state.getClients(), message),
-    getMaxIterations: () =>
-      typeof deps.context.meta['maxIterations'] === 'number'
-        ? deps.context.meta['maxIterations']
-        : undefined,
+    getMaxIterations: (sessionId?: string) => {
+      const meta =
+        (sessionId ? deps.getAgent?.(sessionId)?.ctx.meta : undefined) ?? deps.context.meta;
+      return typeof meta['maxIterations'] === 'number' ? meta['maxIterations'] : undefined;
+    },
   });
   const completionRoutes: CompletionRouteHandlers = {
     request: (ws, msg) =>
@@ -438,9 +419,11 @@ export function createMessageDispatcher(
       getProjectRoot: state.getProjectRoot,
       getSkillsContext: makeSkillsContext,
       getPromptsContext: () => promptsCtx as never,
-      getDesignContext: () => ({
+      getDesignContext: (sessionId) => ({
         projectRoot: state.getProjectRoot(),
-        agentMeta: deps.context,
+        // The active kit is pinned on the picking tab's own context, the same
+        // way the system-prompt variant is.
+        agentMeta: (sessionId ? deps.getAgent?.(sessionId)?.ctx : undefined) ?? deps.context,
       }),
       onFileWritten: codebaseIndexing.onFileWritten,
     },

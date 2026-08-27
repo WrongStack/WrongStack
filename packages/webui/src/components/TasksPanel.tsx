@@ -1,8 +1,9 @@
-import { getWSClient } from '@/lib/ws-client';
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
 import { CheckCircle2, Circle, Clock, Pause, XCircle, RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
+import { useActiveSessionId } from '@/stores';
 
 interface TaskItem {
   id: string;
@@ -59,16 +60,29 @@ export function TasksPanel(): React.ReactElement | null {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const ws = getWSClient();
-  const offRef = useRef<(() => void) | null>(null);
+  // The task list belongs to the tab in front. Reading the lane pointer (not
+  // `session?.id`, which is null until the resumed tab's `session.start`
+  // lands) means the refetch below fires the moment the switch happens.
+  const sessionId = useActiveSessionId();
 
   useEffect(() => {
+    // Drop the previous tab's tasks immediately so a slow `tasks.get` round
+    // trip cannot briefly render one tab's list under another tab's name.
+    setTasks([]);
     ws.getTasks();
-    offRef.current = ws.on('tasks.updated', (msg: unknown) => {
-      const payload = (msg as { payload?: { tasks?: TaskItem[] } })?.payload;
+    const off = ws.on('tasks.updated', (msg: unknown) => {
+      const payload = (
+        msg as { payload?: { sessionId?: string; tasks?: TaskItem[] } }
+      )?.payload;
+      // The server stamps every worklist frame with the session it served.
+      // Untagged frames (older server, embedded host) stay compatible.
+      if (payload?.sessionId && sessionId && payload.sessionId !== sessionId) return;
       if (payload?.tasks) setTasks(payload.tasks);
     });
-    return () => { offRef.current?.(); };
-  }, [ws]);
+    return () => {
+      off();
+    };
+  }, [sessionId, ws]);
 
   const toggle = useCallback((key: string) => {
     setCollapsed((prev) => {
