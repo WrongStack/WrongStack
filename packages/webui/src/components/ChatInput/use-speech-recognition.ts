@@ -89,9 +89,17 @@ export function useSpeechRecognition({
     }
   }, [isListening, onTranscript]);
 
+  const stopListening = useCallback(() => {
+    recognitionRef.current?.abort?.();
+    recognitionRef.current?.stop?.();
+    recognitionRef.current = null;
+    setIsListening(false);
+  }, []);
+
   return {
     isListening,
     isSupported,
     toggleListening,
+    stopListening,
   };
 }

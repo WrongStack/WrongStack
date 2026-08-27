@@ -16,8 +16,8 @@
  * keeps the pre-session roster non-empty without ever crossing a tab.
  */
 export function agentBelongsToSession(
-  agentSessionId: string | undefined,
-  sessionId: string | undefined,
+  agentSessionId: string | null | undefined,
+  sessionId: string | null | undefined,
 ): boolean {
   return sessionId ? agentSessionId === sessionId : !agentSessionId;
 }

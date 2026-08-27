@@ -5,7 +5,7 @@ import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPa
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
-import { useFleetStore, useSessionLeaderId, useSessionStore, useUIStore } from '@/stores';
+import { useActiveSessionId, useFleetStore, useSessionLeaderId, useUIStore } from '@/stores';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
@@ -34,7 +34,7 @@ export function ChatView() {
   // ── Subagent chat focus (AgentTabs) ──────────────────────────────
   // Selection lives in ui-store so roster cards / detail sections can jump
   // straight into an agent's transcript.
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const focusedSubagentId = useUIStore((s) => s.subagentChatFocusId);
   const setSubagentChatFocus = useUIStore((s) => s.setSubagentChatFocus);
   const setSearchOpen = useUIStore((s) => s.setSearchOpen);
@@ -44,7 +44,7 @@ export function ChatView() {
     }
     return false;
   });
-  const leaderId = useSessionLeaderId(currentSessionId);
+  const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   const focusedAgent = useFleetStore((s) =>
     focusedSubagentId != null ? s.agents.get(focusedSubagentId) : undefined,
   );
@@ -65,9 +65,12 @@ export function ChatView() {
       shouldAutoClearSubagentFocus(focusedSubagentId, focusedAgentExists) ||
       (focusedSubagentId != null && focusedSubagentId === leaderId)
     ) {
-      setSubagentChatFocus(null);
+      // Name the tab this clear belongs to: an unscoped write would stamp
+      // `null` onto whichever session the flat pointer currently names,
+      // which during a tab switch can be the one we just restored.
+      setSubagentChatFocus(null, currentSessionId);
     }
-  }, [focusedSubagentId, focusedAgentExists, leaderId, setSubagentChatFocus]);
+  }, [focusedSubagentId, focusedAgentExists, leaderId, setSubagentChatFocus, currentSessionId]);
 
   // Entering a subagent tab parks the leader composer/overlay — close any open
   // search so the flag can't strand behind an inert pane.
@@ -199,6 +202,7 @@ export function ChatView() {
             </div>
           ) : (
             <VList
+              key={state.sessionId ?? '__unbound__'}
               ref={state.vlistRef}
               className="h-full"
               onScroll={state.handleScroll}

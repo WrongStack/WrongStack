@@ -393,6 +393,8 @@ interface UIState {
   closeInspector: () => void;
   setInspectorFocusedAgentId: (id: string | null) => void;
   setSubagentChatFocus: (id: string | null, sessionId?: string | null) => void;
+  /** Forget a closed tab's subagent focus so a reused id cannot inherit it. */
+  forgetSession: (sessionId: string) => void;
   toggleInspector: () => void;
 }
 
@@ -639,13 +641,35 @@ export const useUIStore = create<UIState>()(
       // foreground projection so existing readers keep working.
       setSubagentChatFocus: (id: string | null, sessionId?: string | null) =>
         set((state) => {
-          const key = sessionId ?? state.subagentChatFocusSessionId;
+          // '' is "no session" — an empty stamp must never become a map key
+          // (it would silently degrade a tab-scoped clear to the unscoped
+          // fallback and stamp null onto whatever the flat pointer names).
+          const requested = sessionId === '' ? null : sessionId;
+          const key = requested ?? state.subagentChatFocusSessionId;
           return {
             subagentChatFocusId: id,
             subagentChatFocusSessionId: key ?? null,
             subagentChatFocusBySession: key
               ? { ...state.subagentChatFocusBySession, [key]: id }
               : state.subagentChatFocusBySession,
+          };
+        }),
+      forgetSession: (sessionId) =>
+        set((state) => {
+          if (
+            !(sessionId in state.subagentChatFocusBySession) &&
+            state.subagentChatFocusSessionId !== sessionId
+          ) {
+            return state;
+          }
+          const next = { ...state.subagentChatFocusBySession };
+          delete next[sessionId];
+          const droppingFront = state.subagentChatFocusSessionId === sessionId;
+          return {
+            subagentChatFocusBySession: next,
+            ...(droppingFront
+              ? { subagentChatFocusId: null, subagentChatFocusSessionId: null }
+              : {}),
           };
         }),
       toggleInspector: () =>

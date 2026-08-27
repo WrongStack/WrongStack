@@ -65,6 +65,16 @@ export async function handleContentRoute(
   ws: WebSocket,
   message: WSClientMessage,
 ): Promise<boolean> {
+  /**
+   * Design context for the asking tab, carrying its session id so every
+   * response can be stamped and routed back to that tab's lane only. Without
+   * the echo, a late response from another tab overwrote this tab's kit view.
+   */
+  const designCtx = (): DesignContext => {
+    const sessionId = messageSessionId(message);
+    const base = ctx.getDesignContext(sessionId);
+    return sessionId ? { ...base, sessionId } : base;
+  };
   switch (message.type) {
     case 'files.list':
       await handleFilesList(ws, message, ctx.getProjectRoot());
@@ -144,28 +154,28 @@ export async function handleContentRoute(
       await handlePromptsJournal(ws, message, ctx.getProjectRoot());
       return true;
     case 'design.list':
-      await handleDesignList(ws, ctx.getDesignContext(messageSessionId(message)));
+      await handleDesignList(ws, designCtx());
       return true;
     case 'design.use':
-      await handleDesignUse(ws, ctx.getDesignContext(messageSessionId(message)), message);
+      await handleDesignUse(ws, designCtx(), message);
       return true;
     case 'design.state':
-      await handleDesignState(ws, ctx.getDesignContext(messageSessionId(message)));
+      await handleDesignState(ws, designCtx());
       return true;
     case 'design.set':
-      await handleDesignSet(ws, ctx.getDesignContext(messageSessionId(message)), message);
+      await handleDesignSet(ws, designCtx(), message);
       return true;
     case 'design.tune':
-      await handleDesignTune(ws, ctx.getDesignContext(messageSessionId(message)), message);
+      await handleDesignTune(ws, designCtx(), message);
       return true;
     case 'design.swap':
-      await handleDesignSwap(ws, ctx.getDesignContext(messageSessionId(message)), message);
+      await handleDesignSwap(ws, designCtx(), message);
       return true;
     case 'design.materialize':
-      await handleDesignMaterialize(ws, ctx.getDesignContext(messageSessionId(message)), message);
+      await handleDesignMaterialize(ws, designCtx(), message);
       return true;
     case 'design.verify':
-      await handleDesignVerify(ws, ctx.getDesignContext(messageSessionId(message)));
+      await handleDesignVerify(ws, designCtx());
       return true;
     default:
       return false;

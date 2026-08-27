@@ -16,9 +16,9 @@ import { cn } from '@/lib/utils';
 import { openMainView, showPanel } from '@/lib/view-navigation';
 import {
   selectSortedAgentList,
+  useActiveSessionId,
   useFleetStore,
   useSessionLeaderId,
-  useSessionStore,
   useUIStore,
 } from '@/stores';
 
@@ -40,10 +40,10 @@ export function AgentsPanel() {
   // reference while the underlying values are unchanged.
   const fleetList = useFleetStore(useShallow(selectSortedAgentList));
   const clearFinishedAgents = useFleetStore((s) => s.clearFinishedAgents);
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   // Leader and its name come from THIS tab — the process-wide pointer and
   // `selectLeaderName` name whichever session promoted a leader last.
-  const leaderId = useSessionLeaderId(currentSessionId);
+  const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   const leaderName = useFleetStore((s) => (leaderId ? s.agents.get(leaderId)?.name : undefined));
   const { t } = useAppTranslation();
 

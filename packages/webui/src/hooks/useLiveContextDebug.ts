@@ -1,5 +1,6 @@
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
+import { useActiveSessionId } from '@/stores';
 import type { WSServerMessage } from '@/types';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -112,17 +113,32 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
   // the loading indicator is shown. Survives across refreshes so an
   // in-flight refresh does not blank the UI.
   const hasSnapshotRef = useRef(false);
+  // Last (wsUrl, session) identity this hook served. Refreshes re-run the
+  // effect WITHOUT being an identity change — wiping the snapshot there
+  // blanked the panel on every refresh-button press.
+  const lastIdentityRef = useRef<string | null>(null);
 
   const refresh = useCallback(() => {
     setRefreshGen((g) => g + 1);
   }, []);
 
+  const sessionId = useActiveSessionId();
+
   useEffect(() => {
-    if (!active) {
+    // Clearing belongs to identity changes (socket or foreground tab), not
+    // to a cadence restart: a refreshGen bump must re-arm the subscription
+    // and re-request while the last snapshot stays on screen — that is the
+    // documented contract hasSnapshotRef exists to uphold.
+    const identity = `${wsUrl}|${sessionId ?? ''}`;
+    const identityChanged = lastIdentityRef.current !== identity;
+    lastIdentityRef.current = identity;
+    if (identityChanged) {
       hasSnapshotRef.current = false;
       setData(null);
       setError(null);
       setLastUpdatedAt(null);
+    }
+    if (!active) {
       setRefreshGen(0);
       return;
     }
@@ -217,7 +233,7 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
         document.removeEventListener('visibilitychange', onVisibility);
       }
     };
-  }, [active, wsUrl, refreshGen, intervalMs, pauseWhenHidden]);
+  }, [active, wsUrl, refreshGen, intervalMs, pauseWhenHidden, sessionId]);
 
   return { data, loading, error, refresh, lastUpdatedAt };
 }

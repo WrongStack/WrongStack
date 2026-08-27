@@ -9,9 +9,11 @@ const allowBoundary = createCompatibilityTrustBoundary({ denyCriticalRiskRemoteC
 // Mock the registry the handlers reach via dynamic `@wrongstack/tools` import.
 const registry = vi.hoisted(() => ({
   list: vi.fn(),
+  bySession: vi.fn(),
   get: vi.fn(),
   kill: vi.fn(),
   killAll: vi.fn(),
+  killSession: vi.fn(),
 }));
 vi.mock('@wrongstack/tools', () => ({ getProcessRegistry: () => registry }));
 
@@ -34,9 +36,11 @@ function createMockWs() {
 describe('process WebSocket handlers', () => {
   afterEach(() => {
     registry.list.mockReset();
+    registry.bySession.mockReset();
     registry.get.mockReset();
     registry.kill.mockReset();
     registry.killAll.mockReset();
+    registry.killSession.mockReset();
   });
 
   describe('handleProcessList', () => {
@@ -90,6 +94,34 @@ describe('process WebSocket handlers', () => {
       await handleProcessList(ws);
       expect(ws.sent[0]).toEqual({ type: 'process.list', payload: { processes: [] } });
     });
+
+    it('lists only the named session’s processes and stamps the reply', async () => {
+      registry.bySession.mockReturnValue([
+        {
+          pid: 10,
+          command: 'bash -c x',
+          name: 'bash',
+          startedAt: 5,
+          killed: false,
+          sessionId: 'sess_a',
+        },
+      ]);
+      const ws = createMockWs();
+      await handleProcessList(ws, { payload: { sessionId: 'sess_a' } });
+      expect(registry.bySession).toHaveBeenCalledWith('sess_a');
+      expect(registry.list).not.toHaveBeenCalled();
+      expect(ws.sent[0]?.payload.sessionId).toBe('sess_a');
+      expect(ws.sent[0]?.payload.processes).toEqual([
+        {
+          pid: 10,
+          command: 'bash -c x',
+          tool: 'bash',
+          startedAt: 5,
+          status: 'running',
+          sessionId: 'sess_a',
+        },
+      ]);
+    });
   });
 
   describe('handleProcessKill', () => {
@@ -115,6 +147,15 @@ describe('process WebSocket handlers', () => {
       await handleProcessKill(ws, { pid: 42 }, allowBoundary);
       expect(registry.kill).toHaveBeenCalledWith(42);
       expect(ws.sent[0]?.payload.success).toBe(true);
+    });
+
+    it('refuses to kill a process owned by another session', async () => {
+      registry.get.mockReturnValue({ protected: false, sessionId: 'sess_a' });
+      const ws = createMockWs();
+      await handleProcessKill(ws, { pid: 42, sessionId: 'sess_b' }, allowBoundary);
+      expect(registry.kill).not.toHaveBeenCalled();
+      expect(ws.sent[0]?.payload.success).toBe(false);
+      expect(String(ws.sent[0]?.payload.message)).toContain('another session');
     });
 
     it('routes termination through TrustBoundary before touching the registry', async () => {
@@ -144,6 +185,13 @@ describe('process WebSocket handlers', () => {
       await handleProcessKillAll(ws, allowBoundary);
       expect(registry.killAll).toHaveBeenCalledOnce();
       expect(ws.sent[0]?.payload.success).toBe(true);
+    });
+
+    it('kill-all for a named session does not touch the other tabs', async () => {
+      const ws = createMockWs();
+      await handleProcessKillAll(ws, allowBoundary, undefined, undefined, { sessionId: 'sess_b' });
+      expect(registry.killSession).toHaveBeenCalledWith('sess_b');
+      expect(registry.killAll).not.toHaveBeenCalled();
     });
   });
 });

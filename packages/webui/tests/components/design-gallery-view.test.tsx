@@ -33,6 +33,7 @@ vi.mock('@/hooks/useWebSocket', () => ({
 }));
 
 import { DesignGalleryView } from '../../src/components/DesignGalleryView.js';
+import { setActiveSessionLane } from '../../src/stores/session-lanes';
 
 function emit(type: string, payload: unknown) {
   act(() => handlers[type]?.({ type, payload }));
@@ -111,5 +112,42 @@ describe('DesignGalleryView', () => {
     expect(screen.getByText(/80% on-palette/)).toBeTruthy();
     emit('design.verify', { ok: true, score: 1, violationCount: 0, filesScanned: 5 });
     expect(screen.getByText(/clean/)).toBeTruthy();
+  });
+
+  it('drops a late design.list that belongs to another tab', () => {
+    act(() => setActiveSessionLane('tab-1'));
+    render(<DesignGalleryView />);
+    emit('design.list', {
+      sessionId: 'tab-1',
+      kits: [KIT],
+      activeKit: 'kit-one',
+      overrides: {},
+    });
+    expect(screen.getByText('Kit One')).toBeTruthy();
+
+    // Switch tabs: the pointer moves instantly and the gallery re-subscribes
+    // for tab-2. Tab-1's slow reply must not overwrite the view tab-2 holds.
+    act(() => setActiveSessionLane('tab-2'));
+    const other = { ...KIT, id: 'kit-two', name: 'Kit Two' };
+    emit('design.list', {
+      sessionId: 'tab-1',
+      kits: [other],
+      activeKit: 'kit-two',
+      overrides: {},
+    });
+    expect(screen.queryByText('Kit Two')).toBeNull();
+    // Untagged while a session is bound — a stale pre-session reply — dropped.
+    emit('design.list', { kits: [other], activeKit: 'kit-two', overrides: {} });
+    expect(screen.queryByText('Kit Two')).toBeNull();
+    // Tab-2's own reply lands.
+    emit('design.list', {
+      sessionId: 'tab-2',
+      kits: [other],
+      activeKit: 'kit-two',
+      overrides: {},
+    });
+    expect(screen.getByText('Kit Two')).toBeTruthy();
+
+    act(() => setActiveSessionLane(null));
   });
 });

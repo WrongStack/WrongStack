@@ -448,7 +448,10 @@ const actionMethods = {
   },
 
   deleteSession(this: WsClientActionHost, id: string) {
-    this.send({ type: 'session.delete', payload: { id } });
+    // Tagged with the session in front: when the delete targets the runtime's
+    // CURRENT session (a tab that just closed), the tag names the live
+    // session the server should move the runtime onto before deleting.
+    this.send({ type: 'session.delete', payload: this.withSession({ id }) });
   },
 
   renameSession(this: WsClientActionHost, id: string, name: string) {
@@ -488,7 +491,10 @@ const actionMethods = {
   ) {
     this.send({
       type: 'model.refine',
-      payload: {
+      // Stamped with the foreground tab: refinement must run in — and its
+      // result return to — the session that typed the prompt. The reply is
+      // only lane-routable when it echoes this stamp.
+      payload: this.withSession({
         text,
         ...(opts?.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
         ...(opts?.provider !== undefined ? { provider: opts.provider } : {}),
@@ -496,7 +502,7 @@ const actionMethods = {
         ...(opts?.previousRefined !== undefined ? { previousRefined: opts.previousRefined } : {}),
         ...(opts?.previousEnglish !== undefined ? { previousEnglish: opts.previousEnglish } : {}),
         ...(opts?.retryFeedback !== undefined ? { retryFeedback: opts.retryFeedback } : {}),
-      },
+      }),
     });
   },
 } satisfies WsClientActionMethods;

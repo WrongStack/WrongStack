@@ -76,6 +76,10 @@ function makeOptions(
     clearMessages: vi.fn(),
     client: {
       send: vi.fn(),
+      // Mirrors the real WS client's session-stamping wrapper: every
+      // session-sensitive slash command must carry the foreground tab's id.
+      withSession: <T extends Record<string, unknown>>(p: T) =>
+        ({ ...p, sessionId: 'sess-fg' }) as T,
       clearContext: vi.fn(),
       newSession: vi.fn(),
       compactContext: vi.fn(),
@@ -354,12 +358,12 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
     mocks.setCurrentViewUI.mockClear();
   });
 
-  it('/autonomy <mode> sends autonomy.switch', () => {
+  it('/autonomy <mode> sends autonomy.switch stamped with the foreground session', () => {
     const opts = makeOptions({ raw: '/autonomy auto' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'autonomy.switch',
-      payload: { mode: 'auto' },
+      payload: { mode: 'auto', sessionId: 'sess-fg' },
     });
   });
 
@@ -396,12 +400,12 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
     expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
   });
 
-  it('/mode <name> sends mode.switch', () => {
+  it('/mode <name> sends mode.switch stamped with the foreground session', () => {
     const opts = makeOptions({ raw: '/mode plan' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'mode.switch',
-      payload: { id: 'plan' },
+      payload: { id: 'plan', sessionId: 'sess-fg' },
     });
   });
 
@@ -654,7 +658,7 @@ describe('runChatSlashCommand — /autonomy', () => {
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'autonomy.switch',
-      payload: { mode },
+      payload: { mode, sessionId: 'sess-fg' },
     });
   });
 
@@ -681,7 +685,7 @@ describe('runChatSlashCommand — /autonomy', () => {
     runChatSlashCommand(opts);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'autonomy.switch',
-      payload: { mode: 'eternal' },
+      payload: { mode: 'eternal', sessionId: 'sess-fg' },
     });
   });
 });

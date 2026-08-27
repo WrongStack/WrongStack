@@ -53,6 +53,33 @@ export interface DesignContext {
   projectRoot: string;
   /** Live agent context whose `meta.designStudio` we read/pin. Optional. */
   agentMeta?: { meta: Record<string, unknown> } | undefined;
+  /**
+   * The session that sent the request, when it stamped one. Echoed on every
+   * response so the gallery can drop a late reply that belongs to another
+   * tab — without it, tab A's slow `design.list` overwrote tab B's kit view.
+   */
+  sessionId?: string | undefined;
+}
+
+/**
+ * Send a design response, stamped with the asking tab's session when the
+ * request carried one. Untagged requests (no session bound yet) stay
+ * untagged, matching the request shape the client sent.
+ */
+function reply(
+  ws: WebSocket,
+  ctx: DesignContext,
+  msg: { type: string; payload: Record<string, unknown> },
+): void {
+  const sessionId = ctx.sessionId;
+  if (!sessionId) {
+    send(ws, msg);
+    return;
+  }
+  send(ws, {
+    ...msg,
+    payload: { ...msg.payload, sessionId },
+  });
 }
 
 const FOUNDATIONS_ID = '_foundations';
@@ -100,9 +127,9 @@ async function buildListPayload(ctx: DesignContext): Promise<{
 
 export async function handleDesignList(ws: WebSocket, ctx: DesignContext): Promise<void> {
   try {
-    send(ws, { type: 'design.list', payload: await buildListPayload(ctx) });
+    reply(ws, ctx, { type: 'design.list', payload: await buildListPayload(ctx) });
   } catch (err) {
-    send(ws, {
+    reply(ws, ctx, {
       type: 'design.list',
       payload: { kits: [], activeKit: null, stack: null, error: String(err) },
     });
@@ -111,7 +138,7 @@ export async function handleDesignList(ws: WebSocket, ctx: DesignContext): Promi
 
 export async function handleDesignState(ws: WebSocket, ctx: DesignContext): Promise<void> {
   const state = ctx.agentMeta ? getDesignState(ctx.agentMeta) : undefined;
-  send(ws, {
+  reply(ws, ctx, {
     type: 'design.state',
     payload: {
       activeKit: state?.activeKit ?? null,
@@ -129,14 +156,14 @@ export async function handleDesignUse(
   const payload = (msg.payload ?? {}) as { kit?: unknown; stack?: unknown };
   const kitId = typeof payload.kit === 'string' ? payload.kit.trim() : '';
   if (!kitId) {
-    send(ws, { type: 'design.use', payload: { ok: false, error: 'No kit id provided' } });
+    reply(ws, ctx, { type: 'design.use', payload: { ok: false, error: 'No kit id provided' } });
     return;
   }
   try {
     const loader = getDesignKitLoader(ctx.projectRoot);
     const kit = await loader.find(kitId);
     if (!kit) {
-      send(ws, { type: 'design.use', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
+      reply(ws, ctx, { type: 'design.use', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
       return;
     }
     const stackArg = typeof payload.stack === 'string' ? payload.stack : undefined;
@@ -158,7 +185,7 @@ export async function handleDesignUse(
     const body = await loader.readBody(kit.id, stack);
     const rawTokens = await loader.readTokens(kit.id);
     const tokens = rawTokens ? applyTokenOverrides(rawTokens, overrides) : rawTokens;
-    send(ws, {
+    reply(ws, ctx, {
       type: 'design.use',
       payload: {
         ok: true,
@@ -173,7 +200,7 @@ export async function handleDesignUse(
       },
     });
   } catch (err) {
-    send(ws, { type: 'design.use', payload: { ok: false, kit: kitId, error: String(err) } });
+    reply(ws, ctx, { type: 'design.use', payload: { ok: false, kit: kitId, error: String(err) } });
   }
 }
 
@@ -185,19 +212,19 @@ export async function handleDesignSet(
 ): Promise<void> {
   const patch = readOverrides((msg.payload as { overrides?: unknown })?.overrides);
   if (Object.keys(patch).length === 0) {
-    send(ws, { type: 'design.set', payload: { ok: false, error: 'No overrides provided' } });
+    reply(ws, ctx, { type: 'design.set', payload: { ok: false, error: 'No overrides provided' } });
     return;
   }
   try {
     const merged = await recordOverrides(ctx.projectRoot, patch, new Date().toISOString());
     if (!merged) {
-      send(ws, { type: 'design.set', payload: { ok: false, error: 'No active kit' } });
+      reply(ws, ctx, { type: 'design.set', payload: { ok: false, error: 'No active kit' } });
       return;
     }
     if (ctx.agentMeta) setDesignOverrides(ctx.agentMeta, merged);
-    send(ws, { type: 'design.set', payload: { ok: true, overrides: merged } });
+    reply(ws, ctx, { type: 'design.set', payload: { ok: true, overrides: merged } });
   } catch (err) {
-    send(ws, { type: 'design.set', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.set', payload: { ok: false, error: String(err) } });
   }
 }
 
@@ -211,19 +238,19 @@ export async function handleDesignTune(
   const tune = (raw && typeof raw === 'object' ? raw : {}) as SemanticTune;
   const patch = resolveSemanticTune(tune);
   if (Object.keys(patch).length === 0) {
-    send(ws, { type: 'design.tune', payload: { ok: false, error: 'No recognized knobs' } });
+    reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: 'No recognized knobs' } });
     return;
   }
   try {
     const merged = await recordOverrides(ctx.projectRoot, patch, new Date().toISOString());
     if (!merged) {
-      send(ws, { type: 'design.tune', payload: { ok: false, error: 'No active kit' } });
+      reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: 'No active kit' } });
       return;
     }
     if (ctx.agentMeta) setDesignOverrides(ctx.agentMeta, merged);
-    send(ws, { type: 'design.tune', payload: { ok: true, resolved: patch, overrides: merged } });
+    reply(ws, ctx, { type: 'design.tune', payload: { ok: true, resolved: patch, overrides: merged } });
   } catch (err) {
-    send(ws, { type: 'design.tune', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.tune', payload: { ok: false, error: String(err) } });
   }
 }
 
@@ -236,14 +263,14 @@ export async function handleDesignSwap(
   const payload = (msg.payload ?? {}) as { kit?: unknown; stack?: unknown };
   const kitId = typeof payload.kit === 'string' ? payload.kit.trim() : '';
   if (!kitId) {
-    send(ws, { type: 'design.swap', payload: { ok: false, error: 'No kit id provided' } });
+    reply(ws, ctx, { type: 'design.swap', payload: { ok: false, error: 'No kit id provided' } });
     return;
   }
   try {
     const loader = getDesignKitLoader(ctx.projectRoot);
     const kit = await loader.find(kitId);
     if (!kit) {
-      send(ws, { type: 'design.swap', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
+      reply(ws, ctx, { type: 'design.swap', payload: { ok: false, kit: kitId, error: 'Kit not found' } });
       return;
     }
     const stackArg = typeof payload.stack === 'string' ? payload.stack : undefined;
@@ -255,7 +282,7 @@ export async function handleDesignSwap(
     await recordKitChoice(ctx.projectRoot, kit.id, stack, 'webui-swap', new Date().toISOString());
     const body = await loader.readBody(kit.id, stack);
     const tokens = await loader.readTokens(kit.id);
-    send(ws, {
+    reply(ws, ctx, {
       type: 'design.swap',
       payload: {
         ok: true,
@@ -270,7 +297,7 @@ export async function handleDesignSwap(
       },
     });
   } catch (err) {
-    send(ws, { type: 'design.swap', payload: { ok: false, kit: kitId, error: String(err) } });
+    reply(ws, ctx, { type: 'design.swap', payload: { ok: false, kit: kitId, error: String(err) } });
   }
 }
 
@@ -284,7 +311,7 @@ export async function handleDesignMaterialize(
   try {
     const active = await loadActiveKit(ctx.projectRoot);
     if (!active) {
-      send(ws, { type: 'design.materialize', payload: { ok: false, error: 'No active kit' } });
+      reply(ws, ctx, { type: 'design.materialize', payload: { ok: false, error: 'No active kit' } });
       return;
     }
     const loader = getDesignKitLoader(ctx.projectRoot);
@@ -297,7 +324,7 @@ export async function handleDesignMaterialize(
           : 'web';
     const raw = await loader.readTokens(active.kit);
     if (!raw) {
-      send(ws, { type: 'design.materialize', payload: { ok: false, error: 'Kit has no tokens' } });
+      reply(ws, ctx, { type: 'design.materialize', payload: { ok: false, error: 'Kit has no tokens' } });
       return;
     }
     const tokens = applyTokenOverrides(raw, active.overrides);
@@ -315,12 +342,12 @@ export async function handleDesignMaterialize(
     const abs = await resolveMaterializeTarget(result.path, ctx.projectRoot);
     await fs.mkdir(path.dirname(abs), { recursive: true });
     await fs.writeFile(abs, result.content);
-    send(ws, {
+    reply(ws, ctx, {
       type: 'design.materialize',
       payload: { ok: true, path: result.path, format: result.format, stack },
     });
   } catch (err) {
-    send(ws, { type: 'design.materialize', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.materialize', payload: { ok: false, error: String(err) } });
   }
 }
 
@@ -329,18 +356,18 @@ export async function handleDesignVerify(ws: WebSocket, ctx: DesignContext): Pro
   try {
     const active = await loadActiveKit(ctx.projectRoot);
     if (!active) {
-      send(ws, { type: 'design.verify', payload: { ok: false, error: 'No active kit' } });
+      reply(ws, ctx, { type: 'design.verify', payload: { ok: false, error: 'No active kit' } });
       return;
     }
     const loader = getDesignKitLoader(ctx.projectRoot);
     const raw = await loader.readTokens(active.kit);
     if (!raw) {
-      send(ws, { type: 'design.verify', payload: { ok: false, error: 'Kit has no tokens' } });
+      reply(ws, ctx, { type: 'design.verify', payload: { ok: false, error: 'Kit has no tokens' } });
       return;
     }
     const tokens = applyTokenOverrides(raw, active.overrides);
     const report = await runDesignVerify(ctx.projectRoot, tokens);
-    send(ws, {
+    reply(ws, ctx, {
       type: 'design.verify',
       payload: {
         ok: true,
@@ -352,6 +379,6 @@ export async function handleDesignVerify(ws: WebSocket, ctx: DesignContext): Pro
       },
     });
   } catch (err) {
-    send(ws, { type: 'design.verify', payload: { ok: false, error: String(err) } });
+    reply(ws, ctx, { type: 'design.verify', payload: { ok: false, error: String(err) } });
   }
 }

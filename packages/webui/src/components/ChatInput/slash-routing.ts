@@ -38,6 +38,14 @@ type SlashRoutingClientMessage = Extract<
 
 interface SlashRoutingClient {
   send?: (message: SlashRoutingClientMessage) => void;
+  /**
+   * Stamp a payload with the foreground session's id, when one is bound.
+   * Session-sensitive commands (/autonomy, /mode) MUST route through this —
+   * a raw `send` left them unstamped, so the runtime applied them to
+   * whichever tab it currently considered active instead of the tab the
+   * command was typed in.
+   */
+  withSession?: <T extends Record<string, unknown>>(payload: T) => T;
   clearContext?: () => void;
   newSession?: () => void;
   compactContext?: (aggressive?: boolean) => void;
@@ -209,7 +217,12 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
         });
         return true;
       }
-      client?.send?.({ type: 'autonomy.switch', payload: { mode } });
+      client?.send?.({
+        type: 'autonomy.switch',
+        // Stamped with the foreground tab: autonomy is per-session, and an
+        // unstamped send let tab 2's /autonomy reconfigure tab 1.
+        payload: client.withSession?.({ mode }) ?? { mode },
+      });
       addMessage({ role: 'assistant', content: `🤖 Autonomy mode → **${mode}**.` });
       return true;
     }
@@ -269,7 +282,11 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
         });
         return true;
       }
-      client?.send?.({ type: 'mode.switch', payload: { id } });
+      client?.send?.({
+        type: 'mode.switch',
+        // Same stamping rule as /autonomy: the mode belongs to this tab.
+        payload: client.withSession?.({ id }) ?? { id },
+      });
       addMessage({ role: 'assistant', content: `Mode → **${id}**.` });
       return true;
     }

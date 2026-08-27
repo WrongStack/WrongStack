@@ -4,7 +4,7 @@ import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { compareAgentsByActivity, tallyAgents } from '@/lib/agent-status';
 import { cn } from '@/lib/utils';
-import { type SubagentView, useFleetStore, useSessionStore, useUIStore } from '@/stores';
+import { type SubagentView, useActiveSessionId, useFleetStore, useUIStore } from '@/stores';
 import { fmtCost, fmtElapsed as fmtDuration } from './dashboard-primitives.js';
 
 const STATUS_CONFIG: Record<
@@ -45,7 +45,7 @@ const STATUS_CONFIG: Record<
 export function FleetPanel({ className }: { className?: string }): React.ReactElement | null {
   const { t } = useAppTranslation();
   const agents = useFleetStore((s) => s.agents);
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const list = useMemo(() => {

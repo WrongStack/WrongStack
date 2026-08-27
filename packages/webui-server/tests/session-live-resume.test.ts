@@ -166,6 +166,46 @@ describe('session.subscribe', () => {
     ]);
   });
 
+  it('hard-caps the declared set at four, keeping the acting session', async () => {
+    const h = subscribeHarness();
+    const client = h.clients.get(ws);
+    if (!client) throw new Error('client missing');
+    client.sessionId = 'sess_acting';
+
+    // Five distinct ids declared while the acting session is NOT among them:
+    // the set must not grow past the four-tab ceiling, and the acting
+    // session — the tab in front — must survive (the last DECLARED id gives
+    // up its slot instead).
+    await h.handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_1', 'sess_2', 'sess_3', 'sess_4', 'sess_5'] },
+    });
+
+    const subscribed = client.sessionIds;
+    expect(subscribed?.size).toBe(4);
+    expect(subscribed?.has('sess_acting')).toBe(true);
+    expect(subscribed?.has('sess_1')).toBe(true);
+    expect(subscribed?.has('sess_2')).toBe(true);
+    expect(subscribed?.has('sess_3')).toBe(true);
+    expect(subscribed?.has('sess_4')).toBe(false);
+  });
+
+  it('does not evict anything when the acting session is already declared', async () => {
+    const h = subscribeHarness();
+    const client = h.clients.get(ws);
+    if (!client) throw new Error('client missing');
+    client.sessionId = 'sess_1';
+
+    await h.handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_1', 'sess_2', 'sess_3', 'sess_4'] },
+    });
+
+    expect(client.sessionIds).toEqual(
+      new Set(['sess_1', 'sess_2', 'sess_3', 'sess_4']),
+    );
+  });
+
   it('reports the sessions that just lost their last viewer', async () => {
     const h = subscribeHarness();
     await h.handlers.subscribeSessions(ws, {

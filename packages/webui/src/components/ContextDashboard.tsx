@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import {
   type SubagentView,
+  useActiveSessionId,
   useConfigStore,
   useFleetStore,
   useSessionStore,
@@ -891,7 +892,7 @@ export function ContextDashboard() {
   // Refetch when the foreground moves, not only when the socket changes: the
   // panel is not unmounted between tabs, so without this it kept showing the
   // previous tab's breakdown until the user pressed refresh.
-  const debugSessionId = useSessionStore((s) => s.session?.id);
+  const debugSessionId = useActiveSessionId();
   useEffect(() => {
     setDebugData(null);
     fetchDebug();

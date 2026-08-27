@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
 import { getWSClient } from '@/lib/ws-client';
 import {
+  useActiveSessionId,
   useChatStore,
   useConfigStore,
   useHistoryStore,
@@ -43,7 +44,7 @@ export function useChatViewState() {
     })),
   );
   const session = useSessionStore((s) => s.session);
-  const sessionId = session?.id;
+  const sessionId = useActiveSessionId() ?? session?.id;
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
   const setSessionNickname = useUIStore((s) => s.setSessionNickname);
   const sessionTitle = session?.title;
@@ -103,8 +104,21 @@ export function useChatViewState() {
   const handleAutonomyChange = useCallback(
     (mode: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel') => {
       useLocalPrefs.getState().set({ autonomy: mode });
-      const ws = getWSClient();
-      ws?.send?.({ type: 'autonomy.switch', payload: { mode } });
+      try {
+        const ws = getWSClient();
+        // Autonomy is per-tab. An unstamped send applied the picker's choice to
+        // whichever session the runtime last activated, not the tab on screen.
+        if (typeof ws.switchAutonomy === 'function') {
+          ws.switchAutonomy(mode);
+          return;
+        }
+        ws.send?.({
+          type: 'autonomy.switch',
+          payload: ws.withSession?.({ mode }) ?? { mode },
+        });
+      } catch {
+        // No socket yet — the next prefs.get on tab switch will resync.
+      }
     },
     [],
   );
@@ -112,9 +126,7 @@ export function useChatViewState() {
   const [processOpen, setProcessOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
   const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
-  const [inputCollapsed, setInputCollapsed] = useState(
-    messages.length > 0 && autoCollapseInput,
-  );
+  const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0 && autoCollapseInput);
   const prevLoading = useRef(isLoading);
   const prevHadMessages = useRef(messages.length > 0);
   const prevSessionId = useRef(sessionId);
@@ -123,8 +135,8 @@ export function useChatViewState() {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
 
-  const activeMemoryCount = useMemoryInjectorTraceStore((s) =>
-    Object.values(s.contextMemories).filter((m) => m.state !== 'exited').length,
+  const activeMemoryCount = useMemoryInjectorTraceStore(
+    (s) => Object.values(s.contextMemories).filter((m) => m.state !== 'exited').length,
   );
 
   useEffect(() => {
@@ -233,6 +245,16 @@ export function useChatViewState() {
     setPinnedToBottom(true);
     setUnreadCount(0);
     lastSeenCount.current = useChatStore.getState().messages.length;
+    // Overlays are one global surface. Left standing they would operate on
+    // the tab we just switched TO — compacting, killing processes, or
+    // rewriting context that belongs to a different conversation.
+    setProcessOpen(false);
+    setCheckpointOpen(false);
+    setMemoryPanelOpen(false);
+    setBreakdownOpen(false);
+    setEditorOpen(false);
+    setSwitcherOpen(false);
+    setRenamingTitle(false);
     requestAnimationFrame(() => {
       vlistRef.current?.scrollToIndex(childCountRef.current - 1, { align: 'end' });
     });

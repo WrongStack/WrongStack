@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
-import { useSessionStore } from '@/stores';
+import { useActiveSessionId, useSessionStore } from '@/stores';
 
 interface TodoItem {
   id: string;
@@ -37,15 +37,21 @@ const STATUS_ORDER: Record<TodoItem['status'], number> = {
 export function TodosPanel(): React.ReactElement | null {
   const { t } = useAppTranslation();
   const todos = useSessionStore((state) => state.todos) as TodoItem[];
-  const sessionId = useSessionStore((state) => state.session?.id);
+  const sessionId = useActiveSessionId();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const ws = getWSClient();
 
   useEffect(() => {
+    setCollapsedSections(new Set());
     if (sessionId) ws.send({ type: 'todos.get', payload: { sessionId } });
   }, [sessionId, ws]);
 
-  const handleRemove = useCallback((id: string) => { ws.removeTodo(id); }, [ws]);
+  const handleRemove = useCallback(
+    (id: string) => {
+      ws.removeTodo(id);
+    },
+    [ws],
+  );
 
   const handleToggle = useCallback(
     (t: TodoItem) => {
@@ -92,11 +98,7 @@ export function TodosPanel(): React.ReactElement | null {
         className={cn(
           'relative px-3 py-1.5 flex items-start gap-2 text-[13px] group transition-colors',
           isToggleable && 'hover:bg-accent/40',
-          isInProgress
-            ? 'bg-warning/8'
-            : isCompleted
-              ? 'bg-success/5'
-              : 'bg-background',
+          isInProgress ? 'bg-warning/8' : isCompleted ? 'bg-success/5' : 'bg-background',
         )}
       >
         {isToggleable && (
@@ -179,9 +181,7 @@ export function TodosPanel(): React.ReactElement | null {
 
       {/* Pending */}
       {pending.length > 0 && (
-        <div className="border-b border-border/30 last:border-b-0">
-          {pending.map(renderItem)}
-        </div>
+        <div className="border-b border-border/30 last:border-b-0">{pending.map(renderItem)}</div>
       )}
 
       {/* Completed — collapsible section */}
@@ -193,7 +193,8 @@ export function TodosPanel(): React.ReactElement | null {
             className="w-full px-3 py-1 flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="tabular">
-              {completedCollapsed ? '▶' : '▼'} {t('activity:todos.completedCount', { count: completed.length })}
+              {completedCollapsed ? '▶' : '▼'}{' '}
+              {t('activity:todos.completedCount', { count: completed.length })}
             </span>
           </button>
           {!completedCollapsed && completed.map(renderItem)}

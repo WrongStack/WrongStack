@@ -61,11 +61,19 @@ export interface ConversationOperationsContext {
   busyMessage?: string;
 }
 
+/**
+ * Read the session a client message targets. Empty-string counts as "no
+ * session": the server stamps `sessionId: ''` when its context has none, and
+ * that must never be treated as a real target id (an empty target would
+ * otherwise sail through `?? current` fallbacks and produce broadcasts every
+ * client drops).
+ */
 function requestedSessionId(msg: WSClientMessage): string | undefined {
   const payload = msg.payload;
   return payload &&
     typeof payload === 'object' &&
-    typeof (payload as { sessionId?: unknown }).sessionId === 'string'
+    typeof (payload as { sessionId?: unknown }).sessionId === 'string' &&
+    (payload as { sessionId: string }).sessionId.length > 0
     ? (payload as { sessionId: string }).sessionId
     : undefined;
 }
@@ -100,10 +108,16 @@ export function createConversationOperations(
     topicAdvice: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'topic.advice')) return;
       const payload = (msg.payload ?? {}) as { requestId?: unknown; prompt?: unknown };
+      // The asking tab's session, not the runtime's foreground: a background
+      // tab's topic check used to be answered from the foreground agent's
+      // history/provider and stamped as the foreground session, so tab 2's
+      // advice landed in (and leaked from) tab 1.
+      const originSessionId = requestedSessionId(msg) ?? ctx.getSessionId();
       if (typeof payload.requestId !== 'string' || typeof payload.prompt !== 'string') {
         ctx.send(ws, {
           type: 'topic.advice_result',
           payload: sessionPayload({
+            sessionId: originSessionId,
             requestId: typeof payload.requestId === 'string' ? payload.requestId : '',
             suggestNewContext: false,
             confidence: 0,
@@ -113,7 +127,7 @@ export function createConversationOperations(
         });
         return;
       }
-      const agent = ctx.getAgent();
+      const agent = ctx.getAgent(originSessionId);
       const configuredMax = agent.ctx.meta['effectiveMaxContext'];
       const maxContext =
         typeof configuredMax === 'number'
@@ -129,7 +143,11 @@ export function createConversationOperations(
       });
       ctx.send(ws, {
         type: 'topic.advice_result',
-        payload: sessionPayload({ requestId: payload.requestId, ...advice }),
+        payload: sessionPayload({
+          sessionId: originSessionId,
+          requestId: payload.requestId,
+          ...advice,
+        }),
       });
     },
     userMessage: async (ws, msg) => {

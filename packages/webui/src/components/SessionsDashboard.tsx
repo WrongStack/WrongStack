@@ -27,7 +27,7 @@ import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { useConfigStore, useHistoryStore, useSessionStore } from '@/stores';
+import { useActiveSessionId, useConfigStore, useHistoryStore } from '@/stores';
 import { SessionList } from './SidePanel/SessionList';
 import { Pagination } from './ui/pagination';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -172,7 +172,7 @@ function fmtTimeAgo(iso: string): string {
 
 function HistoryWorkspace() {
   const wsConnected = useConfigStore((state) => state.wsConnected);
-  const activeSessionId = useSessionStore((state) => state.session?.id);
+  const activeSessionId = useActiveSessionId();
   const { entries, loading, error } = useHistoryStore(
     useShallow((state) => ({
       entries: state.entries,

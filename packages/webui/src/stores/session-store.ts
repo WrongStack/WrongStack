@@ -261,6 +261,13 @@ function setUpdateInfo(info: {
  * later had to be remembered in three places or it leaked.
  */
 function switchSession(newSessionId: string): void {
+  // The pickers read the flat pref fields. Those fields describe whichever
+  // session `bindSession` last pointed at, so a tab switch that moved the
+  // lane pointer but left the pref pointer behind showed tab 1's YOLO /
+  // autonomy / context strategy on tab 2 until a prefs.get round-trip
+  // happened to correct it — and a click in that window wrote tab 2's
+  // choice into tab 1's override map.
+  useLocalPrefs.getState().bindSession(newSessionId);
   setActiveSessionLane(newSessionId);
   const lane = useSessionLanes.getState().lanes[newSessionId];
   const provider = lane?.session?.provider;

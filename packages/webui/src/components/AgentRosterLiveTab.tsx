@@ -15,7 +15,7 @@ import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { useFleetStore, useSessionLeaderId, useSessionStore, useUIStore } from '@/stores';
+import { useActiveSessionId, useFleetStore, useSessionLeaderId, useUIStore } from '@/stores';
 
 const STATUS_META: Record<
   string,
@@ -88,10 +88,11 @@ function fmtCost(n: number | undefined | null): string {
 export function LiveFleetTab({ nowTick }: { nowTick: number }) {
   const { t } = useAppTranslation();
   const fleetAgents = useFleetStore((s) => s.agents);
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   // This tab's leader. The process-wide pointer put the crown on whichever
   // session promoted a leader last, in every tab's roster at once.
-  const leaderId = useSessionLeaderId(currentSessionId);
+  // `useActiveSessionId` yields null pre-session; the hook takes undefined.
+  const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'running' | 'done' | 'failed'>('all');
 

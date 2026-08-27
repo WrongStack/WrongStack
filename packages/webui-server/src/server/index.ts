@@ -581,6 +581,7 @@ export {
 export {
   broadcast,
   buildWebUIAccessUrl,
+  clientWantsSession,
   envFlag,
   errMessage,
   generateAuthToken,

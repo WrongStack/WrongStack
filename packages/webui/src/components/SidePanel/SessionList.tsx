@@ -19,12 +19,13 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { confirmModal } from '@/components/ConfirmModal';
+import { toast } from '@/components/Toaster';
 import { Pagination } from '@/components/ui/pagination';
 import type { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SessionHistoryEntry } from '@/stores';
-import { useSessionStore, useSessionTabStore, useUIStore } from '@/stores';
+import { useActiveSessionId, useSessionTabStore, useUIStore } from '@/stores';
 
 export type HistoryFilter = 'all' | 'favorites' | 'active' | 'completed' | 'issues';
 export type HistorySort = 'recent' | 'tokens' | 'activity';
@@ -428,12 +429,17 @@ export function SessionList({
     [resumeSession],
   );
 
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const emptySessionIds = useMemo(() => {
-    const protectedIds = new Set(openTabIds);
+    // Deliberately NOT protecting open tabs: a never-started session with a
+    // tab is exactly what this button exists to remove, and closing the tab
+    // is part of the removal. Only the foreground session stays protected —
+    // it is the session the server runtime sits on, and keeping it guarantees
+    // the strip keeps at least the active tab.
+    const protectedIds = new Set<string>();
     if (currentSessionId) protectedIds.add(currentSessionId);
     return getEmptySessionIds(historyEntries, protectedIds);
-  }, [historyEntries, currentSessionId, openTabIds]);
+  }, [historyEntries, currentSessionId]);
   const visibleEntries = useMemo(
     () =>
       filterAndSortSessions(historyEntries, {
@@ -472,9 +478,12 @@ export function SessionList({
       confirmLabel: t('common:action.delete'),
       danger: true,
     });
-    if (ok) {
-      for (const id of emptySessionIds) deleteSession(id);
-    }
+    if (!ok) return;
+    // Close every tab bound to a doomed session first (keeping at least one
+    // open), then delete what the server can delete: a session this page
+    // still displays would be refused.
+    const removable = useSessionTabStore.getState().closeTabsForSessions(emptySessionIds);
+    for (const id of removable) deleteSession(id);
   }, [deleteSession, emptySessionIds, t]);
 
   const filterOptions: Array<{ id: HistoryFilter; label: string }> = [
@@ -869,7 +878,26 @@ export function SessionList({
                                     confirmLabel: t('common:action.delete'),
                                     danger: true,
                                   });
-                                  if (ok) deleteSession(entry.id);
+                                  if (!ok) return;
+                                  // Close the deleted session's tab first so
+                                  // the server allows the deletion; when the
+                                  // strip would drop to zero the store keeps
+                                  // one tab and reports the session as not
+                                  // removable — never delete what must stay.
+                                  const removable =
+                                    useSessionTabStore.getState().closeTabsForSessions([
+                                      entry.id,
+                                    ]);
+                                  if (!removable.includes(entry.id)) {
+                                    toast.info(
+                                      t('activity:sessions.deleteKeptLastTab', {
+                                        defaultValue:
+                                          'Session not deleted — at least one tab must stay open.',
+                                      }),
+                                    );
+                                    return;
+                                  }
+                                  deleteSession(entry.id);
                                 }}
                                 className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                                 title={t('activity:sessions.deleteSessionTitle')}

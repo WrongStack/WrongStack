@@ -9,9 +9,11 @@ const allowBoundary = createCompatibilityTrustBoundary({ denyCriticalRiskRemoteC
 // Mock the registry the handlers reach via dynamic `@wrongstack/tools` import.
 const registry = vi.hoisted(() => ({
   list: vi.fn(),
+  bySession: vi.fn(),
   get: vi.fn(),
   kill: vi.fn(),
   killAll: vi.fn(),
+  killSession: vi.fn(),
 }));
 vi.mock('@wrongstack/tools', () => ({ getProcessRegistry: () => registry }));
 
@@ -34,9 +36,11 @@ function createMockWs() {
 describe('process WebSocket handlers', () => {
   afterEach(() => {
     registry.list.mockReset();
+    registry.bySession.mockReset();
     registry.get.mockReset();
     registry.kill.mockReset();
     registry.killAll.mockReset();
+    registry.killSession.mockReset();
   });
 
   describe('handleProcessList', () => {

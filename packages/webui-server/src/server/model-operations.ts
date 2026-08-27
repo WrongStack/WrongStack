@@ -23,6 +23,8 @@ import type { WSServerMessage } from './types.js';
 import { validateModelSwitchPayload } from './ws-payload-validation.js';
 
 export interface ModelRefinePayload {
+  /** The asking tab's session, stamped by `withSession` on the client. */
+  sessionId?: string | undefined;
   text: string;
   timeoutMs?: number | undefined;
   provider?: string | undefined;
@@ -166,10 +168,24 @@ export function createModelOperations(context: ModelOperationsContext) {
 
   async function refineModel(ws: WebSocket, payload: ModelRefinePayload): Promise<void> {
     const text = payload.text;
+    // Echo the asking tab: refinement runs against that session's model and
+    // history, and the reply must be lane-routable — an untagged
+    // model.refine_result is dropped by the origin-scoped client handler,
+    // silently discarding pre-queue refinement results.
+    const stamp =
+      typeof payload.sessionId === 'string' && payload.sessionId.length > 0
+        ? { sessionId: payload.sessionId }
+        : {};
     if (!text?.trim()) {
       context.send(ws, {
         type: 'model.refine_result',
-        payload: { refined: '', english: '', error: 'Empty text', errorKind: 'provider_error' },
+        payload: {
+          ...stamp,
+          refined: '',
+          english: '',
+          error: 'Empty text',
+          errorKind: 'provider_error',
+        },
       });
       return;
     }
@@ -193,6 +209,7 @@ export function createModelOperations(context: ModelOperationsContext) {
         context.send(ws, {
           type: 'model.refine_result',
           payload: {
+            ...stamp,
             refined: text,
             english: text,
             error: `Cannot use ${payload.provider}/${payload.model}: ${toErrorMessage(error)}`,
@@ -277,6 +294,7 @@ export function createModelOperations(context: ModelOperationsContext) {
         context.send(ws, {
           type: 'model.refine_result',
           payload: {
+            ...stamp,
             refined: result.refined,
             english: result.english,
             refinedWith: { provider: providerId, model },
@@ -309,6 +327,7 @@ export function createModelOperations(context: ModelOperationsContext) {
       context.send(ws, {
         type: 'model.refine_result',
         payload: {
+          ...stamp,
           refined: text,
           english: text,
           error: toErrorMessage(error),

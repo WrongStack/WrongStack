@@ -1,10 +1,11 @@
-import { cn } from '@/lib/utils';
-import { useAppTranslation } from '@/i18n';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { useConfigStore } from '@/stores';
 import { Shield, Square, Terminal } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
+import { cn } from '@/lib/utils';
+import { useActiveSessionId, useConfigStore } from '@/stores';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 
 // Processes are bounded (shell spawns), show all without pagination.
 
@@ -18,6 +19,7 @@ interface TrackedProcess {
   status: 'running' | 'exited' | 'killed';
   protected?: boolean | undefined;
   background?: boolean | undefined;
+  sessionId?: string | undefined;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -35,6 +37,7 @@ export function ProcessMonitor({
 }: ProcessMonitorProps): React.ReactElement | null {
   const { t } = useAppTranslation();
   const [processes, setProcesses] = useState<TrackedProcess[]>([]);
+  const sessionId = useActiveSessionId();
 
   const ws = useWebSocket();
   // Reactive connection state: `ws.client` is a stable singleton, so without
@@ -44,27 +47,42 @@ export function ProcessMonitor({
   const offRef = useRef<(() => void) | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Poll the process registry via WS while open
+  // Poll THIS tab's processes. The registry is process-wide; without a
+  // session stamp the overlay listed (and kill-all would terminate) every
+  // tab's children as if they belonged to the one on screen.
   useEffect(() => {
     if (!open || !wsConnected || !ws.client?.isConnected) return;
+    setProcesses([]);
 
-    ws.client.send?.({ type: 'process.list' });
+    const request = () => {
+      const payload = ws.client.withSession?.({}) ?? (sessionId ? { sessionId } : {});
+      ws.client.send?.({ type: 'process.list', payload });
+    };
+
+    request();
 
     offRef.current =
       ws.client.on?.('process.list', (msg: unknown) => {
-        const payload = (msg as { payload?: { processes?: TrackedProcess[] } })?.payload;
-        if (payload?.processes) setProcesses(payload.processes);
+        const payload = (
+          msg as {
+            payload?: { processes?: TrackedProcess[]; sessionId?: string };
+          }
+        )?.payload;
+        if (!payload?.processes) return;
+        // Fail-closed through the SHARED predicate: while a session is bound
+        // only this tab's tagged replies are ours (untagged is stale/pre-
+        // session); before a session is bound, only the untagged replies are.
+        if (!agentBelongsToSession(payload.sessionId, sessionId)) return;
+        setProcesses(payload.processes);
       }) ?? null;
 
-    pollRef.current = setInterval(() => {
-      ws.client.send?.({ type: 'process.list' });
-    }, 3000);
+    pollRef.current = setInterval(request, 3000);
 
     return () => {
       offRef.current?.();
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [open, wsConnected, ws.client]);
+  }, [open, wsConnected, ws.client, sessionId]);
 
   const running = processes.filter((p) => p.status === 'running');
 
@@ -81,7 +99,8 @@ export function ProcessMonitor({
       ) {
         return;
       }
-      ws.client.send?.({ type: 'process.kill', payload: { pid: proc.pid } });
+      const payload = ws.client.withSession?.({ pid: proc.pid }) ?? { pid: proc.pid };
+      ws.client.send?.({ type: 'process.kill', payload });
     },
     [t, ws.client],
   );
@@ -97,13 +116,22 @@ export function ProcessMonitor({
     ) {
       return;
     }
-    ws.client.send?.({ type: 'process.killAll' });
-  }, [running.length, t, ws.client]);
+    const payload = ws.client.withSession?.({}) ?? (sessionId ? { sessionId } : {});
+    ws.client.send?.({ type: 'process.killAll', payload });
+  }, [running.length, t, ws.client, sessionId]);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent
-        className={cn('max-w-lg gap-0 p-0 overflow-hidden flex flex-col max-h-[75dvh] pt-[10dvh]', className)}
+        className={cn(
+          'max-w-lg gap-0 p-0 overflow-hidden flex flex-col max-h-[75dvh] pt-[10dvh]',
+          className,
+        )}
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('activity:process.heading')}</DialogTitle>
@@ -119,7 +147,10 @@ export function ProcessMonitor({
             <div>
               <h2 className="text-sm font-semibold">{t('activity:process.heading')}</h2>
               <span className="text-[10px] text-muted-foreground tabular-nums">
-                {t('activity:process.subtitle', { active: running.length, total: processes.length })}
+                {t('activity:process.subtitle', {
+                  active: running.length,
+                  total: processes.length,
+                })}
               </span>
             </div>
           </div>

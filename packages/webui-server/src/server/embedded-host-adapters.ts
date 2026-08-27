@@ -139,6 +139,14 @@ export interface EmbeddedConversationContext extends EmbeddedHostTransport {
    * single-agent behaviour for hosts that genuinely have one session.
    */
   getAgent?: ((sessionId?: string | undefined) => Agent) | undefined;
+  /**
+   * Non-creating registry lookup for session-ownership checks. `getAgent`
+   * CREATES on read, so using it to ask "does this host serve session X?"
+   * materialised an agent for every id a client ever typed; `peekAgent`
+   * answers the same question without side effects. Optional: hosts without
+   * a registry omit it and keep the single-session behaviour.
+   */
+  peekAgent?: ((sessionId?: string | undefined) => Agent | undefined) | undefined;
   /** Session-keyed abort controllers — one active run per session. */
   abortControllers: Map<string, AbortController>;
   pendingConfirms: Map<string, PendingConfirm>;
@@ -162,12 +170,17 @@ export function createEmbeddedConversationRoutes(
     // ever ONE of them. Without this, every request from a background tab was
     // refused with "Request targeted session X, but this WebUI runtime is
     // currently on Y" — correct for a single-session host, fatal for four.
-    // A session this host has an agent for is a session it can serve.
-    // NOT `getAgent(id) !== undefined`: the registry's `get` CREATES on read,
-    // so asking the question materialised an agent for every id a client ever
-    // typed — including stale ones from a refreshed browser — and each one
-    // could evict a live tab's agent.
-    hasSession: () => ctx.getAgent !== undefined,
+    // A session this host can SERVE is one its registry already knows, or the
+    // leader's own. `peekAgent` is non-creating, so the question never
+    // materialises an agent (the registry's `get` CREATES on read — the old
+    // `() => true` admitted any non-empty string a client typed). Hosts
+    // without a registry keep the previous "getAgent present ⇒ serve any
+    // requested session" behaviour, which single-session hosts never reach
+    // (they pass no getAgent and keep the mismatch refusal).
+    hasSession: (id: string) =>
+      ctx.peekAgent
+        ? ctx.peekAgent(id) !== undefined || id === ctx.agent.ctx.session?.id
+        : ctx.getAgent !== undefined,
     runControl: {
       begin: (_ws, sessionId) => {
         if (ctx.abortControllers.has(sessionId)) return undefined;
@@ -235,6 +248,13 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
    * resuming tab 2 rewrote the context tab 1 was running in.
    */
   getAgent?: ((sessionId?: string | undefined) => Agent) | undefined;
+  /**
+   * Non-creating registry lookup for session-ownership checks — same reason
+   * as `EmbeddedConversationContext.peekAgent`: asking "can this host serve
+   * session X?" through the creating `getAgent` materialised agents for ids
+   * no client ever opened.
+   */
+  peekAgent?: ((sessionId?: string | undefined) => Agent | undefined) | undefined;
   /**
    * The host's own "which tab is in front" pointer, and its setter.
    *
@@ -315,8 +335,18 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     isRunActive: ctx.isRunActive,
     ...(ctx.getAgent ? { getAgent: ctx.getAgent } : {}),
     // Same reason as the conversation routes: a request naming a background
-    // tab's session is legitimate here, not a mismatch to refuse.
-    ...(ctx.getAgent ? { hasSession: (_id: string) => true } : {}),
+    // tab's session is legitimate here, not a mismatch to refuse — but only
+    // when the registry actually knows that session (peek is non-creating) or
+    // it is the leader's own. The unconditional `() => true` admitted any
+    // non-empty string a client typed.
+    ...(ctx.getAgent
+      ? {
+          hasSession: (id: string) =>
+            ctx.peekAgent
+              ? ctx.peekAgent(id) !== undefined || id === actx.session?.id
+              : true,
+        }
+      : {}),
     ...(ctx.isSessionLive ? { isSessionLive: ctx.isSessionLive } : {}),
     ...(ctx.onSessionsUndisplayed ? { onSessionsUndisplayed: ctx.onSessionsUndisplayed } : {}),
     // Structural: the handlers only read `sessionId`/`sessionIds` off these

@@ -71,4 +71,39 @@ describe('design messages carry the tab that sent them', () => {
 
     expect(h.asked).toEqual([undefined]);
   });
+
+  it('echoes the asking tab in the response so the gallery can lane-route it', async () => {
+    const h = harness();
+    const sent: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const capturingWs = {
+      readyState: 1,
+      send: (data: string) => {
+        sent.push(JSON.parse(data) as { type: string; payload: Record<string, unknown> });
+      },
+    } as never;
+
+    await handleContentRoute(h.ctx, capturingWs, {
+      type: 'design.list',
+      payload: { sessionId: 'tab-3' },
+    } as never);
+
+    const reply = sent.find((m) => m.type === 'design.list');
+    expect(reply?.payload.sessionId).toBe('tab-3');
+  });
+
+  it('stays untagged when the request carried no session', async () => {
+    const h = harness();
+    const sent: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const capturingWs = {
+      readyState: 1,
+      send: (data: string) => {
+        sent.push(JSON.parse(data) as { type: string; payload: Record<string, unknown> });
+      },
+    } as never;
+
+    await handleContentRoute(h.ctx, capturingWs, { type: 'design.list' } as never);
+
+    const reply = sent.find((m) => m.type === 'design.list');
+    expect(reply?.payload.sessionId).toBeUndefined();
+  });
 });

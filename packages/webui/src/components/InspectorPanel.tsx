@@ -27,11 +27,11 @@ import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
 import type { FleetTimelineEvent, InspectorTab, SubagentView } from '@/stores';
 import {
+  useActiveSessionId,
   useCouncilLogStore,
   useFleetStore,
   useKanbanStore,
   useSessionFleetTotals,
-  useSessionStore,
   useSideEffectStore,
   useUIStore,
 } from '@/stores';
@@ -82,7 +82,7 @@ export function InspectorTrigger(): React.ReactElement {
   const { t } = useAppTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const activeActivity = useUIStore((s) => s.activeActivity);
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const agentsSidebarActive = sidebarOpen && activeActivity === 'agents';
   const runningCount = useFleetStore(
     (s) =>
@@ -126,7 +126,7 @@ export function InspectorPanel() {
   const setInspectorTab = useUIStore((s) => s.setInspectorTab);
   const inspectorFocusedAgentId = useUIStore((s) => s.inspectorFocusedAgentId);
   const setInspectorFocusedAgentId = useUIStore((s) => s.setInspectorFocusedAgentId);
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const { t } = useAppTranslation();
 
   // Fleet-wide signals (subscribed narrowly so tab switches / typing in the
@@ -135,7 +135,7 @@ export function InspectorPanel() {
   // Leader and token totals for THIS tab. The process-wide `leaderId` /
   // `fleetTokensIn/Out` are the sum of every open tab's subagents, so the
   // header used to bill four sessions' tokens to whichever one was on screen.
-  const sessionFleet = useSessionFleetTotals(currentSessionId);
+  const sessionFleet = useSessionFleetTotals(currentSessionId ?? undefined);
   const leaderId = sessionFleet.leaderId;
   const fleetTokensIn = sessionFleet.tokensIn;
   const fleetTokensOut = sessionFleet.tokensOut;

@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import {
+  useActiveSessionId,
   useChatStore,
   useConfigStore,
   useFleetStore,
@@ -39,6 +40,7 @@ import {
   useSessionStore,
   useUIStore,
 } from '@/stores';
+import { agentBelongsToSession } from '@/lib/agent-session';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { fmtTok } from '../ChatView/utils';
@@ -229,10 +231,18 @@ export function SessionPanel() {
     return () => clearInterval(t);
   }, [startedAt]);
 
+  const currentSessionId = useActiveSessionId() ?? session?.id;
   const runningAgents = useMemo(
-    () => Array.from(fleetAgents.values()).filter((a) => a.status === 'running').length,
-    [fleetAgents],
+    () =>
+      Array.from(fleetAgents.values()).filter(
+        (a) => a.status === 'running' && agentBelongsToSession(a.sessionId, currentSessionId),
+      ).length,
+    [fleetAgents, currentSessionId],
   );
+
+  useEffect(() => {
+    lastAutonomyRef.current = localPrefs.autonomy === 'off' ? 'auto' : localPrefs.autonomy;
+  }, [currentSessionId]);
 
   const pinnedRows = pinnedIds
     .map((id) => messages.find((m) => m.id === id))

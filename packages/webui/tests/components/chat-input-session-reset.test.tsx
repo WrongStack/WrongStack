@@ -113,6 +113,9 @@ vi.mock('@/components/ChatInput/use-paste-drop', () => ({
     addImageFiles: vi.fn(),
     removeImage: vi.fn(),
     clearPendingImages: mocks.clearPendingImages,
+    setPendingImages: (images: typeof mocks.testImage[]) => {
+      mocks.pendingImagesRef.current = images;
+    },
     setPasteHint: mocks.setPasteHintSpy,
   }),
 }));

@@ -73,7 +73,13 @@ export function foregroundSessionId(): string | null {
  */
 export function isActiveSessionMessage(msg: WSServerMessage): boolean {
   const sessionId = (msg.payload as { sessionId?: string | undefined } | undefined)?.sessionId;
-  const activeId = useSessionStore.getState().session?.id;
+  // The LANE POINTER, not the SessionInfo record: the record is null from the
+  // moment a tab is activated until its `session.start` lands, and the old
+  // `!activeId` allowance let ANOTHER tab's tagged event through exactly in
+  // that window — the fresh-tab bleed. The pointer answers from the instant
+  // the tab changes; pre-session (pointer unbound) the boot-time allowance
+  // still applies, same as `foregroundSessionId`.
+  const activeId = foregroundSessionId();
   if (sessionId === '') return false;
   return !sessionId || !activeId || sessionId === activeId;
 }
@@ -177,20 +183,9 @@ export function sessionFor(msg: WSServerMessage): SessionLaneActions | null {
 }
 
 /**
- * Session-scoped variant kept for the handful of non-chat surfaces that still
- * key off "the tab in front" (panels that render only foreground state).
- * Chat/transcript writers must use `chatFor` instead.
+ * Session-scoped variant… (removed) — see git history. No consumer ever wired
+ * to this guard; the live foreground gate is `isActiveSessionMessage` above.
  */
-export function isChatMessageForActiveSession(msg: WSServerMessage): boolean {
-  const sessionId = messageSessionId(msg);
-  const activeId = useSessionStore.getState().session?.id;
-  if (!activeId) return true;
-  if (!sessionId) {
-    warnUntaggedChatEvent(msg.type);
-    return false;
-  }
-  return sessionId === activeId;
-}
 
 const warnedUntaggedTypes = new Set<string>();
 function warnUntaggedChatEvent(type: string): void {

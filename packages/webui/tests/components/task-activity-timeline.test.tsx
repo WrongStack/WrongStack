@@ -64,6 +64,7 @@ const events: KanbanEvent[] = [
     boardId: 'board-1',
     taskId: 'task-2',
     type: 'task.created',
+    sessionId: 'session-42',
     ts: '2026-07-16T08:09:00.000Z',
   },
 ];

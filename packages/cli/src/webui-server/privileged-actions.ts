@@ -39,9 +39,10 @@ export async function authorizeCliWebUIAction(
 
 export function createCliProcessRoutes(boundary: TrustBoundary): ProcessRouteHandlers {
   return {
-    list: (ws) => handleProcessList(ws),
+    list: (ws, message) => handleProcessList(ws, message),
     kill: (ws, message) =>
       handleProcessKill(ws, message.payload, boundary, undefined, { backend: 'cli-embedded' }),
-    killAll: (ws) => handleProcessKillAll(ws, boundary, undefined, { backend: 'cli-embedded' }),
+    killAll: (ws, message) =>
+      handleProcessKillAll(ws, boundary, undefined, { backend: 'cli-embedded' }, message.payload),
   };
 }

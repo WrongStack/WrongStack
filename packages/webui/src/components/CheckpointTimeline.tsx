@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
-import { useConfigStore, useSessionStore } from '@/stores';
+import { useActiveSessionId, useConfigStore } from '@/stores';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from './ui/dialog';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export function CheckpointTimeline({
   // offers must belong to the tab on screen: unaddressed, it listed the
   // checkpoints of whichever session the runtime was pointing at, and a reply
   // meant for another tab overwrote the list under the user's cursor.
-  const sessionId = useSessionStore((s) => s.session?.id);
+  const sessionId = useActiveSessionId();
   useEffect(() => {
     if (!open || !wsConnected || !ws.client?.isConnected) return;
     setCheckpoints([]);

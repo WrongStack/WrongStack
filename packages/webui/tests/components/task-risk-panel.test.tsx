@@ -3,6 +3,7 @@ import type { KanbanBoard, KanbanEvent, KanbanTask } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import { analyzeTaskRisk, TaskRiskPanel } from '../../src/components/TaskRiskPanel.js';
 
+
 const dependency: KanbanTask = {
   id: 'dependency-1',
   title: 'Pending dependency',
@@ -52,7 +53,12 @@ const board: KanbanBoard = {
   version: 1,
 };
 
-const sparseEvents: KanbanEvent[] = [
+// Deliberately unattributed: the panel scores "how much of this task's history
+// can be traced back to an actor and a session", and this fixture is the
+// legacy shape it has to warn about. The cast is the point — well-typed events
+// always carry a session now, but events already on disk from before the
+// invariant do not, and the panel still has to read them.
+const sparseEvents = [
   {
     id: 'created',
     boardId: board.id,
@@ -76,7 +82,7 @@ const sparseEvents: KanbanEvent[] = [
     ts: '2026-07-17T09:00:00.000Z',
     after: { status: 'completed' },
   },
-];
+] as unknown as KanbanEvent[];
 
 describe('TaskRiskPanel', () => {
   it('detects operational contradictions and incomplete audit evidence', () => {

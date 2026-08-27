@@ -124,6 +124,7 @@ export function ChatInput({
     isListening,
     isSupported: isSpeechSupported,
     toggleListening: handleToggleSpeech,
+    stopListening: stopSpeech,
   } = useSpeechRecognition({
     onTranscript: (text) => {
       setInput((prev) => {
@@ -170,6 +171,7 @@ export function ChatInput({
     addImageFiles,
     removeImage,
     clearPendingImages,
+    setPendingImages,
     setPasteHint,
   } = usePasteDrop({
     input,
@@ -228,10 +230,7 @@ export function ChatInput({
     if (sessionId && sessionDraftMap.has(sessionId)) {
       const saved = sessionDraftMap.get(sessionId)!;
       setInput(saved.input);
-      clearPendingImages();
-      if (saved.images.length > 0) {
-        useUIStore.getState().setDraftImages(saved.images);
-      }
+      setPendingImages(saved.images);
       clearRefs();
       for (const r of saved.refs) {
         useFileReferenceStore.getState().addRef(r);
@@ -245,6 +244,7 @@ export function ChatInput({
     stickyDraftRef.current = null;
     setAtMention(null);
     setPasteHint(null);
+    stopSpeech();
     topicCheckAbortRef.current?.abort();
     topicCheckAbortRef.current = null;
     topicCheckBusyRef.current = false;
@@ -388,7 +388,7 @@ export function ChatInput({
   }, [slashSuggestions.length, slashIndex]);
 
   const _clearTextarea = useCallback(() => {
-    const curId = useSessionStore.getState().session?.id;
+    const curId = sessionId ?? useSessionStore.getState().session?.id;
     if (curId) sessionDraftMap.delete(curId);
     const ta = textareaRef.current;
     if (ta) {
@@ -399,7 +399,7 @@ export function ChatInput({
         ta.focus();
       }
     }
-  }, [isLoading]);
+  }, [isLoading, sessionId]);
 
   const submitWith = useCallback(
     async (mode: QueueMode) => {

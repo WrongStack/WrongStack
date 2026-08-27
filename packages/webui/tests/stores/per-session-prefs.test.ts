@@ -110,6 +110,10 @@ describe('per-session preference overrides', () => {
 
     useLocalPrefs.getState().forgetSession('tab-4');
     expect(useLocalPrefs.getState().bySession['tab-4']).toBeUndefined();
+    // The next bind (what activate does for the remaining slot) must not
+    // park the forgotten tab back into the map.
+    useLocalPrefs.getState().bindSession('tab-1');
+    expect(useLocalPrefs.getState().bySession['tab-4']).toBeUndefined();
   });
 
   it('parks the foreground tab’s live values on the way out', () => {

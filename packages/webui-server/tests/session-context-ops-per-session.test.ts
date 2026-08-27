@@ -111,6 +111,15 @@ describe('context operations act on the requesting tab', () => {
     // …including its token counter, which is the session's own.
     expect(h.contexts.sess_bg.tokenCounter.reset).toHaveBeenCalled();
     expect(h.contexts.sess_front.tokenCounter.reset).not.toHaveBeenCalled();
+    // The reset announcement is stamped with the session that was CLEARED.
+    // Built from the root context it named the foreground session, so the
+    // background lane zeroed itself while every tab hydrated the wrong state.
+    const reset = h.broadcasts.find((m) => m.type === 'session.start')?.payload as {
+      sessionId?: string;
+      reset?: boolean;
+    };
+    expect(reset?.sessionId).toBe('sess_bg');
+    expect(reset?.reset).toBe(true);
   });
 
   it('answers context.debug from the named session and stamps it', async () => {
@@ -162,6 +171,45 @@ describe('context operations act on the requesting tab', () => {
       sessionId?: string;
     };
     expect(changed?.sessionId).toBe('sess_bg');
+  });
+
+  it('opens the context editor on the named session and stamps the snapshot', async () => {
+    const h = harness();
+
+    await h.handlers.openContextEditor(ws, {
+      type: 'context.editor.open',
+      payload: { sessionId: 'sess_bg' },
+    });
+
+    const snap = h.sent.find((m) => m.type === 'context.editor.snapshot')?.payload as {
+      sessionId?: string;
+      messages?: unknown[];
+    };
+    expect(snap?.sessionId).toBe('sess_bg');
+    expect(snap?.messages).toHaveLength(7);
+  });
+
+  it('answers an empty-history tab with a snapshot, not silence', async () => {
+    const empty = mkContext('sess_empty', 0);
+    const h = harness();
+    (h as { contexts: Record<string, ReturnType<typeof mkContext>> }).contexts.sess_empty = empty;
+
+    await h.handlers.openContextEditor(ws, {
+      type: 'context.editor.open',
+      payload: { sessionId: 'sess_empty' },
+    });
+
+    const snap = h.sent.find((m) => m.type === 'context.editor.snapshot')?.payload as {
+      sessionId?: string;
+      messages?: unknown[];
+      readonlyContext?: { totalTokens?: number };
+    };
+    // Empty conversation is still a snapshot — system prompt + tools. The
+    // overlay used to stay on "Loading context snapshot…" because nothing
+    // arrived for a tab with no history.
+    expect(snap?.sessionId).toBe('sess_empty');
+    expect(snap?.messages).toEqual([]);
+    expect(snap?.readonlyContext).toBeDefined();
   });
 
   it('lists the modes with the named session’s active one', async () => {

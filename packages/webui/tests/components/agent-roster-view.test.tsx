@@ -38,6 +38,8 @@ vi.mock('@/stores', () => {
     useUIStore: makeStore({ setSidebarOpen: () => {}, setCurrentView: () => {} }),
     useChatStore: makeStore({ addMessage: () => {}, setLoading: () => {} }),
     useSessionStore: makeStore({ session: { id: 'test-session' } }),
+    // LiveFleetTab selects the foreground tab through the lane-pointer hook.
+    useActiveSessionId: () => 'test-session',
     // Leader is now resolved per session; the roster reads it through
     // this hook instead of the process-wide `leaderId`.
     useSessionLeaderId: () => undefined,

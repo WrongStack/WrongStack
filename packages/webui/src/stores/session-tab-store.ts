@@ -20,11 +20,13 @@
 
 import { create } from 'zustand';
 import { toast } from '@/components/Toaster';
+import { getWSClient } from '@/lib/ws-client';
 import { disposeStreakState } from './auto-submit-streak';
 import { chatLane, disposeLane, hasLane, MAX_LANES, readLane, setActiveLane } from './chat-lanes';
 import { useCouncilLogStore } from './council-log-store';
 import { useFallbackStore } from './fallback-store';
 import { useFleetStore } from './fleet-store';
+import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
 import { useMemoryInjectorTraceStore } from './memory-injector-store';
 import {
@@ -104,6 +106,14 @@ interface SessionTabState {
   setOpenTabIds: (ids: string[]) => void;
   openTab: (sessionId: string, options?: { resumeSession?: (id: string) => void }) => OpenTabResult;
   closeTab: (sessionId: string) => void;
+  /**
+   * Close every open tab bound to one of `sessionIds` so the caller can ask
+   * the server to delete those records (a session a connection still
+   * declares is refused). Returns the subset that is safe to delete:
+   * sessions without a busy tab, minus the one tab kept so the strip never
+   * drops to zero.
+   */
+  closeTabsForSessions: (sessionIds: string[]) => string[];
   markSeen: (sessionId: string) => void;
   setAttention: (sessionId: string, needsAttention: boolean) => void;
 }
@@ -169,6 +179,12 @@ function activate(sessionId: string) {
   // header even counts them. Empty is honest; stale is not.
   useMemoryInjectorTraceStore.getState().clear();
   useCouncilLogStore.getState().clear();
+  // Slash-opened overlays (/queue, /kill, /cron) are one surface. Left open
+  // they would operate on the tab we switched to — dequeueing, killing
+  // processes — so they come down with the tab that opened them.
+  ui.setQueuePanelOpen(false);
+  ui.setProcessMonitorOpen(false);
+  ui.setCronJobsOpen(false);
   syncUrl(sessionId);
 }
 
@@ -189,6 +205,25 @@ function isTabDisposable(sessionId: string): boolean {
 }
 
 /**
+ * A session is "never started" when nothing ever happened in its tab AND the
+ * history record confirms it holds no content (no tokens, no messages).
+ * Closing the tab bound to such a session also deletes the record — it is by
+ * definition empty clutter.
+ *
+ * The record is the authority: a session resumed into a tab and closed before
+ * its replay lands still has tokens > 0 in the history list and is preserved,
+ * which is exactly the race an in-memory-only check would lose.
+ */
+export function isNeverStartedSession(sessionId: string): boolean {
+  if (isTabBusy(sessionId)) return false;
+  const lane = readLane(sessionId);
+  if (lane.messages.length > 0 || lane.queue.length > 0) return false;
+  const entry = useHistoryStore.getState().entries.find((e) => e.id === sessionId);
+  if (!entry) return false; // not listed → nothing proves it is empty
+  return entry.tokenTotal === 0 && (entry.messageCount ?? 0) === 0;
+}
+
+/**
  * Everything one slot owns, freed in one place.
  *
  * `closeTab` and `setOpenTabIds` both retire a tab, and they used to free
@@ -202,6 +237,7 @@ function releaseTab(sessionId: string): void {
   disposeSessionLane(sessionId);
   useLocalPrefs.getState().forgetSession(sessionId);
   useSystemPromptStore.getState().dropSession(sessionId);
+  useUIStore.getState().forgetSession(sessionId);
   disposeStreakState(sessionId);
 }
 
@@ -232,6 +268,26 @@ function repointForegroundAfterRelease(remaining: string[]): void {
   // conversation.
   useUIStore.getState().hideConfirm();
   useFallbackStore.getState().clear();
+}
+
+/**
+ * Declare the open set to the server NOW, not on the next React commit.
+ *
+ * A deletion sent right after a tab close must not overtake the subscription
+ * update on the socket: the server refuses to delete a session a connection
+ * still declares, and the effect in `useSessionSubscription` that re-declares
+ * runs only after paint. `subscribeSessions` dedupes, so the later effect
+ * call for the same set is a no-op.
+ */
+function declareOpenTabsNow(openTabIds: string[]): void {
+  const active = foregroundTabId();
+  const ids = active && !openTabIds.includes(active) ? [...openTabIds, active] : openTabIds;
+  if (ids.length === 0) return;
+  try {
+    getWSClient().subscribeSessions(ids);
+  } catch {
+    // No socket yet — the reconnect path re-declares.
+  }
 }
 
 export const useSessionTabStore = create<SessionTabState>((set, get) => ({
@@ -331,6 +387,12 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     const tabs = get().openTabIds;
     const next = tabs.filter((id) => id !== sessionId);
 
+    // A tab closed before its session ever started leaves an empty record on
+    // disk. Delete it with the close — computed BEFORE the release empties
+    // the lane, and sent AFTER the re-declared subscription below so the
+    // server no longer counts the session as displayed by this connection.
+    const deleteRecord = isNeverStartedSession(sessionId);
+
     // Free the lane BEFORE re-pointing, so nothing can land in a slot that no
     // longer exists.
     releaseTab(sessionId);
@@ -339,7 +401,46 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     const { [sessionId]: _att, ...attention } = get().attention;
     set({ openTabIds: next, lastSeenCounts, attention });
     writeStoredTabs(next);
+    // Re-point FIRST: the delete below is tagged with whichever session is in
+    // front, and the server needs that tag (the session it should move the
+    // runtime onto) to allow deleting its own current session.
     repointForegroundAfterRelease(next);
+    declareOpenTabsNow(next);
+    if (deleteRecord) {
+      try {
+        getWSClient().deleteSession(sessionId);
+      } catch {
+        // best-effort — the record stays and the clear-empty flow catches it.
+      }
+    }
+  },
+
+  closeTabsForSessions: (sessionIds) => {
+    // The server refuses to delete a session with an active run, so a busy
+    // session is neither closable nor deletable here — its tab stays visible
+    // and its run stays observable.
+    const removable = new Set(sessionIds.filter((id) => !isTabBusy(id)));
+    const tabs = [...get().openTabIds];
+    if (removable.size === 0) return [];
+
+    if (tabs.length === 0) return [...removable];
+
+    let keep = tabs.filter((id) => !removable.has(id));
+    if (keep.length === 0) {
+      // Every slot belongs to a doomed session. The strip never drops to
+      // zero: keep exactly one tab — the foreground when possible — and
+      // report its session as NOT removable so the caller skips deleting it.
+      const active = foregroundTabId();
+      const spared = active && removable.has(active) ? active : tabs[tabs.length - 1];
+      keep = [spared];
+      removable.delete(spared);
+    }
+
+    get().setOpenTabIds(keep);
+    // Declare the shrunken set before the caller's deletes go out, so the
+    // deletions cannot be refused as "still displayed by this connection".
+    declareOpenTabsNow(keep);
+    return [...removable];
   },
 
   markSeen: (sessionId) =>

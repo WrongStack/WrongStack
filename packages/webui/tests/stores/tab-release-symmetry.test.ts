@@ -9,6 +9,13 @@ import {
   useSessionLanes,
 } from '../../src/stores/session-lanes';
 import { useSessionTabStore } from '../../src/stores/session-tab-store';
+import type { ChatMessage } from '../../src/stores/types.js';
+import { useUIStore } from '../../src/stores/ui-store';
+
+/** A lane with content in it, so the tab is not disposable. */
+function busyMessage(id: string): ChatMessage {
+  return { id, role: 'user', content: 'x', timestamp: 0 };
+}
 
 // The streak/loop-guard state is module-private (a Map keyed by session), so
 // the observable fact is that teardown asks for it to be dropped.
@@ -38,6 +45,14 @@ beforeEach(() => {
   useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
   useLocalPrefs.setState({ bySession: {}, activeSessionId: null });
+  useUIStore.setState({
+    subagentChatFocusId: null,
+    subagentChatFocusSessionId: null,
+    subagentChatFocusBySession: {},
+    queuePanelOpen: false,
+    processMonitorOpen: false,
+    cronJobsOpen: false,
+  });
   vi.mocked(disposeStreakState).mockClear();
 });
 
@@ -46,6 +61,7 @@ describe('retiring a tab frees the same state through either door', () => {
     openTabs(['tab-a', 'tab-b']);
     useLocalPrefs.getState().bindSession('tab-b');
     useLocalPrefs.getState().set({ yolo: true });
+    useUIStore.getState().setSubagentChatFocus('agent-b', 'tab-b');
     useSessionTabStore.setState({
       lastSeenCounts: { 'tab-b': 3 },
       attention: { 'tab-b': true },
@@ -61,6 +77,7 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(disposeStreakState).toHaveBeenCalledWith('tab-b');
     expect(useSessionTabStore.getState().lastSeenCounts['tab-b']).toBeUndefined();
     expect(useSessionTabStore.getState().attention['tab-b']).toBeUndefined();
+    expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
   });
 
   it('closeTab leaves nothing behind either', () => {
@@ -72,6 +89,7 @@ describe('retiring a tab frees the same state through either door', () => {
 
     expect(hasLane('tab-b')).toBe(false);
     expect(useLocalPrefs.getState().bySession['tab-b']).toBeUndefined();
+    expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
   });
 
   it('recycling a full strip slot (openTab replaced_empty_tab) frees the same state', () => {
@@ -81,9 +99,9 @@ describe('retiring a tab frees the same state through either door', () => {
     useChatLanes.setState((s) => ({
       lanes: {
         ...s.lanes,
-        'tab-a': { ...s.lanes['tab-a']!, messages: [{ role: 'user', content: 'x' }] },
-        'tab-b': { ...s.lanes['tab-b']!, messages: [{ role: 'user', content: 'x' }] },
-        'tab-c': { ...s.lanes['tab-c']!, messages: [{ role: 'user', content: 'x' }] },
+        'tab-a': { ...s.lanes['tab-a']!, messages: [busyMessage('a')] },
+        'tab-b': { ...s.lanes['tab-b']!, messages: [busyMessage('b')] },
+        'tab-c': { ...s.lanes['tab-c']!, messages: [busyMessage('c')] },
       },
     }));
     useLocalPrefs.getState().bindSession('tab-recycled');
@@ -99,6 +117,7 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(hasSessionLane('tab-recycled')).toBe(false);
     expect(useLocalPrefs.getState().bySession['tab-recycled']).toBeUndefined();
     expect(disposeStreakState).toHaveBeenCalledWith('tab-recycled');
+    expect(useUIStore.getState().subagentChatFocusBySession['tab-recycled']).toBeUndefined();
   });
 });
 

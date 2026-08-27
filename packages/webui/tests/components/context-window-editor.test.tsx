@@ -14,6 +14,7 @@ const wsMock = vi.hoisted(() => {
     applyContextEditor: vi.fn(),
     on: vi.fn((event: string, handler: (message: { type: string; payload?: unknown }) => void) => {
       handlers.set(event, handler);
+      return () => handlers.delete(event);
     }),
     off: vi.fn((event: string) => {
       handlers.delete(event);
@@ -143,6 +144,103 @@ describe('ContextWindowEditor', () => {
     render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(await screen.findByText(/Loading context snapshot/i)).toBeTruthy();
+  });
+
+  it('subscribes to the snapshot before requesting it', () => {
+    render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    const onOrder = wsMock.on.mock.invocationCallOrder[0];
+    const sendOrder = wsMock.send.mock.invocationCallOrder[0];
+    expect(onOrder).toBeDefined();
+    expect(sendOrder).toBeDefined();
+    expect(onOrder!).toBeLessThan(sendOrder!);
+    expect(wsMock.send.mock.calls[0]?.[0]).toEqual({
+      type: 'context.editor.open',
+      payload: { sessionId: 'test-session' },
+    });
+  });
+
+  it('loads an empty-history snapshot instead of staying on loading', async () => {
+    render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    expect(await screen.findByText(/Loading context snapshot/i)).toBeTruthy();
+
+    const handler = wsMock.handlers.get('context.editor.snapshot');
+    expect(handler).toBeTruthy();
+    act(() => {
+      handler!({
+        type: 'context.editor.snapshot',
+        payload: {
+          sessionId: 'test-session',
+          revision: 'empty-rev',
+          messages: [],
+          readonlyContext: {
+            systemPromptTokens: 800,
+            toolSchemaTokens: 1200,
+            toolCount: 4,
+            totalTokens: 2000,
+            messageTokens: 0,
+          },
+          messageBreakdown: [],
+          diagnostics: {
+            hasToolAdjacencyIssues: false,
+            orphanToolUses: [],
+            orphanToolResults: [],
+            emptyMessages: 0,
+            thinkingBlocks: 0,
+            signedThinkingBlocks: 0,
+          },
+        },
+      });
+    });
+
+    expect(screen.queryByText(/Loading context snapshot/i)).toBeNull();
+    expect(await screen.findByText(/No conversation messages yet/i)).toBeTruthy();
+    expect(screen.getByText('2.0k')).toBeTruthy();
+  });
+
+  it('ignores a snapshot addressed to another tab', async () => {
+    render(<ContextWindowEditor open={true} onClose={vi.fn()} />);
+    expect(await screen.findByText(/Loading context snapshot/i)).toBeTruthy();
+
+    const handler = wsMock.handlers.get('context.editor.snapshot');
+    act(() => {
+      handler!({
+        type: 'context.editor.snapshot',
+        payload: {
+          sessionId: 'other-tab',
+          revision: 'foreign-rev',
+          messages: [{ role: 'user', content: 'from another tab' }],
+          readonlyContext: {
+            systemPromptTokens: 1,
+            toolSchemaTokens: 1,
+            toolCount: 0,
+            totalTokens: 2,
+            messageTokens: 0,
+          },
+          messageBreakdown: [
+            {
+              index: 0,
+              role: 'user',
+              tokens: 1,
+              preview: 'from another tab',
+              blockCount: null,
+              warnings: [],
+              pairedAssistantIndices: [],
+            },
+          ],
+          diagnostics: {
+            hasToolAdjacencyIssues: false,
+            orphanToolUses: [],
+            orphanToolResults: [],
+            emptyMessages: 0,
+            thinkingBlocks: 0,
+            signedThinkingBlocks: 0,
+          },
+        },
+      });
+    });
+
+    expect(screen.getByText(/Loading context snapshot/i)).toBeTruthy();
+    expect(screen.queryByText('from another tab')).toBeNull();
   });
 
   it('shows a live provider context-limit decrease in the editor', async () => {

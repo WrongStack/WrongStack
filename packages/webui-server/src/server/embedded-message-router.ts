@@ -493,8 +493,14 @@ export function createEmbeddedMessageRouter(
       handleProcessKill(ws, msg.payload, deps.trustBoundary, undefined, {
         backend: 'cli-embedded',
       }),
-    killAll: (ws) =>
-      handleProcessKillAll(ws, deps.trustBoundary, undefined, { backend: 'cli-embedded' }),
+    killAll: (ws, msg) =>
+      handleProcessKillAll(
+        ws,
+        deps.trustBoundary,
+        undefined,
+        { backend: 'cli-embedded' },
+        msg.payload,
+      ),
   };
   const host: HostRouteHandlers = {
     shutdown: async (ws) => {

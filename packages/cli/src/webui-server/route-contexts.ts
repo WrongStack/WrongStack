@@ -56,6 +56,12 @@ export interface RouteContextsParams {
    * right, one instance for four tabs was not.
    */
   getSessionAgent: (sessionId?: string | undefined) => Agent;
+  /**
+   * Non-creating registry peek. Feeds the embedded host's `hasSession`
+   * ownership check so asking "can this host serve session X?" never
+   * materializes an agent (the creating `getSessionAgent` did).
+   */
+  peekSessionAgent?: (sessionId?: string | undefined) => Agent | undefined;
   /** Does the host already hold an open writer for that session? */
   isSessionLive: (sessionId: string) => boolean;
   /**
@@ -91,6 +97,7 @@ export function createWebuiRouteContexts({
   pendingConfirms,
   abortControllers,
   getSessionAgent,
+  peekSessionAgent,
   isSessionLive,
   getForegroundSession,
   setForegroundSession,
@@ -311,6 +318,8 @@ export function createWebuiRouteContexts({
     // Session transitions must re-point the TARGET session's context, not the
     // leader's — resuming tab 2 was rewriting the context tab 1 ran in.
     getAgent: getSessionAgent,
+    // Non-creating peek for the hasSession ownership gate.
+    ...(peekSessionAgent ? { peekAgent: peekSessionAgent } : {}),
     // Session-keyed, so "is this tab running" is answered per tab and not
     // "is anything running in this process".
     isRunActive: (sessionId) =>
@@ -328,6 +337,9 @@ export function createWebuiRouteContexts({
   const connectionCtx: EmbeddedConversationContext = {
     agent: opts.agent,
     getAgent: getSessionAgent,
+    // Non-creating peek for the hasSession ownership gate (background-tab
+    // requests are legitimate; arbitrary strings are not).
+    ...(peekSessionAgent ? { peekAgent: peekSessionAgent } : {}),
     abortControllers,
     pendingConfirms,
     ...(stopSessionFleet ? { stopSessionFleet } : {}),

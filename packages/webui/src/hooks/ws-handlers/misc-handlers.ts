@@ -4,6 +4,7 @@ import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailb
 import { normalizedEqual } from '@/lib/core-browser-shim';
 import { getWSClient } from '@/lib/ws-client';
 import { chatFor, isActiveSessionMessage, messageSessionId } from '@/lib/ws-client-utils';
+import { chatLane } from '@/stores/chat-lanes';
 import {
   useCouncilLogStore,
   useCronStore,
@@ -16,7 +17,7 @@ import {
   useUIStore,
   useVizStore,
 } from '@/stores';
-import { activeChatLane, resolvePendingConfirm } from '@/stores/chat-lanes';
+import { activeChatLane, DEFAULT_LANE_ID, resolvePendingConfirm } from '@/stores/chat-lanes';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useMemoryLifecycleStore } from '@/stores/memory-lifecycle-store';
@@ -496,11 +497,25 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     refinedWith?: { provider: string; model: string } | undefined;
   };
   const refinePanel = useUIStore.getState().refinePanel;
-  const pendingRef = activeChatLane().pendingRefinement;
+  const origin = messageSessionId(msg) ?? refinePanel?.sessionId ?? null;
+  // The tab that asked, not the tab in front: a background refine used to
+  // enqueue its result into whichever composer happened to be on screen.
+  // `chatFor` IS the routing contract: tagged → that session's lane,
+  // untagged → the pre-session default lane, untagged-while-bound → dropped
+  // (the server stamps every bound-session reply, so untagged here is a
+  // server regression and must not guess a lane). Resolving untagged to
+  // `null` instead killed the pre-session pre-queue path entirely.
+  const chat = chatFor(msg) ?? (origin ? chatLane(origin) : null);
+  const pendingRef = chat?.pendingRefinement ?? null;
+  if (refinePanel?.sessionId && origin && refinePanel.sessionId !== origin) return;
+  // A panel that names a session must never drain into the lane in front
+  // when its result frame lost its stamp — that fallback is the cross-tab
+  // leak this handler exists to prevent.
+  if (refinePanel?.sessionId && !chat) return;
 
   // Pre-queue refinement path: ChatInput offered refinement before enqueuing.
-  if (!refinePanel && pendingRef) {
-    activeChatLane().setRefining(false);
+  if (!refinePanel && pendingRef && chat) {
+    chat.setRefining(false);
     const original = pendingRef.text;
     // Carry images from the refinement request so they aren't dropped when
     // the message is enqueued. pendingRef.images uses { data, mime } format;
@@ -523,16 +538,16 @@ export function handleModelRefineResult(msg: WSServerMessage) {
 
     if (p.error) {
       // Refinement failed — enqueue original as-is with images.
-      activeChatLane().setPendingRefinement(null);
-      activeChatLane().enqueue(original, failMode, refImages);
+      chat.setPendingRefinement(null);
+      chat.enqueue(original, failMode, refImages);
       return;
     }
 
     const refined = p.refined ?? '';
     if (!refined || normalizedEqual(refined, original)) {
       // No-op refinement — enqueue original with images.
-      activeChatLane().setPendingRefinement(null);
-      activeChatLane().enqueue(original, failMode, refImages);
+      chat.setPendingRefinement(null);
+      chat.enqueue(original, failMode, refImages);
       return;
     }
 
@@ -541,7 +556,7 @@ export function handleModelRefineResult(msg: WSServerMessage) {
     // the panel from scratch (no prior panel to spread from), and decisions
     // are handled by the onDecision prop on the <RefinePanel> component
     // rather than through the store's resolve slot.
-    activeChatLane().setPendingRefinement(null);
+    chat.setPendingRefinement(null);
     useUIStore.getState().setRefinePanel({
       original,
       refined,
@@ -562,7 +577,7 @@ export function handleModelRefineResult(msg: WSServerMessage) {
       // The tab this prompt was typed in. Approving the panel — or letting it
       // time out — sends through the foreground, so an unstamped panel can
       // deliver one tab's prompt into another tab's session.
-      sessionId: activeChatLane().sessionId,
+      sessionId: chat.sessionId,
       resolve: () => {},
     });
     return;
@@ -596,9 +611,13 @@ export function handleModelRefineResult(msg: WSServerMessage) {
   const original = refinePanel.original;
   if (normalizedEqual(p.refined, original)) {
     useUIStore.getState().setRefinePanel(null);
-    activeChatLane().addMessage({ role: 'user', content: original });
-    activeChatLane().setLoading(true);
-    getWSClient().sendMessage(original);
+    const target = chat ?? activeChatLane();
+    target.addMessage({ role: 'user', content: original });
+    target.setLoading(true);
+    // The lane sentinel ('__unbound__') is not a session id — sending it as
+    // one would have the server refuse the frame as an unknown session.
+    const laneSession = target.sessionId !== DEFAULT_LANE_ID ? target.sessionId : undefined;
+    getWSClient().sendMessage(original, undefined, false, laneSession);
     return;
   }
   useUIStore.getState().setRefinePanel({

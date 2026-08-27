@@ -179,9 +179,10 @@ export function createMessageDispatcher(
     allowMessage: (ws, msg) => ensureCurrentSession(ws, msg, msg.type),
   });
   const processRoutes: ProcessRouteHandlers = {
-    list: (ws) => handleProcessList(ws),
+    list: (ws, msg) => handleProcessList(ws, msg),
     kill: (ws, msg) => handleProcessKill(ws, msg.payload, deps.trustBoundary, deps.logger),
-    killAll: (ws) => handleProcessKillAll(ws, deps.trustBoundary, deps.logger),
+    killAll: (ws, msg) =>
+      handleProcessKillAll(ws, deps.trustBoundary, deps.logger, undefined, msg.payload),
   };
   const hostRoutes: HostRouteHandlers = {
     shutdown: async (ws) => {

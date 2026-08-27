@@ -23,7 +23,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SideEffectEntry } from '@/stores';
-import { useSessionStore, useSideEffectStore } from '@/stores';
+import { useActiveSessionId, useSideEffectStore } from '@/stores';
 import { Pagination } from './ui/pagination';
 
 const RISK_ICONS: Record<string, typeof Terminal> = {
@@ -113,7 +113,7 @@ export function SideEffectTimeline() {
   // files the reply by that stamp — unnamed, both ends fall back to the
   // runtime's session, which is a different tab from the one on screen as
   // often as not once four are open.
-  const sessionId = useSessionStore((s) => s.session?.id);
+  const sessionId = useActiveSessionId();
 
   useEffect(() => {
     useSideEffectStore.getState().setLoading(true);

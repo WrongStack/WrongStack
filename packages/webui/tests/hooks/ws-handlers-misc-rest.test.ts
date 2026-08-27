@@ -32,6 +32,7 @@ const {
 } = await import('../../src/stores');
 const { useMemoryInjectorTraceStore } = await import('../../src/stores/memory-injector-store');
 const { useMemoryLifecycleStore } = await import('../../src/stores/memory-lifecycle-store');
+const { DEFAULT_LANE_ID } = await import('../../src/stores/chat-lanes');
 const {
   handleBrainAnswer,
   handleBrainEvent,
@@ -868,6 +869,10 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
   // ── model.refine_result ───────────────────────────────────────────────────
 
   describe('model.refine_result — pre-queue path', () => {
+    // `model.refine` is withSession-stamped by the client and the reply
+    // echoes the stamp; the handler routes by it (the tab that asked, not
+    // the tab in front). A test msg must carry one — DEFAULT_LANE_ID is the
+    // seeded foreground store the lane facade below delegates to.
     beforeEach(() => {
       useUIStore.setState({ refinePanel: null } as never);
     });
@@ -884,7 +889,12 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
       } as never);
 
       handleModelRefineResult(
-        msg('model.refine_result', { refined: '', english: '', error: 'timeout' }),
+        msg('model.refine_result', {
+          refined: '',
+          english: '',
+          error: 'timeout',
+          sessionId: DEFAULT_LANE_ID,
+        }),
       );
       expect(setRefining).toHaveBeenCalledWith(false);
       expect(setPendingRefinement).toHaveBeenCalledWith(null);
@@ -903,7 +913,14 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         setRefining: vi.fn(),
       } as never);
 
-      handleModelRefineResult(msg('model.refine_result', { refined: '', english: '', error: 'x' }));
+      handleModelRefineResult(
+        msg('model.refine_result', {
+          refined: '',
+          english: '',
+          error: 'x',
+          sessionId: DEFAULT_LANE_ID,
+        }),
+      );
       const images = enqueue.mock.calls[0]?.[2] as Array<Record<string, unknown>>;
       expect(images).toHaveLength(1);
       expect(images[0]).toMatchObject({
@@ -922,7 +939,13 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         setRefining: vi.fn(),
       } as never);
 
-      handleModelRefineResult(msg('model.refine_result', { refined: 'do it', english: 'do it' }));
+      handleModelRefineResult(
+        msg('model.refine_result', {
+          refined: 'do it',
+          english: 'do it',
+          sessionId: DEFAULT_LANE_ID,
+        }),
+      );
       expect(enqueue).toHaveBeenCalledWith('do it', 'queue', undefined);
       expect(useUIStore.getState().refinePanel).toBeNull();
     });
@@ -936,7 +959,13 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         setRefining: vi.fn(),
       } as never);
 
-      handleModelRefineResult(msg('model.refine_result', { refined: '', english: '' }));
+      handleModelRefineResult(
+        msg('model.refine_result', {
+          refined: '',
+          english: '',
+          sessionId: DEFAULT_LANE_ID,
+        }),
+      );
       expect(enqueue).toHaveBeenCalledWith('do it', 'queue', undefined);
     });
 
@@ -953,6 +982,7 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
           refined: 'Please do the thing precisely',
           english: 'Please do the thing precisely',
           refinedWith: { provider: 'anthropic', model: 'opus' },
+          sessionId: DEFAULT_LANE_ID,
         }),
       );
       expect(useUIStore.getState().refinePanel).toMatchObject({
@@ -971,7 +1001,13 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
         setPendingRefinement: vi.fn(),
         setRefining: vi.fn(),
       } as never);
-      handleModelRefineResult(msg('model.refine_result', { refined: 'REFINED', english: '' }));
+      handleModelRefineResult(
+        msg('model.refine_result', {
+          refined: 'REFINED',
+          english: '',
+          sessionId: DEFAULT_LANE_ID,
+        }),
+      );
       expect(useUIStore.getState().refinePanel?.english).toBe('REFINED');
     });
   });
@@ -1073,7 +1109,9 @@ describe('misc ws-handlers — brain / memory / collab / git / cron', () => {
       expect(useUIStore.getState().refinePanel).toBeNull();
       expect(addMessage).toHaveBeenCalledWith({ role: 'user', content: 'do it' });
       expect(setLoading).toHaveBeenCalledWith(true);
-      expect(sendMessage).toHaveBeenCalledWith('do it');
+      // Pre-session (default lane) the session argument is filtered out —
+      // the lane sentinel must never masquerade as a session id.
+      expect(sendMessage).toHaveBeenCalledWith('do it', undefined, false, undefined);
     });
 
     it('populates the panel for review on a real refinement', () => {

@@ -536,9 +536,20 @@ export const useLocalPrefs = create<LocalPrefs>()(
 
       forgetSession: (sessionId) =>
         set((state) => {
-          if (!(sessionId in state.bySession)) return {};
-          const { [sessionId]: _gone, ...rest } = state.bySession;
-          return { bySession: rest };
+          const had = sessionId in state.bySession;
+          const droppingActive = state.activeSessionId === sessionId;
+          if (!had && !droppingActive) return {};
+          const next = { ...state.bySession };
+          delete next[sessionId];
+          // Drop the pointer too. `bindSession` parks the outgoing tab's live
+          // values into `bySession`; if the pointer still names a tab we just
+          // forgot, the next bind (activate of the remaining slot) writes it
+          // right back — which is how a closed tab's YOLO leaked into a
+          // reused id.
+          return {
+            bySession: next,
+            ...(droppingActive ? { activeSessionId: null } : {}),
+          };
         }),
 
       reset: () => set(DEFAULTS as LocalPrefsData),

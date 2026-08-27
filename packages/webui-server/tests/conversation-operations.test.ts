@@ -189,3 +189,92 @@ describe('createConversationOperations', () => {
     });
   });
 });
+
+describe('topic advice session ownership', () => {
+  function ownedHarness(hasSession?: (id: string) => boolean) {
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const agents = new Map(
+      (['sess_front', 'sess_bg'] as const).map((id) => [
+        id,
+        {
+          run: vi.fn(),
+          ctx: {
+            provider: { id: 'p', capabilities: { vision: true, maxContext: 1000 } },
+            model: 'm',
+            messages: [{ role: 'user' as const, content: `history ${id}` }],
+            meta: {},
+            lastRequestTokens: 0,
+          },
+          tools: { list: () => [] },
+        },
+      ]),
+    );
+    const getAgent = vi.fn((id?: string) =>
+      (agents.get((id ?? 'sess_front') as 'sess_front' | 'sess_bg') ??
+        agents.get('sess_front')) as never,
+    );
+    const routes = createConversationOperations({
+      getAgent,
+      getSessionId: () => 'sess_front',
+      // A multi-session host: background-tab requests are legitimate. The
+      // refusal test below narrows this to exercise the unknown-id gate.
+      hasSession: hasSession ?? (() => true),
+      runControl: { begin: () => new AbortController(), end: vi.fn(), abort: vi.fn() },
+      pendingConfirms: new Map(),
+      send: (_ws, message) => sent.push(message),
+      notifyAbort: vi.fn(),
+    });
+    return { routes, sent, getAgent };
+  }
+
+  it('answers a background tab from ITS session and stamps the reply', async () => {
+    const h = ownedHarness();
+    await h.routes.topicAdvice(ws, {
+      type: 'topic.advice',
+      payload: {
+        requestId: 'topic-9',
+        prompt: 'A different deployment strategy',
+        sessionId: 'sess_bg',
+      },
+    });
+
+    // The asking tab's agent, not the foreground's — and the reply names the
+    // asking tab so the browser files it under the right lane.
+    expect(h.getAgent).toHaveBeenCalledWith('sess_bg');
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'topic.advice_result',
+      payload: { sessionId: 'sess_bg', requestId: 'topic-9' },
+    });
+  });
+
+  it('refuses an unknown session without touching any agent', async () => {
+    const h = ownedHarness((id) => id === 'sess_bg');
+    await h.routes.topicAdvice(ws, {
+      type: 'topic.advice',
+      payload: { requestId: 'topic-x', prompt: 'ghost', sessionId: 'sess_ghost' },
+    });
+
+    // hasSession is the ownership gate: a string nobody opened must not even
+    // reach getAgent (which CREATES on read).
+    expect(h.getAgent).not.toHaveBeenCalled();
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'error',
+      payload: { requestedSessionId: 'sess_ghost' },
+    });
+  });
+
+  it('treats an empty-string session stamp as no session at all', async () => {
+    const h = ownedHarness((id) => id === 'sess_bg');
+    await h.routes.topicAdvice(ws, {
+      type: 'topic.advice',
+      payload: { requestId: 'topic-e', prompt: 'empty stamp', sessionId: '' },
+    });
+
+    // '' must fall back to the runtime's session, never act as a target id.
+    expect(h.getAgent).toHaveBeenCalledWith('sess_front');
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'topic.advice_result',
+      payload: { sessionId: 'sess_front' },
+    });
+  });
+});

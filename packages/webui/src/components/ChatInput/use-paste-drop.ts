@@ -226,6 +226,7 @@ export function usePasteDrop({ input, textareaRef, setInput, errorText }: UsePas
     addImageFiles,
     removeImage,
     clearPendingImages,
+    setPendingImages,
     setPasteHint,
   };
 }

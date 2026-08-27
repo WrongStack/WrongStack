@@ -19,7 +19,9 @@ export { parseNextSteps, stripNextStepsBlock };
  * Uses the native setter to trigger React's onChange.
  */
 export function fillInput(text: string): void {
-  const ta = document.querySelector('textarea');
+  const ta =
+    document.querySelector<HTMLTextAreaElement>('[data-chat-textarea]') ??
+    document.querySelector('textarea');
   if (!ta) return;
   const setter = Object.getOwnPropertyDescriptor(
     window.HTMLTextAreaElement.prototype,

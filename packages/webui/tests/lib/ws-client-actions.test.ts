@@ -429,13 +429,19 @@ describe('misc actions', () => {
     expect(frame()).toEqual({ type: 'mode.switch', payload: { id: 'code', sessionId: 'sess-1' } });
   });
 
-  it('deleteSession and renameSession are not session-stamped', () => {
+  it('deleteSession stamps the asking tab; renameSession stays unstamped', () => {
     client.deleteSession('s9');
-    expect(frame()).toEqual({ type: 'session.delete', payload: { id: 's9' } });
+    expect(frame()).toEqual({
+      type: 'session.delete',
+      payload: { id: 's9', sessionId: 'sess-1' },
+    });
 
     client = new Host() as Client;
     client.renameSession('s9', 'Refactor');
-    expect(frame()).toEqual({ type: 'session.rename', payload: { id: 's9', name: 'Refactor' } });
+    expect(frame()).toEqual({
+      type: 'session.rename',
+      payload: { id: 's9', name: 'Refactor' },
+    });
   });
 
   it('setWorkingDir carries the path', () => {
@@ -471,7 +477,12 @@ describe('misc actions', () => {
 describe('refineModel', () => {
   it('sends just the text when no options are given', () => {
     client.refineModel('do the thing');
-    expect(frame()).toEqual({ type: 'model.refine', payload: { text: 'do the thing' } });
+    expect(frame()).toEqual({
+      type: 'model.refine',
+      // Stamped with the asking tab: refinement must run in (and return to)
+      // the session that typed the prompt.
+      payload: { text: 'do the thing', sessionId: 'sess-1' },
+    });
   });
 
   it.each([
@@ -489,7 +500,8 @@ describe('refineModel', () => {
   it('omits every key left undefined', () => {
     client.refineModel('t', { provider: 'anthropic' });
     const payload = frame().payload as Record<string, unknown>;
-    expect(Object.keys(payload).sort()).toEqual(['provider', 'text']);
+    // sessionId is always present: the stamp is not an "option".
+    expect(Object.keys(payload).sort()).toEqual(['provider', 'sessionId', 'text']);
   });
 
   it('includes a zero timeout rather than treating it as absent', () => {
@@ -519,6 +531,7 @@ describe('refineModel', () => {
       previousRefined: 'r',
       previousEnglish: 'e',
       retryFeedback: 'f',
+      sessionId: 'sess-1',
     });
   });
 });

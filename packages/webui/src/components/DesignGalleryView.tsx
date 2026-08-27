@@ -263,7 +263,20 @@ export function DesignGalleryView({ className }: { className?: string }) {
 
   useEffect(() => {
     if (!client) return;
+    // A response names the tab that asked for it (the server echoes the
+    // request's sessionId). Drop frames stamped for ANOTHER session — a late
+    // reply from the tab the user just left must not overwrite this tab's
+    // kit or overrides. Untagged frames pass ONLY before a session is bound:
+    // a pre-session request is unstamped, and so is its reply, but once a
+    // session is active an untagged reply can only be one of those stale
+    // pre-session answers arriving late.
+    const isForeign = (msg: unknown): boolean => {
+      const sid = (msg as { payload?: { sessionId?: unknown } }).payload?.sessionId;
+      if (typeof sid !== 'string' || sid.length === 0) return sessionId !== null;
+      return sid !== sessionId;
+    };
     const onList = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (
         msg as { payload?: { kits?: Kit[]; activeKit?: string | null; overrides?: Tokens } }
       ).payload;
@@ -272,6 +285,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
       setOverrides(p?.overrides ?? {});
     };
     const onUse = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (msg as { payload?: { ok?: boolean; kit?: string; overrides?: Tokens } }).payload;
       if (p?.ok && p.kit) {
         setActiveKit(p.kit);
@@ -279,10 +293,12 @@ export function DesignGalleryView({ className }: { className?: string }) {
       }
     };
     const onSet = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (msg as { payload?: { ok?: boolean; overrides?: Tokens } }).payload;
       if (p?.ok && p.overrides) setOverrides(p.overrides);
     };
     const onTune = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (msg as { payload?: { ok?: boolean; overrides?: Tokens; error?: string } }).payload;
       if (p?.ok && p.overrides) {
         setOverrides(p.overrides);
@@ -292,6 +308,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
       }
     };
     const onSwap = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (msg as { payload?: { ok?: boolean; kit?: string; overrides?: Tokens } }).payload;
       if (p?.ok && p.kit) {
         setActiveKit(p.kit);
@@ -300,6 +317,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
       }
     };
     const onMat = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (msg as { payload?: { ok?: boolean; path?: string; error?: string } }).payload;
       setStatus(
         p?.ok
@@ -308,6 +326,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
       );
     };
     const onVer = (msg: unknown) => {
+      if (isForeign(msg)) return;
       const p = (
         msg as {
           payload?: {

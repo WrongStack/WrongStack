@@ -461,6 +461,7 @@ export type WSServerMessage =
   | {
       type: 'process.list';
       payload: {
+        sessionId?: string | undefined;
         processes: Array<{
           pid: number;
           command: string;
@@ -469,6 +470,7 @@ export type WSServerMessage =
           status: 'running' | 'exited' | 'killed';
           protected?: boolean | undefined;
           background?: boolean | undefined;
+          sessionId?: string | undefined;
         }>;
       };
     }

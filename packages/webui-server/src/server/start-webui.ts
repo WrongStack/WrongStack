@@ -765,7 +765,20 @@ export async function startWebUI(
     getAgent,
     ...(peekAgent ? { peekAgent } : {}),
     ...(isSessionLive ? { isSessionLive } : {}),
-    hasSession: (_id: string) => true,
+    // Real ownership check: a request may name the root session, any session
+    // this runtime has an agent for, or any session a CONNECTED CLIENT
+    // displays. The previous `() => true` accepted ANY non-empty string, so
+    // garbage ids sailed through ensureCurrentSession and materialized
+    // placeholder agents. `peekAgent` is non-creating; the displayed-clients
+    // clause keeps legitimately-open-but-unresumed sessions servable (F5
+    // reload before resume, or after the registry retired an idle agent) —
+    // refusing those broke the client's session_not_ready auto-resume path.
+    hasSession: (id: string) =>
+      id === agent.ctx.session?.id ||
+      Boolean(peekAgent?.(id)) ||
+      [...clients.values()].some(
+        (c) => c.sessionId === id || c.sessionIds?.has(id) === true,
+      ),
     context,
     container,
     toolRegistry,

@@ -44,16 +44,22 @@ describe('CLI WebUI privileged actions', () => {
     const ws = { send: vi.fn() } as never;
     const routes = createCliProcessRoutes(boundary);
 
-    await routes.list(ws, {} as never);
+    await routes.list(ws, { payload: { sessionId: 'sess-a' } } as never);
     await routes.kill(ws, { payload: { pid: 42 } } as never);
-    await routes.killAll(ws, {} as never);
+    await routes.killAll(ws, { payload: { sessionId: 'sess-a' } } as never);
 
-    expect(mocks.handleProcessList).toHaveBeenCalledWith(ws);
+    expect(mocks.handleProcessList).toHaveBeenCalledWith(ws, {
+      payload: { sessionId: 'sess-a' },
+    });
     expect(mocks.handleProcessKill).toHaveBeenCalledWith(ws, { pid: 42 }, boundary, undefined, {
       backend: 'cli-embedded',
     });
-    expect(mocks.handleProcessKillAll).toHaveBeenCalledWith(ws, boundary, undefined, {
-      backend: 'cli-embedded',
-    });
+    expect(mocks.handleProcessKillAll).toHaveBeenCalledWith(
+      ws,
+      boundary,
+      undefined,
+      { backend: 'cli-embedded' },
+      { sessionId: 'sess-a' },
+    );
   });
 });

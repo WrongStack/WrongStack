@@ -83,8 +83,16 @@ export function collectDisplayedSessionIds(ctx: {
   const ids = new Set<string>();
   ids.add(ctx.getSession().id);
   for (const client of ctx.clients?.values() ?? []) {
-    if (client.sessionId) ids.add(client.sessionId);
-    for (const id of client.sessionIds ?? []) ids.add(id);
+    // The declared set is authoritative for a multi-tab page — the same rule
+    // `clientWantsSession` applies to delivery. `client.sessionId` is the tab
+    // last acted on and goes stale the moment the foreground moves without a
+    // session-tagged message in between; honoring it here would keep a closed
+    // tab's session "displayed" forever and permanently refuse its deletion.
+    if (client.sessionIds && client.sessionIds.size > 0) {
+      for (const id of client.sessionIds) ids.add(id);
+    } else if (client.sessionId) {
+      ids.add(client.sessionId);
+    }
   }
   return Array.from(ids);
 }
@@ -485,9 +493,18 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       target.readFiles.clear();
       target.fileMtimes.clear();
       result(ws, true, 'Context cleared');
+      // The reset must describe AND name the session that was CLEARED. Built
+      // without a sessionId override the payload describes the FOREGROUND
+      // session (its model/provider/maxContext), and restamping only the id
+      // still hydrated the cleared lane with the other tab's metadata —
+      // `session.start` is the status bar's source of truth. The targeted
+      // build is the same form `rewind` uses.
       broadcastToAll({
         type: 'session.start',
-        payload: await ctx.sessionStartPayload({ reset: true }),
+        payload: await ctx.sessionStartPayload({
+          reset: true,
+          sessionId: actingSessionId(msg),
+        }),
       });
     },
     debugContext: async (ws, msg) => {
@@ -602,7 +619,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       });
       sendTo(ws, {
         type: 'context.editor.validation',
-        payload: sessionPayload(validation),
+        // Stamped with the ASKING session: `sessionPayload` alone would stamp
+        // the runtime's current (root) session, so a background tab's edit
+        // results were tagged for — and dropped by — the wrong lane.
+        payload: sessionPayload({ ...validation, sessionId: actingSessionId(msg) }),
       });
     },
     applyContextEditor: async (ws, msg) => {
@@ -620,13 +640,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       if ('ok' in applied) {
         sendTo(ws, {
           type: 'context.editor.validation',
-          payload: sessionPayload(applied),
+          // Same asking-session stamp as the validate path (see above).
+          payload: sessionPayload({ ...applied, sessionId: actingSessionId(msg) }),
         });
         return;
       }
       broadcastToAll({
         type: 'context.editor.applied',
-        payload: sessionPayload(applied),
+        payload: sessionPayload({ ...applied, sessionId: actingSessionId(msg) }),
       });
       result(
         ws,
@@ -793,37 +814,57 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         sendTo(ws, { type: 'sessions.list', payload: { sessions: [], error: errMessage(err) } });
       }
     },
-    deleteSession: async (ws, msg) => {
-      const { id } = (msg as { payload: { id: string } }).payload;
-      if (ctx.isRunActive?.(id)) {
-        result(
-          ws,
-          false,
-          'Cannot delete session while an agent run is active. Please stop the run first.',
-        );
-        return;
-      }
-      try {
-        await deleteWebUISession(
-          {
-            getActiveSessionId: () => ctx.getSession().id,
-            getActiveSessionIds: () => collectDisplayedSessionIds(ctx),
-            getSessionStore: ctx.getSessionStore,
-            refreshSessions: async () => {
-              const list = await ctx.getSessionStore().list(200);
-              broadcastToAll({
-                type: 'sessions.list',
-                payload: { sessions: toSessionHistoryEntries(list, ctx.getSession().id) },
-              });
+    deleteSession: (ws, msg) =>
+      serializeSessionTransition(async () => {
+        const { id } = (msg as { payload: { id: string } }).payload;
+        if (ctx.isRunActive?.(id)) {
+          result(
+            ws,
+            false,
+            'Cannot delete session while an agent run is active. Please stop the run first.',
+          );
+          return;
+        }
+        try {
+          // Deleting the runtime's CURRENT session would strand the host on a
+          // record that no longer exists. A client that just closed that tab
+          // tags the delete with the session it re-pointed the strip to; move
+          // the host onto that live writer first — the same rebind
+          // `session.resume` performs for an already-live session. Without a
+          // live fallback named, the active-session guard below still refuses.
+          const fallback = requestedSessionId(msg);
+          if (
+            ctx.getSession().id === id &&
+            fallback &&
+            fallback !== id &&
+            ctx.isSessionLive?.(fallback)
+          ) {
+            const liveWriter = ctx.getAgent?.(fallback)?.ctx?.session;
+            if (liveWriter && liveWriter.id === fallback) {
+              ctx.setSession(liveWriter);
+              await ctx.onSessionSwapped?.(fallback);
+            }
+          }
+          await deleteWebUISession(
+            {
+              getActiveSessionId: () => ctx.getSession().id,
+              getActiveSessionIds: () => collectDisplayedSessionIds(ctx),
+              getSessionStore: ctx.getSessionStore,
+              refreshSessions: async () => {
+                const list = await ctx.getSessionStore().list(200);
+                broadcastToAll({
+                  type: 'sessions.list',
+                  payload: { sessions: toSessionHistoryEntries(list, ctx.getSession().id) },
+                });
+              },
             },
-          },
-          id,
-        );
-        result(ws, true, `Session ${id} deleted`);
-      } catch (err) {
-        result(ws, false, errMessage(err));
-      }
-    },
+            id,
+          );
+          result(ws, true, `Session ${id} deleted`);
+        } catch (err) {
+          result(ws, false, errMessage(err));
+        }
+      }),
     renameSession: async (ws, msg) => {
       const payload = (msg as { payload?: { id?: unknown; name?: unknown } }).payload ?? {};
       const id = typeof payload.id === 'string' ? payload.id : '';
@@ -1123,8 +1164,28 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         if (next.size >= MAX_SUBSCRIBED_SESSIONS) break;
       }
       // The session this connection is acting on is always part of its set,
-      // even if the strip has not caught up with it yet.
-      if (client.sessionId) next.add(client.sessionId);
+      // even if the strip has not caught up with it yet — but the four-id
+      // ceiling is a hard one. When the declared set is already full and does
+      // not name the acting session, the LAST DECLARED id (rightmost tab)
+      // gives up its slot: dropping the acting session instead would make the
+      // tab in front look dead, and growing to five is the leak.
+      //
+      // The safety net only catches a strip that LAGS (the acting session was
+      // never declared). A set that previously declared the acting session
+      // and now omits it removed it on purpose — the tab closed — and
+      // re-adding it would keep a closed tab's session "displayed", blocking
+      // its deletion and delivering events to nothing.
+      if (
+        client.sessionId &&
+        !next.has(client.sessionId) &&
+        !(previous && previous.has(client.sessionId))
+      ) {
+        if (next.size >= MAX_SUBSCRIBED_SESSIONS) {
+          const lastDeclared = [...next].at(-1);
+          if (lastDeclared !== undefined) next.delete(lastDeclared);
+        }
+        next.add(client.sessionId);
+      }
       client.sessionIds = next.size > 0 ? next : undefined;
 
       // Answer, per declared tab, whether its run is still live.

@@ -18,10 +18,10 @@ import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import {
   selectSortedAgentList,
+  useActiveSessionId,
   useChatStore,
   useFleetStore,
   useSessionLeaderId,
-  useSessionStore,
   useUIStore,
 } from '@/stores';
 
@@ -36,12 +36,12 @@ const TAB_LED: Record<SubagentView['status'], { led: string; pulse: boolean }> =
 
 export function AgentTabs() {
   const { t } = useAppTranslation();
-  const currentSessionId = useSessionStore((s) => s.session?.id);
+  const currentSessionId = useActiveSessionId();
   const isLoading = useChatStore((s) => s.isLoading);
   const allAgents = useFleetStore(useShallow(selectSortedAgentList));
   // This tab's leader, not the process-wide one — otherwise a second tab
   // promoting its leader made this tab list its own leader as a subagent.
-  const leaderId = useSessionLeaderId(currentSessionId);
+  const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   // Named from THIS tab's leader — `selectLeaderName` resolves the
   // process-wide pointer, which names another tab's leader as often as not.
   const leaderName = useFleetStore((s) => (leaderId ? s.agents.get(leaderId)?.name : undefined));
@@ -75,7 +75,7 @@ export function AgentTabs() {
           role="tab"
           aria-selected={focusId == null}
           onClick={() => {
-            setFocus(null);
+            setFocus(null, currentSessionId);
             useUIStore.getState().setCurrentView('chat');
           }}
           className={cn(
@@ -100,7 +100,7 @@ export function AgentTabs() {
               role="tab"
               aria-selected={active}
               title={a.description ? taskBriefPreview(a.description, 180) : a.name}
-              onClick={() => setFocus(a.id)}
+              onClick={() => setFocus(a.id, currentSessionId)}
               className={cn(
                 'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',
                 active

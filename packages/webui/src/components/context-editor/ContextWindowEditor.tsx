@@ -1,8 +1,10 @@
 import { getWSClient } from '@/lib/ws-client';
+import { foregroundSessionId } from '@/lib/ws-client-utils';
 import type { ContextEditorContentBlock } from '@/types/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useContextEditorStore } from '@/stores/context-editor-store';
 import { useChatStore } from '@/stores';
+import { useActiveSessionId } from '@/stores/session-lanes';
 import { useSessionStore } from '@/stores/session-store';
 import { useAppTranslation, i18n } from '@/i18n';
 import { cn } from '@/lib/utils';
@@ -247,9 +249,21 @@ interface ContextWindowEditorProps {
   onClose: () => void;
 }
 
+const SNAPSHOT_TIMEOUT_MS = 5_000;
+
+function payloadSessionId(payload: unknown): string | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const value = (payload as { sessionId?: unknown }).sessionId;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function isForAskedSession(payload: unknown, askedFor: string | undefined): boolean {
+  const replyFor = payloadSessionId(payload);
+  return !askedFor || !replyFor || replyFor === askedFor;
+}
+
 export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps): React.ReactElement | null {
   const { t } = useAppTranslation();
-  const _wsRef = useRef<{ open: ReturnType<typeof getWSClient>; validate: ReturnType<typeof getWSClient>; apply: ReturnType<typeof getWSClient> } | null>(null);
 
   const phase = useContextEditorStore((s) => s.phase);
   const revision = useContextEditorStore((s) => s.revision);
@@ -265,52 +279,76 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
   const store = useContextEditorStore;
   const isLoading = useChatStore((s) => s.isLoading);
   const contextLimitWarning = useSessionStore((s) => s.contextLimitWarning);
+  // Lane pointer, not SessionInfo: a brand-new empty tab has no session record
+  // until `session.start` lands, and reading that record here left the editor
+  // requesting (or worse, keeping) another tab's snapshot.
+  const activeSessionId = useActiveSessionId();
 
-  // Load snapshot on open
+  // Subscribe FIRST, then ask. Empty sessions answer in the same tick as the
+  // send (no transcript to walk), so a listener registered in a later effect
+  // misses the snapshot and the overlay stays on "Loading context snapshot…".
+  // Re-run when the tab in front changes: the overlay is a singleton and would
+  // otherwise keep the previous tab's snapshot — or its spinner.
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      store.getState().close();
+      return;
+    }
     store.getState().open();
     const ws = getWSClient();
-    if (!ws?.send) {
+    if (!ws?.send || !ws.on) {
       store.getState().setError(i18n.t('activity:context.wsNotConnected'));
       return;
     }
-    ws.send({ type: 'context.editor.open', payload: ws.withSession({}) });
-  }, [open, store]);
 
-  // Listen for server responses
-  useEffect(() => {
-    if (!open) return;
-    const ws = getWSClient();
-    if (!ws) return;
+    const askedFor = ws.withSession({}).sessionId ?? activeSessionId ?? foregroundSessionId() ?? undefined;
+    const request = () => {
+      ws.send({ type: 'context.editor.open', payload: ws.withSession({}) });
+    };
 
     const onSnapshot = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'context.editor.snapshot') return;
+      if (!isForAskedSession(msg.payload, askedFor)) return;
       const p = msg.payload as Parameters<ReturnType<typeof store.getState>['loadSnapshot']>[0];
+      if (!p || typeof p.revision !== 'string' || !Array.isArray(p.messages)) return;
       store.getState().loadSnapshot(p);
     };
     const onValidation = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'context.editor.validation') return;
+      if (!isForAskedSession(msg.payload, askedFor)) return;
       const p = msg.payload as Parameters<ReturnType<typeof store.getState>['setValidation']>[0];
       store.getState().setValidation(p);
     };
     const onApplied = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'context.editor.applied') return;
+      if (!isForAskedSession(msg.payload, askedFor)) return;
       const p = msg.payload as Parameters<ReturnType<typeof store.getState>['setApplied']>[0];
       store.getState().setApplied(p);
-      ws.openContextEditor();
+      if (typeof ws.openContextEditor === 'function') ws.openContextEditor();
+      else request();
     };
 
-    ws.on('context.editor.snapshot', onSnapshot);
-    ws.on('context.editor.validation', onValidation);
-    ws.on('context.editor.applied', onApplied);
+    const unsubSnapshot = ws.on('context.editor.snapshot', onSnapshot);
+    const unsubValidation = ws.on('context.editor.validation', onValidation);
+    const unsubApplied = ws.on('context.editor.applied', onApplied);
+    request();
+
+    const timeout = setTimeout(() => {
+      if (store.getState().phase === 'loading_snapshot') {
+        store.getState().setError(i18n.t('activity:ctxEditor.snapshotTimedOut'));
+      }
+    }, SNAPSHOT_TIMEOUT_MS);
 
     return () => {
+      clearTimeout(timeout);
+      unsubSnapshot?.();
+      unsubValidation?.();
+      unsubApplied?.();
       ws.off?.('context.editor.snapshot', onSnapshot);
       ws.off?.('context.editor.validation', onValidation);
       ws.off?.('context.editor.applied', onApplied);
     };
-  }, [open, store]);
+  }, [open, store, activeSessionId]);
 
   // Escape to close
   useEffect(() => {
@@ -430,6 +468,14 @@ export function ContextWindowEditor({ open, onClose }: ContextWindowEditorProps)
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
             <Loader2 className="h-4 w-4 animate-spin" />
             {t('activity:ctxEditor.loadingContextSnapshot')}
+          </div>
+        )}
+
+        {/* Empty conversation — still a valid snapshot (system prompt + tools). */}
+        {phase !== 'loading_snapshot' && messageBreakdown.length === 0 && !errorMessage && (
+          <div className="flex flex-1 min-h-0 flex-col items-center justify-center gap-2 px-6 py-12 text-center text-sm text-muted-foreground">
+            <FileText className="h-5 w-5 text-muted-foreground/60" />
+            <p>{t('activity:ctxEditor.emptyConversation')}</p>
           </div>
         )}
 

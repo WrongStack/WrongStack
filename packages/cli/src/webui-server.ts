@@ -26,6 +26,7 @@ import {
   createEmbeddedProviderOperations,
   createSessionAgentRegistry,
   type EmbeddedProviderContext,
+  clientWantsSession,
   envFlag,
   findFreePort,
   findInstalledPackageJson,
@@ -505,6 +506,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     pendingConfirms,
     abortControllers,
     getSessionAgent: (sessionId) => sessionAgents.get(sessionId),
+    peekSessionAgent: (sessionId) => sessionAgents.peek(sessionId),
     onSessionsUndisplayed: retireUndisplayedSessions,
     isSessionLive: (sessionId) => sessionAgents.isLive(sessionId),
     getForegroundSession: () => foregroundSession,
@@ -726,9 +728,26 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     sendSerialized(ws, JSON.stringify(msg));
   }
 
+  /**
+   * Broadcast, but session-aware: a frame whose payload names a session is
+   * delivered only to connections displaying that session (their declared
+   * `sessionIds` set from `session.subscribe`, or their single `sessionId`).
+   * The old loop pushed every tagged frame to every socket — delivery relied
+   * entirely on each client's goodwill to file it under the right tab, which
+   * is no isolation boundary at all.
+   */
   function broadcast(msg: WSServerMessage): void {
     const data = JSON.stringify(msg);
-    for (const [ws] of clients) sendSerialized(ws, data);
+    const payload = (msg as { payload?: unknown }).payload;
+    const sessionId =
+      payload &&
+      typeof payload === 'object' &&
+      typeof (payload as { sessionId?: unknown }).sessionId === 'string'
+        ? (payload as { sessionId: string }).sessionId
+        : undefined;
+    for (const [ws, client] of clients) {
+      if (clientWantsSession(client, sessionId)) sendSerialized(ws, data);
+    }
   }
 
   function sendResult(ws: WebSocket, success: boolean, message: string): void {

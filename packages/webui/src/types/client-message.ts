@@ -509,7 +509,7 @@ export type WSClientMessageCore =
     }
   | { type: 'session.save'; payload?: SessionScopedPayload }
   | { type: 'sessions.list'; payload: { limit: number } & SessionScopedPayload }
-  | { type: 'session.delete'; payload: { id: string } }
+  | { type: 'session.delete'; payload: { id: string } & SessionScopedPayload }
   | { type: 'session.rename'; payload: { id: string; name: string } }
   | { type: 'modes.list' }
   | { type: 'mode.switch'; payload: { id: string } }
@@ -565,9 +565,9 @@ export type WSClientMessageCore =
       payload: { target: string; status: 'open' | 'in_progress' | 'done' } & SessionScopedPayload;
     }
   | { type: 'ping' }
-  | { type: 'process.list' }
-  | { type: 'process.kill'; payload: { pid: number } }
-  | { type: 'process.killAll' }
+  | { type: 'process.list'; payload?: SessionScopedPayload }
+  | { type: 'process.kill'; payload: { pid: number } & SessionScopedPayload }
+  | { type: 'process.killAll'; payload?: SessionScopedPayload }
   | { type: 'git.info' }
   | { type: 'git.changes' }
   | { type: 'git.diff'; payload: { path: string } }
@@ -577,7 +577,7 @@ export type WSClientMessageCore =
   | { type: 'git.commit'; payload: { message: string } }
   | { type: 'goal.get' }
   | { type: 'goal-state.get' }
-  | { type: 'autonomy.switch'; payload: { mode: string } }
+  | { type: 'autonomy.switch'; payload: { mode: string } & SessionScopedPayload }
   | { type: 'prefs.update'; payload: Record<string, unknown> }
   | { type: 'prefs.get'; payload?: { sessionId?: string | undefined } | undefined }
   | { type: 'system_prompt.get'; payload?: { sessionId?: string } }
