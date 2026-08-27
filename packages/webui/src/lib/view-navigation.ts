@@ -4,7 +4,6 @@ export type PanelMainView =
   | 'chat'
   | 'files'
   | 'skill'
-  | 'officemap'
   | 'changes'
   | 'mailbox'
   | 'design-gallery';
@@ -39,9 +38,7 @@ export const PANEL_VIEW_BY_ACTIVITY: Record<Activity, PanelMainView> = {
   changes: 'changes',
   mailbox: 'mailbox',
   skills: 'skill',
-  worktrees: 'chat',
   design: 'design-gallery',
-  officemap: 'officemap',
 };
 
 export const VIEW_ACTIVITY: Partial<Record<AppView, Activity>> = {
@@ -50,7 +47,6 @@ export const VIEW_ACTIVITY: Partial<Record<AppView, Activity>> = {
   changes: 'changes',
   mailbox: 'mailbox',
   skill: 'skills',
-  officemap: 'officemap',
   'design-gallery': 'design',
 };
 
@@ -60,7 +56,6 @@ export const ACTIVITY_SHORTCUT_BY_KEY: Readonly<Record<string, Activity>> = {
   '3': 'changes',
   '4': 'mailbox',
   '5': 'skills',
-  '6': 'officemap',
   '0': 'design',
 };
 
@@ -71,9 +66,7 @@ export const ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY: Readonly<Record<Activity, stri
   changes: 'Ctrl+3',
   mailbox: 'Ctrl+4',
   skills: 'Ctrl+5',
-  worktrees: 'Ctrl+Shift+W',
   design: 'Ctrl+0',
-  officemap: 'Ctrl+6',
 };
 
 export function pairedViewForActivity(activity: Activity): PanelMainView {

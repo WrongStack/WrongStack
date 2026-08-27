@@ -40,6 +40,7 @@ import { AudienceMemoryPanel } from './AudienceMemoryPanel.js';
  */
 import type { CustomRosterStats, RosterAgentEntry, RosterTab } from './agent-roster-data.js';
 import { OfficeMapPanel } from './OfficeMapPanel.js';
+import { OfficeMapSettingsPanel } from './OfficeMapSettingsPanel.js';
 import { useAgentRosterData } from './useAgentRosterData.js';
 
 // ══════════════════════════════════════════════════════════════════════
@@ -612,7 +613,17 @@ export function AgentRosterView({
         )}
 
         {activeTab === 'live' && <LiveFleetTab nowTick={nowTick} />}
-        {activeTab === 'officemap' && <OfficeMapPanel />}
+        {activeTab === 'officemap' && (
+          <div className="flex min-h-0 min-w-0 w-full">
+            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+              <OfficeMapPanel />
+            </div>
+            {/* Display preferences — relocated from the retired ActivityBar side panel */}
+            <aside className="w-60 shrink-0 overflow-y-auto border-l border-border/60">
+              <OfficeMapSettingsPanel />
+            </aside>
+          </div>
+        )}
         {activeTab === 'catalog' && (
           <RosterCatalogTab customStats={customStats} catalog={catalog} />
         )}

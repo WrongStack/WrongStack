@@ -69,16 +69,14 @@ function resetStore() {
 
 describe('constants', () => {
   it('PANEL_VIEW_BY_ACTIVITY maps all activities', () => {
-    expect(Object.keys(PANEL_VIEW_BY_ACTIVITY)).toHaveLength(9);
+    expect(Object.keys(PANEL_VIEW_BY_ACTIVITY)).toHaveLength(7);
     expect(PANEL_VIEW_BY_ACTIVITY.chat).toBe('chat');
     expect(PANEL_VIEW_BY_ACTIVITY.agents).toBe('chat');
     expect(PANEL_VIEW_BY_ACTIVITY.files).toBe('files');
     expect(PANEL_VIEW_BY_ACTIVITY.changes).toBe('changes');
     expect(PANEL_VIEW_BY_ACTIVITY.mailbox).toBe('mailbox');
     expect(PANEL_VIEW_BY_ACTIVITY.skills).toBe('skill');
-    expect(PANEL_VIEW_BY_ACTIVITY.worktrees).toBe('chat');
     expect(PANEL_VIEW_BY_ACTIVITY.design).toBe('design-gallery');
-    expect(PANEL_VIEW_BY_ACTIVITY.officemap).toBe('officemap');
   });
 
   it('VIEW_ACTIVITY maps views to activities', () => {
@@ -87,7 +85,6 @@ describe('constants', () => {
     expect(VIEW_ACTIVITY.changes).toBe('changes');
     expect(VIEW_ACTIVITY.mailbox).toBe('mailbox');
     expect(VIEW_ACTIVITY.skill).toBe('skills');
-    expect(VIEW_ACTIVITY.officemap).toBe('officemap');
     expect(VIEW_ACTIVITY['design-gallery']).toBe('design');
   });
 
@@ -95,13 +92,13 @@ describe('constants', () => {
     expect(ACTIVITY_SHORTCUT_BY_KEY['1']).toBe('chat');
     expect(ACTIVITY_SHORTCUT_BY_KEY['2']).toBe('files');
     expect(ACTIVITY_SHORTCUT_BY_KEY['0']).toBe('design');
-    expect(Object.keys(ACTIVITY_SHORTCUT_BY_KEY)).toHaveLength(7);
+    expect(Object.keys(ACTIVITY_SHORTCUT_BY_KEY)).toHaveLength(6);
   });
 
   it('ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY has all labels', () => {
     expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY.chat).toBe('Ctrl+1');
-    expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY.worktrees).toBe('Ctrl+Shift+W');
-    expect(Object.keys(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY)).toHaveLength(9);
+    expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY.design).toBe('Ctrl+0');
+    expect(Object.keys(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY)).toHaveLength(7);
   });
 });
 

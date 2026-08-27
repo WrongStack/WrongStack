@@ -151,7 +151,7 @@ export interface DesktopWebuiCommand {
     | 'sessions'
     | 'setup'
     | 'skill'
-    | 'officemap'
+    | 'roster'
     | 'mailbox'
     | 'debug'
     | 'design-gallery'
@@ -167,8 +167,6 @@ export interface DesktopWebuiCommand {
     | 'mailbox'
     | 'skills'
     | 'design'
-    | 'worktrees'
-    | 'officemap'
     | undefined;
   overlay?: 'fleet' | 'agents-monitor' | 'processes' | 'queue' | undefined;
   dockSection?: 'goal' | 'fleet' | 'work' | 'worktrees' | 'collab' | undefined;

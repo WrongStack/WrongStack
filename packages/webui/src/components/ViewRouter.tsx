@@ -35,9 +35,6 @@ const KanbanView = lazy(() => import('./KanbanView').then((m) => ({ default: m.K
 const MailboxDetailView = lazy(() =>
   import('./MailboxDetailView').then((m) => ({ default: m.MailboxDetailView })),
 );
-const OfficeMapPanel = lazy(() =>
-  import('./OfficeMapPanel').then((m) => ({ default: m.OfficeMapPanel })),
-);
 const PromptJournalView = lazy(() =>
   import('./PromptJournalView').then((m) => ({ default: m.PromptJournalView })),
 );
@@ -322,21 +319,6 @@ export function ViewRouter({
           <Suspense fallback={<PanelSuspense />}>
             <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
               <SkillDetailView className="h-full" />
-            </div>
-          </Suspense>
-        </ErrorBoundary>
-      )}
-      {currentView === 'officemap' && (
-        <ErrorBoundary level="panel" name={t('activity:panels.officeMap')}>
-          <Suspense
-            fallback={
-              <PanelSuspense
-                label={t('common:loadingNamed', { name: t('activity:panels.officeMap') })}
-              />
-            }
-          >
-            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-              <OfficeMapPanel />
             </div>
           </Suspense>
         </ErrorBoundary>

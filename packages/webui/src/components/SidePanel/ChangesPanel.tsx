@@ -12,8 +12,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
-import { type GitChangedFile, useConfigStore, useGitChangesStore } from '@/stores';
+import {
+  type GitChangedFile,
+  useConfigStore,
+  useGitChangesStore,
+  useUIStore,
+} from '@/stores';
 import { useAppTranslation } from '@/i18n';
+import { WorktreesPanel } from './WorktreesPanel';
 
 /** Visual treatment for each git status letter. */
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -141,6 +147,10 @@ export function ChangesPanel() {
   const error = useGitChangesStore((s) => s.error);
   const loadingList = useGitChangesStore((s) => s.loadingList);
   const selectedPath = useGitChangesStore((s) => s.selectedPath);
+  // Worktree lanes moved from the ActivityBar into this panel (store-driven so
+  // shortcuts, slash commands and the desktop bridge can deep-link the tab).
+  const changesPanelTab = useUIStore((s) => s.changesPanelTab);
+  const setChangesPanelTab = useUIStore((s) => s.setChangesPanelTab);
 
   const [commitMessage, setCommitMessage] = useState('');
   const [committing, setCommitting] = useState(false);
@@ -182,6 +192,40 @@ export function ChangesPanel() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+      {/* Tab strip — Worktree lanes moved in from the retired ActivityBar icon */}
+      <div className="flex shrink-0 items-center gap-1 border-b border-border/60 px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => setChangesPanelTab('changes')}
+          className={cn(
+            'h-6 rounded px-2 text-[11px] font-medium transition-colors',
+            changesPanelTab === 'changes'
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          {t('activity:nav.changes', 'Changes')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setChangesPanelTab('worktrees')}
+          className={cn(
+            'h-6 rounded px-2 text-[11px] font-medium transition-colors',
+            changesPanelTab === 'worktrees'
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+          )}
+        >
+          {t('activity:nav.worktrees', 'Worktrees')}
+        </button>
+      </div>
+
+      {changesPanelTab === 'worktrees' ? (
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <WorktreesPanel />
+        </div>
+      ) : (
+        <>
       <div className="flex items-center justify-between px-3 py-2 border-b shrink-0 bg-background/50">
         <span className="text-[11px] text-muted-foreground font-mono">
           {t('activity:changes.fileCount', { count: files.length })}
@@ -317,6 +361,8 @@ export function ChangesPanel() {
             <span>Commit {stagedFiles.length > 0 ? `(${stagedFiles.length})` : ''}</span>
           </button>
         </div>
+      )}
+        </>
       )}
     </div>
   );

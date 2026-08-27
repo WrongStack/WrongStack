@@ -24,7 +24,7 @@ export const DESKTOP_COMMAND_VIEWS = new Set([
   'sessions',
   'setup',
   'skill',
-  'officemap',
+  'roster',
   'mailbox',
   'debug',
   'design-gallery',

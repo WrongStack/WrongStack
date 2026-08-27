@@ -2,13 +2,11 @@ import {
   Bot,
   Boxes,
   BrainCircuit,
-  Building2,
   ChartNoAxesCombined,
   ClipboardList,
   Columns3,
   Command,
   FolderOpen,
-  GitBranch,
   GitCompare,
   Keyboard,
   Layers,
@@ -79,16 +77,17 @@ const PANELS: PanelDef[] = [
   { id: 'changes', icon: <GitCompare size={16} />, label: 'Changes' },
   { id: 'mailbox', icon: <Mail size={16} />, label: 'Mailbox' },
   { id: 'skills', icon: <Sparkles size={16} />, label: 'Skills' },
-  { id: 'worktrees', icon: <GitBranch size={16} />, label: 'Worktrees' },
   { id: 'design', icon: <Palette size={16} />, label: 'Design Studio' },
-  { id: 'officemap', icon: <Building2 size={16} />, label: 'Office Map' },
 ];
 
+// Worktree lanes and the Fleet/Office Map moved out of the bar: worktrees is
+// a tab inside the Changes panel (Ctrl+Shift+W still lands there), the map is
+// the 'officemap' tab of the Agent Roster view (F11). Settings lives in the
+// "…" utilities menu (Ctrl+9 / palette unchanged) — its standalone icon was
+// redundant with that menu's full Settings section.
 const VIEWS: ViewDef[] = [
-  { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
   // Agent Roster is a primary surface — it must stay visible on typical
-  // viewports instead of silently falling into the "…" overflow menu (it
-  // used to be last in this list, so it overflowed on most laptops).
+  // viewports instead of silently falling into the "…" overflow menu.
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
   { id: 'sddhub', icon: <Wand2 size={16} />, label: 'SDD' },
   { id: 'kanban', icon: <Columns3 size={16} />, label: 'Kanban' },
@@ -106,8 +105,6 @@ const DESKTOP_CORE_PANEL_IDS: readonly Activity[] = ['chat', 'files', 'changes',
 const DESKTOP_PANEL_PRIORITY: readonly Activity[] = [
   ...DESKTOP_CORE_PANEL_IDS,
   'skills',
-  'worktrees',
-  'officemap',
   'design',
 ];
 

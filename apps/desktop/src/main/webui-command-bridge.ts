@@ -32,7 +32,7 @@ const DESKTOP_WEBUI_VIEWS = new Set<DesktopCommandView>([
   'sessions',
   'setup',
   'skill',
-  'officemap',
+  'roster',
   'mailbox',
   'debug',
   'design-gallery',
@@ -49,8 +49,6 @@ const DESKTOP_WEBUI_ACTIVITIES = new Set<DesktopCommandActivity>([
   'mailbox',
   'skills',
   'design',
-  'worktrees',
-  'officemap',
 ]);
 
 const DESKTOP_WEBUI_OVERLAYS = new Set<DesktopCommandOverlay>([

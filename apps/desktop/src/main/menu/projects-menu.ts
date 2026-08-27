@@ -106,8 +106,7 @@ export function buildSessionMenu(
           },
           {
             label: t('fleetHQ'),
-            click: () =>
-              actions.activateAndNavigate(runtime.id, { activity: 'officemap', view: 'officemap' }),
+            click: () => actions.activateAndNavigate(runtime.id, { view: 'roster' }),
           },
           {
             label: t('settings'),

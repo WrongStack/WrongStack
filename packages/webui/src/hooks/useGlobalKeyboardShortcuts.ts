@@ -54,7 +54,7 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
       // Ctrl+1..9/0 — jump straight to a side panel (same logic as clicking
       // its ActivityBar icon, including close-on-repeat). Use an explicit
       // map instead of numeric PANEL_ORDER indexing because some panels use
-      // non-sequential shortcuts (Design is Ctrl+0; Worktrees is Ctrl+Shift+W).
+      // non-sequential shortcuts (Design is Ctrl+0).
       if (mod && !e.shiftKey && !e.altKey && Object.hasOwn(ACTIVITY_SHORTCUT_BY_KEY, e.key)) {
         const activity = ACTIVITY_SHORTCUT_BY_KEY[e.key];
         if (activity) {
@@ -69,9 +69,12 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
         openMainView('settings');
         return;
       }
+      // Ctrl+Shift+W — Worktrees tab of the Changes panel (moved off the
+      // ActivityBar; the chord keeps its familiar meaning).
       if (mod && e.shiftKey && !e.altKey && e.key.toLowerCase() === 'w') {
         e.preventDefault();
-        openPanel('worktrees');
+        useUIStore.getState().setChangesPanelTab('worktrees');
+        openPanel('changes');
         return;
       }
       // Ctrl+Shift+E — toggle / focus File Explorer (VS Code parity)
@@ -117,7 +120,8 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
             ui.setAgentsMonitorOpen(true);
             return;
           case 4:
-            showPanel('worktrees');
+            ui.setChangesPanelTab('worktrees');
+            showPanel('changes');
             ui.setDockSection('worktrees');
             return;
           case 5:
@@ -147,7 +151,8 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
             showPanel('chat');
             return;
           case 11:
-            showPanel('officemap');
+            ui.setAgentRosterActiveTab('officemap');
+            openMainView('roster');
             return;
           case 12:
             showPanel('chat');

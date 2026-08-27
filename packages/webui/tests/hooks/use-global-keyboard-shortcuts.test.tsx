@@ -91,6 +91,8 @@ const UI_DEFAULTS = {
   setQueuePanelOpen: vi.fn(),
   setProcessMonitorOpen: vi.fn(),
   toggleCompactMode: vi.fn(),
+  setChangesPanelTab: vi.fn(),
+  setAgentRosterActiveTab: vi.fn(),
 };
 
 describe('useGlobalKeyboardShortcuts', () => {
@@ -190,10 +192,11 @@ describe('useGlobalKeyboardShortcuts', () => {
     expect(nav.openMainView).toHaveBeenCalledWith('settings');
   });
 
-  it('Ctrl+Shift+W opens the worktrees panel', () => {
+  it('Ctrl+Shift+W opens the Worktrees tab of the Changes panel', () => {
     mount();
     press('W', { ctrlKey: true, shiftKey: true });
-    expect(nav.openPanel).toHaveBeenCalledWith('worktrees');
+    expect(ui().setChangesPanelTab).toHaveBeenCalledWith('worktrees');
+    expect(nav.openPanel).toHaveBeenCalledWith('changes');
   });
 
   // ── function keys ─────────────────────────────────────────────────────────
@@ -214,10 +217,11 @@ describe('useGlobalKeyboardShortcuts', () => {
       expect(ui().setAgentsMonitorOpen).toHaveBeenCalledWith(true);
     });
 
-    it('F4 shows worktrees in the dock', () => {
+    it('F4 shows worktrees in the dock and its panel tab', () => {
       mount();
       press('F4');
-      expect(nav.showPanel).toHaveBeenCalledWith('worktrees');
+      expect(ui().setChangesPanelTab).toHaveBeenCalledWith('worktrees');
+      expect(nav.showPanel).toHaveBeenCalledWith('changes');
       expect(ui().setDockSection).toHaveBeenCalledWith('worktrees');
     });
 
@@ -256,10 +260,11 @@ describe('useGlobalKeyboardShortcuts', () => {
       expect(wsClient.listSessions).toHaveBeenCalledWith(200);
     });
 
-    it('F11 opens the office map', () => {
+    it('F11 opens the office map tab of the Agent Roster', () => {
       mount();
       press('F11');
-      expect(nav.showPanel).toHaveBeenCalledWith('officemap');
+      expect(ui().setAgentRosterActiveTab).toHaveBeenCalledWith('officemap');
+      expect(nav.openMainView).toHaveBeenCalledWith('roster');
     });
 
     it('F12 opens the dock customizer', () => {

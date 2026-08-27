@@ -79,8 +79,6 @@ describe('coerceActivity', () => {
       'mailbox',
       'skills',
       'design',
-      'worktrees',
-      'officemap',
     ] as const) {
       expect(coerceActivity(a)).toBe(a);
     }
@@ -91,6 +89,10 @@ describe('coerceActivity', () => {
     expect(coerceActivity('history')).toBe('chat');
     expect(coerceActivity('sessions')).toBe('chat');
     expect(coerceActivity('projects')).toBe('chat');
+    // worktree lanes now live as a tab inside the Changes panel
+    expect(coerceActivity('worktrees')).toBe('changes');
+    // the fleet map now lives as a tab inside the Agent Roster view
+    expect(coerceActivity('officemap')).toBe('chat');
   });
 
   it('falls back to chat for garbage values', () => {

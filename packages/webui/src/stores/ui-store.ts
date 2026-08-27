@@ -20,9 +20,7 @@ export type Activity =
   | 'changes'
   | 'mailbox'
   | 'skills'
-  | 'design'
-  | 'worktrees'
-  | 'officemap';
+  | 'design';
 
 const ACTIVITIES: readonly Activity[] = [
   'chat',
@@ -32,17 +30,19 @@ const ACTIVITIES: readonly Activity[] = [
   'mailbox',
   'skills',
   'design',
-  'worktrees',
-  'officemap',
 ];
 
-/** Map any persisted (possibly legacy) activity value onto the current set. */
+/** Map any persisted (possibly legacy) activity value onto the current set.
+ * 'worktrees' and 'officemap' were retired from the ActivityBar: worktree
+ * lanes now live as a tab inside the Changes panel, the fleet map as a tab
+ * inside the Agent Roster view. */
 export function coerceActivity(value: unknown): Activity {
   if (ACTIVITIES.includes(value as Activity)) return value as Activity;
   if (value === 'context') return 'chat';
   if (value === 'history' || value === 'sessions') return 'chat';
   if (value === 'projects') return 'chat';
-  if (value === 'officemap') return 'officemap';
+  if (value === 'worktrees') return 'changes';
+  if (value === 'officemap') return 'chat';
   return 'chat';
 }
 
@@ -62,7 +62,6 @@ const VIEWS = [
   'session-inspect',
   'setup',
   'skill',
-  'officemap',
   'mailbox',
   'debug',
   'design-gallery',
@@ -223,6 +222,11 @@ interface UIState {
   setAgentRosterActiveTab: (
     tab: 'live' | 'officemap' | 'catalog' | 'learning' | 'memory' | 'customize',
   ) => void;
+  /** Active tab inside the Changes side panel. Worktree lanes moved from the
+   *  ActivityBar into this panel (kept in the store so shortcuts, slash
+   *  commands and the desktop bridge can deep-link to the Worktrees tab). */
+  changesPanelTab: 'changes' | 'worktrees';
+  setChangesPanelTab: (tab: 'changes' | 'worktrees') => void;
   /** Persisted Settings panel scroll position and active category tab so the user
    *  returns to the exact location after navigating away and back. */
   settingsActiveTab: string;
@@ -492,6 +496,7 @@ export const useUIStore = create<UIState>()(
       terminalOpen: false,
       terminalCreateNonce: 0,
       agentRosterActiveTab: 'live',
+      changesPanelTab: 'changes',
       settingsActiveTab: 'general',
       scrollPositions: {},
       draftInput: '',
@@ -592,6 +597,7 @@ export const useUIStore = create<UIState>()(
         })),
       setDockCustomizeOpen: (open) => set({ dockCustomizeOpen: open }),
       setAgentRosterActiveTab: (tab) => set({ agentRosterActiveTab: tab }),
+      setChangesPanelTab: (tab) => set({ changesPanelTab: tab }),
       // Compatibility entry points used by slash routes and Desktop commands.
       // The legacy booleans remain false so no second overlay can be mounted.
       setFleetMonitorOpen: (open: boolean) =>

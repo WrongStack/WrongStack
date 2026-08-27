@@ -268,7 +268,8 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       return true;
     case '/worktree':
     case '/worktrees':
-      showPanel('worktrees');
+      useUIStore.getState().setChangesPanelTab('worktrees');
+      showPanel('changes');
       useUIStore.getState().setDockSection('worktrees');
       return true;
     case '/mode': {
@@ -624,7 +625,8 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
         return true;
       }
       if (panel === 'worktreeMonitor') {
-        showPanel('worktrees');
+        ui.setChangesPanelTab('worktrees');
+        showPanel('changes');
         ui.setDockSection('worktrees');
         return true;
       }
@@ -659,7 +661,8 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
         return true;
       }
       if (panel === 'coordinatorMonitor') {
-        showPanel('officemap');
+        ui.setAgentRosterActiveTab('officemap');
+        openMainView('roster');
         return true;
       }
       if (panel === 'statuslinePicker') {

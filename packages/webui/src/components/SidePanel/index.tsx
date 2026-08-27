@@ -27,8 +27,6 @@ import { ChangesPanel } from './ChangesPanel';
 import { SessionPanel } from './SessionPanel';
 import { SkillsList } from './SkillsList';
 import { DesignStudioPanel } from './DesignStudioPanel';
-import { WorktreesPanel } from './WorktreesPanel';
-import { OfficeMapSettingsPanel } from '../OfficeMapSettingsPanel';
 import { AgentsPanel } from './AgentsPanel';
 
 const PANEL_DESCRIPTIONS: Record<string, string> = {
@@ -39,8 +37,6 @@ const PANEL_DESCRIPTIONS: Record<string, string> = {
   mailbox: 'Cross-surface coordination messages',
   skills: 'Installed skills and capability docs',
   design: 'Design studio assets and previews',
-  worktrees: 'Parallel branches and worktree lanes',
-  officemap: 'Fleet map settings and filters',
 };
 
 export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | undefined }) {
@@ -170,16 +166,6 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
         {activeActivity === 'design' && (
           <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
             <DesignStudioPanel className="h-full" />
-          </div>
-        )}
-        {activeActivity === 'worktrees' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            <WorktreesPanel />
-          </div>
-        )}
-        {activeActivity === 'officemap' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            <OfficeMapSettingsPanel />
           </div>
         )}
       </div>

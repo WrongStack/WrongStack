@@ -21,6 +21,8 @@ const mocks = vi.hoisted(() => {
     setCurrentViewUI: vi.fn(),
     setTerminalOpen: vi.fn(),
     setPromptLibraryOpen: vi.fn(),
+    setChangesPanelTab: vi.fn(),
+    setAgentRosterActiveTab: vi.fn(),
   };
 
   // Shared factory used by both @/stores and @/stores/ui-store mocks so
@@ -41,6 +43,8 @@ const mocks = vi.hoisted(() => {
     setCurrentView: fns.setCurrentViewUI,
     setTerminalOpen: fns.setTerminalOpen,
     setPromptLibraryOpen: fns.setPromptLibraryOpen,
+    setChangesPanelTab: fns.setChangesPanelTab,
+    setAgentRosterActiveTab: fns.setAgentRosterActiveTab,
   });
 
   return { ...fns, createMockUIStore };
@@ -334,9 +338,9 @@ describe('runChatSlashCommand — /f', () => {
   it('/f11 opens the coordinator office map surface', () => {
     const opts = makeOptions({ raw: '/f11' });
     expect(runChatSlashCommand(opts)).toBe(true);
-    expect(mocks.setSidebarOpen).toHaveBeenCalledWith(true);
-    expect(mocks.selectActivity).toHaveBeenCalledWith('officemap');
-    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('officemap');
+    // Office Map now lives as the 'officemap' tab of the Agent Roster view.
+    expect(mocks.setAgentRosterActiveTab).toHaveBeenCalledWith('officemap');
+    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('roster');
   });
 
   it('/f12 opens the dock chip picker', () => {
@@ -397,6 +401,9 @@ describe('runChatSlashCommand — agent/autonomy commands', () => {
   it('/worktree opens the worktrees dock chip', () => {
     const opts = makeOptions({ raw: '/worktree' });
     expect(runChatSlashCommand(opts)).toBe(true);
+    // Worktrees panel moved into the Changes side panel as a tab.
+    expect(mocks.setChangesPanelTab).toHaveBeenCalledWith('worktrees');
+    expect(mocks.selectActivity).toHaveBeenCalledWith('changes');
     expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
   });
 
@@ -823,6 +830,8 @@ describe('runChatSlashCommand — /f panel dispatch', () => {
 
   it('/f4 opens the worktree dock', () => {
     expect(runChatSlashCommand(makeOptions({ raw: '/f4' }))).toBe(true);
+    expect(mocks.setChangesPanelTab).toHaveBeenCalledWith('worktrees');
+    expect(mocks.selectActivity).toHaveBeenCalledWith('changes');
     expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
   });
 
