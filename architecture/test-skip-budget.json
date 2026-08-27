@@ -47,6 +47,11 @@
       "fingerprint": "2dcf51c9176eed57"
     },
     {
+      "file": "packages/core/tests/chronicle/metrics-token-attribution.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "830552a86ae53e38"
+    },
+    {
       "file": "packages/core/tests/chronicle/project-server-auth-gate.test.ts",
       "kind": "skipIf",
       "fingerprint": "b6bed90afffce85b"
@@ -130,6 +135,11 @@
       "file": "packages/persistence/tests/project-endpoint.test.ts",
       "kind": "skip",
       "fingerprint": "89c506dbd655693f"
+    },
+    {
+      "file": "packages/persistence/tests/skip-budget-guard.test.ts",
+      "kind": "skip",
+      "fingerprint": "25aa96f8ed288199"
     },
     {
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
@@ -354,7 +364,7 @@
     {
       "file": "packages/tui/tests/git-info.test.ts",
       "kind": "conditional-skip",
-      "fingerprint": "44f3d283d9f05369"
+      "fingerprint": "eb2150f91f0f2c2a"
     },
     {
       "file": "packages/tui/tests/git-info.test.ts",
@@ -364,7 +374,7 @@
     {
       "file": "packages/tui/tests/git-info.test.ts",
       "kind": "skip",
-      "fingerprint": "a742ee572fa819fa"
+      "fingerprint": "400d05d7964d2087"
     },
     {
       "file": "packages/tui/tests/use-working-dir-chip.test.ts",

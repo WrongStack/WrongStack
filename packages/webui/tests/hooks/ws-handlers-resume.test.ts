@@ -141,8 +141,8 @@ describe('session.start resume transition', () => {
   it('returns desktop shell sessions to the chat home on a plain session.start', () => {
     history.pushState(null, '', '/?shell=desktop');
     useUIStore.setState({
-      currentView: 'officemap',
-      activeActivity: 'officemap',
+      currentView: 'skill',
+      activeActivity: 'skills',
       sidebarOpen: true,
       dockSection: 'work',
       terminalOpen: true,

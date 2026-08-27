@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-27T10:59:14.791Z
+**Generated:** 2026-08-27T13:10:57.586Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3385 |
-| Production source lines | 814069 |
-| Test files | 2975 |
+| Production source lines | 814139 |
+| Test files | 2977 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10471 |
+| Relative module edges | 10470 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -55,7 +55,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/techstack | 50 | 36 | @wrongstack/core, @wrongstack/persistence, @wrongstack/tools |
 | @wrongstack/telegram | 27 | 29 | @wrongstack/core |
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
-| @wrongstack/tui | 333 | 323 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
+| @wrongstack/tui | 333 | 325 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
 | @wrongstack/webui | 476 | 365 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
@@ -115,6 +115,7 @@ None.
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1013 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1010 | `packages/plugins/src/git-autocommit/index.ts` |
+| 1009 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 1007 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
@@ -135,7 +136,6 @@ None.
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 | 977 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 975 | `packages/kanban/src/types.ts` |
-| 974 | `packages/tui/src/components/status-bar-rails.tsx` |
 
 ## Exports only tests reference
 

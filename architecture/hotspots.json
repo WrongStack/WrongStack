@@ -447,7 +447,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/stores/ui-store.ts": {
-      "lines": 811,
+      "lines": 817,
       "relativeImports": 4
     },
     "packages/webui/src/stores/viz-store.ts": {

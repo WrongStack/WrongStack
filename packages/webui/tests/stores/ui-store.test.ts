@@ -826,8 +826,10 @@ describe('F5 resilience — currentView + dockSection persistence', () => {
     ).persist;
     const result = api?.getOptions?.().merge?.(
       {
-        currentView: 'officemap',
-        activeActivity: 'officemap',
+        // A valid non-chat state: the desktop-shell drop logic (not value
+        // coercion) is what must return it to chat home.
+        currentView: 'skill',
+        activeActivity: 'skills',
         sidebarOpen: true,
         dockSection: 'work',
         terminalOpen: true,
@@ -850,8 +852,8 @@ describe('F5 resilience — currentView + dockSection persistence', () => {
 describe('resetUiNavigationToHome', () => {
   it('returns transient navigation surfaces to the chat home screen', () => {
     useUIStore.setState({
-      currentView: 'officemap',
-      activeActivity: 'officemap',
+      currentView: 'skill',
+      activeActivity: 'skills',
       sidebarOpen: true,
       dockSection: 'work',
       dockCustomizeOpen: true,
