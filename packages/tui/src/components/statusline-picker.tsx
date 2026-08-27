@@ -151,34 +151,35 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
  * duplicating it.
  */
 export const ITEM_LINE: Record<StatuslineItem, number> = {
-  // Line 1 — workspace & identity: static session header (rarely changes)
+  // Line 1 — workspace & identity: static session header (rarely changes).
+  // theme/sessions/tools are the tail so overflow drops them first.
   project: 1,
   working_dir: 1,
   git: 1,
   model: 1,
   mode: 1,
   prompt_variant: 1,
+  theme: 1,
+  sessions: 1,
+  tools: 1,
   version: 1,
-  // Line 2 — run state & safety: live telemetry + permission band.
-  // queue/hint/breaker render inside primaryChips BEFORE processes/elapsed.
+  // Line 2 — run state, safety & vitals: breaker leads the dynamic block
+  // (urgency), hint is last (ephemeral, first dropped on overflow).
   state: 2,
   yolo: 2,
   autonomy: 2,
   eternal_stage: 2,
+  breaker: 2,
   context: 2,
   tokens: 2,
   cost: 2,
   cache: 2,
   queue: 2,
-  hint: 2,
-  breaker: 2,
   processes: 2,
   elapsed: 2,
   token_saving: 2,
   side_effects: 2,
-  sessions: 2,
-  tools: 2,
-  theme: 2,
+  hint: 2,
   // Line 3 — active work & countdowns (conditional)
   goal: 3,
   todos: 3,
@@ -226,26 +227,26 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'model',
   'mode',
   'prompt_variant',
+  'theme',
+  'sessions',
+  'tools',
   'version',
-  // Line 2 — run state & safety
+  // Line 2 — run state, safety & vitals
   'state',
   'yolo',
   'autonomy',
   'eternal_stage',
+  'breaker',
   'context',
   'tokens',
   'cost',
   'cache',
   'queue',
-  'hint',
-  'breaker',
   'processes',
   'elapsed',
   'token_saving',
   'side_effects',
-  'sessions',
-  'tools',
-  'theme',
+  'hint',
   // Line 3 — active work & countdowns
   'goal',
   'todos',

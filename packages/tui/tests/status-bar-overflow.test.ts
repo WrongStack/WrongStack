@@ -8,22 +8,25 @@ import {
   type StatusBarProps,
   truncateChip,
 } from '../src/components/status-bar.js';
+import type { StatusBarClickMap } from '../src/components/status-bar-types.js';
+import { displayWidth } from '../src/terminal-width.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
-// The orange-styling pin in this file asserts the raw `\x1b[38;2;253;159;2m`
-// escape. Ink → chalk renders `<Text color>` via `chalk.hex()`; chalk's color
-// level is auto-detected from `process.stdout.isTTY`, `COLORTERM`, and
-// `FORCE_COLOR` — in vitest's non-TTY worker it resolves to 0 (disabled) and
-// the brand-orange truecolor is silently stripped before `ink-testing-library`
-// ever sees it. This test uses a dedicated vitest config
-// (`vitest.status-bar-overflow.config.ts`) that sets `FORCE_COLOR=3` and
-// `COLORTERM=truecolor` at worker start so chalk picks them up at
-// initialization. The env vars are scoped to this test file only — applying
-// them package-wide breaks ~55 unrelated ink tests. The no-color case below
-// passes its own `mode: 'no-color'` prop, which the component honors
-// regardless of the env vars.
+/**
+ * Status bar overflow handling for the 4-rail layout.
+ *
+ * Width-dependent tests render through `renderRealTty` at explicit column
+ * counts — the layout under test is the real Ink/Yoga output at that
+ * terminal size, not ink-testing-library's fixed 100-column default that the
+ * previous version of this file relied on. All assertions are text-level
+ * (ANSI-stripped); the raw-SGR color pins live in status-bar-sgr.test.ts
+ * under the dedicated FORCE_COLOR config, which is also why this file can
+ * run in the default vitest worker (it was excluded from it before only
+ * because of those color pins).
+ */
 
 function strip(s: string): string {
-  // eslint-disable-next-line no-control-regex
+  // eslint-disable-next-line no-control-characters
   return s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
 }
 
@@ -38,6 +41,44 @@ function frameOf(props: Partial<StatusBarProps>): string {
   const out = strip(lastFrame() ?? '');
   unmount();
   return out;
+}
+
+async function frameAt(columns: number, props: Partial<StatusBarProps>): Promise<string[]> {
+  const view = renderRealTty(
+    React.createElement(StatusBar, {
+      model: 'anthropic/claude',
+      state: 'idle',
+      ...props,
+    } as StatusBarProps),
+    { columns, rows: 24 },
+  );
+  await settle();
+  const lines = view.lines();
+  view.unmount();
+  return lines;
+}
+
+async function spansAt(
+  columns: number,
+  props: Partial<StatusBarProps>,
+): Promise<Map<number, string[]>> {
+  const clickMapRef: { current: StatusBarClickMap | null } = { current: null };
+  const view = renderRealTty(
+    React.createElement(StatusBar, {
+      model: 'anthropic/claude',
+      state: 'idle',
+      ...props,
+      clickMapRef,
+    } as StatusBarProps),
+    { columns, rows: 24 },
+  );
+  await settle();
+  const idsByLine = new Map<number, string[]>();
+  for (const line of clickMapRef.current?.lines ?? []) {
+    idsByLine.set(line.line, line.spans.map((s) => s.id));
+  }
+  view.unmount();
+  return idsByLine;
 }
 
 describe('truncateChip', () => {
@@ -89,70 +130,79 @@ describe('nodeText', () => {
 });
 
 describe('StatusBar overflow handling (width-budget)', () => {
-  it('truncates an over-long project name in the rendered frame', () => {
-    const frame = frameOf({ projectName: 'p'.repeat(40), startedAt: Date.now() });
+  it('truncates an over-long project name in the rendered frame', async () => {
+    const lines = await frameAt(100, { projectName: 'p'.repeat(40) });
+    const frame = lines.join('\n');
     expect(frame).not.toContain('p'.repeat(40));
     expect(frame).toContain(`${'p'.repeat(23)}…`);
   });
 
-  it('drops trailing chips with a +N marker rather than wrapping the line', () => {
-    // ink-testing-library renders at a fixed 100 columns; pack the workspace
-    // rail (line 1) and the session-identity tail well past that so the
+  it('drops trailing chips with a +N marker rather than wrapping the line', async () => {
+    // Pack the identity rail (L1) well past 100 columns so the
     // lowest-priority trailing chips must be dropped with a +N marker.
-    const frame = frameOf({
-      yolo: true,
-      autonomy: 'eternal',
-      startedAt: Date.now(),
+    const lines = await frameAt(100, {
       projectName: 'project-name-here',
       workingDir: 'some/working/directory/path',
       git: { branch: 'feature/long-branch-name', added: 0, deleted: 2, untracked: 3 },
       sessionCount: 4,
       toolCount: 42,
-      tokenSavingMode: 'medium',
-      goalSummary: {
-        goal: 'ship the statusline overflow handling end to end',
-        goalState: 'active',
-        iterations: 7,
-      },
     });
-    const lines = frame.split('\n');
-    const line1 = lines[0] ?? '';
-    const line2 = lines[1] ?? '';
-    // Line 1 (workspace rail) is the overflow-prone line: project +
-    // workdir + git + model + mode + prompt_variant. It must append a
-    // `+N` marker rather than wrap or silently truncate, and its leading
-    // identity chips must survive the drop.
-    expect(line1.length).toBeLessThanOrEqual(100);
-    expect(line1).toContain('project-name-here');
-    expect(line1).toContain('feature/long-branch-name');
-    const overflowMatch = line1.match(/\+(\d+)/);
+    expect(lines.length).toBeGreaterThan(0);
+    // No rail may wrap: every rendered line fits the terminal width.
+    for (const line of lines) {
+      expect(displayWidth(line)).toBeLessThanOrEqual(100);
+    }
+    const identity = lines[0] ?? '';
+    // Leading identity survives the drop; the omission marker appears.
+    expect(identity).toContain('project-name-here');
+    expect(identity).toContain('feature/long-branch-name');
+    const overflowMatch = identity.match(/\+(\d+)/);
     expect(overflowMatch).not.toBeNull();
     expect(Number(overflowMatch?.[1])).toBeGreaterThan(0);
-    // Line 2 (run state) fits at this budget — no wrap.
-    expect(line2.length).toBeLessThanOrEqual(100);
   });
 
-  it('keeps the leading workspace chips when dropping (priority order)', () => {
-    const frame = frameOf({
+  it('sacrifices the static tail first and leaves the run-state rail untouched', async () => {
+    // At 60 columns the identity rail keeps its leading chips through the
+    // model but drops the static tail (theme/sessions/tools). The run-state
+    // rail below is budgeted independently — L1 overflow must never push
+    // state/yolo/autonomy off L2. That isolation is the core guarantee of
+    // the 2026-08-27 re-map.
+    const idsByLine = await spansAt(60, {
+      projectName: 'project-name-here',
+      workingDir: 'pkg/mod',
+      git: { branch: 'x', added: 0, deleted: 0, untracked: 0 },
+      sessionCount: 4,
+      toolCount: 42,
       yolo: true,
       autonomy: 'eternal',
-      startedAt: Date.now(),
+    });
+    const identity = idsByLine.get(0) ?? [];
+    for (const id of ['project', 'working_dir', 'git', 'model']) {
+      expect(identity).toContain(id);
+    }
+    expect(identity).not.toContain('tools');
+
+    const runState = idsByLine.get(1) ?? [];
+    expect(runState[0]).toBe('state');
+    expect(runState).toContain('yolo');
+    expect(runState).toContain('autonomy');
+  });
+
+  it('keeps the right-anchored version chip while the identity rail overflows', async () => {
+    // The version chip is right-anchored: when L1 overflows, PowerlineRail
+    // trims trailing left segments to reserve its columns — so the version
+    // stays on screen next to the +N marker instead of being pushed off.
+    const lines = await frameAt(100, {
+      version: '0.7.0',
       projectName: 'project-name-here',
       workingDir: 'some/working/directory/path',
       git: { branch: 'feature/long-branch-name', added: 0, deleted: 0, untracked: 0 },
-      sessionCount: 9,
-      toolCount: 99,
-      tokenSavingMode: 'medium',
+      sessionCount: 4,
+      toolCount: 42,
     });
-    // The workspace rail (line 1) leads with project/workdir/git + model and
-    // must survive any overflow drops; yolo + autonomy now live on line 2
-    // (run state) and lead that rail.
-    const lines = frame.split('\n');
-    const line1 = lines[0] ?? '';
-    const line2 = lines[1] ?? '';
-    expect(line1).toContain('project-name-here');
-    expect(line2).toContain('! YOLO');
-    expect(line2).toContain('∞ ETERNAL');
+    const identity = lines[0] ?? '';
+    expect(identity).toContain('v0.7.0');
+    expect(identity).toMatch(/\+\d+/);
   });
 });
 
@@ -164,7 +214,7 @@ describe('StatusBar version chip + update notice', () => {
     expect(frame).not.toContain('(update v');
   });
 
-  it('appends the orange `(update v{latest})` suffix when updateAvailable + latestVersion are set', () => {
+  it('appends the `(update v{latest})` suffix when updateAvailable + latestVersion are set', () => {
     const frame = frameOf({
       version: '0.7.0',
       latestVersion: '0.8.1',
@@ -172,33 +222,8 @@ describe('StatusBar version chip + update notice', () => {
     });
     expect(frame).toContain('v0.7.0');
     expect(frame).toContain('(update v0.8.1)');
-    // The update suffix must be tinted with STACK_ORANGE (#FD9F02 = truecolor
-    // \x1b[38;2;253;159;2m). Render a raw (non-ANSI-stripped) frame here —
-    // frameOf() strips SGR before matching, which would silently swallow this
-    // assertion. Pinning the escape stops a future refactor from swapping the
-    // brand orange for theme.warn (pastel yellow) unnoticed.
-    //
-    // Why this works: this file is excluded from the base
-    // `packages/tui/vitest.config.ts` and runs under the dedicated config
-    // `vitest.status-bar-overflow.config.ts`, which sets
-    // `env.FORCE_COLOR=3` and `env.COLORTERM=truecolor` before any worker
-    // module evaluates. That lets chalk (loaded transitively via
-    // `ink-testing-library` → `ink`) initialize at color level 3 and emit the
-    // 24-bit escape at render time. Without those env vars, chalk would sit
-    // at level 0 in a piped vitest worker and strip the SGR before
-    // `lastFrame()` sees it.
-    const { lastFrame, unmount } = render(
-      React.createElement(StatusBar, {
-        model: 'anthropic/claude',
-        state: 'idle',
-        version: '0.7.0',
-        latestVersion: '0.8.1',
-        updateAvailable: true,
-      } as StatusBarProps),
-    );
-    const raw = lastFrame() ?? '';
-    unmount();
-    expect(raw).toMatch(/\x1b\[38;2;253;159;2m.*\(update v0\.8\.1\)/);
+    // The orange truecolor pin for this suffix lives in
+    // status-bar-sgr.test.ts (needs FORCE_COLOR=3, dedicated config).
   });
 
   it('omits the update suffix when updateAvailable is false even if latestVersion is set', () => {
@@ -240,33 +265,17 @@ describe('StatusBar version chip + update notice', () => {
     expect(frame).not.toMatch(/\bv\d+\.\d+\.\d+\b/);
   });
 
-  it('renders the chip monochrome (no orange SGR) in no-color mode', () => {
-    // Render a raw (non-ANSI-stripped) frame — frameOf() strips SGR before
-    // matching, which would make a negative SGR assertion vacuous (it could
-    // never fail). Asserting on the raw frame actually catches a regression
-    // where no-color mode still emits orange truecolor.
-    const { lastFrame, unmount } = render(
-      React.createElement(StatusBar, {
-        model: 'anthropic/claude',
-        state: 'idle',
-        version: '0.7.0',
-        latestVersion: '0.8.1',
-        updateAvailable: true,
-        mode: 'no-color',
-      } as StatusBarProps),
-    );
-    const raw = lastFrame() ?? '';
-    unmount();
-    expect(raw).toContain('v0.7.0');
-    expect(raw).toContain('(update v0.8.1)');
-    // The brand-orange truecolor (STACK_ORANGE #FD9F02 = 253;159;2) must not
-    // survive in no-color mode. Assert the specific orange SGR rather than
-    // "any truecolor": the unrelated `+N dropped` overflow marker emits
-    // theme.textMuted truecolor unconditionally (not gated by monochrome), so
-    // a blanket `not.toMatch(/\x1b\[38;2;/)` would fail spuriously the moment
-    // line 1 widens enough to overflow — even though the chip is correctly
-    // monochrome. (The marker's unconditional color is a separate pre-existing
-    // powerline-rail concern, not a version-chip regression.)
-    expect(raw).not.toMatch(/\x1b\[38;2;253;159;2m/);
+  it('renders the update notice as plain text in no-color mode', () => {
+    // Text-level companion to the raw-SGR no-color pin in
+    // status-bar-sgr.test.ts: the notice must still be readable without
+    // color, which this file can assert in the default (level-0) worker.
+    const frame = frameOf({
+      version: '0.7.0',
+      latestVersion: '0.8.1',
+      updateAvailable: true,
+      mode: 'no-color',
+    });
+    expect(frame).toContain('v0.7.0');
+    expect(frame).toContain('(update v0.8.1)');
   });
 });

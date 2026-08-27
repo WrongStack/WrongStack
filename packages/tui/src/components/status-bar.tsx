@@ -82,11 +82,21 @@ export type {
 } from './status-bar-types.js';
 
 /**
- * Two-line status bar. The first line stays compact and shows the
- * workspace route followed by provider/model, context, tokens, cost, queue,
- * and other runtime essentials. The second line opts in only when there's actually something
- * to show — git branch, elapsed time, todo counts, YOLO marker — so a
- * vanilla session keeps the original single-line footprint.
+ * Four-rail status bar — one semantic question per line, left-to-right in
+ * descending importance:
+ *
+ *  L1 workspace & identity (static): project, working_dir, git, model, mode,
+ *     prompt_variant, theme, sessions, tools; version right-anchored.
+ *  L2 run state, safety & vitals (live): state, yolo, autonomy,
+ *     eternal_stage, breaker, ctx·tokens·cost·cache, queue, processes,
+ *     elapsed, token_saving, side_effects; hint last (first dropped).
+ *  L3 active work & countdowns (conditional): goal, todos, plan, tasks,
+ *     next_steps, auto_proceed, enhance, dropped_tools.
+ *  L4 fleet, connectivity & services (conditional): fleet, mailbox, brain,
+ *     debug_stream, memory; index right-anchored.
+ *
+ * L3/L4 gates derive from the rendered entries themselves, so an empty rail
+ * never renders and a vanilla session keeps its two-line footprint.
  */
 export function StatusBar({
   model,

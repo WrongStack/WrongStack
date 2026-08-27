@@ -28,7 +28,7 @@
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
     "test": "vitest run --config vitest.config.ts",
-    "test:status-bar": "vitest run --config vitest.status-bar-overflow.config.ts",
+    "test:status-bar": "vitest run --config vitest.status-bar-sgr.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
     "test:coverage": "vitest run --coverage --config vitest.config.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",

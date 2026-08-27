@@ -46,28 +46,39 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
 
   it('lists items in render order within each line (mirrors the rails)', () => {
     // The exact left-to-right render order of each rail, so picker
-    // navigation mirrors what the user sees on screen.
+    // navigation mirrors what the user sees on screen. Updated for the
+    // 2026-08-27 re-map: theme/sessions/tools moved to the line-1 tail and
+    // line 2 became urgency-first (breaker leads the dynamic block, hint —
+    // ephemeral notices — is last so overflow drops it first).
     const expected: Record<number, StatuslineItem[]> = {
-      1: ['project', 'working_dir', 'git', 'model', 'mode', 'prompt_variant', 'version'],
+      1: [
+        'project',
+        'working_dir',
+        'git',
+        'model',
+        'mode',
+        'prompt_variant',
+        'theme',
+        'sessions',
+        'tools',
+        'version',
+      ],
       2: [
         'state',
         'yolo',
         'autonomy',
         'eternal_stage',
+        'breaker',
         'context',
         'tokens',
         'cost',
         'cache',
         'queue',
-        'hint',
-        'breaker',
         'processes',
         'elapsed',
         'token_saving',
         'side_effects',
-        'sessions',
-        'tools',
-        'theme',
+        'hint',
       ],
       3: [
         'goal',

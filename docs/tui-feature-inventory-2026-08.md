@@ -124,6 +124,6 @@ The ~130 remaining untested files are predominantly type-only modules, thin re-e
 - **App journey harness** (`helpers/app-journey-harness.ts`) — Production App composition tested through real submit/history/resume journeys
 - **Create-test-state** (`helpers/create-test-state.ts`) — Deterministic state builder for unit tests
 - **Virtual scroll stress tests** — 8 dedicated stress tests for scroll behavior at 1000+ entries
-- **Status bar overflow** — Dedicated config (`vitest.status-bar-overflow.config.ts`) for truecolor testing
+- **Status bar overflow & composition** — Width-controlled overflow + rail-order tests on `renderRealTty` in the main config; raw truecolor SGR pins isolated in a dedicated config (`vitest.status-bar-sgr.config.ts`)
 
 The TUI test suite is healthy at 266 files / 3,376+ tests. The gaps are concentrated in wiring hooks and type modules, not in user-facing behavior.

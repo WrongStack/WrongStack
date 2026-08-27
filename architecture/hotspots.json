@@ -339,7 +339,7 @@
       "relativeImports": 13
     },
     "packages/tui/src/components/status-bar-rails.tsx": {
-      "lines": 974,
+      "lines": 1009,
       "relativeImports": 12
     },
     "packages/tui/src/hooks/use-tui-slash-commands.ts": {

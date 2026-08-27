@@ -126,15 +126,17 @@ export default defineConfig({
       // forks pool may fail to resolve from the global vitest binary.
       // Run it separately: cd packages/cli && npx vitest run tests/hq-dashboard.test.ts
       'packages/cli/tests/hq-dashboard.test.ts',
-      // status-bar-overflow.test.ts pins the raw `\x1b[38;2;253;159;2m` orange
+      // status-bar-sgr.test.ts pins the raw `\x1b[38;2;253;159;2m` orange
       // SGR, which needs chalk at truecolor level. The root forks worker is
       // non-TTY with no FORCE_COLOR/COLORTERM, so chalk resolves to level 0 and
       // strips the escape before ink-testing-library sees it — the assertion
       // fails. It runs under its dedicated config via
       // `pnpm --filter @wrongstack/tui test:status-bar`
-      // (packages/tui/vitest.status-bar-overflow.config.ts), which sets those
+      // (packages/tui/vitest.status-bar-sgr.config.ts), which sets those
       // env vars. Mirrors the exclude in packages/tui/vitest.config.ts.
-      'packages/tui/tests/status-bar-overflow.test.ts',
+      // (status-bar-overflow.test.ts was re-included here after its
+      // 2026-08-27 renderRealTty rewrite dropped the SGR pins.)
+      'packages/tui/tests/status-bar-sgr.test.ts',
     ],
     coverage: {
       // Vitest 4's AST-remapped V8 provider produces Istanbul-equivalent

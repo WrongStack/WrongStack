@@ -107,6 +107,11 @@ export interface StatusBarRailBuildParams {
   promptVariant?: 'lite' | 'default' | 'pro' | undefined;
 }
 
+/**
+ * The ctx·tokens·cost·cache telemetry composite for the run-state rail.
+ * queue/hint/breaker are separate entries in buildRunStateChipEntries so
+ * each keeps a stable click-map id and its urgency-sorted position.
+ */
 export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactElement[] {
   const {
     context,
@@ -117,9 +122,6 @@ export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactEleme
     isNoColor,
     displayTokens,
     contextStrategy,
-    queueCount,
-    hint,
-    breakerCountdown,
   } = p;
   return [
     (context || showTokenDisplay || (cost?.total ?? 0) > 0 || (cache?.hitRatio ?? 0) > 0) &&
@@ -187,23 +189,6 @@ export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactEleme
           );
         })()
       : null,
-    queueCount && queueCount > 0 && showChip('queue') ? (
-      <Text color={isNoColor ? undefined : theme.accent}>
-        {STATUSLINE_ICONS.queue} queued {queueCount}
-      </Text>
-    ) : null,
-    hint && showChip('hint') ? <Text dimColor={!isNoColor}>{hint}</Text> : null,
-    breakerCountdown && showChip('breaker')
-      ? (() => {
-          const secs = Math.ceil(breakerCountdown.remainingMs / 1000);
-          const c = secs > 20 ? theme.success : secs > 10 ? theme.warn : theme.error;
-          return (
-            <Text color={isNoColor ? undefined : c} bold>
-              {STATUSLINE_ICONS.breaker} kill/reset in {secs}s
-            </Text>
-          );
-        })()
-      : null,
   ].filter((chip): chip is React.ReactElement => chip !== null);
 }
 
@@ -211,7 +196,18 @@ export function buildWorkspaceChipEntries(
   p: StatusBarRailBuildParams,
   modelStatusChip: React.ReactElement | null,
 ): RailSpanEntry[] {
-  const { showChip, isNoColor, projectName, workingDir, git, modeLabel, promptVariant } = p;
+  const {
+    showChip,
+    isNoColor,
+    projectName,
+    workingDir,
+    git,
+    modeLabel,
+    promptVariant,
+    themeName,
+    sessionCount,
+    toolCount,
+  } = p;
   return (
     [
       {
@@ -270,6 +266,43 @@ export function buildWorkspaceChipEntries(
             </Text>
           ) : null,
       },
+      // Static session trivia — deliberately the L1 tail so overflow drops
+      // them before anything dynamic. theme ALWAYS renders (getActiveThemeName
+      // fallback); it used to sit on the run-state rail where it permanently
+      // displaced live telemetry on narrow terminals.
+      {
+        id: 'theme',
+        node:
+          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
+            <Text color={chipColor(theme.brand, isNoColor)}>
+              {isNoColor
+                ? truncateChip(themeName ?? getActiveThemeName(), 24)
+                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'sessions',
+        node:
+          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
+      {
+        id: 'tools',
+        node:
+          toolCount != null && showChip('tools') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {isNoColor
+                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
+                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
+            </Text>
+          ) : null,
+      },
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);
 }
@@ -288,9 +321,9 @@ export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanE
     sideEffectCount,
     showEternalStage,
     eternalStage,
-    sessionCount,
-    toolCount,
-    themeName,
+    queueCount,
+    hint,
+    breakerCountdown,
   } = p;
   return (
     [
@@ -330,7 +363,35 @@ export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanE
             <EternalStageChip stage={eternalStage} monochrome={isNoColor} />
           ) : null,
       },
+      // Urgency-sorted: the breaker countdown is seconds-level safety state,
+      // so it leads the dynamic block — ahead of vitals and ahead of the
+      // dim hint text it used to trail inside buildPrimaryChips.
+      {
+        id: 'breaker',
+        node:
+          breakerCountdown && showChip('breaker')
+            ? (() => {
+                const secs = Math.ceil(breakerCountdown.remainingMs / 1000);
+                const c = secs > 20 ? theme.success : secs > 10 ? theme.warn : theme.error;
+                return (
+                  <Text color={isNoColor ? undefined : c} bold>
+                    {STATUSLINE_ICONS.breaker} kill/reset in {secs}s
+                  </Text>
+                );
+              })()
+            : null,
+      },
       ...primaryChips.map((node, i) => ({ id: `primary-${i}`, node })),
+      // Run backlog sits right after the telemetry composite it feeds.
+      {
+        id: 'queue',
+        node:
+          queueCount && queueCount > 0 && showChip('queue') ? (
+            <Text color={isNoColor ? undefined : theme.accent}>
+              {STATUSLINE_ICONS.queue} queued {queueCount}
+            </Text>
+          ) : null,
+      },
       {
         id: 'processes',
         node:
@@ -372,38 +433,12 @@ export function buildRunStateChipEntries(p: StatusBarRailBuildParams): RailSpanE
             </Text>
           ) : null,
       },
+      // Ephemeral notices (copied notice / running tools) — deliberately the
+      // last chip on the rail so overflow drops it first. It used to render
+      // between the telemetry composite and processes inside buildPrimaryChips.
       {
-        id: 'sessions',
-        node:
-          sessionCount != null && sessionCount > 0 && showChip('sessions') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${sessionCount} session${sessionCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.sessions} ${sessionCount} session${sessionCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-      },
-      {
-        id: 'tools',
-        node:
-          toolCount != null && showChip('tools') ? (
-            <Text color={isNoColor ? undefined : theme.accent}>
-              {isNoColor
-                ? `${toolCount} tool${toolCount === 1 ? '' : 's'}`
-                : `${STATUSLINE_ICONS.tools} ${toolCount} tool${toolCount === 1 ? '' : 's'}`}
-            </Text>
-          ) : null,
-      },
-      {
-        id: 'theme',
-        node:
-          (themeName ?? getActiveThemeName()) && showChip('theme') ? (
-            <Text color={chipColor(theme.brand, isNoColor)}>
-              {isNoColor
-                ? truncateChip(themeName ?? getActiveThemeName(), 24)
-                : `${STATUSLINE_ICONS.theme} ${truncateChip(themeName ?? getActiveThemeName(), 24)}`}
-            </Text>
-          ) : null,
+        id: 'hint',
+        node: hint && showChip('hint') ? <Text dimColor={!isNoColor}>{hint}</Text> : null,
       },
     ] as Array<{ id: string; node: React.ReactElement | null }>
   ).filter((entry): entry is RailSpanEntry => entry.node != null);

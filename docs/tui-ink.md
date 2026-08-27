@@ -724,7 +724,7 @@ Eternal mode integration: the TUI drives `runOneIteration()` from the post-slash
 | Area | Key Test Files |
 |------|---------------|
 | **Input & Composer** | `input-top-rail.test.ts`, `input-tokens.test.ts`, `input-editing-baseline.test.ts`, `input-history-reducer.test.ts`, `input-paste-false-positive.test.ts` |
-| **Status Bar** | `status-bar.test.ts`, `status-bar-overflow.test.ts`, `status-bar-separators.test.ts`, `powerline-rail.test.tsx` |
+| **Status Bar** | `status-bar.test.ts`, `status-bar-overflow.test.ts`, `status-bar-rail-order.test.ts`, `status-bar-separators.test.ts`, `status-bar-sgr.test.ts` (truecolor pins, dedicated config), `powerline-rail.test.tsx` |
 | **Animation** | `animation-style.test.ts`, `composer-status-chip.test.ts`, `thinking-word.test.ts` |
 | **History & Entries** | `assistant-body.test.ts`, `assistant-body-width.test.ts`, `banner.test.ts`, `entry-next-steps.test.ts`, `replay.test.ts` |
 | **Scroll** | `scroll-reducer.test.ts`, `scrollbar.test.ts`, `history-stream-cap.test.ts` |

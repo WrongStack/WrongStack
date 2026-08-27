@@ -64,13 +64,13 @@
       "cwd": ".",
       "includePrefixes": ["packages/", "apps/"],
       "excludePrefixes": ["packages/webui/tests/"],
-      "excludeFiles": ["packages/cli/tests/hq-dashboard.test.ts", "packages/tui/tests/status-bar-overflow.test.ts"]
+      "excludeFiles": ["packages/cli/tests/hq-dashboard.test.ts", "packages/tui/tests/status-bar-sgr.test.ts"]
     },
     {
-      "id": "tui-status-bar-overflow",
-      "config": "packages/tui/vitest.status-bar-overflow.config.ts",
+      "id": "tui-status-bar-sgr",
+      "config": "packages/tui/vitest.status-bar-sgr.config.ts",
       "cwd": "packages/tui",
-      "exactFiles": ["packages/tui/tests/status-bar-overflow.test.ts"]
+      "exactFiles": ["packages/tui/tests/status-bar-sgr.test.ts"]
     }
   ]
 }
