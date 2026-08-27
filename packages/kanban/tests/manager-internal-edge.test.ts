@@ -272,7 +272,15 @@ describe('createKanbanEvent', () => {
   it('rejects an event without an owning session id', () => {
     const t = task({ id: 't1' });
 
-    expect(() => createKanbanEvent('board-1', t, 'task.created')).toThrow(
+    // Deliberately omits `details`: the cast reproduces an untyped caller, and
+    // the point is that the domain answers with its own error rather than a
+    // TypeError from reading a property of undefined.
+    const createWithoutDetails = createKanbanEvent as unknown as (
+      boardId: string,
+      task: typeof t,
+      type: string,
+    ) => unknown;
+    expect(() => createWithoutDetails('board-1', t, 'task.created')).toThrow(
       expect.objectContaining({ code: 'SESSION_ID_REQUIRED' }),
     );
   });

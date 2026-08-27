@@ -1,6 +1,7 @@
 import type { KanbanBoard, KanbanTask, KanbanVerificationReport } from '../../types.js';
 import type {
   KanbanLifecycleValidationIssue,
+  KanbanTaskTransitionCheckInput,
   KanbanTaskTransitionInput,
 } from '../../types-operations.js';
 import { nowIso } from '../_internal.js';
@@ -105,7 +106,7 @@ export function validateDefinitionOfDone(
 export function validateDoneEvidence(
   board: KanbanBoard,
   task: KanbanTask,
-  input: KanbanTaskTransitionInput,
+  input: KanbanTaskTransitionCheckInput,
   issues: KanbanLifecycleValidationIssue[],
 ): void {
   issues.push(...validateDefinitionOfDone(task, task.verificationReport, { board }));
@@ -178,7 +179,7 @@ export function applyTickChecksToSnapshot(
 export function preflightManagedTransition(
   board: KanbanBoard,
   task: KanbanTask,
-  input: KanbanTaskTransitionInput,
+  input: KanbanTaskTransitionCheckInput,
 ): KanbanLifecycleValidationIssue[] {
   const issues: KanbanLifecycleValidationIssue[] = [];
 

@@ -402,7 +402,7 @@ describe('KanbanPanel — Ink-mount regressions', () => {
     const { stdin, unmount } = renderWithAct(
       React.createElement(KanbanPanel, {
         projectRoot: '/tmp/project',
-        sessionId: null,
+        sessionId: '2026-08-26/sess_01TESTKANBANPANEL0000000',
         onClose,
         terminalWidth: 200,
       }),

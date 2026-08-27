@@ -7,6 +7,7 @@ import type {
 } from '../../types.js';
 import type {
   KanbanLifecycleValidationIssue,
+  KanbanTaskTransitionCheckInput,
   KanbanTaskTransitionInput,
   KanbanTaskTransitionResult,
 } from '../../types-operations.js';
@@ -35,7 +36,7 @@ import {
 export function validateManagedTaskTransition(
   board: KanbanBoard,
   task: KanbanTask,
-  input: KanbanTaskTransitionInput,
+  input: KanbanTaskTransitionCheckInput,
 ): KanbanLifecycleValidationIssue[] {
   const issues = validateManagedLifecyclePolicy(board);
   if (board.lifecycle?.mode !== 'managed') {

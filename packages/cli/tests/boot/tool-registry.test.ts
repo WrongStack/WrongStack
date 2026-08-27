@@ -42,6 +42,13 @@ function makeFakeToolRegistry() {
         calls.push({ kind: 'single', toolName: '<tool>', isDefault: false });
       }),
       setProviderToolNames: vi.fn(),
+      // The canonical registration path also configures the registry it is
+      // handed. A fake that answers only the register* calls made
+      // `registerCanonicalHostTools` throw on the first configuration step,
+      // so none of the delegation this suite pins was ever reached.
+      setEventBus: vi.fn(),
+      applyDisabled: vi.fn(),
+      applyDisabledMeta: vi.fn(),
     },
     calls,
   };

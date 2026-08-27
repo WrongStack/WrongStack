@@ -211,6 +211,17 @@ export interface KanbanTaskTransitionInput {
   tickChecks?: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[] | undefined;
 }
 
+/**
+ * A transition request as the pure validators see it.
+ *
+ * `validateManagedTaskTransition` / `preflightManagedTransition` /
+ * `validateDoneEvidence` answer "would this transition be allowed?" without
+ * writing anything. Only the transition that actually commits emits an event,
+ * so only that path needs an owning session — asking a read-only check to name
+ * one would be ceremony with nothing behind it.
+ */
+export type KanbanTaskTransitionCheckInput = Omit<KanbanTaskTransitionInput, 'sessionId'>;
+
 export interface AdoptManagedLifecycleInput {
   columns: KanbanLifecycleColumns;
   actor: string;

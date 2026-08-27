@@ -655,6 +655,9 @@
       "getKanbanEventsPath",
       "resolveBoardRef"
     ],
+    "packages/kanban/src/test-support-session.ts": [
+      "TEST_EVENT_CONTEXT"
+    ],
     "packages/kanban/src/verification/completion-park.ts": [
       "DEFAULT_MAX_VERIFICATION_ATTEMPTS",
       "isParked"
@@ -1418,9 +1421,6 @@
     "packages/webui-server/src/server/governance-runtime.ts": [
       "webUiGovernanceRuntimeEnabled"
     ],
-    "packages/webui-server/src/server/kanban-route-helpers.ts": [
-      "actingSessionId"
-    ],
     "packages/webui-server/src/server/mcp-handlers.ts": [
       "toView"
     ],
@@ -1560,6 +1560,7 @@
       "forgetLaneRunState",
       "handleIterationStarted",
       "handleRunResult",
+      "handleSessionRunState",
       "handleToolConfirmNeeded"
     ],
     "packages/webui/src/hooks/ws-handlers/files-mailbox-handlers.ts": [
@@ -1597,7 +1598,8 @@
       "handleGoalProgress",
       "handleGoalState",
       "handleGoalUpdated",
-      "handlePrefsUpdated"
+      "handlePrefsUpdated",
+      "handleSystemPromptInfo"
     ],
     "packages/webui/src/hooks/ws-handlers/techstack-handlers.ts": [
       "handleTechStackJobCancelled",

@@ -26,28 +26,62 @@ export const TEST_EVENT_CONTEXT: KanbanEventContext = {
   sessionId: '2026-08-26/sess_01TESTKANBAN0000000000000',
 };
 
+/**
+ * The domain signature with its trailing arguments made optional.
+ *
+ * The wrapper fills the event context in at runtime, so the *type* has to say
+ * so too — otherwise every bound call site is a compile error that the test run
+ * itself never sees. Two trailing slots are relaxed, not one: a few signatures
+ * (`moveTask`'s `targetOrder`) carry an explicit `| undefined` slot just before
+ * the context, and tests legitimately omit both.
+ */
+type WithBoundTail<F> = F extends (...args: infer A) => infer R
+  ? A extends [...infer Head, infer Penult, infer _Last]
+    ? (...args: [...Head, Penult?, KanbanEventContext?]) => R
+    : A extends [...infer Head2, infer _Only]
+      ? (...args: [...Head2, KanbanEventContext?]) => R
+      : F
+  : F;
+
+/** The same signature with `options.eventContext` relaxed to optional. */
+type WithBoundOptions<F> = F extends (...args: [...infer Head, infer Options]) => infer R
+  ? (
+      ...args: [
+        ...Head,
+        (Omit<NonNullable<Options>, 'eventContext'> & { eventContext?: KanbanEventContext })?,
+      ]
+    ) => R
+  : F;
+
+/** The same signature with `input.sessionId` relaxed to optional. */
+type WithBoundInputSession<F> = F extends (...args: [infer First, infer Input]) => infer R
+  ? (first: First, input: Omit<Input, 'sessionId'> & { sessionId?: string }) => R
+  : F extends (...args: [infer A, infer B, infer C, infer Input]) => infer R2
+    ? (a: A, b: B, c: C, input: Omit<Input, 'sessionId'> & { sessionId?: string }) => R2
+    : F;
+
 type AnyFn = (...args: never[]) => unknown;
 
 /** Fill the trailing event-context argument when the caller omitted it. */
-function bindTrailing<F extends AnyFn>(fn: F, arity: number): F {
+function bindTrailing<F extends AnyFn>(fn: F, arity: number): WithBoundTail<F> {
   return ((...args: unknown[]) => {
     if (args.length >= arity) return (fn as unknown as (...a: unknown[]) => unknown)(...args);
     const padded = [...args];
     while (padded.length < arity - 1) padded.push(undefined);
     padded.push(TEST_EVENT_CONTEXT);
     return (fn as unknown as (...a: unknown[]) => unknown)(...padded);
-  }) as unknown as F;
+  }) as unknown as WithBoundTail<F>;
 }
 
 /** Fill `options.eventContext` when the caller left it out. */
-function bindOptions<F extends AnyFn>(fn: F, optionsIndex: number): F {
+function bindOptions<F extends AnyFn>(fn: F, optionsIndex: number): WithBoundOptions<F> {
   return ((...args: unknown[]) => {
     const padded = [...args];
     while (padded.length <= optionsIndex) padded.push(undefined);
     const options = (padded[optionsIndex] ?? {}) as Record<string, unknown>;
     padded[optionsIndex] = { eventContext: TEST_EVENT_CONTEXT, ...options };
     return (fn as unknown as (...a: unknown[]) => unknown)(...padded);
-  }) as unknown as F;
+  }) as unknown as WithBoundOptions<F>;
 }
 
 export const addCheckToTask = bindTrailing(domain.addCheckToTask, 5);
@@ -85,17 +119,16 @@ export const copyTaskToBoard = bindOptions(domain.copyTaskToBoard, 4);
 export const enforceCompletionGate = bindOptions(domain.enforceCompletionGate, 3);
 export const finalizeTaskCompletion = bindOptions(domain.finalizeTaskCompletion, 3);
 export const transferTaskToBoard = bindOptions(domain.transferTaskToBoard, 4);
-export const verifyTaskCompletion = bindOptions(domain.verifyTaskCompletion, 3);
 
 /** Fill `input.sessionId` on an input-object call when the caller omitted it. */
-function bindInputSession<F extends AnyFn>(fn: F, inputIndex: number): F {
+function bindInputSession<F extends AnyFn>(fn: F, inputIndex: number): WithBoundInputSession<F> {
   return ((...args: unknown[]) => {
     const padded = [...args];
     while (padded.length <= inputIndex) padded.push(undefined);
     const input = (padded[inputIndex] ?? {}) as Record<string, unknown>;
     padded[inputIndex] = { sessionId: TEST_EVENT_CONTEXT.sessionId, ...input };
     return (fn as unknown as (...a: unknown[]) => unknown)(...padded);
-  }) as unknown as F;
+  }) as unknown as WithBoundInputSession<F>;
 }
 
 export const transitionTask = bindInputSession(domain.transitionTask, 3);

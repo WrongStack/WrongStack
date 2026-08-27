@@ -67,7 +67,6 @@ async function makeSplitParent(): Promise<{
   // Split into 2 children — splitTask sets childTaskIds on the parent.
   const split = await splitTask(tmpDir, board.id, parentId, {
     titles: ['Child A', 'Child B'],
-    description: 'Child task description.',
   });
   const childIds = split!.children.map((c) => c.id);
 

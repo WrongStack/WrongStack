@@ -31,6 +31,9 @@ import { getKanbanServerConnection } from '../src/server/client.js';
 import { getServerKanbanStore } from '../src/server/kanban-store.js';
 import { encodeKanbanDomainValue } from '../src/server/protocol.js';
 
+/** Session that owns the chain write this suite routes. */
+const CHAIN_EVENT_CONTEXT = { sessionId: '2026-08-26/sess_01TESTSERVERSTORE0000000' };
+
 describe('ServerKanbanStore routing', () => {
   let tmpDir: string;
 
@@ -154,10 +157,12 @@ describe('ServerKanbanStore routing', () => {
         encodeKanbanDomainValue({ chainId: 'chain-1', tasks: [] }),
       );
       const store = getServerKanbanStore(tmpDir);
-      await store.setChain('b1', ['t1', 't2'], {
-        chainId: 'chain-1',
-        enforceDependencies: false,
-      });
+      await store.setChain(
+        'b1',
+        ['t1', 't2'],
+        { chainId: 'chain-1', enforceDependencies: false },
+        CHAIN_EVENT_CONTEXT,
+      );
       expect(mockConn.request).toHaveBeenCalledWith('domainCall', {
         operation: 'setTaskChain',
         wireArgs: encodeKanbanDomainValue([
@@ -167,6 +172,7 @@ describe('ServerKanbanStore routing', () => {
             chainId: 'chain-1',
             enforceDependencies: false,
           },
+          CHAIN_EVENT_CONTEXT,
         ]),
       });
     });

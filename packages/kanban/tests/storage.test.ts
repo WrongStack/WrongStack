@@ -474,7 +474,13 @@ describe('appendKanbanEvent', () => {
   it('rejects appending an event without an owning session id', async () => {
     const { appendKanbanEvent } = await import('../src/storage.js');
     const board = await makeBoard();
-    const event = { ...moveEvent(board.id, 't1'), sessionId: undefined };
+    // Cast: the type forbids a session-less event, and this test proves the
+    // runtime guard still refuses one that reaches it anyway (an IPC payload,
+    // a legacy file on disk).
+    const event = {
+      ...moveEvent(board.id, 't1'),
+      sessionId: undefined,
+    } as unknown as KanbanEvent;
 
     await expect(appendKanbanEvent(tmpDir, board.id, event)).rejects.toMatchObject({
       code: 'SESSION_ID_REQUIRED',

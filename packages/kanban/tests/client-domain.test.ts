@@ -14,6 +14,12 @@ import { createBoard, exportBoardToTaskGraph, moveTask, splitTask } from '../src
 import { KANBAN_DOMAIN_OPERATIONS } from '../src/domain-operations.js';
 import * as packageApi from '../src/index.js';
 import * as manager from '../src/manager.js';
+import type { KanbanEventContext } from '../src/types.js';
+
+/** Session every routed mutation in this suite is attributed to. */
+const EVENT_CONTEXT: KanbanEventContext = {
+  sessionId: '2026-08-26/sess_01TESTCLIENTDOMAIN000000',
+};
 import { decodeKanbanDomainValue, encodeKanbanDomainValue } from '../src/server/protocol.js';
 
 describe('stateful Kanban client domain', () => {
@@ -32,9 +38,7 @@ describe('stateful Kanban client domain', () => {
   it('routes board and task operations through the whitelisted domainCall', async () => {
     mocks.connection.request.mockResolvedValueOnce(encodeKanbanDomainValue({ id: 'board-1' }));
     await createBoard('D:\\project', { title: 'IPC board' });
-    await splitTask('D:\\project', 'board-1', 'task-1', {
-      titles: ['one', 'two'],
-    });
+    await splitTask('D:\\project', 'board-1', 'task-1', { titles: ['one', 'two'] }, EVENT_CONTEXT);
 
     expect(mocks.connection.request).toHaveBeenNthCalledWith(1, 'domainCall', {
       operation: 'createBoard',
@@ -42,7 +46,12 @@ describe('stateful Kanban client domain', () => {
     });
     expect(mocks.connection.request).toHaveBeenNthCalledWith(2, 'domainCall', {
       operation: 'splitTask',
-      wireArgs: encodeKanbanDomainValue(['board-1', 'task-1', { titles: ['one', 'two'] }]),
+      wireArgs: encodeKanbanDomainValue([
+        'board-1',
+        'task-1',
+        { titles: ['one', 'two'] },
+        EVENT_CONTEXT,
+      ]),
     });
   });
 
@@ -63,10 +72,12 @@ describe('stateful Kanban client domain', () => {
   });
 
   it('removes trailing undefined values before JSON framing', async () => {
-    await moveTask('D:\\project', 'board-1', 'task-1', 'todo', undefined);
+    // `order` is skipped but the event context after it is not, so the encoder
+    // has to carry an interior undefined rather than trim a trailing one.
+    await moveTask('D:\\project', 'board-1', 'task-1', 'todo', undefined, EVENT_CONTEXT);
     expect(mocks.connection.request).toHaveBeenCalledWith('domainCall', {
       operation: 'moveTask',
-      wireArgs: encodeKanbanDomainValue(['board-1', 'task-1', 'todo']),
+      wireArgs: encodeKanbanDomainValue(['board-1', 'task-1', 'todo', undefined, EVENT_CONTEXT]),
     });
   });
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Stats-driven tool auto-thinning (`tools.autoThin`).** Off by default. Opt in with `/settings autothin on` (or directly in your profile config). The pipeline observes every tool invocation via the EventBus, folds the counts into a per-tool, per-day Chronicle rollup (`tool_daily`), and — only on an explicit `/tool autothin apply` or with `applyOnBoot: true` — disables the tools that match `minInvocations` and `idleDays`. Decisions are tagged `reason: 'auto-thinned'` in `ToolsConfig.disabledToolMeta` so they survive restarts; `/tool autothin undo` re-enables only the auto-thinned subset (operator-authored disables are preserved). The in-process event-bridge Map is the fallback when Chronicle is unavailable. New: `ToolsConfig.autoThin`, `ToolsConfig.disabledToolMeta`, `AutoThinConfig`, `DisabledToolMeta`, `ToolRegistry.thinUnderused()`, `ToolRegistry.enableAutoThinned()`, `ToolRegistry.applyDisabledMeta()`, `ToolUsageSource` (hybrid Chronicle/in-process resolver), `/tool autothin {status|candidates|apply|undo|config}`, `/settings autothin on|off`, `/settings autothin-idle <days>`, `/settings autothin-min <count>`, `/settings autothin-boot on|off`. See `docs/auto-thinning.md`.
+
 ## [0.313.1] — 2026-08-25
 
 ### Added
