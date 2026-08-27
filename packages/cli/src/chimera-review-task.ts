@@ -42,7 +42,14 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
       lines.push('```');
     } else if (f.status === 'added') {
       lines.push('');
-      lines.push('(New file — full content provided)');
+      if (f.content && f.content.length <= 25_000) {
+        lines.push('(New file content:)');
+        lines.push('```');
+        lines.push(f.content);
+        lines.push('```');
+      } else {
+        lines.push('(New file — large content, use read tool only if needed)');
+      }
     }
     lines.push('');
   }
@@ -112,10 +119,11 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
 
   lines.push('---');
   lines.push('');
-  lines.push('Read each file using the read tool. For modified files, focus on the');
-  lines.push('diff above — do not re-review unchanged pre-existing code.');
-  lines.push('Check for bugs, type issues, security problems, and produce a');
-  lines.push('structured review report.');
+  lines.push('**Review Instructions:**');
+  lines.push('- Review the diffs and new file contents carefully for real bugs, broken logic, null dereferences, and security gaps.');
+  lines.push('- Stay strictly within the scoped diffs. DO NOT audit unchanged files, pre-existing debt, or stylistic preferences.');
+  lines.push('- Use tools only when you need surrounding lines to verify a concrete issue.');
+  lines.push('- Once the diff is validated, output your report (findings or all-clear) promptly.');
 
   return lines.join('\n');
 }

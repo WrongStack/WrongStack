@@ -69,9 +69,12 @@ vi.mock('@wrongstack/kanban', () => ({
 
 import { handleSplitTask, requireBoard } from '../src/kanban-split-task-handler.js';
 
+/** Session that owns the board events a split writes. */
+const SPLIT_EVENT_CONTEXT = { sessionId: '2026-08-26/sess_01TESTSPLITHANDLER000000' };
+
 describe('handleSplitTask', () => {
   it('fails when required params missing', async () => {
-    const result = await handleSplitTask('/project', { action: 'split_task' }, {});
+    const result = await handleSplitTask('/project', { action: 'split_task' }, {}, SPLIT_EVENT_CONTEXT);
     expect(result.ok).toBe(false);
     expect(result.message).toContain(
       'split requires boardId, taskId, and at least one childTitles',
@@ -128,6 +131,7 @@ describe('handleSplitTask', () => {
       '/project',
       { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
       {},
+      SPLIT_EVENT_CONTEXT,
     );
     expect(result.ok).toBe(true);
     expect(result.message).toContain('child task(s) created');
@@ -172,6 +176,7 @@ describe('handleSplitTask', () => {
       '/project',
       { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
       {},
+      SPLIT_EVENT_CONTEXT,
     );
     expect(result.ok).toBe(false);
     expect(result.message).toContain('not found in returned board');
@@ -184,6 +189,7 @@ describe('handleSplitTask', () => {
       '/project',
       { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
       {},
+      SPLIT_EVENT_CONTEXT,
     );
     expect(result.ok).toBe(false);
     expect(result.message).toContain('Task not found');
@@ -239,6 +245,7 @@ describe('handleSplitTask', () => {
       '/project',
       { action: 'split_atomic', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
       { atomic: true },
+      SPLIT_EVENT_CONTEXT,
     );
     expect(result.ok).toBe(true);
   });
@@ -306,6 +313,7 @@ describe('handleSplitTask', () => {
         rewireDependents: true,
       },
       {},
+      SPLIT_EVENT_CONTEXT,
     );
     expect(result.ok).toBe(true);
   });

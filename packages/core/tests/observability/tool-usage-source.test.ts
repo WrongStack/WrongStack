@@ -7,22 +7,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
-import { type ToolUsageRecord, wireMetricsToEvents } from '../../src/observability/event-bridge.js';
-import { InMemoryMetricsSink } from '../../src/observability/metrics.js';
+import type { ToolUsageRecord } from '../../src/observability/event-bridge.js';
 import {
   createToolUsageSource,
   filterUnderused,
   type UnderusedToolCandidate,
 } from '../../src/observability/tool-usage-source.js';
-
-const NOOP_SINK = new InMemoryMetricsSink();
-
-function makeInProcessFixture() {
-  const bus = new EventBus();
-  const handle = wireMetricsToEvents(bus, NOOP_SINK);
-  return { bus, handle };
-}
 
 describe('createToolUsageSource', () => {
   it('returns chronicle source when chronicle is provided', () => {

@@ -392,6 +392,39 @@ export function makeAgentSubagentRunner(opts: AgentRunnerOptions): SubagentRunne
       );
     }
 
+    // In-band pacing nudges for review subagents: as tool calls and elapsed time
+    // accumulate, inject escalating BTW notes between tool batches so the model
+    // feels real-time pressure to wrap up its review immediately rather than
+    // wandering through the codebase.
+    let reviewerToolCalls = 0;
+    let reviewerPacingTier = 0;
+    const isReviewer =
+      ctx.config.role === 'reviewer' ||
+      ctx.config.name?.includes('review') ||
+      ctx.config.name?.includes('chimera');
+
+    if (isReviewer) {
+      unsub.push(
+        events.on('tool.completed', () => {
+          reviewerToolCalls++;
+          const elapsedSec = Math.max(1, Math.round((Date.now() - taskStartedAt) / 1000));
+          if (reviewerPacingTier === 0 && (reviewerToolCalls >= 2 || elapsedSec >= 25)) {
+            reviewerPacingTier = 1;
+            setBtwNote(
+              agent.ctx,
+              `[REVIEW PACE & FOCUS] ${reviewerToolCalls} tool call(s) executed (${elapsedSec}s elapsed). Stay focused strictly on verifying the changed diffs for real bugs. Do not wander into unchanged legacy code or stylistic debt. Wrap up your findings and conclude your report promptly.`,
+            );
+          } else if (reviewerPacingTier === 1 && (reviewerToolCalls >= 5 || elapsedSec >= 50)) {
+            reviewerPacingTier = 2;
+            setBtwNote(
+              agent.ctx,
+              `[URGENT: FINISH REVIEW] Review is running long (${elapsedSec}s elapsed, ${reviewerToolCalls} tool calls). Conclude your evaluation of the changed diffs NOW and produce your final severity-ranked report or all-clear block in this turn. No further exploratory tool calls.`,
+            );
+          }
+        }),
+      );
+    }
+
     let result: RunResult;
     try {
       result = await agent.run(format(task, ctx.config), { signal: aborter.signal });

@@ -22,6 +22,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ChronicleMetricsStore } from '../../src/chronicle/metrics-store.js';
 import type { ChronicleEvent } from '../../src/chronicle/types.js';
+import { CHRONICLE_SCHEMA_VERSION } from '../../src/chronicle/types.js';
 
 const DAY_MS = 86_400_000;
 
@@ -32,13 +33,17 @@ function toolEvent(
   extras: Record<string, unknown> = {},
 ): ChronicleEvent {
   return {
+    schemaVersion: CHRONICLE_SCHEMA_VERSION,
     eventId: `e-${Math.random()}`,
     eventType: name,
     occurredAt,
     observedAt: occurredAt,
+    persistedAt: occurredAt,
     sequence: 0,
-    scope: { projectId: 'p1' },
-    correlation: {},
+    previousHash: '',
+    hash: 'h',
+    scope: { installationId: 'inst-1', machineId: 'machine-1', projectId: 'p1' },
+    correlation: { traceId: 'trace-1', spanId: 'span-1' },
     attributes: { toolName, ...extras },
     outcome: name === 'tool.failed' ? 'failure' : 'success',
     ...(name === 'tool.executed' ? { durationNs: String(50_000_000) } : {}),
@@ -143,12 +148,16 @@ describe('tool_daily rollup + underusedTools()', () => {
     ).ingester;
     ingester.ingestEvent({
       eventId: 'e-no-name',
+      schemaVersion: CHRONICLE_SCHEMA_VERSION,
       eventType: 'tool.started',
       occurredAt: '2026-07-15T00:00:00.000Z',
       observedAt: '2026-07-15T00:00:00.000Z',
+      persistedAt: '2026-07-15T00:00:00.000Z',
       sequence: 0,
-      scope: {},
-      correlation: {},
+      previousHash: '',
+      hash: 'h',
+      scope: { installationId: 'inst-1', machineId: 'machine-1' },
+      correlation: { traceId: 'trace-1', spanId: 'span-1' },
       attributes: {},
       outcome: 'started',
     });

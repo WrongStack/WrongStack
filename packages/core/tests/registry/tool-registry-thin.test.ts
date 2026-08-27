@@ -17,6 +17,7 @@ import type { Tool } from '../../src/types/tool.js';
 const makeTool = (name: string, description = `${name} tool`): Tool => ({
   name,
   description,
+  mutating: false,
   inputSchema: { type: 'object', properties: {} },
   execute: async () => ({ output: `${name} ok` }),
   permission: 'auto',

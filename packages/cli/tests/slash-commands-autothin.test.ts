@@ -15,9 +15,14 @@ import type {
   Tool,
   ToolsConfig,
 } from '@wrongstack/core/types';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/command-context.js';
 import { buildToolCommand } from '../src/slash-commands/tool.js';
+
+/** Narrow the slash-command run union (which includes `void`) to its message. */
+function runOutput(result: unknown): { message: string } {
+  return (result ?? {}) as { message: string };
+}
 
 function makeTool(name: string): Tool {
   return {
@@ -27,6 +32,7 @@ function makeTool(name: string): Tool {
     execute: async () => ({ output: `${name} ok` }),
     permission: 'auto',
     category: 'test',
+    mutating: false,
   };
 }
 
@@ -60,9 +66,17 @@ class MemoryConfigStore implements ConfigStore {
   get(): Config {
     return this.config;
   }
-  update(partial: Partial<Config>): void {
+  getSection<K extends keyof Config>(key: K): Config[K] {
+    return this.config[key];
+  }
+  getExtension(pluginName: string): Record<string, unknown> {
+    const extensions = (this.config as { extensions?: Record<string, unknown> }).extensions;
+    return (extensions?.[pluginName] as Record<string, unknown>) ?? {};
+  }
+  update(partial: Partial<Config>): Config {
     this.config = { ...this.config, ...partial };
     for (const listener of this.listeners) listener(this.config);
+    return this.config;
   }
   subscribe(listener: (config: Config) => void): () => void {
     this.listeners.add(listener);
@@ -80,8 +94,8 @@ function makeContext(
   registry: ToolRegistry,
   configStore: ConfigStore,
   events: EventBus,
-  getChronicle?: () => never,
-  getToolUsage?: () => never,
+  getChronicle?: () => unknown,
+  getToolUsage?: () => unknown,
 ): SlashCommandContext {
   return {
     registry: { register: () => {}, get: () => undefined } as never,
@@ -117,7 +131,7 @@ describe('/tool autothin', () => {
 
   it('status shows default-off config + zero counts', async () => {
     const cmd = buildToolCommand(makeContext(registry, store, events));
-    const out = await cmd.run!('autothin status');
+    const out = runOutput(await cmd.run!('autothin status'));
     expect(out.message).toContain('enabled:');
     expect(out.message).toContain('off');
     expect(out.message).toContain('idleDays:');
@@ -126,7 +140,7 @@ describe('/tool autothin', () => {
 
   it('candidates refuses to run when auto-thinning is off', async () => {
     const cmd = buildToolCommand(makeContext(registry, store, events, undefined, NO_TOOL_USAGE));
-    const out = await cmd.run!('autothin candidates');
+    const out = runOutput(await cmd.run!('autothin candidates'));
     expect(out.message).toMatch(/off/i);
     expect(out.message).toContain('/settings autothin on');
   });
@@ -178,7 +192,7 @@ describe('/tool autothin', () => {
       } as ToolsConfig,
     });
     const cmd = buildToolCommand(makeContext(registry, store, events, undefined, toolUsage));
-    const out = await cmd.run!('autothin candidates');
+    const out = runOutput(await cmd.run!('autothin candidates'));
     expect(out.message).toContain('read');
     expect(out.message).not.toContain('bash');
   });
@@ -231,7 +245,7 @@ describe('/tool autothin', () => {
     const cmd = buildToolCommand(
       makeContext(registry, store, events, undefined, () => bridge as never),
     );
-    const out = await cmd.run!('autothin apply');
+    const out = runOutput(await cmd.run!('autothin apply'));
     expect(out.message).toContain('Thinned');
     expect(out.message).toContain('read');
     expect(registry.isDisabled('read')).toBe(true);
@@ -243,7 +257,7 @@ describe('/tool autothin', () => {
     registry.disable('bash', 'user');
     registry.thinUnderused(['read'], 'test');
     const cmd = buildToolCommand(makeContext(registry, store, events));
-    const out = await cmd.run!('autothin undo');
+    const out = runOutput(await cmd.run!('autothin undo'));
     expect(out.message).toContain('Re-enabled');
     expect(out.message).toContain('read');
     expect(registry.isDisabled('bash')).toBe(true);
@@ -262,7 +276,7 @@ describe('/tool autothin', () => {
 
   it('config rejects out-of-range numeric values', async () => {
     const cmd = buildToolCommand(makeContext(registry, store, events));
-    const out = await cmd.run!('autothin config idleDays -1');
+    const out = runOutput(await cmd.run!('autothin config idleDays -1'));
     expect(out.message).toContain('non-negative');
   });
 });

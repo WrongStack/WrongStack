@@ -29,7 +29,7 @@ describe('in-project policy: tools.autoThin + tools.disabledToolMeta', () => {
       } as never,
       '/repo/.wrongstack/config.json',
     );
-    const tools = (stripped as { tools?: Record<string, unknown> }).tools;
+    const tools = (stripped as unknown as { tools?: Record<string, unknown> }).tools;
     expect(tools?.autoThin).toBeUndefined();
   });
 
@@ -44,7 +44,7 @@ describe('in-project policy: tools.autoThin + tools.disabledToolMeta', () => {
       } as never,
       '/repo/.wrongstack/config.json',
     );
-    const tools = (stripped as { tools?: Record<string, unknown> }).tools;
+    const tools = (stripped as unknown as { tools?: Record<string, unknown> }).tools;
     expect(tools?.disabledToolMeta).toBeUndefined();
   });
 
@@ -59,7 +59,7 @@ describe('in-project policy: tools.autoThin + tools.disabledToolMeta', () => {
       } as never,
       '/repo/.wrongstack/config.json',
     );
-    const tools = (stripped as { tools?: Record<string, unknown> }).tools;
+    const tools = (stripped as unknown as { tools?: Record<string, unknown> }).tools;
     expect(tools?.descriptionMode).toEqual({ read: 'simple' });
     expect(tools?.maxIterations).toBe(50);
     expect(tools?.autoThin).toBeUndefined();
