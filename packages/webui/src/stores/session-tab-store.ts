@@ -22,8 +22,11 @@ import { create } from 'zustand';
 import { toast } from '@/components/Toaster';
 import { disposeStreakState } from './auto-submit-streak';
 import { chatLane, disposeLane, hasLane, MAX_LANES, readLane, setActiveLane } from './chat-lanes';
+import { useCouncilLogStore } from './council-log-store';
+import { useFallbackStore } from './fallback-store';
 import { useFleetStore } from './fleet-store';
 import { useLocalPrefs } from './local-prefs';
+import { useMemoryInjectorTraceStore } from './memory-injector-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -34,6 +37,7 @@ import {
   useSessionLanes,
 } from './session-lanes';
 import { useSessionStore } from './session-store';
+import { useSystemPromptStore } from './system-prompt-store';
 import { useUIStore } from './ui-store';
 
 export const MAX_OPEN_TABS = MAX_LANES;
@@ -148,9 +152,23 @@ function activate(sessionId: string) {
   // Raise this tab's own unanswered approval prompt, and never another tab's:
   // the dialog is a single global surface, so switching away from a tab with a
   // live prompt must take it down with the tab.
-  const parked = readLane(sessionId).pendingConfirm;
+  const lane = readLane(sessionId);
+  const parked = lane.pendingConfirm;
   if (parked) ui.showConfirm(parked);
   else ui.hideConfirm();
+  // Same rule for the provider-fallback dialog: one global surface, so it
+  // shows this tab's unanswered prompt and comes down with the tab that
+  // raised it.
+  const parkedFallback = lane.pendingFallback;
+  if (parkedFallback) useFallbackStore.getState().setPending(parkedFallback);
+  else useFallbackStore.getState().clear();
+  // Two diagnostic logs are FOREGROUND-ONLY by construction: their handlers
+  // drop anything that is not the tab in front, so they hold whatever the
+  // previous tab produced and nothing for this one. Left standing they read as
+  // this tab's memory injections and this tab's Brain deliberations — the chat
+  // header even counts them. Empty is honest; stale is not.
+  useMemoryInjectorTraceStore.getState().clear();
+  useCouncilLogStore.getState().clear();
   syncUrl(sessionId);
 }
 
@@ -170,6 +188,52 @@ function isTabDisposable(sessionId: string): boolean {
   return lane.messages.length === 0 && lane.queue.length === 0;
 }
 
+/**
+ * Everything one slot owns, freed in one place.
+ *
+ * `closeTab` and `setOpenTabIds` both retire a tab, and they used to free
+ * different things: the lanes always, the preference overrides and
+ * auto-submit streak only on the explicit close. A tab dropped by the other
+ * path left state that the NEXT session to be handed that id silently
+ * inherited, which is the one thing the four-lane model exists to prevent.
+ */
+function releaseTab(sessionId: string): void {
+  disposeLane(sessionId);
+  disposeSessionLane(sessionId);
+  useLocalPrefs.getState().forgetSession(sessionId);
+  useSystemPromptStore.getState().dropSession(sessionId);
+  disposeStreakState(sessionId);
+}
+
+/**
+ * Put the foreground back on a slot that still exists.
+ *
+ * Disposing the lane a pointer names does not move the pointer, and a pointer
+ * aimed at a freed lane is worse than no pointer: the lane registries recreate
+ * a lane on first write, so the next stray event for the closed session
+ * resurrects it — invisible, unclosable, and counting against the four-lane
+ * ceiling that a real new tab needs. With no slots left the pointer goes back
+ * to "nothing in front", which is also what lets untagged events land again.
+ */
+function repointForegroundAfterRelease(remaining: string[]): void {
+  const pointer = activeSessionLaneId();
+  if (pointer !== SESSION_DEFAULT_LANE_ID && remaining.includes(pointer)) return;
+  const fallback = remaining[remaining.length - 1];
+  if (fallback !== undefined) {
+    activate(fallback);
+    useSessionTabStore.getState().markSeen(fallback);
+    return;
+  }
+  setActiveLane(null);
+  setActiveSessionLane(SESSION_DEFAULT_LANE_ID);
+  // With no tab in front there is no `activate()` to take the modals down, and
+  // both of them ask a question ON BEHALF of a session that no longer exists —
+  // an approval or a model choice answered here would be sent for a closed
+  // conversation.
+  useUIStore.getState().hideConfirm();
+  useFallbackStore.getState().clear();
+}
+
 export const useSessionTabStore = create<SessionTabState>((set, get) => ({
   openTabIds: readStoredTabs(),
   lastSeenCounts: {},
@@ -184,16 +248,22 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
       valid.push(id);
       if (valid.length === MAX_OPEN_TABS) break;
     }
-    // A session that lost its slot loses its lane with it — otherwise a
-    // dropped tab keeps streaming into memory nobody can see.
-    for (const id of get().openTabIds) {
-      if (!seen.has(id)) {
-        disposeLane(id);
-        disposeSessionLane(id);
-      }
-    }
-    set({ openTabIds: valid });
+    // A session that lost its slot loses everything the slot owned. This used
+    // to dispose the two lanes and stop, so a tab dropped through this path
+    // (history purge, slot recycling, a re-announce) left its preference
+    // overrides, auto-submit streak, unread count and attention flag behind —
+    // and a later session that reused the id inherited them.
+    const dropped = get().openTabIds.filter((id) => !seen.has(id));
+    for (const id of dropped) releaseTab(id);
+    const keep = <T>(record: Record<string, T>): Record<string, T> =>
+      Object.fromEntries(Object.entries(record).filter(([id]) => seen.has(id)));
+    set({
+      openTabIds: valid,
+      lastSeenCounts: keep(get().lastSeenCounts),
+      attention: keep(get().attention),
+    });
     writeStoredTabs(valid);
+    if (dropped.length > 0) repointForegroundAfterRelease(valid);
   },
 
   openTab: (sessionId, options) => {
@@ -237,8 +307,11 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     // Full. Recycle an idle, empty slot rather than growing past four.
     const recyclable = tabs.find((id) => isTabDisposable(id));
     if (recyclable) {
-      disposeLane(recyclable);
-      disposeSessionLane(recyclable);
+      // One retirement path for every slot owner: `releaseTab` frees the
+      // lanes AND the preference overrides / system-prompt pick / streak.
+      // Disposing the lanes alone is the exact leak its doc comment warns
+      // about — the next session handed this id inherits the old one's state.
+      releaseTab(recyclable);
       const next = tabs.map((id) => (id === recyclable ? sessionId : id));
       set({ openTabIds: next });
       writeStoredTabs(next);
@@ -257,28 +330,16 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
   closeTab: (sessionId) => {
     const tabs = get().openTabIds;
     const next = tabs.filter((id) => id !== sessionId);
-    const activeId = foregroundTabId();
 
     // Free the lane BEFORE re-pointing, so nothing can land in a slot that no
     // longer exists.
-    disposeLane(sessionId);
-    disposeSessionLane(sessionId);
-    // A closed tab keeps nothing alive — including its pref overrides, which
-    // would otherwise be inherited by a future session that reused the id,
-    // and its auto-submit streak / loop-guard history.
-    useLocalPrefs.getState().forgetSession(sessionId);
-    disposeStreakState(sessionId);
+    releaseTab(sessionId);
 
     const { [sessionId]: _seen, ...lastSeenCounts } = get().lastSeenCounts;
     const { [sessionId]: _att, ...attention } = get().attention;
     set({ openTabIds: next, lastSeenCounts, attention });
     writeStoredTabs(next);
-
-    if (sessionId === activeId && next.length > 0) {
-      const fallback = next[next.length - 1]!;
-      activate(fallback);
-      get().markSeen(fallback);
-    }
+    repointForegroundAfterRelease(next);
   },
 
   markSeen: (sessionId) =>
