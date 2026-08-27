@@ -479,7 +479,9 @@ test.describe('four-tab no-mixing', () => {
     await switchToSession(page, sessionIdFor('ALPHA'));
     await expect(page.getByText(marker('ALPHA', 1))).toBeVisible({ timeout: 20_000 });
     await expect(page.getByText(marker('DELTA', 1))).toHaveCount(0);
-    await expect(page.getByText(marker('CHARLIE', 8))).toHaveCount(0);
+    // marker(i) renders i+1 (e.g. 7 -> 'E2E4T-CHARLIE-08'); indices >= 8 are
+    // never seeded, so asserting on them would be vacuously true.
+    await expect(page.getByText(marker('CHARLIE', 7))).toHaveCount(0);
   });
 
   test.afterAll(async () => {
