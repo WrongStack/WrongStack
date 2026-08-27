@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-27T08:18:56.744Z
+**Generated:** 2026-08-27T10:59:14.791Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3385 |
-| Production source lines | 813403 |
-| Test files | 2971 |
+| Production source lines | 814069 |
+| Test files | 2975 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10470 |
+| Relative module edges | 10471 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -57,10 +57,10 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 333 | 323 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 476 | 362 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/webui | 476 | 365 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 4 | @wrongstack/core |
-| @wrongstack/webui-server | 199 | 173 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
+| @wrongstack/webui-server | 199 | 174 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
 | @wrongstack/wrongtrace | 10 | 3 | — |
 | wrongstack | 1 | 1 | @wrongstack/cli |
 
@@ -88,8 +88,8 @@ None.
 |---:|---|
 | 1424 | `packages/tui/src/theme-presets.ts` |
 | 1297 | `packages/core/src/chronicle/query.ts` |
+| 1236 | `packages/webui-server/src/server/session-handlers.ts` |
 | 1229 | `packages/webui/src/lib/ws-client.ts` |
-| 1175 | `packages/webui-server/src/server/session-handlers.ts` |
 | 1161 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
@@ -102,15 +102,15 @@ None.
 | 1038 | `packages/core/src/index.ts` |
 | 1038 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1036 | `packages/tui/src/components/kanban-panel.tsx` |
+| 1035 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
-| 1034 | `packages/webui/src/components/ContextDashboard.tsx` |
 | 1033 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1033 | `packages/tui/src/components/sidebar-content.tsx` |
+| 1032 | `packages/webui-server/src/server/start-webui.ts` |
 | 1023 | `packages/core/src/storage/file-session-writer.ts` |
 | 1023 | `packages/tui/src/components/context-panel.tsx` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
-| 1019 | `packages/webui-server/src/server/start-webui.ts` |
 | 1018 | `packages/core/src/core/context.ts` |
 | 1015 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1013 | `packages/tools/src/codebase-index/project-server.ts` |
@@ -131,8 +131,8 @@ None.
 | 984 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
+| 982 | `packages/webui/src/types/server-message.ts` |
 | 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
-| 980 | `packages/webui/src/types/server-message.ts` |
 | 977 | `packages/core/src/execution/eternal-autonomy.ts` |
 | 975 | `packages/kanban/src/types.ts` |
 | 974 | `packages/tui/src/components/status-bar-rails.tsx` |

@@ -387,7 +387,7 @@
       "relativeImports": 12
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
-      "lines": 1034,
+      "lines": 1035,
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
@@ -419,7 +419,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
-      "lines": 902,
+      "lines": 930,
       "relativeImports": 0
     },
     "packages/webui/src/components/SkillDetailView.tsx": {
@@ -443,15 +443,19 @@
       "relativeImports": 4
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 842,
+      "lines": 853,
       "relativeImports": 0
+    },
+    "packages/webui/src/stores/ui-store.ts": {
+      "lines": 811,
+      "relativeImports": 4
     },
     "packages/webui/src/stores/viz-store.ts": {
       "lines": 974,
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 980,
+      "lines": 982,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -491,11 +495,11 @@
       "relativeImports": 45
     },
     "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1175,
+      "lines": 1236,
       "relativeImports": 10
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1019,
+      "lines": 1032,
       "relativeImports": 28
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

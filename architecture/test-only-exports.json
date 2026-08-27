@@ -1440,9 +1440,6 @@
     "packages/webui-server/src/server/ws-payload-validation.ts": [
       "validateBrainConfigSetPayload"
     ],
-    "packages/webui-server/src/server/ws-utils.ts": [
-      "clientWantsSession"
-    ],
     "packages/webui/src/components/activity-bar/index.tsx": [
       "calculateDesktopActivityCapacity",
       "splitDesktopActivityBarItems"
@@ -1675,6 +1672,9 @@
     "packages/webui/src/stores/monitor-store.ts": [
       "clientBucket",
       "deriveMonitorStats"
+    ],
+    "packages/webui/src/stores/session-tab-store.ts": [
+      "isNeverStartedSession"
     ]
   }
 }

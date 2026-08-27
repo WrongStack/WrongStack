@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-27T08:18:56.744Z",
+  "generatedAt": "2026-08-27T10:59:14.791Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3385,
-    "testFiles": 2971,
-    "sourceLines": 813403,
+    "testFiles": 2975,
+    "sourceLines": 814069,
     "workspaceEdges": 128,
-    "moduleEdges": 10470,
+    "moduleEdges": 10471,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -801,7 +801,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 476,
-      "testFiles": 362,
+      "testFiles": 365,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -825,7 +825,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 362
+          "testFiles": 365
         }
       ]
     },
@@ -878,7 +878,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 199,
-      "testFiles": 173,
+      "testFiles": 174,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -904,7 +904,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 173
+          "testFiles": 174
         }
       ]
     },
@@ -16446,6 +16446,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/session-delete-tab-sync.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/session-event-taxonomy.test.ts",
         "projects": [
           "root-node"
@@ -18000,6 +18006,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/foreground-gate-race.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/foreground-session-id.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18714,6 +18726,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/four-tab-isolation.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/git-changes-store.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18829,6 +18847,12 @@
       },
       {
         "file": "packages/webui/tests/stores/session-store.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/stores/session-tab-delete-sync.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -19500,7 +19524,7 @@
     },
     {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1034,
+      "lines": 1035,
       "relativeImports": 2
     },
     {
@@ -19540,7 +19564,7 @@
     },
     {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
-      "lines": 902,
+      "lines": 930,
       "relativeImports": 0
     },
     {
@@ -19570,8 +19594,13 @@
     },
     {
       "file": "packages/webui/src/stores/local-prefs.ts",
-      "lines": 842,
+      "lines": 853,
       "relativeImports": 0
+    },
+    {
+      "file": "packages/webui/src/stores/ui-store.ts",
+      "lines": 811,
+      "relativeImports": 4
     },
     {
       "file": "packages/webui/src/stores/viz-store.ts",
@@ -19580,7 +19609,7 @@
     },
     {
       "file": "packages/webui/src/types/server-message.ts",
-      "lines": 980,
+      "lines": 982,
       "relativeImports": 10
     },
     {
@@ -19630,12 +19659,12 @@
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1175,
+      "lines": 1236,
       "relativeImports": 10
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1019,
+      "lines": 1032,
       "relativeImports": 28
     },
     {
@@ -19666,13 +19695,13 @@
       "relativeImports": 3
     },
     {
-      "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1229,
+      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "lines": 1236,
       "relativeImports": 10
     },
     {
-      "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1175,
+      "file": "packages/webui/src/lib/ws-client.ts",
+      "lines": 1229,
       "relativeImports": 10
     },
     {
@@ -19736,14 +19765,14 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/webui/src/components/ContextDashboard.tsx",
+      "lines": 1035,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/cli/src/plugin-management.ts",
       "lines": 1034,
       "relativeImports": 1
-    },
-    {
-      "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1034,
-      "relativeImports": 2
     },
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
@@ -19754,6 +19783,11 @@
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "lines": 1033,
       "relativeImports": 13
+    },
+    {
+      "file": "packages/webui-server/src/server/start-webui.ts",
+      "lines": 1032,
+      "relativeImports": 28
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
@@ -19774,11 +19808,6 @@
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "lines": 1019,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/webui-server/src/server/start-webui.ts",
-      "lines": 1019,
-      "relativeImports": 28
     },
     {
       "file": "packages/core/src/core/context.ts",
@@ -19881,14 +19910,14 @@
       "relativeImports": 14
     },
     {
+      "file": "packages/webui/src/types/server-message.ts",
+      "lines": 982,
+      "relativeImports": 10
+    },
+    {
       "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
       "lines": 980,
       "relativeImports": 16
-    },
-    {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 980,
-      "relativeImports": 10
     },
     {
       "file": "packages/core/src/execution/eternal-autonomy.ts",
@@ -22696,10 +22725,6 @@
       "name": "validateBrainConfigSetPayload"
     },
     {
-      "file": "packages/webui-server/src/server/ws-utils.ts",
-      "name": "clientWantsSession"
-    },
-    {
       "file": "packages/webui/src/components/activity-bar/index.tsx",
       "name": "calculateDesktopActivityCapacity"
     },
@@ -23230,6 +23255,10 @@
     {
       "file": "packages/webui/src/stores/monitor-store.ts",
       "name": "deriveMonitorStats"
+    },
+    {
+      "file": "packages/webui/src/stores/session-tab-store.ts",
+      "name": "isNeverStartedSession"
     }
   ]
 }
