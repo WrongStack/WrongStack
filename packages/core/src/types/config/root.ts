@@ -20,6 +20,7 @@ import type {
   PluginManagerConfig,
   SageConfig,
 } from './mcp-features.js';
+import type { ModelTiersConfig } from './model-tiers.js';
 import type { CustomModelDefinition, ModelMatrixEntry, ProviderConfig } from './providers.js';
 import type {
   CloudSyncConfig,
@@ -268,6 +269,14 @@ export interface Config {
    * single request-pipeline middleware, gated by the active model's
    * capabilities. See `ModelRuntimeConfig`.
    */
+  /**
+   * Deterministic model-tier layer: named levels (budget / standard /
+   * premium) that bind a fallback profile, a budget, and runtime overrides
+   * under one name, plus a role/phase routing table. Used by the subagent
+   * spawn path, `delegate`/`spawn_subagent`, Kanban dispatch, and the
+   * leader's own self-switch policy. Opt-in via `modelTiers.enabled`.
+   */
+  modelTiers?: ModelTiersConfig | undefined;
   modelRuntime?: ModelRuntimeConfig | undefined;
   /** System identity prompt selection, used by CLI/REPL/TUI/WebUI consistently. */
   systemPrompt?: SystemPromptConfig | undefined;

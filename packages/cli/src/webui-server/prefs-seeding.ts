@@ -24,6 +24,7 @@ interface CliWebUIOptions {
         modelAvailabilitySchedule?: ModelBlackoutRule[] | undefined;
         fallbackAuto?: boolean | undefined;
         modelMatrix?: Config['modelMatrix'] | undefined;
+        modelTiers?: Config['modelTiers'] | undefined;
         uiLocale?: string | undefined;
         /** WrongProxy / WrongTrace toggle. */
         wrongProxyEnabled?: boolean | undefined;
@@ -114,6 +115,13 @@ export function createPrefsSeeding(opts: CliWebUIOptions): PrefsSeeding {
       !Array.isArray(payload['modelMatrix'])
     ) {
       patchLiveAppConfig({ modelMatrix: payload['modelMatrix'] as Config['modelMatrix'] });
+    }
+    if (
+      payload['modelTiers'] &&
+      typeof payload['modelTiers'] === 'object' &&
+      !Array.isArray(payload['modelTiers'])
+    ) {
+      patchLiveAppConfig({ modelTiers: payload['modelTiers'] as Config['modelTiers'] });
     }
     if (!opts.profileConfigPath) return;
 

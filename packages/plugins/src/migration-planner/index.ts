@@ -195,7 +195,6 @@ function extractBreakingChanges(sectionText: string): string[] {
   for (const rawLine of sectionText.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) {
-      inBreakingSection = false;
       continue;
     }
     if (/^#{3,4}\s+(?:BREAKING\s+CHANGES?|Breaking\s+Changes?|Breaking)/i.test(line)) {
@@ -226,7 +225,6 @@ function extractRecommendedSteps(sectionText: string): string[] {
   for (const rawLine of sectionText.split(/\r?\n/)) {
     const line = rawLine.trim();
     if (!line) {
-      inMigrationSection = false;
       continue;
     }
     if (/^#{3,4}\s+(?:Migration|Upgrade|How to|Steps|Recommended)/i.test(line)) {

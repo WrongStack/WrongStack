@@ -140,7 +140,7 @@ export function ContextSettingsTab({
       </div>
 
       {/* Per-Plugin Toggle List */}
-      <PluginToggleList />
+      <PluginToggleList syncPref={syncPref} />
     </div>
   );
 }

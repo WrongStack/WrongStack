@@ -259,6 +259,9 @@ export class MultiAgentHost {
       maxSpawnDepth: HARD_MAX_SPAWN_DEPTH,
       maxContext: this.opts.getLeaderMaxContext,
       modelMatrix: () => this.deps.configStore.get().modelMatrix,
+      // Live getter, like modelMatrix: tier edits from `/tier`, the TUI menu or
+      // the WebUI editor take effect on the next spawn without a restart.
+      appConfig: () => this.deps.configStore.get(),
       worktrees,
       worktreePolicy,
       worktreeConflictResolver: makeFleetWorktreeConflictResolver(),

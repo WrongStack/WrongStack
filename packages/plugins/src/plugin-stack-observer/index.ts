@@ -119,6 +119,7 @@ const PLUGIN: Plugin = {
           ? p.wraps.filter((w): w is string => typeof w === 'string')
           : [];
         const kind = typeof p.kind === 'string' ? p.kind : 'unknown';
+        state.wraps = state.wraps.filter((w) => w.plugin !== p.plugin);
         state.wraps.push({
           plugin: p.plugin,
           kind,

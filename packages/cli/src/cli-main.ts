@@ -158,6 +158,8 @@ export async function runInteractive(cliCtx: CliContext): Promise<number> {
     configStore,
     profileConfigPath,
     stdinInteractive,
+    events,
+    modelsRegistry,
     getHookRunner: () => hookRunnerRef.current,
     getSwitchProviderAndModel: () => switchProviderAndModelRef.current,
   });

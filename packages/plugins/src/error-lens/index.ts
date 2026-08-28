@@ -140,13 +140,13 @@ const ERROR_LINE_PATTERNS = [
 
 const FRAME_PATTERNS: RegExp[] = [
   // Node/V8: "at fn (path/file.ts:12:5)" or "at path/file.ts:12:5"
-  /\bat\s+(?:[^(\n]+\()?([^()\n:]+:\d+)(?::\d+)?\)?/g,
+  /\bat\s+(?:[^(\n]+\()?((?:[A-Za-z]:[\\/])?[^()\n:]+:\d+)(?::\d+)?\)?/g,
   // Python: File "path/file.py", line 12
   /File "([^"]+)", line (\d+)/g,
   // tsc/vitest/eslint bare: "src/foo.ts:12:5" (require a path-ish prefix)
-  /(?:^|[ \t(])([A-Za-z0-9_./\\-]+\.[a-z]{1,4}:\d+)(?::\d+)?/gm,
+  /(?:^|[ \t(])((?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\-]+\.[a-z]{1,4}:\d+)(?::\d+)?/gm,
   // Rust: "--> src/main.rs:4:5"
-  /-->\s+([^\s:]+:\d+)/g,
+  /-->\s+((?:[A-Za-z]:[\\/])?[^\s:]+:\d+)/g,
 ];
 
 /** Extract the first recognizable error line from tool output. */

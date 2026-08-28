@@ -242,7 +242,7 @@ export function ProviderModelsPanel({
               {t('activity:providerModels.using')}
             </span>
             {pickedId ? (
-              <span className="max-w-full truncate rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
+              <span className="max-w-full break-words rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
                 {pickedId}
               </span>
             ) : (

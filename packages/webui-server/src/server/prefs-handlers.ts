@@ -3,13 +3,13 @@ import type { ConfigStore } from '@wrongstack/core/types';
 import { getProcessRegistry } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { type PendingConfirm, resolveYoloEligiblePendingConfirms } from './pending-confirms.js';
+import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 import {
   buildSystemPromptInfo,
   type SystemPromptSurface,
   unavailableSystemPromptInfo,
 } from './system-prompt-handlers.js';
 import type { WSServerMessage } from './types.js';
-import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 import { validatePrefsUpdatePayload } from './ws-payload-validation.js';
 
 export { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
@@ -114,8 +114,36 @@ export function handlePrefsGet(ctx: PrefsHandlerContext, ws: WebSocket, sessionI
   // instead of over whatever it is currently showing.
   ctx.send(ws, {
     type: 'prefs.updated',
-    payload: { ...ctx.snapshot(sessionId), ...(sessionId ? { sessionId } : {}) },
+    payload: { ...composedPrefsSnapshot(ctx, sessionId), ...(sessionId ? { sessionId } : {}) },
   });
+}
+
+/**
+ * Compose the snapshot one tab should see: project-wide keys from the
+ * process-wide meta (`ctx.meta`, where `prefs.update` writes them) and
+ * session-scoped keys from the asking tab's own meta.
+ *
+ * Both hosts wire `snapshot(sessionId)` to the ASKING TAB's agent context,
+ * whose meta is a clone taken when the tab was created
+ * (`inheritedSessionMeta`). Shared keys are never re-written there, so
+ * answering/echoing that snapshot verbatim shipped the tab's creation-time
+ * copy of every project-wide pref: the stale value landed after the fresh
+ * one and the browser silently reverted the edit the user had just made
+ * (favorite models, fallback chains, profiles… looked "unsaved").
+ */
+function composedPrefsSnapshot(
+  ctx: PrefsHandlerContext,
+  sessionId?: string,
+): Record<string, unknown> {
+  if (!sessionId) return ctx.snapshot();
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(ctx.snapshot())) {
+    if (!SESSION_SCOPED_PREF_KEYS.has(key)) out[key] = value;
+  }
+  for (const [key, value] of Object.entries(ctx.snapshot(sessionId))) {
+    if (SESSION_SCOPED_PREF_KEYS.has(key)) out[key] = value;
+  }
+  return out;
 }
 
 /** Answer `system_prompt.get` with the variant catalogue and token estimates. */
@@ -198,6 +226,10 @@ export async function handlePrefsUpdate(
         : {}),
     });
   }
+  if (typeof payload['readSymbols'] === 'boolean') {
+    sessionMeta['tools.read.advancedMode'] = payload['readSymbols'];
+    ctx.meta['tools.read.advancedMode'] = payload['readSymbols'];
+  }
   if (typeof payload['debugStream'] === 'boolean') {
     void import('@wrongstack/providers').then(({ setDebugStreamEnabled }) =>
       setDebugStreamEnabled(payload['debugStream'] as boolean),
@@ -257,8 +289,10 @@ export async function handlePrefsUpdate(
 
   // Split the echo: session-scoped keys are addressed at the tab that set
   // them, project-wide keys go to everyone. Broadcasting one untagged snapshot
-  // wrote one tab's autonomy over every other tab's picker.
-  const snapshot = ctx.snapshot(sessionId);
+  // wrote one tab's autonomy over every other tab's picker. The composed
+  // snapshot keeps the shared half sourced from the process-wide meta so the
+  // echo carries the value just written, not the asking tab's stale clone.
+  const snapshot = composedPrefsSnapshot(ctx, sessionId);
   const scoped: Record<string, unknown> = {};
   const shared: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(snapshot)) {

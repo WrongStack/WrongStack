@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 
-const GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION = 1 as const;
+export const GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION = 1 as const;
 export const GOVERNANCE_EVIDENCE_CANDIDATE_DEFAULT_PAGE_SIZE = 50;
 export const GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE = 100;
 
-type GovernanceEvidenceCandidateMissingBinding = 'tool_call' | 'task' | 'plan' | 'workspace';
+export type GovernanceEvidenceCandidateMissingBinding = 'tool_call' | 'task' | 'plan' | 'workspace';
 
-interface GovernanceEvidenceTraceSnapshot {
+export interface GovernanceEvidenceTraceSnapshot {
   readonly sessionId: string;
   readonly task:
     | { readonly scope: 'session' }
@@ -23,7 +23,7 @@ interface GovernanceEvidenceTraceSnapshot {
       };
 }
 
-interface GovernanceToolOutcomeMetadata {
+export interface GovernanceToolOutcomeMetadata {
   readonly toolCallId?: string | undefined;
   readonly toolName: string;
   readonly ok: boolean;
@@ -33,7 +33,7 @@ interface GovernanceToolOutcomeMetadata {
   readonly outputLines?: number | undefined;
 }
 
-interface GovernanceEvidenceCandidate {
+export interface GovernanceEvidenceCandidate {
   readonly schemaVersion: typeof GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION;
   readonly candidateType: 'tool_execution';
   readonly status: 'unverified';

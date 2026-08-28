@@ -17,6 +17,7 @@ export interface KanbanQueueInput {
   role?: string | undefined;
   provider?: string | undefined;
   model?: string | undefined;
+  tier?: string | undefined;
   fallbackModels?: string[] | undefined;
   tools?: string[] | undefined;
   allowedCapabilities?: string[] | undefined;
@@ -41,6 +42,7 @@ export function normalizeKanbanQueueInput(input: unknown): KanbanQueueInput {
     role: typeof raw.role === 'string' ? raw.role : undefined,
     provider: typeof raw.provider === 'string' ? raw.provider : undefined,
     model: typeof raw.model === 'string' ? raw.model : undefined,
+    tier: typeof raw.tier === 'string' ? raw.tier : undefined,
     fallbackModels: stringArray(raw.fallbackModels),
     tools: stringArray(raw.tools),
     allowedCapabilities: stringArray(raw.allowedCapabilities),
@@ -86,7 +88,12 @@ export function buildKanbanSubagentConfig(
       ? { allowedCapabilities: input.allowedCapabilities ?? assignment?.allowedCapabilities }
       : {}),
     ...(input.worktree !== undefined ? { worktree: input.worktree } : {}),
-    ...(assignment?.costCeilingUsd !== undefined ? { maxCostUsd: assignment.costCeilingUsd } : {}),
+    ...((input.tier ?? assignment?.tier) ? { tier: input.tier ?? assignment?.tier } : {}),
+    // A board's cost ceiling is an explicit decision by whoever queued the task,
+    // so it is pinned: the tier layer may tighten a roster default, never this.
+    ...(assignment?.costCeilingUsd !== undefined
+      ? { maxCostUsd: assignment.costCeilingUsd, budgetPins: ['maxCostUsd'] }
+      : {}),
   };
 }
 

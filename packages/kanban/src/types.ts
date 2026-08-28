@@ -193,8 +193,18 @@ export interface RecordKanbanTaskActivityInput {
   details?: string | undefined;
 }
 
-/** How an agent assigned to a task obtains its primary model. */
-export type KanbanModelRoutingMode = 'session' | 'fixed' | 'fallback_profile';
+/**
+ * How an agent assigned to a task obtains its primary model.
+ *
+ * - 'session'          — inherit whatever the session leader is running.
+ * - 'fixed'            — a pinned provider/model.
+ * - 'fallback_profile' — a named chain; chain[0] is the primary.
+ * - 'tier'             — a named cost level ('budget' / 'standard' / 'premium').
+ *                        Resolved through `modelTiers`, so the board stores the
+ *                        INTENT ('run this cheaply') rather than a model id that
+ *                        goes stale the moment the config changes.
+ */
+export type KanbanModelRoutingMode = 'session' | 'fixed' | 'fallback_profile' | 'tier';
 
 /**
  * Persisted, inspectable execution route. Keeping the mode explicit avoids the
@@ -207,6 +217,8 @@ export interface KanbanExecutionRouting {
   model?: string | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
+  /** Tier id when `mode` is 'tier'. Resolved at dispatch time against `modelTiers`. */
+  tier?: string | undefined;
 }
 
 export type KanbanSupervisorMode = 'deterministic' | 'agentic';
@@ -283,6 +295,11 @@ export interface KanbanAgentAssignment {
   modelRouting?: KanbanModelRoutingMode | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
+  /**
+   * Named cost level when `modelRouting` is 'tier'. Storing the level rather
+   * than a resolved model id keeps a queued task correct across config edits.
+   */
+  tier?: string | undefined;
   /** Agentic skills that are force-loaded into the worker prompt. */
   skills?: string[] | undefined;
   tools?: string[] | undefined;

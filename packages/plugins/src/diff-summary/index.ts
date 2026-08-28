@@ -384,7 +384,7 @@ const plugin: Plugin = {
       // so we save the subprocess spawn.
       const toolInputForHash =
         toolName === 'edit'
-          ? ((inp['new_string'] as unknown) ?? '')
+          ? `${String(inp['old_string'] ?? '')}:::${String(inp['new_string'] ?? '')}`
           : toolName === 'write'
             ? ((inp['content'] as unknown) ?? '')
             : '';

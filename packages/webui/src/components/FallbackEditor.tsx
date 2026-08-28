@@ -73,7 +73,7 @@ export function FallbackEditor({
                 data-inactive-reason={state.active ? undefined : state.reason}
               >
                 <span className="font-mono text-[10px] text-muted-foreground">{i + 1}</span>
-                <span className="min-w-0 flex-1 truncate font-mono text-foreground">
+                <span className="min-w-0 flex-1 break-words font-mono text-foreground">
                   {ref}
                 </span>
                 {!state.active && (

@@ -160,7 +160,7 @@ function isWrappedAsLinkOrCode(line: string, name: string): boolean {
   if (lower.includes(`\`${target}\``)) return true;
   // Markdown link with label containing the name (e.g. [the `secret-scanner`
   // plugin](./src/secret-scanner))
-  if (lower.includes(`[\``) && lower.includes(`\`](`)) return true;
+  if (new RegExp(`\\[[^\\]]*\`${escapeRegExp(target)}\`[^\\]]*\\]\\(`, 'i').test(line)) return true;
   return false;
 }
 

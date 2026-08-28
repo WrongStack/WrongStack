@@ -223,7 +223,7 @@ export function ChatHeader({
                       )}
                     >
                       <div className="font-medium truncate">{e.title || t('chat:empty')}</div>
-                      <div className="text-[10px] text-muted-foreground font-mono truncate">
+                      <div className="text-[10px] text-muted-foreground font-mono break-words">
                         {e.provider}/{e.model} · {e.tokenTotal.toLocaleString()} tok
                       </div>
                     </button>

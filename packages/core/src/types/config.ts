@@ -3,6 +3,7 @@ export * from './config/runtime.js';
 export * from './config/context.js';
 export * from './config/tools.js';
 export * from './config/providers.js';
+export * from './config/model-tiers.js';
 export * from './config/mcp-features.js';
 export * from './config/autonomy.js';
 export * from './config/skills-fleet-brain.js';

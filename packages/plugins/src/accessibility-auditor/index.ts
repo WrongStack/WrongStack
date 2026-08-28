@@ -458,8 +458,9 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
-      if (!sourcePath || typeof sourcePath !== 'string') return;
+      const rawPath = inp['path'] ?? inp['filePath'] ?? inp['file_path'];
+      const sourcePath = typeof rawPath === 'string' ? rawPath : undefined;
+      if (!sourcePath) return;
       if (!withinProject(sourcePath)) return;
 
       const exts = normalizeExtensions(cfg.includeExtensions);

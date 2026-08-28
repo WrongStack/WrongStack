@@ -230,8 +230,15 @@ function estimateCost(
     modelKeyCache.set(model, key);
   }
 
+  const unnamespaced = key.includes('/') ? key.split('/').pop()! : key;
   const pricing =
-    pricingOverrides[key] ?? bundledFromRegistry[key] ?? PRICING[key] ?? DEFAULT_PRICING;
+    pricingOverrides[key] ??
+    pricingOverrides[unnamespaced] ??
+    bundledFromRegistry[key] ??
+    bundledFromRegistry[unnamespaced] ??
+    PRICING[key] ??
+    PRICING[unnamespaced] ??
+    DEFAULT_PRICING;
   const inputCost =
     (freshTokens / 1_000_000) * pricing.input +
     (cachedTokens / 1_000_000) * (pricing.cacheRead ?? pricing.input);

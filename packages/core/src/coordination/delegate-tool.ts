@@ -157,6 +157,11 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         type: 'string',
         description: 'Model id within the provider. Defaults to host model.',
       },
+      tier: {
+        type: 'string',
+        description:
+          "Cost/capability level for this worker: 'budget' (cheap + fast, for mechanical or well-specified work), 'standard' (the default), or 'premium' (expensive + most capable, for work where being wrong is costly). Resolved deterministically into a model, a failover chain, and a spend budget from `modelTiers` config, so you do NOT need to know any model id. Omit to let the routing table decide by role. An explicit `model` always wins over the tier.\n\nA CHEAPER TIER DOES NOT MAKE `delegate` CHEAPER FOR YOU. The leader stays fully blocked for the entire run either way — a cheap model is usually a SLOWER one, so `tier: 'budget'` on `delegate` can cost more of your wall-clock than it saves in dollars. Tier is about the worker's spend; `delegate` vs `spawn_subagent` is about your own time, and they are separate decisions. If the job is anything but short, pass the tier to `spawn_subagent` instead and keep working.",
+      },
       systemPromptOverride: {
         type: 'string',
         description: 'Extra prompt text appended to the role baseline.',
@@ -228,6 +233,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         name?: string | undefined;
         provider?: string | undefined;
         model?: string | undefined;
+        tier?: string | undefined;
         systemPromptOverride?: string | undefined;
         timeoutMs?: number | undefined;
         maxIterations?: number | undefined;
@@ -355,6 +361,16 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           cfg = applyRosterBudget({ ...cfg, name: i.name });
         }
 
+        // Record the tier and which budgets the caller pinned, so the spawn-time
+        // tier layer can tighten roster defaults without ever overriding a number
+        // the caller typed here.
+        if (i.tier) cfg.tier = i.tier;
+        const budgetPins: string[] = [];
+        if (typeof i.maxIterations === 'number') budgetPins.push('maxIterations');
+        if (typeof i.maxToolCalls === 'number') budgetPins.push('maxToolCalls');
+        if (typeof i.maxTokens === 'number') budgetPins.push('maxTokens');
+        if (typeof i.maxCostUsd === 'number') budgetPins.push('maxCostUsd');
+        if (budgetPins.length) cfg.budgetPins = budgetPins;
         if (typeof i.maxIterations === 'number') {
           cfg.maxIterations = i.maxIterations;
         }

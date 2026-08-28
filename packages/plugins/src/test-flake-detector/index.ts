@@ -25,6 +25,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -165,13 +166,7 @@ const ALLOWED_RUNNER_FLAGS = new Set([
   '--reporter=default',
 ]);
 
-function withinProject(p: string): boolean {
-  if (p.length === 0 || p.length > 4096 || p.startsWith('-')) return false;
-  const root = resolve(process.cwd());
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
-}
+// withinProject() imported from ../runtime/index.js
 
 function isInside(parent: string, child: string): boolean {
   if (parent === child) return true;

@@ -136,6 +136,8 @@ export function requestCharSize(request: Record<string, unknown>): number {
       const o = v as Record<string, unknown>;
       if (typeof o['text'] === 'string') size += (o['text'] as string).length;
       if (o['content'] !== undefined) walk(o['content']);
+      if (o['input'] !== undefined) walk(o['input']);
+      if (o['arguments'] !== undefined) walk(o['arguments']);
     }
   };
   walk(request['system']);

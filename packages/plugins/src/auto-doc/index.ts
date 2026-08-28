@@ -261,8 +261,11 @@ function needsDocComment(content: string, entity: ParsedEntity): boolean {
   const lineIdx = entity.startLine - 1;
   if (lineIdx < 1) return true;
   /* v8 ignore next -- lineIdx >= 1 here, so lines[lineIdx - 1] is always defined; the ?? '' is defensive. */
-  const prevLine = lines[lineIdx - 1] ?? '';
-  return !/^\s*\/\*\*\s*$/.test(prevLine.trim());
+  const prevLine = lines[lineIdx - 1]?.trim() ?? '';
+  if (/^\s*\*\/\s*$/.test(prevLine) || /^\s*\/\*\*.*?\*\/\s*$/.test(prevLine) || /^\s*\/\*\*/.test(prevLine)) {
+    return false;
+  }
+  return true;
 }
 
 function injectDocComment(content: string, entity: ParsedEntity, doc: string): string {

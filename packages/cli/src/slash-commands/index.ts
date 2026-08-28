@@ -31,6 +31,7 @@ import { buildEnhanceCommand } from './enhance.js';
 import { buildEnsembleCommand } from './ensemble.js';
 import { buildFKeyAliasCommands, buildFKeysCommand } from './f-keys.js';
 import { buildFallbackCommand } from './fallback.js';
+import { buildTierCommand } from './tier.js';
 import { buildFixCommand } from './fix.js';
 import { buildFleetCommand } from './fleet.js';
 import {
@@ -172,6 +173,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildEffortCommand(opts),
     buildRefinerCommand(opts),
     buildFallbackCommand(opts),
+    buildTierCommand(opts),
     ...(opts.statusTracker ? [buildProviderStatusCommand(opts.statusTracker)] : []),
     buildGitCommand(opts),
     buildCommitCommand(opts),

@@ -1,3 +1,4 @@
+import type { Config } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
 import type { SubagentConfig } from '../types/multi-agent.js';
 import type { ModelMatrixSource } from './model-matrix.js';
@@ -5,10 +6,32 @@ import {
   resolveModelMatrixResolution,
   roleNeedsIndependentReviewModel,
 } from './model-matrix.js';
+import type { ResolvedTierTarget } from './model-tier.js';
+import {
+  applyTierToSubagentConfig,
+  classifyTier,
+  listTierIds,
+  resolveTier,
+} from './model-tier.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 
 export interface ResolveDirectorSpawnModelOptions {
   modelMatrix?: ModelMatrixSource | undefined;
+  /**
+   * Live config, used to resolve the deterministic model-tier layer. Optional:
+   * when omitted (or when `modelTiers.enabled` is not true) the tier step is
+   * skipped entirely and resolution behaves exactly as it did before tiers
+   * existed.
+   */
+  config?: Config | undefined;
+  /**
+   * Tier named explicitly by the caller — the `tier` argument on `delegate` /
+   * `spawn_subagent`, or a Kanban task's persisted route. Outranks the routing
+   * table but still loses to an explicit provider/model.
+   */
+  tier?: string | undefined;
+  /** Observability hook: fired when a tier actually contributed a decision. */
+  onTierResolved?: ((resolved: ResolvedTierTarget) => void) | undefined;
   sessionProvider?: string | undefined;
   sessionModel?: string | undefined;
   statusTracker?: ProviderModelStatusTracker | undefined;
@@ -45,6 +68,43 @@ export function resolveDirectorSpawnModel(
       if (entry.provider) config.provider = entry.provider;
       if (entry.fallbackProfile) config.fallbackProfile = entry.fallbackProfile;
       if (entry.modelRuntime) config.modelRuntime = entry.modelRuntime;
+    }
+  }
+
+  // Deterministic tier layer. Runs AFTER the matrix so an explicit /setmodel
+  // role or phase pin still wins — a tier is a default, not an override — and
+  // BEFORE the session fallback so a routed job actually lands on its level's
+  // model instead of silently inheriting the leader's. Only fields still unset
+  // are filled, so `delegate({ model })` is never second-guessed.
+  if (opts.config) {
+    // An explicit tier that names no configured level is a config mistake, and
+    // the failure mode is silent: the job would just run at whatever the matrix
+    // or session resolved, i.e. at the WRONG expense, with nothing in the log
+    // to say so. Warn loudly and name the levels that do exist. The spawn still
+    // proceeds — refusing to run a task because a cost label was misspelled is
+    // worse than running it on the normal model.
+    if (opts.tier) {
+      const decision = classifyTier(opts.config, { role: config.role, tier: opts.tier });
+      if (decision && !decision.configured) {
+        const available = listTierIds(opts.config);
+        opts.logger?.warn(
+          `spawn: tier "${opts.tier}" is not a configured level` +
+            `${available.length ? ` (available: ${available.join(', ')})` : ' (modelTiers.levels is empty)'}` +
+            ' — falling through to matrix/session resolution.',
+        );
+      }
+    }
+    const resolvedTier = resolveTier(opts.config, {
+      role: config.role,
+      tier: opts.tier,
+    });
+    if (resolvedTier) {
+      applyTierToSubagentConfig(config, resolvedTier);
+      opts.onTierResolved?.(resolvedTier);
+      opts.logger?.info(
+        `spawn: tier="${resolvedTier.tier}" (via ${resolvedTier.source}) applied for role ` +
+          `"${config.role ?? '?'}"`,
+      );
     }
   }
 

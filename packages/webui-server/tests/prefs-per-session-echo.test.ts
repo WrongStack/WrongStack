@@ -137,3 +137,67 @@ describe('prefs.update echoes session-scoped and project-wide keys separately', 
     }
   });
 });
+
+/**
+ * Real-host wiring: `snapshot(sessionId)` reads the ASKING TAB's agent meta —
+ * a clone taken when the tab was created (`inheritedSessionMeta`), whose
+ * project-wide keys are frozen at creation time. The echo must source those
+ * keys from the process-wide meta instead, or the stale copy lands after the
+ * fresh value and the browser reverts the edit the user just made (the
+ * "favorite/fallback models don't save, no error" report).
+ */
+function makeSessionCloneContext() {
+  const shared: Record<string, unknown> = { favoriteModels: ['prov/old'] };
+  const tabMeta: Record<string, unknown> = { favoriteModels: ['prov/old'] };
+  const sent: WSServerMessage[] = [];
+  const broadcasts: WSServerMessage[] = [];
+  const context: PrefsHandlerContext = {
+    meta: shared,
+    metaFor: (sessionId?: string) => (sessionId === 'tab-2' ? tabMeta : shared),
+    snapshot: (sessionId?: string) => ({ ...(sessionId ? tabMeta : shared) }),
+    persist: vi.fn(async () => {}),
+    pendingConfirms: new Map(),
+    configStore: { update: vi.fn() } as never,
+    setYolo: vi.fn(),
+    setAutonomy: vi.fn(),
+    applyConfigPrefs: vi.fn(),
+    setAutoCompact: vi.fn(),
+    setLogLevel: vi.fn(),
+    send: (_socket, message) => sent.push(message),
+    broadcast: (message) => broadcasts.push(message),
+  };
+  return { context, shared, tabMeta, sent, broadcasts };
+}
+
+describe('prefs echo reads project-wide keys from the process-wide meta', () => {
+  it('prefs.update echoes the value just written, not the tab meta clone', async () => {
+    const { context, broadcasts } = makeSessionCloneContext();
+
+    await handlePrefsUpdate(context, ws, { favoriteModels: ['prov/old', 'prov/new'] }, 'tab-2');
+
+    const untagged = broadcasts.filter((b) => !(b.payload as Record<string, unknown>)['sessionId']);
+    expect(untagged.length).toBeGreaterThan(0);
+    for (const b of untagged) {
+      expect(payloadOf(b)['favoriteModels']).toEqual(['prov/old', 'prov/new']);
+    }
+  });
+
+  it('prefs.get answers with the process-wide value, not the tab meta clone', () => {
+    const { context, shared, sent } = makeSessionCloneContext();
+    shared['favoriteModels'] = ['prov/old', 'prov/new'];
+
+    handlePrefsGet(context, ws, 'tab-2');
+
+    expect(payloadOf(sent[0])['favoriteModels']).toEqual(['prov/old', 'prov/new']);
+    expect(payloadOf(sent[0])['sessionId']).toBe('tab-2');
+  });
+
+  it('prefs.get still answers scoped keys from the asking tab', () => {
+    const { context, tabMeta, sent } = makeSessionCloneContext();
+    tabMeta['autonomy'] = 'eternal';
+
+    handlePrefsGet(context, ws, 'tab-2');
+
+    expect(payloadOf(sent[0])['autonomy']).toBe('eternal');
+  });
+});

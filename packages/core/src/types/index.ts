@@ -72,6 +72,12 @@ export type {
   SessionLoggingConfig,
   SkillsConfig,
   SyncCategory,
+  ModelTierId,
+  ModelTierLeaderConfig,
+  ModelTierLeaderMode,
+  ModelTierLevel,
+  ModelTierRouting,
+  ModelTiersConfig,
   SyncConfig,
   ThemePresetId,
   TokenSavingTier,
@@ -83,6 +89,7 @@ export type {
 } from './config.js';
 // ── config (59 symbols) ──
 export {
+  BUILTIN_MODEL_TIER_IDS,
   DEFAULT_TUI_THINKING_WORD,
   FLEET_CHAT_VERBOSITY_VALUES,
   MAX_TUI_THINKING_WORD_LENGTH,

@@ -939,7 +939,7 @@ export function ChatInput({
         notConnectedDraftKept={() => toast.error(t('chat:input.notConnectedDraftKept'))}
       />
 
-      <div className="flex items-center gap-2 px-1">
+      <div className="flex flex-wrap items-center gap-2 px-1">
         <button
           type="button"
           onClick={() => setPromptLibraryOpen(true)}
@@ -960,7 +960,7 @@ export function ChatInput({
           title={t('chat:header.changeModelTitle')}
         >
           <Cpu className="h-3.5 w-3.5" />
-          <span className="font-mono truncate max-w-[12rem]">
+          <span className="font-mono whitespace-nowrap">
             {(sessionProvider ?? fallbackProvider) || t('chat:header.noProvider')}
             {' / '}
             {(sessionModel ?? fallbackModel) || t('chat:header.noModel')}

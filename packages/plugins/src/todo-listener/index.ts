@@ -120,8 +120,9 @@ function hashTodos(todos: TodoItem[]): string {
     .sort();
   // FNV-1a 32-bit. Good enough for a session-scoped dedupe key.
   let h = 0x811c9dc5;
-  for (let i = 0; i < sorted.join('\n').length; i++) {
-    h ^= sorted.join('\n').charCodeAt(i);
+  const joined = sorted.join('\n');
+  for (let i = 0; i < joined.length; i++) {
+    h ^= joined.charCodeAt(i);
     h = (h * 0x01000193) >>> 0;
   }
   return h.toString(16);

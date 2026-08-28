@@ -134,7 +134,7 @@ function readConfig(raw: unknown): LlmCacheConfig {
  */
 export function isDeterministic(request: Record<string, unknown>): boolean {
   const t = request['temperature'];
-  return t === undefined || t === 0;
+  return t === undefined || t === null || t === 0;
 }
 
 /**
@@ -341,7 +341,8 @@ const plugin: Plugin = {
           const response = (await inner(_ctx, request)) as CachedResponse;
           // Only cache well-formed responses that ended cleanly — never
           // cache a truncated / refusal / error-shaped response.
-          if (response && typeof response === 'object' && response.stopReason === 'end_turn') {
+          const sr = response && typeof response === 'object' ? response.stopReason : undefined;
+          if (response && typeof response === 'object' && (sr === 'end_turn' || sr === 'stop' || sr === 'tool_use')) {
             lruSet(key, response, cfg.maxEntries);
           }
           return response;

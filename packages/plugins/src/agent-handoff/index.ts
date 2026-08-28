@@ -171,12 +171,23 @@ async function sendHandoff(
   mailbox: Mailbox,
   payload: HandoffPayload,
 ): Promise<void> {
-  const body = buildBody(payload, cfg);
-  const hash = hashString(body);
+  const hash = hashString(
+    safeJsonStringify({
+      agentId: payload.agentId,
+      agentName: payload.agentName,
+      task: payload.task,
+      status: payload.status,
+      summary: payload.summary,
+      result: payload.result,
+      todos: payload.todos,
+    }),
+  );
   if (hash === state.lastPayloadHash) {
     state.skippedCount += 1;
     return;
   }
+
+  const body = buildBody(payload, cfg);
 
   const subject = `${cfg.subjectPrefix}${payload.agentName ?? payload.agentId ?? 'subagent'} — ${payload.status ?? 'done'}`.slice(
     0,
@@ -192,9 +203,9 @@ async function sendHandoff(
     priority: 'normal',
   };
 
-  const result = (await mailbox.send(sendInput)) as { id?: string };
+  const result = (await mailbox.send(sendInput)) as { id?: string } | undefined;
   state.sentCount += 1;
-  state.lastMessageId = result.id ?? null;
+  state.lastMessageId = result?.id ?? null;
   state.lastPayloadHash = hash;
 }
 

@@ -292,7 +292,7 @@ function extractMessageFromBash(command: string): string | null {
   if (parts.length === 0) return null;
   // git separates repeated -m values with a blank line; the first is the
   // subject, which is what `parseCommitMessage` validates.
-  return parts.join('\n');
+  return parts.join('\n\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +463,7 @@ const plugin: Plugin = {
 
       // mode === 'warn'
       let baseContext =
-        `\n?? commit-validator: commit message has ${parsed.errors.length} issue(s):\n${errorList}\n` +
+        `\n⚠️ commit-validator: commit message has ${parsed.errors.length} issue(s):\n${errorList}\n` +
         `Expected: <type>[(scope)][!]: <description>`;
 
       // Opt-in LLM suggestion. Strictly best-effort: a failure here

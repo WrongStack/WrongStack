@@ -123,9 +123,13 @@ function globToRegExp(glob: string): RegExp {
  * forward slashes). See the module doc for the three pattern shapes.
  */
 export function matchGitignorePattern(relPath: string, pattern: string): boolean {
-  const rel = toForwardSlashes(relPath);
-  const pat = pattern.trim();
+  const rel = toForwardSlashes(relPath).replace(/^\//, '');
+  let pat = pattern.trim();
   if (pat.length === 0 || pat.startsWith('#')) return false;
+  if (pat.startsWith('/')) {
+    pat = pat.slice(1);
+    if (pat.length === 0) return false;
+  }
   const segments = rel.split('/');
   if (pat.endsWith('/')) {
     const dir = pat.slice(0, -1);

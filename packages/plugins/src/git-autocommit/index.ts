@@ -27,6 +27,7 @@
 
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 
 const API_VERSION = '^0.1.10';
@@ -241,15 +242,18 @@ async function stageFiles(files: string[] | undefined, cwd?: string): Promise<vo
   if (!files || !Array.isArray(files) || files.length === 0) return;
   const hasPattern = files.some((f) => /[*?[\]]/.test(f));
   if (!hasPattern) {
-    // Filter to only files that exist (avoids "pathspec did not match any files" errors)
+    // Filter to only files that exist (avoids "pathspec did not match any files" errors for typos)
+    // Resolves against cwd for correct multi-root staging.
     const existing = (files as string[]).filter((f) => {
       try {
-        return existsSync(f);
+        return existsSync(cwd ? resolve(cwd, f) : f);
       } catch {
         return false;
       }
     });
-    if (existing.length === 0) throw new Error('No files exist to stage');
+    if (existing.length === 0) {
+      throw new Error('Failed to stage files: none of the specified files exist on disk');
+    }
     // `--` terminates option parsing: without it a file named `-f` or
     // `--force` would be read by git as a flag rather than a pathspec.
     await runGit(['add', '--', ...existing], cwd);

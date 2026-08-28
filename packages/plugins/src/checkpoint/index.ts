@@ -470,8 +470,9 @@ const plugin: Plugin = {
             error: input.id ? `no snapshot with id "${input.id}"` : 'no snapshots captured yet',
           };
         }
-        const targets = input.path
-          ? snapshot.files.filter((f) => f.path === input.path)
+        const targetPath = input.path ? (resolveProjectPath(input.path) ?? input.path) : null;
+        const targets = targetPath
+          ? snapshot.files.filter((f) => f.path === targetPath || f.path === input.path)
           : snapshot.files;
         if (targets.length === 0) {
           return { ok: false, error: `snapshot ${snapshot.id} has no entry for "${input.path}"` };

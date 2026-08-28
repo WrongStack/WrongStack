@@ -586,8 +586,9 @@ function parseTitleContent(args: string): { title: string; content: string } {
     /^"([^"]+)"\s+"([^"]+)"$/.exec(trimmed) || /^'([^']+)'\s+'([^']+)'$/.exec(trimmed);
   if (doubleMatch)
     return { title: expectDefined(doubleMatch[1]), content: expectDefined(doubleMatch[2]) };
-  const singleMatch = /^'([^']+)'\s+(.+)$/.exec(trimmed);
-  if (singleMatch) return { title: expectDefined(singleMatch[1]), content: expectDefined(singleMatch[2]) };
+  const quotedTitleMatch = /^"([^"]+)"\s+(.+)$/.exec(trimmed) || /^'([^']+)'\s+(.+)$/.exec(trimmed);
+  if (quotedTitleMatch)
+    return { title: expectDefined(quotedTitleMatch[1]), content: expectDefined(quotedTitleMatch[2]) };
   const firstSpace = trimmed.indexOf(' ');
   if (firstSpace === -1) return { title: trimmed, content: '' };
   return { title: trimmed.slice(0, firstSpace), content: trimmed.slice(firstSpace + 1) };

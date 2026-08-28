@@ -294,6 +294,10 @@ const plugin: Plugin = {
       ((api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.[
         'autoTag'
       ] as boolean) ?? true;
+    const tagMessage =
+      ((api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.[
+        'tagMessage'
+      ] as string) ?? 'Release {{version}}';
 
     const VALID_PARTS: readonly BumpType[] = ['major', 'minor', 'patch', 'auto'];
     function readDefaultPart(cfg: typeof api.config): BumpType {
@@ -434,7 +438,8 @@ const plugin: Plugin = {
       // 3. Create git tag
       if (autoTag) {
         try {
-          await runGit(['tag', '-a', `${tagPrefix}${newVersion}`, '-m', `Release ${newVersion}`], cwd);
+          const msg = tagMessage.replace('{{version}}', newVersion);
+          await runGit(['tag', '-a', `${tagPrefix}${newVersion}`, '-m', msg], cwd);
         } catch {
           // tag might already exist
         }

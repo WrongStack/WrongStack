@@ -280,7 +280,8 @@ function* execWindowed(
   text: string,
   deadline: ScanDeadline | undefined,
 ): Generator<WindowedMatch, void, undefined> {
-  const re = new RegExp(p.re.source, p.re.flags);
+  const flags = p.re.flags.includes('g') ? p.re.flags : `${p.re.flags}g`;
+  const re = new RegExp(p.re.source, flags);
   let acceptLo = 0;
   // High-water mark (chimera finding): a GROWN match can extend past a
   // later window's accept region, so a match starting inside an

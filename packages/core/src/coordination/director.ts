@@ -3,6 +3,7 @@ import * as fsp from 'node:fs/promises';
 import { renderInstructionLayer } from '../core/instruction-template.js';
 import { DirectorStateCheckpoint, type DirectorStateSnapshot } from '../storage/director-state.js';
 import type { BridgeMessage } from '../types/agent-bridge.js';
+import type { Config } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
 import type {
   AwaitAnyResult,
@@ -195,6 +196,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
   leaderContextPressure = 0;
   readonly maxLeaderContextLoad: number;
   private readonly maxContext: number | (() => number | undefined);
+  private readonly appConfig?: Config | (() => Config | undefined) | undefined;
   readonly modelMatrix?: ModelMatrixSource | undefined;
   workCompleteFlag = false;
   private readonly btwNotes = new DirectorBtwNotes();
@@ -231,6 +233,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
     this.maxFleetTokens = opts.directorBudget?.maxTokens ?? Number.POSITIVE_INFINITY;
     this.maxLeaderContextLoad = opts.maxLeaderContextLoad ?? 0.85;
     this.maxContext = opts.maxContext ?? 128_000;
+    this.appConfig = opts.appConfig;
     this.modelMatrix = opts.modelMatrix;
     this.sessionsRoot = opts.sessionsRoot;
     this.directorRunId = opts.directorRunId ?? this.id;
@@ -558,8 +561,17 @@ export class Director implements DirectorFleetHost, ICoordinator {
   }
 
   private resolveSpawnModel(config: SubagentConfig): void {
+    const appConfig =
+      typeof this.appConfig === 'function' ? this.appConfig() : this.appConfig;
     resolveDirectorSpawnModel(config, {
       modelMatrix: this.modelMatrix,
+      ...(appConfig ? { config: appConfig } : {}),
+      ...(config.tier ? { tier: config.tier } : {}),
+      onTierResolved: (resolved) => {
+        // Record the tier that actually applied so the fleet manifest and the
+        // office map show the level a worker is running at, not just its model.
+        config.tier = resolved.tier;
+      },
       sessionProvider: this.sessionProvider,
       sessionModel: this.sessionModel,
       statusTracker: this.statusTracker,

@@ -136,7 +136,7 @@ function ModelRow({
         </span>
 
         {/* Provider / model */}
-        <span className="min-w-0 flex-1 truncate font-mono text-xs">
+        <span className="min-w-0 flex-1 break-words font-mono text-xs">
           <span className="text-muted-foreground">{entry.providerId}</span>
           <span className="text-muted-foreground mx-0.5">/</span>
           <span className="text-foreground font-medium">{entry.model}</span>

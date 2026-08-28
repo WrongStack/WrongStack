@@ -225,6 +225,8 @@ function pairCrossFile(baseline: FlatBenchmark[], current: FlatBenchmark[]): { o
   const byKey = new Map<string, FlatBenchmark>();
   for (const bench of baseline) {
     byKey.set(bench.key, bench);
+    const base = stripVariantSuffix(bench.name).base;
+    byKey.set(`${bench.group} > ${base}`, bench);
   }
   const pairs: { old: FlatBenchmark; new: FlatBenchmark }[] = [];
   for (const bench of current) {

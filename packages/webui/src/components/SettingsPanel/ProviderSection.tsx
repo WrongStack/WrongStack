@@ -685,7 +685,7 @@ export function ProviderSection({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 space-y-2">
                     <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <h4 className="min-w-0 truncate font-mono text-sm font-semibold text-foreground">
+                      <h4 className="min-w-0 break-words font-mono text-sm font-semibold text-foreground">
                         {sp.id}
                       </h4>
                       {sp.family && (

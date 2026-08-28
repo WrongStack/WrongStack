@@ -92,6 +92,13 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
   meta['statuslineMode'] = (autonomyCfg['statuslineMode'] as string) ?? 'minimum';
   meta['animationStyle'] = (autonomyCfg['animationStyle'] as string) ?? 'rainbow';
   meta['showModelReasoning'] = autonomyCfg['showModelReasoning'] !== false;
+  meta['showAgentSwarmPanel'] = (autonomyCfg['showAgentSwarmPanel'] as string) ?? 'bottom';
+  meta['readSymbols'] = autonomyCfg['readAdvancedMode'] === true;
+  meta['showSageMemoryInject'] = autonomyCfg['showSageMemoryInject'] === true;
+  meta['preRefineSeconds'] = typeof autonomyCfg['preRefineSeconds'] === 'number' ? autonomyCfg['preRefineSeconds'] : 3;
+  meta['multiDiffSummaryThreshold'] = typeof autonomyCfg['multiDiffSummaryThreshold'] === 'number' ? autonomyCfg['multiDiffSummaryThreshold'] : 5;
+  meta['sageMemoryInjectThreshold'] =
+    (((config as unknown as Record<string, unknown>).Sage as Record<string, unknown> | undefined)?.inject as Record<string, unknown> | undefined)?.relationFloor ?? 0.85;
   // Safety / system prefs
   meta['breakerEnabled'] = config.circuitBreaker?.enabled === true;
   meta['breakerAutoKillResetMs'] = config.circuitBreaker?.autoKillResetMs ?? 60_000;

@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=669; wins=665 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:46:01.647Z; applied=674; wins=670 -->
 - **- Treat role-memory i18n examples as perishable: re-grep `t('ns:key')` literals against `packages/webui/src/i18n/locales/*/` fresh each probe instead of repeating a prior "zero entries" flag. - In `packages/webui`, root-level `src/components/ChatView.tsx` is a 2-line re-export shim for `src/components/ChatView/index.tsx`; always edit the directory version, and don't confuse lookalikes `components/AgentTranscript.tsx` or `components/ui/tabs.tsx` with AgentTabs. - When no shell tool is registered, use mtime-ordered `glob packages/<pkg>/src/**/*.ts*` (single-pattern `ts*` suffix, no brace expans…**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `t('ns:key')`
@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1436; wins=1424 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1441; wins=1429 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -31,7 +31,7 @@
   - *How:* `inherit`
   - *How:* `implement`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=706; wins=701 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=711; wins=706 -->
 - **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/components/ChatView/index.tsx`
@@ -66,7 +66,7 @@
   - *How:* `cd packages/webui && npx vitest run <file>`
   - *How:* `packages/webui/**`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:15:30.282Z; applied=162; wins=161 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:15:30.282Z; applied=163; wins=162 -->
 - **Never infer a missing key in a locale catalog from aligned line offsets — top-level section ORDER differs between locale copies of the same namespace (e.g. `connection` sits at in `en/activity.json` but in `tr/activity.json`); grep the quoted section name across `packages/webui/src/i18n/locales/*/activity.json` instead before reporting drift.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `connection`
@@ -74,7 +74,7 @@
   - *How:* `tr/activity.json`
   - *How:* `packages/webui/src/i18n/locales/*/activity.json`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:25:21.130Z; applied=144; wins=144 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:25:21.130Z; applied=145; wins=145 -->
 - **Never report "no callers" from a zero-hit `codebase-incoming-calls` result alone — the ref graph misses symbols even in ordinary CLI source (e.g. `runAsMain` in `packages/cli/src/cli-entry-point.ts` had 0 indexed hits while `packages/cli/src/index.ts:6,8` imports and calls it). Confirm with rg exact-text search over `packages/**/*.ts` before stating caller counts.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
@@ -84,7 +84,7 @@
   - *How:* `packages/**/*.ts`
   - *How:* `packages/cli/src/index.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=522; wins=519 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=523; wins=520 -->
 - **Never use `codebase-incoming-calls` on generic overloaded symbol names like `create` in WrongStack - the ref graph returns cross-file noise (91 same-named symbols) and its `file` filter cannot disambiguate methods of one class. Fall back to a targeted grep such as `(sessionStore|store)\.create\(` over `packages/**/src` and filter test files by name instead.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-08-28T19:20:16.097Z · 8 entries*
+*Last capture: 2026-08-22T11:25:46.876Z · 8 entries*

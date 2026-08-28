@@ -18,6 +18,7 @@ import {
   useFileReferenceStore,
   useGitChangesStore,
   useSessionStore,
+  useUIStore,
 } from '@/stores';
 import { onLaneDisposed } from '@/stores/chat-lanes';
 import type { TreeNode } from '@/stores/file-store';
@@ -427,6 +428,7 @@ export function FileExplorer() {
       const existing = openFiles.find((f) => f.path === filePath);
       if (existing) {
         useFileStore.getState().setActiveFile(filePath);
+        useUIStore.getState().setCurrentView('files');
         return;
       }
       setSelectedPath((prev) => (prev === filePath ? null : filePath));
@@ -435,6 +437,7 @@ export function FileExplorer() {
   );
 
   const handleOpen = useCallback((filePath: string) => {
+    useUIStore.getState().setCurrentView('files');
     window.dispatchEvent(new CustomEvent('wrongstack:open-file', { detail: { filePath } }));
     setSelectedPath(null);
   }, []);

@@ -107,6 +107,11 @@ export function makeSpawnTool(
         type: 'string',
         description: 'Model id within the provider. Defaults to the leader model when omitted.',
       },
+      tier: {
+        type: 'string',
+        description:
+          "Cost/capability level for this worker: 'budget' (cheap + fast, for mechanical or well-specified work), 'standard' (the default), or 'premium' (expensive + most capable, for work where being wrong is costly). Resolved deterministically into a model, a failover chain, and a spend budget from `modelTiers` config, so you do NOT need to know any model id. Omit to let the routing table decide by role. An explicit `model` always wins over the tier.\n\nThis is the RIGHT place to spend a cheap tier. Because this spawn is non-blocking, a budget-tier worker being slower costs you nothing — you keep working while it runs. The same tier on `delegate` would just make you wait longer.",
+      },
       systemPromptOverride: {
         type: 'string',
         description: 'Extra prompt text appended after the role-base prompt.',
@@ -200,6 +205,17 @@ export function makeSpawnTool(
       if (typeof i.timeoutMs === 'number') cfg.timeoutMs = i.timeoutMs;
       if (typeof i.idleTimeoutMs === 'number') cfg.idleTimeoutMs = i.idleTimeoutMs;
       if (typeof i.maxTokens === 'number') cfg.maxTokens = i.maxTokens;
+
+      // Tier + the caller's explicit budget pins. The spawn-time tier layer may
+      // tighten a roster default but must never override a number typed here.
+      if (typeof i.tier === 'string' && i.tier) cfg.tier = i.tier;
+      const budgetPins: string[] = [];
+      if (typeof i.maxIterations === 'number') budgetPins.push('maxIterations');
+      if (typeof i.maxToolCalls === 'number') budgetPins.push('maxToolCalls');
+      if (typeof i.maxCostUsd === 'number') budgetPins.push('maxCostUsd');
+      if (typeof i.maxTokens === 'number') budgetPins.push('maxTokens');
+      if (typeof i.timeoutMs === 'number') budgetPins.push('timeoutMs');
+      if (budgetPins.length) cfg.budgetPins = budgetPins;
       if (
         typeof i.worktree === 'boolean' ||
         i.worktree === 'auto' ||
@@ -296,6 +312,11 @@ export function makeKanbanQueueTool(
         role: { type: 'string' },
         provider: { type: 'string' },
         model: { type: 'string' },
+        tier: {
+          type: 'string',
+          description:
+            "Cost level for the dispatched workers ('budget' | 'standard' | 'premium'). Resolved from `modelTiers`; an explicit provider/model still wins.",
+        },
         fallbackModels: { type: 'array', items: { type: 'string' } },
         tools: { type: 'array', items: { type: 'string' } },
         allowedCapabilities: { type: 'array', items: { type: 'string' } },
@@ -364,6 +385,7 @@ export function makeKanbanQueueTool(
         leaseId: string;
         provider?: string | undefined;
         model?: string | undefined;
+        tier?: string | undefined;
       }> = [];
       const errors: Array<{ taskId?: string | undefined; error: string }> = [];
       const resultFailures: Array<{
@@ -396,6 +418,7 @@ export function makeKanbanQueueTool(
             ...(i.role !== undefined ? { role: i.role } : {}),
             ...(i.provider !== undefined ? { provider: i.provider } : {}),
             ...(i.model !== undefined ? { model: i.model } : {}),
+            ...(i.tier !== undefined ? { tier: i.tier } : {}),
             ...(i.fallbackModels !== undefined ? { fallbackModels: i.fallbackModels } : {}),
             ...(i.tools !== undefined ? { tools: i.tools } : {}),
             ...(i.allowedCapabilities !== undefined

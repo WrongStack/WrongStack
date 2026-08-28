@@ -96,7 +96,7 @@ export class WebhookNotificationChannel implements NotificationChannel {
     // open cooldown. Once the cooldown elapses we fall through to a real
     // retry probe: a recovered endpoint is hit again rather than blacked out
     // forever. `circuitResetMs = 0` keeps the old latched (permanent) behavior.
-    const inCooldown = this.#resetMs > 0 && Date.now() - this.#openedAt < this.#resetMs;
+    const inCooldown = this.#resetMs === 0 || Date.now() - this.#openedAt < this.#resetMs;
     if (this.#circuit.open && this.#maxFailures > 0 && inCooldown) {
       this.#totalSuppressed += 1;
       return {
@@ -129,6 +129,9 @@ export class WebhookNotificationChannel implements NotificationChannel {
           body,
           signal: controller.signal,
         });
+        if (typeof (res as { arrayBuffer?: unknown }).arrayBuffer === 'function') {
+          await (res as Response).arrayBuffer().catch(() => {});
+        }
         if (!res.ok) throw new Error(`webhook responded ${res.status}`);
       } finally {
         clearTimeout(timer);

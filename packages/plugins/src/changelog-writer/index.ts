@@ -185,11 +185,11 @@ export function commitToEntry(subject: string): { section: Section; text: string
 /** Extract the commit subject from a `git commit -m "..."` command, if any. */
 export function commitSubjectFromCommand(command: string): string | null {
   if (!/\bgit\s+commit\b/.test(command)) return null;
-  const m = /-m\s+(?:"([^"]+)"|'([^']+)'|(\S+))/.exec(command);
-  const subject = m?.[1] ?? m?.[2] ?? m?.[3] ?? null;
-  if (!subject) return null;
+  const m = /(?:-m|--message)\s+(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|(\S+))/.exec(command);
+  const rawSubject = m?.[1] ? m[1].replace(/\\"/g, '"') : (m?.[2] ?? m?.[3] ?? null);
+  if (!rawSubject) return null;
   // Multi-line -m payloads: only the first line is the subject.
-  return subject.split('\n')[0]?.trim() || null;
+  return rawSubject.split('\n')[0]?.trim() || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -353,6 +353,18 @@ const plugin: Plugin = {
         if (toolName === 'write' || toolName === 'edit') {
           const raw = input['path'] ?? input['file_path'] ?? input['filePath'];
           if (typeof raw === 'string' && raw) state.filesTouched.add(raw);
+          return;
+        }
+        if (toolName === 'git_autocommit') {
+          const type = typeof input['type'] === 'string' ? input['type'] : '';
+          const msg = typeof input['message'] === 'string' ? input['message'] : '';
+          const subject = msg ? (type && !msg.startsWith(type) ? `${type}: ${msg}` : msg) : null;
+          if (subject) {
+            state.commitsSeen += 1;
+            api.metrics.counter('commits_seen');
+            const { section, text } = commitToEntry(subject);
+            addEntry({ section, text, origin: 'commit', when: new Date().toISOString() });
+          }
           return;
         }
         if (toolName === 'bash' || toolName === 'exec') {

@@ -228,6 +228,7 @@ function AppInner() {
   useEffect(() => {
     const onOpenFile = (e: Event) => {
       const { filePath } = (e as CustomEvent<{ filePath: string }>).detail;
+      useUIStore.getState().setCurrentView('files');
       const ws = getWSClient(useConfigStore.getState().wsUrl);
       if (ws) {
         ws.send({ type: 'files.read', payload: ws.withSession({ filePath }) });

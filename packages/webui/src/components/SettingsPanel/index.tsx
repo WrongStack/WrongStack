@@ -57,6 +57,7 @@ import {
   type ProviderTab,
   type SavedProvider,
 } from './ProviderSection';
+import { ModelTiersSection } from './ModelTiersSection';
 import { RoutingSection } from './RoutingSection';
 import { SecuritySection } from './SecuritySection';
 
@@ -498,6 +499,9 @@ export function SettingsPanel() {
 
               <TabsContent value="routing" className="mt-0">
                 <RoutingSection syncPref={syncPref} candidates={fallbackCandidates} />
+                <div className="mt-6 border-t border-border pt-6">
+                  <ModelTiersSection syncPref={syncPref} />
+                </div>
               </TabsContent>
 
               <TabsContent value="fleet" className="mt-0">

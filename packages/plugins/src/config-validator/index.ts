@@ -148,10 +148,35 @@ function stripJsonc(text: string): string {
       i += 1;
       continue;
     }
+    if (ch === ',') {
+      // Look ahead for trailing comma before } or ] (skipping whitespace and comments)
+      let j = i + 1;
+      let isTrailing = false;
+      while (j < text.length) {
+        const c = text[j]!;
+        if (c === ' ' || c === '\t' || c === '\r' || c === '\n') {
+          j++;
+        } else if (c === '/' && text[j + 1] === '/') {
+          j += 2;
+          while (j < text.length && text[j] !== '\n') j++;
+        } else if (c === '/' && text[j + 1] === '*') {
+          j += 2;
+          while (j < text.length && !(text[j] === '*' && text[j + 1] === '/')) j++;
+          j += 2;
+        } else if (c === '}' || c === ']') {
+          isTrailing = true;
+          break;
+        } else {
+          break;
+        }
+      }
+      if (isTrailing) {
+        continue;
+      }
+    }
     out += ch;
   }
-  // Trailing commas: `,}` / `,]` (whitespace-tolerant).
-  return out.replace(/,\s*([}\]])/g, '$1');
+  return out;
 }
 
 function positionToLineCol(text: string, pos: number): { line: number; col: number } {

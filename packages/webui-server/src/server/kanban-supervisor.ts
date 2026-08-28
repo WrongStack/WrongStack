@@ -31,6 +31,8 @@ export interface KanbanSupervisorDispatchOptions {
   model?: string | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
+  /** Named cost level; resolved against `modelTiers` at dispatch time. */
+  tier?: string | undefined;
   skills?: string[] | undefined;
   name?: string | undefined;
   /**
@@ -428,6 +430,7 @@ function dispatchRoute(routing: KanbanExecutionRouting): KanbanSupervisorDispatc
     ...(routing.model ? { model: routing.model } : {}),
     ...(routing.fallbackProfile ? { fallbackProfile: routing.fallbackProfile } : {}),
     ...(routing.fallbackModels?.length ? { fallbackModels: routing.fallbackModels } : {}),
+    ...(routing.tier ? { tier: routing.tier } : {}),
   };
 }
 

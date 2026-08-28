@@ -88,6 +88,7 @@ const BOOLEAN_PREF_KEYS = new Set([
   // http://localhost:3444 → http://localhost:3444/proxy/<host><path>).
   // Excluded providers (openai-codex) flow through unchanged.
   'wrongProxyEnabled',
+  'keyboardShortcuts',
 ]);
 
 /** Keys whose value must be an array of strings (e.g. an ordered model list). */
@@ -148,15 +149,15 @@ const NUMBER_PREF_KEYS = new Set([
  * of silently landing in `config.tools` / `config.maxConcurrent`.
  */
 const NUMBER_PREF_BOUNDS: Record<string, { min: number; max: number }> = {
-  // Iteration / concurrency — must be at least 1 to make progress.
+  // Iteration / concurrency — must be at least 1 to make progress (0 = unlimited for autoProceedMaxIterations).
   maxIterations: { min: 1, max: Number.POSITIVE_INFINITY },
   maxConcurrent: { min: 1, max: Number.POSITIVE_INFINITY },
-  autoProceedMaxIterations: { min: 1, max: Number.POSITIVE_INFINITY },
+  autoProceedMaxIterations: { min: 0, max: Number.POSITIVE_INFINITY },
   chimeraMaxFiles: { min: 1, max: Number.POSITIVE_INFINITY },
   autoReviewMaxFilesPerBatch: { min: 1, max: Number.POSITIVE_INFINITY },
   autoReviewMaxConcurrentReviews: { min: 1, max: Number.POSITIVE_INFINITY },
-  // Counts (must be >= 1 to render a footer at all).
-  multiDiffSummaryThreshold: { min: 1, max: Number.POSITIVE_INFINITY },
+  // Counts (0 disables footer).
+  multiDiffSummaryThreshold: { min: 0, max: Number.POSITIVE_INFINITY },
   preRefineSeconds: { min: 0, max: Number.POSITIVE_INFINITY },
   // Probability — must lie in [0, 1].
   sageMemoryInjectThreshold: { min: 0, max: 1 },

@@ -278,10 +278,8 @@ const plugin: Plugin = {
 
   async health() {
     return {
-      ok: state.errorCount === 0,
-      message: state.errorCount
-        ? `smart-rename: ${state.errorCount} error(s)`
-        : `smart-rename: ${state.renameCount} rename(s), ${state.replacementCount} replacement(s)`,
+      ok: true,
+      message: `smart-rename: ${state.renameCount} rename(s), ${state.replacementCount} replacement(s)${state.errorCount ? ` (${state.errorCount} error(s))` : ''}`,
       counters: {
         renames: state.renameCount,
         replacements: state.replacementCount,

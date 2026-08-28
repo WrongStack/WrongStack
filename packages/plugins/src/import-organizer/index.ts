@@ -394,8 +394,11 @@ async function organizeImports(
   if (!existsSync(filePath)) return null;
 
   let bytesBefore: number;
+  let mtimeBefore: number;
   try {
-    bytesBefore = statSync(filePath).size;
+    const st = statSync(filePath);
+    bytesBefore = st.size;
+    mtimeBefore = st.mtimeMs;
   } catch {
     return null;
   }
@@ -424,14 +427,17 @@ async function organizeImports(
   if (result.code === 127) return null; // neither linter found
 
   let bytesAfter: number;
+  let mtimeAfter: number;
   try {
-    bytesAfter = statSync(filePath).size;
+    const st = statSync(filePath);
+    bytesAfter = st.size;
+    mtimeAfter = st.mtimeMs;
   } catch {
     return null;
   }
 
   return {
-    changed: bytesAfter !== bytesBefore,
+    changed: bytesAfter !== bytesBefore || mtimeAfter > mtimeBefore,
     bytesBefore,
     bytesAfter,
     command: usedCommand,
@@ -516,7 +522,7 @@ const plugin: Plugin = {
 
       // Only process TypeScript/JavaScript files.
       const ext = filePath.includes('.') ? filePath.slice(filePath.lastIndexOf('.')) : '';
-      if (!['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts'].includes(ext)) return;
+      if (!['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.cjs', '.cts'].includes(ext)) return;
 
       state.invocationCount += 1;
 

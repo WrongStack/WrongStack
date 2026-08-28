@@ -148,15 +148,7 @@ const plugin: Plugin = {
       if (!command) return;
 
       // Fast sync check: commands containing known kill patterns
-      const cmdLower = command.toLowerCase();
-      const isKillRelated =
-        cmdLower.includes('kill') ||
-        cmdLower.includes('taskkill') ||
-        cmdLower.includes('stop-process') ||
-        cmdLower.includes('tskill') ||
-        cmdLower.includes('pkill') ||
-        cmdLower.includes('killall') ||
-        cmdLower.includes('wmic');
+      const isKillRelated = /\b(?:kill|taskkill|stop-process|tskill|pkill|killall|wmic)\b/i.test(command);
 
       if (!isKillRelated) return;
 

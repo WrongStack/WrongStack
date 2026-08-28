@@ -129,6 +129,8 @@ export interface WebUIDispatchContext {
           model?: string | undefined;
           fallbackModels?: string[] | undefined;
           fallbackProfile?: string | undefined;
+          tier?: string | undefined;
+          role?: string | undefined;
           skills?: string[] | undefined;
           tools?: string[] | undefined;
           name?: string | undefined;

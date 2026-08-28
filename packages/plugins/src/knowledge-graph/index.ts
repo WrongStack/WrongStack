@@ -145,7 +145,12 @@ function loadFacts(filePath: string): { facts: Fact[]; nextId: number } {
             typeof (f as Fact).object === 'string',
         )
       : [];
-    const nextId = typeof raw.nextId === 'number' && raw.nextId >= 1 ? raw.nextId : facts.length + 1;
+    const maxExistingId = facts.reduce((max, f) => {
+      const n = parseInt(f.id.replace(/^\D+/, ''), 10);
+      return Number.isFinite(n) && n > max ? n : max;
+    }, 0);
+    const nextId =
+      typeof raw.nextId === 'number' && raw.nextId >= 1 ? raw.nextId : maxExistingId + 1;
     return { facts, nextId };
   } catch {
     return { facts: [], nextId: 1 };

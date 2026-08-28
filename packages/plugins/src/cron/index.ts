@@ -49,8 +49,11 @@ const state: CronState = {
 };
 
 function formatNextRun(intervalMs: number): string {
-  /* v8 ignore next -- callers always pass a clamped interval (>=1000); the NaN/<=0 -> 60_000 fallback is defensive. */
-  const ms = Number.isNaN(intervalMs) || intervalMs <= 0 ? 60_000 : intervalMs;
+  /* v8 ignore next -- callers always pass a clamped interval (>=1000); the NaN/<=0/non-finite -> 60_000 fallback is defensive. */
+  const ms =
+    Number.isNaN(intervalMs) || !Number.isFinite(intervalMs) || intervalMs <= 0
+      ? 60_000
+      : intervalMs;
   return new Date(Date.now() + ms).toISOString();
 }
 

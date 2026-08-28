@@ -1,7 +1,7 @@
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
 import { messageSessionId } from '@/lib/ws-client-utils';
-import { activeSessionLaneId, useFileStore, useSessionStore } from '@/stores';
+import { activeSessionLaneId, useFileStore, useSessionStore, useUIStore } from '@/stores';
 import type { TreeNode } from '@/stores/file-store';
 import { type MailboxAgent, type MailboxMessage, useMailboxStore } from '@/stores/mailbox-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
@@ -143,6 +143,7 @@ export function handleFilesRead(msg: WSServerMessage) {
     return;
   }
   store.openFile(p.filePath, p.content, sessionId);
+  useUIStore.getState().setCurrentView('files');
 }
 
 export function handleFilesWritten(msg: WSServerMessage) {

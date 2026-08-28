@@ -62,8 +62,8 @@ let contributorUnregister: (() => void) | null = null;
 function expandTemplate(template: string, variables: Record<string, string>): string {
   let result = template;
 
-  // Replace simple {{variable}} patterns
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+  // Replace simple {{variable}} patterns (supporting hyphens and dots)
+  result = result.replace(/\{\{([\w.-]+)\}\}/g, (match, key) => {
     const value = variables[key];
     if (value !== undefined) return value;
     return match; // leave unresolved
@@ -74,7 +74,7 @@ function expandTemplate(template: string, variables: Record<string, string>): st
 
 function expandConditionals(template: string, variables: Record<string, string>): string {
   // Handle {{#if variable}}...{{/if}}
-  return template.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
+  return template.replace(/\{\{#if\s+([\w.-]+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
     const val = variables[key];
     return val !== undefined && val !== '' && val !== 'false' && val !== '0' ? content : '';
   });
@@ -83,13 +83,13 @@ function expandConditionals(template: string, variables: Record<string, string>)
 function expandLoops(template: string, variables: Record<string, string>): string {
   // Handle {{#each items}}...{{item}}...{{/each}}
   // Simplified: just repeat the block for each item separated by newlines
-  return template.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, key, content) => {
+  return template.replace(/\{\{#each\s+([\w.-]+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, key, content) => {
     const val = variables[key];
     if (!val) return '';
     // If the variable value is a comma-separated list, expand each
     if (typeof val === 'string' && val.includes(',')) {
       const items = val.split(',').map((s) => s.trim());
-      return items.map((item) => expandTemplate(content, { ...variables, [key]: item })).join('\n');
+      return items.map((item) => expandTemplate(content, { ...variables, [key]: item, item })).join('\n');
     }
     return expandTemplate(content, variables);
   });

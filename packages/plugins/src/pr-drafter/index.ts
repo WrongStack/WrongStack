@@ -379,10 +379,10 @@ const plugin: Plugin = {
       category: 'Workflow',
       mutating: true,
       capabilities: ['fs.write'],
-      async execute(input: { preview?: boolean | undefined }) {
+      async execute(input: { preview?: boolean | undefined } = {}) {
         if (!cfg.enabled) return { ok: false, error: 'pr-drafter is disabled' };
         const draft = await buildDraft(cfg, api.llm);
-        if (input.preview) {
+        if (input?.preview) {
           return { ok: true, preview: true, title: draft.title, body: draft.body };
         }
         const resolved = resolveProjectPath(cfg.outputPath);

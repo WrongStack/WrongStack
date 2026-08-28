@@ -1,4 +1,5 @@
 import { readdir } from 'node:fs/promises';
+import { leaderTierPolicy, resolveTier } from '@wrongstack/core/coordination';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { ConfigStore, MemoryPort } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -21,6 +22,8 @@ export function createTuiResourceMenuGetter(
     switch (id) {
       case 'fallback':
         return fallbackMenu(ctx.configStore);
+      case 'tier':
+        return tierMenu(ctx.configStore);
       case 'profile':
         return profileMenu(ctx.configStore, ctx.paths);
       case 'provider-status':
@@ -123,6 +126,120 @@ function fallbackMenu(store: ConfigStore): ResourceMenuSnapshot {
     id: 'fallback',
     title: 'Fallback routing',
     subtitle: `${chain.length} explicit · ${Object.keys(profiles).length} profiles · ${favorites.length} favorites`,
+    items,
+  };
+}
+
+/**
+ * Cost-tier browser. Deliberately a sibling of {@link fallbackMenu}: a profile
+ * says WHICH models, a tier says HOW EXPENSIVE the job may be. Every action here
+ * dispatches a `/tier ...` command, so the menu, the slash command and the WebUI
+ * editor all write the same `modelTiers` config.
+ */
+function tierMenu(store: ConfigStore): ResourceMenuSnapshot {
+  const config = store.get();
+  const tiers = config.modelTiers;
+  const enabled = tiers?.enabled === true;
+  const levels = tiers?.levels ?? {};
+  const routing = tiers?.routing ?? {};
+  const policy = leaderTierPolicy(config);
+  const levelIds = Object.keys(levels);
+
+  const items: ResourceMenuItem[] = [
+    {
+      id: 'enabled',
+      label: 'Model tiers',
+      status: enabled ? 'good' : 'muted',
+      summary: enabled ? 'enabled' : 'disabled',
+      details: [
+        { label: 'levels', value: String(levelIds.length) },
+        { label: 'routing rules', value: String(Object.keys(routing).length) },
+        { label: 'default', value: tiers?.default ?? 'standard' },
+      ],
+      body:
+        'A tier binds a fallback profile, a spend budget and a runtime setting under one ' +
+        'name, then routes work to it by role or phase. While disabled, spawns resolve ' +
+        'exactly as they did before tiers existed.',
+      actions: [
+        { key: 't', label: enabled ? 'turn off' : 'turn on', command: `/tier ${enabled ? 'off' : 'on'}` },
+      ],
+    },
+    {
+      id: 'leader',
+      label: 'Leader self-switching',
+      status: policy.mode === 'auto' ? 'warn' : policy.mode === 'propose' ? 'good' : 'muted',
+      summary: policy.mode,
+      details: [
+        { label: 'mode', value: policy.mode },
+        { label: 'dwell', value: `${policy.dwellTurns} turn(s)` },
+        { label: 'min saving', value: `$${policy.minSavingsUsd}` },
+        { label: 'context cap', value: `${Math.round(policy.maxContextFillForSwitch * 100)}%` },
+        { label: 'ceiling', value: policy.maxTier ?? 'none' },
+      ],
+      body:
+        'propose (default): the leader asks before changing its own model. auto: it applies ' +
+        'the switch itself, still bounded by dwell, context window, ceiling and a break-even ' +
+        'test against the prompt-cache re-warm the switch costs. off: it never self-switches.',
+      actions: [
+        { key: 'p', label: 'propose', command: '/tier leader propose' },
+        { key: 'a', label: 'auto', command: '/tier leader auto', confirm: true },
+        { key: 'o', label: 'off', command: '/tier leader off' },
+      ],
+    },
+    ...levelIds.map((id, index) => {
+      const level = levels[id];
+      const resolved = enabled ? resolveTier(config, { tier: id }) : undefined;
+      const routedBy = Object.entries(routing)
+        .filter(([, value]) => value === id)
+        .map(([key]) => key);
+      return {
+        id: `level:${id}`,
+        label: `${index + 1}. ${id}`,
+        status: level?.fallbackProfile ? ('good' as const) : ('muted' as const),
+        summary: resolved?.model
+          ? `${resolved.provider ?? config.provider}/${resolved.model}`
+          : (level?.fallbackProfile ?? '(no profile)'),
+        details: [
+          { label: 'rung', value: `${index + 1} of ${levelIds.length}` },
+          { label: 'profile', value: level?.fallbackProfile ?? '(none)' },
+          { label: 'max cost', value: level?.maxCostUsd !== undefined ? `$${level.maxCostUsd}` : '(role default)' },
+          { label: 'max iterations', value: level?.maxIterations !== undefined ? String(level.maxIterations) : '(role default)' },
+          { label: 'routed by', value: routedBy.join(', ') || '(nothing)' },
+        ],
+        body: [
+          resolved?.fallbackModels?.length
+            ? `Failover: ${resolved.fallbackModels.join(' → ')}`
+            : 'No failover chain — the profile has a single entry.',
+          'Declaration order is the ladder: rung 1 is the cheapest.',
+        ].join('\n'),
+        actions: [
+          { key: 'x', label: 'delete', command: `/tier remove ${id}`, confirm: true },
+          { key: 'd', label: 'make default', command: `/tier default ${id}` },
+        ],
+      };
+    }),
+    ...Object.entries(routing)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, tier]) => ({
+        id: `route:${key}`,
+        label: `${key} → ${tier}`,
+        status: levels[tier] ? ('good' as const) : ('warn' as const),
+        summary: levels[tier] ? 'routing rule' : 'points at a missing level',
+        details: [
+          { label: 'key', value: key },
+          { label: 'tier', value: tier },
+          { label: 'kind', value: key === '*' ? 'default' : 'role or phase' },
+        ],
+        actions: [{ key: 'x', label: 'remove', command: `/tier unroute ${key}`, confirm: true }],
+      })),
+  ];
+
+  return {
+    id: 'tier',
+    title: 'Model cost tiers',
+    subtitle: enabled
+      ? `${levelIds.length} level(s) · ${Object.keys(routing).length} rule(s) · leader: ${policy.mode}`
+      : 'disabled',
     items,
   };
 }

@@ -66,7 +66,11 @@ const SORTED_PLUGINS = [...PLUGIN_AUDIT_ENTRIES].sort((a, b) =>
  * the extension, so writing only the latter made this switch decorative.
  * Plugins flagged `canDisable: false` render a locked, non-interactive switch.
  */
-export function PluginToggleList() {
+export function PluginToggleList({
+  syncPref,
+}: {
+  syncPref?: ((key: string, value: unknown) => void) | undefined;
+} = {}) {
   const { t } = useAppTranslation();
   const localPrefs = useLocalPrefs();
 
@@ -93,6 +97,7 @@ export function PluginToggleList() {
             onChange={() => {
               const next = { ...localPrefs.pluginsEnabled, [entry.name]: !enabled };
               localPrefs.set({ pluginsEnabled: next });
+              syncPref?.('pluginsEnabled', next);
             }}
           />
         );

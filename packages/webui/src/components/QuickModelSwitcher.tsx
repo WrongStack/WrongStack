@@ -316,7 +316,7 @@ export function QuickModelSwitcher() {
           </button>
 
           {providerList.length > 1 && (
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Filter className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <select
                 value={providerFilter ?? ''}
@@ -325,7 +325,7 @@ export function QuickModelSwitcher() {
                   setSelected(0);
                 }}
                 aria-label={t('activity:modelSwitcher.providerFilter')}
-                className="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer border-0 max-w-[100px] truncate"
+                className="bg-transparent text-xs text-muted-foreground outline-none cursor-pointer border-0 min-w-0 truncate"
               >
                 <option value="">{t('activity:modelSwitcher.providerFilterAll')}</option>
                 {providerList.map((pid) => (
@@ -416,10 +416,10 @@ export function QuickModelSwitcher() {
                   )}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 truncate">
+                  <div className="flex flex-wrap items-center gap-1.5 break-words">
                     <span className="text-muted-foreground">{c.provider}</span>
                     <span className="text-muted-foreground/65">·</span>
-                    <span className="truncate">{c.modelName}</span>
+                    <span>{c.modelName}</span>
                     {c.isFavorite && (
                       <span title={t('activity:modelSwitcher.favoriteModel')}>
                         <Star className="h-3 w-3 fill-warning text-warning shrink-0" />
@@ -427,7 +427,7 @@ export function QuickModelSwitcher() {
                     )}
                   </div>
                   {(c.contextWindow || c.reasoningEffortLevels) && (
-                    <div className="text-[10px] text-muted-foreground font-mono">
+                    <div className="text-[10px] text-muted-foreground font-mono break-words">
                       {c.model}
                       {c.contextWindow ? ` · ctx ${c.contextWindow.toLocaleString()}` : ''}
                       {c.reasoningEffortLevels ? ` · effort ${c.reasoningEffortLevels.join('/')}` : ''}

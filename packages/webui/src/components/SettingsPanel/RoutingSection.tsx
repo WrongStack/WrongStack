@@ -332,12 +332,12 @@ export function RoutingSection({ syncPref, candidates }: RoutingSectionProps) {
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className="w-40 shrink-0 truncate font-mono text-muted-foreground"
+                    className="w-40 shrink-0 break-words font-mono text-muted-foreground"
                     title={key}
                   >
                     {formatModelMatrixRouteLabel(key)}
                   </span>
-                  <span className="min-w-0 flex-1 truncate font-mono">
+                  <span className="min-w-0 flex-1 break-words font-mono">
                     {formatRouteTarget(entry)}
                   </span>
                   <Button

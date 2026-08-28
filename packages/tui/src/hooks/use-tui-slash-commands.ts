@@ -682,7 +682,15 @@ export function useTuiSlashCommands({
   // opens a shared two-pane browser backed by live host state.
   useEffect(() => {
     if (!getResourceMenu) return;
-    const names = ['fallback', 'profile', 'provider-status', 'memory', 'worktree', 'git'] as const;
+    const names = [
+      'fallback',
+      'tier',
+      'profile',
+      'provider-status',
+      'memory',
+      'worktree',
+      'git',
+    ] as const;
     const cleanups: Array<() => void> = [];
     for (const name of names) {
       const original = slashRegistry.get(name);

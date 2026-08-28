@@ -175,11 +175,22 @@ function detectSmells(filePath: string, content: string, rules: RefactorRules): 
   const stripped = content.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, ' ');
 
   // Long functions and many parameters.
+  const CONTROL_KEYWORDS = new Set([
+    'if',
+    'for',
+    'while',
+    'switch',
+    'catch',
+    'with',
+    'typeof',
+    'instanceof',
+  ]);
   const functionLikeRe =
     /(?:export\s+)?(?:async\s+)?(?:function\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*\(([^)]*)\)\s*\{/g;
   functionLikeRe.lastIndex = 0;
   for (const match of stripped.matchAll(functionLikeRe)) {
     const name = match[1]!;
+    if (CONTROL_KEYWORDS.has(name)) continue;
     const paramsRaw = match[2]!;
     const params = paramsRaw
       .split(',')

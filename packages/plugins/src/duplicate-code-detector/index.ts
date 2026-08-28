@@ -27,7 +27,7 @@
  */
 
 import { readFile, realpath, stat } from 'node:fs/promises';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { BoundedMap, collectSourceFilesAsync, withinProject } from '../runtime/index.js';
 
@@ -554,9 +554,7 @@ const plugin: Plugin = {
       }
       if (!isWithinRoot(projectRoot, changedFile)) return;
 
-      const ext = sourcePath.includes('.')
-        ? sourcePath.slice(sourcePath.lastIndexOf('.')).toLowerCase()
-        : '';
+      const ext = extname(sourcePath).toLowerCase();
       // Performance: uses Set.has() for O(1) lookup instead of Array.includes() O(n).
       if (!extensionsSet.has(ext)) return;
 
@@ -595,9 +593,10 @@ const plugin: Plugin = {
       // so the count preserves the old "number of changed blocks duplicated
       // elsewhere" semantic without retaining any snippet text.
       const matched = new Set<number>();
+      const resolvedChanged = resolve(changedFile).toLowerCase();
       for (const p of otherFilePaths) {
         // Keep the changed file out even if collection/filtering is refactored.
-        if (resolve(p) === resolve(changedFile)) continue;
+        if (resolve(p).toLowerCase() === resolvedChanged) continue;
         const otherFps = await readCachedFingerprints(p, cfg.minLines);
         if (otherFps === null || otherFps.size === 0) continue;
         for (const fp of changedFps) {

@@ -133,6 +133,7 @@ export function normalizePath(p: string): string {
 
   const joined = segments.join('/');
   if (drive) return `${drive}/${joined}`.replace(/\/$/, '');
+  if (slashNormalized.startsWith('//')) return `//${joined}`.replace(/\/$/, '') || '//';
   if (slashNormalized.startsWith('/')) return `/${joined}`.replace(/\/$/, '') || '/';
   return joined;
 }

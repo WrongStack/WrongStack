@@ -31,6 +31,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { extname } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
 
@@ -242,13 +243,11 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
-      if (!sourcePath || typeof sourcePath !== 'string') return;
-      if (!withinProject(sourcePath)) return;
+      const rawPath = inp['path'] ?? inp['filePath'] ?? inp['file_path'];
+      const sourcePath = typeof rawPath === 'string' ? rawPath : undefined;
+      if (!sourcePath || !withinProject(sourcePath)) return;
 
-      const ext = sourcePath.includes('.')
-        ? sourcePath.slice(sourcePath.lastIndexOf('.')).toLowerCase()
-        : '';
+      const ext = extname(sourcePath).toLowerCase();
       // Performance: uses Set.has() for O(1) lookup instead of Array.includes() O(n).
       if (!runOnChangeSet.has(ext)) {
         state.skippedCount += 1;

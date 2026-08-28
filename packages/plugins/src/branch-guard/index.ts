@@ -138,7 +138,7 @@ function hasDisabledPluginEntry(raw: unknown): boolean {
  * worktrees would otherwise retain one entry per directory forever.
  * The TTL also means a branch switch is picked up without a reload.
  */
-const branchCache = new BoundedMap<string, string | null>({ max: 64, ttlMs: 30_000 });
+const branchCache = new BoundedMap<string, string | null>({ max: 64, ttlMs: 2_000 });
 
 function runGit(args: string[], cwd: string | undefined, signal: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {

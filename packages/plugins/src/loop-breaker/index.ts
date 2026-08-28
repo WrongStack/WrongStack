@@ -294,7 +294,13 @@ async function gitDiffFingerprint(
   signal: AbortSignal,
 ): Promise<string | null> {
   const pathspec = isAbsolute(targetPath) ? relative(cwd, targetPath) : targetPath;
-  if (!pathspec || pathspec === '..' || pathspec.startsWith('../') || pathspec.startsWith('..\\')) {
+  if (
+    !pathspec ||
+    isAbsolute(pathspec) ||
+    pathspec === '..' ||
+    pathspec.startsWith('../') ||
+    pathspec.startsWith('..\\')
+  ) {
     return null;
   }
   try {

@@ -61,7 +61,7 @@ export function ModelPicker({
         <Cpu className="h-3.5 w-3.5 shrink-0 text-primary" />
         <span
           className={cn(
-            'min-w-0 flex-1 truncate',
+            'min-w-0 flex-1 break-words',
             value ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
@@ -128,7 +128,7 @@ export function ModelPicker({
                   )}
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1">
-                      <span className="truncate">{c.label}</span>
+                      <span className="break-words">{c.label}</span>
                       {c.isFavorite && (
                         <Star className="h-3 w-3 fill-warning text-warning shrink-0" />
                       )}

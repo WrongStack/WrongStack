@@ -147,6 +147,21 @@ export interface SubagentConfig {
   fallbackModels?: string[] | undefined;
 
   /**
+   * Deterministic model tier for this subagent ('budget' | 'standard' |
+   * 'premium', or any user-defined level). Resolved at spawn time into a
+   * fallback profile, a budget, and runtime overrides. A tier only FILLS IN
+   * fields left unset — an explicit provider/model always wins over it.
+   */
+  tier?: string | undefined;
+  /**
+   * Budget field names the CALLER pinned explicitly (e.g. `delegate({ maxCostUsd })`).
+   * The tier layer never touches a pinned field: a number the user typed is a
+   * decision, while a roster default is just a default. Without this marker the
+   * two are indistinguishable at spawn time, because `applyRosterBudget` has
+   * already populated every budget field by then.
+   */
+  budgetPins?: readonly string[] | undefined;
+  /**
    * Named live fallback profile for this subagent. Unlike `fallbackModels`, the
    * factory re-resolves this profile from ConfigStore on every provider attempt,
    * so WebUI edits and reordering affect already-running workers immediately.

@@ -1,3 +1,4 @@
+import type { Config } from '../types/config.js';
 import type { Logger } from '../types/logger.js';
 import type {
   MultiAgentConfig,
@@ -103,6 +104,12 @@ export interface DirectorOptions {
   maxLeaderContextLoad?: number | undefined;
   /** Provider's max context window in tokens. */
   maxContext?: number | (() => number | undefined) | undefined;
+  /**
+   * Live app config source for the deterministic model-tier layer. A getter is
+   * preferred so tier edits (WebUI / TUI / `/tier`) take effect on the next
+   * spawn without a restart, exactly like `modelMatrix`.
+   */
+  appConfig?: Config | (() => Config | undefined) | undefined;
   /** Per-task model matrix. */
   modelMatrix?: ModelMatrixSource | undefined;
   /** Optional git-worktree manager for Director fleet isolation. */

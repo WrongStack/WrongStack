@@ -26,6 +26,7 @@
  * @public
  */
 
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, extname } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { releaseHandle, withinProject } from '../runtime/index.js';
@@ -232,7 +233,14 @@ const plugin: Plugin = {
 
       if (isDocFile(path, cfg.docNames)) {
         state.docWrites += 1;
-        const content = extractDocContent(input.toolInput);
+        let content = extractDocContent(input.toolInput);
+        if (!content) {
+          try {
+            if (existsSync(path)) content = readFileSync(path, 'utf-8');
+          } catch {
+            // best-effort
+          }
+        }
         if (!content || state.changedFiles.length === 0) return;
 
         const missing = state.changedFiles.filter((changedPath) => !isReferenced(changedPath, content));

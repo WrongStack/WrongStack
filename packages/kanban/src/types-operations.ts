@@ -283,6 +283,8 @@ export interface AssignKanbanTaskInput {
   provider?: string | undefined;
   model?: string | undefined;
   modelRouting?: KanbanModelRoutingMode | undefined;
+  /** Tier id when `modelRouting` is 'tier'. */
+  tier?: string | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
   skills?: string[] | undefined;

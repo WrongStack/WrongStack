@@ -70,9 +70,9 @@ describe('createFallbackManageTools', () => {
     expect(tool.permission).toBe('confirm');
   });
 
-  it('returns all 8 tools', () => {
+  it('returns all 9 tools', () => {
     const tools = createFallbackManageTools(makeOpts());
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(9);
     const names = tools.map((t) => t.name);
     expect(names).toContain('favorite_manage');
     expect(names).toContain('fallback_chain_manage');
@@ -81,6 +81,7 @@ describe('createFallbackManageTools', () => {
     expect(names).toContain(PROVIDER_MANAGE_TOOL_NAME);
     expect(names).toContain(PROVIDER_KEY_SET_TOOL_NAME);
     expect(names).toContain(LEADER_MODEL_SET_TOOL_NAME);
+    expect(names).toContain('leader_tier_set');
     expect(names).toContain('system_config_view');
   });
 });

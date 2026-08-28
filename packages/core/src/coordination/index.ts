@@ -473,6 +473,33 @@ export {
   sameModelReference,
 } from './model-matrix.js';
 export {
+  activeTierConfig,
+  applyTierToSubagentConfig,
+  classifyTier,
+  DEFAULT_TIER_ID,
+  isConfiguredTier,
+  listTierIds,
+  type ModelTierBudget,
+  type ModelTierDecision,
+  type ModelTierSource,
+  type ResolvedTierTarget,
+  resolveTier,
+  tierBudget,
+  tierLevel,
+  tierModelTarget,
+} from './model-tier.js';
+export {
+  evaluateLeaderTierSwitch,
+  evaluateSwitchEconomics,
+  type LeaderTierRefusalCode,
+  type LeaderTierSwitchRequest,
+  type LeaderTierVerdict,
+  leaderTierPolicy,
+  type ResolvedLeaderTierPolicy,
+  type TierModelEconomics,
+  tierRank,
+} from './model-tier-leader.js';
+export {
   DefaultMultiAgentCoordinator,
   type MultiAgentCoordinatorOptions,
 } from './multi-agent-coordinator.js';

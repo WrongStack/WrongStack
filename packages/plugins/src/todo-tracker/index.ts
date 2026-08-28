@@ -30,6 +30,7 @@
 
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
+import { dirname } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
@@ -124,7 +125,7 @@ async function saveFile(filePath: string, file: TodoTrackerFile): Promise<void> 
   // rename fails EPERM/EBUSY while an antivirus scanner or a concurrent
   // reader holds the destination, and a bare `fs.rename` reports that as a
   // lost write. The shared helper retries across ~4s before giving up.
-  await ensureDir(filePath.replace(/[/\\][^/\\]+$/, ''));
+  await ensureDir(dirname(filePath));
   await atomicWrite(filePath, JSON.stringify(file, null, 2), { mode: 0o600 });
 }
 

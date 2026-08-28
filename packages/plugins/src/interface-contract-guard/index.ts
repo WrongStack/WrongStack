@@ -155,11 +155,20 @@ function extractInterfaceNames(content: string): Array<{ name: string; line: num
  * with a few hundred interfaces meant re-reading the entire corpus a few
  * hundred times. Membership is now an O(1) set lookup.
  */
-const IMPLEMENTER_RE = /(?:implements|satisfies|\bas)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+const IMPLEMENTS_EXTENDS_RE = /(?:\bimplements\b|\bextends\b)\s+([^{;=]+)/g;
+const SATISFIES_AS_RE = /(?:\bsatisfies\b|\bas\b)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+const IDENTIFIER_RE = /[A-Za-z_$][A-Za-z0-9_$]*/g;
 
 function collectImplementedNames(content: string, into: Set<string>): void {
-  IMPLEMENTER_RE.lastIndex = 0;
-  for (const m of content.matchAll(IMPLEMENTER_RE)) {
+  for (const m of content.matchAll(IMPLEMENTS_EXTENDS_RE)) {
+    const clause = m[1];
+    if (clause) {
+      for (const id of clause.matchAll(IDENTIFIER_RE)) {
+        if (id[0]) into.add(id[0]);
+      }
+    }
+  }
+  for (const m of content.matchAll(SATISFIES_AS_RE)) {
     const name = m[1];
     if (name) into.add(name);
   }

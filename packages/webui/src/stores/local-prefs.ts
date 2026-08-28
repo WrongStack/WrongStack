@@ -57,6 +57,41 @@ export interface LocalPrefs {
       };
     }
   >;
+  /**
+   * Deterministic cost tiers. A level binds a fallback profile, a spend budget
+   * and runtime overrides under one name; `routing` maps a role/phase/`*` to a
+   * level; `leader` governs how much authority the leader has over its own tier.
+   */
+  modelTiers: {
+    enabled?: boolean;
+    default?: string;
+    levels?: Record<
+      string,
+      {
+        fallbackProfile?: string;
+        provider?: string;
+        model?: string;
+        maxCostUsd?: number;
+        maxIterations?: number;
+        maxToolCalls?: number;
+        maxTokens?: number;
+        timeoutMs?: number;
+        description?: string;
+        modelRuntime?: {
+          reasoning?: { mode?: 'auto' | 'on' | 'off'; effort?: string; preserve?: boolean };
+          cache?: { ttl?: '5m' | '1h' };
+        };
+      }
+    >;
+    routing?: Record<string, string>;
+    leader?: {
+      mode?: 'off' | 'propose' | 'auto';
+      dwellTurns?: number;
+      minSavingsUsd?: number;
+      maxContextFillForSwitch?: number;
+      maxTier?: string;
+    };
+  };
   /** Auto-derive a fallback chain from keyed providers when the list is empty. */
   fallbackAuto: boolean;
   /** Recurring provider/model blackout windows for autonomous routing. */
@@ -363,6 +398,7 @@ const DEFAULTS: LocalPrefsData = {
   favoriteModels: [],
   favoriteModelsOnly: false,
   modelMatrix: {},
+  modelTiers: {},
   fallbackAuto: true,
   modelAvailabilitySchedule: [],
   featureMcp: true,

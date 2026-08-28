@@ -140,7 +140,10 @@ export const TreeRow = memo(function TreeRow({
       aria-level={depth + 1}
       aria-selected={isActive || isSelected}
       tabIndex={-1}
-      onClick={() => onSelect(node.path)}
+      onClick={() => {
+        onSelect(node.path);
+        onOpen(node.path);
+      }}
       onContextMenu={(e) => onContextMenu(e, node)}
       onDoubleClick={(e) => {
         e.preventDefault();

@@ -274,7 +274,7 @@
       },
       "source": "packages/core/src/types/index.ts",
       "declarations": [
-        "export type { AdaptiveConcurrencyConfig, AgentLearningConfig, AutonomyConfig, AutoThinConfig, BrainConfig, BrainCouncilConfig, BrainCouncilVoterConfig, BrainModelEntry, CircuitBreakerRuntimeConfig, ConcreteTokenSavingTier, Config, ConfigLoader, ConfigStore, ContextConfig, CouncilPersonaDefinition, CouncilToolConfig, CouncilToolProfileDefinition, CustomModelDefinition, DisabledToolMeta, ExecDangerConfig, ExecToolConfig, FeaturesConfig, FleetChatVerbosity, FleetConfig, FleetSupervisorConfig, GitBehaviorConfig, HqClientConfig, IndexingConfig, InputHistoryConfig, LaunchConfig, LaunchMenuChoice, LogConfig, LoopDetectionConfig, MCPHealthConfig, MCPHealthThresholds, MCPServerConfig, ModelMatrixEntry, ModelRuntimeCacheConfig, ModelRuntimeConfig, ModelRuntimeParametersConfig, ModelRuntimeReasoningConfig, NextStepsToolConfig, PluginConfig, PluginManagerConfig, ProviderApiKey, ProviderConfig, SageConfig, SessionLoggingConfig, SkillsConfig, SyncCategory, SyncConfig, ThemePresetId, TokenSavingTier, ToolDescriptionMode, ToolDescriptionModeConfig, ToolResultRenderMode, ToolResultRenderModeConfig, ToolsConfig, } from './config.js';",
+        "export type { AdaptiveConcurrencyConfig, AgentLearningConfig, AutonomyConfig, AutoThinConfig, BrainConfig, BrainCouncilConfig, BrainCouncilVoterConfig, BrainModelEntry, CircuitBreakerRuntimeConfig, ConcreteTokenSavingTier, Config, ConfigLoader, ConfigStore, ContextConfig, CouncilPersonaDefinition, CouncilToolConfig, CouncilToolProfileDefinition, CustomModelDefinition, DisabledToolMeta, ExecDangerConfig, ExecToolConfig, FeaturesConfig, FleetChatVerbosity, FleetConfig, FleetSupervisorConfig, GitBehaviorConfig, HqClientConfig, IndexingConfig, InputHistoryConfig, LaunchConfig, LaunchMenuChoice, LogConfig, LoopDetectionConfig, MCPHealthConfig, MCPHealthThresholds, MCPServerConfig, ModelMatrixEntry, ModelRuntimeCacheConfig, ModelRuntimeConfig, ModelRuntimeParametersConfig, ModelRuntimeReasoningConfig, NextStepsToolConfig, PluginConfig, PluginManagerConfig, ProviderApiKey, ProviderConfig, SageConfig, SessionLoggingConfig, SkillsConfig, SyncCategory, ModelTierId, ModelTierLeaderConfig, ModelTierLeaderMode, ModelTierLevel, ModelTierRouting, ModelTiersConfig, SyncConfig, ThemePresetId, TokenSavingTier, ToolDescriptionMode, ToolDescriptionModeConfig, ToolResultRenderMode, ToolResultRenderModeConfig, ToolsConfig, } from './config.js';",
         "export type { AddAttachmentInput, Attachment, AttachmentKind, AttachmentMeta, AttachmentRef, AttachmentStore, } from './attachment.js';",
         "export type { AggregateHealth, HealthCheck, HealthCheckResult, HealthRegistry, HealthStatus, MetricLabels, MetricSeries, MetricsRuntimeStatus, MetricsSink, MetricsSnapshot, Span, Tracer, } from './observability.js';",
         "export type { AnyHookOutcome, ConfiguredHook, HookEntry, HookEvent, HookFailurePolicy, HookInput, HookInvocationContext, HookMatcher, HookOutcome, HookRegistrationOptions, HttpHook, InProcessHook, PreToolUseOutcome, PreToolUseStage, ShellHook, } from './hooks.js';",
@@ -320,13 +320,13 @@
         "export type { SpecAnalysis, SpecApiEndpoint, Specification, SpecRequirement, SpecSection, SpecSectionType, SpecStatus, SpecTemplate, SpecValidationResult, } from './spec.js';",
         "export type { SystemPromptContributor } from './system-prompt-contributor.js';",
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, toWrongStackError, WrongStackError, } from './errors.js';",
+        "export { BUILTIN_MODEL_TIER_IDS, DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, MAX_TUI_THINKING_WORD_LENGTH, MAX_WRONGPROXY_URL_LENGTH, normalizeTokenSavingTier, normalizeTuiThinkingWord, resolveFleetChatVerbosity, resolveTokenSavingTier, THEME_PRESET_IDS, } from './config.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';",
         "export { CHAT_MARKER_SOURCES, isSystemInjectedMessage, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, SYSTEM_INJECTION_PREFIXES, sessionEventToMarker, } from './session-markers.js';",
         "export { CONTEXT_WINDOW_MODE_PINNED_META_KEY, CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, LARGE_WINDOW_DEEP_MODE_THRESHOLD, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './context-window.js';",
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG, } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
         "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
-        "export { DEFAULT_TUI_THINKING_WORD, FLEET_CHAT_VERBOSITY_VALUES, MAX_TUI_THINKING_WORD_LENGTH, MAX_WRONGPROXY_URL_LENGTH, normalizeTokenSavingTier, normalizeTuiThinkingWord, resolveFleetChatVerbosity, resolveTokenSavingTier, THEME_PRESET_IDS, } from './config.js';",
         "export { DESIGN_STACKS, isDesignStack, KNOWN_TOKEN_GROUPS, KNOWN_TOKEN_NAMES, } from './design-kit.js';",
         "export { GOVERNED_TOOL_EXECUTOR_META_KEY } from './tool-executor.js';",
         "export { MALFORMED_ARG_MARKERS } from './tool-markers.js';",
@@ -600,6 +600,7 @@
         "export { TaskAuctioneer } from './task-auctioneer.js';",
         "export { TaskDAG } from './task-dag.js';",
         "export { actionToAckInput } from './mailbox-actions.js';",
+        "export { activeTierConfig, applyTierToSubagentConfig, classifyTier, DEFAULT_TIER_ID, isConfiguredTier, listTierIds, type ModelTierBudget, type ModelTierDecision, type ModelTierSource, type ResolvedTierTarget, resolveTier, tierBudget, tierLevel, tierModelTarget, } from './model-tier.js';",
         "export { applyMailboxSendPolicy, type MailboxResolver, type MailboxToolOptions, mailboxSessionTag, makeMailboxTool, resolveMailboxIdentity, } from './mailbox-tool.js';",
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
@@ -614,6 +615,7 @@
         "export { createMessage, InMemoryAgentBridge, InMemoryBridgeTransport, } from './agent-bridge.js';",
         "export { createProjectMailbox, getSharedProjectMailbox, type ProjectMailboxOptions, RemoteMailbox, } from './remote-mailbox.js';",
         "export { detectEcosystem, getFullPackageLog, getManifestPackages, getPackageAuthor, getPackagesByAgent, type PackageAuthorEntry, type PackageAuthorLog, type PackageAuthorTrackerOptions, recordPackageAction, updatePackageOutdatedStatus, } from './package-author-tracker.js';",
+        "export { evaluateLeaderTierSwitch, evaluateSwitchEconomics, type LeaderTierRefusalCode, type LeaderTierSwitchRequest, type LeaderTierVerdict, leaderTierPolicy, type ResolvedLeaderTierPolicy, type TierModelEconomics, tierRank, } from './model-tier-leader.js';",
         "export { formatSubagentStructuredReport, MAX_SUBAGENT_STRUCTURED_REPORT_CHARS, makeSubagentResultTool, normalizeSubagentStructuredReport, readSubagentStructuredReport, SUBAGENT_STRUCTURED_REPORT_META_KEY, } from './subagent-result-tool.js';",
         "export { isMailboxLeader, isMailboxMessageVisibleTo, MAILBOX_TYPE_PROPERTIES, mailboxIdentityBase, normalizeRecipient, SESSION_RECIPIENT_PREFIX, sessionRecipient, } from './mailbox-types.js';",
         "export { isMailboxProjectServerAvailable, MailboxProjectServerConnection, type MailboxProjectServerConnectionState, } from './mailbox-project-server-client.js';",
@@ -1268,8 +1270,8 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 171,
-      "sourceLines": 49888
+      "sourceFiles": 173,
+      "sourceLines": 50626
     },
     {
       "directory": "core",
@@ -1367,7 +1369,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 21,
-      "sourceLines": 8160
+      "sourceLines": 8161
     },
     {
       "directory": "prompts",
@@ -1429,15 +1431,15 @@
       "directory": "tools",
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
-      "sourceFiles": 19,
-      "sourceLines": 3322
+      "sourceFiles": 20,
+      "sourceLines": 3589
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 69,
-      "sourceLines": 11881
+      "sourceFiles": 70,
+      "sourceLines": 12070
     },
     {
       "directory": "utils",

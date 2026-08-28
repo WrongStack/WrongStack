@@ -990,7 +990,7 @@ export function destructiveTargetsAtDepth(command: string, depth: number): strin
     f = findDelete.exec(normalizedCommand);
   }
 
-  const shellWrapper = /\b(?:ba|z|k)?sh\s+-c\s+(['"])(.*?)\1/gi;
+  const shellWrapper = /\b(?:(?:ba|z|k)?sh|pwsh|powershell)\s+(?:-c|-Command)\s+(['"])(.*?)\1/gi;
   let w: RegExpExecArray | null = shellWrapper.exec(normalizedCommand);
   while (w !== null) {
     if (w[2] && !tokenIsQuoted(w, w[0].split(/\s/)[0] ?? '')) {

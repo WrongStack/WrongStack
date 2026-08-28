@@ -239,6 +239,7 @@ export interface PromptPickEntry {
 
 export type ResourceMenuId =
   | 'fallback'
+  | 'tier'
   | 'profile'
   | 'provider-status'
   | 'memory'

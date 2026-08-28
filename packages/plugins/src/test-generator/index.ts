@@ -515,10 +515,8 @@ const plugin: Plugin = {
 
   async health() {
     return {
-      ok: state.errorCount === 0,
-      message: state.errorCount
-        ? `test-generator: ${state.errorCount} error(s)`
-        : `test-generator: ${state.generateCount} generation(s), ${state.exportCount} export(s)`,
+      ok: true,
+      message: `test-generator: ${state.generateCount} generation(s), ${state.exportCount} export(s)${state.errorCount ? ` (${state.errorCount} error(s))` : ''}`,
       counters: {
         generated: state.generateCount,
         exports: state.exportCount,

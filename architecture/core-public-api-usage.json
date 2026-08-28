@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 194,
+      "files": 196,
       "typeOnly": 85,
-      "runtimeOrMixed": 162
+      "runtimeOrMixed": 165
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -154,9 +154,9 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1016,
-      "typeOnly": 939,
-      "runtimeOrMixed": 246
+      "files": 1018,
+      "typeOnly": 941,
+      "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -179,9 +179,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 550,
+      "files": 551,
       "typeOnly": 58,
-      "runtimeOrMixed": 521
+      "runtimeOrMixed": 522
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -2473,6 +2473,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/kanban-dispatch-route.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/mailbox-bridge-bootstrap.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2563,6 +2569,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/slash-commands/tier.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/subcommands/handlers/daemon-inventory.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2577,7 +2589,7 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/tui-resource-menus.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -10735,6 +10747,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/slash-commands/tier.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/slash-commands/todos.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11420,6 +11438,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/hq-token-ttl-flag.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/kanban-dispatch-route.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16904,6 +16928,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/slash-commands/theme.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/slash-commands/tier.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
