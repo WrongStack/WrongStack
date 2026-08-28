@@ -218,6 +218,81 @@ describe('ProviderModelStatusTracker', () => {
     );
   });
 
+  // ── Quota block escalation & known reset times ────────────────────
+
+  it('escalates the quota block when a model is re-blocked after expiry', async () => {
+    const t = new ProviderModelStatusTracker({
+      config: { quotaBlockDurationMs: 20, quotaBlockEscalationMs: [40, 80] },
+    });
+    const quota = () => t.recordFailure('p', 'm', 'quota_exhausted', 429, 'credit exhausted');
+
+    // 1st block: base tier (20 ms).
+    let before = Date.now();
+    quota();
+    let expiry = t.getStatus('p', 'm')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 12 && expiry < before + 34);
+
+    // Block expires → available again → quota-exhausted again: 2nd tier (40 ms).
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    ok(t.isAvailable('p', 'm'));
+    before = Date.now();
+    quota();
+    expiry = t.getStatus('p', 'm')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 32 && expiry < before + 58);
+
+    // 3rd repeat → capped at the last ladder tier (80 ms).
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    before = Date.now();
+    quota();
+    expiry = t.getStatus('p', 'm')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 72 && expiry < before + 98);
+
+    // Further repeats stay at the cap instead of growing without bound.
+    await new Promise((resolve) => setTimeout(resolve, 90));
+    before = Date.now();
+    quota();
+    expiry = t.getStatus('p', 'm')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 72 && expiry < before + 98);
+  });
+
+  it('resets quota escalation after a successful call', async () => {
+    const t = new ProviderModelStatusTracker({
+      config: { quotaBlockDurationMs: 20, quotaBlockEscalationMs: [40, 80] },
+    });
+    t.recordFailure('p', 'm', 'quota_exhausted', 429, 'credit exhausted');
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    t.recordFailure('p', 'm', 'quota_exhausted', 429, 'credit exhausted'); // streak 2 → 40 ms tier
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    ok(t.isAvailable('p', 'm'));
+    t.recordSuccess('p', 'm'); // quota genuinely recovered
+
+    const before = Date.now();
+    t.recordFailure('p', 'm', 'quota_exhausted', 429, 'credit exhausted');
+    const expiry = t.getStatus('p', 'm')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 12 && expiry < before + 34); // back to the 20 ms base tier
+  });
+
+  it('closes quota models until the published reset time instead of the fixed tier', () => {
+    const t = new ProviderModelStatusTracker({
+      config: { quotaBlockDurationMs: 300_000, quotaBlockEscalationMs: [600_000, 3_600_000] },
+    });
+
+    const before = Date.now();
+    t.recordFailure(
+      'openrouter',
+      'reset-soon',
+      'quota_exhausted',
+      429,
+      'insufficient_quota: plan limit reached. Try again in 90 seconds',
+    );
+
+    const expiry = t.getStatus('openrouter', 'reset-soon')?.stateExpiresAt ?? 0;
+    ok(expiry > before + 60_000); // holds until the published reset (~90 s)
+    ok(expiry < before + 300_000); // NOT the full 5-minute fixed tier
+  });
+
   // ── Provider-level sibling quarantine ─────────────────────────────
 
   it('quarantines sibling models on the same provider when quota is exhausted', () => {

@@ -22,9 +22,12 @@
  *   | Metric | Threshold | Action |
  *   |--------|-----------|--------|
  *   | consecutive failures ≥ 2 | → `degraded` for 30 s |
- *   | rate-limit hits ≥ 1 | → `blocked` for 5 min |
- *   | consecutive failures ≥ 5 | → `blocked` for 5 min |
- *   | success streak ≥ 3 | → back to `healthy` |
+ *   | rate-limit hits ≥ 1 | → `blocked` for 2 min |
+ *   | consecutive failures ≥ 5 | → `blocked` for 2 min |
+ *   | quota exhaustion (1st) | → `blocked` for 15 min |
+ *   | quota exhaustion (repeat) | → `blocked` 30 min, then capped at 1 h |
+ *   | quota reset time published | → `blocked` until exactly that time |
+ *   | success streak ≥ 3 | → back to `healthy` (also resets quota escalation) |
  *   | `blocked` timeout elapses | → back to `healthy` |
  *
  * - **Error history**: keeps the last N errors per pair, with session id,
@@ -116,16 +119,28 @@ export interface ProviderStatusTrackerConfig {
    */
   blockAfterFailures?: number;
   /**
-   * Duration (ms) the provider stays `blocked`. Default: 300_000 (5 min).
+   * Duration (ms) the provider stays `blocked` for ordinary failures
+   * (rate-limit threshold, consecutive-failure threshold). These are
+   * transient — short cooldowns re-probe quickly instead of parking a
+   * recoverable model for minutes. Default: 120_000 (2 min).
    */
   blockDurationMs?: number;
   /**
-   * Cooldown for an explicit exhausted-credit/quota response when the
+   * Cooldown for the FIRST exhausted-credit/quota response when the
    * provider does not publish a reset hint. These failures enter the waiting
    * room immediately instead of consuming the ordinary rate-limit threshold.
+   * Repeated quota blocks escalate via {@link quotaBlockEscalationMs}.
    * Default: 900_000 (15 min).
    */
   quotaBlockDurationMs?: number;
+  /**
+   * Escalating cooldowns (ms) for REPEATED quota blocks: each time a quota
+   * block expires and the next result is quota-exhausted again, the next
+   * tier applies; the last entry caps the escalation. A recorded success
+   * (or manual unblock/clear) resets the ladder. Default:
+   * [1_800_000, 3_600_000] — 2nd block 30 min, 3rd+ blocks 1 h max.
+   */
+  quotaBlockEscalationMs?: number[];
   /**
    * Consecutive successes needed to leave `degraded` or `blocked` and return
    * to `healthy` (if the timeout hasn't already cleared it). Default: 3.
@@ -152,8 +167,9 @@ const DEFAULTS = {
   degradedDurationMs: 30_000,
   blockAfterRateLimitHits: 1,
   blockAfterFailures: 5,
-  blockDurationMs: 300_000,
+  blockDurationMs: 120_000,
   quotaBlockDurationMs: 900_000,
+  quotaBlockEscalationMs: [1_800_000, 3_600_000],
   recoverAfterSuccesses: 3,
   maxErrorHistory: 50,
   quarantineSiblingsOnQuotaExhausted: true,
@@ -175,6 +191,8 @@ interface MutableProviderModelStatus {
   firstFailureAt: number | null;
   lastFailureAt: number | null;
   stateExpiresAt: number | null;
+  /** Consecutive quota blocks since the last success/manual reset; drives cooldown escalation. */
+  quotaBlockStreak: number;
   lastErrorKind: ProviderErrorKind | null;
   lastErrorMessage: string | null;
   lastErrorStatus: number | null;
@@ -197,6 +215,8 @@ export class ProviderModelStatusTracker {
     events?: EventBus | undefined;
   }) {
     this.cfg = { ...DEFAULTS, ...opts?.config };
+    // Defensive copy: never alias the caller's escalation ladder array.
+    this.cfg.quotaBlockEscalationMs = [...this.cfg.quotaBlockEscalationMs];
     this.events = opts?.events;
   }
 
@@ -222,6 +242,9 @@ export class ProviderModelStatusTracker {
     const s = this.getOrCreate(key, providerId, model);
 
     s.consecutiveFailures = 0;
+    // A real success is evidence the quota recovered — restart the
+    // escalation ladder so the next quota block starts from the base tier.
+    s.quotaBlockStreak = 0;
     s.consecutiveSuccesses += 1;
     s.totalSuccesses += 1;
     s.lastSuccessAt = Date.now();
@@ -335,7 +358,12 @@ export class ProviderModelStatusTracker {
     if (quotaExhausted) {
       newState = 'blocked';
       reason = 'quota_exhausted';
-      s.stateExpiresAt = now + this.cfg.quotaBlockDurationMs;
+      // Repeated quota blocks escalate: block expiry → available again →
+      // quota-exhausted again means the reset did not actually free budget,
+      // so back off progressively (15 min → 30 min → capped at 1 h) instead
+      // of re-probing at the same interval forever.
+      s.quotaBlockStreak += 1;
+      s.stateExpiresAt = now + this.quotaBlockDurationForStreak(s.quotaBlockStreak);
     } else if (endpointUnreachable) {
       newState = 'blocked';
       reason = 'endpoint_unreachable';
@@ -369,10 +397,15 @@ export class ProviderModelStatusTracker {
     }
 
     // If the provider sent a Retry-After hint (structured header or a prose
-    // reset time parsed from the message), extend the blocked time
+    // reset time parsed from the message). For quota failures the hint IS
+    // the known reset/reopen time, so close the pair until exactly that
+    // moment instead of stacking it onto the fixed block; for every other
+    // failure kind the hint only extends the computed cooldown.
     if (newState !== 'healthy' && effectiveRetryAfterMs && effectiveRetryAfterMs > 0) {
       const hintExpiry = now + effectiveRetryAfterMs;
-      if (s.stateExpiresAt === null || hintExpiry > s.stateExpiresAt) {
+      if (quotaExhausted) {
+        s.stateExpiresAt = hintExpiry;
+      } else if (s.stateExpiresAt === null || hintExpiry > s.stateExpiresAt) {
         s.stateExpiresAt = hintExpiry;
       }
     }
@@ -524,6 +557,7 @@ export class ProviderModelStatusTracker {
       s.state = 'healthy';
       s.stateExpiresAt = null;
       s.consecutiveFailures = 0;
+      s.quotaBlockStreak = 0;
       s.rateLimitHits = 0;
       s.overloadedHits = 0;
       s.serverErrors = 0;
@@ -615,6 +649,8 @@ export class ProviderModelStatusTracker {
   /**
    * Release one entry for an immediate half-open probe on its next real use.
    * History and totals are retained so operators do not lose diagnostics.
+   * The quota escalation streak is also retained on purpose: a probe that
+   * fails with quota exhaustion again keeps climbing the ladder.
    */
   retryNow(providerId: string, model: string): boolean {
     ({ providerId, model } = statusIdentity(providerId, model));
@@ -785,6 +821,20 @@ export class ProviderModelStatusTracker {
 
   // ── Private helpers ─────────────────────────────────────────────────────
 
+  /**
+   * Cooldown for the Nth consecutive quota block: the base duration for the
+   * first block, then the escalation ladder for repeats, capped at the last
+   * ladder entry. A provider-published reset hint bypasses this entirely
+   * (the pair is closed until that exact time instead).
+   */
+  private quotaBlockDurationForStreak(streak: number): number {
+    if (streak <= 1) return this.cfg.quotaBlockDurationMs;
+    const ladder = this.cfg.quotaBlockEscalationMs;
+    if (ladder.length === 0) return this.cfg.quotaBlockDurationMs;
+    const tier = Math.min(streak - 2, ladder.length - 1);
+    return ladder[tier] ?? this.cfg.quotaBlockDurationMs;
+  }
+
   private getOrCreate(
     key: string,
     _providerId: string,
@@ -806,6 +856,7 @@ export class ProviderModelStatusTracker {
         firstFailureAt: null,
         lastFailureAt: null,
         stateExpiresAt: null,
+        quotaBlockStreak: 0,
         lastErrorKind: null,
         lastErrorMessage: null,
         lastErrorStatus: null,
