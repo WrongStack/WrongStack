@@ -33,11 +33,6 @@
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
-    "@wrongstack/core/core": {
-      "files": 1,
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
     "@wrongstack/core/core/model-ref": {
       "files": 1,
       "typeOnly": 0,
@@ -3414,12 +3409,6 @@
     {
       "specifier": "@wrongstack/core/coordination/brain.js",
       "file": "packages/sdd/tests/sdd-supervisor.test.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/core",
-      "file": "packages/core/tests/core/system-prompt-variant-per-conversation.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

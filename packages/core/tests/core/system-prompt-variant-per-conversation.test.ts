@@ -17,7 +17,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { DefaultSystemPromptBuilder } from '@wrongstack/core/core';
+import { DefaultSystemPromptBuilder } from '../../src/core/system-prompt-builder.js';
 import type { BuildContext } from '@wrongstack/core/types';
 import { beforeAll, describe, expect, it } from 'vitest';
 

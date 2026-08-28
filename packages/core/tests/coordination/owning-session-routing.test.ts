@@ -56,6 +56,8 @@ function makeCtx(agentId: string, sessionId: string, owningSessionId?: string): 
   return ctx;
 }
 
+const exec = { signal: new AbortController().signal };
+
 describe('resolveOwningSessionId', () => {
   it('prefers the spawn-time stamp over the writer', () => {
     expect(resolveOwningSessionId(makeCtx('worker-1', 'sub-sess-9', 'tab-1'))).toBe('tab-1');
@@ -80,6 +82,7 @@ describe('session_note from a worker with its own journal', () => {
       const out = (await makeSessionNoteTool().execute(
         { to: 'leader', kind: 'result', body: 'map src/a.ts:12' },
         worker,
+        exec,
       )) as { ok: boolean; delivered: number };
       expect(out.delivered).toBe(1);
       expect(consumeSessionNotes(leader)[0]?.body).toBe('map src/a.ts:12');
@@ -103,6 +106,7 @@ describe('session_note from a worker with its own journal', () => {
       const out = (await makeSessionNoteTool().execute(
         { to: 'leader', kind: 'result', body: 'lost' },
         worker,
+        exec,
       )) as { delivered: number };
       expect(out.delivered).toBe(0);
       expect(consumeSessionNotes(leader)).toEqual([]);

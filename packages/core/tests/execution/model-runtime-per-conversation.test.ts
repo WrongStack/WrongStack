@@ -39,6 +39,7 @@ function opts(settings: ModelRuntimeConfig | undefined) {
       systemPrompt: true,
       jsonMode: false,
       reasoning: true,
+      cacheControl: 'none',
       maxContext: 100_000,
     }),
   };
