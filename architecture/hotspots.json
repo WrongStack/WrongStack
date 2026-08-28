@@ -103,7 +103,7 @@
       "relativeImports": 3
     },
     "packages/core/src/core/context.ts": {
-      "lines": 1041,
+      "lines": 1052,
       "relativeImports": 14
     },
     "packages/core/src/core/fallback-model.ts": {
@@ -307,11 +307,11 @@
       "relativeImports": 18
     },
     "packages/tui/src/app-state.ts": {
-      "lines": 902,
+      "lines": 908,
       "relativeImports": 12
     },
     "packages/tui/src/app.tsx": {
-      "lines": 998,
+      "lines": 999,
       "relativeImports": 71
     },
     "packages/tui/src/components/agents-monitor.tsx": {
@@ -339,7 +339,7 @@
       "relativeImports": 4
     },
     "packages/tui/src/components/settings-picker.tsx": {
-      "lines": 811,
+      "lines": 816,
       "relativeImports": 12
     },
     "packages/tui/src/components/sidebar-content.tsx": {
@@ -363,7 +363,7 @@
       "relativeImports": 1
     },
     "packages/tui/src/reducers/settings-values.ts": {
-      "lines": 831,
+      "lines": 842,
       "relativeImports": 6
     },
     "packages/tui/src/submit-controller.ts": {
@@ -383,7 +383,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1085,
+      "lines": 1108,
       "relativeImports": 18
     },
     "packages/webui/src/components/ChronicleDashboard.tsx": {
@@ -459,11 +459,11 @@
       "relativeImports": 4
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 854,
+      "lines": 861,
       "relativeImports": 0
     },
     "packages/webui/src/stores/ui-store.ts": {
-      "lines": 1291,
+      "lines": 1292,
       "relativeImports": 4
     },
     "packages/webui/src/stores/viz-store.ts": {

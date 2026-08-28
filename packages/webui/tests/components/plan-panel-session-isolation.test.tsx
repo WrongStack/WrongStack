@@ -1,8 +1,12 @@
 import { fireEvent, render, screen, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlanPanel } from '../../src/components/PlanPanel';
-import { disposeLane, useChatLanes } from '../../src/stores/chat-lanes';
-import { setActiveSessionLane, useSessionLanes } from '../../src/stores/session-lanes';
+import { DEFAULT_LANE_ID, disposeLane, useChatLanes } from '../../src/stores/chat-lanes';
+import {
+  SESSION_DEFAULT_LANE_ID,
+  setActiveSessionLane,
+  useSessionLanes,
+} from '../../src/stores/session-lanes';
 
 const mockListeners: Record<string, ((msg: unknown) => void)[]> = {};
 const mockWs = {
@@ -35,8 +39,8 @@ describe('PlanPanel session isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     for (const key of Object.keys(mockListeners)) delete mockListeners[key];
-    useChatLanes.setState({ lanes: {}, activeSessionId: null });
-    useSessionLanes.setState({ lanes: {}, activeSessionId: null });
+    useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   });
 
   it('preserves collapsed section state across session switches and prunes on disposeLane', () => {
@@ -45,7 +49,7 @@ describe('PlanPanel session isolation', () => {
 
     // Simulate receiving plan for s1
     act(() => {
-      mockListeners['plan.updated']?.forEach((cb) =>
+      mockListeners['plan.updated']?.forEach((cb) => {
         cb({
           payload: {
             sessionId: 's1',
@@ -56,8 +60,8 @@ describe('PlanPanel session isolation', () => {
               ],
             },
           },
-        }),
-      );
+        });
+      });
     });
 
     expect(screen.getByText('Task 1 in progress')).toBeTruthy();
@@ -78,7 +82,7 @@ describe('PlanPanel session isolation', () => {
 
     // Simulate receiving plan for s2
     act(() => {
-      mockListeners['plan.updated']?.forEach((cb) =>
+      mockListeners['plan.updated']?.forEach((cb) => {
         cb({
           payload: {
             sessionId: 's2',
@@ -88,8 +92,8 @@ describe('PlanPanel session isolation', () => {
               ],
             },
           },
-        }),
-      );
+        });
+      });
     });
 
     // In s2, in_progress should NOT be collapsed
@@ -102,7 +106,7 @@ describe('PlanPanel session isolation', () => {
     rerender(<PlanPanel />);
 
     act(() => {
-      mockListeners['plan.updated']?.forEach((cb) =>
+      mockListeners['plan.updated']?.forEach((cb) => {
         cb({
           payload: {
             sessionId: 's1',
@@ -112,8 +116,8 @@ describe('PlanPanel session isolation', () => {
               ],
             },
           },
-        }),
-      );
+        });
+      });
     });
 
     // S1 in_progress should still be collapsed!
@@ -133,7 +137,7 @@ describe('PlanPanel session isolation', () => {
     rerender(<PlanPanel />);
 
     act(() => {
-      mockListeners['plan.updated']?.forEach((cb) =>
+      mockListeners['plan.updated']?.forEach((cb) => {
         cb({
           payload: {
             sessionId: 's1',
@@ -143,8 +147,8 @@ describe('PlanPanel session isolation', () => {
               ],
             },
           },
-        }),
-      );
+        });
+      });
     });
 
     // After disposal and returning, s1 state is fresh (not collapsed)

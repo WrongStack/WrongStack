@@ -1284,7 +1284,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 14,
-      "sourceLines": 3456
+      "sourceLines": 3461
     },
     {
       "directory": "hooks",

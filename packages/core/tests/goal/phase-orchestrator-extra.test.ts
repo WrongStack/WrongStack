@@ -14,7 +14,9 @@ async function singlePhase(): Promise<PhaseGraph> {
         priority: 'high',
         estimateHours: 1,
         parallelizable: false,
-        taskTemplates: [{ title: 'T', description: '', type: 'feature', priority: 'high', estimateHours: 1 }],
+        taskTemplates: [
+          { title: 'T', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+        ],
       },
     ],
   }).build();
@@ -30,7 +32,9 @@ async function twoPhase(): Promise<PhaseGraph> {
         priority: 'high',
         estimateHours: 1,
         parallelizable: false,
-        taskTemplates: [{ title: 'a', description: '', type: 'chore', priority: 'high', estimateHours: 1 }],
+        taskTemplates: [
+          { title: 'a', description: '', type: 'chore', priority: 'high', estimateHours: 1 },
+        ],
       },
       {
         name: 'B',
@@ -38,7 +42,9 @@ async function twoPhase(): Promise<PhaseGraph> {
         priority: 'high',
         estimateHours: 1,
         parallelizable: false,
-        taskTemplates: [{ title: 'b', description: '', type: 'chore', priority: 'high', estimateHours: 1 }],
+        taskTemplates: [
+          { title: 'b', description: '', type: 'chore', priority: 'high', estimateHours: 1 },
+        ],
       },
     ],
   }).build();
@@ -50,15 +56,29 @@ function throwingMergeWorktrees(): WorktreeManager {
   return {
     async allocate(ownerId: string, o: { slugHint?: string; ownerLabel?: string } = {}) {
       const h = {
-        id: ownerId, ownerId, ownerLabel: o.ownerLabel ?? ownerId, slug: o.slugHint ?? ownerId,
-        dir: `/wt/${ownerId}`, branch: `b/${ownerId}`, baseBranch: 'main', status: 'active',
-        createdAt: 0, updatedAt: 0, insertions: 0, deletions: 0, files: 0,
+        id: ownerId,
+        ownerId,
+        ownerLabel: o.ownerLabel ?? ownerId,
+        slug: o.slugHint ?? ownerId,
+        dir: `/wt/${ownerId}`,
+        branch: `b/${ownerId}`,
+        baseBranch: 'main',
+        status: 'active',
+        createdAt: 0,
+        updatedAt: 0,
+        insertions: 0,
+        deletions: 0,
+        files: 0,
       } as WorktreeHandle;
       handles.set(ownerId, h);
       return h;
     },
-    async commitAll() { return { committed: true }; },
-    async merge() { throw new Error('merge exploded'); },
+    async commitAll() {
+      return { committed: true };
+    },
+    async merge() {
+      throw new Error('merge exploded');
+    },
     async release() {},
     get: (id: string) => handles.get(id),
     list: () => [...handles.values()],
@@ -81,7 +101,11 @@ describe('PhaseOrchestrator — autonomous tick loop', () => {
 
   it('tick() is a no-op when stopped or paused', async () => {
     const graph = await singlePhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     orch.stop();
     await (orch as never as { tick: () => Promise<void> }).tick(); // stopped → early return
     orch.resume(); // clears paused, fires a tick (no running phases)
@@ -128,7 +152,13 @@ describe('PhaseOrchestrator — task retry + failure', () => {
     const graph = await new PhaseGraphBuilder({
       title: 'Dynamic work',
       phases: [
-        { name: 'Remediation', description: 'Added after synthesis', priority: 'high', estimateHours: 1, parallelizable: false },
+        {
+          name: 'Remediation',
+          description: 'Added after synthesis',
+          priority: 'high',
+          estimateHours: 1,
+          parallelizable: false,
+        },
       ],
     }).build();
     const events: string[] = [];
@@ -160,7 +190,13 @@ describe('PhaseOrchestrator — task retry + failure', () => {
           estimateHours: 1,
           parallelizable: false,
           taskTemplates: [
-            { title: 'Collect findings', description: '', type: 'chore', priority: 'high', estimateHours: 1 },
+            {
+              title: 'Collect findings',
+              description: '',
+              type: 'chore',
+              priority: 'high',
+              estimateHours: 1,
+            },
           ],
         },
         {
@@ -170,7 +206,13 @@ describe('PhaseOrchestrator — task retry + failure', () => {
           estimateHours: 1,
           parallelizable: false,
           taskTemplates: [
-            { title: 'Fix verified finding', description: '', type: 'feature', priority: 'high', estimateHours: 1 },
+            {
+              title: 'Fix verified finding',
+              description: '',
+              type: 'feature',
+              priority: 'high',
+              estimateHours: 1,
+            },
           ],
         },
       ],
@@ -244,7 +286,11 @@ describe('PhaseOrchestrator — task retry + failure', () => {
     const graph = await singlePhase();
     const orch = new PhaseOrchestrator({
       graph,
-      ctx: { executeTask: async () => { throw new Error('boom'); } },
+      ctx: {
+        executeTask: async () => {
+          throw new Error('boom');
+        },
+      },
       autonomous: false,
       maxRetries: 0,
       stopOnFailure: true,
@@ -282,7 +328,9 @@ describe('PhaseOrchestrator — phase-level error + verify edge cases', () => {
       graph,
       ctx: {
         executeTask: async () => {},
-        verifyPhase: async () => { throw new Error('verifier crashed'); },
+        verifyPhase: async () => {
+          throw new Error('verifier crashed');
+        },
       },
       autonomous: false,
       maxVerifyAttempts: 0,
@@ -371,7 +419,11 @@ describe('PhaseOrchestrator — phase-level error + verify edge cases', () => {
 describe('PhaseOrchestrator — accessors + noop event bus', () => {
   it('exposes getGraph/getProgress/isRunning and a usable no-op event bus', async () => {
     const graph = await singlePhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     expect(orch.getGraph()).toBe(graph);
     expect(orch.isRunning()).toBe(false);
 
@@ -390,7 +442,11 @@ describe('PhaseOrchestrator — accessors + noop event bus', () => {
 
   it('reports isRunning true while a phase is active', async () => {
     const graph = await singlePhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     const phase = Array.from(graph.phases.values())[0]!;
     phase.status = 'running';
     (orch as never as { runningPhases: Set<string> }).runningPhases.add(phase.id);
@@ -399,21 +455,34 @@ describe('PhaseOrchestrator — accessors + noop event bus', () => {
 
   it('counts every phase status bucket in getProgress', async () => {
     const graph = await twoPhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     const [a, b] = Array.from(graph.phases.values());
     orch.getProgress(); // both phases pending → pending bucket
-    a!.status = 'ready'; b!.status = 'running';
+    a!.status = 'ready';
+    b!.status = 'running';
     orch.getProgress();
-    a!.status = 'paused'; b!.status = 'failed';
+    a!.status = 'paused';
+    b!.status = 'failed';
     orch.getProgress();
-    a!.status = 'skipped'; b!.status = 'weird-status' as never;
+    a!.status = 'skipped';
+    b!.status = 'weird-status' as never;
     const prog = orch.getProgress();
     expect(prog.skipped).toBe(1);
   });
 
   it('assignAgent/releaseAgent ignore an unknown phase id', () => {
     const orch = new PhaseOrchestrator({
-      graph: { phases: new Map(), id: 'g', activePhaseIds: [], completedPhaseIds: [], failedPhaseIds: [] } as never,
+      graph: {
+        phases: new Map(),
+        id: 'g',
+        activePhaseIds: [],
+        completedPhaseIds: [],
+        failedPhaseIds: [],
+      } as never,
       ctx: { executeTask: async () => {} },
       autonomous: false,
     });
@@ -425,12 +494,47 @@ describe('PhaseOrchestrator — accessors + noop event bus', () => {
 describe('PhaseOrchestrator — start/stop lifecycle edges', () => {
   it('breaks out of the start loop when stopped while paused', async () => {
     const graph = await singlePhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     orch.pause();
     const run = orch.start();
     await new Promise((r) => setTimeout(r, 20)); // let start() block in waitWhilePaused
     orch.stop();
     await run; // exits via the `if (this.stopped) break` after waitWhilePaused
+    expect(orch.isRunning()).toBe(false);
+  });
+
+  it('leaves no autonomous tick interval behind when stop() lands during start()', async () => {
+    const graph = await singlePhase();
+    // Hold start() at a deterministic awaited seam: executeTask() returns a
+    // promise that only resolves after stop() has already landed, so the
+    // interval-install tail of start() genuinely runs with stopped=true.
+    let releaseTask: () => void = () => {};
+    let taskStarted = false;
+    const taskBlocked = new Promise<void>((resolve) => {
+      releaseTask = resolve;
+    });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: {
+        executeTask: () => {
+          taskStarted = true;
+          return taskBlocked;
+        },
+      },
+      autonomous: true,
+    });
+    const run = orch.start();
+    await vi.waitFor(() => expect(taskStarted).toBe(true)); // start() blocked at the task seam
+    orch.stop();
+    releaseTask();
+    await run;
+    expect(
+      (orch as never as { tickInterval: ReturnType<typeof setInterval> | null }).tickInterval,
+    ).toBeNull();
     expect(orch.isRunning()).toBe(false);
   });
 
@@ -449,12 +553,25 @@ describe('PhaseOrchestrator — start/stop lifecycle edges', () => {
   it('stop() releases live worktrees with keep=true', async () => {
     const graph = await singlePhase();
     const released: Array<{ keep?: boolean }> = [];
-    const handle = { id: 'h', ownerId: 'h', dir: '/wt/h', branch: 'b', status: 'active' } as WorktreeHandle;
+    const handle = {
+      id: 'h',
+      ownerId: 'h',
+      dir: '/wt/h',
+      branch: 'b',
+      status: 'active',
+    } as WorktreeHandle;
     const wm = {
       list: () => [handle],
-      release: async (_h: WorktreeHandle, o: { keep?: boolean } = {}) => { released.push(o); },
+      release: async (_h: WorktreeHandle, o: { keep?: boolean } = {}) => {
+        released.push(o);
+      },
     } as never as WorktreeManager;
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, worktrees: wm, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      worktrees: wm,
+      autonomous: false,
+    });
     const phase = Array.from(graph.phases.values())[0]!;
     phase.status = 'running';
     (orch as never as { runningPhases: Set<string> }).runningPhases.add(phase.id);
@@ -466,7 +583,11 @@ describe('PhaseOrchestrator — start/stop lifecycle edges', () => {
 
   it('startPhase returns early for a phase that is neither pending nor ready', async () => {
     const graph = await singlePhase();
-    const orch = new PhaseOrchestrator({ graph, ctx: { executeTask: async () => {} }, autonomous: false });
+    const orch = new PhaseOrchestrator({
+      graph,
+      ctx: { executeTask: async () => {} },
+      autonomous: false,
+    });
     const phase = Array.from(graph.phases.values())[0]!;
     phase.status = 'completed';
     await (orch as never as { startPhase: (p: unknown) => Promise<void> }).startPhase(phase);
@@ -482,7 +603,9 @@ describe('PhaseOrchestrator — start/stop lifecycle edges', () => {
     });
     (orch as never as { stopped: boolean }).stopped = true;
     const phase = Array.from(graph.phases.values())[0]!;
-    const verdict = await (orch as never as { runVerifyGate: (p: unknown) => Promise<{ ok: boolean }> }).runVerifyGate(phase);
+    const verdict = await (
+      orch as never as { runVerifyGate: (p: unknown) => Promise<{ ok: boolean }> }
+    ).runVerifyGate(phase);
     expect(verdict.ok).toBe(false);
   });
 });

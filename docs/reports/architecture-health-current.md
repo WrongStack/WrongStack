@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-28T12:58:44.275Z
+**Generated:** 2026-08-28T15:03:45.373Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -8,15 +8,15 @@
 | Measure | Value |
 |---|---:|
 | Workspace packages | 36 |
-| Production source files | 3405 |
-| Production source lines | 823111 |
-| Test files | 3023 |
+| Production source files | 3410 |
+| Production source lines | 825270 |
+| Test files | 3028 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10544 |
+| Relative module edges | 10564 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
-| Tests without TypeScript test-project coverage | 1 |
+| Tests without TypeScript test-project coverage | 0 |
 | Tests in multiple TypeScript projects | 0 |
 
 ## Verification result
@@ -31,7 +31,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 473 | 446 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 773 | 676 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 774 | 677 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 63 | @wrongstack/persistence, @wrongstack/primitives |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 333 | 325 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 486 | 389 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/webui | 490 | 393 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 4 | @wrongstack/core |
 | @wrongstack/webui-server | 202 | 181 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -90,22 +90,22 @@ None.
 | 1424 | `packages/tui/src/theme-presets.ts` |
 | 1311 | `packages/webui/src/lib/ws-client.ts` |
 | 1297 | `packages/core/src/chronicle/query.ts` |
-| 1291 | `packages/webui/src/stores/ui-store.ts` |
+| 1292 | `packages/webui/src/stores/ui-store.ts` |
 | 1166 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1137 | `packages/webui/src/types/server-message.ts` |
+| 1108 | `packages/webui/src/components/ChatInput.tsx` |
 | 1096 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
-| 1085 | `packages/webui/src/components/ChatInput.tsx` |
 | 1068 | `packages/core/src/storage/session-store.ts` |
 | 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
+| 1052 | `packages/core/src/core/context.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1048 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1047 | `packages/core/src/index.ts` |
 | 1046 | `packages/webui/src/components/ContextDashboard.tsx` |
-| 1041 | `packages/core/src/core/context.ts` |
 | 1038 | `packages/webui-server/src/server/start-webui.ts` |
 | 1038 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1036 | `packages/tui/src/components/kanban-panel.tsx` |
@@ -125,8 +125,8 @@ None.
 | 1005 | `packages/tui/src/kanban-slash.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
+| 999 | `packages/tui/src/app.tsx` |
 | 999 | `packages/tui/src/components/agents-monitor.tsx` |
-| 998 | `packages/tui/src/app.tsx` |
 | 998 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
 | 996 | `packages/tui/src/input-validation.ts` |
@@ -139,13 +139,13 @@ None.
 
 ## Exports only tests reference
 
-- 838 runtime exports are referenced by tests and by no other production file.
+- 841 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
 ## TypeScript test coverage debt
 
-- 1 test files are not included in a package TypeScript test project.
+- 0 test files are not included in a package TypeScript test project.
 - 0 test files are included in more than one package TypeScript project.
 
 > This report is generated. Change architecture registry inputs or source code, then regenerate it; do not hand-edit measurements.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T12:58:44.275Z",
+  "generatedAt": "2026-08-28T15:03:45.373Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3405,
-    "testFiles": 3023,
-    "sourceLines": 823111,
+    "sourceFiles": 3410,
+    "testFiles": 3028,
+    "sourceLines": 825270,
     "workspaceEdges": 128,
-    "moduleEdges": 10544,
+    "moduleEdges": 10564,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
-    "testsWithoutTypecheck": 1,
+    "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 838
+    "testOnlyExports": 841
   },
   "errors": [],
   "packageCycles": [],
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 773,
-      "testFiles": 676,
+      "sourceFiles": 774,
+      "testFiles": 677,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -224,7 +224,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 676
+          "testFiles": 677
         }
       ]
     },
@@ -461,6 +461,11 @@
           "path": "packages/primitives/tsconfig.json",
           "error": null,
           "testFiles": 0
+        },
+        {
+          "path": "packages/primitives/tsconfig.test.json",
+          "error": null,
+          "testFiles": 1
         }
       ]
     },
@@ -800,8 +805,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 486,
-      "testFiles": 389,
+      "sourceFiles": 490,
+      "testFiles": 393,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -825,7 +830,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 389
+          "testFiles": 393
         }
       ]
     },
@@ -7538,6 +7543,12 @@
       },
       {
         "file": "packages/core/tests/storage/memory-consolidator.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/memory-curator.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17035,6 +17046,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/chimera-reviews-view.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/chimera-settings-panel.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -18313,6 +18330,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/reasoning-effort.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/roster-ws.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18919,6 +18942,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/chimera-hub-store.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/chimera-reports-store.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18968,6 +18997,12 @@
       },
       {
         "file": "packages/webui/tests/stores/file-store.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/stores/fleet-store-multi-session-isolation.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -19226,15 +19261,7 @@
       }
     ],
     "invalidRuntime": [],
-    "withoutTypecheck": [
-      {
-        "file": "packages/primitives/tests/session-id.test.ts",
-        "runtimeProjects": [
-          "root-node"
-        ],
-        "typecheckProjects": []
-      }
-    ],
+    "withoutTypecheck": [],
     "multipleTypechecks": []
   },
   "unresolvedRelativeImports": [
@@ -19466,7 +19493,7 @@
     },
     {
       "file": "packages/core/src/core/context.ts",
-      "lines": 1041,
+      "lines": 1052,
       "relativeImports": 14
     },
     {
@@ -19721,12 +19748,12 @@
     },
     {
       "file": "packages/tui/src/app-state.ts",
-      "lines": 902,
+      "lines": 908,
       "relativeImports": 12
     },
     {
       "file": "packages/tui/src/app.tsx",
-      "lines": 998,
+      "lines": 999,
       "relativeImports": 71
     },
     {
@@ -19761,7 +19788,7 @@
     },
     {
       "file": "packages/tui/src/components/settings-picker.tsx",
-      "lines": 811,
+      "lines": 816,
       "relativeImports": 12
     },
     {
@@ -19791,7 +19818,7 @@
     },
     {
       "file": "packages/tui/src/reducers/settings-values.ts",
-      "lines": 831,
+      "lines": 842,
       "relativeImports": 6
     },
     {
@@ -19816,7 +19843,7 @@
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1085,
+      "lines": 1108,
       "relativeImports": 18
     },
     {
@@ -19911,12 +19938,12 @@
     },
     {
       "file": "packages/webui/src/stores/local-prefs.ts",
-      "lines": 854,
+      "lines": 861,
       "relativeImports": 0
     },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
-      "lines": 1291,
+      "lines": 1292,
       "relativeImports": 4
     },
     {
@@ -20033,7 +20060,7 @@
     },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
-      "lines": 1291,
+      "lines": 1292,
       "relativeImports": 4
     },
     {
@@ -20045,6 +20072,11 @@
       "file": "packages/webui/src/types/server-message.ts",
       "lines": 1137,
       "relativeImports": 10
+    },
+    {
+      "file": "packages/webui/src/components/ChatInput.tsx",
+      "lines": 1108,
+      "relativeImports": 18
     },
     {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
@@ -20060,11 +20092,6 @@
       "file": "packages/webui/src/components/AgentOfficeView.tsx",
       "lines": 1089,
       "relativeImports": 5
-    },
-    {
-      "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1085,
-      "relativeImports": 18
     },
     {
       "file": "packages/core/src/storage/session-store.ts",
@@ -20087,6 +20114,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/core/src/core/context.ts",
+      "lines": 1052,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
@@ -20105,11 +20137,6 @@
       "file": "packages/webui/src/components/ContextDashboard.tsx",
       "lines": 1046,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/core/src/core/context.ts",
-      "lines": 1041,
-      "relativeImports": 14
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",
@@ -20207,14 +20234,14 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/tui/src/app.tsx",
+      "lines": 999,
+      "relativeImports": 71
+    },
+    {
       "file": "packages/tui/src/components/agents-monitor.tsx",
       "lines": 999,
       "relativeImports": 14
-    },
-    {
-      "file": "packages/tui/src/app.tsx",
-      "lines": 998,
-      "relativeImports": 71
     },
     {
       "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
@@ -23540,6 +23567,14 @@
       "name": "resolvePluginToggleStates"
     },
     {
+      "file": "packages/webui/src/lib/reasoning-effort.ts",
+      "name": "ALL_EFFORTS"
+    },
+    {
+      "file": "packages/webui/src/lib/reasoning-effort.ts",
+      "name": "isEffort"
+    },
+    {
       "file": "packages/webui/src/lib/sdd-theme.ts",
       "name": "SDD_PRIORITY"
     },
@@ -23574,6 +23609,10 @@
     {
       "file": "packages/webui/src/stores/chat-queue-helpers.ts",
       "name": "enqueueSequence"
+    },
+    {
+      "file": "packages/webui/src/stores/chimera-hub-store.ts",
+      "name": "ensureChimeraHubHandlersInstalled"
     },
     {
       "file": "packages/webui/src/stores/file-store.ts",

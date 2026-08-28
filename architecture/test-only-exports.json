@@ -1648,6 +1648,10 @@
       "resolveOnePlugin",
       "resolvePluginToggleStates"
     ],
+    "packages/webui/src/lib/reasoning-effort.ts": [
+      "ALL_EFFORTS",
+      "isEffort"
+    ],
     "packages/webui/src/lib/sdd-theme.ts": [
       "SDD_PRIORITY",
       "SDD_STATUS"
@@ -1668,6 +1672,9 @@
     ],
     "packages/webui/src/stores/chat-queue-helpers.ts": [
       "enqueueSequence"
+    ],
+    "packages/webui/src/stores/chimera-hub-store.ts": [
+      "ensureChimeraHubHandlersInstalled"
     ],
     "packages/webui/src/stores/file-store.ts": [
       "mergePersistedFileStore"

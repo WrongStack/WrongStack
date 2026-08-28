@@ -1,7 +1,7 @@
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
 import { noOpLogger } from '../infrastructure/logger.js';
+import type { EventBus } from '../kernel/events.js';
 import { DefaultTaskStore, TaskTracker } from '../tasking/index.js';
+import type { Logger } from '../types/logger.js';
 import type { TaskNode } from '../types/task-graph.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { WorktreeHandle, WorktreeManager } from '../worktree/worktree-manager.js';
@@ -43,6 +43,7 @@ import type {
   PhaseProgress,
   PhaseStatus,
 } from './types.js';
+
 export type { PhaseOrchestratorOptions } from './phase-orchestrator-types.js';
 
 /**
@@ -149,8 +150,11 @@ export class PhaseOrchestrator {
     // changes reach the base branch before the graph is declared completed.
     await this.drainMerges();
 
-    // Autonomous tick loop for real-time monitoring.
-    if (this.opts.autonomous) {
+    // Autonomous tick loop for real-time monitoring. Guarded so a stop() that
+    // landed during start() cannot leave a ticking timer behind: tick()
+    // early-returns when stopped, but nothing would ever clear this interval.
+    if (this.opts.autonomous && !this.stopped) {
+      if (this.tickInterval) clearInterval(this.tickInterval);
       this.tickInterval = setInterval(() => this.tick(), 1000);
     }
   }
@@ -369,7 +373,9 @@ export class PhaseOrchestrator {
    * `maxVerifyAttempts` repairs. Returns the final verdict. When no `verifyPhase`
    * callback is wired the gate is a no-op and always passes.
    */
-  private async runVerifyGate(phase: PhaseNode): Promise<{ ok: boolean; output?: string | undefined }> {
+  private async runVerifyGate(
+    phase: PhaseNode,
+  ): Promise<{ ok: boolean; output?: string | undefined }> {
     if (!this.ctx.verifyPhase) return { ok: true };
     const env = this.worktreeEnv(phase);
 
@@ -433,7 +439,9 @@ export class PhaseOrchestrator {
     };
   }
 
-  private worktreeEnv(phase: PhaseNode): { cwd?: string | undefined; branch?: string | undefined } | undefined {
+  private worktreeEnv(
+    phase: PhaseNode,
+  ): { cwd?: string | undefined; branch?: string | undefined } | undefined {
     return worktreeEnv(this.integrationCtx(), phase);
   }
 
@@ -501,8 +509,7 @@ export class PhaseOrchestrator {
     // actually cancels the execution — previously a timed-out task kept
     // running (and kept writing to the phase worktree) after its retry had
     // already been queued.
-    const timeoutController =
-      this.opts.taskTimeoutMs > 0 ? new AbortController() : undefined;
+    const timeoutController = this.opts.taskTimeoutMs > 0 ? new AbortController() : undefined;
     const signal = timeoutController
       ? AbortSignal.any([this.stopController.signal, timeoutController.signal])
       : this.stopController.signal;
@@ -553,9 +560,7 @@ export class PhaseOrchestrator {
       void settled.then(() => clearTimeout(timer));
     });
     await Promise.race([settled, grace]);
-    throw new Error(
-      `Task "${task.title}" (${task.id}) exceeded timeout of ${timeoutMs} ms`,
-    );
+    throw new Error(`Task "${task.title}" (${task.id}) exceeded timeout of ${timeoutMs} ms`);
   }
 
   private markTaskCompleted(phase: PhaseNode, task: TaskNode): void {
