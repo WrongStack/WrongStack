@@ -1401,6 +1401,9 @@
     "packages/webui-hq/src/views/settings.tsx": [
       "scorePassword"
     ],
+    "packages/webui-server/src/server/chimera-routes.ts": [
+      "isPendingChimeraReport"
+    ],
     "packages/webui-server/src/server/codemap-cache.ts": [
       "codemapGraphCacheChars",
       "codemapGraphCacheSize"
@@ -1433,6 +1436,9 @@
     "packages/webui-server/src/server/proxy-runtime.ts": [
       "probeWrongProxyActive",
       "seedWrongProxyFromConfig"
+    ],
+    "packages/webui-server/src/server/session-agent-registry.ts": [
+      "inheritedSessionMeta"
     ],
     "packages/webui-server/src/server/terminal-ws-handler.ts": [
       "resolveTerminalShell"
@@ -1479,6 +1485,9 @@
     ],
     "packages/webui/src/components/KanbanView.tsx": [
       "TASK_ACTIVITY_LOAD_LIMIT"
+    ],
+    "packages/webui/src/components/MessageBubble/FailedRunContinue.tsx": [
+      "autoTriggerMsFor"
     ],
     "packages/webui/src/components/MessageBubble/StreamingMarkdown.tsx": [
       "splitStableStreamPrefix"
@@ -1675,6 +1684,9 @@
     "packages/webui/src/stores/monitor-store.ts": [
       "clientBucket",
       "deriveMonitorStats"
+    ],
+    "packages/webui/src/stores/notification-store.ts": [
+      "MAX_NOTIFICATIONS"
     ],
     "packages/webui/src/stores/session-tab-store.ts": [
       "readStoredTabs",

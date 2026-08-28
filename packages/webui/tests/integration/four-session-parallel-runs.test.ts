@@ -101,7 +101,7 @@ describe('four sessions, four parallel runs — end-to-end leak sweep', () => {
     wsClient.requestedSwitch = null;
     useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
     useFleetStore.setState({ agents: new Map(), leaderId: undefined });
-    useSessionLanes.setState({ activeSessionId: null });
+    useSessionLanes.setState({ activeSessionId: '__unbound__' });
   });
 
   it('keeps transcripts, tokens, fleet rosters and parked approvals session-scoped', async () => {

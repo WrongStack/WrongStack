@@ -57,7 +57,7 @@ function seedBusySlots(busy: string[]): void {
   useFleetStore.setState({ agents });
 }
 
-function setForeground(id: string | null): void {
+function setForeground(id: string): void {
   useSessionLanes.setState({ activeSessionId: id });
 }
 
@@ -90,7 +90,7 @@ describe('openTab recycles one empty slot when the strip is full', () => {
     useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
     useFleetStore.setState({ agents: new Map(), leaderId: undefined });
     useHistoryStore.setState({ entries: [] });
-    useSessionLanes.setState({ activeSessionId: null });
+    useSessionLanes.setState({ activeSessionId: '__unbound__' });
   });
 
   it('replaces an empty background slot with the new session', () => {

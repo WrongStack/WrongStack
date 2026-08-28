@@ -37,21 +37,19 @@ async function loadExceptions(): Promise<{ exceptions: ExceptionRecord[] }> {
 }
 
 const architectureReportPromise = (async () => {
-  const { registry, exceptions, hotspots, testOnlyExports } =
-    await loadArchitectureInputs(REPO_ROOT);
+  const { registry, exceptions, hotspots } = await loadArchitectureInputs(REPO_ROOT);
   return buildArchitectureHealth({
     repoRoot: REPO_ROOT,
     registry,
     exceptions,
     hotspots,
-    testOnlyExports,
   });
 })();
 
 async function loadTypeCycleMembers(): Promise<Set<string>> {
   const report = await architectureReportPromise;
   const members = new Set<string>();
-  for (const cycle of report.cycles.type) {
+  for (const cycle of report.cycles.type as Array<{ members: string[] }>) {
     for (const member of cycle.members) members.add(member);
   }
   return members;

@@ -19,6 +19,7 @@ const REASONING: ReasoningConfig = {
   disableSupported: true,
   effortSupported: true,
   effortLevels: ['low', 'medium', 'high'],
+  preserveThinking: 'optional',
 };
 
 function request(): Request {
@@ -29,7 +30,17 @@ function opts(settings: ModelRuntimeConfig | undefined) {
   return {
     getSettings: () => settings,
     getReasoningConfig: () => REASONING,
-    getCapabilities: () => ({ streaming: true, tools: true, maxContext: 100_000, reasoning: true }),
+    getCapabilities: () => ({
+      streaming: true,
+      tools: true,
+      parallelTools: false,
+      vision: false,
+      promptCache: false,
+      systemPrompt: true,
+      jsonMode: false,
+      reasoning: true,
+      maxContext: 100_000,
+    }),
   };
 }
 

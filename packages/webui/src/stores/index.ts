@@ -22,7 +22,8 @@ export type {
   VoteValue,
 } from './coordinator-monitor-store.js';
 export { useCoordinatorMonitorStore } from './coordinator-monitor-store.js';
-export type { CouncilPanelEntry, CouncilSeatVote } from './council-log-store.js';
+export type { CouncilPanelEntry } from './council-log-store.js';
+export type { CouncilSeatVote } from './types.js';
 export {
   isCouncilPanelAdverse,
   MAX_COUNCIL_PANELS,

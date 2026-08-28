@@ -1,9 +1,29 @@
 import type { ContentBlock, Usage } from '@wrongstack/core/types';
-import type { CouncilSeatVote } from './council-log-store.js';
 
 // ============================================
 // Shared Types
 // ============================================
+
+export type CouncilVoteStatus = 'valid' | 'invalid' | 'failed' | 'cancelled';
+
+/** One council seat's observable vote. No hidden chain-of-thought is retained. */
+export interface CouncilSeatVote {
+  seatId: string;
+  persona: string;
+  status: CouncilVoteStatus | string;
+  /** The option this seat voted for, on an option-bearing question. */
+  optionId?: string | undefined;
+  /** Free-text stance / rationale; only present when trace content is full. */
+  stance?: string | undefined;
+  rationale?: string | undefined;
+  providerId?: string | undefined;
+  model?: string | undefined;
+  veto?: boolean | undefined;
+  weight?: number | undefined;
+  durationMs?: number | undefined;
+  error?: string | undefined;
+  at: number;
+}
 
 export interface MessageContent {
   role: 'user' | 'assistant' | 'system' | 'tool';

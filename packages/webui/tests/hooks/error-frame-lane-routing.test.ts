@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const send = vi.fn();
-const wsClient = { send };
+const wsClient = { send, requestedSwitch: null as string | null };
 vi.mock('@/lib/ws-client', () => ({ getWSClient: () => wsClient }));
 
 const toast = { success: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() };

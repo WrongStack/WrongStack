@@ -10,6 +10,10 @@
       "lines": 831,
       "relativeImports": 34
     },
+    "packages/cli/src/fleet/host.ts": {
+      "lines": 817,
+      "relativeImports": 23
+    },
     "packages/cli/src/goal-host.ts": {
       "lines": 930,
       "relativeImports": 1
@@ -42,6 +46,10 @@
       "lines": 800,
       "relativeImports": 5
     },
+    "packages/cli/src/webui-server.ts": {
+      "lines": 802,
+      "relativeImports": 22
+    },
     "packages/core/src/boot.ts": {
       "lines": 804,
       "relativeImports": 14
@@ -63,27 +71,27 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
-      "lines": 1033,
-      "relativeImports": 9
+      "lines": 1035,
+      "relativeImports": 10
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 854,
-      "relativeImports": 16
+      "lines": 860,
+      "relativeImports": 17
     },
     "packages/core/src/coordination/director.ts": {
       "lines": 941,
       "relativeImports": 39
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
-      "lines": 815,
+      "lines": 828,
       "relativeImports": 6
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1161,
+      "lines": 1166,
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
-      "lines": 984,
+      "lines": 1035,
       "relativeImports": 3
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
@@ -95,7 +103,7 @@
       "relativeImports": 3
     },
     "packages/core/src/core/context.ts": {
-      "lines": 1018,
+      "lines": 1041,
       "relativeImports": 14
     },
     "packages/core/src/core/fallback-model.ts": {
@@ -103,7 +111,7 @@
       "relativeImports": 15
     },
     "packages/core/src/core/system-prompt-builder.ts": {
-      "lines": 889,
+      "lines": 907,
       "relativeImports": 24
     },
     "packages/core/src/execution/auto-compaction-middleware.ts": {
@@ -423,7 +431,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
-      "lines": 932,
+      "lines": 943,
       "relativeImports": 0
     },
     "packages/webui/src/components/SkillDetailView.tsx": {
@@ -434,12 +442,16 @@
       "lines": 831,
       "relativeImports": 5
     },
+    "packages/webui/src/hooks/ws-handlers/misc-handlers.ts": {
+      "lines": 1006,
+      "relativeImports": 0
+    },
     "packages/webui/src/hooks/ws-handlers.ts": {
-      "lines": 891,
+      "lines": 913,
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1229,
+      "lines": 1237,
       "relativeImports": 10
     },
     "packages/webui/src/stores/chat-lanes.ts": {
@@ -451,7 +463,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/stores/ui-store.ts": {
-      "lines": 1279,
+      "lines": 1291,
       "relativeImports": 4
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -459,11 +471,11 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 800,
+      "lines": 805,
       "relativeImports": 7
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 1032,
+      "lines": 1046,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -479,7 +491,7 @@
       "relativeImports": 2
     },
     "packages/webui-server/src/server/backend-services.ts": {
-      "lines": 931,
+      "lines": 936,
       "relativeImports": 13
     },
     "packages/webui-server/src/server/context-editor.ts": {
@@ -487,8 +499,8 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 806,
-      "relativeImports": 52
+      "lines": 815,
+      "relativeImports": 53
     },
     "packages/webui-server/src/server/file-handlers.ts": {
       "lines": 1048,
@@ -503,15 +515,15 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 890,
-      "relativeImports": 45
+      "lines": 953,
+      "relativeImports": 47
     },
     "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1360,
+      "lines": 1479,
       "relativeImports": 10
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 1032,
+      "lines": 1038,
       "relativeImports": 28
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

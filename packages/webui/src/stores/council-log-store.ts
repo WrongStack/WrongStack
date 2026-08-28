@@ -17,27 +17,7 @@
  * whenever it becomes known, in either order.
  */
 import { createSessionScopedStore } from './session-scoped-store';
-
-export type CouncilVoteStatus = 'valid' | 'invalid' | 'failed' | 'cancelled';
-
-/** One seat's observable vote. No hidden chain-of-thought is retained. */
-export interface CouncilSeatVote {
-  seatId: string;
-  persona: string;
-  status: CouncilVoteStatus | string;
-  /** The option this seat voted for, on an option-bearing question. */
-  optionId?: string | undefined;
-  /** Free-text stance / rationale — only present when trace content is 'full'. */
-  stance?: string | undefined;
-  rationale?: string | undefined;
-  providerId?: string | undefined;
-  model?: string | undefined;
-  veto?: boolean | undefined;
-  weight?: number | undefined;
-  durationMs?: number | undefined;
-  error?: string | undefined;
-  at: number;
-}
+import type { CouncilSeatVote } from './types';
 
 export interface CouncilPanelEntry {
   requestId: string;

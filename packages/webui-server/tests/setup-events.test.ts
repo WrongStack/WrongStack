@@ -268,8 +268,8 @@ describe('setupEvents worklist board pairing', () => {
       });
       const frames = todosFrames(broadcast);
       expect(frames).toHaveLength(1);
-      expect(frames[0].payload.sessionId).toBe('sess-b');
-      expect(frames[0].payload.todos).toEqual(B_BOARD);
+      expect(frames[0]!.payload.sessionId).toBe('sess-b');
+      expect(frames[0]!.payload.todos).toEqual(B_BOARD);
     } finally {
       dispose();
     }
@@ -326,8 +326,8 @@ describe('setupEvents worklist board pairing', () => {
       });
       const frames = todosFrames(broadcast);
       expect(frames).toHaveLength(1);
-      expect(frames[0].payload.sessionId).toBe('sess-a');
-      expect(frames[0].payload.todos).toEqual(ROOT_BOARD);
+      expect(frames[0]!.payload.sessionId).toBe('sess-a');
+      expect(frames[0]!.payload.todos).toEqual(ROOT_BOARD);
     } finally {
       dispose();
     }

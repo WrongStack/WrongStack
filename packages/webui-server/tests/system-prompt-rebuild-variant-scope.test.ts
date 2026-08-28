@@ -59,6 +59,7 @@ async function rebuild(context: Context, projectVariant: string): Promise<string
       getConfig: () => ({
         provider: 'mock',
         model: 'test-model',
+        features: {},
         systemPrompt: { variant: projectVariant as never },
       }),
       projectRoot: tmp,

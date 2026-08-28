@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { JsonlReportStore } from '@wrongstack/core/plugins/review-report-store';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 import {
   createChimeraRouteHandlers,
   handleChimeraRoute,
@@ -105,10 +106,10 @@ describe('createChimeraRouteHandlers.listReports', () => {
     const log = vi.fn();
     const handlers = createChimeraRouteHandlers({
       projectDir: () => projectDir,
-      send: send as (ws: never, msg: { type: string; payload: unknown }) => void,
+      send: send as (ws: WebSocket, msg: { type: string; payload: unknown }) => void,
       log,
     });
-    const ws = {} as never;
+    const ws = {} as WebSocket;
     return { send, log, handlers, ws };
   }
 
@@ -135,10 +136,10 @@ describe('createChimeraRouteHandlers.listReports', () => {
       projectDir: () => {
         throw new Error('store gone');
       },
-      send: send as (ws: never, msg: { type: string; payload: unknown }) => void,
+      send: send as (ws: WebSocket, msg: { type: string; payload: unknown }) => void,
       log,
     });
-    const ws = {} as never;
+    const ws = {} as WebSocket;
     await handlers.listReports(ws, { type: 'chimera.reports.list', payload: { sessionId: 'sess-9' } });
     const frame = send.mock.calls[0]?.[1] as { payload: { reports: unknown[] } };
     expect(frame.payload.reports).toEqual([]);
