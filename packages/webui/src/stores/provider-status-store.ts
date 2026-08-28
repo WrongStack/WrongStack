@@ -81,8 +81,19 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
     set((state) => {
       const next = { ...state.entries };
       const key = keyOf(entry);
-      if (entry.state === 'healthy') delete next[key];
-      else next[key] = { ...next[key], ...entry };
+      if (entry.state === 'healthy') {
+        delete next[key];
+      } else {
+        const previous = next[key];
+        const { stateExpiresAt, ...rest } = entry;
+        // A push that carries no usable expiry must not erase a known
+        // countdown (the server omits stateExpiresAt on some transitions).
+        next[key] = {
+          ...previous,
+          ...rest,
+          ...(stateExpiresAt !== undefined ? { stateExpiresAt } : {}),
+        };
+      }
       return { entries: next };
     }),
 

@@ -25,6 +25,19 @@ function formatAgo(ts: number | null | undefined, now: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
 }
 
+const SIBLING_TRIGGER_RE = /Sibling quarantine:.*?\bon\s+([^\s/]+\/\S+)/;
+
+/**
+ * For sibling-quarantined entries, the provider/model whose quota failure
+ * caused the block (parsed from the tracker's sibling-quarantine message),
+ * so the room can show which pair actually tripped the fan-out.
+ */
+export function siblingTriggerOf(entry: {
+  lastErrorMessage?: string | undefined;
+}): string | null {
+  return SIBLING_TRIGGER_RE.exec(entry.lastErrorMessage ?? '')?.[1] ?? null;
+}
+
 export function ProviderWaitingRoom() {
   const { t } = useAppTranslation();
   const entriesByKey = useProviderStatusStore((state) => state.entries);
@@ -42,6 +55,9 @@ export function ProviderWaitingRoom() {
       ),
     [entriesByKey],
   );
+  // Full snapshots may retain healthy rows for summary consistency; the room
+  // itself only shows pairs that are actually waiting.
+  const visible = useMemo(() => entries.filter((entry) => entry.state !== 'healthy'), [entries]);
   const activeRules = useMemo(
     () => blockingCalendarRules(calendarRules, new Date(now)),
     [calendarRules, now],
@@ -69,19 +85,19 @@ export function ProviderWaitingRoom() {
 
   // Auto-refresh on expand; tick countdown timer when entries exist.
   useEffect(() => {
-    if (entries.length === 0 && activeRules.length === 0) return;
+    if (visible.length === 0 && activeRules.length === 0) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [activeRules.length, entries.length]);
+  }, [activeRules.length, visible.length]);
 
   useEffect(() => {
     if (expanded) refresh();
   }, [expanded, refresh]);
 
-  if (entries.length === 0 && activeRules.length === 0) return null;
+  if (visible.length === 0 && activeRules.length === 0) return null;
 
-  const blocked = entries.filter((entry) => entry.state === 'blocked').length;
-  const degraded = entries.length - blocked;
+  const blocked = visible.filter((entry) => entry.state === 'blocked').length;
+  const degraded = visible.length - blocked;
   const _selected = selectedKey ? entriesByKey[selectedKey] : null;
 
   return (
@@ -112,9 +128,10 @@ export function ProviderWaitingRoom() {
       </button>
       {expanded && (
         <div className="border-t border-warning/15 px-3 py-2">
-          {entries.map((entry) => {
+          {visible.map((entry) => {
             const key = `${entry.providerId}\u0000${entry.model}`;
             const isSelected = selectedKey === key;
+            const siblingTrigger = siblingTriggerOf(entry);
             return (
               <div key={key}>
                 <button
@@ -134,6 +151,11 @@ export function ProviderWaitingRoom() {
                     {entry.state}
                   </span>
                   <span className="text-muted-foreground">{entry.reason.replaceAll('_', ' ')}</span>
+                  {siblingTrigger && (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                      via {siblingTrigger}
+                    </span>
+                  )}
                   <span className="ml-auto tabular-nums text-muted-foreground">
                     {remaining(entry.stateExpiresAt, now)}
                   </span>

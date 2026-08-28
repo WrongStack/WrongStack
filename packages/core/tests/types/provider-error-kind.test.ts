@@ -114,6 +114,52 @@ describe('classifyProviderError', () => {
     ).toBe('rate_limit');
   });
 
+  it('classifies generic-wording 429s as transient rate_limit, not quota_exhausted', () => {
+    // Regression pin: "rate limit exceeded" is many gateways' GENERIC burst-429
+    // message. It used to be hard-classified as quota_exhausted, turning a
+    // 2-minute rate-limit block into a 15-minute quota quarantine with
+    // provider-wide sibling fan-out.
+    expect(
+      classifyProviderError(429, { message: 'Rate limit exceeded: 10 requests per minute' }),
+    ).toBe('rate_limit');
+    expect(
+      classifyProviderError(429, undefined, 'Rate limit exceeded for model gpt-4o'),
+    ).toBe('rate_limit');
+  });
+
+  it('does not classify quota from the raw response body alone', () => {
+    // Regression pin: OpenAI hard-quota bodies carry "insufficient_quota" in
+    // the raw JSON while the structured message is generic rate-limit prose.
+    // QUOTA_EXHAUSTED_RE must only run on the structured message text —
+    // otherwise every burst 429 from such a provider reads as quota.
+    expect(
+      classifyProviderError(429, {
+        message: 'Rate limit reached: Limit 30000, Used 30000',
+        raw: '{"error":{"code":"insufficient_quota","message":"Rate limit reached"}}',
+      }),
+    ).toBe('rate_limit');
+  });
+
+  it('still classifies genuine quota prose as quota_exhausted', () => {
+    expect(
+      classifyProviderError(429, {
+        message: "You've reached your usage limit for this billing cycle",
+      }),
+    ).toBe('quota_exhausted');
+    expect(classifyProviderError(402, { message: 'Payment required' })).toBe('quota_exhausted');
+  });
+
+  it('still uses the raw body for content-filter classification', () => {
+    // raw was removed from the QUOTA scan only; content-filter and
+    // context-overflow detection still read the raw body by design.
+    expect(
+      classifyProviderError(400, {
+        message: 'Request rejected',
+        raw: '{"error":{"category":"content_filter"}}',
+      }),
+    ).toBe('content_filter');
+  });
+
   it('detects more overflow phrasings on 4xx', () => {
     expect(classifyProviderError(400, undefined, 'too many tokens in the request')).toBe(
       'context_overflow',

@@ -439,11 +439,6 @@ const CONTEXT_OVERFLOW_RE =
 
 /** Content-policy refusals surfaced as HTTP errors (Azure/OpenAI `content_filter`, etc.). */
 const CONTENT_FILTER_RE = /content.(filter|policy|moderation)|safety (system|filter)/i;
-/** "rate limit exceeded" pattern — checked against body.message only, NOT the
- *  raw JSON text, because OpenAI's `"code":"rate_limit_exceeded"` field would
- *  produce a false positive in the combined-text regex. */
-const RATE_LIMIT_EXCEEDED_RE = /rate[-_\s]*limit[-_\s]*exceeded/i;
-
 /**
  * Classify a provider HTTP failure into the canonical taxonomy from its
  * status code plus the parsed error body (and, for message-only errors
@@ -456,7 +451,15 @@ export function classifyProviderError(
   message?: string,
 ): ProviderErrorKind {
   const type = body?.type;
-  const text = [message, body?.message, type, body?.raw].filter(Boolean).join('\n');
+  // Quota classification deliberately ignores `body.raw`: raw JSON often
+  // contains unrelated flag fields (OpenAI's `"code":"insufficient_quota"`,
+  // gateway retry hints) that false-positive the quota regex — a burst 429
+  // whose message is generic rate-limit prose would then be quarantined for
+  // 15 minutes. Only the structured message text is trusted for quota; `raw`
+  // still feeds the content-filter / context-overflow scans below, where its
+  // flag fields are the actual signal (e.g. Azure `content_filter`).
+  const messageText = [message, body?.message, type].filter(Boolean).join('\n');
+  const text = [messageText, body?.raw].filter(Boolean).join('\n');
   if (status === 0) return 'network';
   if (status === 408) return 'timeout';
   if (status === 599) return 'stream_hang';
@@ -467,20 +470,11 @@ export function classifyProviderError(
   // as quota_exhausted (→ 15-min blocked) rather than auth (→ 5-failure chain).
   // The QUOTA_EXHAUSTED_RE regex catches the message text regardless of the
   // HTTP status code, so this guard must run before the 401/403 auth branch.
-  if (QUOTA_EXHAUSTED_RE.test(text)) return 'quota_exhausted';
+  if (QUOTA_EXHAUSTED_RE.test(messageText)) return 'quota_exhausted';
   if (status === 402) return 'quota_exhausted';
-  // A 429 that carries a hard-limit message (vs a burst rate-limit) is
-  // also quota-exhausted: only check body.message so we don't false-positive
-  // on OpenAI's raw JSON (which contains "rate_limit_exceeded" in the code
-  // field even for transient 429s).
-  if (
-    status === 429 &&
-    body?.message &&
-    body.type !== 'rate_limit_exceeded' &&
-    RATE_LIMIT_EXCEEDED_RE.test(body.message)
-  ) {
-    return 'quota_exhausted';
-  }
+  // A bare 429 with generic "rate limit exceeded" prose stays `rate_limit`:
+  // that wording is many gateways' default burst-429 message, and mapping it
+  // to quota once quarantined whole providers for 15+ minutes.
   // Transient rate limits and server-side overloads come before the auth guard.
   if (type === 'rate_limit_error' || status === 429) return 'rate_limit';
   if (type === 'overloaded_error' || status === 529) return 'overloaded';

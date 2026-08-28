@@ -52,6 +52,7 @@ function harness() {
         providerId: string;
         model: string;
         newState: 'healthy' | 'degraded' | 'blocked';
+        reason?: string;
       }) => void)
     | undefined;
   const unsubscribe = vi.fn();
@@ -228,5 +229,178 @@ describe('setupProviderStatus', () => {
     state.teardownHandlers[0]?.();
     await vi.runAllTimersAsync();
     expect(mocks.atomicWrite).toHaveBeenCalled();
+  });
+
+  it('does not resurrect a manually cleared pair during cross-sync and purges its stale row', async () => {
+    const state = harness();
+    const staleRowFile = JSON.stringify({
+      statuses: [{ providerId: 'cleared', model: 'm', state: 'blocked', lastFailureAt: 1 }],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError()) // boot: no saved room
+      .mockImplementation(async () => staleRowFile); // peer still holds the stale row
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+
+    state.emitStatus({
+      providerId: 'cleared',
+      model: 'm',
+      newState: 'healthy',
+      reason: 'manual_clear',
+    });
+    await vi.advanceTimersByTimeAsync(100); // debounced persist of the clear
+    mocks.atomicWrite.mockClear();
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // The stale row never reached the tracker…
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({ statuses: [] });
+    // …and was purged from disk so the next boot cannot restore it either.
+    expect(mocks.atomicWrite).toHaveBeenCalled();
+    const persisted = JSON.parse(String(mocks.atomicWrite.mock.calls.at(-1)?.[1]));
+    expect(persisted.statuses).toEqual([]);
+    state.teardownHandlers[0]?.();
+  });
+
+  it('imports a pair that failed again after the local clear (newer wins)', async () => {
+    const state = harness();
+    const clearedAt = Date.now();
+    const freshRowFile = JSON.stringify({
+      statuses: [
+        {
+          providerId: 'flaky',
+          model: 'm',
+          state: 'blocked',
+          lastFailureAt: clearedAt + 5_000, // failed again AFTER the local clear
+        },
+      ],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError())
+      .mockImplementation(async () => freshRowFile);
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+
+    state.emitStatus({
+      providerId: 'flaky',
+      model: 'm',
+      newState: 'healthy',
+      reason: 'manual_clear',
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // A fresh failure after the clear is honest state: it is imported…
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({
+      statuses: [expect.objectContaining({ providerId: 'flaky', model: 'm' })],
+    });
+    // …and the tombstone is lifted, so later sweeps keep importing it.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(tracker.restoreSnapshot).toHaveBeenCalledTimes(2);
+    state.teardownHandlers[0]?.();
+  });
+
+  it('does not tombstone organic recoveries from cross-sync', async () => {
+    const state = harness();
+    const rowFile = JSON.stringify({
+      statuses: [{ providerId: 'busy', model: 'm', state: 'blocked', lastFailureAt: 1 }],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError())
+      .mockImplementation(async () => rowFile);
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+
+    // Organic recovery (waiting-room expiry) — not a manual clear.
+    state.emitStatus({
+      providerId: 'busy',
+      model: 'm',
+      newState: 'healthy',
+      reason: 'waiting_room_expired',
+    });
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({
+      statuses: [expect.objectContaining({ providerId: 'busy' })],
+    });
+    state.teardownHandlers[0]?.();
+  });
+
+  it('does not let a stale peer row overwrite a fresher local failure', async () => {
+    const state = harness();
+    const staleRowFile = JSON.stringify({
+      statuses: [{ providerId: 'live', model: 'm', state: 'blocked', lastFailureAt: 1_000 }],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError()) // boot: no saved room
+      .mockImplementation(async () => staleRowFile);
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+    tracker.getStatus.mockImplementation(() => ({ lastFailureAt: 5_000, state: 'blocked' }));
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // The local failure (5s) is newer than the peer row (1s): no import.
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({ statuses: [] });
+    expect(mocks.atomicWrite).not.toHaveBeenCalled();
+    state.teardownHandlers[0]?.();
+  });
+
+  it('imports a peer row that is fresher than the local failure', async () => {
+    const state = harness();
+    const freshRowFile = JSON.stringify({
+      statuses: [{ providerId: 'live', model: 'm', state: 'blocked', lastFailureAt: 5_000 }],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError()) // boot: no saved room
+      .mockImplementation(async () => freshRowFile);
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+    tracker.getStatus.mockReturnValue({ lastFailureAt: 1_000, state: 'degraded' });
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({
+      statuses: [expect.objectContaining({ providerId: 'live', model: 'm' })],
+    });
+    state.teardownHandlers[0]?.();
+  });
+
+  it('refreshes instead of purging a stale row for a locally re-blocked pair', async () => {
+    const state = harness();
+    const staleRowFile = JSON.stringify({
+      statuses: [{ providerId: 'again', model: 'm', state: 'blocked', lastFailureAt: 1 }],
+    });
+    mocks.readFile
+      .mockRejectedValueOnce(missingError()) // boot: no saved room
+      .mockImplementation(async () => staleRowFile);
+    await setupProviderStatus(state.input as never);
+    const tracker = mocks.trackerInstances[0]!;
+
+    state.emitStatus({
+      providerId: 'again',
+      model: 'm',
+      newState: 'healthy',
+      reason: 'manual_clear',
+    });
+    await vi.advanceTimersByTimeAsync(100);
+    mocks.atomicWrite.mockClear();
+    // Locally re-blocked after the clear (local failure not newer than the row).
+    tracker.getStatus.mockImplementation(() => ({
+      providerId: 'again',
+      model: 'm',
+      lastFailureAt: 1,
+      state: 'blocked',
+    }));
+
+    await vi.advanceTimersByTimeAsync(30_000);
+
+    // The stale row is refreshed from the live tracker instead of purged…
+    expect(tracker.restoreSnapshot).toHaveBeenCalledWith({ statuses: [] });
+    expect(mocks.atomicWrite).toHaveBeenCalled();
+    const persisted = JSON.parse(String(mocks.atomicWrite.mock.calls.at(-1)?.[1]));
+    expect(persisted.statuses).toEqual([
+      expect.objectContaining({ providerId: 'again', model: 'm', state: 'blocked' }),
+    ]);
+    state.teardownHandlers[0]?.();
   });
 });

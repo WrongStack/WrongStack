@@ -257,4 +257,52 @@ describe('provider status store', () => {
     expect(entries['b\u0000m2']).toBeDefined();
     expect(entries['a\u0000m1']).toBeUndefined();
   });
+
+  it('update preserves a known countdown when a push omits stateExpiresAt', () => {
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'rate_limit_threshold_1',
+      updatedAt: 1,
+      stateExpiresAt: 60_000,
+    });
+    // Some transitions carry no expiry (the server omits the field); the
+    // previously known countdown must not be erased.
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'cooldown_extended',
+      updatedAt: 2,
+      stateExpiresAt: undefined,
+    });
+
+    expect(useProviderStatusStore.getState().entries['openai\u0000gpt-4o']?.stateExpiresAt).toBe(
+      60_000,
+    );
+  });
+
+  it('update overwrites the countdown when a push carries a fresh expiry', () => {
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'rate_limit_threshold_1',
+      updatedAt: 1,
+      stateExpiresAt: 60_000,
+    });
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'cooldown_extended',
+      updatedAt: 2,
+      stateExpiresAt: 120_000,
+    });
+
+    expect(useProviderStatusStore.getState().entries['openai\u0000gpt-4o']?.stateExpiresAt).toBe(
+      120_000,
+    );
+  });
 });

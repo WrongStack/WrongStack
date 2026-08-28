@@ -66,7 +66,6 @@ export interface WSUserMessage {
     id: string;
     content: string;
     timestamp: number;
-    stateExpiresAt?: number | undefined;
     /** Atomically replace only the provider-bound conversation before this run. */
     freshContext?: boolean | undefined;
     /** Images attached in the composer (paste / drop / file picker). The
@@ -282,6 +281,8 @@ export interface WSProviderStatusChanged {
     newState: 'healthy' | 'degraded' | 'blocked';
     reason: string;
     timestamp: number;
+    /** Epoch ms when the new state's cooldown expires; omitted when n/a. */
+    stateExpiresAt?: number | undefined;
   };
 }
 

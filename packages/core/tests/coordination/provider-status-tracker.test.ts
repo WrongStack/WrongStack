@@ -185,9 +185,11 @@ describe('ProviderModelStatusTracker', () => {
     ok(expiry <= Date.now() + 7 * 86_400_000 + 5_000);
   });
 
-  it('parses prose hints on plain rate_limit failures too', () => {
-    // Default config: a single 429 blocks immediately (blockAfterRateLimitHits: 1),
-    // so the 45m prose hint should extend the block past the 5-min default.
+  it('caps prose-hint extension on plain rate_limit failures at a small multiple of the base block', () => {
+    // Regression pin: default config blocks a single 429 immediately
+    // (blockAfterRateLimitHits: 1, blockDurationMs: 120s). A 45m prose hint
+    // used to extend the block to the full 45 minutes; it must now cap at
+    // NON_QUOTA_HINT_CAP_FACTOR × base = 6 minutes.
     const defaultTracker = new ProviderModelStatusTracker();
     defaultTracker.recordFailure(
       'test',
@@ -199,8 +201,9 @@ describe('ProviderModelStatusTracker', () => {
 
     const status = defaultTracker.getStatus('test', 'burst-model');
     strictEqual(status?.state, 'blocked');
-    // 45m hint must extend past the 5-min default block duration.
-    ok((status?.stateExpiresAt ?? 0) > Date.now() + 2_600_000);
+    const expiry = status?.stateExpiresAt ?? 0;
+    ok(expiry > Date.now() + 350_000); // extended past the 2-minute base…
+    ok(expiry <= Date.now() + 362_000); // …but capped at 3× base (6 min)
   });
 
   it('ignores prose hints on non-rate-limit failures', () => {
@@ -438,6 +441,27 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(siblingExpiry, triggerExpiry);
   });
 
+  it('caps sibling-quarantine expiry at the fixed quota block when the trigger has a long hint', () => {
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    // Trigger publishes a ~6h weekly-cap reset in prose.
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: weekly plan limit reached. Please try again in 6h',
+    );
+
+    // The triggering pair holds until its published reset…
+    ok((tracker.getStatus('openai', 'gpt-4o')?.stateExpiresAt ?? 0) > Date.now() + 3_600_000);
+
+    // …but the fan-out never outlives the fixed quota block (120s here).
+    const siblingExpiry = tracker.getStatus('openai', 'gpt-4o-mini')?.stateExpiresAt ?? 0;
+    ok(siblingExpiry > Date.now() + 100_000);
+    ok(siblingExpiry <= Date.now() + 122_000);
+  });
+
   it('propagates the actual trigger status (402) to quarantined siblings', () => {
     tracker.recordSuccess('openai', 'gpt-4o-mini');
 
@@ -589,7 +613,11 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(status?.recentErrors[0]?.retryAfterMs, 12_000);
   });
 
-  it('honours long provider reset hints without truncating them to one minute', () => {
+  it('caps structured retryAfterMs extension on non-quota failures at 3× the base block', () => {
+    // Regression pin: test tracker blockDurationMs = 50s → cap = 150s. A
+    // 20-minute Retry-After on a rate_limit used to park the pair for the
+    // full 20 minutes; it must now cap at 3× base while still extending
+    // well past the 50-second base.
     tracker.recordFailure('test', 'model-a', 'rate_limit', 429, 'Rate limited', {
       retryAfterMs: 20 * 60_000,
     });
@@ -597,7 +625,9 @@ describe('ProviderModelStatusTracker', () => {
       retryAfterMs: 20 * 60_000,
     });
 
-    ok((tracker.getStatus('test', 'model-a')?.stateExpiresAt ?? 0) > Date.now() + 19 * 60_000);
+    const expiry = tracker.getStatus('test', 'model-a')?.stateExpiresAt ?? 0;
+    ok(expiry > Date.now() + 140_000);
+    ok(expiry <= Date.now() + 155_000);
   });
 
   it('caps error history to maxErrorHistory', () => {

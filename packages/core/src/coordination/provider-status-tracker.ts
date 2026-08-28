@@ -43,7 +43,11 @@
  */
 
 import type { EventBus } from '../kernel/events.js';
-import { type ProviderErrorKind, parseResetHintMs } from '../types/provider.js';
+import {
+  MAX_RESET_HINT_MS,
+  type ProviderErrorKind,
+  parseResetHintMs,
+} from '../types/provider.js';
 import { QUOTA_EXHAUSTED_RE, ROUTE_SCOPED_QUOTA_RE } from '../types/quota-regex.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
@@ -174,6 +178,15 @@ const DEFAULTS = {
   maxErrorHistory: 50,
   quarantineSiblingsOnQuotaExhausted: true,
 } satisfies Required<ProviderStatusTrackerConfig>;
+
+/**
+ * Non-quota failures are transient: a Retry-After header or a parsed prose
+ * reset hint may extend the base blocked cooldown by at most this factor, so
+ * a weekly-cap horizon quoted on an ordinary burst 429 cannot park the model
+ * for days. Quota kinds bypass the cap — there the hint IS the published
+ * budget-reset time, and holding until it is the point.
+ */
+const NON_QUOTA_HINT_CAP_FACTOR = 3;
 
 // ── Internal mutable state ──────────────────────────────────────────────────
 
@@ -326,8 +339,21 @@ export class ProviderModelStatusTracker {
     // hold until their real reset instead of the fixed default block.
     const proseHintMs =
       quotaExhausted || kind === 'rate_limit' ? parseResetHintMs(message, now) : undefined;
+    const rawHintMs = meta?.retryAfterMs && meta.retryAfterMs > 0 ? meta.retryAfterMs : proseHintMs;
+    // For NON-quota kinds the hint only extends the transient cooldown, and
+    // only up to a small multiple of the base block: providers quote the
+    // plan/weekly reset horizon on ordinary burst 429s, and honoring it
+    // verbatim parked models for hours (the "stuck in the waiting room"
+    // regression). Quota kinds keep the full hint — it is the actual reset.
     const effectiveRetryAfterMs =
-      meta?.retryAfterMs && meta.retryAfterMs > 0 ? meta.retryAfterMs : proseHintMs;
+      rawHintMs && rawHintMs > 0
+        ? quotaExhausted
+          ? // Quota keeps the provider-published reset, but a corrupt or
+            // absurd structured Retry-After still cannot park a model
+            // beyond the prose-hint maximum.
+            Math.min(rawHintMs, MAX_RESET_HINT_MS)
+          : Math.min(rawHintMs, this.cfg.blockDurationMs * NON_QUOTA_HINT_CAP_FACTOR)
+        : undefined;
 
     // Push error history (newest first, capped)
     const entry: ErrorHistoryEntry = Object.freeze({
@@ -416,7 +442,10 @@ export class ProviderModelStatusTracker {
       s.stateExpiresAt !== null
     ) {
       const previous = this.providerQuotaBlocks.get(providerId) ?? 0;
-      this.providerQuotaBlocks.set(providerId, Math.max(previous, s.stateExpiresAt));
+      this.providerQuotaBlocks.set(
+        providerId,
+        Math.max(previous, this.fanOutExpiryFor(now, s.stateExpiresAt)),
+      );
     }
 
     if (s.state !== newState) {
@@ -437,10 +466,27 @@ export class ProviderModelStatusTracker {
       providerWideQuota &&
       newState === 'blocked'
     ) {
-      this.quarantineSiblings(providerId, model, status, now, s.stateExpiresAt ?? 0);
+      this.quarantineSiblings(
+        providerId,
+        model,
+        status,
+        now,
+        this.fanOutExpiryFor(now, s.stateExpiresAt ?? now),
+      );
     }
 
     return newState;
+  }
+
+  /**
+   * Quarantine fan-out expiry: the fixed quota cooldown, never the
+   * hint-extended trigger expiry. A weekly-cap reset time applies to the
+   * model that published it; sibling models (and unseen pairs behind the
+   * provider-wide gate) re-open after the base cooldown so one misclassified
+   * or hint-stretched failure cannot silence a whole provider for hours.
+   */
+  private fanOutExpiryFor(now: number, triggerExpiry: number): number {
+    return Math.min(triggerExpiry, now + this.cfg.quotaBlockDurationMs);
   }
 
   /**
@@ -812,7 +858,13 @@ export class ProviderModelStatusTracker {
         s.stateExpiresAt !== null
       ) {
         const previous = this.providerQuotaBlocks.get(providerId) ?? 0;
-        this.providerQuotaBlocks.set(providerId, Math.max(previous, s.stateExpiresAt));
+        // The restored PAIR keeps its persisted expiry (a real weekly cap
+        // still holds), but the provider-wide gate is capped at the fixed
+        // quota block, same as a live fan-out would be.
+        this.providerQuotaBlocks.set(
+          providerId,
+          Math.max(previous, this.fanOutExpiryFor(now, s.stateExpiresAt)),
+        );
       }
       restored += 1;
     }
