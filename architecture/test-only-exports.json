@@ -536,9 +536,6 @@
     "packages/core/src/storage/session-writer/session-writer-flush.ts": [
       "flushBufferSync"
     ],
-    "packages/core/src/types/provider.ts": [
-      "MAX_RESET_HINT_MS"
-    ],
     "packages/core/src/types/runtime-capability-manifest.ts": [
       "isDeprecatedRuntimeToolAlias",
       "isKnownRuntimeCapability",
@@ -1495,6 +1492,9 @@
     "packages/webui/src/components/OfficeMapCanvas/utils.ts": [
       "AGENT_COLS",
       "layoutClientXs"
+    ],
+    "packages/webui/src/components/ProviderWaitingRoom.tsx": [
+      "siblingTriggerOf"
     ],
     "packages/webui/src/components/SearchOverlay.tsx": [
       "messageSearchText"

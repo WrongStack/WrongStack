@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T09:50:35.296Z",
+  "generatedAt": "2026-08-28T12:58:44.275Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3405,
-    "testFiles": 3021,
-    "sourceLines": 822269,
+    "testFiles": 3023,
+    "sourceLines": 823111,
     "workspaceEdges": 128,
     "moduleEdges": 10544,
     "nonCommandSlashImports": 0,
@@ -801,7 +801,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 486,
-      "testFiles": 387,
+      "testFiles": 389,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -825,7 +825,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 387
+          "testFiles": 389
         }
       ]
     },
@@ -17479,6 +17479,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/provider-waiting-room-sibling.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/queued-messages-file-mention-picker.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -18434,6 +18440,12 @@
       },
       {
         "file": "packages/webui/tests/lib/ws-client-model-switch.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/ws-client-not-ready-retry.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -19439,7 +19451,7 @@
     },
     {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1035,
+      "lines": 1096,
       "relativeImports": 3
     },
     {
@@ -19534,7 +19546,7 @@
     },
     {
       "file": "packages/core/src/types/provider.ts",
-      "lines": 890,
+      "lines": 884,
       "relativeImports": 7
     },
     {
@@ -19889,8 +19901,8 @@
     },
     {
       "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1237,
-      "relativeImports": 10
+      "lines": 1311,
+      "relativeImports": 11
     },
     {
       "file": "packages/webui/src/stores/chat-lanes.ts",
@@ -19914,12 +19926,12 @@
     },
     {
       "file": "packages/webui/src/types/client-message.ts",
-      "lines": 805,
+      "lines": 836,
       "relativeImports": 7
     },
     {
       "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1046,
+      "lines": 1137,
       "relativeImports": 10
     },
     {
@@ -19949,7 +19961,7 @@
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
-      "lines": 815,
+      "lines": 822,
       "relativeImports": 53
     },
     {
@@ -20010,6 +20022,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/webui/src/lib/ws-client.ts",
+      "lines": 1311,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/core/src/chronicle/query.ts",
       "lines": 1297,
       "relativeImports": 3
@@ -20020,14 +20037,19 @@
       "relativeImports": 4
     },
     {
-      "file": "packages/webui/src/lib/ws-client.ts",
-      "lines": 1237,
-      "relativeImports": 10
-    },
-    {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 1166,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/webui/src/types/server-message.ts",
+      "lines": 1137,
+      "relativeImports": 10
+    },
+    {
+      "file": "packages/core/src/coordination/provider-status-tracker.ts",
+      "lines": 1096,
+      "relativeImports": 3
     },
     {
       "file": "packages/tui/src/components/settings-picker-model.ts",
@@ -20085,11 +20107,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1046,
-      "relativeImports": 10
-    },
-    {
       "file": "packages/core/src/core/context.ts",
       "lines": 1041,
       "relativeImports": 14
@@ -20113,11 +20130,6 @@
       "file": "packages/core/src/coordination/delegate-tool.ts",
       "lines": 1035,
       "relativeImports": 10
-    },
-    {
-      "file": "packages/core/src/coordination/provider-status-tracker.ts",
-      "lines": 1035,
-      "relativeImports": 3
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
@@ -21334,10 +21346,6 @@
     {
       "file": "packages/core/src/storage/session-writer/session-writer-flush.ts",
       "name": "flushBufferSync"
-    },
-    {
-      "file": "packages/core/src/types/provider.ts",
-      "name": "MAX_RESET_HINT_MS"
     },
     {
       "file": "packages/core/src/types/runtime-capability-manifest.ts",
@@ -23142,6 +23150,10 @@
     {
       "file": "packages/webui/src/components/OfficeMapCanvas/utils.ts",
       "name": "layoutClientXs"
+    },
+    {
+      "file": "packages/webui/src/components/ProviderWaitingRoom.tsx",
+      "name": "siblingTriggerOf"
     },
     {
       "file": "packages/webui/src/components/SearchOverlay.tsx",

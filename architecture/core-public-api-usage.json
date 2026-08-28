@@ -184,9 +184,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 549,
+      "files": 550,
       "typeOnly": 58,
-      "runtimeOrMixed": 520
+      "runtimeOrMixed": 521
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -17527,6 +17527,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/tests/slash-profile.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/tests/slash-provider-status.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

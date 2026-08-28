@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-28T09:50:35.296Z
+**Generated:** 2026-08-28T12:58:44.275Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3405 |
-| Production source lines | 822269 |
-| Test files | 3021 |
+| Production source lines | 823111 |
+| Test files | 3023 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10544 |
 | Non-command slash imports | 0 |
@@ -57,7 +57,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/tools | 191 | 199 | @wrongstack/core, @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/tui | 333 | 325 | @wrongstack/core, @wrongstack/kanban, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/tools |
 | @wrongstack/vector-memory | 14 | 15 | @wrongstack/core, @wrongstack/persistence, @wrongstack/sage |
-| @wrongstack/webui | 486 | 387 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
+| @wrongstack/webui | 486 | 389 | @wrongstack/core, @wrongstack/kanban, @wrongstack/plugins, @wrongstack/providers, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-hq | 55 | 41 | @wrongstack/core, @wrongstack/tools, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/webui-protocol | 16 | 4 | @wrongstack/core |
 | @wrongstack/webui-server | 202 | 181 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/techstack, @wrongstack/tools, @wrongstack/vector-memory, @wrongstack/webui-protocol, @wrongstack/wrongtrace |
@@ -88,10 +88,12 @@ None.
 |---:|---|
 | 1479 | `packages/webui-server/src/server/session-handlers.ts` |
 | 1424 | `packages/tui/src/theme-presets.ts` |
+| 1311 | `packages/webui/src/lib/ws-client.ts` |
 | 1297 | `packages/core/src/chronicle/query.ts` |
 | 1291 | `packages/webui/src/stores/ui-store.ts` |
-| 1237 | `packages/webui/src/lib/ws-client.ts` |
 | 1166 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
+| 1137 | `packages/webui/src/types/server-message.ts` |
+| 1096 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1085 | `packages/webui/src/components/ChatInput.tsx` |
@@ -103,13 +105,11 @@ None.
 | 1048 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1047 | `packages/core/src/index.ts` |
 | 1046 | `packages/webui/src/components/ContextDashboard.tsx` |
-| 1046 | `packages/webui/src/types/server-message.ts` |
 | 1041 | `packages/core/src/core/context.ts` |
 | 1038 | `packages/webui-server/src/server/start-webui.ts` |
 | 1038 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1036 | `packages/tui/src/components/kanban-panel.tsx` |
 | 1035 | `packages/core/src/coordination/delegate-tool.ts` |
-| 1035 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
 | 1033 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1023 | `packages/core/src/storage/file-session-writer.ts` |

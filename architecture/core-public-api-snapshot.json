@@ -1156,7 +1156,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 171,
-      "sourceLines": 49933
+      "sourceLines": 49994
     },
     {
       "directory": "core",
@@ -1219,7 +1219,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3841
+      "sourceLines": 3847
     },
     {
       "directory": "models",
@@ -1324,14 +1324,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11886
+      "sourceLines": 11880
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10528
+      "sourceLines": 10533
     },
     {
       "directory": "wiring",

@@ -91,7 +91,7 @@
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
-      "lines": 1035,
+      "lines": 1096,
       "relativeImports": 3
     },
     "packages/core/src/coordination/sqlite-mailbox.ts": {
@@ -167,7 +167,7 @@
       "relativeImports": 38
     },
     "packages/core/src/types/provider.ts": {
-      "lines": 890,
+      "lines": 884,
       "relativeImports": 7
     },
     "packages/core/src/types/session.ts": {
@@ -451,8 +451,8 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 1237,
-      "relativeImports": 10
+      "lines": 1311,
+      "relativeImports": 11
     },
     "packages/webui/src/stores/chat-lanes.ts": {
       "lines": 916,
@@ -471,11 +471,11 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/client-message.ts": {
-      "lines": 805,
+      "lines": 836,
       "relativeImports": 7
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 1046,
+      "lines": 1137,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -499,7 +499,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 815,
+      "lines": 822,
       "relativeImports": 53
     },
     "packages/webui-server/src/server/file-handlers.ts": {
