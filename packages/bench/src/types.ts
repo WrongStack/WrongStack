@@ -59,7 +59,7 @@ export interface BenchTask {
   traceEval?: TranscriptEvalSpec | undefined;
 }
 
-export type SuiteId = 'polyglot' | 'swebench' | 'local';
+type SuiteId = 'polyglot' | 'swebench' | 'local';
 
 /** A suite knows how to enumerate its tasks and grade a finished workdir. */
 export interface BenchSuite {
