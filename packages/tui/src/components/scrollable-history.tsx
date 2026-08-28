@@ -45,10 +45,7 @@ import {
 } from './history/selection-band-store.js';
 
 // ── Re-exports from extracted modules ────────────────────────────────────
-export type {
-  HistoryScrollController,
-  ScrollableHistoryProps,
-} from './history/scroll-controller-types.js';
+export type { HistoryScrollController } from './history/scroll-controller-types.js';;
 export {
   type CopyHit,
   LIVE_TOOL_STREAM_COPY_ID,

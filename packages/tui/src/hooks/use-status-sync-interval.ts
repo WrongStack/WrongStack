@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { Agent } from '@wrongstack/core/agent';
 
-export interface UseStatusSyncIntervalOptions {
+interface UseStatusSyncIntervalOptions {
   getAutonomy?: (() => string) | undefined;
   getYolo?: (() => boolean) | undefined;
   getModeLabel?: (() => string) | undefined;

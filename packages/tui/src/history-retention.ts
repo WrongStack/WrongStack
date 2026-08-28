@@ -89,7 +89,7 @@ function retainTextWithinEntryBudget(
  * Common text entries keep a readable prefix; unusual oversized structured
  * entries degrade to a small marker rather than retaining an unbounded graph.
  */
-export function retainTuiHistoryEntry(
+function retainTuiHistoryEntry(
   entry: HistoryEntry,
   maxBytes = TUI_HISTORY_MAX_ENTRY_BYTES,
 ): HistoryEntry {
@@ -150,7 +150,7 @@ export function retainTuiHistoryEntry(
   }
 }
 
-export interface TuiHistoryBudget {
+interface TuiHistoryBudget {
   maxEntries?: number | undefined;
   maxBytes?: number | undefined;
   maxEntryBytes?: number | undefined;

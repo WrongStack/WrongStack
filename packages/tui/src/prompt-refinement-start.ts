@@ -2,7 +2,7 @@ interface MutableSlot<T> {
   current: T;
 }
 
-export interface StartPromptRefinementOptions<T> {
+interface StartPromptRefinementOptions<T> {
   original: string;
   controller: AbortController;
   originalSlot: MutableSlot<string>;

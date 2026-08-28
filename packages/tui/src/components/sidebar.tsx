@@ -68,7 +68,7 @@ export function computeSidebarWidth(termCols: number): number {
   );
 }
 
-export interface RightSidebarProps {
+interface RightSidebarProps {
   /**
    * Optional explicit width override (in columns). When omitted, the width
    * is derived from the current terminal width via {@link computeSidebarWidth}.

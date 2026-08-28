@@ -4,7 +4,7 @@ import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 import type { ResourceMenuItem, ResourceMenuSnapshot } from '../ui-contracts.js';
 
-export interface ResourceMenuProps {
+interface ResourceMenuProps {
   snapshot: ResourceMenuSnapshot;
   selected: number;
   hint?: string | undefined;

@@ -64,7 +64,7 @@ export type DiffFilePreviews = DiffFilePreview[] & {
 // ── Constants ──
 
 /** Max code-block lines rendered before a "+N more" footer. */
-export const MAX_CODE_LINES = 80;
+const MAX_CODE_LINES = 80;
 /**
  * Hard ceiling for one file's rendered diff preview. Diff rows are React/Ink
  * elements and therefore retained by the active virtual-history window; an

@@ -20,7 +20,7 @@ import type { Action } from '../app-reducer.js';
 import { ARCHIVE_PAGE_SIZE, HistoryArchive, historyArchivePath } from '../history-archive.js';
 import type { HistoryEntry } from '../history-entry.js';
 
-export interface UseHistoryArchiveOptions {
+interface UseHistoryArchiveOptions {
   entries: readonly HistoryEntry[];
   dispatch: React.Dispatch<Action>;
   /** Root of the session store. Absent for ephemeral (`--no-session`) runs. */
@@ -29,7 +29,7 @@ export interface UseHistoryArchiveOptions {
   sessionId?: string | undefined;
 }
 
-export interface HistoryArchiveResult {
+interface HistoryArchiveResult {
   /** Passed to <ScrollableHistory>; fires when the user reaches the oldest row. */
   onRequestOlderEntries: () => void;
 }

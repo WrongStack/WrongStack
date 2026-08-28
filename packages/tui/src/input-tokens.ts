@@ -54,7 +54,7 @@ export function tokenSpanAt(buffer: string, cursor: number): { start: number; en
   return null;
 }
 
-export interface ChipSpan {
+interface ChipSpan {
   text: string;
   /** True for an attachment chip token, false for a plain run. */
   chip: boolean;

@@ -14,7 +14,7 @@
  * It is pure so the precedence can be tested without rendering the App.
  */
 
-export interface ContextFillInputs {
+interface ContextFillInputs {
   /**
    * Tokens reported by the agent loop's `ctx.pct` event
    * (`state.leader.ctxTokens`). Authoritative: it anchors on the provider's real
@@ -33,9 +33,9 @@ export interface ContextFillInputs {
   maxContext: number;
 }
 
-export type ContextFillSource = 'loop' | 'provider' | 'local' | 'none';
+type ContextFillSource = 'loop' | 'provider' | 'local' | 'none';
 
-export interface ContextFillResult {
+interface ContextFillResult {
   /** Tokens to display as "used". Always `<= maxContext` (and `>= 0`). */
   used: number;
   /**

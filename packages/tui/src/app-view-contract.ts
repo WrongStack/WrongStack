@@ -15,7 +15,7 @@ import type { useTuiEnvironmentState } from './hooks/use-tui-environment-state.j
 import type { DOMElement } from './ink.js';
 import type { StatuslineMode } from './settings-contracts.js';
 
-export interface AppViewRuntime {
+interface AppViewRuntime {
   state: State;
   dispatch: Dispatch<Action>;
   activity: ReturnType<typeof useTuiActivity>;

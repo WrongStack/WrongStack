@@ -4,7 +4,7 @@ import { Box, Text } from '../ink.js';
 import type { ThemeName, ThemePickerOption } from '../theme.js';
 import { ThemePreview } from './theme-preview.js';
 
-export interface ThemePickerProps {
+interface ThemePickerProps {
   options: readonly ThemePickerOption[];
   selected: number;
   activeId: ThemeName;

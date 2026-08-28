@@ -9,7 +9,7 @@ import { reducer } from '../app-reducer.js';
 import type { AppProps } from '../app-props.js';
 import { LayoutStore } from '../layout-store.js';
 
-export interface AppSessionStateOptions {
+interface AppSessionStateOptions {
   agent: AppProps['agent'];
   banner: boolean;
   appVersion?: string | undefined;

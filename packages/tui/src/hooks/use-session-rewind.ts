@@ -4,7 +4,7 @@ import type { Director } from '@wrongstack/core/coordination';
 import { applyRewindToConversation, DefaultSessionRewinder } from '@wrongstack/core/storage';
 import type { SessionInterruptController } from './use-session-interrupt-controller.js';
 
-export interface UseSessionRewindOptions {
+interface UseSessionRewindOptions {
   agent: Agent;
   sessionsDir?: string | undefined;
   interruptController?: SessionInterruptController | undefined;

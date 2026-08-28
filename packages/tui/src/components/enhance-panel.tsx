@@ -5,9 +5,9 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
-export type EnhanceDecision = 'refined' | 'english' | 'original' | 'edit' | 'retry' | 'cancel';
+type EnhanceDecision = 'refined' | 'english' | 'original' | 'edit' | 'retry' | 'cancel';
 
-export interface RefiningPanelProps {
+interface RefiningPanelProps {
   /** Prompt currently being rewritten. */
   original: string;
   /** Time spent in the refiner request so far. */
@@ -20,7 +20,7 @@ export interface RefiningPanelProps {
   model?: string | undefined;
 }
 
-export interface EnhancePanelProps {
+interface EnhancePanelProps {
   /** The user's original message. */
   original: string;
   /** Refined in the user's original language. */

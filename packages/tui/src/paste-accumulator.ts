@@ -14,7 +14,7 @@ import { MAX_PASTE_CHARS } from './input-validation.js';
 const BEGIN = '[200~';
 const END = '[201~';
 
-export interface PasteOverflowState {
+interface PasteOverflowState {
   readonly overflow: true;
 }
 
@@ -45,7 +45,7 @@ const ANSI_RE = new RegExp(
   'g',
 );
 
-export interface PasteFeedResult {
+interface PasteFeedResult {
   /** New accumulator state: text while buffering, overflow marker, or `null` when idle. */
   accum: PasteAccumState;
   /**

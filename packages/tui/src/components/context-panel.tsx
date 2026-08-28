@@ -88,7 +88,7 @@ export interface ContextPanelData {
   memoryContext: MemoryContextMonitorState;
 }
 
-export interface ContextPanelProps {
+interface ContextPanelProps {
   data: ContextPanelData;
   onClose: () => void;
 }

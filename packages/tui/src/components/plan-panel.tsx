@@ -34,7 +34,7 @@ interface PlanFile {
   items: PlanItem[];
 }
 
-export interface PlanPanelData {
+interface PlanPanelData {
   items: PlanItem[];
   title?: string | undefined;
   scope: 'session' | 'project';
@@ -45,7 +45,7 @@ export interface PlanPanelData {
   load: (scope: 'session' | 'project', quiet?: boolean) => Promise<void>;
 }
 
-export interface PlanPanelProps {
+interface PlanPanelProps {
   /** Absolute path to the project root. */
   projectRoot: string;
   /** Current session ID (null if no active session). */

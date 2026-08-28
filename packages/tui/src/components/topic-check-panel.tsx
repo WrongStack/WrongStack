@@ -2,7 +2,7 @@ import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { theme } from '../theme.js';
 
-export interface TopicCheckPanelProps {
+interface TopicCheckPanelProps {
   prompt: string;
 }
 

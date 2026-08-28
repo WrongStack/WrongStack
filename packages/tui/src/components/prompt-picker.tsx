@@ -97,7 +97,7 @@ function glyph(source: string): string {
   return source === 'project' ? '📁' : source === 'user' ? '👤' : source === 'synced' ? '☁' : '📦';
 }
 
-export interface PromptPickerProps {
+interface PromptPickerProps {
   /** Already-filtered entries for the active category. */
   entries: PromptPickEntry[];
   selected: number;

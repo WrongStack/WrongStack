@@ -11,7 +11,7 @@ export interface HelpEntry {
   desc: string;
 }
 
-export interface HelpSection {
+interface HelpSection {
   title: string;
   entries: HelpEntry[];
 }

@@ -37,7 +37,7 @@ export const KIND_EMOJI: Record<string, string> = {
   summary: '📋',
 };
 
-export function parseDate(ts: string): Date | null {
+function parseDate(ts: string): Date | null {
   if (!ts || typeof ts !== 'string') return null;
   const d = new Date(ts);
   return Number.isFinite(d.getTime()) ? d : null;

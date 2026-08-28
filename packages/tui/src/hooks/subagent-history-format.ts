@@ -29,7 +29,7 @@ export function shortenTaskPreview(task: string, maxChars = 56): string {
   return `${oneLine.slice(0, Math.max(1, maxChars - 1))}…`;
 }
 
-export interface SubagentCompletionLike {
+interface SubagentCompletionLike {
   status: string;
   iterations: number;
   toolCalls: number;

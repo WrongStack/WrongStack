@@ -228,7 +228,7 @@ function renderStackedRows(header: string[], rows: string[][], maxWidth: number)
 export const strWidth = displayWidth;
 
 /** Backward-compatible table export; ligature handling now lives centrally. */
-export const breakLigatures = breakTerminalLigatures;
+const breakLigatures = breakTerminalLigatures;
 
 function border(left: string, mid: string, right: string, widths: number[]): string {
   return left + widths.map((w) => '─'.repeat(w + 2)).join(mid) + right;

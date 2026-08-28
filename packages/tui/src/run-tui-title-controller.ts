@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { startTerminalTitle, type TerminalTitleHandle } from './terminal-title.js';
 
-export interface RunTuiTitleController {
+interface RunTuiTitleController {
   setEnabled(on: boolean): void;
   setModel(model: string): void;
 }

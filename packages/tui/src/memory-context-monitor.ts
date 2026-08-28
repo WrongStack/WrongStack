@@ -1,4 +1,4 @@
-export interface MemoryContextDetail {
+interface MemoryContextDetail {
   id: string;
   kind: string;
   text: string;
@@ -33,7 +33,7 @@ export interface MemoryContextTransition {
   reason: string;
 }
 
-export interface MemoryInjectorSummary {
+interface MemoryInjectorSummary {
   at: string;
   trigger: string;
   matched: number;

@@ -527,7 +527,7 @@ export function buildMinimumChips(p: StatusBarRailBuildParams): React.ReactEleme
   ].filter((c): c is React.ReactElement => c !== null);
 }
 
-export function buildMailboxDetailChips(
+function buildMailboxDetailChips(
   mailbox: MailboxStatus | undefined,
   showMailbox: boolean,
   isNoColor: boolean,

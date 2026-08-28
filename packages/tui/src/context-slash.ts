@@ -1,7 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
 
-export interface ContextSlashDeps {
+interface ContextSlashDeps {
   /** Bridge from slash-command execution to the mounted TUI reducer. */
   onPanelOpen?: { current: ((action: string) => boolean) | null } | undefined;
   /** Small history-safe snapshot shown after the interactive panel opens. */
@@ -17,7 +17,7 @@ export interface ContextSlashDeps {
   fallback?: SlashCommand | undefined;
 }
 
-export interface ContextPanelSummary {
+interface ContextPanelSummary {
   contextPct?: number | undefined;
   contextTokens?: number | undefined;
   contextMaxTokens?: number | undefined;

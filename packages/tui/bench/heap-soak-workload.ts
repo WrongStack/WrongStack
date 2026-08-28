@@ -3,7 +3,7 @@ import type { HistoryEntry } from '../src/history-entry.js';
 
 export const HEAP_SOAK_SEED = 0x5eedc0de;
 
-export interface HeapSoakWorkloadOptions {
+interface HeapSoakWorkloadOptions {
   entryCount: number;
   seed?: number | undefined;
 }

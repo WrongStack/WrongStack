@@ -2,7 +2,7 @@
 
 export type IconStyle = 'unicode' | 'nerd' | 'ascii';
 
-export interface UiGlyphs {
+interface UiGlyphs {
   brand: string;
   prompt: string;
   success: string;

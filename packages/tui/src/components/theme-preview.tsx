@@ -2,7 +2,7 @@ import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { resolveSyntaxColor, themePresets, type ThemeName } from '../theme.js';
 
-export interface ThemePreviewProps {
+interface ThemePreviewProps {
   /** Preset whose palette this preview renders. Must exist in `themePresets`. */
   presetId: ThemeName;
   /** Whether this preset is the currently applied one (`[active]` marker). */

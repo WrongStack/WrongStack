@@ -101,7 +101,7 @@ export function SageMemoryBlock({
 }
 
 /** One parsed memory, rendered as a structured key/value row block. */
-export function SageMemoryRow({
+function SageMemoryRow({
   parsed,
   index,
 }: {

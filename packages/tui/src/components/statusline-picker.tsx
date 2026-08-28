@@ -199,7 +199,7 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   index: 4,
 };
 
-export interface StatuslinePickerProps {
+interface StatuslinePickerProps {
   /** Focused field index. */
   field: number;
   /** Current hidden-items list. */
@@ -267,7 +267,7 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
 ];
 
 /** Stream-triggered chips — these auto-expire unless the user has toggled them on permanently. */
-export const STREAM_CHIP_KEYS: StatuslineItem[] = ['brain', 'mailbox', 'enhance', 'debug_stream'];
+const STREAM_CHIP_KEYS: StatuslineItem[] = ['brain', 'mailbox', 'enhance', 'debug_stream'];
 
 /** Group items by their display line (1-4). */
 function groupByLine(items: StatuslineItem[]): Map<number, StatuslineItem[]> {

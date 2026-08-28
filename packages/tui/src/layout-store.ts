@@ -28,7 +28,7 @@ const DEBOUNCE_MS = 500;
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-export interface LayoutStoreOptions {
+interface LayoutStoreOptions {
   /** Directory where the session's layout snapshot is stored. */
   sessionDataDir: string | undefined;
   /** When true, skip all disk I/O (for testing / no-session mode). */

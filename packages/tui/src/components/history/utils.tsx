@@ -1,19 +1,4 @@
-export {
-  countLines,
-  firstNonEmpty,
-  fmtBytes,
-  fmtDuration,
-  fmtTok,
-  formatMatchHit,
-  numOf,
-  previewArgs,
-  previewOutput,
-  scanNumberedRange,
-  shortenPath,
-  stringOf,
-  truncMid,
-  tryParseJson,
-} from './basic-format.js';
+export { countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, numOf, scanNumberedRange, shortenPath, stringOf, truncMid, tryParseJson } from './basic-format.js';
 export {
   MAX_STREAM_DISPLAY_CHARS,
   streamBoxRows,

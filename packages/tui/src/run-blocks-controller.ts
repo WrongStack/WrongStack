@@ -22,7 +22,7 @@ export interface RunBlocksRefs {
   readonly state: MutableCell<State>;
 }
 
-export interface RunBlocksHost {
+interface RunBlocksHost {
   readonly capabilities: RunBlocksCapabilities;
   readonly refs: RunBlocksRefs;
   dispatch(action: Action): void;

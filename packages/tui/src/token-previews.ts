@@ -17,7 +17,7 @@ const TRUNCATION_MARKER = '… [preview truncated]';
 const ATTACHMENT_WRAPPER_RE =
   /^<(?:pasted|file(?: path="[^"]*")?)>\n([\s\S]*)\n<\/(?:pasted|file)>$/;
 
-export interface TokenPreviewBudget {
+interface TokenPreviewBudget {
   maxEntries?: number | undefined;
   maxChars?: number | undefined;
   maxPreviewChars?: number | undefined;

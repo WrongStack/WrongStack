@@ -81,7 +81,7 @@ function activityColor(kind: ComposerStatus['kind'], frame: number, energy: numb
   }
 }
 
-export interface ComposerActivityIconProps {
+interface ComposerActivityIconProps {
   status: ComposerStatus;
   /** Glyph shown when the agent is idle (the flat brand mark). */
   idleGlyph: string;
@@ -297,7 +297,7 @@ function renderWorking(
   };
 }
 
-export interface ComposerStatusChipProps {
+interface ComposerStatusChipProps {
   status: ComposerStatus;
   /** Animation style for the working state (`'cycle'` rotates the variants). */
   animationStyle: AnimationStyle | 'cycle';

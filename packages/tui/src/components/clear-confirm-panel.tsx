@@ -1,13 +1,13 @@
 import type React from 'react';
 import { Box, Text } from '../ink.js';
 
-export interface ClearConfirmPanelProps {
+interface ClearConfirmPanelProps {
   leaderActive: boolean;
   subagentCount: number;
   value: string;
 }
 
-export interface ClearConfirmationKey {
+interface ClearConfirmationKey {
   escape?: boolean | undefined;
   return?: boolean | undefined;
   backspace?: boolean | undefined;
@@ -16,7 +16,7 @@ export interface ClearConfirmationKey {
   meta?: boolean | undefined;
 }
 
-export type ClearConfirmationKeyResult =
+type ClearConfirmationKeyResult =
   | { decision: true | false; value: string }
   | { decision: null; value: string };
 

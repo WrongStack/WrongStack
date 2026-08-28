@@ -38,7 +38,7 @@ interface NextStepsAutoSubmitOptions {
   runBlocksRef: MutableRefObject<(blocks: ContentBlock[]) => Promise<void>>;
 }
 
-export interface AutoProceedCandidateInput {
+interface AutoProceedCandidateInput {
   todos?: readonly TodoItem[] | undefined;
   suggestions?: readonly string[] | undefined;
   autoSuggestions?: readonly string[] | undefined;
@@ -46,7 +46,7 @@ export interface AutoProceedCandidateInput {
   autonomyNextPrompt?: string | undefined;
 }
 
-export interface AutoProceedCandidate {
+interface AutoProceedCandidate {
   source: 'todo' | 'suggestion' | 'auto-suggestion';
   prompt: string;
   label: string;

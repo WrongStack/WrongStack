@@ -8,7 +8,7 @@ export interface ShadowState {
   intervalMs: number;
 }
 
-export interface ShadowPanelProps {
+interface ShadowPanelProps {
   shadow: ShadowState;
   hint?: string | undefined;
 }

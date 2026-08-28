@@ -36,7 +36,7 @@ import type { PanelId, PanelPositionMap } from './ui-contracts.js';
 // backward compatibility with existing test imports.
 export { resolveAgentSwarmPanelVisibility } from './app-ui-state.js';
 
-export interface AppStatusRegionProps extends AppViewProps {
+interface AppStatusRegionProps extends AppViewProps {
   /** Optional column width cap for the status bar (when beside a sidebar). */
   mainColumnWidth?: number | undefined;
 }

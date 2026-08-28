@@ -50,7 +50,7 @@ import { auditKanbanBoard, type KanbanAuditSummary } from './kanban-audit.js';
  * We mirror that exact precedence so a `/kanban add` issued while the panel
  * is open lands on the same board the user is looking at.
  */
-export interface KanbanAddTarget {
+interface KanbanAddTarget {
   boardId: string;
   boardTitle: string;
   /** Column that the task will be placed in. Defaults to the first column. */
@@ -242,7 +242,7 @@ export function createKanbanSlashCommand(deps: KanbanSlashDeps): SlashCommand {
 
 // ── Argument parser ─────────────────────────────────────────────────────────
 
-export type ParsedKanbanArgs =
+type ParsedKanbanArgs =
   | { kind: 'open' }
   | { kind: 'help' }
   | { kind: 'boards' }
@@ -646,7 +646,7 @@ function resolveColumn(
  * Returns null when no summary matches. The caller can then surface a
  * helpful error pointing at `/kanban boards`.
  */
-export async function resolveBoardByQuery(
+async function resolveBoardByQuery(
   deps: Pick<KanbanSlashDeps, 'projectRoot'>,
   query: string,
 ): Promise<KanbanBoardSummary | null> {
@@ -774,7 +774,7 @@ function summarizeSearchResult(
  * Each board's row shows the issue counts (error · warning) and the
  * top-3 issues, biasing toward error severity first.
  */
-export async function renderProjectAudit(
+async function renderProjectAudit(
   deps: Pick<KanbanSlashDeps, 'projectRoot'>,
   boardQuery: string,
 ): Promise<string> {

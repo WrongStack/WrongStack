@@ -3,7 +3,7 @@ import type React from 'react';
 import { Box, Text } from '../ink.js';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 
-export interface DesignPickerProps {
+interface DesignPickerProps {
   kits: DesignKitEntry[];
   selected: number;
   stack: string;

@@ -23,7 +23,7 @@ import {
  * Keystroke coalescing window for `@`-file search. Long enough to swallow a
  * burst of typing, short enough that the results feel attached to the keys.
  */
-export const FILE_SEARCH_DEBOUNCE_MS = 150;
+const FILE_SEARCH_DEBOUNCE_MS = 150;
 
 // ── Exported helpers (pure, no hook dependency) ─────────────────────
 
@@ -54,7 +54,7 @@ export function detectAtToken(
 
 // ── Hook ────────────────────────────────────────────────────────────
 
-export interface UseFileSearchOptions {
+interface UseFileSearchOptions {
   state: State;
   dispatch: React.Dispatch<Action>;
   projectRoot: string;
@@ -64,7 +64,7 @@ export interface UseFileSearchOptions {
   tokenPreviewsRef: React.MutableRefObject<TokenPreviewStore>;
 }
 
-export interface FileSearchResult {
+interface FileSearchResult {
   /** Called from the host's Enter handler when the file picker is open. */
   onPickerEnter: () => Promise<void>;
 }

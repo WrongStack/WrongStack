@@ -2,7 +2,7 @@ import { Box, Text } from '../ink.js';
 import type React from 'react';
 import type { SlashCommandMatch } from '../app-state.js';
 
-export interface SlashMenuProps {
+interface SlashMenuProps {
   query: string;
   matches: SlashCommandMatch[];
   selected: number;

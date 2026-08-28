@@ -12,7 +12,7 @@ type ClearHistoryDispatch = React.Dispatch<
   | { type: 'toolStreamClear' }
 >;
 
-export interface UseTuiEventBridgeOptions {
+interface UseTuiEventBridgeOptions {
   events: EventBus;
   dispatch: React.Dispatch<Action>;
   stateRef: { current: State };

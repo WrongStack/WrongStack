@@ -40,7 +40,7 @@ export function filterRefineModels<T extends RefineFailureModel>(
   );
 }
 
-export interface RefineFailurePanelProps {
+interface RefineFailurePanelProps {
   /** The user's original message (sent as-is if they decline recovery). */
   original: string;
   /** Short failure reason from the refiner (provider error / timeout / empty). */

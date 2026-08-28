@@ -83,8 +83,8 @@ export const ALT_SCREEN_ON = `${ESC}[?1049h`;
  */
 export const ALT_SCREEN_OFF = `${ESC}[?1049l`;
 
-export type MouseEventKind = 'press' | 'release' | 'move' | 'wheel';
-export type MouseButton = 'left' | 'middle' | 'right' | 'none';
+type MouseEventKind = 'press' | 'release' | 'move' | 'wheel';
+type MouseButton = 'left' | 'middle' | 'right' | 'none';
 
 export interface MouseEventInfo {
   kind: MouseEventKind;

@@ -43,7 +43,7 @@ export interface ScrollGeometry {
 
 /** Extra rows mounted beyond the visible viewport so rapid scrolling has
  *  content ready before the next measurement pass. */
-export const OVERSCAN_ROWS = 8;
+const OVERSCAN_ROWS = 8;
 
 /** Total scrollable content height in rows (groups + live tail). */
 export function contentRows(geometry: ScrollGeometry): number {
@@ -124,7 +124,7 @@ export function anchorForTrackCell(
 }
 
 /** Result of planning which groups to mount for one frame. */
-export interface MountPlan {
+interface MountPlan {
   /** First group index to mount (inclusive). */
   startIdx: number;
   /** Last group index to mount (exclusive). */

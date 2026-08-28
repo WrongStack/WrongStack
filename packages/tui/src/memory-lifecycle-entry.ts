@@ -10,7 +10,7 @@ export type MemoryLifecycleAction =
   | 'staled'
   | 'contradicted';
 
-export interface MemoryLifecycleEntryData {
+interface MemoryLifecycleEntryData {
   action: MemoryLifecycleAction;
   label: string;
   detail?: string | undefined;

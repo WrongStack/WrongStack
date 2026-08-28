@@ -24,7 +24,7 @@ import {
   authPanelRows,
 } from '../auth-panel-model.js';
 
-export interface UseAuthPanelOptions {
+interface UseAuthPanelOptions {
   authHost: AuthPanelHost | undefined;
   stateRef: { current: State };
   dispatch: React.Dispatch<Action>;

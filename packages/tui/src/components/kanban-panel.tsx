@@ -32,7 +32,7 @@ import {
 import { theme } from '../theme.js';
 import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
-export interface KanbanPanelProps {
+interface KanbanPanelProps {
   projectRoot: string;
   /**
    * Session driving the panel. Required: every board mutation the panel makes
@@ -722,7 +722,7 @@ export function stageForColumn(
  * header. Mirrors the WebUI palette so the same board reads the same in
  * either surface.
  */
-export function stageToIndicator(stage: KanbanLifecycleStage): {
+function stageToIndicator(stage: KanbanLifecycleStage): {
   glyph: string;
   color: string;
 } {
@@ -901,7 +901,7 @@ function linkIcon(type: KanbanLink['type']): string {
  * The component renders nothing when the audit is empty so a clean
  * board doesn't add visual noise.
  */
-export function AuditAlert({
+function AuditAlert({
   summary,
   topN = 3,
 }: {

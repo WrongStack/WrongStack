@@ -130,9 +130,9 @@ export function retainStreamTail(current: string, delta: string, maxChars: numbe
 }
 
 /** Caps applied to tool `input` payloads before retention in history entries. */
-export const MAX_RETAINED_INPUT_CHARS = 2_048;
+const MAX_RETAINED_INPUT_CHARS = 2_048;
 export const MAX_RETAINED_INPUT_DEPTH = 4;
-export const MAX_RETAINED_INPUT_ITEMS = 64;
+const MAX_RETAINED_INPUT_ITEMS = 64;
 
 /**
  * Deep-truncate a tool input for long-term retention in history entries.

@@ -5,7 +5,7 @@ interface ReplaceDiffItem {
   diff: string;
 }
 
-export interface PathedDiffItem {
+interface PathedDiffItem {
   path?: string | undefined;
   diff: string;
 }
@@ -21,7 +21,7 @@ export function joinReplaceDiffs(obj: Record<string, unknown>): string | undefin
   return diffs.length > 0 ? diffs.join('\n') : undefined;
 }
 
-export function splitReplaceDiffs(obj: Record<string, unknown>): ReplaceDiffItem[] {
+function splitReplaceDiffs(obj: Record<string, unknown>): ReplaceDiffItem[] {
   const results = Array.isArray(obj['results']) ? (obj['results'] as unknown[]) : [];
   const items: ReplaceDiffItem[] = [];
   for (const result of results) {

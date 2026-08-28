@@ -81,7 +81,7 @@ export interface BodyRowSpan {
   end: number;
 }
 
-export interface BodyRowMap {
+interface BodyRowMap {
   /** Per-card-row spans, index 0 = card row 0 (v1 origin). */
   rows: readonly BodyRowSpan[];
   /** The exact text the map indexes into — the render base (sanitized; for

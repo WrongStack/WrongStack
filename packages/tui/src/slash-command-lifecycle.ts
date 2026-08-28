@@ -1,7 +1,7 @@
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
 import type { SlashCommand } from '@wrongstack/core/types';
 
-export interface SlashCommandRegistrationOptions {
+interface SlashCommandRegistrationOptions {
   owner?: string | undefined;
   official?: boolean | undefined;
 }

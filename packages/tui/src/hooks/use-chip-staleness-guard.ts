@@ -22,7 +22,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type ChipStalenessRootCause =
+type ChipStalenessRootCause =
   | 'animation_frozen'
   | 'data_source_stale'
   | 'subscription_dropped';
@@ -38,7 +38,7 @@ export interface ChipStalenessDiagnosis {
   detectedAt: number;
 }
 
-export interface ChipStalenessGuardState {
+interface ChipStalenessGuardState {
   /** Bumped every time a forced re-render is triggered. Use as a key fragment. */
   renderNonce: number;
   /** Current staleness diagnoses (empty = all healthy). */
@@ -47,7 +47,7 @@ export interface ChipStalenessGuardState {
   recoveryCount: number;
 }
 
-export interface UseChipStalenessGuardOptions {
+interface UseChipStalenessGuardOptions {
   /** Agent run state — determines which chips SHOULD be updating. */
   agentState: 'idle' | 'running' | 'streaming' | 'aborting';
   /** Current spinner phase index (advances every SPINNER_INTERVAL_MS while active). */

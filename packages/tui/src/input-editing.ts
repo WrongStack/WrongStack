@@ -119,7 +119,7 @@ export function nextInputWordStart(buffer: string, cursor: number): number {
  * should land in it. `null` means there is nothing to delete (cursor at
  * the relevant boundary).
  */
-export interface WordDeleteResult {
+interface WordDeleteResult {
   buffer: string;
   cursor: number;
 }

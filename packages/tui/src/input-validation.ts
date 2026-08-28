@@ -77,53 +77,16 @@ import {
 import type { ValidationResult } from './input-validation/result.js';
 import { MAX_TOOL_STREAM_RETAINED_CHARS } from './reducers/helpers.js';
 
-export {
-  ALLOWED_ACTION_TYPES,
-  type AllowedActionType,
-} from './input-validation/action-types.js';
-export {
-  ALLOWED_AUTONOMY_MODES,
-  ALLOWED_CAPABILITY_FIELDS,
-  ALLOWED_COLLAB_VERDICTS,
-  ALLOWED_ENTRY_KINDS,
-  ALLOWED_FLEET_CHAT_MODES,
-  ALLOWED_FLEET_STATUSES,
-  ALLOWED_KEY_EVENT_FIELDS,
-  ALLOWED_MOUSE_BUTTONS,
-  ALLOWED_MOUSE_KINDS,
-  ALLOWED_PICKER_KINDS,
-  ALLOWED_SCROLL_DIRS,
-  ALLOWED_SDD_OPS,
-  ALLOWED_SEND_MODES,
-  TEXT_BEARING_ENTRY_KINDS,
-} from './input-validation/allow-lists.js';
-export {
-  MAX_ACTION_DEPTH,
-  MAX_ACTION_STRING_FIELD,
-  MAX_BATCHED_ACTIONS,
-  MAX_ENTRY_TEXT_CHARS,
-  MAX_FLEET_ENTRIES,
-  MAX_HISTORY_ENTRIES,
-  MAX_HOST_STRING_FIELD,
-  MAX_INPUT_BUFFER_CHARS,
-  MAX_PASTE_CHARS,
-  MAX_PASTE_FRAGMENT_CHARS,
-  MAX_PICKER_MATCHES,
-  MAX_RECENT_MESSAGES,
-  MAX_RECENT_TOOLS,
-} from './input-validation/limits.js';
+export { ALLOWED_ACTION_TYPES } from './input-validation/action-types.js';;
+export { ALLOWED_ENTRY_KINDS, ALLOWED_FLEET_STATUSES, ALLOWED_KEY_EVENT_FIELDS, ALLOWED_MOUSE_BUTTONS, ALLOWED_MOUSE_KINDS, TEXT_BEARING_ENTRY_KINDS } from './input-validation/allow-lists.js';;
+export { MAX_ACTION_DEPTH, MAX_ACTION_STRING_FIELD, MAX_BATCHED_ACTIONS, MAX_ENTRY_TEXT_CHARS, MAX_FLEET_ENTRIES, MAX_HISTORY_ENTRIES, MAX_INPUT_BUFFER_CHARS, MAX_PASTE_CHARS, MAX_PASTE_FRAGMENT_CHARS, MAX_PICKER_MATCHES, MAX_RECENT_MESSAGES, MAX_RECENT_TOOLS } from './input-validation/limits.js';;
 export type {
   ValidationError,
   ValidationOk,
   ValidationResult,
 } from './input-validation/result.js';
 export { validateFleetEntry, validateRestoreEntry } from './input-validation/state-entries.js';
-export {
-  validateKeyEventFields,
-  validateMouseEvent,
-  validatePasteContent,
-  validateStdinFragment,
-} from './input-validation/terminal.js';
+export { validateMouseEvent, validatePasteContent, validateStdinFragment } from './input-validation/terminal.js';;
 
 // -- Action validation ---------------------------------------------------
 

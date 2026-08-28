@@ -29,7 +29,7 @@ export interface CronListResult {
   error?: string | undefined;
 }
 
-export interface CronSlashDeps {
+interface CronSlashDeps {
   getCronJobs: () => Promise<CronListResult>;
 }
 

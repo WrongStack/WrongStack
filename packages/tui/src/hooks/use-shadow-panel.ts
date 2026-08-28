@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Action } from '../app-reducer.js';
 
-export interface ShadowPanelHost {
+interface ShadowPanelHost {
   getShadowData?: (() => { activeId: string | null; running: boolean; model: string; intervalMs: number }) | undefined;
   onShadowStart?: (() => Promise<string | undefined>) | undefined;
   onShadowStop?: (() => Promise<string | undefined>) | undefined;

@@ -5,9 +5,9 @@ import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { wrapRefinementPreview } from './enhance-panel.js';
 
-export type RefineCountdownDecision = 'proceed' | 'skip' | 'cancel';
+type RefineCountdownDecision = 'proceed' | 'skip' | 'cancel';
 
-export interface RefineCountdownPanelProps {
+interface RefineCountdownPanelProps {
   /** The user's just-submitted message. */
   original: string;
   /** Grace period, in seconds, before the refiner call starts. */

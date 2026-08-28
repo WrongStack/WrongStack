@@ -36,7 +36,7 @@ export interface LiveAgentEntry {
   lastActivityAt: string;
 }
 
-export interface SessionsPanelProps {
+interface SessionsPanelProps {
   sessions: LiveSessionEntry[];
   /** True while the data is being fetched. */
   busy: boolean;

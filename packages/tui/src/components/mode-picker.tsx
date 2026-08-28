@@ -10,7 +10,7 @@ export interface ModeOption {
   isActive: boolean;
 }
 
-export interface ModePickerProps {
+interface ModePickerProps {
   modes: ModeOption[];
   selected: number;
   hint?: string | undefined;

@@ -10,7 +10,7 @@ const fmtElapsed = (ms: number): string => {
   return `${s}s`;
 };
 
-export interface PhaseMonitorProps {
+interface PhaseMonitorProps {
   /** Per-phase state from the App reducer. */
   phases: Record<
     string,

@@ -4,7 +4,7 @@ import type { MemoryPort, Provider, ReasoningRequest, TokenCounter } from '@wron
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { Action, Settings } from './app-reducer.js';
 
-export interface PickableProviderCapability {
+interface PickableProviderCapability {
   id: string;
   family?: string | undefined;
   models: string[];

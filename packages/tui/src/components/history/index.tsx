@@ -7,14 +7,7 @@ import type { HistoryProps } from './types.js';
 
 // ── Re-exports ──
 
-export {
-  AssistantBody,
-  assistantContentWidth,
-  MESSAGE_PANEL_BORDER_WIDTH,
-  MESSAGE_PANEL_CHROME_WIDTH,
-  MESSAGE_PANEL_MARGIN,
-  splitFencedBlocks,
-} from './assistant.js';
+export { AssistantBody, assistantContentWidth, MESSAGE_PANEL_BORDER_WIDTH, MESSAGE_PANEL_CHROME_WIDTH, splitFencedBlocks } from './assistant.js';;
 export { Banner } from './banner.js';
 export {
   CodeBlock,
@@ -38,33 +31,7 @@ export {
 } from './code-block.js';
 export { Entry } from './entry.js';
 export type { AutonomyAgentStatus, BodySegment, HistoryEntry, HistoryProps } from './types.js';
-export {
-  countLines,
-  firstNonEmpty,
-  fmtBytes,
-  fmtDuration,
-  fmtTok,
-  formatMatchHit,
-  formatToolArgs,
-  formatToolOutput,
-  formatToolVisualOutput,
-  MAX_STREAM_DISPLAY_CHARS,
-  numOf,
-  previewArgs,
-  previewOutput,
-  scanNumberedRange,
-  shortenPath,
-  streamBoxRows,
-  stringOf,
-  ToolOutputLines,
-  ToolStreamBox,
-  type ToolVisualLine,
-  type ToolVisualLineKind,
-  tailForDisplay,
-  toolStreamBoxHeight,
-  truncMid,
-  tryParseJson,
-} from './utils.js';
+export { countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, formatToolArgs, formatToolOutput, formatToolVisualOutput, MAX_STREAM_DISPLAY_CHARS, numOf, scanNumberedRange, shortenPath, streamBoxRows, stringOf, ToolOutputLines, ToolStreamBox, type ToolVisualLine, type ToolVisualLineKind, tailForDisplay, toolStreamBoxHeight, truncMid, tryParseJson } from './utils.js';;
 
 // ── History Component ──
 

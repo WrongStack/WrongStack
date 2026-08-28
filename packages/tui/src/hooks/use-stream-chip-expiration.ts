@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { isChipExpired, type ChipMeta, type StatuslineItem } from '../components/statusline-picker.js';
 
-export type StreamChipAction =
+type StreamChipAction =
   | { type: 'statuslineChipShow'; key: StatuslineItem; expiresIn: number }
   | { type: 'statuslineChipExpire'; key: StatuslineItem };
 
@@ -37,7 +37,7 @@ export function computeExpiredChipKeys(
   return chips.filter((chip) => isChipExpired(chip, now)).map((chip) => chip.key);
 }
 
-export interface UseStreamChipExpirationOptions {
+interface UseStreamChipExpirationOptions {
   brainPrompt: unknown;
   enhance: unknown;
   visibleChips: readonly ChipMeta[];

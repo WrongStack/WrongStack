@@ -34,7 +34,7 @@ export interface MailboxAgentEntry {
   source?: string | undefined;
 }
 
-export interface MailboxPanelProps {
+interface MailboxPanelProps {
   /** Recent messages (newest first). */
   messages: MailboxMessageEntry[];
   /** Online agents in this project. */

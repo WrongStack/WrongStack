@@ -58,7 +58,7 @@ export type RenderGroup =
  * reads) would mount the whole run on every streaming redraw and defeat the
  * bounded history window.
  */
-export const MAX_TOOL_GROUP_ENTRIES = 12;
+const MAX_TOOL_GROUP_ENTRIES = 12;
 
 /**
  * These tools render structured, potentially multi-row diff output through

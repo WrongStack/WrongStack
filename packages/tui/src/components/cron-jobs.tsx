@@ -47,7 +47,7 @@ export interface CronListResult {
   error?: string | undefined;
 }
 
-export interface CronJobsMonitorProps {
+interface CronJobsMonitorProps {
   /** Async callback that returns the current cron list (wired to cron_list tool). */
   getCronJobs: () => Promise<CronListResult>;
   onCancel?: ((name: string) => Promise<string | null>) | undefined;

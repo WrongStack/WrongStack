@@ -1,4 +1,4 @@
-export type SubmitHistoryRoute = 'slash' | 'normal';
+type SubmitHistoryRoute = 'slash' | 'normal';
 
 /**
  * Decide whether a submitted input should be pushed into input history.

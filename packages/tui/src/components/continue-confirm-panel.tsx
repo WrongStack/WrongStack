@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Text, useInput } from '../ink.js';
 
-export type ContinueDecision = 'proceed' | 'edit' | 'cancel';
+type ContinueDecision = 'proceed' | 'edit' | 'cancel';
 
 /**
  * Return the visible auto-proceed countdown in seconds, or null when the user
@@ -12,7 +12,7 @@ export function continueAutoProceedSeconds(grounded: boolean, delayMs: number): 
   return grounded ? Math.max(1, Math.ceil(delayMs / 1000)) : null;
 }
 
-export interface ContinueConfirmPanelProps {
+interface ContinueConfirmPanelProps {
   /** One-line summary of what "continue" resolved to. */
   label: string;
   /** The full instruction that will be sent in place of the bare "continue". */

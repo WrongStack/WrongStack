@@ -16,7 +16,7 @@
  */
 
 /** Row span of an in-progress drag, in viewport rows (0-based, inclusive). */
-export interface SelectionBand {
+interface SelectionBand {
   readonly topRow: number;
   readonly bottomRow: number;
   /** Row under the live drag head — rendered denser so the user can see
@@ -24,7 +24,7 @@ export interface SelectionBand {
   readonly headRow: number;
 }
 
-export type SelectionBandSnapshot = SelectionBand | null;
+type SelectionBandSnapshot = SelectionBand | null;
 
 export interface SelectionBandStore {
   subscribe(listener: () => void): () => void;

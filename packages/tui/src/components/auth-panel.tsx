@@ -16,7 +16,7 @@ import {
 } from './provider-colors.js';
 import { catppuccin } from '../theme.js';
 
-export interface AuthPanelProps {
+interface AuthPanelProps {
   panel: AuthPanelState;
 }
 

@@ -14,7 +14,7 @@ export interface ToolPickerItem {
   description: string;
 }
 
-export interface ToolsPickerProps {
+interface ToolsPickerProps {
   items: ToolPickerItem[];
   selected: number;
   busy?: boolean | undefined;

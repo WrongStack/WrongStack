@@ -20,9 +20,9 @@ export type CheckpointEntry = State['checkpoints'][number];
 export const TUI_CHECKPOINTS_MAX_ENTRIES = 200;
 
 /** Default maximum serialized bytes across all retained checkpoints. */
-export const TUI_CHECKPOINTS_MAX_BYTES = 256 * 1024;
+const TUI_CHECKPOINTS_MAX_BYTES = 256 * 1024;
 
-export interface CheckpointBudget {
+interface CheckpointBudget {
   maxEntries?: number | undefined;
   maxBytes?: number | undefined;
 }

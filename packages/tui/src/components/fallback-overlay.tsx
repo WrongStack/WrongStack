@@ -8,7 +8,7 @@ export interface FallbackCandidate {
   model: string;
 }
 
-export interface FallbackOverlayProps {
+interface FallbackOverlayProps {
   requestId: string;
   from: { providerId: string; model: string };
   status: number;

@@ -4,7 +4,7 @@ import React from 'react';
 
 export type ShellCommandWarningDecision = 'yes' | 'no' | 'dont-show-again';
 
-export interface ShellCommandWarningProps {
+interface ShellCommandWarningProps {
   command: string;
   onDecision: (decision: ShellCommandWarningDecision) => void;
 }

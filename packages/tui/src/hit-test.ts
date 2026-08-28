@@ -24,7 +24,7 @@ export interface MouseLayout {
   viewportRows: number;
 }
 
-export type HitRegion =
+type HitRegion =
   /** The copy/scroll rail; `cell` is the 0-based row on the track. */
   | { kind: 'scrollbar'; cell: number }
   /** Inside the history viewport; `row` is 0-based from the viewport top. */

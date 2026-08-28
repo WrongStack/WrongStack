@@ -40,7 +40,7 @@ interface MemoryPoint {
   timestampMs: number;
 }
 
-export interface MountedStructureCounts {
+interface MountedStructureCounts {
   inkElements: number;
   textNodes: number;
   yogaNodes: number;
@@ -134,7 +134,7 @@ function memoryPoint(
   };
 }
 
-export function countMountedStructures(root: DOMElement | null): MountedStructureCounts {
+function countMountedStructures(root: DOMElement | null): MountedStructureCounts {
   const counts: MountedStructureCounts = {
     inkElements: 0,
     textNodes: 0,

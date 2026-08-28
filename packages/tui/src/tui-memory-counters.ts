@@ -3,7 +3,7 @@
  * process memory samples. Keep this module payload-free: counters must never
  * retain provider text, tool outputs, actions or React state.
  */
-export interface TuiMemoryCounters {
+interface TuiMemoryCounters {
   appRenders: number;
   providerTextDeltaEvents: number;
   providerTextDeltaChars: number;

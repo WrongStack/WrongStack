@@ -18,7 +18,7 @@ interface HeapSnapshotFile {
   strings: string[];
 }
 
-export interface HeapDominator {
+interface HeapDominator {
   rank: number;
   nodeIndex: number;
   type: string;
@@ -29,7 +29,7 @@ export interface HeapDominator {
   dominatedNodes: number;
 }
 
-export interface HeapDominatorReport {
+interface HeapDominatorReport {
   snapshotPath: string;
   nodeCount: number;
   edgeCount: number;

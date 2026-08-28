@@ -25,7 +25,7 @@
 
 import type { Action, State } from './app-reducer.js';
 
-export interface EscCloseEntry {
+interface EscCloseEntry {
   /** Human-readable name for debugging and tests. */
   name: string;
   /** Whether this panel is currently open. */

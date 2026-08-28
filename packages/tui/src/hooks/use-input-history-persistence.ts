@@ -4,7 +4,7 @@ import { resolveWstackPaths } from '@wrongstack/core/utils';
 import { useEffect, useMemo, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';
 
-export interface UseInputHistoryPersistenceOptions {
+interface UseInputHistoryPersistenceOptions {
   projectRoot: string;
   inputHistory: State['inputHistory'];
   dispatch: React.Dispatch<Action>;

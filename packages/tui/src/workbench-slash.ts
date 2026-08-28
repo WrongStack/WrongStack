@@ -1,7 +1,7 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import { getKanbanWorkbench, type KanbanWorkbenchSnapshot } from '@wrongstack/kanban';
 
-export interface WorkbenchSlashDeps {
+interface WorkbenchSlashDeps {
   projectRoot: string;
 }
 

@@ -9,7 +9,7 @@ export interface HelpEntry {
   argsHint?: string | undefined;
 }
 
-export interface HelpPanelProps {
+interface HelpPanelProps {
   entries: HelpEntry[];
   filter: string;
   selected: number;

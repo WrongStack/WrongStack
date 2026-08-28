@@ -45,7 +45,7 @@ export interface DurableTeardownOptions {
   exit: (code: number) => void;
 }
 
-export interface DurableTeardown {
+interface DurableTeardown {
   /**
    * Signal-driven shutdown (SIGTERM/SIGHUP/Ctrl+C): full ordered sequence,
    * ends by calling exit(). Safe to fire concurrently from several handlers

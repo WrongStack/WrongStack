@@ -7,7 +7,7 @@ import { useCallback, useRef } from 'react';
 import type { Action } from '../app-reducer.js';
 import type { PromptPickEntry } from '../components/prompt-picker.js';
 
-export interface PromptLibraryEntry {
+interface PromptLibraryEntry {
   slug: string;
   title: string;
   description: string;
@@ -17,7 +17,7 @@ export interface PromptLibraryEntry {
   favorite: boolean;
 }
 
-export interface PromptPickerOpenPayload {
+interface PromptPickerOpenPayload {
   all: PromptPickEntry[];
   categories: string[];
   recentSlugs: string[];
@@ -46,7 +46,7 @@ export function buildPromptPickerPayload(
   return { all: entries, categories, recentSlugs };
 }
 
-export interface UsePromptPickerOptions {
+interface UsePromptPickerOptions {
   projectRoot: string;
   dispatch: React.Dispatch<Action>;
 }

@@ -15,7 +15,7 @@ export interface PluginPickerItem {
   lockable?: boolean | undefined;
 }
 
-export interface PluginPickerProps {
+interface PluginPickerProps {
   items: PluginPickerItem[];
   selected: number;
   busy?: boolean | undefined;

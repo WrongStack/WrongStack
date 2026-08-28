@@ -77,7 +77,7 @@ function pushMetricHistory<T>(buffer: T[], value: T): void {
   if (buffer.length > MAX_METRIC_HISTORY) buffer.shift();
 }
 
-export interface UseTuiActivityOptions {
+interface UseTuiActivityOptions {
   status: State['status'];
   fleet: State['fleet'];
   enhanceBusy: boolean;

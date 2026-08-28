@@ -20,7 +20,7 @@ export interface ProjectPickerItem {
   kind: 'project' | 'action';
 }
 
-export interface ProjectPickerProps {
+interface ProjectPickerProps {
   /** Already-filtered items. Navigation indices target this list directly. */
   items: ProjectPickerItem[];
   /** Index into `items`. Guaranteed to never point at a divider. */

@@ -7,7 +7,7 @@ import { DiffBlock, parseUnifiedDiff } from './history/code-block.js';
 
 export type ConfirmDecision = 'yes' | 'no' | 'always' | 'deny';
 
-export interface ConfirmPromptProps {
+interface ConfirmPromptProps {
   toolName: string;
   input: unknown;
   suggestedPattern: string;

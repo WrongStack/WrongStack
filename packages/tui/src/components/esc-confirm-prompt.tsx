@@ -1,7 +1,7 @@
 import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
 
-export interface EscConfirmPromptProps {
+interface EscConfirmPromptProps {
   runningTools: string[];
   subagentCount: number;
   onConfirm: () => void;

@@ -8,7 +8,7 @@ export interface GetModesResult {
   activeId: string | null;
 }
 
-export interface UseModePickerOptions {
+interface UseModePickerOptions {
   dispatch: React.Dispatch<Action>;
   getModes?: (() => Promise<GetModesResult>) | undefined;
 }

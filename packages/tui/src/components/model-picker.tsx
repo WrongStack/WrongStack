@@ -30,7 +30,7 @@ export interface ProviderOption {
     | undefined;
 }
 
-export interface ModelPickerProps {
+interface ModelPickerProps {
   step: 'provider' | 'model';
   providerOptions: ProviderOption[];
   /** All model options for the current provider. */

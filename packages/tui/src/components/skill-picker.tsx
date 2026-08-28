@@ -4,7 +4,7 @@ import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 import { Box, Text } from '../ink.js';
 import { wrapRefinementPreview } from './enhance-panel.js';
 
-export interface SkillPickerProps {
+interface SkillPickerProps {
   entries: readonly SkillEntry[];
   selected: number;
   hint?: string | undefined;

@@ -15,7 +15,7 @@ export interface UsePasteHandlingOptions {
   tokenPreviewsRef: React.MutableRefObject<TokenPreviewStore>;
 }
 
-export interface PasteHandlingResult {
+interface PasteHandlingResult {
   pasteAccumRef: React.MutableRefObject<PasteAccumState>;
   pasteFlushTimerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>;
   commitPaste: (full: string) => Promise<void>;

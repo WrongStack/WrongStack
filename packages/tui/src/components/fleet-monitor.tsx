@@ -18,7 +18,7 @@ function shortSessionId(sessionId: string): string {
   return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
 }
 
-export interface FleetMonitorProps {
+interface FleetMonitorProps {
   entries: Record<string, FleetEntry>;
   /** Fleet-wide accumulated cost. */
   totalCost: number;

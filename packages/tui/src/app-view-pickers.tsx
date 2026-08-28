@@ -50,7 +50,7 @@ import type { PanelId, SendMode } from './ui-contracts.js';
 
 const CONTINUE_CONFIRM_DELAY_MS = 4000;
 
-export interface AppViewPickersProps {
+interface AppViewPickersProps {
   host: AppViewProps['host'];
   runtime: AppViewProps['runtime'];
   mainColumnWidth: number;

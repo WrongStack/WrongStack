@@ -97,7 +97,7 @@ export function buildRestoredCheckpoints(
   return retainCheckpoints([...byIndex.values()].sort((a, b) => a.promptIndex - b.promptIndex));
 }
 
-export interface CreateInitialStateOptions {
+interface CreateInitialStateOptions {
   banner: boolean;
   appVersion?: string | undefined;
   provider?: string | undefined;

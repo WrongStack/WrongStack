@@ -15,7 +15,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 const setTitle = (s: string): string => `\x1b]0;${s}\x07`;
 
-export interface TerminalTitleOptions {
+interface TerminalTitleOptions {
   stdout: NodeJS.WriteStream;
   events: EventBus;
   model?: string | undefined;

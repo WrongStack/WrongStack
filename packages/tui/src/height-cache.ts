@@ -16,7 +16,7 @@
  * (border + content + margin) and prevents a flash of zero-height spacers
  * during the first render pass.
  */
-export const DEFAULT_ENTRY_HEIGHT = 3;
+const DEFAULT_ENTRY_HEIGHT = 3;
 
 /**
  * Prefix-sum-based height cache for history entries.
@@ -307,7 +307,7 @@ export class EntryHeightCache {
  * Returns a result with `startIdx`, `endIdx`, `spacerAbove`, and `spacerBelow`
  * that the caller uses to render only the visible window.
  */
-export interface ComputeWindowResult {
+interface ComputeWindowResult {
   /** Index of the first entry to render (inclusive). */
   startIdx: number;
   /** Index of the last entry to render (exclusive, like Array.slice end). */

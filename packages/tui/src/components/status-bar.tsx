@@ -59,15 +59,7 @@ export {
   truncateChip,
 } from './status-bar-format.js';
 
-export {
-  chipColor,
-  COMPACT_THRESHOLD,
-  LINE_BG_COLORS,
-  SPINNER_FRAMES,
-  SPINNER_INTERVAL_MS,
-  STACK_ORANGE,
-  STATUSLINE_ICONS,
-} from './status-bar-icons.js';
+export { chipColor, SPINNER_INTERVAL_MS, STACK_ORANGE, STATUSLINE_ICONS } from './status-bar-icons.js';;
 
 export type {
   BrainStatusChip,

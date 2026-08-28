@@ -19,7 +19,7 @@ export type FKeyPanelAction =
   | 'statuslineOpen';
 
 /** Host-side action keys that require work beyond a reducer dispatch. */
-export type FKeyHostAction = 'openProjectPicker' | 'loadLiveSessions' | 'openStatuslinePicker';
+type FKeyHostAction = 'openProjectPicker' | 'loadLiveSessions' | 'openStatuslinePicker';
 
 /** A single F-key panel entry shared by the picker, help overlay, and tests. */
 export interface FKeyPanelEntry {

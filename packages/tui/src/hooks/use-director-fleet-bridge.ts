@@ -25,7 +25,7 @@ const FLUSH_MS = 500;
  * retained buffers (`pending`, `streamBuf`, `historyBuf`), for every subagent
  * streaming at once.
  */
-export const MAX_FLEET_HISTORY_BUFFER_CHARS = 64 * 1024;
+const MAX_FLEET_HISTORY_BUFFER_CHARS = 64 * 1024;
 const STREAM_COLORS = ['cyan', 'magenta', 'yellow', 'green', 'blue'];
 
 function labelFor(
@@ -44,7 +44,7 @@ function labelFor(
   return next;
 }
 
-export interface UseDirectorFleetBridgeOptions {
+interface UseDirectorFleetBridgeOptions {
   director: Director | null;
   dispatch: React.Dispatch<Action>;
   stateRef: React.MutableRefObject<State>;

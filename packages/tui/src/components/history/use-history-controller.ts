@@ -23,7 +23,7 @@ import {
 } from './selection-helpers.js';
 import type { HistoryEntry } from './types.js';
 
-export interface UseHistoryControllerOptions {
+interface UseHistoryControllerOptions {
   geometry: ScrollGeometry;
   effectiveAnchor: ScrollAnchor | null;
   groupIds: readonly number[];

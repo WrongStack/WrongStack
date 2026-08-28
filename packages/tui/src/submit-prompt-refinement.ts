@@ -20,7 +20,7 @@ import { startPromptRefinement } from './prompt-refinement-start.js';
 import type { MutableCell } from './shared-types.js';
 import type { PromptRefinementCapabilities } from './tui-host-capabilities.js';
 
-export interface PromptRefinementHost {
+interface PromptRefinementHost {
   readonly capabilities: PromptRefinementCapabilities;
   readonly status: State['status'];
   readonly enabled: MutableCell<boolean>;
@@ -38,7 +38,7 @@ export interface PromptRefinementHost {
   setModel(value: string | null): void;
 }
 
-export type PromptRefinementResult = { kind: 'send'; effectiveText: string } | { kind: 'cancel' };
+type PromptRefinementResult = { kind: 'send'; effectiveText: string } | { kind: 'cancel' };
 
 /** Refine one submitted prompt and resolve every recovery/preview decision. */
 export async function refineSubmittedPrompt(

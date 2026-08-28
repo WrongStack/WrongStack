@@ -14,7 +14,7 @@ import type { Action } from '../app-action-type.js';
 
 export type ModelPickSelection = { providerId: string; model: string } | null;
 
-export interface UseModelPickRequestOptions {
+interface UseModelPickRequestOptions {
   dispatch: React.Dispatch<Action>;
   getPickableProviders?:
     | (() => Promise<Array<{ id: string; family: string; models: string[] }>>)

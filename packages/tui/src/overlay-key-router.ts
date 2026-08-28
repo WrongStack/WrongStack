@@ -64,7 +64,7 @@ const POINTER_OVERLAY_ROUTES: readonly PointerOverlayRoute[] = [
  * of whatever picker happened to be open (worst case: the project picker,
  * where confirm triggers an exit-42 respawn).
  */
-export interface PointerOverlayGeometry {
+interface PointerOverlayGeometry {
   termRows: number;
   viewportRows: number;
 }
@@ -86,7 +86,7 @@ export function overlayPointerKey(
   };
 }
 
-export interface BusyInterruptKeyHost {
+interface BusyInterruptKeyHost {
   readonly state: State;
   readonly dismissedAt: MutableCell<number>;
   readonly streamingText: MutableCell<string>;
@@ -164,7 +164,7 @@ export function routeBusyInterruptKey(host: BusyInterruptKeyHost, key: KeyEvent)
   return true;
 }
 
-export interface ModalOverlayKeyHost {
+interface ModalOverlayKeyHost {
   readonly state: State;
   readonly enhanceCancelled: MutableCell<boolean>;
   readonly enhanceController: MutableCell<AbortController | null>;
@@ -255,7 +255,7 @@ export function routeModalOverlayKey(
   return false;
 }
 
-export interface SettingsOverlayKeyHost {
+interface SettingsOverlayKeyHost {
   readonly state: State;
   readonly getSettings: SettingsCapabilities['getSettings'];
   readonly saveSettings: SettingsCapabilities['saveSettings'];

@@ -23,7 +23,7 @@ import { useCallback, useMemo, useRef } from 'react';
  * When `sessionGenerationRef` is absent (no /clear support wired), `isLive`
  * always returns `true` — backward-compatible no-op.
  */
-export interface FleetGenerationGate {
+interface FleetGenerationGate {
   /** Record that a subagent was first seen at the current generation.
    *  Call on spawn or first event. No-op when no sessionGenerationRef. */
   track: (subagentId: string) => void;

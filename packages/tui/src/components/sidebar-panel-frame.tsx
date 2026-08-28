@@ -40,7 +40,7 @@ import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { Card, type CardProps } from './sidebar-card.js';
 
-export interface SidebarPanelFrameProps {
+interface SidebarPanelFrameProps {
   /** Accent color for the rail, title, and separator. */
   accent: string;
   /** Header glyph, e.g. `glyphs.fleet` or `glyphs.sessions`. */
@@ -93,7 +93,7 @@ export function trunc(s: string, max: number): string {
  * (right side) and stat rows. Renders inline — no Box, no flex — so it can
  * sit next to a label without burning a row of its own.
  */
-export function SidebarStatusPill({
+function SidebarStatusPill({
   label,
   color,
   outlined = false,

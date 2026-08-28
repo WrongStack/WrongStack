@@ -47,7 +47,7 @@ function sameList<T>(a: readonly T[], b: readonly T[], eq: (x: T, y: T) => boole
 // ProcessList data
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface SidebarProcess {
+interface SidebarProcess {
   pid: number;
   name: string;
   status: string;
@@ -105,7 +105,7 @@ export function useSidebarProcessList(enabled = true): {
 // Connections health data
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface SidebarConnection {
+interface SidebarConnection {
   name: string;
   status: 'ok' | 'warn' | 'down' | 'unknown';
   latencyMs?: number | undefined;
@@ -323,7 +323,7 @@ export function useSidebarWrongProxy(
 // Kanban board data
 // ─────────────────────────────────────────────────────────────────────────
 
-export interface SidebarKanbanColumn {
+interface SidebarKanbanColumn {
   name: string;
   count: number;
 }

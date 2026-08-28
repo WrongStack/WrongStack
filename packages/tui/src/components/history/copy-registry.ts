@@ -4,7 +4,7 @@ import { copyRegistryVisibleClip, liveToolStreamCopyHit } from './copy-geometry.
 import { isCopyableEntry } from './copy-icon.js';
 import { type RenderGroup, renderGroupId } from './tool-group.js';
 
-export interface CopyRegistry {
+interface CopyRegistry {
   hits: CopyHit[];
   liveHit: CopyHit | null;
 }

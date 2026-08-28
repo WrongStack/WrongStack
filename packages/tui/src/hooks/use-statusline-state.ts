@@ -23,9 +23,9 @@ export type AutonomyStage = 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-pa
  * A statusline chip the user can persistently hide (written to
  * `statusline.json` and toggled by the `/statusline` command).
  */
-export type StatuslineHiddenItem = StatuslineItem;
+type StatuslineHiddenItem = StatuslineItem;
 
-export interface UseStatuslineStateOptions {
+interface UseStatuslineStateOptions {
   model: string;
   provider: string | undefined;
   effectiveMaxContext: number | undefined;
@@ -43,7 +43,7 @@ export interface UseStatuslineStateOptions {
   statuslineHiddenItems: Set<string> | readonly string[];
 }
 
-export interface UseStatuslineState {
+interface UseStatuslineState {
   liveModel: string;
   setLiveModel: (v: string) => void;
   liveProvider: string;

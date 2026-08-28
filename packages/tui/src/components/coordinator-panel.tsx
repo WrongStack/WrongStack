@@ -17,7 +17,7 @@ import {
 } from './monitor-shell.js';
 import { renderProgress } from './status-bar.js';
 
-export interface CoordinatorPanelProps {
+interface CoordinatorPanelProps {
   coordinator: State['coordinator'];
   /** 1s clock tick so elapsed times stay live. */
   nowTick: number;

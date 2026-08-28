@@ -9,7 +9,7 @@ export type SettingsFilterResult = {
   score: number;
 };
 
-export interface SettingsFilterState {
+interface SettingsFilterState {
   filterActive: boolean;
   filterQuery: string;
   rankedResults: SettingsFilterResult[];

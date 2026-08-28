@@ -4,7 +4,7 @@ import React from 'react';
 import type { FleetEntry } from '../app.js';
 import { theme } from '../theme.js';
 
-export interface LiveActivityStripProps {
+interface LiveActivityStripProps {
   /** Per-subagent state from the FleetEntry table. */
   entries: Record<string, FleetEntry>;
   /** Re-renders every tick so elapsed timers stay live; otherwise the

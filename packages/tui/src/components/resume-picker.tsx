@@ -3,7 +3,7 @@ import type React from 'react';
 import type { ResumeSessionEntry } from '../app-state.js';
 import { useWindowedPicker } from '../hooks/use-windowed-picker.js';
 
-export interface ResumePickerProps {
+interface ResumePickerProps {
   sessions: ResumeSessionEntry[];
   selected: number;
   busy: boolean;

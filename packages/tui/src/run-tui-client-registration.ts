@@ -15,7 +15,7 @@ import type { Config } from '@wrongstack/core/types';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import type { TuiMailboxSnapshot } from './mailbox-view-model-types.js';
 
-export interface RunTuiClientRegistrationOptions {
+interface RunTuiClientRegistrationOptions {
   projectRoot?: string | undefined;
   events: EventBus;
   appConfig?: Config | undefined;
@@ -26,7 +26,7 @@ export interface RunTuiClientRegistrationOptions {
   isCleaned: () => boolean;
 }
 
-export interface RunTuiClientRegistration {
+interface RunTuiClientRegistration {
   register(): Promise<string | null>;
   unregister(): void;
 }

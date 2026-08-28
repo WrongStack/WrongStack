@@ -6,7 +6,7 @@ import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 
-export interface FleetPanelProps {
+interface FleetPanelProps {
   /** Per-subagent state, keyed by subagentId. */
   entries: Record<string, FleetEntry>;
   /** Fleet-wide accumulated cost (from FleetUsageAggregator). */
@@ -30,7 +30,7 @@ export interface FleetPanelProps {
 
 type SwarmColor = 'blue' | 'cyan' | 'green' | 'gray' | 'red' | 'yellow';
 
-export interface SwarmCell {
+interface SwarmCell {
   id: string;
   index: string;
   name: string;
@@ -44,14 +44,14 @@ export interface SwarmCell {
   dim?: boolean | undefined;
 }
 
-export interface SwarmGrid {
+interface SwarmGrid {
   columns: number;
   tileWidth: number;
   overflow: number;
   rows: SwarmCell[][];
 }
 
-export interface TodoPreviewRow {
+interface TodoPreviewRow {
   id: string;
   marker: string;
   text: string;

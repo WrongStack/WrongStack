@@ -9,7 +9,7 @@ export interface BrainDecisionPromptOption {
   recommended?: boolean | undefined;
 }
 
-export interface BrainDecisionPromptProps {
+interface BrainDecisionPromptProps {
   requestId: string;
   source: string;
   risk: 'low' | 'medium' | 'high' | 'critical' | string;

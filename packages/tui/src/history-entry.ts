@@ -9,7 +9,7 @@ import {
 // ── Brain council trace — how a multi-LLM panel reached a verdict ─────────
 
 /** One seat's observable vote. No hidden chain-of-thought is retained. */
-export interface BrainCouncilSeatTrace {
+interface BrainCouncilSeatTrace {
   seatId: string;
   persona: string;
   status: 'valid' | 'invalid' | 'failed' | 'cancelled';
@@ -29,7 +29,7 @@ export interface BrainCouncilSeatTrace {
  * the bus but no surface consumed them, so a slow, costly decision looked
  * identical to a free policy one.
  */
-export interface BrainCouncilTrace {
+interface BrainCouncilTrace {
   resolution: string;
   configuredSeatCount: number;
   validVoteCount: number;
@@ -54,7 +54,7 @@ export interface AutonomyAgentStatus {
   detail?: string | undefined;
 }
 
-export interface MemoryScoreTerm {
+interface MemoryScoreTerm {
   label: string;
   value: number;
 }

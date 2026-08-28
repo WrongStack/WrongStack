@@ -1,12 +1,12 @@
 import type React from 'react';
 import { Box, Text } from '../ink.js';
 
-export interface SlashConfirmPanelProps {
+interface SlashConfirmPanelProps {
   question: string;
   defaultYes: boolean;
 }
 
-export interface SlashConfirmationKey {
+interface SlashConfirmationKey {
   escape?: boolean | undefined;
   return?: boolean | undefined;
 }

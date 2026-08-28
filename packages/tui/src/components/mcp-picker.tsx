@@ -11,7 +11,7 @@ export interface McpPickerItem {
   lazy?: boolean | undefined;
 }
 
-export interface McpPickerProps {
+interface McpPickerProps {
   items: McpPickerItem[];
   selected: number;
   busy?: boolean | undefined;

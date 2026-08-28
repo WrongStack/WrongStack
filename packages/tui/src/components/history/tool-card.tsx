@@ -4,7 +4,7 @@ import { displayWidth, sanitizeTerminalText, truncateDisplay } from '../../termi
 import { theme } from '../../theme.js';
 import { glyphs } from '../../ui-glyphs.js';
 
-export interface ToolCardProps {
+interface ToolCardProps {
   glyph: string;
   color: string;
   title: string;

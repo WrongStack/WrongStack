@@ -99,7 +99,7 @@ export function computeRailSpans(
   return spans;
 }
 
-export interface PowerlineRailProps {
+interface PowerlineRailProps {
   segments: React.ReactElement[];
   budget: number;
   monochrome?: boolean | undefined;

@@ -14,7 +14,7 @@ export function statuslineHiddenDiffers(
   );
 }
 
-export interface UseStatuslineHiddenSyncOptions {
+interface UseStatuslineHiddenSyncOptions {
   pickerOpen: boolean;
   pickerHidden: readonly StatuslineItem[];
   hiddenItems: readonly StatuslineItem[];

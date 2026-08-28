@@ -24,7 +24,7 @@ export function usePanelShortcutsEnabled(): boolean {
   return useContext(PanelShortcutsContext);
 }
 
-export interface MonitorSize {
+interface MonitorSize {
   columns: number;
   rows: number;
   /** Width inside a full-width round border with one column of horizontal padding. */
@@ -66,7 +66,7 @@ export function panelWindow(
   return { start, end, above: start, below: total - end };
 }
 
-export interface MonitorShellProps {
+interface MonitorShellProps {
   accent: string;
   icon: string;
   title: string;

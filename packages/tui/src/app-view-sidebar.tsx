@@ -30,7 +30,7 @@ import { Text } from './ink.js';
 import { getActiveThemeName, theme } from './theme.js';
 import type { PanelId } from './ui-contracts.js';
 
-export interface AppViewSidebarProps {
+interface AppViewSidebarProps {
   host: AppViewProps['host'];
   runtime: AppViewProps['runtime'];
   sidebarWidth: number;

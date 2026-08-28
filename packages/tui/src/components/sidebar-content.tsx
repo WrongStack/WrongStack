@@ -43,7 +43,7 @@ import {
   sparkline,
 } from './status-bar-format.js';
 
-export interface SidebarContentProps {
+interface SidebarContentProps {
   /** Live context window data from useStatusbarViewModel. */
   contextWindow: { used: number; max: number } | undefined;
   /** Honest per-category accounting behind the context window display. */

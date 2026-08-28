@@ -7,7 +7,7 @@ import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { usePanelShortcutsEnabled } from './monitor-shell.js';
 
-export interface GoalKanbanPanelProps {
+interface GoalKanbanPanelProps {
   projectRoot: string;
   goal: GoalSummary | null;
   onClose: () => void;

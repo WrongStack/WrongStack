@@ -233,7 +233,7 @@ export const BRAIN_READONLY_ROW_KINDS: ReadonlySet<BrainPanelRow['kind']> = new 
 ] satisfies Array<BrainPanelRow['kind']>);
 
 /** Heuristic rows, in display order. */
-export const BRAIN_HEURISTIC_KEYS: readonly BrainHeuristicKey[] = [
+const BRAIN_HEURISTIC_KEYS: readonly BrainHeuristicKey[] = [
   'lowRiskAutoAnswer',
   'blockedResolved',
   'deadlockSkip',

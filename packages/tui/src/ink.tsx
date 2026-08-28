@@ -48,7 +48,7 @@ export {
   useStdin,
   useStdout,
 } from 'ink';
-export type { BoxProps, DOMElement, TextProps, Key } from 'ink';
+export type { DOMElement, Key } from 'ink';;
 
 // `exactOptionalPropertyTypes` forbids passing `color={undefined}`, so we only
 // attach a color prop when it actually resolves to a value.

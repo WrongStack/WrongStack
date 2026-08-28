@@ -1,7 +1,7 @@
 import type React from 'react';
 import { Box, Text } from '../ink.js';
 
-export interface ExitConfirmPanelProps {
+interface ExitConfirmPanelProps {
   leaderActive: boolean;
   subagentCount: number;
   backgroundCount?: number | undefined;
@@ -12,7 +12,7 @@ export interface ExitConfirmationKey {
   return?: boolean | undefined;
 }
 
-export type ExitConfirmationDecision = true | false | null;
+type ExitConfirmationDecision = true | false | null;
 
 /**
  * Deterministic keyboard state machine shared by the App input router and

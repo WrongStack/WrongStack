@@ -8,7 +8,7 @@ import {
   type ThemeName,
 } from '../theme.js';
 
-export interface UseThemePickerHandlerOptions {
+interface UseThemePickerHandlerOptions {
   configStore?: ConfigStore | undefined;
   saveThemePreset?: ((theme: ThemeName) => Promise<void>) | undefined;
   dispatch: React.Dispatch<Action>;

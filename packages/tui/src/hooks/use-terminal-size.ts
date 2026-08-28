@@ -39,12 +39,12 @@ import { onResize } from '@wrongstack/core/utils';
 import { useEffect, useState } from 'react';
 import { useStdout } from '../ink.js';
 
-export interface TerminalSize {
+interface TerminalSize {
   readonly columns: number;
   readonly rows: number;
 }
 
-export interface UseTerminalSizeOptions {
+interface UseTerminalSizeOptions {
   /**
    * Upper bound applied to `columns`. Panels use this to stay inside a pinned
    * content width — see the bordered-box overflow rule.

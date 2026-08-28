@@ -18,7 +18,7 @@ export interface AgentsMonitorController {
   setVisible: (visible: boolean) => void;
 }
 
-export interface UseTuiControllersOptions {
+interface UseTuiControllersOptions {
   dispatch: React.Dispatch<Action>;
   fleetChat: FleetChatVerbosity;
   enhanceEnabled: boolean;

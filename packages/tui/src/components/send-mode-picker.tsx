@@ -7,7 +7,7 @@ import type React from 'react';
  */
 export type SendMode = 'queue' | 'btw' | 'steer';
 
-export interface SendModeOption {
+interface SendModeOption {
   mode: SendMode;
   /** Quick-select key (lower-case). */
   key: string;
@@ -90,7 +90,7 @@ export function formatSendModeMessagePreview(text: string, maxChars = 120): stri
   return `${singleLine.slice(0, Math.max(0, maxChars - 1))}…`;
 }
 
-export interface SendModePickerProps {
+interface SendModePickerProps {
   selected: number;
   /** The message being routed, shown so the modal question has context. */
   messagePreview?: string | undefined;

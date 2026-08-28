@@ -34,7 +34,7 @@ import {
  * imports from @wrongstack/cli. `getTranscript` returns entries NEWEST
  * FIRST (mirroring AgentMonitorService.getTranscript).
  */
-export interface AgentsMonitorProps {
+interface AgentsMonitorProps {
   entries: Record<string, FleetEntry>;
   totalCost: number;
   leaderCost?: number | undefined;
@@ -46,12 +46,7 @@ export interface AgentsMonitorProps {
   fullscreen?: boolean | undefined;
 }
 
-export {
-  EMPTY_AGENTS_CLOSE_DELAY_MS,
-  IDLE_HIDE_MS,
-  TRANSCRIPT_FETCH_LIMIT,
-  TRANSCRIPT_ROWS,
-} from './agents-monitor-constants.js';
+export { EMPTY_AGENTS_CLOSE_DELAY_MS, IDLE_HIDE_MS } from './agents-monitor-constants.js';;
 
 function isLeaderEntry(entry: FleetEntry): boolean {
   return entry.id === 'leader' || entry.name === 'LEADER';

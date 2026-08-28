@@ -49,7 +49,7 @@ const TRACE_CONTENT_MODES: readonly BrainTraceContent[] = ['none', 'redacted', '
 /** Selection returned by the shared model-pick overlay (null = cancelled). */
 export type ModelPickSelection = { providerId: string; model: string } | null;
 
-export interface UseBrainPanelOptions {
+interface UseBrainPanelOptions {
   dispatch: React.Dispatch<Action>;
   getBrainData?:
     | (() => {

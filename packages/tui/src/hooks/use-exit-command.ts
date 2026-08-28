@@ -19,7 +19,7 @@ interface SlashRegistryLike {
   get?(name: string): SlashCommand | undefined;
 }
 
-export interface UseExitCommandOptions {
+interface UseExitCommandOptions {
   slashRegistry: SlashRegistryLike;
   dispatch: (action: Action) => void;
   /**
