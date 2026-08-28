@@ -98,10 +98,6 @@ export type {
   CompletedWorkEvidence,
   CompletedWorkSource,
   ContextEvidenceState,
-  ContextFileEvidence,
-  ContextIntentEvidence,
-  ContextRepeatedReadEvidence,
-  ToolEvidenceStatus,
   ToolOutputMetadata,
 } from './context-evidence.js';
 export type {
@@ -357,7 +353,6 @@ export type {
 export { BUILTIN_PROMPT_CATEGORIES, isBuiltinCategory, PROMPT_CATEGORY_LABELS } from './prompt.js';
 export type {
   InstalledPromptEntry,
-  ManifestValidation,
   PromptManifestData,
   PromptRegistryManifest,
   PromptRegistryRef,
@@ -455,7 +450,7 @@ export type {
   SessionRewinder,
 } from './session-rewinder.js';
 // ── side-effect (2 symbols) ──
-export type { SideEffect, SideEffectRisk } from './side-effect.js';
+export type { SideEffect } from './side-effect.js';
 // ── skill (3 symbols) ──
 export type { SkillEntry, SkillLoader, SkillManifest } from './skill.js';
 // ── slash-command (1 symbols) ──
@@ -487,7 +482,6 @@ export type { SystemPromptContributor } from './system-prompt-contributor.js';
 export type {
   CriticalPathResult,
   SerializableTaskGraph,
-  SerializableTaskGraphNodes,
   SerializedTaskGraph,
   TaskAssignment,
   TaskDependency,

@@ -5,7 +5,7 @@ import * as path from 'node:path';
  * Minimal paths object needed for config backup — just the global root
  * from which we derive the backup history directory.
  */
-export interface ConfigBackupPaths {
+interface ConfigBackupPaths {
   globalRoot: string;
 }
 

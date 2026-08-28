@@ -1,4 +1,4 @@
-export type BridgeMessageType =
+type BridgeMessageType =
   | 'task'
   | 'result'
   | 'progress'
