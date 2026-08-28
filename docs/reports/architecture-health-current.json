@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T16:31:19.327Z",
+  "generatedAt": "2026-08-28T17:09:53.577Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3410,
-    "testFiles": 3028,
-    "sourceLines": 825066,
+    "sourceFiles": 3411,
+    "testFiles": 3029,
+    "sourceLines": 825273,
     "workspaceEdges": 128,
-    "moduleEdges": 10589,
+    "moduleEdges": 10588,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -805,8 +805,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 490,
-      "testFiles": 393,
+      "sourceFiles": 491,
+      "testFiles": 394,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -830,7 +830,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 393
+          "testFiles": 394
         }
       ]
     },
@@ -17868,6 +17868,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/hooks/use-integration-status.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/hooks/use-kanban-meta.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -19688,8 +19694,8 @@
     },
     {
       "file": "packages/simpleui/src/lib/message-handler.ts",
-      "lines": 824,
-      "relativeImports": 21
+      "lines": 815,
+      "relativeImports": 20
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
