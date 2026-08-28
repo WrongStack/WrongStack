@@ -7,7 +7,7 @@ import {
 } from './sqlite-store-graph-helpers.js';
 import type { MemoryGraphEdge } from './types.js';
 
-export interface SqliteGraphTraverseContext {
+interface SqliteGraphTraverseContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

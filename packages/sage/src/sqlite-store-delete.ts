@@ -4,7 +4,7 @@ import { readSqliteSageRow, sqliteRowToMemory } from './sqlite-store-codec.js';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE } from './types.js';
 
-export interface SqliteDeleteContext {
+interface SqliteDeleteContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   upsertMemory: (memory: Sage) => void;

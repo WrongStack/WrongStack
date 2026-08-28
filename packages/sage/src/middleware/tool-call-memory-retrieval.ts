@@ -65,8 +65,8 @@ export interface SageRetrieverLike {
   verifyForPaths?(paths: string[], signal?: AbortSignal): Promise<unknown>;
 }
 
-export const MIN_ANCESTOR_ANCHOR_SEGMENTS = 2;
-export const ANCESTOR_DECAY_PER_SEGMENT = 0.11;
+const MIN_ANCESTOR_ANCHOR_SEGMENTS = 2;
+const ANCESTOR_DECAY_PER_SEGMENT = 0.11;
 
 export function pathAnchorRelation(
   memory: Sage,
@@ -108,7 +108,7 @@ export function pathAnchorRelation(
   return best;
 }
 
-export function relativeProjectPath(projectRoot?: string, targetPath?: string): string {
+function relativeProjectPath(projectRoot?: string, targetPath?: string): string {
   if (!targetPath) return '';
   const normalized = targetPath.replace(/\\/g, '/');
   if (!projectRoot) return normalized;

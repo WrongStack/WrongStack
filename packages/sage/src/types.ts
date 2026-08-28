@@ -398,7 +398,7 @@ export interface LegacyImportResult {
   files: number;
 }
 
-export type MemoryCandidateStatus = 'pending' | 'accepted' | 'rejected' | 'merged';
+type MemoryCandidateStatus = 'pending' | 'accepted' | 'rejected' | 'merged';
 
 export interface MemoryCandidate {
   schemaVersion: 1;
@@ -445,7 +445,7 @@ export interface SessionConsolidationResult {
   duplicate: number;
 }
 
-export type SageOp = 'create' | 'update' | 'delete';
+type SageOp = 'create' | 'update' | 'delete';
 
 export interface SageRecord {
   recordType: 'memory';

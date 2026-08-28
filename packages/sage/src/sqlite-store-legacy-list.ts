@@ -6,7 +6,7 @@ import { legacyScopeFilterClause } from './store-helpers.js';
 import type { Sage } from './types.js';
 import { sageToLegacyScope, toLegacyEntry } from './types.js';
 
-export interface SqliteLegacyListContext {
+interface SqliteLegacyListContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

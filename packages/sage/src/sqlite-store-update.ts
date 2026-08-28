@@ -14,7 +14,7 @@ import {
 import type { Sage, SageStatus, UpdateSageInput } from './types.js';
 import { DEFAULT_PERSISTENCE, VALID_PERSISTENCE } from './types.js';
 
-export interface SqliteUpdateContext {
+interface SqliteUpdateContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;

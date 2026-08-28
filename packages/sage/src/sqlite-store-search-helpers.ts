@@ -2,7 +2,7 @@ import { sqliteRowToMemory, CorruptMemoryError } from './sqlite-store-codec.js';
 import { encodePageCursor } from './shared/pagination.js';
 import type { ListSagePageResult, Sage, SageStats } from './types.js';
 
-export type SqliteMemoryDataRow = { data: string };
+type SqliteMemoryDataRow = { data: string };
 export type SqliteCountRow = { status?: string; kind?: string; n: number };
 export type SqlitePageRow = { data: string; updated_at: string; id: string };
 

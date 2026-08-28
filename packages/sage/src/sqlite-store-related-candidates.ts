@@ -14,7 +14,7 @@ import {
 import { sqliteCommandFamily, sqliteNormalizeCommand } from './sqlite-store-schema.js';
 import type { Sage, SageStatus } from './types.js';
 
-export interface SqliteRelatedCandidateContext {
+interface SqliteRelatedCandidateContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

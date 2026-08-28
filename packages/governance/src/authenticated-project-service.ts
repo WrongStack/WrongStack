@@ -7,7 +7,7 @@ import { GovernanceManagementReceiptCache } from './management-receipt-cache.js'
 import type { GovernanceProjectService, GovernanceServiceResponse } from './project-service.js';
 import { decodeGovernanceServiceRequest } from './protocol-decoder.js';
 
-export const GOVERNANCE_RUNTIME_ATTACHMENT_MAX_TTL_MS = 30 * 60 * 1_000;
+const GOVERNANCE_RUNTIME_ATTACHMENT_MAX_TTL_MS = 30 * 60 * 1_000;
 
 function requestIdFromUnknown(input: unknown): string {
   return input &&

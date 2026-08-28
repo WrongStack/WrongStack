@@ -29,7 +29,7 @@ export interface ConnectGovernanceAdminSessionOptions extends GovernanceAdminSes
   readonly credential: GovernanceServiceCredential;
 }
 
-export type GovernanceAdminSessionConnectionFailureCode =
+type GovernanceAdminSessionConnectionFailureCode =
   | 'not_running'
   | 'endpoint_invalid'
   | 'project_mismatch'

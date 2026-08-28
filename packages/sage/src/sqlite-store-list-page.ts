@@ -15,7 +15,7 @@ import {
 } from './sqlite-store-search-helpers.js';
 import type { ListSagePageOptions, ListSagePageResult } from './types.js';
 
-export interface SqliteListSagePageContext {
+interface SqliteListSagePageContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

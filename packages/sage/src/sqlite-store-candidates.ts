@@ -28,17 +28,17 @@ import type {
 import { SAGE_SCHEMA_VERSION } from './types.js';
 import { ulid } from '@wrongstack/core/utils';
 
-export interface SqliteCandidateContext {
+interface SqliteCandidateContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   upsertCandidate: (candidate: MemoryCandidate, canonicalText?: string) => void;
 }
 
-export interface SqliteRejectCandidateContext extends SqliteCandidateContext {
+interface SqliteRejectCandidateContext extends SqliteCandidateContext {
   nowIso: () => string;
   audit: (event: string, data?: Record<string, unknown>) => void;
 }
 
-export interface SqliteResolveCandidateContext extends SqliteRejectCandidateContext {
+interface SqliteResolveCandidateContext extends SqliteRejectCandidateContext {
   runMutation: <T>(work: () => T) => Promise<T>;
   updateSage: (id: string, input: UpdateSageInput) => Promise<Sage>;
 }
@@ -48,7 +48,7 @@ export interface SqliteCreateCandidateContext extends SqliteRejectCandidateConte
   runMutation: <T>(work: () => T) => Promise<T>;
 }
 
-export interface SqliteAcceptCandidateContext extends SqliteRejectCandidateContext {
+interface SqliteAcceptCandidateContext extends SqliteRejectCandidateContext {
   candidateLockPath: (candidateId: string) => string;
   runMutation: <T>(work: () => T) => Promise<T>;
   rememberSage: (input: {

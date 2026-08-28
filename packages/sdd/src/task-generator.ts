@@ -10,17 +10,17 @@ import type {
 import { type AtomicityRuleSetConfig, assessAtomicity } from '@wrongstack/kanban';
 
 /** Named estimate constants shared with the atomicity candidate mapping. */
-export const OVERVIEW_ESTIMATE_HOURS = 4;
-export const REQUIREMENT_ESTIMATE_HOURS: Record<string, number> = {
+const OVERVIEW_ESTIMATE_HOURS = 4;
+const REQUIREMENT_ESTIMATE_HOURS: Record<string, number> = {
   critical: 8,
   high: 4,
   medium: 2,
   low: 1,
 };
-export const API_PARENT_ESTIMATE_HOURS = 0;
-export const API_BASE_ESTIMATE_HOURS = 2;
-export const TESTS_ESTIMATE_HOURS = 4;
-export const DOCS_ESTIMATE_HOURS = 2;
+const API_PARENT_ESTIMATE_HOURS = 0;
+const API_BASE_ESTIMATE_HOURS = 2;
+const TESTS_ESTIMATE_HOURS = 4;
+const DOCS_ESTIMATE_HOURS = 2;
 
 export interface TaskGeneratorOptions {
   taskTracker: TaskTracker;

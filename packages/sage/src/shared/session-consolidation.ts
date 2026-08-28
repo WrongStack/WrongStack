@@ -28,7 +28,7 @@ import type {
  * session consolidation to work. Each store implements these through
  * its own backend (JSONL append, SQLite INSERT, etc.).
  */
-export interface ConsolidationServices {
+interface ConsolidationServices {
   /** Create a new review candidate from the given input. */
   createCandidate(input: CreateCandidateInput): Promise<MemoryCandidate>;
   /** Promote a pending candidate to a full memory record. */

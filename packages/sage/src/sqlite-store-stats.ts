@@ -3,7 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { buildSageStats, type SqliteCountRow } from './sqlite-store-search-helpers.js';
 import type { SageStats } from './types.js';
 
-export interface SqliteStatsContext {
+interface SqliteStatsContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

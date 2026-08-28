@@ -10,7 +10,7 @@ import {
 } from './sqlite-store-search-helpers.js';
 import type { Sage, SageSearchOptions } from './types.js';
 
-export interface SqliteSearchSageContext {
+interface SqliteSearchSageContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 
@@ -159,7 +159,7 @@ export function searchSqliteSage(
   return maybeRerank(query, sqliteRowsToMemories(rows).filter(audienceFilter), opts);
 }
 
-export interface MaterializeSageContext {
+interface MaterializeSageContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 

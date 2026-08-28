@@ -4,7 +4,7 @@ export const GOVERNANCE_ACTORS = ['model', 'human', 'policy', 'system'] as const
 
 export type GovernanceActor = (typeof GOVERNANCE_ACTORS)[number];
 
-export type AuthorizationKind = 'none' | 'automatic' | 'human';
+type AuthorizationKind = 'none' | 'automatic' | 'human';
 
 export interface TransitionFacts {
   readonly contractApproved: boolean;
@@ -28,7 +28,7 @@ export interface TransitionProposal {
   readonly facts: TransitionFacts;
 }
 
-export type TransitionRejectionCode =
+type TransitionRejectionCode =
   | 'stale_revision'
   | 'illegal_transition'
   | 'authorization_missing'
@@ -42,7 +42,7 @@ export type TransitionRejectionCode =
   | 'model_cannot_self_admit'
   | 'rollback_unverified';
 
-export type TransitionDecision =
+type TransitionDecision =
   | {
       readonly allowed: true;
       readonly from: WorkflowState;

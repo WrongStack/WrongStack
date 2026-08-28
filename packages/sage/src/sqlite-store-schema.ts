@@ -3,7 +3,7 @@ import { SageCachePragmas } from '@wrongstack/core/utils';
 
 export const SQLITE_SCHEMA_VERSION = 5;
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
-export const FTS_INDEX_INITIALIZED_KEY = 'fts_index_initialized';
+const FTS_INDEX_INITIALIZED_KEY = 'fts_index_initialized';
 // The audit log is a recent activity trail, not a compliance record.
 export const AUDIT_LOG_MAX_ROWS = 1000;
 // Prune opportunistically so growth stays bounded without a DELETE on every insert.

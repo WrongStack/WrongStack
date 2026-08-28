@@ -8,7 +8,7 @@ import { type TaskContractV1, validateTaskContractV1 } from './task-contract.js'
 
 export const PLAN_VERSION_SCHEMA_VERSION = 1 as const;
 
-export interface PlanStepV1 {
+interface PlanStepV1 {
   readonly id: string;
   readonly title: string;
   readonly description: string;
@@ -19,7 +19,7 @@ export interface PlanStepV1 {
   readonly requiredCheckIds: readonly string[];
 }
 
-export interface PlanEdgeV1 {
+interface PlanEdgeV1 {
   readonly fromStepId: string;
   readonly toStepId: string;
 }
@@ -58,20 +58,20 @@ export function calculatePlanVersionFingerprint(plan: PlanVersionV1): string {
     .digest('hex');
 }
 
-export interface PlanStepAutonomy {
+interface PlanStepAutonomy {
   readonly stepId: string;
   readonly automatic: boolean;
   readonly decisions: readonly OperationAutonomyDecision[];
 }
 
-export interface PlanAutonomySummary {
+interface PlanAutonomySummary {
   readonly fullyAutonomous: boolean;
   readonly automaticStepIds: readonly string[];
   readonly humanApprovalStepIds: readonly string[];
   readonly steps: readonly PlanStepAutonomy[];
 }
 
-export type PlanValidationIssueCode =
+type PlanValidationIssueCode =
   | 'contract_invalid'
   | 'invalid_schema_version'
   | 'invalid_plan_version'
@@ -93,33 +93,33 @@ export type PlanValidationIssueCode =
   | 'requirement_unplanned'
   | 'required_check_unplanned';
 
-export interface PlanValidationIssue {
+interface PlanValidationIssue {
   readonly code: PlanValidationIssueCode;
   readonly path: string;
   readonly message: string;
 }
 
-export type PlanValidationResult =
+type PlanValidationResult =
   | { readonly valid: true }
   | { readonly valid: false; readonly issues: readonly PlanValidationIssue[] };
 
-export type PlanSupersessionIssueCode =
+type PlanSupersessionIssueCode =
   | 'plan_id_mismatch'
   | 'task_id_mismatch'
   | 'version_not_sequential'
   | 'parent_version_mismatch'
   | 'contract_version_regressed';
 
-export interface PlanSupersessionIssue {
+interface PlanSupersessionIssue {
   readonly code: PlanSupersessionIssueCode;
   readonly message: string;
 }
 
-export type PlanSupersessionResult =
+type PlanSupersessionResult =
   | { readonly valid: true }
   | { readonly valid: false; readonly issues: readonly PlanSupersessionIssue[] };
 
-export type ReplanValidationIssue =
+type ReplanValidationIssue =
   | PlanValidationIssue
   | PlanSupersessionIssue
   | {
@@ -127,7 +127,7 @@ export type ReplanValidationIssue =
       readonly message: string;
     };
 
-export type ReplanAuthorizationDecision =
+type ReplanAuthorizationDecision =
   | {
       readonly valid: true;
       readonly automatic: true;
@@ -232,7 +232,7 @@ function findCycle(
   return null;
 }
 
-export function classifyPlanStepAutonomy(
+function classifyPlanStepAutonomy(
   contract: TaskContractV1,
   step: PlanStepV1,
 ): PlanStepAutonomy {

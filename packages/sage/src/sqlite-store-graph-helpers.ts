@@ -18,7 +18,7 @@ export function memoryNodeId(memoryId: string): string {
  * Reconstruct the human-readable structural evidence (`<anchorType>:<path>`)
  * for an `about_*` anchor edge from its relation and target node.
  */
-export function edgeEvidence(relation: string, toNode: string): { evidence: string[] } | undefined {
+function edgeEvidence(relation: string, toNode: string): { evidence: string[] } | undefined {
   const match = /^about_(\w+)$/.exec(relation);
   if (!match) return undefined;
   const anchorType = match[1];

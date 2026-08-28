@@ -10,12 +10,12 @@ export interface GovernanceIpcRequestEnvelope {
   readonly request: unknown;
 }
 
-export interface GovernanceIpcDecodeIssue {
+interface GovernanceIpcDecodeIssue {
   readonly path: string;
   readonly message: string;
 }
 
-export type GovernanceIpcEnvelopeDecodeResult =
+type GovernanceIpcEnvelopeDecodeResult =
   | { readonly decoded: true; readonly envelope: GovernanceIpcRequestEnvelope }
   | { readonly decoded: false; readonly issues: readonly GovernanceIpcDecodeIssue[] };
 

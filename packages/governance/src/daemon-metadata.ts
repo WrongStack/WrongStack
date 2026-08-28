@@ -9,26 +9,26 @@ import {
 } from './ipc-endpoint.js';
 import { GOVERNANCE_SERVICE_PROTOCOL_VERSION } from './service-protocol.js';
 
-export const GOVERNANCE_DAEMON_METADATA_SCHEMA_VERSION = 1 as const;
-export const GOVERNANCE_DAEMON_STARTUP_LEASE_SCHEMA_VERSION = 1 as const;
-export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION = 1 as const;
-export const GOVERNANCE_DAEMON_METADATA_MAX_BYTES = 64 * 1024;
-export const GOVERNANCE_DAEMON_ENDPOINT_PROBE_TIMEOUT_MS = 750;
-export const GOVERNANCE_DAEMON_STARTUP_LEASE_TIMEOUT_MS = 10_000;
-export const GOVERNANCE_DAEMON_STARTUP_LEASE_RETRY_MS = 50;
+const GOVERNANCE_DAEMON_METADATA_SCHEMA_VERSION = 1 as const;
+const GOVERNANCE_DAEMON_STARTUP_LEASE_SCHEMA_VERSION = 1 as const;
+const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_SCHEMA_VERSION = 1 as const;
+const GOVERNANCE_DAEMON_METADATA_MAX_BYTES = 64 * 1024;
+const GOVERNANCE_DAEMON_ENDPOINT_PROBE_TIMEOUT_MS = 750;
+const GOVERNANCE_DAEMON_STARTUP_LEASE_TIMEOUT_MS = 10_000;
+const GOVERNANCE_DAEMON_STARTUP_LEASE_RETRY_MS = 50;
 export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_TTL_MS = 60 * 60 * 1_000;
 
-export const GOVERNANCE_DAEMON_METADATA_RELATIVE_PATH = path.join(
+const GOVERNANCE_DAEMON_METADATA_RELATIVE_PATH = path.join(
   '.wrongstack',
   'governance',
   'daemon.json',
 );
-export const GOVERNANCE_DAEMON_STARTUP_LEASE_RELATIVE_PATH = path.join(
+const GOVERNANCE_DAEMON_STARTUP_LEASE_RELATIVE_PATH = path.join(
   '.wrongstack',
   'governance',
   'daemon-startup.lock',
 );
-export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RELATIVE_PATH = path.join(
+const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RELATIVE_PATH = path.join(
   '.wrongstack',
   'governance',
   'attachment-broker.json',
@@ -46,7 +46,7 @@ export interface GovernanceDaemonMetadata {
   readonly startedAt: string;
 }
 
-export interface GovernanceDaemonStartupLeaseRecord {
+interface GovernanceDaemonStartupLeaseRecord {
   readonly schemaVersion: typeof GOVERNANCE_DAEMON_STARTUP_LEASE_SCHEMA_VERSION;
   readonly projectKey: string;
   readonly pid: number;
@@ -67,17 +67,17 @@ export interface GovernanceDaemonAttachmentBrokerRecord {
   readonly credential: GovernanceServiceCredential;
 }
 
-export type GovernanceDaemonAttachmentBrokerReadResult =
+type GovernanceDaemonAttachmentBrokerReadResult =
   | { readonly kind: 'missing' }
   | { readonly kind: 'invalid'; readonly reason: string }
   | { readonly kind: 'valid'; readonly broker: GovernanceDaemonAttachmentBrokerRecord };
 
-export type GovernanceDaemonMetadataReadResult =
+type GovernanceDaemonMetadataReadResult =
   | { readonly kind: 'missing' }
   | { readonly kind: 'invalid'; readonly reason: string }
   | { readonly kind: 'valid'; readonly metadata: GovernanceDaemonMetadata };
 
-export type GovernanceDaemonInspection =
+type GovernanceDaemonInspection =
   | { readonly kind: 'live'; readonly metadata: GovernanceDaemonMetadata }
   | {
       readonly kind: 'stale';
@@ -90,7 +90,7 @@ export type GovernanceDaemonInspection =
       readonly reason: string;
     };
 
-export type GovernanceDaemonStartupLeaseErrorCode = 'busy' | 'invalid_lease';
+type GovernanceDaemonStartupLeaseErrorCode = 'busy' | 'invalid_lease';
 
 export class GovernanceDaemonStartupLeaseError extends Error {
   constructor(
@@ -491,7 +491,7 @@ export async function removeOwnedGovernanceDaemonMetadata(
   return removeIfUnchanged(pathname, raw);
 }
 
-export function isGovernanceProcessAlive(pid: number): boolean {
+function isGovernanceProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
@@ -500,7 +500,7 @@ export function isGovernanceProcessAlive(pid: number): boolean {
   }
 }
 
-export function probeGovernanceDaemonEndpoint(
+function probeGovernanceDaemonEndpoint(
   projectRoot: string,
   timeoutMs = GOVERNANCE_DAEMON_ENDPOINT_PROBE_TIMEOUT_MS,
 ): Promise<boolean> {

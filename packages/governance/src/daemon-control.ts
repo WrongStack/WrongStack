@@ -8,9 +8,9 @@ export interface GovernanceDaemonControlStatus {
   readonly attachmentBroker?: GovernanceAttachmentBrokerControllerSnapshot | undefined;
 }
 
-export type GovernanceDaemonOperatorSignalLevel = 'healthy' | 'notice' | 'warning';
+type GovernanceDaemonOperatorSignalLevel = 'healthy' | 'notice' | 'warning';
 
-export interface GovernanceDaemonOperatorAttachmentBrokerStatus {
+interface GovernanceDaemonOperatorAttachmentBrokerStatus {
   readonly state: GovernanceAttachmentBrokerControllerSnapshot['state'];
   readonly health: GovernanceAttachmentBrokerControllerSnapshot['health'];
   readonly expiresAt?: string | undefined;

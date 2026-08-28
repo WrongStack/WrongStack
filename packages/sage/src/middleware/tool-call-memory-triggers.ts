@@ -108,7 +108,7 @@ export function extractTrigger(
   }
 }
 
-export function joinQueryParts(...parts: unknown[]): string {
+function joinQueryParts(...parts: unknown[]): string {
   return parts
     .flatMap((part) => (typeof part === 'string' ? [part.trim()] : []))
     .filter((part) => part.length > 0)

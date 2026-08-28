@@ -10,7 +10,7 @@ import {
   WRONGSTACK_VERSION,
 } from './protocol-contract.js';
 
-export const WRONGSTACK_AUTH_METHODS = [
+const WRONGSTACK_AUTH_METHODS = [
   {
     id: 'wrongstack-auth',
     name: 'Run wstack auth',

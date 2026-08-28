@@ -10,7 +10,7 @@ import type {
   SessionConsolidationResult,
 } from './types.js';
 
-export interface SqliteSessionConsolidationContext {
+interface SqliteSessionConsolidationContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   listCandidates: () => Promise<MemoryCandidate[]>;
   createCandidate: (input: CreateCandidateInput) => Promise<MemoryCandidate>;

@@ -43,8 +43,8 @@ export type ACPProtocolVersion = typeof ACP_PROTOCOL_VERSION;
 /** Per the spec: opaque, unique id. We type as branded string. */
 export type SessionId = string & { readonly __acpSessionId: unique symbol };
 export type ToolCallId = string & { readonly __acpToolCallId: unique symbol };
-export type MessageId = string & { readonly __acpMessageId: unique symbol };
-export type TerminalId = string & { readonly __acpTerminalId: unique symbol };
+type MessageId = string & { readonly __acpMessageId: unique symbol };
+type TerminalId = string & { readonly __acpTerminalId: unique symbol };
 export type PlanEntryId = string & { readonly __acpPlanEntryId: unique symbol };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -84,12 +84,12 @@ export interface PromptCapabilities {
   embeddedContext?: boolean | undefined;
 }
 
-export interface McpCapabilities {
+interface McpCapabilities {
   http?: boolean | undefined;
   sse?: boolean | undefined;
 }
 
-export interface SessionCapabilities {
+interface SessionCapabilities {
   close?: Record<string, unknown> | undefined;
   list?: Record<string, unknown> | undefined;
   delete?: Record<string, unknown> | undefined;
@@ -97,7 +97,7 @@ export interface SessionCapabilities {
   additionalDirectories?: Record<string, unknown> | undefined;
 }
 
-export interface AuthCapabilities {
+interface AuthCapabilities {
   logout?: Record<string, unknown> | undefined;
 }
 
@@ -134,21 +134,21 @@ export type LogoutResponse = {};
 // MCP server configuration — sent in session lifecycle requests
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface StdioMcpServer {
+interface StdioMcpServer {
   name: string;
   command: string;
   args?: string[] | undefined;
   env?: { name: string; value: string }[] | undefined;
 }
 
-export interface HttpMcpServer {
+interface HttpMcpServer {
   type: 'http';
   name: string;
   url: string;
   headers?: { name: string; value: string }[] | undefined;
 }
 
-export interface SseMcpServer {
+interface SseMcpServer {
   type: 'sse';
   name: string;
   url: string;
@@ -243,7 +243,7 @@ export interface SessionConfigOption {
  * about audience/priority. Spec leaves shape open; we mirror the fields
  * the spec shows in its examples.
  */
-export interface ContentAnnotations {
+interface ContentAnnotations {
   audience?: ('user' | 'assistant')[] | undefined;
   priority?: number | undefined;
   [key: string]: unknown;
@@ -255,7 +255,7 @@ export interface TextContent {
   annotations?: ContentAnnotations | undefined;
 }
 
-export interface ImageContent {
+interface ImageContent {
   type: 'image';
   mimeType: string;
   /** Base64-encoded image data. */
@@ -264,7 +264,7 @@ export interface ImageContent {
   annotations?: ContentAnnotations | undefined;
 }
 
-export interface AudioContent {
+interface AudioContent {
   type: 'audio';
   mimeType: string;
   /** Base64-encoded audio data. */
@@ -272,28 +272,28 @@ export interface AudioContent {
   annotations?: ContentAnnotations | undefined;
 }
 
-export interface TextResourceContents {
+interface TextResourceContents {
   uri: string;
   mimeType?: string | undefined;
   text: string;
 }
 
-export interface BlobResourceContents {
+interface BlobResourceContents {
   uri: string;
   mimeType?: string | undefined;
   /** Base64-encoded binary. */
   blob: string;
 }
 
-export type EmbeddedResourceContents = TextResourceContents | BlobResourceContents;
+type EmbeddedResourceContents = TextResourceContents | BlobResourceContents;
 
-export interface EmbeddedResourceContent {
+interface EmbeddedResourceContent {
   type: 'resource';
   resource: EmbeddedResourceContents;
   annotations?: ContentAnnotations | undefined;
 }
 
-export interface ResourceLinkContent {
+interface ResourceLinkContent {
   type: 'resource_link';
   uri: string;
   name: string;
@@ -340,7 +340,7 @@ export type ToolCallContent =
     }
   | { type: 'terminal'; terminalId: TerminalId };
 
-export interface ToolCallLocation {
+interface ToolCallLocation {
   path: string;
   /** 1-based per the spec's argument requirements. */
   line?: number | undefined;
@@ -378,8 +378,8 @@ export interface ToolCallUpdateFields {
 // Plan
 // ────────────────────────────────────────────────────────────────────────────
 
-export type PlanEntryPriority = 'high' | 'medium' | 'low';
-export type PlanEntryStatus = 'pending' | 'in_progress' | 'completed';
+type PlanEntryPriority = 'high' | 'medium' | 'low';
+type PlanEntryStatus = 'pending' | 'in_progress' | 'completed';
 
 export interface PlanEntry {
   /** Required by the spec for the array shape, but per-entry id is optional. */
@@ -392,11 +392,11 @@ export interface PlanEntry {
 // Slash commands
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface AvailableCommandInput {
+interface AvailableCommandInput {
   hint: string;
 }
 
-export interface AvailableCommand {
+interface AvailableCommand {
   name: string;
   description: string;
   input?: AvailableCommandInput | undefined;
@@ -406,7 +406,7 @@ export interface AvailableCommand {
 // Session modes
 // ────────────────────────────────────────────────────────────────────────────
 
-export type SessionModeId = string & { readonly __acpModeId: unique symbol };
+type SessionModeId = string & { readonly __acpModeId: unique symbol };
 
 export interface SessionMode {
   id: SessionModeId;
@@ -414,7 +414,7 @@ export interface SessionMode {
   description?: string | undefined;
 }
 
-export interface SessionModeState {
+interface SessionModeState {
   currentModeId: SessionModeId;
   availableModes: SessionMode[];
 }
@@ -424,17 +424,17 @@ export interface SessionModeState {
 // ────────────────────────────────────────────────────────────────────────────
 
 /** Reserved spec categories. Underscore-prefixed names are free for custom use. */
-export type ConfigOptionCategory = 'mode' | 'model' | 'thought_level' | `_${string}`;
+type ConfigOptionCategory = 'mode' | 'model' | 'thought_level' | `_${string}`;
 
-export type ConfigOptionType = 'select' | string;
+type ConfigOptionType = 'select' | string;
 
-export interface ConfigOptionValue {
+interface ConfigOptionValue {
   value: string;
   name: string;
   description?: string | undefined;
 }
 
-export interface ConfigOption {
+interface ConfigOption {
   id: string;
   name: string;
   description?: string | undefined;
@@ -479,7 +479,7 @@ export interface UsageUpdate {
 // Permission requests
 // ────────────────────────────────────────────────────────────────────────────
 
-export type PermissionOptionKind = 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
+type PermissionOptionKind = 'allow_once' | 'allow_always' | 'reject_once' | 'reject_always';
 
 export interface PermissionOption {
   optionId: string;
@@ -621,7 +621,7 @@ export interface UsageUpdateUpdate {
  * the raw payload so forward-compat code can switch on
  * `kind === 'next_edit_suggestions'` etc. without losing the data.
  */
-export interface UnstableSessionUpdate {
+interface UnstableSessionUpdate {
   sessionUpdate: `_unstable_${string}`;
   [key: string]: unknown;
 }

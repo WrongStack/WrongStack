@@ -7,7 +7,7 @@ import { buildSessionClause } from './sqlite-store-search-helpers.js';
 import { scoreMemoryRelationship } from './store-helpers.js';
 import type { MemoryGraphEdge, Sage, SageStatus } from './types.js';
 
-export interface SqliteFindRelatedContext {
+interface SqliteFindRelatedContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   traverseGraph: (
     starts: string[],

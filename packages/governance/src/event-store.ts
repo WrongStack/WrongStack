@@ -82,7 +82,7 @@ export type GovernanceObservationCategory = (typeof GOVERNANCE_OBSERVATION_CATEG
 export const GOVERNANCE_OBSERVATION_DEFAULT_PAGE_SIZE = 50;
 export const GOVERNANCE_OBSERVATION_MAX_PAGE_SIZE = 100;
 
-export interface ReadGovernanceObservationsPageOptions {
+interface ReadGovernanceObservationsPageOptions {
   readonly projectId: string;
   readonly taskId?: string | undefined;
   /**
@@ -179,12 +179,12 @@ export interface GovernanceEventStore {
   close(): void;
 }
 
-export interface SqliteGovernanceEventStoreOptions {
+interface SqliteGovernanceEventStoreOptions {
   readonly now?: (() => string) | undefined;
   readonly verificationLeaseSecret?: (() => string) | undefined;
 }
 
-export class GovernanceStoreCorruptionError extends Error {
+class GovernanceStoreCorruptionError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'GovernanceStoreCorruptionError';

@@ -41,7 +41,7 @@ const AUTH_RETRY_DELAY_MS = 150;
  */
 const AUTH_RETRY_MAX_ATTEMPTS = 13;
 
-export type SageProjectServerConnectionStatus =
+type SageProjectServerConnectionStatus =
   | 'unavailable'
   | 'offline'
   | 'connecting'
@@ -59,7 +59,7 @@ export interface SageProjectServerConnectionState {
   lastError?: string | undefined;
 }
 
-export interface SageProjectServerCallOptions {
+interface SageProjectServerCallOptions {
   timeoutMs?: number | undefined;
   signal?: AbortSignal | undefined;
   meta: SageRequestMetadata;

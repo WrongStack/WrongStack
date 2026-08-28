@@ -34,7 +34,7 @@ export interface GovernanceServiceClientContext {
   readonly capabilities: ReadonlySet<GovernanceServiceCapability>;
 }
 
-export interface GovernanceServiceRequestMetadata {
+interface GovernanceServiceRequestMetadata {
   readonly protocolVersion: typeof GOVERNANCE_SERVICE_PROTOCOL_VERSION;
   readonly requestId: string;
 }

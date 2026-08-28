@@ -1,12 +1,12 @@
 import { createHash } from 'node:crypto';
 
-export const GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION = 1 as const;
+const GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION = 1 as const;
 export const GOVERNANCE_EVIDENCE_CANDIDATE_DEFAULT_PAGE_SIZE = 50;
 export const GOVERNANCE_EVIDENCE_CANDIDATE_MAX_PAGE_SIZE = 100;
 
-export type GovernanceEvidenceCandidateMissingBinding = 'tool_call' | 'task' | 'plan' | 'workspace';
+type GovernanceEvidenceCandidateMissingBinding = 'tool_call' | 'task' | 'plan' | 'workspace';
 
-export interface GovernanceEvidenceTraceSnapshot {
+interface GovernanceEvidenceTraceSnapshot {
   readonly sessionId: string;
   readonly task:
     | { readonly scope: 'session' }
@@ -23,7 +23,7 @@ export interface GovernanceEvidenceTraceSnapshot {
       };
 }
 
-export interface GovernanceToolOutcomeMetadata {
+interface GovernanceToolOutcomeMetadata {
   readonly toolCallId?: string | undefined;
   readonly toolName: string;
   readonly ok: boolean;
@@ -33,7 +33,7 @@ export interface GovernanceToolOutcomeMetadata {
   readonly outputLines?: number | undefined;
 }
 
-export interface GovernanceEvidenceCandidate {
+interface GovernanceEvidenceCandidate {
   readonly schemaVersion: typeof GOVERNANCE_EVIDENCE_CANDIDATE_SCHEMA_VERSION;
   readonly candidateType: 'tool_execution';
   readonly status: 'unverified';
@@ -54,7 +54,7 @@ export interface GovernanceEvidenceCandidate {
   };
 }
 
-export type GovernanceEvidenceCandidateIneligibilityReason =
+type GovernanceEvidenceCandidateIneligibilityReason =
   | 'payload_invalid'
   | 'unsupported_schema'
   | 'binding_incomplete'

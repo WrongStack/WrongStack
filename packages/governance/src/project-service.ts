@@ -40,7 +40,7 @@ export {
   GOVERNANCE_SERVICE_PROTOCOL_VERSION,
 } from './service-protocol.js';
 
-export type GovernanceServiceResult =
+type GovernanceServiceResult =
   | {
       readonly type: 'health';
       readonly projectId: string;
@@ -126,7 +126,7 @@ export type GovernanceServiceResult =
       readonly credential: GovernanceServiceCredential;
     };
 
-export type GovernanceServiceErrorCode =
+type GovernanceServiceErrorCode =
   | 'unsupported_protocol'
   | 'invalid_request'
   | 'authentication_failed'

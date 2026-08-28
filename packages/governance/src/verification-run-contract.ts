@@ -13,10 +13,10 @@ import {
 } from './verification-planner.js';
 
 export const VERIFICATION_RUN_REQUEST_SCHEMA_VERSION = 1 as const;
-export const VERIFICATION_RUN_CONTRACT_V1_SCHEMA_VERSION = 1 as const;
-export const VERIFICATION_RUN_CONTRACT_SCHEMA_VERSION = 2 as const;
+const VERIFICATION_RUN_CONTRACT_V1_SCHEMA_VERSION = 1 as const;
+const VERIFICATION_RUN_CONTRACT_SCHEMA_VERSION = 2 as const;
 export const MAX_VERIFICATION_RUN_TTL_MS = 15 * 60 * 1_000;
-export const MAX_VERIFICATION_RUN_DURATION_MS = 10 * 60 * 1_000;
+const MAX_VERIFICATION_RUN_DURATION_MS = 10 * 60 * 1_000;
 
 export interface VerificationRunRequestV1 {
   readonly schemaVersion: typeof VERIFICATION_RUN_REQUEST_SCHEMA_VERSION;
@@ -26,14 +26,14 @@ export interface VerificationRunRequestV1 {
 }
 
 /** Supplied by the deterministic daemon/transport, never by the model request payload. */
-export interface VerificationRunAuthorityContext {
+interface VerificationRunAuthorityContext {
   readonly verifierClientId: string;
   readonly issuedAt: string;
   readonly ttlMs: number;
   readonly maxDurationMs: number;
 }
 
-export interface BoundVerificationRunAuthorityContext extends VerificationRunAuthorityContext {
+interface BoundVerificationRunAuthorityContext extends VerificationRunAuthorityContext {
   /** Derived from the trusted immutable registry, never from the model request. */
   readonly checkBinding: VerificationCheckBindingV1;
 }
@@ -79,11 +79,11 @@ export interface VerificationRunContractV2
 
 export type VerificationRunContract = VerificationRunContractV1 | VerificationRunContractV2;
 
-export type VerificationRunContractWithoutId =
+type VerificationRunContractWithoutId =
   | Omit<VerificationRunContractV1, 'runId'>
   | Omit<VerificationRunContractV2, 'runId'>;
 
-export type VerificationRunIssuanceIssueCode =
+type VerificationRunIssuanceIssueCode =
   | 'task_missing'
   | 'active_contract_missing'
   | 'workflow_state_invalid'
@@ -111,7 +111,7 @@ export interface VerificationRunIssuanceIssue {
   readonly message: string;
 }
 
-export type VerificationRunIssuanceResult =
+type VerificationRunIssuanceResult =
   | { readonly issued: true; readonly contract: VerificationRunContract }
   | { readonly issued: false; readonly issues: readonly VerificationRunIssuanceIssue[] };
 

@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-export interface SqliteCounterContext {
+interface SqliteCounterContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   audit: (event: string, data?: Record<string, unknown>) => void;

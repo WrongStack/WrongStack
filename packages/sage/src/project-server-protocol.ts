@@ -70,7 +70,7 @@ export interface SageProjectServerMetadata extends SageProjectServerInfo {
   authToken: string;
 }
 
-export interface SageProjectServerStatus extends SageProjectServerInfo {
+interface SageProjectServerStatus extends SageProjectServerInfo {
   clients: number;
   pendingRequests: number;
   health: MemoryHealth;

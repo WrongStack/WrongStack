@@ -6,7 +6,7 @@ import {
 import { sqliteRowToAuditRecord, type SqliteAuditRow } from './sqlite-store-codec.js';
 import type { SageAuditRecord } from './types.js';
 
-export interface SqliteAuditContext {
+interface SqliteAuditContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   getTraceId: () => string | undefined;

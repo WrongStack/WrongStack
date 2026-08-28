@@ -7,7 +7,7 @@ export interface InjectionScoreTerm {
   value: number;
 }
 
-export interface InjectionProof {
+interface InjectionProof {
   score: number;
   metadataScore: number;
   relationStrength: number;
@@ -27,12 +27,12 @@ export interface RejectedDetailEntry {
 export const MIN_RELATION_STRENGTH = 0.85;
 export const DEFAULT_MIN_SCORE = 0.72;
 export const DEFAULT_MIN_IMPORTANCE = 0.5;
-export const BURST_THRESHOLD = 3;
-export const BURST_WINDOW_MS = 5 * 60_000;
+const BURST_THRESHOLD = 3;
+const BURST_WINDOW_MS = 5 * 60_000;
 export const MAX_REJECTED_DETAIL = 20;
 export const MIN_CONTAINS_LENGTH = 24;
 
-export const burstRejectionHistory = new Map<string, number[]>();
+const burstRejectionHistory = new Map<string, number[]>();
 let burstSweepCounter = 0;
 
 export function observeBurstRejections(

@@ -4,11 +4,11 @@ import { boundedLimit, MAX_PAGE_LIMIT } from './shared/pagination.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { Sage, SageStatus } from './types.js';
 
-export interface SqliteListMemoriesContext {
+interface SqliteListMemoriesContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }
 
-export interface SqliteListMemoriesOptions {
+interface SqliteListMemoriesOptions {
   status?: SageStatus | 'all';
   kind?: string;
   limit?: number;

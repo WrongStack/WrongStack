@@ -13,22 +13,22 @@ import {
   type VerificationRunRequestV1,
 } from './verification-run-contract.js';
 
-export type VerificationIssuanceCoordinatorMode = 'legacy' | 'enforced';
+type VerificationIssuanceCoordinatorMode = 'legacy' | 'enforced';
 
-export interface VerificationCheckBindingResolver {
+interface VerificationCheckBindingResolver {
   bindingFor(checkId: string, evidenceKind: EvidenceKind): VerificationCheckBindingResolution;
 }
 
-export interface VerificationExecutionLeaseIssuer {
+interface VerificationExecutionLeaseIssuer {
   issueVerificationExecutionLeaseIfCurrent: GovernanceEventStore['issueVerificationExecutionLeaseIfCurrent'];
   recordWorkspaceSnapshot?: GovernanceEventStore['recordWorkspaceSnapshot'];
 }
 
-export interface VerificationWorkspaceSnapshotRecorder {
+interface VerificationWorkspaceSnapshotRecorder {
   recordWorkspaceSnapshot: GovernanceEventStore['recordWorkspaceSnapshot'];
 }
 
-export interface VerificationIssuanceCoordinatorOptions {
+interface VerificationIssuanceCoordinatorOptions {
   /** Defaults to legacy; construction alone cannot enable governed issuance. */
   readonly mode?: VerificationIssuanceCoordinatorMode | undefined;
   readonly verifierClientId: string;
@@ -52,7 +52,7 @@ export interface VerificationIssuanceCoordinatorInput {
 type VerificationLeaseFailure = Extract<IssueVerificationExecutionLeaseResult, { issued: false }>;
 type VerificationLeaseSuccess = Extract<IssueVerificationExecutionLeaseResult, { issued: true }>;
 
-export type VerificationIssuanceCoordinatorResult =
+type VerificationIssuanceCoordinatorResult =
   | {
       readonly route: 'legacy';
       readonly handled: false;

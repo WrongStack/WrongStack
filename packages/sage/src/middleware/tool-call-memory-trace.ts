@@ -17,7 +17,7 @@ export interface RetrievedMemory {
   retrievalReasons: string[];
 }
 
-export interface InjectorTraceMemory {
+interface InjectorTraceMemory {
   id: string;
   kind: string;
   text: string;
@@ -35,7 +35,7 @@ export interface InjectorTraceMemory {
   scoreTerms: InjectionScoreTerm[];
 }
 
-export interface InjectorTraceInput {
+interface InjectorTraceInput {
   nextPayload: ToolCallPipelinePayload;
   trigger: ExtractedTriggerContext;
   plan: ReturnType<MemoryInjectorAgent['plan']>;
@@ -58,12 +58,12 @@ export interface InjectorTraceInput {
   error?: string | undefined;
 }
 
-export interface CooldownPruneState {
+interface CooldownPruneState {
   lastPruneAt: number;
 }
 
-export const MAX_TRACKED_INJECTIONS = 20_000;
-export const PRUNE_COOLDOWNS_INTERVAL_MS = 60_000;
+const MAX_TRACKED_INJECTIONS = 20_000;
+const PRUNE_COOLDOWNS_INTERVAL_MS = 60_000;
 let injectorTraceSequence = 0;
 
 export function emitInjectorTrace(events: EventBus | undefined, input: InjectorTraceInput): void {

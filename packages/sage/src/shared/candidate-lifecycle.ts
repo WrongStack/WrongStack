@@ -47,7 +47,7 @@ export function rejectIfUnsafeInput(input: unknown): void {
  * The store is responsible for executing the mutation (and
  * handling its own locking / transaction model).
  */
-export interface ResolutionMutation {
+interface ResolutionMutation {
   readonly kind: 'delete_memory' | 'archive_memory' | 'noop';
   readonly targetId: string | undefined;
   readonly applied: boolean;
@@ -57,7 +57,7 @@ export interface ResolutionMutation {
  * Outcome of the resolution check, returned to the caller for
  * persistence + audit.
  */
-export interface ResolutionDecision {
+interface ResolutionDecision {
   readonly resolution: MemoryCandidateResolution;
   /** What the store should do (if anything). */
   readonly mutation: ResolutionMutation;

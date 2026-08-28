@@ -4,28 +4,28 @@ import type { TaskAggregate } from './task-aggregate.js';
 import { type EvidenceKind, type TaskContractV1, validateTaskContractV1 } from './task-contract.js';
 
 export const VERIFICATION_PLANNER_INPUT_SCHEMA_VERSION = 1 as const;
-export const VERIFICATION_PLAN_DRAFT_SCHEMA_VERSION = 1 as const;
+const VERIFICATION_PLAN_DRAFT_SCHEMA_VERSION = 1 as const;
 export const MAX_VERIFICATION_CANDIDATE_PROPOSALS = 512;
 
-export interface VerificationPlanningScopeV1 {
+interface VerificationPlanningScopeV1 {
   readonly taskId: string;
   readonly contractVersion: number;
   readonly planFingerprint: string;
   readonly workspaceManifestHash: string;
 }
 
-export interface VerificationCandidateProposalV1 {
+interface VerificationCandidateProposalV1 {
   readonly requiredCheckId: string;
   readonly candidateId: string;
 }
 
-export interface VerificationPlannerInputV1 {
+interface VerificationPlannerInputV1 {
   readonly schemaVersion: typeof VERIFICATION_PLANNER_INPUT_SCHEMA_VERSION;
   readonly scope: VerificationPlanningScopeV1;
   readonly proposals: readonly VerificationCandidateProposalV1[];
 }
 
-export type VerificationPlannerIssueCode =
+type VerificationPlannerIssueCode =
   | 'task_missing'
   | 'active_contract_missing'
   | 'contract_invalid'
@@ -35,13 +35,13 @@ export type VerificationPlannerIssueCode =
   | 'scope_identity_invalid'
   | 'proposal_limit_exceeded';
 
-export interface VerificationPlannerIssue {
+interface VerificationPlannerIssue {
   readonly code: VerificationPlannerIssueCode;
   readonly path: string;
   readonly message: string;
 }
 
-export type VerificationProposalRejectionCode =
+type VerificationProposalRejectionCode =
   | 'proposal_invalid'
   | 'duplicate_proposal'
   | 'unknown_required_check'
@@ -52,7 +52,7 @@ export type VerificationProposalRejectionCode =
   | 'candidate_plan_mismatch'
   | 'candidate_workspace_mismatch';
 
-export type VerificationProposalDisposition =
+type VerificationProposalDisposition =
   | {
       readonly state: 'accepted_as_proposal';
       readonly requiredCheckId: string;
@@ -66,7 +66,7 @@ export type VerificationProposalDisposition =
       readonly path: string;
     };
 
-export interface VerificationCheckDraftV1 {
+interface VerificationCheckDraftV1 {
   readonly requiredCheckId: string;
   readonly expectedEvidenceKind: EvidenceKind;
   readonly required: boolean;
@@ -94,7 +94,7 @@ export interface VerificationPlanDraftV1 {
   };
 }
 
-export type VerificationPlanningResult =
+type VerificationPlanningResult =
   | { readonly planned: false; readonly issues: readonly VerificationPlannerIssue[] }
   | {
       readonly planned: true;

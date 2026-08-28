@@ -96,7 +96,7 @@ type VerificationLeaseIssuanceFailure = Extract<
   { issued: false }
 >;
 
-export interface SqliteVerificationLedgerOptions {
+interface SqliteVerificationLedgerOptions {
   readonly now: () => string;
   readonly verificationLeaseSecret?: (() => string) | undefined;
 }

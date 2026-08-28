@@ -55,7 +55,7 @@ export interface ValueScoreBreakdown {
 export type ValueBand = 'keep' | 'gray' | 'discard';
 
 /** Gates emitted by the SAGE injector when a candidate fails to inject. */
-export type RejectionGate = 'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget';
+type RejectionGate = 'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget';
 
 /** Per-memory evidence from the SAGE injector. Read-only input to triage. */
 export interface InjectorEvidence {

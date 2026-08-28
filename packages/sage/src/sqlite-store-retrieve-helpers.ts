@@ -1,13 +1,13 @@
 import { normalizeProjectPath } from './paths.js';
 import { escapeGlobPattern, escapeLikePattern } from './sqlite-store-pagination.js';
 
-export type RetrievePathTargets = {
+type RetrievePathTargets = {
   relPaths: string[];
   targetList: string[];
   symbolGlobs: string[];
 };
 
-export type RetrieveFallbackQuery = {
+type RetrieveFallbackQuery = {
   conditions: string[];
   params: string[];
 };

@@ -6,9 +6,9 @@ import {
 } from './service-protocol.js';
 
 export const DEFAULT_GOVERNANCE_GRANT_MAX_TTL_MS = 24 * 60 * 60 * 1_000;
-export const DEFAULT_GOVERNANCE_MAX_GRANTS = 10_000;
+const DEFAULT_GOVERNANCE_MAX_GRANTS = 10_000;
 
-export type GovernanceCapabilityGrantStatus = 'active' | 'expired' | 'revoked';
+type GovernanceCapabilityGrantStatus = 'active' | 'expired' | 'revoked';
 
 export interface GovernanceCapabilityGrant {
   readonly grantId: string;
@@ -36,7 +36,7 @@ export interface IssueGovernanceCapabilityGrantOptions {
   readonly ttlMs: number;
 }
 
-export interface RotateGovernanceCapabilityGrantOptions {
+interface RotateGovernanceCapabilityGrantOptions {
   readonly rotatedBy?: string | undefined;
   readonly ttlMs: number;
   readonly reason?: string | undefined;
@@ -48,14 +48,14 @@ export interface GovernanceServiceCredential {
   readonly clientId: string;
 }
 
-export type GovernanceCapabilityAuthenticationFailureCode =
+type GovernanceCapabilityAuthenticationFailureCode =
   | 'invalid_token'
   | 'project_mismatch'
   | 'client_mismatch'
   | 'grant_expired'
   | 'grant_revoked';
 
-export type GovernanceCapabilityAuthenticationResult =
+type GovernanceCapabilityAuthenticationResult =
   | {
       readonly authenticated: true;
       readonly grant: GovernanceCapabilityGrant;

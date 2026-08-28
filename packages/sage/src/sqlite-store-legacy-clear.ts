@@ -7,7 +7,7 @@ import { legacyScopeFilterClause } from './store-helpers.js';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
 
-export interface SqliteLegacyClearContext {
+interface SqliteLegacyClearContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   upsertMemory: (memory: Sage) => void;

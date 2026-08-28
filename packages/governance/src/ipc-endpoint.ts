@@ -3,7 +3,7 @@ import * as path from 'node:path';
 
 import { GOVERNANCE_SERVICE_PROTOCOL_VERSION } from './service-protocol.js';
 
-export const GOVERNANCE_DATABASE_RELATIVE_PATH = path.join(
+const GOVERNANCE_DATABASE_RELATIVE_PATH = path.join(
   '.wrongstack',
   'governance',
   'governance.sqlite',

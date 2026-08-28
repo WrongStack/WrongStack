@@ -24,7 +24,7 @@ import { GovernanceProjectServer } from './project-server.js';
 
 const BOOTSTRAP_REQUEST_TIMEOUT_MS = 10_000;
 
-export interface GovernanceDaemonArguments {
+interface GovernanceDaemonArguments {
   readonly projectRoot: string;
   readonly projectId: string;
 }

@@ -7,7 +7,7 @@ import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import { applySemanticChange } from './shared/semantic-rewrite.js';
 import type { MemoryVerificationResult, Sage } from './types.js';
 
-export interface SqliteVerifyContext {
+interface SqliteVerifyContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;

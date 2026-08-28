@@ -30,7 +30,7 @@ export interface SqliteCandidateHost {
   audit: (event: string, data?: Record<string, unknown>) => void;
 }
 
-export function buildCandidateOps(host: SqliteCandidateHost) {
+function buildCandidateOps(host: SqliteCandidateHost) {
   return {
     projectRoot: host.projectRoot,
     candidateLockPath: (candidateId: string) =>

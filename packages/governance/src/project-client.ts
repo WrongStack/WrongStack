@@ -20,7 +20,7 @@ export interface GovernanceProjectClientOptions {
   readonly timeoutMs?: number | undefined;
 }
 
-export interface ConnectGovernanceProjectClientOptions extends GovernanceProjectClientOptions {
+interface ConnectGovernanceProjectClientOptions extends GovernanceProjectClientOptions {
   readonly projectRoot: string;
   readonly projectId: string;
   readonly credential: GovernanceServiceCredential;

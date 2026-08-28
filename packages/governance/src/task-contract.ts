@@ -13,7 +13,7 @@ export const CONTRACT_SOURCES = [
   'deterministic_inference',
   'model_proposal',
 ] as const;
-export type ContractSource = (typeof CONTRACT_SOURCES)[number];
+type ContractSource = (typeof CONTRACT_SOURCES)[number];
 
 export const EVIDENCE_KINDS = [
   'test',
@@ -39,7 +39,7 @@ export const REVIEW_DIMENSIONS = [
   'concurrency_recovery',
   'maintainability_architecture',
 ] as const;
-export type ReviewDimension = (typeof REVIEW_DIMENSIONS)[number];
+type ReviewDimension = (typeof REVIEW_DIMENSIONS)[number];
 
 export const ROLLBACK_CLASSES = [
   'isolated_discard',
@@ -48,7 +48,7 @@ export const ROLLBACK_CLASSES = [
   'manual_only',
   'irreversible',
 ] as const;
-export type RollbackClass = (typeof ROLLBACK_CLASSES)[number];
+type RollbackClass = (typeof ROLLBACK_CLASSES)[number];
 
 export const CONTRACT_ASSUMPTION_STATUSES = [
   'unverified',
@@ -59,26 +59,26 @@ export const CONTRACT_ASSUMPTION_STATUSES = [
 
 export const BASELINE_POLICIES = ['required', 'optional', 'read_only'] as const;
 
-export interface TaskRequirement {
+interface TaskRequirement {
   readonly id: string;
   readonly text: string;
   readonly acceptanceCriteriaIds: readonly string[];
 }
 
-export interface AcceptanceCriterion {
+interface AcceptanceCriterion {
   readonly id: string;
   readonly statement: string;
   readonly evidenceKinds: readonly EvidenceKind[];
 }
 
-export interface RequiredCheck {
+interface RequiredCheck {
   readonly id: string;
   readonly kind: EvidenceKind;
   readonly required: boolean;
   readonly requirementIds: readonly string[];
 }
 
-export interface ContractAssumption {
+interface ContractAssumption {
   readonly id: string;
   readonly statement: string;
   readonly source: ContractSource;
@@ -111,7 +111,7 @@ export interface TaskContractV1 {
   };
 }
 
-export type ContractValidationIssueCode =
+type ContractValidationIssueCode =
   | 'invalid_schema_version'
   | 'invalid_contract_version'
   | 'required_value_missing'
@@ -125,13 +125,13 @@ export type ContractValidationIssueCode =
   | 'approval_operation_not_allowed'
   | 'operation_exceeds_tier';
 
-export interface ContractValidationIssue {
+interface ContractValidationIssue {
   readonly code: ContractValidationIssueCode;
   readonly path: string;
   readonly message: string;
 }
 
-export type ContractValidationResult =
+type ContractValidationResult =
   | { readonly valid: true }
   | { readonly valid: false; readonly issues: readonly ContractValidationIssue[] };
 

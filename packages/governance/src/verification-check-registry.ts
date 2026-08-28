@@ -14,7 +14,7 @@ import {
 
 export const MAX_VERIFICATION_CHECK_REGISTRATIONS = 256;
 
-export interface FocusedVerificationExecutionContext {
+interface FocusedVerificationExecutionContext {
   readonly run: VerificationRunContract;
   readonly consumption: VerificationExecutionLeaseConsumption;
   readonly workspaceManifestHash: string;
@@ -39,7 +39,7 @@ export type VerificationCheckBindingResolution =
       readonly message: string;
     };
 
-export type VerificationCheckRegistryExecutionResult<Result> =
+type VerificationCheckRegistryExecutionResult<Result> =
   | {
       readonly executed: false;
       readonly code: VerificationCheckRegistryDenialCode;

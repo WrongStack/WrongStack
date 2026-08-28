@@ -20,7 +20,7 @@ export interface SddBoardStoreOptions {
   controlFileIO?: SddBoardControlFileIO | undefined;
 }
 
-export interface SddBoardControlFileIO {
+interface SddBoardControlFileIO {
   stat(filePath: string): Promise<{ size: number }>;
   readFile(filePath: string, encoding: 'utf8'): Promise<string>;
   truncate(filePath: string, length: number): Promise<void>;
@@ -41,7 +41,7 @@ interface SddBoardIndex {
   entries: SddBoardIndexEntry[];
 }
 
-export interface IndexSignature {
+interface IndexSignature {
   size: number;
   mtimeMs: number;
   ctimeMs: number;

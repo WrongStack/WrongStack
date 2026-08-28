@@ -16,7 +16,7 @@ import {
 } from './transition-engine.js';
 import type { WorkflowState } from './workflow-state.js';
 
-export interface GovernanceCommandMetadata {
+interface GovernanceCommandMetadata {
   readonly commandId: string;
   readonly taskId: string;
   readonly expectedRevision: number;
@@ -46,7 +46,7 @@ export interface GovernanceDecisionContext {
   readonly transitionFacts?: TransitionFacts | undefined;
 }
 
-export type GovernanceEventPayload =
+type GovernanceEventPayload =
   | {
       readonly type: 'task_created';
       readonly projectId: string;
@@ -86,7 +86,7 @@ export interface TaskAggregate {
   readonly updatedAt: string;
 }
 
-export type CommandRejectionCode =
+type CommandRejectionCode =
   | 'stale_revision'
   | 'task_already_exists'
   | 'task_missing'
@@ -111,7 +111,7 @@ export type GovernanceCommandDecision =
       readonly details?: readonly unknown[] | undefined;
     };
 
-export type EventApplyRejectionCode =
+type EventApplyRejectionCode =
   | 'first_event_not_task_created'
   | 'duplicate_task_created'
   | 'task_id_mismatch'
@@ -119,7 +119,7 @@ export type EventApplyRejectionCode =
   | 'event_state_mismatch'
   | 'event_requires_existing_task';
 
-export type EventApplyResult =
+type EventApplyResult =
   | { readonly applied: true; readonly aggregate: TaskAggregate }
   | {
       readonly applied: false;
@@ -127,7 +127,7 @@ export type EventApplyResult =
       readonly message: string;
     };
 
-export type TaskReplayResult =
+type TaskReplayResult =
   | { readonly replayed: true; readonly aggregate: TaskAggregate }
   | {
       readonly replayed: false;

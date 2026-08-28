@@ -59,7 +59,7 @@ function compareMemoryAgeAscending(a: Sage, b: Sage): number {
   return 0;
 }
 
-export interface SqliteHygieneContext {
+interface SqliteHygieneContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   now: () => Date;

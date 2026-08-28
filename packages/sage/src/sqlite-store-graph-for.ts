@@ -7,7 +7,7 @@ import { MEMORY_NODE_PREFIX, memoryNodeId } from './sqlite-store-graph-helpers.j
 import { escapeGlobPattern } from './sqlite-store-pagination.js';
 import type { MemoryGraphEdge, Sage } from './types.js';
 
-export interface SqliteGraphForContext {
+interface SqliteGraphForContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   searchSage: (query: string, opts: { limit: number }) => Promise<Sage[]>;

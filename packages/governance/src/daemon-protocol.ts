@@ -6,7 +6,7 @@ import {
 
 export const GOVERNANCE_DAEMON_BOOTSTRAP_PROTOCOL_VERSION = 2 as const;
 
-export interface GovernanceDaemonBootstrapRequest {
+interface GovernanceDaemonBootstrapRequest {
   readonly type: 'bootstrap';
   readonly protocolVersion: typeof GOVERNANCE_DAEMON_BOOTSTRAP_PROTOCOL_VERSION;
   readonly nonce: string;
@@ -52,16 +52,16 @@ export type GovernanceDaemonBootstrapMessage =
       readonly message: string;
     };
 
-export interface GovernanceDaemonProtocolIssue {
+interface GovernanceDaemonProtocolIssue {
   readonly path: string;
   readonly message: string;
 }
 
-export type GovernanceDaemonBootstrapRequestDecodeResult =
+type GovernanceDaemonBootstrapRequestDecodeResult =
   | { readonly decoded: true; readonly request: GovernanceDaemonBootstrapRequest }
   | { readonly decoded: false; readonly issues: readonly GovernanceDaemonProtocolIssue[] };
 
-export type GovernanceDaemonBootstrapMessageDecodeResult =
+type GovernanceDaemonBootstrapMessageDecodeResult =
   | { readonly decoded: true; readonly message: GovernanceDaemonBootstrapMessage }
   | { readonly decoded: false; readonly issues: readonly GovernanceDaemonProtocolIssue[] };
 

@@ -20,7 +20,7 @@ import {
 const MAX_MEMORY_TEXT_CHARS = 20_000;
 const MAX_MEMORY_METADATA_ITEMS = 128;
 
-export const VALID_SCOPES = new Set<SageScope>(['project', 'user', 'session', 'file', 'symbol']);
+const VALID_SCOPES = new Set<SageScope>(['project', 'user', 'session', 'file', 'symbol']);
 export const VALID_KINDS = new Set<SageKind>([
   'fact',
   'decision',
@@ -234,7 +234,7 @@ function commandFamily(command: string): string {
 }
 
 /** Negation cues that flip the polarity of an otherwise-overlapping claim. */
-export const NEGATION_CUES = new Set([
+const NEGATION_CUES = new Set([
   'not',
   'never',
   'none',
@@ -301,7 +301,7 @@ export function isPossiblyContradictory(
 }
 
 /** Kinds that are meaningless without a concrete structural binding. */
-export const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
+const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
   'file_note',
   'symbol_note',
   'command_note',
@@ -312,7 +312,7 @@ export const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
  * `validateRememberInput`; this caps confidence/importance so low-signal
  * memories rank below anchored, durable ones during injection.
  */
-export interface RememberQualityAdjustment {
+interface RememberQualityAdjustment {
   /** Cap applied to confidence after caller defaults. */
   confidenceCap: number;
   /** Cap applied to importance after caller defaults. */
@@ -325,7 +325,7 @@ export interface RememberQualityAdjustment {
  * Token-set overlap coefficient (Szymkiewicz–Simpson) for near-duplicate
  * detection. Shared by remember merge and hygiene so thresholds agree.
  */
-export function textTokenOverlap(a: string, b: string): number {
+function textTokenOverlap(a: string, b: string): number {
   const left = new Set(tokenize(a));
   const right = new Set(tokenize(b));
   if (left.size === 0 || right.size === 0) return 0;
@@ -341,9 +341,9 @@ export function textTokenOverlap(a: string, b: string): number {
  * "PostgreSQL pool settings" vs "PostgreSQL index optimization" stay
  * distinct (overlap on one term), while paraphrases of the same fact merge.
  */
-export const NEAR_DUP_OVERLAP_THRESHOLD = 0.88;
+const NEAR_DUP_OVERLAP_THRESHOLD = 0.88;
 /** Require enough tokens so short unrelated notes do not collide. */
-export const NEAR_DUP_MIN_TOKENS = 5;
+const NEAR_DUP_MIN_TOKENS = 5;
 
 /** True when two memories should merge as near-duplicates. */
 export function isNearDuplicateMemory(

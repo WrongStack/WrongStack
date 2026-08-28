@@ -4,7 +4,7 @@ import { buildSessionClause } from './sqlite-store-search-helpers.js';
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { MemoryAudienceContext, Sage } from './types.js';
 
-export interface SqliteAudienceContext {
+interface SqliteAudienceContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   /**
    * Optional callback fired when the SQL prefilter was saturated: the scan

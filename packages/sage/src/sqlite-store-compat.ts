@@ -3,7 +3,7 @@ import { DEFAULT_PAGE_STATUSES, VALID_MEMORY_STATUSES } from './shared/paginatio
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { Sage, SageStatus } from './types.js';
 
-export interface SqliteCompatContext {
+interface SqliteCompatContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   rowToMemory: (row: { data: string }) => Sage;

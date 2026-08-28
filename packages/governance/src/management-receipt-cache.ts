@@ -4,15 +4,15 @@ import type { GovernanceServiceCredential } from './capability-grant.js';
 import type { GovernanceServiceResponse } from './project-service.js';
 
 export const GOVERNANCE_MANAGEMENT_RECEIPT_TTL_MS = 30_000;
-export const GOVERNANCE_MANAGEMENT_RECEIPT_MAX_ENTRIES = 1_024;
+const GOVERNANCE_MANAGEMENT_RECEIPT_MAX_ENTRIES = 1_024;
 
-export interface GovernanceManagementReceiptCacheOptions {
+interface GovernanceManagementReceiptCacheOptions {
   readonly now?: (() => number) | undefined;
   readonly ttlMs?: number | undefined;
   readonly maxEntries?: number | undefined;
 }
 
-export type GovernanceManagementReceiptLookup =
+type GovernanceManagementReceiptLookup =
   | { readonly kind: 'miss' }
   | { readonly kind: 'in_progress' }
   | { readonly kind: 'conflict'; readonly allowAfterRotation: boolean }
@@ -29,7 +29,7 @@ interface ReceiptRecord {
   readonly expiresAtMs: number;
 }
 
-export interface GovernanceManagementReceiptReservation {
+interface GovernanceManagementReceiptReservation {
   readonly key: string;
   readonly fingerprint: string;
   readonly requestId: string;

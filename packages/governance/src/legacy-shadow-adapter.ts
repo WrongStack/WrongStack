@@ -6,7 +6,7 @@ import {
   type GovernanceServiceResponse,
 } from './project-service.js';
 
-export interface LegacyRuntimeObservation {
+interface LegacyRuntimeObservation {
   readonly observationId: string;
   readonly taskId?: string | undefined;
   readonly category: GovernanceObservationCategory;
@@ -14,7 +14,7 @@ export interface LegacyRuntimeObservation {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
-export type LegacyShadowObservationResult =
+type LegacyShadowObservationResult =
   | {
       readonly observed: true;
       readonly idempotentReplay: boolean;

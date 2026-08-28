@@ -11,7 +11,7 @@ export class ACPSessionError extends Error {
   }
 }
 
-export interface JsonRpcError {
+interface JsonRpcError {
   code: number;
   message: string;
   data?: unknown;

@@ -45,7 +45,7 @@ const MAX_STRING_LENGTH = 1_000_000;
  */
 const MAX_ISSUES = 100;
 
-export type GovernanceProtocolDecodeIssueCode =
+type GovernanceProtocolDecodeIssueCode =
   | 'expected_object'
   | 'expected_array'
   | 'unknown_field'
@@ -53,13 +53,13 @@ export type GovernanceProtocolDecodeIssueCode =
   | 'semantic_invalid'
   | 'resource_limit';
 
-export interface GovernanceProtocolDecodeIssue {
+interface GovernanceProtocolDecodeIssue {
   readonly code: GovernanceProtocolDecodeIssueCode;
   readonly path: string;
   readonly message: string;
 }
 
-export type GovernanceServiceRequestDecodeResult =
+type GovernanceServiceRequestDecodeResult =
   | { readonly decoded: true; readonly request: GovernanceServiceRequest }
   | { readonly decoded: false; readonly issues: readonly GovernanceProtocolDecodeIssue[] };
 

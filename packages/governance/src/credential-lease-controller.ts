@@ -8,12 +8,12 @@ import type { GovernanceServiceResponse } from './project-service.js';
 import { sanitizeGovernanceMessage } from './sanitize.js';
 import { GOVERNANCE_SERVICE_PROTOCOL_VERSION } from './service-protocol.js';
 
-export const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_TTL_MS = 60 * 60 * 1_000;
-export const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_RENEW_BEFORE_MS = 5 * 60 * 1_000;
-export const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_RETRY_MS = 1_000;
-export const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_MAX_ATTEMPTS = 3;
+const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_TTL_MS = 60 * 60 * 1_000;
+const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_RENEW_BEFORE_MS = 5 * 60 * 1_000;
+const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_RETRY_MS = 1_000;
+const GOVERNANCE_CREDENTIAL_LEASE_DEFAULT_MAX_ATTEMPTS = 3;
 
-export type GovernanceCredentialLeaseState =
+type GovernanceCredentialLeaseState =
   | 'idle'
   | 'scheduled'
   | 'rotating'
@@ -21,7 +21,7 @@ export type GovernanceCredentialLeaseState =
   | 'stopped'
   | 'expired';
 
-export type GovernanceCredentialLeaseStopReason =
+type GovernanceCredentialLeaseStopReason =
   | 'stopped_by_owner'
   | 'retry_exhausted'
   | 'credential_expired';
@@ -43,11 +43,11 @@ export interface GovernanceCredentialLeaseScheduler {
   cancel(handle: unknown): void;
 }
 
-export interface GovernanceCredentialLeaseClient {
+interface GovernanceCredentialLeaseClient {
   request(input: unknown): Promise<GovernanceServiceResponse>;
 }
 
-export interface GovernanceCredentialLeaseControllerOptions {
+interface GovernanceCredentialLeaseControllerOptions {
   readonly projectRoot: string;
   readonly projectId: string;
   readonly grantId: string;

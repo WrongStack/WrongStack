@@ -7,7 +7,7 @@ import type { MemoryScope } from '@wrongstack/core/types';
 import type { Sage } from './types.js';
 import { DEFAULT_PERSISTENCE, sageToLegacyScope } from './types.js';
 
-export interface SqliteLegacyForgetContext {
+interface SqliteLegacyForgetContext {
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
   nowIso: () => string;
   upsertMemory: (memory: Sage) => void;

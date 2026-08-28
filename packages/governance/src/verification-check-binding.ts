@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { EVIDENCE_KINDS, type EvidenceKind } from './task-contract.js';
 
-export const VERIFICATION_CHECK_BINDING_SCHEMA_VERSION = 1 as const;
+const VERIFICATION_CHECK_BINDING_SCHEMA_VERSION = 1 as const;
 
 export interface VerificationCheckDescriptor {
   readonly id: string;
@@ -24,7 +24,7 @@ const SHA256_HEX = /^[a-f0-9]{64}$/;
 const CHECK_ID = /^[a-z0-9][a-z0-9._:-]{0,127}$/;
 const HANDLER_VERSION = /^[a-zA-Z0-9][a-zA-Z0-9._+-]{0,127}$/;
 
-export function calculateVerificationCheckHandlerFingerprint(
+function calculateVerificationCheckHandlerFingerprint(
   descriptor: VerificationCheckDescriptor,
 ): string {
   return createHash('sha256')

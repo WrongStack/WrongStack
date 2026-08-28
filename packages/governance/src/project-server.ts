@@ -29,10 +29,10 @@ import {
 
 type ServerState = 'idle' | 'starting' | 'ready' | 'closing' | 'closed';
 
-export const GOVERNANCE_IPC_MAX_CONNECTIONS = 128;
-export const GOVERNANCE_IPC_SOCKET_TIMEOUT_MS = 10_000;
+const GOVERNANCE_IPC_MAX_CONNECTIONS = 128;
+const GOVERNANCE_IPC_SOCKET_TIMEOUT_MS = 10_000;
 
-export interface GovernanceProjectServerOptions {
+interface GovernanceProjectServerOptions {
   readonly projectRoot: string;
   readonly projectId: string;
   readonly resolveDecisionContext?: GovernanceDecisionContextProvider | undefined;

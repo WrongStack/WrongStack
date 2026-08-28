@@ -10,7 +10,7 @@ import { buildSessionClause as buildSharedSessionClause } from './sqlite-store-s
 import { sqliteRowsToMemories } from './sqlite-store-search-helpers.js';
 import type { Sage, SageForPathOptions } from './types.js';
 
-export interface SqliteRetrieveForPathContext {
+interface SqliteRetrieveForPathContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
 }

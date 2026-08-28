@@ -21,7 +21,7 @@ import { readBundledInstructionText, renderInstructionTemplate } from '@wrongsta
 
 export type ConflictSide = 'incoming' | 'base';
 
-export interface ConflictFileIO {
+interface ConflictFileIO {
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
 }

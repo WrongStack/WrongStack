@@ -11,9 +11,9 @@ import type {
 } from './verification-execution-lease.js';
 import type { VerificationRunContract } from './verification-run-contract.js';
 
-export const VERIFICATION_TOOL_GATEWAY_REQUEST_SCHEMA_VERSION = 1 as const;
+const VERIFICATION_TOOL_GATEWAY_REQUEST_SCHEMA_VERSION = 1 as const;
 
-export type VerificationToolGatewayMode = 'legacy' | 'enforced';
+type VerificationToolGatewayMode = 'legacy' | 'enforced';
 
 /**
  * Contains only canonical identities and a one-time credential. Tool names,
@@ -29,15 +29,15 @@ export interface VerificationToolGatewayRequestV1 {
   };
 }
 
-export interface VerificationWorkspaceIdentity {
+interface VerificationWorkspaceIdentity {
   readonly manifestHash: string;
 }
 
-export interface VerificationExecutionLeaseConsumer {
+interface VerificationExecutionLeaseConsumer {
   consumeVerificationExecutionLease: GovernanceEventStore['consumeVerificationExecutionLease'];
 }
 
-export interface VerificationToolGatewayOptions<Result> {
+interface VerificationToolGatewayOptions<Result> {
   /** Defaults to legacy so construction alone can never enable enforcement. */
   readonly mode?: VerificationToolGatewayMode | undefined;
   readonly verifierClientId: string;
@@ -56,7 +56,7 @@ type VerificationToolGatewayDenialCode =
   | 'request_invalid'
   | 'workspace_identity_unavailable';
 
-export type VerificationToolGatewayResult<Result> =
+type VerificationToolGatewayResult<Result> =
   | {
       readonly route: 'legacy';
       readonly handled: false;

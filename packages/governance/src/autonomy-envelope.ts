@@ -23,7 +23,7 @@ export const GOVERNED_OPERATIONS = [
 
 export type GovernedOperation = (typeof GOVERNED_OPERATIONS)[number];
 
-export interface ChangeBudget {
+interface ChangeBudget {
   readonly maxChangedFiles: number;
   readonly maxChangedLines: number;
   readonly maxNewDependencies: number;

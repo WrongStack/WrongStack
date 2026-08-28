@@ -91,7 +91,7 @@ export interface SddRunHandle {
   stop(): void;
 }
 
-export interface SddControlCommand {
+interface SddControlCommand {
   type: string;
   payload?: unknown;
 }

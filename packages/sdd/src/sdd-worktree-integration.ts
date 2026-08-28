@@ -2,7 +2,7 @@ import type { TaskNode, TaskResult } from '@wrongstack/core/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import type { SddParallelRunOptions } from './sdd-parallel-run-types.js';
 
-export interface SddWorktreeState {
+interface SddWorktreeState {
   taskCwds: Map<string, string>;
   taskBranches: Map<string, string>;
   taskWorktrees: Map<string, WorktreeHandle>;

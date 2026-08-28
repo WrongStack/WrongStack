@@ -3,7 +3,7 @@ import type { MemoryEntry, MemoryScope } from '@wrongstack/core/types';
 import type { LegacyImportResult, Sage, SageSearchOptions } from './types.js';
 import { legacyToSageScope, sageToLegacyScope, toLegacyEntry } from './types.js';
 
-export interface SqliteLegacyApiContext {
+interface SqliteLegacyApiContext {
   rememberSage: (input: { text: string; scope: 'project' }) => Promise<Sage>;
   searchSage: (query: string, opts: SageSearchOptions) => Promise<Sage[]>;
 }

@@ -14,11 +14,11 @@ import {
 } from './daemon-metadata.js';
 import { sanitizeGovernanceMessage } from './sanitize.js';
 
-export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RENEW_BEFORE_MS = 15 * 60 * 1_000;
-export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RETRY_MS = 5_000;
-export const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_DEGRADED_FAILURES = 3;
+const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RENEW_BEFORE_MS = 15 * 60 * 1_000;
+const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_RETRY_MS = 5_000;
+const GOVERNANCE_DAEMON_ATTACHMENT_BROKER_DEGRADED_FAILURES = 3;
 
-export type GovernanceAttachmentBrokerLifecycleEventType =
+type GovernanceAttachmentBrokerLifecycleEventType =
   | 'published'
   | 'renewal_failed'
   | 'degraded'
@@ -65,7 +65,7 @@ interface GovernanceAttachmentBrokerGrantPort {
   revokeGrant(grantId: string, reason?: string): boolean;
 }
 
-export interface GovernanceAttachmentBrokerControllerOptions {
+interface GovernanceAttachmentBrokerControllerOptions {
   readonly projectRoot: string;
   readonly metadata: GovernanceDaemonMetadata;
   readonly grants: GovernanceAttachmentBrokerGrantPort;

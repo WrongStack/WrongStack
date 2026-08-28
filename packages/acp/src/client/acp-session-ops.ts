@@ -2,7 +2,7 @@ import type { AgentCapabilities, McpServer, SessionId, SessionInfo } from '../ty
 import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
 import type { ACPSessionOptions } from './acp-session-types.js';
 
-export function filterMcpServers(
+function filterMcpServers(
   agentCapabilities: AgentCapabilities,
   servers?: McpServer[],
 ): McpServer[] {
