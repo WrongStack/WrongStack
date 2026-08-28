@@ -34,6 +34,7 @@ import {
   setActiveSessionLane,
   setSessionGlobals,
 } from '@/stores/session-lanes';
+import { bindForegroundStores } from '@/stores/session-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 
@@ -357,8 +358,10 @@ export function handleSessionStart(msg: WSServerMessage) {
 
   // -- Transcript -------------------------------------------------------
   const replay = payload.replayMessages;
-  const hydrated =
-    replay && replay.length > 0 ? hydrateReplayMessages(replay, payload.replayMarkers ?? []) : [];
+  const hasReplayMessages = Array.isArray(replay) && replay.length > 0;
+  const hydrated = hasReplayMessages
+    ? hydrateReplayMessages(replay, payload.replayMarkers ?? [])
+    : [];
   const hasLiveTranscript = chat.messages.length > 0;
   if (hydrated.length > 0 && !(isRunning && hasLiveTranscript)) {
     // Server replay wins, except for a lane whose run is still streaming: its
@@ -416,6 +419,18 @@ export function handleSessionStart(msg: WSServerMessage) {
   const nothingInFront = activeId === DEFAULT_LANE_ID || !hasLane(activeId);
   const requested = claimRequestedSwitch(sessionId);
   const tabStore = useSessionTabStore.getState();
+  const preservePlainWebView =
+    isReset &&
+    !hasReplayMessages &&
+    !payload.needsSetup &&
+    !isDesktopShell() &&
+    !isRoutePinnedView()
+      ? {
+          currentView: useUIStore.getState().currentView,
+          activeActivity: useUIStore.getState().activeActivity,
+          sidebarOpen: useUIStore.getState().sidebarOpen,
+        }
+      : null;
   if (!requested && !nothingInFront && activeId !== sessionId) {
     // Passive server re-announces must never allocate visible tab slots. A
     // session gets a slot only through the tab registry's explicit open/resume
@@ -432,6 +447,13 @@ export function handleSessionStart(msg: WSServerMessage) {
   } else {
     setActiveLane(sessionId);
     setActiveSessionLane(sessionId);
+    // The session-scoped side stores follow the pointer here too. `openTab`
+    // gets this through `activate` → `switchSession`; this branch moves the
+    // pointer itself, so it has to. Without it the `files.tree` request issued
+    // a few lines below — stamped with the session now in front — comes back
+    // to a file store still bound to the previous tab and is parked unseen,
+    // which is the stale explorer / dead double-click on a resumed tab.
+    bindForegroundStores(sessionId);
     tabStore.markSeen(sessionId);
   }
 
@@ -454,11 +476,15 @@ export function handleSessionStart(msg: WSServerMessage) {
     });
   }
 
-  if (replay && !payload.needsSetup && !isRoutePinnedView()) {
+  if (preservePlainWebView) {
+    useUIStore.setState(preservePlainWebView);
+  }
+
+  if (hasReplayMessages && !payload.needsSetup && !isRoutePinnedView()) {
     if (isDesktopShell()) resetUiNavigationToHome({ sidebarOpen: false });
     else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
   }
-  if (replay && isMobileViewport()) useUIStore.getState().setSidebarOpen(false);
+  if (hasReplayMessages && isMobileViewport()) useUIStore.getState().setSidebarOpen(false);
 }
 
 /**

@@ -318,6 +318,6 @@ describe('SessionTabBar component', () => {
       expect(useSessionTabStore.getState().openTabIds).toEqual(['sess-12345678']),
     );
     expect(mockSendAbort).not.toHaveBeenCalled();
-    expect(mockResumeSession).not.toHaveBeenCalled();
+    expect(mockResumeSession).toHaveBeenCalledWith('sess-87654321');
   });
 });

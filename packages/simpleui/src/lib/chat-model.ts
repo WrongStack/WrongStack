@@ -1,4 +1,4 @@
-import type { ChatMessage, SimpleSubagent } from '../types.js';
+import type { ChatMessage, SimpleSubagent, ToolCallInfo } from '../types.js';
 
 export const SYSTEM_INJECTION_PREFIXES = [
   '[MAILBOX]',
@@ -133,6 +133,20 @@ function replayTextContent(content: unknown): string {
   return '';
 }
 
+function replayThinkingContent(content: unknown): string[] {
+  if (!Array.isArray(content)) return [];
+  return content
+    .filter(
+      (block): block is { type: 'thinking'; thinking: string } =>
+        typeof block === 'object' &&
+        block !== null &&
+        (block as Record<string, unknown>)['type'] === 'thinking' &&
+        typeof (block as Record<string, unknown>)['thinking'] === 'string',
+    )
+    .map((block) => block.thinking.trim())
+    .filter(Boolean);
+}
+
 /**
  * Whether a persisted message's content carries a `tool_use` block. Such a
  * message stopped for a tool call, so it is mid-turn — string content cannot
@@ -204,6 +218,16 @@ export function replayToMessages(replay: unknown, markers?: unknown): ChatMessag
     flushMarkersBefore(value['ts']);
     const role = value['role'];
     if (role !== 'user' && role !== 'assistant' && role !== 'system') continue;
+    if (role === 'assistant') {
+      for (const [thinkingIndex, text] of replayThinkingContent(value['content']).entries()) {
+        out.push({
+          id: `replay-thinking-${index}-${thinkingIndex}`,
+          role: 'thinking',
+          text,
+          ts: typeof value['ts'] === 'string' ? value['ts'] : undefined,
+        } satisfies ChatMessage);
+      }
+    }
     const text = replayTextContent(value['content']);
     if (!text) continue;
     // Filter out system-injected metadata blocks that were folded into the
@@ -232,6 +256,73 @@ export function replayToMessages(replay: unknown, markers?: unknown): ChatMessag
   }
 
   return retainSimpleChatMessages(out);
+}
+
+export function replayToToolCalls(replay: unknown): ToolCallInfo[] {
+  if (!Array.isArray(replay)) return [];
+  const calls: ToolCallInfo[] = [];
+  const byUseId = new Map<string, ToolCallInfo>();
+
+  const outputText = (content: unknown): string | undefined => {
+    if (typeof content === 'string') return content;
+    if (content === undefined || content === null) return undefined;
+    return JSON.stringify(content);
+  };
+
+  for (const [messageIndex, entry] of replay.entries()) {
+    if (!entry || typeof entry !== 'object') continue;
+    const value = entry as Record<string, unknown>;
+    const content = value['content'];
+    if (!Array.isArray(content)) continue;
+    const ts = typeof value['ts'] === 'string' ? value['ts'] : undefined;
+    for (const [blockIndex, rawBlock] of content.entries()) {
+      if (!rawBlock || typeof rawBlock !== 'object') continue;
+      const block = rawBlock as Record<string, unknown>;
+      if (block['type'] === 'tool_use') {
+        const id =
+          typeof block['id'] === 'string' && block['id']
+            ? block['id']
+            : `replay-tool-${messageIndex}-${blockIndex}`;
+        const call: ToolCallInfo = {
+          id,
+          name: typeof block['name'] === 'string' && block['name'] ? block['name'] : id,
+          input: block['input'],
+          status: 'running',
+          ts,
+        };
+        calls.push(call);
+        byUseId.set(id, call);
+        continue;
+      }
+      if (block['type'] !== 'tool_result') continue;
+      const id = typeof block['tool_use_id'] === 'string' ? block['tool_use_id'] : '';
+      const call = byUseId.get(id);
+      if (call) {
+        call.status = block['is_error'] ? 'error' : 'done';
+        call.ok = !block['is_error'];
+        call.output = outputText(block['content']);
+        continue;
+      }
+      calls.push({
+        id: id || `replay-tool-result-${messageIndex}-${blockIndex}`,
+        name:
+          typeof block['name'] === 'string' && block['name'] ? block['name'] : id || 'tool_result',
+        input: undefined,
+        status: block['is_error'] ? 'error' : 'done',
+        ok: !block['is_error'],
+        output: outputText(block['content']),
+        ts,
+      });
+    }
+  }
+
+  for (const call of calls) {
+    if (call.status === 'running') {
+      call.status = 'error';
+      call.ok = false;
+    }
+  }
+  return calls;
 }
 
 function upsert(

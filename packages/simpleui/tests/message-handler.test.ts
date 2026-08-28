@@ -534,6 +534,55 @@ describe('session.start', () => {
     expect(harness.resetAgentNameCache).toHaveBeenCalledTimes(1);
   });
 
+  it('hydrates replayed thinking and tool calls on session resume', () => {
+    harness.handler({
+      type: 'session.start',
+      payload: {
+        sessionId: 'resumed',
+        provider: 'openai',
+        model: 'gpt-4o',
+        maxContext: 100_000,
+        reset: true,
+        replayMessages: [
+          { role: 'user', content: 'Inspect it', ts: '2026-07-25T10:00:00Z' },
+          {
+            role: 'assistant',
+            ts: '2026-07-25T10:00:05Z',
+            content: [
+              { type: 'thinking', thinking: 'Need file context' },
+              { type: 'text', text: 'Reading first.' },
+              { type: 'tool_use', id: 'tc-1', name: 'read', input: { path: 'src/app.ts' } },
+            ],
+          },
+          {
+            role: 'user',
+            ts: '2026-07-25T10:00:06Z',
+            content: [{ type: 'tool_result', tool_use_id: 'tc-1', content: 'source text' }],
+          },
+          { role: 'assistant', content: 'Done.' },
+        ],
+      },
+    });
+
+    expect(harness.state.messages.map(({ role, text }) => ({ role, text }))).toEqual([
+      { role: 'user', text: 'Inspect it' },
+      { role: 'thinking', text: 'Need file context' },
+      { role: 'assistant', text: 'Reading first.' },
+      { role: 'assistant', text: 'Done.' },
+    ]);
+    expect(harness.state.toolCalls).toEqual([
+      {
+        id: 'tc-1',
+        name: 'read',
+        input: { path: 'src/app.ts' },
+        status: 'done',
+        ok: true,
+        output: 'source text',
+        ts: '2026-07-25T10:00:05Z',
+      },
+    ]);
+  });
+
   it('hydrates the leader agent and rejects leader snapshots from the worker store', () => {
     harness.handler({
       type: 'session.start',
@@ -1038,7 +1087,12 @@ describe('context accounting', () => {
       type: 'ctx.pct',
       payload: { load: 0.68, tokens: 136_000, maxContext: 200_000 },
     });
-    expect(harness.state.context).toEqual({ load: 0.68, tokens: 136_000, maxContext: 200_000, cache: null });
+    expect(harness.state.context).toEqual({
+      load: 0.68,
+      tokens: 136_000,
+      maxContext: 200_000,
+      cache: null,
+    });
   });
 
   it('keeps a 1% fraction as 0.01 (not inflated to 100%)', () => {

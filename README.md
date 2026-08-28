@@ -52,28 +52,29 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.313.1
+### What's new in 0.316.0
 
-- **Provider failover now works at the actual wire boundary.** Quarantined
-  provider/model pairs are skipped before a socket opens, failures are counted
-  once, and built-package error identity no longer hides fallback-worthy errors.
-- **WrongProxy recovers without a restart.** A refused local proxy route fails
-  open, waits for the bounded live-provider rebuild, and retries against the
-  direct provider endpoint with a less aggressive 4s → 8s → 16s schedule.
-- **The TUI has 50 themes and one-command layouts.** Fourteen new palettes join
-  the persisted `/theme` picker; `/lite`, `/full`, and `/sidebar` switch between
-  minimal, full, and independently controlled right-rail layouts immediately.
-- **Deliberate repeated prompts work again.** Byte-identical input is suppressed
-  only inside a 1.5-second accidental burst; later repeats and retries after a
-  failed or aborted run execute normally.
-- **Browser surfaces track model switches live.** WebUI and SimpleUI consume the
-  new `provider.model_switched` event, keeping active model state and activity
-  feedback synchronized with runtime fallback and manual switches.
-- **All release surfaces align to `0.313.1`.** The root, 34 package manifests,
+- **Provider waiting-room events are now auditable.** Model block/open events
+  are written to JSONL, exposed through provider-status, and broadcast with live
+  error context so operators can see why a route is blocked or reopened.
+- **Stats-driven tool auto-thinning is available behind an opt-in switch.**
+  `/settings autothin on` and `/tool autothin {status|candidates|apply|undo|config}`
+  let teams disable underused tools from Chronicle or in-process usage counts
+  while preserving operator-authored disables.
+- **WebUI sessions recover from startup races.** Browser sessions auto-resume and
+  retry after `session_not_ready`, with lane-guard warnings emitted once instead
+  of repeatedly interrupting the operator.
+- **Provider cooldowns distinguish quota exhaustion from ordinary temporary
+  blocks.** Quota failures escalate deliberately, while transient blocks expire
+  sooner and stop over-quarantining retryable routes.
+- **WebUI orchestration state is scoped to the active session.** Todos, tasks,
+  plan state, tab-slot recycling, orchestration stores, and fixtures keep
+  ownership across multi-tab workflows.
+- **All release surfaces align to `0.316.0`.** The root, 34 package manifests,
   both apps, README highlights, website metadata, JSON-LD, and release changelog
   now describe the same release.
 
-See the complete [0.313.1 release notes](CHANGELOG.md).
+See the complete [0.316.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -82,7 +83,7 @@ See the complete [0.313.1 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.313.1](#whats-new-in-03131)
+- [What's new in 0.316.0](#whats-new-in-03160)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

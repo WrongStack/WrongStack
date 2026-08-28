@@ -1,9 +1,9 @@
 import type { projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import { projectSessionMessage } from '@wrongstack/webui-protocol';
-import type { MessageHandlerDeps } from './message-handler-deps.js';
 import type { ServerMessage } from '../types.js';
-import { parseAgentSessionReplays, LEADER_AGENT_ID } from './agent-model.js';
-import { replayToMessages } from './chat-model.js';
+import { LEADER_AGENT_ID, parseAgentSessionReplays } from './agent-model.js';
+import { replayToMessages, replayToToolCalls } from './chat-model.js';
+import type { MessageHandlerDeps } from './message-handler-deps.js';
 
 /** Structured <nextsteps> tool input produced by `projectNextStepsToolInput`. */
 type ToolInput = ReturnType<typeof projectNextStepsToolInput>;
@@ -101,8 +101,10 @@ export function handleSessionStartMessage(params: {
   }));
   if (replayMessages) {
     setMessages(replayToMessages(replayMessages, replayMarkers));
+    setToolCalls(replayToToolCalls(replayMessages));
   } else if (resetSessionState) {
     setMessages([]);
+    setToolCalls([]);
   }
   if (payload['appVersion'] || payload['latestVersion']) {
     onUpdateInfo?.({
@@ -147,7 +149,6 @@ export function handleSessionStartMessage(params: {
     setPendingConfirm(null);
     setRunning(false);
     setActivity('');
-    setToolCalls([]);
     setSelectedAgentId(LEADER_AGENT_ID);
     resetAgentNameCache();
     setSessionStart(Date.now());

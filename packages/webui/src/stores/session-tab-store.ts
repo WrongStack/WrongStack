@@ -28,7 +28,6 @@ import {
   chatLane,
   disposeLane,
   ensureLane,
-  hasLane,
   MAX_LANES,
   readLane,
   setActiveLane,
@@ -40,7 +39,6 @@ import { useFleetStore } from './fleet-store';
 import { useGitChangesStore } from './git-changes-store';
 import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
-import { useToolStatsStore } from './tool-stats-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -52,6 +50,7 @@ import {
 } from './session-lanes';
 import { useSessionStore } from './session-store';
 import { useSystemPromptStore } from './system-prompt-store';
+import { useToolStatsStore } from './tool-stats-store';
 import { useUIStore } from './ui-store';
 
 export const MAX_OPEN_TABS = MAX_LANES;
@@ -563,8 +562,10 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     }
 
     // Already open: switch to its slot. One session, one slot — never a
-    // second copy of the same session in another tab, and never a second
-    // resume request for a session that is already attached to this page.
+    // second copy of the same session in another tab. Still notify the server
+    // when this was a user-initiated switch: after F5 a persisted tab can have
+    // a slot without a live writer/replay, and even live background tabs need
+    // the runtime foreground moved onto the session the user just selected.
     // The busy-tab toast is emitted ONLY on the three branches that actually
     // move the foreground off `activeId` — a tabs_full refusal leaves the
     // busy tab in front and must not claim it "keeps running in background".
@@ -573,6 +574,7 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
       if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
       activate(sessionId);
       get().markSeen(sessionId);
+      options?.resumeSession?.(sessionId);
       return { success: true, reason: 'switched' };
     }
 
@@ -739,21 +741,10 @@ export function summarizeTab(sessionId: string, slot: number): TabSummary {
   };
 }
 
-/** Ordered summaries for every open slot. */
-function summarizeTabs(): TabSummary[] {
-  return useSessionTabStore.getState().openTabIds.map((id, i) => summarizeTab(id, i));
-}
-
 /** Which slot a session sits in, or -1. Enforces the one-session-one-tab rule
  *  at read time so callers cannot invent a second home for a session. */
 export function slotOf(sessionId: string): number {
   return useSessionTabStore.getState().openTabIds.indexOf(sessionId);
-}
-
-/** True when the session has a lane but no slot — a state that should never
- *  persist; used by the reconciler to clean up after a dropped tab. */
-function isOrphanLane(sessionId: string): boolean {
-  return hasLane(sessionId) && slotOf(sessionId) === -1;
 }
 
 export { chatLane };

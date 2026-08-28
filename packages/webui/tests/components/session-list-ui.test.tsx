@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionList } from '../../src/components/SidePanel/SessionList';
 import { i18n } from '../../src/i18n';
 import type { SessionHistoryEntry } from '../../src/stores';
-import { useUIStore } from '../../src/stores';
+import { useSessionTabStore, useUIStore } from '../../src/stores';
+import { chatLane, DEFAULT_LANE_ID, useChatLanes } from '../../src/stores/chat-lanes';
+import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '../../src/stores/session-lanes';
 
 function entry(overrides: Partial<SessionHistoryEntry> = {}): SessionHistoryEntry {
   return {
@@ -27,6 +29,9 @@ describe('SessionList workspace', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
     useUIStore.setState({ favoriteSessionIds: [], sessionNicknames: {} });
+    useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+    useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   });
 
   afterEach(() => cleanup());
@@ -61,9 +66,7 @@ describe('SessionList workspace', () => {
 
   it('constrains the workspace height so the session list owns vertical scrolling', () => {
     renderWorkspace();
-    const workspace = document.querySelector<HTMLElement>(
-      '[data-history-variant="workspace"]',
-    );
+    const workspace = document.querySelector<HTMLElement>('[data-history-variant="workspace"]');
     expect(workspace?.classList.contains('h-full')).toBe(true);
     expect(
       Array.from(workspace?.querySelectorAll<HTMLElement>('div') ?? []).some((element) =>
@@ -88,6 +91,53 @@ describe('SessionList workspace', () => {
     expect(useUIStore.getState().favoriteSessionIds).toEqual(['session-1']);
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(props.resumeSession).toHaveBeenCalledWith('session-1');
+  });
+
+  it('opens a free tab and asks the backend to resume the selected history session', () => {
+    const props = renderWorkspace();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['session-1']);
+    expect(useSessionLanes.getState().activeSessionId).toBe('session-1');
+    expect(props.resumeSession).toHaveBeenCalledExactlyOnceWith('session-1');
+  });
+
+  it('switches an already-open background tab and still asks the backend for its replay', () => {
+    useSessionTabStore.setState({
+      openTabIds: ['session-active', 'session-1'],
+      lastSeenCounts: {},
+      attention: {},
+    });
+    useSessionLanes.setState({ activeSessionId: 'session-active' });
+    useChatLanes.setState({ activeSessionId: 'session-active' });
+    const props = renderWorkspace();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['session-active', 'session-1']);
+    expect(useSessionLanes.getState().activeSessionId).toBe('session-1');
+    expect(props.resumeSession).toHaveBeenCalledExactlyOnceWith('session-1');
+  });
+
+  it('refuses a new resume when all four slots contain non-empty sessions', () => {
+    useSessionTabStore.setState({
+      openTabIds: ['tab-a', 'tab-b', 'tab-c', 'tab-d'],
+      lastSeenCounts: {},
+      attention: {},
+    });
+    useSessionLanes.setState({ activeSessionId: 'tab-a' });
+    useChatLanes.setState({ activeSessionId: 'tab-a' });
+    for (const id of ['tab-a', 'tab-b', 'tab-c', 'tab-d']) {
+      chatLane(id).addMessage({ role: 'user', content: id });
+    }
+    const props = renderWorkspace();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a', 'tab-b', 'tab-c', 'tab-d']);
+    expect(useSessionLanes.getState().activeSessionId).toBe('tab-a');
+    expect(props.resumeSession).not.toHaveBeenCalled();
   });
 
   it('paginates long workspace histories', () => {
@@ -129,6 +179,10 @@ describe('SessionList workspace', () => {
       historyEntries: [entry(), entry({ id: 'session-2', tokenTotal: 900 })],
     });
 
-    expect(screen.queryByRole('button', { name: i18n.t('activity:sessions.deleteEmptyTitle', { count: 0 }) as string })).toBeNull();
+    expect(
+      screen.queryByRole('button', {
+        name: i18n.t('activity:sessions.deleteEmptyTitle', { count: 0 }) as string,
+      }),
+    ).toBeNull();
   });
 });

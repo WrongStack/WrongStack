@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Model cost tiers provide deterministic routing by expense level.** The new `modelTiers` config binds a fallback profile, spend budget, and runtime settings under named levels such as `budget`, `standard`, and `premium`; `/tier`, the TUI resource menu, and the WebUI Settings panel all edit the same table, while Kanban dispatch and subagent spawning resolve explicit model, fallback profile, tier, and session-leader choices in order. (`cdb5ec0ff`)
+- **Leaders can propose or apply guarded tier switches.** Leader self-switching supports `off`, `propose`, and `auto` modes with dwell windows, max-tier ceilings, context-fit checks, and break-even savings guards so a cheaper model switch must pay for its prompt-cache warmup and cannot strand the current context. (`cdb5ec0ff`)
+
+### Changed
+
+- **Internal barrel exports were narrowed across the workspace.** Core, WebUI, CLI, TUI, WebUI server, Tools, SAGE, Governance, ACP, SDD, primitives, WebUI protocol, WrongTrace, plug-lsp, and bench packages de-export internal-only symbols and refresh architecture evidence so public API snapshots track the smaller supported surface. (`3068168e5`, `878b698ad`, `90a85c22b`, `047f49ffe`, `dacbdf712`, `c59707eec`, `38633ee57`, `71690d6b8`, `4b686a447`, `bb5edb7c6`, `a60b8ab97`, `fe1d5e609`, `65d28f313`, `047952eea`, `97721ea02`, `29ab5a3e7`, `d14ef35ba`, `3cb23eebf`)
+
+### Fixed
+
+- **Autonomous goal startup no longer leaks a tick interval when stopped mid-start.** `PhaseOrchestrator.start()` now installs the monitoring interval only if the run is still active and clears any pre-existing timer, with a regression test covering `stop()` landing while `start()` is blocked in task execution. (`6e8a90409`)
+
 ## [0.316.0] — 2026-08-28
 
 Consolidates the intermediate `0.314.0` version bump into one documented

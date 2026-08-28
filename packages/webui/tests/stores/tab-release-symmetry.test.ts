@@ -200,6 +200,33 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(useLocalPrefs.getState().bySession['tab-used']).toMatchObject({ yolo: true });
     expect(disposeStreakState).not.toHaveBeenCalledWith('tab-used');
   });
+
+  it('switching to an already-open background tab resumes the target without adding a slot', () => {
+    openTabs(['tab-a', 'tab-b']);
+    useSessionLanes.setState({ activeSessionId: 'tab-a' });
+    useChatLanes.setState({ activeSessionId: 'tab-a' });
+    const resumeSession = vi.fn();
+
+    const outcome = useSessionTabStore.getState().openTab('tab-b', { resumeSession });
+
+    expect(outcome).toEqual({ success: true, reason: 'switched' });
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a', 'tab-b']);
+    expect(useSessionLanes.getState().activeSessionId).toBe('tab-b');
+    expect(resumeSession).toHaveBeenCalledExactlyOnceWith('tab-b');
+  });
+
+  it('re-opening the foreground tab marks it seen without sending a duplicate resume', () => {
+    openTabs(['tab-a', 'tab-b']);
+    useSessionLanes.setState({ activeSessionId: 'tab-b' });
+    useChatLanes.setState({ activeSessionId: 'tab-b' });
+    const resumeSession = vi.fn();
+
+    const outcome = useSessionTabStore.getState().openTab('tab-b', { resumeSession });
+
+    expect(outcome).toEqual({ success: true, reason: 'already_active' });
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a', 'tab-b']);
+    expect(resumeSession).not.toHaveBeenCalled();
+  });
 });
 
 describe('the foreground pointer never names a freed lane', () => {

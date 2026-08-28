@@ -3,6 +3,7 @@ import {
   boundSimpleChatText,
   contentToText,
   replayToMessages,
+  replayToToolCalls,
   retainSimpleChatMessages,
   updateSubagents,
 } from '../src/lib/chat-model.js';
@@ -85,42 +86,76 @@ describe('SimpleUI chat projection', () => {
     ]);
   });
 
-  it('strips tool_use and tool_result blocks from assistant replay content', () => {
-    expect(
-      replayToMessages([
-        { role: 'user', content: 'Search the code' },
-        {
-          role: 'assistant',
-          content: [
-            { type: 'text', text: 'I found the issue.' },
-            { type: 'tool_use', id: 'call1', name: 'read', input: { path: 'file.ts' } },
-            { type: 'tool_result', tool_use_id: 'call1', content: 'file content here' },
-            { type: 'text', text: 'The fix is in line 42.' },
-          ],
-        },
-      ]).map(({ role, text }) => ({ role, text })),
-    ).toEqual([
+  it('keeps tool blocks out of chat text while preserving them for the replayed tool panel', () => {
+    const replay = [
+      { role: 'user', content: 'Search the code' },
+      {
+        role: 'assistant',
+        ts: '2026-07-25T10:00:05Z',
+        content: [
+          { type: 'text', text: 'I found the issue.' },
+          { type: 'tool_use', id: 'call1', name: 'read', input: { path: 'file.ts' } },
+          { type: 'text', text: 'The fix is in line 42.' },
+        ],
+      },
+      {
+        role: 'user',
+        ts: '2026-07-25T10:00:06Z',
+        content: [{ type: 'tool_result', tool_use_id: 'call1', content: 'file content here' }],
+      },
+    ];
+
+    expect(replayToMessages(replay).map(({ role, text }) => ({ role, text }))).toEqual([
       { role: 'user', text: 'Search the code' },
       { role: 'assistant', text: 'I found the issue.\n\nThe fix is in line 42.' },
     ]);
+    expect(replayToToolCalls(replay)).toEqual([
+      {
+        id: 'call1',
+        name: 'read',
+        input: { path: 'file.ts' },
+        status: 'done',
+        ok: true,
+        output: 'file content here',
+        ts: '2026-07-25T10:00:05Z',
+      },
+    ]);
   });
 
-  it('skips assistant messages that contain only non-text blocks', () => {
-    expect(
-      replayToMessages([
-        { role: 'user', content: 'Read the file' },
-        {
-          role: 'assistant',
-          content: [
-            { type: 'tool_use', id: 't1', name: 'read', input: { path: 'x.ts' } },
-            { type: 'tool_result', tool_use_id: 't1', content: 'data' },
-          ],
-        },
-        { role: 'assistant', content: 'Done reading.' },
-      ]).map(({ role, text }) => ({ role, text })),
-    ).toEqual([
+  it('restores thinking blocks and tool-only assistant calls on replay', () => {
+    const replay = [
+      { role: 'user', content: 'Read the file' },
+      {
+        role: 'assistant',
+        ts: '2026-07-25T10:00:05Z',
+        content: [
+          { type: 'thinking', thinking: 'Need to inspect x.ts' },
+          { type: 'tool_use', id: 't1', name: 'read', input: { path: 'x.ts' } },
+        ],
+      },
+      {
+        role: 'user',
+        ts: '2026-07-25T10:00:06Z',
+        content: [{ type: 'tool_result', tool_use_id: 't1', content: 'data' }],
+      },
+      { role: 'assistant', content: 'Done reading.' },
+    ];
+
+    expect(replayToMessages(replay).map(({ role, text }) => ({ role, text }))).toEqual([
       { role: 'user', text: 'Read the file' },
+      { role: 'thinking', text: 'Need to inspect x.ts' },
       { role: 'assistant', text: 'Done reading.' },
+    ]);
+    expect(replayToToolCalls(replay)).toEqual([
+      {
+        id: 't1',
+        name: 'read',
+        input: { path: 'x.ts' },
+        status: 'done',
+        ok: true,
+        output: 'data',
+        ts: '2026-07-25T10:00:05Z',
+      },
     ]);
   });
 

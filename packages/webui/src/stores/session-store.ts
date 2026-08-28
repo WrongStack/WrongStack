@@ -178,6 +178,33 @@ function projectActiveLane(state: LanesState): SessionState {
 }
 
 /**
+ * Re-point the stores that ROUTE SERVER WRITES by bound session.
+ *
+ * `useFileStore` and `useGitChangesStore` both compare the `sessionId` a
+ * server message carries against their own bound id, and a write whose stamp
+ * does not match is parked in `…BySession[<that session>]` rather than applied
+ * to the projection panels render. So a pointer move that skips these does not
+ * merely show stale data — it makes every stamped response for the tab now in
+ * front invisible. `files.tree` and `files.read` are the case users see: the
+ * explorer keeps the previous tab's tree and double-clicking a file opens
+ * nothing, because both responses are stamped with the LANE POINTER
+ * (`withSession` -> `foregroundSessionId()`) while `fileSessionId` still names
+ * the tab before the switch.
+ *
+ * Deliberately narrower than `bindForeground`: this is the data half, safe to
+ * call from any path that moves the pointer. Chrome (which view is up, whether
+ * the sidebar is open) is navigation, not routing, and is rebound only where
+ * the surface really is switching tabs.
+ *
+ * Both binds are idempotent -- each returns early when already on `sessionId`
+ * -- so calling this from more than one pointer-move path is free.
+ */
+export function bindForegroundStores(sessionId: string | null): void {
+  useFileStore.getState().bindSessionFiles(sessionId);
+  useGitChangesStore.getState().bindSessionGitChanges(sessionId);
+}
+
+/**
  * Setting the session through the FACADE means "this is the tab in front" —
  * that is what the single-store API meant, and app code plus tests rely on it.
  * Handlers that fill a background lane call `sessionLane(id).setSession`
@@ -192,8 +219,7 @@ function bindForeground(sessionId: string | null | undefined): void {
   // pointer while the prefs store still points at nothing.
   useLocalPrefs.getState().bindSession(sessionId ?? null);
   useUIStore.getState().bindSessionChrome(sessionId ?? null);
-  useFileStore.getState().bindSessionFiles(sessionId ?? null);
-  useGitChangesStore.getState().bindSessionGitChanges(sessionId ?? null);
+  bindForegroundStores(sessionId ?? null);
   // No session in front: fall back to the pre-session lane rather than leaving
   // the pointer on a session that is no longer displayed. A stale pointer is
   // how "ended the session, kept writing into its transcript" happened.
@@ -274,6 +300,11 @@ function switchSession(newSessionId: string): void {
   // happened to correct it — and a click in that window wrote tab 2's
   // choice into tab 1's override map.
   useLocalPrefs.getState().bindSession(newSessionId);
+  // Same rule, and a worse failure, for the two stores that route SERVER
+  // writes by bound session: leaving them behind parked this tab's `files.*`
+  // and `git.*` responses in a bucket nothing renders, so the explorer kept
+  // the previous tab's tree and opening a file did nothing at all.
+  bindForegroundStores(newSessionId);
   setActiveSessionLane(newSessionId);
   const lane = useSessionLanes.getState().lanes[newSessionId];
   const provider = lane?.session?.provider;
@@ -418,40 +449,5 @@ export const memorySessionSnapshots = {
     useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   },
 };
-
-/**
- * Credit usage to a session that is not in front.
- *
- * Now a plain lane write — background accrual is the DEFAULT, not a special
- * case bolted onto the side. Creates the lane if the run outran its tab.
- */
-function accrueBackgroundUsage(
-  sessionId: string,
-  usage: {
-    input: number;
-    output: number;
-    cacheRead?: number | undefined;
-    cacheWrite?: number | undefined;
-  },
-  rates: { inputCost: number; outputCost: number; cacheReadCost: number },
-): void {
-  if (!sessionId) return;
-  const lanes = useSessionLanes.getState().lanes;
-  if (!lanes[sessionId]) return;
-  const lane = sessionLane(sessionId);
-  lane.updateUsage({
-    input: usage.input ?? 0,
-    output: usage.output ?? 0,
-    cacheRead: usage.cacheRead ?? 0,
-    cacheWrite: usage.cacheWrite ?? 0,
-  });
-  const cost =
-    ((usage.input ?? 0) * rates.inputCost +
-      (usage.cacheWrite ?? 0) * rates.inputCost +
-      (usage.output ?? 0) * rates.outputCost +
-      (usage.cacheRead ?? 0) * rates.cacheReadCost) /
-    1_000_000;
-  lane.addCost(cost);
-}
 
 export { createSessionLaneData };

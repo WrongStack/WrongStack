@@ -421,7 +421,7 @@ export function SessionList({
   const handleResume = useCallback(
     (id: string) => {
       const result = useSessionTabStore.getState().openTab(id, { resumeSession });
-      if (!result.success || result.reason !== 'opened_new_tab') return;
+      if (!result.success || result.reason === 'already_active') return;
       setResumingId(id);
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
       resumeTimer.current = setTimeout(() => setResumingId(null), 10_000);
