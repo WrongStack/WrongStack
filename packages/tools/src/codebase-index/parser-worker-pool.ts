@@ -30,7 +30,7 @@ import type { ParserWorkerResponse } from './parser-worker-script.js';
 import type { FileSymbols, SymbolLang } from './schema.js';
 
 /** Minimum number of files before the pool is worth spawning. */
-export const WORKER_POOL_THRESHOLD = 500;
+const WORKER_POOL_THRESHOLD = 500;
 
 /**
  * Effective pool threshold for this run (audit T-04): the documented

@@ -9,7 +9,7 @@ import type {
 
 const MAX_DIAGNOSTICS = 200;
 
-export interface ParsedDiagnostics {
+interface ParsedDiagnostics {
   diagnostics: readonly LanguageDiagnostic[];
   omitted: number;
   summary: LanguageRunSummary;

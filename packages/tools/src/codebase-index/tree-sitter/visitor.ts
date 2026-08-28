@@ -38,7 +38,7 @@ import {
 } from './util.js';
 
 /** Result of walking one parsed file. */
-export interface VisitResult {
+interface VisitResult {
   symbols: IndexSymbol[];
   refs: Ref[];
 }

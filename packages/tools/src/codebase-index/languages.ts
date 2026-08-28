@@ -154,7 +154,7 @@ export function isIndexablePath(file: string): boolean {
  * letting genuinely mixed families (`.ts`/`.tsx` + the script block of a
  * `.vue`/`.svelte` file, `.java`/`.kt` on the JVM) resolve into one another.
  */
-export type LangFamily =
+type LangFamily =
   | 'js'
   | 'go'
   | 'py'

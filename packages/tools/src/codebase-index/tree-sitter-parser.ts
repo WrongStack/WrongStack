@@ -150,7 +150,7 @@ function resolveGrammarName(lang: SymbolLang): string | undefined {
 }
 
 /** True when this lang has a tree-sitter grammar available right now. */
-export function isTreeSitterSupported(lang: SymbolLang): boolean {
+function isTreeSitterSupported(lang: SymbolLang): boolean {
   return resolveGrammarName(lang) !== undefined;
 }
 

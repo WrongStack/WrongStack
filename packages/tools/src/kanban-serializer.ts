@@ -5,10 +5,10 @@ import type { KanbanToolOutput } from './kanban-tool-types.js';
  * mutation result swaps it for a compact summary. Read actions whose purpose
  * IS the board (`get_board`, exports) always keep the full payload.
  */
-export const KANBAN_BOARD_TRANSCRIPT_BYTE_CAP = 16_384;
+const KANBAN_BOARD_TRANSCRIPT_BYTE_CAP = 16_384;
 
 /** Actions whose whole point is returning the full board — never trimmed. */
-export const KANBAN_FULL_BOARD_ACTIONS = new Set<string>([
+const KANBAN_FULL_BOARD_ACTIONS = new Set<string>([
   'get_board',
   'export_markdown',
   'export_task_graph',

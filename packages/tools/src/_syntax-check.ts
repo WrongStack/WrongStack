@@ -33,7 +33,7 @@ function loadTypescript(): Promise<Ts | null> {
   return tsLoad;
 }
 
-export interface SyntaxCheckResult {
+interface SyntaxCheckResult {
   /** Parse errors in the new content (capped at {@link MAX_ERRORS}). */
   errors: string[];
   /** True when the pre-edit content already failed to parse — the edit did

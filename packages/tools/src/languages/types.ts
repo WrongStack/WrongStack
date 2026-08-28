@@ -202,7 +202,7 @@ export interface UnavailableOperation {
 }
 
 export type OperationPlanResult = CommandPlan | UnavailableOperation;
-export type OperationResolver = (ctx: ProfileContext) => Promise<OperationPlanResult>;
+type OperationResolver = (ctx: ProfileContext) => Promise<OperationPlanResult>;
 
 export interface LanguageProfile {
   id: LanguageProfileId;

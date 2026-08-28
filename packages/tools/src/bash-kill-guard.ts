@@ -60,7 +60,7 @@ const SCRIPT_KILL_RE_POSIX = /^(?:\.\/)?(?:kill|terminate|stop)\S*\.sh(?:\s|$)/i
  */
 const SCRIPT_KILL_FALLBACK_RE = /^\S*(?:kill|terminate|stop)\S*\.(?:ps1|bat|cmd|sh)\b/i;
 
-export interface KillCommand {
+interface KillCommand {
   pid?: number;
   name?: string;
   signal?: string;
@@ -69,7 +69,7 @@ export interface KillCommand {
   originalCommand: string;
 }
 
-export interface KillCheckResult {
+interface KillCheckResult {
   blocked: boolean;
   reason?: string;
 }
@@ -452,7 +452,7 @@ async function getProtectedEntries(): Promise<PersistentProcessEntry[]> {
 /**
  * Check if a parsed kill command targets a protected WrongStack process.
  */
-export async function isKillProtected(kill: KillCommand): Promise<boolean> {
+async function isKillProtected(kill: KillCommand): Promise<boolean> {
   const registry = getPersistentProcessRegistry();
 
   // Sentinel: kill-script is always blocked (script contents are opaque)

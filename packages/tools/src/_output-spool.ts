@@ -65,7 +65,7 @@ function sweepOldSpoolFiles(dir: string): void {
   })();
 }
 
-export interface SpoolInfo {
+interface SpoolInfo {
   /** Absolute path of the spool file. */
   path: string;
   /** Total bytes of output produced (including what reached the file). */
@@ -74,7 +74,7 @@ export interface SpoolInfo {
   droppedBytes: number;
 }
 
-export interface OutputSpool {
+interface OutputSpool {
   /** Feed every raw output chunk. Never throws. */
   write(text: string): void;
   /**
@@ -84,7 +84,7 @@ export interface OutputSpool {
   finalize(): SpoolInfo | null;
 }
 
-export interface CreateOutputSpoolOptions {
+interface CreateOutputSpoolOptions {
   /** Tool name used in the spool filename (sanitized). */
   tool: string;
   /**

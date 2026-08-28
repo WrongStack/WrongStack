@@ -38,7 +38,7 @@ export type BashShell = 'cmd' | 'powershell' | 'pwsh';
 /** Sentinel returned on POSIX — bash.ts maps this to `/bin/bash -c`. */
 export const POSIX_DEFAULT: BashShell = 'cmd';
 
-export interface PickShellEnv {
+interface PickShellEnv {
   /** Read-only env view. Tests pass `{ get: (k) => process.env[k] }`. */
   get(key: string): string | undefined;
 }

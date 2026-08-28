@@ -138,7 +138,7 @@ export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
  * Rank map: symbolId → rank (0-based). Lower rank = more relevant.
  * Built from a search result list (already sorted by relevance).
  */
-export type RankMap = Map<number, number>;
+type RankMap = Map<number, number>;
 
 /** Build a RankMap from a sorted result list. */
 export function buildRankMap(sortedIds: number[]): RankMap {

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-28T17:35:31.570Z
+**Generated:** 2026-08-28T18:42:19.633Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3410 |
-| Production source lines | 824987 |
+| Production source lines | 824791 |
 | Test files | 3028 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10588 |
@@ -116,26 +116,26 @@ None.
 | 1023 | `packages/tui/src/components/context-panel.tsx` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
-| 1015 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1013 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1010 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1009 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 1007 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1006 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
+| 1003 | `packages/cli/src/slash-commands/sdd.ts` |
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 999 | `packages/tui/src/app.tsx` |
-| 999 | `packages/tui/src/components/agents-monitor.tsx` |
 | 998 | `packages/webui/src/components/OfficeMapCanvas.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
-| 996 | `packages/tui/src/input-validation.ts` |
+| 994 | `packages/tui/src/components/agents-monitor.tsx` |
 | 993 | `packages/sage/src/types.ts` |
 | 991 | `packages/kanban/src/manager/assignment.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 983 | `apps/desktop/src/main/runtime-manager.ts` |
 | 982 | `packages/core/src/coordination/autonomous-coordinator.ts` |
+| 980 | `packages/webui/src/components/KanbanTaskInspector.tsx` |
 
 ## Exports only tests reference
 

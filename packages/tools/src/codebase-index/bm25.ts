@@ -39,7 +39,7 @@ export function tokenise(text: string): string[] {
   return text.replace(TOKENISE_RE, ' ').toLowerCase().trim().split(/\s+/).filter(Boolean);
 }
 
-export interface IndexableDoc {
+interface IndexableDoc {
   id: number;
   text: string;
 }

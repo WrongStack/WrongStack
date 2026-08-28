@@ -28,9 +28,9 @@ import { withSpawnGate } from './spawn-gate.js';
 
 /** Max files per child process. Bounded so one pathological file cannot
  *  poison an unbounded chunk and stdin stays a comfortable pipe size. */
-export const MAX_BATCH_FILES = 100;
+const MAX_BATCH_FILES = 100;
 /** Max cumulative source bytes per child process. */
-export const MAX_BATCH_BYTES = 8 * 1024 * 1024;
+const MAX_BATCH_BYTES = 8 * 1024 * 1024;
 
 export interface BatchFile {
   file: string;

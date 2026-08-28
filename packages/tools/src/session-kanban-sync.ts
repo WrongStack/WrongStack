@@ -16,7 +16,7 @@ export interface SessionKanbanSourceUpdate {
   plan?: PlanFile | undefined;
 }
 
-export function sourceStatus(task: KanbanTask): TaskStatus {
+function sourceStatus(task: KanbanTask): TaskStatus {
   if (task.status === 'completed') return 'completed';
   if (task.status === 'in_progress') return 'in_progress';
   if (task.status === 'review') return 'review';
@@ -33,7 +33,7 @@ export function todoStatus(task: KanbanTask): TodoItem['status'] {
   return 'pending';
 }
 
-export function sessionTodoFromTask(task: KanbanTask, board?: KanbanBoard): TodoItem {
+function sessionTodoFromTask(task: KanbanTask, board?: KanbanBoard): TodoItem {
   const blockedBy = board ? blockingTitles(board, task) : [];
   return {
     id: task.origin?.taskId ?? task.id,
@@ -44,7 +44,7 @@ export function sessionTodoFromTask(task: KanbanTask, board?: KanbanBoard): Todo
   };
 }
 
-export function managedTodoFromTask(task: KanbanTask, board: KanbanBoard): TodoItem {
+function managedTodoFromTask(task: KanbanTask, board: KanbanBoard): TodoItem {
   return {
     ...sessionTodoFromTask(task, board),
     kanbanBoardId: board.id,
@@ -102,7 +102,7 @@ export function orderTasksForTodos(board: KanbanBoard, tasks: readonly KanbanTas
   return emitted;
 }
 
-export function sameTodos(left: readonly TodoItem[], right: readonly TodoItem[]): boolean {
+function sameTodos(left: readonly TodoItem[], right: readonly TodoItem[]): boolean {
   return (
     left.length === right.length &&
     left.every((todo, index) => {
@@ -162,7 +162,7 @@ export function broadcastTodoUpdate(context: Context, todos: readonly TodoItem[]
     });
 }
 
-export function notifyTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
+function notifyTodoUpdate(context: Context, todos: readonly TodoItem[]): void {
   const summary = formatTodosForModel(todos);
   const text =
     `[KANBAN TODO UPDATE]\nAnother Kanban agent reassessed the shared board. The canonical todo list is now:\n${summary}\n` +

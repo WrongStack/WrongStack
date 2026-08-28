@@ -131,7 +131,7 @@ export function getAllFileMetasWithStatement(stmt: PrepareStatement): FileMeta[]
   }));
 }
 
-export function getIndexDbSizeBytes(indexDir: string): number {
+function getIndexDbSizeBytes(indexDir: string): number {
   try {
     return fs.statSync(path.join(indexDir, DB_FILE)).size;
   } catch {

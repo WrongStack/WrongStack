@@ -41,7 +41,7 @@ export async function parseFileContent(
  * zero-symbol semantics. `error` carries the throw's message so callers can
  * record something actionable instead of a bare "no result".
  */
-export interface ParseSlot {
+interface ParseSlot {
   result: FileSymbols | null;
   error?: string | undefined;
 }

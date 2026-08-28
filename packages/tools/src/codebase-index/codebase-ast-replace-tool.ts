@@ -14,9 +14,9 @@ import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { type MutateSymbolOptions, replaceSymbolInFile } from './ast-symbol-mutator.js';
 
-export interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
+interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
 
-export interface CodebaseAstReplaceOutput {
+interface CodebaseAstReplaceOutput {
   status: 'ok' | 'error';
   file: string;
   symbol: string;

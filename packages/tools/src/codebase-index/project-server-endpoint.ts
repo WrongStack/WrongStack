@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveIndexDir } from './writer.js';
 
 export const PROJECT_INDEX_SERVER_PROTOCOL_VERSION = 1;
-export const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
+const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
 /**
  * Short directory name that owns the per-project Unix socket on Linux.
  *
@@ -20,7 +20,7 @@ export const PROJECT_INDEX_SERVER_METADATA_FILE = 'server.json';
  * The name is kept short to stay under the 103-byte `sun_path` cap on macOS
  * (48 bytes of `/var/folders/<xx>/<30 chars>/T` + 8 + 24 + 5 = 85 bytes).
  */
-export const PROJECT_INDEX_SERVER_SOCKET_DIR = `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}`;
+const PROJECT_INDEX_SERVER_SOCKET_DIR = `wsci-v${PROJECT_INDEX_SERVER_PROTOCOL_VERSION}`;
 
 let buildIdCache:
   | {

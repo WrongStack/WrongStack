@@ -31,7 +31,7 @@
       "relativeImports": 4
     },
     "packages/cli/src/slash-commands/sdd.ts": {
-      "lines": 1015,
+      "lines": 1003,
       "relativeImports": 14
     },
     "packages/cli/src/slash-commands/settings-mutations.ts": {
@@ -315,7 +315,7 @@
       "relativeImports": 71
     },
     "packages/tui/src/components/agents-monitor.tsx": {
-      "lines": 999,
+      "lines": 994,
       "relativeImports": 14
     },
     "packages/tui/src/components/context-panel.tsx": {
@@ -327,7 +327,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/utils.tsx": {
-      "lines": 950,
+      "lines": 935,
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
@@ -355,7 +355,7 @@
       "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 996,
+      "lines": 959,
       "relativeImports": 13
     },
     "packages/tui/src/kanban-slash.ts": {

@@ -218,7 +218,7 @@ export function searchRankedWithStatement(
   };
 }
 
-export function searchRankedFallbackWithStatement(
+function searchRankedFallbackWithStatement(
   stmtFn: (sql: string) => {
     all: (...args: (string | number)[]) => unknown[];
     get: (...args: (string | number)[]) => unknown;

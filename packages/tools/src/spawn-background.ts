@@ -31,7 +31,7 @@ import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resol
 
 const isWin = os.platform() === 'win32';
 
-export interface SpawnBackgroundOptions {
+interface SpawnBackgroundOptions {
   /**
    * Shell command string to execute (e.g. `"node --version"`, `"npm run dev"`).
    *

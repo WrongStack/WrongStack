@@ -29,7 +29,7 @@ import type {
 } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
 
-export interface ServiceHooks {
+interface ServiceHooks {
   signal?: AbortSignal | undefined;
   onProgress?: ((current: number, total: number) => void) | undefined;
 }

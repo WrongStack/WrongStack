@@ -17,7 +17,7 @@ import { normalizeCommandOutput } from '../_util.js';
 import { incomingCallsService } from './background-indexer.js';
 import { codebaseIndexDirOverride } from './writer.js';
 
-export interface TargetedTestInput {
+interface TargetedTestInput {
   /** Symbol name (function, class, method) whose tests should be discovered and run. */
   symbol?: string | undefined;
   /** Source file path whose corresponding test suite should be run. */
@@ -26,7 +26,7 @@ export interface TargetedTestInput {
   testFiles?: string[] | undefined;
 }
 
-export interface TargetedTestOutput {
+interface TargetedTestOutput {
   status: 'passed' | 'failed' | 'no_tests_found' | 'error';
   discoveredSuites: string[];
   testsRun: number;

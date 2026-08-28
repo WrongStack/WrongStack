@@ -31,9 +31,9 @@ import { detectLang } from './languages.js';
 import type { SymbolLang } from './schema.js';
 
 /** Package-manager ecosystem a module root belongs to. */
-export type ModuleRootKind = 'npm' | 'cargo' | 'go' | 'python' | 'maven' | 'gradle' | 'dotnet';
+type ModuleRootKind = 'npm' | 'cargo' | 'go' | 'python' | 'maven' | 'gradle' | 'dotnet';
 
-export interface ModuleRoot {
+interface ModuleRoot {
   /** Absolute directory holding the marker file, forward-slash normalized. */
   dir: string;
   kind: ModuleRootKind;

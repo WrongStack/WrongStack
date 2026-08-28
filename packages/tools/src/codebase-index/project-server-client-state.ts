@@ -80,12 +80,12 @@ export interface ProjectIndexServerConnectionState {
   health?: ProjectIndexServerClientHealth | undefined;
 }
 
-export type ProjectIndexServerConnectionListener = (
+type ProjectIndexServerConnectionListener = (
   state: ProjectIndexServerConnectionState,
 ) => void;
 
 export const connectionStates = new Map<string, ProjectIndexServerConnectionState>();
-export const connectionStateListeners = new Set<ProjectIndexServerConnectionListener>();
+const connectionStateListeners = new Set<ProjectIndexServerConnectionListener>();
 export let latestConnectionState: ProjectIndexServerConnectionState = {
   status: 'offline',
   connected: false,

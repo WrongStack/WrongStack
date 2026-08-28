@@ -45,7 +45,7 @@ export const PWSH_TOOL_DESCRIPTION =
   'Execute a PowerShell command (`pwsh -Command`) in a fresh process on Windows and return its stdout/stderr. ' +
   'Stateless per call: pass `workdir` instead of using `cd`.';
 
-export const PWSH_TOOL_USAGE_HINT =
+const PWSH_TOOL_USAGE_HINT =
   'Best practices & sandbox protocol for pwsh:\n' +
   '- **Stateless**: No cwd, variables, or functions persist between calls. Use `workdir` to set the directory.\n' +
   '- **Paths & Environs**: Use native Windows paths (`C:\\...`) and read env vars via `$env:NAME` (and `$env:DSH_*`).\n' +

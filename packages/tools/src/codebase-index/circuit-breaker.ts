@@ -58,7 +58,7 @@ export class LockError extends Error {
   override readonly name = 'LockError';
 }
 
-export interface CircuitBreakerOptions {
+interface CircuitBreakerOptions {
   /** Consecutive failures before the circuit opens. Default: 3. */
   failureThreshold?: number | undefined;
   /** How long an open circuit rejects requests before allowing a probe. Default: 60s. */

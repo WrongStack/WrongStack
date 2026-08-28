@@ -13,14 +13,14 @@ import { type InvariantViolation, polyglotInvariantEngine } from './ast-invarian
 import { detectLang } from './languages.js';
 import type { SymbolLang } from './schema.js';
 
-export interface CodebaseInvariantCheckInput {
+interface CodebaseInvariantCheckInput {
   file?: string | undefined;
   originalCode?: string | undefined;
   modifiedCode: string;
   lang?: SymbolLang | undefined;
 }
 
-export interface CodebaseInvariantCheckOutput {
+interface CodebaseInvariantCheckOutput {
   valid: boolean;
   violations: InvariantViolation[];
   summary: string;

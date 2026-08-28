@@ -199,7 +199,7 @@ export function xxhash64String(content: string): string {
 }
 
 /** Sentinel value stored in `files.content_hash` for a never-indexed file. */
-export const CONTENT_HASH_EMPTY = '';
+const CONTENT_HASH_EMPTY = '';
 
 /**
  * Parse a stored `content_hash` value (from SQLite) and return the

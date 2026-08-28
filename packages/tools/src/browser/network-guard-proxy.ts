@@ -4,7 +4,7 @@ import type { Duplex } from 'node:stream';
 import type { BrowserDnsLookup } from './security.js';
 import { resolvePinnedBrowserTarget } from './security.js';
 
-export interface BrowserNetworkGuardProxyOptions {
+interface BrowserNetworkGuardProxyOptions {
   allowPrivateHosts?: boolean | undefined;
   allowedPrivateOrigins?: readonly string[] | undefined;
   lookup?: BrowserDnsLookup | undefined;

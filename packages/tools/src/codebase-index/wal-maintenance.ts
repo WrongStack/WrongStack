@@ -18,7 +18,7 @@
  * best-effort.
  */
 
-export interface WalMaintenanceOptions {
+interface WalMaintenanceOptions {
   /** Idle window after a write completion before maintenance fires. */
   idleMs?: number | undefined;
   /** Run `optimize()` once every N maintenance fires. Default: 8. */
@@ -29,7 +29,7 @@ export interface WalMaintenanceOptions {
   clearTimeoutFn?: typeof clearTimeout | undefined;
 }
 
-export interface WalMaintenanceHooks {
+interface WalMaintenanceHooks {
   /** Returns true when a checkpoint completed (WAL reset). */
   checkpoint: () => boolean;
   /** Recompute statistics. */

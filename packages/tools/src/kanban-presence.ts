@@ -1,7 +1,7 @@
 import { touchKanbanPresence } from '@wrongstack/kanban';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
-export interface KanbanPresenceContext {
+interface KanbanPresenceContext {
   session?: { id?: string | undefined } | undefined;
   agentId?: string | undefined;
   agentName?: string | undefined;

@@ -14,7 +14,7 @@
 
 import type { CallType, Ref, SymbolLang } from './schema.js';
 
-export interface RawParsedSymbol {
+interface RawParsedSymbol {
   name: string;
   kind: string;
   line: number;
@@ -23,7 +23,7 @@ export interface RawParsedSymbol {
   scope: string;
 }
 
-export interface ParsedParserOutput {
+interface ParsedParserOutput {
   symbols: RawParsedSymbol[];
   refs: Ref[];
 }
@@ -108,7 +108,7 @@ export function parseParserOutput(stdout: string, lang: SymbolLang): ParsedParse
  * file failed inside the batch; the caller falls back to the single-file
  * parser). Never throws — a malformed envelope yields [].
  */
-export interface BatchFileOutput {
+interface BatchFileOutput {
   file: string;
   /** Set when this file failed inside the batch (e.g. syntax error). */
   error?: string | undefined;

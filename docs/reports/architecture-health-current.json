@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T17:35:31.570Z",
+  "generatedAt": "2026-08-28T18:42:19.633Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3410,
     "testFiles": 3028,
-    "sourceLines": 824987,
+    "sourceLines": 824791,
     "workspaceEdges": 128,
     "moduleEdges": 10588,
     "nonCommandSlashImports": 0,
@@ -19403,7 +19403,7 @@
     },
     {
       "file": "packages/cli/src/slash-commands/sdd.ts",
-      "lines": 1015,
+      "lines": 1003,
       "relativeImports": 14
     },
     {
@@ -19758,7 +19758,7 @@
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
-      "lines": 999,
+      "lines": 994,
       "relativeImports": 14
     },
     {
@@ -19773,7 +19773,7 @@
     },
     {
       "file": "packages/tui/src/components/history/utils.tsx",
-      "lines": 950,
+      "lines": 935,
       "relativeImports": 17
     },
     {
@@ -19808,7 +19808,7 @@
     },
     {
       "file": "packages/tui/src/input-validation.ts",
-      "lines": 996,
+      "lines": 959,
       "relativeImports": 13
     },
     {
@@ -20189,11 +20189,6 @@
       "relativeImports": 2
     },
     {
-      "file": "packages/cli/src/slash-commands/sdd.ts",
-      "lines": 1015,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/tools/src/codebase-index/project-server.ts",
       "lines": 1013,
       "relativeImports": 9
@@ -20224,6 +20219,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/cli/src/slash-commands/sdd.ts",
+      "lines": 1003,
+      "relativeImports": 14
+    },
+    {
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
@@ -20239,11 +20239,6 @@
       "relativeImports": 71
     },
     {
-      "file": "packages/tui/src/components/agents-monitor.tsx",
-      "lines": 999,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/webui/src/components/OfficeMapCanvas.tsx",
       "lines": 998,
       "relativeImports": 9
@@ -20254,9 +20249,9 @@
       "relativeImports": 11
     },
     {
-      "file": "packages/tui/src/input-validation.ts",
-      "lines": 996,
-      "relativeImports": 13
+      "file": "packages/tui/src/components/agents-monitor.tsx",
+      "lines": 994,
+      "relativeImports": 14
     },
     {
       "file": "packages/sage/src/types.ts",
@@ -20287,6 +20282,11 @@
       "file": "packages/core/src/coordination/autonomous-coordinator.ts",
       "lines": 982,
       "relativeImports": 14
+    },
+    {
+      "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
+      "lines": 980,
+      "relativeImports": 16
     }
   ],
   "testOnlyExports": [

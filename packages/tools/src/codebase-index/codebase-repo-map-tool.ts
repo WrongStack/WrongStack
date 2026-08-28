@@ -11,14 +11,14 @@ import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { generateRepoMap, type RepoMapResult } from './repo-map.js';
 
-export interface CodebaseRepoMapInput {
+interface CodebaseRepoMapInput {
   /** Maximum token budget (approximate) for the generated map. Defaults to 1200. */
   maxTokens?: number | undefined;
   /** Optional file paths to prioritize and boost in the map generation. */
   focusFiles?: string[] | undefined;
 }
 
-export interface CodebaseRepoMapOutput extends RepoMapResult {
+interface CodebaseRepoMapOutput extends RepoMapResult {
   status: 'ok' | 'error';
   error?: string | undefined;
 }

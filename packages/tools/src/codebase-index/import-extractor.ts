@@ -14,9 +14,9 @@
 import type { Ref, SymbolLang } from './schema.js';
 
 /** Only the leading window is scanned, mirroring the generic symbol extractor. */
-export const IMPORT_MAX_FILE_CHARS = 512 * 1024;
+const IMPORT_MAX_FILE_CHARS = 512 * 1024;
 /** Upper bound on imports recorded per file. */
-export const IMPORT_MAX_PER_FILE = 400;
+const IMPORT_MAX_PER_FILE = 400;
 
 interface ImportPattern {
   /**
@@ -123,7 +123,7 @@ const LANG_IMPORTS: Partial<Record<SymbolLang, ImportPattern[]>> = {
  * `com.example.Helper` it is the segment separator. The presence of a path
  * separator is what tells them apart.
  */
-export function lastSegment(specifier: string): string {
+function lastSegment(specifier: string): string {
   const pathLike = /[/\\]|::/.test(specifier);
   const segments = specifier.split(/[/\\]|::/).filter(Boolean);
   let last = segments[segments.length - 1] ?? specifier;

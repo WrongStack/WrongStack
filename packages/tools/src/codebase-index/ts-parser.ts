@@ -143,7 +143,7 @@ function pushScopeName(node: TS.Node, parts: string[]): void {
   }
 }
 
-export interface ParseOptions {
+interface ParseOptions {
   file: string;
   content: string;
   lang: SymbolLang;

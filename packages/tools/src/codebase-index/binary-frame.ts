@@ -29,7 +29,7 @@
 import { decode, encode } from '@msgpack/msgpack';
 
 /** Magic byte that prefixes every binary frame. 'W' for WrongStack. */
-export const BINARY_FRAME_MAGIC = 0x57;
+const BINARY_FRAME_MAGIC = 0x57;
 
 /**
  * Hard cap on one binary frame's declared payload length for the CLIENT

@@ -24,7 +24,7 @@ if (!parentPort) {
 // Narrowed alias — `parentPort` itself is typed nullable inside closures.
 const port: MessagePort = parentPort;
 
-export interface ParserWorkerRequest {
+interface ParserWorkerRequest {
   type: 'parse';
   id: number;
   /** Content is pre-read by the main thread for the hash check; passed here
@@ -43,11 +43,11 @@ export interface ParserWorkerResponse {
   errors: ReadonlyArray<{ file: string; error: string }>;
 }
 
-export interface ParserWorkerShutdown {
+interface ParserWorkerShutdown {
   type: 'shutdown';
 }
 
-export type ParserWorkerInbound = ParserWorkerRequest | ParserWorkerShutdown;
+type ParserWorkerInbound = ParserWorkerRequest | ParserWorkerShutdown;
 
 /**
  * Parse a batch of files. P3.8: routes through `parseFilesContent`, which

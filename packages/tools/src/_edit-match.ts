@@ -30,7 +30,7 @@
 
 export type MatchTier = 'exact' | 'trailing-whitespace' | 'whitespace-normalized' | 'fuzzy';
 
-export interface LadderMatch {
+interface LadderMatch {
   /** Char offset (inclusive) of the match start in the LF-normalized file. */
   start: number;
   /** Char offset (exclusive) of the match end. */
@@ -39,7 +39,7 @@ export interface LadderMatch {
   startLine: number;
 }
 
-export interface LadderResult {
+interface LadderResult {
   tier: MatchTier;
   matches: LadderMatch[];
   /** Similarity score of the best candidate — only set for the fuzzy tier. */

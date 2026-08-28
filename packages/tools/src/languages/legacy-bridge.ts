@@ -33,7 +33,7 @@ const NON_JS_SUFFIXES: ReadonlyArray<{ suffix: string; language: LanguageProfile
   { suffix: '.fsproj', language: 'csharp' },
 ];
 
-export interface LegacyBridgeContext {
+interface LegacyBridgeContext {
   cwd: string;
   projectRoot: string;
   signal: AbortSignal;
@@ -81,7 +81,7 @@ export async function detectNonJsEcosystem(
   return null;
 }
 
-export interface LegacyBridgeResult {
+interface LegacyBridgeResult {
   language: LanguageProfileId;
   run?: LanguageRunResult;
   outcome?: LanguagePackageOutcome;

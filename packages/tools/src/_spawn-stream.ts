@@ -23,7 +23,7 @@ export interface SpawnStreamResult {
   spoolBytes?: number | undefined;
 }
 
-export interface SpawnStreamOptions {
+interface SpawnStreamOptions {
   cmd: string;
   args: string[];
   cwd: string;

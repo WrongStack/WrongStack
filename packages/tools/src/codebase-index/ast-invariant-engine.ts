@@ -55,7 +55,7 @@ export interface InvariantEvaluationResult {
   };
 }
 
-export interface ParameterContract {
+interface ParameterContract {
   name: string;
   isOptional: boolean;
   hasDefault: boolean;
@@ -63,21 +63,21 @@ export interface ParameterContract {
   type?: string | undefined;
 }
 
-export interface FunctionContract {
+interface FunctionContract {
   name: string;
   isExported: boolean;
   params: ParameterContract[];
   returnType?: string | undefined;
 }
 
-export interface InterfacePropertyContract {
+interface InterfacePropertyContract {
   name: string;
   isOptional: boolean;
   hasDefault?: boolean | undefined;
   type?: string | undefined;
 }
 
-export interface InterfaceContract {
+interface InterfaceContract {
   name: string;
   isExported: boolean;
   properties: InterfacePropertyContract[];
