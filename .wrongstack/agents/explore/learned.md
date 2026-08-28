@@ -58,7 +58,7 @@
   - *How:* `session-tab-store.ts`
   - *How:* `codebase-incoming-calls`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=3; wins=3 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=4; wins=4 -->
 - **When tracing importers of any module under `packages/webui/src/` (not just `stores/`), grep the bare basename repo-wide in addition to specifier patterns — sibling-directory consumers use relative specifiers (`./useChatViewState`) that `components/<name>` style patterns never match; in this repo the bare-basename grep plus `codebase-incoming-calls` together resolved the full consumer set in one pass (`useChatViewState` had exactly one: `ChatView/index.tsx`).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/`
@@ -71,15 +71,15 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=58; wins=57 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=59; wins=58 -->
 - ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=76; wins=75 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=77; wins=76 -->
 - **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
 ---
-*Last capture: 2026-08-28T07:28:32.018Z · 8 entries*
+*Last capture: 2026-08-28T06:42:52.331Z · 8 entries*
