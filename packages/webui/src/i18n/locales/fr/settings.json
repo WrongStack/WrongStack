@@ -441,7 +441,8 @@
     "autonomyDelayMsHint": "Millisecondes avant que l'agent reprenne automatiquement en mode Auto. 0 = immédiat.",
     "refineCountdownLabel": "Compte à rebours d'affinage",
     "refineCountdownHint": "Délai de grâce avant l'envoi automatique du prompt affiné (millisecondes).",
-    "reasoningEffortModelSet": "niveaux du modèle actif"
+    "reasoningEffortModelSet": "niveaux du modèle actif",
+    "reasoningEffortUnsupported": "Non proposé par ce modèle (pris en charge : {{levels}}) — le réglage sera omis."
   },
   "execution": {
     "heading": "Exécution",
@@ -683,7 +684,9 @@
     "swarmPanelSidebar": "Barre latérale droite",
     "swarmPanelOff": "Désactivé",
     "titleAnimationLabel": "Animation du titre",
-    "titleAnimationHint": "Anime le titre du terminal/onglet avec l’état d’exécution (parité TUI).",
+    "titleAnimationHint": "Animer le titre du terminal/onglet avec l'état d'exécution (parité TUI).",
+    "keyboardShortcutsLabel": "Raccourcis clavier",
+    "keyboardShortcutsHint": "Activer les raccourcis clavier globaux (Ctrl+K, Alt+1..4, etc.). Désactivé par défaut.",
     "statusChipHeading": "Puce d’état et ligne d’état",
     "statusChipHint": "Style visuel pour la ligne d’état TUI/CLI et la puce de travail.",
     "thinkingWordLabel": "Mot de réflexion",

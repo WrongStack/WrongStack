@@ -21,7 +21,8 @@
     "techstack": "TechStack",
     "chronicle": "Chronicle",
     "intake": "Anforderungen",
-    "roster": "Agenten-Roster"
+    "roster": "Agenten-Roster",
+    "chimera": "Chimera-Reviews"
   },
   "brand": {
     "returnToChat": "{{name}} — zurück zum Chat",
@@ -3261,6 +3262,8 @@
   },
   "providerWait": {
     "providerModelAvailability": "Anbieter-/Modellverfügbarkeit",
+    "recentBlockOpenEvents": "Letzte Sperr-/Freigabe-Ereignisse ({{count}})",
+    "noBlockOpenEventsYet": "Noch keine Sperr-/Freigabe-Ereignisse aufgezeichnet.",
     "refreshStatus": "Status aktualisieren",
     "lastError": "Letzter Fehler:",
     "reopenHalfOpenProbe": "Erneut öffnen (Half-Open-Probe)",

@@ -55,13 +55,14 @@ describe('ChimeraReportCard', () => {
     renderCard(cardMessage());
     expect(screen.getByText('Chimera report — action needed')).toBeTruthy();
     expect(screen.getByText(/2 potential finding/)).toBeTruthy();
-    expect(screen.getByRole('button')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Take action/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Open in Chimera Hub/ })).toBeTruthy();
   });
 
   it('disables the button while the lane is busy (leader running)', () => {
     chatLane(SESSION).patch({ isLoading: true });
     renderCard(cardMessage());
-    const button = screen.getByRole('button') as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: /Leader is running/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.textContent).toContain('Leader is running');
   });
@@ -71,7 +72,7 @@ describe('ChimeraReportCard', () => {
     chatLane(SESSION).addMessage(message);
     renderCard(message);
 
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /Take action/ }));
 
     // Prompt goes to THIS session's leader via the session-tagged send.
     expect(wsSendMessage).toHaveBeenCalledTimes(1);
@@ -98,7 +99,7 @@ describe('ChimeraReportCard', () => {
     expect(card?.chimeraReport?.actionedAt).not.toBeNull();
     expect(useChimeraReportsStore.getState().bySession[SESSION]?.[0]?.actionedAt).not.toBeNull();
 
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /Leader is running/ }));
     expect(wsSendMessage).toHaveBeenCalledTimes(1);
   });
 
@@ -108,7 +109,7 @@ describe('ChimeraReportCard', () => {
         chimeraReport: { reportId: 'report-1', actionable: true, actionedAt: 2_000 },
       }),
     );
-    const button = screen.getByRole('button') as HTMLButtonElement;
+    const button = screen.getByRole('button', { name: /Prompt sent/ }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
     expect(button.textContent).toContain('Prompt sent');
   });

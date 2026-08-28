@@ -445,7 +445,8 @@
     "autonomyDelayMsHint": "Auto modunda ajanın otomatik devam etmeden önce bekleme süresi (milisaniye). 0 = anında.",
     "refineCountdownLabel": "İyileştirme geri sayımı",
     "refineCountdownHint": "İyileştirilmiş istemin otomatik gönderilmeden önceki bekleme süresi (milisaniye).",
-    "reasoningEffortModelSet": "aktif modelin desteklediği seviyeler"
+    "reasoningEffortModelSet": "aktif modelin desteklediği seviyeler",
+    "reasoningEffortUnsupported": "Bu model tarafından sunulmuyor (desteklenenler: {{levels}}) — ayar atlanacak."
   },
   "execution": {
     "heading": "Yürütme",
@@ -688,6 +689,8 @@
     "swarmPanelOff": "Kapalı",
     "titleAnimationLabel": "Başlık animasyonu",
     "titleAnimationHint": "Terminal/sekme başlığını çalışma durumuyla canlandırır (TUI uyumluluğu).",
+    "keyboardShortcutsLabel": "Klavye kısayolları",
+    "keyboardShortcutsHint": "Genel klavye kısayollarını (Ctrl+K, Alt+1..4, Vim tuşları, vb.) etkinleştirir. Varsayılan olarak kapalıdır.",
     "statusChipHeading": "Durum çipi ve durum çubuğu",
     "statusChipHint": "TUI/CLI durum çubuğu ve çalışma çipi için görsel stil.",
     "thinkingWordLabel": "Düşünme kelimesi",

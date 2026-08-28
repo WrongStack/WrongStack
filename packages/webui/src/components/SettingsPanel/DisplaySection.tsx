@@ -120,6 +120,15 @@ export function DisplaySection({ syncPref }: DisplaySectionProps) {
               onChange={() => syncPref('titleAnimation', !localPrefs.titleAnimation)}
             />
           </div>
+          {/* Global Keyboard Shortcuts toggle */}
+          <div className="py-3">
+            <PreferenceToggle
+              label={t('settings:display.keyboardShortcutsLabel')}
+              hint={t('settings:display.keyboardShortcutsHint')}
+              value={localPrefs.keyboardShortcuts}
+              onChange={() => syncPref('keyboardShortcuts', !localPrefs.keyboardShortcuts)}
+            />
+          </div>
         </div>
       </div>
 

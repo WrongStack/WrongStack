@@ -270,16 +270,16 @@ export function ProviderWaitingRoom() {
           >
             <Clock3 className="h-3.5 w-3.5 text-warning" />
             <span className="text-muted-foreground">
-              {audit.length > 0
-                ? `Recent block/open events (${audit.length})`
-                : 'Recent block/open events'}
+              {t('activity:providerWait.recentBlockOpenEvents', { count: audit.length })}
             </span>
             <span className="ml-auto text-muted-foreground">{auditOpen ? 'Hide' : 'Show'}</span>
           </button>
           {auditOpen && (
             <div className="pt-1">
               {audit.length === 0 ? (
-                <div className="py-1 text-muted-foreground">No block/open events recorded yet.</div>
+                <div className="py-1 text-muted-foreground">
+                  {t('activity:providerWait.noBlockOpenEventsYet')}
+                </div>
               ) : (
                 audit.map((entry, idx) => {
                   const opened = entry.to !== 'blocked';

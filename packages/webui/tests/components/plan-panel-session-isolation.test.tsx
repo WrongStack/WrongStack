@@ -1,75 +1,153 @@
-import { act, cleanup, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, act } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PlanPanel } from '../../src/components/PlanPanel';
+import { disposeLane, useChatLanes } from '../../src/stores/chat-lanes';
+import { setActiveSessionLane, useSessionLanes } from '../../src/stores/session-lanes';
 
-const testState = vi.hoisted(() => {
-  const state = {
-    activeSessionId: 'session-a' as string | null,
-    listeners: new Set<(message: unknown) => void>(),
-    getPlan: vi.fn(),
-    updatePlanItem: vi.fn(),
-  };
-  return {
-    ...state,
-    client: {
-      getPlan: state.getPlan,
-      updatePlanItem: state.updatePlanItem,
-      on: (_type: string, listener: (message: unknown) => void) => {
-        state.listeners.add(listener);
-        return () => state.listeners.delete(listener);
-      },
+const mockListeners: Record<string, ((msg: unknown) => void)[]> = {};
+const mockWs = {
+  getPlan: vi.fn(),
+  updatePlanItem: vi.fn(),
+  on: vi.fn((event: string, cb: (msg: unknown) => void) => {
+    if (!mockListeners[event]) mockListeners[event] = [];
+    mockListeners[event].push(cb);
+    return () => {
+      mockListeners[event] = (mockListeners[event] || []).filter((fn) => fn !== cb);
+    };
+  }),
+};
+
+vi.mock('../../src/lib/ws-client', () => ({
+  getWSClient: () => mockWs,
+}));
+
+vi.mock('../../src/i18n', () => ({
+  useAppTranslation: () => ({
+    t: (k: string, opts?: any) => {
+      if (typeof opts === 'string') return opts;
+      if (opts && typeof opts === 'object' && 'defaultValue' in opts) return opts.defaultValue;
+      return k;
     },
-  };
-});
-
-vi.mock('@/i18n', () => ({
-  useAppTranslation: () => ({ t: (key: string) => key }),
+  }),
 }));
-
-vi.mock('@/stores', () => ({
-  useActiveSessionId: () => testState.activeSessionId,
-}));
-
-vi.mock('@/lib/ws-client', () => ({
-  getWSClient: () => testState.client,
-}));
-
-const { PlanPanel } = await import('@/components/PlanPanel');
-
-function emitPlan(sessionId: string, title: string): void {
-  const message = {
-    type: 'plan.updated',
-    payload: {
-      sessionId,
-      plan: { items: [{ id: `${sessionId}-1`, title, status: 'open' }] },
-    },
-  };
-  for (const listener of testState.listeners) listener(message);
-}
 
 describe('PlanPanel session isolation', () => {
   beforeEach(() => {
-    testState.activeSessionId = 'session-a';
-    testState.listeners.clear();
-    testState.getPlan.mockReset();
-    testState.updatePlanItem.mockReset();
+    vi.clearAllMocks();
+    for (const key of Object.keys(mockListeners)) delete mockListeners[key];
+    useChatLanes.setState({ lanes: {}, activeSessionId: null });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: null });
   });
 
-  afterEach(() => cleanup());
+  it('preserves collapsed section state across session switches and prunes on disposeLane', () => {
+    setActiveSessionLane('s1');
+    const { rerender } = render(<PlanPanel />);
 
-  it('clears on a tab switch and ignores a late PLAN response from the previous session', () => {
-    const view = render(<PlanPanel />);
-    act(() => emitPlan('session-a', 'Plan A'));
-    expect(screen.getByText('Plan A')).toBeTruthy();
+    // Simulate receiving plan for s1
+    act(() => {
+      mockListeners['plan.updated']?.forEach((cb) =>
+        cb({
+          payload: {
+            sessionId: 's1',
+            plan: {
+              items: [
+                { id: 'p1', title: 'Task 1 in progress', status: 'in_progress' },
+                { id: 'p2', title: 'Task 2 open', status: 'open' },
+              ],
+            },
+          },
+        }),
+      );
+    });
 
-    testState.activeSessionId = 'session-b';
-    view.rerender(<PlanPanel />);
-    expect(screen.queryByText('Plan A')).toBeNull();
+    expect(screen.getByText('Task 1 in progress')).toBeTruthy();
+    expect(screen.getByText('Task 2 open')).toBeTruthy();
 
-    act(() => emitPlan('session-a', 'Late Plan A'));
-    expect(screen.queryByText('Late Plan A')).toBeNull();
+    // Toggle collapse for in_progress
+    const inProgressBtn = screen.getByText(/statusInProgress/i);
+    fireEvent.click(inProgressBtn);
 
-    act(() => emitPlan('session-b', 'Plan B'));
-    expect(screen.getByText('Plan B')).toBeTruthy();
-    expect(testState.getPlan).toHaveBeenCalledTimes(2);
+    // Item should be collapsed (not in document)
+    expect(screen.queryByText('Task 1 in progress')).toBeNull();
+
+    // Switch to session s2
+    act(() => {
+      setActiveSessionLane('s2');
+    });
+    rerender(<PlanPanel />);
+
+    // Simulate receiving plan for s2
+    act(() => {
+      mockListeners['plan.updated']?.forEach((cb) =>
+        cb({
+          payload: {
+            sessionId: 's2',
+            plan: {
+              items: [
+                { id: 'p3', title: 'S2 Task in progress', status: 'in_progress' },
+              ],
+            },
+          },
+        }),
+      );
+    });
+
+    // In s2, in_progress should NOT be collapsed
+    expect(screen.getByText('S2 Task in progress')).toBeTruthy();
+
+    // Switch back to s1
+    act(() => {
+      setActiveSessionLane('s1');
+    });
+    rerender(<PlanPanel />);
+
+    act(() => {
+      mockListeners['plan.updated']?.forEach((cb) =>
+        cb({
+          payload: {
+            sessionId: 's1',
+            plan: {
+              items: [
+                { id: 'p1', title: 'Task 1 in progress', status: 'in_progress' },
+              ],
+            },
+          },
+        }),
+      );
+    });
+
+    // S1 in_progress should still be collapsed!
+    expect(screen.queryByText('Task 1 in progress')).toBeNull();
+
+    // Dispose s1 lane and switch to s2 (as happens when closing s1 tab)
+    act(() => {
+      disposeLane('s1');
+      setActiveSessionLane('s2');
+    });
+    rerender(<PlanPanel />);
+
+    // Switch to s1 fresh again
+    act(() => {
+      setActiveSessionLane('s1');
+    });
+    rerender(<PlanPanel />);
+
+    act(() => {
+      mockListeners['plan.updated']?.forEach((cb) =>
+        cb({
+          payload: {
+            sessionId: 's1',
+            plan: {
+              items: [
+                { id: 'p1', title: 'Task 1 in progress', status: 'in_progress' },
+              ],
+            },
+          },
+        }),
+      );
+    });
+
+    // After disposal and returning, s1 state is fresh (not collapsed)
+    expect(screen.getByText('Task 1 in progress')).toBeTruthy();
   });
 });

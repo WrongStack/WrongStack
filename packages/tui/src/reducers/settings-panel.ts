@@ -77,6 +77,7 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
           statuslineMode: action.statuslineMode,
           reasoningMode: action.reasoningMode,
           reasoningEffort: action.reasoningEffort,
+          reasoningEffortLevels: action.reasoningEffortLevels,
           reasoningPreserve: action.reasoningPreserve,
           thinkingWord: action.thinkingWord,
           thinkingWordEditing: false,

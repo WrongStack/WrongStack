@@ -8,6 +8,7 @@ import {
 } from '@wrongstack/tools/auto-proceed-loop-guard';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocalPrefs } from './local-prefs.js';
+import { useActiveSessionId } from './session-lanes.js';
 import { useSessionStore } from './session-store.js';
 
 /**
@@ -128,7 +129,9 @@ export function disposeStreakState(sessionId: string): void {
 export function useAutoSubmitStreak(): UseAutoSubmitStreak {
   const autoProceedMaxIterations = useLocalPrefs((s) => s.autoProceedMaxIterations);
   const autonomy = useLocalPrefs((s) => s.autonomy);
-  const sessionId = useSessionStore((s) => s.session?.id ?? null);
+  const activeSessionId = useActiveSessionId();
+  const sessionRecordId = useSessionStore((s) => s.session?.id ?? null);
+  const sessionId = activeSessionId ?? sessionRecordId;
 
   /** This tab's own bookkeeping — never another tab's. */
   const state = streakStateFor(sessionId);

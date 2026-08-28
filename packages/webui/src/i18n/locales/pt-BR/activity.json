@@ -21,7 +21,8 @@
     "techstack": "TechStack",
     "chronicle": "Chronicle",
     "intake": "Requisitos",
-    "roster": "Elenco de agentes"
+    "roster": "Elenco de agentes",
+    "chimera": "Revisões Chimera"
   },
   "brand": {
     "returnToChat": "{{name}} — voltar ao chat",
@@ -3261,6 +3262,8 @@
   },
   "providerWait": {
     "providerModelAvailability": "Disponibilidade de provedor/modelo",
+    "recentBlockOpenEvents": "Eventos recentes de bloqueio/abertura ({{count}})",
+    "noBlockOpenEventsYet": "Ainda não há eventos de bloqueio/abertura registrados.",
     "refreshStatus": "Atualizar status",
     "lastError": "Último erro:",
     "reopenHalfOpenProbe": "Reabrir (sonda semiaberta)",

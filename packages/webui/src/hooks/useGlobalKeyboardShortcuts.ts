@@ -14,6 +14,7 @@ import {
   useChatStore,
   useConfigStore,
   useHistoryStore,
+  useLocalPrefs,
   useSessionTabStore,
   useUIStore,
 } from '@/stores';
@@ -42,11 +43,15 @@ export interface UseGlobalKeyboardShortcutsOptions {
  * Bound in App.tsx's root so they fire anywhere, but skip while the user
  * is typing in a text input/textarea/content-editable (except Ctrl+F which
  * searches the chat and Ctrl+/ which focuses the textarea).
+ *
+ * Disabled when `useLocalPrefs.keyboardShortcuts` is false.
  */
 export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOptions): void {
   const { toggleSidebar, setSearchOpen, toggleInspector, setInspectorTab } = options;
+  const enabled = useLocalPrefs((s) => s.keyboardShortcuts);
 
   useEffect(() => {
+    if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       const tag = t?.tagName?.toLowerCase();
@@ -104,11 +109,19 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
       // Alt+1..9 — jump directly to open session tab (browser / multiplexer parity)
       if (e.altKey && !mod && !e.shiftKey && /^[1-9]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
+        const openTabIds = useSessionTabStore.getState().openTabIds;
+        const client = getWSClient(useConfigStore.getState().wsUrl);
+        if (idx < openTabIds.length && openTabIds[idx]) {
+          e.preventDefault();
+          useSessionTabStore.getState().openTab(openTabIds[idx]!, {
+            resumeSession: (id) => client?.resumeSession?.(id),
+          });
+          return;
+        }
         const entries = useHistoryStore.getState().entries;
         const target = entries[idx];
         if (target) {
           e.preventDefault();
-          const client = getWSClient(useConfigStore.getState().wsUrl);
           useSessionTabStore.getState().openTab(target.id, {
             resumeSession: (id) => client?.resumeSession?.(id),
           });
@@ -340,5 +353,5 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleSidebar, setSearchOpen]);
+  }, [enabled, toggleSidebar, setSearchOpen, toggleInspector, setInspectorTab]);
 }

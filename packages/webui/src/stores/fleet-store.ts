@@ -2,7 +2,7 @@ import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { create } from 'zustand';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { compareAgentsByActivity } from '@/lib/agent-status';
-import { useSessionStore } from './session-store.js';
+import { useActiveSessionId } from './session-lanes.js';
 import type {
   AgentTranscriptEntry,
   AgentTranscriptKind,
@@ -249,20 +249,25 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       // remove ALL agents belonging to that session.
       if (e.kind === 'session_stopped' && e.sessionId) {
         const removedIds = new Set<string>();
+        let droppedTokensIn = 0;
+        let droppedTokensOut = 0;
         for (const [id, agent] of agents) {
           if (agent.sessionId === e.sessionId) {
             agents.delete(id);
             agentTranscripts.delete(id);
             removedIds.add(id);
+            droppedTokensIn += agent.tokensIn ?? 0;
+            droppedTokensOut += agent.tokensOut ?? 0;
           }
         }
         return {
           agents,
           agentTranscripts,
           agentTimeline: state.agentTimeline.filter((entry) => !removedIds.has(entry.subagentId)),
-          leaderId: undefined,
-          fleetTokensIn: 0,
-          fleetTokensOut: 0,
+          eventTimeline: state.eventTimeline.filter((entry) => !removedIds.has(entry.agentId)),
+          leaderId: state.leaderId && removedIds.has(state.leaderId) ? undefined : state.leaderId,
+          fleetTokensIn: Math.max(0, state.fleetTokensIn - droppedTokensIn),
+          fleetTokensOut: Math.max(0, state.fleetTokensOut - droppedTokensOut),
         };
       }
 
@@ -737,7 +742,11 @@ export const selectSessionLeaderId = (
   state: FleetState,
   sessionId: string | undefined,
 ): string | undefined => {
-  if (!sessionId) return state.leaderId;
+  if (!sessionId) {
+    if (!state.leaderId) return undefined;
+    const globalAgent = state.agents.get(state.leaderId);
+    return globalAgent && !globalAgent.sessionId ? state.leaderId : undefined;
+  }
   const derived = totalsBySession(state.agents).get(sessionId)?.leaderId;
   if (derived) return derived;
   const global = state.leaderId;
@@ -748,14 +757,14 @@ export const selectSessionLeaderId = (
 
 /** Hook: the leader of the tab in front (or of `sessionId` when given). */
 export function useSessionLeaderId(sessionId?: string | undefined): string | undefined {
-  const active = useSessionStore((s) => s.session?.id);
-  const target = sessionId ?? active;
+  const activeSessionId = useActiveSessionId();
+  const target = sessionId ?? (activeSessionId || undefined);
   return useFleetStore((s) => selectSessionLeaderId(s, target));
 }
 
 /** Hook: fleet totals for the tab in front (or for `sessionId` when given). */
 export function useSessionFleetTotals(sessionId?: string | undefined): SessionFleetTotals {
-  const active = useSessionStore((s) => s.session?.id);
-  const target = sessionId ?? active;
+  const activeSessionId = useActiveSessionId();
+  const target = sessionId ?? (activeSessionId || undefined);
   return useFleetStore((s) => selectSessionFleetTotals(s, target));
 }

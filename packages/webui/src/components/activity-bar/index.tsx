@@ -19,6 +19,7 @@ import {
   Rocket,
   ScrollText,
   Settings as SettingsIcon,
+  ShieldAlert,
   Sparkles,
   Wand2,
   Zap,
@@ -97,6 +98,7 @@ const VIEWS: ViewDef[] = [
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
   { id: 'prompts', icon: <ScrollText size={16} />, label: 'Prompt Journal' },
+  { id: 'chimera', icon: <ShieldAlert size={16} />, label: 'Chimera Reviews' },
   { id: 'intake', icon: <ClipboardList size={16} />, label: 'Requirements' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
 ];

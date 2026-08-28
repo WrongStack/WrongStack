@@ -21,7 +21,8 @@
     "techstack": "TechStack",
     "chronicle": "Chronicle",
     "intake": "Exigences",
-    "roster": "Effectif d'agents"
+    "roster": "Effectif d'agents",
+    "chimera": "Revues Chimera"
   },
   "brand": {
     "returnToChat": "{{name}} — retour au chat",
@@ -3261,6 +3262,8 @@
   },
   "providerWait": {
     "providerModelAvailability": "Disponibilité fournisseur/modèle",
+    "recentBlockOpenEvents": "Événements récents de blocage/réouverture ({{count}})",
+    "noBlockOpenEventsYet": "Aucun événement de blocage/réouverture enregistré pour le moment.",
     "refreshStatus": "Actualiser l'état",
     "lastError": "Dernière erreur :",
     "reopenHalfOpenProbe": "Rouvrir (sonde semi-ouverte)",

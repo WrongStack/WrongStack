@@ -573,6 +573,7 @@ export function App(props: AppProps): React.ReactElement {
     getToolsItems,
     onToolToggle,
     setLiveToolCount,
+    getActiveModelReasoningEffortLevels: props.getActiveModelReasoningEffortLevels,
   });
   const { openModelPicker, openProjectPicker, openFKeyPicker, loadLiveSessions, openSettings } =
     panelControllers;

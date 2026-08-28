@@ -321,6 +321,12 @@ export interface RunTuiOptions {
         | undefined
         | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
     | undefined;
+  /**
+   * Effort levels the ACTIVE model documents (models.dev reasoningConfig),
+   * for the model-aware /settings reasoning-effort cycle. Undefined =
+   * vocabulary undocumented; the picker cycles the full canonical set.
+   */
+  getActiveModelReasoningEffortLevels?: (() => string[] | undefined) | undefined;
   /** Build an ephemeral Provider for retrying a failed refinement on another model (no session switch). */
   buildEnhancerProvider?:
     | ((

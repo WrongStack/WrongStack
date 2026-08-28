@@ -1,35 +1,16 @@
-import type { ReasoningEffort } from '@wrongstack/core/types';
 import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import {
+  EFFORT_LABEL_KEYS,
+  effortNotAdvertised,
+  resolveEffortOptions,
+} from '@/lib/reasoning-effort';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useSessionStore } from '@/stores/session-store';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
-
-/**
- * Canonical effort levels. `satisfies` pins this copy to core's
- * `ReasoningEffort` union — adding a level in core without updating this list
- * (or vice versa) becomes a compile error instead of silently dropping the
- * model's newest level from the dropdown.
- */
-const ALL_EFFORTS = [
-  'none',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-] as const satisfies readonly ReasoningEffort[];
-type Effort = (typeof ALL_EFFORTS)[number];
-const EFFORT_SET: ReadonlySet<string> = new Set(ALL_EFFORTS);
-/** Guard for server-supplied lists — anything outside the canonical enum
- *  would render a raw key as its label; filter it instead. */
-function isEffort(value: string): value is Effort {
-  return EFFORT_SET.has(value);
-}
 
 export function AgentSettingsTab({
   syncPref,
@@ -42,38 +23,15 @@ export function AgentSettingsTab({
   const localPrefs = useLocalPrefs();
   const [refinerPickerOpen, setRefinerPickerOpen] = useState(false);
 
-  // Effort levels advertised by the ACTIVE model (session.start payload).
-  // Undefined until the server reports them — the full canonical set then
-  // applies, matching the runtime resolver's conservative gate (unsupported
-  // values are dropped with a warning, never rejected).
-  // Typed against core's full union (not the local `Effort` alias) so the
-  // drift guard works in BOTH directions: `satisfies` above rejects a value
-  // core doesn't know, and this Record requires a label for every value core
-  // DOES know — adding a level in core without a label here is a compile
-  // error, never a silently-missing dropdown entry.
-  const EFFORT_LABEL_KEYS: Record<ReasoningEffort, string> = {
-    none: 'settings:agent.reasoningEffortNone',
-    minimal: 'settings:agent.reasoningEffortMinimal',
-    low: 'settings:agent.reasoningEffortLow',
-    medium: 'settings:agent.reasoningEffortMedium',
-    high: 'settings:agent.reasoningEffortHigh',
-    xhigh: 'settings:agent.reasoningEffortXhigh',
-    max: 'settings:agent.reasoningEffortMax',
-  };
+  // Effort levels advertised by the ACTIVE model (session snapshot payload).
+  // Narrowing + label keys live in lib/reasoning-effort.ts: an undocumented
+  // vocabulary offers the full canonical set (matching the runtime resolver's
+  // conservative gate), and a persisted-but-unadvertised value is appended so
+  // it stays visible and changeable instead of silently vanishing.
   const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
-  const narrowed = effortLevels?.length
-    ? (effortLevels.filter(isEffort) as Effort[])
-    : [...ALL_EFFORTS];
-  // Desync guard: a persisted effort the model no longer advertises (set on
-  // another model) would render an empty <select> — append it so the user
-  // sees what is actually configured and can change it deliberately. The
-  // runtime resolver independently drops unsupported values with a warning.
-  const current = localPrefs.reasoningEffort;
-  if (isEffort(current) && !narrowed.includes(current)) narrowed.push(current);
-  const effortOptions = narrowed.map((level) => ({
-    value: level,
-    label: t(EFFORT_LABEL_KEYS[level]),
-  }));
+  const effortOptions = resolveEffortOptions(effortLevels, localPrefs.reasoningEffort).map(
+    (level) => ({ value: level, label: t(EFFORT_LABEL_KEYS[level]) }),
+  );
 
   return (
     <div className="space-y-6">
@@ -273,9 +231,13 @@ export function AgentSettingsTab({
         <PreferenceSelect
           label={t('settings:agent.reasoningEffortLabel')}
           hint={
-            effortLevels
-              ? `${t('settings:agent.reasoningEffortHint')} (${t('settings:agent.reasoningEffortModelSet')})`
-              : t('settings:agent.reasoningEffortHint')
+            effortNotAdvertised(effortLevels, localPrefs.reasoningEffort)
+              ? t('settings:agent.reasoningEffortUnsupported', {
+                  levels: (effortLevels ?? []).join(', '),
+                })
+              : effortLevels
+                ? `${t('settings:agent.reasoningEffortHint')} (${t('settings:agent.reasoningEffortModelSet')})`
+                : t('settings:agent.reasoningEffortHint')
           }
           value={localPrefs.reasoningEffort}
           options={effortOptions}

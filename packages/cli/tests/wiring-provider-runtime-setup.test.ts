@@ -26,6 +26,9 @@ vi.mock('@wrongstack/core/storage', () => ({
   SessionMemoryConsolidator: class SessionMemoryConsolidator {
     constructor(public readonly opts: unknown) {}
   },
+  SessionMemoryCurator: class SessionMemoryCurator {
+    constructor(public readonly opts: unknown) {}
+  },
 }));
 
 vi.mock('@wrongstack/core/agent', () => ({
@@ -270,12 +273,12 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
     expect(typeof ext['getConfig']).toBe('function');
   });
 
-  it('registers the session memory consolidator when memory is enabled', () => {
+  it('registers the session memory consolidator and curator when memory is enabled', () => {
     const deps = makeDeps({
       config: fakeConfig({ features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true } }),
     });
     setupProviderRuntime(deps);
-    expect(deps.agent.extensions.register).toHaveBeenCalledTimes(2);
+    expect(deps.agent.extensions.register).toHaveBeenCalledTimes(3);
   });
 
   it('skips consolidation when memoryConsolidation is explicitly disabled', () => {
@@ -286,6 +289,16 @@ describe('setupProviderRuntime — extensions and consolidation', () => {
     });
     setupProviderRuntime(deps);
     expect(deps.agent.extensions.register).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips curator when memoryCurator is explicitly disabled', () => {
+    const deps = makeDeps({
+      config: fakeConfig({
+        features: { mcp: true, plugins: true, memory: true, modelsRegistry: false, skills: true, memoryCurator: false },
+      }),
+    });
+    setupProviderRuntime(deps);
+    expect(deps.agent.extensions.register).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -107,16 +107,31 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
         sibling,
       );
       if (models.length === 0 && config?.baseUrl) models = await probeModelDescriptors(config);
+      // Reasoning-effort vocabulary straight from the in-memory catalog
+      // objects (already normalized by the registry — no extra lookups).
+      // Sibling-catalog models (e.g. openai ids listed for openai-codex) are
+      // mapped from their own catalog so the levels travel with the model.
+      const reasoningByModelId = new Map(
+        [
+          ...(provider?.models ?? []),
+          ...(sibling && sibling !== provider ? sibling.models : []),
+        ].map((m) => [m.id, m.reasoningConfig]),
+      );
       const enriched = await Promise.all(
         models.map(async (model) => {
-          if (model.contextWindow && model.capabilities.length > 0) return model;
+          const rc = reasoningByModelId.get(model.id);
+          const reasoningEffortLevels =
+            rc?.effortSupported && rc.effortLevels?.length ? [...rc.effortLevels] : undefined;
+          if (model.contextWindow && model.capabilities.length > 0) {
+            return reasoningEffortLevels ? { ...model, reasoningEffortLevels } : model;
+          }
           const resolved = await resolveProviderModelMetadata(
             ctx.deps.modelsRegistry as ModelsRegistry,
             providerId,
             model.id,
             config,
           ).catch(() => undefined);
-          if (!resolved) return model;
+          if (!resolved) return reasoningEffortLevels ? { ...model, reasoningEffortLevels } : model;
           const capabilities = new Set(model.capabilities);
           if (resolved.capabilities.tools) capabilities.add('tools');
           if (resolved.capabilities.reasoning) capabilities.add('reasoning');
@@ -127,6 +142,7 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
             inputCost: model.inputCost ?? resolved.cost?.input,
             outputCost: model.outputCost ?? resolved.cost?.output,
             capabilities: [...capabilities],
+            ...(reasoningEffortLevels ? { reasoningEffortLevels } : {}),
           };
         }),
       );

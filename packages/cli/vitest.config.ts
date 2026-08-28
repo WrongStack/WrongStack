@@ -35,6 +35,9 @@ export default defineConfig({
     // Hermes ~/.wrongstack: redirect global state to per-worker temp dir so
     // tests never read the user's real config or leak fixture project dirs.
     setupFiles: ['../../vitest.setup.ts'],
+    // Rebuild @wrongstack/sage when its dist entry is unresolvable (transient
+    // peer-build windows made suite loads fail with resolution errors).
+    globalSetup: ['./tests/sage-build-guard.global-setup.ts'],
     // Cap workers to prevent spawn-heavy tests from starving.
     maxWorkers: getVitestMaxWorkers(),
   },

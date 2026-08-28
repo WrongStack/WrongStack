@@ -235,6 +235,9 @@ export interface LocalPrefs {
    */
   wrongProxyUrl: string;
 
+  /** Master toggle for global keyboard shortcuts. Defaults to false. */
+  keyboardShortcuts: boolean;
+
   /**
    * Per-session overrides for the keys in `SESSION_SCOPED_PREF_KEYS`.
    *
@@ -442,6 +445,7 @@ const DEFAULTS: LocalPrefsData = {
   // ships silent; URL defaults to the dev-script daemon's documented port.
   wrongProxyEnabled: false,
   wrongProxyUrl: 'http://localhost:3444',
+  keyboardShortcuts: false,
   bySession: {},
   sessionDefaults: {},
   activeSessionId: null,
@@ -823,6 +827,9 @@ export const useLocalPrefs = create<LocalPrefs>()(
           p.multiDiffSummaryThreshold < 0
         ) {
           p.multiDiffSummaryThreshold = 5;
+        }
+        if (typeof p.keyboardShortcuts !== 'boolean') {
+          p.keyboardShortcuts = false;
         }
         return p as never as LocalPrefs;
       },

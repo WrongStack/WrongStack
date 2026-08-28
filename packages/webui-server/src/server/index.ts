@@ -28,11 +28,14 @@ export {
 export type { BrainRouteHandlers } from './brain-routes.js';
 export { handleBrainRoute } from './brain-routes.js';
 export {
+  type ChimeraReportDetail,
   type ChimeraReportSummary,
   type ChimeraRouteHandlers,
+  type FindingWithEvents,
   createChimeraRouteHandlers,
   handleChimeraRoute,
   listChimeraReportsForSession,
+  queryAllChimeraReports,
 } from './chimera-routes.js';
 export {
   type ChronicleRouteContext,

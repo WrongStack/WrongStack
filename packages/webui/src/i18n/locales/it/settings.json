@@ -441,7 +441,8 @@
     "autonomyDelayMsHint": "Millisecondi prima che l'agente proceda automaticamente in modalità Auto. 0 = immediato.",
     "refineCountdownLabel": "Conto alla rovescia affinamento",
     "refineCountdownHint": "Periodo di grazia prima dell'invio automatico del prompt affinato (millisecondi).",
-    "reasoningEffortModelSet": "livelli del modello attivo"
+    "reasoningEffortModelSet": "livelli del modello attivo",
+    "reasoningEffortUnsupported": "Non offerto da questo modello (supportati: {{levels}}) — l'impostazione verrà omessa."
   },
   "execution": {
     "heading": "Esecuzione",
@@ -683,7 +684,9 @@
     "swarmPanelSidebar": "Barra laterale destra",
     "swarmPanelOff": "Disattivato",
     "titleAnimationLabel": "Animazione del titolo",
-    "titleAnimationHint": "Anima il titolo di terminale/tab con lo stato di esecuzione (parità TUI).",
+    "titleAnimationHint": "Anima il titolo del terminale/scheda con lo stato di esecuzione (parità TUI).",
+    "keyboardShortcutsLabel": "Scorciatoie da tastiera",
+    "keyboardShortcutsHint": "Abilita le scorciatoie da tastiera globali (Ctrl+K, Alt+1..4, ecc.). Disattivato per impostazione predefinita.",
     "statusChipHeading": "Chip di stato e barra di stato",
     "statusChipHint": "Stile visivo per la barra di stato TUI/CLI e il chip di lavoro.",
     "thinkingWordLabel": "Parola di ragionamento",

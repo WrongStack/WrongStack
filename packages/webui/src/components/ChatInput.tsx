@@ -1,6 +1,6 @@
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Cpu } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -104,6 +104,12 @@ export function ChatInput({
   } = ws;
   const { t } = useAppTranslation();
   const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
+  // Active route for the composer model chip: session value wins, config
+  // fallback covers the pre-session state — same resolution as the switcher.
+  const sessionProvider = useSessionStore((s) => s.session?.provider);
+  const sessionModel = useSessionStore((s) => s.session?.model);
+  const fallbackProvider = useConfigStore((s) => s.provider);
+  const fallbackModel = useConfigStore((s) => s.model);
   const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
   const refinerModel = useLocalPrefs((s) => s.refinerModel);
   const refinerFallbackProfile = useLocalPrefs((s) => s.refinerFallbackProfile);
@@ -942,6 +948,23 @@ export function ChatInput({
         >
           <BookOpen className="h-3.5 w-3.5" />
           {t('activity:chatInput.promptLibrary')}
+        </button>
+        {/* Model chip — moved here from the chat header so it is visible on
+            every viewport (the header chip was hidden below `sm`) and sits
+            next to the prompt library. Opens the same switcher modal, which
+            also carries the per-session effort control. */}
+        <button
+          type="button"
+          onClick={() => useUIStore.getState().setModelSwitcherOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border/50 bg-card/50 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent/50 transition-all duration-200"
+          title={t('chat:header.changeModelTitle')}
+        >
+          <Cpu className="h-3.5 w-3.5" />
+          <span className="font-mono truncate max-w-[12rem]">
+            {(sessionProvider ?? fallbackProvider) || t('chat:header.noProvider')}
+            {' / '}
+            {(sessionModel ?? fallbackModel) || t('chat:header.noModel')}
+          </span>
         </button>
       </div>
 

@@ -519,6 +519,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           enhanceController: opts.enhanceController,
           enhanceEnabled: opts.enhanceController?.enabled ?? true,
           getEnhancerReasoning: opts.getEnhancerReasoning,
+          getActiveModelReasoningEffortLevels: opts.getActiveModelReasoningEffortLevels,
           buildEnhancerProvider: opts.buildEnhancerProvider,
           getEnhanceFallbackRef: opts.getEnhanceFallbackRef,
           getConfiguredRefinerRef: opts.getConfiguredRefinerRef,

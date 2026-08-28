@@ -13,6 +13,9 @@ export interface RuntimeControllerDepsInput {
   interruptController: ControllerDeps['interruptController'];
   enhanceController: ControllerDeps['enhanceController'];
   getEnhancerReasoning: ControllerDeps['getEnhancerReasoning'];
+  /** Effort levels the active model documents (see ControllerDeps). Optional
+   *  to mirror ControllerDeps — hosts without catalog metadata omit it. */
+  getActiveModelReasoningEffortLevels?: ControllerDeps['getActiveModelReasoningEffortLevels'];
   buildProviderForModel: (providerId: string, modelId: string) => Promise<Provider>;
   context: Context;
   getConfig: () => Config;
@@ -41,6 +44,7 @@ export function createRuntimeControllerDeps(input: RuntimeControllerDepsInput): 
     interruptController: input.interruptController,
     enhanceController: input.enhanceController,
     getEnhancerReasoning: input.getEnhancerReasoning,
+    getActiveModelReasoningEffortLevels: input.getActiveModelReasoningEffortLevels,
     buildEnhancerProvider: async (providerId, modelId) => {
       try {
         return await input.buildProviderForModel(providerId, modelId);

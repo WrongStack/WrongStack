@@ -49,6 +49,7 @@ import { FallbacksSection } from './FallbacksSection';
 import { FleetSection } from './FleetSection';
 import { IntegrationsSection } from './IntegrationsSection';
 import { LogsSettingsTab } from './LogsSettingsTab';
+import { ModelEffortSelect } from './ModelEffortSelect';
 import { ModelSection } from './ModelSection';
 import {
   type CatalogProvider,
@@ -467,6 +468,7 @@ export function SettingsPanel() {
                     isSwitching={modelSwitching}
                     refreshModels={(pid) => ws.listProviderModels?.(pid)}
                   />
+                  <ModelEffortSelect syncPref={syncPref} />
                 </div>
               </TabsContent>
 

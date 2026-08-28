@@ -150,6 +150,12 @@ export interface AppProps {
         | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
     | undefined;
   /**
+   * Effort levels the ACTIVE model documents (models.dev reasoningConfig),
+   * for the model-aware /settings reasoning-effort cycle (WebUI parity).
+   * Undefined = vocabulary undocumented; the picker cycles the full set.
+   */
+  getActiveModelReasoningEffortLevels?: (() => string[] | undefined) | undefined;
+  /**
    * Build a Provider for a (providerId, modelId) pair WITHOUT switching the
    * session — used to retry a failed refinement on the fallback/another model
    * ephemerally. Returns undefined when the host can't build the provider

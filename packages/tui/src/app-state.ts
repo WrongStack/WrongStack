@@ -324,6 +324,12 @@ export type State = {
     reasoningMode: 'auto' | 'on' | 'off';
     /** Reasoning effort level. */
     reasoningEffort: ReasoningEffort;
+    /**
+     * Effort levels the ACTIVE model documents (models.dev reasoningConfig),
+     * injected by the host at /settings-open time. Absent = vocabulary
+     * undocumented; the effort cycle then covers the full canonical set.
+     */
+    reasoningEffortLevels?: string[] | undefined;
     /** Preserve thinking across turns. */
     reasoningPreserve: boolean;
     /** Single word shown in the TUI rainbow working-state chip. */

@@ -286,6 +286,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       statuslineMode: DEFAULT_STATUSLINE_MODE,
       reasoningMode: 'auto',
       reasoningEffort: 'high',
+      reasoningEffortLevels: undefined,
       reasoningPreserve: false,
       thinkingWord: 'thinking',
       thinkingWordEditing: false,

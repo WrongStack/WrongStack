@@ -21,7 +21,8 @@
     "techstack": "TechStack",
     "chronicle": "Chronicle",
     "intake": "Requirements",
-    "roster": "Agent Roster"
+    "roster": "Agent Roster",
+    "chimera": "Chimera Reviews"
   },
   "brand": {
     "returnToChat": "{{name}} — return to chat",
@@ -3261,6 +3262,8 @@
   },
   "providerWait": {
     "providerModelAvailability": "Provider/model availability",
+    "recentBlockOpenEvents": "Recent block/open events ({{count}})",
+    "noBlockOpenEventsYet": "No block/open events recorded yet.",
     "refreshStatus": "Refresh status",
     "lastError": "Last error:",
     "reopenHalfOpenProbe": "Reopen (half-open probe)",

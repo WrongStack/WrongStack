@@ -64,6 +64,9 @@ const TechStackView = lazy(() =>
 const DeadCodeScanPanel = lazy(() =>
   import('./DeadCodeScanPanel/DeadCodeScanPanel').then((m) => ({ default: m.DeadCodeScanPanel })),
 );
+const ChimeraReviewsView = lazy(() =>
+  import('./ChimeraReviewsView').then((m) => ({ default: m.ChimeraReviewsView })),
+);
 
 /**
  * Main view router — switches the main content area based on `currentView`.
@@ -386,6 +389,15 @@ export function ViewRouter({
           >
             <div className="flex-1 min-h-0 min-w-0 overflow-y-auto">
               <DeadCodeScanPanel />
+            </div>
+          </Suspense>
+        </ErrorBoundary>
+      )}
+      {currentView === 'chimera' && (
+        <ErrorBoundary level="panel" name="Chimera Reviews">
+          <Suspense fallback={<PanelSuspense />}>
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <ChimeraReviewsView />
             </div>
           </Suspense>
         </ErrorBoundary>

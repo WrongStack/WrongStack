@@ -33,12 +33,14 @@ import {
   readLane,
   setActiveLane,
 } from './chat-lanes';
+import { useChimeraReportsStore } from './chimera-reports-store';
 import { useFallbackStore } from './fallback-store';
 import { useFileStore } from './file-store';
 import { useFleetStore } from './fleet-store';
 import { useGitChangesStore } from './git-changes-store';
 import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
+import { useToolStatsStore } from './tool-stats-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -345,6 +347,9 @@ export function releaseTab(sessionId: string): void {
   useUIStore.getState().forgetSession(sessionId);
   useFileStore.getState().forgetSessionFiles(sessionId);
   useGitChangesStore.getState().forgetSessionGitChanges(sessionId);
+  useFleetStore.getState().applyEvent({ kind: 'session_stopped', sessionId });
+  useChimeraReportsStore.getState().forgetSession(sessionId);
+  useToolStatsStore.getState().resetSession(sessionId);
   disposeStreakState(sessionId);
 }
 
@@ -711,7 +716,10 @@ export function summarizeTab(sessionId: string, slot: number): TabSummary {
     slot,
     sessionId,
     isActive,
-    title: meta.session?.title || sessionId.slice(0, 8),
+    title:
+      useUIStore.getState().sessionNicknames[sessionId] ||
+      meta.session?.title ||
+      sessionId.slice(0, 8),
     provider: meta.session?.provider ?? '',
     model: meta.session?.model ?? '',
     mode: meta.mode,

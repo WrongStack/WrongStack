@@ -66,6 +66,7 @@ const VIEWS = [
   'intake',
   'deadcode',
   'prompts',
+  'chimera',
 ] as const;
 type View = (typeof VIEWS)[number];
 

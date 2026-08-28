@@ -4,6 +4,15 @@
 
 ## What to avoid
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T11:33:25.739Z -->
+- **- When adding a field to a core event the WebUI relays, remember `packages/webui-server/src/server/setup-events.ts` rebuilds `provider.status_changed` WS payloads field-by-field (~) instead of spreading the event — a new event field (e.g. `stateExpiresAt`) must be added to that relay explicitly or the client never receives it, silently turning client-side handling into dead code. - `ProviderModelStatusTracker.restoreSnapshot()` (`packages/core/src/coordination/provider-status-tracker.ts`) unconditionally overwrites any existing in-memory pair state, so the CLI wiring 30s cross-sync (`packages…**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `packages/webui-server/src/server/setup-events.ts`
+  - *How:* `provider.status_changed`
+  - *How:* `stateExpiresAt`
+  - *How:* `ProviderModelStatusTracker.restoreSnapshot()`
+  - *How:* `packages/core/src/coordination/provider-status-tracker.ts`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-07-26T11:03:18.094Z -->
 - **Always interpret `depends_on` edges consumed by `TaskTracker` as `dependency → dependent`: `addDependency(depId, taskId)` stores `depId → taskId`, and `getBlockers(taskId)` reads edges whose `to` is `taskId`. Do not assume older SDD execution helpers use the same convention.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -23,4 +32,4 @@
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
 
 ---
-*Last capture: 2026-07-26T11:03:18.094Z · 2 entries*
+*Last capture: 2026-08-28T11:33:25.739Z · 3 entries*

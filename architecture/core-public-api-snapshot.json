@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.314.0",
+  "packageVersion": "0.316.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -660,10 +660,14 @@
       },
       "source": "packages/core/src/plugin/index.ts",
       "declarations": [
+        "export type { ChimeraFinding, ChimeraFindingLocation, ChimeraFindingOrigin, ChimeraFindingResolution, FindingCategory, FindingConfidence, FindingEventType, FindingLifecycleEvent, FindingSeverity, FindingSource, FindingStatus, FindingVerification, FindingVerificationStatus, ResolutionOutcome, } from '../plugins/review-finding-types.js';",
         "export type { PluginAPI } from '../types/plugin.js';",
+        "export type { ReportActorKind, ReportEventType, ReportLifecycleStatus, ReviewReport, ReviewReportCounts, ReviewReportEvent, ReviewReportFile, } from '../plugins/review-report-types.js';",
         "export { DEFAULT_PLUGIN_DISCOVERY_IO, discoverExternalPlugins, type DiscoveryIo, type ExternalPluginCandidate, type PluginDiscoveryResult, resolvePluginEntryPath, resolvePluginTarget, type SkippedPluginCandidate, } from './discovery.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './api.js';",
+        "export { FINDING_STORE_FILE, JsonlFindingStore, resolveFindingStorePath, type FindingStore, type UpsertContext, type UpsertResult, type ListOptions as FindingListOptions, } from '../plugins/review-finding-store.js';",
         "export { KERNEL_API_VERSION, loadPlugins, type LoadPluginsOptions, type PluginHostHandle, type PluginLoadFailure, unloadPlugins, } from './loader.js';",
+        "export { REPORT_STORE_FILE, JsonlReportStore, resolveReportStorePath, type ReportStore, type PersistReportInput, type ListReportsOptions, } from '../plugins/review-report-store.js';",
         "export { buildReviewerModelPool, createAutoReviewPlugin, parseReviewSeverity, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from '../plugins/auto-review-plugin.js';",
         "export { createCloudConfigSyncPlugin } from '../plugins/cloud-config-sync-plugin.js';",
         "export { createPromptsPlugin } from '../plugins/prompts-plugin.js';",
@@ -674,6 +678,7 @@
         "export { emitReviewIfChanged, recordCompletedReview, recordStartedReview, } from '../plugins/review-claim-registry.js';",
         "export { maybeCompactReviewStores, type ReviewStoreMaintenanceResult, } from '../plugins/review-store-maintenance.js';",
         "export { persistReviewReport, type ReportIntegrationResult, updateReviewReportEvidence, } from '../plugins/review-report-integration.js';",
+        "export { syncReportCompletion, syncReportReopen, type ReportSyncResult, type ReportReopenResult, } from '../plugins/review-report-integration.js';",
         "export { type CascadeAgentKind, type CascadeEvidenceCheckResult, type CascadeEvidenceStatus, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';",
         "export { type FindingsIntegrationResult, classifyChimeraReviewSource, integrateFindings, } from '../plugins/review-finding-integration.js';",
         "export { type ParsedReviewReport, parseChimeraReviewReport, } from '../plugins/review-finding-parser.js';",
@@ -697,6 +702,93 @@
         "export interface PersistReportInput",
         "export interface ReportActor",
         "export interface ReportStore"
+      ]
+    },
+    {
+      "subpath": "./plugins/review-finding-store",
+      "target": {
+        "types": "./dist/plugins/review-finding-store.d.ts",
+        "import": "./dist/plugins/review-finding-store.js"
+      },
+      "source": "packages/core/src/plugins/review-finding-store.ts",
+      "declarations": [
+        "export class JsonlFindingStore",
+        "export const FINDING_DEFAULT_PAGE_SIZE",
+        "export const FINDING_IGNORED_RETENTION_MS",
+        "export const FINDING_RESOLVED_RETENTION_MS",
+        "export const FINDING_STORE_FILE",
+        "export function resolveFindingStorePath",
+        "export interface CompactOptions",
+        "export interface FindingStore",
+        "export interface ListOptions",
+        "export interface UpsertContext",
+        "export interface UpsertResult"
+      ]
+    },
+    {
+      "subpath": "./plugins/review-finding-types",
+      "target": {
+        "types": "./dist/plugins/review-finding-types.d.ts",
+        "import": "./dist/plugins/review-finding-types.js"
+      },
+      "source": "packages/core/src/plugins/review-finding-types.ts",
+      "declarations": [
+        "export class FindingNotFoundError",
+        "export class FindingStoreLockError",
+        "export class InvalidTransitionError",
+        "export function computeFindingFingerprint",
+        "export function normalizeFingerprintTitle",
+        "export function validateResolution",
+        "export function validateTransition",
+        "export interface ChimeraFinding",
+        "export interface ChimeraFindingLocation",
+        "export interface ChimeraFindingOrigin",
+        "export interface ChimeraFindingResolution",
+        "export interface FindingLifecycleEvent",
+        "export interface FindingVerification",
+        "export type ActorKind",
+        "export type FindingCategory",
+        "export type FindingConfidence",
+        "export type FindingEventType",
+        "export type FindingSeverity",
+        "export type FindingSource",
+        "export type FindingStatus",
+        "export type FindingVerificationStatus",
+        "export type ResolutionOutcome"
+      ]
+    },
+    {
+      "subpath": "./plugins/review-report-types",
+      "target": {
+        "types": "./dist/plugins/review-report-types.d.ts",
+        "import": "./dist/plugins/review-report-types.js"
+      },
+      "source": "packages/core/src/plugins/review-report-types.ts",
+      "declarations": [
+        "export class InvalidReportTransitionError",
+        "export class ReportNotFoundError",
+        "export function reportEventTypeFor",
+        "export function validateReportTransition",
+        "export interface ReviewReport",
+        "export interface ReviewReportCounts",
+        "export interface ReviewReportEvent",
+        "export interface ReviewReportFile",
+        "export type ReportActorKind",
+        "export type ReportEventType",
+        "export type ReportLifecycleStatus"
+      ]
+    },
+    {
+      "subpath": "./plugins/review-report-integration",
+      "target": {
+        "types": "./dist/plugins/review-report-integration.d.ts",
+        "import": "./dist/plugins/review-report-integration.js"
+      },
+      "source": "packages/core/src/plugins/review-report-integration.ts",
+      "declarations": [
+        "export interface ReportIntegrationResult",
+        "export interface ReportReopenResult",
+        "export interface ReportSyncResult"
       ]
     },
     {
@@ -752,6 +844,7 @@
         "export { type CompletedWorkCheckpointFile, loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, } from './completed-work-checkpoint.js';",
         "export { type ConfigMigration, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type MigrationContext, type MigrationResult, runConfigMigrations, } from './config-migration.js';",
         "export { type ConsolidationOp, type ConsolidatorSage, type MemoryConsolidatorOptions, SessionMemoryConsolidator, } from './memory-consolidator.js';",
+        "export { type CuratorOperation, type CuratorSage, type CuratorSageCandidate, type CuratorSageRecord, type SessionMemoryCuratorOptions, SessionMemoryCurator, } from './memory-curator.js';",
         "export { type PersistedQueueItem, QUEUE_MAX_BYTES, QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS, QueueStore, retainPersistedQueueItems, } from './queue-store.js';",
         "export { type PromptUsage, PromptUsageStore } from './prompt-usage-store.js';",
         "export { type ProviderConfigSnapshot, readProviderSnapshot, type WatchProviderConfigOptions, watchProviderConfig, } from './provider-config-watcher.js';",
@@ -1247,7 +1340,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 6,
-      "sourceLines": 2348
+      "sourceLines": 2396
     },
     {
       "directory": "plugins",
@@ -1302,8 +1395,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 90,
-      "sourceLines": 19692
+      "sourceFiles": 91,
+      "sourceLines": 20140
     },
     {
       "directory": "tasking",
@@ -1324,7 +1417,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11880
+      "sourceLines": 11887
     },
     {
       "directory": "utils",

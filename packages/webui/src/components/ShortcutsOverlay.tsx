@@ -1,4 +1,4 @@
-import { useUIStore } from '@/stores';
+import { useLocalPrefs, useUIStore } from '@/stores';
 import { useAppTranslation } from '@/i18n';
 import { Keyboard } from 'lucide-react';
 import { useEffect } from 'react';
@@ -66,13 +66,10 @@ const SHORTCUTS: Array<{ sectionKey: string; items: Shortcut[] }> = [
   {
     sectionKey: 'sectionChat',
     items: [
-      { keys: ['Ctrl', 'F'], descKey: 'dSearchChat' },
-      { keys: ['Ctrl', 'L'], descKey: 'dClearContext' },
-      { keys: ['Ctrl', 'N'], descKey: 'dNewSession' },
-      { keys: ['Ctrl', 'E'], descKey: 'dExportMarkdown' },
-      { keys: ['Ctrl', 'M'], descKey: 'dModelSwitcher' },
-      { keys: ['Ctrl', 'Shift', 'D'], descKey: 'dCompactDensity' },
-      { keys: ['Esc'], descKey: 'dAbortRun' },
+      { keys: ['Alt', 'Enter'], descKey: 'dFastSend' },
+      { keys: ['↑'], descKey: 'dPreviousPrompt' },
+      { keys: ['↓'], descKey: 'dNextPrompt' },
+      { keys: ['Esc'], descKey: 'dAbortStream' },
     ],
   },
   {
@@ -92,8 +89,10 @@ export function ShortcutsOverlay() {
   const { t } = useAppTranslation();
   const open = useUIStore((s) => s.shortcutsOpen);
   const setOpen = useUIStore((s) => s.setShortcutsOpen);
+  const keyboardShortcuts = useLocalPrefs((s) => s.keyboardShortcuts);
 
   useEffect(() => {
+    if (!keyboardShortcuts) return;
     const onKey = (e: KeyboardEvent) => {
       // "?" toggles from anywhere (open when closed); Escape-on-close is
       // handled by Radix Dialog now, so it's intentionally not mirrored here.
@@ -107,7 +106,7 @@ export function ShortcutsOverlay() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setOpen]);
+  }, [setOpen, keyboardShortcuts]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>

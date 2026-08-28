@@ -222,6 +222,8 @@ export type Action =
       statuslineMode: StatuslineMode;
       reasoningMode: 'auto' | 'on' | 'off';
       reasoningEffort: ReasoningEffort;
+      /** Documented effort levels of the active model (absent = undocumented). */
+      reasoningEffortLevels?: string[] | undefined;
       reasoningPreserve: boolean;
       thinkingWord: string;
       cacheTtl: CacheTtl;

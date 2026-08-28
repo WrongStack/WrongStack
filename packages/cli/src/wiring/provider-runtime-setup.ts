@@ -6,6 +6,7 @@ import {
   type ProviderConfigSnapshot,
   readProviderSnapshot,
   SessionMemoryConsolidator,
+  SessionMemoryCurator,
   watchProviderConfig,
 } from '@wrongstack/core/storage';
 import type {
@@ -214,7 +215,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     }),
   );
 
-  // ── Session-end memory consolidation ───────────────────────────────────
+  // ── Session-end memory consolidation & curation ─────────────────────────
   if (cfg.features.memory && cfg.features.memoryConsolidation !== false) {
     const consSage = getSageService(memoryStore) as
       | import('@wrongstack/core/storage').ConsolidatorSage
@@ -225,6 +226,17 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
         ...(consSage ? { Sage: consSage } : {}),
       }),
     );
+    if (cfg.features.memoryCurator !== false) {
+      const curatorSage = getSageService(memoryStore) as
+        | import('@wrongstack/core/storage').CuratorSage
+        | undefined;
+      agent.extensions.register(
+        new SessionMemoryCurator({
+          memoryStore,
+          ...(curatorSage ? { Sage: curatorSage } : {}),
+        }),
+      );
+    }
   }
 
   // ── Provider/model switch callback ─────────────────────────────────────

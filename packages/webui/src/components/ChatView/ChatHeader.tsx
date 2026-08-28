@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Brain,
   ChevronDown,
-  Cpu,
   History,
   PanelLeftOpen,
   Pencil,
@@ -42,8 +41,6 @@ export function ChatHeader({
   switcherOpen,
   setSwitcherOpen,
   handleHistorySelect,
-  provider,
-  model,
   iteration,
   autonomy,
   handleAutonomyChange,
@@ -85,8 +82,6 @@ export function ChatHeader({
   switcherOpen: boolean;
   setSwitcherOpen: React.Dispatch<React.SetStateAction<boolean>>;
   handleHistorySelect: (id: string) => void;
-  provider?: string;
-  model?: string;
   iteration?: { index: number; max: number } | null;
   autonomy: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
   handleAutonomyChange: (mode: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel') => void;
@@ -237,21 +232,6 @@ export function ChatHeader({
               )}
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => useUIStore.getState().setModelSwitcherOpen(true)}
-            className="group hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-background/60 hover:bg-accent/70 hover:border-primary/40 transition-colors text-[11px] min-w-0 shrink-0"
-            title={t('chat:header.changeModelTitle')}
-          >
-            <Cpu className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0" />
-            <span className="font-mono truncate max-w-[9rem] xl:max-w-[16rem]">
-              <span className="text-muted-foreground">
-                {provider || t('chat:header.noProvider')}
-              </span>
-              <span className="text-muted-foreground/65 mx-0.5">/</span>
-              <span className="font-medium">{model || t('chat:header.noModel')}</span>
-            </span>
-          </button>
           <div className="hidden md:flex items-center gap-1.5 shrink-0">
             <ModePicker />
             <ContextModePicker />

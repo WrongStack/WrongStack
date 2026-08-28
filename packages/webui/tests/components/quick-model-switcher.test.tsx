@@ -16,6 +16,7 @@ const handlers = new Map<string, Set<Handler>>();
 const listSavedProviders = vi.fn();
 const listProviderModels = vi.fn();
 const switchModel = vi.fn();
+const updatePrefs = vi.fn();
 
 vi.mock('@/lib/ws-client', () => ({
   getWSClient: () => ({
@@ -29,7 +30,7 @@ vi.mock('@/lib/ws-client', () => ({
 }));
 
 vi.mock('@/hooks/useWebSocket', () => ({
-  useWebSocket: () => ({ listSavedProviders, listProviderModels, switchModel }),
+  useWebSocket: () => ({ listSavedProviders, listProviderModels, switchModel, updatePrefs }),
 }));
 
 const { QuickModelSwitcher } = await import('@/components/QuickModelSwitcher');
@@ -80,7 +81,7 @@ beforeEach(async () => {
   handlers.clear();
   switchModel.mockResolvedValue({ success: true, runActive: false, message: 'ok' });
   const { useLocalPrefs } = await import('@/stores/local-prefs');
-  useLocalPrefs.setState({ favoriteModels: [] } as never);
+  useLocalPrefs.setState({ favoriteModels: [], keyboardShortcuts: true } as never);
   useUIStore.setState({ modelSwitcherOpen: false, paletteOpen: false } as never);
   useConfigStore.setState({ wsUrl: 'ws://x', provider: 'openai', model: 'gpt-4' } as never);
   useSessionStore.setState({
@@ -91,6 +92,14 @@ beforeEach(async () => {
 afterEach(cleanup);
 
 describe('keyboard shortcut', () => {
+  it('does not open when keyboardShortcuts is false', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ keyboardShortcuts: false });
+    render(<QuickModelSwitcher />);
+    fireEvent.keyDown(window, { key: 'm', ctrlKey: true });
+    expect(useUIStore.getState().modelSwitcherOpen).toBe(false);
+  });
+
   it('ctrl+m opens the overlay', () => {
     render(<QuickModelSwitcher />);
     fireEvent.keyDown(window, { key: 'm', ctrlKey: true });
@@ -419,7 +428,7 @@ describe('provider filter', () => {
     emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
 
     await waitFor(() => expect(screen.getByText('GPT-5')).toBeTruthy());
-    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Provider' })).toBeNull();
   });
 
   it('shows a filter dropdown when multiple providers exist', async () => {
@@ -429,7 +438,7 @@ describe('provider filter', () => {
     emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
     emit('provider.models', { provider: 'anthropic', models: [model('claude-opus')] });
 
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Provider' })).toBeTruthy());
   });
 
   it('filters the list when a provider is selected', async () => {
@@ -441,7 +450,7 @@ describe('provider filter', () => {
 
     await waitFor(() => expect(screen.getByText('GPT-5')).toBeTruthy());
 
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    const select = screen.getByRole('combobox', { name: 'Provider' }) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'openai' } });
 
     await waitFor(() => {
@@ -457,9 +466,9 @@ describe('provider filter', () => {
     emit('provider.models', { provider: 'openai', models: [model('gpt-5')] });
     emit('provider.models', { provider: 'anthropic', models: [model('claude-opus')] });
 
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Provider' })).toBeTruthy());
 
-    const select = screen.getByRole('combobox') as HTMLSelectElement;
+    const select = screen.getByRole('combobox', { name: 'Provider' }) as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'anthropic' } });
     await waitFor(() => expect(screen.queryByText('GPT-5')).toBeNull());
 
@@ -467,7 +476,7 @@ describe('provider filter', () => {
     act(() => useUIStore.getState().setModelSwitcherOpen(true));
 
     await waitFor(() => {
-      const reset = screen.getByRole('combobox') as HTMLSelectElement;
+      const reset = screen.getByRole('combobox', { name: 'Provider' }) as HTMLSelectElement;
       expect(reset.value).toBe('');
     });
   });
@@ -517,6 +526,69 @@ describe('favorites only filter', () => {
     await waitFor(() => {
       expect(screen.getByText('GPT-5')).toBeTruthy();
       expect(screen.getByText('GPT-4')).toBeTruthy();
+    });
+  });
+});
+
+describe('per-session reasoning effort', () => {
+  it('narrows options to the active model and writes the pref on change', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ reasoningEffort: 'medium' } as never);
+    useSessionStore.setState({ reasoningEffortLevels: ['low', 'high', 'max'] } as never);
+
+    await openWithCatalogue();
+
+    const effort = screen.getByRole('combobox', {
+      name: 'Reasoning effort',
+    }) as HTMLSelectElement;
+    // Desync guard: the persisted-but-unadvertised value stays visible.
+    expect([...effort.options].map((o) => o.value)).toEqual(['low', 'high', 'max', 'medium']);
+
+    fireEvent.change(effort, { target: { value: 'high' } });
+    expect(useLocalPrefs.getState().reasoningEffort).toBe('high');
+    expect(updatePrefs).toHaveBeenCalledWith({ reasoningEffort: 'high' });
+  });
+
+  it('flags a persisted effort the active model does not document', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ reasoningEffort: 'medium' } as never);
+    useSessionStore.setState({ reasoningEffortLevels: ['low', 'high', 'max'] } as never);
+
+    await openWithCatalogue();
+
+    expect(
+      screen.getByTitle(
+        'Not offered by this model (supported: low, high, max) — the setting will be omitted.',
+      ),
+    ).toBeTruthy();
+  });
+
+  it('shows per-candidate effort levels and seeds them on switch', async () => {
+    await openWithCatalogue();
+    // Re-emit the catalogue with effort metadata on gpt-5 only (gpt-4 stays
+    // undocumented). Current session is openai/gpt-4, so picking gpt-5 is a
+    // real route change.
+    emit('provider.models', {
+      provider: 'openai',
+      models: [model('gpt-5', { reasoningEffortLevels: ['low', 'high', 'max'] }), model('gpt-4')],
+    });
+    await waitFor(() => expect(screen.getByText(/effort low\/high\/max/)).toBeTruthy());
+    // The undocumented candidate carries no effort suffix.
+    expect(screen.queryByText(/effort .*gpt-4/)).toBeNull();
+
+    const target = rows().find((b) => b.textContent?.includes('GPT-5'));
+    expect(target).toBeTruthy();
+    fireEvent.click(target!);
+
+    await waitFor(() => {
+      expect(useSessionStore.getState().session?.model).toBe('gpt-5');
+      // setSession's route change reset the levels; the picked model's
+      // documented vocabulary must be seeded back immediately.
+      expect(useSessionStore.getState().reasoningEffortLevels).toEqual([
+        'low',
+        'high',
+        'max',
+      ]);
     });
   });
 });

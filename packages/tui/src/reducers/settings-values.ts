@@ -301,18 +301,29 @@ export function reduceSettingsValues(state: State, action: SettingsValueAction):
           },
         };
       }
-      // Field 24: reasoning effort (cycle)
+      // Field 24: reasoning effort (cycle) — model-aware, WebUI parity. The
+      // active model's documented vocabulary (host-injected at picker-open)
+      // narrows the cycle; an undocumented model keeps the full canonical
+      // set, and a persisted-but-unadvertised value is appended so it stays
+      // reachable (the runtime resolver omits unsupported values).
       if (f === 24) {
-        const i = REASONING_EFFORTS.indexOf(
-          sp.reasoningEffort as (typeof REASONING_EFFORTS)[number],
+        const documented = (sp.reasoningEffortLevels ?? []).filter(
+          (level): level is (typeof REASONING_EFFORTS)[number] =>
+            REASONING_EFFORTS.some((candidate) => candidate === level),
         );
-        const base = i < 0 ? REASONING_EFFORTS.indexOf('high') : i;
-        const next = (base + action.delta + REASONING_EFFORTS.length) % REASONING_EFFORTS.length;
+        const cycle =
+          documented.length > 0
+            ? REASONING_EFFORTS.filter(
+                (level) => documented.includes(level) || level === sp.reasoningEffort,
+              )
+            : [...REASONING_EFFORTS];
+        const base = Math.max(0, cycle.indexOf(sp.reasoningEffort));
+        const next = (base + action.delta + cycle.length) % cycle.length;
         return {
           ...state,
           settingsPicker: {
             ...sp,
-            reasoningEffort: expectDefined(REASONING_EFFORTS[next]),
+            reasoningEffort: expectDefined(cycle[next]),
             hint: undefined,
           },
         };

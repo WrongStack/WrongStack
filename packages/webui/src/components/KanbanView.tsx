@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useFleetStore, useSessionStore } from '@/stores';
 import { useKanbanStore } from '@/stores/kanban-store';
+import { useActiveSessionId } from '@/stores/session-lanes';
 import { BoardPresence, SupervisorBar } from './KanbanBoardChrome.js';
 import { KanbanBoardSidebar } from './KanbanBoardSidebar';
 import {
@@ -38,7 +39,9 @@ export { deriveTaskCardIntelligence, type TaskCardIntelligence } from './KanbanC
 export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) {
   const { t } = useAppTranslation();
   const wsUrl = useConfigStore((s) => s.wsUrl);
-  const sessionId = useSessionStore((s) => s.session?.id ?? null);
+  const activeSessionId = useActiveSessionId();
+  const sessionRecordId = useSessionStore((s) => s.session?.id ?? null);
+  const sessionId = activeSessionId ?? sessionRecordId;
   const fleetAgents = useFleetStore((s) => s.agents);
   const {
     boards,

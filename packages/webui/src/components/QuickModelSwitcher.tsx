@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import {
+  EFFORT_LABEL_KEYS,
+  effortNotAdvertised,
+  resolveEffortOptions,
+} from '@/lib/reasoning-effort';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
@@ -21,6 +26,8 @@ interface CatalogModel {
   name: string;
   description?: string | undefined;
   contextWindow?: number | undefined;
+  /** Effort levels the model documents (models.dev reasoningConfig). */
+  reasoningEffortLevels?: string[] | undefined;
 }
 
 /**
@@ -36,6 +43,7 @@ export function QuickModelSwitcher() {
   const open = useUIStore((s) => s.modelSwitcherOpen);
   const setOpen = useUIStore((s) => s.setModelSwitcherOpen);
   const favoriteModels = useLocalPrefs((s) => s.favoriteModels);
+  const keyboardShortcuts = useLocalPrefs((s) => s.keyboardShortcuts);
   const [query, setQuery] = useState('');
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
@@ -55,6 +63,17 @@ export function QuickModelSwitcher() {
   const fallbackModel = useConfigStore((s) => s.model);
   const currentProvider = useSessionStore((s) => s.session?.provider ?? fallbackProvider);
   const currentModel = useSessionStore((s) => s.session?.model ?? fallbackModel);
+  // Per-session reasoning effort for the ACTIVE model. The flat pref mirrors
+  // the tab in front; the server lands this session-scoped key on that tab's
+  // meta and keeps it as the default new tabs inherit. Options narrow to the
+  // levels the active model documents; an undocumented vocabulary offers the
+  // full canonical set, matching the runtime resolver's conservative gate.
+  const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
+  const reasoningEffort = useLocalPrefs((s) => s.reasoningEffort);
+  const effortOptions = useMemo(
+    () => resolveEffortOptions(effortLevels, reasoningEffort),
+    [effortLevels, reasoningEffort],
+  );
   const paletteOpen = useUIStore((s) => s.paletteOpen);
   // Destructure the stable action callbacks from useWebSocket() so we
   // can list them as effect deps without re-firing on every render.
@@ -62,14 +81,14 @@ export function QuickModelSwitcher() {
   // that object itself in a dep array makes the effect run on every
   // render, which would reset `query` to '' and clear the user's input
   // mid-keystroke (the "filter doesn't work" symptom).
-  const { listSavedProviders, listProviderModels, switchModel } = useWebSocket();
+  const { listSavedProviders, listProviderModels, switchModel, updatePrefs } = useWebSocket();
 
   // Ctrl/Cmd+M opens. Skip when the command palette is already open so
   // the two overlays don't fight for focus.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === 'm' && !e.shiftKey && !e.altKey) {
+      if (keyboardShortcuts && mod && e.key.toLowerCase() === 'm' && !e.shiftKey && !e.altKey) {
         if (paletteOpen) return;
         e.preventDefault();
         setOpen(!open);
@@ -82,7 +101,7 @@ export function QuickModelSwitcher() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, paletteOpen]);
+  }, [open, paletteOpen, setOpen, keyboardShortcuts]);
 
   // Wire up WS listeners + fetch on open. We listen unconditionally so a
   // late response (e.g. the user opened then closed before models arrived)
@@ -182,6 +201,14 @@ export function QuickModelSwitcher() {
           provider: pick.provider,
           model: pick.model,
         });
+        // Seed the picked model's documented effort vocabulary right away:
+        // the route-change reset in setSession cleared the previous model's
+        // levels, and the authoritative snapshot only arrives later.
+        if (pick.reasoningEffortLevels) {
+          useSessionStore
+            .getState()
+            .setEnv({ reasoningEffortLevels: pick.reasoningEffortLevels });
+        }
         const snap = memorySessionSnapshots.get(cur.id);
         if (snap) {
           snap.provider = pick.provider;
@@ -315,6 +342,45 @@ export function QuickModelSwitcher() {
               : '↑↓ · Enter · Esc'}
           </span>
         </div>
+        {/* Per-session reasoning effort for the active model. Writes the
+            session-scoped reasoningEffort pref — the same trip the Settings →
+            Agent select makes (local set + prefs.update). */}
+        <div className="flex items-center gap-2 border-b px-3 py-1.5">
+          <label
+            htmlFor="quick-model-effort"
+            className="text-[11px] text-muted-foreground shrink-0"
+          >
+            {t('settings:agent.reasoningEffortLabel')}
+          </label>
+          <select
+            id="quick-model-effort"
+            value={reasoningEffort}
+            onChange={(e) => {
+              const value = e.target.value;
+              useLocalPrefs.getState().set({ reasoningEffort: value });
+              updatePrefs({ reasoningEffort: value });
+            }}
+            className="bg-transparent text-xs outline-none cursor-pointer border-0"
+          >
+            {effortOptions.map((level) => (
+              <option key={level} value={level}>
+                {t(EFFORT_LABEL_KEYS[level])}
+              </option>
+            ))}
+          </select>
+          {effortNotAdvertised(effortLevels, reasoningEffort) && (
+            <span
+              className="text-[10px] text-warning truncate min-w-0"
+              title={t('settings:agent.reasoningEffortUnsupported', {
+                levels: (effortLevels ?? []).join(', '),
+              })}
+            >
+              {t('settings:agent.reasoningEffortUnsupported', {
+                levels: (effortLevels ?? []).join(', '),
+              })}
+            </span>
+          )}
+        </div>
         <div className="max-h-[50dvh] overflow-y-auto py-1">
           {candidates.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
@@ -360,9 +426,11 @@ export function QuickModelSwitcher() {
                       </span>
                     )}
                   </div>
-                  {c.contextWindow && (
+                  {(c.contextWindow || c.reasoningEffortLevels) && (
                     <div className="text-[10px] text-muted-foreground font-mono">
-                      {c.model} · ctx {c.contextWindow.toLocaleString()}
+                      {c.model}
+                      {c.contextWindow ? ` · ctx ${c.contextWindow.toLocaleString()}` : ''}
+                      {c.reasoningEffortLevels ? ` · effort ${c.reasoningEffortLevels.join('/')}` : ''}
                     </div>
                   )}
                 </div>

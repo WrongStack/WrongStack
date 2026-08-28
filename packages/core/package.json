@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.314.0",
+  "version": "0.316.0",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -91,6 +91,22 @@
     "./plugins/review-report-store": {
       "types": "./dist/plugins/review-report-store.d.ts",
       "import": "./dist/plugins/review-report-store.js"
+    },
+    "./plugins/review-finding-store": {
+      "types": "./dist/plugins/review-finding-store.d.ts",
+      "import": "./dist/plugins/review-finding-store.js"
+    },
+    "./plugins/review-finding-types": {
+      "types": "./dist/plugins/review-finding-types.d.ts",
+      "import": "./dist/plugins/review-finding-types.js"
+    },
+    "./plugins/review-report-types": {
+      "types": "./dist/plugins/review-report-types.d.ts",
+      "import": "./dist/plugins/review-report-types.js"
+    },
+    "./plugins/review-report-integration": {
+      "types": "./dist/plugins/review-report-integration.d.ts",
+      "import": "./dist/plugins/review-report-integration.js"
     },
     "./storage": {
       "types": "./dist/storage/index.d.ts",

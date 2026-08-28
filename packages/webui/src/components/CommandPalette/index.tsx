@@ -40,6 +40,7 @@ import {
   useConfigStore,
   useGoalRunStore,
   useHistoryStore,
+  useLocalPrefs,
   useSessionTabStore,
   useUIStore,
 } from '@/stores';
@@ -67,6 +68,7 @@ export function CommandPalette() {
   const setOpen = useUIStore((s) => s.setPaletteOpen);
   const setTheme = useConfigStore((s) => s.setTheme);
   const historyEntries = useHistoryStore((s) => s.entries);
+  const keyboardShortcuts = useLocalPrefs((s) => s.keyboardShortcuts);
   const { addMessage, clearMessages } = useChatStore(
     useShallow((s) => ({ addMessage: s.addMessage, clearMessages: s.clearMessages })),
   );
@@ -86,6 +88,7 @@ export function CommandPalette() {
   }, [open]);
 
   useEffect(() => {
+    if (!keyboardShortcuts) return;
     const onKey = (e: KeyboardEvent) => {
       // Ctrl+K toggles the palette from anywhere (including closed — Radix
       // Dialog only handles Escape + focus once it's open, so we still own
@@ -97,7 +100,7 @@ export function CommandPalette() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setOpen]);
+  }, [setOpen, keyboardShortcuts]);
 
   const items = useMemo<PaletteItem[]>(() => {
     const base: PaletteItem[] = [

@@ -61,8 +61,18 @@ describe('parseProviderHttpError', () => {
     expect(err.retryable).toBe(true);
   });
 
-  it('keeps message-only rate limit exhaustion classified as quota exhaustion', () => {
+  it('classifies generic message-only 429 as transient rate limit', () => {
     const body = JSON.stringify({ error: { message: 'Rate limit exceeded' } });
+    const err = parseProviderHttpError('gateway', 429, body);
+    expect(err.body?.type).toBeUndefined();
+    expect(err.kind).toBe('rate_limit');
+    expect(err.retryable).toBe(true);
+  });
+
+  it('classifies message-only quota exhaustion as quota_exhausted', () => {
+    const body = JSON.stringify({
+      error: { message: "You've reached your usage limit for this billing cycle" },
+    });
     const err = parseProviderHttpError('gateway', 429, body);
     expect(err.body?.type).toBeUndefined();
     expect(err.kind).toBe('quota_exhausted');

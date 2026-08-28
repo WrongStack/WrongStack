@@ -309,6 +309,10 @@ export async function runCliExecution(params: {
           }
           return undefined;
         },
+        getActiveModelReasoningEffortLevels: () => {
+          const rc = activeReasoningConfig;
+          return rc?.effortSupported && rc.effortLevels?.length ? [...rc.effortLevels] : undefined;
+        },
         buildProviderForModel,
         context,
         getConfig: () => configRef.current,

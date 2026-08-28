@@ -441,7 +441,8 @@
     "autonomyDelayMsHint": "Milisegundos antes de que el agente continúe automáticamente en modo Auto. 0 = inmediato.",
     "refineCountdownLabel": "Cuenta atrás de refinamiento",
     "refineCountdownHint": "Período de gracia antes del envío automático del prompt refinado (milisegundos).",
-    "reasoningEffortModelSet": "niveles del modelo activo"
+    "reasoningEffortModelSet": "niveles del modelo activo",
+    "reasoningEffortUnsupported": "No ofrecido por este modelo (admitidos: {{levels}}): la opción se omitirá."
   },
   "execution": {
     "heading": "Ejecución",
@@ -684,6 +685,8 @@
     "swarmPanelOff": "Desactivado",
     "titleAnimationLabel": "Animación del título",
     "titleAnimationHint": "Anima el título de la terminal/pestaña con el estado de ejecución (paridad con TUI).",
+    "keyboardShortcutsLabel": "Atajos de teclado",
+    "keyboardShortcutsHint": "Habilitar atajos de teclado globales (Ctrl+K, Alt+1..4, etc.). Desactivado por defecto.",
     "statusChipHeading": "Chip de estado y línea de estado",
     "statusChipHint": "Estilo visual para la línea de estado TUI/CLI y el chip de trabajo.",
     "thinkingWordLabel": "Palabra de razonamiento",

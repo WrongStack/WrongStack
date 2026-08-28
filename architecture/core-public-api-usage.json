@@ -104,14 +104,9 @@
       "runtimeOrMixed": 9
     },
     "@wrongstack/core/plugin": {
-      "files": 27,
+      "files": 29,
       "typeOnly": 16,
-      "runtimeOrMixed": 23
-    },
-    "@wrongstack/core/plugins/review-report-store": {
-      "files": 2,
-      "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 25
     },
     "@wrongstack/core/prompts": {
       "files": 7,
@@ -146,7 +141,7 @@
     "@wrongstack/core/storage": {
       "files": 110,
       "typeOnly": 31,
-      "runtimeOrMixed": 112
+      "runtimeOrMixed": 113
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -7050,6 +7045,12 @@
     },
     {
       "specifier": "@wrongstack/core/plugin",
+      "file": "packages/webui-server/src/server/chimera-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/src/server/context-meta.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -7061,13 +7062,7 @@
       "runtimeOrMixed": 1
     },
     {
-      "specifier": "@wrongstack/core/plugins/review-report-store",
-      "file": "packages/webui-server/src/server/chimera-routes.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/plugins/review-report-store",
+      "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/tests/chimera-routes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8894,7 +8889,7 @@
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/wiring/provider-runtime-setup.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 3
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -15612,12 +15607,6 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui/src/components/SettingsPanel/AgentSettingsTab.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/types",
       "file": "packages/webui/src/hooks/ws-handlers/session-replay-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15625,6 +15614,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui/src/lib/plugin-enablement.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/lib/reasoning-effort.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

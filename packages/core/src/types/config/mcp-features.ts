@@ -142,6 +142,13 @@ export interface FeaturesConfig {
    * Enabled by default when `memory` is on; set to false to opt out.
    */
   memoryConsolidation?: boolean | undefined;
+  /**
+   * Automatically audit and curate existing candidate memories after completed runs.
+   * Resolves contradictions, merges redundancies, splits multi-fact entries,
+   * and updates importance/confidence based on files modified in the session.
+   * Enabled by default when `memory` is on; set to false to opt out.
+   */
+  memoryCurator?: boolean | undefined;
   /** Fetch the models.dev catalog at startup. When false, the provider
    *  must declare its `family` explicitly in `providers[<id>]`. */
   modelsRegistry: boolean;

@@ -13,6 +13,8 @@ interface CatalogModel {
   inputCost?: number | undefined;
   outputCost?: number | undefined;
   capabilities: string[];
+  /** Effort levels the model documents (models.dev reasoningConfig). */
+  reasoningEffortLevels?: string[] | undefined;
 }
 
 interface CatalogProvider {
@@ -86,6 +88,9 @@ export function ModelSection({
                   detail: [
                     m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k` : '',
                     m.inputCost != null ? `${m.inputCost}/${m.outputCost}` : '',
+                    m.reasoningEffortLevels?.length
+                      ? `effort ${m.reasoningEffortLevels.join('/')}`
+                      : '',
                   ]
                     .filter(Boolean)
                     .join(' · '),

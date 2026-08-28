@@ -1,9 +1,10 @@
 import { CheckCircle2, Circle, Clock } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useActiveSessionId } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 
 interface PlanItem {
   id: string;
@@ -33,6 +34,15 @@ const STATUS_CONFIG: Record<
   },
 };
 
+const PLAN_PANEL_NO_SESSION = '__no_session__';
+const planCollapsedBySession = new Map<string, Set<string>>();
+const disposedPlanPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  planCollapsedBySession.delete(sessionId);
+  disposedPlanPanelSessions.add(sessionId);
+});
+
 /**
  * Live plan board panel. Connects via WebSocket, requests the current
  * plan snapshot, and stays in sync via `plan.updated` events.
@@ -54,6 +64,17 @@ export function PlanPanel(): React.ReactElement | null {
   // `session?.id`, which is null until the resumed tab's `session.start`
   // lands) means the refetch below fires the moment the switch happens.
   const sessionId = useActiveSessionId();
+  const collapsedSessionRef = useRef<string>(sessionId ?? PLAN_PANEL_NO_SESSION);
+
+  useLayoutEffect(() => {
+    if (!disposedPlanPanelSessions.has(collapsedSessionRef.current)) {
+      planCollapsedBySession.set(collapsedSessionRef.current, new Set(collapsed));
+    }
+    const next = sessionId ?? PLAN_PANEL_NO_SESSION;
+    disposedPlanPanelSessions.delete(next);
+    setCollapsed(new Set(planCollapsedBySession.get(next) ?? []));
+    collapsedSessionRef.current = next;
+  }, [sessionId]);
 
   useEffect(() => {
     // Drop the previous tab's items immediately so a slow `plan.get` round

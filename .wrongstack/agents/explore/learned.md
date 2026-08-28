@@ -14,7 +14,7 @@
   - *How:* `project-server-query-cache`
   - *How:* `project-server.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=12; wins=12 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=21; wins=21 -->
 - **Always trace a `packages/core/src/storage/*` helper's consumers by grepping its module basename first (e.g. `grep session-write-buffer`) — storage helpers there typically have exactly one importer (e.g. `session-write-buffer.ts` ← `file-session-writer.ts`), so one hop plus one `new X` grep usually completes the dependency picture without broad exploration. Never treat `codebase-incoming-calls` import/type_ref entries as call sites alone — pair them with a targeted `read` of the constructor and producer methods to distinguish ownership (who creates the object) from usage (who feeds it).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/core/src/storage/*`
@@ -47,7 +47,7 @@
   - *How:* `packages/tools/src/codebase-index/background-indexer.ts`
   - *How:* `./codebase-index/index`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=7; wins=7 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=17; wins=17 -->
 - **When tracing importers of a module in `packages/webui/src/stores/`, always run one extra grep of the bare basename scoped to `packages/webui/src/stores/` in addition to the `stores/<name>` specifier pattern — intra-store importers use relative specifiers (`./session-lanes`, `./session-lanes.js`) that the `stores/<name>` pattern never matches, and in this repo those relative importers (`session-store.ts`, `session-tab-store.ts`) are usually the heaviest dependents. Pair with `codebase-incoming-calls` import hints to catch what the specifier greps miss.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/stores/`
@@ -58,7 +58,7 @@
   - *How:* `session-tab-store.ts`
   - *How:* `codebase-incoming-calls`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=4; wins=4 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=30; wins=30 -->
 - **When tracing importers of any module under `packages/webui/src/` (not just `stores/`), grep the bare basename repo-wide in addition to specifier patterns — sibling-directory consumers use relative specifiers (`./useChatViewState`) that `components/<name>` style patterns never match; in this repo the bare-basename grep plus `codebase-incoming-calls` together resolved the full consumer set in one pass (`useChatViewState` had exactly one: `ChatView/index.tsx`).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/`
@@ -71,12 +71,12 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=59; wins=58 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=96; wins=95 -->
 - ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=77; wins=76 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=114; wins=113 -->
 - **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`

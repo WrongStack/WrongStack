@@ -1508,6 +1508,41 @@ describe('settings picker reducer', () => {
     expect(down.settingsPicker.delayMs).toBe(120_000);
   });
 
+  it('field 24 narrows the effort cycle to the documented model vocabulary', () => {
+    // Host-documented vocabulary [low, high, max]: the cycle keeps canonical
+    // ORDER but only walks documented levels — none/minimal/xhigh are never
+    // produced. The persisted-but-unadvertised value participates only while
+    // it is the CURRENT selection (same recomputed-options semantics as the
+    // WebUI pickers): a backwards step proves the desync slot is live.
+    let s = reducer(
+      base({
+        open: true,
+        field: 24,
+        reasoningEffort: 'medium',
+        reasoningEffortLevels: ['low', 'high', 'max'],
+      }),
+      { type: 'settingsValueChange', delta: -1 },
+    );
+    expect(s.settingsPicker.reasoningEffort).toBe('low'); // desync slot: below medium
+    // Forward walk on the documented set — medium is gone once left.
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
+    expect(s.settingsPicker.reasoningEffort).toBe('high');
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
+    expect(s.settingsPicker.reasoningEffort).toBe('max');
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
+    expect(s.settingsPicker.reasoningEffort).toBe('low'); // wraps
+    s = reducer(s, { type: 'settingsValueChange', delta: 1 });
+    expect(s.settingsPicker.reasoningEffort).toBe('high');
+
+    // Undocumented vocabulary: the full canonical set still cycles unchanged.
+    s = reducer(
+      base({ open: true, field: 24, reasoningEffort: 'high', statuslineMode: 'detailed' }),
+      { type: 'settingsValueChange', delta: 1 },
+    );
+    expect(s.settingsPicker.reasoningEffort).toBe('xhigh');
+    expect(s.settingsPicker.statuslineMode).toBe('detailed'); // unaffected
+  });
+
   // New field order (reordered sections, thinkingWord added at field 22, multi-diff summary at field 21):
   // 0-14: Autonomy + UX + Features (unchanged)
   // 15-20: Tools (indexOnStart moved here), 21: multiDiffSummaryThreshold

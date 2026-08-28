@@ -1,7 +1,7 @@
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
 import { messageSessionId } from '@/lib/ws-client-utils';
-import { useFileStore, useSessionStore } from '@/stores';
+import { activeSessionLaneId, useFileStore, useSessionStore } from '@/stores';
 import type { TreeNode } from '@/stores/file-store';
 import { type MailboxAgent, type MailboxMessage, useMailboxStore } from '@/stores/mailbox-store';
 import { useVizStore, wsToVizEvent } from '@/stores/viz-store';
@@ -60,7 +60,7 @@ function isHydratingFile(filePath: string, sessionId: string | null): boolean {
  */
 export function reconcileFileTabsAfterEnvChange(
   projectRoot: string,
-  sessionId = useSessionStore.getState().session?.id ?? null,
+  sessionId: string | null = activeSessionLaneId() ?? useSessionStore.getState().session?.id ?? null,
 ): void {
   const store = useFileStore.getState();
   const fileSession =

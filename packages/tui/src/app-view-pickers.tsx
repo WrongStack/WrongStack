@@ -244,6 +244,7 @@ export function AppViewPickers({
           statuslineMode={state.settingsPicker.statuslineMode}
           reasoningMode={state.settingsPicker.reasoningMode}
           reasoningEffort={state.settingsPicker.reasoningEffort}
+          reasoningEffortLevels={state.settingsPicker.reasoningEffortLevels}
           reasoningPreserve={state.settingsPicker.reasoningPreserve}
           cacheTtl={state.settingsPicker.cacheTtl}
           configScope={state.settingsPicker.configScope}

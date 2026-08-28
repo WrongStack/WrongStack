@@ -19,7 +19,8 @@ export type MainView =
   | 'techstack'
   | 'chronicle'
   | 'intake'
-  | 'prompts';
+  | 'prompts'
+  | 'chimera';
 
 export type AppView =
   | PanelMainView

@@ -93,6 +93,54 @@ export {
   maybeCompactReviewStores,
   type ReviewStoreMaintenanceResult,
 } from '../plugins/review-store-maintenance.js';
+export {
+  FINDING_STORE_FILE,
+  JsonlFindingStore,
+  resolveFindingStorePath,
+  type FindingStore,
+  type UpsertContext,
+  type UpsertResult,
+  type ListOptions as FindingListOptions,
+} from '../plugins/review-finding-store.js';
+export {
+  REPORT_STORE_FILE,
+  JsonlReportStore,
+  resolveReportStorePath,
+  type ReportStore,
+  type PersistReportInput,
+  type ListReportsOptions,
+} from '../plugins/review-report-store.js';
+export {
+  syncReportCompletion,
+  syncReportReopen,
+  type ReportSyncResult,
+  type ReportReopenResult,
+} from '../plugins/review-report-integration.js';
+export type {
+  ChimeraFinding,
+  ChimeraFindingLocation,
+  ChimeraFindingOrigin,
+  ChimeraFindingResolution,
+  FindingCategory,
+  FindingConfidence,
+  FindingEventType,
+  FindingLifecycleEvent,
+  FindingSeverity,
+  FindingSource,
+  FindingStatus,
+  FindingVerification,
+  FindingVerificationStatus,
+  ResolutionOutcome,
+} from '../plugins/review-finding-types.js';
+export type {
+  ReportActorKind,
+  ReportEventType,
+  ReportLifecycleStatus,
+  ReviewReport,
+  ReviewReportCounts,
+  ReviewReportEvent,
+  ReviewReportFile,
+} from '../plugins/review-report-types.js';
 export { createSkillsPlugin } from '../plugins/skills-plugin.js';
 export { createSyncPlugin } from '../plugins/sync-plugin.js';
 export { createCloudConfigSyncPlugin } from '../plugins/cloud-config-sync-plugin.js';

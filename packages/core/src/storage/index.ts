@@ -153,6 +153,14 @@ export {
   SessionMemoryConsolidator,
 } from './memory-consolidator.js';
 export {
+  type CuratorOperation,
+  type CuratorSage,
+  type CuratorSageCandidate,
+  type CuratorSageRecord,
+  type SessionMemoryCuratorOptions,
+  SessionMemoryCurator,
+} from './memory-curator.js';
+export {
   GraphMemoryBackend,
   type GraphMemoryBackendOptions,
 } from './memory-graph-backend.js';

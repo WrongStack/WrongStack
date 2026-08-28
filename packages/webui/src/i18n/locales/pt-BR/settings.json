@@ -441,7 +441,8 @@
     "autonomyDelayMsHint": "Milissegundos antes de o agente continuar automaticamente no modo Auto. 0 = imediato.",
     "refineCountdownLabel": "Contagem regressiva de refinamento",
     "refineCountdownHint": "Período de carência antes do envio automático do prompt refinado (milissegundos).",
-    "reasoningEffortModelSet": "níveis do modelo ativo"
+    "reasoningEffortModelSet": "níveis do modelo ativo",
+    "reasoningEffortUnsupported": "Não oferecido por este modelo (suportados: {{levels}}) — a configuração será omitida."
   },
   "execution": {
     "heading": "Execução",
@@ -683,7 +684,9 @@
     "swarmPanelSidebar": "Barra lateral direita",
     "swarmPanelOff": "Desativado",
     "titleAnimationLabel": "Animação do título",
-    "titleAnimationHint": "Anima o título do terminal/aba com o estado de execução (paridade com TUI).",
+    "titleAnimationHint": "Anima o título do terminal/aba com o status de execução (paridade com TUI).",
+    "keyboardShortcutsLabel": "Atalhos de teclado",
+    "keyboardShortcutsHint": "Habilitar atalhos de teclado globais (Ctrl+K, Alt+1..4, etc.). Desativado por padrão.",
     "statusChipHeading": "Chip de status e barra de status",
     "statusChipHint": "Estilo visual para a barra de status TUI/CLI e o chip de trabalho.",
     "thinkingWordLabel": "Palavra de raciocínio",

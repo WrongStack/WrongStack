@@ -32,7 +32,7 @@ vi.mock('@/components/activity-bar/nav', () => nav);
 const downloadChatAsMarkdown = vi.fn();
 vi.mock('@/components/CommandPalette', () => ({ downloadChatAsMarkdown }));
 
-const { useChatStore, useUIStore } = await import('../../src/stores');
+const { useChatStore, useLocalPrefs, useUIStore } = await import('../../src/stores');
 const { useGlobalKeyboardShortcuts } = await import('../../src/hooks/useGlobalKeyboardShortcuts');
 
 // ── harness ─────────────────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ describe('useGlobalKeyboardShortcuts', () => {
     );
     useUIStore.setState(uiFns as never);
     useChatStore.setState({ isLoading: false, clearMessages: vi.fn() } as never);
+    useLocalPrefs.setState({ keyboardShortcuts: true });
   });
 
   afterEach(() => {
@@ -117,6 +118,14 @@ describe('useGlobalKeyboardShortcuts', () => {
   });
 
   const ui = () => useUIStore.getState() as unknown as Record<string, ReturnType<typeof vi.fn>>;
+
+  it('does nothing when keyboardShortcuts is false', () => {
+    useLocalPrefs.setState({ keyboardShortcuts: false });
+    mount();
+    const e = press('\\', { ctrlKey: true });
+    expect(opts.toggleSidebar).not.toHaveBeenCalled();
+    expect(e.defaultPrevented).toBe(false);
+  });
 
   // ── sidebar / terminal ────────────────────────────────────────────────────
 

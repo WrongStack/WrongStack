@@ -311,6 +311,14 @@ export interface ControllerDeps {
         | undefined
         | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
     | undefined;
+  /**
+   * Reasoning-effort levels the ACTIVE model documents (models.dev
+   * reasoningConfig), resolved synchronously for the /settings picker.
+   * Undefined = vocabulary undocumented; the picker then cycles the full
+   * canonical set. Mirrors getEnhancerReasoning's active-model fast path
+   * (same freshness contract: tracks model switches via the builder).
+   */
+  getActiveModelReasoningEffortLevels?: (() => string[] | undefined) | undefined;
   /** Build an ephemeral Provider for retrying a failed refinement on another model (no session switch). */
   buildEnhancerProvider?:
     | ((

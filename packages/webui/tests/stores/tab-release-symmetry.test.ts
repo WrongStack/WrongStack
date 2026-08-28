@@ -7,6 +7,7 @@ import {
   hasLane,
   useChatLanes,
 } from '../../src/stores/chat-lanes';
+import { useChimeraReportsStore } from '../../src/stores/chimera-reports-store';
 import { useFleetStore } from '../../src/stores/fleet-store';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 import {
@@ -16,6 +17,7 @@ import {
   useSessionLanes,
 } from '../../src/stores/session-lanes';
 import { describeSessionActivity, useSessionTabStore } from '../../src/stores/session-tab-store';
+import { useToolStatsStore } from '../../src/stores/tool-stats-store';
 import type { SubagentView } from '../../src/stores/types';
 import { useUIStore } from '../../src/stores/ui-store';
 
@@ -115,6 +117,18 @@ describe('retiring a tab frees the same state through either door', () => {
     useLocalPrefs.getState().bindSession('tab-b');
     useLocalPrefs.getState().set({ yolo: true });
     useUIStore.getState().setSubagentChatFocus('agent-b', 'tab-b');
+    useChimeraReportsStore.getState().recordReport({
+      reportId: 'rep-b',
+      sessionId: 'tab-b',
+      message: 'Review for tab-b',
+      findingCount: 1,
+      fileCount: 1,
+      hasActionableFindings: true,
+      receivedAt: Date.now(),
+      actionedAt: null,
+      source: 'event',
+    });
+    useToolStatsStore.getState().recordToolStarted('tab-b', { name: 'read_file' });
     useSessionTabStore.setState({
       lastSeenCounts: { 'tab-b': 3 },
       attention: { 'tab-b': true },
@@ -131,18 +145,34 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(useSessionTabStore.getState().lastSeenCounts['tab-b']).toBeUndefined();
     expect(useSessionTabStore.getState().attention['tab-b']).toBeUndefined();
     expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
+    expect(useChimeraReportsStore.getState().bySession['tab-b']).toBeUndefined();
+    expect(useToolStatsStore.getState().sessions['tab-b']).toBeUndefined();
   });
 
   it('closeTab leaves nothing behind either', () => {
     openTabs(['tab-a', 'tab-b']);
     useLocalPrefs.getState().bindSession('tab-b');
     useLocalPrefs.getState().set({ yolo: true });
+    useChimeraReportsStore.getState().recordReport({
+      reportId: 'rep-b-close',
+      sessionId: 'tab-b',
+      message: 'Review for tab-b',
+      findingCount: 1,
+      fileCount: 1,
+      hasActionableFindings: true,
+      receivedAt: Date.now(),
+      actionedAt: null,
+      source: 'event',
+    });
+    useToolStatsStore.getState().recordToolStarted('tab-b', { name: 'read_file' });
 
     useSessionTabStore.getState().closeTab('tab-b');
 
     expect(hasLane('tab-b')).toBe(false);
     expect(useLocalPrefs.getState().bySession['tab-b']).toBeUndefined();
     expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
+    expect(useChimeraReportsStore.getState().bySession['tab-b']).toBeUndefined();
+    expect(useToolStatsStore.getState().sessions['tab-b']).toBeUndefined();
   });
 
   it('a full strip resume refuses without retiring any non-empty tab owner', () => {

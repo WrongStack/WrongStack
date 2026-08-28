@@ -103,6 +103,8 @@ export interface SettingsPickerProps {
   reasoningMode: ReasoningMode;
   /** Reasoning effort level. */
   reasoningEffort: ReasoningEffort;
+  /** Effort levels the active model documents (absent = undocumented). */
+  reasoningEffortLevels?: string[] | undefined;
   /** Preserve thinking across turns. */
   reasoningPreserve: boolean;
   /** Prompt cache TTL. */
@@ -234,6 +236,7 @@ export function SettingsPicker({
   wrongProxyUrlDraft,
   reasoningMode,
   reasoningEffort,
+  reasoningEffortLevels,
   reasoningPreserve,
   cacheTtl,
   contextAutoCompact,
@@ -402,7 +405,9 @@ export function SettingsPicker({
     {
       label: 'Reasoning effort',
       value: reasoningEffort,
-      detail: 'none–max (model-dependent)',
+      detail: reasoningEffortLevels?.length
+        ? `documented for this model: ${reasoningEffortLevels.join(' · ')}`
+        : 'none–max (model-dependent)',
     },
     {
       label: 'Preserve thinking',

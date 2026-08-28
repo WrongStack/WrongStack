@@ -118,8 +118,6 @@ export function ChatView() {
         switcherOpen={state.switcherOpen}
         setSwitcherOpen={state.setSwitcherOpen}
         handleHistorySelect={state.handleHistorySelect}
-        provider={state.provider}
-        model={state.model}
         iteration={state.iteration}
         autonomy={state.autonomy}
         handleAutonomyChange={state.handleAutonomyChange}

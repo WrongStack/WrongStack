@@ -445,7 +445,8 @@
     "autonomyDelayMsHint": "Milliseconds before the agent auto-proceeds in Auto mode. 0 = immediate.",
     "refineCountdownLabel": "Refine countdown",
     "refineCountdownHint": "Grace period before the refined prompt auto-sends (milliseconds).",
-    "reasoningEffortModelSet": "levels offered by the active model"
+    "reasoningEffortModelSet": "levels offered by the active model",
+    "reasoningEffortUnsupported": "Not offered by this model (supported: {{levels}}) — the setting will be omitted."
   },
   "execution": {
     "heading": "Execution",
@@ -688,6 +689,8 @@
     "swarmPanelOff": "Off",
     "titleAnimationLabel": "Title animation",
     "titleAnimationHint": "Animate the terminal/tab title with run-state status (TUI parity).",
+    "keyboardShortcutsLabel": "Keyboard shortcuts",
+    "keyboardShortcutsHint": "Enable global keyboard shortcuts (Ctrl+K, Alt+1..4, Vim keys, etc.). Off by default.",
     "statusChipHeading": "Status chip & statusline",
     "statusChipHint": "Visual style for the TUI/CLI statusline and working-state chip.",
     "thinkingWordLabel": "Thinking word",

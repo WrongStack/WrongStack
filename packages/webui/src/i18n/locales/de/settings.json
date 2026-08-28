@@ -441,7 +441,8 @@
     "autonomyDelayMsHint": "Millisekunden, bevor der Agent im Auto-Modus automatisch fortfährt. 0 = sofort.",
     "refineCountdownLabel": "Verfeinerungs-Countdown",
     "refineCountdownHint": "Gnadenfrist, bevor der verfeinerte Prompt automatisch gesendet wird (Millisekunden).",
-    "reasoningEffortModelSet": "Stufen des aktiven Modells"
+    "reasoningEffortModelSet": "Stufen des aktiven Modells",
+    "reasoningEffortUnsupported": "Von diesem Modell nicht angeboten (unterstützt: {{levels}}) — die Einstellung wird weggelassen."
   },
   "execution": {
     "heading": "Ausführung",
@@ -684,6 +685,8 @@
     "swarmPanelOff": "Aus",
     "titleAnimationLabel": "Titelanimation",
     "titleAnimationHint": "Terminal-/Tab-Titel mit Laufstatus animieren (TUI-Parität).",
+    "keyboardShortcutsLabel": "Tastenkürzel",
+    "keyboardShortcutsHint": "Globale Tastenkürzel (Strg+K, Alt+1..4, usw.) aktivieren. Standardmäßig deaktiviert.",
     "statusChipHeading": "Status-Chip & Statuszeile",
     "statusChipHint": "Visueller Stil für die TUI/CLI-Statuszeile und den Arbeits-Chip.",
     "thinkingWordLabel": "Denkwort",

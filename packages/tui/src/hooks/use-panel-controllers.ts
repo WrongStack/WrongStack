@@ -31,6 +31,8 @@ interface PanelControllersOptions {
   getToolsItems: AppProps['getToolsItems'];
   onToolToggle: AppProps['onToolToggle'];
   setLiveToolCount: Dispatch<SetStateAction<number | undefined>>;
+  /** Effort levels the active model documents (model-aware settings cycle). */
+  getActiveModelReasoningEffortLevels?: AppProps['getActiveModelReasoningEffortLevels'];
 }
 
 /** Owns panel openers and extension picker refresh/toggle controllers. */
@@ -57,6 +59,7 @@ export function usePanelControllers({
   getToolsItems,
   onToolToggle,
   setLiveToolCount,
+  getActiveModelReasoningEffortLevels,
 }: PanelControllersOptions): {
   openModelPicker: () => Promise<void>;
   openProjectPicker: () => Promise<void>;
@@ -184,6 +187,7 @@ export function usePanelControllers({
       statuslineMode: s.statuslineMode ?? DEFAULT_STATUSLINE_MODE,
       reasoningMode: s.reasoningMode ?? 'auto',
       reasoningEffort: s.reasoningEffort ?? 'high',
+      reasoningEffortLevels: getActiveModelReasoningEffortLevels?.(),
       reasoningPreserve: s.reasoningPreserve ?? false,
       thinkingWord: s.thinkingWord ?? 'thinking',
       cacheTtl: s.cacheTtl ?? 'default',
@@ -222,7 +226,7 @@ export function usePanelControllers({
       wrongProxyEnabled: s.wrongProxyEnabled ?? false,
       wrongProxyUrl: s.wrongProxyUrl ?? 'http://localhost:3444',
     });
-  }, [getSettings]);
+  }, [getSettings, getActiveModelReasoningEffortLevels]);
 
   const refreshPluginPicker = React.useCallback(() => {
     if (!getPluginItems) return;

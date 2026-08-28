@@ -21,7 +21,8 @@
     "techstack": "TechStack",
     "chronicle": "Chronicle",
     "intake": "Gereksinimler",
-    "roster": "Ajan Kadrosu"
+    "roster": "Ajan Kadrosu",
+    "chimera": "Chimera İncelemeleri"
   },
   "brand": {
     "returnToChat": "{{name}} — sohbete dön",
@@ -3261,6 +3262,8 @@
   },
   "providerWait": {
     "providerModelAvailability": "Sağlayıcı/model kullanılabilirliği",
+    "recentBlockOpenEvents": "Son engelleme/açılma olayları ({{count}})",
+    "noBlockOpenEventsYet": "Henüz kaydedilmiş engelleme/açılma olayı yok.",
     "refreshStatus": "Durumu yenile",
     "lastError": "Son hata:",
     "reopenHalfOpenProbe": "Yeniden aç (yarı açık yoklama)",
