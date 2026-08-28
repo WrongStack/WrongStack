@@ -1,14 +1,8 @@
 // ── Barrel re-exports — all stores and types ──
 
 export { useChatStore } from './chat-store.js';
-export { useChimeraReportsStore, useSessionChimeraReports } from './chimera-reports-store.js';
-export { useChimeraHubStore, ensureChimeraHubHandlersInstalled } from './chimera-hub-store.js';
 export type { ChimeraReportNotice } from './chimera-reports-store.js';
-export type {
-  ChimeraReportSummaryItem,
-  ChimeraReportFullDetail,
-  FindingDetailItem,
-} from './chimera-hub-store.js';
+export { useChimeraReportsStore, useSessionChimeraReports } from './chimera-reports-store.js';
 export type { ActivityType, FileActivity } from './codemap-activity-store.js';
 export {
   extractActivitiesFromMessage,
@@ -29,7 +23,6 @@ export type {
 } from './coordinator-monitor-store.js';
 export { useCoordinatorMonitorStore } from './coordinator-monitor-store.js';
 export type { CouncilPanelEntry } from './council-log-store.js';
-export type { CouncilSeatVote } from './types.js';
 export {
   isCouncilPanelAdverse,
   MAX_COUNCIL_PANELS,
@@ -76,12 +69,6 @@ export type { MailboxAgent, MailboxMessage } from './mailbox-store.js';
 export { selectUnreadCount, useMailboxStore } from './mailbox-store.js';
 export type { ClientCounts, CurrentSessionStats, MailActivity } from './monitor-store.js';
 export { useMonitorStore } from './monitor-store.js';
-export {
-  type BackgroundStyle,
-  DEFAULT_WAIT_THRESHOLD_MS,
-  useOfficeMapStore,
-  WAIT_THRESHOLD_PRESETS,
-} from './office-map-store.js';
 export type {
   AppNotification,
   NotificationAction,
@@ -93,6 +80,12 @@ export {
   useNotificationStore,
   useToastStore,
 } from './notification-store.js';
+export {
+  type BackgroundStyle,
+  DEFAULT_WAIT_THRESHOLD_MS,
+  useOfficeMapStore,
+  WAIT_THRESHOLD_PRESETS,
+} from './office-map-store.js';
 export {
   type ProviderAuditEntry,
   type ProviderHealthEntry,
@@ -154,8 +147,8 @@ export {
   useTechStackStore,
 } from './techstack-store.js';
 export {
-  LEADER_AGENT_KEY,
   bucketSuccessRatio,
+  LEADER_AGENT_KEY,
   sessionInFlight,
   type ToolStatsBucket,
   type ToolStatsDelegation,
@@ -168,6 +161,7 @@ export type {
   BrainDecisionData,
   ChatMessage,
   CouncilDecisionData,
+  CouncilSeatVote,
   FleetTimelineEvent,
   MessageContent,
   SessionHistoryEntry,

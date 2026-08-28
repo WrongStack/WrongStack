@@ -19,11 +19,7 @@ import {
   type NotificationVariant,
   useNotificationStore,
 } from '@/stores/notification-store';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from './ui/dropdown-menu';
 
 function formatRelativeTime(
   timestamp: number,
@@ -77,7 +73,7 @@ function NotificationItem({
 
   return (
     <div
-      role="listitem"
+      role="menuitem"
       tabIndex={0}
       onClick={() => {
         if (!item.read) onMarkAsRead();
@@ -188,10 +184,7 @@ export function NotificationMenu({
 
   const [tab, setTab] = useState<'all' | 'unread'>('all');
 
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications],
-  );
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   const filteredNotifications = useMemo(() => {
     if (tab === 'unread') {
@@ -209,11 +202,7 @@ export function NotificationMenu({
   }, [clearAll]);
 
   return (
-    <DropdownMenu
-      defaultOpen={defaultOpen}
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <DropdownMenu defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
