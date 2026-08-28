@@ -18,9 +18,10 @@
  *   /provider-status retry <provider> <model>  Release one pair for a half-open probe
  */
 
+import * as fs from 'node:fs/promises';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { SlashCommand } from '@wrongstack/core/types';
-import { color } from '@wrongstack/core/utils';
+import { color, resolveWstackPaths } from '@wrongstack/core/utils';
 
 export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker): SlashCommand {
   const help = [
@@ -30,12 +31,84 @@ export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker):
     '  /provider-status waiting           Show the limit-reset waiting room',
     '  /provider-status degraded          Show only degraded entries',
     '  /provider-status healthy           Show only healthy entries',
+    '  /provider-status history [N]       Tail the last N audit entries (default 20)',
     '  /provider-status clear             Reset all tracking data',
     '  /provider-status clear <p> <m>     Reset one provider/model pair',
     '  /provider-status retry <p> <m>     Release one pair for its next-use probe',
     '',
     'Each entry shows the state, failure counts, and last error details.',
   ].join('\n');
+
+  function formatAgoShort(ts: number): string {
+    const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    if (sec < 60) return `${sec}s ago`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ago`;
+    const hours = Math.floor(min / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+
+  /**
+   * Tail the durable block/open audit trail without making the operator open
+   * the JSONL file. Reads the profile's provider-status-audit.jsonl via the
+   * same paths the wiring writes to.
+   */
+  async function renderAuditHistory(count: number): Promise<string> {
+    const paths = resolveWstackPaths({ projectRoot: process.cwd() });
+    const auditFile = paths.profileProviderAudit(paths.profileName);
+    let raw: string;
+    try {
+      raw = await fs.readFile(auditFile, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return color.dim(
+          'No provider audit history yet — entries appear when a model is blocked or reopened.',
+        );
+      }
+      throw error;
+    }
+    const entries: Array<Record<string, unknown>> = [];
+    for (const line of raw.trim().split('\n')) {
+      if (!line) continue;
+      try {
+        entries.push(JSON.parse(line) as Record<string, unknown>);
+      } catch {
+        // Skip torn/corrupt lines — the audit trail is best-effort by design.
+      }
+    }
+    const recent = entries.slice(-count).reverse();
+    if (recent.length === 0) {
+      return color.dim('No provider audit history yet.');
+    }
+    const out = [
+      `${color.bold('WrongStack')} ${color.dim(`— Provider Audit History (last ${recent.length} of ${entries.length})`)}`,
+      '',
+    ];
+    for (const entry of recent) {
+      const to = String(entry['to'] ?? '?');
+      const arrow =
+        to === 'blocked'
+          ? color.red(`${String(entry['from'] ?? '?')} → ${to}`)
+          : color.green(`${String(entry['from'] ?? '?')} → ${to}`);
+      const err = entry['error'] as Record<string, unknown> | null | undefined;
+      const errorText = err
+        ? ` · ${color.red(String(err['kind'] ?? 'unknown'))}${err['status'] != null ? ` ${String(err['status'])}` : ''}`
+        : '';
+      const who = [err?.['sessionId'], err?.['agentId']]
+        .filter((value): value is string => typeof value === 'string' && value.length > 0)
+        .map((value) => `${value.slice(0, 12)}…`)
+        .join(' / ');
+      out.push(
+        `  ${color.dim(formatAgoShort(Number(entry['ts']) || 0))}  ` +
+          `${color.cyan(`${String(entry['providerId'] ?? '?')}/${String(entry['model'] ?? '?')}`)}  ` +
+          `${arrow}  ${String(entry['reason'] ?? '').replaceAll('_', ' ')}${errorText}` +
+          (who ? `  ${color.dim(who)}` : ''),
+      );
+    }
+    out.push('', color.dim(`source: ${auditFile}`));
+    return out.join('\n');
+  }
 
   function formatDuration(ms: number | null): string {
     if (ms === null) return '—';
@@ -135,7 +208,7 @@ export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker):
     category: 'Inspect',
     description:
       'View the live health status of all providers/models (healthy, degraded, blocked).',
-    argsHint: '[waiting | blocked | degraded | healthy | retry | clear]',
+    argsHint: '[waiting | blocked | degraded | healthy | history | retry | clear]',
     help,
     async run(args) {
       const parts = args.trim().split(/\s+/).filter(Boolean);
@@ -167,6 +240,11 @@ export function buildProviderStatusCommand(tracker: ProviderModelStatusTracker):
           };
         }
         return { message: renderStatuses('healthy') };
+      }
+
+      if (sub === 'history') {
+        const count = Math.min(Math.max(Number.parseInt(parts[1] ?? '20', 10) || 20, 1), 200);
+        return { message: await renderAuditHistory(count) };
       }
 
       if (sub === 'retry') {

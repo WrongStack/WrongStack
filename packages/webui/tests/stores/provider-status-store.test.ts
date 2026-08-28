@@ -305,4 +305,58 @@ describe('provider status store', () => {
       120_000,
     );
   });
+
+  it('update preserves snapshot error context when a push omits it', () => {
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'sibling_quota_exhausted',
+      updatedAt: 1,
+      stateExpiresAt: 60_000,
+      lastErrorKind: 'quota_exhausted',
+      lastErrorMessage: 'Sibling quarantine: account-level budget exhausted on openai/gpt-4o',
+    });
+    // A later push without error context (cooldown extension) must not erase
+    // the snapshot-provided error details.
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'cooldown_extended',
+      updatedAt: 2,
+    });
+
+    const entry = useProviderStatusStore.getState().entries['openai\u0000gpt-4o'];
+    expect(entry?.lastErrorMessage).toContain('Sibling quarantine');
+    expect(entry?.lastErrorKind).toBe('quota_exhausted');
+  });
+
+  it('update applies real-time error context carried by a push', () => {
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'rate_limit_threshold_1',
+      updatedAt: 1,
+    });
+    useProviderStatusStore.getState().update({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      state: 'blocked',
+      reason: 'quota_exhausted',
+      updatedAt: 2,
+      lastErrorKind: 'quota_exhausted',
+      lastErrorMessage: 'usage limit reached',
+      lastErrorStatus: 429,
+      lastSessionId: 'sess_9',
+      lastAgentId: 'agent_9',
+    });
+
+    const entry = useProviderStatusStore.getState().entries['openai\u0000gpt-4o'];
+    expect(entry?.lastErrorMessage).toBe('usage limit reached');
+    expect(entry?.lastErrorStatus).toBe(429);
+    expect(entry?.lastSessionId).toBe('sess_9');
+    expect(entry?.lastAgentId).toBe('agent_9');
+  });
 });

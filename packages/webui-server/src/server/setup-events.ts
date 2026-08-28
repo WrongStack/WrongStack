@@ -323,6 +323,11 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         reason: e.reason,
         timestamp: e.timestamp,
         stateExpiresAt: e.stateExpiresAt,
+        lastErrorKind: e.lastErrorKind,
+        lastErrorStatus: e.lastErrorStatus,
+        lastErrorMessage: e.lastErrorMessage,
+        lastSessionId: e.lastSessionId,
+        lastAgentId: e.lastAgentId,
       },
     });
   });

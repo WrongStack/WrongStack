@@ -299,6 +299,11 @@ export function handleProviderStatusChanged(msg: WSServerMessage) {
     reason: string;
     timestamp: number;
     stateExpiresAt?: number | undefined;
+    lastErrorKind?: string | undefined;
+    lastErrorStatus?: number | null | undefined;
+    lastErrorMessage?: string | null | undefined;
+    lastSessionId?: string | null | undefined;
+    lastAgentId?: string | null | undefined;
   };
   useProviderStatusStore.getState().update({
     providerId: payload.providerId,
@@ -307,6 +312,13 @@ export function handleProviderStatusChanged(msg: WSServerMessage) {
     reason: payload.reason,
     updatedAt: payload.timestamp,
     stateExpiresAt: payload.stateExpiresAt,
+    // Real-time error context for the room's last-error line and the
+    // sibling-quarantine chip (nulls normalize to undefined).
+    lastErrorKind: payload.lastErrorKind,
+    lastErrorStatus: payload.lastErrorStatus ?? undefined,
+    lastErrorMessage: payload.lastErrorMessage ?? undefined,
+    lastSessionId: payload.lastSessionId ?? undefined,
+    lastAgentId: payload.lastAgentId ?? undefined,
   });
   const ref = `${payload.providerId}/${payload.model}`;
   if (payload.newState === 'blocked' && payload.oldState !== 'blocked') {

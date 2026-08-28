@@ -283,6 +283,12 @@ export interface WSProviderStatusChanged {
     timestamp: number;
     /** Epoch ms when the new state's cooldown expires; omitted when n/a. */
     stateExpiresAt?: number | undefined;
+    /** Last-error context for real-time waiting-room detail (optional). */
+    lastErrorKind?: string | undefined;
+    lastErrorStatus?: number | null | undefined;
+    lastErrorMessage?: string | null | undefined;
+    lastSessionId?: string | null | undefined;
+    lastAgentId?: string | null | undefined;
   };
 }
 

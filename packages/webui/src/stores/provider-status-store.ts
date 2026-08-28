@@ -85,14 +85,13 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
         delete next[key];
       } else {
         const previous = next[key];
-        const { stateExpiresAt, ...rest } = entry;
-        // A push that carries no usable expiry must not erase a known
-        // countdown (the server omits stateExpiresAt on some transitions).
-        next[key] = {
-          ...previous,
-          ...rest,
-          ...(stateExpiresAt !== undefined ? { stateExpiresAt } : {}),
-        };
+        // A push must never erase richer snapshot data with undefined (the
+        // server omits fields on some transitions): strip every undefined
+        // value so pushes only overwrite what they actually carry.
+        const clean = Object.fromEntries(
+          Object.entries(entry).filter((pair) => pair[1] !== undefined),
+        );
+        next[key] = { ...previous, ...clean } as ProviderHealthEntry;
       }
       return { entries: next };
     }),
