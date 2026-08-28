@@ -531,6 +531,32 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(siblingEventsAfterSecond, siblingEventsAfterFirst);
   });
 
+  it('emits last-error context on status_changed for durable audit logs', () => {
+    let payload: Record<string, unknown> | undefined;
+    const auditTracker = new ProviderModelStatusTracker({
+      config: {},
+      events: {
+        emit: (_event: string, p: unknown) => {
+          payload = p as Record<string, unknown>;
+        },
+      } as unknown as import('../../src/kernel/events.js').EventBus,
+    });
+
+    auditTracker.recordFailure('openai', 'gpt-4o', 'rate_limit', 429, 'Too many requests', {
+      sessionId: 'sess_audit',
+      agentId: 'agent_audit',
+    });
+
+    strictEqual(payload?.['providerId'], 'openai');
+    strictEqual(payload?.['newState'], 'blocked');
+    strictEqual(payload?.['lastErrorKind'], 'rate_limit');
+    strictEqual(payload?.['lastErrorStatus'], 429);
+    strictEqual(payload?.['lastErrorMessage'], 'Too many requests');
+    strictEqual(payload?.['lastSessionId'], 'sess_audit');
+    strictEqual(payload?.['lastAgentId'], 'agent_audit');
+    ok(typeof payload?.['stateExpiresAt'] === 'number');
+  });
+
   it('treats HTTP 402 as exhausted credit even without a provider-specific message', () => {
     tracker.recordFailure('metered', 'model-a', 'invalid_request', 402, 'Payment required');
     strictEqual(tracker.isAvailable('metered', 'model-a'), false);

@@ -957,6 +957,7 @@ export class ProviderModelStatusTracker {
   ): void {
     if (!this.events) return;
     try {
+      const entry = this.map.get(pairKey(providerId, model));
       this.events.emit('provider.status_changed', {
         providerId,
         model,
@@ -964,7 +965,15 @@ export class ProviderModelStatusTracker {
         newState,
         reason,
         timestamp: Date.now(),
-        stateExpiresAt: this.map.get(pairKey(providerId, model))?.stateExpiresAt ?? undefined,
+        stateExpiresAt: entry?.stateExpiresAt ?? undefined,
+        // Error context for durable audit logs (who/what/why): the failure
+        // that led to this state, with the session/agent that hit it. Nulls
+        // normalize to undefined so JSON serialization drops them.
+        lastErrorKind: entry?.lastErrorKind ?? undefined,
+        lastErrorStatus: entry?.lastErrorStatus ?? undefined,
+        lastErrorMessage: entry?.lastErrorMessage ?? undefined,
+        lastSessionId: entry?.lastSessionId ?? undefined,
+        lastAgentId: entry?.lastAgentId ?? undefined,
       });
     } catch {
       // Swallow — event bus errors must not crash the tracker

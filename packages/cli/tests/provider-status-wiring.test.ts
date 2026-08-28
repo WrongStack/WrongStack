@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   readFile: vi.fn(),
+  appendFile: vi.fn(),
+  stat: vi.fn(),
+  rename: vi.fn(),
   atomicWrite: vi.fn(),
   withFileLock: vi.fn(),
   trackerInstances: [] as Array<{
@@ -13,6 +16,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('node:fs/promises', () => ({
   readFile: mocks.readFile,
+  appendFile: mocks.appendFile,
+  stat: mocks.stat,
+  rename: mocks.rename,
 }));
 
 vi.mock('@wrongstack/core/utils', async (importOriginal) => {
@@ -53,6 +59,14 @@ function harness() {
         model: string;
         newState: 'healthy' | 'degraded' | 'blocked';
         reason?: string;
+        oldState?: 'healthy' | 'degraded' | 'blocked';
+        timestamp?: number;
+        stateExpiresAt?: number;
+        lastErrorKind?: string;
+        lastErrorStatus?: number | null;
+        lastErrorMessage?: string | null;
+        lastSessionId?: string | null;
+        lastAgentId?: string | null;
       }) => void)
     | undefined;
   const unsubscribe = vi.fn();
@@ -68,6 +82,7 @@ function harness() {
   const paths = {
     profileName: 'default',
     profileProviderStatus: vi.fn(() => 'C:/profile/provider-status.json'),
+    profileProviderAudit: vi.fn(() => 'C:/profile/provider-status-audit.jsonl'),
   };
   return {
     input: {
@@ -94,6 +109,9 @@ beforeEach(() => {
   mocks.trackerInstances.length = 0;
   mocks.withFileLock.mockImplementation(async (_file, callback) => callback());
   mocks.atomicWrite.mockResolvedValue(undefined);
+  mocks.stat.mockRejectedValue(missingError());
+  mocks.appendFile.mockResolvedValue(undefined);
+  mocks.rename.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -211,7 +229,12 @@ describe('setupProviderStatus', () => {
   it('requeues failed saves and reports timer persistence errors', async () => {
     const state = harness();
     mocks.readFile.mockRejectedValueOnce(missingError());
-    mocks.withFileLock.mockRejectedValueOnce(new Error('lock failed'));
+    // The audit append takes the first lock (its failure warns and continues);
+    // the FIRST waiting-room persistence write is the one that must fail and
+    // requeue here.
+    mocks.withFileLock
+      .mockRejectedValueOnce(new Error('lock failed (audit append)'))
+      .mockRejectedValueOnce(new Error('lock failed'));
     await setupProviderStatus(state.input as never);
 
     state.emitStatus({
@@ -401,6 +424,116 @@ describe('setupProviderStatus', () => {
     expect(persisted.statuses).toEqual([
       expect.objectContaining({ providerId: 'again', model: 'm', state: 'blocked' }),
     ]);
+    state.teardownHandlers[0]?.();
+  });
+
+  it('appends a durable audit line with error and session context per transition', async () => {
+    const state = harness();
+    mocks.readFile.mockRejectedValueOnce(missingError());
+    await setupProviderStatus(state.input as never);
+
+    state.emitStatus({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      newState: 'blocked',
+      oldState: 'healthy',
+      reason: 'rate_limit_threshold_1',
+      timestamp: 1234,
+      stateExpiresAt: 9999,
+      lastErrorKind: 'rate_limit',
+      lastErrorStatus: 429,
+      lastErrorMessage: 'Too many requests',
+      lastSessionId: 'sess_1',
+      lastAgentId: 'agent_1',
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.appendFile).toHaveBeenCalledTimes(1);
+    expect(mocks.appendFile.mock.calls[0]?.[0]).toBe('C:/profile/provider-status-audit.jsonl');
+    const line = JSON.parse(String(mocks.appendFile.mock.calls[0]?.[1]));
+    expect(line).toEqual({
+      ts: 1234,
+      providerId: 'openai',
+      model: 'gpt-4o',
+      from: 'healthy',
+      to: 'blocked',
+      reason: 'rate_limit_threshold_1',
+      expiresAt: 9999,
+      error: {
+        kind: 'rate_limit',
+        status: 429,
+        message: 'Too many requests',
+        sessionId: 'sess_1',
+        agentId: 'agent_1',
+      },
+    });
+    state.teardownHandlers[0]?.();
+  });
+
+  it('omits the error object on transitions without a failure', async () => {
+    const state = harness();
+    mocks.readFile.mockRejectedValueOnce(missingError());
+    await setupProviderStatus(state.input as never);
+
+    state.emitStatus({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      newState: 'healthy',
+      oldState: 'blocked',
+      reason: 'cooldown_expired',
+      timestamp: 5,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    const line = JSON.parse(String(mocks.appendFile.mock.calls.at(-1)?.[1]));
+    expect(line).toMatchObject({ providerId: 'openai', to: 'healthy', reason: 'cooldown_expired' });
+    expect(line.error).toBeNull();
+    state.teardownHandlers[0]?.();
+  });
+
+  it('rotates the audit file when it grows past the size cap', async () => {
+    const state = harness();
+    mocks.readFile.mockRejectedValueOnce(missingError());
+    mocks.stat.mockResolvedValue({ size: 6 * 1024 * 1024 });
+    await setupProviderStatus(state.input as never);
+
+    state.emitStatus({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      newState: 'blocked',
+      oldState: 'healthy',
+      reason: 'rate_limit_threshold_1',
+      timestamp: 1,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(mocks.rename).toHaveBeenCalledWith(
+      'C:/profile/provider-status-audit.jsonl',
+      'C:/profile/provider-status-audit.jsonl.1',
+    );
+    expect(mocks.appendFile).toHaveBeenCalled();
+    state.teardownHandlers[0]?.();
+  });
+
+  it('keeps the runtime alive when the audit append fails', async () => {
+    const state = harness();
+    mocks.readFile.mockRejectedValueOnce(missingError());
+    mocks.appendFile.mockRejectedValueOnce(new Error('disk full'));
+    await setupProviderStatus(state.input as never);
+
+    state.emitStatus({
+      providerId: 'openai',
+      model: 'gpt-4o',
+      newState: 'blocked',
+      oldState: 'healthy',
+      reason: 'rate_limit_threshold_1',
+      timestamp: 1,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(state.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Could not append provider audit log'),
+    );
     state.teardownHandlers[0]?.();
   });
 });

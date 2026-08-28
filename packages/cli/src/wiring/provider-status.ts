@@ -32,6 +32,64 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
   /** Pairs manually cleared in THIS process → epoch ms of the clear. */
   const clearedPairs = new Map<string, number>();
 
+  // ── Durable audit trail ───────────────────────────────────────────
+  // One JSONL line per waiting-room transition: when, which session/agent,
+  // which provider/model, which error, blocked or reopened, until when.
+  const auditFile = input.paths.profileProviderAudit(input.paths.profileName);
+  const AUDIT_ROTATE_BYTES = 5 * 1024 * 1024;
+  type ProviderAuditEvent = {
+    providerId: string;
+    model: string;
+    oldState: 'healthy' | 'degraded' | 'blocked';
+    newState: 'healthy' | 'degraded' | 'blocked';
+    reason: string;
+    timestamp: number;
+    stateExpiresAt?: number | undefined;
+    lastErrorKind?: string | undefined;
+    lastErrorStatus?: number | null | undefined;
+    lastErrorMessage?: string | null | undefined;
+    lastSessionId?: string | null | undefined;
+    lastAgentId?: string | null | undefined;
+  };
+  const appendAuditLine = async (event: ProviderAuditEvent): Promise<void> => {
+    try {
+      const line = JSON.stringify({
+        ts: event.timestamp,
+        providerId: event.providerId,
+        model: event.model,
+        from: event.oldState,
+        to: event.newState,
+        reason: event.reason,
+        expiresAt: event.stateExpiresAt ?? null,
+        error: event.lastErrorKind
+          ? {
+              kind: event.lastErrorKind,
+              status: event.lastErrorStatus ?? null,
+              message: (event.lastErrorMessage ?? '').slice(0, 300),
+              sessionId: event.lastSessionId ?? null,
+              agentId: event.lastAgentId ?? null,
+            }
+          : null,
+      });
+      await withFileLock(auditFile, async () => {
+        try {
+          const stat = await fs.stat(auditFile);
+          if (stat.size > AUDIT_ROTATE_BYTES) {
+            await fs.rename(auditFile, `${auditFile}.1`);
+          }
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        }
+        await fs.appendFile(auditFile, `${line}\n`, { mode: 0o600 });
+      });
+    } catch (error) {
+      // The audit trail must never break the runtime.
+      input.logger.warn(
+        `Could not append provider audit log: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  };
+
   let syncRunning = false;
   const sweep = setInterval(() => {
     tracker.sweepExpired();
@@ -184,6 +242,8 @@ export async function setupProviderStatus(input: ProviderStatusInput) {
       model: event.model,
       state: event.newState,
     });
+    // Durable audit trail entry (fire-and-forget; never blocks the runtime).
+    void appendAuditLine(event);
     if (saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       saveTimer = undefined;

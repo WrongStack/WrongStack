@@ -1,7 +1,7 @@
 import type { ChroniclePromptManifest } from '../../chronicle/prompt-manifest.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { AgentContext } from '../../types/context.js';
-import type { ProviderErrorBody, Usage } from '../../types/provider.js';
+import type { ProviderErrorBody, ProviderErrorKind, Usage } from '../../types/provider.js';
 
 export interface ProviderEventMap {
   /** Fired before every physical provider/model attempt, including attempt zero. */
@@ -209,6 +209,12 @@ export interface ProviderEventMap {
     reason: string;
     timestamp: number;
     stateExpiresAt?: number | undefined;
+    /** Last-error context for durable audit logs; absent on clean transitions. */
+    lastErrorKind?: ProviderErrorKind | undefined;
+    lastErrorStatus?: number | null | undefined;
+    lastErrorMessage?: string | null | undefined;
+    lastSessionId?: string | null | undefined;
+    lastAgentId?: string | null | undefined;
   };
   /**
    * Fired by the UI when the user manually picks a model from the

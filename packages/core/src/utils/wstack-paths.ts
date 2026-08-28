@@ -47,6 +47,8 @@ export interface WstackPaths {
   profileModeConfig: (name: string) => string;
   /** Resolve ~/.wrongstack/profiles/<name>/provider-status.json */
   profileProviderStatus: (name: string) => string;
+  /** Resolve ~/.wrongstack/profiles/<name>/provider-status-audit.jsonl */
+  profileProviderAudit: (name: string) => string;
   /** Resolve ~/.wrongstack/profiles/<name>/update-cache.json */
   profileUpdateCache: (name: string) => string;
   /** ~/.wrongstack/.key — 32 random bytes, mode 0600, AES-GCM key for the secret vault. */
@@ -308,6 +310,9 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     },
     profileProviderStatus: (name: string) => {
       return path.join(globalRoot, 'profiles', safeProfileName(name), 'provider-status.json');
+    },
+    profileProviderAudit: (name: string) => {
+      return path.join(globalRoot, 'profiles', safeProfileName(name), 'provider-status-audit.jsonl');
     },
     profileUpdateCache: (name: string) => {
       return path.join(globalRoot, 'profiles', safeProfileName(name), 'update-cache.json');
