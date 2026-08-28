@@ -1,6 +1,7 @@
 import type { RunController } from '../kernel/run-controller.js';
 import { TOKENS } from '../kernel/tokens.js';
 import { attachFleetPulse, attachMailboxChecker } from '../mailbox-attach.js';
+import { attachSessionNotes } from '../session-note-attach.js';
 import type { TextBlock } from '../types/blocks.js';
 import { isToolUseBlock } from '../types/blocks.js';
 import { toWrongStackError } from '../types/errors.js';
@@ -23,6 +24,7 @@ import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
 import { buildBtwBlock, consumeBtwNotes } from './btw.js';
+import { buildSessionNoteBlock, consumeSessionNotes } from './session-notes.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
@@ -106,6 +108,7 @@ export function createAgentLoopHandler(
   handlers: LoopHandlers,
 ): AgentLoopHandler {
   const checkMailbox = attachMailboxChecker(a);
+  attachSessionNotes(a);
 
   const fleetPulseCfg = (() => {
     try {
@@ -141,6 +144,12 @@ export function createAgentLoopHandler(
       foldBlockIntoConversation(block);
       onMailboxBlock?.(block);
     }
+  }
+
+  function injectPendingSessionNotes(): void {
+    const notes = consumeSessionNotes(a.ctx);
+    if (notes.length === 0) return;
+    foldBlockIntoConversation({ type: 'text', text: buildSessionNoteBlock(notes) });
   }
 
   function injectQueueAwareness(): void {
@@ -320,6 +329,7 @@ export function createAgentLoopHandler(
         });
 
         injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
+        injectPendingSessionNotes();
         injectQueueAwareness();
 
         if (pendingLoopSteer) {

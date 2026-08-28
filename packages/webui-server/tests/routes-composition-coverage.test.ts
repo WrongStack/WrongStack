@@ -99,6 +99,7 @@ describe('buildRoutes composition', () => {
       'prefsRoutes',
       'autonomyRoutes',
       'shellGitRoutes',
+      'chimeraRoutes',
       'mailboxRoutes',
       'mcpRoutes',
       'brainRoutes',
@@ -127,5 +128,62 @@ describe('buildRoutes composition', () => {
     ).toHaveBeenCalledWith(ws);
     routes.goalRoutes.handleMessage(ws, { type: 'goal.get' } as never);
     expect(deps.goalHandler.handleMessage).toHaveBeenCalledWith(ws, { type: 'goal.get' });
+  });
+
+  /**
+   * A permission prompt raised in a tab that has since closed is
+   * unanswerable — its lane is gone — and a resolver left pending wedges
+   * `agent.run` forever, so the run never releases its lock and the session
+   * refuses to be stopped OR deleted. The blanket drain only fires when the
+   * LAST socket disconnects, which never happens while other tabs are open,
+   * so the standalone host has to drain per session when a tab stops
+   * displaying one. It wired no `onSessionsUndisplayed` at all until now.
+   */
+  it('drains the closed tab’s unanswerable permission prompts', () => {
+    const resolvedGhost = vi.fn();
+    const resolvedOpen = vi.fn();
+    const pendingConfirms = new Map<string, unknown>([
+      ['c1', { resolve: resolvedGhost, sessionId: 'sess_ghost' }],
+      ['c2', { resolve: resolvedOpen, sessionId: 'sess_open' }],
+    ]);
+    const fallback = vi.fn();
+    const state = new Proxy(
+      { getConfig: vi.fn(() => ({})), getClients: vi.fn(() => new Map()) },
+      { get: (target, property) => Reflect.get(target, property) ?? fallback },
+    );
+    const deps = new Proxy(
+      {
+        pendingConfirms,
+        context: { meta: {}, session: { id: 'session-1' } },
+        wpaths: { globalRoot: 'D:\\global', projectSessions: 'D:\\sessions' },
+        providerRegistry: { has: vi.fn(() => false), create: vi.fn() },
+        logger: { warn: vi.fn(), level: 'info' },
+        toolRegistry: { list: vi.fn(() => []) },
+      },
+      { get: (target, property) => Reflect.get(target, property) ?? {} },
+    );
+    const cb = new Proxy({}, { get: () => vi.fn() });
+
+    mocks.createSessionHandlers.mockClear();
+    buildRoutes(state as never, deps as never, cb as never);
+
+    const options = (
+      mocks.createSessionHandlers.mock.calls as unknown as [
+        [
+          {
+            onSessionsUndisplayed?: (ids: string[]) => void;
+          },
+        ],
+      ]
+    )[0]?.[0] as {
+      onSessionsUndisplayed?: (ids: string[]) => void;
+    };
+    expect(typeof options?.onSessionsUndisplayed).toBe('function');
+
+    options.onSessionsUndisplayed?.(['sess_ghost']);
+
+    expect(resolvedGhost).toHaveBeenCalledWith('no');
+    expect(resolvedOpen).not.toHaveBeenCalled();
+    expect([...pendingConfirms.keys()]).toEqual(['c2']);
   });
 });

@@ -9,13 +9,14 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { openPanel } from '@/components/activity-bar/nav';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { useActiveSessionId, useFleetStore, useSessionLeaderId, useUIStore } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 
 const STATUS_META: Record<
   string,
@@ -59,6 +60,20 @@ const STATUS_META: Record<
   },
 };
 
+type LiveFleetTabChrome = {
+  selectedId: string | null;
+  filter: 'all' | 'running' | 'done' | 'failed';
+};
+
+const LIVE_FLEET_NO_SESSION = '__no_session__';
+const liveFleetChromeBySession = new Map<string, LiveFleetTabChrome>();
+const disposedLiveFleetSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  liveFleetChromeBySession.delete(sessionId);
+  disposedLiveFleetSessions.add(sessionId);
+});
+
 function fmtElapsed(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   if (totalSec < 60) return `${totalSec}s`;
@@ -95,6 +110,21 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
   const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'running' | 'done' | 'failed'>('all');
+  const chromeSessionRef = useRef<string>(currentSessionId ?? LIVE_FLEET_NO_SESSION);
+
+  useLayoutEffect(() => {
+    const previous = chromeSessionRef.current;
+    if (!disposedLiveFleetSessions.has(previous)) {
+      liveFleetChromeBySession.set(previous, { selectedId, filter });
+    }
+
+    const next = currentSessionId ?? LIVE_FLEET_NO_SESSION;
+    const parked = liveFleetChromeBySession.get(next);
+    disposedLiveFleetSessions.delete(next);
+    setSelectedId(parked?.selectedId ?? null);
+    setFilter(parked?.filter ?? 'all');
+    chromeSessionRef.current = next;
+  }, [currentSessionId]);
 
   const sessionAgents = useMemo(() => {
     return Array.from(fleetAgents.values()).filter((a) =>
@@ -133,6 +163,12 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
   const clearFinished = useFleetStore((s) => s.clearFinishedAgents);
 
   const selected = selectedId ? list.find((a) => a.id === selectedId) : null;
+
+  useLayoutEffect(() => {
+    if (selectedId && !sessionAgents.some((agent) => agent.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [selectedId, sessionAgents]);
 
   const openInspector = useCallback((agentId?: string) => {
     const ui = useUIStore.getState();
@@ -200,7 +236,7 @@ export function LiveFleetTab({ nowTick }: { nowTick: number }) {
           {counts.completed + counts.failed > 0 && (
             <button
               type="button"
-              onClick={clearFinished}
+              onClick={() => clearFinished(currentSessionId)}
               className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="h-2.5 w-2.5" /> {t('activity:agentRoster.clear')}

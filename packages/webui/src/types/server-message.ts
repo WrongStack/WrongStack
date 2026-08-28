@@ -268,10 +268,27 @@ export type WSServerMessage =
   | WSModelSwitchResult
   | WSAuthOAuthStatus
   | WSFilesList
-  | { type: 'files.tree'; payload: { root: string; tree: unknown[]; error?: string | undefined } }
+  | {
+      type: 'files.tree';
+      payload: {
+        root: string;
+        tree: unknown[];
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
+    }
   | {
       type: 'files.read';
-      payload: { filePath: string; content: string; error?: string | undefined };
+      payload: {
+        filePath: string;
+        content: string;
+        /** Server refused content: NUL byte detected (see handleFilesRead). */
+        binary?: boolean | undefined;
+        /** Server refused content: file exceeds the 2 MB display cap. */
+        tooLarge?: boolean | undefined;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | {
       type: 'files.skeleton_result';
@@ -292,23 +309,50 @@ export type WSServerMessage =
     }
   | {
       type: 'files.written';
-      payload: { filePath: string; success: boolean; error?: string | undefined };
+      payload: {
+        filePath: string;
+        success: boolean;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | {
       type: 'files.created';
-      payload: { filePath: string; success: boolean; error?: string | undefined };
+      payload: {
+        filePath: string;
+        success: boolean;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | {
       type: 'files.deleted';
-      payload: { filePath: string; success: boolean; error?: string | undefined };
+      payload: {
+        filePath: string;
+        success: boolean;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | {
       type: 'files.renamed';
-      payload: { oldPath: string; newPath: string; success: boolean; error?: string | undefined };
+      payload: {
+        oldPath: string;
+        newPath: string;
+        success: boolean;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | {
       type: 'files.moved';
-      payload: { srcPath: string; destPath: string; success: boolean; error?: string | undefined };
+      payload: {
+        srcPath: string;
+        destPath: string;
+        success: boolean;
+        error?: string | undefined;
+        sessionId?: string | undefined;
+      };
     }
   | WSCompletionResult
   | WSTodosUpdated
@@ -506,6 +550,12 @@ export type WSServerMessage =
           deleted: number;
           staged: boolean;
         }>;
+        /**
+         * Aggregate status per directory (repo-relative keys): the
+         * highest-ranked child status, computed server-side — replaces the
+         * old client-side prefix-scan heuristic in FileExplorer.
+         */
+        dirs?: Record<string, string> | undefined;
         /** Repo→project path prefix ('' when equal) — see repoRelativePrefix. */
         repoPrefix?: string | undefined;
         error?: string | undefined;
@@ -893,6 +943,20 @@ export type WSServerMessage =
     }
   | { type: 'mailbox.cleared'; payload: { error?: string | undefined } }
   | { type: 'mailbox.purged'; payload: Record<string, unknown> & { error?: string | undefined } }
+  // ── Chimera review reports — session-scoped, mailbox-independent list ─────
+  | {
+      type: 'chimera.reports';
+      payload: {
+        sessionId: string;
+        reports: Array<{
+          reportId: string;
+          reviewedAt: string;
+          lifecycleStatus: string;
+          totalFindings: number;
+          hasActionableFindings?: boolean | undefined;
+        }>;
+      };
+    }
   // ── Cron plugin events — state snapshots and job lifecycle ──────────────────
   | {
       type: 'cron.snapshot';

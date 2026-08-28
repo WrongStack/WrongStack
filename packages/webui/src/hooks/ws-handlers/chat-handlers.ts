@@ -13,7 +13,18 @@ import { useConfigStore, useSessionStore, useSessionTabStore, useUIStore } from 
 import { activeLaneId, type ChatLaneActions, onLaneDisposed } from '@/stores/chat-lanes';
 import type { QueuedItem } from '@/stores/chat-store';
 import { sessionPref } from '@/stores/local-prefs';
+import { useToolStatsStore } from '@/stores/tool-stats-store';
 import type { WSServerMessage } from '@/types';
+
+/**
+ * Agent attribution from the raw wire payload (`projectToolMessage` drops it).
+ * Present when a subagent/peer agent made the call inside this session — the
+ * agent-to-agent slice of the tool stats.
+ */
+function wireAgentName(msg: WSServerMessage): string | undefined {
+  const p = msg.payload as { agentName?: string | undefined } | undefined;
+  return typeof p?.agentName === 'string' && p.agentName.length > 0 ? p.agentName : undefined;
+}
 
 export const chatHandlers = {
   handleIterationStarted,
@@ -204,6 +215,12 @@ export function handleToolStarted(msg: WSServerMessage) {
     ok: true,
     startedAt: Date.now(),
   });
+  // Mirrors addExecution's dedup: this line sits below the replayed-started
+  // early return, so a reconnect replay cannot double-count a call.
+  useToolStatsStore.getState().recordToolStarted(chat.sessionId, {
+    name: payload.name,
+    agentName: wireAgentName(msg),
+  });
 }
 
 export function handleToolProgress(msg: WSServerMessage) {
@@ -259,6 +276,12 @@ export function handleToolExecuted(msg: WSServerMessage) {
       output: payload.output,
       ok: payload.ok,
     });
+  useToolStatsStore.getState().recordToolExecuted(chat.sessionId, {
+    name: payload.name,
+    ok: payload.ok,
+    durationMs: payload.durationMs,
+    agentName: wireAgentName(msg),
+  });
   if (currentToolId && ownerId === currentToolId) chat.setCurrentToolId(null);
 }
 

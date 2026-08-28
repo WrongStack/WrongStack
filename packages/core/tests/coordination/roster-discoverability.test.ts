@@ -60,8 +60,21 @@ describe('the roster the leader is shown', () => {
     // that can only fail, and not ask, is a dead end in an autonomous run.
     // `vcs` was the one preset without `mailbox`, which silenced exactly the
     // two roles whose work most often needs a decision (`git`, `release`).
+    //
+    // There are two ways to speak, and a role needs only one. `mailbox` is
+    // the durable cross-session letter; `session_note` is the in-process
+    // note to the leader of THIS session. `explore-companion` deliberately
+    // carries only the second — it is a same-session resident, and giving a
+    // background explorer a durable outbox other sessions read was never the
+    // intent. It declares the capability rather than the tool because the
+    // host injects `session_note` the way it injects `submit_result`.
+    const canSpeak = (cfg: (typeof FLEET_ROSTER)[string]): boolean => {
+      const tools = Array.isArray(cfg.tools) ? cfg.tools : [];
+      if (tools.includes('mailbox') || tools.includes('session_note')) return true;
+      return (cfg.allowedCapabilities ?? []).includes('session.note');
+    };
     const mute = Object.entries(FLEET_ROSTER)
-      .filter(([, cfg]) => Array.isArray(cfg.tools) && !cfg.tools.includes('mailbox'))
+      .filter(([, cfg]) => Array.isArray(cfg.tools) && !canSpeak(cfg))
       .map(([role]) => role);
     expect(mute).toEqual([]);
   });

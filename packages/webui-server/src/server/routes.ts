@@ -64,6 +64,10 @@ import {
   handleBrainStatus,
 } from './brain-handlers.js';
 import type { BrainRouteHandlers } from './brain-routes.js';
+import {
+  createChimeraRouteHandlers,
+  type ChimeraRouteHandlers,
+} from './chimera-routes.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { handleConfigDoctor } from './config-doctor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
@@ -100,13 +104,14 @@ import type { McpRouteHandlers } from './mcp-routes.js';
 import { createModeHandlers } from './mode-handlers.js';
 import type { ModeRouteHandlers } from './mode-routes.js';
 import { createModelOperations } from './model-operations.js';
-import type { PendingConfirm } from './pending-confirms.js';
+import { type PendingConfirm, resolvePendingConfirmsForSession } from './pending-confirms.js';
 import { prefSnapshot as prefSnapshotImpl } from './pref-helpers.js';
 import type { PrefsHandlerContext } from './prefs-handlers.js';
 import { createPrefsRouteHandlers, type PrefsRouteHandlers } from './prefs-routes.js';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import { createProjectHandlers } from './project-handlers.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
+import { loadSavedProviders } from './provider-config-io.js';
 import { createProviderHandlers } from './provider-handlers.js';
 import type { ProviderRouteHandlers } from './provider-routes.js';
 import {
@@ -202,6 +207,17 @@ export interface WebuiDeps {
    * it and can evict a live tab's.
    */
   peekAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
+  /**
+   * Every conversation currently holding an agent.
+   *
+   * A project-wide provider rebuild (WrongProxy toggle, credential
+   * hot-reload) used to swap `context.provider` and stop there. Session
+   * contexts copy the root's provider REFERENCE when they are created, so
+   * every tab opened before the toggle kept the old, unrouted provider while
+   * the leader used the new one — four tabs, two different providers, no way
+   * to tell from the UI. Hosts with one conversation omit this.
+   */
+  sessionAgentIds?: (() => string[]) | undefined;
   hasSession?: ((id: string) => boolean) | undefined;
   /** Does this host already hold an open journal writer for that session? */
   isSessionLive?: ((id: string) => boolean) | undefined;
@@ -314,6 +330,7 @@ export interface AllRoutes {
   prefsRoutes: PrefsRouteHandlers;
   autonomyRoutes: AutonomyRouteHandlers;
   shellGitRoutes: ShellGitRouteHandlers;
+  chimeraRoutes: ChimeraRouteHandlers;
   mailboxRoutes: MailboxRouteHandlers;
   mcpRoutes: McpRouteHandlers;
   brainRoutes: BrainRouteHandlers;
@@ -373,6 +390,24 @@ export function buildRoutes(
     // adopt-first-provider boot path) this is still the root context.
     const targetCtx = sessionContext(sessionId);
     await targetCtx.runModelTransition(async () => {
+      // provider.add persists the record directly to the profile file
+      // (providerStore.save), while the credential watcher's state.setConfig
+      // refresh is debounced — the adopt-on-first-add path can read memory
+      // before that refresh lands and then persist the boot-stale (empty)
+      // providers map, clobbering the just-added record (the fresh-home
+      // setup-screen regression). Hydrate from the profile file first so the
+      // switch's persist cannot lose it.
+      if (!state.getConfig().providers?.[newProvider]) {
+        try {
+          const fresh = await loadSavedProviders(deps.profileConfigPath, deps.vault);
+          if (fresh[newProvider]) {
+            state.setConfig(patchConfig(state.getConfig(), { providers: fresh }));
+            deps.configStore.update({ providers: fresh });
+          }
+        } catch (err) {
+          deps.logger.warn(`model.switch provider hydration failed: ${String(err)}`);
+        }
+      }
       const cur = state.getConfig();
       const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
       const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
@@ -485,10 +520,14 @@ export function buildRoutes(
     },
     profileConfigPath: deps.profileConfigPath,
     current: () => state.getConfig().systemPrompt?.variant ?? 'default',
-    // Mutate the live Config *before* rebuilding: `persistPrefsToConfig`
-    // writes the file, not the in-memory object, and the builder reads the
-    // variant off the object. Without this the rebuild would faithfully
-    // recompose the prompt the session already had.
+    // Move the in-memory default too: `persistPrefsToConfig` writes the file,
+    // not the object, and everything that has no per-tab answer reads the
+    // object — `current()` for a picker in a tab that never chose, and the
+    // meta seed a NEWLY created session starts from.
+    //
+    // It is only a default. The rebuild below no longer reads it for a tab
+    // that has its own variant (see `variantForContext`), so a pick here
+    // cannot reach a tab that already made one.
     applyVariant: async (variant: string, sessionId?: string) => {
       const config = state.getConfig();
       state.setConfig(
@@ -516,7 +555,17 @@ export function buildRoutes(
           getConfig: state.getConfig,
           projectRoot: state.getProjectRoot(),
           globalRoot: deps.wpaths.globalRoot,
-          container: deps.container,
+          // Rebind the container ONLY when the tab that asked owns the root
+          // context. The rebound builder carries the rebuilding tab's mode
+          // and mode prompt as well as its variant, and `Agent`'s pre-run
+          // refresh resolves that one token for every conversation — so a
+          // rebind from tab A put tab A's MODE layer into tab B's prompt on
+          // B's next turn. `mode-handlers` already omits the container for
+          // this reason. Nothing is lost: the identity variant now travels
+          // per conversation in `ctx.meta`, which that refresh reads, and
+          // subagents compose from `host.deps.systemPromptBuilder` rather
+          // than the token.
+          ...(targetCtx === deps.context ? { container: deps.container } : {}),
         },
         modeId,
       );
@@ -545,8 +594,31 @@ export function buildRoutes(
     abortActiveRun: state.abortRunLock,
     isRunActive: state.isRunActive,
     getAgent: deps.getAgent,
+    ...(deps.peekAgent ? { peekAgent: deps.peekAgent } : {}),
     hasSession: deps.hasSession,
     isSessionLive: deps.isSessionLive,
+    // A permission prompt raised in a tab that has since closed is
+    // unanswerable: it was parked on that tab's lane, and the lane is gone.
+    // Left pending it wedges `agent.run` forever, and a run that never settles
+    // never releases its lock — the session then refuses to be stopped OR
+    // deleted. The blanket drain in connection-lifecycle only fires when the
+    // LAST socket goes away, which never happens while the other tabs are
+    // open, so the per-session drain has to run here.
+    onSessionsUndisplayed: (sessionIds: string[]) => {
+      for (const sessionId of sessionIds) {
+        const orphaned = resolvePendingConfirmsForSession(deps.pendingConfirms, sessionId);
+        if (orphaned === 0) continue;
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'webui.confirm_orphaned_by_tab_close',
+            sessionId,
+            count: orphaned,
+            message: `Denied ${orphaned} unanswerable permission prompt(s) for closed session ${sessionId}.`,
+          }),
+        );
+      }
+    },
     sessionStartPayload: cb.sessionStartPayload,
     systemPrompt: systemPromptAdapter,
   });
@@ -774,6 +846,19 @@ export function buildRoutes(
     events: deps.events,
   });
 
+  const chimeraRoutes: ChimeraRouteHandlers = createChimeraRouteHandlers({
+    // Same layout resolution the systemPromptAdapter uses below: projectDir is
+    // the per-project WrongStack home (~/.wrongstack/projects/<slug>) where the
+    // CLI persists review-reports.jsonl. Read lazily — project switches re-root.
+    projectDir: () =>
+      resolveWstackPaths({
+        projectRoot: state.getProjectRoot(),
+        globalRoot: deps.wpaths.globalRoot,
+      }).projectDir,
+    send,
+    log: (message) => deps.logger.warn(message),
+  });
+
   // ---- MCP route (handleMcpRoute) ----
   // Issue #31 follow-on (after #118 PR 0 baseline, #119 prefs extraction).
   // Each callback delegates to the matching handleMcpXxx in mcp-handlers.ts
@@ -818,15 +903,17 @@ export function buildRoutes(
         brainContext,
         ws,
         (msg.payload as { level?: string } | undefined)?.level ?? '',
+        messageSessionId(msg),
       ),
     ask: (ws, msg) =>
       handleBrainAsk(
         brainContext,
         ws,
         (msg.payload as { question?: string } | undefined)?.question,
+        messageSessionId(msg),
       ),
     configGet: (ws) => handleBrainConfigGet(brainContext, ws),
-    configSet: (ws, msg) => handleBrainConfigSet(brainContext, ws, msg.payload),
+    configSet: (ws, msg) => handleBrainConfigSet(brainContext, ws, msg.payload, messageSessionId(msg)),
   };
 
   const goalRoutes: GoalRouteHandlers = {
@@ -853,6 +940,7 @@ export function buildRoutes(
     prefsRoutes,
     autonomyRoutes,
     shellGitRoutes,
+    chimeraRoutes,
     mailboxRoutes,
     mcpRoutes,
     brainRoutes,

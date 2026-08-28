@@ -11,8 +11,8 @@ import {
   Play,
   RefreshCw,
   Search,
-  Star,
   SearchCheck,
+  Star,
   Trash2,
   Wrench,
   X,
@@ -421,7 +421,7 @@ export function SessionList({
   const handleResume = useCallback(
     (id: string) => {
       const result = useSessionTabStore.getState().openTab(id, { resumeSession });
-      if (!result.success) return;
+      if (!result.success || result.reason !== 'opened_new_tab') return;
       setResumingId(id);
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
       resumeTimer.current = setTimeout(() => setResumingId(null), 10_000);
@@ -502,10 +502,7 @@ export function SessionList({
 
   return (
     <div
-      className={cn(
-        'flex min-h-0 min-w-0 flex-1 flex-col bg-background',
-        workspace && 'h-full',
-      )}
+      className={cn('flex min-h-0 min-w-0 flex-1 flex-col bg-background', workspace && 'h-full')}
       data-history-variant={variant}
     >
       {workspace ? <HistoryStats stats={stats} /> : null}
@@ -534,9 +531,20 @@ export function SessionList({
                 onClick={handleDeleteEmpty}
                 disabled={!wsConnected}
                 title={t('activity:sessions.deleteEmptyTitle', { count: emptySessionIds.length })}
+                aria-label={t('activity:sessions.deleteEmptyTitle', {
+                  count: emptySessionIds.length,
+                })}
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {workspace ? <span className="text-[10px]">{emptySessionIds.length}</span> : null}
+                {/* Count badge in BOTH modes: never-started records are no
+                    longer auto-deleted on close, so this control is the only
+                    signal that clearable empty sessions exist. */}
+                <span
+                  aria-hidden="true"
+                  className="inline-flex min-w-4 items-center justify-center rounded-full bg-destructive/15 px-1 text-[10px] font-semibold leading-4 text-destructive"
+                >
+                  {emptySessionIds.length}
+                </span>
               </button>
             ) : null}
             <button
@@ -745,7 +753,9 @@ export function SessionList({
                                     {entry.isCurrent ? (
                                       <span className="inline-flex shrink-0 items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
                                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                                        {t('activity:sessions.activeTab', { defaultValue: 'Active Tab' })}
+                                        {t('activity:sessions.activeTab', {
+                                          defaultValue: 'Active Tab',
+                                        })}
                                       </span>
                                     ) : openTabIds.includes(entry.id) ? (
                                       <span className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -775,7 +785,9 @@ export function SessionList({
                                         {t('activity:sessions.resuming')}
                                       </span>
                                     ) : (
-                                      <span title={new Date(sessionActivityAt(entry)).toLocaleString()}>
+                                      <span
+                                        title={new Date(sessionActivityAt(entry)).toLocaleString()}
+                                      >
                                         {formatRelative(sessionActivityAt(entry))}
                                       </span>
                                     )}
@@ -785,7 +797,9 @@ export function SessionList({
                                       <span>{formatCompactNumber(entry.tokenTotal)} tok</span>
                                     ) : null}
                                     {(entry.messageCount ?? 0) > 0 ? (
-                                      <span>{formatCompactNumber(entry.messageCount ?? 0)} msg</span>
+                                      <span>
+                                        {formatCompactNumber(entry.messageCount ?? 0)} msg
+                                      </span>
                                     ) : null}
                                     {(entry.toolCallCount ?? 0) > 0 ? (
                                       <span className="inline-flex items-center gap-1">
@@ -884,10 +898,9 @@ export function SessionList({
                                   // strip would drop to zero the store keeps
                                   // one tab and reports the session as not
                                   // removable — never delete what must stay.
-                                  const removable =
-                                    useSessionTabStore.getState().closeTabsForSessions([
-                                      entry.id,
-                                    ]);
+                                  const removable = useSessionTabStore
+                                    .getState()
+                                    .closeTabsForSessions([entry.id]);
                                   if (!removable.includes(entry.id)) {
                                     toast.info(
                                       t('activity:sessions.deleteKeptLastTab', {

@@ -54,19 +54,21 @@ import { broadcast, send, sendResult } from './ws-utils.js';
  * so a second user_message while running is rejected and a project swap can
  * tear down the in-flight run.
  */
+/**
+ * Run locks, one per conversation.
+ *
+ * There is no "the run" and no current session: this server can be driving
+ * four tabs at once, and every one of them owns its own controller. Both
+ * accessors REQUIRE the session id for that reason — the optional forms
+ * (and the "most recent run" pointer that answered them) were the shape
+ * that let a zero-argument caller abort, or fail to register, somebody
+ * else's run.
+ */
 interface RunLockControl {
-  /** Controller for `sessionId`, or the most-recent run when omitted. */
-  get(sessionId?: string): AbortController | null;
-  /**
-   * Register/release the controller for `sessionId`. The sessionId argument
-   * is NOT optional in practice: omitting it used to leave the host's
-   * per-session map empty, which made `isRunActive(id)` report `false` for
-   * every running session and let a tab switch wipe a live transcript.
-   */
-  set(ctrl: AbortController | null, sessionId?: string): void;
-  /** Session ID that owns the most recent run, or null when idle. */
-  getSession(): string | null;
-  setSession(id: string | null): void;
+  /** Controller for this conversation's run, if one is in flight. */
+  get(sessionId: string): AbortController | null;
+  /** Register (or release, with `null`) this conversation's controller. */
+  set(ctrl: AbortController | null, sessionId: string): void;
   has(sessionId: string): boolean;
   hasAny(): boolean;
   delete(sessionId: string): void;
@@ -241,7 +243,6 @@ export function createMessageDispatcher(
         if (runLock.has(key)) return undefined;
         const controller = new AbortController();
         runLock.set(controller, key);
-        runLock.setSession(key);
         return controller;
       },
       end: (_ws, sessionId, controller) => {
@@ -261,7 +262,6 @@ export function createMessageDispatcher(
           runLock.get(key)?.abort();
           runLock.set(null, key);
         }
-        runLock.setSession(null);
       },
     },
     pendingConfirms,
@@ -387,6 +387,7 @@ export function createMessageDispatcher(
       mode: routes.modeRoutes,
       prefs: routes.prefsRoutes,
       brain: routes.brainRoutes,
+      chimera: routes.chimeraRoutes,
       worklist: worklistRoutes,
       process: processRoutes,
       host: hostRoutes,

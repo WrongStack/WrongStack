@@ -2,6 +2,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+/** Newline, spelled out so the source-scanning literal stays readable. */
+const SEPARATOR = String.fromCharCode(10);
+
 /**
  * The routing boundary, enforced at the source level.
  *
@@ -129,8 +132,6 @@ const PROJECT_WIDE_STORES = new Set([
   'useHistoryStore',
   'useLocalPrefs',
   'useMailboxStore',
-  'useMemoryInjectorStore',
-  'useMemoryLifecycleStore',
   'useMonitorStore',
   'useOfficeMapStore',
   'useProviderStatusStore',
@@ -148,6 +149,22 @@ const PROJECT_WIDE_STORES = new Set([
  * Stores whose every record carries its own `sessionId`, so one store object
  * still holds per-session data underneath.
  */
+/**
+ * Stores built with `createSessionScopedStore`: ONE INSTANCE PER CONVERSATION.
+ *
+ * The hook form and `getState()` address the tab in front, which is what a
+ * component or a user action wants. A WS HANDLER must not use either — the
+ * frame names a session and the write has to land there whether or not that
+ * tab is on screen — so handlers reach them through `.for(sessionId)`. The
+ * rule below pins that.
+ */
+const SESSION_SCOPED_STORES = new Set([
+  'useCouncilLogStore',
+  'useMemoryInjectorTraceStore',
+  'useMemoryLifecycleStore',
+  'useSideEffectStore',
+]);
+
 const SELF_KEYED_STORES = new Set([
   'useCodemapActivityStore',
   // The variant catalogue is one project fact, but WHICH variant is live is a
@@ -223,7 +240,12 @@ describe('every handler that writes session state names the session', () => {
       for (const store of new Set(
         [...body.matchAll(/\buse[A-Z]\w*(?:Store|Prefs)\b/g)].map((hit) => hit[0]),
       )) {
-        if (PROJECT_WIDE_STORES.has(store) || SELF_KEYED_STORES.has(store)) continue;
+        if (
+          PROJECT_WIDE_STORES.has(store) ||
+          SELF_KEYED_STORES.has(store) ||
+          SESSION_SCOPED_STORES.has(store)
+        )
+          continue;
         offenders.push(`${name} -> ${store}`);
       }
     }
@@ -231,6 +253,69 @@ describe('every handler that writes session state names the session', () => {
       offenders,
       'route with chatFor/sessionFor, gate with isActiveSessionMessage, or list the store in PROJECT_WIDE_STORES with a reason',
     ).toEqual([]);
+  });
+});
+
+describe('session-scoped stores are addressed, never taken from the foreground', () => {
+  /**
+   * `createSessionScopedStore` keeps one instance per conversation and resolves
+   * the bare hook / `getState()` to the tab IN FRONT. That default is right for
+   * a component and wrong for a handler: the frame already names its session,
+   * and answering from the foreground puts a background tab's Brain panels,
+   * memory traces or side effects on the screen the user is looking at — or,
+   * with the old defensive gate, throws them away instead.
+   *
+   * So inside a handler module these stores may only be reached through
+   * `.for(...)`. A local helper that does the `.for(...)` itself is fine; the
+   * scan below looks for the forbidden shapes, not for the helper.
+   */
+  it.each(handlerFiles().map((f) => [path.basename(f), f] as const))('%s', (_name, file) => {
+    const source = readFileSync(file, 'utf8');
+    const offenders: string[] = [];
+    for (const store of SESSION_SCOPED_STORES) {
+      for (const suffix of ['.getState(', '.setState(', '.subscribe(']) {
+        const shape = `${store}${suffix}`;
+        for (const n of offendingLines(source, (line) => line.includes(shape))) {
+          offenders.push(`${path.basename(file)}:${n}  ${shape}`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      'address the conversation the frame names: `<store>.for(messageSessionId(msg)).getState()`',
+    ).toEqual([]);
+  });
+
+  it('is scanning live code, not a dead shape', () => {
+    // The rule above passes when nothing matches, which is also what a rename
+    // or a wholesale removal looks like. Prove the handlers really do reach
+    // these stores — through the addressed form.
+    const handlerSource = handlerFiles()
+      .map((f) => readFileSync(f, 'utf8'))
+      .join(SEPARATOR);
+    const addressed = [...SESSION_SCOPED_STORES].filter((store) =>
+      handlerSource.includes(`${store}.for(`),
+    );
+    expect(addressed.length, 'no handler addresses a session-scoped store').toBeGreaterThan(0);
+    // …and the forbidden shape is one the scanner would actually catch.
+    expect(
+      offendingLines('useSideEffectStore.getState()', (line) =>
+        line.includes('useSideEffectStore.getState('),
+      ),
+    ).toEqual([1]);
+  });
+
+  it('finds the stores it is guarding', () => {
+    // A renamed store would make the rule above vacuously green.
+    const storesDir = path.resolve(import.meta.dirname, '../../src/stores');
+    const declared = readdirSync(storesDir)
+      .filter((f) => f.endsWith('.ts'))
+      .map((f) => readFileSync(path.join(storesDir, f), 'utf8'))
+      .join(SEPARATOR);
+    for (const store of SESSION_SCOPED_STORES) {
+      expect(declared, `${store} is no longer declared`).toContain(`export const ${store} =`);
+      expect(declared).toContain('createSessionScopedStore');
+    }
   });
 });
 

@@ -408,17 +408,25 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
           });
           return true;
         }
-        client?.send?.({ type: 'brain.risk', payload: { level } });
+        // Name the tab: the Brain answers `/brain` about the asking session's
+        // own decisions, and stamps its reply so the right lane receives it.
+        client?.send?.({
+          type: 'brain.risk',
+          payload: client.withSession?.({ level }) ?? { level },
+        });
         addMessage({ role: 'assistant', content: `🧠 Brain — risk → **${level}**.` });
       } else if (subcmd === 'ask') {
         const question = rest.join(' ').trim();
         if (!question) {
           addMessage({ role: 'assistant', content: 'Usage: `/brain ask <question>`' });
         } else {
-          client?.send?.({ type: 'brain.ask', payload: { question } });
+          client?.send?.({
+            type: 'brain.ask',
+            payload: client.withSession?.({ question }) ?? { question },
+          });
         }
       } else {
-        client?.send?.({ type: 'brain.status' });
+        client?.send?.({ type: 'brain.status', payload: client.withSession?.({}) ?? {} });
       }
       return true;
     }

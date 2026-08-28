@@ -231,7 +231,10 @@ describe('session.start — reset vs. continuation', () => {
 
   it('requests the file tree for the new cwd on a reset', () => {
     start({ cwd: '/repo' });
-    expect(send).toHaveBeenCalledWith({ type: 'files.tree', payload: { path: '/repo' } });
+    expect(send).toHaveBeenCalledWith({
+      type: 'files.tree',
+      payload: { path: '/repo', sessionId: SESSION },
+    });
   });
 });
 

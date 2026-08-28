@@ -367,6 +367,9 @@
     "packages/core/src/coordination/delegate-tool.ts": [
       "hintForKind"
     ],
+    "packages/core/src/coordination/fleet.ts": [
+      "EXPLORE_COMPANION_TOOLS"
+    ],
     "packages/core/src/coordination/mailbox-codecs.ts": [
       "MailboxValidationError",
       "parseMailboxHeartbeatInput",
@@ -1424,9 +1427,6 @@
     "packages/webui-server/src/server/mcp-handlers.ts": [
       "toView"
     ],
-    "packages/webui-server/src/server/prefs-handlers.ts": [
-      "SESSION_SCOPED_PREF_KEYS"
-    ],
     "packages/webui-server/src/server/provider-config-standalone.ts": [
       "vaultKeyFileForConfigPath"
     ],
@@ -1666,6 +1666,9 @@
     "packages/webui/src/stores/goal-store.ts": [
       "useGoalStore"
     ],
+    "packages/webui/src/stores/local-prefs.ts": [
+      "SESSION_SCOPED_PREFS"
+    ],
     "packages/webui/src/stores/memory-lifecycle-store.ts": [
       "toMemoryLifecycleItem"
     ],
@@ -1674,7 +1677,9 @@
       "deriveMonitorStats"
     ],
     "packages/webui/src/stores/session-tab-store.ts": [
-      "isNeverStartedSession"
+      "readStoredTabs",
+      "TAB_STORAGE_KEY",
+      "writeStoredTabs"
     ]
   }
 }

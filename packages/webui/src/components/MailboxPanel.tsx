@@ -18,15 +18,16 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Pagination } from '@/components/ui/pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
-import { useMailboxStore, useUIStore } from '@/stores';
-import { classifyMailboxRecipient } from '@/stores/mailbox-store';
+import { useActiveSessionId, useMailboxStore, useUIStore } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
+import { classifyMailboxRecipient, type MailboxMessage } from '@/stores/mailbox-store';
 import { confirmModal } from './ConfirmModal';
 
 type MailboxComposeType =
@@ -58,6 +59,30 @@ const COMPOSE_TYPES: MailboxComposeType[] = [
   'review',
 ];
 
+type MailboxPanelChrome = {
+  collapsed: boolean;
+  deleting: boolean;
+  purging: boolean;
+  compacting: boolean;
+  composeOpen: boolean;
+  composeTo: string;
+  composeType: MailboxComposeType;
+  composeAudience: 'all' | 'leaders';
+  composePriority: 'low' | 'normal' | 'high';
+  composeSubject: string;
+  composeBody: string;
+  sendState: MailboxSendState;
+};
+
+const MAILBOX_PANEL_NO_SESSION = '__no_session__';
+const mailboxPanelChromeBySession = new Map<string, MailboxPanelChrome>();
+const disposedMailboxPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  mailboxPanelChromeBySession.delete(sessionId);
+  disposedMailboxPanelSessions.add(sessionId);
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────
 
 const TYPE_ICONS: Record<string, typeof MessageSquare> = {
@@ -82,9 +107,28 @@ function fmtTime(iso: string): string {
   return d.toLocaleDateString();
 }
 
+function mailboxMessageBelongsToSession(
+  message: MailboxMessage,
+  sessionId: string | null,
+): boolean {
+  if (!sessionId) return true;
+  if (message.senderSessionId === sessionId || message.recipientSessionId === sessionId)
+    return true;
+  if (
+    message.to.includes(`@session:${sessionId}`) ||
+    message.from.includes(`@session:${sessionId}`)
+  ) {
+    return true;
+  }
+  const classified = classifyMailboxRecipient(message.to);
+  if (classified.scope === 'project') return true;
+  return classified.recipientSessionId === sessionId;
+}
+
 // ── Component ─────────────────────────────────────────────────────────
 
 export function MailboxPanel({ className }: { className?: string }) {
+  const sessionId = useActiveSessionId();
   // Messages/agents live in the central mailbox store — populated by the
   // ws-handlers registry, refreshed on every mailbox.event. This panel
   // only triggers an extra refresh when (re)mounted.
@@ -103,8 +147,45 @@ export function MailboxPanel({ className }: { className?: string }) {
   const [composeSubject, setComposeSubject] = useState('');
   const [composeBody, setComposeBody] = useState('');
   const [sendState, setSendState] = useState<MailboxSendState>({ phase: 'idle' });
+  const chromeSessionRef = useRef<string>(sessionId ?? MAILBOX_PANEL_NO_SESSION);
   const { client } = useWebSocket();
   const { t } = useAppTranslation();
+
+  useLayoutEffect(() => {
+    if (!disposedMailboxPanelSessions.has(chromeSessionRef.current)) {
+      mailboxPanelChromeBySession.set(chromeSessionRef.current, {
+        collapsed,
+        deleting,
+        purging,
+        compacting,
+        composeOpen,
+        composeTo,
+        composeType,
+        composeAudience,
+        composePriority,
+        composeSubject,
+        composeBody,
+        sendState,
+      });
+    }
+
+    const next = sessionId ?? MAILBOX_PANEL_NO_SESSION;
+    const parked = mailboxPanelChromeBySession.get(next);
+    disposedMailboxPanelSessions.delete(next);
+    setCollapsed(parked?.collapsed ?? false);
+    setDeleting(parked?.deleting ?? false);
+    setPurging(parked?.purging ?? false);
+    setCompacting(parked?.compacting ?? false);
+    setComposeOpen(parked?.composeOpen ?? false);
+    setComposeTo(parked?.composeTo ?? 'leader');
+    setComposeType(parked?.composeType ?? 'note');
+    setComposeAudience(parked?.composeAudience ?? 'all');
+    setComposePriority(parked?.composePriority ?? 'normal');
+    setComposeSubject(parked?.composeSubject ?? '');
+    setComposeBody(parked?.composeBody ?? '');
+    setSendState(parked?.sendState ?? { phase: 'idle' });
+    chromeSessionRef.current = next;
+  }, [sessionId]);
   // Track the socket lifecycle so the initial queries fire once the
   // connection is actually open (client.send drops messages otherwise).
   const [ready, setReady] = useState(client.status.state === 'open');
@@ -154,16 +235,20 @@ export function MailboxPanel({ className }: { className?: string }) {
     showPanel('mailbox');
   }
 
-  const unreadCount = messages.filter((m) => !m.completed).length;
-  const onlineCount = agents.filter((a) => a.online).length;
-  const messagePage = usePagination(messages, 8);
-  const onlineAgents = agents.filter((agent) => agent.online);
+  const scopedMessages = messages.filter((message) =>
+    mailboxMessageBelongsToSession(message, sessionId),
+  );
+  const scopedAgents = sessionId ? agents.filter((agent) => agent.sessionId === sessionId) : agents;
+  const unreadCount = scopedMessages.filter((m) => !m.completed).length;
+  const onlineCount = scopedAgents.filter((a) => a.online).length;
+  const messagePage = usePagination(scopedMessages, 8);
+  const onlineAgents = scopedAgents.filter((agent) => agent.online);
   const agentPage = usePagination(onlineAgents, 5);
 
   async function handleDeleteAll() {
-    if (messages.length === 0) return;
+    if (scopedMessages.length === 0) return;
     const ok = await confirmModal({
-      title: t('activity:mailbox.deleteAllConfirmTitle', { count: messages.length }),
+      title: t('activity:mailbox.deleteAllConfirmTitle', { count: scopedMessages.length }),
       message: t('activity:mailbox.deleteAllConfirmBody'),
       confirmLabel: t('activity:mailbox.deleteAll'),
       danger: true,
@@ -175,8 +260,8 @@ export function MailboxPanel({ className }: { className?: string }) {
 
   // Reset deleting state once messages are cleared (after server confirms).
   useEffect(() => {
-    if (deleting && messages.length === 0) setDeleting(false);
-  }, [deleting, messages.length]);
+    if (deleting && scopedMessages.length === 0) setDeleting(false);
+  }, [deleting, scopedMessages.length]);
   // Timeout fallback like the purge/compact siblings below: if the clear
   // fails server-side (or a new message lands before the confirm), the
   // success condition above never fires and the button stayed disabled
@@ -237,6 +322,7 @@ export function MailboxPanel({ className }: { className?: string }) {
         subject: composeSubject.trim() || t('activity:mailbox.defaultSubject'),
         body,
         priority: composePriority,
+        ...(sessionId ? { sessionId } : {}),
       },
     });
   }
@@ -292,7 +378,7 @@ export function MailboxPanel({ className }: { className?: string }) {
                     <datalist id="mailbox-agent-recipients">
                       <option value="leader" />
                       <option value="*" />
-                      {agents.map((agent) => (
+                      {scopedAgents.map((agent) => (
                         <option key={agent.agentId} value={agent.agentId} />
                       ))}
                     </datalist>
@@ -394,7 +480,7 @@ export function MailboxPanel({ className }: { className?: string }) {
           </div>
 
           {/* Messages */}
-          {messages.length > 0 ? (
+          {scopedMessages.length > 0 ? (
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
@@ -541,7 +627,7 @@ export function MailboxPanel({ className }: { className?: string }) {
           )}
 
           {/* Online agents */}
-          {agents.length > 0 && (
+          {scopedAgents.length > 0 && (
             <div className="border-t border-border pt-2">
               <div className="text-[10px] font-semibold text-muted-foreground mb-1 flex items-center gap-1">
                 <Users className="h-3 w-3" /> {t('activity:nav.agents')}
@@ -572,10 +658,10 @@ export function MailboxPanel({ className }: { className?: string }) {
                 compact
                 itemLabel="online agents"
               />
-              {agents.filter((a) => !a.online).length > 0 && (
+              {scopedAgents.filter((a) => !a.online).length > 0 && (
                 <div className="text-[10px] text-muted-foreground/70 mt-0.5">
                   {t('activity:mailbox.offlineCount', {
-                    count: agents.filter((a) => !a.online).length,
+                    count: scopedAgents.filter((a) => !a.online).length,
                   })}
                 </div>
               )}

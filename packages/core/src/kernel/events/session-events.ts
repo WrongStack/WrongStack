@@ -28,6 +28,20 @@ export interface SessionEventMap {
     sessionId?: string | undefined;
     agents: readonly TrackedAgentSnapshot[];
   };
+  /**
+   * Same-session, in-process note from one agent to another (or the leader).
+   * Ephemeral: folded into the recipient's next iteration. Not mailbox —
+   * mailbox is the durable cross-session channel.
+   */
+  'session.note': {
+    sessionId: string;
+    from: string;
+    to: string;
+    kind: 'note' | 'result' | 'ask' | 'steer';
+    body: string;
+    subject?: string | undefined;
+    ts: number;
+  };
   'iteration.started': { sessionId?: string | undefined; ctx: AgentContext; index: number };
   'iteration.completed': { sessionId?: string | undefined; ctx: AgentContext; index: number };
   /**

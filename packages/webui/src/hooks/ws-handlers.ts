@@ -1,4 +1,4 @@
-import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
+import { chatFor, messageSessionId, pipeViz, sessionFor } from '@/lib/ws-client-utils';
 import type { SideEffectEntry } from '@/stores';
 import {
   type AgentTranscriptKind,
@@ -418,7 +418,10 @@ export function handleDiagGet(msg: WSServerMessage) {
 }
 
 export function handleStatsGet(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  // Every write below is addressed (`replyMeta` / `replyLane`), so the answer
+  // lands in the tab that asked. The gate that used to sit here dropped a
+  // background tab's own `stats.get` reply — the panel it had just opened
+  // stayed blank.
   const p = msg.payload as {
     sessionId: string;
     provider: string;
@@ -503,7 +506,11 @@ export function handleStatsGet(msg: WSServerMessage) {
 
 export function handleTodosUpdated(msg: WSServerMessage) {
   // A tab's worklist belongs to that tab. Dropping a background session's
-  // update left its todo list frozen at whatever it held when you looked away.
+  // update left its todo list frozen at whatever it held when you looked away,
+  // so the frame routes to the lane it names. But it must NOT fall back to the
+  // lane in front either: `todos.updated` is always session-scoped, so an
+  // untagged frame is a server stamping bug — and writing it into the active
+  // lane is how another tab's board surfaced in this tab's worklist mid-update.
   const p = msg.payload as {
     todos: Array<{
       id: string;
@@ -516,7 +523,9 @@ export function handleTodosUpdated(msg: WSServerMessage) {
       kanbanTaskId?: string | undefined;
     }>;
   };
-  replyMeta(msg).setTodos(p.todos ?? []);
+  const lane = sessionFor(msg);
+  if (!lane) return;
+  lane.setTodos(p.todos ?? []);
 }
 
 export function handleModesList(msg: WSServerMessage) {
@@ -721,20 +730,32 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     'diag.get': handleDiagGet,
     'stats.get': handleStatsGet,
     side_effects: (msg: WSServerMessage) => {
-      if (!isActiveSessionMessage(msg)) return;
+      // The list belongs to the run that recorded it. Gating on the foreground
+      // threw away the reply a background tab had ASKED FOR, so opening that
+      // tab showed an empty timeline for a run that had written files.
       const p = msg.payload as { sideEffects?: SideEffectEntry[] };
-      useSideEffectStore.getState().setSideEffects(p.sideEffects ?? []);
+      useSideEffectStore
+        .for(messageSessionId(msg))
+        .getState()
+        .setSideEffects(p.sideEffects ?? []);
     },
     'todos.updated': handleTodosUpdated,
     // The standalone server broadcasts `todos.cleared` on clear (the CLI server
     // sends `todos.updated` with an empty list); handle both so the worklist
     // empties in the UI regardless of which server is driving.
     'todos.cleared': (msg: WSServerMessage) => {
-      if (!isActiveSessionMessage(msg)) return;
-      replyMeta(msg).setTodos([]);
+      // Same positive routing as `todos.updated`: land on the lane the frame
+      // names and drop anything untagged — emptying the lane in front because
+      // an untagged frame walked in is how one tab's clear wiped another's
+      // board.
+      const lane = sessionFor(msg);
+      if (!lane) return;
+      lane.setTodos([]);
     },
     'agent.timeline.message': (msg: WSServerMessage) => {
-      if (!isActiveSessionMessage(msg)) return;
+      // Stamped, not gated: the entry is filed under its own agent, and the
+      // roster is session-filtered, so a background tab's worker keeps its
+      // transcript instead of losing every line said while it was off screen.
       const p = msg.payload as {
         subagentId: string;
         agentName: string;
@@ -748,6 +769,7 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       };
       useFleetStore.getState().pushAgentTimelineEntry({
         subagentId: p.subagentId,
+        sessionId: messageSessionId(msg) ?? undefined,
         agentName: p.agentName,
         content: p.content,
         kind: p.kind as AgentTranscriptKind,
@@ -759,7 +781,6 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       });
     },
     'agent.status_changed': (msg: WSServerMessage) => {
-      if (!isActiveSessionMessage(msg)) return;
       const p = msg.payload as {
         subagentId: string;
         agentName: string;
@@ -770,6 +791,7 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       };
       useFleetStore.getState().pushAgentTimelineEntry({
         subagentId: p.subagentId,
+        sessionId: messageSessionId(msg) ?? undefined,
         agentName: p.agentName,
         content: p.summary ?? p.status,
         kind: 'status',

@@ -263,7 +263,12 @@ describe('agent timeline bridge', () => {
     expect(timeline('sa1')[0]).toMatchObject({ content: 'done' });
   });
 
-  it('ignores timeline traffic for another session', () => {
+  // Traffic for a tab that is not in front is KEPT and stamped with its own
+  // conversation. Dropping it (the previous behaviour) meant a worker that ran
+  // while you were looking elsewhere came back with an empty transcript; the
+  // separation comes from the stamp plus the session-filtered roster, not from
+  // throwing the lines away.
+  it('keeps timeline traffic for another session, stamped with that session', () => {
     useSessionStore.setState({
       session: { id: 'sess_a', startedAt: 1, model: 'm', provider: 'p' },
     });
@@ -276,10 +281,11 @@ describe('agent timeline bridge', () => {
       iteration: 0,
       ts: '2026-01-01T00:00:00.000Z',
     });
-    expect(timeline('sa1')).toHaveLength(0);
+    expect(timeline('sa1')).toHaveLength(1);
+    expect(timeline('sa1')[0]).toMatchObject({ sessionId: 'sess_b', content: 'x' });
   });
 
-  it('ignores a status change for another session', () => {
+  it('keeps a status change for another session, stamped with that session', () => {
     useSessionStore.setState({
       session: { id: 'sess_a', startedAt: 1, model: 'm', provider: 'p' },
     });
@@ -290,7 +296,8 @@ describe('agent timeline bridge', () => {
       status: 'done',
       ts: '2026-01-01T00:00:00.000Z',
     });
-    expect(timeline('sa1')).toHaveLength(0);
+    expect(timeline('sa1')).toHaveLength(1);
+    expect(timeline('sa1')[0]).toMatchObject({ sessionId: 'sess_b', status: 'done' });
   });
 });
 

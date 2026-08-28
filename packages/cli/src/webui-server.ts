@@ -33,6 +33,7 @@ import {
   isStrictPort,
   type PendingConfirm,
   resolveAuthToken,
+  resolvePendingConfirmsForSession,
   type SessionAgentRegistry,
   sendSerialized,
 } from '@wrongstack/webui-server';
@@ -102,7 +103,16 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const clients = new Map<WebSocket, ConnectedClient>();
   const pendingConfirms = new Map<string, PendingConfirm>();
   const secretScrubber = new DefaultSecretScrubber();
-  let abortController: AbortController | null = null;
+  /**
+   * One abort controller per conversation. There is no process-wide one:
+   * this server drives up to four tabs at once, so "the run" names nobody.
+   *
+   * A singular `abortController` used to sit beside this map. Nothing ever
+   * assigned it — every run has registered here per session since the tabs
+   * became independent — so the two places that read it (the project-switch
+   * teardown and the shutdown sweep) were quietly doing nothing, and it stood
+   * as an open invitation to reintroduce a global abort.
+   */
   const abortControllers = new Map<string, AbortController>();
 
   const profileDir = path.dirname(profileConfigPath);
@@ -196,19 +206,28 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       hqSessionId: opts.session.id,
       getSessionId: () => opts.agent.ctx.session?.id ?? opts.session.id,
       hqControl: {
+        // HQ speaks for the LEADER — the boot session, the one it registered
+        // itself under (`hqSessionId`) — not for whatever else the browser
+        // has open. This used to abort every controller in the map and clear
+        // it, so a remote "interrupt" issued against the leader also killed
+        // the three other tabs' in-flight runs. Deleting the entries was
+        // wrong on its own terms too: the run's own `end()` owns removal, and
+        // clearing early makes `isRunActive` lie to every tab still running.
         interruptLeader: () => {
-          let aborted = false;
-          if (abortController) {
-            abortController.abort();
-            abortController = null;
-            aborted = true;
+          const leaderId = opts.session.id;
+          const controller = abortControllers.get(leaderId);
+          if (!controller) return false;
+          controller.abort();
+          // Stopping a run means stopping its work; this session's subagents
+          // are part of it (same treatment as the `abort` seam). Session
+          // scoped, so one tab's Stop never reaches another tab's fleet.
+          try {
+            void Promise.resolve(opts.stopSessionFleet?.(leaderId)).catch(() => undefined);
+          } catch {
+            // Best effort: the run is already aborted and a teardown failure
+            // must not surface instead of the stop.
           }
-          for (const c of abortControllers.values()) {
-            c.abort();
-            aborted = true;
-          }
-          abortControllers.clear();
-          return aborted;
+          return true;
         },
         allowRunCommand: () => opts.hqAllowExec === true,
       },
@@ -479,7 +498,28 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     for (const sessionId of sessionIds) {
       if (!sessionId || sessionId === opts.session.id) continue;
       if (sessionId === foregroundSession.id) continue;
+      // Whatever happens to the agent, a permission prompt this session raised
+      // is now unanswerable: it was parked on the closed tab's lane and that
+      // lane is gone. Leaving it pending wedges `agent.run` forever, and a run
+      // that never settles never releases its lock — which is what turned a
+      // closed tab into a session that could neither be stopped nor deleted.
+      const orphaned = resolvePendingConfirmsForSession(pendingConfirms, sessionId);
+      if (orphaned > 0) {
+        console.log(
+          JSON.stringify({
+            level: 'warn',
+            event: 'webui.confirm_orphaned_by_tab_close',
+            sessionId,
+            count: orphaned,
+            message: `Denied ${orphaned} unanswerable permission prompt(s) for closed session ${sessionId}.`,
+          }),
+        );
+      }
       if (abortControllers.has(sessionId)) continue;
+      // Past the live-run check: nothing this conversation started is still
+      // going, so the background helpers pinned to it (explore companion,
+      // shadow-review bookkeeping) have nothing left to watch.
+      opts.onSessionRetired?.(sessionId);
       const agent = sessionAgents.peek(sessionId);
       if (!agent || agent === opts.agent) continue;
       const writer = agent.ctx.session;
@@ -515,12 +555,9 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     },
     clients,
     ...(opts.stopSessionFleet ? { stopSessionFleet: opts.stopSessionFleet } : {}),
-    getAbortController: () => abortController,
-    clearAbortController: () => {
-      abortController = null;
-    },
     send,
     broadcast,
+    broadcastEveryone,
   });
 
   const kanbanHostRoutes = createCliKanbanHostRoutes({
@@ -559,6 +596,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     prefsCtx: routeContexts.prefsCtx,
     projectCtx: routeContexts.projectsCtx,
     mailboxRoutes: routeContexts.mailboxRoutes,
+    chimeraRoutes: routeContexts.chimeraRoutes,
     sessionCtx: routeContexts.sessionsCtx,
     conversationCtx: routeContexts.connectionCtx,
     goalHandler,
@@ -614,7 +652,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         send,
         sessionPayload,
         handleMessage,
-        abortControllers,
         pendingConfirms,
         buildSessionStartPayload,
         loadReplay: async () => {
@@ -651,10 +688,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         // first line and is idempotent — disposeResources still awaits it to
         // drain any restart already in flight.
         void embeddedAutoHealDispose?.();
-        if (abortController) {
-          abortController.abort();
-          abortController = null;
-        }
         for (const c of abortControllers.values()) c.abort();
         abortControllers.clear();
       },
@@ -735,19 +768,29 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
    * The old loop pushed every tagged frame to every socket — delivery relied
    * entirely on each client's goodwill to file it under the right tab, which
    * is no isolation boundary at all.
+   *
+   * `targetSessionId` overrides the payload's id: a subagent's codemap frame
+   * names the SUBAGENT's session, which no tab subscribes to.
    */
-  function broadcast(msg: WSServerMessage): void {
+  function broadcast(msg: WSServerMessage, targetSessionId?: string): void {
     const data = JSON.stringify(msg);
     const payload = (msg as { payload?: unknown }).payload;
     const sessionId =
-      payload &&
+      targetSessionId ??
+      (payload &&
       typeof payload === 'object' &&
       typeof (payload as { sessionId?: unknown }).sessionId === 'string'
         ? (payload as { sessionId: string }).sessionId
-        : undefined;
+        : undefined);
     for (const [ws, client] of clients) {
       if (clientWantsSession(client, sessionId)) sendSerialized(ws, data);
     }
+  }
+
+  /** Every connection, unfiltered — see `ProjectHandlersContext.broadcastEveryone`. */
+  function broadcastEveryone(msg: WSServerMessage): void {
+    const data = JSON.stringify(msg);
+    for (const [ws] of clients) sendSerialized(ws, data);
   }
 
   function sendResult(ws: WebSocket, success: boolean, message: string): void {

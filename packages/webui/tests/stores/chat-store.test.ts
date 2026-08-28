@@ -969,10 +969,10 @@ describe('flushThinkingLog', () => {
 // What we persist (from partialize):
 //   • messages
 //   • queue
-//   • boundSessionId
 //   • thinkingLogBuffer
 //
 // What we deliberately do NOT persist:
+//   • activeSessionId / boundSessionId (fresh WebUI starts with no old tab in front)
 //   • isLoading, abortController (non-serializable)
 //   • executions Map (runtime-only, rebuilt from messages)
 //   • currentAssistantMessageId, currentToolId (rebuilt by render)
@@ -981,19 +981,20 @@ describe('flushThinkingLog', () => {
 //   • toolMessageIdsByUseId (rebuilt from messages via indexToolMessages)
 describe('F5 resilience — chat transcript persistence', () => {
   const laneOptions = useChatStore.persist.getOptions();
-  const activeLane = (blob: {
-    state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
-  }) => blob.state.lanes[blob.state.activeSessionId]!;
+  const storedLane = (
+    blob: { state: { lanes: Record<string, Record<string, unknown>> } },
+    sessionId: string,
+  ) => blob.state.lanes[sessionId]!;
 
   function readBlob() {
     const raw = localStorage.getItem('wrongstack-chat-lanes');
     expect(raw).toBeTruthy();
     return JSON.parse(raw!) as {
-      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+      state: { activeSessionId?: string; lanes: Record<string, Record<string, unknown>> };
     };
   }
 
-  it('persists messages + queue + the active tab under the lane key', () => {
+  it('persists messages + queue under the lane key without restoring the active tab', () => {
     useChatStore.getState().setBoundSessionId('sess-LIVE');
     addMsg({ role: 'user', content: 'pre-refresh message' });
     useChatStore.getState().enqueue('typed but not sent', 'queue');
@@ -1003,16 +1004,17 @@ describe('F5 resilience — chat transcript persistence', () => {
     // missing method.) Read directly from localStorage via `readBlob()`.
 
     const blob = readBlob();
-    expect(blob.state.activeSessionId).toBe('sess-LIVE');
-    const lane = activeLane(blob);
+    expect(blob.state.activeSessionId).toBeUndefined();
+    const lane = storedLane(blob, 'sess-LIVE');
     expect(Array.isArray(lane.messages)).toBe(true);
     expect((lane.messages as unknown[]).length).toBeGreaterThan(0);
     expect(Array.isArray(lane.queue)).toBe(true);
   });
 
-  it('persists a background tab too, so a reload restores all four', () => {
-    // The whole point of lanes: a refresh must not empty the three tabs that
-    // were not in front.
+  it('persists a background lane too, without restoring any tab as foreground', () => {
+    // The whole point of lanes: persistence can keep data for sessions that
+    // existed in memory, while the fresh WebUI still starts with no old slot
+    // selected until the server announces or the user resumes one.
     useChatStore.getState().setBoundSessionId('sess-A');
     addMsg({ role: 'user', content: 'tab A' });
     useChatStore.getState().setBoundSessionId('sess-B');
@@ -1022,7 +1024,7 @@ describe('F5 resilience — chat transcript persistence', () => {
     // (The old `persist.flush?.()` was a no-op — the optional call hid the
     // missing method.) Read directly from localStorage via `readBlob()`.
     const blob = readBlob();
-    expect(blob.state.activeSessionId).toBe('sess-B');
+    expect(blob.state.activeSessionId).toBeUndefined();
     expect(blob.state.lanes['sess-A']?.messages).toHaveLength(1);
     expect(blob.state.lanes['sess-B']?.messages).toHaveLength(1);
   });
@@ -1045,7 +1047,7 @@ describe('F5 resilience — chat transcript persistence', () => {
     // zustand's persist middleware writes synchronously; no flush hook exists.
     // (The old `persist.flush?.()` was a no-op — the optional call hid the
     // missing method.) Read directly from localStorage via `readBlob()`.
-    const lane = activeLane(readBlob());
+    const lane = storedLane(readBlob(), 'sess-LIVE');
     for (const field of [
       'isLoading',
       'abortController',
@@ -1070,7 +1072,7 @@ describe('F5 resilience — chat transcript persistence', () => {
       activeSessionId: string;
       lanes: Record<string, { messages: unknown[]; queue: unknown[] }>;
     };
-    expect(merged.activeSessionId).toBe('X');
+    expect(merged.activeSessionId).toBe('__unbound__');
     expect(merged.lanes.X?.messages).toEqual([]);
     expect(merged.lanes.X?.queue).toEqual([]);
   });
@@ -1177,11 +1179,3 @@ describe('F5 resilience — chat transcript persistence', () => {
     expect(useChatStore.getState().toolMessageIdsByUseId.has('tool-old')).toBe(false);
   });
 });
-
-function setChatPersisted(value: Record<string, unknown> | null): void {
-  if (value === null) {
-    localStorage.removeItem('wrongstack-chat-lanes');
-    return;
-  }
-  localStorage.setItem('wrongstack-chat-lanes', JSON.stringify(value));
-}

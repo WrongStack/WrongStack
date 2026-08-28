@@ -236,7 +236,7 @@ describe('setRunStart', () => {
 });
 
 describe('persist partialize (per-lane)', () => {
-  const partialize = options.partialize as (s: unknown) => {
+  const partialize = options.partialize as unknown as (s: unknown) => {
     activeSessionId: string;
     lanes: Record<string, { messages: unknown[]; queue: Array<{ images?: unknown }> }>;
   };
@@ -307,7 +307,7 @@ describe('persist partialize (per-lane)', () => {
       },
     });
 
-    expect(Object.keys(out).sort()).toEqual(['activeSessionId', 'lanes']);
+    expect(Object.keys(out).sort()).toEqual(['lanes']);
     expect(Object.keys(out.lanes.sess_a!).sort()).toEqual([
       'messages',
       'queue',
@@ -315,7 +315,7 @@ describe('persist partialize (per-lane)', () => {
     ]);
   });
 
-  it('keeps every open lane, so a reload restores all four tabs', () => {
+  it('keeps every lane but does not restore the foreground tab pointer', () => {
     const out = partialize({
       activeSessionId: 'sess_b',
       lanes: {
@@ -325,6 +325,6 @@ describe('persist partialize (per-lane)', () => {
       },
     });
     expect(Object.keys(out.lanes).sort()).toEqual(['sess_a', 'sess_b', 'sess_c']);
-    expect(out.activeSessionId).toBe('sess_b');
+    expect(out).not.toHaveProperty('activeSessionId');
   });
 });

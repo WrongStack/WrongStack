@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { forwardRef, useImperativeHandle } from 'react';
 import type React from 'react';
+import { forwardRef, useImperativeHandle } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TreeNode } from '../../src/stores/file-store';
-import { useFileStore } from '../../src/stores/file-store';
 import { useGitChangesStore, useSessionStore } from '../../src/stores';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store';
+import type { TreeNode } from '../../src/stores/file-store';
+import { useFileStore } from '../../src/stores/file-store';
+import { useSessionLanes } from '../../src/stores/session-lanes';
 
 // The tree is virtualized with virtua; jsdom has no layout, so windowing
 // would render an unpredictable subset. Mock VList as a passthrough — these
@@ -47,6 +48,8 @@ const makeTree = (): TreeNode[] => [
 ];
 
 beforeEach(() => {
+  useSessionLanes.setState({ lanes: {}, activeSessionId: 'file-test-session' });
+  useFileStore.getState().bindSessionFiles('file-test-session');
   useFileStore.getState().setTree('/proj', makeTree());
   useSessionStore.setState({ cwd: '/proj', projectName: 'proj' });
 });
@@ -120,16 +123,16 @@ describe('FileExplorer (virtualized tree)', () => {
     // NOT match project-relative tree keys (proves the prefix is what
     // closes the gap, not a coincidental substring).
     act(() => {
-      useGitChangesStore.getState().setFiles(
-        [{ path: 'subproj/src/app.ts', status: 'M', added: 1, deleted: 0, staged: false }],
-        null,
-        '',
-      );
+      useGitChangesStore
+        .getState()
+        .setFiles(
+          [{ path: 'subproj/src/app.ts', status: 'M', added: 1, deleted: 0, staged: false }],
+          null,
+          '',
+        );
     });
     expect(
-      screen
-        .queryAllByRole('img')
-        .filter((el) => el.getAttribute('aria-label') === 'Modified'),
+      screen.queryAllByRole('img').filter((el) => el.getAttribute('aria-label') === 'Modified'),
     ).toHaveLength(0);
   });
 
@@ -352,9 +355,7 @@ describe('FileExplorer (virtualized tree)', () => {
   it('search filter caps results at 200 entries', () => {
     // Build a tree with 250 files all matching "file", plus one directory
     // so the toolbar (and search input) renders.
-    const files: TreeNode[] = [
-      { name: 'src', path: '/proj/src', type: 'directory' },
-    ];
+    const files: TreeNode[] = [{ name: 'src', path: '/proj/src', type: 'directory' }];
     for (let i = 0; i < 250; i++) {
       files.push({
         name: `file-${i}.ts`,
@@ -414,12 +415,15 @@ describe('FileExplorer (virtualized tree)', () => {
   });
 
   it('renders git status badge and propagates modified status to parent directories', () => {
-    useGitChangesStore.setState({
-      files: [
+    useGitChangesStore.getState().setFiles(
+      [
         { path: 'src/app.ts', status: 'M', added: 5, deleted: 2, staged: false },
         { path: 'readme.md', status: 'A', added: 10, deleted: 0, staged: true },
       ],
-    });
+      null,
+      '',
+      { src: 'M' },
+    );
 
     render(<FileExplorer />);
 

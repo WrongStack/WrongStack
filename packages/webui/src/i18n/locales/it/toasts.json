@@ -8,5 +8,23 @@
     "generic": "Qualcosa è andato storto.",
     "connectionLost": "Connessione persa. Riconnessione…",
     "reconnected": "Riconnesso."
+  },
+  "menu": {
+    "title": "Notifiche",
+    "unreadCount": "{{count}} non lette",
+    "allRead": "Tutto in pari",
+    "markAllRead": "Segna tutte come lette",
+    "clearAll": "Cancella tutto",
+    "tabAll": "Tutte",
+    "tabUnread": "Non lette",
+    "empty": "Nessuna notifica",
+    "emptyHint": "Le notifiche di sistema appariranno qui.",
+    "markAsRead": "Segna come letta",
+    "remove": "Rimuovi notifica",
+    "justNow": "Proprio ora",
+    "secondsAgo": "{{count}}s fa",
+    "minutesAgo": "{{count}} min fa",
+    "hoursAgo": "{{count}} ore fa",
+    "daysAgo": "{{count}} gg fa"
   }
 }

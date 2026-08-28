@@ -100,11 +100,25 @@ function attachMailboxCheckerInner(
     const fieldId = a.ctx.agentId && a.ctx.agentId !== 'unknown' ? a.ctx.agentId : undefined;
     return (a.ctx.meta['agentId'] as string | undefined) ?? fieldId ?? 'leader';
   };
+  /**
+   * The session this agent's mailbox identity belongs to.
+   *
+   * `meta.sessionId` is the OWNING-session stamp: a subagent given its own
+   * journal has a `ctx.session.id` that names its private transcript, not the
+   * conversation that spawned it, so tagging and registering off the writer
+   * filed workers under a session no surface is showing. Leaders carry no
+   * stamp and keep the live re-derivation below, which is what moves them
+   * onto the new identity across a resume / session.new / project switch.
+   */
+  const identitySessionId = (): string => {
+    const owning = a.ctx.meta['sessionId'];
+    return typeof owning === 'string' && owning.length > 0 ? owning : a.ctx.session.id;
+  };
   let registeredAs = '';
   const ensureRegistered = (): string => {
     // Clear a stale explicit override from a previous session so the
     // resolver re-derives from the CURRENT session id.
-    const derived = `${baseIdOf()}@${mailboxSessionTag(a.ctx.session.id)}`;
+    const derived = `${baseIdOf()}@${mailboxSessionTag(identitySessionId())}`;
     if ((a.ctx.meta['globalAgentId'] as string | undefined) !== derived) {
       a.ctx.meta['globalAgentId'] = derived;
     }
@@ -116,7 +130,7 @@ function attachMailboxCheckerInner(
           agentId: derived,
           name: `${identity.name} [${surface}]`,
           role: identity.role,
-          sessionId: a.ctx.session.id,
+          sessionId: identitySessionId(),
           pid: process.pid,
           source: surface,
         })
@@ -147,7 +161,7 @@ function attachMailboxCheckerInner(
     getMailbox()
       .heartbeat({
         agentId: id,
-        sessionId: a.ctx.session.id,
+        sessionId: identitySessionId(),
         name: `${identity.name} [${surface}]`,
         role: identity.role,
         pid: process.pid,
@@ -174,7 +188,7 @@ function attachMailboxCheckerInner(
     agentId: () => ensureRegistered(),
     role: () => resolveMailboxIdentity(a.ctx).role,
     aliases: [baseIdOf()],
-    sessionId: () => a.ctx.session.id,
+    sessionId: () => identitySessionId(),
     // ACK is deferred to the session-affinity wrapper so messages dropped
     // by the filter are NOT marked as read by this agent.
     ack: false as const,
@@ -217,7 +231,7 @@ function attachMailboxCheckerInner(
     ack: boolean,
   ): (() => Promise<MailboxMessage[]>) => {
     return async (): Promise<MailboxMessage[]> => {
-      const currentSessionId = a.ctx.session.id;
+      const currentSessionId = identitySessionId();
       // Capture the identity BEFORE awaiting the checker, so the ack is
       // stamped by the same identity that read the messages. `ensureRegistered`
       // re-derives from `ctx.session.id` on every call, so an in-process

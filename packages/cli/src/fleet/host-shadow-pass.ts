@@ -9,6 +9,13 @@ export interface HostShadowPassContext {
   setQueuedProblem: (value: string | null) => void;
   setPassInFlight: (value: boolean) => void;
   getHeartbeatIntervalMs: () => number;
+  /**
+   * Conversation this review belongs to. Stamped onto the spawn so the
+   * coordinator files the reviewer under the tab whose work went wrong —
+   * without it every tab's shadow agent landed in the boot tab's roster and
+   * reported to the boot tab's leader.
+   */
+  sessionId?: string | undefined;
   spawnAndAssign: (
     subagentConfig: SubagentConfig,
     task: string,
@@ -37,6 +44,7 @@ export async function runHostShadowPass(ctx: HostShadowPassContext, reason: stri
         {
           name: 'shadow',
           role: 'shadow-agent',
+          ...(ctx.sessionId ? { originSessionId: ctx.sessionId } : {}),
           provider: liveConfig.provider,
           model: liveConfig.model,
           tools: [

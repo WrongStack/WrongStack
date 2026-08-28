@@ -2,6 +2,13 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InspectorPanel } from '../../src/components/InspectorPanel';
 import { useFleetStore, useKanbanStore, useUIStore } from '../../src/stores';
+import { DEFAULT_LANE_ID, useChatLanes } from '../../src/stores/chat-lanes';
+import {
+  SESSION_DEFAULT_LANE_ID,
+  setActiveSessionLane,
+  useSessionLanes,
+} from '../../src/stores/session-lanes';
+import type { FleetTimelineEvent, SubagentView } from '../../src/stores/types';
 
 vi.mock('../../src/i18n', () => ({
   useAppTranslation: () => ({
@@ -11,13 +18,49 @@ vi.mock('../../src/i18n', () => ({
       return k;
     },
   }),
+  i18n: {
+    t: (k: string) => k,
+  },
 }));
+
+function agent(id: string, sessionId: string): SubagentView {
+  return {
+    id,
+    sessionId,
+    name: id,
+    status: 'running',
+    iteration: 0,
+    toolCalls: 0,
+    costUsd: 0,
+    ctxPct: 0,
+    ctxTokens: 0,
+    maxContext: 0,
+    extensions: 0,
+    startedAt: Date.now(),
+    toolLog: [],
+    sparklineBins: [],
+  };
+}
+
+function event(id: string, agentId: string, message: string): FleetTimelineEvent {
+  return {
+    id,
+    agentId,
+    agentName: agentId,
+    kind: 'tool_executed',
+    timestamp: Date.now(),
+    message,
+  };
+}
 
 describe('InspectorPanel component with universal targets', () => {
   beforeEach(() => {
+    useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
     useFleetStore.setState({
       agents: new Map(),
       leaderId: undefined,
+      eventTimeline: [],
     });
     useUIStore.setState({
       inspectorOpen: true,
@@ -47,6 +90,25 @@ describe('InspectorPanel component with universal targets', () => {
     render(<InspectorPanel />);
 
     expect(screen.getByTestId('inspector-drawer')).toBeDefined();
+  });
+
+  it('filters the fleet event timeline to the active session', () => {
+    setActiveSessionLane('sess-a');
+    useFleetStore.setState({
+      agents: new Map<string, SubagentView>([
+        ['agent-a', agent('agent-a', 'sess-a')],
+        ['agent-b', agent('agent-b', 'sess-b')],
+      ]),
+      eventTimeline: [
+        event('event-a', 'agent-a', 'event from active session'),
+        event('event-b', 'agent-b', 'event from other session'),
+      ],
+    } as never);
+
+    render(<InspectorPanel />);
+
+    expect(screen.getByText('event from active session')).toBeDefined();
+    expect(screen.queryByText('event from other session')).toBeNull();
   });
 
   it('renders task details and back button when task target is set', () => {

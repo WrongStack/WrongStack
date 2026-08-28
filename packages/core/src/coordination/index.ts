@@ -321,6 +321,15 @@ export type { ICoordinator } from './icoordinator.js';
 export type { IFleetManager } from './ifleet-manager.js';
 export { LargeAnswerStore } from './large-answer-store.js';
 export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool } from './mail-tools.js';
+export {
+  postSessionNote,
+  SessionNoteHub,
+  sessionNoteHub,
+  type SessionNoteInbox,
+  type SessionNotePost,
+  type SessionNotePostResult,
+} from './session-note-hub.js';
+export { makeSessionNoteTool } from './session-note-tool.js';
 // Mailbox - inter-agent messaging
 export type {
   MailboxActionInput,

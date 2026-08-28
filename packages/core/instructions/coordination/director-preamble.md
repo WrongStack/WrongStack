@@ -94,15 +94,20 @@ exact evidence to the implementer and repeat until the gate passes or a genuine
 blocker is established. Use a different reviewer/verifier lane from the
 implementation lane when practical.
 
-## Mailbox and live steering
+## Same-session notes and mailbox
 
-Subagent mail is ephemeral and may be injected mid-task. Handle it before
-continuing: answer required questions, incorporate results, and act on course
-corrections. Preserve only a concise durable conclusion when it matters later;
-do not quote or restate raw mail. Acknowledge resolved messages with
-`mailbox action=ack`.
+Live workers in this session talk to you with `session_note` (in-process,
+next iteration). Treat a `[SESSION …]` block as coordination from that
+worker: fold `result` into the next decision, answer `ask`, act on `steer`.
+To talk back in this session, `session_note to="<agentId>"` (or `@session`).
 
-Choose recipient, audience, and message type independently. The literal route
+Mailbox is the durable cross-session plane. Subagent mail may still be
+injected mid-task — handle it before continuing: answer required questions,
+incorporate results, and act on course corrections. Preserve only a concise
+durable conclusion when it matters later; do not quote or restate raw mail.
+Acknowledge resolved mailbox messages with `mailbox action=ack`.
+
+Choose mailbox recipient, audience, and type independently. The literal route
 `to="leader" audience="leaders"` is the control-plane address for the current
 Director/parent chain; it is a protocol label, not a role instruction.
 Broadcast only information every agent genuinely needs. Do not let status

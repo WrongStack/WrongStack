@@ -17,7 +17,6 @@ import {
   History,
   ListTodo,
   Pin,
-  Plus,
   Shrink,
   SlidersHorizontal,
   Square,
@@ -27,9 +26,9 @@ import { Pagination } from '@/components/ui/pagination';
 import { usePagination } from '@/hooks/usePagination';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
 import { playCompletionChime } from '@/lib/chime';
 import { cn } from '@/lib/utils';
-import { showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import {
   useActiveSessionId,
@@ -38,14 +37,12 @@ import {
   useFleetStore,
   useHistoryStore,
   useSessionStore,
+  useSessionTabStore,
   useUIStore,
 } from '@/stores';
-import { agentBelongsToSession } from '@/lib/agent-session';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { fmtTok } from '../ChatView/utils';
 import { downloadChatAsMarkdown } from '../CommandPalette';
-import { confirmModal } from '../ConfirmModal';
 
 // ── Formatting helpers ────────────────────────────────────────────────
 
@@ -239,6 +236,13 @@ export function SessionPanel() {
       ).length,
     [fleetAgents, currentSessionId],
   );
+  const sessionAgents = useMemo(
+    () =>
+      Array.from(fleetAgents.values()).filter((a) =>
+        agentBelongsToSession(a.sessionId, currentSessionId),
+      ),
+    [fleetAgents, currentSessionId],
+  );
 
   useEffect(() => {
     lastAutonomyRef.current = localPrefs.autonomy === 'off' ? 'auto' : localPrefs.autonomy;
@@ -257,41 +261,44 @@ export function SessionPanel() {
    * whichever session the server is currently pointing at: Stop aborted
    * another tab's run, Compact compacted another tab's conversation and Clear
    * emptied it.
+   *
+   * Every send in this file goes through here.
+   * session-stamping: stamped-at-helper
    */
-  const send = (msg: { type: string; payload?: Record<string, unknown> | undefined }) => {
-    const client = getWSClient(wsUrl);
-    if (!client?.send) return;
-    client.send({ ...msg, payload: client.withSession({ ...(msg.payload ?? {}) }) } as Parameters<
-      NonNullable<typeof client.send>
-    >[0]);
-  };
+  // Memoised on `wsUrl` alone, which is all it closes over. A fresh function
+  // each render would make every effect that depends on it fire each render —
+  // the history fetch below would become a request per paint.
+  const send = useCallback(
+    (msg: { type: string; payload?: Record<string, unknown> | undefined }) => {
+      const client = getWSClient(wsUrl);
+      if (!client?.send) return;
+      client.send({ ...msg, payload: client.withSession({ ...(msg.payload ?? {}) }) } as Parameters<
+        NonNullable<typeof client.send>
+      >[0]);
+    },
+    [wsUrl],
+  );
+
+  const handleClear = useCallback(() => {
+    const chat = useChatStore.getState();
+    chat.clearMessages();
+    chat.clearQueue();
+    const ui = useUIStore.getState();
+    ui.setDraftInput('');
+    ui.setDraftImages([]);
+    ui.setRefinePanel(null);
+    ui.setQueuePanelOpen(false);
+    if (wsConnected) send({ type: 'context.clear' });
+  }, [send, wsConnected]);
 
   // Fetch the session list when connected so the History section populates.
+  // Through the addressed `send` above, not a bare client call: the reply's
+  // `isCurrent` marks the ASKING tab's session, and an untagged ask is
+  // answered about whichever session the runtime last touched.
   useEffect(() => {
     if (!wsConnected) return;
-    getWSClient(wsUrl)?.send?.({ type: 'sessions.list', payload: { limit: 8 } });
-  }, [wsConnected, wsUrl]);
-
-  const handleNewSession = useCallback(async () => {
-    if (
-      isLoading &&
-      !(await confirmModal({
-        title: t('activity:sessionPanel.actions.newSessionConfirm'),
-        message: t('activity:sessionPanel.actions.newSessionConfirmMessage'),
-        confirmLabel: t('activity:sessionPanel.actions.newSession'),
-        danger: true,
-      }))
-    ) {
-      return;
-    }
-
-    // The picker starts the session on confirm — see SystemPromptDialog.
-    // Applying the variant first matters: `session.new` keeps the process
-    // alive, so the new session inherits whatever prompt is live at that point.
-    useSystemPromptStore.getState().openPicker({ startsSession: true });
-    // Starting a conversation is a chat-surface action — bring it up.
-    showPanel('chat');
-  }, [isLoading, t, showPanel]);
+    send({ type: 'sessions.list', payload: { limit: 8 } });
+  }, [wsConnected, send]);
 
   return (
     <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain bg-[hsl(var(--surface-2)/0.28)] [scrollbar-gutter:stable]">
@@ -306,14 +313,6 @@ export function SessionPanel() {
             disabled={!wsConnected}
           />
         )}
-        <ActionButton
-          icon={<Plus className="h-3 w-3" />}
-          label={t('activity:sessionPanel.actions.newSession')}
-          tone="primary"
-          onClick={() => void handleNewSession()}
-          disabled={!wsConnected}
-          title={t('activity:sessionPanel.actions.newSessionTitle')}
-        />
         <ActionButton
           icon={<Download className="h-3 w-3" />}
           label={t('activity:sessionPanel.actions.export')}
@@ -330,8 +329,7 @@ export function SessionPanel() {
         <ActionButton
           icon={<Eraser className="h-3 w-3" />}
           label={t('common:action.clear')}
-          onClick={() => send({ type: 'context.clear' })}
-          disabled={!wsConnected}
+          onClick={handleClear}
           title={t('activity:sessionPanel.actions.clearTitle')}
         />
       </div>
@@ -368,10 +366,10 @@ export function SessionPanel() {
               }
             />
           )}
-          {fleetAgents.size > 0 && (
+          {sessionAgents.length > 0 && (
             <StatBox
               label={t('activity:sessionPanel.stats.agents')}
-              value={fleetAgents.size}
+              value={sessionAgents.length}
               sub={
                 runningAgents > 0
                   ? t('activity:sessionPanel.stats.agentsRunning', { count: runningAgents })
@@ -580,9 +578,12 @@ export function SessionPanel() {
                 <button
                   key={entry.id}
                   type="button"
-                  onClick={() =>
-                    getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(entry.id)
-                  }
+                  onClick={() => {
+                    const client = getWSClient(useConfigStore.getState().wsUrl);
+                    useSessionTabStore.getState().openTab(entry.id, {
+                      resumeSession: (id) => client?.resumeSession?.(id),
+                    });
+                  }}
                   className={cn(
                     'w-full text-left px-2 py-1.5 rounded text-xs leading-snug transition-colors',
                     entry.isCurrent

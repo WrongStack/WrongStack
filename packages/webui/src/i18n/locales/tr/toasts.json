@@ -8,5 +8,23 @@
     "generic": "Bir şeyler ters gitti.",
     "connectionLost": "Bağlantı koptu. Yeniden bağlanıyor…",
     "reconnected": "Yeniden bağlandı."
+  },
+  "menu": {
+    "title": "Bildirimler",
+    "unreadCount": "{{count}} okunmamış",
+    "allRead": "Tümü okundu",
+    "markAllRead": "Tümünü okundu işaretle",
+    "clearAll": "Tümünü temizle",
+    "tabAll": "Tümü",
+    "tabUnread": "Okunmamış",
+    "empty": "Henüz bildirim yok",
+    "emptyHint": "Sistem bildirimleri ve uyarılar burada listelenir.",
+    "markAsRead": "Okundu olarak işaretle",
+    "remove": "Bildirimi kaldır",
+    "justNow": "Az önce",
+    "secondsAgo": "{{count}} sn önce",
+    "minutesAgo": "{{count}} dk önce",
+    "hoursAgo": "{{count}} sa önce",
+    "daysAgo": "{{count}} gün önce"
   }
 }

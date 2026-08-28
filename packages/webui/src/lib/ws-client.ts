@@ -962,6 +962,14 @@ class WrongStackWebSocketClientBase {
     return id;
   }
 
+  /** Ask the server for the persisted Chimera review reports of a session. */
+  getChimeraReports(sessionId?: string | undefined): void {
+    this.send({
+      type: 'chimera.reports.list',
+      payload: this.withSession({ sessionId: sessionId ?? '' }, sessionId),
+    });
+  }
+
   adviseTopic(
     prompt: string,
     timeoutMs = 10_000,

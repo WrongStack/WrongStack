@@ -22,6 +22,29 @@ import { z } from 'zod';
 import type { ModelsDevModel, ModelsDevProvider } from '../types/models-registry.js';
 import { FORBIDDEN_PROTO_KEYS } from '../utils/deep-merge.js';
 
+/**
+ * In a browser, tell zod not to compile validators before building any.
+ *
+ * Zod's fast path assembles validators with `new Function`, and probes for
+ * that capability the first time an object schema is constructed. The WebUI
+ * and SimpleUI are served under `script-src 'self' 'wasm-unsafe-eval'`
+ * (`buildCspHeader`), so the probe is guaranteed to fail there: zod catches
+ * the throw and falls back to its interpreted path, but the browser still
+ * reports a blocked eval on every page load — from the app's OWN bundle,
+ * which is exactly the report you do not want to teach people to ignore.
+ *
+ * This is the only zod schema that reaches the browser bundle, and the flag
+ * has to be set before the first schema below is constructed, so it lives
+ * here rather than at an entry point where module evaluation order would
+ * decide whether it took effect.
+ *
+ * Node is untouched and keeps the compiled fast path: the constraint belongs
+ * to the page's CSP, not to the schema. The check is `'document' in
+ * globalThis` rather than `typeof document` because core compiles without the
+ * DOM lib.
+ */
+if ('document' in globalThis) z.config({ jitless: true });
+
 /** Known values observed in models.dev modality arrays (2026-08-03 census). */
 export const MODELS_DEV_MODALITY_VALUES = ['text', 'image', 'audio', 'video', 'pdf'] as const;
 

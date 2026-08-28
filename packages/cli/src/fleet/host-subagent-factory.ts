@@ -90,6 +90,18 @@ export function createHostSubagentFactory(
           protectSystemRole: isSystemRole,
         })
       : subCfg;
+
+    // Fixed for this worker's lifetime. `originSessionId` is the spawning
+    // tool's stamp — the run-pinned session of the agent that asked — and the
+    // task context is the same answer for callers that route through it. The
+    // host's own session is the last resort: correct for a single-session CLI,
+    // and the boot tab (not the caller) once several tabs share the process.
+    const owningSessionId =
+      effectiveCfg.originSessionId ??
+      (typeof task?.context?.['sessionId'] === 'string'
+        ? (task.context['sessionId'] as string)
+        : undefined) ??
+      host.deps.session.id;
     const matrixTarget = effectiveCfg.model
       ? undefined
       : resolveSubagentModelTarget(liveConfig, effectiveCfg.role, {
@@ -203,6 +215,7 @@ export function createHostSubagentFactory(
       host.opts.getLeaderMode,
       effectiveCfg,
       task?.context,
+      owningSessionId,
     );
     if (audienceMemory.length > 0) {
       baseSystem.push({
@@ -229,7 +242,7 @@ export function createHostSubagentFactory(
       // guidance it never received. Surface it on the event bus so the drop is
       // observable instead of a bare console.warn nobody reads.
       host.deps.events.emit('subagent.skills.dropped', {
-        sessionId: host.deps.session.id,
+        sessionId: owningSessionId,
         role: effectiveCfg.role,
         selected: skillResolution.selected,
         dropped: Object.fromEntries(droppedSkills),
@@ -294,13 +307,6 @@ export function createHostSubagentFactory(
     }
 
     const tools = effectiveCfg.tools ? [...effectiveCfg.tools] : undefined;
-    // Fixed for this worker's lifetime. The coordinator stamps the spawning
-    // session onto the task; the host's live session is the last resort for
-    // spawns that never went through it.
-    const owningSessionId =
-      (typeof task?.context?.['sessionId'] === 'string'
-        ? (task.context['sessionId'] as string)
-        : undefined) ?? host.deps.session.id;
     const subTokenCounter = new DefaultTokenCounter({
       registry: host.deps.modelsRegistry,
       providerId: effProvider,
@@ -334,6 +340,18 @@ export function createHostSubagentFactory(
       agentId: subagentName,
       agentName: effectiveCfg.name ?? subagentName,
     });
+    // The tab this worker belongs to, stamped for its whole life.
+    //
+    // `ctx.session` is the worker's OWN journal whenever `sessionsRoot` is set
+    // (the real CLI always sets it), so every "which session am I?" resolver
+    // that falls back to `ctx.session.id` — mailbox identity and registration,
+    // `@session` recipient normalisation, `session_note` routing — answered
+    // with the worker's private id instead of the tab's. Notes addressed to
+    // "leader" then matched no inbox at all, and mail landed under a session
+    // no tab is showing. `meta.sessionId` is the owning-session channel those
+    // resolvers already consult first; this is the only place that can know
+    // the answer, so it is stamped here rather than guessed downstream.
+    ctx.meta['sessionId'] = owningSessionId;
     if (effectiveCfg.role) ctx.meta['agentRole'] = effectiveCfg.role;
     const normalizedAgentName = (effectiveCfg.name ?? subagentName).trim().toLowerCase();
     if (normalizedAgentName === 'chimera' || normalizedAgentName.startsWith('chimera-')) {
@@ -433,7 +451,12 @@ export function createHostSubagentFactory(
     const disposeBridge = installSubagentEventBridge({
       events,
       hostEvents: host.deps.events,
-      hostSessionId: host.deps.session.id,
+      // The tab that owns this worker, not the tab the host booted with. Every
+      // bridged event (tool started/finished, timeline line, task completion,
+      // token snapshot) is addressed with this, so reading the host's session
+      // rendered a background tab's whole subagent transcript inside tab 1 and
+      // showed nothing in the tab that was waiting for it.
+      hostSessionId: owningSessionId,
       projectRoot: ctx.projectRoot,
       effectiveCfg,
       subCfg,

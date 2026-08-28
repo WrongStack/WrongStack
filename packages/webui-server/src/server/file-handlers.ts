@@ -11,13 +11,13 @@
 
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { WebSocket } from 'ws';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { enqueueReindex, extractFileSkeleton, type SkeletonOptions } from '@wrongstack/tools';
-import { SKIP_DIRS, isHiddenEntry, rankFiles } from './file-picker.js';
+import type { WebSocket } from 'ws';
+import { isHiddenEntry, rankFiles, SKIP_DIRS } from './file-picker.js';
 import { isPathInside, resolveWorkingDirInsideProject } from './path-containment.js';
-import { send, errMessage } from './ws-utils.js';
+import { errMessage, messageSessionId, send } from './ws-utils.js';
 
 /**
  * Resolve a user-supplied file path against `projectRoot` and verify the
@@ -31,10 +31,7 @@ import { send, errMessage } from './ws-utils.js';
  * directory and re-attach the basename. This matches the behavior of
  * `realpath(3)` once the file is later created.
  */
-async function resolveFileInsideProject(
-  projectRoot: string,
-  filePath: string,
-): Promise<string> {
+async function resolveFileInsideProject(projectRoot: string, filePath: string): Promise<string> {
   // Lexical containment check first — cheap, and avoids calling realpath
   // on a path we already know is bogus. This also blocks `..` segments.
   const resolved = path.resolve(projectRoot, filePath);
@@ -168,6 +165,13 @@ function validatedPayload<T>(msg: unknown, label: string): T {
   return payload as T;
 }
 
+function withSessionEcho<T extends Record<string, unknown>>(
+  payload: T,
+  sessionId: string | undefined,
+): T & { sessionId?: string } {
+  return sessionId ? { ...payload, sessionId } : payload;
+}
+
 export interface FilesWriteOptions {
   onWritten?: ((filePath: string) => void | Promise<void>) | undefined;
 }
@@ -197,6 +201,7 @@ export async function handleFilesTree(
 
   // Use the optional `path` from the message payload as the tree root.
   // When absent, empty, or ".", fall back to projectRoot (backward compatible).
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   const payload = (msg as { payload?: { path?: string | undefined } }).payload;
   const rawPath = payload?.path?.trim();
 
@@ -216,7 +221,10 @@ export async function handleFilesTree(
   } catch {
     send(ws, {
       type: 'files.tree',
-      payload: { root: projectRoot, tree: [], error: 'Path outside project root' },
+      payload: withSessionEcho(
+        { root: projectRoot, tree: [], error: 'Path outside project root' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -224,9 +232,10 @@ export async function handleFilesTree(
   // Compute the path prefix so tree paths are always relative to
   // projectRoot (not treeRoot). This ensures double-clicking a file in
   // the explorer sends the correct path to files.read/files.write.
-  const pathPrefix = treeRoot === projectRoot
-    ? ''
-    : (path.relative(projectRoot, treeRoot) + '/').replace(/\\/g, '/');
+  const pathPrefix =
+    treeRoot === projectRoot
+      ? ''
+      : (path.relative(projectRoot, treeRoot) + '/').replace(/\\/g, '/');
 
   async function buildTree(dir: string, rel: string, depth: number): Promise<TreeNode[]> {
     if (depth > 10) return [];
@@ -296,25 +305,36 @@ export async function handleFilesTree(
 
   try {
     const tree = await buildTree(treeRoot, '', 0);
-    const rootLabel = treeRoot === projectRoot
-      ? projectRoot
-      : path.relative(projectRoot, treeRoot) || '.';
-    send(ws, { type: 'files.tree', payload: { root: rootLabel, tree } });
-  } catch (err) {
-    const rootLabel = treeRoot === projectRoot
-      ? projectRoot
-      : path.relative(projectRoot, treeRoot) || '.';
+    const rootLabel =
+      treeRoot === projectRoot ? projectRoot : path.relative(projectRoot, treeRoot) || '.';
     send(ws, {
       type: 'files.tree',
-      payload: { root: rootLabel, tree: [], error: errMessage(err) },
+      payload: withSessionEcho({ root: rootLabel, tree }, sessionId),
+    });
+  } catch (err) {
+    const rootLabel =
+      treeRoot === projectRoot ? projectRoot : path.relative(projectRoot, treeRoot) || '.';
+    send(ws, {
+      type: 'files.tree',
+      payload: withSessionEcho({ root: rootLabel, tree: [], error: errMessage(err) }, sessionId),
     });
   }
 }
 
 /**
+ * Cap for files.read payloads — mirrors MAX_DIFF_BYTES in git-handlers.ts so
+ * the editor surface never receives an unbounded string. Files above the cap
+ * (or binary files, detected via a NUL byte like handleGitDiff) are reported
+ * with a flag instead of content.
+ */
+const MAX_READ_BYTES = 2 * 1024 * 1024; // 2 MB
+
+/**
  * Read a file's content for the Monaco editor.
  *
- * Guards against path traversal (`../` escapes). Responds with
+ * Guards against path traversal (`../` escapes) and, mirroring
+ * handleGitDiff, refuses oversized (over 2 MB) and binary files by replying
+ * with a `tooLarge` / `binary` flag instead of content. Responds with
  * `{ type: 'files.read', payload: { filePath, content } }`.
  */
 export async function handleFilesRead(
@@ -322,11 +342,18 @@ export async function handleFilesRead(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let filePath: string;
   try {
     ({ filePath } = validatedPayload<FilesReadPayload>(msg, 'files.read'));
   } catch {
-    send(ws, { type: 'files.read', payload: { filePath: '', content: '', error: 'Malformed request' } });
+    send(ws, {
+      type: 'files.read',
+      payload: withSessionEcho(
+        { filePath: '', content: '', error: 'Malformed request' },
+        sessionId,
+      ),
+    });
     return;
   }
 
@@ -338,17 +365,39 @@ export async function handleFilesRead(
   try {
     realResolved = await resolveFileInsideProject(projectRoot, filePath);
   } catch {
-    send(ws, { type: 'files.read', payload: { filePath, content: '', error: 'Forbidden' } });
+    send(ws, {
+      type: 'files.read',
+      payload: withSessionEcho({ filePath, content: '', error: 'Forbidden' }, sessionId),
+    });
     return;
   }
 
   try {
-    const content = await fs.readFile(realResolved, 'utf8');
-    send(ws, { type: 'files.read', payload: { filePath, content } });
+    // stat first: an oversized file is never read into memory at all.
+    const stat = await fs.stat(realResolved);
+    if (stat.size > MAX_READ_BYTES) {
+      send(ws, {
+        type: 'files.read',
+        payload: withSessionEcho({ filePath, content: '', tooLarge: true }, sessionId),
+      });
+      return;
+    }
+    const buf = await fs.readFile(realResolved);
+    if (buf.includes(0)) {
+      send(ws, {
+        type: 'files.read',
+        payload: withSessionEcho({ filePath, content: '', binary: true }, sessionId),
+      });
+      return;
+    }
+    send(ws, {
+      type: 'files.read',
+      payload: withSessionEcho({ filePath, content: buf.toString('utf8') }, sessionId),
+    });
   } catch (err) {
     send(ws, {
       type: 'files.read',
-      payload: { filePath, content: '', error: errMessage(err) },
+      payload: withSessionEcho({ filePath, content: '', error: errMessage(err) }, sessionId),
     });
   }
 }
@@ -431,12 +480,19 @@ export async function handleFilesWrite(
   projectRoot: string,
   opts: FilesWriteOptions = {},
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let filePath: string;
   let content: string;
   try {
     ({ filePath, content } = validatedPayload<FilesWritePayload>(msg, 'files.write'));
   } catch {
-    send(ws, { type: 'files.written', payload: { filePath: '', success: false, error: 'Malformed request' } });
+    send(ws, {
+      type: 'files.written',
+      payload: withSessionEcho(
+        { filePath: '', success: false, error: 'Malformed request' },
+        sessionId,
+      ),
+    });
     return;
   }
 
@@ -449,13 +505,19 @@ export async function handleFilesWrite(
   try {
     realResolved = await resolveFileInsideProject(projectRoot, filePath);
   } catch {
-    send(ws, { type: 'files.written', payload: { filePath, success: false, error: 'Forbidden' } });
+    send(ws, {
+      type: 'files.written',
+      payload: withSessionEcho({ filePath, success: false, error: 'Forbidden' }, sessionId),
+    });
     return;
   }
 
   try {
     await atomicWrite(realResolved, content);
-    send(ws, { type: 'files.written', payload: { filePath, success: true } });
+    send(ws, {
+      type: 'files.written',
+      payload: withSessionEcho({ filePath, success: true }, sessionId),
+    });
     try {
       enqueueReindex({ projectRoot, files: [realResolved] });
     } catch {
@@ -467,7 +529,7 @@ export async function handleFilesWrite(
   } catch (err) {
     send(ws, {
       type: 'files.written',
-      payload: { filePath, success: false, error: errMessage(err) },
+      payload: withSessionEcho({ filePath, success: false, error: errMessage(err) }, sessionId),
     });
   }
 }
@@ -566,6 +628,7 @@ export async function handleFilesCreate(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let filePath: string;
   let entryType: 'file' | 'directory';
   try {
@@ -575,14 +638,20 @@ export async function handleFilesCreate(
     if (entryType !== 'file' && entryType !== 'directory') {
       send(ws, {
         type: 'files.created',
-        payload: { filePath, success: false, error: 'Type must be "file" or "directory".' },
+        payload: withSessionEcho(
+          { filePath, success: false, error: 'Type must be "file" or "directory".' },
+          sessionId,
+        ),
       });
       return;
     }
   } catch {
     send(ws, {
       type: 'files.created',
-      payload: { filePath: '', success: false, error: 'Malformed request' },
+      payload: withSessionEcho(
+        { filePath: '', success: false, error: 'Malformed request' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -593,7 +662,7 @@ export async function handleFilesCreate(
   } catch {
     send(ws, {
       type: 'files.created',
-      payload: { filePath, success: false, error: 'Forbidden' },
+      payload: withSessionEcho({ filePath, success: false, error: 'Forbidden' }, sessionId),
     });
     return;
   }
@@ -604,7 +673,10 @@ export async function handleFilesCreate(
     await fs.access(realResolved);
     send(ws, {
       type: 'files.created',
-      payload: { filePath, success: false, error: 'File or directory already exists.' },
+      payload: withSessionEcho(
+        { filePath, success: false, error: 'File or directory already exists.' },
+        sessionId,
+      ),
     });
     return;
   } catch {
@@ -624,11 +696,14 @@ export async function handleFilesCreate(
       await fs.mkdir(path.dirname(realResolved), { recursive: true });
       await fs.writeFile(realResolved, '', { encoding: 'utf8', flag: 'wx' });
     }
-    send(ws, { type: 'files.created', payload: { filePath, success: true } });
+    send(ws, {
+      type: 'files.created',
+      payload: withSessionEcho({ filePath, success: true }, sessionId),
+    });
   } catch (err) {
     send(ws, {
       type: 'files.created',
-      payload: { filePath, success: false, error: errMessage(err) },
+      payload: withSessionEcho({ filePath, success: false, error: errMessage(err) }, sessionId),
     });
   }
 }
@@ -652,6 +727,7 @@ export async function handleFilesDelete(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let filePath: string;
   let recursive: boolean;
   try {
@@ -661,7 +737,10 @@ export async function handleFilesDelete(
   } catch {
     send(ws, {
       type: 'files.deleted',
-      payload: { filePath: '', success: false, error: 'Malformed request' },
+      payload: withSessionEcho(
+        { filePath: '', success: false, error: 'Malformed request' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -675,7 +754,7 @@ export async function handleFilesDelete(
   } catch {
     send(ws, {
       type: 'files.deleted',
-      payload: { filePath, success: false, error: 'Forbidden' },
+      payload: withSessionEcho({ filePath, success: false, error: 'Forbidden' }, sessionId),
     });
     return;
   }
@@ -684,18 +763,24 @@ export async function handleFilesDelete(
   if (realResolved === realProjectRoot) {
     send(ws, {
       type: 'files.deleted',
-      payload: { filePath, success: false, error: 'Cannot delete the project root.' },
+      payload: withSessionEcho(
+        { filePath, success: false, error: 'Cannot delete the project root.' },
+        sessionId,
+      ),
     });
     return;
   }
 
   try {
     await fs.rm(realResolved, { recursive, force: false });
-    send(ws, { type: 'files.deleted', payload: { filePath, success: true } });
+    send(ws, {
+      type: 'files.deleted',
+      payload: withSessionEcho({ filePath, success: true }, sessionId),
+    });
   } catch (err) {
     send(ws, {
       type: 'files.deleted',
-      payload: { filePath, success: false, error: errMessage(err) },
+      payload: withSessionEcho({ filePath, success: false, error: errMessage(err) }, sessionId),
     });
   }
 }
@@ -719,6 +804,7 @@ export async function handleFilesRename(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let oldPath: string;
   let newPath: string;
   try {
@@ -728,7 +814,10 @@ export async function handleFilesRename(
   } catch {
     send(ws, {
       type: 'files.renamed',
-      payload: { oldPath: '', newPath: '', success: false, error: 'Malformed request' },
+      payload: withSessionEcho(
+        { oldPath: '', newPath: '', success: false, error: 'Malformed request' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -741,7 +830,7 @@ export async function handleFilesRename(
   } catch {
     send(ws, {
       type: 'files.renamed',
-      payload: { oldPath, newPath, success: false, error: 'Forbidden' },
+      payload: withSessionEcho({ oldPath, newPath, success: false, error: 'Forbidden' }, sessionId),
     });
     return;
   }
@@ -751,7 +840,10 @@ export async function handleFilesRename(
   if (realOld === realProjectRoot) {
     send(ws, {
       type: 'files.renamed',
-      payload: { oldPath, newPath, success: false, error: 'Cannot rename the project root.' },
+      payload: withSessionEcho(
+        { oldPath, newPath, success: false, error: 'Cannot rename the project root.' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -762,7 +854,10 @@ export async function handleFilesRename(
   } catch {
     send(ws, {
       type: 'files.renamed',
-      payload: { oldPath, newPath, success: false, error: 'Source file does not exist.' },
+      payload: withSessionEcho(
+        { oldPath, newPath, success: false, error: 'Source file does not exist.' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -772,12 +867,15 @@ export async function handleFilesRename(
     await fs.access(realNew);
     send(ws, {
       type: 'files.renamed',
-      payload: {
-        oldPath,
-        newPath,
-        success: false,
-        error: 'Destination already exists.',
-      },
+      payload: withSessionEcho(
+        {
+          oldPath,
+          newPath,
+          success: false,
+          error: 'Destination already exists.',
+        },
+        sessionId,
+      ),
     });
     return;
   } catch {
@@ -788,11 +886,17 @@ export async function handleFilesRename(
     // Create parent dirs of the destination if needed (supports move semantics).
     await fs.mkdir(path.dirname(realNew), { recursive: true });
     await fs.rename(realOld, realNew);
-    send(ws, { type: 'files.renamed', payload: { oldPath, newPath, success: true } });
+    send(ws, {
+      type: 'files.renamed',
+      payload: withSessionEcho({ oldPath, newPath, success: true }, sessionId),
+    });
   } catch (err) {
     send(ws, {
       type: 'files.renamed',
-      payload: { oldPath, newPath, success: false, error: errMessage(err) },
+      payload: withSessionEcho(
+        { oldPath, newPath, success: false, error: errMessage(err) },
+        sessionId,
+      ),
     });
   }
 }
@@ -816,6 +920,7 @@ export async function handleFilesMove(
   msg: unknown,
   projectRoot: string,
 ): Promise<void> {
+  const sessionId = messageSessionId(msg as { payload?: unknown });
   let srcPath: string;
   let destDir: string;
   try {
@@ -825,7 +930,10 @@ export async function handleFilesMove(
   } catch {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath: '', destPath: '', success: false, error: 'Malformed request' },
+      payload: withSessionEcho(
+        { srcPath: '', destPath: '', success: false, error: 'Malformed request' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -838,7 +946,10 @@ export async function handleFilesMove(
   } catch {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath, destPath: '', success: false, error: 'Forbidden' },
+      payload: withSessionEcho(
+        { srcPath, destPath: '', success: false, error: 'Forbidden' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -848,7 +959,10 @@ export async function handleFilesMove(
   if (realSrc === realProjectRoot) {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath, destPath: '', success: false, error: 'Cannot move the project root.' },
+      payload: withSessionEcho(
+        { srcPath, destPath: '', success: false, error: 'Cannot move the project root.' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -859,14 +973,20 @@ export async function handleFilesMove(
     if (!destStat.isDirectory()) {
       send(ws, {
         type: 'files.moved',
-        payload: { srcPath, destPath: '', success: false, error: 'Destination is not a directory.' },
+        payload: withSessionEcho(
+          { srcPath, destPath: '', success: false, error: 'Destination is not a directory.' },
+          sessionId,
+        ),
       });
       return;
     }
   } catch {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath, destPath: '', success: false, error: 'Destination directory does not exist.' },
+      payload: withSessionEcho(
+        { srcPath, destPath: '', success: false, error: 'Destination directory does not exist.' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -877,7 +997,10 @@ export async function handleFilesMove(
   } catch {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath, destPath: '', success: false, error: 'Source file does not exist.' },
+      payload: withSessionEcho(
+        { srcPath, destPath: '', success: false, error: 'Source file does not exist.' },
+        sessionId,
+      ),
     });
     return;
   }
@@ -891,12 +1014,15 @@ export async function handleFilesMove(
     await fs.access(destPath);
     send(ws, {
       type: 'files.moved',
-      payload: {
-        srcPath,
-        destPath: relDestPath,
-        success: false,
-        error: 'A file with that name already exists in the destination directory.',
-      },
+      payload: withSessionEcho(
+        {
+          srcPath,
+          destPath: relDestPath,
+          success: false,
+          error: 'A file with that name already exists in the destination directory.',
+        },
+        sessionId,
+      ),
     });
     return;
   } catch {
@@ -905,11 +1031,17 @@ export async function handleFilesMove(
 
   try {
     await fs.rename(realSrc, destPath);
-    send(ws, { type: 'files.moved', payload: { srcPath, destPath: relDestPath, success: true } });
+    send(ws, {
+      type: 'files.moved',
+      payload: withSessionEcho({ srcPath, destPath: relDestPath, success: true }, sessionId),
+    });
   } catch (err) {
     send(ws, {
       type: 'files.moved',
-      payload: { srcPath, destPath: relDestPath, success: false, error: errMessage(err) },
+      payload: withSessionEcho(
+        { srcPath, destPath: relDestPath, success: false, error: errMessage(err) },
+        sessionId,
+      ),
     });
   }
 }

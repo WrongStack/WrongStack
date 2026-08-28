@@ -37,6 +37,7 @@ export const SERVER_KNOWLEDGE_MESSAGE_TYPES = [
 ] as const;
 
 export const SERVER_EXTENSION_MESSAGE_TYPES = [
+  'chimera.reports',
   'mcp.content.error',
   'mcp.content.selected',
   'mcp.list',

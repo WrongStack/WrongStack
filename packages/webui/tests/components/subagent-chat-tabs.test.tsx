@@ -9,6 +9,7 @@ import { SubagentTranscriptView } from '../../src/components/ChatView/SubagentTr
 import { taskBriefPreview } from '../../src/lib/task-brief-preview.js';
 import type { AgentTranscriptEntry, SubagentView } from '../../src/stores/index.js';
 import { useFleetStore, useUIStore } from '../../src/stores/index.js';
+import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '../../src/stores/session-lanes.js';
 
 function makeAgent(id: string, overrides: Partial<{ name: string; status: string }> = {}) {
   return {
@@ -70,6 +71,7 @@ describe('subagent chat tabs', () => {
       eventTimeline: [],
       agentTimeline: [],
     });
+    useSessionLanes.setState({ activeSessionId: SESSION_DEFAULT_LANE_ID, lanes: {} });
     useUIStore.setState({ subagentChatFocusId: null });
   });
 
@@ -91,6 +93,7 @@ describe('subagent chat tabs', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /Beta/ }));
     expect(useUIStore.getState().subagentChatFocusId).toBe('s2');
+    expect(useUIStore.getState().currentView).toBe('chat');
 
     // First tab is the leader — selecting it returns to the normal chat.
     fireEvent.click(screen.getAllByRole('tab')[0]!);
@@ -127,12 +130,14 @@ describe('subagent chat tabs', () => {
     expect((tab.getAttribute('title') ?? '').length).toBeLessThan(200);
   });
 
-  it('renders nothing to switch when only the leader exists', () => {
+  it('keeps the AGENTS strip visible when only the leader exists', () => {
     const agents = new Map([['ldr', makeAgent('ldr', { name: 'Solo' })]]);
     useFleetStore.setState({ agents, leaderId: 'ldr' });
 
-    const { container } = render(<AgentTabs />);
-    expect(container.querySelector('[role="tablist"]')).toBeNull();
+    render(<AgentTabs />);
+    expect(screen.getByRole('tablist', { name: /Switch agent view/i })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: /Solo/ })).toBeTruthy();
+    expect(screen.getByText('AGENTS')).toBeTruthy();
   });
 
   it('renders the full transcript chat-style with no input controls', async () => {

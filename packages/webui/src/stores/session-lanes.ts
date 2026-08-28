@@ -146,9 +146,8 @@ export const useSessionLanes = create<SessionLanesState>()(
     }),
     {
       name: 'wrongstack-session-lanes',
-      version: 1,
+      version: 2,
       partialize: (s) => ({
-        activeSessionId: s.activeSessionId,
         projectName: s.projectName,
         projectRoot: s.projectRoot,
         cwd: s.cwd,
@@ -183,10 +182,7 @@ export const useSessionLanes = create<SessionLanesState>()(
         return {
           ...current,
           lanes,
-          activeSessionId:
-            typeof p.activeSessionId === 'string' && p.activeSessionId
-              ? p.activeSessionId
-              : SESSION_DEFAULT_LANE_ID,
+          activeSessionId: SESSION_DEFAULT_LANE_ID,
           projectName: typeof p.projectName === 'string' ? p.projectName : '',
           projectRoot: typeof p.projectRoot === 'string' ? p.projectRoot : '',
           cwd: typeof p.cwd === 'string' ? p.cwd : '',

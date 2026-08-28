@@ -245,6 +245,14 @@ export interface UiDeps {
 export interface FleetDeps {
   director: Director | null;
   getDirector?: (() => Director | null) | undefined;
+  /**
+   * Drop the host-side helpers pinned to a conversation whose tab closed —
+   * its explore companion and its shadow-review bookkeeping. Not a fleet
+   * teardown: a background run outlives the tab that started it (that is
+   * `stopSessionFleet`, on Stop). Absent for hosts with one conversation,
+   * where nothing is ever released before `dispose()`.
+   */
+  releaseSessionHelpers?: ((sessionId: string) => void) | undefined;
   coordinatorController?: Record<string, unknown> | undefined;
   fleetRoster?: Record<string, { name: string }> | undefined;
   fleetStreamController?:

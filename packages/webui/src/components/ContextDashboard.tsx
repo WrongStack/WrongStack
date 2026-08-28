@@ -32,6 +32,7 @@ import { fmtTok } from '@/components/dashboard-primitives';
 import { Button } from '@/components/ui/button';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import {
@@ -827,7 +828,17 @@ export function ContextDashboard() {
   );
 
   // Fleet data — useShallow stabilizes derived array reference
-  const fleetAgents = useFleetStore(useShallow((s) => [...s.agents.values()]));
+  // Session-scoped: this dashboard describes THIS tab's context window, so
+  // the footprint must not count other tabs' agents — their tokens and cost
+  // belong to their own sessions' dashboards.
+  const activeSessionId = useActiveSessionId();
+  const fleetAgents = useFleetStore(
+    useShallow((s) =>
+      [...s.agents.values()].filter((a) =>
+        agentBelongsToSession(a.sessionId, activeSessionId),
+      ),
+    ),
+  );
 
   // Debug data from context.debug WS
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -892,7 +903,7 @@ export function ContextDashboard() {
   // Refetch when the foreground moves, not only when the socket changes: the
   // panel is not unmounted between tabs, so without this it kept showing the
   // previous tab's breakdown until the user pressed refresh.
-  const debugSessionId = useActiveSessionId();
+  const debugSessionId = activeSessionId;
   useEffect(() => {
     setDebugData(null);
     fetchDebug();

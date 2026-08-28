@@ -1,7 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { cleanup, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { FleetSummaryBar } from '../../src/components/agents/FleetSummaryBar.js';
 import { selectFleetSummary, useFleetStore } from '../../src/stores/index.js';
 
-function makeAgent(id: string, overrides: Partial<{ name: string; status: string; costUsd: number }> = {}) {
+function makeAgent(
+  id: string,
+  overrides: Partial<{
+    name: string;
+    status: string;
+    costUsd: number;
+    sessionId: string;
+    tokensIn: number;
+    tokensOut: number;
+  }> = {},
+) {
   return {
     id,
     name: overrides.name ?? id,
@@ -16,8 +28,13 @@ function makeAgent(id: string, overrides: Partial<{ name: string; status: string
     startedAt: Date.now(),
     toolLog: [],
     sparklineBins: Array(12).fill(0),
+    sessionId: overrides.sessionId,
+    tokensIn: overrides.tokensIn,
+    tokensOut: overrides.tokensOut,
   } as const;
 }
+
+afterEach(() => cleanup());
 
 /**
  * Test the data pipeline that FleetSummaryBar uses.
@@ -127,13 +144,19 @@ describe('FleetSummaryBar event timeline data', () => {
 
   it('records spawned and task_completed events in the timeline', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'worker-1',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'worker-1',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a2', name: 'worker-2',
+      kind: 'spawned',
+      subagentId: 'a2',
+      name: 'worker-2',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'bash',
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'bash',
     });
 
     const timeline = useFleetStore.getState().eventTimeline;
@@ -145,10 +168,14 @@ describe('FleetSummaryBar event timeline data', () => {
 
   it('includes task_completed events in the timeline', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'worker',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'worker',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a1', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      status: 'success',
     });
 
     const timeline = useFleetStore.getState().eventTimeline;
@@ -159,9 +186,72 @@ describe('FleetSummaryBar event timeline data', () => {
   it('timeline truncates to 20 entries max', () => {
     for (let i = 0; i < 25; i++) {
       useFleetStore.getState().applyEvent({
-        kind: 'tool_executed', subagentId: `a${i}`, toolName: 'bash',
+        kind: 'tool_executed',
+        subagentId: `a${i}`,
+        toolName: 'bash',
       });
     }
     expect(useFleetStore.getState().eventTimeline.length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe('FleetSummaryBar session isolation', () => {
+  beforeEach(() => {
+    useFleetStore.setState({
+      agents: new Map(),
+      eventTimeline: [],
+      fleetConcurrency: 4,
+      fleetConcurrencyMax: 8,
+      fleetTokensIn: 0,
+      fleetTokensOut: 0,
+    });
+  });
+
+  it('renders only the requested session counts, tokens, cost, and event ticker', () => {
+    const agents = new Map();
+    agents.set(
+      'a1',
+      makeAgent('a1', {
+        name: 'Alpha',
+        sessionId: 'session-a',
+        costUsd: 0.12,
+        tokensIn: 1200,
+        tokensOut: 300,
+      }),
+    );
+    agents.set(
+      'b1',
+      makeAgent('b1', {
+        name: 'Beta',
+        sessionId: 'session-b',
+        costUsd: 9.99,
+        tokensIn: 9900,
+        tokensOut: 8800,
+      }),
+    );
+    useFleetStore.setState({ agents });
+    useFleetStore.getState().applyEvent({
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      sessionId: 'session-a',
+      toolName: 'bash',
+    } as never);
+    useFleetStore.getState().applyEvent({
+      kind: 'task_completed',
+      subagentId: 'b1',
+      sessionId: 'session-b',
+      status: 'success',
+    } as never);
+
+    render(<FleetSummaryBar sessionId="session-a" />);
+    const scoped = within(screen.getByTestId('fleet-summary-bar'));
+
+    expect(scoped.getByText(/1 running/i)).toBeTruthy();
+    expect(scoped.getByText(/1 total/i)).toBeTruthy();
+    expect(scoped.getByText(/\$0\.12/)).toBeTruthy();
+    expect(screen.getByTestId('fleet-summary-bar').textContent).toContain('↓1.2K ↑300');
+    expect(scoped.getByRole('button', { name: /tool:/i })).toBeTruthy();
+    expect(scoped.queryByRole('button', { name: /done:/i })).toBeNull();
+    expect(scoped.queryByText(/\$9\.99/)).toBeNull();
   });
 });

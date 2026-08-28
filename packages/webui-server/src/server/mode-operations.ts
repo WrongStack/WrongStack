@@ -10,7 +10,13 @@ interface ModeSession {
 
 export interface ModeOperationsContext {
   modeStore?: ModeStore | undefined;
-  getSession?: (() => ModeSession | null | undefined) | undefined;
+  /**
+   * The journal that should record the switch. `sessionId` names the tab that
+   * switched: the `mode_changed` entry belongs in ITS transcript, not in
+   * whichever session the runtime happens to be pointing at. Hosts with one
+   * session ignore the argument.
+   */
+  getSession?: ((sessionId?: string) => ModeSession | null | undefined) | undefined;
   /**
    * Record the active mode. `sessionId` names the tab that switched — each
    * WebUI tab carries its own mode, so the process-wide value is only the
@@ -84,13 +90,13 @@ export function createModeOperations(context: ModeOperationsContext) {
         }
         context.applyModeId(id, sessionId);
         const from = previous?.id ?? 'default';
-        const session = context.getSession?.();
+        const session = context.getSession?.(sessionId);
         if (session && from !== id) {
           void session
             .append({ type: 'mode_changed', ts: new Date().toISOString(), from, to: id })
             .catch(() => undefined);
         }
-        await context.afterSwitch?.(id);
+        await context.afterSwitch?.(id, sessionId);
         sendResult(context, ws, true, `Switched to mode "${id}"`);
       } catch (error) {
         sendResult(context, ws, false, toErrorMessage(error));

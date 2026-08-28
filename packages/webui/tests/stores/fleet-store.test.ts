@@ -488,11 +488,11 @@ describe('selectFleetSummary', () => {
   });
 
   it('counts completed, failed, and timeout separately', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'success' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a2', status: 'failed' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a3', status: 'timeout' });
     fleet().applyEvent({ kind: 'spawned', subagentId: 'a4', name: 'D' });
 
@@ -556,7 +556,7 @@ describe('selectFleetSummary', () => {
   });
 
   it('handles stopped agents — they count toward total but not running/failed', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'stopped' });
 
     const s = selectFleetSummary(fleet());
@@ -637,82 +637,87 @@ describe('selectSortedAgentList', () => {
 
 describe('clearFinishedAgents', () => {
   it('removes completed, failed, timeout, and stopped agents', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'success' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a2', status: 'failed' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a3', status: 'timeout' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a4', name: 'D' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a4', name: 'D', sessionId: 'sess-a' });
 
     expect(fleet().agents.size).toBe(4);
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().agents.size).toBe(1);
     expect(get('a4')?.name).toBe('D'); // running survivor
   });
 
   it('keeps running agents', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B', sessionId: 'sess-a' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a3', name: 'C', sessionId: 'sess-a' });
 
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().agents.size).toBe(3);
   });
 
   it('clears agentTranscripts for finished agents', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
     fleet().pushAgentTimelineEntry({
-      subagentId: 'a1', agentName: 'A', content: 'work', kind: 'text', iteration: 1, ts: '2024-01-01',
+      subagentId: 'a1',
+      agentName: 'A',
+      content: 'work',
+      kind: 'text',
+      iteration: 1,
+      ts: '2024-01-01',
     });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'success' });
 
     expect(fleet().getAgentTranscript('a1').length).toBeGreaterThan(0);
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().getAgentTranscript('a1')).toEqual([]);
   });
 
   it('clears leaderId when the leader was finished', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Leader' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Leader', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'leader_updated', subagentId: 'a1' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'success' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'Worker' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'Worker', sessionId: 'sess-a' });
 
     expect(fleet().leaderId).toBe('a1');
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().leaderId).toBeUndefined();
   });
 
   it('preserves leaderId when the leader is still running', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Leader' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Leader', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'leader_updated', subagentId: 'a1' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'Worker' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'Worker', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a2', status: 'success' });
 
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().leaderId).toBe('a1');
     expect(fleet().agents.size).toBe(1);
   });
 
   it('filters eventTimeline for finished agents', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
     fleet().applyEvent({ kind: 'tool_executed', subagentId: 'a1', toolName: 'read' });
     fleet().applyEvent({ kind: 'task_completed', subagentId: 'a1', status: 'success' });
 
     const before = fleet().eventTimeline.length;
     expect(before).toBeGreaterThan(0);
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     // Timeline should not include events about the removed agent
     const hasA1Events = fleet().eventTimeline.some((ev) => ev.agentId === 'a1');
     expect(hasA1Events).toBe(false);
   });
 
   it('is a no-op when all agents are running', () => {
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A' });
-    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'A', sessionId: 'sess-a' });
+    fleet().applyEvent({ kind: 'spawned', subagentId: 'a2', name: 'B', sessionId: 'sess-a' });
 
     expect(fleet().agents.size).toBe(2);
-    fleet().clearFinishedAgents();
+    fleet().clearFinishedAgents('sess-a');
     expect(fleet().agents.size).toBe(2);
   });
 });

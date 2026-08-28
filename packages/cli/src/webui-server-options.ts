@@ -80,6 +80,15 @@ export interface CliWebUIOptions {
    * stopping one must never reach into another's fleet.
    */
   stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
+  /**
+   * A tab was closed: release the host-side helpers pinned to its
+   * conversation (explore companion, shadow-review bookkeeping).
+   *
+   * NOT a fleet teardown — a background run outlives the tab that started it,
+   * which is why `retireUndisplayedSessions` skips a session with a live run
+   * before calling this. Absent for hosts with a single conversation.
+   */
+  onSessionRetired?: ((sessionId: string) => void) | undefined;
   /** Browser-facing HTTP URL, used when WebUI is exposed behind a tunnel/proxy. */
   publicUrl?: string | undefined;
   /** Browser-facing WebSocket URL injected into the frontend. */
@@ -243,7 +252,7 @@ export interface CliWebUIOptions {
    * setter the TUI/REPL use). Without it the switch only lands in
    * context.meta and the running loop never changes mode.
    */
-  onAutonomySwitch?: ((mode: string) => void) | undefined;
+  onAutonomySwitch?: ((mode: string, sessionId?: string | undefined) => void) | undefined;
   /** Forward browser YOLO changes to the host's live permission policy. */
   onYoloSwitch?: ((enabled: boolean, sessionId?: string | undefined) => void) | undefined;
   /**

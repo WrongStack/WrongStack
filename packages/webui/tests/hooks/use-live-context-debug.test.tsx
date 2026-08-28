@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLiveContextDebug } from '../../src/hooks/useLiveContextDebug';
+import { ensureSessionLane, useSessionLanes } from '../../src/stores/session-lanes';
 
 type Handler = (msg: { type: string; payload?: unknown }) => void;
 const handlers = new Map<string, Set<Handler>>();
@@ -30,6 +31,7 @@ function emitContextDebug(payload: unknown) {
 beforeEach(() => {
   handlers.clear();
   sendMock.mockClear();
+  useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   Object.defineProperty(document, 'hidden', { value: false, configurable: true });
 });
 
@@ -215,6 +217,45 @@ describe('useLiveContextDebug', () => {
     });
     expect(result.current.data).toBeNull();
     expect(result.current.loading).toBe(true);
+  });
+
+  it('ignores context.debug snapshots that do not belong to the active session', () => {
+    ensureSessionLane('sess-a');
+    ensureSessionLane('sess-b');
+    useSessionLanes.setState({ activeSessionId: 'sess-a' });
+    const { result } = renderHook(() => useLiveContextDebug('ws://test'));
+
+    act(() => {
+      emitContextDebug({
+        sessionId: 'sess-b',
+        total: 2000,
+        systemPrompt: 100,
+        tools: { total: 200, count: 1, breakdown: [] },
+        messages: { total: 1700, count: 3, breakdown: [] },
+      });
+      emitContextDebug({
+        total: 3000,
+        systemPrompt: 100,
+        tools: { total: 200, count: 1, breakdown: [] },
+        messages: { total: 2700, count: 3, breakdown: [] },
+      });
+    });
+
+    expect(result.current.data).toBeNull();
+    expect(result.current.loading).toBe(true);
+
+    act(() => {
+      emitContextDebug({
+        sessionId: 'sess-a',
+        total: 1000,
+        systemPrompt: 100,
+        tools: { total: 200, count: 1, breakdown: [] },
+        messages: { total: 700, count: 2, breakdown: [] },
+      });
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data?.total).toBe(1000);
   });
 
   it('times out the first snapshot instead of spinning forever', async () => {

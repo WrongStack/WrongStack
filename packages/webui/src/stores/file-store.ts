@@ -23,6 +23,18 @@ export interface OpenFile {
   savedContent: string;
 }
 
+interface FileSessionState {
+  projectRoot: string;
+  tree: TreeNode[];
+  openFiles: OpenFile[];
+  activeFilePath: string | null;
+  treeLoading: boolean;
+  error: string | null;
+  targetLine: FileStoreState['targetLine'];
+  projectIdentity: string;
+  hydratingPaths: ReadonlySet<string>;
+}
+
 // ── Store ───────────────────────────────────────────────────────────────
 
 export interface FileStoreState {
@@ -42,19 +54,19 @@ export interface FileStoreState {
   targetLine: { line: number; col?: number | undefined } | null;
 
   // Actions
-  setTree: (root: string, tree: TreeNode[]) => void;
-  openFile: (filePath: string, content: string) => void;
-  closeFile: (filePath: string) => void;
-  setActiveFile: (filePath: string | null) => void;
-  jumpToLine: (line: number, col?: number) => void;
+  setTree: (root: string, tree: TreeNode[], sessionId?: string | null | undefined) => void;
+  openFile: (filePath: string, content: string, sessionId?: string | null | undefined) => void;
+  closeFile: (filePath: string, sessionId?: string | null | undefined) => void;
+  setActiveFile: (filePath: string | null, sessionId?: string | null | undefined) => void;
+  jumpToLine: (line: number, col?: number, sessionId?: string | null | undefined) => void;
   clearTargetLine: () => void;
   updateContent: (filePath: string, content: string) => void;
   /** Mark a file as saved (synced with disk). */
-  markSaved: (filePath: string) => void;
-  setTreeLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
+  markSaved: (filePath: string, sessionId?: string | null | undefined) => void;
+  setTreeLoading: (loading: boolean, sessionId?: string | null | undefined) => void;
+  setError: (error: string | null, sessionId?: string | null | undefined) => void;
   /** Drop all open tabs (used when the server switches to a different project). */
-  clearOpenTabs: () => void;
+  clearOpenTabs: (sessionId?: string | null | undefined) => void;
   /**
    * Canonical absolute project root as reported by the server environment
    * (working_dir.changed / session env). Distinct from `projectRoot`, which
@@ -64,16 +76,27 @@ export interface FileStoreState {
    */
   projectIdentity: string;
   /** Record the canonical absolute project root (env events only). */
-  setProjectIdentity: (root: string) => void;
+  setProjectIdentity: (root: string, sessionId?: string | null | undefined) => void;
   /** Paths whose rehydrated stub content is currently being fetched. */
   hydratingPaths: ReadonlySet<string>;
+  setHydratingPaths: (paths: Iterable<string>, sessionId?: string | null | undefined) => void;
+  /** Which session the file editor projection currently describes. */
+  fileSessionId: string | null;
+  /** Per-session open editor tabs and jump targets. */
+  filesBySession: Record<string, FileSessionState>;
+  bindSessionFiles: (sessionId: string | null) => void;
+  forgetSessionFiles: (sessionId: string) => void;
   /**
    * Apply fetched content to a rehydrated stub tab. Only applies while the
    * path is still hydrating AND the tab is still a pristine stub — never
    * overwrites content the user has started editing, never steals focus.
    * Returns true when the content was applied.
    */
-  hydrateFileContent: (filePath: string, content: string) => boolean;
+  hydrateFileContent: (
+    filePath: string,
+    content: string,
+    sessionId?: string | null | undefined,
+  ) => boolean;
   /**
    * Handle a failed hydration read (file deleted or renamed on disk while
    * the page was closed). Removes the path from hydration tracking and
@@ -81,7 +104,7 @@ export interface FileStoreState {
    * let the next save resurrect a deleted file. A tab the user has started
    * editing is kept; its save recreates the file intentionally.
    */
-  hydrateFileFailed: (filePath: string) => void;
+  hydrateFileFailed: (filePath: string, sessionId?: string | null | undefined) => void;
 }
 
 /** Shape written to localStorage — tabs are paths only, never content. */
@@ -90,6 +113,88 @@ export interface PersistedFileStoreState {
   activeFilePath: string | null;
   /** Canonical absolute project root (env identity), not the display label. */
   projectIdentity: string;
+}
+
+function defaultFileSession(): FileSessionState {
+  return {
+    projectRoot: '',
+    tree: [],
+    openFiles: [],
+    activeFilePath: null,
+    treeLoading: false,
+    error: null,
+    targetLine: null,
+    projectIdentity: '',
+    hydratingPaths: new Set<string>(),
+  };
+}
+
+function readFileSession(state: FileStoreState): FileSessionState {
+  return {
+    projectRoot: state.projectRoot,
+    tree: state.tree,
+    openFiles: state.openFiles,
+    activeFilePath: state.activeFilePath,
+    treeLoading: state.treeLoading,
+    error: state.error,
+    targetLine: state.targetLine,
+    projectIdentity: state.projectIdentity,
+    hydratingPaths: state.hydratingPaths,
+  };
+}
+
+function projectFileSession(fileSession: FileSessionState): Partial<FileStoreState> {
+  return {
+    projectRoot: fileSession.projectRoot,
+    tree: fileSession.tree,
+    openFiles: fileSession.openFiles,
+    activeFilePath: fileSession.activeFilePath,
+    treeLoading: fileSession.treeLoading,
+    error: fileSession.error,
+    targetLine: fileSession.targetLine,
+    projectIdentity: fileSession.projectIdentity,
+    hydratingPaths: fileSession.hydratingPaths,
+  };
+}
+
+function updateFileSession(
+  state: FileStoreState,
+  sessionId: string | null | undefined,
+  updater: (fileSession: FileSessionState) => FileSessionState,
+): Partial<FileStoreState> {
+  if (sessionId && state.fileSessionId !== sessionId) {
+    const current = state.filesBySession[sessionId] ?? defaultFileSession();
+    return {
+      filesBySession: {
+        ...state.filesBySession,
+        [sessionId]: updater(current),
+      },
+    };
+  }
+  const current = readFileSession(state);
+  const next = updater(current);
+  const parked = state.fileSessionId
+    ? {
+        filesBySession: {
+          ...state.filesBySession,
+          [state.fileSessionId]: next,
+        },
+      }
+    : {};
+  return { ...projectFileSession(next), ...parked };
+}
+
+function parkFiles(
+  state: FileStoreState,
+  patch: Partial<FileSessionState>,
+): { filesBySession?: FileStoreState['filesBySession'] } {
+  if (!state.fileSessionId) return {};
+  return {
+    filesBySession: {
+      ...state.filesBySession,
+      [state.fileSessionId]: { ...readFileSession(state), ...patch },
+    },
+  };
 }
 
 /**
@@ -119,7 +224,7 @@ export function mergePersistedFileStore(
   const activeFilePath =
     typeof p.activeFilePath === 'string' && paths.includes(p.activeFilePath)
       ? p.activeFilePath
-      : paths[0] ?? null;
+      : (paths[0] ?? null);
   return {
     ...current,
     projectIdentity:
@@ -141,124 +246,212 @@ export const useFileStore = create<FileStoreState>()(
       targetLine: null,
       projectIdentity: '',
       hydratingPaths: new Set<string>(),
+      fileSessionId: null,
+      filesBySession: {},
 
-      setTree: (root, tree) => set({ projectRoot: root, tree, treeLoading: false, error: null }),
-
-      jumpToLine: (line, col) => set({ targetLine: { line, col } }),
-      clearTargetLine: () => set({ targetLine: null }),
-
-      openFile: (filePath, content) => {
-        const state = get();
-        const existing = state.openFiles.find((f) => f.path === filePath);
-        if (existing) {
-          // Already open — refresh it with the latest disk content and switch to it.
-          set({
-            openFiles: state.openFiles.map((file) =>
-              file.path === filePath
-                ? { ...file, content, dirty: false, savedContent: content }
-                : file,
-            ),
-            activeFilePath: filePath,
-          });
-          return;
-        }
-        set({
-          openFiles: [
-            ...state.openFiles,
-            { path: filePath, content, dirty: false, savedContent: content },
-          ],
-          activeFilePath: filePath,
-        });
-      },
-
-      closeFile: (filePath) => {
-        const state = get();
-        const idx = state.openFiles.findIndex((f) => f.path === filePath);
-        if (idx === -1) return;
-        const next = [...state.openFiles];
-        next.splice(idx, 1);
-        let nextActive = state.activeFilePath;
-        if (state.activeFilePath === filePath) {
-          // Activate the tab to the right, or the last tab, or null.
-          if (next.length === 0) {
-            nextActive = null;
-          } else if (idx < next.length) {
-            nextActive = next[idx].path;
-          } else {
-            nextActive = next[next.length - 1].path;
+      bindSessionFiles: (sessionId) =>
+        set((state) => {
+          if (state.fileSessionId === sessionId) return {};
+          const filesBySession = { ...state.filesBySession };
+          if (state.fileSessionId) {
+            filesBySession[state.fileSessionId] = readFileSession(state);
           }
-        }
-        set({ openFiles: next, activeFilePath: nextActive });
-      },
+          const next = sessionId ? filesBySession[sessionId] : undefined;
+          const fileSession = next ?? defaultFileSession();
+          return {
+            fileSessionId: sessionId,
+            filesBySession,
+            ...projectFileSession(fileSession),
+          };
+        }),
+      forgetSessionFiles: (sessionId) =>
+        set((state) => {
+          const filesBySession = { ...state.filesBySession };
+          delete filesBySession[sessionId];
+          if (state.fileSessionId !== sessionId) return { filesBySession };
+          return {
+            filesBySession,
+            fileSessionId: null,
+            ...defaultFileSession(),
+          };
+        }),
 
-      setActiveFile: (filePath) => set({ activeFilePath: filePath }),
+      jumpToLine: (line, col, sessionId) =>
+        set((state) => {
+          const targetLine = { line, col };
+          return updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            targetLine,
+          }));
+        }),
+      clearTargetLine: () =>
+        set((state) => ({ targetLine: null, ...parkFiles(state, { targetLine: null }) })),
+
+      setTree: (root, tree, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            projectRoot: root,
+            tree,
+            treeLoading: false,
+            error: null,
+          })),
+        ),
+
+      openFile: (filePath, content, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => {
+            const existing = fileSession.openFiles.find((f) => f.path === filePath);
+            if (existing) {
+              const openFiles = fileSession.openFiles.map((file) =>
+                file.path === filePath
+                  ? { ...file, content, dirty: false, savedContent: content }
+                  : file,
+              );
+              return { ...fileSession, openFiles, activeFilePath: filePath };
+            }
+            const openFiles = [
+              ...fileSession.openFiles,
+              { path: filePath, content, dirty: false, savedContent: content },
+            ];
+            return { ...fileSession, openFiles, activeFilePath: filePath };
+          }),
+        ),
+
+      closeFile: (filePath, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => {
+            const idx = fileSession.openFiles.findIndex((f) => f.path === filePath);
+            if (idx === -1) return fileSession;
+            const openFiles = [...fileSession.openFiles];
+            openFiles.splice(idx, 1);
+            let activeFilePath = fileSession.activeFilePath;
+            if (fileSession.activeFilePath === filePath) {
+              // Activate the tab to the right, or the last tab, or null.
+              if (openFiles.length === 0) {
+                activeFilePath = null;
+              } else if (idx < openFiles.length) {
+                activeFilePath = openFiles[idx].path;
+              } else {
+                activeFilePath = openFiles[openFiles.length - 1].path;
+              }
+            }
+            return { ...fileSession, openFiles, activeFilePath };
+          }),
+        ),
+
+      setActiveFile: (filePath, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            activeFilePath: filePath,
+          })),
+        ),
 
       updateContent: (filePath, content) => {
         set((state) => {
           const openFiles = state.openFiles.map((f) =>
-            f.path === filePath
-              ? { ...f, content, dirty: content !== f.savedContent }
-              : f,
+            f.path === filePath ? { ...f, content, dirty: content !== f.savedContent } : f,
           );
-          return { openFiles };
+          return { openFiles, ...parkFiles(state, { openFiles }) };
         });
       },
 
-      markSaved: (filePath) => {
-        set((state) => {
-          const openFiles = state.openFiles.map((f) =>
-            f.path === filePath ? { ...f, dirty: false, savedContent: f.content } : f,
-          );
-          return { openFiles };
-        });
-      },
+      markSaved: (filePath, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            openFiles: fileSession.openFiles.map((f) =>
+              f.path === filePath ? { ...f, dirty: false, savedContent: f.content } : f,
+            ),
+          })),
+        ),
 
-      setTreeLoading: (loading) => set({ treeLoading: loading }),
+      setTreeLoading: (loading, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            treeLoading: loading,
+          })),
+        ),
 
-      setError: (error) => set({ error }),
+      setError: (error, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            error,
+          })),
+        ),
 
-      clearOpenTabs: () => set({ openFiles: [], activeFilePath: null }),
+      clearOpenTabs: (sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            openFiles: [],
+            activeFilePath: null,
+          })),
+        ),
 
-      setProjectIdentity: (root) => set({ projectIdentity: root }),
+      setProjectIdentity: (root, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            projectIdentity: root,
+          })),
+        ),
 
-      hydrateFileContent: (filePath, content) => {
+      setHydratingPaths: (paths, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => ({
+            ...fileSession,
+            hydratingPaths: new Set(paths),
+          })),
+        ),
+
+      hydrateFileContent: (filePath, content, sessionId) => {
         const state = get();
-        if (!state.hydratingPaths.has(filePath)) return false;
-        const nextHydrating = new Set(state.hydratingPaths);
-        nextHydrating.delete(filePath);
-        const target = state.openFiles.find((f) => f.path === filePath);
-        // A late read response must never overwrite a tab the user has
-        // started editing, and hydration never steals focus — drop the
-        // fetched content if the stub is gone or no longer pristine.
-        if (!target || target.dirty || target.content !== '' || target.savedContent !== '') {
-          set({ hydratingPaths: nextHydrating });
-          return false;
-        }
-        set({
-          hydratingPaths: nextHydrating,
-          openFiles: state.openFiles.map((f) =>
+        let applied = false;
+        const patch = updateFileSession(state, sessionId, (fileSession) => {
+          if (!fileSession.hydratingPaths.has(filePath)) return fileSession;
+          const hydratingPaths = new Set(fileSession.hydratingPaths);
+          hydratingPaths.delete(filePath);
+          const target = fileSession.openFiles.find((f) => f.path === filePath);
+          // A late read response must never overwrite a tab the user has
+          // started editing, and hydration never steals focus — drop the
+          // fetched content if the stub is gone or no longer pristine.
+          if (!target || target.dirty || target.content !== '' || target.savedContent !== '') {
+            return { ...fileSession, hydratingPaths };
+          }
+          applied = true;
+          const openFiles = fileSession.openFiles.map((f) =>
             f.path === filePath ? { ...f, content, savedContent: content, dirty: false } : f,
-          ),
+          );
+          return { ...fileSession, hydratingPaths, openFiles };
         });
-        return true;
+        set(patch);
+        return applied;
       },
 
-      hydrateFileFailed: (filePath) => {
-        const state = get();
-        if (!state.hydratingPaths.has(filePath)) return;
-        const nextHydrating = new Set(state.hydratingPaths);
-        nextHydrating.delete(filePath);
-        const target = state.openFiles.find((f) => f.path === filePath);
-        const pristine =
-          !target || (target.content === '' && !target.dirty && target.savedContent === '');
-        set({ hydratingPaths: nextHydrating });
-        // A pristine stub for a vanished file is a dead tab — drop it. A tab
-        // the user has typed into stays open; their next save recreates the
-        // file intentionally.
-        if (pristine && target) {
-          get().closeFile(filePath);
-        }
-      },
+      hydrateFileFailed: (filePath, sessionId) =>
+        set((state) =>
+          updateFileSession(state, sessionId, (fileSession) => {
+            if (!fileSession.hydratingPaths.has(filePath)) return fileSession;
+            const hydratingPaths = new Set(fileSession.hydratingPaths);
+            hydratingPaths.delete(filePath);
+            const target = fileSession.openFiles.find((f) => f.path === filePath);
+            const pristine =
+              !target || (target.content === '' && !target.dirty && target.savedContent === '');
+            const openFiles =
+              pristine && target
+                ? fileSession.openFiles.filter((file) => file.path !== filePath)
+                : fileSession.openFiles;
+            const activeFilePath =
+              fileSession.activeFilePath === filePath
+                ? (openFiles[0]?.path ?? null)
+                : fileSession.activeFilePath;
+            return { ...fileSession, hydratingPaths, openFiles, activeFilePath };
+          }),
+        ),
     }),
     {
       name: 'wrongstack-file-store',

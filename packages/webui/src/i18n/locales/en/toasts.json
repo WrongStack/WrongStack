@@ -8,5 +8,23 @@
     "generic": "Something went wrong.",
     "connectionLost": "Connection lost. Reconnecting…",
     "reconnected": "Reconnected."
+  },
+  "menu": {
+    "title": "Notifications",
+    "unreadCount": "{{count}} unread",
+    "allRead": "All caught up",
+    "markAllRead": "Mark all as read",
+    "clearAll": "Clear all",
+    "tabAll": "All",
+    "tabUnread": "Unread",
+    "empty": "No notifications",
+    "emptyHint": "Toasts and system notifications will appear here.",
+    "markAsRead": "Mark as read",
+    "remove": "Remove notification",
+    "justNow": "Just now",
+    "secondsAgo": "{{count}}s ago",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }

@@ -88,6 +88,10 @@
       "types": "./dist/plugin/index.d.ts",
       "import": "./dist/plugin/index.js"
     },
+    "./plugins/review-report-store": {
+      "types": "./dist/plugins/review-report-store.d.ts",
+      "import": "./dist/plugins/review-report-store.js"
+    },
     "./storage": {
       "types": "./dist/storage/index.d.ts",
       "import": "./dist/storage/index.js",

@@ -1,4 +1,5 @@
 import type { Context } from '@wrongstack/core/agent';
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SecretScrubber } from '@wrongstack/core/types';
@@ -21,7 +22,12 @@ export interface SetupEventsDeps {
    */
   sessionContext?: ((sessionId: string) => Context | undefined) | undefined;
   subscribeEternalIteration?: ((fn: (entry: JournalEntry) => void) => () => void) | undefined;
-  broadcast: (msg: { type: string; payload: unknown }) => void;
+  /**
+   * `targetSessionId` names the tab a frame belongs to when the payload's own
+   * `sessionId` is somebody else's (a subagent's). Optional so single-session
+   * embedders can keep passing a one-argument broadcaster.
+   */
+  broadcast: (msg: { type: string; payload: unknown }, targetSessionId?: string) => void;
   sessionPayload: <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
   currentSessionId: () => string;
   queueTextDelta: StreamCoalescer['queueTextDelta'];
@@ -64,7 +70,14 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
     const budget = deps.getFleetBudget?.() ?? null;
     deps.broadcast({
       type: 'fleet.concurrency_update',
-      payload: deps.sessionPayload({
+      // Deliberately UNSTAMPED. The spawn/concurrency budget is one ceiling
+      // for the whole process — every tab draws from it and the client keeps
+      // it in a single global store — so this is a project-wide fact, not a
+      // conversation's. Stamping it with the runtime's session made it a
+      // conversation's by accident: `clientWantsSession` then dropped it for
+      // any page whose declared tabs did not include that session, and the
+      // fleet gauges froze the moment the boot tab was closed.
+      payload: {
         fleetConcurrency: budget?.activeAgents ?? fleetConcurrency,
         fleetConcurrencyMax: budget?.maxConcurrent ?? fleetConcurrencyMax,
         ...(budget
@@ -79,7 +92,7 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
               ceilingMismatch: budget.ceilingMismatch,
             }
           : {}),
-      }),
+      },
     });
   };
 
@@ -92,7 +105,14 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
     const maxIterations = deps.agent.ctx?.meta?.['maxIterations'];
     const disposeCanonical = setupCanonicalEvents({
       events: deps.events,
-      broadcast: (_clients, message) => deps.broadcast(message),
+      // The third argument is not decoration: it names the tab that OWNS a
+      // subagent, and the frames that pass it carry the subagent's own
+      // session on the payload. Dropping it here routed every subagent
+      // codemap frame at a session no tab subscribes to.
+      broadcast: (_clients, message, targetSessionId) =>
+        targetSessionId !== undefined
+          ? deps.broadcast(message, targetSessionId)
+          : deps.broadcast(message),
       clients: deps.getClients() as never,
       config: {
         tools: {
@@ -115,11 +135,16 @@ export function createSetupEvents(deps: SetupEventsDeps): () => void {
     });
     deps.eventUnsubscribers.push(disposeCanonical);
 
+    // The boot conversation's leader. Every other conversation gets its own
+    // when its tab declares itself (`session.subscribe`); the id must match
+    // the one that path derives, or the boot tab would end up with two leader
+    // rows. `leader@<sessionTag>` is the address the leader already answers to
+    // everywhere else — a bare `leader` was one row shared by four tabs.
     deps.broadcast({
       type: 'subagent.event',
       payload: deps.sessionPayload({
         kind: 'leader_updated',
-        subagentId: 'leader',
+        subagentId: `leader@${mailboxSessionTag(deps.currentSessionId())}`,
         isLeader: true,
         name: 'Leader',
         status: 'running',

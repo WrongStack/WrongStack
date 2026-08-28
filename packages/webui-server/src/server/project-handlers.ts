@@ -15,7 +15,7 @@ import {
   validateProjectsSelectPayload,
   validateWorkingDirSetPayload,
 } from './ws-payload-validation.js';
-import { broadcast, errMessage, send, sendResult } from './ws-utils.js';
+import { broadcast, broadcastAll, errMessage, send, sendResult } from './ws-utils.js';
 
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 type OutboundMessage = { type: string; payload: unknown };
@@ -45,6 +45,18 @@ export interface ProjectHandlersContext {
   onSessionSwapped?: (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>;
   allowProjectMutations?: boolean;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<unknown>;
+  /**
+   * Deliver to EVERY connection, bypassing the session filter.
+   *
+   * Both hosts now route a broadcast by the `sessionId` on its payload, which
+   * is right for everything that describes one tab and wrong for the project
+   * switch: it announces a session created a millisecond ago, so no client can
+   * be subscribed to it and the filter dropped the switch on the floor —
+   * exactly the "changed NOTHING in the browser" failure this handler exists
+   * to prevent. Optional; falls back to the plain broadcast for hosts that do
+   * not filter.
+   */
+  broadcastEveryone?: (message: OutboundMessage) => void;
 }
 
 export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRouteHandlers {
@@ -55,6 +67,12 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
   const broadcastToAll = (message: OutboundMessage): void => {
     if (ctx.broadcastMessage) ctx.broadcastMessage(message);
     else broadcast(ctx.clients ?? new Map(), message);
+  };
+  /** @see ProjectHandlersContext.broadcastEveryone */
+  const announceToEveryClient = (message: OutboundMessage): void => {
+    if (ctx.broadcastEveryone) ctx.broadcastEveryone(message);
+    else if (ctx.clients) broadcastAll(ctx.clients, message);
+    else broadcastToAll(message);
   };
   const result = (ws: WebSocket, success: boolean, message: string): void => {
     if (ctx.sendMessage) {
@@ -260,7 +278,8 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
           type: 'projects.selected',
           payload: { root: resolved, name, message: `Switched to ${name}` },
         });
-        broadcastToAll({
+        // Every client, not every subscriber: see `broadcastEveryone`.
+        announceToEveryClient({
           type: 'session.start',
           payload: await ctx.sessionStartPayload({ reset: true, clearedSessionId: previousId }),
         });

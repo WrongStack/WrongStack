@@ -61,6 +61,10 @@ const coreEntries = entryMap([
   'src/utils/heap-watchdog.ts',
   'src/execution/prompt-enhancer.ts',
   'src/execution/index.ts',
+  // Chimera review-report store: webui-server reads it per session tab, and
+  // the core-api policy forbids new root-barrel imports — so it ships as its
+  // own narrow entry next to the other dependency-free ones.
+  'src/plugins/review-report-store.ts',
   'src/design/index.ts',
   'src/coordination/index.ts',
   'src/coordination/agents/index.ts',

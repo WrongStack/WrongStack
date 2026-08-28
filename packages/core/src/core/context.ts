@@ -1015,3 +1015,26 @@ export function resolveEventSessionId(ctx: AgentContext): string {
   const session: SessionWriter | undefined = ctx.session;
   return requireSessionId(session?.id, 'agent event emission');
 }
+
+/**
+ * Session that OWNS this agent — the conversation a surface is showing.
+ *
+ * Different question from {@link resolveEventSessionId}, which answers "where
+ * do this run's journal events go". A subagent spawned with `sessionsRoot`
+ * configured (the real CLI always configures it) is handed its own journal, so
+ * both `ctx.session.id` and the run-pinned id name a private transcript that no
+ * tab is subscribed to. Anything routed BETWEEN agents of one conversation —
+ * mailbox identity and registration, `@session` recipient normalisation,
+ * `session_note` inboxes — has to key off the spawning conversation instead, or
+ * a worker's report reaches nobody.
+ *
+ * `meta.sessionId` is that spawn-time stamp, fixed for the worker's lifetime
+ * (deliberately not a live read of the host's session, which moves whenever the
+ * user switches tabs). Leaders carry no stamp and fall through to the event id,
+ * which for them is the same session and follows resume / session.new.
+ */
+export function resolveOwningSessionId(ctx: AgentContext): string {
+  const owning = ctx.meta?.['sessionId'];
+  if (typeof owning === 'string' && owning.length > 0) return owning;
+  return resolveEventSessionId(ctx);
+}

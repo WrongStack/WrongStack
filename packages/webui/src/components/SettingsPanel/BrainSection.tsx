@@ -3,6 +3,7 @@ import { type ReactElement, useCallback, useEffect, useMemo, useState } from 're
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
+import { useActiveSessionId } from '@/stores';
 import type {
   BrainConfigPatchWire,
   BrainConfigWire,
@@ -53,19 +54,31 @@ export function BrainSection(): ReactElement {
   const [persistError, setPersistError] = useState<string | null>(null);
   const [pickTarget, setPickTarget] = useState<PickTarget>(null);
 
-  // Fetch brain status + editable config on mount
+  // The Brain is project-wide; its DECISIONS are not. Each entry names the
+  // session whose tool call it was about, and the server filters the log to
+  // the session that asked. Asking untagged got this panel an unlabelled
+  // mixture of all four open tabs' decisions.
+  const sessionId = useActiveSessionId();
+
+  // Fetch brain status + editable config on mount, and again when the tab in
+  // front changes — the panel is parked, not unmounted, so without the re-ask
+  // it keeps showing the previous tab's decisions.
   useEffect(() => {
-    client.send({ type: 'brain.status' });
+    client.send({ type: 'brain.status', payload: client.withSession({}) });
     client.send({ type: 'brain.config.get' });
-  }, [client]);
+  }, [client, sessionId]);
 
   // Listen for brain status/config responses
   useEffect(() => {
     const offStatus = client.on('brain.status', (msg: WSServerMessage) => {
       const p = msg.payload as {
         maxAutoRisk: string;
+        sessionId?: string | undefined;
         log: Array<{ at: number; kind: string; question: string; outcome: string }>;
       };
+      // A stamped frame for another tab is not ours to render. Untagged stays
+      // accepted: single-session hosts answer without a stamp.
+      if (p.sessionId && sessionId && p.sessionId !== sessionId) return;
       const now = Date.now();
       setLog(
         p.log.slice(-10).map((entry) => {
@@ -88,13 +101,15 @@ export function BrainSection(): ReactElement {
       offStatus();
       offConfig();
     };
-  }, [client, t]);
+  }, [client, t, sessionId]);
 
   /** Every control funnels here: live-apply + persist on the server, reconcile on reply. */
   const sendPatch = useCallback(
     (patch: BrainConfigPatchWire) => {
       setBusy(true);
-      client.send({ type: 'brain.config.set', payload: { patch } });
+      // Stamped so the status frame the server sends back after applying the
+      // patch comes home to this tab rather than the runtime's.
+      client.send({ type: 'brain.config.set', payload: client.withSession({ patch }) });
     },
     [client],
   );

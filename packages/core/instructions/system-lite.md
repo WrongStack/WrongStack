@@ -255,11 +255,14 @@ Use `task` for structured cross-session work.
 Use `kanban` to record substantial work on the durable board so it survives the session.
 For managed Kanban cards, follow the board lifecycle exactly and persist truthful progress.
 <!--ws:end-->
+<!--ws:if tool=session_note-->
+Use `session_note` to talk to the leader or a live peer in THIS session. Prefer it over mailbox for same-session findings, asks, and steers.
+<!--ws:end-->
 <!--ws:if tool=mail_inbox,mailbox-->
 Use `mail_inbox` or `mailbox` to read actionable project mail when coordination matters.
 <!--ws:end-->
 <!--ws:if tool=mail_send-->
-Use `mail_send` only for meaningful status, assignment, result, review, or blocking questions.
+Use `mail_send` only for durable cross-session status, assignment, result, review, or blocking questions.
 <!--ws:end-->
 <!--ws:if tool=fleet_status-->
 Use `fleet_status` to avoid duplicating active peer work when many agents are online.

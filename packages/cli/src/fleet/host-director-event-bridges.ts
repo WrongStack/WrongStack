@@ -63,15 +63,22 @@ export function installDirectorTaskCompletedHandler(input: {
 export function registerDirectorBudgetAndContextBridges(input: {
   director: Director;
   events: EventBus;
-  sessionId: string;
+  /**
+   * The session that OWNS the subagent an event is about — not the host's own.
+   * With four tabs on one host these differ: the host session names the tab it
+   * booted with, so a worker delegated from a background tab announced its
+   * budget and context pressure into the boot tab's panels and vanished from
+   * the tab that was actually waiting on it.
+   */
+  sessionFor: (subagentId: string) => string;
 }): Array<() => void> {
-  const { director, events, sessionId } = input;
+  const { director, events, sessionFor } = input;
 
   return [
     director.fleet.filter('budget.threshold_reached', (e) => {
       const payload = e.payload as { kind: string; used: number; limit: number };
       events.emit('subagent.budget_warning', {
-        sessionId,
+        sessionId: sessionFor(e.subagentId),
         subagentId: e.subagentId,
         kind: payload.kind,
         used: payload.used,
@@ -81,7 +88,7 @@ export function registerDirectorBudgetAndContextBridges(input: {
     director.fleet.filter('budget.extended', (e) => {
       const payload = e.payload as { kind: string; newLimit: number; totalExtensions: number };
       events.emit('subagent.budget_extended', {
-        sessionId,
+        sessionId: sessionFor(e.subagentId),
         subagentId: e.subagentId,
         kind: payload.kind,
         newLimit: payload.newLimit,
@@ -91,7 +98,7 @@ export function registerDirectorBudgetAndContextBridges(input: {
     director.fleet.filter('ctx.pct', (e) => {
       const payload = e.payload as { load: number; tokens: number; maxContext: number };
       events.emit('subagent.ctx_pct', {
-        sessionId,
+        sessionId: sessionFor(e.subagentId),
         subagentId: e.subagentId,
         load: payload.load,
         tokens: payload.tokens,
@@ -101,9 +108,25 @@ export function registerDirectorBudgetAndContextBridges(input: {
   ];
 }
 
+/**
+ * `coordinator.stats` — fleet-wide on purpose.
+ *
+ * Unlike the lifecycle bridges beside it, this one is NOT split per
+ * conversation, and the stamp is the host's own session rather than any
+ * worker's owner. Everything it reports is a property of the fleet as a
+ * whole: the spawn and concurrency budget is one ceiling shared by every tab,
+ * and the status list is the coordinator's own roll-up. Splitting it would
+ * mean reporting a shared budget four times as if each tab had its own.
+ *
+ * The client stores it in `useCoordinatorMonitorStore`, which has no live UI
+ * consumer. If one is ever added it must filter `subagentStatuses` by owner
+ * (`coordinator.sessionOf`) rather than assume the frame describes the tab it
+ * arrived in.
+ */
 export function registerDirectorStatsBridge(input: {
   director: Director;
   events: EventBus;
+  /** Host session — the fleet's own address, not any worker's owner. */
   sessionId: string;
 }): () => void {
   const { director, events, sessionId } = input;
@@ -188,11 +211,12 @@ export function registerDirectorStatsBridge(input: {
 export function registerDirectorSubagentLifecycleBridges(input: {
   director: Director;
   events: EventBus;
-  sessionId: string;
+  /** Owning session of the subagent — see `registerDirectorBudgetAndContextBridges`. */
+  sessionFor: (subagentId: string) => string;
   agentMonitor?: AgentMonitorService | undefined;
   onSubagentRemoved(subagentId: string): void;
 }): Array<() => void> {
-  const { director, events, sessionId, agentMonitor, onSubagentRemoved } = input;
+  const { director, events, sessionFor, agentMonitor, onSubagentRemoved } = input;
 
   return [
     director.fleet.filter('subagent.spawned', (e) => {
@@ -205,7 +229,7 @@ export function registerDirectorSubagentLifecycleBridges(input: {
         model?: string | undefined;
       };
       events.emit('subagent.spawned', {
-        sessionId,
+        sessionId: sessionFor(payload.subagentId),
         subagentId: payload.subagentId,
         taskId: payload.taskId,
         name: payload.name,
@@ -223,10 +247,14 @@ export function registerDirectorSubagentLifecycleBridges(input: {
         reason?: string | undefined;
       };
       const subagentId = payload.subagentId ?? e.subagentId;
+      const removedSessionId = sessionFor(subagentId);
       onSubagentRemoved(subagentId);
       agentMonitor?.removeSubagent(subagentId);
+      // Resolve BEFORE the coordinator forgets the worker: `onSubagentRemoved`
+      // above is the host's own bookkeeping, but a later lookup would fall
+      // back to the host session and file the removal in the wrong roster.
       events.emit('subagent.removed', {
-        sessionId,
+        sessionId: removedSessionId,
         subagentId,
         reason: payload.reason ?? 'subagent lifecycle completed',
       });
@@ -237,11 +265,12 @@ export function registerDirectorSubagentLifecycleBridges(input: {
 export function registerCoordinatorLifecycleHandlers(input: {
   coordinator: DefaultMultiAgentCoordinator;
   events: EventBus;
-  sessionId: string;
+  /** Owning session of the subagent — see `registerDirectorBudgetAndContextBridges`. */
+  sessionFor: (subagentId: string) => string;
   isShadowTask(taskId: string): boolean;
   onSubagentStopped(subagentId: string): void;
 }): () => void {
-  const { coordinator, events, sessionId, isShadowTask, onSubagentStopped } = input;
+  const { coordinator, events, sessionFor, isShadowTask, onSubagentStopped } = input;
   const taskAssignedHandler = ({
     task,
     subagentId,
@@ -251,7 +280,7 @@ export function registerCoordinatorLifecycleHandlers(input: {
   }) => {
     if (isShadowTask(task.id)) return;
     events.emit('subagent.task_started', {
-      sessionId,
+      sessionId: sessionFor(subagentId),
       subagentId,
       taskId: task.id,
       description: task.description,

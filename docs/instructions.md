@@ -155,9 +155,11 @@ embedded in `DefaultSystemPromptBuilder`:
 - `tool.common.patterns`
 - `tool.delegation.compact`
 - `tool.delegation.full`
-- `tool.delegation.launch-preface` — appended to `SubagentConfig.systemPromptOverride` on the **first** `delegate` attempt only. Carries the blocking-vs-async escalation rule: if the worker judges the task will run for tens of minutes or hours, it should mail the leader (via whichever mail-style tool its role exposes — `mail_send` when available, otherwise `mailbox action=send`) so the leader can re-dispatch via `spawn_subagent` + `assign_task`. Handoffs receive the same guidance through `buildHandoffTask` instead, so the preface is not re-injected on continuations. The leader's brief (`TaskSpec.description`) is preserved verbatim — the preface never rewrites the runner's task input.
+- `tool.delegation.launch-preface` — appended to `SubagentConfig.systemPromptOverride` on the **first** `delegate` attempt only. Carries the blocking-vs-async escalation rule: if the worker judges the task will run for tens of minutes or hours, it should tell the leader via `session_note` (same session) or mailbox (cross-session) so the leader can re-dispatch via `spawn_subagent` + `assign_task`. Handoffs receive the same guidance through `buildHandoffTask` instead, so the preface is not re-injected on continuations. The leader's brief (`TaskSpec.description`) is preserved verbatim — the preface never rewrites the runner's task input.
 - `tool.mailbox.compact`
 - `tool.mailbox.full`
+- `tool.session.note.compact` — same-session in-process talk (`session_note`); prefer over mailbox when the other party is in this session
+- `tool.session.note.full`
 - `tool.commit.hygiene`
 - `tool.mcp.compact.use`
 - `tool.mcp.compact.control`

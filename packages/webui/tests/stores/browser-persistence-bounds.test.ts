@@ -22,9 +22,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// The chat surface's persistence lives with the lane registry: one persisted
-// entry per session tab, so a reload restores all four transcripts, not just
-// whichever one happened to be in front when the tab closed.
+// The chat surface's persistence lives with the lane registry: persisted lane
+// data can protect drafts/transcripts, but open tab ids and the foreground
+// pointer are deliberately not resurrected on a fresh WebUI load.
 const chatSource = readFileSync(
   resolve(import.meta.dirname, '../../src/stores/chat-lanes.ts'),
   'utf8',
@@ -98,12 +98,14 @@ describe('chat store bounds what reaches localStorage (WS-062)', () => {
     expect(partializeBody(chatSource)).toContain('dataUrl: undefined');
   });
 
-  it('still persists the unsubmitted queue and the active tab', () => {
+  it('still persists the unsubmitted queue, but not the active tab pointer', () => {
     // These are the reason persistence exists at all; a quota fix that drops
-    // them would be trading the user's typed input for storage headroom.
+    // queue would trade typed input for storage headroom. The foreground tab
+    // pointer must not persist, because it makes a new WebUI boot with a
+    // half-restored old tab.
     const body = partializeBody(chatSource);
     expect(body).toContain('queue:');
-    expect(body).toContain('activeSessionId');
+    expect(body).not.toContain('activeSessionId: s.activeSessionId');
   });
 
   it('persists every lane, not just the one in front', () => {

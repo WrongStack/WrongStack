@@ -27,7 +27,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { MAX_OPEN_TABS, useActiveSessionId, useHistoryStore, useSessionTabStore } from '@/stores';
-import { isTabBusy } from '@/stores/session-tab-store';
+import { describeSessionActivity } from '@/stores/session-tab-store';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import { confirmModal } from './ConfirmModal';
 import { slotAccent, useTabSummaries } from './SessionTabBar/summaries';
@@ -52,7 +52,6 @@ export function SessionTabBar() {
   const currentSessionId = useActiveSessionId();
   const historyEntries = useHistoryStore((s) => s.entries);
   const openTabIds = useSessionTabStore((s) => s.openTabIds);
-  const setOpenTabIds = useSessionTabStore((s) => s.setOpenTabIds);
   const openTab = useSessionTabStore((s) => s.openTab);
   const closeTab = useSessionTabStore((s) => s.closeTab);
   const [mapOpen, setMapOpen] = useState(false);
@@ -67,16 +66,6 @@ export function SessionTabBar() {
 
   const tabs = useTabSummaries(historyTitles);
 
-  // Purge slots whose session the server no longer knows about.
-  useEffect(() => {
-    if (historyEntries.length === 0) return;
-    const valid = new Set(historyEntries.map((e) => e.id));
-    if (currentSessionId) valid.add(currentSessionId);
-    const kept = openTabIds.filter((id) => valid.has(id));
-    if (currentSessionId && !kept.includes(currentSessionId)) kept.push(currentSessionId);
-    if (kept.length !== openTabIds.length) setOpenTabIds(kept.slice(-MAX_OPEN_TABS));
-  }, [historyEntries, currentSessionId, openTabIds, setOpenTabIds]);
-
   useEffect(() => {
     if (historyEntries.length === 0) listSessions?.();
   }, [historyEntries.length, listSessions]);
@@ -88,18 +77,41 @@ export function SessionTabBar() {
 
   const handleClose = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isTabBusy(sessionId)) {
+    // Gather the complete inventory BEFORE asking: the warning must name
+    // everything that will be interrupted — the leader run, every running
+    // subagent with its task, queued messages — not just "something runs".
+    const report = describeSessionActivity(sessionId);
+
+    // A tab with nothing on record — no chat history, no agents, no queue, no
+    // live run — has nothing to lose. Close it on the spot, without asking.
+    if (report.isEmpty) {
+      closeTab(sessionId);
+      return;
+    }
+
+    // Everything else (agent history on record, work still in flight) gets to
+    // face the user before it dies: bring its tab to the front FIRST —
+    // confirming a destructive close while staring at another session is how
+    // the wrong conversation gets interrupted — then ask.
+    const tab = tabs.find((tb) => tb.sessionId === sessionId);
+    if (!tab?.isActive) openTab(sessionId, { resumeSession });
+
+    if (report.isBusy) {
       const ok = await confirmModal({
-        title: t('activity:sessions.closeRunningTabTitle', {
-          defaultValue: 'Close running session?',
+        title: t('activity:sessions.closeOngoingTabTitle', {
+          defaultValue: 'There is an ongoing operation in this session',
         }),
-        message: t('activity:sessions.closeRunningTabMessage', {
-          defaultValue:
-            'This session has an active run or subagent in progress. Closing the tab will abort the process. Do you want to continue?',
+        message: t('activity:sessions.closeOngoingTabQuestion', {
+          defaultValue: 'Are you sure you want to close this tab?',
         }),
-        confirmLabel: t('common:action.delete', { defaultValue: 'Stop and Close' }),
+        details: report.lines,
+        confirmLabel: t('activity:sessions.interruptAndClose', {
+          defaultValue: 'Interrupt and Close',
+        }),
         cancelLabel: t('common:action.cancel', { defaultValue: 'Cancel' }),
         danger: true,
+        // Enter/Escape must land on the safe side of a destructive close.
+        defaultAction: 'cancel',
       });
       if (!ok) return;
       try {
@@ -109,6 +121,25 @@ export function SessionTabBar() {
       } catch {
         // best-effort
       }
+    } else {
+      // Idle, but the close still discards this session's history on record.
+      const ok = await confirmModal({
+        title: t('activity:sessions.closeHistoryTabTitle', {
+          defaultValue: 'Close this tab?',
+        }),
+        message: t('activity:sessions.closeHistoryTabMessage', {
+          defaultValue:
+            'This tab contains agent history. Are you sure you want to close it?',
+        }),
+        details: report.lines,
+        confirmLabel: t('activity:sessions.closeTabAction', {
+          defaultValue: 'Close Tab',
+        }),
+        cancelLabel: t('common:action.cancel', { defaultValue: 'Cancel' }),
+        danger: true,
+        defaultAction: 'cancel',
+      });
+      if (!ok) return;
     }
     closeTab(sessionId);
   };
@@ -119,17 +150,9 @@ export function SessionTabBar() {
       useSystemPromptStore.getState().openPicker({ startsSession: true });
       return;
     }
-    // Full: recycle an idle slot rather than growing past four.
-    const recyclable = openTabIds.find((id) => id !== currentSessionId && !isTabBusy(id));
-    if (recyclable) {
-      setOpenTabIds(openTabIds.filter((id) => id !== recyclable));
-      useSystemPromptStore.getState().openPicker({ startsSession: true });
-      return;
-    }
     toast.info(
       t('activity:sessions.allTabsRunning', {
-        defaultValue:
-          'All 4 open tabs have active runs in progress. Please stop or close a tab before opening a new one.',
+        defaultValue: 'All 4 tab slots are full. Close a tab before opening a new session.',
       }),
     );
   };
@@ -200,24 +223,26 @@ export function SessionTabBar() {
                 </span>
               )}
 
-              {tab.agentsTotal > 0 && (
-                <span
-                  className={cn(
-                    'inline-flex shrink-0 items-center gap-0.5 rounded px-1 text-[9px] font-semibold',
-                    tab.agentsRunning > 0
-                      ? 'bg-success/15 text-success'
-                      : 'bg-muted/60 font-mono text-muted-foreground',
-                  )}
-                  title={
-                    tab.agentsRunning > 0
-                      ? `${tab.agentsRunning} running subagent(s) in this tab`
-                      : `${tab.agentsTotal} finished subagent(s) in this tab`
-                  }
-                >
-                  <Bot className="h-2.5 w-2.5" />
-                  {tab.agentsRunning > 0 ? tab.agentsRunning : tab.agentsTotal}
-                </span>
-              )}
+              <span
+                className={cn(
+                  'inline-flex shrink-0 items-center gap-0.5 rounded px-1 text-[9px] font-semibold',
+                  tab.agentsRunning > 0
+                    ? 'bg-success/15 text-success'
+                    : tab.agentsTotal > 0
+                      ? 'bg-muted/60 font-mono text-muted-foreground'
+                      : 'bg-muted/30 font-mono text-muted-foreground/65',
+                )}
+                title={
+                  tab.agentsRunning > 0
+                    ? `${tab.agentsRunning} running agent(s) in this tab, ${tab.agentsTotal} total`
+                    : `${tab.agentsTotal} agent(s) in this tab`
+                }
+              >
+                <Bot className="h-2.5 w-2.5" />
+                {tab.agentsRunning > 0
+                  ? `${tab.agentsRunning}/${tab.agentsTotal}`
+                  : tab.agentsTotal}
+              </span>
 
               {tabs.length > 1 && (
                 <button

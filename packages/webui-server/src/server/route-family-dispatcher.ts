@@ -2,6 +2,10 @@ import type { WebSocket } from 'ws';
 import { type AgentRosterRouteHandlers, handleAgentRosterRoute } from './agent-roster-routes.js';
 import { type AutonomyRouteHandlers, handleAutonomyRoute } from './autonomy-routes.js';
 import { type BrainRouteHandlers, handleBrainRoute } from './brain-routes.js';
+import {
+  type ChimeraRouteHandlers,
+  handleChimeraRoute,
+} from './chimera-routes.js';
 import { type ChronicleRouteContext, handleChronicleRoute } from './chronicle-routes.js';
 import {
   type ClientTransportRouteHandlers,
@@ -47,6 +51,7 @@ export interface RouteFamilyTable {
   mode: ModeRouteHandlers;
   prefs: PrefsRouteHandlers;
   brain: BrainRouteHandlers;
+  chimera: ChimeraRouteHandlers | undefined;
   worklist: WorklistRouteHandlers;
   process: ProcessRouteHandlers;
   host: HostRouteHandlers;
@@ -94,6 +99,7 @@ export function createRouteFamilyDispatcher(
     if (await handleModeRoute(ws, message, routes.mode)) return;
     if (await handlePrefsRoute(ws, message, routes.prefs)) return;
     if (await handleBrainRoute(ws, message, routes.brain)) return;
+    if (routes.chimera && (await handleChimeraRoute(ws, message, routes.chimera))) return;
     if (await handleWorklistRoute(ws, message, routes.worklist)) return;
     if (await handleProcessRoute(ws, message, routes.process)) return;
     if (await handleHostRoute(ws, message, routes.host)) return;

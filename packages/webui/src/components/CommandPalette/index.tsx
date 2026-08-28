@@ -40,6 +40,7 @@ import {
   useConfigStore,
   useGoalRunStore,
   useHistoryStore,
+  useSessionTabStore,
   useUIStore,
 } from '@/stores';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
@@ -399,7 +400,10 @@ export function CommandPalette() {
         hint: `${entry.provider}/${entry.model}`,
         icon: ArchiveRestore,
         keywords: ['resume', entry.title, entry.id, entry.provider, entry.model],
-        run: () => ws.resumeSession(entry.id),
+        run: () =>
+          useSessionTabStore.getState().openTab(entry.id, {
+            resumeSession: (id) => ws.resumeSession(id),
+          }),
       });
     }
     return base;

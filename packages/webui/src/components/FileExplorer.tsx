@@ -1,4 +1,3 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownWideNarrow,
   CornerLeftUp,
@@ -8,16 +7,21 @@ import {
   Minimize2,
   Search,
 } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { VList, type VListHandle } from 'virtua';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
-import { useFileStore } from '@/stores/file-store';
-import type { TreeNode } from '@/stores/file-store';
-import { useFileReferenceStore, useGitChangesStore, useSessionStore } from '@/stores';
-import { getWSClient } from '@/lib/ws-client';
+import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
-import { copyToClipboard as copyTextToClipboard } from './MessageBubble/utils.js';
-import { toast } from './Toaster';
+import { getWSClient } from '@/lib/ws-client';
+import {
+  useActiveSessionId,
+  useFileReferenceStore,
+  useGitChangesStore,
+  useSessionStore,
+} from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
+import type { TreeNode } from '@/stores/file-store';
+import { useFileStore } from '@/stores/file-store';
 import {
   BreadcrumbContextMenu,
   CreatePromptModal,
@@ -30,6 +34,7 @@ import {
   collectDirPaths,
   flattenTree,
   scoreFile,
+  treeRowId,
 } from './FileExplorer/tree-helpers.js';
 import type {
   CreatePromptState,
@@ -37,9 +42,35 @@ import type {
   FlatRow,
   RenamePromptState,
 } from './FileExplorer/types.js';
+import { copyToClipboard as copyTextToClipboard } from './MessageBubble/utils.js';
+import { toast } from './Toaster';
+
+type FileExplorerChrome = {
+  contextMenu: { x: number; y: number; crumb: CrumbContext } | null;
+  nodeMenu: { x: number; y: number; node: TreeNode } | null;
+  createPrompt: CreatePromptState | null;
+  createName: string;
+  renamePrompt: RenamePromptState | null;
+  renameValue: string;
+  selectedPath: string | null;
+  expandedDirs: string[];
+  sortBySize: boolean;
+  searchQuery: string;
+  focusedIdx: number;
+};
+
+const FILE_EXPLORER_NO_SESSION = '__no_session__';
+const fileExplorerChromeBySession = new Map<string, FileExplorerChrome>();
+const disposedFileExplorerSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  fileExplorerChromeBySession.delete(sessionId);
+  disposedFileExplorerSessions.add(sessionId);
+});
 
 export function FileExplorer() {
   const { t } = useAppTranslation();
+  const sessionId = useActiveSessionId();
   const tree = useFileStore((s) => s.tree);
   const treeLoading = useFileStore((s) => s.treeLoading);
   const error = useFileStore((s) => s.error);
@@ -49,6 +80,7 @@ export function FileExplorer() {
   const projectName = useSessionStore((s) => s.projectName);
   const gitChanges = useGitChangesStore((s) => s.files);
   const gitRepoPrefix = useGitChangesStore((s) => s.repoPrefix);
+  const gitDirs = useGitChangesStore((s) => s.dirs);
 
   const gitStatusMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -59,9 +91,14 @@ export function FileExplorer() {
     return m;
   }, [gitChanges]);
 
+  const dirStatusMap = useMemo(() => new Map(Object.entries(gitDirs)), [gitDirs]);
+
   const getGitStatus = useCallback(
     (nodePath: string, isDir: boolean): string | undefined => {
-      const root = (cwd || projectName || '').replace(/\\/g, '/').replace(/^\//, '').replace(/\/$/, '');
+      const root = (cwd || projectName || '')
+        .replace(/\\/g, '/')
+        .replace(/^\//, '')
+        .replace(/\/$/, '');
       let norm = nodePath.replace(/\\/g, '/').replace(/^\//, '');
       if (root && norm.startsWith(root + '/')) {
         norm = norm.slice(root.length + 1);
@@ -75,20 +112,14 @@ export function FileExplorer() {
       const direct = gitStatusMap.get(key);
       if (direct) return direct;
       if (isDir) {
-        const prefix = key
-          ? (key.endsWith('/') ? key : key + '/')
-          : (gitRepoPrefix ? (gitRepoPrefix.endsWith('/') ? gitRepoPrefix : gitRepoPrefix + '/') : null);
-        if (prefix) {
-          for (const [p] of gitStatusMap.entries()) {
-            if (p.startsWith(prefix)) {
-              return 'M';
-            }
-          }
-        }
+        // Directory badges come from the server-computed aggregate in
+        // git.changes (highest-ranked child status) — no client-side
+        // prefix scanning over the file map.
+        return dirStatusMap.get(key);
       }
       return undefined;
     },
-    [gitStatusMap, gitRepoPrefix, cwd, projectName],
+    [gitStatusMap, dirStatusMap, gitRepoPrefix, cwd, projectName],
   );
 
   const pathSep = cwd?.includes('\\') ? '\\' : '/';
@@ -168,23 +199,6 @@ export function FileExplorer() {
     setNodeMenu(null);
   }, []);
 
-  useEffect(() => {
-    if (!contextMenu && !nodeMenu) return;
-    const close = () => {
-      setContextMenu(null);
-      setNodeMenu(null);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-    };
-    window.addEventListener('click', close);
-    window.addEventListener('keydown', onKey);
-    return () => {
-      window.removeEventListener('click', close);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [contextMenu, nodeMenu]);
-
   const handleBreadcrumbContext = useCallback((e: React.MouseEvent, crumb: CrumbContext) => {
     e.preventDefault();
     e.stopPropagation();
@@ -230,7 +244,7 @@ export function FileExplorer() {
       : createName.trim();
     getWSClient().send({
       type: 'files.create',
-      payload: { filePath, type: createPrompt.type },
+      payload: getWSClient().withSession({ filePath, type: createPrompt.type }),
     });
     setCreatePrompt(null);
     setCreateName('');
@@ -240,13 +254,17 @@ export function FileExplorer() {
     (node: TreeNode) => {
       setNodeMenu(null);
       const isDir = node.type === 'directory';
-      if (isDir) {
-        const ok = window.confirm(t('activity:fileExplorer.confirmDeleteDir', { name: node.name }));
-        if (!ok) return;
-      }
+      // Both kinds are destructive on disk — confirm files exactly like
+      // directories (and like ChangesPanel's discard).
+      const ok = window.confirm(
+        isDir
+          ? t('activity:fileExplorer.confirmDeleteDir', { name: node.name })
+          : t('activity:fileExplorer.confirmDeleteFile', { name: node.name }),
+      );
+      if (!ok) return;
       getWSClient().send({
         type: 'files.delete',
-        payload: { filePath: node.path, recursive: isDir },
+        payload: getWSClient().withSession({ filePath: node.path, recursive: isDir }),
       });
     },
     [t],
@@ -272,7 +290,7 @@ export function FileExplorer() {
     }
     getWSClient().send({
       type: 'files.rename',
-      payload: { oldPath: renamePrompt.oldPath, newPath },
+      payload: getWSClient().withSession({ oldPath: renamePrompt.oldPath, newPath }),
     });
     setRenamePrompt(null);
     setRenameValue('');
@@ -322,6 +340,42 @@ export function FileExplorer() {
 
   const [sortBySize, setSortBySize] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [focusedIdx, setFocusedIdx] = useState(-1);
+  const chromeSessionRef = useRef<string>(sessionId ?? FILE_EXPLORER_NO_SESSION);
+
+  useLayoutEffect(() => {
+    if (!disposedFileExplorerSessions.has(chromeSessionRef.current)) {
+      fileExplorerChromeBySession.set(chromeSessionRef.current, {
+        contextMenu,
+        nodeMenu,
+        createPrompt,
+        createName,
+        renamePrompt,
+        renameValue,
+        selectedPath,
+        expandedDirs: [...expandedDirs],
+        sortBySize,
+        searchQuery,
+        focusedIdx,
+      });
+    }
+
+    const next = sessionId ?? FILE_EXPLORER_NO_SESSION;
+    const parked = fileExplorerChromeBySession.get(next);
+    disposedFileExplorerSessions.delete(next);
+    setContextMenu(parked?.contextMenu ?? null);
+    setNodeMenu(parked?.nodeMenu ?? null);
+    setCreatePrompt(parked?.createPrompt ?? null);
+    setCreateName(parked?.createName ?? '');
+    setRenamePrompt(parked?.renamePrompt ?? null);
+    setRenameValue(parked?.renameValue ?? '');
+    setSelectedPath(parked?.selectedPath ?? null);
+    setExpandedDirs(new Set(parked?.expandedDirs ?? []));
+    setSortBySize(parked?.sortBySize ?? false);
+    setSearchQuery(parked?.searchQuery ?? '');
+    setFocusedIdx(parked?.focusedIdx ?? -1);
+    chromeSessionRef.current = next;
+  }, [sessionId]);
 
   const sortedTree = useMemo(() => {
     if (!sortBySize) return tree;
@@ -390,10 +444,9 @@ export function FileExplorer() {
   }, [activeFilePath]);
 
   const listRef = useRef<VListHandle>(null);
-  const [focusedIdx, setFocusedIdx] = useState(-1);
   const focusedPath =
     focusedIdx >= 0 && focusedIdx < rows.length && !rows[focusedIdx]?.emptyPlaceholder
-      ? rows[focusedIdx]?.node.path ?? null
+      ? (rows[focusedIdx]?.node.path ?? null)
       : null;
 
   const handleTreeKeyDown = useCallback(
@@ -456,6 +509,21 @@ export function FileExplorer() {
           if (row.node.type === 'directory') toggleDir(row.node.path);
           else handleSelect(row.node.path);
           break;
+        case 'F10':
+        case 'ContextMenu': {
+          // Shift+F10 / Menu key — open the row context menu anchored at the
+          // focused row, giving keyboard users the same actions as right-click.
+          if (e.key === 'F10' && !e.shiftKey) break;
+          if (!row || row.emptyPlaceholder) break;
+          e.preventDefault();
+          const rect = document.getElementById(treeRowId(row.node.path))?.getBoundingClientRect();
+          setNodeMenu({
+            x: rect?.left ?? window.innerWidth / 2,
+            y: rect ? rect.bottom + 2 : window.innerHeight / 2,
+            node: row.node,
+          });
+          break;
+        }
         case 'Home':
           e.preventDefault();
           setFocus(nextNav(-1, 1));
@@ -596,13 +664,16 @@ export function FileExplorer() {
                   : normSegments.slice(0, i + 1);
               const absPath =
                 pathSep === '\\' ? absSegments.join('\\') : '/' + absSegments.join('/');
-              const relSegments = rootIdx >= 0 ? normSegments.slice(rootIdx + 1, rootIdx + i + 1) : [];
+              const relSegments =
+                rootIdx >= 0 ? normSegments.slice(rootIdx + 1, rootIdx + i + 1) : [];
               const relPath = relSegments.join(pathSep) || '.';
 
               return (
                 <span key={crumb.path} className="flex items-center gap-0.5 shrink-0">
                   {i > 0 && (
-                    <span className="text-[9px] text-muted-foreground/65 select-none">{pathSep}</span>
+                    <span className="text-[9px] text-muted-foreground/65 select-none">
+                      {pathSep}
+                    </span>
                   )}
                   <button
                     type="button"
@@ -675,8 +746,10 @@ export function FileExplorer() {
         )}
         {tree.length > 0 ? (
           <div
+            id="ws-file-tree"
             role="tree"
             aria-label={t('activity:fileExplorer.folders', { count: dirCount })}
+            aria-activedescendant={focusedPath ? treeRowId(focusedPath) : undefined}
             tabIndex={0}
             onKeyDown={handleTreeKeyDown}
             onFocus={handleTreeFocus}
@@ -716,6 +789,7 @@ export function FileExplorer() {
       {contextMenu && (
         <BreadcrumbContextMenu
           contextMenu={contextMenu}
+          onClose={() => setContextMenu(null)}
           copyToClipboard={copyToClipboard}
           handleStartCreate={handleStartCreate}
           handleShellOpen={handleShellOpen}
@@ -725,6 +799,7 @@ export function FileExplorer() {
       {nodeMenu && (
         <NodeContextMenu
           nodeMenu={nodeMenu}
+          onClose={() => setNodeMenu(null)}
           handleMentionInChat={handleMentionInChat}
           copyNodePath={(path) => {
             void copyTextToClipboard(path).then((ok) => {

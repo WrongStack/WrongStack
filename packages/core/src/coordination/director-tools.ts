@@ -21,6 +21,7 @@ import {
 } from './director-kanban-queue-helpers.js';
 import { dispatchAgent } from './dispatcher.js';
 import { kanbanDispatch } from './kanban-dispatch-port.js';
+import { callerSessionId } from './origin-session.js';
 
 export {
   makeAskResultTool,
@@ -154,7 +155,7 @@ export function makeSpawnTool(
     mutating: false,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
     inputSchema,
-    async execute(input: unknown) {
+    async execute(input: unknown, ctx?: unknown) {
       const i = (input ?? {}) as Record<string, unknown>;
       const role = typeof i.role === 'string' ? i.role : undefined;
       const description = typeof i.description === 'string' ? i.description : undefined;
@@ -214,7 +215,12 @@ export function makeSpawnTool(
         cfg.worktree = i.worktree;
       }
       try {
-        const subagentId = await director.spawn(cfg);
+        // The worker belongs to the conversation that asked for it, which the
+        // coordinator cannot read for itself once several tabs share one
+        // process — its own session names the boot tab. See
+        // `SubagentConfig.originSessionId`.
+        const origin = callerSessionId(ctx);
+        const subagentId = await director.spawn(origin ? { ...cfg, originSessionId: origin } : cfg);
         return {
           subagentId,
           provider: cfg.provider,

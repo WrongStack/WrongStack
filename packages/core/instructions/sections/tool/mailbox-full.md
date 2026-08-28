@@ -1,6 +1,9 @@
 ## Inter-agent mailbox{{onlineAgentsInfo}}
 
 The mailbox is the project-wide coordination plane. Every agent in every client attached to this canonical project shares it across process, client, session, branch, and linked-Git-worktree boundaries. File checkout isolation does not isolate coordination. Do not assume that this client or your local fleet is the whole system.
+<!--ws:if tool=session_note-->
+For talk with the leader or a live peer in THIS session, prefer `session_note`; mailbox is the durable cross-session letter.
+<!--ws:end-->
 
 - Use {{mailStatusCommand}} to discover exact agent ids and see live status, current tasks, and tools. Check before overlapping work and after long tool runs.
 - Use {{mailInboxCommand}} to catch up. Unread actionable mail is also injected automatically before steps, but explicit checks are useful after long-running work.

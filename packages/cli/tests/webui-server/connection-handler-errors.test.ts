@@ -40,7 +40,6 @@ function createDeps(handleMessage: ConnectionHandlerDeps['handleMessage']): Conn
     send: vi.fn(),
     sessionPayload: (payload) => ({ ...payload, sessionId: 'session-1' }),
     handleMessage,
-    abortControllers: new Map(),
     pendingConfirms: new Map(),
     buildSessionStartPayload: async () => ({}),
     needsSetup: false,
@@ -89,5 +88,40 @@ describe('CLI WebUI connection-handler errors', () => {
       event: 'webui_server.message_handler_failed',
       message: 'handler exploded',
     });
+  });
+});
+
+/**
+ * A closed SOCKET is not a stopped run.
+ *
+ * The handler used to delete the acting tab's entry from the run-lock registry
+ * on `close` — without aborting anything. The run kept going while
+ * `isRunActive` answered `false`, so `session.delete` could unlink the journal
+ * a live run was still appending to, and the next `user_message` claimed a
+ * second lock for the same session and hit "Agent.run() is already in
+ * progress". Background runs are meant to outlive their tab; the run's own
+ * `finally` is what releases the lock.
+ *
+ * Enforced structurally rather than by assertion: the handler is not given the
+ * registry at all, so it cannot touch it. The type-level check below stops the
+ * dependency from being quietly reintroduced.
+ */
+describe('CLI WebUI connection-handler — socket close and run locks', () => {
+  it('has no access to the run-lock registry', () => {
+    type HasAbortRegistry = 'abortControllers' extends keyof ConnectionHandlerDeps ? true : false;
+    const hasAbortRegistry: HasAbortRegistry = false;
+    expect(hasAbortRegistry).toBe(false);
+  });
+
+  it('drops the client on close without failing', async () => {
+    const deps = createDeps(async () => undefined);
+    const handler = createConnectionHandler(deps);
+    const socket = new TestSocket();
+    handler(socket as never as WebSocket, request);
+    await Promise.resolve();
+    expect(deps.clients.size).toBe(1);
+
+    await socket.listeners.get('close')?.();
+    expect(deps.clients.size).toBe(0);
   });
 });

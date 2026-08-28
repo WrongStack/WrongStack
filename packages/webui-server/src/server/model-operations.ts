@@ -110,8 +110,22 @@ export function createModelOperations(context: ModelOperationsContext) {
     const { provider, model, requestId, sessionId } = parsed.value;
     const queued = switchQueue.then(async () => {
       // Report the switch against the TAB that asked, so a "switched from X"
-      // toast in tab 2 never quotes tab 3's model.
-      const targetCtx = context.getSessionContext?.(sessionId) ?? context.context;
+      // toast in tab 2 never quotes tab 3's model. A named session the host
+      // cannot serve must REFUSE — `?? context.context` would silently apply
+      // the switch to the boot tab's context (cross-tab model bleed).
+      const named = sessionId ? context.getSessionContext?.(sessionId) : context.context;
+      if (sessionId && !named) {
+        context.send(ws, {
+          type: 'error',
+          payload: {
+            phase: 'model.switch',
+            message: `Session ${sessionId} is not live in this runtime. Reopen or resume the tab, then retry.`,
+            sessionId,
+          },
+        });
+        return;
+      }
+      const targetCtx = named ?? context.context;
       const previousProvider = targetCtx.provider?.id ?? context.getLiveProviderId();
       const previousModel = targetCtx.model;
       const runActive = context.isRunActive?.(sessionId) ?? false;
@@ -191,12 +205,33 @@ export function createModelOperations(context: ModelOperationsContext) {
     }
 
     const config = context.getConfig();
-    const liveProviderId = context.getLiveProviderId();
-    const liveModel = context.context.model;
+    // Refine against the ASKING tab's conversation, on the ASKING tab's model.
+    // `context.context` is the shared root — with four tabs live it belongs to
+    // whichever session the runtime last switched to, so refining a prompt in
+    // tab 3 ran on tab 1's model and fed tab 1's recent turns to the refiner.
+    // The history half of that is a cross-session content leak, not just a
+    // wrong label.
+    const named = payload.sessionId
+      ? context.getSessionContext?.(payload.sessionId)
+      : context.context;
+    if (payload.sessionId && !named) {
+      context.send(ws, {
+        type: 'error',
+        payload: {
+          phase: 'model.refine',
+          message: `Session ${payload.sessionId} is not live in this runtime. Reopen or resume the tab, then retry.`,
+          sessionId: payload.sessionId,
+        },
+      });
+      return;
+    }
+    const targetCtx = named ?? context.context;
+    const liveProviderId = targetCtx.provider?.id ?? context.getLiveProviderId();
+    const liveModel = targetCtx.model;
     const fallbackRef = config
       ? resolveEnhanceFallbackRef({ ...config, provider: liveProviderId, model: liveModel })
       : undefined;
-    let provider = context.context.provider;
+    let provider = targetCtx.provider;
     let providerId = liveProviderId;
     let model = liveModel;
 
@@ -242,11 +277,11 @@ export function createModelOperations(context: ModelOperationsContext) {
     const timeoutMs =
       typeof payload.timeoutMs === 'number' && payload.timeoutMs > 0 ? payload.timeoutMs : 90_000;
     try {
-      const history = recentTextTurns(context.context.messages);
+      const history = recentTextTurns(targetCtx.messages);
       const contextSections = await buildRefinerContextSections({
         text,
         memoryStore: context.memoryStore,
-        context: context.context,
+        context: targetCtx,
       });
       const resolved = context.modelsRegistry
         ? await resolveProviderModelMetadata(
@@ -305,6 +340,10 @@ export function createModelOperations(context: ModelOperationsContext) {
       context.send(ws, {
         type: 'model.refine_result',
         payload: {
+          // Without the stamp this frame is untagged, and the client's
+          // origin-scoped handler drops it — an empty refinement left the
+          // panel spinning until its own 105s timeout.
+          ...stamp,
           refined: text,
           english: text,
           error: 'Refinement returned no result',

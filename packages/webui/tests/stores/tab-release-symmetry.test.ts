@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { disposeStreakState } from '../../src/stores/auto-submit-streak';
-import { DEFAULT_LANE_ID, ensureLane, hasLane, useChatLanes } from '../../src/stores/chat-lanes';
+import {
+  chatLane,
+  DEFAULT_LANE_ID,
+  ensureLane,
+  hasLane,
+  useChatLanes,
+} from '../../src/stores/chat-lanes';
+import { useFleetStore } from '../../src/stores/fleet-store';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 import {
   ensureSessionLane,
@@ -8,14 +15,9 @@ import {
   SESSION_DEFAULT_LANE_ID,
   useSessionLanes,
 } from '../../src/stores/session-lanes';
-import { useSessionTabStore } from '../../src/stores/session-tab-store';
-import type { ChatMessage } from '../../src/stores/types.js';
+import { describeSessionActivity, useSessionTabStore } from '../../src/stores/session-tab-store';
+import type { SubagentView } from '../../src/stores/types';
 import { useUIStore } from '../../src/stores/ui-store';
-
-/** A lane with content in it, so the tab is not disposable. */
-function busyMessage(id: string): ChatMessage {
-  return { id, role: 'user', content: 'x', timestamp: 0 };
-}
 
 // The streak/loop-guard state is module-private (a Map keyed by session), so
 // the observable fact is that teardown asks for it to be dropped.
@@ -26,10 +28,10 @@ vi.mock('../../src/stores/auto-submit-streak', () => ({ disposeStreakState: vi.f
  *
  * `closeTab` is the door the user opens. `setOpenTabIds` is the one the app
  * opens for them — the history purge dropping a session the server no longer
- * lists, a slot being recycled for a new session, a re-announce arriving for a
- * session with no slot. The second door used to free only the two lanes, so a
- * tab retired that way left its preference overrides and its auto-submit
- * streak behind, and the NEXT session handed that id silently inherited them.
+ * lists or a re-announce arriving for a session with no slot. The second door
+ * used to free only the two lanes, so a tab retired that way left its
+ * preference overrides and its auto-submit streak behind, and the NEXT session
+ * handed that id silently inherited them.
  */
 
 function openTabs(ids: string[]): void {
@@ -40,10 +42,31 @@ function openTabs(ids: string[]): void {
   useSessionTabStore.setState({ openTabIds: ids, lastSeenCounts: {}, attention: {} });
 }
 
+function agent(id: string, sessionId: string, status: SubagentView['status']): SubagentView {
+  return {
+    id,
+    sessionId,
+    name: id,
+    status,
+    description: `Task for ${id}`,
+    iteration: 0,
+    toolCalls: 0,
+    costUsd: 0,
+    ctxPct: 0,
+    ctxTokens: 0,
+    maxContext: 0,
+    extensions: 0,
+    startedAt: Date.now(),
+    toolLog: [],
+    sparklineBins: [],
+  };
+}
+
 beforeEach(() => {
   useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
   useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+  useFleetStore.setState({ agents: new Map(), leaderId: undefined } as never);
   useLocalPrefs.setState({ bySession: {}, activeSessionId: null });
   useUIStore.setState({
     subagentChatFocusId: null,
@@ -54,6 +77,36 @@ beforeEach(() => {
     cronJobsOpen: false,
   });
   vi.mocked(disposeStreakState).mockClear();
+});
+
+describe('running-tab warning inventory is session-scoped and complete', () => {
+  it('names only the selected tab leader, running subagents, finished agents and queue', () => {
+    openTabs(['tab-a', 'tab-b']);
+    chatLane('tab-a').setLoading(true);
+    chatLane('tab-a').enqueue('queued in a');
+    chatLane('tab-b').setLoading(true);
+    chatLane('tab-b').enqueue('queued in b');
+    useFleetStore.setState({
+      agents: new Map<string, SubagentView>([
+        ['a-run', agent('a-run', 'tab-a', 'running')],
+        ['a-done', agent('a-done', 'tab-a', 'completed')],
+        ['b-run', agent('b-run', 'tab-b', 'running')],
+      ]),
+    } as never);
+
+    const report = describeSessionActivity('tab-a');
+
+    expect(report.isBusy).toBe(true);
+    expect(report.leaderRunning).toBe(true);
+    expect(report.runningAgents.map((a) => a.id)).toEqual(['a-run']);
+    expect(report.finishedAgents).toBe(1);
+    expect(report.queuedMessages).toBe(1);
+    expect(report.lines.join('\n')).toContain('Leader run in progress');
+    expect(report.lines.join('\n')).toContain('a-run');
+    expect(report.lines.join('\n')).toContain('1 queued message');
+    expect(report.lines.join('\n')).not.toContain('b-run');
+    expect(report.lines.join('\n')).not.toContain('queued in b');
+  });
 });
 
 describe('retiring a tab frees the same state through either door', () => {
@@ -92,32 +145,30 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
   });
 
-  it('recycling a full strip slot (openTab replaced_empty_tab) frees the same state', () => {
-    // Four busy tabs: none is disposable when they hold lanes with content,
-    // so make three busy (messages) and one idle-empty so it is recyclable.
-    openTabs(['tab-a', 'tab-b', 'tab-c', 'tab-recycled']);
-    useChatLanes.setState((s) => ({
-      lanes: {
-        ...s.lanes,
-        'tab-a': { ...s.lanes['tab-a']!, messages: [busyMessage('a')] },
-        'tab-b': { ...s.lanes['tab-b']!, messages: [busyMessage('b')] },
-        'tab-c': { ...s.lanes['tab-c']!, messages: [busyMessage('c')] },
-      },
-    }));
-    useLocalPrefs.getState().bindSession('tab-recycled');
+  it('a full strip resume refuses without retiring any non-empty tab owner', () => {
+    openTabs(['tab-a', 'tab-b', 'tab-c', 'tab-used']);
+    for (const id of ['tab-a', 'tab-b', 'tab-c']) {
+      chatLane(id).addMessage({ role: 'user', content: `keep ${id}` });
+    }
+    chatLane('tab-used').addMessage({ role: 'user', content: 'keep this tab' });
+    useLocalPrefs.getState().bindSession('tab-used');
     useLocalPrefs.getState().set({ yolo: true });
+    const resumeSession = vi.fn();
 
-    const outcome = useSessionTabStore.getState().openTab('tab-new');
+    const outcome = useSessionTabStore.getState().openTab('tab-new', { resumeSession });
 
-    expect(outcome).toEqual({ success: true, reason: 'replaced_empty_tab' });
-    expect(useSessionTabStore.getState().openTabIds).toContain('tab-new');
-    expect(useSessionTabStore.getState().openTabIds).not.toContain('tab-recycled');
-    // The recycled slot's OWNERS must not survive into the new occupant.
-    expect(hasLane('tab-recycled')).toBe(false);
-    expect(hasSessionLane('tab-recycled')).toBe(false);
-    expect(useLocalPrefs.getState().bySession['tab-recycled']).toBeUndefined();
-    expect(disposeStreakState).toHaveBeenCalledWith('tab-recycled');
-    expect(useUIStore.getState().subagentChatFocusBySession['tab-recycled']).toBeUndefined();
+    expect(outcome).toEqual({ success: false, reason: 'tabs_full' });
+    expect(useSessionTabStore.getState().openTabIds).toEqual([
+      'tab-a',
+      'tab-b',
+      'tab-c',
+      'tab-used',
+    ]);
+    expect(resumeSession).not.toHaveBeenCalled();
+    expect(hasLane('tab-used')).toBe(true);
+    expect(hasSessionLane('tab-used')).toBe(true);
+    expect(useLocalPrefs.getState().bySession['tab-used']).toMatchObject({ yolo: true });
+    expect(disposeStreakState).not.toHaveBeenCalledWith('tab-used');
   });
 });
 

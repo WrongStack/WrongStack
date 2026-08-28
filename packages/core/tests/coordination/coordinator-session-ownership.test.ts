@@ -187,3 +187,51 @@ describe('stopSession', () => {
     expect(stopped).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * The host's own session is the WRONG answer when several conversations share
+ * one coordinator.
+ *
+ * A CLI host pins `deps.session` to the conversation it booted with, so the
+ * live getter above answers "tab 1" no matter which tab called `delegate`.
+ * The spawning tools therefore name the caller explicitly, from its run-pinned
+ * session — `SubagentConfig.originSessionId`.
+ */
+describe('originSessionId names the conversation that asked', () => {
+  it('overrides the host reading, so a background tab owns its own worker', async () => {
+    const { coord, events } = coordinatorOnMovingHost();
+
+    await coord.spawn({ id: 'w1', name: 'Worker 1', originSessionId: 'sess_tab2' });
+
+    expect(coord.sessionOf('w1')).toBe('sess_tab2');
+    expect(coord.subagentIdsForSession('sess_tab2')).toEqual(['w1']);
+    expect(coord.subagentIdsForSession('sess_a')).toEqual([]);
+    expect(payloadsOf(events, 'subagent.assigned')[0]?.sessionId).toBe('sess_tab2');
+  });
+
+  it('lets the owning tab stop its worker while the boot tab keeps its own', async () => {
+    const { coord } = coordinatorOnMovingHost();
+    await coord.spawn({ id: 'boot1', name: 'Boot worker' });
+    await coord.spawn({ id: 'tab2', name: 'Tab 2 worker', originSessionId: 'sess_tab2' });
+    const stopped: string[] = [];
+    coord.on('subagent.stopped', ({ subagentId }: { subagentId: string }) =>
+      stopped.push(subagentId),
+    );
+
+    await coord.stopSession('sess_tab2');
+
+    expect(stopped).toEqual(['tab2']);
+  });
+
+  it('does not excuse a host from having a session — fleet-wide stats still need one', async () => {
+    // Deliberate: `originSessionId` answers "who owns this worker", not "what
+    // session is this coordinator on". `coordinator.stats` is fleet-wide and
+    // still has to be addressed, so a host with no session at all stays a
+    // configuration error rather than becoming silently half-supported.
+    const coord = new DefaultMultiAgentCoordinator(makeConfig());
+
+    await expect(
+      coord.spawn({ id: 'w1', name: 'Worker 1', originSessionId: 'sess_tab2' }),
+    ).rejects.toMatchObject({ code: 'SESSION_ID_REQUIRED' });
+  });
+});

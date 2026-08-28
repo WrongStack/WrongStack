@@ -24,6 +24,7 @@
 import { createProxyInstantApply } from '@wrongstack/core/wiring/proxy-rewrite';
 import type { Provider, ProviderConfig } from '@wrongstack/core/types';
 import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import { fanOutProviderRebuild } from './provider-fanout.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
 
@@ -83,7 +84,18 @@ export function setupWebuiProxyInstantApply(
               model,
             })
           : built;
+        const previousProvider = deps.context.provider;
         deps.context.provider = newProv;
+        // The routing verdict is a project-wide fact. Swapping only the root
+        // context left every tab opened before the toggle talking to the
+        // upstream directly while the leader went through the proxy.
+        fanOutProviderRebuild({
+          sessionAgentIds: deps.sessionAgentIds,
+          peekAgent: deps.peekAgent,
+          previous: previousProvider,
+          next: newProv,
+          applied: deps.context,
+        });
         // Best-effort capability refresh after the swap — same pattern as
         // the credential hot-reload watcher.
         void updateAutoCompactionMaxContext(newProv, providerId).catch(() => undefined);

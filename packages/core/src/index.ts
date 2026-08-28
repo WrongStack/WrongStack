@@ -377,6 +377,14 @@ export {
   setBtwNote,
 } from './core/btw.js';
 export {
+  buildSessionNoteBlock,
+  consumeSessionNotes,
+  enqueueSessionNote,
+  pendingSessionNoteCount,
+  type SessionNote,
+  type SessionNoteKind,
+} from './core/session-notes.js';
+export {
   Context,
   type ContextInit,
   type ProviderMemoryEvidence,
@@ -703,6 +711,7 @@ export {
 } from './infrastructure/provider-cache-ledger.js';
 export * from './kernel/index.js';
 export { attachMailboxChecker } from './mailbox-attach.js';
+export { attachSessionNotes } from './session-note-attach.js';
 // ---- Notifications (one-way channel-agnostic delivery) ----
 export {
   type NotificationChannel,

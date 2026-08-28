@@ -3,9 +3,11 @@ import { toast } from '@/components/Toaster';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { normalizedEqual } from '@/lib/core-browser-shim';
 import { getWSClient } from '@/lib/ws-client';
-import { chatFor, isActiveSessionMessage, messageSessionId } from '@/lib/ws-client-utils';
-import { chatLane } from '@/stores/chat-lanes';
+import { chatFor, messageSessionId } from '@/lib/ws-client-utils';
 import {
+  type BrainDecisionData,
+  type CouncilDecisionData,
+  useChimeraReportsStore,
   useCouncilLogStore,
   useCronStore,
   useFileStore,
@@ -17,13 +19,29 @@ import {
   useUIStore,
   useVizStore,
 } from '@/stores';
-import { activeChatLane, DEFAULT_LANE_ID, resolvePendingConfirm } from '@/stores/chat-lanes';
+import {
+  activeChatLane,
+  chatLane,
+  DEFAULT_LANE_ID,
+  resolvePendingConfirm,
+} from '@/stores/chat-lanes';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { useMemoryLifecycleStore } from '@/stores/memory-lifecycle-store';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 import type { WSServerMessage } from '@/types';
 import type { WSSystemPromptInfo } from '@/types/server-message';
+
+/**
+ * The Brain council log of the conversation a frame names.
+ *
+ * Council panels are per conversation, so the write has to be addressed: the
+ * store's foreground `getState()` would put a background tab's panel on the
+ * screen the user is looking at.
+ */
+function councilLogFor(msg: WSServerMessage) {
+  return useCouncilLogStore.for(messageSessionId(msg)).getState();
+}
 
 function deriveGoalRunStatus(
   phases: PhaseItem[] | undefined,
@@ -189,9 +207,10 @@ export function handleSystemPromptInfo(msg: WSServerMessage) {
 }
 
 export function handleBrainStatus(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
-  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
-  // untagged. A tagged one still lands in its own lane.
+  // `brain.*` is fail-OPEN: the arbiter is global and legitimately emits
+  // untagged, which belongs to whoever is in front. A TAGGED one lands in its
+  // own lane — including a background tab's, which an `isActiveSessionMessage`
+  // gate here used to throw away after the router had already addressed it.
   const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     maxAutoRisk: string;
@@ -224,13 +243,14 @@ export function handleBrainStatus(msg: WSServerMessage) {
 }
 
 export function handleBrainAnswer(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
-  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
-  // untagged. A tagged one still lands in its own lane.
+  // `brain.*` is fail-OPEN: the arbiter is global and legitimately emits
+  // untagged, which belongs to whoever is in front. A TAGGED one lands in its
+  // own lane — including a background tab's, which an `isActiveSessionMessage`
+  // gate here used to throw away after the router had already addressed it.
   const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     question: string;
-    decision: { type: string; text?: string; rationale?: string; reason?: string };
+    decision: { type: string; text?: string; rationale?: string; reason?: string; optionId?: string };
   };
   let content: string;
   if (p.decision.type === 'answer') {
@@ -244,7 +264,17 @@ export function handleBrainAnswer(msg: WSServerMessage) {
   } else {
     content = '🧠 The Brain escalated this question back to you — it needs human judgement.';
   }
-  chat.addMessage({ role: 'assistant', content });
+  const brainDecision: BrainDecisionData = {
+    kind: p.decision.type === 'answer' ? 'answered' : p.decision.type === 'deny' ? 'denied' : 'ask_human',
+    question: p.question,
+    decisionType: p.decision.type,
+    text: p.decision.text,
+    rationale: p.decision.rationale,
+    reason: p.decision.reason,
+    optionId: p.decision.optionId,
+    at: Date.now(),
+  };
+  chat.addMessage({ role: 'assistant', content, brainDecision });
 }
 
 /**
@@ -261,9 +291,10 @@ export function handleBrainAnswer(msg: WSServerMessage) {
  * store's ring buffer, which is the intended log retention.
  */
 export function handleBrainEvent(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
-  // `brain.*` stays fail-OPEN: the arbiter is global and legitimately emits
-  // untagged. A tagged one still lands in its own lane.
+  // `brain.*` is fail-OPEN: the arbiter is global and legitimately emits
+  // untagged, which belongs to whoever is in front. A TAGGED one lands in its
+  // own lane — including a background tab's, which an `isActiveSessionMessage`
+  // gate here used to throw away after the router had already addressed it.
   const chat = chatFor(msg) ?? activeChatLane();
   const p = msg.payload as {
     event: string;
@@ -276,6 +307,7 @@ export function handleBrainEvent(msg: WSServerMessage) {
     model?: string;
     veto?: boolean;
     resolution?: string;
+    reason?: string;
     configuredSeatCount?: number;
     validVoteCount?: number;
     distinctTargetCount?: number;
@@ -301,10 +333,10 @@ export function handleBrainEvent(msg: WSServerMessage) {
   // is spelled out rather than inlined.
   const questionRequestId = p.requestId ?? p.request?.id;
   if (questionRequestId && p.request?.question) {
-    useCouncilLogStore.getState().noteQuestion(questionRequestId, p.request.question);
+    councilLogFor(msg).noteQuestion(questionRequestId, p.request.question);
   }
   if (p.event === 'brain.council_vote') {
-    useCouncilLogStore.getState().recordVote(p as Record<string, unknown>);
+    councilLogFor(msg).recordVote(p as Record<string, unknown>);
     const requestId = p.requestId ?? 'unknown';
     useVizStore.getState().pushEvent({
       // seatId is always emitted by the server; the timestamp-suffixed
@@ -323,15 +355,13 @@ export function handleBrainEvent(msg: WSServerMessage) {
     return;
   }
   if (p.event === 'brain.council_resolved') {
-    useCouncilLogStore.getState().recordResolution(p as Record<string, unknown>);
+    councilLogFor(msg).recordResolution(p as Record<string, unknown>);
     const requestId = p.requestId ?? 'unknown';
     // Read the panel's seats back from the log store — recordResolution above
     // upserts the panel, so it is always present. No parallel buffer: eviction
     // is per-panel, so a live panel's votes can never be dropped by other
     // requests' traffic.
-    const panel = useCouncilLogStore
-      .getState()
-      .panels.find((entry) => entry.requestId === requestId);
+    const panel = councilLogFor(msg).panels.find((entry) => entry.requestId === requestId);
     const seats = panel?.seats ?? [];
     const seatLines = seats.map(
       (seat) =>
@@ -349,11 +379,31 @@ export function handleBrainEvent(msg: WSServerMessage) {
     ]
       .filter(Boolean)
       .join(' · ');
+
+    const councilDecision: CouncilDecisionData = {
+      requestId,
+      status: p.status ?? panel?.status ?? 'decided',
+      resolution: p.resolution ?? panel?.resolution ?? 'decided',
+      optionId: p.optionId ?? panel?.optionId,
+      question: panel?.question ?? p.request?.question,
+      reason: p.reason ?? panel?.reason,
+      configuredSeatCount: p.configuredSeatCount ?? panel?.configuredSeatCount ?? seats.length,
+      validVoteCount: p.validVoteCount ?? panel?.validVoteCount ?? seats.length,
+      distinctTargetCount:
+        p.distinctTargetCount ?? panel?.distinctTargetCount ?? new Set(seats.map((s) => s.model || s.persona)).size,
+      judgeUsed: Boolean(p.judgeUsed ?? panel?.judgeUsed),
+      totalTokens: p.usage?.totalTokens ?? panel?.totalTokens,
+      durationMs: p.usage?.durationMs ?? panel?.durationMs,
+      warnings: p.warnings ?? panel?.warnings,
+      seats: seats.length > 0 ? seats : (panel?.seats ?? []),
+    };
+
     chat.addMessage({
       role: 'assistant',
       content: [headline, ...seatLines, ...(p.warnings ?? []).map((w) => `> ⚠ ${w}`)]
         .filter(Boolean)
         .join('\n'),
+      councilDecision,
     });
     for (const warning of p.warnings ?? []) toast.warn(warning);
     return;
@@ -363,20 +413,94 @@ export function handleBrainEvent(msg: WSServerMessage) {
     const headline = p.intervened
       ? '🧠 **Brain intervention** — corrective guidance was sent to the agent.'
       : '🧠 **Brain check** — a distress signal was reviewed; no action needed.';
+    const brainDecision: BrainDecisionData = {
+      id: p.requestId ?? p.request?.id,
+      kind: p.intervened ? 'intervention' : 'check',
+      intervened: Boolean(p.intervened),
+      question: p.request?.question,
+      source: p.request?.source,
+      risk: p.request?.risk,
+      decisionType: p.decision?.type ?? (p.intervened ? 'steer' : 'observe'),
+      optionId: p.decision?.optionId,
+      text: p.decision?.text,
+      rationale: guidance,
+      reason: p.decision?.reason,
+      at: Date.now(),
+    };
     chat.addMessage({
       role: 'assistant',
       content: [headline, p.request?.question ?? '', guidance ? `_${guidance}_` : '']
         .filter(Boolean)
         .join('\n\n'),
+      brainDecision,
     });
     if (p.intervened) toast.info('Brain intervened: agent steered');
   } else if (p.event === 'brain.decision_denied') {
-    toast.warn(`Brain denied: ${p.decision?.reason ?? p.request?.question ?? 'request'}`);
+    const reason = p.decision?.reason ?? p.request?.question ?? 'request';
+    const brainDecision: BrainDecisionData = {
+      id: p.requestId ?? p.request?.id,
+      kind: 'denied',
+      question: p.request?.question,
+      source: p.request?.source,
+      risk: p.request?.risk,
+      decisionType: 'deny',
+      reason,
+      rationale: p.decision?.rationale,
+      at: Date.now(),
+    };
+    chat.addMessage({
+      role: 'assistant',
+      content: `🧠 Denied: ${reason}`,
+      brainDecision,
+    });
+    toast.warn(`Brain denied: ${reason}`);
+  } else if (p.event === 'brain.decision_answered') {
+    const text = p.decision?.text ?? p.decision?.optionId ?? '';
+    const rationale = p.decision?.rationale ?? '';
+    const brainDecision: BrainDecisionData = {
+      id: p.requestId ?? p.request?.id,
+      kind: 'answered',
+      question: p.request?.question,
+      source: p.request?.source,
+      risk: p.request?.risk,
+      decisionType: p.decision?.type ?? 'answer',
+      optionId: p.decision?.optionId,
+      text,
+      rationale,
+      reason: p.decision?.reason,
+      at: Date.now(),
+    };
+    chat.addMessage({
+      role: 'assistant',
+      content: `🧠 ${text}${rationale ? `\n\n_${rationale}_` : ''}`,
+      brainDecision,
+    });
+  } else if (p.event === 'brain.decision_ask_human') {
+    const brainDecision: BrainDecisionData = {
+      id: p.requestId ?? p.request?.id,
+      kind: 'ask_human',
+      question: p.request?.question,
+      source: p.request?.source,
+      risk: p.request?.risk,
+      decisionType: 'ask_human',
+      rationale: p.decision?.rationale,
+      reason: p.decision?.reason,
+      at: Date.now(),
+    };
+    chat.addMessage({
+      role: 'assistant',
+      content: '🧠 The Brain escalated this question back to you — it needs human judgement.',
+      brainDecision,
+    });
   }
 }
 
 export function handleMemoryEvent(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  // Addressed, not gated. These traces describe ONE conversation's prompt and
+  // each tab keeps its own; dropping a background tab's meant opening that tab
+  // showed an empty injector panel for injections that had really happened.
+  const memoryTrace = useMemoryInjectorTraceStore.for(messageSessionId(msg));
+  const lifecycle = useMemoryLifecycleStore.for(messageSessionId(msg));
   const payload = msg.payload as Record<string, unknown> & { event: string };
   useVizStore.getState().pushEvent({
     id: `memory_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -390,20 +514,20 @@ export function handleMemoryEvent(msg: WSServerMessage) {
     flowGroup: 'memory',
   });
   if (payload.event === 'memory.injector_run') {
-    useMemoryInjectorTraceStore
+    memoryTrace
       .getState()
       .pushTrace(
         payload as unknown as import('@/stores/memory-injector-store').MemoryInjectorTrace,
       );
   }
   if (payload.event === 'memory.context_snapshot') {
-    useMemoryInjectorTraceStore
+    memoryTrace
       .getState()
       .applyContextSnapshot(
         payload as unknown as import('@/stores/memory-injector-store').MemoryContextSnapshot,
       );
   }
-  useMemoryLifecycleStore.getState().pushEvent(payload);
+  lifecycle.getState().pushEvent(payload);
   if (payload.event === 'memory.staled')
     toast.warn(`Memory became stale: ${String(payload['memoryId'] ?? '')}`);
   else if (payload.event === 'memory.contradicted')
@@ -474,16 +598,21 @@ export function handleEternalIteration(msg: WSServerMessage) {
 
 export function handleWorkingDirChanged(msg: WSServerMessage) {
   const p = msg.payload as { cwd: string; projectRoot: string };
+  const sessionId = messageSessionId(msg);
   useSessionStore.getState().setEnv({
     cwd: p.cwd,
     projectRoot: p.projectRoot,
     projectName: p.projectRoot.split(/[/\\]/).pop() || p.projectRoot,
   });
-  useFileStore.getState().setTreeLoading(true);
+  useFileStore.getState().setTreeLoading(true, sessionId);
   // Rehydrated tabs are path-only stubs; re-fetch their content from disk,
   // or drop them entirely when the server moved to a different project.
-  reconcileFileTabsAfterEnvChange(p.projectRoot);
-  getWSClient().send({ type: 'files.tree', payload: { path: p.cwd } });
+  reconcileFileTabsAfterEnvChange(p.projectRoot, sessionId);
+  const ws = getWSClient();
+  ws.send({
+    type: 'files.tree',
+    payload: sessionId ? { path: p.cwd, sessionId } : { path: p.cwd },
+  });
 }
 
 export function handleModelRefineResult(msg: WSServerMessage) {
@@ -647,10 +776,13 @@ export function handleGitInfo(msg: WSServerMessage) {
 export function handleGitChanges(msg: WSServerMessage) {
   const p = msg.payload as {
     files: Array<{ path: string; status: string; added: number; deleted: number; staged: boolean }>;
+    dirs?: Record<string, string> | undefined;
     repoPrefix?: string | undefined;
     error?: string | undefined;
   };
-  useGitChangesStore.getState().setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '');
+  useGitChangesStore
+    .getState()
+    .setFiles(p.files ?? [], p.error ?? null, p.repoPrefix ?? '', p.dirs ?? {});
 }
 
 export function handleGitDiff(msg: WSServerMessage) {
@@ -719,11 +851,121 @@ export function handleCronJobFired(msg: WSServerMessage) {
 }
 
 export function handleChimeraReportAvailable(msg: WSServerMessage) {
-  const p = msg.payload as { message?: string | undefined };
+  const p = msg.payload as {
+    reportId?: string | undefined;
+    message?: string | undefined;
+    findingCount?: number | undefined;
+    fileCount?: number | undefined;
+    hasActionableFindings?: boolean | undefined;
+  };
   toast.info(
     p.message ?? '🦂 Chimera report ready. No follow-up started; open the mailbox to inspect it.',
     8_000,
   );
+
+  // Registry first — it survives lane churn and dedupes against hydration.
+  const sessionId = messageSessionId(msg);
+  if (!p.reportId || !sessionId) return;
+  const recorded = useChimeraReportsStore.getState().recordReport({
+    reportId: p.reportId,
+    sessionId,
+    message: p.message ?? '',
+    findingCount: p.findingCount ?? 0,
+    fileCount: p.fileCount ?? 0,
+    hasActionableFindings: p.hasActionableFindings === true,
+    receivedAt: Date.now(),
+    actionedAt: null,
+    source: 'event',
+  });
+  // Only findings that ask the leader for action get a transcript card; the
+  // toast above already covered the information-only reports.
+  if (!recorded || p.hasActionableFindings !== true) return;
+
+  // Surface IN the session's own transcript, not just as a transient toast:
+  // the card lands in that session's lane (foreground or background) and
+  // carries the one-click "send the leader to work" affordance rendered by
+  // ChimeraReportCard. Positive routing via chatFor — never the foreground.
+  chatFor(msg)?.addMessage({
+    role: 'system',
+    content: p.message ?? `🦂 Chimera report ${p.reportId} is ready — findings await review.`,
+    chimeraReport: { reportId: p.reportId, actionable: true, actionedAt: null },
+  });
+}
+
+/**
+ * Server answered `chimera.reports.list` — merge the session's persisted
+ * report list and re-materialize transcript cards for actionable reports
+ * this lane has not seen (tab reopened, page refreshed, or the original
+ * event landed while no lane slot was free). Live events wrote their own
+ * cards; hydration only backfills, keyed on reportId.
+ */
+export function handleChimeraReports(msg: WSServerMessage) {
+  const sessionId = messageSessionId(msg);
+  if (!sessionId) return;
+  const p = msg.payload as {
+    reports?:
+      | Array<{
+          reportId: string;
+          reviewedAt: string;
+          lifecycleStatus: string;
+          totalFindings: number;
+          hasActionableFindings: boolean;
+        }>
+      | undefined;
+  };
+  const reports = p.reports ?? [];
+  useChimeraReportsStore.getState().hydrateReports(
+    sessionId,
+    reports
+      .filter(
+        (r) =>
+          r.reportId &&
+          r.totalFindings > 0 &&
+          r.lifecycleStatus !== 'completed' &&
+          r.lifecycleStatus !== 'skipped',
+      )
+      .map((r) => {
+        const reviewedAt = Date.parse(r.reviewedAt);
+        return {
+          reportId: r.reportId,
+          sessionId,
+          message: `🦂 Chimera report ready — ${r.totalFindings} finding(s) recorded for this session.`,
+          findingCount: r.totalFindings,
+          fileCount: 0,
+          hasActionableFindings: r.hasActionableFindings === true,
+          receivedAt: Number.isFinite(reviewedAt) ? reviewedAt : Date.now(),
+          actionedAt: null,
+          source: 'hydrate' as const,
+        };
+      }),
+  );
+
+  const lane = chatFor(msg);
+  if (!lane) return;
+  const notices = useChimeraReportsStore.getState().bySession[sessionId] ?? [];
+  const known = new Set(
+    lane.messages.flatMap((m) => (m.chimeraReport ? [m.chimeraReport.reportId] : [])),
+  );
+  for (const notice of notices) {
+    // No source filter here: event-sourced notices whose card never landed
+    // (their lane was not held at event time) must re-materialize on the
+    // next hydration exactly like hydrate-sourced ones. The `known` set
+    // above already dedupes every reportId that DID land a card.
+    if (known.has(notice.reportId)) continue;
+    // Live semantics: only actionable reports earn a transcript card;
+    // information-only notices stay recorded-but-cardless.
+    if (!notice.hasActionableFindings) continue;
+    known.add(notice.reportId);
+    lane.addMessage({
+      role: 'system',
+      content: notice.message,
+      chimeraReport: {
+        reportId: notice.reportId,
+        actionable: notice.hasActionableFindings,
+        actionedAt: notice.actionedAt,
+      },
+    });
+  }
 }
 
 export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
@@ -759,4 +1001,5 @@ export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => vo
   'cron.snapshot': handleCronSnapshot,
   'cron.job_fired': handleCronJobFired,
   'chimera.report_available': handleChimeraReportAvailable,
+  'chimera.reports': handleChimeraReports,
 };

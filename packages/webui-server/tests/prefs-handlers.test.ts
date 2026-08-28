@@ -113,11 +113,25 @@ describe('canonical preference handlers', () => {
     handleAutonomySwitch(state.context, ws, 'suggest');
 
     expect(state.meta['autonomy']).toBe('suggest');
-    expect(state.setAutonomy).toHaveBeenCalledWith('suggest');
+    // Addressed, like `setYolo`: the runtime knob behind this seam is
+    // process-wide, so it must know which tab asked. Unstamped here because
+    // this call names no session.
+    expect(state.setAutonomy).toHaveBeenCalledWith('suggest', undefined);
     expect(state.persist).toHaveBeenCalledWith({ autonomy: 'suggest' });
     expect(state.broadcasts).toContainEqual({
       type: 'prefs.updated',
       payload: { autonomy: 'suggest' },
     });
+  });
+
+  it('tells the runtime WHICH tab switched autonomy', () => {
+    // Without the id the CLI host cannot tell a background tab's change from
+    // the leader's, and it moves the process-wide mode ref for both — which
+    // put the eternal-autonomy block into every conversation's system prompt.
+    const state = makeContext();
+
+    handleAutonomySwitch(state.context, ws, 'eternal', 'sess_2');
+
+    expect(state.setAutonomy).toHaveBeenCalledWith('eternal', 'sess_2');
   });
 });

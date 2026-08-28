@@ -1,15 +1,23 @@
 import { useEffect } from 'react';
 import { showPanel } from '@/components/activity-bar/nav';
 import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '@/stores';
-import { activeLaneId, DEFAULT_LANE_ID, disposeLane, laneIds } from '@/stores/chat-lanes';
+import { activeLaneId, DEFAULT_LANE_ID, laneIds } from '@/stores/chat-lanes';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import { disposeSessionLane } from '@/stores/session-lanes';
-import { useSessionTabStore } from '@/stores/session-tab-store';
+import {
+  activeSessionLaneId,
+  sessionLaneIds,
+  SESSION_DEFAULT_LANE_ID,
+} from '@/stores/session-lanes';
+import {
+  releaseTab,
+  restoreOpenTabsOnBoot,
+  useSessionTabStore,
+} from '@/stores/session-tab-store';
 
 /**
  * F5 / tab-close resilience.
  *
- * Two concerns, both mounted once on app boot:
+ * Three concerns, all mounted once on app boot:
  *
  * 1. **Persist flush** — zustand's `persist` middleware writes asynchronously,
  *    so in-flight mutations can be lost on page teardown (F5, tab close,
@@ -19,7 +27,14 @@ import { useSessionTabStore } from '@/stores/session-tab-store';
  * 2. **Lane/slot reconciliation** — the open-tab list and the lanes persist
  *    under separate keys, so a refresh can restore one without the other.
  *
- * 3. **View fallback** — if the persisted `currentView` was an exotic overlay
+ * 3. **Restore open tabs** — the inverse of reconciliation: the persisted
+ *    slot list is promoted into active, foregrounded tabs so a browser
+ *    refresh leaves the user's tabs where they were, not as a half-empty
+ *    welcome screen. Per-tab preferences, subagent focus, history rebind
+ *    and the WS open-set declaration all happen here, before the first
+ *    React commit so server broadcasts resume on every lane immediately.
+ *
+ * 4. **View fallback** — if the persisted `currentView` was an exotic overlay
  *    (debug, analytics, design-gallery, setup), auto-navigate to `chat` so
  *    the user lands on a usable surface instead of a stale debug screen.
  */
@@ -76,12 +91,50 @@ export function useF5Resilience(): void {
       // The pre-session lane is not an orphan either: it is where boot-time
       // typing lands until the first session adopts it.
       if (id === DEFAULT_LANE_ID) continue;
-      disposeLane(id);
-      disposeSessionLane(id);
+      // releaseTab, not the bare lane disposals: the per-session preference
+      // overrides and subagent chrome persist under their OWN keys, so a lane
+      // dropped here must not leave them behind for a reused id to inherit.
+      releaseTab(id);
+    }
+    // SESSION-lane orphans. Both concerns above walk the CHAT registry, but
+    // the two lane registries persist under separate keys too — a partial
+    // write can restore a session lane whose chat lane is gone. That orphan
+    // survives the loop above, yet it still counts against the four-lane
+    // ceiling inside `sessionFor`, so a fifth session's tokens and cost are
+    // silently dropped. Keep a session lane only while a tab, the session
+    // pointer, the pre-session default, or a live chat lane still names it.
+    const chatIds = new Set(laneIds());
+    const sessionPointer = activeSessionLaneId();
+    for (const id of sessionLaneIds()) {
+      if (slots.has(id) || id === sessionPointer) continue;
+      if (id === SESSION_DEFAULT_LANE_ID || chatIds.has(id)) continue;
+      releaseTab(id);
     }
   }, []);
 
-  // ── 3. View fallback ─────────────────────────────────────────────────────
+  // ── 3. Restore open tabs ─────────────────────────────────────────────────
+  /**
+   * Promote the persisted slot list into active, foregrounded tabs.
+   *
+   * After the orphan-reconciliation above has cleared lanes that have no
+   * slot, every remaining id in `useSessionTabStore.openTabIds` is a tab
+   * the user had open before the refresh. Each gets its lane pair ensured
+   * and its per-session preferences, subagent focus and history rebind
+   * bound; the most-recently-visited one (or the first stored id on a tie)
+   * is activated exactly as if the user had clicked it, and the open set
+   * is declared to the WS client so broadcasts resume on every lane
+   * before the first React commit. Runs once, at boot.
+   *
+   * MUST run AFTER the orphan-reconciliation effect above so the lanes we
+   * promote are the ones that survived, and BEFORE `useSessionSubscription`
+   * fires so the WS client's dedupe makes the later re-declaration a
+   * no-op rather than racing against ours.
+   */
+  useEffect(() => {
+    restoreOpenTabsOnBoot();
+  }, []);
+
+  // ── 4. View fallback ─────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (

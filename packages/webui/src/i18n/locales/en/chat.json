@@ -70,6 +70,26 @@
     "jkNavigateTitle": "j/k to navigate",
     "noProvider": "no-provider",
     "noModel": "no-model",
-    "memoryContextTitle": "Memory context — injected SAGE memories"
+    "memoryContextTitle": "Memory context — injected SAGE memories",
+    "toolStatsTitle": "Tool call stats"
+  },
+  "toolStats": {
+    "title": "Tool call statistics",
+    "liveScope": "This page · live + closed sessions",
+    "calls": "Calls",
+    "ok": "Success",
+    "failed": "Failed",
+    "successRate": "Success rate",
+    "inFlight": "In flight",
+    "totalDuration": "Tool time",
+    "liveSessions": "Open tabs",
+    "noLiveData": "No tool calls recorded yet on this page. Run a prompt — stats appear here live, per tab.",
+    "pastSessions": "Earlier sessions",
+    "running": "{{count}} running",
+    "agentToAgent": "Agent-to-agent",
+    "delegations": "{{count}} delegated run(s)",
+    "delegationFailed": "{{count}} failed",
+    "delegateToolCalls": "{{count}} tools inside",
+    "leaderLine": "Leader: {{ok}}✓ {{failed}}✗"
   }
 }

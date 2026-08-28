@@ -595,19 +595,30 @@ describe('runChatSlashCommand — /brain', () => {
   it('requests status with no sub-command', () => {
     const opts = makeOptions({ raw: '/brain' });
     expect(runChatSlashCommand(opts)).toBe(true);
-    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.status' });
+    // Stamped: the Brain's decision log is filtered to the asking session,
+    // and its reply is addressed back to that tab's lane.
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'brain.status',
+      payload: { sessionId: 'sess-fg' },
+    });
   });
 
   it('requests status for an unrecognised sub-command', () => {
     const opts = makeOptions({ raw: '/brain wibble' });
     expect(runChatSlashCommand(opts)).toBe(true);
-    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.status' });
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'brain.status',
+      payload: { sessionId: 'sess-fg' },
+    });
   });
 
   it.each(['off', 'low', 'medium', 'high', 'all'])('sets the risk ceiling to %s', (level) => {
     const opts = makeOptions({ raw: `/brain risk ${level}` });
     expect(runChatSlashCommand(opts)).toBe(true);
-    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'brain.risk', payload: { level } });
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'brain.risk',
+      payload: { level, sessionId: 'sess-fg' },
+    });
     expect(opts.addMessage).toHaveBeenCalledWith(
       expect.objectContaining({ content: expect.stringContaining(`**${level}**`) }),
     );
@@ -618,7 +629,7 @@ describe('runChatSlashCommand — /brain', () => {
     runChatSlashCommand(opts);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'brain.risk',
-      payload: { level: 'high' },
+      payload: { level: 'high', sessionId: 'sess-fg' },
     });
   });
 
@@ -645,7 +656,7 @@ describe('runChatSlashCommand — /brain', () => {
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.client?.send).toHaveBeenCalledWith({
       type: 'brain.ask',
-      payload: { question: 'should I ship this?' },
+      payload: { question: 'should I ship this?', sessionId: 'sess-fg' },
     });
   });
 

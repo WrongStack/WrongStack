@@ -14,8 +14,8 @@ import { describe, expect, it, vi } from 'vitest';
  *      `memoryStore` is truthy. If memoryStore is null
  *      (the runtime null-case when the store is not yet
  *      bound), the memory tools are skipped silently.
- *   4. The coordination tools (mailbox / mail_send /
- *      mail_inbox / fleet_status) are always registered, regardless of
+ *   4. The coordination tools (mailbox / mail_send / mail_inbox /
+ *      fleet_status / session_note) are always registered, regardless of
  *      the memory feature flag, with the events bus passed
  *      through.
  *
@@ -35,11 +35,16 @@ function makeFakeToolRegistry() {
       registerDefault: vi.fn((_tool: unknown) => {
         calls.push({ kind: 'default', toolName: '<default>', isDefault: true });
       }),
-      register: vi.fn((_tool: unknown) => {
-        // Each tool factory is a function; we capture the
-        // shape by storing the function reference. The
-        // helper calls register(tool) with a tool instance.
-        calls.push({ kind: 'single', toolName: '<tool>', isDefault: false });
+      register: vi.fn((tool: unknown) => {
+        // Record the tool's own name. Counting anonymous registrations was
+        // the weaker assertion: adding `session_note` broke three tests with
+        // "expected 5 to be 4", which says nothing about what changed.
+        const name = (tool as { name?: unknown } | null)?.name;
+        calls.push({
+          kind: 'single',
+          toolName: typeof name === 'string' ? name : '<tool>',
+          isDefault: false,
+        });
       }),
       setProviderToolNames: vi.fn(),
       // The canonical registration path also configures the registry it is
@@ -52,6 +57,26 @@ function makeFakeToolRegistry() {
     },
     calls,
   };
+}
+
+/**
+ * The coordination tools every host registers one by one, in registration
+ * order. `session_note` is the same-session sibling of mailbox: in-process,
+ * not persisted, and always available so an agent can reach its leader
+ * without the durable cross-session channel.
+ */
+const COORDINATION_TOOLS = [
+  'mailbox',
+  'mail_send',
+  'mail_inbox',
+  'fleet_status',
+  'session_note',
+];
+
+function coordinationNames(
+  calls: ReadonlyArray<{ kind: string; toolName: string }>,
+): string[] {
+  return calls.filter((c) => c.kind === 'single').map((c) => c.toolName);
 }
 
 function makeEvents() {
@@ -87,10 +112,8 @@ describe('registerBuiltinTools', () => {
       events: makeEvents() as never,
       wpaths: makeWpaths() as never,
     });
-    // Exactly four single-tool registrations: mailbox,
-    // mail_send, mail_inbox, fleet_status. No memory tools.
-    const singles = calls.filter((c) => c.kind === 'single');
-    expect(singles).toHaveLength(4);
+    // Only the coordination tools; no memory tools.
+    expect(coordinationNames(calls)).toEqual(COORDINATION_TOOLS);
   });
 
   it('skips memory tools when memoryStore is null even if features.memory is true', () => {
@@ -111,8 +134,7 @@ describe('registerBuiltinTools', () => {
     // memoryStore is null. The refactor tightens this:
     // features.memory && memoryStore \u2014 the null case
     // is now a no-op.
-    const singles = calls.filter((c) => c.kind === 'single');
-    expect(singles).toHaveLength(4);
+    expect(coordinationNames(calls)).toEqual(COORDINATION_TOOLS);
   });
 
   it('registers all four memory tools when features.memory is true AND memoryStore is provided', () => {
@@ -129,8 +151,7 @@ describe('registerBuiltinTools', () => {
     expect(memoryBatch?.toolCount).toBe(4);
 
     // Coordination tools remain individual host registrations.
-    const singles = calls.filter((c) => c.kind === 'single');
-    expect(singles).toHaveLength(4);
+    expect(coordinationNames(calls)).toEqual(COORDINATION_TOOLS);
   });
 
   it('applies configured tool description modes to the real registry', () => {

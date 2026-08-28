@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type FileStoreState, mergePersistedFileStore, useFileStore } from '../../src/stores/file-store';
+import {
+  type FileStoreState,
+  mergePersistedFileStore,
+  useFileStore,
+} from '../../src/stores/file-store';
 
 // ── helpers ──────────────────────────────────────────────────────────
 
@@ -13,6 +17,8 @@ function resetStore() {
     error: null,
     projectIdentity: '',
     hydratingPaths: new Set<string>(),
+    fileSessionId: null,
+    filesBySession: {},
   });
 }
 
@@ -87,6 +93,40 @@ describe('openFile', () => {
     const state = useFileStore.getState();
     expect(state.openFiles).toHaveLength(2);
     expect(state.activeFilePath).toBe('/project/src/b.ts');
+  });
+});
+
+describe('session file lanes', () => {
+  beforeEach(() => resetStore());
+
+  it('keeps open editor tabs and active file per session', () => {
+    useFileStore.getState().bindSessionFiles('sess-a');
+    useFileStore.getState().openFile('/project/a.ts', 'a');
+    useFileStore.getState().jumpToLine(7);
+
+    useFileStore.getState().bindSessionFiles('sess-b');
+    expect(useFileStore.getState()).toMatchObject({
+      fileSessionId: 'sess-b',
+      openFiles: [],
+      activeFilePath: null,
+      targetLine: null,
+    });
+
+    useFileStore.getState().openFile('/project/b.ts', 'b');
+    useFileStore.getState().bindSessionFiles('sess-a');
+    expect(useFileStore.getState()).toMatchObject({
+      fileSessionId: 'sess-a',
+      activeFilePath: '/project/a.ts',
+      targetLine: { line: 7 },
+    });
+    expect(useFileStore.getState().openFiles.map((file) => file.path)).toEqual(['/project/a.ts']);
+
+    useFileStore.getState().bindSessionFiles('sess-b');
+    expect(useFileStore.getState()).toMatchObject({
+      fileSessionId: 'sess-b',
+      activeFilePath: '/project/b.ts',
+    });
+    expect(useFileStore.getState().openFiles.map((file) => file.path)).toEqual(['/project/b.ts']);
   });
 });
 

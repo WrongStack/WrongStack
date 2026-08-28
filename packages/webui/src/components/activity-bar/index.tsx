@@ -39,6 +39,7 @@ import {
   useConfigStore,
   useMailboxStore,
   useSessionStore,
+  useSessionTabStore,
   useUIStore,
 } from '@/stores';
 import {
@@ -182,6 +183,8 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   // `def.label` is kept as the English fallback for any missing key).
   const navLabel = (id: string, fallback: string) => t(`activity:nav.${id}`, fallback);
   const unreadMail = useMailboxStore(selectUnreadCount);
+  // Active session-tab count — rendered as the chat icon's badge.
+  const openTabCount = useSessionTabStore((s) => s.openTabIds.length);
   // Subscribe (not getState()) so the utility trigger updates its active
   // highlight when the inspector opens or closes.
   const inspectorOpen = useUIStore((s) => s.inspectorOpen);
@@ -215,6 +218,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
 
   const badgeFor = (id: Activity): number | undefined => {
     if (id === 'mailbox') return unreadMail || undefined;
+    if (id === 'chat') return openTabCount > 0 ? openTabCount : undefined;
     return undefined;
   };
 

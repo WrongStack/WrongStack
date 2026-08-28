@@ -123,6 +123,12 @@ export function repoRelativePrefix(repoRoot: string, projectRoot: string): strin
 }
 
 /**
+ * Rank for aggregating a directory's badge status from its children:
+ * conflict > deletion > modification > rename/copy > addition > untracked.
+ */
+const DIR_STATUS_RANK: Record<string, number> = { U: 6, D: 5, M: 4, R: 3, C: 3, A: 2, '?': 1 };
+
+/**
  * Read the working-tree change set (everything that differs from HEAD:
  * staged, unstaged, and untracked) and broadcast a `git.changes` message.
  *
@@ -226,11 +232,44 @@ export async function handleGitChanges(ws: WebSocket, projectRoot: string): Prom
       files.push({ path, status, added, deleted, staged });
     }
 
-    send(ws, { type: 'git.changes', payload: { files, repoPrefix } });
+    // Aggregate per-directory status so the explorer can badge folders from
+    // server data instead of client-side prefix scanning: every ancestor
+    // directory of a changed file inherits the highest-ranked child status
+    // (see DIR_STATUS_RANK). Keys are repo-relative like `files`; the client
+    // aligns them with project-relative tree paths via repoPrefix. The
+    // trailing-slash strip handles porcelain's collapsed untracked dirs
+    // (`?? assets/`), which arrive as a single "file" record.
+    const dirs = new Map<string, string>();
+    for (const f of files) {
+      const rank = DIR_STATUS_RANK[f.status] ?? 0;
+      // A trailing slash means porcelain COLLAPSED a fully-untracked
+      // directory into a single record (`?? assets/`): the path IS a
+      // directory, not a file with a parent to pop. Register the directory
+      // itself with its status — the client's tree paths carry no trailing
+      // slash, so neither the file map nor the popped walk can badge it.
+      const collapsedDir = f.path.endsWith('/');
+      const segments = f.path.replace(/\/$/, '').split('/');
+      if (!collapsedDir) segments.pop(); // drop the filename — files only
+      for (let i = 1; i <= segments.length; i++) {
+        const dir = segments.slice(0, i).join('/');
+        const prev = dirs.get(dir);
+        if (!prev || (DIR_STATUS_RANK[prev] ?? 0) < rank) dirs.set(dir, f.status);
+      }
+    }
+
+    send(ws, {
+      type: 'git.changes',
+      payload: { files, dirs: Object.fromEntries(dirs), repoPrefix },
+    });
   } catch (err) {
     send(ws, {
       type: 'git.changes',
-      payload: { files: [], repoPrefix: '', error: err instanceof Error ? err.message : String(err) },
+      payload: {
+        files: [],
+        dirs: {},
+        repoPrefix: '',
+        error: err instanceof Error ? err.message : String(err),
+      },
     });
   }
 }

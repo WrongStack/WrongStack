@@ -14,7 +14,6 @@ import {
   type DefaultMultiAgentCoordinator,
   Director,
   type DirectorSessionFactory,
-  type ExploreCompanion,
   FLEET_ROSTER,
   type FleetSupervisor,
   HARD_MAX_SPAWN_DEPTH,
@@ -49,6 +48,10 @@ import {
   createHostStatusBroadcaster,
   startDirectorAgentMonitor,
 } from './host-director-services.js';
+import {
+  createExploreCompanionRegistry,
+  type ExploreCompanionRegistry,
+} from './host-explore-companion-registry.js';
 import { createHostExploreCompanion } from './host-explore-companion.js';
 import { makeFleetWorktreeConflictResolver, selectSubagentTools } from './host-helpers.js';
 import { HostLearningScheduler } from './host-learning-scheduler.js';
@@ -120,10 +123,14 @@ export class MultiAgentHost {
    *  dispose(). Also published to the supervisor registry for /supervisor. */
   private fleetSupervisor: FleetSupervisor | null = null;
   /** ExploreCompanion — state-triggered background codebase explorer behind
-   *  the leader. Built in buildDirector() (unless disabled via
-   *  fleet.exploreCompanion.enabled=false), stopped in dispose(). Probes are
-   *  assigned to a lazily-spawned resident `explore-companion` subagent. */
-  private exploreCompanion: ExploreCompanion | null = null;
+   *  the leader. One per live conversation (see
+   *  host-explore-companion-registry): built in buildDirector() for the boot
+   *  session and on first run for any other, unless disabled via
+   *  fleet.exploreCompanion.enabled=false. Probes are assigned to a
+   *  lazily-spawned resident `explore-companion` subagent per session. */
+  private exploreCompanions: ExploreCompanionRegistry | null = null;
+  /** `agent.run.started` subscription that opens a companion for a new tab. */
+  private exploreCompanionOff: (() => void) | null = null;
   /** Built-ins plus lazily-resolved project-created roles. */
   private readonly roster: Record<string, SubagentConfig>;
 
@@ -170,14 +177,38 @@ export class MultiAgentHost {
     return (this.director as never as { coordinator: DefaultMultiAgentCoordinator }).coordinator;
   }
 
+  /**
+   * The conversation a subagent belongs to.
+   *
+   * The coordinator captured it at spawn from the caller's `originSessionId`
+   * and never re-reads it, so it stays put for the worker's whole life. The
+   * host's own `deps.session` is the fallback and is only right for a
+   * single-session host: with four WebUI tabs on one process it names the boot
+   * tab, which is how every background tab's worker used to surface in tab 1's
+   * roster and disappear from the tab that spawned it.
+   */
+  private sessionForSubagent(subagentId: string): string {
+    try {
+      return this.getCoordinator().sessionOf(subagentId);
+    } catch {
+      // No director yet, or an id the coordinator never spawned.
+      return this.deps.session.id;
+    }
+  }
+
   /** Public accessor for the Director — used by buildRoutingRunner. */
   getDirector(): Director | undefined {
     return this.director;
   }
 
-  /** Run one shadow review pass immediately. */
-  async runShadowPass(reason: string): Promise<void> {
-    return this.shadowManager.runShadowPass(reason);
+  /**
+   * Run one shadow review pass immediately.
+   *
+   * `sessionId` names the conversation the review belongs to; omitting it
+   * means the host's own session, which is the only one a CLI or TUI has.
+   */
+  async runShadowPass(reason: string, sessionId?: string): Promise<void> {
+    return this.shadowManager.runShadowPass(reason, sessionId);
   }
 
   private async ensureCoordinator(_config: Config): Promise<void> {
@@ -271,20 +302,37 @@ export class MultiAgentHost {
 
     this.buildFleetSupervisor(config);
 
-    this.exploreCompanion = createHostExploreCompanion({
-      director: this.director,
-      events: this.deps.events,
-      sessionId: this.deps.session.id,
-      mailboxProjectDir: this.mailboxProjectDir(),
-      roster: this.roster,
-      config: config.fleet?.exploreCompanion,
+    // One companion per conversation. The boot session gets one now — that is
+    // the CLI's and the TUI's only session, and building it here keeps their
+    // behaviour identical. Every other session opens one when it first runs,
+    // which is how the WebUI's tabs 2-4 get a companion at all: the host is
+    // built once, so a single instance pinned to the boot session filtered
+    // every other tab's signals out and explored for nobody.
+    this.exploreCompanions = createExploreCompanionRegistry({
+      create: (sessionId) =>
+        this.director
+          ? createHostExploreCompanion({
+              director: this.director,
+              events: this.deps.events,
+              sessionId,
+              mailboxProjectDir: this.mailboxProjectDir(),
+              roster: this.roster,
+              config: config.fleet?.exploreCompanion,
+            })
+          : null,
+    });
+    this.exploreCompanions.ensure(this.deps.session.id);
+    this.exploreCompanionOff = this.deps.events.on('agent.run.started', (e) => {
+      // Unstamped runs exist (thin embedders); `ensure` ignores an empty id,
+      // but keep the narrowing explicit rather than relying on that.
+      if (e.sessionId) this.exploreCompanions?.ensure(e.sessionId);
     });
 
     this.directorOffHandles.push(
       ...registerDirectorBudgetAndContextBridges({
         director: this.director,
         events: this.deps.events,
-        sessionId: this.deps.session.id,
+        sessionFor: (subagentId) => this.sessionForSubagent(subagentId),
       }),
     );
     this.directorOffHandles.push(
@@ -298,7 +346,7 @@ export class MultiAgentHost {
       ...registerDirectorSubagentLifecycleBridges({
         director: this.director,
         events: this.deps.events,
-        sessionId: this.deps.session.id,
+        sessionFor: (subagentId) => this.sessionForSubagent(subagentId),
         agentMonitor: this.opts.agentMonitor,
         onSubagentRemoved: (subagentId) => this.shadowManager.clearShadowAgent(subagentId),
       }),
@@ -307,7 +355,7 @@ export class MultiAgentHost {
     this.coordinatorOffHandle = registerCoordinatorLifecycleHandlers({
       coordinator,
       events: this.deps.events,
-      sessionId: this.deps.session.id,
+      sessionFor: (subagentId) => this.sessionForSubagent(subagentId),
       isShadowTask: (taskId) => this.shadowManager.isShadowTask(taskId),
       onSubagentStopped: (subagentId) => this.shadowManager.clearShadowAgent(subagentId),
     });
@@ -396,7 +444,10 @@ export class MultiAgentHost {
     });
 
     this.deps.events.emit('subagent.spawned', {
-      sessionId: this.deps.session.id,
+      // Whatever the coordinator recorded at spawn — `spawnACP` has no caller
+      // context to name an origin, so this is the host session today, but the
+      // announcement must not disagree with the roster the worker lands in.
+      sessionId: this.sessionForSubagent(subagentId),
       subagentId,
       taskId,
       name: subagentId,
@@ -425,6 +476,7 @@ export class MultiAgentHost {
       supervisorConfig: config.fleet?.supervisor,
       events: this.deps.events,
       sessionId: this.deps.session.id,
+      sessionFor: (subagentId) => this.sessionForSubagent(subagentId),
       mailboxProjectDir: this.mailboxProjectDir(),
       roster: this.roster,
       getLeaderMailboxId: this.opts.getLeaderMailboxId,
@@ -434,7 +486,12 @@ export class MultiAgentHost {
   private async reportTaskResultToLeader(n: TaskResultNotification): Promise<void> {
     await reportTaskResultToLeader({
       notification: n,
-      sessionId: this.deps.session.id,
+      // The leader of the conversation that OWNS this worker. The address is
+      // derived as `leader@<sessionTag>`, so the host's own session mailed
+      // every background tab's task result to the boot tab's leader — the tab
+      // waiting on `await_tasks` got no nudge, and the boot tab was handed a
+      // report for work it never started.
+      sessionId: this.sessionForSubagent(n.subagentId),
       mailboxProjectDir: this.mailboxProjectDir(),
       events: this.deps.events,
       getLeaderMailboxId: this.opts.getLeaderMailboxId,
@@ -452,15 +509,22 @@ export class MultiAgentHost {
     opts?: HostSpawnOptions,
   ): Promise<{ subagentId: string; taskId: string }> {
     const isShadowSpawn = opts?.name === 'shadow';
-    if (isShadowSpawn) this.shadowManager.enterShadowSpawn();
+    // Which conversation asked. `/shadow start` from a background tab must
+    // not reuse — or overwrite — the foreground tab's reviewer, and the
+    // worker it spawns belongs in the asking tab's roster.
+    const originSessionId = opts?.originSessionId ?? this.deps.session.id;
+    if (isShadowSpawn) this.shadowManager.enterShadowSpawn(originSessionId);
     try {
       await this.buildDirector();
     } finally {
-      if (isShadowSpawn) this.shadowManager.exitShadowSpawn();
+      if (isShadowSpawn) this.shadowManager.exitShadowSpawn(originSessionId);
     }
-    const shadowAgentId = this.shadowManager.getAgentId();
+    const shadowAgentId = this.shadowManager.getAgentId(originSessionId);
     if (isShadowSpawn && shadowAgentId && this.shadowManager.isActiveSubagent(shadowAgentId)) {
-      return { subagentId: shadowAgentId, taskId: this.shadowManager.getTaskId() ?? 'shadow-active' };
+      return {
+        subagentId: shadowAgentId,
+        taskId: this.shadowManager.getTaskId(originSessionId) ?? 'shadow-active',
+      };
     }
     const subagentConfig = {
       name: opts?.name ?? 'adhoc',
@@ -470,6 +534,7 @@ export class MultiAgentHost {
       fallbackModels: opts?.fallbackModels,
       tools: opts?.tools,
       allowedCapabilities: opts?.allowedCapabilities,
+      ...(opts?.originSessionId ? { originSessionId: opts.originSessionId } : {}),
     };
     const { subagentId, taskId } = await this._spawnAndAssign(subagentConfig, description, {
       internalTask: isShadowSpawn,
@@ -532,10 +597,18 @@ export class MultiAgentHost {
       ...(opts?.taskContext ? { context: opts.taskContext as Record<string, unknown> } : {}),
     };
     if (opts?.internalTask) {
-      this.shadowManager.markShadowTask(taskId);
-      if (opts.stopShadowAfterTask) this.shadowManager.addStopAfterTaskId(taskId);
+      // The spawn stamp is the owning conversation; without one this is a
+      // single-session host and the shadow manager falls back to it anyway.
+      const owningSessionId = subagentConfig.originSessionId;
+      this.shadowManager.markShadowTask(taskId, owningSessionId);
+      if (opts.stopShadowAfterTask) this.shadowManager.addStopAfterTaskId(taskId, owningSessionId);
       if (subagentConfig.name === 'shadow' || subagentConfig.role === 'shadow-agent') {
-        this.shadowManager.recordShadowAgent(subagentId, taskId, opts.shadowIntervalMs);
+        this.shadowManager.recordShadowAgent(
+          subagentId,
+          taskId,
+          opts.shadowIntervalMs,
+          owningSessionId,
+        );
       }
       try {
         await this.director.assignInternal(task);
@@ -554,7 +627,17 @@ export class MultiAgentHost {
   }
 
   private emitLifecycleCompleted(taskId: string, result: TaskResult): void {
-    emitHostLifecycleCompleted(this.deps.events, this.deps.session.id, taskId, result);
+    // `subagent.task_completed` is the frame every roster, statusline and
+    // timeline listens to for "this worker is done". Stamped with the host's
+    // own session it announced every background tab's completion to the boot
+    // tab — the tab that started the work watched a worker that never
+    // finished, and the boot tab collected strangers.
+    emitHostLifecycleCompleted(
+      this.deps.events,
+      this.sessionForSubagent(result.subagentId),
+      taskId,
+      result,
+    );
   }
 
   private recordLearningRole(
@@ -653,7 +736,8 @@ export class MultiAgentHost {
   async kill(subagentId: string): Promise<boolean> {
     if (!this.director) return false;
     await this.getCoordinator().stop(subagentId);
-    if (this.shadowManager.getAgentId() === subagentId) this.shadowManager.clearShadowAgent(subagentId);
+    if (this.shadowManager.isShadowAgent(subagentId))
+      this.shadowManager.clearShadowAgent(subagentId);
     return true;
   }
 
@@ -681,6 +765,23 @@ export class MultiAgentHost {
     }
   }
 
+  /**
+   * A conversation is gone — its tab closed.
+   *
+   * Only the host-side helpers pinned to it are released: the explore
+   * companion (whose poll timer would otherwise tick for a tab nobody is
+   * looking at) and the shadow reviewer's bookkeeping. The fleet itself is
+   * deliberately untouched — a background run outlives the tab that started
+   * it, and stopping its workers is `stopSessionFleet`'s decision, made on
+   * Stop, not on close. Both helpers rebuild themselves if the session ever
+   * runs again.
+   */
+  releaseSession(sessionId: string): void {
+    if (!sessionId) return;
+    this.exploreCompanions?.release(sessionId);
+    this.shadowManager.releaseSession(sessionId);
+  }
+
   async dispose(): Promise<void> {
     this.learningScheduler.dispose();
     this.shadowManager.dispose();
@@ -695,8 +796,10 @@ export class MultiAgentHost {
     this.fleetSupervisor?.stop();
     if (this.fleetSupervisor) setActiveFleetSupervisor(null);
     this.fleetSupervisor = null;
-    this.exploreCompanion?.stop();
-    this.exploreCompanion = null;
+    this.exploreCompanionOff?.();
+    this.exploreCompanionOff = null;
+    this.exploreCompanions?.disposeAll();
+    this.exploreCompanions = null;
     this.adaptiveConcurrencyController?.dispose();
     this.adaptiveConcurrencyController = undefined;
     if (this.director) {

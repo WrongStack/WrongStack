@@ -1,6 +1,7 @@
 import { watchProviderConfig } from '@wrongstack/core/storage';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { fanOutProviderRebuild } from './provider-fanout.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
@@ -102,9 +103,24 @@ export function setupWebuiCredentialWatcher(options: {
         const newProv = deps.providerRegistry.has(activeId)
           ? deps.providerRegistry.create({ ...routedCfg, type: activeId } as never)
           : makeProviderFromConfig(activeId, { ...routedCfg, type: activeId });
+        const previousProvider = deps.context.provider;
         deps.context.provider = newProv;
+        // New credentials are a project fact — every open tab has to get them,
+        // not just the leader, or the tabs opened before the reload keep
+        // authenticating with the key that was just replaced.
+        const moved = fanOutProviderRebuild({
+          sessionAgentIds: deps.sessionAgentIds,
+          peekAgent: deps.peekAgent,
+          previous: previousProvider,
+          next: newProv,
+          applied: deps.context,
+        });
         void updateAutoCompactionMaxContext(newProv).catch(() => undefined);
-        console.log(`[WebUI] Provider credentials reloaded from config.json (${activeId})`);
+        console.log(
+          `[WebUI] Provider credentials reloaded from config.json (${activeId})${
+            moved.length > 0 ? ` — applied to ${moved.length} background tab(s)` : ''
+          }`,
+        );
       } catch (err) {
         console.warn(
           `[WebUI] Credential hot-reload failed for ${activeId}: ${toErrorMessage(err)}`,

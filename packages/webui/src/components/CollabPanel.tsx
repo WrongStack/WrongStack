@@ -10,11 +10,12 @@ import {
   Users,
 } from 'lucide-react';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { i18n, useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useConfigStore } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 import type {
   CollabRole,
   WSCollabAnnotationAdded,
@@ -40,6 +41,28 @@ export interface CollabParticipant {
   role: CollabRole;
   joinedAt: string;
 }
+
+type CollabPanelChrome = {
+  participants: CollabParticipant[];
+  joined: boolean;
+  joinedRole: 'observer' | 'annotator' | 'controller' | null;
+  error: string | null;
+  openAnnotationCount: number;
+  paused: boolean;
+  injectOpen: boolean;
+  injectToolUseId: string;
+  injectContent: string;
+  injectIsError: boolean;
+  injectReason: string;
+};
+
+const collabPanelChromeBySession = new Map<string, CollabPanelChrome>();
+const disposedCollabPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  collabPanelChromeBySession.delete(sessionId);
+  disposedCollabPanelSessions.add(sessionId);
+});
 
 /**
  * CollabPanel — read-only live observer indicator + join/leave control.
@@ -70,6 +93,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
   const [injectContent, setInjectContent] = useState('');
   const [injectIsError, setInjectIsError] = useState(false);
   const [injectReason, setInjectReason] = useState('');
+  const chromeSessionRef = useRef(sessionId);
   const wsUrl = useConfigStore((s) => s.wsUrl);
   const client = getWSClient(wsUrl);
   // In-flight tool calls (a `tool` message with no result yet) are the targets
@@ -77,6 +101,40 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
   const pendingTools = useChatStore((s) => s.messages).filter(
     (m) => m.role === 'tool' && m.toolResult === undefined && !!m.toolUseId,
   );
+
+  useLayoutEffect(() => {
+    const previous = chromeSessionRef.current;
+    if (!disposedCollabPanelSessions.has(previous)) {
+      collabPanelChromeBySession.set(previous, {
+        participants,
+        joined,
+        joinedRole,
+        error,
+        openAnnotationCount,
+        paused,
+        injectOpen,
+        injectToolUseId,
+        injectContent,
+        injectIsError,
+        injectReason,
+      });
+    }
+
+    const parked = collabPanelChromeBySession.get(sessionId);
+    disposedCollabPanelSessions.delete(sessionId);
+    setParticipants(parked?.participants ?? []);
+    setJoined(parked?.joined ?? false);
+    setJoinedRole(parked?.joinedRole ?? null);
+    setError(parked?.error ?? null);
+    setOpenAnnotationCount(parked?.openAnnotationCount ?? 0);
+    setPaused(parked?.paused ?? false);
+    setInjectOpen(parked?.injectOpen ?? false);
+    setInjectToolUseId(parked?.injectToolUseId ?? '');
+    setInjectContent(parked?.injectContent ?? '');
+    setInjectIsError(parked?.injectIsError ?? false);
+    setInjectReason(parked?.injectReason ?? '');
+    chromeSessionRef.current = sessionId;
+  }, [sessionId]);
 
   useEffect(() => {
     const offs: Array<() => void> = [];
@@ -272,7 +330,9 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
         )}
         role="alert"
       >
-        <span className="text-xs text-destructive">{t('activity:collab.errorPrefix', { error })}</span>
+        <span className="text-xs text-destructive">
+          {t('activity:collab.errorPrefix', { error })}
+        </span>
         <button
           type="button"
           onClick={() => {
@@ -325,7 +385,9 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
         {participants.slice(0, 3).map((p) => (
           <span
             key={p.participantId}
-            title={t('activity:collab.joinedTitle', { time: new Date(p.joinedAt).toLocaleTimeString() })}
+            title={t('activity:collab.joinedTitle', {
+              time: new Date(p.joinedAt).toLocaleTimeString(),
+            })}
             className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success"
           >
             <Eye className="w-3 h-3" />

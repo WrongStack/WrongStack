@@ -13,14 +13,7 @@ import type { MailboxMessage } from './mailbox-store';
 // One icon = one full panel. 'context' and 'sessions' were folded into
 // 'chat' and 'history'; 'projects' was removed from WebUI because project
 // switching is owned by the launcher/desktop shell.
-export type Activity =
-  | 'chat'
-  | 'agents'
-  | 'files'
-  | 'changes'
-  | 'mailbox'
-  | 'skills'
-  | 'design';
+export type Activity = 'chat' | 'agents' | 'files' | 'changes' | 'mailbox' | 'skills' | 'design';
 
 const ACTIVITIES: readonly Activity[] = [
   'chat',
@@ -138,6 +131,47 @@ export type InspectorTarget =
   | { kind: 'council' }
   | { kind: 'task'; taskId: string; boardId?: string | undefined; title?: string | undefined };
 
+interface SessionChromeState {
+  sidebarOpen: boolean;
+  activeActivity: Activity;
+  currentView: View;
+  inspectSessionId: string | null;
+  searchOpen: boolean;
+  searchQuery: string;
+  searchActiveMessageId: string | null;
+  scrollTarget: UIState['scrollTarget'];
+  modelSwitcherOpen: boolean;
+  promptLibraryOpen: boolean;
+  promptInsertRequest: string | null;
+  refinePanel: UIState['refinePanel'];
+  draftInput: string;
+  draftImages: ImageAttachment[];
+  processMonitorOpen: boolean;
+  queuePanelOpen: boolean;
+  cronJobsOpen: boolean;
+  sideContextBreakdownOpen: boolean;
+  terminalOpen: boolean;
+  dockSection: DockSection | null;
+  workDashboardTab: WorkDashboardTab;
+  inspectorOpen: boolean;
+  inspectorTab: InspectorTab;
+  inspectorTarget: InspectorTarget | null;
+  inspectorFocusedAgentId: string | null;
+  agentRosterActiveTab: 'live' | 'officemap' | 'catalog' | 'learning' | 'memory' | 'customize';
+  changesPanelTab: 'changes' | 'worktrees';
+  dockCustomizeOpen: boolean;
+  skillsState: UIState['skillsState'];
+  selectedMailMessage: MailboxMessage | null;
+  scrollPositions: Record<string, number>;
+  chatSwitcherOpen: boolean;
+  chatCheckpointOpen: boolean;
+  chatMemoryPanelOpen: boolean;
+  chatContextBreakdownOpen: boolean;
+  chatContextEditorOpen: boolean;
+  chatToolStatsOpen: boolean;
+  chatInputCollapsed: boolean;
+}
+
 interface UIState {
   sidebarOpen: boolean;
   /** Which activity icon is selected in the ActivityBar — controls secondary panel content. */
@@ -179,6 +213,10 @@ interface UIState {
   dockSection: DockSection | null;
   /** Active tab in the Work dock section. Mirrors TUI F5/F6 panel jumps. */
   workDashboardTab: WorkDashboardTab;
+  /** Which session the global dock/work projection currently describes. */
+  chromeSessionId: string | null;
+  /** Per-session screen projection, parked when switching tabs. */
+  chromeBySession: Record<string, SessionChromeState>;
   /** Dock chips the user has explicitly hidden via the customization menu.
    *  Empty = all chips visible (subject to each chip's own data condition).
    *  Mirrors the TUI's F12 status-line chip picker. */
@@ -256,6 +294,20 @@ interface UIState {
   /** Context breakdown modal (triggered from side-panel session panel). */
   sideContextBreakdownOpen: boolean;
   setSideContextBreakdownOpen: (open: boolean) => void;
+  chatSwitcherOpen: boolean;
+  chatCheckpointOpen: boolean;
+  chatMemoryPanelOpen: boolean;
+  chatContextBreakdownOpen: boolean;
+  chatContextEditorOpen: boolean;
+  chatToolStatsOpen: boolean;
+  chatInputCollapsed: boolean;
+  setChatSwitcherOpen: (open: boolean) => void;
+  setChatCheckpointOpen: (open: boolean) => void;
+  setChatMemoryPanelOpen: (open: boolean) => void;
+  setChatContextBreakdownOpen: (open: boolean) => void;
+  setChatContextEditorOpen: (open: boolean) => void;
+  setChatToolStatsOpen: (open: boolean) => void;
+  setChatInputCollapsed: (collapsed: boolean) => void;
 
   /** Skills panel breadcrumb state — persisted so history survives panel switches. */
   skillsState: {
@@ -382,6 +434,7 @@ interface UIState {
   setRefinePanel: (panel: UIState['refinePanel']) => void;
   setDockSection: (section: DockSection | null) => void;
   setWorkDashboardTab: (tab: WorkDashboardTab) => void;
+  bindSessionChrome: (sessionId: string | null) => void;
   /** Click-a-chip semantics: same section again collapses the dock. */
   toggleDockSection: (section: DockSection) => void;
   /** Show/hide a dock chip from the customization menu. */
@@ -422,6 +475,8 @@ function homeNavigationStatePatch(
     activeActivity: 'chat',
     sidebarOpen: options.sidebarOpen ?? false,
     dockSection: null,
+    chromeSessionId: null,
+    chromeBySession: {},
     dockCustomizeOpen: false,
     fleetMonitorOpen: false,
     agentsMonitorOpen: false,
@@ -446,6 +501,124 @@ function homeNavigationStatePatch(
     promptLibraryOpen: false,
     selectedMailMessage: null,
     refinePanel: null,
+    skillsState: defaultSkillsState(),
+    chatSwitcherOpen: false,
+    chatCheckpointOpen: false,
+    chatMemoryPanelOpen: false,
+    chatContextBreakdownOpen: false,
+    chatContextEditorOpen: false,
+    chatToolStatsOpen: false,
+    chatInputCollapsed: false,
+  };
+}
+
+function defaultSkillsState(): UIState['skillsState'] {
+  return {
+    selectedSkill: null,
+    navHistory: [],
+    historyIndex: -1,
+    detailOpen: false,
+    knownRefs: {},
+    updateAvailableCount: 0,
+  };
+}
+
+function defaultSessionChrome(): SessionChromeState {
+  return {
+    sidebarOpen: true,
+    activeActivity: 'chat',
+    currentView: 'chat',
+    inspectSessionId: null,
+    searchOpen: false,
+    searchQuery: '',
+    searchActiveMessageId: null,
+    scrollTarget: null,
+    modelSwitcherOpen: false,
+    promptLibraryOpen: false,
+    promptInsertRequest: null,
+    refinePanel: null,
+    draftInput: '',
+    draftImages: [],
+    processMonitorOpen: false,
+    queuePanelOpen: false,
+    cronJobsOpen: false,
+    sideContextBreakdownOpen: false,
+    terminalOpen: false,
+    dockSection: null,
+    workDashboardTab: 'todos',
+    inspectorOpen: false,
+    inspectorTab: 'fleet',
+    inspectorTarget: null,
+    inspectorFocusedAgentId: null,
+    agentRosterActiveTab: 'live',
+    changesPanelTab: 'changes',
+    dockCustomizeOpen: false,
+    skillsState: defaultSkillsState(),
+    selectedMailMessage: null,
+    scrollPositions: {},
+    chatSwitcherOpen: false,
+    chatCheckpointOpen: false,
+    chatMemoryPanelOpen: false,
+    chatContextBreakdownOpen: false,
+    chatContextEditorOpen: false,
+    chatToolStatsOpen: false,
+    chatInputCollapsed: false,
+  };
+}
+
+function readSessionChrome(state: UIState): SessionChromeState {
+  return {
+    sidebarOpen: state.sidebarOpen,
+    activeActivity: state.activeActivity,
+    currentView: state.currentView,
+    inspectSessionId: state.inspectSessionId,
+    searchOpen: state.searchOpen,
+    searchQuery: state.searchQuery,
+    searchActiveMessageId: state.searchActiveMessageId,
+    scrollTarget: state.scrollTarget,
+    modelSwitcherOpen: state.modelSwitcherOpen,
+    promptLibraryOpen: state.promptLibraryOpen,
+    promptInsertRequest: state.promptInsertRequest,
+    refinePanel: state.refinePanel,
+    draftInput: state.draftInput,
+    draftImages: state.draftImages,
+    processMonitorOpen: state.processMonitorOpen,
+    queuePanelOpen: state.queuePanelOpen,
+    cronJobsOpen: state.cronJobsOpen,
+    sideContextBreakdownOpen: state.sideContextBreakdownOpen,
+    terminalOpen: state.terminalOpen,
+    dockSection: state.dockSection,
+    workDashboardTab: state.workDashboardTab,
+    inspectorOpen: state.inspectorOpen,
+    inspectorTab: state.inspectorTab,
+    inspectorTarget: state.inspectorTarget,
+    inspectorFocusedAgentId: state.inspectorFocusedAgentId,
+    agentRosterActiveTab: state.agentRosterActiveTab,
+    changesPanelTab: state.changesPanelTab,
+    dockCustomizeOpen: state.dockCustomizeOpen,
+    skillsState: state.skillsState,
+    selectedMailMessage: state.selectedMailMessage,
+    scrollPositions: state.scrollPositions,
+    chatSwitcherOpen: state.chatSwitcherOpen,
+    chatCheckpointOpen: state.chatCheckpointOpen,
+    chatMemoryPanelOpen: state.chatMemoryPanelOpen,
+    chatContextBreakdownOpen: state.chatContextBreakdownOpen,
+    chatContextEditorOpen: state.chatContextEditorOpen,
+    chatToolStatsOpen: state.chatToolStatsOpen,
+    chatInputCollapsed: state.chatInputCollapsed,
+  };
+}
+
+function parkChrome(
+  state: UIState,
+  patch: Partial<SessionChromeState>,
+): { chromeBySession?: UIState['chromeBySession'] } {
+  if (!state.chromeSessionId) return {};
+  return {
+    chromeBySession: {
+      ...state.chromeBySession,
+      [state.chromeSessionId]: { ...readSessionChrome(state), ...patch },
+    },
   };
 }
 
@@ -478,6 +651,8 @@ export const useUIStore = create<UIState>()(
       promptInsertRequest: null,
       dockSection: null,
       workDashboardTab: 'todos',
+      chromeSessionId: null,
+      chromeBySession: {},
       hiddenChips: [],
       dockCustomizeOpen: false,
       fleetMonitorOpen: false,
@@ -502,31 +677,70 @@ export const useUIStore = create<UIState>()(
       draftInput: '',
       draftImages: [],
       sideContextBreakdownOpen: false,
+      chatSwitcherOpen: false,
+      chatCheckpointOpen: false,
+      chatMemoryPanelOpen: false,
+      chatContextBreakdownOpen: false,
+      chatContextEditorOpen: false,
+      chatToolStatsOpen: false,
+      chatInputCollapsed: false,
       selectedMailMessage: null,
-      skillsState: {
-        selectedSkill: null,
-        navHistory: [],
-        historyIndex: -1,
-        detailOpen: false,
-        knownRefs: {},
-        updateAvailableCount: 0,
-      },
+      skillsState: defaultSkillsState(),
 
-      selectActivity: (activity) => set({ activeActivity: activity }),
-      toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      selectActivity: (activity) =>
+        set((state) => ({
+          activeActivity: activity,
+          ...parkChrome(state, { activeActivity: activity }),
+        })),
+      toggleSidebar: () =>
+        set((state) => {
+          const sidebarOpen = !state.sidebarOpen;
+          return {
+            sidebarOpen,
+            ...parkChrome(state, { sidebarOpen }),
+          };
+        }),
+      setSidebarOpen: (open) =>
+        set((state) => ({
+          sidebarOpen: open,
+          ...parkChrome(state, { sidebarOpen: open }),
+        })),
       setSettingsOpen: (open) => set({ settingsOpen: open }),
-      setCurrentView: (view) => set({ currentView: coerceView(view) }),
+      setCurrentView: (view) =>
+        set((state) => {
+          const currentView = coerceView(view);
+          return { currentView, ...parkChrome(state, { currentView }) };
+        }),
       showConfirm: (info) => set({ showConfirmDialog: true, confirmInfo: info }),
       hideConfirm: () => set({ showConfirmDialog: false, confirmInfo: null }),
       setPaletteOpen: (open) => set({ paletteOpen: open }),
       setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
       setSearchOpen: (open) =>
-        set({ searchOpen: open, searchQuery: '', searchActiveMessageId: null }),
-      setSearchQuery: (q) => set({ searchQuery: q }),
-      setSearchActiveMessageId: (id) => set({ searchActiveMessageId: id }),
+        set((state) => ({
+          searchOpen: open,
+          searchQuery: '',
+          searchActiveMessageId: null,
+          ...parkChrome(state, {
+            searchOpen: open,
+            searchQuery: '',
+            searchActiveMessageId: null,
+          }),
+        })),
+      setSearchQuery: (q) =>
+        set((state) => ({
+          searchQuery: q,
+          ...parkChrome(state, { searchQuery: q }),
+        })),
+      setSearchActiveMessageId: (id) =>
+        set((state) => ({
+          searchActiveMessageId: id,
+          ...parkChrome(state, { searchActiveMessageId: id }),
+        })),
       requestScrollToMessage: (id) =>
-        set((s) => ({ scrollTarget: { id, nonce: (s.scrollTarget?.nonce ?? 0) + 1 } })),
+        set((s) => {
+          const scrollTarget = { id, nonce: (s.scrollTarget?.nonce ?? 0) + 1 };
+          return { scrollTarget, ...parkChrome(s, { scrollTarget }) };
+        }),
       pushPrompt: (text) =>
         set((state) => {
           const trimmed = text.trim();
@@ -547,7 +761,11 @@ export const useUIStore = create<UIState>()(
         }),
       unpinAll: () => set({ pinnedIds: [] }),
       toggleCompactMode: () => set((s) => ({ compactMode: !s.compactMode })),
-      setModelSwitcherOpen: (open) => set({ modelSwitcherOpen: open }),
+      setModelSwitcherOpen: (open) =>
+        set((state) => ({
+          modelSwitcherOpen: open,
+          ...parkChrome(state, { modelSwitcherOpen: open }),
+        })),
       toggleFavoriteSession: (id) =>
         set((state) => {
           const has = state.favoriteSessionIds.includes(id);
@@ -568,36 +786,145 @@ export const useUIStore = create<UIState>()(
       setFileExplorerWidth: (px) =>
         set({ fileExplorerWidth: Math.max(160, Math.min(400, Math.round(px))) }),
       toggleRefineEnabled: () => set((s) => ({ refineEnabled: !s.refineEnabled })),
-      setRefinePanel: (panel) => set({ refinePanel: panel }),
-      setPromptLibraryOpen: (open) => set({ promptLibraryOpen: open }),
-      requestPromptInsert: (text) => set({ promptInsertRequest: text, promptLibraryOpen: false }),
-      clearPromptInsert: () => set({ promptInsertRequest: null }),
+      setRefinePanel: (panel) =>
+        set((state) => ({
+          refinePanel: panel,
+          ...parkChrome(state, { refinePanel: panel }),
+        })),
+      setPromptLibraryOpen: (open) =>
+        set((state) => ({
+          promptLibraryOpen: open,
+          ...parkChrome(state, { promptLibraryOpen: open }),
+        })),
+      requestPromptInsert: (text) =>
+        set((state) => ({
+          promptInsertRequest: text,
+          promptLibraryOpen: false,
+          ...parkChrome(state, { promptInsertRequest: text, promptLibraryOpen: false }),
+        })),
+      clearPromptInsert: () =>
+        set((state) => ({
+          promptInsertRequest: null,
+          ...parkChrome(state, { promptInsertRequest: null }),
+        })),
       setDockSection: (section) =>
-        set({ dockSection: section, ...(section ? { inspectorOpen: false } : {}) }),
-      setWorkDashboardTab: (tab) => set({ workDashboardTab: tab }),
+        set((state) => ({
+          dockSection: section,
+          ...parkChrome(state, {
+            dockSection: section,
+            inspectorOpen: section ? false : state.inspectorOpen,
+          }),
+          ...(section ? { inspectorOpen: false } : {}),
+        })),
+      setWorkDashboardTab: (tab) =>
+        set((state) => ({
+          workDashboardTab: tab,
+          ...parkChrome(state, { workDashboardTab: tab }),
+        })),
+      bindSessionChrome: (sessionId) =>
+        set((state) => {
+          if (state.chromeSessionId === sessionId) return {};
+          const chromeBySession = { ...state.chromeBySession };
+          if (state.chromeSessionId) {
+            const previousChrome = readSessionChrome(state);
+            chromeBySession[state.chromeSessionId] = previousChrome.refinePanel
+              ? {
+                  ...previousChrome,
+                  refinePanel: null,
+                  draftInput: previousChrome.refinePanel.original,
+                }
+              : previousChrome;
+          }
+          const parked = sessionId ? chromeBySession[sessionId] : undefined;
+          const chrome = parked ?? defaultSessionChrome();
+          const subagentChatFocusId = sessionId
+            ? (state.subagentChatFocusBySession[sessionId] ?? null)
+            : null;
+          return {
+            chromeSessionId: sessionId,
+            chromeBySession,
+            subagentChatFocusId,
+            subagentChatFocusSessionId: sessionId,
+            sidebarOpen: chrome.sidebarOpen ?? defaultSessionChrome().sidebarOpen,
+            activeActivity: chrome.activeActivity,
+            currentView: chrome.currentView,
+            inspectSessionId: chrome.inspectSessionId,
+            searchOpen: chrome.searchOpen,
+            searchQuery: chrome.searchQuery,
+            searchActiveMessageId: chrome.searchActiveMessageId,
+            scrollTarget: chrome.scrollTarget,
+            modelSwitcherOpen: chrome.modelSwitcherOpen,
+            promptLibraryOpen: chrome.promptLibraryOpen,
+            promptInsertRequest: chrome.promptInsertRequest,
+            refinePanel: chrome.refinePanel,
+            draftInput: chrome.draftInput,
+            draftImages: chrome.draftImages,
+            processMonitorOpen: chrome.processMonitorOpen,
+            queuePanelOpen: chrome.queuePanelOpen,
+            cronJobsOpen: chrome.cronJobsOpen,
+            sideContextBreakdownOpen: chrome.sideContextBreakdownOpen,
+            terminalOpen: chrome.terminalOpen,
+            dockSection: chrome.dockSection,
+            workDashboardTab: chrome.workDashboardTab,
+            inspectorOpen: chrome.inspectorOpen,
+            inspectorTab: chrome.inspectorTab,
+            inspectorTarget: chrome.inspectorTarget,
+            inspectorFocusedAgentId: chrome.inspectorFocusedAgentId,
+            agentRosterActiveTab: chrome.agentRosterActiveTab,
+            changesPanelTab: chrome.changesPanelTab,
+            dockCustomizeOpen: chrome.dockCustomizeOpen ?? false,
+            skillsState: chrome.skillsState ?? defaultSkillsState(),
+            selectedMailMessage: chrome.selectedMailMessage ?? null,
+            scrollPositions: chrome.scrollPositions ?? {},
+            chatSwitcherOpen: chrome.chatSwitcherOpen ?? false,
+            chatCheckpointOpen: chrome.chatCheckpointOpen ?? false,
+            chatMemoryPanelOpen: chrome.chatMemoryPanelOpen ?? false,
+            chatContextBreakdownOpen: chrome.chatContextBreakdownOpen ?? false,
+            chatContextEditorOpen: chrome.chatContextEditorOpen ?? false,
+            chatInputCollapsed: chrome.chatInputCollapsed ?? false,
+          };
+        }),
       toggleDockSection: (section) =>
         set((s) => {
           const dockSection = s.dockSection === section ? null : section;
-          return { dockSection, ...(dockSection ? { inspectorOpen: false } : {}) };
+          return {
+            dockSection,
+            ...parkChrome(s, {
+              dockSection,
+              inspectorOpen: dockSection ? false : s.inspectorOpen,
+            }),
+            ...(dockSection ? { inspectorOpen: false } : {}),
+          };
         }),
       toggleChipHidden: (section) =>
         set((s) => {
           const hidden = s.hiddenChips.includes(section);
+          const dockSection = !hidden && s.dockSection === section ? null : s.dockSection;
           return {
             hiddenChips: hidden
               ? s.hiddenChips.filter((c) => c !== section)
               : [...s.hiddenChips, section],
             // Collapse the dock if we're hiding the currently-open section.
-            dockSection: !hidden && s.dockSection === section ? null : s.dockSection,
+            dockSection,
+            ...parkChrome(s, { dockSection }),
           };
         }),
       showDockChip: (section) =>
         set((s) => ({
           hiddenChips: s.hiddenChips.filter((candidate) => candidate !== section),
         })),
-      setDockCustomizeOpen: (open) => set({ dockCustomizeOpen: open }),
-      setAgentRosterActiveTab: (tab) => set({ agentRosterActiveTab: tab }),
-      setChangesPanelTab: (tab) => set({ changesPanelTab: tab }),
+      setDockCustomizeOpen: (open) =>
+        set((state) => ({
+          dockCustomizeOpen: open,
+          ...parkChrome(state, { dockCustomizeOpen: open }),
+        })),
+      setAgentRosterActiveTab: (tab) =>
+        set((state) => ({
+          agentRosterActiveTab: tab,
+          ...parkChrome(state, { agentRosterActiveTab: tab }),
+        })),
+      setChangesPanelTab: (tab) =>
+        set((state) => ({ changesPanelTab: tab, ...parkChrome(state, { changesPanelTab: tab }) })),
       // Compatibility entry points used by slash routes and Desktop commands.
       // The legacy booleans remain false so no second overlay can be mounted.
       setFleetMonitorOpen: (open: boolean) =>
@@ -605,6 +932,11 @@ export const useUIStore = create<UIState>()(
           fleetMonitorOpen: false,
           inspectorOpen: open ? true : s.inspectorTab === 'fleet' ? false : s.inspectorOpen,
           inspectorTab: open ? 'fleet' : s.inspectorTab,
+          ...parkChrome(s, {
+            inspectorOpen: open ? true : s.inspectorTab === 'fleet' ? false : s.inspectorOpen,
+            inspectorTab: open ? 'fleet' : s.inspectorTab,
+            dockSection: open ? null : s.dockSection,
+          }),
           ...(open ? { dockSection: null } : {}),
         })),
       setAgentsMonitorOpen: (open: boolean) =>
@@ -612,11 +944,25 @@ export const useUIStore = create<UIState>()(
           agentsMonitorOpen: false,
           inspectorOpen: open ? true : s.inspectorTab === 'agents' ? false : s.inspectorOpen,
           inspectorTab: open ? 'agents' : s.inspectorTab,
+          ...parkChrome(s, {
+            inspectorOpen: open ? true : s.inspectorTab === 'agents' ? false : s.inspectorOpen,
+            inspectorTab: open ? 'agents' : s.inspectorTab,
+            dockSection: open ? null : s.dockSection,
+          }),
           ...(open ? { dockSection: null } : {}),
         })),
       setInspectorOpen: (open: boolean) =>
-        set({ inspectorOpen: open, ...(open ? { dockSection: null } : { inspectorTarget: null }) }),
-      setInspectorTab: (tab: InspectorTab) => set({ inspectorTab: tab }),
+        set((state) => ({
+          inspectorOpen: open,
+          ...(open ? { dockSection: null } : { inspectorTarget: null }),
+          ...parkChrome(state, {
+            inspectorOpen: open,
+            dockSection: open ? null : state.dockSection,
+            inspectorTarget: open ? state.inspectorTarget : null,
+          }),
+        })),
+      setInspectorTab: (tab: InspectorTab) =>
+        set((state) => ({ inspectorTab: tab, ...parkChrome(state, { inspectorTab: tab }) })),
       openInspectorTarget: (target: InspectorTarget) =>
         set((s) => {
           let tab: InspectorTab = s.inspectorTab;
@@ -637,10 +983,26 @@ export const useUIStore = create<UIState>()(
             inspectorTab: tab,
             inspectorFocusedAgentId: focusedAgentId,
             dockSection: null,
+            ...parkChrome(s, {
+              inspectorOpen: true,
+              inspectorTarget: target,
+              inspectorTab: tab,
+              inspectorFocusedAgentId: focusedAgentId,
+              dockSection: null,
+            }),
           };
         }),
-      closeInspector: () => set({ inspectorOpen: false, inspectorTarget: null }),
-      setInspectorFocusedAgentId: (id: string | null) => set({ inspectorFocusedAgentId: id }),
+      closeInspector: () =>
+        set((state) => ({
+          inspectorOpen: false,
+          inspectorTarget: null,
+          ...parkChrome(state, { inspectorOpen: false, inspectorTarget: null }),
+        })),
+      setInspectorFocusedAgentId: (id: string | null) =>
+        set((state) => ({
+          inspectorFocusedAgentId: id,
+          ...parkChrome(state, { inspectorFocusedAgentId: id }),
+        })),
       // Which subagent transcript is open is a property of the TAB, not of the
       // app: focusing one in tab 2 must not swap tab 1's chat out from under
       // the user. The map is keyed by session; the flat field stays as the
@@ -651,7 +1013,7 @@ export const useUIStore = create<UIState>()(
           // (it would silently degrade a tab-scoped clear to the unscoped
           // fallback and stamp null onto whatever the flat pointer names).
           const requested = sessionId === '' ? null : sessionId;
-          const key = requested ?? state.subagentChatFocusSessionId;
+          const key = requested ?? state.chromeSessionId ?? state.subagentChatFocusSessionId;
           return {
             subagentChatFocusId: id,
             subagentChatFocusSessionId: key ?? null,
@@ -662,51 +1024,149 @@ export const useUIStore = create<UIState>()(
         }),
       forgetSession: (sessionId) =>
         set((state) => {
-          if (
-            !(sessionId in state.subagentChatFocusBySession) &&
-            state.subagentChatFocusSessionId !== sessionId
-          ) {
+          const hasSubagentFocus =
+            sessionId in state.subagentChatFocusBySession ||
+            state.subagentChatFocusSessionId === sessionId;
+          const hasChrome =
+            sessionId in state.chromeBySession || state.chromeSessionId === sessionId;
+          if (!hasSubagentFocus && !hasChrome) {
             return state;
           }
-          const next = { ...state.subagentChatFocusBySession };
-          delete next[sessionId];
+          const nextFocus = { ...state.subagentChatFocusBySession };
+          delete nextFocus[sessionId];
+          const nextChrome = { ...state.chromeBySession };
+          delete nextChrome[sessionId];
           const droppingFront = state.subagentChatFocusSessionId === sessionId;
+          const droppingChrome = state.chromeSessionId === sessionId;
           return {
-            subagentChatFocusBySession: next,
+            subagentChatFocusBySession: nextFocus,
+            chromeBySession: nextChrome,
             ...(droppingFront
               ? { subagentChatFocusId: null, subagentChatFocusSessionId: null }
               : {}),
+            ...(droppingChrome ? { chromeSessionId: null, ...defaultSessionChrome() } : {}),
           };
         }),
       toggleInspector: () =>
-        set((s) => ({
-          inspectorOpen: !s.inspectorOpen,
-          ...(!s.inspectorOpen ? { dockSection: null } : {}),
+        set((s) => {
+          const inspectorOpen = !s.inspectorOpen;
+          const dockSection = inspectorOpen ? null : s.dockSection;
+          return {
+            inspectorOpen,
+            dockSection,
+            ...parkChrome(s, { inspectorOpen, dockSection }),
+          };
+        }),
+      setProcessMonitorOpen: (open: boolean) =>
+        set((state) => ({
+          processMonitorOpen: open,
+          ...parkChrome(state, { processMonitorOpen: open }),
         })),
-      setProcessMonitorOpen: (open: boolean) => set({ processMonitorOpen: open }),
-      setQueuePanelOpen: (open: boolean) => set({ queuePanelOpen: open }),
-      setCronJobsOpen: (open: boolean) => set({ cronJobsOpen: open }),
+      setQueuePanelOpen: (open: boolean) =>
+        set((state) => ({
+          queuePanelOpen: open,
+          ...parkChrome(state, { queuePanelOpen: open }),
+        })),
+      setCronJobsOpen: (open: boolean) =>
+        set((state) => ({
+          cronJobsOpen: open,
+          ...parkChrome(state, { cronJobsOpen: open }),
+        })),
       setInspectSession: (id: string) =>
-        set({ inspectSessionId: id, currentView: 'session-inspect' as View }),
-      clearInspectSession: () => set({ inspectSessionId: null, currentView: 'chat' }),
-      setTerminalOpen: (open: boolean) => set({ terminalOpen: open }),
-      toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
+        set((state) => ({
+          inspectSessionId: id,
+          currentView: 'session-inspect' as View,
+          ...parkChrome(state, { inspectSessionId: id, currentView: 'session-inspect' as View }),
+        })),
+      clearInspectSession: () =>
+        set((state) => ({
+          inspectSessionId: null,
+          currentView: 'chat',
+          ...parkChrome(state, { inspectSessionId: null, currentView: 'chat' }),
+        })),
+      setTerminalOpen: (open: boolean) =>
+        set((state) => ({
+          terminalOpen: open,
+          ...parkChrome(state, { terminalOpen: open }),
+        })),
+      toggleTerminal: () =>
+        set((s) => {
+          const terminalOpen = !s.terminalOpen;
+          return { terminalOpen, ...parkChrome(s, { terminalOpen }) };
+        }),
       requestTerminalCreate: () => set((s) => ({ terminalCreateNonce: s.terminalCreateNonce + 1 })),
       setSettingsActiveTab: (tab: string) => set({ settingsActiveTab: coerceSettingsTab(tab) }),
       setScrollPosition: (view: string, scrollTop: number) =>
-        set((s) => ({ scrollPositions: { ...s.scrollPositions, [view]: scrollTop } })),
-      setDraftInput: (text: string) => set({ draftInput: text }),
+        set((state) => {
+          const scrollPositions = { ...state.scrollPositions, [view]: scrollTop };
+          return { scrollPositions, ...parkChrome(state, { scrollPositions }) };
+        }),
+      setDraftInput: (text: string) =>
+        set((state) => ({
+          draftInput: text,
+          ...parkChrome(state, { draftInput: text }),
+        })),
       setDraftImages: (images) =>
         // Trust boundary: data URLs are heavy — enforce the same per-message
         // cap the composer enforces so no caller can bloat memory.
-        set({ draftImages: images.slice(-MAX_ATTACHED_IMAGES) }),
-      setSideContextBreakdownOpen: (open: boolean) => set({ sideContextBreakdownOpen: open }),
-      setSkillsState: (state) => set({ skillsState: state }),
-      setSelectedMailMessage: (msg) => set({ selectedMailMessage: msg }),
+        set((state) => {
+          const draftImages = images.slice(-MAX_ATTACHED_IMAGES);
+          return { draftImages, ...parkChrome(state, { draftImages }) };
+        }),
+      setSideContextBreakdownOpen: (open: boolean) =>
+        set((state) => ({
+          sideContextBreakdownOpen: open,
+          ...parkChrome(state, { sideContextBreakdownOpen: open }),
+        })),
+      setChatSwitcherOpen: (chatSwitcherOpen) =>
+        set((state) => ({
+          chatSwitcherOpen,
+          ...parkChrome(state, { chatSwitcherOpen }),
+        })),
+      setChatCheckpointOpen: (chatCheckpointOpen) =>
+        set((state) => ({
+          chatCheckpointOpen,
+          ...parkChrome(state, { chatCheckpointOpen }),
+        })),
+      setChatMemoryPanelOpen: (chatMemoryPanelOpen) =>
+        set((state) => ({
+          chatMemoryPanelOpen,
+          ...parkChrome(state, { chatMemoryPanelOpen }),
+        })),
+      setChatContextBreakdownOpen: (chatContextBreakdownOpen) =>
+        set((state) => ({
+          chatContextBreakdownOpen,
+          ...parkChrome(state, { chatContextBreakdownOpen }),
+        })),
+      setChatToolStatsOpen: (chatToolStatsOpen) =>
+        set((state) => ({
+          chatToolStatsOpen,
+          ...parkChrome(state, { chatToolStatsOpen }),
+        })),
+      setChatContextEditorOpen: (chatContextEditorOpen) =>
+        set((state) => ({
+          chatContextEditorOpen,
+          ...parkChrome(state, { chatContextEditorOpen }),
+        })),
+      setChatInputCollapsed: (chatInputCollapsed) =>
+        set((state) => ({
+          chatInputCollapsed,
+          ...parkChrome(state, { chatInputCollapsed }),
+        })),
+      setSkillsState: (skillsState) =>
+        set((state) => ({
+          skillsState,
+          ...parkChrome(state, { skillsState }),
+        })),
+      setSelectedMailMessage: (selectedMailMessage) =>
+        set((state) => ({
+          selectedMailMessage,
+          ...parkChrome(state, { selectedMailMessage }),
+        })),
     }),
     {
       name: 'wrongstack-ui',
-      version: 6,
+      version: 7,
       // v0 → v1: 'context'/'sessions' activities were removed and the
       // sidebar width bounds changed — coerce persisted values so a stale
       // localStorage entry can't select a panel that no longer exists.
@@ -723,6 +1183,10 @@ export const useUIStore = create<UIState>()(
       // is now in-memory only (survives Settings→Chat view navigation but
       // NOT page reload or new sessions). Stale draftInput values from v5
       // localStorage are dropped here so they don't bleed into a new session.
+      // v6 → v7: removed `chromeSessionId` and `chromeBySession` from
+      // partialize. Per-session chrome is tab runtime state; keeping it after
+      // a fresh WebUI boot resurrects stale session-local UI without the tabs
+      // that owned it.
       migrate: (persisted, version) => {
         const p = (persisted ?? {}) as Record<string, unknown>;
         p.activeActivity = coerceActivity(p.activeActivity);
@@ -748,6 +1212,10 @@ export const useUIStore = create<UIState>()(
           // so it doesn't bleed into a new session on next load.
           delete p.draftInput;
         }
+        if (version < 7) {
+          delete p.chromeSessionId;
+          delete p.chromeBySession;
+        }
         return p as never as UIState;
       },
       merge: (persisted, current) => {
@@ -759,6 +1227,12 @@ export const useUIStore = create<UIState>()(
         merged.currentView = coerceView(merged.currentView);
         merged.dockSection = coerceDockSection(merged.dockSection);
         merged.settingsActiveTab = coerceSettingsTab(merged.settingsActiveTab);
+        if (typeof merged.chromeSessionId !== 'string') {
+          merged.chromeSessionId = null;
+        }
+        if (typeof merged.chromeBySession !== 'object' || merged.chromeBySession === null) {
+          merged.chromeBySession = {};
+        }
         merged.sidebarWidth = Math.max(
           SIDEBAR_MIN_WIDTH,
           Math.min(SIDEBAR_MAX_WIDTH, merged.sidebarWidth),

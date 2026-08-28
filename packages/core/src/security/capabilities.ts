@@ -53,6 +53,13 @@ export const ToolCapabilities = {
   /** Can mutate in-memory session todos only. */
   SESSION_TODO: 'session.todo',
 
+  /**
+   * Can post an ephemeral same-session note to the leader or a peer
+   * (`session_note` / `session.note`). In-process only — not the durable
+   * cross-session mailbox (`coordination.mail`).
+   */
+  SESSION_NOTE: 'session.note',
+
   /** Can park after-task `<nextsteps>` suggestions for the current turn. */
   SESSION_NEXTSTEPS: 'session.nextsteps',
 
@@ -147,6 +154,7 @@ export const WIDE_SUBAGENT_CAPABILITIES: readonly ToolCapability[] = [
   ToolCapabilities.FS_WRITE,
   ToolCapabilities.NET_OUTBOUND,
   ToolCapabilities.SESSION_TODO,
+  ToolCapabilities.SESSION_NOTE,
   ToolCapabilities.TOOL_META,
   ToolCapabilities.MEMORY_READ,
   ToolCapabilities.SHELL_ARBITRARY,

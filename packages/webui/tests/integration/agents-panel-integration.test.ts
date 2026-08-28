@@ -39,13 +39,19 @@ describe('AgentsPanel integration — full data pipeline', () => {
   it('spawns agents into the sorted list with correct ordering', () => {
     // Spawn agents in non-sorted order.
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'c', name: 'Charlie',
+      kind: 'spawned',
+      subagentId: 'c',
+      name: 'Charlie',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'Alpha',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'Alpha',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'b', name: 'Beta',
+      kind: 'spawned',
+      subagentId: 'b',
+      name: 'Beta',
     });
 
     const list = selectSortedAgentList(useFleetStore.getState());
@@ -55,16 +61,23 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('sorted list places leader first regardless of spawn order', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'Alpha',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'Alpha',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'b', name: 'Leader',
+      kind: 'spawned',
+      subagentId: 'b',
+      name: 'Leader',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'leader_updated', subagentId: 'b',
+      kind: 'leader_updated',
+      subagentId: 'b',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'c', name: 'Charlie',
+      kind: 'spawned',
+      subagentId: 'c',
+      name: 'Charlie',
     });
 
     const list = selectSortedAgentList(useFleetStore.getState());
@@ -75,13 +88,20 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('summary updates after spawning and completing agents', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
+      sessionId: 'sess-a',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'b', name: 'B',
+      kind: 'spawned',
+      subagentId: 'b',
+      name: 'B',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a',
+      status: 'success',
     });
 
     const s = selectFleetSummary(useFleetStore.getState());
@@ -94,10 +114,13 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('selectLeaderName returns the leader name', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'Captain',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'Captain',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'leader_updated', subagentId: 'a',
+      kind: 'leader_updated',
+      subagentId: 'a',
     });
 
     expect(selectLeaderName(useFleetStore.getState())).toBe('Captain');
@@ -105,7 +128,9 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('selectLeaderName returns undefined when no leader', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'LoneWolf',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'LoneWolf',
     });
     expect(selectLeaderName(useFleetStore.getState())).toBeUndefined();
   });
@@ -114,13 +139,21 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('records tool execution with ok/fail status in toolLog', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Worker',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Worker',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'read', ok: true,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'read',
+      ok: true,
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'write', ok: false,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'write',
+      ok: false,
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -134,10 +167,16 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('toolLog records durationMs', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Worker',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Worker',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'bash', ok: true, durationMs: 1500,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'bash',
+      ok: true,
+      durationMs: 1500,
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -148,13 +187,19 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('updates partialText from iteration_summary', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Streamer',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Streamer',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'iteration_summary', subagentId: 'a1', partialText: 'Step 1…',
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      partialText: 'Step 1…',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'iteration_summary', subagentId: 'a1', partialText: 'Step 2…',
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      partialText: 'Step 2…',
     });
 
     expect(useFleetStore.getState().agents.get('a1')?.partialText).toBe('Step 2…');
@@ -162,7 +207,9 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('partialText is absent when no iteration_summary fired', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Silent',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Silent',
     });
     expect(useFleetStore.getState().agents.get('a1')?.partialText).toBeUndefined();
   });
@@ -171,16 +218,24 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('pushAgentTimelineEntry stores transcript entries', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Talker',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Talker',
     });
     useFleetStore.getState().pushAgentTimelineEntry({
-      subagentId: 'a1', agentName: 'Talker',
-      content: 'Hello', kind: 'text', iteration: 1,
+      subagentId: 'a1',
+      agentName: 'Talker',
+      content: 'Hello',
+      kind: 'text',
+      iteration: 1,
       ts: new Date().toISOString(),
     });
     useFleetStore.getState().pushAgentTimelineEntry({
-      subagentId: 'a1', agentName: 'Talker',
-      content: 'Hmm…', kind: 'thinking', iteration: 2,
+      subagentId: 'a1',
+      agentName: 'Talker',
+      content: 'Hmm…',
+      kind: 'thinking',
+      iteration: 2,
       ts: new Date().toISOString(),
     });
 
@@ -194,16 +249,24 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('clearFinishedAgents removes non-running agents, preserves running', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
+      sessionId: 'sess-a',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a',
+      status: 'success',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'b', name: 'B',
+      kind: 'spawned',
+      subagentId: 'b',
+      name: 'B',
+      sessionId: 'sess-a',
     });
 
-    useFleetStore.getState().clearFinishedAgents();
+    useFleetStore.getState().clearFinishedAgents('sess-a');
     expect(useFleetStore.getState().agents.has('a')).toBe(false);
     expect(useFleetStore.getState().agents.has('b')).toBe(true);
     expect(useFleetStore.getState().agents.size).toBe(1);
@@ -211,13 +274,19 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('clearFinishedAgents with all running is a no-op', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
+      sessionId: 'sess-a',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'b', name: 'B',
+      kind: 'spawned',
+      subagentId: 'b',
+      name: 'B',
+      sessionId: 'sess-a',
     });
 
-    useFleetStore.getState().clearFinishedAgents();
+    useFleetStore.getState().clearFinishedAgents('sess-a');
     expect(useFleetStore.getState().agents.size).toBe(2);
   });
 
@@ -225,10 +294,14 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('eventTimeline records spawned and completed events', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a',
+      status: 'success',
     });
 
     const tl = useFleetStore.getState().eventTimeline;
@@ -240,10 +313,16 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('eventTimeline includes budget_warning events', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'budget_warning', subagentId: 'a', budgetKind: 'iterations', used: 8, limit: 10,
+      kind: 'budget_warning',
+      subagentId: 'a',
+      budgetKind: 'iterations',
+      used: 8,
+      limit: 10,
     });
 
     const tl = useFleetStore.getState().eventTimeline;
@@ -260,7 +339,9 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
     // Spawn one.
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'First',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'First',
     });
     expect(selectSortedAgentList(useFleetStore.getState())).toHaveLength(1);
     expect(selectFleetSummary(useFleetStore.getState()).running).toBe(1);
@@ -268,10 +349,14 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('transitions from has-agents to all-finished state', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'Worker',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'Worker',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a',
+      status: 'success',
     });
 
     const s = selectFleetSummary(useFleetStore.getState());
@@ -284,10 +369,17 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('fleet-wide tokens update via ctx_pct events', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a', name: 'A',
+      kind: 'spawned',
+      subagentId: 'a',
+      name: 'A',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'ctx_pct', subagentId: 'a', load: 0.5, tokens: 1000, tokensIn: 600, tokensOut: 400,
+      kind: 'ctx_pct',
+      subagentId: 'a',
+      load: 0.5,
+      tokens: 1000,
+      tokensIn: 600,
+      tokensOut: 400,
     });
 
     const state = useFleetStore.getState();
@@ -305,9 +397,13 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('stores provider, model, description, taskId on spawned agents', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Configured',
-      provider: 'anthropic', model: 'claude-opus-4',
-      description: 'Audits auth layer', taskId: 'task_42',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Configured',
+      provider: 'anthropic',
+      model: 'claude-opus-4',
+      description: 'Audits auth layer',
+      taskId: 'task_42',
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -319,10 +415,14 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('records failure details on task_completed with failed status', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Failing',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Failing',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a1', status: 'failed',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      status: 'failed',
       failureReason: 'provider_auth',
       error: { kind: 'auth_error', message: 'Invalid API key' },
     });
@@ -335,10 +435,14 @@ describe('AgentsPanel integration — full data pipeline', () => {
 
   it('records timeout status on task_completed with timeout status', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Slow',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Slow',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a1', status: 'timeout',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      status: 'timeout',
     });
 
     expect(useFleetStore.getState().agents.get('a1')?.status).toBe('timeout');

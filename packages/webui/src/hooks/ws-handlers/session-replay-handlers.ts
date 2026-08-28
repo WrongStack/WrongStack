@@ -24,7 +24,6 @@ import {
   DEFAULT_LANE_ID,
   ensureLane,
   hasLane,
-  MAX_LANES,
   setActiveLane,
 } from '@/stores/chat-lanes';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
@@ -330,7 +329,10 @@ export function handleSessionStart(msg: WSServerMessage) {
 
   if (isReset) {
     meta.startSession({ id: sessionId, startedAt: Date.now(), model, provider });
-    useMemoryInjectorTraceStore.getState().clear();
+    // THIS conversation's injector trace, not the one in front. A fresh
+    // session starting in a background tab used to wipe the panel the user was
+    // reading in another tab.
+    useMemoryInjectorTraceStore.for(sessionId).getState().clear();
   } else {
     meta.setSession({
       id: sessionId,
@@ -415,16 +417,11 @@ export function handleSessionStart(msg: WSServerMessage) {
   const requested = claimRequestedSwitch(sessionId);
   const tabStore = useSessionTabStore.getState();
   if (!requested && !nothingInFront && activeId !== sessionId) {
-    if (!tabStore.openTabIds.includes(sessionId) && tabStore.openTabIds.length < MAX_LANES) {
-      // Give it a slot so the tab strip shows it, but leave the pointer alone.
-      //
-      // Only when one is FREE. This used to `slice(-MAX_LANES)`, which meant an
-      // announce for a fifth session — a re-broadcast, another surface opening
-      // a session, a stale client — silently evicted the oldest tab, running or
-      // not, and took its lane with it. A session with no free slot stays out
-      // of the strip; it is still one click away in the history list.
-      tabStore.setOpenTabIds([...tabStore.openTabIds, sessionId]);
-    }
+    // Passive server re-announces must never allocate visible tab slots. A
+    // session gets a slot only through the tab registry's explicit open/resume
+    // path; otherwise a background replay can make tabs appear while the user
+    // is working in another one.
+    void tabStore;
     return;
   }
 
@@ -448,9 +445,13 @@ export function handleSessionStart(msg: WSServerMessage) {
       resetUiNavigationToHome({ sidebarOpen: false });
     }
     useUIStore.getState().setSearchActiveMessageId(null);
-    useFileStore.getState().setTreeLoading(true);
-    reconcileFileTabsAfterEnvChange(useSessionStore.getState().projectRoot);
-    getWSClient().send({ type: 'files.tree', payload: { path: useSessionStore.getState().cwd } });
+    useFileStore.getState().setTreeLoading(true, sessionId);
+    reconcileFileTabsAfterEnvChange(useSessionStore.getState().projectRoot, sessionId);
+    const ws = getWSClient();
+    ws.send({
+      type: 'files.tree',
+      payload: { path: useSessionStore.getState().cwd, sessionId },
+    });
   }
 
   if (replay && !payload.needsSetup && !isRoutePinnedView()) {

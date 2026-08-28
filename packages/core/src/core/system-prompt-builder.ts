@@ -23,6 +23,7 @@ import {
   type InstructionBundlePaths,
   loadInstructionBundle,
   mergeInstructionBundle,
+  type SystemInstructionVariant,
 } from './instruction-bundle.js';
 import { type InstructionTemplateContext, renderInstructionLayer } from './instruction-template.js';
 import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
@@ -218,7 +219,8 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         text: string;
       }
     | undefined;
-  private _instructionBundle?: Promise<InstructionBundle> | undefined;
+  /** Instruction bundle per identity variant — see `instructions()`. */
+  private readonly _instructionBundles = new Map<string, Promise<InstructionBundle>>();
   /**
    * Cached rendered identity layer. Keyed the same way as `_toolsUsageCache`:
    * the ToolRegistry snapshot keeps the array reference stable until a registry
@@ -324,7 +326,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       this.skillCache = '';
     }
 
-    const instructions = await this.instructions();
+    const instructions = await this.instructions(ctx.systemVariant);
     const tplCtx = this.templateContext(ctx);
     // WS-016: a repo-committed `<project>/.wrongstack/instructions/system.md`
     // replaced the layer-1 identity verbatim — the only project-supplied prompt
@@ -530,15 +532,31 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     return text;
   }
 
-  private async instructions(): Promise<InstructionBundle> {
-    if (!this._instructionBundle) {
-      this._instructionBundle = loadInstructionBundle(this.opts.instructionPaths).then((bundle) =>
-        this.opts.instructionBundle
-          ? mergeInstructionBundle(bundle, this.opts.instructionBundle)
-          : bundle,
-      );
-    }
-    return this._instructionBundle;
+  /**
+   * The instruction bundle for one identity variant.
+   *
+   * Cached per variant rather than once for the builder: four conversations
+   * share this instance and each picks its own identity, so a single memoised
+   * bundle handed whichever variant loaded first to all of them. At most three
+   * entries exist ('default' | 'lite' | 'pro').
+   */
+  private async instructions(
+    variant?: SystemInstructionVariant | undefined,
+  ): Promise<InstructionBundle> {
+    const paths = this.opts.instructionPaths;
+    const effective = variant ?? paths?.systemVariant;
+    const key = effective ?? 'default';
+    const cached = this._instructionBundles.get(key);
+    if (cached) return cached;
+    const loading = loadInstructionBundle(
+      paths ? { ...paths, ...(effective ? { systemVariant: effective } : {}) } : paths,
+    ).then((bundle) =>
+      this.opts.instructionBundle
+        ? mergeInstructionBundle(bundle, this.opts.instructionBundle)
+        : bundle,
+    );
+    this._instructionBundles.set(key, loading);
+    return loading;
   }
 
   /**
@@ -573,7 +591,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     tplCtx?: InstructionTemplateContext | undefined,
   ): Promise<string> {
     if (tools.length === 0) return '## Tool usage\n\nNo tools registered.';
-    const instructions = await this.instructions();
+    const instructions = await this.instructions(ctx.systemVariant);
     // Sections get the same conditional-block treatment as the identity layer,
     // so a `sections/*.md` override can gate on the live tool set too.
     const tpl = tplCtx ?? this.templateContext(ctx);
@@ -750,6 +768,15 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         const mailbox = section('tool.mailbox.full', mailboxVars);
         if (mailbox) lines.push(mailbox);
       }
+    }
+
+    // Same-session talk — in-process notes, not mailbox. Compact on every
+    // token-saving tier; full block only when the prompt is unconstrained.
+    if (tools.some((t) => t.name === 'session_note')) {
+      const sessionNote = section(
+        this.tier === 'off' ? 'tool.session.note.full' : 'tool.session.note.compact',
+      );
+      if (sessionNote) lines.push(sessionNote);
     }
 
     // Commit hygiene — shown whenever the structured `git` tool is available.

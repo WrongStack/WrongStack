@@ -1,5 +1,5 @@
 /**
- * FleetSummaryBar — compact fleet-wide metrics strip for the Agents sidebar.
+ * FleetSummaryBar — compact per-session fleet metrics strip for the Agents sidebar.
  *
  * Displays a 2-line horizontal strip + compact event ticker:
  * - Line 1: running/completed/failed status counts with color-coded LEDs,
@@ -19,22 +19,50 @@ import { useAppTranslation } from '@/i18n';
 import { fmtTok } from '@/lib/agent-status';
 import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
-import { selectFleetSummary, useFleetStore, useUIStore } from '@/stores';
+import { useActiveSessionId, useFleetStore, useSessionFleetTotals } from '@/stores';
 
 export interface FleetSummaryBarProps {
   /** Optional CSS class for the wrapper. */
   className?: string;
+  /** Session whose agents should be summarized. Undefined falls back to the active session. */
+  sessionId?: string | undefined;
   /** Optional leader name shown as a badge. */
   leaderName?: string | undefined;
 }
 
-export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps) {
-  const summary = useFleetStore(useShallow(selectFleetSummary));
-  const eventTimeline = useFleetStore((s) => s.eventTimeline);
+export function FleetSummaryBar({ className, sessionId, leaderName }: FleetSummaryBarProps) {
+  const activeSessionId = useActiveSessionId();
+  const targetSessionId = sessionId ?? activeSessionId ?? undefined;
+  const sessionSummary = useSessionFleetTotals(targetSessionId);
+  const fleetRuntime = useFleetStore(
+    useShallow((s) => ({
+      concurrencyMax: s.fleetConcurrencyMax,
+      maxSpawns: s.fleetMaxSpawns,
+      usedSpawns: s.fleetUsedSpawns,
+      remainingSpawns: s.fleetRemainingSpawns,
+      budgetSource: s.fleetBudgetSource,
+      ceilingMismatch: s.fleetCeilingMismatch || undefined,
+      checkpointMaxSpawns: s.fleetCheckpointMaxSpawns,
+    })),
+  );
+  const recentEvents = useFleetStore(
+    useShallow((s) =>
+      s.eventTimeline
+        .filter((ev) => {
+          const agent = ev.agentId ? s.agents.get(ev.agentId) : undefined;
+          return agent?.sessionId === targetSessionId;
+        })
+        .slice(0, 3),
+    ),
+  );
   const { t } = useAppTranslation();
 
+  const summary = {
+    ...sessionSummary,
+    concurrency: sessionSummary.running,
+    ...fleetRuntime,
+  };
   const hasActivity = summary.total > 0;
-  const recentEvents = eventTimeline.slice(0, 3);
 
   const openFleetInspector = useCallback(() => {
     openMainView('roster');
@@ -42,6 +70,7 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
 
   return (
     <div
+      data-testid="fleet-summary-bar"
       className={cn(
         'flex flex-col gap-0.5 border-b border-border/70 bg-muted/20 px-3 py-1.5 text-[10px]',
         className,

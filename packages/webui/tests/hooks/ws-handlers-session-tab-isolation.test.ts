@@ -50,7 +50,7 @@ const { useChatStore, useConfigStore, useFleetStore, useSessionStore, useSession
 const { handleModelSwitchResult } = await import(
   '../../src/hooks/ws-handlers/session-context-handlers'
 );
-const { chatLane, readLane, useChatLanes } = await import('../../src/stores/chat-lanes');
+const { chatLane, hasLane, readLane, useChatLanes } = await import('../../src/stores/chat-lanes');
 const { readSessionLane, sessionLane, useSessionLanes } = await import(
   '../../src/stores/session-lanes'
 );
@@ -371,6 +371,18 @@ describe('a background run reaches its own tab and no other', () => {
     expect(useChatStore.getState().boundSessionId).toBe('sess_b');
   });
 
+  it('does not allocate a visible slot for an unrequested background re-announce', () => {
+    start('sess_a');
+    start('sess_b');
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess_a', 'sess_b']);
+
+    reannounce('sess_c');
+
+    expect(hasLane('sess_c')).toBe(true);
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess_a', 'sess_b']);
+    expect(useChatStore.getState().boundSessionId).toBe('sess_b');
+  });
+
   /**
    * The grant that decides "does this session take the foreground" is keyed by
    * session id. It used to be a bare boolean, and `session.start` arrives for
@@ -475,18 +487,18 @@ describe('the four slots', () => {
     expect(useChatStore.getState().boundSessionId).toBe('s2');
   });
 
-  it('recycles an idle empty slot rather than growing past four', () => {
+  it('refuses resume when all four slots are occupied, even if one tab is idle and empty', () => {
     for (const id of ['s1', 's2', 's3', 's4']) start(id);
     chatLane('s1').addMessage({ role: 'user', content: 'busy' });
     chatLane('s2').addMessage({ role: 'user', content: 'busy' });
     chatLane('s3').addMessage({ role: 'user', content: 'busy' });
-    // s4 is idle and empty, so it is the one recycled.
+    const resumeSession = vi.fn();
 
-    useSessionTabStore.getState().openTab('s5');
-    const tabs = useSessionTabStore.getState().openTabIds;
-    expect(tabs).toHaveLength(4);
-    expect(tabs).toContain('s5');
-    expect(tabs).not.toContain('s4');
+    const result = useSessionTabStore.getState().openTab('s5', { resumeSession });
+
+    expect(result).toMatchObject({ success: false, reason: 'tabs_full' });
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['s1', 's2', 's3', 's4']);
+    expect(resumeSession).not.toHaveBeenCalled();
   });
 
   it('refuses a fifth session when every slot has work in it', () => {
@@ -499,6 +511,25 @@ describe('the four slots', () => {
     expect(result).toMatchObject({ success: false, reason: 'tabs_full' });
     expect(useSessionTabStore.getState().openTabIds).toHaveLength(4);
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('resumes only into a free slot and never re-resumes an already open session', () => {
+    for (const id of ['s1', 's2']) start(id);
+    const resumeSession = vi.fn();
+
+    expect(useSessionTabStore.getState().openTab('s3', { resumeSession })).toMatchObject({
+      success: true,
+      reason: 'opened_new_tab',
+    });
+    expect(resumeSession).toHaveBeenCalledTimes(1);
+    expect(resumeSession).toHaveBeenCalledWith('s3');
+
+    expect(useSessionTabStore.getState().openTab('s1', { resumeSession })).toMatchObject({
+      success: true,
+      reason: 'switched',
+    });
+    expect(useChatStore.getState().boundSessionId).toBe('s1');
+    expect(resumeSession).toHaveBeenCalledTimes(1);
   });
 
   it('never evicts an open slot to make room for an unrequested announce', () => {
@@ -517,12 +548,13 @@ describe('the four slots', () => {
     expect(readLane('s1').messages).toHaveLength(1);
   });
 
-  it('gives an unrequested announce a slot while one is free', () => {
+  it('does not give an unrequested announce a slot even while one is free', () => {
     start('s1');
 
     reannounce('s2');
 
-    expect(useSessionTabStore.getState().openTabIds).toEqual(['s1', 's2']);
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['s1']);
+    expect(hasLane('s2')).toBe(true);
     // …and without stealing the foreground from the tab the user is typing in.
     expect(useChatStore.getState().boundSessionId).toBe('s1');
   });

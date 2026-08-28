@@ -8,5 +8,23 @@
     "generic": "Algo salió mal.",
     "connectionLost": "Conexión perdida. Reconectando…",
     "reconnected": "Reconectado."
+  },
+  "menu": {
+    "title": "Notificaciones",
+    "unreadCount": "{{count}} sin leer",
+    "allRead": "Todo al día",
+    "markAllRead": "Marcar todo como leído",
+    "clearAll": "Borrar todo",
+    "tabAll": "Todas",
+    "tabUnread": "Sin leer",
+    "empty": "No hay notificaciones",
+    "emptyHint": "Las notificaciones y avisos del sistema aparecerán aquí.",
+    "markAsRead": "Marcar como leído",
+    "remove": "Eliminar notificación",
+    "justNow": "Ahora mismo",
+    "secondsAgo": "hace {{count}} s",
+    "minutesAgo": "hace {{count}} m",
+    "hoursAgo": "hace {{count}} h",
+    "daysAgo": "hace {{count}} d"
   }
 }

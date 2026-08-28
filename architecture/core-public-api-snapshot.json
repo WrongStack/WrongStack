@@ -98,6 +98,7 @@
         "export { assignNickname, type NicknameAssignment, nicknameKeyFromDisplay, } from './coordination/subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './coordination/dep-watcher-bridge.js';",
         "export { attachMailboxChecker } from './mailbox-attach.js';",
+        "export { attachSessionNotes } from './session-note-attach.js';",
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './core/btw.js';",
         "export { buildCouncilJudgeSystemPrompt, buildCouncilJudgeUserPrompt, buildCouncilQuestionPrompt, buildCouncilVoterSystemPrompt, buildCouncilVoterUserPrompt, COUNCIL_JUDGE_PROMPT_PATH, COUNCIL_VOTER_PROMPT_PATH, } from './execution/council-prompts.js';",
         "export { buildLosslessDigest, buildSmartDigest, type ContentScore, type EliseResult, eliseOldToolResults, estimateMessages, extractText, findPreserveStart, hasTextContent, scoreMessage, } from './execution/compaction-core.js';",
@@ -105,6 +106,7 @@
         "export { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate, peekQueuedMessages, setQueuedMessagesSnapshot, } from './core/queued-messages.js';",
         "export { buildRefinerContextSections, type ConversationTurn, DEFAULT_REFINER_RETRY_FEEDBACK, ENHANCER_SYSTEM_PROMPT, type EnhanceFailureKind, type EnhanceResult, type EnhanceUserPromptOptions, enhanceUserPrompt, gatedEnhancerReasoning, normalizedEqual, type RefinerContextSection, type RefinerSessionContextLike, recentTextTurns, shouldEnhance, } from './execution/prompt-enhancer.js';",
         "export { buildReviewerModelPool, createAutoReviewPlugin, parseReviewSeverity, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from './plugins/auto-review-plugin.js';",
+        "export { buildSessionNoteBlock, consumeSessionNotes, enqueueSessionNote, pendingSessionNoteCount, type SessionNote, type SessionNoteKind, } from './core/session-notes.js';",
         "export { compactLog, type FileAuthorEntry, type FileAuthorLog, type FileAuthorTrackerOptions, getFileHistory, getFilesByAgent, getFullLog, getLastAuthor, recordFileAction, } from './coordination/file-author-tracker.js';",
         "export { countShellHooks, HookRegistry, type HookRunEnv, HookRunner, type HookRunnerOptions, hookMatcherMatches, type PreToolUseResult, type PromptResult, runShellHook, type ShellHookSpec, shellHooksEqual, } from './hooks/index.js';",
         "export { createCloudConfigSyncPlugin } from './plugins/cloud-config-sync-plugin.js';",
@@ -206,6 +208,7 @@
         "export { FallbackProfileManager } from './fallback-profile-manager.js';",
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './input-builder.js';",
         "export { buildBtwBlock, consumeBtwNotes, pendingBtwCount, setBtwNote, } from './btw.js';",
+        "export { buildSessionNoteBlock, consumeSessionNotes, enqueueSessionNote, pendingSessionNoteCount, type SessionNote, type SessionNoteKind, } from './session-notes.js';",
         "export { clearPendingNextSteps, hasNextStepsTag, MAX_PENDING_NEXT_STEPS, maybeAppendPendingNextSteps, type PendingNextStep, readPendingNextSteps, renderNextStepsBlock, writePendingNextSteps, } from './next-steps-slot.js';",
         "export { countSystemPromptTokens, isSystemInstructionVariant, persistSystemPromptVariant, readSavedSystemPromptVariant, SYSTEM_PROMPT_VARIANT_OPTIONS, SYSTEM_PROMPT_VARIANTS, type SystemPromptVariantPaths, systemPromptVariantLabel, } from './system-prompt-variants.js';",
         "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackGateFn, type FallbackModelDeps, fallbackProfileChain, runtimeFallbackChain, smartDefaultFallbackChain, } from './fallback-model.js';",
@@ -599,7 +602,9 @@
         "export { kanbanDispatch, type KanbanDispatchPort, setKanbanDispatch, } from './kanban-dispatch-port.js';",
         "export { mailboxProjectServerEndpoint, mailboxProjectServerMetadataPath, } from './mailbox-project-server-endpoint.js';",
         "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeMutationTestTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
+        "export { makeSessionNoteTool } from './session-note-tool.js';",
         "export { parseMailboxAckInput, parseMailboxQueryInput, parseMailboxSendInput, } from './mailbox-codecs.js';",
+        "export { postSessionNote, SessionNoteHub, sessionNoteHub, type SessionNoteInbox, type SessionNotePost, type SessionNotePostResult, } from './session-note-hub.js';",
         "export { redactMailboxCredential } from './mailbox-credential-store.js';",
         "export { resolveProjectDir } from './global-mailbox-paths.js';",
         "export { startTechStackConsumer, type TechStackConsumerOptions, } from './techstack-mailbox-consumer.js';",
@@ -673,6 +678,25 @@
         "export { type FindingsIntegrationResult, classifyChimeraReviewSource, integrateFindings, } from '../plugins/review-finding-integration.js';",
         "export { type ParsedReviewReport, parseChimeraReviewReport, } from '../plugins/review-finding-parser.js';",
         "export { verifyFindingsAgainstDisk, type VerifyFindingsOptions, } from '../plugins/review-finding-verification.js';"
+      ]
+    },
+    {
+      "subpath": "./plugins/review-report-store",
+      "target": {
+        "types": "./dist/plugins/review-report-store.d.ts",
+        "import": "./dist/plugins/review-report-store.js"
+      },
+      "source": "packages/core/src/plugins/review-report-store.ts",
+      "declarations": [
+        "export class JsonlReportStore",
+        "export const REPORT_DEFAULT_PAGE_SIZE",
+        "export const REPORT_RETENTION_MS",
+        "export const REPORT_STORE_FILE",
+        "export function resolveReportStorePath",
+        "export interface ListReportsOptions",
+        "export interface PersistReportInput",
+        "export interface ReportActor",
+        "export interface ReportStore"
       ]
     },
     {
@@ -1131,15 +1155,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 168,
-      "sourceLines": 49525
+      "sourceFiles": 171,
+      "sourceLines": 49933
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 45,
-      "sourceLines": 11786
+      "sourceFiles": 47,
+      "sourceLines": 12006
     },
     {
       "directory": "design",
@@ -1153,7 +1177,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17909
+      "sourceLines": 17983
     },
     {
       "directory": "extension",
@@ -1195,14 +1219,14 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3827
+      "sourceLines": 3841
     },
     {
       "directory": "models",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 11,
-      "sourceLines": 2442
+      "sourceLines": 2465
     },
     {
       "directory": "notifications",
@@ -1258,7 +1282,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6486
+      "sourceLines": 6494
     },
     {
       "directory": "session-catalog",
@@ -1300,7 +1324,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 69,
-      "sourceLines": 11835
+      "sourceLines": 11886
     },
     {
       "directory": "utils",

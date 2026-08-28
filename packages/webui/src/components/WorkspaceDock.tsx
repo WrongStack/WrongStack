@@ -21,13 +21,15 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useAppTranslation } from '@/i18n';
-import { openMainView } from '@/lib/view-navigation';
-import { cn } from '@/lib/utils';
 import { useGitInfo } from '@/hooks/useGitInfo';
+import { useAppTranslation } from '@/i18n';
+import { agentBelongsToSession } from '@/lib/agent-session';
+import { cn } from '@/lib/utils';
+import { openMainView } from '@/lib/view-navigation';
 import {
-  useGoalRunStore,
+  useActiveSessionId,
   useFleetStore,
+  useGoalRunStore,
   useGoalStateStore,
   useSessionStore,
   useUIStore,
@@ -113,7 +115,11 @@ function DockChip({
     <button
       type="button"
       onClick={onClick}
-      title={active ? t('activity:dock.collapseChip', { label }) : t('activity:dock.expandChip', { label })}
+      title={
+        active
+          ? t('activity:dock.collapseChip', { label })
+          : t('activity:dock.expandChip', { label })
+      }
       className={cn(
         'flex items-center gap-2 h-7 px-2.5 rounded-md border text-xs font-medium shrink-0 transition-colors',
         active ? tone.active : cn('border-border/40', tone.idle),
@@ -136,6 +142,7 @@ export function WorkspaceDock() {
   const toggleChipHidden = useUIStore((s) => s.toggleChipHidden);
   const dockCustomizeOpen = useUIStore((s) => s.dockCustomizeOpen);
   const setDockCustomizeOpen = useUIStore((s) => s.setDockCustomizeOpen);
+  const activeSessionId = useActiveSessionId();
 
   const goalState = useGoalStateStore((s) => s.goal);
   // Narrow selectors for each field the dock reads — subscribing to the
@@ -151,10 +158,17 @@ export function WorkspaceDock() {
 
   const gitInfo = useGitInfo();
 
-  const fleetTotal = fleetAgents.size;
+  const sessionFleetAgents = useMemo(
+    () =>
+      Array.from(fleetAgents.values()).filter((a) =>
+        agentBelongsToSession(a.sessionId, activeSessionId),
+      ),
+    [fleetAgents, activeSessionId],
+  );
+  const fleetTotal = sessionFleetAgents.length;
   const fleetRunning = useMemo(
-    () => Array.from(fleetAgents.values()).filter((a) => a.status === 'running').length,
-    [fleetAgents],
+    () => sessionFleetAgents.filter((a) => a.status === 'running').length,
+    [sessionFleetAgents],
   );
   const todosDone = todos.filter((t) => t.status === 'completed').length;
   const todosActive = todos.some((t) => t.status === 'in_progress');
@@ -174,7 +188,8 @@ export function WorkspaceDock() {
   };
   const visible: Record<DockSection, boolean> = {
     goal: (hasData.goal || dockSection === 'goal') && !hidden.has('goal'),
-    'goal-state': (hasData['goal-state'] || dockSection === 'goal-state') && !hidden.has('goal-state'),
+    'goal-state':
+      (hasData['goal-state'] || dockSection === 'goal-state') && !hidden.has('goal-state'),
     fleet: (hasData.fleet || dockSection === 'fleet') && !hidden.has('fleet'),
     work: (hasData.work || dockSection === 'work') && !hidden.has('work'),
     worktrees: (hasData.worktrees || dockSection === 'worktrees') && !hidden.has('worktrees'),
@@ -254,27 +269,42 @@ export function WorkspaceDock() {
             <GitBranch className="h-3 w-3 shrink-0 text-muted-foreground" />
             <span className="min-w-0 truncate font-semibold text-foreground">{gitInfo.branch}</span>
             {gitInfo.ahead > 0 && (
-              <span className="text-success" title={t('activity:dock.ahead', { count: gitInfo.ahead })}>
+              <span
+                className="text-success"
+                title={t('activity:dock.ahead', { count: gitInfo.ahead })}
+              >
                 ↑{gitInfo.ahead}
               </span>
             )}
             {gitInfo.behind > 0 && (
-              <span className="text-warning" title={t('activity:dock.behind', { count: gitInfo.behind })}>
+              <span
+                className="text-warning"
+                title={t('activity:dock.behind', { count: gitInfo.behind })}
+              >
                 ↓{gitInfo.behind}
               </span>
             )}
             {gitInfo.added > 0 && (
-              <span className="text-success" title={t('activity:dock.linesAdded', { count: gitInfo.added })}>
+              <span
+                className="text-success"
+                title={t('activity:dock.linesAdded', { count: gitInfo.added })}
+              >
                 +{gitInfo.added}
               </span>
             )}
             {gitInfo.deleted > 0 && (
-              <span className="text-destructive" title={t('activity:dock.linesDeleted', { count: gitInfo.deleted })}>
+              <span
+                className="text-destructive"
+                title={t('activity:dock.linesDeleted', { count: gitInfo.deleted })}
+              >
                 -{gitInfo.deleted}
               </span>
             )}
             {gitInfo.untracked > 0 && (
-              <span className="text-muted-foreground" title={t('activity:dock.untrackedFiles', { count: gitInfo.untracked })}>
+              <span
+                className="text-muted-foreground"
+                title={t('activity:dock.untrackedFiles', { count: gitInfo.untracked })}
+              >
                 {gitInfo.untracked}?
               </span>
             )}
@@ -454,13 +484,7 @@ export function WorkspaceDockInspector({ sessionId }: { sessionId: string }): Re
   );
 }
 
-function DockEmptyState({
-  title,
-  detail,
-}: {
-  title: string;
-  detail: string;
-}): React.ReactElement {
+function DockEmptyState({ title, detail }: { title: string; detail: string }): React.ReactElement {
   return (
     <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
       <div className="font-medium text-foreground">{title}</div>

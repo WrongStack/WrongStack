@@ -50,6 +50,12 @@ function harness() {
     sess_front: mkContext('sess_front', 2),
     sess_bg: mkContext('sess_bg', 7),
   };
+  // Known ONLY to the non-creating lookup. The creating `getAgent` below
+  // falls back to the foreground context for unknown ids — mimicking a
+  // leader-fallback registry — so any answer that describes `sess_peek`
+  // correctly proves the peek path was taken.
+  const sess_peek = mkContext('sess_peek', 3);
+  sess_peek.meta['contextWindowMode'] = 'peeked';
   const sent: Array<{ type: string; payload: unknown }> = [];
   const broadcasts: Array<{ type: string; payload: unknown }> = [];
   const compacted: string[] = [];
@@ -78,6 +84,15 @@ function harness() {
       ({
         ctx: contexts[(id ?? 'sess_front') as keyof typeof contexts] ?? contexts.sess_front,
       }) as never,
+    // Non-creating twin: answers for every session the registry holds — the
+    // same set getAgent's map covers, minus creation — plus the peek-only
+    // probe. An unknown id stays unknown, mirroring production registries
+    // where peek covers exactly what getAgent can create from.
+    peekAgent: (id) => {
+      const held = (contexts as Record<string, ReturnType<typeof mkContext>>)[id ?? ''];
+      if (held) return { ctx: held } as never;
+      return id === 'sess_peek' ? ({ ctx: sess_peek } as never) : undefined;
+    },
     sessionStartPayload: async (o) => ({ ...o }) as never,
     sendMessage: (_ws, message) => sent.push(message),
     broadcastMessage: (message) => broadcasts.push(message),
@@ -139,6 +154,72 @@ describe('context operations act on the requesting tab', () => {
     // stayed empty.
     expect(reply?.sessionId).toBe('sess_bg');
     expect(reply?.mode).toBe('lean');
+  });
+
+  it('resolves context.debug through the non-creating peek, not getAgent', async () => {
+    const h = harness();
+
+    await h.handlers.debugContext(ws, {
+      type: 'context.debug',
+      payload: { sessionId: 'sess_peek' },
+    });
+
+    const reply = h.sent.find((m) => m.type === 'context.debug')?.payload as {
+      sessionId?: string;
+      mode?: unknown;
+    };
+    // `sess_peek` is known to peekAgent alone; had the handler gone through
+    // the creating getAgent it would have answered with the foreground
+    // context's mode ('balanced') under `sess_peek`'s name.
+    expect(reply?.sessionId).toBe('sess_peek');
+    expect(reply?.mode).toBe('peeked');
+  });
+
+  it('refuses context.debug for a session with no live context instead of serving the root', async () => {
+    const h = harness();
+
+    await h.handlers.debugContext(ws, {
+      type: 'context.debug',
+      payload: { sessionId: 'sess_ghost' },
+    });
+
+    // No context.debug reply at all: the shared root belongs to whichever
+    // session the runtime points at (here the foreground), and serving it
+    // stamped with `sess_ghost` is exactly the cross-tab data bleed.
+    expect(h.sent.some((m) => m.type === 'context.debug')).toBe(false);
+    const error = h.sent.find((m) => m.type === 'error')?.payload as {
+      phase?: string;
+      requestedSessionId?: unknown;
+      sessionId?: string;
+      message?: string;
+    };
+    expect(error?.phase).toBe('context.debug');
+    // Stamped for the ASKING tab so the client routes the refusal into
+    // that tab's lane rather than into whichever tab is in front.
+    expect(error?.sessionId).toBe('sess_ghost');
+    expect(error?.message).toContain('not live');
+    // requestedSessionId must stay OFF: the webui client swallows
+    // requestedSessionId-bearing error frames as session-swap guard
+    // noise, and this refusal is not noise.
+    expect(error?.requestedSessionId).toBeUndefined();
+  });
+
+  it('still serves the runtime’s own current session from the root context', async () => {
+    const h = harness();
+
+    await h.handlers.debugContext(ws, {
+      type: 'context.debug',
+      payload: { sessionId: 'sess_front' },
+    });
+
+    // No registry entry for the current session — a single-session host has
+    // no per-session agents; the root IS its context and must keep working.
+    const reply = h.sent.find((m) => m.type === 'context.debug')?.payload as {
+      sessionId?: string;
+      mode?: unknown;
+    };
+    expect(reply?.sessionId).toBe('sess_front');
+    expect(reply?.mode).toBe('balanced');
   });
 
   it('repairs the named session and reports against it', async () => {
@@ -210,6 +291,31 @@ describe('context operations act on the requesting tab', () => {
     expect(snap?.sessionId).toBe('sess_empty');
     expect(snap?.messages).toEqual([]);
     expect(snap?.readonlyContext).toBeDefined();
+  });
+
+  it('refuses a foreign context op with a frame the client can route', async () => {
+    const h = harness();
+
+    await h.handlers.compactContext(ws, {
+      type: 'context.compact',
+      payload: { sessionId: 'sess_ghost', aggressive: false },
+    });
+
+    const error = h.sent.find((m) => m.type === 'error')?.payload as {
+      phase?: string;
+      sessionId?: string;
+      message?: string;
+      requestedSessionId?: unknown;
+    };
+    expect(error?.phase).toBe('context.compact');
+    // Stamped for the ASKING tab so the client routes the refusal to its lane.
+    expect(error?.sessionId).toBe('sess_ghost');
+    expect(error?.message).toContain('not live');
+    // requestedSessionId must stay OFF: the client swallows frames carrying it
+    // as swap-guard noise, and this refusal is not noise.
+    expect(error?.requestedSessionId).toBeUndefined();
+    // And compacted NOTHING — the ghost session has no context here.
+    expect(h.compacted).toEqual([]);
   });
 
   it('lists the modes with the named session’s active one', async () => {

@@ -16,6 +16,7 @@
  */
 
 import type { TextBlock } from '../types/blocks.js';
+import type { BuildContext } from '../types/system-prompt.js';
 import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
 import { loadGoal } from '../storage/goal-store.js';
 import {
@@ -32,9 +33,13 @@ export interface AutonomyPromptContributorOptions {
    * leak into interactive runs that happen to have a goal on disk and
    * teach the model loop-control markers it shouldn't emit.
    *
-   * Typical wiring: enable while `eternal` or `eternal-parallel` autonomy is active.
+   * Typical wiring: enable while `eternal` or `eternal-parallel` autonomy is
+   * active. Receives the build context so the answer can come from the
+   * CONVERSATION being built for (`ctx.autonomy`) rather than a process-wide
+   * mode ref — with four tabs on one process, that ref is whichever tab last
+   * changed it.
    */
-  enabled: () => boolean;
+  enabled: (ctx: BuildContext) => boolean;
   /** Number of journal entries to include in the recent-tail block. Default 5. */
   journalTailSize?: number | undefined;
 }
@@ -53,7 +58,7 @@ export function makeAutonomyPromptContributor(
     // marking todos. Skip the block entirely for subagent prompt builds,
     // mirroring how the active-plan layer is suppressed.
     if (ctx.subagent) return [];
-    if (!opts.enabled()) return [];
+    if (!opts.enabled(ctx)) return [];
 
     let goal: Awaited<ReturnType<typeof loadGoal>>;
     try {

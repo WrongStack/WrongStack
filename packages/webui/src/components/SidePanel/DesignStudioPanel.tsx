@@ -5,6 +5,13 @@
  * "Use" button that pins the kit on the live agent (via the `design.use` WS
  * message), so the model adheres to it on the next turn. Mirrors SkillsList's
  * WS pattern (client.on / client.send / client.off).
+ *
+ * Every frame names its tab. The kit lives on `meta.designStudio`, which
+ * shapes THAT session's system prompt — an untagged `design.use` from a
+ * background tab restyled whichever session the runtime was pointing at, and
+ * an untagged `design.list` showed this tab another tab's active kit. The
+ * gallery view (`DesignGalleryView`) has stamped since the four-tab work;
+ * this second surface had not.
  */
 
 import { Check, LayoutGrid, Loader2, Palette } from 'lucide-react';
@@ -12,6 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { usePagination } from '@/hooks/usePagination';
 import { cn } from '@/lib/utils';
+import { useActiveSessionId } from '@/stores';
 import { useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { Pagination } from '@/components/ui/pagination';
@@ -58,34 +66,47 @@ export function DesignStudioPanel({ className }: { className?: string }) {
   const [loading, setLoading] = useState(true);
   const [stack, setStack] = useState<string>('web');
   const [busyKit, setBusyKit] = useState<string | null>(null);
+  const sessionId = useActiveSessionId();
 
   useEffect(() => {
     if (!client) return;
+    /** Drop a reply that names a different tab; untagged stays accepted. */
+    const isOurs = (payload: { sessionId?: string | undefined } | undefined): boolean =>
+      !payload?.sessionId || !sessionId || payload.sessionId === sessionId;
     const onList = (msg: unknown) => {
-      const p = (msg as { payload?: { kits?: KitSummary[]; activeKit?: string | null } }).payload;
+      const p = (
+        msg as {
+          payload?: { kits?: KitSummary[]; activeKit?: string | null; sessionId?: string };
+        }
+      ).payload;
+      if (!isOurs(p)) return;
       setKits(p?.kits ?? []);
       setActiveKit(p?.activeKit ?? null);
       setLoading(false);
     };
     const onUse = (msg: unknown) => {
-      const p = (msg as { payload?: { ok?: boolean; kit?: string } }).payload;
+      const p = (msg as { payload?: { ok?: boolean; kit?: string; sessionId?: string } }).payload;
+      if (!isOurs(p)) return;
       setBusyKit(null);
       if (p?.ok && p.kit) setActiveKit(p.kit);
     };
     client.on('design.list', onList);
     client.on('design.use', onUse);
-    client.send({ type: 'design.list' });
+    // Re-asked on every tab change: the panel is parked, not unmounted, so
+    // otherwise it keeps showing the previous tab's active kit.
+    setLoading(true);
+    client.send({ type: 'design.list', payload: client.withSession({}) });
     return () => {
       client.off('design.list', onList);
       client.off('design.use', onUse);
     };
-  }, [client]);
+  }, [client, sessionId]);
 
   const useKit = useCallback(
     (id: string) => {
       if (!client) return;
       setBusyKit(id);
-      client.send({ type: 'design.use', payload: { kit: id, stack } });
+      client.send({ type: 'design.use', payload: client.withSession({ kit: id, stack }) });
     },
     [client, stack],
   );

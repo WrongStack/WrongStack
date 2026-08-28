@@ -42,7 +42,8 @@ const Y_PLAN = ['Yankee plan step one'];
  * Sessions live either under `<repo>/.wrongstack/sessions` or under
  * `~/.wrongstack/projects/<slug>/sessions`, date-sharded
  * (`2026-08-26/sess_<ULID>`). Finds the directory owning `sessionId`'s
- * transcript.
+ * transcript — the shard subdir when the layout is sharded, the sessions
+ * root when it is flat, because sidecars are written beside the journal.
  */
 async function resolveSessionsDir(sessionId: string): Promise<string> {
   const home = process.env.USERPROFILE ?? process.env.HOME ?? '';
@@ -55,8 +56,26 @@ async function resolveSessionsDir(sessionId: string): Promise<string> {
     if (await fs.stat(path.join(dir, `${sessionId}.jsonl`)).then(() => true, () => false)) {
       return dir;
     }
+    // Date-sharded layout: `<dir>/<YYYY-MM-DD>/<sessionId>.jsonl`.
+    for (const shard of await fs.readdir(dir, { withFileTypes: true }).catch(() => [])) {
+      if (!shard.isDirectory()) continue;
+      const sharded = path.join(dir, shard.name, `${sessionId}.jsonl`);
+      if (await fs.stat(sharded).then(() => true, () => false)) {
+        return path.join(dir, shard.name);
+      }
+    }
   }
   throw new Error(`sessions directory not found for ${sessionId}; tried:\n  ${dirs.join('\n  ')}`);
+}
+
+/** True when `sessionId` has a transcript file on disk (flat or sharded). */
+async function sessionHasJournal(sessionId: string): Promise<boolean> {
+  try {
+    await resolveSessionsDir(sessionId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function seedWorklist(
@@ -158,7 +177,16 @@ async function closeTabsNotIn(page: Page, keep: string[]): Promise<void> {
     const tab = tabs.nth(slot);
     await tab.hover();
     await tab.getByTitle('Close tab').click();
-    await page.waitForTimeout(300);
+    // An empty tab closes instantly; a tab with history or a live run now
+    // asks first. Confirm whenever the close dialog appears.
+    const confirmClose = page
+      .getByRole('dialog')
+      .getByRole('button', { name: /Interrupt and Close|Close Tab/i });
+    try {
+      await confirmClose.click({ timeout: 2_000 });
+    } catch {
+      // Empty tab: no dialog appeared, the tab is already closed.
+    }
   }
 }
 
@@ -343,9 +371,20 @@ test.describe('per-session worklist', () => {
     const candidates = listed.filter(
       (s) => !s.isCurrent && untitled(s) && (s.tokenTotal ?? 0) === 0,
     );
-    expect(candidates.length, 'at least two openable 0-token sessions').toBeGreaterThanOrEqual(2);
-    const x = candidates[0] as { id: string };
-    const y = candidates[1] as { id: string };
+    // A catalog entry without an on-disk journal (minted by a boot, never
+    // written) cannot be seeded or resumed — the fixture strategy needs
+    // real transcript files. Keep the two most RECENT resolvable ones.
+    const resolvable: { id: string }[] = [];
+    for (const s of candidates) {
+      if (await sessionHasJournal(s.id)) resolvable.push(s as { id: string });
+      if (resolvable.length >= 2) break;
+    }
+    expect(
+      resolvable.length,
+      'at least two openable 0-token sessions with on-disk journals',
+    ).toBeGreaterThanOrEqual(2);
+    const x = resolvable[0] as { id: string };
+    const y = resolvable[1] as { id: string };
     expect(x.id).not.toBe(y.id);
 
     // ── Seed, restart, reopen: the full user story ──

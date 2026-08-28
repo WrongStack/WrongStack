@@ -1,8 +1,8 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
 import { useActiveSessionId } from '@/stores';
 import type { WSServerMessage } from '@/types';
-import { useCallback, useEffect, useRef, useState } from 'react';
 
 const FIRST_SNAPSHOT_TIMEOUT_MS = 5_000;
 
@@ -158,8 +158,19 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
     const handler = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'context.debug') return;
       if (!isActiveSessionMessage(msg as WSServerMessage)) return;
+      const replySessionId = (msg.payload as { sessionId?: string | undefined } | undefined)
+        ?.sessionId;
+      // The context breakdown is session-scoped UI. While a tab is active,
+      // only a positively stamped reply for that tab is allowed to update it.
+      // Untagged replies remain valid only before any session exists.
+      if (sessionId && replySessionId !== sessionId) return;
       const payload = msg.payload as T | undefined;
-      if (!payload || typeof payload !== 'object' || !('tools' in payload) || !('messages' in payload)) {
+      if (
+        !payload ||
+        typeof payload !== 'object' ||
+        !('tools' in payload) ||
+        !('messages' in payload)
+      ) {
         return;
       }
       hasSnapshotRef.current = true;
@@ -180,7 +191,10 @@ export function useLiveContextDebug<T extends LiveContextDebugPayload = LiveCont
             ? (ws.withSession as (p: Record<string, unknown>) => Record<string, unknown>)({})
             : {};
         ws.send(
-          { type: 'context.debug', ...(Object.keys(withSession).length > 0 ? { payload: withSession } : {}) },
+          {
+            type: 'context.debug',
+            ...(Object.keys(withSession).length > 0 ? { payload: withSession } : {}),
+          },
           { echoToChat: false, queueIfDisconnected: false },
         );
       } catch {

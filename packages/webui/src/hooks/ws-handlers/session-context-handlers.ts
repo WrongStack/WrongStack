@@ -2,13 +2,36 @@ import { toast } from '@/components/Toaster';
 import { i18n } from '@/i18n';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
-import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
+import {
+  chatFor,
+  isActiveSessionMessage,
+  messageSessionId,
+  pipeViz,
+  sessionFor,
+} from '@/lib/ws-client-utils';
 import { useConfigStore } from '@/stores';
 import { activeChatLane, activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
 import { readSessionLane, setSessionGlobals } from '@/stores/session-lanes';
 import type { WSServerMessage } from '@/types';
 
-export const warnedCostModels = new Set<string>();
+/**
+ * Models this conversation has already warned about, per conversation.
+ *
+ * One shared Set meant the first tab to hit an unpriced model silenced the
+ * warning for the other three — a tab's run reaching into process-wide state
+ * and changing what a different tab is told.
+ */
+export const warnedCostModels = new Map<string, Set<string>>();
+
+/** Warned-model set for one conversation, created on first use. */
+function warnedModelsFor(sessionId: string | null): Set<string> {
+  const key = sessionId ?? '__unbound__';
+  const existing = warnedCostModels.get(key);
+  if (existing) return existing;
+  const created = new Set<string>();
+  warnedCostModels.set(key, created);
+  return created;
+}
 
 /**
  * Land the reasoning buffered for ONE lane's current iteration.
@@ -193,6 +216,8 @@ export function handleCompactionFailed(msg: WSServerMessage) {
 }
 
 export function handleTrustPersisted(msg: WSServerMessage) {
+  // Toast only, and a toast belongs to the tab on screen — tool trust itself
+  // is a project-wide decision, so there is no per-tab record to keep here.
   if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as { tool: string; pattern: string; decision: 'always' | 'deny' };
   const label = `${p.tool}: ${p.pattern}`;
@@ -271,16 +296,23 @@ export function handleTokenThreshold(msg: WSServerMessage) {
 }
 
 export function handleTokenCostEstimateUnavailable(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  const sessionId = messageSessionId(msg);
   const p = msg.payload as { model: string };
   const model = p.model || '<unknown>';
-  if (warnedCostModels.has(model)) return;
-  warnedCostModels.add(model);
-  toast.warn(`Cost estimate unavailable for ${model}`);
+  const warned = warnedModelsFor(sessionId);
+  if (warned.has(model)) return;
+  warned.add(model);
+  // The toast is a foreground surface; a background tab records that it has
+  // warned (so it does not shout on arrival) without stealing the screen.
+  if (!sessionId || sessionId === activeLaneId()) {
+    toast.warn(`Cost estimate unavailable for ${model}`);
+  }
 }
 
 export function handleContextModesList(msg: WSServerMessage) {
-  if (!isActiveSessionMessage(msg)) return;
+  // The catalogue write is project-wide and the active id is addressed below,
+  // so nothing here needed a foreground gate — it only threw away the reply a
+  // background tab had asked for, leaving its context-mode picker empty.
   const p = msg.payload as {
     activeId: string;
     modes: Array<{

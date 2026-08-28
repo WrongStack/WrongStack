@@ -70,6 +70,26 @@
     "jkNavigateTitle": "gezinmek için j/k",
     "noProvider": "sağlayıcı-yok",
     "noModel": "model-yok",
-    "memoryContextTitle": "Bellek bağlamı — enjekte edilen SAGE anıları"
+    "memoryContextTitle": "Bellek bağlamı — enjekte edilen SAGE anıları",
+    "toolStatsTitle": "Araç istatistikleri"
+  },
+  "toolStats": {
+    "title": "Araç çağrısı istatistikleri",
+    "liveScope": "Bu sayfa · canlı + kapanmış oturumlar",
+    "calls": "Çağrılar",
+    "ok": "Başarılı",
+    "failed": "Başarısız",
+    "successRate": "Başarı oranı",
+    "inFlight": "Sürüyor",
+    "totalDuration": "Araç süresi",
+    "liveSessions": "Açık sekmeler",
+    "noLiveData": "Bu sayfada henüz araç çağrısı kaydedilmedi. Bir istem çalıştır — istatistikler sekmeye göre burada canlı görünür.",
+    "pastSessions": "Önceki oturumlar",
+    "running": "{{count}} çalışıyor",
+    "agentToAgent": "Ajan-ajana",
+    "delegations": "{{count}} devredilen çalıştırma",
+    "delegationFailed": "{{count}} başarısız",
+    "delegateToolCalls": "içinde {{count}} araç",
+    "leaderLine": "Lider: {{ok}}✓ {{failed}}✗"
   }
 }

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createSessionScopedStore } from './session-scoped-store';
 
 export type MemoryLifecycleAction =
   | 'entered'
@@ -170,7 +170,11 @@ export function toMemoryLifecycleItem(
   return null;
 }
 
-export const useMemoryLifecycleStore = create<MemoryLifecycleState>()((set) => ({
+/**
+ * SAGE lifecycle events belong to the conversation whose run produced them,
+ * so each tab keeps its own trace.
+ */
+export const useMemoryLifecycleStore = createSessionScopedStore<MemoryLifecycleState>((set) => ({
   items: [],
   pushEvent: (payload) =>
     set((state) => {

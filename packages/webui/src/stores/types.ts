@@ -1,4 +1,5 @@
 import type { ContentBlock, Usage } from '@wrongstack/core/types';
+import type { CouncilSeatVote } from './council-log-store.js';
 
 // ============================================
 // Shared Types
@@ -116,7 +117,70 @@ export interface ChatMessage {
    * `autoText` carries the first item's text when it was marked
    * `auto="true"`, for YOLO+auto countdown. Undefined otherwise.
    */
-  nextSteps?: { steps: Array<{ index: number; text: string; auto?: boolean | undefined }> } | undefined;
+  nextSteps?:
+    | { steps: Array<{ index: number; text: string; auto?: boolean | undefined }> }
+    | undefined;
+  /**
+   * Chimera review-report card payload — present when this system message
+   * renders as an actionable report card (ChimeraReportCard) instead of a
+   * plain notice bubble. The card carries the one-click "send the leader to
+   * work on this report" affordance; `actionedAt` flips once that prompt has
+   * been submitted so the button can never double-fire.
+   */
+  chimeraReport?:
+    | { reportId: string; actionable: boolean; actionedAt: number | null }
+    | undefined;
+  /**
+   * Council multi-model consensus & decision payload — present when this
+   * message renders as a dedicated, visually styled CouncilDecisionCard with
+   * voting charts and seat breakdowns instead of a plain text bubble.
+   */
+  councilDecision?: CouncilDecisionData | undefined;
+  /**
+   * Brain arbiter decision/intervention payload — present when this message
+   * renders as a dedicated, visually styled BrainDecisionCard with neural
+   * styling, risk level, and rationale instead of a plain text bubble.
+   */
+  brainDecision?: BrainDecisionData | undefined;
+}
+
+export interface CouncilDecisionData {
+  requestId?: string | undefined;
+  phase?: 'voting' | 'resolved' | undefined;
+  startedAt?: number | undefined;
+  resolvedAt?: number | undefined;
+  status?: string | undefined;
+  resolution?: string | undefined;
+  optionId?: string | undefined;
+  question?: string | undefined;
+  reason?: string | undefined;
+  configuredSeatCount?: number | undefined;
+  validVoteCount?: number | undefined;
+  distinctTargetCount?: number | undefined;
+  judgeUsed?: boolean | undefined;
+  judgeModel?: string | undefined;
+  judgeRationale?: string | undefined;
+  totalTokens?: number | undefined;
+  durationMs?: number | undefined;
+  warnings?: string[] | undefined;
+  seats: CouncilSeatVote[];
+}
+
+export interface BrainDecisionData {
+  id?: string | undefined;
+  kind: 'answered' | 'denied' | 'ask_human' | 'intervention' | 'check' | 'direct' | string;
+  intervened?: boolean | undefined;
+  decisionType?: string | undefined;
+  optionId?: string | undefined;
+  question?: string | undefined;
+  text?: string | undefined;
+  reason?: string | undefined;
+  rationale?: string | undefined;
+  source?: string | undefined;
+  risk?: string | undefined;
+  tier?: string | undefined;
+  confidence?: number | undefined;
+  at?: number | undefined;
 }
 
 export interface SessionInfo {
@@ -165,6 +229,7 @@ export type AgentTranscriptKind =
 export interface AgentTranscriptEntry {
   id: string;
   subagentId: string;
+  sessionId?: string | undefined;
   agentName: string;
   content: string;
   kind: AgentTranscriptKind;

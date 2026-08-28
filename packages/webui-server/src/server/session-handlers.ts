@@ -22,6 +22,7 @@ import {
   isContextWindowModeId,
   resolveContextWindowPolicy,
 } from '@wrongstack/core/types';
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
 import { buildReplayPayload } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
@@ -97,6 +98,54 @@ export function collectDisplayedSessionIds(ctx: {
   return Array.from(ids);
 }
 
+/**
+ * Is this session on someone's SCREEN right now?
+ *
+ * Deliberately narrower than `collectDisplayedSessionIds`, which also folds in
+ * the runtime's own current session. The question here is "does a surface
+ * exist that could stop this run" — and only a client tab has a Stop button.
+ */
+function displayedByAnyClient(
+  ctx: { clients?: Map<WebSocket, ConnectedClient> | undefined },
+  sessionId: string,
+): boolean {
+  // A host that tracks no connections cannot prove the session is off-screen,
+  // so it answers "displayed" and keeps the plain refusal.
+  if (!ctx.clients) return true;
+  for (const client of ctx.clients.values()) {
+    if (client.sessionIds && client.sessionIds.size > 0) {
+      if (client.sessionIds.has(sessionId)) return true;
+    } else if (client.sessionId === sessionId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** How long `session.delete` waits for an aborted run to unwind. */
+const RUN_STOP_GRACE_MS = 2000;
+
+/**
+ * Poll until an aborted run has actually released its lock.
+ *
+ * `abortActiveRun` only signals; the controller is removed by the run's own
+ * `finally`, one microtask-plus-unwind later. Deleting the journal underneath
+ * a run still writing to it is exactly the corruption the refusal exists to
+ * prevent, so the delete waits for the lock to clear rather than assuming it.
+ */
+async function waitForRunToStop(
+  ctx: { isRunActive?: ((sessionId?: string) => boolean) | undefined },
+  sessionId: string,
+  graceMs: number = RUN_STOP_GRACE_MS,
+): Promise<boolean> {
+  const deadline = Date.now() + graceMs;
+  while (ctx.isRunActive?.(sessionId)) {
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return true;
+}
+
 /** Hard ceiling on declared tabs per connection — mirrors the UI's four slots. */
 const MAX_SUBSCRIBED_SESSIONS = 4;
 
@@ -163,6 +212,15 @@ export interface SessionHandlersContext {
    */
   onSessionsUndisplayed?: ((sessionIds: string[]) => void) | undefined;
   getAgent?: ((sessionId?: string) => Agent) | undefined;
+  /**
+   * Non-creating registry lookup for READ paths. `getAgent` CREATES on read
+   * (and can evict a live tab's agent to make room), so a read such as
+   * `context.debug` resolves through this when the host supplies one. A miss
+   * here must surface as an explicit "not available" answer — never a silent
+   * fallback to the shared root context, which belongs to whichever session
+   * the runtime currently points at.
+   */
+  peekAgent?: ((sessionId?: string) => Agent | undefined) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
   systemPrompt?: { applyVariant?: (variant: string) => Promise<void> } | undefined;
   /**
@@ -321,16 +379,47 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         : undefined;
     return typeof value === 'string' && value.length > 0 ? value : undefined;
   };
+  // Read-only lookups MUST go through peekAgent when the host supplies one —
+  // a registry-backed getAgent CREATES on read and can evict a live tab's
+  // agent to make room. Hosts WITHOUT peekAgent have no registry (their
+  // getAgent is the single root agent and cannot evict), so falling back to
+  // it there preserves the old behaviour without the hazard.
+  const peekForRead = (sessionId: string): Agent | undefined =>
+    ctx.peekAgent ? ctx.peekAgent(sessionId) : ctx.getAgent?.(sessionId);
   /**
    * Resolve the Context belonging to the session that SENT this message.
    * With up to four tabs live, `ctx.context` (the shared root) is only
    * coincidentally the caller's session — reading it directly leaks one
    * tab's transcript into another tab's request.
    */
-  const contextForMessage = (msg: WSMessageLike): Context => {
+  const contextForMessage = (msg: WSMessageLike): Context | null => {
     const requested = requestedSessionId(msg);
     if (!requested) return ctx.context;
-    return ctx.getAgent?.(requested)?.ctx ?? ctx.context;
+    // READ path: resolve through peekForRead — never CREATE on a host that
+    // declares a peek. A displayed-but-not-live session must not be served
+    // from a materialised phantom, and it must never fall back to the shared
+    // root context, which belongs to whichever tab is in front — Compact
+    // pressed in a stale tab used to operate on the foreground tab's
+    // conversation. The current session keeps ctx.context as its answer; a
+    // foreign miss returns null and the caller refuses.
+    const agent = peekForRead(requested);
+    if (agent) return agent.ctx;
+    return requested === currentSessionId() ? ctx.context : null;
+  };
+  const sendContextUnavailable = (ws: WebSocket, msg: WSMessageLike, op: string): void => {
+    const requested = requestedSessionId(msg);
+    // `requestedSessionId` must stay OFF this frame: the webui client swallows
+    // requestedSessionId-bearing error frames as session-swap guard noise, so
+    // the refusal would never reach the tab that asked. The message text
+    // already names the session.
+    sendTo(ws, {
+      type: 'error',
+      payload: sessionPayload({
+        phase: op,
+        message: `Session ${requested ?? ''} is not live in this runtime. Reopen or resume the tab, then refresh.`,
+        sessionId: actingSessionId(msg),
+      }),
+    });
   };
   /**
    * The session a request ACTS ON: the one it named, else the foreground.
@@ -365,7 +454,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
   const finalizeSession = async (writer: Session): Promise<void> => {
     // This session's own usage, not the process total. Sharing one counter
     // across four tabs stamped every `session_end` with the sum of all of them.
-    const counter = ctx.getAgent?.(writer.id)?.ctx.tokenCounter ?? ctx.tokenCounter;
+    // Read-only lookup (peek when the host supplies it): creating an agent
+    // just to READ its counter could evict a live tab's agent; a miss falls
+    // back to the shared counter as before.
+    const counter = peekForRead(writer.id)?.ctx.tokenCounter ?? ctx.tokenCounter;
     await writer
       .append({
         type: 'session_end',
@@ -479,6 +571,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     clearContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.clear')) return;
       const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.clear');
+        return;
+      }
       target.state.replaceMessages([]);
       target.state.replaceTodos([]);
       // This session's own counter. Falling back to the shared one is only
@@ -509,7 +605,36 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     debugContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.debug')) return;
-      const target = contextForMessage(msg);
+      // A named session is read from ITS OWN agent — resolved WITHOUT
+      // creating one, always through `peekAgent`. `getAgent` is deliberately
+      // NOT a fallback here: it CREATES on read, and on a full registry that
+      // materialisation can evict a live tab's agent to make room — then
+      // answer the breakdown with a phantom empty context. A host without
+      // `peekAgent` gets the same explicit "not live" error a peekAgent miss
+      // produces, which is what the peekAgent contract above already
+      // mandates. The shared root context belongs to whichever session the
+      // runtime currently points at; with four tabs on one socket that is
+      // routinely a DIFFERENT tab, and serving it stamped with the
+      // requester's id is exactly how one tab's breakdown modal rendered
+      // another tab's tokens. `ctx.context` stays the answer only for the
+      // runtime's own current session and for pre-session requests that name
+      // no session at all.
+      const requested = requestedSessionId(msg);
+      const agent = requested ? ctx.peekAgent?.(requested) : undefined;
+      const target =
+        agent && agent.ctx.session?.id === requested
+          ? agent.ctx
+          : !requested || requested === currentSessionId()
+            ? ctx.context
+            : undefined;
+      if (!target) {
+        // Route through the shared refusal helper — it stamps the
+        // ASKING tab's id (not the runtime's current one) and omits
+        // `requestedSessionId`, which the webui client treats as a
+        // session-swap guard marker and would swallow before delivery.
+        sendContextUnavailable(ws, msg, 'context.debug');
+        return;
+      }
       const breakdown = estimateContextBreakdown({
         systemPrompt: target.systemPrompt,
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list() ?? [],
@@ -536,6 +661,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           return;
         }
         const target = contextForMessage(msg);
+        if (!target) {
+          sendContextUnavailable(ws, msg, 'context.compact');
+          return;
+        }
         const counter = target.tokenCounter ?? ctx.tokenCounter;
         const beforeUsage = counter.total();
         const report = await compactor.compact(target, { aggressive });
@@ -568,6 +697,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     repairContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.repair')) return;
       const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.repair');
+        return;
+      }
       const beforeMessages = target.messages.length;
       const repaired = repairToolUseAdjacency(target.messages);
       if (repaired.report.changed) {
@@ -596,8 +729,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     openContextEditor: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.editor.open')) return;
+      const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.editor.open');
+        return;
+      }
       const snapshot = buildContextEditorSnapshot(
-        contextForMessage(msg),
+        target,
         ctx.listTools?.() ?? ctx.toolRegistry?.list(),
       );
       sendTo(ws, {
@@ -608,8 +746,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     validateContextEditor: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.editor.validate')) return;
       const payload = isRecordPayload(msg.payload) ? msg.payload : {};
+      const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.editor.validate');
+        return;
+      }
       const validation = validateContextEditorProposal({
-        ctx: contextForMessage(msg),
+        ctx: target,
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
@@ -628,8 +771,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     applyContextEditor: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.editor.apply')) return;
       const payload = isRecordPayload(msg.payload) ? msg.payload : {};
+      const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.editor.apply');
+        return;
+      }
       const applied = await applyContextEditorProposal({
-        ctx: contextForMessage(msg),
+        ctx: target,
         tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
         baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
         messages: payload['messages'],
@@ -657,9 +805,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     listContextModes: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.modes.list')) return;
-      const active = String(
-        contextForMessage(msg).meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
-      );
+      const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.modes.list');
+        return;
+      }
+      const active = String(target.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID);
       const store = await modeStore();
       const allModes = store.list().map((m) => ({
         id: m.id,
@@ -685,6 +836,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }
       const { id } = parsed.value;
       const target = contextForMessage(msg);
+      if (!target) {
+        sendContextUnavailable(ws, msg, 'context.mode.switch');
+        return;
+      }
       let policy = resolveContextWindowPolicy({}, id, readSessionWindowTokens(target));
       // A built-in id always resolves (a ≥1M window swaps the balanced default
       // to Deep); only a NON-built-in id that failed to resolve can be a custom
@@ -778,9 +933,15 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       // A deleted mode has to be replaced everywhere it is in use, not just on
       // the tab that pressed delete — the mode store is project-wide, so a tab
       // left pointing at a mode that no longer exists resolves to nothing.
-      const affected = new Set<Context>([ctx.context, contextForMessage(msg)]);
+      const requestContext = contextForMessage(msg);
+      if (!requestContext) {
+        sendContextUnavailable(ws, msg, 'context.mode.delete');
+        return;
+      }
+      const affected = new Set<Context>([ctx.context, requestContext]);
       for (const sessionId of collectDisplayedSessionIds(ctx)) {
-        const agentCtx = ctx.getAgent?.(sessionId)?.ctx;
+        // Peek first: a displayed-but-not-live id is skipped, not materialised.
+        const agentCtx = peekForRead(sessionId)?.ctx;
         if (agentCtx) affected.add(agentCtx);
       }
       for (const target of affected) {
@@ -801,23 +962,44 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     },
     listSessions: async (ws, msg) => {
       const limit = (msg as { payload?: { limit?: number | undefined } }).payload?.limit ?? 50;
+      // "Current" means the session of the tab that ASKED, not the one the
+      // runtime last switched to. The client keys several behaviours off the
+      // flag — the resume button is disabled for it, the "active" filter
+      // shows only it, and the empty-session sweep spares it — so answering
+      // with the runtime's session disabled resume on a row the user was not
+      // on and offered three live tabs' fresh sessions up for deletion.
+      const askingSessionId = actingSessionId(msg);
       try {
         const list = await ctx.getSessionStore().list(limit);
-        const currentId = ctx.getSession().id;
         sendTo(ws, {
           type: 'sessions.list',
           payload: {
-            sessions: toSessionHistoryEntries(list, currentId),
+            sessionId: askingSessionId,
+            sessions: toSessionHistoryEntries(list, askingSessionId),
           },
         });
       } catch (err) {
-        sendTo(ws, { type: 'sessions.list', payload: { sessions: [], error: errMessage(err) } });
+        sendTo(ws, {
+          type: 'sessions.list',
+          payload: { sessionId: askingSessionId, sessions: [], error: errMessage(err) },
+        });
       }
     },
-    deleteSession: (ws, msg) =>
-      serializeSessionTransition(async () => {
-        const { id } = (msg as { payload: { id: string } }).payload;
-        if (ctx.isRunActive?.(id)) {
+    deleteSession: async (ws, msg) => {
+      const { id } = (msg as { payload: { id: string } }).payload;
+      // The run check runs OUTSIDE the transition gate on purpose. Aborting a
+      // wedged run and waiting for it to unwind can take up to
+      // RUN_STOP_GRACE_MS, and the gate is shared with `user_message` setup —
+      // holding it that long would stall the next turn in every OTHER tab for
+      // a delete that concerns none of them.
+      if (ctx.isRunActive?.(id)) {
+        // A run whose tab is still open has a Stop button — refuse and let the
+        // user press it. A run whose tab is GONE has no surface at all:
+        // nothing can stop it, nothing can answer a permission prompt it is
+        // blocked on, and nothing will ever release its lock. Refusing that
+        // one forever is what turned a closed tab into an undeletable ghost,
+        // so an explicit delete of an off-screen session stops the run first.
+        if (displayedByAnyClient(ctx, id) || !ctx.abortActiveRun) {
           result(
             ws,
             false,
@@ -825,7 +1007,33 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           );
           return;
         }
+        ctx.abortActiveRun(id);
+        const stopped = await waitForRunToStop(ctx, id);
+        if (!stopped) {
+          result(
+            ws,
+            false,
+            `Session ${id} has a run that did not stop within ${RUN_STOP_GRACE_MS}ms. Try again in a moment.`,
+          );
+          return;
+        }
+      }
+      return serializeSessionTransition(async () => {
         try {
+          // The pre-gate check above ran before this gate was acquired, and
+          // runs proceed OUTSIDE the gate — only setup is serialised. A
+          // queued or auto-submitted message can therefore start a turn in
+          // the window between "run checked" and "gate held". Deleting under
+          // a live run destroys the journal writer of an in-flight turn, so
+          // the decision is re-made here, where it is finally safe to act on.
+          if (ctx.isRunActive?.(id)) {
+            result(
+              ws,
+              false,
+              `Session ${id} started a run while the delete was being prepared. Stop the run and try again.`,
+            );
+            return;
+          }
           // Deleting the runtime's CURRENT session would strand the host on a
           // record that no longer exists. A client that just closed that tab
           // tags the delete with the session it re-pointed the strip to; move
@@ -839,7 +1047,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             fallback !== id &&
             ctx.isSessionLive?.(fallback)
           ) {
-            const liveWriter = ctx.getAgent?.(fallback)?.ctx?.session;
+            const liveWriter = peekForRead(fallback)?.ctx?.session;
             if (liveWriter && liveWriter.id === fallback) {
               ctx.setSession(liveWriter);
               await ctx.onSessionSwapped?.(fallback);
@@ -864,7 +1072,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         } catch (err) {
           result(ws, false, errMessage(err));
         }
-      }),
+      });
+    },
     renameSession: async (ws, msg) => {
       const payload = (msg as { payload?: { id?: unknown; name?: unknown } }).payload ?? {};
       const id = typeof payload.id === 'string' ? payload.id : '';
@@ -923,7 +1132,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             // Read the TARGET session's own agent, not the shared root
             // context — with several sessions live, the root context may be
             // pointing at a different tab entirely.
-            const activeAgent = ctx.getAgent?.(canonicalId);
+            const activeAgent = peekForRead(canonicalId);
             const activeCtx = activeAgent?.ctx ?? ctx.context;
             const liveMessages = activeCtx?.state?.messages ?? [];
             const currentTodos = activeCtx?.state?.todos ?? [];
@@ -1037,7 +1246,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }),
     saveSession: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'session.save')) return;
-      result(ws, true, `Session ${ctx.getSession().id} is auto-saved`);
+      // Name the tab that asked, not the runtime's session: with four tabs
+      // open the toast quoted a conversation the user was not looking at.
+      result(ws, true, `Session ${actingSessionId(msg)} is auto-saved`);
     },
     inspectSession: async (ws, msg) => {
       const { id } = (msg as { payload: { id: string } }).payload;
@@ -1113,8 +1324,9 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         const target = contextForMessage(msg);
         // Refuse to rewind a session whose journal this process does not
         // actually hold open: cutting the file while another context still
-        // appends to it leaves the two out of step.
-        if (target.session?.id !== targetSessionId) {
+        // appends to it leaves the two out of step. A peek-less host that
+        // cannot resolve the session lands here too (target null).
+        if (!target || target.session?.id !== targetSessionId) {
           result(ws, false, `Session ${targetSessionId} is not open in this runtime`);
           return;
         }
@@ -1207,6 +1419,37 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             payload: { sessionId: id, isRunning: runActive(id) },
           });
         }
+      }
+
+      // Give every declared tab a leader in its own roster.
+      //
+      // `leader_updated` used to be broadcast exactly once, at boot, with the
+      // literal id `leader` and the boot session's stamp. One row, one owner:
+      // the roster filters fail-CLOSED by session, so tabs 2-4 listed their
+      // workers under no leader at all — no leader card, `leaderId`
+      // undefined, and the "is the focused agent the leader" check in ChatView
+      // permanently false. The id has to be session-scoped as well as the
+      // stamp, because a second row under the same key would have re-pointed
+      // the first tab's leader at the second tab.
+      //
+      // `leader@<sessionTag>` is the address the rest of the system already
+      // uses for a conversation's leader (mailbox identity, task-result
+      // reports, the office map's leader test), so the roster now agrees with
+      // it instead of inventing a name. Re-sending on every subscribe is
+      // deliberate: it is idempotent in the store and a reconnecting page
+      // needs it again.
+      for (const id of next) {
+        sendTo(ws, {
+          type: 'subagent.event',
+          payload: {
+            kind: 'leader_updated',
+            sessionId: id,
+            subagentId: `leader@${mailboxSessionTag(id)}`,
+            isLeader: true,
+            name: 'Leader',
+            status: 'idle',
+          },
+        });
       }
 
       if (!ctx.onSessionsUndisplayed || !previous) return;

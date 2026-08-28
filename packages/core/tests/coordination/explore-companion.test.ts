@@ -4,10 +4,16 @@ import type { Mailbox, MailboxAckInput, MailboxMessage, MailboxQuery } from '../
 import {
   buildProbeTaskText,
   DEFAULT_EXPLORE_COMPANION_AGENT_ID,
+  DEFAULT_EXPLORE_SEARCH_TOOLS,
   ExploreCompanion,
   type ExploreProbe,
 } from '../../src/coordination/explore-companion.js';
-import { FLEET_ROSTER, applyRosterBudget } from '../../src/coordination/fleet.js';
+import {
+  EXPLORE_COMPANION_TOOLS,
+  FLEET_ROSTER,
+  applyRosterBudget,
+} from '../../src/coordination/fleet.js';
+import { ToolCapabilities } from '../../src/security/capabilities.js';
 import { agentPrompt } from '../../src/coordination/agents/agent-prompts.js';
 
 const LEADER_SESSION = 'sess-leader';
@@ -505,12 +511,47 @@ describe('explore-companion roster integration', () => {
     const cfg = FLEET_ROSTER[DEFAULT_EXPLORE_COMPANION_AGENT_ID];
     expect(cfg).toBeDefined();
     const tools = cfg?.tools ?? [];
-    expect(tools.length).toBeGreaterThan(0);
-    for (const banned of ['write', 'edit', 'replace', 'patch', 'bash', 'exec', 'delegate']) {
+    expect(tools).toEqual([...EXPLORE_COMPANION_TOOLS]);
+    for (const needed of [
+      'codebase-stats',
+      'codebase-search',
+      'codebase-skeleton',
+      'codebase-repo-map',
+      'codebase-incoming-calls',
+      'codebase-outgoing-calls',
+      'codebase-impact-analysis',
+      'read',
+      'grep',
+      'glob',
+      'tree',
+    ]) {
+      expect(tools, `tools must include ${needed}`).toContain(needed);
+    }
+    for (const banned of [
+      'write',
+      'edit',
+      'replace',
+      'patch',
+      'bash',
+      'exec',
+      'delegate',
+      'search',
+      'codebase-index',
+      'codebase-ast-replace',
+      'mailbox',
+    ]) {
       expect(tools, `tools must not include ${banned}`).not.toContain(banned);
+    }
+    for (const banned of ['write', 'edit', 'replace', 'patch', 'bash', 'exec', 'delegate', 'search']) {
       expect(cfg?.disabledTools, `disabledTools must cover ${banned}`).toContain(banned);
     }
+    expect(cfg?.allowedCapabilities).toEqual([
+      ToolCapabilities.FS_READ,
+      ToolCapabilities.COORDINATION_RESULT_SUBMIT,
+      ToolCapabilities.SESSION_NOTE,
+    ]);
     expect(cfg?.spawnBudgetExempt).toBe(true);
+    expect([...DEFAULT_EXPLORE_SEARCH_TOOLS].sort()).toEqual(['codebase-search', 'grep']);
   });
 
   it('applyRosterBudget fills the idle window for the role', () => {
@@ -523,7 +564,16 @@ describe('explore-companion roster integration', () => {
   });
 
   it('prompt file exists and is a real role brief', () => {
-    expect(agentPrompt(DEFAULT_EXPLORE_COMPANION_AGENT_ID).length).toBeGreaterThan(50);
+    const prompt = agentPrompt(DEFAULT_EXPLORE_COMPANION_AGENT_ID);
+    expect(prompt.length).toBeGreaterThan(50);
+    expect(prompt).toMatch(/Hard stop \(do not wander\)/i);
+    expect(prompt).toMatch(/Answer the probe, then stop/i);
+    expect(prompt).toMatch(/make the leader faster/i);
+    expect(prompt).toMatch(/codebase-search/);
+    expect(prompt).toMatch(/codebase-impact-analysis/);
+    expect(prompt).toMatch(/submit_result/);
+    expect(prompt).toMatch(/session\.note/);
+    expect(prompt).toMatch(/Never:[\s\S]*web `search`/);
   });
 });
 
@@ -542,6 +592,8 @@ describe('buildProbeTaskText', () => {
     expect(parsed['probe']).toBe('Map src/a.ts');
     expect(parsed['hint']).toEqual({ file: 'src/a.ts' });
     expect(parsed['context']).toBe('leader is editing');
+    expect(typeof parsed['scope']).toBe('string');
+    expect(String(parsed['scope'])).toMatch(/Answer only this probe/i);
   });
 
   it('omits absent hint/context', () => {
@@ -554,6 +606,9 @@ describe('buildProbeTaskText', () => {
         createdAt: 0,
       }),
     ) as Record<string, unknown>;
-    expect(parsed).toEqual({ probe: 'q' });
+    expect(parsed['probe']).toBe('q');
+    expect(parsed['hint']).toBeUndefined();
+    expect(parsed['context']).toBeUndefined();
+    expect(typeof parsed['scope']).toBe('string');
   });
 });

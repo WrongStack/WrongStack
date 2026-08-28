@@ -11,6 +11,7 @@ import { isDesktopShell } from '@/lib/desktop-shell';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import {
+  useActiveSessionId,
   useChatStore,
   useConfigStore,
   useFileStore,
@@ -189,7 +190,9 @@ function AppInner() {
   const iteration = useSessionStore((s) => s.iteration);
   const projectName = useSessionStore((s) => s.projectName);
   const sessionTitle = useSessionStore((s) => s.session?.title);
-  const sessionId = useSessionStore((s) => s.session?.id);
+  const sessionRecordId = useSessionStore((s) => s.session?.id);
+  const activeSessionId = useActiveSessionId();
+  const sessionId = activeSessionId ?? sessionRecordId;
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
   const sideContextBreakdownOpen = useUIStore((s) => s.sideContextBreakdownOpen);
   const setSideContextBreakdownOpen = useUIStore((s) => s.setSideContextBreakdownOpen);
@@ -227,7 +230,7 @@ function AppInner() {
       const { filePath } = (e as CustomEvent<{ filePath: string }>).detail;
       const ws = getWSClient(useConfigStore.getState().wsUrl);
       if (ws) {
-        ws.send({ type: 'files.read', payload: { filePath } });
+        ws.send({ type: 'files.read', payload: ws.withSession({ filePath }) });
       }
     };
     window.addEventListener('wrongstack:open-file', onOpenFile);
@@ -244,7 +247,7 @@ function AppInner() {
       if (ws) {
         ws.send({
           type: 'files.write',
-          payload: { filePath, content: file.content },
+          payload: ws.withSession({ filePath, content: file.content }),
         });
       }
     };
@@ -356,7 +359,17 @@ function AppInner() {
             onSettings={() => openMainView('settings')}
           />
         )}
-        {currentView !== 'setup' && <SessionTabBar />}
+        {/* Session tabs belong to the chat surface: parked (kept mounted,
+            hidden + inert) on every other view, so tab state never tears
+            down — the strip is simply not displayed outside chat. */}
+        {currentView !== 'setup' && (
+          <div
+            className={cn(currentView !== 'chat' && 'ws-view-parked')}
+            {...(currentView !== 'chat' ? { inert: true, 'aria-hidden': true } : {})}
+          >
+            <SessionTabBar />
+          </div>
+        )}
         {currentView !== 'setup' && <ConnectionBanner />}
         {currentView !== 'setup' && <UpdateBanner />}
         {/* Main view content — routed by ViewRouter.
@@ -376,7 +389,7 @@ function AppInner() {
           <ErrorBoundary level="panel" name={t('activity:panels.inspector')}>
             <InspectorPanel />
           </ErrorBoundary>
-          {sessionId && currentView === 'chat' && (
+          {sessionId && (
             <ErrorBoundary level="panel" name={t('activity:panels.workspaceInspector')}>
               <WorkspaceDockInspector sessionId={sessionId} />
             </ErrorBoundary>

@@ -8,6 +8,17 @@ const { useUIStore, useSessionStore, useChatStore, useConfigStore } = await impo
   '../../src/stores'
 );
 const { useF5Resilience } = await import('../../src/hooks/useF5Resilience');
+const { DEFAULT_LANE_ID, ensureLane, laneIds, MAX_LANES, useChatLanes } = await import(
+  '../../src/stores/chat-lanes'
+);
+const {
+  ensureSessionLane,
+  SESSION_DEFAULT_LANE_ID,
+  sessionLaneIds,
+  useSessionLanes,
+} = await import('../../src/stores/session-lanes');
+const { useLocalPrefs } = await import('../../src/stores/local-prefs');
+const { useSessionTabStore } = await import('../../src/stores/session-tab-store');
 
 /** Point window.location.pathname at `path` for one test. */
 function setPath(path: string) {
@@ -147,5 +158,88 @@ describe('useF5Resilience — view fallback', () => {
     rerender();
     rerender();
     expect(showPanel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useF5Resilience — lane/slot reconciliation', () => {
+  beforeEach(() => {
+    showPanel.mockReset();
+    setPath('/');
+    localStorage.clear();
+    useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
+    useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
+    useLocalPrefs.setState({ bySession: {}, activeSessionId: null });
+    useUIStore.setState({
+      subagentChatFocusId: null,
+      subagentChatFocusSessionId: null,
+      subagentChatFocusBySession: {},
+    } as never);
+  });
+
+  it('sweeps a session lane whose chat lane is gone — it jams the accounting ceiling', () => {
+    // A session lane restored without its chat-lane twin (partial write or an
+    // older build) is invisible to the chat-registry sweep yet still counts
+    // against the four-lane ceiling in `sessionFor`.
+    ensureSessionLane('sess-orphan');
+
+    renderHook(() => useF5Resilience());
+
+    expect(sessionLaneIds()).not.toContain('sess-orphan');
+  });
+
+  it('keeps slotted lanes, the session pointer, and live chat-lane pairs', () => {
+    ensureLane('tab-live');
+    ensureSessionLane('tab-live');
+    ensureSessionLane('sess-ptr');
+    useSessionTabStore.setState({ openTabIds: ['tab-live'] });
+    useSessionLanes.setState({ activeSessionId: 'sess-ptr' });
+
+    renderHook(() => useF5Resilience());
+
+    expect(laneIds()).toContain('tab-live');
+    expect(sessionLaneIds()).toEqual(expect.arrayContaining(['tab-live', 'sess-ptr']));
+  });
+
+  it('releases persisted per-session chrome of a lane dropped at boot', () => {
+    // The reconcile retires through releaseTab, so the preference overrides
+    // and subagent focus of a boot-dropped lane do not survive for a reused
+    // session id to inherit.
+    ensureLane('tab-orphan');
+    ensureSessionLane('tab-orphan');
+    useLocalPrefs.setState({ bySession: { 'tab-orphan': { provider: 'p' } } } as never);
+    useUIStore.setState({
+      subagentChatFocusBySession: { 'tab-orphan': 'agent-1' },
+    } as never);
+
+    renderHook(() => useF5Resilience());
+
+    expect(laneIds()).not.toContain('tab-orphan');
+    expect(sessionLaneIds()).not.toContain('tab-orphan');
+    expect('tab-orphan' in useLocalPrefs.getState().bySession).toBe(false);
+    expect(useUIStore.getState().subagentChatFocusBySession['tab-orphan']).toBeUndefined();
+  });
+
+  it('recovers accounting headroom after a partial write orphans session lanes', () => {
+    // Partial-write shape: chat-lanes (the heavy key — it carries transcripts)
+    // persisted only sess-a, while session-lanes (the light key) kept all
+    // four. Before the session sweep, the three chat-lane-less orphans
+    // counted against the four-lane ceiling inside `sessionFor`, so a NEW
+    // session's tokens and cost were silently dropped.
+    ensureLane('sess-a');
+    ensureSessionLane('sess-a');
+    ensureSessionLane('sess-b');
+    ensureSessionLane('sess-c');
+    ensureSessionLane('sess-d');
+    useSessionTabStore.setState({ openTabIds: ['sess-a'] });
+    useSessionLanes.setState({ activeSessionId: 'sess-a' });
+
+    renderHook(() => useF5Resilience());
+
+    // The live pair survives; the three orphans are gone…
+    expect(sessionLaneIds()).toEqual(['sess-a']);
+    // …and the exact gate `sessionFor` checks before creating a new lane has
+    // headroom again — no accounting-ceiling jam.
+    expect(sessionLaneIds().length).toBeLessThan(MAX_LANES);
   });
 });

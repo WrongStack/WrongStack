@@ -51,7 +51,6 @@ export interface ConnectionHandlerDeps {
   send: (ws: WebSocket, msg: WSServerMessage) => void;
   sessionPayload: <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
   handleMessage: (ws: WebSocket, client: ConnectedClient, msg: WSClientMessage) => Promise<void>;
-  abortControllers: Map<string, AbortController>;
   pendingConfirms: Map<string, PendingConfirm>;
   buildSessionStartPayload: (
     overrides?: Record<string, unknown>,
@@ -143,9 +142,25 @@ export function createConnectionHandler(
     send: deps.send,
     sessionPayload: deps.sessionPayload,
     rateLimitMax: deps.rateLimitMax,
-    onClose: (_ws, client) => {
-      if (client?.sessionId) deps.abortControllers.delete(client.sessionId);
-    },
+    // NOTE — a closed SOCKET is not a stopped run.
+    //
+    // This used to `abortControllers.delete(client.sessionId)` — a delete
+    // WITHOUT an abort, and only for the tab this connection last acted on.
+    // Both halves were wrong. The run kept going while `isRunActive` reported
+    // `false`, so `session.delete` would happily unlink the journal a live run
+    // was still appending to, and the next `user_message` claimed a second
+    // lock for the same session and hit `Agent.run() is already in progress`.
+    // The other three declared tabs were never touched at all.
+    //
+    // Doing nothing is the correct behaviour: a background run outlives the
+    // tab that started it (the same invariant `retireUndisplayedSessions`
+    // honours), and the run's own `finally` releases the lock when it unwinds.
+    // A page that comes back is told what is still running by
+    // `session.run_state`; a browser that never comes back drains its
+    // unanswerable permission prompts through the last-client drain in
+    // `connection-lifecycle.ts`, which lets a wedged run finish and release.
+    //
+    // So there is deliberately NO `onClose` here.
     buildInitialPayload: async () => {
       const payload = { ...(await deps.buildSessionStartPayload({}, deps.needsSetup)) };
       try {

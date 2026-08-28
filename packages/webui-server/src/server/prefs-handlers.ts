@@ -9,37 +9,10 @@ import {
   unavailableSystemPromptInfo,
 } from './system-prompt-handlers.js';
 import type { WSServerMessage } from './types.js';
+import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 import { validatePrefsUpdatePayload } from './ws-payload-validation.js';
 
-/**
- * Preferences that belong to ONE session rather than to the process.
- *
- * Every WebUI tab runs its own session with its own agent context, so these
- * have to land on the calling tab's meta bag: flipping yolo in tab 3 must not
- * hand tab 1's run blanket tool approval, and a context strategy chosen for a
- * long refactor tab must not re-shape a quick question in the tab beside it.
- *
- * Everything NOT listed here (locale, ports, HQ, telegram, feature flags,
- * breaker, proxy, log level…) is genuinely process-wide and keeps its single
- * global home.
- */
-export const SESSION_SCOPED_PREF_KEYS: ReadonlySet<string> = new Set([
-  'autonomy',
-  'autonomyDelayMs',
-  'autoProceedMaxIterations',
-  'yolo',
-  'maxIterations',
-  'contextStrategy',
-  'contextMode',
-  'contextAutoCompact',
-  'tokenSavingTier',
-  'systemPromptVariant',
-  'reasoningMode',
-  'reasoningEffort',
-  'reasoningPreserve',
-  'nextPrediction',
-  'nextStepsTool',
-]);
+export { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 
 export interface PrefsHandlerContext {
   meta: Record<string, unknown>;
@@ -68,7 +41,14 @@ export interface PrefsHandlerContext {
    * YOLO on for a conversation the user was not in.
    */
   setYolo?: ((enabled: boolean, sessionId?: string | undefined) => void) | undefined;
-  setAutonomy?: ((mode: string) => void) | undefined;
+  /**
+   * Flip the RUNTIME autonomy mode. Session-scoped for the same reason
+   * `setYolo` is: the mode is a per-tab preference, and the runtime knob
+   * behind this seam is process-wide, so an unaddressed call let a background
+   * tab put the whole process — and every other tab's system prompt — into
+   * eternal mode.
+   */
+  setAutonomy?: ((mode: string, sessionId?: string | undefined) => void) | undefined;
   applyConfigPrefs?: ((payload: Record<string, unknown>) => void) | undefined;
   setAutoCompact?: ((enabled: boolean) => void) | undefined;
   setLogLevel?: ((level: 'debug' | 'info' | 'warn' | 'error') => void) | undefined;
@@ -190,7 +170,7 @@ export async function handlePrefsUpdate(
   // never receives the change and the browser's "set autonomy to
   // eternal" click is silently a no-op until the next process boot.
   if (typeof payload['autonomy'] === 'string') {
-    ctx.setAutonomy?.(payload['autonomy']);
+    ctx.setAutonomy?.(payload['autonomy'], sessionId);
   }
 
   if (typeof payload['yolo'] === 'boolean') {
@@ -305,7 +285,7 @@ export function handleAutonomySwitch(
   // Autonomy is per-tab: a tab left running on `eternal` must not drag the
   // tab the user is typing in along with it.
   (ctx.metaFor?.(sessionId) ?? ctx.meta)['autonomy'] = mode;
-  ctx.setAutonomy?.(mode);
+  ctx.setAutonomy?.(mode, sessionId);
   sendResult(ctx, ws, true, `Autonomy mode set to "${mode}"`);
   ctx.broadcast({
     type: 'prefs.updated',

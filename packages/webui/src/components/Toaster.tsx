@@ -1,80 +1,19 @@
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import { useEffect } from 'react';
-import { create } from 'zustand';
-import { cn, safeId } from '@/lib/utils';
-import { i18n, useAppTranslation } from '@/i18n';
+import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
+import {
+  ACTION_TTL_MS,
+  type ToastAction,
+  type ToastEntry,
+  type ToastVariant,
+  toast,
+  useNotificationStore,
+  useToastStore,
+} from '@/stores/notification-store';
 
-/**
- * Tiny toast store + portal. We resisted pulling in shadcn-ui's full
- * toast/sonner since it brings a tree of providers — this is one store,
- * one component, ~80 lines total. The store is exposed via `toast.success(...)`
- * etc. so non-React modules (ws-client handlers) can fire toasts without
- * the hook.
- */
-function toastId(): string {
-  return `toast_${safeId()}`;
-}
-
-export type ToastVariant = 'success' | 'error' | 'warn' | 'info';
-
-/**
- * Optional action button rendered inline on a toast. Used by the
- * "undo" pattern — clicking runs `onClick` and dismisses the toast.
- */
-export interface ToastAction {
-  label: string;
-  onClick: () => void;
-}
-
-export interface ToastEntry {
-  id: string;
-  message: string;
-  variant: ToastVariant;
-  ttl: number;
-  /** Optional inline action button (e.g. "Undo"). */
-  action?: ToastAction | undefined;
-}
-
-/** Default TTL for action toasts — kept in sync with `toaster-helpers.ts`. */
-const ACTION_TTL_MS = 8_000;
-
-interface ToastState {
-  toasts: ToastEntry[];
-  push: (t: Omit<ToastEntry, 'id'>) => string;
-  dismiss: (id: string) => void;
-}
-
-const useToastStore = create<ToastState>((set) => ({
-  toasts: [],
-  push: (t) => {
-    const id = toastId();
-    set((state) => ({ toasts: [...state.toasts, { ...t, id }] }));
-    return id;
-  },
-  dismiss: (id) => set((state) => ({ toasts: state.toasts.filter((x) => x.id !== id) })),
-}));
-
-/** Imperative API. Pass plain strings or arrays of strings for multi-line. */
-export const toast = {
-  success: (msg: string, ttl = 3500) =>
-    useToastStore.getState().push({ message: msg, variant: 'success', ttl }),
-  error: (msg: string, ttl = 6000) =>
-    useToastStore.getState().push({ message: msg, variant: 'error', ttl }),
-  warn: (msg: string, ttl = 4500) =>
-    useToastStore.getState().push({ message: msg, variant: 'warn', ttl }),
-  info: (msg: string, ttl = 3500) =>
-    useToastStore.getState().push({ message: msg, variant: 'info', ttl }),
-  /**
-   * Fire a toast carrying an "Undo" action button. The toast lingers
-   * for {@link ACTION_TTL_MS} so the user has time to react; letting it
-   * expire is the same as not undoing.
-   */
-  undoable: (msg: string, onUndo: () => void, label = i18n.t('common:action.undo'), ttl = ACTION_TTL_MS) =>
-    useToastStore
-      .getState()
-      .push({ message: msg, variant: 'info', ttl, action: { label, onClick: onUndo } }),
-  dismiss: (id: string) => useToastStore.getState().dismiss(id),
-};
+export type { ToastAction, ToastEntry, ToastVariant };
+export { ACTION_TTL_MS, toast, useToastStore };
 
 function Icon({ variant }: { variant: ToastVariant }) {
   if (variant === 'success') return <CheckCircle2 className="h-4 w-4 text-success" />;
@@ -85,11 +24,12 @@ function Icon({ variant }: { variant: ToastVariant }) {
 
 function ToastItem({ entry }: { entry: ToastEntry }) {
   const { t } = useAppTranslation();
-  const dismiss = useToastStore((s) => s.dismiss);
+  const dismissToast = useNotificationStore((s) => s.dismissToast);
   useEffect(() => {
-    const t = setTimeout(() => dismiss(entry.id), entry.ttl);
-    return () => clearTimeout(t);
-  }, [entry.id, entry.ttl, dismiss]);
+    const timer = setTimeout(() => dismissToast(entry.id), entry.ttl);
+    return () => clearTimeout(timer);
+  }, [entry.id, entry.ttl, dismissToast]);
+
   return (
     <div
       className={cn(
@@ -109,7 +49,7 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
           type="button"
           onClick={() => {
             entry.action?.onClick();
-            dismiss(entry.id);
+            dismissToast(entry.id);
           }}
           className="shrink-0 font-medium text-primary hover:underline"
         >
@@ -118,7 +58,7 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
       )}
       <button
         type="button"
-        onClick={() => dismiss(entry.id)}
+        onClick={() => dismissToast(entry.id)}
         className="text-muted-foreground hover:text-foreground"
         title={t('activity:toast.dismiss')}
         aria-label={t('activity:toast.dismiss')}
@@ -131,7 +71,7 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
 
 export function Toaster() {
   const { t } = useAppTranslation();
-  const toasts = useToastStore((s) => s.toasts);
+  const toasts = useNotificationStore((s) => s.toasts);
   if (toasts.length === 0) return null;
   return (
     <section

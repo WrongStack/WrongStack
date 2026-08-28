@@ -1,5 +1,9 @@
 import * as path from 'node:path';
-import { type FleetWorktreePolicy, makeSubagentResultTool } from '@wrongstack/core/coordination';
+import {
+  type FleetWorktreePolicy,
+  makeSessionNoteTool,
+  makeSubagentResultTool,
+} from '@wrongstack/core/coordination';
 import {
   ToolCapabilities,
   WIDE_SUBAGENT_CAPABILITIES,
@@ -132,6 +136,7 @@ export function selectSubagentTools(
         .map((tool) => [tool.name, tool] as const),
     );
     visible.set('submit_result', makeSubagentResultTool());
+    visible.set('session_note', makeSessionNoteTool());
     return Array.from(visible.values());
   }
   const allowSet = new Set(allow);
@@ -152,6 +157,7 @@ export function selectSubagentTools(
     throw new Error(`Subagent tool contract is not registered: ${missing.sort().join(', ')}`);
   }
   result.set('submit_result', makeSubagentResultTool());
+  result.set('session_note', makeSessionNoteTool());
   return Array.from(result.values());
 }
 

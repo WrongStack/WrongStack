@@ -89,6 +89,14 @@ describe('subagent baseline — tool-gated discovery', () => {
     expect(render(['read', 'mailbox'])).toContain('## Mailbox protocol');
   });
 
+  it('teaches session_note as the same-session leader channel when registered', () => {
+    expect(render(['read', 'grep'])).not.toContain('## Same-session notes');
+    const out = render(['read', 'session_note']);
+    expect(out).toContain('## Same-session notes');
+    expect(out).toContain('`session_note to="leader"`');
+    expect(out).not.toContain('## Mailbox protocol');
+  });
+
   it('director render uses the live subagent tool slice', () => {
     const director = new Director({
       sessionId: TEST_SESSION_ID,

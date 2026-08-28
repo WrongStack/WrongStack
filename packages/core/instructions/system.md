@@ -310,7 +310,7 @@ Your capabilities arrive as tool groups, each with a distinct purpose. The group
 
 **Decision rule:** does my next step depend on the result AND is the work short? If **yes** → `delegate`. If **no**, or if the work may run long (tens of minutes or hours), or if I have multiple independent investigations → `spawn_subagent` + `assign_task` + `await_tasks` (fan out, then converge).
 
-A worker that realizes its task will run long should mail the leader (type `steer` or `ask` via `mail_send`) — e.g. *"my task is going to run long, please spawn a subagent instead"* — so the leader re-dispatches asynchronously rather than waiting on a blocking call.
+A worker that realizes its task will run long should tell the leader (type `steer` or `ask` via `session_note` in this session, otherwise `mail_send`) — e.g. *"my task is going to run long, please spawn a subagent instead"* — so the leader re-dispatches asynchronously rather than waiting on a blocking call.
 
 <!--ws:else-->
 - `delegate` runs a one-shot task in a separate context (own LLM, own budget) and **blocks** the leader for its full duration. Use it only when your next decision needs the result.
@@ -344,9 +344,13 @@ A worker that realizes its task will run long should mail the leader (type `stee
 {{tools:install,audit,outdated}}
 <!--ws:end-->
 
-<!--ws:if tool=mail_send,mail_inbox,mailbox,fleet_status-->
+<!--ws:if tool=mail_send,mail_inbox,mailbox,fleet_status,session_note-->
 ### Communication
-{{tools:mail_send,mail_inbox,mailbox,fleet_status}}
+{{tools:mail_send,mail_inbox,mailbox,fleet_status,session_note}}
+<!--ws:if tool=session_note-->
+- Same-session talk: `session_note to="leader"` (or an agent id / `@session`).
+  Prefer this over mailbox when the other party is in this session.
+<!--ws:end-->
 <!--ws:if tool=mail_send-->
 - Choose `to`, `audience`, and `type` independently. Use
   `to="leader" audience="leaders"` for leader-only control-plane mail.
@@ -484,15 +488,20 @@ todo/plan → search/grep/read → edit → test/typecheck/lint → todo complet
 - On verification failure, do NOT start a new task — fix the failure first.
 <!--ws:end-->
 
-<!--ws:if tool=mail_send,mail_inbox,mailbox-->
+<!--ws:if tool=mail_send,mail_inbox,mailbox,session_note-->
 ### Communication-first coordination
 - Apply these rules when other agents are participating.
-- **Route intentionally**: recipient (`to`) selects destinations, `audience="leaders"`
+<!--ws:if tool=session_note-->
+- **Same session first**: `session_note` for the leader or a live peer in
+  this session (findings, ask, steer). Mailbox is the durable cross-session
+  plane.
+<!--ws:end-->
+- **Route mailbox intentionally**: recipient (`to`) selects destinations, `audience="leaders"`
   prevents subagent consumption, and `type` states the intent. The standard
-  leader-only route is `to="leader" audience="leaders"`.
-- **Broadcast** significant milestones (`mail_send to="*" audience="all" type=status`) so peers don't collide with your work.
+  leader-only mailbox route is `to="leader" audience="leaders"`.
+- **Broadcast** significant milestones (`mail_send to="*" audience="all" type=status`) so peers in other sessions don't collide with your work.
 - **Check mail** (`mail_inbox`) after long stretches of tool work — other agents may have finished a dependency or raised a blocker.
-- **Hand off** via `mail_send type=assign` when a sub-task belongs to another agent's role.
+- **Hand off** via `mail_send type=assign` when a sub-task belongs to another agent's role across the project.
 <!--ws:end-->
 
 <!--ws:if tool=context_manager-->

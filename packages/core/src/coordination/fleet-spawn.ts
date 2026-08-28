@@ -279,12 +279,16 @@ export async function spawn(
   host.subagentBridges.set(result.subagentId, subagentBridge);
   // Emit subagent.spawned on the FleetBus so the TUI can track collab agents
   // (which bypass MultiAgentHost.spawn and go through director.spawn directly).
+  // The session that owns THIS worker, not "which session is the host on".
+  // The coordinator captured it at spawn from the caller's `originSessionId`,
+  // so a worker delegated from a background tab is announced to that tab
+  // rather than to whichever conversation the host booted with.
   const currentSessionId =
-    typeof (host.coordinator as unknown as { currentSessionId?: () => string | undefined })
-      .currentSessionId === 'function'
-      ? (
-          host.coordinator as unknown as { currentSessionId: () => string | undefined }
-        ).currentSessionId()
+    typeof (host.coordinator as unknown as { sessionOf?: (id: string) => string | undefined })
+      .sessionOf === 'function'
+      ? (host.coordinator as unknown as { sessionOf: (id: string) => string | undefined }).sessionOf(
+          result.subagentId,
+        )
       : undefined;
   host.fleet.emit({
     subagentId: result.subagentId,

@@ -118,7 +118,12 @@ export const RUNTIME_CAPABILITY_MANIFEST = [
     id: 'coordination.mailbox',
     pack: 'fleet',
     exposure: 'direct',
-    tools: ['mailbox', 'mail_send', 'mail_inbox', 'fleet_status'],
+    // `session_note` sits beside mailbox rather than in its own capability:
+    // both are "one agent speaks to another". The split that matters is
+    // durability — mailbox persists and crosses sessions, a note is
+    // in-process and dies with the session — and that is a property of the
+    // tool, not of who is allowed to talk.
+    tools: ['mailbox', 'mail_send', 'mail_inbox', 'fleet_status', 'session_note'],
   },
   {
     id: 'fleet.delegate',

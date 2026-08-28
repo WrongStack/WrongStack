@@ -3,6 +3,7 @@
  * These can be passed to `MultiAgentHost.spawn()` or used as templates
  * for the director's roster.
  */
+import { ToolCapabilities } from '../security/capabilities.js';
 import type { SubagentConfig } from '../types/multi-agent.js';
 import { agentPrompt } from './agents/agent-prompts.js';
 import {
@@ -61,11 +62,33 @@ const SHADOW_AGENT: SubagentConfig = {
 };
 
 /**
+ * Read-only discovery surface for the Explore Companion.
+ *
+ * Index tools first (the point of the role: save the leader those calls).
+ * `codebase-impact-analysis` is read-only blast radius — the leader is about
+ * to edit; the companion should say who breaks. File tools are fallbacks
+ * when the index is cold or the probe needs a cited `file:line`.
+ *
+ * Deliberately omitted from `TOOLS.read`:
+ *   - `search` — web search, not codebase search
+ *   - `mailbox` — cross-session mail; same-session talk is `session_note`
+ *     (injected by the host, like `submit_result`)
+ */
+export const EXPLORE_COMPANION_TOOLS: readonly string[] = [
+  ...TOOLS.index,
+  'codebase-impact-analysis',
+  'read',
+  'grep',
+  'glob',
+  'tree',
+];
+
+/**
  * Explore Companion — state-triggered background codebase explorer.
  * Runs behind a leader agent: triggered by the in-progress state of the
  * work (unread-file edits, zero-hit searches, todo flips, explicit asks),
- * scans the codebase read-only, and feeds findings back via mailbox
- * `result`/`btw` + `submit_result`. See
+ * scans the codebase read-only, and feeds findings back via `submit_result`
+ * (the host mails a compact copy to the leader). See
  * docs/architecture/explore-companion-subagent.md.
  *
  * Operational role — deliberately NOT in ALL_AGENT_DEFINITIONS (like
@@ -75,7 +98,7 @@ const SHADOW_AGENT: SubagentConfig = {
  */
 export const EXPLORE_COMPANION_AGENT: SubagentConfig = {
   ...defineAgent('explore-companion', 'Explore Companion'),
-  tools: [...TOOLS.read, ...TOOLS.index],
+  tools: [...EXPLORE_COMPANION_TOOLS],
   // Read-only, triple-enforced: allowlist has no write/bash, and the
   // disabled list blocks the escape hatches explicitly.
   disabledTools: [
@@ -88,10 +111,21 @@ export const EXPLORE_COMPANION_AGENT: SubagentConfig = {
     'delegate',
     'spawn_subagent',
     'assign_task',
+    'search',
+    'codebase-index',
+    'codebase-ast-replace',
+    'codebase-invariant-check',
+    'codebase-targeted-test',
+  ],
+  allowedCapabilities: [
+    ToolCapabilities.FS_READ,
+    ToolCapabilities.COORDINATION_RESULT_SUBMIT,
+    ToolCapabilities.SESSION_NOTE,
   ],
   skillNames: [...ROLE_SKILL_SETS['explore-companion']],
   spawnBudgetExempt: true,
-  // Findings travel via mailbox + submit_result, not the leader's stream.
+  // Findings travel via submit_result; the host posts a session.note
+  // to the leader. Not the leader's stream.
   textStream: 'silent',
   toolStream: 'silent',
 };

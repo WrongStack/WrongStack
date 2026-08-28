@@ -1,6 +1,8 @@
 // ── Barrel re-exports — all stores and types ──
 
 export { useChatStore } from './chat-store.js';
+export { useChimeraReportsStore, useSessionChimeraReports } from './chimera-reports-store.js';
+export type { ChimeraReportNotice } from './chimera-reports-store.js';
 export type { ActivityType, FileActivity } from './codemap-activity-store.js';
 export {
   extractActivitiesFromMessage,
@@ -73,6 +75,17 @@ export {
   useOfficeMapStore,
   WAIT_THRESHOLD_PRESETS,
 } from './office-map-store.js';
+export type {
+  AppNotification,
+  NotificationAction,
+  NotificationStoreState,
+  NotificationVariant,
+} from './notification-store.js';
+export {
+  toast,
+  useNotificationStore,
+  useToastStore,
+} from './notification-store.js';
 export {
   type ProviderHealthEntry,
   type ProviderHealthState,
@@ -132,10 +145,21 @@ export {
   type TechStackWorkspace,
   useTechStackStore,
 } from './techstack-store.js';
+export {
+  LEADER_AGENT_KEY,
+  bucketSuccessRatio,
+  sessionInFlight,
+  type ToolStatsBucket,
+  type ToolStatsDelegation,
+  type ToolStatsSession,
+  useToolStatsStore,
+} from './tool-stats-store.js';
 export type {
   AgentTranscriptEntry,
   AgentTranscriptKind,
+  BrainDecisionData,
   ChatMessage,
+  CouncilDecisionData,
   FleetTimelineEvent,
   MessageContent,
   SessionHistoryEntry,

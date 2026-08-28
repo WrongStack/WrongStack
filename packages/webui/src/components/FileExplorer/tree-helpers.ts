@@ -63,3 +63,13 @@ export function collectDirPaths(tree: TreeNode[]): string[] {
   walk(tree);
   return out;
 }
+
+/**
+ * Stable DOM id for a tree row button. Used by the role="tree" container's
+ * aria-activedescendant (so screen readers can track the focused row) and by
+ * the Shift+F10 handler to locate the focused row's bounding rect for menu
+ * anchoring. encodeURIComponent keeps the id valid and unique per path.
+ */
+export function treeRowId(path: string): string {
+  return `ws-file-row-${encodeURIComponent(path)}`;
+}

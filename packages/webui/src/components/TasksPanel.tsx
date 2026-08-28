@@ -1,9 +1,10 @@
-import { CheckCircle2, Circle, Clock, Pause, XCircle, RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, Circle, Clock, Pause, RotateCcw, XCircle } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useActiveSessionId } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 
 interface TaskItem {
   id: string;
@@ -18,13 +19,40 @@ interface TaskItem {
   tags?: string[] | undefined;
 }
 
-const STATUS_CONFIG: Record<TaskItem['status'], { icon: React.ReactNode; labelKey: string; color: string }> = {
-  pending: { icon: <Circle className="w-3.5 h-3.5" />, labelKey: 'statusPending', color: 'text-muted-foreground/70' },
-  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-warning' },
-  blocked: { icon: <Pause className="w-3.5 h-3.5" />, labelKey: 'statusBlocked', color: 'text-warning' },
-  failed: { icon: <XCircle className="w-3.5 h-3.5" />, labelKey: 'statusFailed', color: 'text-destructive' },
-  review: { icon: <RotateCcw className="w-3.5 h-3.5" />, labelKey: 'statusReview', color: 'text-info' },
-  completed: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-success' },
+const STATUS_CONFIG: Record<
+  TaskItem['status'],
+  { icon: React.ReactNode; labelKey: string; color: string }
+> = {
+  pending: {
+    icon: <Circle className="w-3.5 h-3.5" />,
+    labelKey: 'statusPending',
+    color: 'text-muted-foreground/70',
+  },
+  in_progress: {
+    icon: <Clock className="w-3.5 h-3.5 animate-spin" />,
+    labelKey: 'statusInProgress',
+    color: 'text-warning',
+  },
+  blocked: {
+    icon: <Pause className="w-3.5 h-3.5" />,
+    labelKey: 'statusBlocked',
+    color: 'text-warning',
+  },
+  failed: {
+    icon: <XCircle className="w-3.5 h-3.5" />,
+    labelKey: 'statusFailed',
+    color: 'text-destructive',
+  },
+  review: {
+    icon: <RotateCcw className="w-3.5 h-3.5" />,
+    labelKey: 'statusReview',
+    color: 'text-info',
+  },
+  completed: {
+    icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+    labelKey: 'statusDone',
+    color: 'text-success',
+  },
 };
 
 const PRIORITY_COLOR: Record<TaskItem['priority'], string> = {
@@ -42,6 +70,15 @@ const TYPE_ICON: Record<TaskItem['type'], string> = {
   test: '🧪',
   chore: '🔧',
 };
+
+const TASKS_PANEL_NO_SESSION = '__no_session__';
+const tasksCollapsedBySession = new Map<string, Set<string>>();
+const disposedTasksPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  tasksCollapsedBySession.delete(sessionId);
+  disposedTasksPanelSessions.add(sessionId);
+});
 
 /**
  * Live task list panel. Connects via WebSocket, requests the current
@@ -64,6 +101,17 @@ export function TasksPanel(): React.ReactElement | null {
   // `session?.id`, which is null until the resumed tab's `session.start`
   // lands) means the refetch below fires the moment the switch happens.
   const sessionId = useActiveSessionId();
+  const collapsedSessionRef = useRef<string>(sessionId ?? TASKS_PANEL_NO_SESSION);
+
+  useLayoutEffect(() => {
+    if (!disposedTasksPanelSessions.has(collapsedSessionRef.current)) {
+      tasksCollapsedBySession.set(collapsedSessionRef.current, new Set(collapsed));
+    }
+    const next = sessionId ?? TASKS_PANEL_NO_SESSION;
+    disposedTasksPanelSessions.delete(next);
+    setCollapsed(new Set(tasksCollapsedBySession.get(next) ?? []));
+    collapsedSessionRef.current = next;
+  }, [sessionId]);
 
   useEffect(() => {
     // Drop the previous tab's tasks immediately so a slow `tasks.get` round
@@ -71,9 +119,7 @@ export function TasksPanel(): React.ReactElement | null {
     setTasks([]);
     ws.getTasks();
     const off = ws.on('tasks.updated', (msg: unknown) => {
-      const payload = (
-        msg as { payload?: { sessionId?: string; tasks?: TaskItem[] } }
-      )?.payload;
+      const payload = (msg as { payload?: { sessionId?: string; tasks?: TaskItem[] } })?.payload;
       // The server stamps every worklist frame with the session it served.
       // Untagged frames (older server, embedded host) stay compatible.
       if (payload?.sessionId && sessionId && payload.sessionId !== sessionId) return;
@@ -87,7 +133,8 @@ export function TasksPanel(): React.ReactElement | null {
   const toggle = useCallback((key: string) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   }, []);
@@ -99,7 +146,14 @@ export function TasksPanel(): React.ReactElement | null {
     [ws],
   );
 
-  const statusOrder: TaskItem['status'][] = ['in_progress', 'blocked', 'review', 'pending', 'failed', 'completed'];
+  const statusOrder: TaskItem['status'][] = [
+    'in_progress',
+    'blocked',
+    'review',
+    'pending',
+    'failed',
+    'completed',
+  ];
   const sortedTasks = [...tasks].sort(
     (a, b) => statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status),
   );
@@ -117,7 +171,9 @@ export function TasksPanel(): React.ReactElement | null {
   return (
     <div className="rounded-lg border border-border bg-card/50 backdrop-blur-sm overflow-hidden">
       <div className="px-3 py-1.5 flex items-center gap-2 border-b border-border/50">
-        <h2 className="text-[11px] font-semibold text-foreground uppercase tracking-wider">{t('activity:work.tasks')}</h2>
+        <h2 className="text-[11px] font-semibold text-foreground uppercase tracking-wider">
+          {t('activity:work.tasks')}
+        </h2>
         <span className="tabular text-[10px] text-muted-foreground ml-auto">
           {completed}/{tasks.length}
         </span>
@@ -136,69 +192,91 @@ export function TasksPanel(): React.ReactElement | null {
               onClick={() => toggle(status)}
               className="w-full px-3 py-1 flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="tabular">{isCollapsed ? '▶' : '▼'} {group.length} {t(`activity:task.${cfg.labelKey}`)}</span>
+              <span className="tabular">
+                {isCollapsed ? '▶' : '▼'} {group.length} {t(`activity:task.${cfg.labelKey}`)}
+              </span>
             </button>
-            {!isCollapsed && group.map((task) => (
-              <div
-                key={task.id}
-                className={cn(
-                  'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
-                  task.status === 'in_progress' ? 'bg-warning/8' : '',
-                )}
-              >
-                <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>
-                <span className="leading-snug flex-1 min-w-0">
-                  <span className={cn(task.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground/80')}>
-                    {TYPE_ICON[task.type]} {task.title}
-                  </span>
-                  {task.priority !== 'medium' && (
-                    <span className={cn('ml-1 text-[10px]', PRIORITY_COLOR[task.priority])}>
-                      {task.priority}
+            {!isCollapsed &&
+              group.map((task) => (
+                <div
+                  key={task.id}
+                  className={cn(
+                    'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
+                    task.status === 'in_progress' ? 'bg-warning/8' : '',
+                  )}
+                >
+                  <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>
+                  <span className="leading-snug flex-1 min-w-0">
+                    <span
+                      className={cn(
+                        task.status === 'completed'
+                          ? 'text-muted-foreground line-through'
+                          : 'text-foreground/80',
+                      )}
+                    >
+                      {TYPE_ICON[task.type]} {task.title}
                     </span>
-                  )}
-                  {task.assignee && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">@{task.assignee}</span>
-                  )}
-                  {task.estimateHours && (
-                    <span className="ml-1 text-[10px] text-muted-foreground">{task.estimateHours}h</span>
-                  )}
-                </span>
+                    {task.priority !== 'medium' && (
+                      <span className={cn('ml-1 text-[10px]', PRIORITY_COLOR[task.priority])}>
+                        {task.priority}
+                      </span>
+                    )}
+                    {task.assignee && (
+                      <span className="ml-1 text-[10px] text-muted-foreground">
+                        @{task.assignee}
+                      </span>
+                    )}
+                    {task.estimateHours && (
+                      <span className="ml-1 text-[10px] text-muted-foreground">
+                        {task.estimateHours}h
+                      </span>
+                    )}
+                  </span>
 
-                {/* Quick Actions */}
-                <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  {task.status !== 'in_progress' && task.status !== 'completed' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'in_progress'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-                      title={t('activity:task.startTitle')}
-                    >
-                      {t('common:action.start')}
-                    </button>
-                  )}
-                  {task.status === 'in_progress' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'completed'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
-                      title={t('activity:task.completeTitle')}
-                    >
-                      {t('activity:task.statusDone')}
-                    </button>
-                  )}
-                  {task.status !== 'completed' && task.status !== 'failed' && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStatusChange(task.id, 'failed'); }}
-                      className="px-1.5 py-0.5 text-[9px] rounded bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
-                      title={t('activity:task.failTitle')}
-                    >
-                      {t('activity:task.fail')}
-                    </button>
-                  )}
+                  {/* Quick Actions */}
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {task.status !== 'in_progress' && task.status !== 'completed' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(task.id, 'in_progress');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
+                        title={t('activity:task.startTitle')}
+                      >
+                        {t('common:action.start')}
+                      </button>
+                    )}
+                    {task.status === 'in_progress' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(task.id, 'completed');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-success/15 text-success hover:bg-success/25 transition-colors"
+                        title={t('activity:task.completeTitle')}
+                      >
+                        {t('activity:task.statusDone')}
+                      </button>
+                    )}
+                    {task.status !== 'completed' && task.status !== 'failed' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStatusChange(task.id, 'failed');
+                        }}
+                        className="px-1.5 py-0.5 text-[9px] rounded bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+                        title={t('activity:task.failTitle')}
+                      >
+                        {t('activity:task.fail')}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         );
       })}

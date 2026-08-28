@@ -139,6 +139,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     fleet: {
       director,
       getDirector,
+      releaseSessionHelpers,
       coordinatorController,
       fleetRoster,
       fleetStreamController,
@@ -660,6 +661,11 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         stopSessionFleet: async (sessionId: string) => {
           await getDirector?.()?.terminateSession(sessionId);
         },
+        // Closing a tab is not stopping it. The run keeps going and keeps its
+        // fleet; what goes is the background help pinned to that conversation
+        // — the explore companion's poll timer and the shadow reviewer's
+        // bookkeeping — which nobody is watching any more.
+        ...(releaseSessionHelpers ? { onSessionRetired: releaseSessionHelpers } : {}),
         getFleetBudget: () => {
           const d = getDirector?.() ?? null;
           if (!d) return null;

@@ -49,8 +49,13 @@ export type WSClientMessageCore =
       type: 'topic.advice';
       payload: SessionScopedPayload & { requestId: string; prompt: string };
     }
+  | {
+      /** Ask the server which persisted Chimera review reports a session has. */
+      type: 'chimera.reports.list';
+      payload: SessionScopedPayload & { sessionId?: string | undefined };
+    }
   | WSToolConfirmResult
-  | { type: 'side_effects.list'; payload?: { sessionId?: string | undefined } | undefined }
+  | { type: 'side_effects.list'; payload?: SessionScopedPayload | undefined }
   | {
       type: 'goal.start';
       payload: {
@@ -521,8 +526,11 @@ export type WSClientMessageCore =
         path?: string | undefined;
       };
     }
-  | { type: 'files.tree'; payload: { path?: string | undefined } | Record<string, never> }
-  | { type: 'files.read'; payload: { filePath: string } }
+  | {
+      type: 'files.tree';
+      payload: ({ path?: string | undefined } | Record<string, never>) & SessionScopedPayload;
+    }
+  | { type: 'files.read'; payload: { filePath: string } & SessionScopedPayload }
   | {
       type: 'files.skeleton';
       payload: {
@@ -537,11 +545,17 @@ export type WSClientMessageCore =
           | undefined;
       };
     }
-  | { type: 'files.write'; payload: { filePath: string; content: string } }
-  | { type: 'files.create'; payload: { filePath: string; type: 'file' | 'directory' } }
-  | { type: 'files.delete'; payload: { filePath: string; recursive?: boolean | undefined } }
-  | { type: 'files.rename'; payload: { oldPath: string; newPath: string } }
-  | { type: 'files.move'; payload: { srcPath: string; destDir: string } }
+  | { type: 'files.write'; payload: { filePath: string; content: string } & SessionScopedPayload }
+  | {
+      type: 'files.create';
+      payload: { filePath: string; type: 'file' | 'directory' } & SessionScopedPayload;
+    }
+  | {
+      type: 'files.delete';
+      payload: { filePath: string; recursive?: boolean | undefined } & SessionScopedPayload;
+    }
+  | { type: 'files.rename'; payload: { oldPath: string; newPath: string } & SessionScopedPayload }
+  | { type: 'files.move'; payload: { srcPath: string; destDir: string } & SessionScopedPayload }
   | WSCompletionRequest
   | { type: 'todos.get'; payload?: SessionScopedPayload }
   | { type: 'todos.clear'; payload?: SessionScopedPayload }
@@ -579,8 +593,8 @@ export type WSClientMessageCore =
   | { type: 'goal-state.get' }
   | { type: 'autonomy.switch'; payload: { mode: string } & SessionScopedPayload }
   | { type: 'prefs.update'; payload: Record<string, unknown> }
-  | { type: 'prefs.get'; payload?: { sessionId?: string | undefined } | undefined }
-  | { type: 'system_prompt.get'; payload?: { sessionId?: string } }
+  | { type: 'prefs.get'; payload?: SessionScopedPayload | undefined }
+  | { type: 'system_prompt.get'; payload?: SessionScopedPayload }
   | { type: 'projects.list' }
   | { type: 'projects.add'; payload: { root: string; name?: string | undefined } }
   | { type: 'projects.select'; payload: { root: string; name?: string | undefined } }
@@ -614,7 +628,7 @@ export type WSClientMessageCore =
         body: string;
         priority: 'low' | 'normal' | 'high';
         replyTo?: string | undefined;
-      };
+      } & SessionScopedPayload;
     }
   | {
       type: 'mailbox.messages';
@@ -638,11 +652,15 @@ export type WSClientMessageCore =
       type: 'mailbox.compact';
       payload?: { readMaxAgeMs?: number; defaultTtlMs?: number } | undefined;
     }
-  | { type: 'brain.status' }
-  | { type: 'brain.risk'; payload: { level: string } }
-  | { type: 'brain.ask'; payload: { question: string } }
+  // Brain settings are project-wide, but every frame the server sends back
+  // describes ONE tab: the decision log is filtered to the asking session and
+  // `brain.answer` is stamped with it. An untagged ask is answered about (and
+  // for) whichever session the runtime last touched.
+  | { type: 'brain.status'; payload?: SessionScopedPayload }
+  | { type: 'brain.risk'; payload: { level: string } & SessionScopedPayload }
+  | { type: 'brain.ask'; payload: { question: string } & SessionScopedPayload }
   | { type: 'brain.config.get' }
-  | { type: 'brain.config.set'; payload: { patch: BrainConfigPatchWire } }
+  | { type: 'brain.config.set'; payload: { patch: BrainConfigPatchWire } & SessionScopedPayload }
   | {
       type: 'model.refine';
       payload: {
@@ -670,17 +688,21 @@ export type WSClientMessageCore =
   | { type: 'skills.export'; payload?: Record<string, unknown> }
   | { type: 'skills.edit'; payload: { name: string; body: string } }
   // ── Design Studio client messages ────────────────────────────────────────────
-  | { type: 'design.list'; payload?: { sessionId?: string } }
+  // Every design frame is session-scoped: `meta.designStudio` shapes THAT
+  // tab's system prompt, and the server answers from `getDesignContext(
+  // sessionId)`. Untagged, a kit picked in one tab restyles another's next
+  // turn. Declared with the shared marker so the send-stamping rule sees them.
+  | { type: 'design.list'; payload?: SessionScopedPayload }
   | {
       type: 'design.use';
       payload: {
         kit: string;
         stack?: string | undefined;
         overrides?: Record<string, string> | undefined;
-      };
+      } & SessionScopedPayload;
     }
-  | { type: 'design.state' }
-  | { type: 'design.set'; payload: { overrides: Record<string, string> } }
+  | { type: 'design.state'; payload?: SessionScopedPayload }
+  | { type: 'design.set'; payload: { overrides: Record<string, string> } & SessionScopedPayload }
   | {
       type: 'design.tune';
       payload: {
@@ -690,17 +712,19 @@ export type WSClientMessageCore =
           font?: string | undefined;
           motion?: string | undefined;
         };
-      };
+      } & SessionScopedPayload;
     }
   | {
       type: 'design.swap';
-      payload: { kit: string; stack?: string | undefined };
+      payload: { kit: string; stack?: string | undefined } & SessionScopedPayload;
     }
   | {
       type: 'design.materialize';
-      payload?: { stack?: string | undefined; out?: string | undefined } | undefined;
+      payload?:
+        | ({ stack?: string | undefined; out?: string | undefined } & SessionScopedPayload)
+        | undefined;
     }
-  | { type: 'design.verify'; payload?: { sessionId?: string } }
+  | { type: 'design.verify'; payload?: SessionScopedPayload }
   | { type: 'config.doctor'; payload?: { apply?: boolean } | undefined }
   // ── MCP client messages (requests to server) ─────────────────────────────────
   | { type: 'mcp.list' }

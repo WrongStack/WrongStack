@@ -105,6 +105,35 @@ describe('git change-set handlers', () => {
       expect(ws.sent[0]?.payload.files).toEqual([]);
     });
 
+    it('ships aggregated per-directory statuses for folder badges', async () => {
+      fsSync.mkdirSync(path.join(repo, 'src', 'deep'), { recursive: true });
+      fsSync.mkdirSync(path.join(repo, 'docs'), { recursive: true });
+      fsSync.writeFileSync(path.join(repo, 'src', 'deep', 'a.ts'), 'x\n');
+      fsSync.writeFileSync(path.join(repo, 'src', 'deep', 'b.ts'), 'y\n');
+      fsSync.writeFileSync(path.join(repo, 'docs', 'readme.md'), 'r\n');
+      git(repo, ['add', '.']);
+      git(repo, ['commit', '-q', '-m', 'nested baseline']);
+      // src/deep: one modified (M) + one deleted (D) → D outranks M; the
+      // parent src/ inherits the same highest-ranked child status.
+      fsSync.writeFileSync(path.join(repo, 'src', 'deep', 'a.ts'), 'CHANGED\n');
+      fsSync.rmSync(path.join(repo, 'src', 'deep', 'b.ts'));
+      // docs: untracked-only child → '?'.
+      fsSync.writeFileSync(path.join(repo, 'docs', 'extra.md'), 'e\n');
+      // Fully-untracked dir → porcelain collapses it to `?? assets/` (one
+      // record with a trailing slash); it must still badge itself.
+      fsSync.mkdirSync(path.join(repo, 'assets'), { recursive: true });
+      fsSync.writeFileSync(path.join(repo, 'assets', 'logo.svg'), '<svg/>\n');
+
+      const ws = createMockWs();
+      await handleGitChanges(ws, repo);
+
+      const dirs = ws.sent[0]?.payload.dirs as Record<string, string>;
+      expect(dirs['src/deep']).toBe('D');
+      expect(dirs['src']).toBe('D');
+      expect(dirs['docs']).toBe('?');
+      expect(dirs['assets']).toBe('?');
+    });
+
     it('reports repoPrefix so the client can map repo-relative git paths to project-relative tree paths', async () => {
       // Project root = repo root → no prefix.
       const ws = createMockWs();

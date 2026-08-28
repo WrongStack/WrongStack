@@ -47,7 +47,13 @@ export interface ModeHandlersContext {
 export function createModeHandlers(context: ModeHandlersContext) {
   return createModeRouteHandlers({
     modeStore: context.modeStore,
-    getSession: () => context.context.session,
+    // The `mode_changed` entry belongs in the journal of the TAB that
+    // switched. A zero-argument function is assignable to
+    // `(sessionId?) => …`, so this silently dropped the id and wrote the
+    // switch into whichever session the runtime was pointing at — the same
+    // shape of bug as the zero-arg `isRunActive` override.
+    getSession: (sessionId?: string) =>
+      (context.getSessionContext?.(sessionId) ?? context.context).session,
     applyModeId: context.setModeId,
     send,
     afterSwitch: async (id, sessionId) => {

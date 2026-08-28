@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { VListHandle } from 'virtua';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
@@ -9,12 +9,17 @@ import {
   useConfigStore,
   useHistoryStore,
   useSessionStore,
+  useSessionTabStore,
   useUIStore,
 } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useMemoryInjectorTraceStore } from '@/stores/memory-injector-store';
 import { shouldAutoCollapse } from './auto-collapse.js';
 import { buildChatRows } from './utils.js';
+
+function nextBoolean(next: SetStateAction<boolean>, current: boolean): boolean {
+  return typeof next === 'function' ? (next as (value: boolean) => boolean)(current) : next;
+}
 
 export function useChatViewState() {
   const { t } = useAppTranslation();
@@ -52,7 +57,14 @@ export function useChatViewState() {
   const [titleDraft, setTitleDraft] = useState('');
 
   const historyEntries = useHistoryStore((s) => s.entries);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const switcherOpen = useUIStore((s) => s.chatSwitcherOpen);
+  const setChatSwitcherOpen = useUIStore((s) => s.setChatSwitcherOpen);
+  const setSwitcherOpen = useCallback(
+    (next: SetStateAction<boolean>) => {
+      setChatSwitcherOpen(nextBoolean(next, useUIStore.getState().chatSwitcherOpen));
+    },
+    [setChatSwitcherOpen],
+  );
   const switcherRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -124,16 +136,47 @@ export function useChatViewState() {
   );
 
   const [processOpen, setProcessOpen] = useState(false);
-  const [checkpointOpen, setCheckpointOpen] = useState(false);
-  const [memoryPanelOpen, setMemoryPanelOpen] = useState(false);
-  const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0 && autoCollapseInput);
+  const checkpointOpen = useUIStore((s) => s.chatCheckpointOpen);
+  const setChatCheckpointOpen = useUIStore((s) => s.setChatCheckpointOpen);
+  const setCheckpointOpen = useCallback(
+    (next: SetStateAction<boolean>) => {
+      setChatCheckpointOpen(nextBoolean(next, useUIStore.getState().chatCheckpointOpen));
+    },
+    [setChatCheckpointOpen],
+  );
+  const memoryPanelOpen = useUIStore((s) => s.chatMemoryPanelOpen);
+  const setChatMemoryPanelOpen = useUIStore((s) => s.setChatMemoryPanelOpen);
+  const setMemoryPanelOpen = useCallback(
+    (next: SetStateAction<boolean>) => {
+      setChatMemoryPanelOpen(nextBoolean(next, useUIStore.getState().chatMemoryPanelOpen));
+    },
+    [setChatMemoryPanelOpen],
+  );
+  const inputCollapsed = useUIStore((s) => s.chatInputCollapsed);
+  const setChatInputCollapsed = useUIStore((s) => s.setChatInputCollapsed);
+  const setInputCollapsed = useCallback(
+    (next: SetStateAction<boolean>) => {
+      setChatInputCollapsed(nextBoolean(next, useUIStore.getState().chatInputCollapsed));
+    },
+    [setChatInputCollapsed],
+  );
   const prevLoading = useRef(isLoading);
   const prevHadMessages = useRef(messages.length > 0);
   const prevSessionId = useRef(sessionId);
   const prevAutoCollapse = useRef(autoCollapseInput);
 
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const breakdownOpen = useUIStore((s) => s.chatContextBreakdownOpen);
+  const setBreakdownOpen = useUIStore((s) => s.setChatContextBreakdownOpen);
+  const toolStatsOpen = useUIStore((s) => s.chatToolStatsOpen);
+  const setChatToolStatsOpen = useUIStore((s) => s.setChatToolStatsOpen);
+  const setToolStatsOpen = useCallback(
+    (next: SetStateAction<boolean>) => {
+      setChatToolStatsOpen(nextBoolean(next, useUIStore.getState().chatToolStatsOpen));
+    },
+    [setChatToolStatsOpen],
+  );
+  const editorOpen = useUIStore((s) => s.chatContextEditorOpen);
+  const setEditorOpen = useUIStore((s) => s.setChatContextEditorOpen);
 
   const activeMemoryCount = useMemoryInjectorTraceStore(
     (s) => Object.values(s.contextMemories).filter((m) => m.state !== 'exited').length,
@@ -225,7 +268,9 @@ export function useChatViewState() {
 
   const handleHistorySelect = useCallback((targetSessionId: string) => {
     const ws = getWSClient();
-    ws?.resumeSession?.(targetSessionId);
+    useSessionTabStore.getState().openTab(targetSessionId, {
+      resumeSession: (id) => ws.resumeSession?.(id),
+    });
     setSwitcherOpen(false);
   }, []);
 
@@ -249,11 +294,6 @@ export function useChatViewState() {
     // the tab we just switched TO — compacting, killing processes, or
     // rewriting context that belongs to a different conversation.
     setProcessOpen(false);
-    setCheckpointOpen(false);
-    setMemoryPanelOpen(false);
-    setBreakdownOpen(false);
-    setEditorOpen(false);
-    setSwitcherOpen(false);
     setRenamingTitle(false);
     requestAnimationFrame(() => {
       vlistRef.current?.scrollToIndex(childCountRef.current - 1, { align: 'end' });
@@ -412,6 +452,8 @@ export function useChatViewState() {
     setInputCollapsed,
     breakdownOpen,
     setBreakdownOpen,
+    toolStatsOpen,
+    setToolStatsOpen,
     editorOpen,
     setEditorOpen,
     activeMemoryCount,

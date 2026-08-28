@@ -12,6 +12,8 @@ import {
   useSessionTabStore,
 } from '@/stores';
 import { activeLaneId, type ChatLaneActions, readLane } from '@/stores/chat-lanes';
+import { activeSessionLaneId, SESSION_DEFAULT_LANE_ID } from '@/stores/session-lanes';
+import { useToolStatsStore } from '@/stores/tool-stats-store';
 import { useVizStore } from '@/stores/viz-store';
 import type { WSServerMessage } from '@/types';
 import { providerResponseText } from './session-replay-handlers';
@@ -394,12 +396,15 @@ export function handleDelegateStarted(msg: WSServerMessage) {
     subagentId,
     name: p.target,
     description: task,
+    sessionId: chat.sessionId,
   });
+  useToolStatsStore.getState().recordDelegateStarted(chat.sessionId, { target: p.target });
   fleet.applyEvent({
     kind: 'task_started',
     subagentId,
     name: p.target,
     description: task,
+    sessionId: chat.sessionId,
   });
   fleet.pushAgentTimelineEntry({
     subagentId,
@@ -409,6 +414,7 @@ export function handleDelegateStarted(msg: WSServerMessage) {
     iteration: 0,
     ts: new Date().toISOString(),
     status: 'delegating',
+    sessionId: chat.sessionId,
   });
 }
 
@@ -446,6 +452,7 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     kind: 'task_completed',
     subagentId,
     name: p.target,
+    sessionId: chat.sessionId,
     status: p.ok
       ? 'success'
       : p.status === 'timeout' || p.status === 'host_timeout'
@@ -456,6 +463,11 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     finalText: p.summary,
     ...(p.ok ? {} : { failureReason: p.status ?? 'failed' }),
   });
+  useToolStatsStore.getState().recordDelegateCompleted(chat.sessionId, {
+    target: p.target,
+    ok: p.ok,
+    toolCalls: p.toolCalls,
+  });
   fleet.pushAgentTimelineEntry({
     subagentId,
     agentName: p.target,
@@ -464,6 +476,7 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     iteration: p.iterations,
     ts: new Date().toISOString(),
     status: p.status ?? (p.ok ? 'completed' : 'failed'),
+    sessionId: chat.sessionId,
   });
   if (!p.ok) toastIfForeground(chat, () => toast.warn(`Delegate failed: ${p.target}`));
 }
@@ -535,5 +548,16 @@ export function handleSessionEnd() {
 
 export function handleSessionsList(msg: WSServerMessage) {
   const payload = msg.payload as { sessions: SessionHistoryEntry[]; error?: string | undefined };
-  useHistoryStore.getState().setEntries(payload.sessions ?? [], payload.error ?? null);
+  // The catalogue is project-wide, so every tab may render the same rows —
+  // but `isCurrent` is per-tab, and a frame carries exactly one answer to it.
+  // `session.new` even broadcasts the list to every socket, which would tell
+  // three other tabs that the newly opened session is theirs. Settle the flag
+  // against the foreground session here, where it is actually known.
+  const laneId = activeSessionLaneId();
+  const foreground = laneId && laneId !== SESSION_DEFAULT_LANE_ID ? laneId : null;
+  const entries = (payload.sessions ?? []).map((entry) => ({
+    ...entry,
+    isCurrent: foreground ? entry.id === foreground : entry.isCurrent,
+  }));
+  useHistoryStore.getState().setEntries(entries, payload.error ?? null);
 }

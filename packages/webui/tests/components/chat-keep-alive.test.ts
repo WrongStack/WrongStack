@@ -37,6 +37,46 @@ describe('chat keep-alive', () => {
     expect(src).toMatch(/currentView !== 'chat' \? \{ inert: true/);
   });
 
+  it('keeps the session dock and AGENTS strip mounted, parked outside chat', () => {
+    const src = read('components/ViewRouter.tsx');
+    const dockIndex = src.indexOf('<WorkspaceDock />');
+    const agentTabsIndex = src.indexOf('<AgentTabs />');
+    const chatParkIndex = src.indexOf("currentView !== 'chat' && 'ws-view-parked'");
+    const chatViewIndex = src.indexOf('<ChatView />');
+
+    expect(dockIndex).toBeGreaterThan(-1);
+    expect(agentTabsIndex).toBeGreaterThan(-1);
+    expect(chatParkIndex).toBeGreaterThan(-1);
+    expect(chatViewIndex).toBeGreaterThan(-1);
+    // The dock strip and AGENTS switcher belong to the chat surface: they sit
+    // INSIDE the parked wrapper so they are simply not displayed on other
+    // views, yet stay mounted (subscriptions and state never tear down).
+    // They still render above the transcript.
+    expect(chatParkIndex).toBeLessThan(dockIndex);
+    expect(chatParkIndex).toBeLessThan(agentTabsIndex);
+    expect(agentTabsIndex).toBeLessThan(chatViewIndex);
+  });
+
+  it('keeps the workspace dock inspector available outside chat', () => {
+    const src = read('App.tsx');
+    const inspector = src.slice(src.indexOf('<WorkspaceDockInspector') - 220);
+
+    expect(inspector).toContain('{sessionId && (');
+    expect(inspector).not.toContain("currentView === 'chat'");
+  });
+
+  it('binds the session surface to the active lane pointer, not nullable SessionInfo', () => {
+    const src = read('App.tsx');
+    const binding = src.slice(
+      src.indexOf('const sessionRecordId'),
+      src.indexOf('const sideContextBreakdownOpen'),
+    );
+
+    expect(binding).toContain('const activeSessionId = useActiveSessionId()');
+    expect(binding).toContain('const sessionId = activeSessionId ?? sessionRecordId');
+    expect(binding).not.toContain('const sessionId = useSessionStore((s) => s.session?.id)');
+  });
+
   it('ChatView keeps the leader transcript mounted under a subagent tab', () => {
     const src = read('components/ChatView/index.tsx');
 

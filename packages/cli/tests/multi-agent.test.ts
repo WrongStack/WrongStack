@@ -1039,7 +1039,9 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
     const host = new MultiAgentHost(depsWithTools());
     const { agent, dispose } = await host.makeSubagentFactory(config)(slotCfg);
     const names = agent.ctx.tools.map((t) => t.name).sort();
-    expect(names).toEqual(['grep', 'read', 'submit_result']);
+    // `submit_result` and `session_note` are injected regardless of the
+    // allow-list: a subagent that cannot report and cannot ask is a dead end.
+    expect(names).toEqual(['grep', 'read', 'session_note', 'submit_result']);
     expect(names).not.toContain('bash');
     await dispose?.();
   });
@@ -1063,7 +1065,7 @@ describe('MultiAgentHost.makeSubagentFactory', () => {
       role: 'general',
     });
     const names = agent.ctx.tools.map((t) => t.name).sort();
-    expect(names).toEqual(['bash', 'grep', 'read', 'submit_result']);
+    expect(names).toEqual(['bash', 'grep', 'read', 'session_note', 'submit_result']);
     expect(names).not.toContain('delegate');
     expect(names).not.toContain('spawn_subagent');
     expect(names).not.toContain('fleet_emit');

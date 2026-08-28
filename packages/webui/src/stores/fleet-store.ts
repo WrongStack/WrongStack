@@ -1,5 +1,6 @@
 import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import { create } from 'zustand';
+import { agentBelongsToSession } from '@/lib/agent-session';
 import { compareAgentsByActivity } from '@/lib/agent-status';
 import { useSessionStore } from './session-store.js';
 import type {
@@ -21,9 +22,13 @@ const MAX_FLEET_AGENTS = 200;
 
 export const EMPTY_AGENT_TRANSCRIPT: AgentTranscriptEntry[] = [];
 
-interface FleetState {
+export interface FleetState {
   agents: Map<string, SubagentView>;
-  /** Current leader agent ID (set via leader_updated event). */
+  /**
+   * Process-wide LAST-ANNOUNCED leader (set via leader_updated). Tab-scoped
+   * consumers must use `selectSessionLeaderId` / `useSessionLeaderId`, which
+   * resolve the leader of ONE session from the roster's isLeader flag.
+   */
   leaderId: string | undefined;
   /** Fleet-wide aggregated tokens (sum of all agent tokens). */
   fleetTokensIn: number;
@@ -51,8 +56,10 @@ interface FleetState {
   getAgentsBySession: (sessionId: string) => SubagentView[];
   /** Return one agent's full ordered transcript. */
   getAgentTranscript: (subagentId: string) => AgentTranscriptEntry[];
-  /** Remove all non-running agents (completed, failed, timeout, stopped) from the roster. */
-  clearFinishedAgents: () => void;
+  /** Remove non-running agents (completed, failed, timeout, stopped) from the
+   *  roster. Scoped: only agents belonging to `sessionId` are removed, so a
+   *  panel in one tab never drops another tab's finished agents. */
+  clearFinishedAgents: (sessionId: string | null) => void;
 }
 
 function blankAgent(id: string, name?: string, sessionId?: string): SubagentView {
@@ -196,14 +203,16 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
   },
   getAgentTranscript: (subagentId) =>
     get().agentTranscripts.get(subagentId) ?? EMPTY_AGENT_TRANSCRIPT,
-  clearFinishedAgents: () =>
+  clearFinishedAgents: (sessionId) =>
     set((state) => {
       const survivors = new Map(state.agents);
       const finished = new Set<string>();
       let droppedTokensIn = 0;
       let droppedTokensOut = 0;
       for (const [id, agent] of survivors) {
-        if (agent.status !== 'running') {
+        // Session-scoped by the same fail-closed rule the rosters use: an
+        // agent leaves through THIS surface only when it belongs to THIS tab.
+        if (agent.status !== 'running' && agentBelongsToSession(agent.sessionId, sessionId)) {
           survivors.delete(id);
           finished.add(id);
           droppedTokensIn += agent.tokensIn ?? 0;
@@ -289,20 +298,29 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
           if (leaderSession && agent.sessionId && agent.sessionId !== leaderSession) continue;
           agents.set(id, { ...agent, isLeader: false });
         }
+        const name = e.name?.trim() || leader.name;
         leaderId = e.subagentId;
         agents.set(e.subagentId, {
           ...leader,
           isLeader: true,
-          name: e.name?.trim() || leader.name,
+          name,
         });
-        timeline = pushTimeline(timeline, {
-          id: makeTimelineId(),
-          kind: 'leader_updated',
-          agentId: e.subagentId,
-          agentName: e.name ?? leaderId,
-          timestamp: Date.now(),
-          message: `${e.name ?? e.subagentId} became leader`,
-        });
+        // The server re-sends leader_updated on every subscribeSessions (it
+        // must: a reconnecting page needs the roster). The ROSTER upsert above
+        // is idempotent by subagentId, but the timeline is a log — a pure
+        // re-announce (same agent, already crowned, same name) would push a
+        // duplicate row into the 20-slot timeline on every reconnect and tab
+        // open, evicting real events. Log only state CHANGES.
+        if (!leader.isLeader || name !== leader.name) {
+          timeline = pushTimeline(timeline, {
+            id: makeTimelineId(),
+            kind: 'leader_updated',
+            agentId: e.subagentId,
+            agentName: name,
+            timestamp: Date.now(),
+            message: `${name} became leader`,
+          });
+        }
         return { agents, leaderId, eventTimeline: timeline };
       }
 
@@ -606,14 +624,17 @@ export const selectFleetSummary = (state: FleetState): FleetSummary => {
 /** Selector: return agents sorted leader-first → running-first → by start time.
  *  Creates a new array on every call; wrap with `useShallow` when subscribing
  *  through useFleetStore.
+ *
+ *  Leader-first ordering honors EVERY session's leader (`isLeader` flag),
+ *  not the process-wide `leaderId` pointer: that pointer is last-writer-wins
+ *  across four tabs, so sorting by it crowned only the most recently
+ *  announced tab's leader and demoted the other three on every announce.
  */
 export const selectSortedAgentList = (state: FleetState): SubagentView[] => {
   const arr = Array.from(state.agents.values());
-  const leaderId = state.leaderId;
   arr.sort((x, y) => {
     if (x === y || x.id === y.id) return 0;
-    if (x.id === leaderId) return -1;
-    if (y.id === leaderId) return 1;
+    if (x.isLeader !== y.isLeader) return x.isLeader ? -1 : 1;
     return compareAgentsByActivity(x, y);
   });
   return arr;

@@ -28,6 +28,13 @@ export {
 export type { BrainRouteHandlers } from './brain-routes.js';
 export { handleBrainRoute } from './brain-routes.js';
 export {
+  type ChimeraReportSummary,
+  type ChimeraRouteHandlers,
+  createChimeraRouteHandlers,
+  handleChimeraRoute,
+  listChimeraReportsForSession,
+} from './chimera-routes.js';
+export {
   type ChronicleRouteContext,
   handleChronicleRoute,
 } from './chronicle-routes.js';
@@ -342,6 +349,7 @@ export type { ConfirmDecision, PendingConfirm } from './pending-confirms.js';
 export {
   isDestructivePendingConfirm,
   resolveAllPendingConfirms,
+  resolvePendingConfirmsForSession,
   resolveYoloEligiblePendingConfirms,
 } from './pending-confirms.js';
 export {
@@ -367,6 +375,7 @@ export {
   handlePrefsUpdate,
   handleSystemPromptGet,
   type PrefsHandlerContext,
+  SESSION_SCOPED_PREF_KEYS,
 } from './prefs-handlers.js';
 export {
   createPrefsRouteHandlers,

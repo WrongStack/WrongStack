@@ -1,16 +1,32 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { AgentsPanel } from '../../src/components/SidePanel/AgentsPanel.js';
+import { DEFAULT_LANE_ID, useChatLanes } from '../../src/stores/chat-lanes.js';
 import {
   selectFleetSummary,
   selectSortedAgentList,
   useFleetStore,
 } from '../../src/stores/index.js';
+import {
+  SESSION_DEFAULT_LANE_ID,
+  setActiveSessionLane,
+  useSessionLanes,
+} from '../../src/stores/session-lanes.js';
 
-function makeAgent(id: string, overrides: Partial<{ name: string; status: string }> = {}) {
+function makeAgent(
+  id: string,
+  overrides: Partial<{
+    name: string;
+    status: string;
+    sessionId: string;
+    isLeader: boolean;
+  }> = {},
+) {
   return {
     id,
+    ...(overrides.sessionId ? { sessionId: overrides.sessionId } : {}),
+    ...(overrides.isLeader !== undefined ? { isLeader: overrides.isLeader } : {}),
     name: overrides.name ?? id,
     status: overrides.status ?? 'running',
     iteration: 0,
@@ -41,7 +57,12 @@ describe('AgentsPanel data routing', () => {
   afterEach(cleanup);
 
   beforeEach(() => {
-    useFleetStore.setState({ agents: new Map() });
+    useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+    useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
+    // leaderId resets with the roster: the selector now sorts by the per-agent
+    // `isLeader` flag, but a stale pointer must never be able to re-crown a
+    // previous test's leader if that ever changes back.
+    useFleetStore.setState({ agents: new Map(), leaderId: undefined });
   });
 
   it('selectFleetSummary returns zeros for empty fleet', () => {
@@ -92,7 +113,7 @@ describe('AgentsPanel data routing', () => {
 
   it('selectSortedAgentList puts leader first regardless of status', () => {
     const agents = new Map();
-    agents.set('a1', makeAgent('a1', { name: 'Leader', status: 'completed' }));
+    agents.set('a1', makeAgent('a1', { name: 'Leader', status: 'completed', isLeader: true }));
     agents.set('a2', makeAgent('a2', { name: 'Worker', status: 'running' }));
     useFleetStore.setState({ agents, leaderId: 'a1' });
 
@@ -108,5 +129,38 @@ describe('AgentsPanel data routing', () => {
     render(<AgentsPanel />);
 
     expect(screen.getAllByText('Alpha')).toHaveLength(2);
+  });
+
+  it('keeps filter chrome separate between session tabs', async () => {
+    setActiveSessionLane('sess-a');
+    const agents = new Map();
+    agents.set('a1', makeAgent('a1', { name: 'Alpha', status: 'running', sessionId: 'sess-a' }));
+    agents.set('b1', makeAgent('b1', { name: 'Bravo', status: 'running', sessionId: 'sess-b' }));
+    useFleetStore.setState({ agents });
+
+    const view = render(<AgentsPanel />);
+
+    const failedButton = () => screen.getByRole('button', { name: /failed/i });
+    const allButton = () => screen.getByRole('button', { name: /all/i });
+
+    fireEvent.click(failedButton());
+    expect(failedButton().getAttribute('aria-pressed')).toBe('true');
+
+    act(() => {
+      setActiveSessionLane('sess-b');
+    });
+    view.rerender(<AgentsPanel />);
+
+    await waitFor(() => expect(allButton().getAttribute('aria-pressed')).toBe('true'));
+    expect(failedButton().getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getAllByText('Bravo').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Alpha')).toBeNull();
+
+    act(() => {
+      setActiveSessionLane('sess-a');
+    });
+    view.rerender(<AgentsPanel />);
+
+    await waitFor(() => expect(failedButton().getAttribute('aria-pressed')).toBe('true'));
   });
 });

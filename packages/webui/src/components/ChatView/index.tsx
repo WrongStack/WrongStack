@@ -4,16 +4,25 @@ import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
+import { getWSClient } from '@/lib/ws-client';
 import { cn } from '@/lib/utils';
-import { useActiveSessionId, useFleetStore, useSessionLeaderId, useUIStore } from '@/stores';
+import {
+  useActiveSessionId,
+  useConfigStore,
+  useFleetStore,
+  useSessionLeaderId,
+  useUIStore,
+} from '@/stores';
+import { DEFAULT_LANE_ID } from '@/stores/chat-lanes';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
 import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
 import { ProviderWaitingRoom } from '../ProviderWaitingRoom';
 import { SearchOverlay } from '../SearchOverlay';
+import { ToolStatsModal } from '../ToolStatsModal';
 import { WelcomeScreen } from '../WelcomeScreen';
-import { AgentTabs, shouldAutoClearSubagentFocus } from './AgentTabs';
+import { shouldAutoClearSubagentFocus } from './AgentTabs';
 import { ChatDisplayToggles } from './ChatDisplayToggles';
 import { ChatHeader } from './ChatHeader';
 import { ChatRowView } from './ChatRowView';
@@ -38,12 +47,6 @@ export function ChatView() {
   const focusedSubagentId = useUIStore((s) => s.subagentChatFocusId);
   const setSubagentChatFocus = useUIStore((s) => s.setSubagentChatFocus);
   const setSearchOpen = useUIStore((s) => s.setSearchOpen);
-  const fleetHasAgents = useFleetStore((s) => {
-    for (const a of s.agents.values()) {
-      if (agentBelongsToSession(a.sessionId, currentSessionId)) return true;
-    }
-    return false;
-  });
   const leaderId = useSessionLeaderId(currentSessionId ?? undefined);
   const focusedAgent = useFleetStore((s) =>
     focusedSubagentId != null ? s.agents.get(focusedSubagentId) : undefined,
@@ -55,7 +58,6 @@ export function ChatView() {
   // "open chat" on the leader's roster card) just means plain leader chat.
   const subagentMode =
     focusedSubagentId != null && focusedAgentExists && focusedSubagentId !== leaderId;
-  const showTabs = fleetHasAgents || subagentMode;
 
   // A selected agent can vanish at any moment (removed, clear-finished,
   // session stop), and a leader-directed focus is meaningless — both fall
@@ -82,6 +84,19 @@ export function ChatView() {
   useEffect(() => {
     if (subagentMode) setSearchOpen(false);
   }, [subagentMode, setSearchOpen]);
+
+  // Chimera report hydration: when this tab's session becomes active (or the
+  // socket opens/reconnects), ask the server for the session's persisted
+  // review reports so actionable cards survive page refreshes and tab
+  // reopenings — the live `chimera.report_available` event alone cannot
+  // backfill history. The response handler (handleChimeraReports) routes by
+  // sessionId and only backfills cards the lane has not seen.
+  const wsStatus = useConfigStore((s) => s.wsStatus);
+  const hydratedSessionId = state.sessionId;
+  useEffect(() => {
+    if (!hydratedSessionId || wsStatus.state !== 'open') return;
+    getWSClient().getChimeraReports(hydratedSessionId);
+  }, [hydratedSessionId, wsStatus]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-[hsl(var(--surface-2)/0.45)]">
@@ -115,6 +130,8 @@ export function ChatView() {
         setProcessOpen={state.setProcessOpen}
         checkpointOpen={state.checkpointOpen}
         setCheckpointOpen={state.setCheckpointOpen}
+        toolStatsOpen={state.toolStatsOpen}
+        setToolStatsOpen={state.setToolStatsOpen}
         hasStatusContent={state.hasStatusContent}
         lastInputTokens={state.lastInputTokens}
         ctxPct={state.ctxPct}
@@ -127,8 +144,6 @@ export function ChatView() {
         startTime={state.startTime}
         formatDuration={state.formatDuration}
       />
-      {showTabs && <AgentTabs />}
-
       {/* Messages.
           Both panes stay MOUNTED; the one not in front is parked. The leader
           transcript is virtualized, so swapping it out for a subagent tab used
@@ -139,7 +154,7 @@ export function ChatView() {
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div
           className={cn(
-            'relative mx-2 mt-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3',
+            'ws-view-pane relative mx-2 mt-2 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3',
             !subagentMode && 'ws-view-parked',
           )}
           {...(!subagentMode ? { inert: true, 'aria-hidden': true } : {})}
@@ -155,7 +170,7 @@ export function ChatView() {
         </div>
         <div
           className={cn(
-            'relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3',
+            'ws-view-pane relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3',
             subagentMode && 'ws-view-parked',
           )}
           {...(subagentMode ? { inert: true, 'aria-hidden': true } : {})}
@@ -218,6 +233,7 @@ export function ChatView() {
                   compactMode={state.compactMode}
                   isFirstRow={i === 0}
                   groupToolCalls={state.groupToolCallsPref}
+                  sessionId={state.sessionId ?? DEFAULT_LANE_ID}
                 />
               ))}
 
@@ -277,7 +293,7 @@ export function ChatView() {
           any staged image attachments the moment a subagent tab was opened. */}
       <div
         className={cn(
-          'shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3',
+          'ws-view-pane shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3',
           subagentMode && 'ws-view-parked',
         )}
         {...(subagentMode ? { inert: true, 'aria-hidden': true } : {})}
@@ -347,6 +363,7 @@ export function ChatView() {
         open={state.breakdownOpen}
         onClose={() => state.setBreakdownOpen(false)}
       />
+      <ToolStatsModal open={state.toolStatsOpen} onClose={() => state.setToolStatsOpen(false)} />
       <ContextWindowEditor open={state.editorOpen} onClose={() => state.setEditorOpen(false)} />
       <MemoryInjectorPanel
         open={state.memoryPanelOpen}

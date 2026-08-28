@@ -232,9 +232,21 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
           // forgets it's in autonomy mode.
           makeAutonomyPromptContributor({
             goalPath: deps.paths.projectGoal,
-            enabled: () =>
-              deps.autonomyModeRef.current === 'eternal' ||
-              deps.autonomyModeRef.current === 'eternal-parallel',
+            // The CONVERSATION's mode first. `autonomyModeRef` is one ref for
+            // the whole process — right for the CLI and the TUI, and with four
+            // WebUI tabs it is whichever tab last switched, so reading it
+            // alone put the eternal-autonomy block into the prompt of every
+            // conversation the moment one of them went eternal.
+            enabled: (ctx) => {
+              const scoped = ctx.autonomy;
+              if (typeof scoped === 'string') {
+                return scoped === 'eternal' || scoped === 'eternal-parallel';
+              }
+              return (
+                deps.autonomyModeRef.current === 'eternal' ||
+                deps.autonomyModeRef.current === 'eternal-parallel'
+              );
+            },
           }),
           // Consumes the WrongTrace observability helpers: when the daemon
           // is reachable, the leader prompt carries a compact atlas digest +

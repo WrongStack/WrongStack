@@ -20,15 +20,25 @@
 
 import { create } from 'zustand';
 import { toast } from '@/components/Toaster';
+import { i18n } from '@/i18n';
+import { taskBriefPreview } from '@/lib/task-brief-preview';
 import { getWSClient } from '@/lib/ws-client';
 import { disposeStreakState } from './auto-submit-streak';
-import { chatLane, disposeLane, hasLane, MAX_LANES, readLane, setActiveLane } from './chat-lanes';
-import { useCouncilLogStore } from './council-log-store';
+import {
+  chatLane,
+  disposeLane,
+  ensureLane,
+  hasLane,
+  MAX_LANES,
+  readLane,
+  setActiveLane,
+} from './chat-lanes';
 import { useFallbackStore } from './fallback-store';
+import { useFileStore } from './file-store';
 import { useFleetStore } from './fleet-store';
+import { useGitChangesStore } from './git-changes-store';
 import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
-import { useMemoryInjectorTraceStore } from './memory-injector-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -104,7 +114,10 @@ interface SessionTabState {
   attention: Record<string, boolean>;
 
   setOpenTabIds: (ids: string[]) => void;
-  openTab: (sessionId: string, options?: { resumeSession?: (id: string) => void }) => OpenTabResult;
+  openTab: (
+    sessionId: string,
+    options?: { resumeSession?: (id: string) => void; recycleReentry?: boolean },
+  ) => OpenTabResult;
   closeTab: (sessionId: string) => void;
   /**
    * Close every open tab bound to one of `sessionIds` so the caller can ask
@@ -158,6 +171,7 @@ function activate(sessionId: string) {
   // leader. Leaving the previous tab's focus in place opened tab 2 on tab 1's
   // subagent.
   const ui = useUIStore.getState();
+  ui.bindSessionChrome(sessionId);
   ui.setSubagentChatFocus(ui.subagentChatFocusBySession[sessionId] ?? null, sessionId);
   // Raise this tab's own unanswered approval prompt, and never another tab's:
   // the dialog is a single global surface, so switching away from a tab with a
@@ -172,13 +186,17 @@ function activate(sessionId: string) {
   const parkedFallback = lane.pendingFallback;
   if (parkedFallback) useFallbackStore.getState().setPending(parkedFallback);
   else useFallbackStore.getState().clear();
-  // Two diagnostic logs are FOREGROUND-ONLY by construction: their handlers
-  // drop anything that is not the tab in front, so they hold whatever the
-  // previous tab produced and nothing for this one. Left standing they read as
-  // this tab's memory injections and this tab's Brain deliberations — the chat
-  // header even counts them. Empty is honest; stale is not.
-  useMemoryInjectorTraceStore.getState().clear();
-  useCouncilLogStore.getState().clear();
+  // The two diagnostic logs used to be wiped here: they were single global
+  // objects that their handlers only ever filled for the tab in front, so on a
+  // switch they held the PREVIOUS tab's memory injections and Brain panels and
+  // nothing for this one — the chat header even counted them. They are now one
+  // store instance per conversation (`createSessionScopedStore`), which is why
+  // nothing is cleared: this tab's own records are already what shows, and the
+  // tab we just left keeps its own instead of being emptied by a click.
+  // The session catalogue is shared, but its "current" marker is not: it
+  // disables resume on that row, drives the `active` filter, and spares the
+  // row from the empty-session sweep. Re-point it at the tab now in front.
+  useHistoryStore.getState().rebindCurrent(sessionId);
   // Slash-opened overlays (/queue, /kill, /cron) are one surface. Left open
   // they would operate on the tab we switched to — dequeueing, killing
   // processes — so they come down with the tab that opened them.
@@ -197,30 +215,113 @@ export function isTabBusy(sessionId: string): boolean {
   return false;
 }
 
-/** A tab is disposable when it is idle AND has nothing in it. */
-function isTabDisposable(sessionId: string): boolean {
-  if (isTabBusy(sessionId)) return false;
-  const lane = readLane(sessionId);
-  return lane.messages.length === 0 && lane.queue.length === 0;
+/** Everything a busy-tab warning needs to say about one session, gathered in
+ *  one place. The close dialog and the switch-away toast render the same
+ *  `lines`, so the two warnings cannot drift apart or go vague. */
+export interface SessionActivityReport {
+  sessionId: string;
+  isBusy: boolean;
+  /** True when the tab holds nothing at all — no chat history, no agents
+   *  (running or finished), no queued messages, no live run. Such a tab has
+   *  nothing to lose and may close without asking. */
+  isEmpty: boolean;
+  leaderRunning: boolean;
+  runningAgents: Array<{ id: string; name: string; brief: string }>;
+  finishedAgents: number;
+  queuedMessages: number;
+  /** Pre-localized, factual inventory lines (no framing). */
+  lines: string[];
 }
 
-/**
- * A session is "never started" when nothing ever happened in its tab AND the
- * history record confirms it holds no content (no tokens, no messages).
- * Closing the tab bound to such a session also deletes the record — it is by
- * definition empty clutter.
- *
- * The record is the authority: a session resumed into a tab and closed before
- * its replay lands still has tokens > 0 in the history list and is preserved,
- * which is exactly the race an in-memory-only check would lose.
- */
-export function isNeverStartedSession(sessionId: string): boolean {
-  if (isTabBusy(sessionId)) return false;
+/** Complete inventory of what a session has in flight: its own run, every
+ *  running subagent with a task preview, finished agents on record, queued
+ *  messages. Reads the lane registries directly, like `isTabBusy`. */
+export function describeSessionActivity(sessionId: string): SessionActivityReport {
   const lane = readLane(sessionId);
-  if (lane.messages.length > 0 || lane.queue.length > 0) return false;
-  const entry = useHistoryStore.getState().entries.find((e) => e.id === sessionId);
-  if (!entry) return false; // not listed → nothing proves it is empty
-  return entry.tokenTotal === 0 && (entry.messageCount ?? 0) === 0;
+  const leaderRunning = lane.isLoading;
+  const runningAgents: SessionActivityReport['runningAgents'] = [];
+  let finishedAgents = 0;
+  for (const agent of useFleetStore.getState().agents.values()) {
+    if (agent.sessionId !== sessionId) continue;
+    if (agent.status === 'running') {
+      runningAgents.push({
+        id: agent.id,
+        name: agent.name ?? agent.id,
+        brief: agent.description ? taskBriefPreview(agent.description, 120) : '',
+      });
+    } else {
+      finishedAgents += 1;
+    }
+  }
+  const queuedMessages = lane.queue.length;
+  const lines: string[] = [];
+  if (leaderRunning) {
+    lines.push(
+      i18n.t('activity:sessions.warnLeaderRunning', { defaultValue: 'Leader run in progress' }),
+    );
+  }
+  for (const agent of runningAgents) {
+    lines.push(
+      i18n.t('activity:sessions.warnSubagentLine', {
+        defaultValue: '{{name}} — running{{suffix}}',
+        name: agent.name,
+        suffix: agent.brief ? `: ${agent.brief}` : '',
+      }),
+    );
+  }
+  if (finishedAgents > 0) {
+    lines.push(
+      i18n.t('activity:sessions.warnFinishedAgents', {
+        defaultValue: '{{count}} finished subagent(s) on record',
+        count: finishedAgents,
+      }),
+    );
+  }
+  if (queuedMessages > 0) {
+    lines.push(
+      i18n.t('activity:sessions.warnQueuedMessages', {
+        defaultValue: '{{count}} queued message(s)',
+        count: queuedMessages,
+      }),
+    );
+  }
+  // "Completely empty" means nothing on record and nothing in flight: closing
+  // such a tab cannot lose work, so it needs no warning.
+  const isEmpty =
+    !leaderRunning &&
+    runningAgents.length === 0 &&
+    finishedAgents === 0 &&
+    queuedMessages === 0 &&
+    lane.messages.length === 0;
+  return {
+    sessionId,
+    isBusy: leaderRunning || runningAgents.length > 0,
+    isEmpty,
+    leaderRunning,
+    runningAgents,
+    finishedAgents,
+    queuedMessages,
+    lines,
+  };
+}
+
+/** Thorough, non-blocking notice fired when the foreground moves OFF a busy
+ *  tab: the tab keeps running in its slot, and the user sees exactly what
+ *  stays behind. Switching back is always one click, so this must inform,
+ *  not block. */
+function notifyBusyTabLeftBehind(sessionId: string): void {
+  if (!isTabBusy(sessionId)) return;
+  const report = describeSessionActivity(sessionId);
+  if (report.lines.length === 0) return;
+  const title = readSessionLane(sessionId).session?.title ?? sessionId.slice(0, 8);
+  toast.warn(
+    i18n.t('activity:sessions.stillRunningToast', {
+      defaultValue: '"{{title}}" keeps running in background:\n{{lines}}',
+      title,
+      lines: report.lines.join('\n'),
+    }),
+    7000,
+  );
 }
 
 /**
@@ -231,13 +332,19 @@ export function isNeverStartedSession(sessionId: string): boolean {
  * auto-submit streak only on the explicit close. A tab dropped by the other
  * path left state that the NEXT session to be handed that id silently
  * inherited, which is the one thing the four-lane model exists to prevent.
+ * The boot-time lane/slot reconciler in `useF5Resilience` retires through this
+ * same path for the same reason. `restoreOpenTabsOnBoot` is the symmetric
+ * opposite: it REBINDS every persisted slot so a browser refresh leaves the
+ * user's tabs where they were, not as a half-empty welcome screen.
  */
-function releaseTab(sessionId: string): void {
+export function releaseTab(sessionId: string): void {
   disposeLane(sessionId);
   disposeSessionLane(sessionId);
   useLocalPrefs.getState().forgetSession(sessionId);
   useSystemPromptStore.getState().dropSession(sessionId);
   useUIStore.getState().forgetSession(sessionId);
+  useFileStore.getState().forgetSessionFiles(sessionId);
+  useGitChangesStore.getState().forgetSessionGitChanges(sessionId);
   disposeStreakState(sessionId);
 }
 
@@ -290,6 +397,109 @@ function declareOpenTabsNow(openTabIds: string[]): void {
   }
 }
 
+/**
+ * Foreground picker for `restoreOpenTabsOnBoot`. Deterministic for tests.
+ *
+ * The persisted `openTabIds` order reflects the user's last tab strip;
+ * `lastVisitedAt` is per-tab and survives F5 inside `useSessionLanes`.
+ * Picking the most-recently-visited tab and falling back to the persisted
+ * order on a tie keeps the foreground where the user left it without
+ * inventing a new ordering rule. The `now` parameter is injected so the
+ * helper stays pure and testable.
+ */
+export type RestorePickForeground = (candidates: string[], now: number) => string | null;
+
+const defaultPickForeground: RestorePickForeground = (candidates, _now) => {
+  // `_now` is the RestorePickForeground test seam (tests inject a frozen
+  // clock); the default picker is clock-free — most-recently-visited wins.
+  if (candidates.length === 0) return null;
+  let best = candidates[0]!;
+  let bestVisited = readSessionLane(best).lastVisitedAt || 0;
+  for (let i = 1; i < candidates.length; i += 1) {
+    const id = candidates[i]!;
+    const visited = readSessionLane(id).lastVisitedAt || 0;
+    if (visited > bestVisited) {
+      best = id;
+      bestVisited = visited;
+    }
+  }
+  return best;
+};
+
+export interface RestoreOpenTabsOptions {
+  /** Injected clock for tests. Defaults to `Date.now()`. */
+  now?: number;
+  /** Injected picker for tests. Defaults to `defaultPickForeground`. */
+  pickForeground?: RestorePickForeground;
+}
+
+/**
+ * Promote the persisted slot list into active, foregrounded tabs at boot.
+ *
+ * The inverse of `releaseTab`: every id stored in
+ * `wrongstack.open_session_tabs` has its chat lane and session lane
+ * ensured, its per-session preferences bound, and its subagent focus and
+ * history rebinds wired up. The most-recently-visited id (or the first
+ * stored id on a tie) becomes the foreground, re-routing through
+ * `activate()` so URL sync, modal disposal, slash-overlay closing and
+ * history rebinding happen exactly the way they do when the user clicks
+ * the tab. Finally the open set is declared to the WS client so the
+ * server resumes broadcasts to all four lanes on the very first paint.
+ *
+ * Called once from `useF5Resilience` at app mount; safe to call again
+ * later but a no-op once the foreground has been set.
+ */
+export function restoreOpenTabsOnBoot(options: RestoreOpenTabsOptions = {}): string[] {
+  // Doc-promise guard: once any foreground is bound, a repeat call is a
+  // no-op — re-running the picker would yank the user off the tab they are
+  // reading back to the boot pick.
+  if (foregroundTabId()) return [];
+  const now = options.now ?? Date.now();
+  const pick = options.pickForeground ?? defaultPickForeground;
+  const slots = useSessionTabStore.getState().openTabIds.slice(0, MAX_OPEN_TABS);
+  if (slots.length === 0) return [];
+
+  // Every persisted slot gets its lane pair ensured and its per-session
+  // chrome bound, so the user's preferences, subagent focus, file/git
+  // state and queued messages for that tab are not dormant after F5.
+  for (const id of slots) {
+    ensureLane(id);
+    ensureSessionLane(id);
+    // Bind per-session overrides so a switch to a rehydrated tab shows
+    // ITS autonomy/yolo/context-strategy, not whatever defaults leaked
+    // from the foreground. `forgetSession` on close is the symmetric move
+    // and `releaseTab` already does it; this is the other half of the
+    // contract that keeps state from leaking across id reuse.
+    useLocalPrefs.getState().bindSession(id);
+    // Subagent focus, slash overlays, queue/process/cron panel flags and
+    // confirm/fallback visibility are tab-owned; rebinding here means a
+    // switch back to the tab finds ITS focus, not the one left in front.
+    useUIStore.getState().bindSessionChrome(id);
+    // The session catalogue's "current" marker is the row the user is
+    // editing; without the rebind the tab strip would show the row as
+    // resumable, which would let the user open a duplicate of it.
+    useHistoryStore.getState().rebindCurrent(id);
+  }
+
+  // Pick the foreground deterministically. `activate()` does the heavy
+  // lifting — URL sync, modal disposal, slash-overlay closing, history
+  // rebind — exactly as if the user clicked the tab.
+  const foreground = pick(slots, now) ?? slots[0];
+  if (foreground) {
+    activate(foreground);
+    useSessionTabStore.getState().markSeen(foreground);
+  }
+
+  // Declare the open set to the server BEFORE the first React commit so
+  // broadcasts for every lane reach this page on the very first message
+  // after reload. `useSessionSubscription` will re-declare on the next
+  // effect run; `subscribeSessions` dedupes (see `ws-client.ts`), so the
+  // later effect call is a no-op.
+  declareOpenTabsNow(slots);
+
+  return slots;
+}
+
 export const useSessionTabStore = create<SessionTabState>((set, get) => ({
   openTabIds: readStoredTabs(),
   lastSeenCounts: {},
@@ -324,6 +534,7 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
 
   openTab: (sessionId, options) => {
     if (!sessionId) return { success: false, reason: 'tabs_full' };
+    const recycleReentry = options?.recycleReentry === true;
     const activeId = foregroundTabId();
     const tabs = [...get().openTabIds];
 
@@ -332,53 +543,87 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     if (activeId && !tabs.includes(activeId) && tabs.length < MAX_OPEN_TABS) tabs.push(activeId);
 
     if (sessionId === activeId) {
-      if (!tabs.includes(sessionId)) {
+      // Guard against the STORED strip, not the local copy above: the push
+      // already put the foreground session into `tabs`, so a local check can
+      // never fire — the strip stayed without the tab in front (dead branch),
+      // and no tab appeared no matter how often that session was opened.
+      if (!get().openTabIds.includes(sessionId)) {
         const next = [...tabs.slice(0, MAX_OPEN_TABS - 1), sessionId];
-        set({ openTabIds: next });
-        writeStoredTabs(next);
+        // Route through setOpenTabIds so a displaced slot (a strip skewed full
+        // without the foreground) is RELEASED, not silently overwritten.
+        get().setOpenTabIds(next);
       }
       get().markSeen(sessionId);
       return { success: true, reason: 'already_active' };
     }
 
     // Already open: switch to its slot. One session, one slot — never a
-    // second copy of the same session in another tab.
+    // second copy of the same session in another tab, and never a second
+    // resume request for a session that is already attached to this page.
+    // The busy-tab toast is emitted ONLY on the three branches that actually
+    // move the foreground off `activeId` — a tabs_full refusal leaves the
+    // busy tab in front and must not claim it "keeps running in background".
+    // The recycle re-entry passes `recycleReentry`, so its hop stays silent.
     if (tabs.includes(sessionId)) {
+      if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
       activate(sessionId);
       get().markSeen(sessionId);
-      options?.resumeSession?.(sessionId);
       return { success: true, reason: 'switched' };
     }
 
     if (tabs.length < MAX_OPEN_TABS) {
+      if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
       const next = [...tabs, sessionId];
       set({ openTabIds: next });
       writeStoredTabs(next);
       activate(sessionId);
       get().markSeen(sessionId);
       options?.resumeSession?.(sessionId);
-      return { success: true, reason: 'opened_new_tab' };
+      // A re-entry through the recycle path reports the honest reason: the
+      // strip did not simply gain a slot — an empty slot was REPLACED.
+      return {
+        success: true,
+        reason: recycleReentry ? 'replaced_empty_tab' : 'opened_new_tab',
+      };
     }
 
-    // Full. Recycle an idle, empty slot rather than growing past four.
-    const recyclable = tabs.find((id) => isTabDisposable(id));
+    // Strip full: before refusing, recycle ONE empty background slot — a tab
+    // whose session never started (no transcript, no run, no agents, no
+    // parked prompts) has nothing to lose, so its slot can host the new
+    // session instead of bouncing the user with "all four slots are full".
+    // The tab in front is never recycled, and a busy slot is never recycled
+    // (isTabBusy covers a live run and running subagents). closeTab frees the
+    // lane and its per-session state exactly like a manual close; the
+    // recursive call then takes the normal below-cap path and terminates —
+    // the strip is below MAX, so it cannot re-enter this branch.
+    const recyclable = tabs.find((id) => {
+      if (id === activeId || isTabBusy(id)) return false;
+      // Boot-restore ensures lanes WITHOUT replaying transcripts, so an
+      // in-memory-empty lane can still belong to a session with REAL
+      // persisted history. Mirror SessionList's empty-session sweep: the
+      // record must be content-free (no tokens, no messages) before its
+      // slot may host a new session. No record at all = never persisted.
+      const entry = useHistoryStore.getState().entries.find((e) => e.id === id);
+      if (entry && (entry.tokenTotal > 0 || (entry.messageCount ?? 0) > 0)) return false;
+      const lane = readLane(id);
+      return (
+        describeSessionActivity(id).isEmpty &&
+        lane.pendingConfirm === null &&
+        lane.pendingFallback === null &&
+        lane.pendingRefinement === null
+      );
+    });
     if (recyclable) {
-      // One retirement path for every slot owner: `releaseTab` frees the
-      // lanes AND the preference overrides / system-prompt pick / streak.
-      // Disposing the lanes alone is the exact leak its doc comment warns
-      // about — the next session handed this id inherits the old one's state.
-      releaseTab(recyclable);
-      const next = tabs.map((id) => (id === recyclable ? sessionId : id));
-      set({ openTabIds: next });
-      writeStoredTabs(next);
-      activate(sessionId);
-      get().markSeen(sessionId);
-      options?.resumeSession?.(sessionId);
-      return { success: true, reason: 'replaced_empty_tab' };
+      if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
+      get().closeTab(recyclable);
+      return get().openTab(sessionId, { ...options, recycleReentry: true });
     }
 
     toast.error(
-      'Maksimum 4 aktif sekme dolu. Başka bir oturum açmak için önce bir sekmeyi kapatın.',
+      i18n.t('activity:sessions.allTabsRunning', {
+        defaultValue:
+          'Maksimum 4 aktif sekme dolu. Başka bir oturum açmak için önce bir sekmeyi kapatın.',
+      }),
     );
     return { success: false, reason: 'tabs_full' };
   },
@@ -386,12 +631,6 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
   closeTab: (sessionId) => {
     const tabs = get().openTabIds;
     const next = tabs.filter((id) => id !== sessionId);
-
-    // A tab closed before its session ever started leaves an empty record on
-    // disk. Delete it with the close — computed BEFORE the release empties
-    // the lane, and sent AFTER the re-declared subscription below so the
-    // server no longer counts the session as displayed by this connection.
-    const deleteRecord = isNeverStartedSession(sessionId);
 
     // Free the lane BEFORE re-pointing, so nothing can land in a slot that no
     // longer exists.
@@ -406,13 +645,6 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     // runtime onto) to allow deleting its own current session.
     repointForegroundAfterRelease(next);
     declareOpenTabsNow(next);
-    if (deleteRecord) {
-      try {
-        getWSClient().deleteSession(sessionId);
-      } catch {
-        // best-effort — the record stays and the clear-empty flow catches it.
-      }
-    }
   },
 
   closeTabsForSessions: (sessionIds) => {

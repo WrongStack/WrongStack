@@ -5,6 +5,7 @@ import {
   makeMailboxTool,
   makeMailInboxTool,
   makeMailSendTool,
+  makeSessionNoteTool,
 } from '@wrongstack/core/coordination';
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import type { EventBus } from '@wrongstack/core/kernel';
@@ -78,6 +79,7 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
       makeMailSendTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),
       makeMailInboxTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),
       makeFleetStatusTool({ projectDir: deps.wpaths.projectDir, events: deps.events }),
+      makeSessionNoteTool(),
     ],
     descriptionMode: deps.config.tools?.descriptionMode,
     resultRenderMode: deps.config.tools?.resultRenderMode,

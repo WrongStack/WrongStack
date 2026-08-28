@@ -27,6 +27,15 @@ export function registerSetupEventsToolHandlers(options: {
     sessionId: string | undefined,
     event: Parameters<SessionEventBridge['append']>[0],
   ) => void;
+  /**
+   * The Context of a NAMED session, without creating one. The state blocks
+   * below (todos / tasks / plan / side effects) read a session's OWN stores;
+   * the shared root context's stores belong to whichever tab is foreground
+   * right now. Hosts without a per-session registry may omit it — an event
+   * naming an unresolvable session then broadcasts no board at all instead of
+   * mis-paired data.
+   */
+  sessionContext?: ((sessionId: string) => Context | undefined) | undefined;
 }): void {
   const {
     on,
@@ -37,6 +46,7 @@ export function registerSetupEventsToolHandlers(options: {
     projection,
     sessionPayload,
     appendForCurrentSession,
+    sessionContext,
   } = options;
   const scrub = <T>(value: T): T => (projection?.scrubObject?.(value) ?? value) as T;
   const projectRoot = context.projectRoot;
@@ -152,12 +162,24 @@ export function registerSetupEventsToolHandlers(options: {
       outputTokens: e.outputTokens,
       outputLines: e.outputLines,
     });
+    // Whose stores does this event's board read from? The root context is
+    // shared and re-pointed by tab switches, so an event naming ANOTHER
+    // session must resolve that session's context — broadcasting root's
+    // boards stamped with the event's id is how one tab's worklist showed
+    // another tab's todos mid-update. Unresolvable → skip the state blocks
+    // entirely: a missing board is refetchable, a mis-paired one is a lie.
+    const owning =
+      e.sessionId && e.sessionId !== context.session?.id
+        ? sessionContext?.(e.sessionId)
+        : context;
+    if (!owning) return;
+
     broadcast(clients, {
       type: 'todos.updated',
-      payload: sessionPayload({ sessionId: e.sessionId, todos: [...context.todos] }),
+      payload: sessionPayload({ sessionId: e.sessionId, todos: [...owning.todos] }),
     });
 
-    const sideEffects = context.sideEffects ?? [];
+    const sideEffects = owning.sideEffects ?? [];
     if (sideEffects.length > 0) {
       broadcast(clients, {
         type: 'side_effects',
@@ -178,7 +200,7 @@ export function registerSetupEventsToolHandlers(options: {
     if (e.name === 'task' || e.name === 'plan' || e.name === 'todo') {
       void (async () => {
         try {
-          const taskPath = (context.meta as Record<string, unknown>)['task.path'];
+          const taskPath = (owning.meta as Record<string, unknown>)['task.path'];
           if (typeof taskPath === 'string' && taskPath) {
             const { loadTasks } = await import('@wrongstack/core/storage');
             const file = await loadTasks(taskPath);
@@ -191,7 +213,7 @@ export function registerSetupEventsToolHandlers(options: {
           /* best-effort */
         }
         try {
-          const planPath = (context.meta as Record<string, unknown>)['plan.path'];
+          const planPath = (owning.meta as Record<string, unknown>)['plan.path'];
           if (typeof planPath === 'string' && planPath) {
             const { loadPlan } = await import('@wrongstack/core/storage');
             const plan = await loadPlan(planPath);

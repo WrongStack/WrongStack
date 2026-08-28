@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { createSessionScopedStore } from './session-scoped-store';
 
 export interface SideEffectEntry {
   toolUseId: string;
@@ -17,7 +17,15 @@ interface SideEffectState {
   clear: () => void;
 }
 
-export const useSideEffectStore = create<SideEffectState>((set) => ({
+/**
+ * Side effects RECORDED BY ONE RUN — so, one conversation's.
+ *
+ * The list used to be global and the handler dropped anything that was not the
+ * tab in front, which meant a background tab's `side_effects.list` reply
+ * arrived and was thrown away: opening that tab showed an empty timeline for a
+ * run that had written files.
+ */
+export const useSideEffectStore = createSessionScopedStore<SideEffectState>((set) => ({
   sideEffects: [],
   loading: false,
   setSideEffects: (effects) => set({ sideEffects: effects, loading: false }),

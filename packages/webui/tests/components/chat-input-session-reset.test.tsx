@@ -60,7 +60,7 @@ function flushRaf() {
   for (const cb of cbs) if (cb) cb(performance.now());
 }
 
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const wsMock = {
@@ -113,7 +113,7 @@ vi.mock('@/components/ChatInput/use-paste-drop', () => ({
     addImageFiles: vi.fn(),
     removeImage: vi.fn(),
     clearPendingImages: mocks.clearPendingImages,
-    setPendingImages: (images: typeof mocks.testImage[]) => {
+    setPendingImages: (images: (typeof mocks.testImage)[]) => {
       mocks.pendingImagesRef.current = images;
     },
     setPasteHint: mocks.setPasteHintSpy,
@@ -121,14 +121,25 @@ vi.mock('@/components/ChatInput/use-paste-drop', () => ({
 }));
 
 import { ChatInput } from '../../src/components/ChatInput.js';
-import { disposeLane } from '../../src/stores/chat-lanes.js';
+import { disposeLane, ensureLane } from '../../src/stores/chat-lanes.js';
 import { useChatStore } from '../../src/stores/chat-store.js';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store.js';
 import { useLocalPrefs } from '../../src/stores/local-prefs.js';
+import { useSessionLanes } from '../../src/stores/session-lanes.js';
 import { useSessionStore } from '../../src/stores/session-store.js';
 import { useUIStore } from '../../src/stores/ui-store.js';
 
+function switchForegroundSession(id: string, startedAt: number) {
+  useSessionStore.getState().setSession({ id, startedAt, provider: 'test', model: 'test' });
+}
+
 beforeEach(() => {
+  ensureLane('session-A');
+  ensureLane('session-B');
+  ensureLane('session-C');
+  disposeLane('session-A');
+  disposeLane('session-B');
+  disposeLane('session-C');
   mocks.pendingImagesRef.current = [];
   mocks.observed.atMention = null;
   mocks.pasteHintHolder.current = null;
@@ -138,16 +149,26 @@ beforeEach(() => {
   wsMock.client.supportsCapability.mockClear();
   useChatStore.setState({ messages: [], queue: [], isLoading: false });
   useLocalPrefs.setState({ enhanceEnabled: false });
-  useUIStore.setState({ refinePanel: null, draftInput: '' });
+  useUIStore.setState({
+    chromeBySession: {},
+    chromeSessionId: null,
+    refinePanel: null,
+    draftInput: '',
+  } as never);
   useFileReferenceStore.setState({ refs: [] });
   // Start with a known session so the mount-time effect sees no change and
   // does not fire the reset path prematurely.
-  useSessionStore.setState({
-    session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
+  useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+  useSessionStore.getState().setSession({
+    id: 'session-A',
+    startedAt: 1,
+    provider: 'test',
+    model: 'test',
   });
 });
 
 afterEach(() => {
+  cleanup();
   flushRaf();
 });
 
@@ -182,9 +203,7 @@ describe('ChatInput — session-change composer reset', () => {
 
     // --- Simulate switching to a different session ---
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-B', 2);
     });
 
     // --- All four channels must be cleared ---
@@ -204,50 +223,44 @@ describe('ChatInput — session-change composer reset', () => {
 
     fireEvent.change(textarea, { target: { value: 'half a thought for A' } });
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-B', 2);
     });
     // Tab B starts empty — it must not inherit what was being typed in A.
     expect(textarea.value).toBe('');
     fireEvent.change(textarea, { target: { value: 'something else for B' } });
 
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-A', 1);
     });
 
     expect(textarea.value).toBe('half a thought for A');
   });
 
-  it('does not resurrect the draft of a tab that was closed', () => {
+  it('does not resurrect the draft of a tab that was closed', async () => {
     render(<ChatInput />);
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
 
     fireEvent.change(textarea, { target: { value: 'typed before closing' } });
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-B', 2);
     });
+    await waitFor(() => expect(textarea.value).toBe(''));
     // The tab is closed: its lane goes, and the draft must go with it. A
     // session later handed the same id is a DIFFERENT conversation and must
     // not open with someone else's half-written message.
     act(() => {
       disposeLane('session-A');
+      useUIStore.getState().forgetSession('session-A');
     });
 
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-A', startedAt: 3, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-A', 3);
     });
 
-    expect(textarea.value).toBe('');
+    await waitFor(() => expect(textarea.value).toBe(''));
   });
 
-  it('takes a refinement down when the foreground leaves the tab that started it', () => {
+  it('takes a refinement down when the foreground leaves the tab that started it', async () => {
     // Refinement ON, or the panel is flushed immediately by the
     // "enhance was switched off" path instead of staying open.
     useLocalPrefs.setState({ enhanceEnabled: true });
@@ -265,9 +278,7 @@ describe('ChatInput — session-change composer reset', () => {
     });
 
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-B', 2);
     });
 
     // Both of the panel's exits — approval and the 105s timeout — dispatch
@@ -278,11 +289,9 @@ describe('ChatInput — session-change composer reset', () => {
     // …and the text is handed back to the tab that typed it.
     const textarea = screen.getByRole('textbox') as HTMLTextAreaElement;
     act(() => {
-      useSessionStore.setState({
-        session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-A', 1);
     });
-    expect(textarea.value).toBe('the prompt tab A typed');
+    await waitFor(() => expect(textarea.value).toBe('the prompt tab A typed'));
   });
 
   it('aborts an in-flight topic check on session switch so no cross-session modal leaks', async () => {
@@ -315,9 +324,7 @@ describe('ChatInput — session-change composer reset', () => {
 
     // Switch sessions while adviseTopic is still pending.
     await act(async () => {
-      useSessionStore.setState({
-        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
-      });
+      switchForegroundSession('session-B', 2);
     });
 
     // Allow any pending microtasks to flush.

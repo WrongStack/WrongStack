@@ -53,6 +53,8 @@ describe('subagent tool visibility', () => {
     // Real work tools still come through — this is a targeted exclusion, not a
     // narrowing of what a subagent can do.
     expect(selected).toEqual(expect.arrayContaining(['read', 'write']));
+    expect(selected).toContain('session_note');
+    expect(selected).toContain('submit_result');
   });
 
   it('keeps nextsteps out even when a spawn names it explicitly', () => {

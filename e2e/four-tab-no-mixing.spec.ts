@@ -1,15 +1,9 @@
 import { execSync, spawn } from 'node:child_process';
 import * as path from 'node:path';
-import {
-  expect,
-  test,
-  type Page,
-  type WebSocket as PlaywrightWebSocket,
-} from '@playwright/test';
-// Repo-root specs cannot import workspace packages by name (the root
-// package.json does not depend on them) — import the built dist directly.
-import { DefaultSessionStore } from '../packages/core/dist/storage/index.js';
-import { resolveWstackPaths } from '../packages/core/dist/utils/index.js';
+import { expect, type Page, type WebSocket as PlaywrightWebSocket, test } from '@playwright/test';
+// Use workspace package exports so the spec does not depend on untracked dist files.
+import { DefaultSessionStore } from '@wrongstack/core/storage';
+import { resolveWstackPaths } from '@wrongstack/core/utils';
 
 /** Minimal local stand-ins for the core journal types (erased at transpile). */
 type SeededEvent = { type: 'user_input'; ts: string; content: string };
@@ -63,8 +57,7 @@ const NAMES = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA'] as const;
 type Name = (typeof NAMES)[number];
 
 const MARKER_COUNT = 8;
-const marker = (name: Name, i: number): string =>
-  `E2E4T-${name}-${String(i + 1).padStart(2, '0')}`;
+const marker = (name: Name, i: number): string => `E2E4T-${name}-${String(i + 1).padStart(2, '0')}`;
 const sessionIdFor = (name: Name): string => `sess_e2e4t_${name.toLowerCase()}`;
 const titleFor = (name: Name): string => `E2E4T ${name}`;
 
@@ -279,7 +272,45 @@ async function closeTabsNotIn(page: Page, keep: string[]): Promise<void> {
     const tab = tabs.nth(slot);
     await tab.hover();
     await tab.getByTitle('Close tab').click();
-    await page.waitForTimeout(300);
+    // An empty tab closes instantly; a tab with history or a live run now
+    // asks first. Confirm whenever the close dialog appears.
+    const confirmClose = page
+      .getByRole('dialog')
+      .getByRole('button', { name: /Interrupt and Close|Close Tab/i });
+    try {
+      await confirmClose.click({ timeout: 2_000 });
+    } catch {
+      // Empty tab: no dialog appeared, the tab is already closed.
+    }
+  }
+}
+
+async function clickFixtureInSideHistory(page: Page, name: Name): Promise<boolean> {
+  const entry = page
+    .getByRole('dialog', { name: 'Side panel' })
+    .getByRole('button', { name: new RegExp(`E2E4T ${name} fixture`) })
+    .first();
+  if ((await entry.count()) === 0) return false;
+  await entry.click({ timeout: 10_000 });
+  return true;
+}
+
+async function clickFixtureInSessionsWorkspace(page: Page, name: Name): Promise<void> {
+  const workspace = page.getByTestId('sessions-workspace');
+  if ((await workspace.count()) === 0 || !(await workspace.isVisible().catch(() => false))) {
+    const sidePanel = page.getByRole('dialog', { name: 'Side panel' });
+    await sidePanel.getByRole('button', { name: /Open (sessions )?dashboard/i }).click();
+  }
+  await expect(workspace).toBeVisible({ timeout: 20_000 });
+  const filter = workspace.getByPlaceholder(/filter/i);
+  await filter.fill(`E2E4T ${name}`);
+  const row = workspace.locator(`article[data-session-id="${sessionIdFor(name)}"]`);
+  await expect(row).toBeVisible({ timeout: 20_000 });
+  const resume = row.getByRole('button', { name: /resume/i }).first();
+  if ((await resume.count()) > 0) {
+    await resume.click();
+  } else {
+    await row.getByRole('button').first().click();
   }
 }
 
@@ -296,11 +327,10 @@ async function openFixtureTab(page: Page, name: Name): Promise<void> {
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     if ((await openTabIds(page)).includes(want)) return;
-    const entry = page
-      .getByRole('dialog', { name: 'Side panel' })
-      .getByRole('button', { name: new RegExp(`E2E4T ${name} fixture`) })
-      .first();
-    await entry.click({ timeout: 10_000 }).catch(() => {});
+    const clickedSideHistory = await clickFixtureInSideHistory(page, name).catch(() => false);
+    if (!clickedSideHistory) {
+      await clickFixtureInSessionsWorkspace(page, name).catch(() => {});
+    }
     await page.waitForTimeout(2_000);
   }
   throw new Error(
@@ -394,7 +424,6 @@ test.describe('four-tab no-mixing', () => {
     );
 
     // ── Open all four from History (by unique title) into the tab strip ──
-    const panel = page.getByRole('dialog', { name: 'Side panel' });
     for (const name of NAMES) {
       await openFixtureTab(page, name);
       // After the FIRST fixture opens, evict the boot session's tab: the
@@ -460,7 +489,10 @@ test.describe('four-tab no-mixing', () => {
         console.log(
           JSON.stringify({
             event: 'e2e4t.dom_scan',
-            e2e4tLines: bodyText.split('\n').filter((l) => l.includes('E2E4T')).slice(0, 40),
+            e2e4tLines: bodyText
+              .split('\n')
+              .filter((l) => l.includes('E2E4T'))
+              .slice(0, 40),
           }),
         );
       }
@@ -484,6 +516,70 @@ test.describe('four-tab no-mixing', () => {
     await expect(page.getByText(marker('CHARLIE', 7))).toHaveCount(0);
   });
 
+  test('four open tabs can each start a run without transcript, counter, or menu bleed', async ({
+    page,
+    baseURL,
+  }) => {
+    test.skip(
+      process.env.E2E_START_RUNS !== '1',
+      'opt-in live-run proof: set E2E_START_RUNS=1 with a configured test provider',
+    );
+    test.setTimeout(420_000);
+    const token = process.env.WEBUI_E2E_TOKEN as string;
+    const runMarker = (name: Name) => `E2E4T-RUN-${name}-${Date.now()}`;
+
+    await seedFourSessions();
+    await restartStandaloneServer(baseURL as string, token);
+    await page.goto(`${baseURL}/?token=${encodeURIComponent(token)}`);
+    await page.locator('textarea').first().waitFor({ timeout: 20_000 });
+
+    for (const name of NAMES) {
+      await openFixtureTab(page, name);
+      if (name === NAMES[0]) {
+        await closeTabsNotIn(page, NAMES.map(sessionIdFor));
+      }
+    }
+    await closeTabsNotIn(page, NAMES.map(sessionIdFor));
+
+    const prompts = new Map<Name, string>();
+    for (const name of NAMES) {
+      await switchToSession(page, sessionIdFor(name));
+      const prompt = runMarker(name);
+      prompts.set(name, prompt);
+      const textarea = page.locator('textarea').first();
+      await textarea.fill(prompt);
+      await textarea.press('Enter');
+      await expect(page.getByText(prompt)).toBeVisible({ timeout: 30_000 });
+      const selectedTitle = await page
+        .getByRole('tablist', { name: 'Open session tabs' })
+        .getByRole('tab')
+        .evaluateAll((tabs) => {
+          const active = tabs.find((tab) => tab.getAttribute('aria-selected') === 'true');
+          return active?.getAttribute('title') ?? '';
+        });
+      expect(selectedTitle).toContain(sessionIdFor(name));
+      await expect(page.getByTestId('agent-tabs')).toBeVisible();
+    }
+
+    for (const selfName of NAMES) {
+      await switchToSession(page, sessionIdFor(selfName));
+      await expect(page.getByText(prompts.get(selfName) as string)).toBeVisible({
+        timeout: 30_000,
+      });
+      const textareaSession = await page
+        .locator('form[data-session-id]')
+        .first()
+        .getAttribute('data-session-id');
+      expect(textareaSession).toBe(sessionIdFor(selfName));
+      for (const otherName of NAMES) {
+        if (otherName === selfName) continue;
+        await expect(page.getByText(prompts.get(otherName) as string)).toHaveCount(0);
+      }
+      const mapText = await page.getByTitle('What is in each tab').innerText();
+      expect(mapText).toContain('4/4');
+    }
+  });
+
   test.afterAll(async () => {
     // The fixture sessions are clearly-named test artifacts in the real
     // project session store; remove them when nothing holds them live.
@@ -491,10 +587,9 @@ test.describe('four-tab no-mixing', () => {
       // Sessions whose tabs the test left open stay live in the server's
       // agent registry and refuse deletion (SessionOwnershipConflictError).
       // A restart drops the live agents so the deletes go through.
-      await restartStandaloneServer(
-        process.env.WEBUI_URL,
-        process.env.WEBUI_E2E_TOKEN,
-      ).catch(() => {});
+      await restartStandaloneServer(process.env.WEBUI_URL, process.env.WEBUI_E2E_TOKEN).catch(
+        () => {},
+      );
       await deleteFourSessionsBestEffort();
     }
   });

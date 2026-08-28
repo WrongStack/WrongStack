@@ -1,24 +1,37 @@
 import { toast } from '@/components/Toaster';
-import { isActiveSessionMessage } from '@/lib/ws-client-utils';
+import { messageSessionId } from '@/lib/ws-client-utils';
 import { useCoordinatorMonitorStore } from '@/stores';
+import { activeLaneId } from '@/stores/chat-lanes';
 import type { WSServerMessage } from '@/types';
 
 /**
  * Coordinator Monitor handlers.
  *
- * `useCoordinatorMonitorStore` is ONE snapshot of a coordinator run — status,
- * task queue, consensus votes, budget alerts — with no per-session lane behind
- * it. With four tabs open, an event from a background tab written straight
- * into it interleaves that tab's tasks and budget alerts with the foreground's.
+ * A coordinator run — status, task queue, consensus votes, budget alerts —
+ * belongs to the tab that started it. The store used to be one global
+ * snapshot, so this map was gated at export and every background tab's task
+ * lifecycle was DROPPED: a tab that ran a fleet while another was in front
+ * came back to an empty monitor. Dropping is not isolation, it is loss.
  *
- * So the whole map is gated at export (below) rather than by twelve
- * hand-written guards: a handler added here later cannot forget the check.
- * Gating drops a background tab's coordinator events rather than misfiling
- * them — the same trade the other snapshot panels make (`side_effects`,
- * `todos.cleared`, the Brain council log). If this panel ever grows a real
- * surface, give it a lane registry keyed by session and route positively,
- * the way `chat-lanes` / `session-lanes` do, instead of widening this gate.
+ * `useCoordinatorMonitorStore` is now one instance per session, so each
+ * handler writes to the lane the message NAMES (`monitorFor`) and nothing is
+ * discarded. An untagged message — every single-session surface sends only
+ * those — lands in the default lane, exactly as before.
+ *
+ * Toasts are the one thing that stays foreground-only: a toast is a claim on
+ * the screen, and the screen belongs to the tab in front.
  */
+
+/** The coordinator snapshot of the tab this message belongs to. */
+function monitorFor(msg: WSServerMessage) {
+  return useCoordinatorMonitorStore.for(messageSessionId(msg)).getState();
+}
+
+/** Is this message from the tab the user is looking at? Toasts only. */
+function isForeground(msg: WSServerMessage): boolean {
+  const id = messageSessionId(msg);
+  return !id || id === activeLaneId();
+}
 const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void>> = {
   'coordinator.status': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -27,11 +40,12 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       subagentCount?: number;
       taskQueue?: { pending: number; running: number; completed: number; failed: number };
     };
-    useCoordinatorMonitorStore
-      .getState()
-      .setCoordinatorStatus(p.status as 'idle' | 'running' | 'draining' | 'stopped', p.mode);
+    monitorFor(msg).setCoordinatorStatus(
+      p.status as 'idle' | 'running' | 'draining' | 'stopped',
+      p.mode,
+    );
     if (p.taskQueue) {
-      useCoordinatorMonitorStore.getState().updateCoordinatorStats({
+      monitorFor(msg).updateCoordinatorStats({
         total: p.subagentCount ?? 0,
         running: 0,
         idle: 0,
@@ -53,7 +67,7 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       completed: number;
       subagentStatuses?: Array<{ id: string; name: string; status: string; currentTask?: string }>;
     };
-    useCoordinatorMonitorStore.getState().updateCoordinatorStats(p);
+    monitorFor(msg).updateCoordinatorStats(p);
   },
   'budget.threshold_reached': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -65,23 +79,25 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       limit: number;
       timeoutMs: number;
     };
-    useCoordinatorMonitorStore
-      .getState()
-      .pushEvent('budget.threshold_reached', p, p.ts ?? Date.now(), p.subagentId, p.taskId);
+    monitorFor(msg).pushEvent(
+      'budget.threshold_reached',
+      p,
+      p.ts ?? Date.now(),
+      p.subagentId,
+      p.taskId,
+    );
     if (p.limit > 0) {
       const pct = (p.used / p.limit) * 100;
       if (pct >= 85) {
-        useCoordinatorMonitorStore
-          .getState()
-          .recordBudgetAlert(
-            p.subagentId,
-            p.kind as 'iterations' | 'tool_calls' | 'tokens' | 'timeout' | 'idle_timeout' | 'cost',
-            p.used,
-            p.limit,
-          );
+        monitorFor(msg).recordBudgetAlert(
+          p.subagentId,
+          p.kind as 'iterations' | 'tool_calls' | 'tokens' | 'timeout' | 'idle_timeout' | 'cost',
+          p.used,
+          p.limit,
+        );
       }
     }
-    useCoordinatorMonitorStore.getState().updateSubagentBudget(p.subagentId, {
+    monitorFor(msg).updateSubagentBudget(p.subagentId, {
       budgetUsage: { iterations: 0, toolCalls: 0, tokens: 0, costUsd: 0, elapsedMs: p.used ?? 0 },
     });
   },
@@ -93,17 +109,18 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       extended?: { timeoutMs?: number; maxIterations?: number; maxToolCalls?: number };
     };
     const newLimit = p.extended?.timeoutMs ?? p.extended?.maxIterations ?? p.extended?.maxToolCalls;
-    useCoordinatorMonitorStore
-      .getState()
-      .recordBudgetDecision(p.subagentId, p.kind, p.decision as 'extend' | 'deny', newLimit);
-    useCoordinatorMonitorStore
-      .getState()
-      .pushEvent(
-        'budget.decision',
-        { subagentId: p.subagentId, kind: p.kind, decision: p.decision, newLimit },
-        Date.now(),
-        p.subagentId,
-      );
+    monitorFor(msg).recordBudgetDecision(
+      p.subagentId,
+      p.kind,
+      p.decision as 'extend' | 'deny',
+      newLimit,
+    );
+    monitorFor(msg).pushEvent(
+      'budget.decision',
+      { subagentId: p.subagentId, kind: p.kind, decision: p.decision, newLimit },
+      Date.now(),
+      p.subagentId,
+    );
   },
   'subagent.budget_extended': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -112,10 +129,8 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       extendedMs?: number;
       extendedTo?: number;
     };
-    useCoordinatorMonitorStore.getState().recordBudgetExtended(p.subagentId, p.kind, p.extendedTo);
-    useCoordinatorMonitorStore
-      .getState()
-      .pushEvent('subagent.budget_extended', p, Date.now(), p.subagentId);
+    monitorFor(msg).recordBudgetExtended(p.subagentId, p.kind, p.extendedTo);
+    monitorFor(msg).pushEvent('subagent.budget_extended', p, Date.now(), p.subagentId);
   },
   'consensus.vote_initiated': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -123,25 +138,21 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       title: string;
       eligible: Array<{ agentId: string; agentName: string }>;
     };
-    useCoordinatorMonitorStore.getState().pushConsensusVote(p.changeId, p.title, p.eligible);
-    useCoordinatorMonitorStore.getState().pushEvent('consensus.vote_initiated', p, Date.now());
-    toast.info('Vote started: ' + p.title);
+    monitorFor(msg).pushConsensusVote(p.changeId, p.title, p.eligible);
+    monitorFor(msg).pushEvent('consensus.vote_initiated', p, Date.now());
+    if (isForeground(msg)) toast.info('Vote started: ' + p.title);
   },
   'consensus.vote_cast': (msg: WSServerMessage) => {
     const p = msg.payload as { changeId: string; voterId: string; value: string };
-    const vote = useCoordinatorMonitorStore.getState().consensusVotes.get(p.changeId);
+    const vote = monitorFor(msg).consensusVotes.get(p.changeId);
     const eligibleEntry = vote?.eligible.find((e) => e.agentId === p.voterId);
-    useCoordinatorMonitorStore
-      .getState()
-      .recordConsensusVote(
-        p.changeId,
-        p.voterId,
-        eligibleEntry?.agentName ?? p.voterId,
-        p.value as 'approve' | 'reject' | 'abstain',
-      );
-    useCoordinatorMonitorStore
-      .getState()
-      .pushEvent('consensus.vote_cast', p, Date.now(), p.voterId);
+    monitorFor(msg).recordConsensusVote(
+      p.changeId,
+      p.voterId,
+      eligibleEntry?.agentName ?? p.voterId,
+      p.value as 'approve' | 'reject' | 'abstain',
+    );
+    monitorFor(msg).pushEvent('consensus.vote_cast', p, Date.now(), p.voterId);
   },
   'consensus.vote_resolved': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -150,26 +161,27 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       approveCount: number;
       rejectCount: number;
     };
-    useCoordinatorMonitorStore
-      .getState()
-      .resolveConsensusVote(
-        p.changeId,
-        p.result as 'approved' | 'rejected' | 'vetoed' | 'quorum_not_met' | 'pending',
-        p.approveCount,
-        p.rejectCount,
+    monitorFor(msg).resolveConsensusVote(
+      p.changeId,
+      p.result as 'approved' | 'rejected' | 'vetoed' | 'quorum_not_met' | 'pending',
+      p.approveCount,
+      p.rejectCount,
+    );
+    monitorFor(msg).pushEvent('consensus.vote_resolved', p, Date.now());
+    if (isForeground(msg))
+      toast.info(
+        'Vote resolved: ' + p.result + ' (y' + p.approveCount + ' n' + p.rejectCount + ')',
       );
-    useCoordinatorMonitorStore.getState().pushEvent('consensus.vote_resolved', p, Date.now());
-    toast.info('Vote resolved: ' + p.result + ' (y' + p.approveCount + ' n' + p.rejectCount + ')');
   },
   'task.pending': (msg: WSServerMessage) => {
     const p = msg.payload as { taskId: string; description: string; priority?: number };
-    useCoordinatorMonitorStore.getState().pushTaskPending(p.taskId, p.description, p.priority);
-    useCoordinatorMonitorStore.getState().pushEvent('task.pending', p, Date.now());
+    monitorFor(msg).pushTaskPending(p.taskId, p.description, p.priority);
+    monitorFor(msg).pushEvent('task.pending', p, Date.now());
   },
   'task.started': (msg: WSServerMessage) => {
     const p = msg.payload as { taskId: string; subagentId: string };
-    useCoordinatorMonitorStore.getState().startTask(p.taskId, p.subagentId);
-    useCoordinatorMonitorStore.getState().pushEvent('task.started', p, Date.now(), p.subagentId);
+    monitorFor(msg).startTask(p.taskId, p.subagentId);
+    monitorFor(msg).pushEvent('task.started', p, Date.now(), p.subagentId);
   },
   'task.completed': (msg: WSServerMessage) => {
     const p = msg.payload as {
@@ -178,39 +190,28 @@ const coordinatorHandlers: Partial<Record<string, (msg: WSServerMessage) => void
       status: string;
       durationMs: number;
     };
-    useCoordinatorMonitorStore.getState().completeTask(p.taskId, p.status, p.durationMs);
-    useCoordinatorMonitorStore.getState().pushEvent('task.completed', p, Date.now(), p.subagentId);
+    monitorFor(msg).completeTask(p.taskId, p.status, p.durationMs);
+    monitorFor(msg).pushEvent('task.completed', p, Date.now(), p.subagentId);
   },
   'task.failed': (msg: WSServerMessage) => {
     const p = msg.payload as { taskId: string; subagentId: string; error: string };
-    useCoordinatorMonitorStore.getState().failTask(p.taskId, p.error);
-    useCoordinatorMonitorStore
-      .getState()
-      .pushEvent(
-        'task.failed',
-        { taskId: p.taskId, subagentId: p.subagentId, error: String(p.error).slice(0, 120) },
-        Date.now(),
-        p.subagentId,
-      );
-    toast.error('Task failed: ' + String(p.error).slice(0, 80));
+    monitorFor(msg).failTask(p.taskId, p.error);
+    monitorFor(msg).pushEvent(
+      'task.failed',
+      { taskId: p.taskId, subagentId: p.subagentId, error: String(p.error).slice(0, 120) },
+      Date.now(),
+      p.subagentId,
+    );
+    if (isForeground(msg)) toast.error('Task failed: ' + String(p.error).slice(0, 80));
   },
 };
 
 /**
- * Every entry above, wrapped so it only runs for the session in front.
+ * Exported as-is: each handler already routes to the lane its message names.
  *
- * `isActiveSessionMessage` is fail-OPEN for untagged messages, which keeps the
- * single-session surfaces (SimpleUI, TUI, an older client) working exactly as
- * before — they never tag, and there is only ever one session to be in front.
+ * The wrapper that used to sit here ran `isActiveSessionMessage` over the
+ * whole map and returned early — which is why a background tab's fleet left
+ * no trace. Positive routing replaces it; there is nothing left to gate.
  */
-/* lane-routing: gated-at-export */
 export const coordinatorHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> =
-  Object.fromEntries(
-    Object.entries(coordinatorHandlers).map(([type, handler]) => [
-      type,
-      (msg: WSServerMessage) => {
-        if (!isActiveSessionMessage(msg)) return;
-        handler?.(msg);
-      },
-    ]),
-  );
+  coordinatorHandlers;

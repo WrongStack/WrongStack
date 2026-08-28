@@ -310,7 +310,7 @@ export function AgentDetailSection({
               if (selectSessionLeaderId(useFleetStore.getState(), agent.sessionId) === agent.id)
                 return;
               const ui = useUIStore.getState();
-              ui.setSubagentChatFocus(agent.id);
+              ui.setSubagentChatFocus(agent.id, agent.sessionId);
               ui.setCurrentView('chat');
             }}
             className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80 transition-colors"

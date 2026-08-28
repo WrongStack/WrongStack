@@ -18,7 +18,7 @@ function flushRaf() {
   for (const cb of cbs) if (cb) cb(performance.now());
 }
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── WS hook mock ──────────────────────────────────────────────────────
@@ -64,7 +64,10 @@ const wsMock = {
 vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => wsMock,
 }));
-vi.mock('@/components/ConfirmModal', () => ({ confirmModalChoice: confirmModalChoiceMock }));
+vi.mock('@/components/ConfirmModal', () => ({
+  confirmModalChoice: confirmModalChoiceMock,
+  useConfirmModalStore: { getState: () => ({ settle: vi.fn() }) },
+}));
 vi.mock('@/hooks/useProviderModels', () => ({ useProviderModels: () => [] }));
 
 // Stub heavy presentational children so the ChatInput test stays focused
@@ -79,6 +82,7 @@ import { ChatInput } from '../../src/components/ChatInput.js';
 import { useChatStore } from '../../src/stores/chat-store.js';
 import { useFileReferenceStore } from '../../src/stores/file-reference-store.js';
 import { useLocalPrefs } from '../../src/stores/local-prefs.js';
+import { useSessionStore } from '../../src/stores/session-store.js';
 import { useUIStore } from '../../src/stores/ui-store.js';
 
 beforeEach(() => {
@@ -160,6 +164,39 @@ describe('ChatInput — send-mode buttons', () => {
     expect(screen.getByTestId('send-btw')).toBeDefined();
     expect(screen.getByTestId('send-steer')).toBeDefined();
     expect(screen.getByTestId('send-queue')).toBeDefined();
+  });
+
+  it('updates the composer controls when switching from a running tab to an empty tab', () => {
+    useSessionStore.setState({
+      session: { id: 'session-A', startedAt: 1, provider: 'test', model: 'test' },
+    });
+    useChatStore.setState({
+      isLoading: true,
+      messages: [{ id: 'm1', role: 'user', content: 'hi', timestamp: 1 }],
+    });
+    render(<ChatInput />);
+    const textarea = screen.getByPlaceholderText(/Type a btw/) as HTMLTextAreaElement;
+    const form = textarea.closest('form');
+
+    expect(form?.getAttribute('data-session-id')).toBe('session-A');
+    expect(form?.getAttribute('data-running')).toBe('true');
+    expect(screen.getByTestId('stop')).toBeDefined();
+    expect(screen.getByTestId('send-btw')).toBeDefined();
+
+    act(() => {
+      useSessionStore.setState({
+        session: { id: 'session-B', startedAt: 2, provider: 'test', model: 'test' },
+      });
+    });
+
+    expect(form?.getAttribute('data-session-id')).toBe('session-B');
+    expect(form?.getAttribute('data-running')).toBe('false');
+    expect(screen.queryByTestId('stop')).toBeNull();
+    expect(screen.queryByTestId('stop-and-edit')).toBeNull();
+    expect(screen.queryByTestId('send-btw')).toBeNull();
+    expect(screen.queryByTestId('send-steer')).toBeNull();
+    expect(screen.queryByTestId('send-queue')).toBeNull();
+    expect(screen.getByTestId('send-submit')).toBeDefined();
   });
 
   it('hides the Stop button while idle (no run to interrupt)', () => {

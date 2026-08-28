@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type WebSocket from 'ws';
-import { createSessionAgentRegistry } from '../src/server/session-agent-registry.js';
+import {
+  createSessionAgentRegistry,
+  inheritedSessionMeta,
+} from '../src/server/session-agent-registry.js';
 import { createSessionHandlers } from '../src/server/session-handlers.js';
 
 /**
@@ -222,6 +225,26 @@ describe('session.subscribe', () => {
     expect(h.undisplayed).toEqual([['sess_2']]);
   });
 
+  it('gives every declared tab a leader of its own', async () => {
+    const h = subscribeHarness();
+
+    await h.handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_1', 'sess_2'] },
+    });
+
+    const leaders = h.sent
+      .filter((m) => m.type === 'subagent.event')
+      .map((m) => m.payload as { kind: string; sessionId: string; subagentId: string });
+    expect(leaders.map((l) => l.kind)).toEqual(['leader_updated', 'leader_updated']);
+    expect(leaders.map((l) => l.sessionId)).toEqual(['sess_1', 'sess_2']);
+    // Distinct ids matter as much as distinct stamps: the roster is a map
+    // keyed by subagent id, so one shared `leader` row meant the second tab's
+    // announcement re-pointed the first tab's leader instead of adding one.
+    expect(leaders[0]?.subagentId).not.toBe(leaders[1]?.subagentId);
+    for (const leader of leaders) expect(leader.subagentId).toMatch(/^leader@[0-9a-f]{8}$/);
+  });
+
   it('keeps a session alive while another connection still shows it', async () => {
     const h = subscribeHarness();
     const other = {} as WebSocket;
@@ -238,6 +261,50 @@ describe('session.subscribe', () => {
     });
 
     expect(h.undisplayed).toEqual([]);
+  });
+});
+
+describe('a new conversation starts on the project defaults', () => {
+  /**
+   * The leader's meta is not the project's settings — it is the first tab's
+   * live choices. Copying it wholesale into a new tab's context started that
+   * conversation under another tab's YOLO, autonomy, iteration ceiling and
+   * identity variant. Project-level facts still come across so the tab is
+   * configured rather than bare.
+   */
+  it('inherits project facts but none of the per-conversation preferences', () => {
+    const leaderMeta = {
+      // Project-level: a new tab should start with these.
+      mode: 'build',
+      effectiveMaxContext: 200_000,
+      contextWindowMode: 'balanced',
+      designStudio: 'kit-a',
+      // Per-conversation: the FIRST TAB's choices, not the project's.
+      yolo: true,
+      autonomy: 'eternal',
+      maxIterations: 999,
+      systemPromptVariant: 'pro',
+      contextStrategy: 'lossless',
+      tokenSavingTier: 'aggressive',
+      reasoningEffort: 'high',
+    };
+
+    const inherited = inheritedSessionMeta(leaderMeta);
+
+    expect(inherited).toEqual({
+      mode: 'build',
+      effectiveMaxContext: 200_000,
+      contextWindowMode: 'balanced',
+      designStudio: 'kit-a',
+    });
+    // Spelled out: a permission bypass must never arrive by inheritance.
+    expect('yolo' in inherited).toBe(false);
+  });
+
+  it('does not mutate the leader’s meta', () => {
+    const leaderMeta = { mode: 'build', yolo: true };
+    inheritedSessionMeta(leaderMeta);
+    expect(leaderMeta).toEqual({ mode: 'build', yolo: true });
   });
 });
 
@@ -276,7 +343,9 @@ describe('per-tab agent registry', () => {
     const displayed = new Set(['sess_open']);
     const registry = createSessionAgentRegistry({
       template: stubAgent('sess_boot'),
-      maxAgents: 3,
+      // The budget governs EVICTABLE agents; the leader's own is pinned and
+      // does not spend a slot.
+      maxAgents: 2,
       isDisplayed: (id) => displayed.has(id),
       createAgent: (id) => stubAgent(id, false),
     });
@@ -288,6 +357,22 @@ describe('per-tab agent registry', () => {
     // Insertion order alone would have taken `sess_open`, the older of the two.
     expect(registry.has('sess_open')).toBe(true);
     expect(registry.has('sess_closed')).toBe(false);
+  });
+
+  it('keeps four open tabs even though the leader holds a slot of its own', () => {
+    // The pinned leader used to count against the cap, so the fourth tab
+    // evicted one of the three beside it — a tab the user still had open lost
+    // its in-memory transcript and came back as a fresh, empty agent.
+    const open = ['sess_1', 'sess_2', 'sess_3', 'sess_4'];
+    const registry = createSessionAgentRegistry({
+      template: stubAgent('sess_boot'),
+      isDisplayed: (id) => open.includes(id),
+      createAgent: (id) => stubAgent(id, false),
+    });
+    for (const id of open) registry.get(id);
+
+    for (const id of open) expect(registry.has(id), `${id} was evicted`).toBe(true);
+    expect(registry.has('sess_boot')).toBe(true);
   });
 
   it('knows a placeholder writer is not a live session', () => {

@@ -217,3 +217,119 @@ describe('setupEvents session scoping', () => {
     dispose();
   });
 });
+
+describe('setupEvents worklist board pairing', () => {
+  /** The root context's board belongs to whichever tab is foreground; the
+   *  event's board belongs to the session that produced the event. The two
+   *  diverge the moment a second tab is open — broadcasting root's board
+   *  under the event's session id is how one tab's worklist showed another
+   *  tab's todos mid-update. */
+  const ROOT_BOARD = [{ id: 'r1', content: 'root board', status: 'pending' as const }];
+  const B_BOARD = [{ id: 'b1', content: 'tab B board', status: 'in_progress' as const }];
+
+  function hostContext(): Context {
+    return {
+      session: { id: 'sess-a' },
+      todos: ROOT_BOARD,
+      sideEffects: [],
+      meta: {},
+    } as unknown as Context;
+  }
+
+  const todosFrames = (
+    broadcast: ReturnType<typeof vi.fn>,
+  ): Array<{ payload: { sessionId?: string; todos?: unknown[] } }> =>
+    broadcast.mock.calls
+      .map(([, msg]) => msg as { type: string; payload: { sessionId?: string; todos?: unknown[] } })
+      .filter((msg) => msg.type === 'todos.updated');
+
+  it("a foreign session's todo event broadcasts THAT session's board", () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: hostContext(),
+      pendingConfirms: new Map(),
+      sessionContext: (id) =>
+        id === 'sess-b'
+          ? ({ session: { id: 'sess-b' }, todos: B_BOARD, sideEffects: [], meta: {} } as unknown as Context)
+          : undefined,
+    });
+    try {
+      events.emit('tool.executed', {
+        sessionId: 'sess-b',
+        id: 't1',
+        name: 'todo',
+        ok: true,
+        durationMs: 1,
+      });
+      const frames = todosFrames(broadcast);
+      expect(frames).toHaveLength(1);
+      expect(frames[0].payload.sessionId).toBe('sess-b');
+      expect(frames[0].payload.todos).toEqual(B_BOARD);
+    } finally {
+      dispose();
+    }
+  });
+
+  it('an unresolvable foreign session broadcasts no board at all', () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: hostContext(),
+      pendingConfirms: new Map(),
+    });
+    try {
+      events.emit('tool.executed', {
+        sessionId: 'sess-b',
+        id: 't1',
+        name: 'todo',
+        ok: true,
+        durationMs: 1,
+      });
+      expect(todosFrames(broadcast)).toEqual([]);
+      // The event itself is honest data and still goes out.
+      expect(
+        broadcast.mock.calls.some(([, msg]) => (msg as { type: string }).type === 'tool.executed'),
+      ).toBe(true);
+    } finally {
+      dispose();
+    }
+  });
+
+  it("the root session's own event keeps the root board", () => {
+    const events = new EventBus();
+    const broadcast = vi.fn();
+    const dispose = setupEvents({
+      events,
+      broadcast,
+      clients: new Map(),
+      config: {},
+      context: hostContext(),
+      pendingConfirms: new Map(),
+      sessionContext: () => undefined,
+    });
+    try {
+      events.emit('tool.executed', {
+        sessionId: 'sess-a',
+        id: 't1',
+        name: 'todo',
+        ok: true,
+        durationMs: 1,
+      });
+      const frames = todosFrames(broadcast);
+      expect(frames).toHaveLength(1);
+      expect(frames[0].payload.sessionId).toBe('sess-a');
+      expect(frames[0].payload.todos).toEqual(ROOT_BOARD);
+    } finally {
+      dispose();
+    }
+  });
+});

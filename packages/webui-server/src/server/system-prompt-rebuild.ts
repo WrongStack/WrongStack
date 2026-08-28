@@ -10,7 +10,11 @@
  * single memory channel.
  */
 
-import { type Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
+import {
+  type Context,
+  DefaultSystemPromptBuilder,
+  type SystemInstructionVariant,
+} from '@wrongstack/core/agent';
 import { type Container, TOKENS } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
@@ -43,9 +47,28 @@ export interface SystemPromptRebuildDeps {
 }
 
 /**
- * Recompose `context.systemPrompt` for `modeId` using the config's current
- * `systemPrompt.variant`. Mutates the context in place; the caller decides what
- * to broadcast afterwards.
+ * The identity variant the context being rebuilt is actually running.
+ *
+ * With four tabs the config's `systemPrompt.variant` is the wrong answer: it
+ * holds whichever variant was picked LAST, by any tab. A rebuild triggered in
+ * one tab for an unrelated reason — a mode switch, a skill reload — would then
+ * recompose that tab's prompt from another tab's identity. The context's own
+ * meta is the tab's answer; the config stays as the fallback for surfaces that
+ * keep no per-context meta (CLI, TUI, and the boot path).
+ */
+function variantForContext(
+  context: Context,
+  config: Pick<Config, 'systemPrompt'>,
+): SystemInstructionVariant | undefined {
+  const scoped = context.meta['systemPromptVariant'];
+  if (scoped === 'lite' || scoped === 'default' || scoped === 'pro') return scoped;
+  return config.systemPrompt?.variant;
+}
+
+/**
+ * Recompose `context.systemPrompt` for `modeId` using the variant that context
+ * is running. Mutates the context in place; the caller decides what to
+ * broadcast afterwards.
  */
 export async function rebuildSystemPrompt(
   deps: SystemPromptRebuildDeps,
@@ -70,7 +93,7 @@ export async function rebuildSystemPrompt(
     instructionPaths: {
       globalDir: paths.globalInstructions,
       projectDir: paths.inProjectInstructions,
-      systemVariant: config.systemPrompt?.variant,
+      systemVariant: variantForContext(deps.context, config),
     },
   });
   deps.context.systemPrompt = await builder.build({

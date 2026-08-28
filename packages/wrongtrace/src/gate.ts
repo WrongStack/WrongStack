@@ -56,6 +56,7 @@ export interface PreflightOptions {
   /** Caller identity stamped on locks (e.g. session id / agent name). */
   owner?: string;
   ownerRunId?: string;
+  ttlSeconds?: number;
 }
 
 /**
@@ -97,7 +98,7 @@ export async function withFileLock<T>(
   const lockOpts: { ttlSeconds: number; owner?: string; ownerRunId?: string } = {
     // Generous TTL: heavy edits can run long; the lock self-reaps if we
     // crash mid-edit so a dead session can never block the file forever.
-    ttlSeconds: 900,
+    ttlSeconds: opts.ttlSeconds ?? 900,
   };
   if (opts.owner !== undefined) lockOpts.owner = opts.owner;
   if (opts.ownerRunId !== undefined) lockOpts.ownerRunId = opts.ownerRunId;

@@ -70,6 +70,26 @@
     "jkNavigateTitle": "j/k zum Navigieren",
     "noProvider": "kein-anbieter",
     "noModel": "kein-modell",
-    "memoryContextTitle": "Speicherkontext — injizierte SAGE-Erinnerungen"
+    "memoryContextTitle": "Speicherkontext — injizierte SAGE-Erinnerungen",
+    "toolStatsTitle": "Tool-Aufrufstatistik"
+  },
+  "toolStats": {
+    "title": "Tool-Aufrufstatistiken",
+    "liveScope": "Diese Seite · laufende + geschlossene Sitzungen",
+    "calls": "Aufrufe",
+    "ok": "Erfolg",
+    "failed": "Fehlgeschlagen",
+    "successRate": "Erfolgsquote",
+    "inFlight": "Laufend",
+    "totalDuration": "Tool-Zeit",
+    "liveSessions": "Geöffnete Tabs",
+    "noLiveData": "Auf dieser Seite wurden noch keine Tool-Aufrufe aufgezeichnet. Starte eine Anfrage — die Statistiken erscheinen hier live, pro Tab.",
+    "pastSessions": "Frühere Sitzungen",
+    "running": "{{count}} laufen",
+    "agentToAgent": "Agent-zu-Agent",
+    "delegations": "{{count}} delegierte Laufzeit(en)",
+    "delegationFailed": "{{count}} fehlgeschlagen",
+    "delegateToolCalls": "{{count}} Tools darin",
+    "leaderLine": "Leiter: {{ok}}✓ {{failed}}✗"
   }
 }

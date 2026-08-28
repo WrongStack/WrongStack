@@ -9,6 +9,7 @@ import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
 import type { Director } from './director.js';
 import { applyRosterBudget, FLEET_ROSTER_BUDGETS } from './fleet.js';
+import { callerSessionId } from './origin-session.js';
 import {
   composeBoundedTaskDescription,
   parseTaskBoundary,
@@ -205,7 +206,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
   return {
     name: 'delegate',
     description:
-      "Hand a piece of work to a subagent and block until it returns. This call is synchronous: the leader's iteration pauses for the full duration of the subagent's run. (Multiple `delegate` calls fired in the same assistant turn still parallelize through the provider's parallel-tool-call surface, but each one eats wall-clock time — so for fan-out you actually control, reach for the async path below.) Use `delegate` when your next step genuinely needs the subagent's verdict — a review, a fact-check, a sign-off. Has own context, own LLM call, auto-extending budget, and a partial-completion handoff path (maxHandoffs, default 1). Workers cannot recursively spawn.\n\n**Do NOT use `delegate` for long-running work.** While `delegate` is in flight, the leader is fully blocked — it cannot act on other tools, read mail, or react to the user. If the work might run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), the blocking call wastes the leader's time. Use the async tool family instead: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then `await_tasks` to retrieve results later. The leader keeps doing other work while the worker churns, and a worker that realizes its task will run long can mail the leader (type `steer` or `ask` via `mail_send`) saying *\"my task is going to run long, please spawn a subagent instead\"* so the leader re-dispatches asynchronously instead of waiting.\n\n**Do NOT use `delegate` for fan-out you control.** Multiple sequential `delegate` calls each block the leader, wasting wall-clock time. For independent investigations you want to run in parallel — security scan + bug hunt + perf review on the same PR — use the async tool family: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then the `await_tasks` tool with `{mode: 'any'}` to fold the first useful result into the next decision while the rest keep churning. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable.",
+      "Hand a piece of work to a subagent and block until it returns. This call is synchronous: the leader's iteration pauses for the full duration of the subagent's run. (Multiple `delegate` calls fired in the same assistant turn still parallelize through the provider's parallel-tool-call surface, but each one eats wall-clock time — so for fan-out you actually control, reach for the async path below.) Use `delegate` when your next step genuinely needs the subagent's verdict — a review, a fact-check, a sign-off. Has own context, own LLM call, auto-extending budget, and a partial-completion handoff path (maxHandoffs, default 1). Workers cannot recursively spawn.\n\n**Do NOT use `delegate` for long-running work.** While `delegate` is in flight, the leader is fully blocked — it cannot act on other tools, read mail, or react to the user. If the work might run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), the blocking call wastes the leader's time. Use the async tool family instead: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then `await_tasks` to retrieve results later. The leader keeps doing other work while the worker churns, and a worker that realizes its task will run long can tell the leader (type `steer` or `ask` via `session_note`, otherwise `mail_send`) saying *\"my task is going to run long, please spawn a subagent instead\"* so the leader re-dispatches asynchronously instead of waiting.\n\n**Do NOT use `delegate` for fan-out you control.** Multiple sequential `delegate` calls each block the leader, wasting wall-clock time. For independent investigations you want to run in parallel — security scan + bug hunt + perf review on the same PR — use the async tool family: `spawn_subagent` to create each worker (returns a `subagentId` immediately), `assign_task` to queue work on it (returns a `taskId` immediately), then the `await_tasks` tool with `{mode: 'any'}` to fold the first useful result into the next decision while the rest keep churning. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable.",
     usageHint:
       'Set `task` to the objective, then make the edges explicit: `scope` (what the work covers) and `outOfScope` (at least one concrete non-goal) are REQUIRED — the call is rejected without them, and the worker treats the rendered boundary block as a hard contract. Pick `role` from roster or pass `name` for free-form. Reach for `delegate` only when the result gates your next move AND the work is short enough that blocking the leader is acceptable (minutes, not hours). For long-running work or fan-out you control, use `spawn_subagent` + `assign_task` + `await_tasks` instead. Raise `maxHandoffs` (default 1, cap 8) for multi-day or multi-refactor tasks; pass larger `timeoutMs`/`maxIterations`/`maxToolCalls` only when needed.',
     permission: 'auto',
@@ -214,11 +215,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN],
     inputSchema,
     async execute(input: unknown, _ctx?: unknown, execOpts?: { signal?: AbortSignal }) {
-      const sessionId =
-        (_ctx as { session?: { id?: string }; activeRunSessionId?: string } | undefined)
-          ?.activeRunSessionId ??
-        (_ctx as { session?: { id?: string } } | undefined)?.session?.id ??
-        opts.directorRunId;
+      const sessionId = callerSessionId(_ctx, opts.directorRunId) ?? opts.directorRunId;
       // Executor-provided abort signal (leader interrupt, Esc, timeout).
       // Without honoring it, this tool blocks the whole agent loop until the
       // subagent finishes — /interrupt could never unwind a delegating run.
@@ -294,7 +291,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       const launchModePreface = [
         'Launch-mode guidance (delegate): you were launched via the synchronous `delegate` tool, so the leader is blocked on this call for the full duration of your run.',
         'If, after inspecting the task, you judge it will run for tens of minutes or hours (multi-file refactor, monorepo audit, long-running build/test, sweeping migration), do NOT silently grind through it under the blocking call.',
-        'Escalate to the leader using whatever mail-style tool your role exposes — `mail_send` if available, otherwise `mailbox action=send` (some inspect-only roles expose `mailbox` rather than `mail_send`). Send a `steer` or `ask`, e.g. *"my task is going to run long, please spawn a subagent instead"*, so the leader can re-dispatch asynchronously via `spawn_subagent` + `assign_task`.',
+        'Escalate to the leader with `session_note to="leader"` when that tool is registered (same-session, next iteration). Fall back to `mail_send` or `mailbox action=send` only for cross-session mail. Send a `steer` or `ask`, e.g. *"my task is going to run long, please spawn a subagent instead"*, so the leader can re-dispatch asynchronously via `spawn_subagent` + `assign_task`.',
         'Then return a clean checkpoint with `completion:"partial"` and a concrete `remaining_work`.',
         'If the task is short and bounded, just do it end-to-end — do not over-trigger the escalation for normal work.',
       ].join('\n\n');
@@ -441,7 +438,12 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           // own escalation language) and must NOT receive the
           // first-attempt preface — it would re-trigger escalation on a
           // worker that already escalated.
-          const subagentId = await dir.spawn(attemptConfig);
+          // Stamp the worker with the conversation that asked for it. Without
+          // this the coordinator falls back to the host's own session, which
+          // with several tabs live is the boot tab rather than the caller —
+          // and every lifecycle, budget and spend event for this worker was
+          // then filed under a conversation that never delegated.
+          const subagentId = await dir.spawn({ ...attemptConfig, originSessionId: sessionId });
           // Publish once the runtime identity exists. The WebUI can now add
           // this synchronous delegate to its live roster instead of keeping
           // only an unaddressable timeline line while the leader waits.
@@ -811,7 +813,7 @@ function buildHandoffTask(
     `Continue an oversized delegated task as fresh worker ${handoffCount} of ${maxHandoffs}.`,
     'Do not blindly repeat completed actions. Inspect the current workspace, git diff, tests, and any files named below before changing anything.',
     'If the remaining work is still too large, stop at a clean checkpoint and call submit_result with completion="partial" plus concrete remaining_work.',
-    'If parallel help would materially improve the outcome and mail_send is available, send the leader an `ask` that names the exact helper task; do not spawn agents yourself.',
+    'If parallel help would materially improve the outcome, `session_note to="leader" kind="ask"` (or `mail_send` if you must reach another session) naming the exact helper task; do not spawn agents yourself.',
     `Original task:\n${originalTask}`,
     `Prior checkpoint summary:\n${continuation.summary}`,
     `Remaining work:\n${continuation.remainingWork}`,

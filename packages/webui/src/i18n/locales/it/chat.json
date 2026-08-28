@@ -70,6 +70,26 @@
     "jkNavigateTitle": "j/k per navigare",
     "noProvider": "nessun-provider",
     "noModel": "nessun-modello",
-    "memoryContextTitle": "Contesto memoria — ricordi SAGE iniettati"
+    "memoryContextTitle": "Contesto memoria — ricordi SAGE iniettati",
+    "toolStatsTitle": "Statistiche strumenti"
+  },
+  "toolStats": {
+    "title": "Statistiche chiamate strumenti",
+    "liveScope": "Questa pagina · sessioni attive e chiuse",
+    "calls": "Chiamate",
+    "ok": "Successo",
+    "failed": "Fallite",
+    "successRate": "Tasso di successo",
+    "inFlight": "In corso",
+    "totalDuration": "Tempo strumenti",
+    "liveSessions": "Schede aperte",
+    "noLiveData": "Nessuna chiamata di strumenti registrata su questa pagina. Avvia un prompt — le statistiche compaiono qui in tempo reale, per scheda.",
+    "pastSessions": "Sessioni precedenti",
+    "running": "{{count}} in esecuzione",
+    "agentToAgent": "Agente-ad-agente",
+    "delegations": "{{count}} esecuzione/i delegata/e",
+    "delegationFailed": "{{count}} fallite",
+    "delegateToolCalls": "{{count}} strumenti interni",
+    "leaderLine": "Leader: {{ok}}✓ {{failed}}✗"
   }
 }

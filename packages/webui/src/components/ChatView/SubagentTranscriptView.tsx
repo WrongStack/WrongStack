@@ -279,7 +279,7 @@ export function SubagentTranscriptView({ agentId }: { agentId: string }): React.
         )}
         <button
           type="button"
-          onClick={() => setSubagentChatFocus(null)}
+          onClick={() => setSubagentChatFocus(null, agent?.sessionId)}
           aria-label={t('activity:transcript.returnToLeader')}
           className="ml-0.5 inline-flex shrink-0 items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary transition-colors hover:bg-primary/25"
         >

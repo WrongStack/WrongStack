@@ -55,7 +55,6 @@ export function AgentTabs() {
   // all four tabs at once, which is the roster half of the cross-tab bleed.
   const agents = allAgents.filter((a) => agentBelongsToSession(a.sessionId, currentSessionId));
   const subagents = agents.filter((a) => a.id !== leaderId);
-  if (subagents.length === 0 && focusId == null && !isLoading) return null;
 
   const runningSubs = subagents.filter((a) => a.status === 'running').length;
   const finishedSubs = subagents.length - runningSubs;
@@ -64,11 +63,15 @@ export function AgentTabs() {
     <div
       role="tablist"
       aria-label={t('activity:agents.tabsLabel')}
+      data-testid="agent-tabs"
       className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto overscroll-x-contain px-3 py-1 border-b border-border/40 bg-muted/20 text-xs no-scrollbar"
     >
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 shrink-0">
-          <Bot className="h-3 w-3 text-primary" /> Agents:
+          <Bot className="h-3 w-3 text-primary" /> AGENTS
+          <span className="rounded bg-muted/60 px-1 font-mono text-[9px] text-muted-foreground">
+            {agents.length}
+          </span>
         </span>
         <button
           type="button"
@@ -100,7 +103,10 @@ export function AgentTabs() {
               role="tab"
               aria-selected={active}
               title={a.description ? taskBriefPreview(a.description, 180) : a.name}
-              onClick={() => setFocus(a.id, currentSessionId)}
+              onClick={() => {
+                setFocus(a.id, currentSessionId);
+                useUIStore.getState().setCurrentView('chat');
+              }}
               className={cn(
                 'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',
                 active

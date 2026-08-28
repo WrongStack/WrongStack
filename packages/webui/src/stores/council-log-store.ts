@@ -16,7 +16,7 @@
  * `brain.decision_*` events for the same request id. `noteQuestion` folds it in
  * whenever it becomes known, in either order.
  */
-import { create } from 'zustand';
+import { createSessionScopedStore } from './session-scoped-store';
 
 export type CouncilVoteStatus = 'valid' | 'invalid' | 'failed' | 'cancelled';
 
@@ -161,7 +161,11 @@ function upsertPanel(
   return [created, ...panels].slice(0, MAX_COUNCIL_PANELS);
 }
 
-export const useCouncilLogStore = create<CouncilLogState>((set) => ({
+/**
+ * One log per conversation: a council convened for tab 3's decision is tab 3's
+ * record, and must not appear in — or be lost because of — tab 1's panel.
+ */
+export const useCouncilLogStore = createSessionScopedStore<CouncilLogState>((set) => ({
   panels: [],
 
   recordVote: (payload) => {

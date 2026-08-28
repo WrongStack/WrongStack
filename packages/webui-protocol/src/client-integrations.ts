@@ -39,6 +39,7 @@ export const CLIENT_EXTENSION_MESSAGE_TYPES = [
   'auth.oauth.cancel',
   'auth.oauth.code',
   'auth.oauth.start',
+  'chimera.reports.list',
   'mcp.add',
   'mcp.disable',
   'mcp.discover',

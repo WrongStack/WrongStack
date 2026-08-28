@@ -8,5 +8,23 @@
     "generic": "Une erreur est survenue.",
     "connectionLost": "Connexion perdue. Reconnexion…",
     "reconnected": "Reconnecté."
+  },
+  "menu": {
+    "title": "Notifications",
+    "unreadCount": "{{count}} non lue(s)",
+    "allRead": "Tout est à jour",
+    "markAllRead": "Tout marquer comme lu",
+    "clearAll": "Tout effacer",
+    "tabAll": "Toutes",
+    "tabUnread": "Non lues",
+    "empty": "Aucune notification",
+    "emptyHint": "Les notifications système apparaîtront ici.",
+    "markAsRead": "Marquer comme lu",
+    "remove": "Supprimer la notification",
+    "justNow": "À l'instant",
+    "secondsAgo": "il y a {{count}} s",
+    "minutesAgo": "il y a {{count}} min",
+    "hoursAgo": "il y a {{count}} h",
+    "daysAgo": "il y a {{count}} j"
   }
 }

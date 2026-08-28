@@ -1,9 +1,7 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import type { WebSocket } from 'ws';
+import { randomBytes } from 'node:crypto';
 import * as fsSync from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
-import { randomBytes } from 'node:crypto';
 import {
   handleFilesCreate,
   handleFilesDelete,
@@ -15,6 +13,8 @@ import {
   handleFilesTree,
   handleFilesWrite,
 } from '@wrongstack/webui-server';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 
 // We'll test the actual implementation by creating temp directories
 // and checking the output
@@ -89,7 +89,7 @@ describe('file handlers integration', () => {
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { tree: unknown[] } };
-      const names = (response.payload.tree as { name: string }[]).map(n => n.name);
+      const names = (response.payload.tree as { name: string }[]).map((n) => n.name);
       expect(names).not.toContain('.hidden');
       expect(names).toContain('visible.txt');
     });
@@ -109,20 +109,78 @@ describe('file handlers integration', () => {
       expect(response.payload.content).toBe('Hello World');
     });
 
+    it('echoes sessionId on read responses', async () => {
+      fsSync.writeFileSync(path.join(tempDir, 'test.txt'), 'Hello World');
+      const ws = createMockWs();
+
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: 'test.txt', sessionId: 'sess-files' } },
+        tempDir,
+      );
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { sessionId?: string } };
+      expect(response.payload.sessionId).toBe('sess-files');
+    });
+
     it('returns error for path traversal', async () => {
       const ws = createMockWs();
 
-      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: '../etc/passwd' } }, tempDir);
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: '../etc/passwd' } },
+        tempDir,
+      );
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { error: string } };
       expect(response.payload.error).toBe('Forbidden');
     });
 
+    it('flags binary files instead of returning content', async () => {
+      const testFile = path.join(tempDir, 'logo.png');
+      fsSync.writeFileSync(testFile, Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x0d, 0x0a, 0x1a]));
+
+      const ws = createMockWs();
+
+      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: 'logo.png' } }, tempDir);
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { content: string; binary?: boolean; tooLarge?: boolean };
+      };
+      expect(response.payload.binary).toBe(true);
+      expect(response.payload.tooLarge).toBeUndefined();
+      expect(response.payload.content).toBe('');
+    });
+
+    it('flags oversized files instead of reading them', async () => {
+      const testFile = path.join(tempDir, 'big.txt');
+      // 3 MB of text — over the 2 MB MAX_READ_BYTES cap; never read to the client.
+      fsSync.writeFileSync(testFile, 'a'.repeat(3 * 1024 * 1024));
+
+      const ws = createMockWs();
+
+      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: 'big.txt' } }, tempDir);
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as {
+        payload: { content: string; binary?: boolean; tooLarge?: boolean };
+      };
+      expect(response.payload.tooLarge).toBe(true);
+      expect(response.payload.binary).toBeUndefined();
+      expect(response.payload.content).toBe('');
+    });
+
     it('returns error for non-existent file', async () => {
       const ws = createMockWs();
 
-      await handleFilesRead(ws, { type: 'files.read', payload: { filePath: 'nonexistent.txt' } }, tempDir);
+      await handleFilesRead(
+        ws,
+        { type: 'files.read', payload: { filePath: 'nonexistent.txt' } },
+        tempDir,
+      );
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { error: string } };
@@ -214,13 +272,31 @@ describe('file handlers integration', () => {
       expect(calledPath).toMatch(/[\\/]new-file\.txt$/);
     });
 
+    it('echoes sessionId on write responses', async () => {
+      const ws = createMockWs();
+
+      await handleFilesWrite(
+        ws,
+        {
+          type: 'files.write',
+          payload: { filePath: 'new-file.txt', content: 'test content', sessionId: 'sess-files' },
+        },
+        tempDir,
+      );
+
+      expect(ws.sent).toHaveLength(1);
+      const response = ws.sent[0] as { payload: { success: boolean; sessionId?: string } };
+      expect(response.payload.success).toBe(true);
+      expect(response.payload.sessionId).toBe('sess-files');
+    });
+
     it('returns error for path traversal', async () => {
       const ws = createMockWs();
 
       await handleFilesWrite(
         ws,
         { type: 'files.write', payload: { filePath: '../evil.txt', content: 'hack' } },
-        tempDir
+        tempDir,
       );
 
       expect(ws.sent).toHaveLength(1);
@@ -253,7 +329,10 @@ describe('file handlers integration', () => {
         await fsPromises.symlink(outsideDir, linkPath, 'dir');
         return linkPath;
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'EPERM' || (err as NodeJS.ErrnoException).code === 'ENOSYS') {
+        if (
+          (err as NodeJS.ErrnoException).code === 'EPERM' ||
+          (err as NodeJS.ErrnoException).code === 'ENOSYS'
+        ) {
           return null;
         }
         throw err;
@@ -272,7 +351,10 @@ describe('file handlers integration', () => {
         await fsPromises.symlink(targetFile, linkPath, 'file');
         return linkPath;
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'EPERM' || (err as NodeJS.ErrnoException).code === 'ENOSYS') {
+        if (
+          (err as NodeJS.ErrnoException).code === 'EPERM' ||
+          (err as NodeJS.ErrnoException).code === 'ENOSYS'
+        ) {
           return null;
         }
         throw err;
@@ -310,7 +392,10 @@ describe('file handlers integration', () => {
 
       await handleFilesWrite(
         ws,
-        { type: 'files.write', payload: { filePath: 'outside-link/pwned.txt', content: 'overwritten' } },
+        {
+          type: 'files.write',
+          payload: { filePath: 'outside-link/pwned.txt', content: 'overwritten' },
+        },
         projectDir,
       );
 
@@ -374,14 +459,12 @@ describe('file handlers integration', () => {
       await fsPromises.writeFile(path.join(outsideDir, 'leaked.txt'), 'leaked');
       const ws = createMockWs();
 
-      await handleFilesTree(
-        ws,
-        { type: 'files.tree', payload: {} },
-        projectDir,
-      );
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, projectDir);
 
       expect(ws.sent).toHaveLength(1);
-      const response = ws.sent[0] as { payload: { tree: { name: string; children?: { name: string }[] }[] } };
+      const response = ws.sent[0] as {
+        payload: { tree: { name: string; children?: { name: string }[] }[] };
+      };
       const names = collectNames(response.payload.tree);
       expect(names).not.toContain('outside-link');
       expect(names).not.toContain('leaked.txt');
@@ -412,11 +495,7 @@ describe('file handlers integration', () => {
       await fsPromises.writeFile(path.join(outsideDir, 'leaked.txt'), 'leaked');
       const ws = createMockWs();
 
-      await handleFilesList(
-        ws,
-        { type: 'files.list', payload: {} },
-        projectDir,
-      );
+      await handleFilesList(ws, { type: 'files.list', payload: {} }, projectDir);
 
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { files: string[] } };
@@ -823,7 +902,9 @@ describe('file handlers integration', () => {
       const response = ws.sent[0] as { payload: { success: boolean } };
       expect(response.payload.success).toBe(true);
       expect(fsSync.existsSync(path.join(tempDir, 'src-dir'))).toBe(false);
-      expect(fsSync.existsSync(path.join(tempDir, 'dest-dir', 'src-dir', 'sub', 'f.ts'))).toBe(true);
+      expect(fsSync.existsSync(path.join(tempDir, 'dest-dir', 'src-dir', 'sub', 'f.ts'))).toBe(
+        true,
+      );
     });
 
     it('rejects path traversal on source', async () => {
@@ -959,7 +1040,9 @@ export function startServer(cfg: Config): void {
       expect(res.payload.filePath).toBe('server.ts');
       expect(res.payload.lang).toBe('ts');
       expect(res.payload.skeleton).toContain('export interface Config');
-      expect(res.payload.skeleton).toContain('export function startServer(cfg: Config): void { /* L6-L9 */ }');
+      expect(res.payload.skeleton).toContain(
+        'export function startServer(cfg: Config): void { /* L6-L9 */ }',
+      );
       expect(res.payload.skeleton).not.toContain('const msg =');
       expect(res.payload.stats.tokenSavingsPercent).toBeGreaterThan(0);
     });

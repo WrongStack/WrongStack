@@ -1,10 +1,11 @@
 import { memo } from 'react';
 import type React from 'react';
-import { ChevronRight, Folder, FolderGit, FolderOpen } from 'lucide-react';
+import { ChevronRight, Folder, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import type { TreeNode } from '@/stores/file-store';
 import { fileIcon, fileIconColor } from '@/lib/file-icons';
+import { treeRowId } from './tree-helpers.js';
 
 export const GIT_STATUS_COLORS: Record<string, string> = {
   M: 'text-warning',
@@ -76,6 +77,9 @@ export const TreeRow = memo(function TreeRow({
   if (emptyPlaceholder) {
     return (
       <div
+        role="treeitem"
+        aria-disabled="true"
+        aria-level={depth + 1}
         className="text-[10px] text-muted-foreground italic py-0.5"
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
       >
@@ -86,11 +90,12 @@ export const TreeRow = memo(function TreeRow({
 
   if (node.type === 'directory') {
     const DirIcon = expanded ? FolderOpen : Folder;
-    const isGit = node.name === '.git';
     const dirColor = fileIconColor(node.name, true);
     return (
       <button
         type="button"
+        id={treeRowId(node.path)}
+        title={node.path}
         role="treeitem"
         aria-expanded={expanded}
         aria-level={depth + 1}
@@ -110,11 +115,7 @@ export const TreeRow = memo(function TreeRow({
             expanded && 'rotate-90',
           )}
         />
-        {isGit ? (
-          <FolderGit className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
-        ) : (
-          <DirIcon className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
-        )}
+        <DirIcon className={cn('h-3.5 w-3.5 shrink-0', dirColor)} />
         <span
           className={cn(
             'truncate font-medium flex-1 min-w-0',
@@ -133,6 +134,8 @@ export const TreeRow = memo(function TreeRow({
   return (
     <button
       type="button"
+      id={treeRowId(node.path)}
+      title={node.path}
       role="treeitem"
       aria-level={depth + 1}
       aria-selected={isActive || isSelected}

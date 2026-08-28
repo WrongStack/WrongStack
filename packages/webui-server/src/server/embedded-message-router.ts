@@ -1,10 +1,10 @@
+import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger, MemoryPort, ProviderConfig } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import { planTool, taskTool, todoTool } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import { createAutonomyRouteHandlers } from './autonomy-routes.js';
@@ -17,6 +17,7 @@ import {
   handleBrainStatus,
 } from './brain-handlers.js';
 import type { BrainRouteHandlers } from './brain-routes.js';
+import type { ChimeraRouteHandlers } from './chimera-routes.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
 import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
@@ -52,7 +53,6 @@ import {
 import type { GoalRouteHandlers } from './goal-routes.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
-import type { WorklistContext } from './handlers/worklist-handlers.js';
 import type { HostRouteHandlers } from './host-routes.js';
 import type { IntrospectionRouteContext } from './introspection-routes.js';
 import type { KanbanTaskDispatcher } from './kanban-dispatch.js';
@@ -91,6 +91,7 @@ import type { SddBoardRouteHandlers } from './sdd-board-routes.js';
 import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
 import type { SddWizardRouteHandlers } from './sdd-wizard-routes.js';
 import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
+import { collectDisplayedSessionIds, createSessionTransitionGate } from './session-handlers.js';
 import type { ShellGitRouteHandlers } from './shell-git-routes.js';
 import { handleShellOpen, normalizeShellOpenTarget, type ShellOpenTarget } from './shell-open.js';
 import type { SkillsContext } from './skills-handlers.js';
@@ -99,6 +100,7 @@ import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
 import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 import { createWorklistRouteHandlers } from './worklist-routes.js';
+import { createSessionAwareWorklistContext } from './worklist-session-context.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { messageSessionId } from './ws-utils.js';
 
@@ -144,6 +146,12 @@ export interface EmbeddedMessageRouterDeps {
   sessionCtx: EmbeddedSessionContext;
   conversationCtx: EmbeddedConversationContext;
   mailboxRoutes: MailboxRouteHandlers;
+  /**
+   * Chimera review-report routes. Optional so an older CLI host (built before
+   * this family existed) can still construct the router — the tab then just
+   * never receives report-list answers instead of failing to boot.
+   */
+  chimeraRoutes?: ChimeraRouteHandlers | undefined;
   goalHandler: GoalWebSocketHandler;
   specsHandler: SpecsWebSocketHandler;
   sddBoardHandler: SddBoardWebSocketHandler;
@@ -237,6 +245,37 @@ export function createEmbeddedMessageRouter(
     'plan.template_use',
     'plan.item.update',
   ]);
+  /**
+   * Can this host SERVE the named session, whichever tab is in front?
+   *
+   * Same rule `createEmbeddedConversationRoutes` applies: a session the
+   * registry already knows, or the leader's own. `peekAgent` is non-creating,
+   * so asking never materialises an agent for an id a client invented. Hosts
+   * with no registry keep the strict "must be the current session" answer.
+   */
+  /**
+   * The context that belongs to a session — the leader's when it is unknown.
+   *
+   * `opts.agent.ctx` is the LEADER, i.e. the boot tab's runtime. Reading it to
+   * answer "this tab's" question is the single most common way a fix lands on
+   * the wrong conversation once four tabs are open. `peekAgent` never creates.
+   */
+  const sessionContextOf = (sessionId?: string) => {
+    if (!sessionId) return opts.agent.ctx;
+    const peek = deps.sessionCtx.peekAgent ?? deps.conversationCtx.peekAgent;
+    return (peek?.(sessionId) ?? deps.sessionCtx.getAgent?.(sessionId))?.ctx ?? opts.agent.ctx;
+  };
+
+  const canServeSession = (sessionId: string): boolean => {
+    if (sessionId === opts.agent.ctx.session?.id) return true;
+    const peek = deps.sessionCtx.peekAgent ?? deps.conversationCtx.peekAgent;
+    // No non-creating lookup means no way to answer without materialising an
+    // agent for whatever id arrived — and a stale id that materialises an agent
+    // can evict a LIVE tab's. A gate must not widen past what it can verify, so
+    // a host with no `peekAgent` keeps the strict answer.
+    return peek ? peek(sessionId) !== undefined : false;
+  };
+
   const guardSession = (ws: WebSocket, message: WSClientMessage): boolean => {
     if (!guardedTypes.has(message.type)) return true;
     const payload = message.payload;
@@ -248,6 +287,15 @@ export function createEmbeddedMessageRouter(
         : undefined;
     const current = deps.currentSessionId();
     if (!requested || requested === current) return true;
+    // Four tabs share one socket, so "the session the runtime is on" is only
+    // ever ONE of them. Refusing every other named session turned every
+    // background tab into a dead tab on this host: its `user_message`, its
+    // `abort`, its answer to its OWN permission prompt and its worklist reads
+    // were all rejected here, before the handlers that were carefully taught
+    // to serve the asking session ever ran. The conversation routes have
+    // carried this exemption since the four-tab work; the router-level gate in
+    // front of them did not, which made that fix unreachable.
+    if (canServeSession(requested)) return true;
     send(ws, {
       type: 'error',
       payload: deps.sessionPayload({
@@ -343,6 +391,55 @@ export function createEmbeddedMessageRouter(
     },
   };
 
+  /**
+   * "Is THIS session running?" — session-keyed, never process-wide.
+   *
+   * Both consumers below used to pass `() => abortControllers.size > 0`, which
+   * type-checks against the `(sessionId?: string) => boolean` contract because
+   * a zero-arg function is assignable — so the argument every caller carefully
+   * threaded through was silently dropped. With four tabs on one host that
+   * answered "yes, running" for EVERY session whenever ANY one of them was
+   * mid-run: `session.delete` refused with "an agent run is active" for a
+   * session that had no tab left, `session.run_state` told all four tabs they
+   * were still running, the context editor refused edits, and a resume skipped
+   * `replaceMessages` and showed a stale transcript. The host's own
+   * session-keyed answer (route-contexts) was spread in first and then
+   * overwritten by these two lines.
+   */
+  /**
+   * ONE serialiser for every operation that re-points a session's runtime,
+   * shared by the session routes and by `user_message` setup.
+   *
+   * Both halves used to run ungated here: the session handlers created a
+   * private gate (transitions ordered against each other) and the
+   * conversation routes got none at all, so a turn could begin reading a
+   * context a concurrent `session.resume` was halfway through re-pointing.
+   * The standalone host has shared a single gate since the four-tab work; the
+   * embedded host is the one people run.
+   */
+  const sessionTransitionGate = createSessionTransitionGate();
+
+  /**
+   * Best-effort cascade of a session stop into the fleet it spawned. Mirrors
+   * `stopFleet` in embedded-host-adapters (the conversation `abort` route);
+   * fire-and-forget, because a teardown failure must never surface instead of
+   * the stop the caller asked for.
+   */
+  const stopSessionFleetFor = (sessionId: string): void => {
+    const stop = deps.conversationCtx.stopSessionFleet;
+    if (!sessionId || !stop) return;
+    try {
+      void Promise.resolve(stop(sessionId)).catch(() => undefined);
+    } catch {
+      // A synchronous throw from the host hook is best-effort too.
+    }
+  };
+
+  const isRunActive = (sessionId?: string): boolean =>
+    sessionId
+      ? deps.conversationCtx.abortControllers.has(sessionId)
+      : deps.conversationCtx.abortControllers.size > 0;
+
   const providerOperations = createProviderOperations({
     providerStore: deps.providerCtx.providerStore,
     broadcast: deps.providerCtx.broadcast,
@@ -373,9 +470,19 @@ export function createEmbeddedMessageRouter(
         ) as ProviderConfig,
       );
     },
-    applyModelSwitch: (providerId, modelId) =>
-      applyEmbeddedModelSwitch(deps.agentConfigCtx, providerId, modelId),
-    isRunActive: () => deps.conversationCtx.abortControllers.size > 0,
+    // The switch applies to the TAB that asked. Dropping the third argument
+    // sent every tab's model change to the leader.
+    applyModelSwitch: (providerId, modelId, sessionId) =>
+      applyEmbeddedModelSwitch(
+        deps.agentConfigCtx,
+        providerId,
+        modelId,
+        sessionContextOf(sessionId),
+      ),
+    // Report the switch against the TAB that asked, so a "switched from X"
+    // toast in tab 2 never quotes tab 3's model.
+    getSessionContext: (sessionId?: string) => sessionContextOf(sessionId),
+    isRunActive,
     send: deps.agentConfigCtx.send,
     broadcast: deps.providerCtx.broadcast,
     log: deps.agentConfigCtx.log,
@@ -408,38 +515,66 @@ export function createEmbeddedMessageRouter(
 
   const session = createEmbeddedSessionRoutes({
     ...deps.sessionCtx,
+    withSessionTransition: sessionTransitionGate,
     // Abort every in-flight run before a session swap — a slow provider
     // stream from the previous session would otherwise keep running in the
     // background after session.new/resume. The run's own end() cleanup
     // removes controllers from the map when it unwinds.
     abortActiveRun: (sessionId) => {
-      if (sessionId && deps.conversationCtx.abortControllers.has(sessionId)) {
+      if (sessionId) {
+        // Named target, so this stops exactly that session — including when
+        // it has no live run. The old code fell through to "abort all" when
+        // the id was absent from the map, which meant retiring an ALREADY
+        // FINISHED session killed the three other tabs' in-flight runs.
         deps.conversationCtx.abortControllers.get(sessionId)?.abort();
-      } else {
-        // Abort all — used during full session teardown or fallback when
-        // sessionId does not match any entry in the map.
-        // Materialize first: .abort() triggers async unwinding that
-        // eventually calls end() → map.delete, which would mutate the
-        // map during iteration if we iterated the live values().
-        for (const controller of [...deps.conversationCtx.abortControllers.values()]) {
-          controller.abort();
-        }
+        // Stopping a run means stopping the WORK, and this session's subagents
+        // are part of that work: aborting the leader's controller only unwinds
+        // workers it is BLOCKED on, while anything started with
+        // `spawn_subagent` + `assign_task` keeps going unless asked to stop.
+        // The standalone host has always done this on its own abort seam
+        // (`abortRunLock`); this one did not, so a `session.delete` that stops
+        // an off-screen run left that session's fleet running behind a
+        // conversation that no longer exists. Scoped to the session, so one
+        // tab's teardown never reaches another tab's fleet.
+        stopSessionFleetFor(sessionId);
+        return;
       }
+      // Abort all — full teardown only, i.e. called with no session named.
+      // Materialize first: .abort() triggers async unwinding that
+      // eventually calls end() → map.delete, which would mutate the
+      // map during iteration if we iterated the live values().
+      const running = [...deps.conversationCtx.abortControllers.keys()];
+      for (const controller of [...deps.conversationCtx.abortControllers.values()]) {
+        controller.abort();
+      }
+      for (const key of running) stopSessionFleetFor(key);
     },
-    isRunActive: () => deps.conversationCtx.abortControllers.size > 0,
+    isRunActive,
   });
   const project = createEmbeddedProjectRoutes(deps.projectCtx);
   const mode = createModeRouteHandlers({
     modeStore: deps.agentConfigCtx.modeStore,
-    getSession: () => deps.agentConfigCtx.agent.ctx.session,
-    applyModeId: (id) => {
-      deps.agentConfigCtx.agent.ctx.meta['mode'] = id;
+    // The `mode_changed` entry belongs in the journal of the tab that switched.
+    getSession: (sessionId?: string) => sessionContextOf(sessionId).session,
+    // The mode belongs to the tab that switched it, not to the process — the
+    // contract has carried `sessionId` since the four-tab work, and this host
+    // ignored it and wrote the leader's meta, so switching mode in tab 3 moved
+    // the boot tab's mode instead.
+    applyModeId: (id, sessionId) => {
+      sessionContextOf(sessionId).meta['mode'] = id;
     },
     send: deps.agentConfigCtx.send,
-    afterSwitch: async (id) =>
+    // Announce the switch FOR THE TAB THAT MADE IT. Dropping `sessionId` here
+    // built the payload for the leader instead, so a mode change in a
+    // background tab re-announced the boot tab's session carrying the new
+    // mode — and relabelled a conversation the user had not touched.
+    afterSwitch: async (id, sessionId) =>
       deps.agentConfigCtx.broadcast({
         type: 'session.start',
-        payload: await deps.agentConfigCtx.buildSessionStart({ mode: id }),
+        payload: await deps.agentConfigCtx.buildSessionStart({
+          mode: id,
+          ...(sessionId ? { sessionId } : {}),
+        }),
       }),
   });
   const prefs = createPrefsRouteHandlers(deps.prefsCtx);
@@ -450,42 +585,41 @@ export function createEmbeddedMessageRouter(
         deps.brainCtx,
         ws,
         (msg.payload as { level?: string } | undefined)?.level ?? '',
+        messageSessionId(msg),
       ),
     ask: (ws, msg) =>
       handleBrainAsk(
         deps.brainCtx,
         ws,
         (msg.payload as { question?: string } | undefined)?.question,
+        messageSessionId(msg),
       ),
     configGet: (ws) => handleBrainConfigGet(deps.brainCtx, ws),
-    configSet: (ws, msg) => handleBrainConfigSet(deps.brainCtx, ws, msg.payload),
+    configSet: (ws, msg) =>
+      handleBrainConfigSet(deps.brainCtx, ws, msg.payload, messageSessionId(msg)),
   };
+  /**
+   * Worklist (todos / tasks / plan) for the session the request NAMES.
+   *
+   * This host built one context off `opts.agent.ctx` — the leader, i.e. the
+   * boot tab's runtime — with no message parameter at all. So with four tabs
+   * open every tab showed the leader's todo list, a write in tab 3 mutated
+   * tab 1's board, and all four shared one `.plan.json` / `.tasks.json`
+   * because the sidecar paths came from the leader's meta. The standalone
+   * host has resolved this per session since the four-tab work; the same
+   * factory is used here now, so both hosts answer identically.
+   */
+  const worklistSessionContext = createSessionAwareWorklistContext({
+    rootContext: opts.agent.ctx,
+    ...(deps.sessionCtx.peekAgent ? { peekAgent: deps.sessionCtx.peekAgent } : {}),
+    ...(deps.sessionCtx.getAgent ? { getAgent: deps.sessionCtx.getAgent } : {}),
+    sessionsDir:
+      deps.sessionCtx.opts.sessionsDir ?? path.join(projectRoot(), '.wrongstack', 'sessions'),
+    send: (ws, message) => send(ws, message as never),
+    broadcast: (message) => deps.providerCtx.broadcast(message as never),
+  });
   const worklist = createWorklistRouteHandlers({
-    getContext: (): WorklistContext => ({
-      context: {
-        todos: opts.agent.ctx.todos,
-        meta: opts.agent.ctx.meta,
-        session: opts.agent.ctx.session ? { id: opts.agent.ctx.session.id } : null,
-      },
-      send,
-      broadcast: deps.providerCtx.broadcast,
-      replaceTodos: (todos) => opts.agent.ctx.state.replaceTodos(todos),
-      mutateTodos: async (todos) => {
-        const result = await todoTool.execute({ todos }, opts.agent.ctx, {
-          signal: AbortSignal.timeout(30_000),
-        });
-        return {
-          todos: [...opts.agent.ctx.todos],
-          ...(result.kanban_warnings ? { warnings: result.kanban_warnings } : {}),
-        };
-      },
-      mutateTaskStatus: async (id, status) =>
-        taskTool.execute({ action: 'status', id, status }, opts.agent.ctx, {
-          signal: AbortSignal.timeout(30_000),
-        }),
-      mutatePlan: async (operation) =>
-        planTool.execute(operation, opts.agent.ctx, { signal: AbortSignal.timeout(30_000) }),
-    }),
+    getContext: (message) => worklistSessionContext(message as never),
   });
   const processRoutes: ProcessRouteHandlers = {
     list: handleProcessList,
@@ -565,11 +699,15 @@ export function createEmbeddedMessageRouter(
       mode,
       prefs,
       brain,
+      chimera: deps.chimeraRoutes,
       worklist,
       process: processRoutes,
       host,
       clientTransport,
-      conversation: createEmbeddedConversationRoutes(deps.conversationCtx),
+      conversation: createEmbeddedConversationRoutes({
+        ...deps.conversationCtx,
+        withSessionTransition: sessionTransitionGate,
+      }),
       completion,
       autonomy: createAutonomyRouteHandlers(deps.prefsCtx),
       goalSnapshot,
@@ -608,6 +746,16 @@ export function createEmbeddedMessageRouter(
       projectRoot: opts.projectRoot ?? '',
       context: opts.agent.ctx,
       broadcast: deps.providerCtx.broadcast,
+      // Every board a tab is displaying is live, not just the runtime's.
+      // Without this `kanban.delete` protected the leader's board alone, so
+      // three of four live boards could be deleted out from under the tabs
+      // showing them. This host was skipped as "single-session" when the guard
+      // was added; it serves four tabs.
+      getDisplayedSessionIds: () =>
+        collectDisplayedSessionIds({
+          getSession: () => ({ id: deps.currentSessionId() }),
+          clients: deps.sessionCtx.clients as never,
+        }),
       ...(opts.onKanbanDispatch ? { dispatchTask: opts.onKanbanDispatch } : {}),
     }),
     beforeDispatch: guardSession,

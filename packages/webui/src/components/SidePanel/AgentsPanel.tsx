@@ -6,7 +6,7 @@
  */
 
 import { Bot, CheckCircle2, LayoutGrid, ListFilter, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { AgentRosterCard } from '@/components/agents/AgentRosterCard';
 import { FleetSummaryBar } from '@/components/agents/FleetSummaryBar';
@@ -21,8 +21,24 @@ import {
   useSessionLeaderId,
   useUIStore,
 } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 
 type AgentFilter = 'all' | 'running' | 'completed' | 'failed';
+type AgentsPanelChrome = {
+  filter: AgentFilter;
+  expandedAgentId: string | null;
+  focusedIndex: number;
+  showHint: boolean;
+};
+
+const AGENTS_PANEL_NO_SESSION = '__no_session__';
+const agentsPanelChromeBySession = new Map<string, AgentsPanelChrome>();
+const disposedAgentPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  agentsPanelChromeBySession.delete(sessionId);
+  disposedAgentPanelSessions.add(sessionId);
+});
 
 const FILTER_OPTIONS: Array<{
   value: AgentFilter;
@@ -52,6 +68,32 @@ export function AgentsPanel() {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const rosterRef = useRef<HTMLDivElement>(null);
   const [showHint, setShowHint] = useState(true);
+  const chromeKey = currentSessionId ?? AGENTS_PANEL_NO_SESSION;
+  const chromeKeyRef = useRef(chromeKey);
+
+  useLayoutEffect(() => {
+    if (chromeKeyRef.current === chromeKey) return;
+    if (!disposedAgentPanelSessions.has(chromeKeyRef.current)) {
+      agentsPanelChromeBySession.set(chromeKeyRef.current, {
+        filter,
+        expandedAgentId,
+        focusedIndex,
+        showHint,
+      });
+    }
+    const next = agentsPanelChromeBySession.get(chromeKey) ?? {
+      filter: 'all',
+      expandedAgentId: null,
+      focusedIndex: -1,
+      showHint: true,
+    };
+    disposedAgentPanelSessions.delete(chromeKey);
+    chromeKeyRef.current = chromeKey;
+    setFilter(next.filter);
+    setExpandedAgentId(next.expandedAgentId);
+    setFocusedIndex(next.focusedIndex);
+    setShowHint(next.showHint);
+  }, [chromeKey, expandedAgentId, filter, focusedIndex, showHint]);
 
   const sessionFleetList = useMemo(
     () => fleetList.filter((a) => agentBelongsToSession(a.sessionId, currentSessionId)),
@@ -72,14 +114,17 @@ export function AgentsPanel() {
 
   const hasFinished = sessionFleetList.some((a) => a.status !== 'running');
 
-  const openFleetInspector = useCallback((agentId?: string) => {
-    if (agentId) {
-      useUIStore.getState().setSubagentChatFocus(agentId);
-      showPanel('chat');
-    } else {
-      openMainView('roster');
-    }
-  }, []);
+  const openFleetInspector = useCallback(
+    (agentId?: string) => {
+      if (agentId) {
+        useUIStore.getState().setSubagentChatFocus(agentId, currentSessionId ?? undefined);
+        showPanel('chat');
+      } else {
+        openMainView('roster');
+      }
+    },
+    [currentSessionId],
+  );
 
   const toggleAgent = useCallback((id: string) => {
     setExpandedAgentId((prev) => (prev === id ? null : id));
@@ -137,11 +182,51 @@ export function AgentsPanel() {
     }
   }, [focusedIndex]);
 
+  useEffect(() => {
+    if (focusedIndex >= filteredList.length) setFocusedIndex(-1);
+  }, [filteredList.length, focusedIndex]);
+
   // ── Empty states ──────────────────────────────────────────────────
   // Three distinct states: no agents ever, filtered out, all finished.
-  const allFinished = fleetList.length > 0 && fleetList.every((a) => a.status !== 'running');
+  // All read the SESSION roster — the global one counts other tabs' agents,
+  // which inflated this panel's stats and mis-fired its empty states.
+  const allFinished =
+    sessionFleetList.length > 0 && sessionFleetList.every((a) => a.status !== 'running');
+  const toolbar = (
+    <div className="flex shrink-0 items-center gap-1 border-b border-border/70 px-2 py-1">
+      {FILTER_OPTIONS.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => setFilter(opt.value)}
+          aria-pressed={filter === opt.value}
+          className={cn(
+            'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
+            filter === opt.value
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground',
+          )}
+        >
+          {t(opt.translationKey)}
+        </button>
+      ))}
+      <span className="flex-1" />
+      {hasFinished && (
+        <button
+          type="button"
+          onClick={() => clearFinishedAgents(currentSessionId)}
+          aria-label={t('activity:agents.clearFinishedTitle')}
+          title={t('activity:agents.clearFinishedTitle')}
+          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="h-2.5 w-2.5" />
+          {t('activity:agents.clearFinished')}
+        </button>
+      )}
+    </div>
+  );
 
-  if (fleetList.length === 0) {
+  if (sessionFleetList.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.35)] p-3">
         <div className="ws-surface flex max-w-[15rem] flex-col items-center gap-3 rounded-xl p-5 text-center text-muted-foreground">
@@ -160,7 +245,8 @@ export function AgentsPanel() {
   if (filteredList.length === 0 && filter !== 'all') {
     return (
       <>
-        <FleetSummaryBar leaderName={leaderName} />
+        <FleetSummaryBar sessionId={currentSessionId ?? undefined} leaderName={leaderName} />
+        {toolbar}
         <div className="flex min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.35)] p-3">
           <div className="ws-surface flex max-w-[15rem] flex-col items-center gap-3 rounded-xl p-5 text-center text-muted-foreground">
             <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-muted/60 text-muted-foreground">
@@ -188,7 +274,7 @@ export function AgentsPanel() {
   if (allFinished && filter === 'all') {
     return (
       <>
-        <FleetSummaryBar leaderName={leaderName} />
+        <FleetSummaryBar sessionId={currentSessionId ?? undefined} leaderName={leaderName} />
         <div className="flex min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.35)] p-3">
           <div className="ws-surface flex max-w-[15rem] flex-col items-center gap-3 rounded-xl p-5 text-center text-muted-foreground">
             <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-success/10 text-success">
@@ -201,9 +287,10 @@ export function AgentsPanel() {
               <p className="mt-1 text-xs">{t('activity:agents.emptyFinishedHint')}</p>
               <p className="mt-2 text-[11px] tabular-nums text-muted-foreground">
                 {t('activity:agents.emptyFinishedStats', {
-                  completed: fleetList.filter((a) => a.status === 'completed').length,
-                  failed: fleetList.filter((a) => a.status === 'failed' || a.status === 'timeout')
-                    .length,
+                  completed: sessionFleetList.filter((a) => a.status === 'completed').length,
+                  failed: sessionFleetList.filter(
+                    (a) => a.status === 'failed' || a.status === 'timeout',
+                  ).length,
                 })}
               </p>
             </div>
@@ -212,7 +299,7 @@ export function AgentsPanel() {
         <div className="shrink-0 border-t border-border/70 bg-card/75 px-3 py-2">
           <button
             type="button"
-            onClick={clearFinishedAgents}
+            onClick={() => clearFinishedAgents(currentSessionId)}
             className="w-full flex items-center justify-center gap-1.5 h-7 rounded-md border border-border text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <Trash2 className="h-3 w-3" />
@@ -225,40 +312,8 @@ export function AgentsPanel() {
 
   return (
     <>
-      <FleetSummaryBar leaderName={leaderName} />
-
-      {/* Toolbar: filter buttons + clear finished */}
-      <div className="flex items-center gap-1 border-b border-border/70 px-2 py-1 shrink-0">
-        {FILTER_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => setFilter(opt.value)}
-            aria-pressed={filter === opt.value}
-            className={cn(
-              'rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors',
-              filter === opt.value
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-            )}
-          >
-            {t(opt.translationKey)}
-          </button>
-        ))}
-        <span className="flex-1" />
-        {hasFinished && (
-          <button
-            type="button"
-            onClick={clearFinishedAgents}
-            aria-label={t('activity:agents.clearFinishedTitle')}
-            title={t('activity:agents.clearFinishedTitle')}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <Trash2 className="h-2.5 w-2.5" />
-            {t('activity:agents.clearFinished')}
-          </button>
-        )}
-      </div>
+      <FleetSummaryBar sessionId={currentSessionId ?? undefined} leaderName={leaderName} />
+      {toolbar}
 
       {/* Agent roster */}
       <div

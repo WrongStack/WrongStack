@@ -58,10 +58,11 @@
         "packages/core/src/extension/extension-points.ts",
         "packages/core/src/extension/registry.ts",
         "packages/core/src/mailbox-attach.ts",
+        "packages/core/src/session-note-attach.ts",
         "packages/core/src/types/plugin.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include agent-loop-context.ts and agent-loop-detector.ts (agent-loop decomposition). No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include agent-loop-context.ts and agent-loop-detector.ts (agent-loop decomposition), and 2026-08-28 to include session-note-attach.ts. No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-10-01",
       "removeWhen": "Core contracts, context, events, and implementations obey the accepted one-way ownership model.",

@@ -19,6 +19,11 @@ import type {
   RequestCacheControl,
 } from '../types/provider.js';
 import type { ModelRuntimeConfig, ModelRuntimeParametersConfig } from '../types/config.js';
+import {
+  conversationBoundToRequest,
+  inheritRequestConversation,
+} from '../core/request-conversation-binding.js';
+import { providerBoundToRequest } from '../core/request-provider-binding.js';
 
 export interface ResolvedModelRuntime {
   reasoning: Request['reasoning'];
@@ -250,18 +255,56 @@ export interface ModelRuntimeMiddlewareOptions {
  * the request are preserved only when the resolver produces nothing for
  * that field.
  */
+/**
+ * Overlay one conversation's reasoning choice on the project settings.
+ *
+ * Only the reasoning triple is per conversation (`SESSION_SCOPED_PREF_KEYS` in
+ * the WebUI server names the same three); cache TTL and generic parameters are
+ * project-wide and pass through untouched. A conversation that never chose
+ * anything returns the project settings unchanged, which is every
+ * single-session host.
+ */
+function withConversationReasoning(
+  settings: ModelRuntimeConfig | undefined,
+  meta: Record<string, unknown> | undefined,
+): ModelRuntimeConfig | undefined {
+  if (!meta) return settings;
+  const mode = meta['reasoningMode'];
+  const effort = meta['reasoningEffort'];
+  const preserve = meta['reasoningPreserve'];
+  const scoped: Record<string, unknown> = {};
+  if (typeof mode === 'string') scoped.mode = mode;
+  if (typeof effort === 'string') scoped.effort = effort;
+  if (typeof preserve === 'boolean') scoped.preserve = preserve;
+  if (Object.keys(scoped).length === 0) return settings;
+  return {
+    ...(settings ?? {}),
+    reasoning: { ...(settings?.reasoning ?? {}), ...scoped },
+  } as ModelRuntimeConfig;
+}
+
 export function applyModelRuntime(
   req: Request,
   opts: ModelRuntimeMiddlewareOptions,
 ): Request {
-  const settings = opts.getSettings();
+  // Reasoning is a PER-CONVERSATION preference — the WebUI writes it to the
+  // asking tab's meta — but this middleware only ever read the project config,
+  // so whichever tab last changed its effort silently changed everyone's next
+  // request. Same shape as the YOLO and auto-compaction fixes: the preference
+  // moved to the session, the runtime that APPLIES it stayed process-wide.
+  const conversation = conversationBoundToRequest(req);
+  const settings = withConversationReasoning(opts.getSettings(), conversation?.meta);
   if (!settings) return req;
   const rc = opts.getReasoningConfig();
-  const caps = opts.getCapabilities?.();
+  // Capabilities of the provider THIS request is going out on. The option is
+  // resolved from the process's live provider, which is the conversation's own
+  // for a single-session host and the boot tab's for every other tab.
+  const caps = providerBoundToRequest(req)?.capabilities ?? opts.getCapabilities?.();
   const resolved = resolveModelRuntime(settings, rc, caps);
   for (const w of resolved.warnings) opts.onWarning?.(w);
 
   const next: Request = { ...req };
+  inheritRequestConversation(req, next);
   if (resolved.reasoning !== undefined) {
     next.reasoning = resolved.reasoning;
   }

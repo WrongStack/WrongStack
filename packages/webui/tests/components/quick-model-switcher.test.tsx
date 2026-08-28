@@ -33,7 +33,7 @@ vi.mock('@/hooks/useWebSocket', () => ({
 }));
 
 const { QuickModelSwitcher } = await import('@/components/QuickModelSwitcher');
-const { useConfigStore, useUIStore } = await import('@/stores');
+const { useConfigStore, useSessionStore, useUIStore } = await import('@/stores');
 
 function emit(type: string, payload: unknown) {
   act(() => {
@@ -83,6 +83,9 @@ beforeEach(async () => {
   useLocalPrefs.setState({ favoriteModels: [] } as never);
   useUIStore.setState({ modelSwitcherOpen: false, paletteOpen: false } as never);
   useConfigStore.setState({ wsUrl: 'ws://x', provider: 'openai', model: 'gpt-4' } as never);
+  useSessionStore.setState({
+    session: { id: 'sess_active', provider: 'openai', model: 'gpt-4' },
+  } as never);
 });
 
 afterEach(cleanup);
@@ -206,6 +209,21 @@ describe('list rendering', () => {
   it('marks the active model', async () => {
     await openWithCatalogue();
     await waitFor(() => expect(screen.getByText(/active/i)).toBeTruthy());
+  });
+
+  it("uses the active session's model as the current row, not the global config fallback", async () => {
+    useConfigStore.setState({ provider: 'openai', model: 'gpt-4' } as never);
+    useSessionStore.setState({
+      session: { id: 'sess_active', provider: 'openai', model: 'gpt-5' },
+    } as never);
+
+    await openWithCatalogue();
+    await waitFor(() => expect(screen.getByText(/active/i)).toBeTruthy());
+
+    fireEvent.keyDown(input(), { key: 'Enter' });
+
+    await waitFor(() => expect(useUIStore.getState().modelSwitcherOpen).toBe(false));
+    expect(switchModel).not.toHaveBeenCalled();
   });
 
   it('shows the context window when the catalogue supplies one', async () => {

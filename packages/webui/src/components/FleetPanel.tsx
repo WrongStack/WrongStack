@@ -66,10 +66,13 @@ export function FleetPanel({ className }: { className?: string }): React.ReactEl
     }
   }, []);
 
-  const openAgentTab = useCallback((agentId: string) => {
-    useUIStore.getState().setSubagentChatFocus(agentId);
-    useUIStore.getState().setDockSection(null);
-  }, []);
+  const openAgentTab = useCallback(
+    (agentId: string) => {
+      useUIStore.getState().setSubagentChatFocus(agentId, currentSessionId ?? undefined);
+      useUIStore.getState().setDockSection(null);
+    },
+    [currentSessionId],
+  );
 
   if (list.length === 0) {
     return (

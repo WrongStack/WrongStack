@@ -25,9 +25,12 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { toWireImages } from '../ChatInput/image-attachments.js';
 import { fillInput, NextStepsBar } from '../NextStepsBar';
 import { toast } from '../Toaster';
+import { BrainDecisionCard, parseBrainMarkdown } from '../ChatView/BrainDecisionCard.js';
+import { CouncilDecisionCard, parseCouncilMarkdown } from '../ChatView/CouncilDecisionCard.js';
 import { AttachmentGallery } from './AttachmentGallery.js';
 import { CopyButton } from './CopyButton.js';
 import { ErrorBodyWithStack } from './ErrorBody.js';
+import { FailedRunContinue } from './FailedRunContinue.js';
 import { LazyMarkdown as ReactMarkdown } from './LazyMarkdown.js';
 import { StreamingMarkdown } from './StreamingMarkdown.js';
 import { ToolLedgerCard } from './ToolLedgerCard.js';
@@ -93,6 +96,14 @@ export const MessageBubble = memo(function MessageBubble({
   const hideEmptyReasoning =
     !showThinkingLogs && !!message.thinkingLog && !message.content && !message.streaming;
   if (hideEmptyReasoning) return null;
+
+  if (message.councilDecision || parseCouncilMarkdown(message.content)) {
+    return <CouncilDecisionCard message={message} />;
+  }
+
+  if (message.brainDecision || parseBrainMarkdown(message.content)) {
+    return <BrainDecisionCard message={message} />;
+  }
 
   /** Auto-submit callback for YOLO+auto mode countdown completion */
   const handleAutoSubmit = (text: string) => {
@@ -489,7 +500,15 @@ export const MessageBubble = memo(function MessageBubble({
                           {message.content}
                         </pre>
                       ) : message.role === 'assistant' && message.isError ? (
-                        <ErrorBodyWithStack text={message.content} />
+                        <>
+                          <ErrorBodyWithStack text={message.content} />
+                          {isLatestAssistant && !message.streaming && !isLoading && (
+                            <FailedRunContinue
+                              text={message.content}
+                              timestamp={message.timestamp}
+                            />
+                          )}
+                        </>
                       ) : message.streaming ? (
                         // While streaming, avoid re-parsing the whole growing
                         // message through remark on every frame — see

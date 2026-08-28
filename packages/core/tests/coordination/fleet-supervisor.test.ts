@@ -135,9 +135,12 @@ describe('FleetSupervisor', () => {
       expect.stringContaining('Workload reduced'),
       expect.stringContaining('t-starved'),
     );
+    // Third argument names the worker the note is ABOUT, so the host can post
+    // it into that worker's conversation rather than the host's own.
     expect(h.actions.notifyLeader).toHaveBeenCalledWith(
       'Fleet rebalanced',
       expect.stringContaining('busy'),
+      'busy',
     );
     const last = h.supervisor.history().at(-1);
     expect(last).toMatchObject({ kind: 'pinned_starvation', outcome: 'approved' });
@@ -226,6 +229,7 @@ describe('FleetSupervisor', () => {
     expect(h.actions.notifyLeader).toHaveBeenCalledWith(
       'Fleet helper spawned',
       expect.stringContaining('helper-1'),
+      'helper-1',
     );
   });
 

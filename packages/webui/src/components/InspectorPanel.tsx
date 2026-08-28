@@ -78,7 +78,14 @@ function sortFleet(
 
 /** Compact shell action used by the top bar. Keeping its subscriptions here
  * avoids making the App root re-render for every fleet/audit counter update. */
-export function InspectorTrigger(): React.ReactElement {
+export function InspectorTrigger({
+  showCountWhenZero = false,
+}: {
+  /** Title-bar placements keep the badge mounted even at zero so the agent
+   * count is a stable fixture of the title area, not an element that pops in
+   * and out as subagents start and finish. */
+  showCountWhenZero?: boolean;
+}): React.ReactElement {
   const { t } = useAppTranslation();
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const activeActivity = useUIStore((s) => s.activeActivity);
@@ -110,8 +117,13 @@ export function InspectorTrigger(): React.ReactElement {
     >
       <Bot className="h-3.5 w-3.5" />
       <span className="hidden lg:inline">{t('activity:nav.agents')}</span>
-      {badge > 0 ? (
-        <span className="min-w-4 bg-primary/15 px-1 text-[10px] font-semibold tabular-nums text-primary">
+      {badge > 0 || showCountWhenZero ? (
+        <span
+          className={cn(
+            'min-w-4 px-1 text-center text-[10px] font-semibold tabular-nums',
+            badge > 0 ? 'bg-primary/15 text-primary' : 'text-muted-foreground',
+          )}
+        >
           {badge > 99 ? '99+' : badge}
         </span>
       ) : null}
@@ -154,6 +166,14 @@ export function InspectorPanel() {
   const fleetList = useMemo(
     () => sortFleet(sessionFleetAgents, leaderId),
     [sessionFleetAgents, leaderId],
+  );
+  const sessionEventTimeline = useMemo(
+    () =>
+      eventTimeline.filter((event) => {
+        const agent = event.agentId ? sessionFleetAgents.get(event.agentId) : undefined;
+        return agent !== undefined;
+      }),
+    [eventTimeline, sessionFleetAgents],
   );
 
   const runningCount = fleetList.filter((a) => a.status === 'running').length;
@@ -349,7 +369,7 @@ export function InspectorPanel() {
                   fleetList={fleetList}
                   leaderId={leaderId}
                   selectedAgentId={selectedAgentId}
-                  eventTimeline={eventTimeline}
+                  eventTimeline={sessionEventTimeline}
                   onSelectAgent={handleSelectAgent}
                 />
               </TabsContent>

@@ -62,8 +62,16 @@ export interface FleetSupervisorActions {
   }): Promise<{ subagentId: string } | { error: string }>;
   /** High-priority steer mail to one agent. */
   steerAgent(subagentId: string, subject: string, body: string): Promise<void>;
-  /** Status/steer mail to the session leader. */
-  notifyLeader(subject: string, body: string): Promise<void>;
+  /**
+   * Status note to the session leader.
+   *
+   * `subagentId` names the worker the note is ABOUT, when there is one. The
+   * host resolves the conversation from it: with several tabs sharing this
+   * fleet, "the session leader" is not one address, and a note about tab 3's
+   * worker sent to the boot tab's leader reaches nobody who can act on it.
+   * Omitted for fleet-wide observations, which fall back to the host session.
+   */
+  notifyLeader(subject: string, body: string, subagentId?: string): Promise<void>;
   /** Abort a subagent (only used when config.allowTerminate). */
   terminate(subagentId: string): Promise<void>;
 }
@@ -551,6 +559,7 @@ export class FleetSupervisor {
           .notifyLeader(
             'Fleet rebalanced',
             `Supervisor moved ${moved.length} queued task(s) off busy worker ${fromWorkerId}: ${moved.join(', ')}.`,
+            fromWorkerId,
           )
           .catch(() => {});
       }
@@ -611,6 +620,7 @@ export class FleetSupervisor {
           .notifyLeader(
             'Fleet helper spawned',
             `Supervisor spawned helper ${res.subagentId} to drain a ${pendingCount}-task backlog.`,
+            res.subagentId,
           )
           .catch(() => {});
       } else {
@@ -682,6 +692,7 @@ export class FleetSupervisor {
         .notifyLeader(
           `Worker ${s.name} may be stuck`,
           `No observable activity for ${Math.round(this.cfg.stuckMs / 1000)}s. Supervisor nudged it; consider terminate_subagent + reassigning if it stays silent.`,
+          s.id,
         )
         .catch(() => {});
       this.record({
@@ -736,6 +747,7 @@ export class FleetSupervisor {
           .notifyLeader(
             `Worker ${subagentId} terminated`,
             `Supervisor terminated ${subagentId} after ${streak} consecutive failures. Reassign its pending work.`,
+            subagentId,
           )
           .catch(() => {});
         this.record({
@@ -759,6 +771,7 @@ export class FleetSupervisor {
           .notifyLeader(
             `Worker ${subagentId} failing repeatedly`,
             `${streak} consecutive failures. Supervisor steered it; consider reassigning its work if the next task also fails.`,
+            subagentId,
           )
           .catch(() => {});
         this.record({

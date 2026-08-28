@@ -432,10 +432,15 @@ describe('session ws-handlers — provider / delegate / context', () => {
 
   describe('delegate.started', () => {
     it('announces the delegation and opens a timeline entry', () => {
+      useSessionStore.setState({ session: { id: 'sess-a' } } as never);
       const pushAgentTimelineEntry = vi.fn();
       useFleetStore.setState({ pushAgentTimelineEntry } as never);
       handleDelegateStarted(
-        msg('delegate.started', { target: 'worker-1', task: 'refactor the store' }),
+        msg('delegate.started', {
+          target: 'worker-1',
+          task: 'refactor the store',
+          sessionId: 'sess-a',
+        }),
       );
       expect(chat()).toBe('Delegating to `worker-1`: refactor the store');
       expect(pushAgentTimelineEntry).toHaveBeenCalledWith(
@@ -445,6 +450,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
           content: 'refactor the store',
           kind: 'status',
           status: 'delegating',
+          sessionId: 'sess-a',
         }),
       );
     });
@@ -456,11 +462,13 @@ describe('session ws-handlers — provider / delegate / context', () => {
     });
 
     it('adds the running delegate to the live fleet roster by stable id', () => {
+      useSessionStore.setState({ session: { id: 'sess-a' } } as never);
       handleDelegateStarted(
         msg('delegate.started', {
           target: 'worker-1',
           task: 'refactor the store',
           subagentId: 'delegate-runtime-1',
+          sessionId: 'sess-a',
         }),
       );
 
@@ -468,6 +476,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
         name: 'worker-1',
         description: 'refactor the store',
         status: 'running',
+        sessionId: 'sess-a',
       });
     });
   });
@@ -533,15 +542,24 @@ describe('session ws-handlers — provider / delegate / context', () => {
     });
 
     it('marks the matching live delegate as completed', () => {
+      useSessionStore.setState({ session: { id: 'sess-a' } } as never);
       handleDelegateStarted(
-        msg('delegate.started', { target: 'worker-1', task: 't', subagentId: 'sub-9' }),
+        msg('delegate.started', {
+          target: 'worker-1',
+          task: 't',
+          subagentId: 'sub-9',
+          sessionId: 'sess-a',
+        }),
       );
-      handleDelegateCompleted(msg('delegate.completed', { ...base, subagentId: 'sub-9' }));
+      handleDelegateCompleted(
+        msg('delegate.completed', { ...base, subagentId: 'sub-9', sessionId: 'sess-a' }),
+      );
 
       expect(useFleetStore.getState().agents.get('sub-9')).toMatchObject({
         status: 'completed',
         iteration: 4,
         toolCalls: 9,
+        sessionId: 'sess-a',
       });
     });
   });

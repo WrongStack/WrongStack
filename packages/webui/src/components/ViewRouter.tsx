@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores';
 import { showPanel } from './activity-bar/nav';
 import { ChatView } from './ChatView';
+import { AgentTabs } from './ChatView/AgentTabs';
 import { ContextDashboard } from './ContextDashboard';
 import { ErrorBoundary } from './ErrorBoundary';
 import { PanelSuspense } from './PanelSuspense';
@@ -91,6 +92,23 @@ export function ViewRouter({
 
   return (
     <>
+      {/* Dock strip and the AGENTS switcher belong to the chat surface. They
+          stay MOUNTED for the session lifetime — their store subscriptions and
+          internal state keep running — but render only over chat: parked
+          (out of flow, inert) while another view is in front, exactly like
+          the transcript below. */}
+      {hasSession && (
+        <div
+          className={cn('flex flex-col', currentView !== 'chat' && 'ws-view-parked')}
+          {...(currentView !== 'chat' ? { inert: true, 'aria-hidden': true } : {})}
+        >
+          <div className="ws-workspace-dock-wrap shrink-0 px-3 pt-2 sm:px-4">
+            <WorkspaceDock />
+          </div>
+          <AgentTabs />
+        </div>
+      )}
+
       {/* Chat is MOUNTED FOR THE LIFETIME OF THE SESSION and parked when
           another view is in front — never unmounted. It owns a virtualized
           transcript, a scroll position, an unsent composer draft and the live
@@ -103,11 +121,6 @@ export function ViewRouter({
         )}
         {...(currentView !== 'chat' ? { inert: true, 'aria-hidden': true } : {})}
       >
-        {hasSession && (
-          <div className="ws-workspace-dock-wrap shrink-0 px-3 pt-2 sm:px-4">
-            <WorkspaceDock />
-          </div>
-        )}
         <ErrorBoundary level="panel" name={t('activity:panels.chat')}>
           <ChatView />
         </ErrorBoundary>

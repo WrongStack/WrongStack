@@ -196,6 +196,13 @@ export async function retrieveHostSubagentMemory(
   getLeaderMode: (() => string | undefined) | undefined,
   subCfg: SubagentConfig,
   taskContext?: Record<string, unknown>,
+  /**
+   * Conversation this worker belongs to, for injection attribution. The host's
+   * own session is the boot tab once several tabs share the process, so
+   * without it every background tab's memory reads were recorded against a
+   * conversation that never made them.
+   */
+  owningSessionId?: string,
 ): Promise<string[]> {
   const memoryPort = deps.container.safeResolve(TOKENS.MemoryStore);
   const memory = memoryPort ? getSageRetrieval(memoryPort) : undefined;
@@ -216,7 +223,7 @@ export async function retrieveHostSubagentMemory(
     await memory.recordInjection?.(
       matches.map((item) => item.id),
       'subagent_audience',
-      deps.session.id,
+      owningSessionId ?? deps.session.id,
     );
     return matches.map((item) => item.text);
   } catch {

@@ -70,6 +70,26 @@
     "jkNavigateTitle": "j/k pour naviguer",
     "noProvider": "aucun-fournisseur",
     "noModel": "aucun-modèle",
-    "memoryContextTitle": "Contexte mémoire — souvenirs SAGE injectés"
+    "memoryContextTitle": "Contexte mémoire — souvenirs SAGE injectés",
+    "toolStatsTitle": "Stats d'appels d'outils"
+  },
+  "toolStats": {
+    "title": "Statistiques d'appels d'outils",
+    "liveScope": "Cette page · sessions actives et fermées",
+    "calls": "Appels",
+    "ok": "Succès",
+    "failed": "Échecs",
+    "successRate": "Taux de réussite",
+    "inFlight": "En cours",
+    "totalDuration": "Temps outil",
+    "liveSessions": "Onglets ouverts",
+    "noLiveData": "Aucun appel d'outil enregistré sur cette page pour l'instant. Lancez une requête — les statistiques apparaissent ici en direct, par onglet.",
+    "pastSessions": "Sessions antérieures",
+    "running": "{{count}} en cours",
+    "agentToAgent": "Agent à agent",
+    "delegations": "{{count}} exécution(s) déléguée(s)",
+    "delegationFailed": "{{count}} échec(s)",
+    "delegateToolCalls": "{{count}} outils à l'intérieur",
+    "leaderLine": "Leader : {{ok}}✓ {{failed}}✗"
   }
 }

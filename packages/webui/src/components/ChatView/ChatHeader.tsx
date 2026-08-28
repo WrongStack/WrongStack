@@ -9,6 +9,7 @@ import {
   Pencil,
   Terminal,
   Wand2,
+  Wrench,
   Zap,
 } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
@@ -53,6 +54,8 @@ export function ChatHeader({
   setProcessOpen,
   checkpointOpen,
   setCheckpointOpen,
+  toolStatsOpen,
+  setToolStatsOpen,
   hasStatusContent,
   lastInputTokens,
   ctxPct,
@@ -94,6 +97,8 @@ export function ChatHeader({
   setProcessOpen: React.Dispatch<React.SetStateAction<boolean>>;
   checkpointOpen: boolean;
   setCheckpointOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  toolStatsOpen: boolean;
+  setToolStatsOpen: React.Dispatch<React.SetStateAction<boolean>>;
   hasStatusContent: boolean;
   lastInputTokens: number;
   ctxPct: number;
@@ -271,6 +276,18 @@ export function ChatHeader({
         </div>
 
         <div className="ml-auto flex items-center gap-0.5 shrink-0">
+          <Button
+            variant={toolStatsOpen ? 'secondary' : 'ghost'}
+            size="icon"
+            className={cn('h-7 w-7 relative', toolStatsOpen && 'bg-primary/10 text-primary')}
+            onClick={() => setToolStatsOpen((v) => !v)}
+            title={t('chat:header.toolStatsTitle', 'Tool call stats')}
+          >
+            <Wrench className="h-4 w-4" />
+            {toolStatsOpen && (
+              <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+            )}
+          </Button>
           <Button
             variant={memoryPanelOpen ? 'secondary' : 'ghost'}
             size="icon"

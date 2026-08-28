@@ -9,8 +9,8 @@
 import { PanelLeftClose } from 'lucide-react';
 import { useEffect } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
@@ -23,11 +23,11 @@ import {
 import { FileExplorer } from '../FileExplorer';
 import { MailboxPanel } from '../MailboxPanel';
 import { Button } from '../ui/button';
+import { AgentsPanel } from './AgentsPanel';
 import { ChangesPanel } from './ChangesPanel';
+import { DesignStudioPanel } from './DesignStudioPanel';
 import { SessionPanel } from './SessionPanel';
 import { SkillsList } from './SkillsList';
-import { DesignStudioPanel } from './DesignStudioPanel';
-import { AgentsPanel } from './AgentsPanel';
 
 const PANEL_DESCRIPTIONS: Record<string, string> = {
   chat: 'Run state, model, context and quick controls',
@@ -56,7 +56,7 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
     if (activeActivity !== 'files' || !wsConnected) return;
     useFileStore.getState().setTreeLoading(true);
     const cwd = useSessionStore.getState().cwd;
-    client?.send({ type: 'files.tree', payload: cwd ? { path: cwd } : {} });
+    client?.send({ type: 'files.tree', payload: client.withSession(cwd ? { path: cwd } : {}) });
   }, [activeActivity, wsConnected, client]);
 
   // Drag-to-resize. The store owns the clamp — no local bounds here.
@@ -99,76 +99,76 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
           desktopShell ? 'left-10' : 'left-12',
         )}
       >
-      {/* Drag handle */}
-      <hr
-        aria-orientation="vertical"
-        aria-valuemin={SIDEBAR_MIN_WIDTH}
-        aria-valuemax={SIDEBAR_MAX_WIDTH}
-        aria-valuenow={sidebarWidth}
-        tabIndex={0}
-        onMouseDown={startDrag}
-        onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
-        className="group/handle absolute top-0 right-0 z-10 m-0 h-full w-2 cursor-col-resize border-0 border-r border-border/70 hover:border-primary/70"
-        title={t('activity:sidePanel.dragHint')}
-      />
+        {/* Drag handle */}
+        <hr
+          aria-orientation="vertical"
+          aria-valuemin={SIDEBAR_MIN_WIDTH}
+          aria-valuemax={SIDEBAR_MAX_WIDTH}
+          aria-valuenow={sidebarWidth}
+          tabIndex={0}
+          onMouseDown={startDrag}
+          onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
+          className="group/handle absolute top-0 right-0 z-10 m-0 h-full w-2 cursor-col-resize border-0 border-r border-border/70 hover:border-primary/70"
+          title={t('activity:sidePanel.dragHint')}
+        />
 
-      {/* Panel header — names the active panel */}
-      <div
-        className={cn(
-          'flex items-center justify-between border-b shrink-0',
-          'bg-muted/25',
-          desktopShell ? 'px-2.5 py-2' : 'px-3 py-3',
-        )}
-      >
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-foreground">
-            {t(`activity:nav.${activeActivity}`)}
-          </div>
-          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-            {PANEL_DESCRIPTIONS[activeActivity]}
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7 shrink-0"
-          onClick={() => setSidebarOpen(false)}
-          title={t('activity:sidePanel.collapse')}
+        {/* Panel header — names the active panel */}
+        <div
+          className={cn(
+            'flex items-center justify-between border-b shrink-0',
+            'bg-muted/25',
+            desktopShell ? 'px-2.5 py-2' : 'px-3 py-3',
+          )}
         >
-          <PanelLeftClose className="h-3.5 w-3.5" />
-        </Button>
-      </div>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground">
+              {t(`activity:nav.${activeActivity}`)}
+            </div>
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              {PANEL_DESCRIPTIONS[activeActivity]}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={() => setSidebarOpen(false)}
+            title={t('activity:sidePanel.collapse')}
+          >
+            <PanelLeftClose className="h-3.5 w-3.5" />
+          </Button>
+        </div>
 
-      {/* Panel body — routed by activity */}
-      <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
-        {activeActivity === 'chat' && <SessionPanel />}
-        {activeActivity === 'agents' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
-            <AgentsPanel />
-          </div>
-        )}
-        {activeActivity === 'files' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
-            <FileExplorer />
-          </div>
-        )}
-        {activeActivity === 'changes' && <ChangesPanel />}
-        {activeActivity === 'mailbox' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-3">
-            <MailboxPanel />
-          </div>
-        )}
-        {activeActivity === 'skills' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            <SkillsList className="h-full" />
-          </div>
-        )}
-        {activeActivity === 'design' && (
-          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
-            <DesignStudioPanel className="h-full" />
-          </div>
-        )}
-      </div>
+        {/* Panel body — routed by activity */}
+        <div className="flex-1 min-h-0 min-w-0 flex flex-col overflow-hidden">
+          {activeActivity === 'chat' && <SessionPanel />}
+          {activeActivity === 'agents' && (
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
+              <AgentsPanel />
+            </div>
+          )}
+          {activeActivity === 'files' && (
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
+              <FileExplorer />
+            </div>
+          )}
+          {activeActivity === 'changes' && <ChangesPanel />}
+          {activeActivity === 'mailbox' && (
+            <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain p-3">
+              <MailboxPanel />
+            </div>
+          )}
+          {activeActivity === 'skills' && (
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <SkillsList className="h-full" />
+            </div>
+          )}
+          {activeActivity === 'design' && (
+            <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+              <DesignStudioPanel className="h-full" />
+            </div>
+          )}
+        </div>
       </aside>
     </>
   );

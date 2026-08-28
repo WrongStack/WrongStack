@@ -204,6 +204,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     projection,
     sessionPayload,
     appendForCurrentSession,
+    sessionContext: deps.sessionContext,
   });
 
   registerSetupEventsProviderHandlers({
@@ -304,10 +305,17 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     });
   });
 
+  // Deliberately UNSTAMPED. A provider entering or leaving the limit-reset
+  // waiting room is a fact about the project, not about a conversation: the
+  // event carries no session, the client writes it to a global store, and
+  // every tab needs it. `sessionPayload` would have filled the gap with the
+  // runtime's current session — an arbitrary tab — and `broadcast` drops a
+  // stamped frame for any connection that has not declared that session, so
+  // a second browser page would never learn the provider was blocked.
   on('provider.status_changed', (e) => {
     broadcast(clients, {
       type: 'provider.status_changed',
-      payload: sessionPayload({
+      payload: {
         providerId: e.providerId,
         model: e.model,
         oldState: e.oldState,
@@ -315,7 +323,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         reason: e.reason,
         timestamp: e.timestamp,
         stateExpiresAt: e.stateExpiresAt,
-      }),
+      },
     });
   });
 

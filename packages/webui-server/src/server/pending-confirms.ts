@@ -66,3 +66,35 @@ export function resolveAllPendingConfirms(
     confirm.resolve(decision);
   }
 }
+
+/**
+ * Answer the prompts of a session that no surface displays any more.
+ *
+ * A permission prompt raised in a background tab is PARKED on that tab's lane
+ * (`chat.setPendingConfirm`). Closing the tab disposes the lane, so the parked
+ * prompt is gone from the client while the server's resolver stays pending
+ * forever — `agent.run` never settles, its run lock is never released, and the
+ * session becomes an unkillable ghost: `session.delete` refuses it with "an
+ * agent run is active" and `retireUndisplayedSessions` skips it. The blanket
+ * `resolveAllPendingConfirms` drain only fires when the LAST socket goes away,
+ * which never happens while the other three tabs are open.
+ *
+ * `no` (not `deny`) on purpose: the tool fails this once and the model can
+ * react, without minting a session-scoped denial for a tool+pattern the user
+ * never actually refused.
+ */
+export function resolvePendingConfirmsForSession(
+  pendingConfirms: Map<string, PendingConfirm>,
+  sessionId: string,
+  decision: ConfirmDecision = 'no',
+): number {
+  if (!sessionId) return 0;
+  let resolved = 0;
+  for (const [id, confirm] of pendingConfirms) {
+    if (confirm.sessionId !== sessionId) continue;
+    pendingConfirms.delete(id);
+    confirm.resolve(decision);
+    resolved += 1;
+  }
+  return resolved;
+}

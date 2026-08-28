@@ -112,8 +112,6 @@ function makeOpts(currentSessionId: string): { opts: any; clients: Map<any, any>
     runLock: {
       get: () => null,
       set: vi.fn(),
-      getSession: () => null,
-      setSession: vi.fn(),
     },
     pendingConfirms: new Map(),
     onDispose: vi.fn(),

@@ -21,7 +21,13 @@ function writer(id: string) {
  * connection displays, and (c) let a client delete the runtime's CURRENT
  * session when the delete names the live session the strip moved to.
  */
-function makeHarness(opts: { runtimeSessionId?: string; isRunActive?: (id: string) => boolean } = {}) {
+function makeHarness(
+  opts: {
+    runtimeSessionId?: string;
+    isRunActive?: (id: string) => boolean;
+    onAbort?: (id?: string) => void;
+  } = {},
+) {
   const runtime = writer(opts.runtimeSessionId ?? 'sess_current');
   let active = runtime;
   const live = new Set<string>([runtime.id]);
@@ -39,10 +45,21 @@ function makeHarness(opts: { runtimeSessionId?: string; isRunActive?: (id: strin
   };
   const onSessionSwapped = vi.fn(async () => undefined);
   const onSessionsUndisplayed = vi.fn();
+  /** Ordered trace of "abort happened" vs "transition gate entered". */
+  const order: string[] = [];
+  const abortActiveRun = vi.fn((id?: string) => {
+    order.push('abort');
+    opts.onAbort?.(id);
+  });
+  const withSessionTransition = <T,>(operation: () => Promise<T>): Promise<T> => {
+    order.push('gate');
+    return operation();
+  };
   const setSession = vi.fn((next: unknown) => {
     active = next as typeof runtime;
   });
   const routes = createSessionHandlers({
+    withSessionTransition,
     config: { provider: 'test-provider', model: 'test-model' },
     clients: clients as never,
     context: {
@@ -63,7 +80,7 @@ function makeHarness(opts: { runtimeSessionId?: string; isRunActive?: (id: strin
     claimSession: vi.fn(async () => async () => undefined),
     onSessionSwapped,
     isRunActive: opts.isRunActive ?? (() => false),
-    abortActiveRun: vi.fn(),
+    abortActiveRun,
     sessionStartPayload: async (overrides?: Record<string, unknown>) => ({
       sessionId: active.id,
       ...(overrides ?? {}),
@@ -86,6 +103,8 @@ function makeHarness(opts: { runtimeSessionId?: string; isRunActive?: (id: strin
     agents,
     onSessionSwapped,
     onSessionsUndisplayed,
+    abortActiveRun,
+    order,
     current: () => active.id,
   };
 }
@@ -193,9 +212,9 @@ describe('session.delete — displayed-set gating', () => {
     expect(h.store.delete).toHaveBeenCalledWith('sess_stale');
   });
 
-  it('refuses a session with an active run', async () => {
+  it('refuses a session whose run is still on a tab — that tab has a Stop button', async () => {
     const h = makeHarness({ isRunActive: (id) => id === 'sess_running' });
-    connect(h, 'sess_fg', ['sess_fg']);
+    connect(h, 'sess_fg', ['sess_fg', 'sess_running']);
 
     await h.routes.deleteSession(h.ws, {
       type: 'session.delete',
@@ -203,9 +222,76 @@ describe('session.delete — displayed-set gating', () => {
     } as never);
 
     expect(h.store.delete).not.toHaveBeenCalled();
+    expect(h.abortActiveRun).not.toHaveBeenCalled();
     const fail = h.sent.find((m) => m.type === 'key.operation_result');
     expect(fail?.payload['success']).toBe(false);
     expect(fail?.payload['message']).toContain('agent run is active');
+  });
+
+  /**
+   * The ghost-session bug: a tab closed while its run was wedged (an
+   * unanswerable permission prompt) left a lock nobody could clear. No tab
+   * meant no Stop button, and the delete refused forever.
+   */
+  it('stops the run and deletes when no tab displays the session', async () => {
+    const running = new Set(['sess_ghost']);
+    const h = makeHarness({
+      isRunActive: (id) => running.has(id),
+      onAbort: (id) => {
+        if (id) running.delete(id);
+      },
+    });
+    connect(h, 'sess_fg', ['sess_fg']);
+
+    await h.routes.deleteSession(h.ws, {
+      type: 'session.delete',
+      payload: { id: 'sess_ghost' },
+    } as never);
+
+    expect(h.abortActiveRun).toHaveBeenCalledWith('sess_ghost');
+    expect(h.store.delete).toHaveBeenCalledWith('sess_ghost');
+    const ok = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(ok?.payload['success']).toBe(true);
+  });
+
+  /**
+   * Stopping a wedged run can burn the whole grace window, and the transition
+   * gate is shared with `user_message` setup — holding it that long would
+   * stall the next turn in every OTHER tab for a delete that concerns none of
+   * them. So the abort-and-wait runs before the gate is entered, not inside it.
+   */
+  it('stops the run before entering the shared transition gate', async () => {
+    const running = new Set(['sess_ghost']);
+    const h = makeHarness({
+      isRunActive: (id) => running.has(id),
+      onAbort: (id) => {
+        if (id) running.delete(id);
+      },
+    });
+    connect(h, 'sess_fg', ['sess_fg']);
+
+    await h.routes.deleteSession(h.ws, {
+      type: 'session.delete',
+      payload: { id: 'sess_ghost' },
+    } as never);
+
+    expect(h.order).toEqual(['abort', 'gate']);
+  });
+
+  it('refuses when an off-screen run ignores the abort', async () => {
+    const h = makeHarness({ isRunActive: (id) => id === 'sess_wedged' });
+    connect(h, 'sess_fg', ['sess_fg']);
+
+    await h.routes.deleteSession(h.ws, {
+      type: 'session.delete',
+      payload: { id: 'sess_wedged' },
+    } as never);
+
+    expect(h.abortActiveRun).toHaveBeenCalledWith('sess_wedged');
+    expect(h.store.delete).not.toHaveBeenCalled();
+    const fail = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(fail?.payload['success']).toBe(false);
+    expect(fail?.payload['message']).toContain('did not stop');
   });
 });
 

@@ -57,19 +57,45 @@ export interface StrategyCompactorOptions {
  *   rather than failing.
  */
 export function createStrategyCompactor(opts: StrategyCompactorOptions = {}): Compactor {
-  const requested = opts.strategy ?? (opts.llmSelector ? 'selective' : 'hybrid');
-  const strategy = requested as CompactorStrategy;
-  let inner: Compactor;
-  if (strategy === 'intelligent' || strategy === 'selective') {
-    inner = new ProviderBackedCompactor(strategy, opts);
-  } else {
-    inner = new HybridCompactor({
-      preserveK: opts.preserveK,
-      eliseThreshold: opts.eliseThreshold,
-      smart: opts.smart,
-    });
-  }
-  return new JournaledCompactor(inner);
+  const configured = (opts.strategy ??
+    (opts.llmSelector ? 'selective' : 'hybrid')) as CompactorStrategy;
+  const built = new Map<CompactorStrategy, Compactor>();
+  const forStrategy = (strategy: CompactorStrategy): Compactor => {
+    const existing = built.get(strategy);
+    if (existing) return existing;
+    const inner: Compactor =
+      strategy === 'intelligent' || strategy === 'selective'
+        ? new ProviderBackedCompactor(strategy, opts)
+        : new HybridCompactor({
+            preserveK: opts.preserveK,
+            eliseThreshold: opts.eliseThreshold,
+            smart: opts.smart,
+          });
+    built.set(strategy, inner);
+    return inner;
+  };
+  // Resolve the strategy from the CONVERSATION being compacted, not from the
+  // process. One compactor instance serves every tab, and the strategy used to
+  // be frozen at construction from the boot config — so a strategy chosen in
+  // one tab was written to that tab's meta, where nothing read it, and the
+  // compaction every tab actually got stayed whatever the process booted with.
+  // The provider is already resolved from `ctx` at compact time for the same
+  // reason; this is the same seam, one level up.
+  return new JournaledCompactor({
+    compact: (ctx, compactOpts) =>
+      forStrategy(strategyForContext(ctx, configured)).compact(ctx, compactOpts),
+  });
+}
+
+/** The compaction strategy this conversation asked for, or the project's. */
+function strategyForContext(
+  ctx: Parameters<Compactor['compact']>[0],
+  fallback: CompactorStrategy,
+): CompactorStrategy {
+  const scoped = (ctx as { meta?: Record<string, unknown> }).meta?.['contextStrategy'];
+  return scoped === 'hybrid' || scoped === 'intelligent' || scoped === 'selective'
+    ? scoped
+    : fallback;
 }
 
 /**

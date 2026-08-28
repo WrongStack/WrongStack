@@ -41,7 +41,6 @@ export function useFleetPolling(enabled = true): FleetPollingResult {
   // Individual store subscriptions — zustand uses reference equality so
   // each selector only re-renders when its specific field changes.
   const agents = useFleetStore((s) => s.agents);
-  const leaderId = useFleetStore((s) => s.leaderId);
   const fleetTokensIn = useFleetStore((s) => s.fleetTokensIn);
   const fleetTokensOut = useFleetStore((s) => s.fleetTokensOut);
   const fleetConcurrency = useFleetStore((s) => s.fleetConcurrency);
@@ -52,15 +51,16 @@ export function useFleetPolling(enabled = true): FleetPollingResult {
   const agentList = useMemo<SubagentView[]>(() => {
     const arr = Array.from(agents.values());
     arr.sort((x, y) => {
-      if (x.id === leaderId) return -1;
-      if (y.id === leaderId) return 1;
+      // Every session's leader sorts first — the process-wide leaderId
+      // pointer is last-writer-wins and would crown only one tab's leader.
+      if (x.isLeader !== y.isLeader) return x.isLeader ? -1 : 1;
       const xa = x.status === 'running' ? 0 : 1;
       const ya = y.status === 'running' ? 0 : 1;
       if (xa !== ya) return xa - ya;
       return x.startedAt - y.startedAt;
     });
     return arr;
-  }, [agents, leaderId]);
+  }, [agents]);
 
   // Derive the fleet summary — one-pass iteration over the agent list.
   const summary = useMemo<FleetSummary>(() => {

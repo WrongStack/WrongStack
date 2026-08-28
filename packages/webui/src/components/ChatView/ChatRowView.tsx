@@ -2,6 +2,9 @@ import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { MessageBubble } from '../MessageBubble';
 import { ToolGroup } from '../ToolGroup';
+import { BrainDecisionCard, parseBrainMarkdown } from './BrainDecisionCard';
+import { ChimeraReportCard } from './ChimeraReportCard';
+import { CouncilDecisionCard, parseCouncilMarkdown } from './CouncilDecisionCard';
 import type { ChatRow } from './utils.js';
 
 export const ChatRowView = memo(function ChatRowView({
@@ -10,12 +13,15 @@ export const ChatRowView = memo(function ChatRowView({
   compactMode,
   isFirstRow,
   groupToolCalls,
+  sessionId,
 }: {
   row: ChatRow;
   isLoading: boolean;
   compactMode: boolean;
   isFirstRow: boolean;
   groupToolCalls: boolean;
+  /** The lane this row belongs to — ChatView only renders the active lane. */
+  sessionId: string;
 }) {
   const wrap = cn(
     'mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6',
@@ -45,6 +51,21 @@ export const ChatRowView = memo(function ChatRowView({
       <div className={cn('chat-turn', compactMode ? 'space-y-1' : 'space-y-1.5')}>
         {row.items.flatMap((it) => {
           if (it.kind === 'msg') {
+            if (it.message.chimeraReport) {
+              return [
+                <ChimeraReportCard key={it.key} message={it.message} sessionId={sessionId} />,
+              ];
+            }
+            if (it.message.councilDecision || parseCouncilMarkdown(it.message.content)) {
+              return [
+                <CouncilDecisionCard key={it.key} message={it.message} />,
+              ];
+            }
+            if (it.message.brainDecision || parseBrainMarkdown(it.message.content)) {
+              return [
+                <BrainDecisionCard key={it.key} message={it.message} />,
+              ];
+            }
             return [
               <MessageBubble
                 key={it.key}

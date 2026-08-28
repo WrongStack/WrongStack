@@ -1,3 +1,4 @@
+import type { SystemInstructionVariant } from '../core/instruction-bundle.js';
 import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
 import type { TextBlock } from './blocks.js';
 import type { Tool } from './tool.js';
@@ -34,6 +35,32 @@ export interface BuildContext {
    * linked Git worktrees in the same canonical project.
    */
   onlineAgents?: MailboxAgentStatus[] | undefined;
+  /**
+   * Identity variant for THIS build — `system.md`, `system-lite.md` or
+   * `system-pro.md`.
+   *
+   * The builder is one process-wide instance and used to take the variant once,
+   * at construction, from the boot config. With four conversations on one
+   * process that made the identity a property of the process: picking a lighter
+   * identity in one tab was either discarded on that tab's next turn (the
+   * pre-run prompt refresh rebuilt it from the boot variant) or applied to all
+   * of them. Passing it per build makes it a property of the conversation,
+   * which is what it always described.
+   *
+   * Omitted keeps the builder's configured default.
+   */
+  systemVariant?: SystemInstructionVariant | undefined;
+  /**
+   * Autonomy mode of THIS conversation.
+   *
+   * The ETERNAL AUTONOMY block is injected from a process-wide mode ref, which
+   * one tab could move for all of them — so switching a background tab to
+   * eternal put those instructions into every other conversation's prompt.
+   * Passing it per build makes the block follow the conversation that is
+   * actually in that mode. Omitted keeps the host's process-wide answer, which
+   * is the only one a CLI or TUI has.
+   */
+  autonomy?: string | undefined;
 }
 
 /**

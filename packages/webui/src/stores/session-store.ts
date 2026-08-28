@@ -20,6 +20,8 @@ import {
   setActiveLane as setActiveChatLane,
 } from './chat-lanes';
 import { useConfigStore } from './config-store.js';
+import { useFileStore } from './file-store.js';
+import { useGitChangesStore } from './git-changes-store.js';
 import { useLocalPrefs } from './local-prefs.js';
 import {
   activeSessionLane,
@@ -38,6 +40,7 @@ import {
   useSessionLanes,
 } from './session-lanes.js';
 import type { SessionInfo } from './types.js';
+import { useUIStore } from './ui-store.js';
 
 export type {
   CacheStats,
@@ -188,6 +191,9 @@ function bindForeground(sessionId: string | null | undefined): void {
   // because the very first bind after a reload can already match the lane
   // pointer while the prefs store still points at nothing.
   useLocalPrefs.getState().bindSession(sessionId ?? null);
+  useUIStore.getState().bindSessionChrome(sessionId ?? null);
+  useFileStore.getState().bindSessionFiles(sessionId ?? null);
+  useGitChangesStore.getState().bindSessionGitChanges(sessionId ?? null);
   // No session in front: fall back to the pre-session lane rather than leaving
   // the pointer on a session that is no longer displayed. A stale pointer is
   // how "ended the session, kept writing into its transcript" happened.

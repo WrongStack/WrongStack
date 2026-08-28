@@ -140,6 +140,8 @@ export async function handleBrainConfigSet(
   ctx: BrainHandlerContext,
   ws: WebSocket,
   payload: unknown,
+  /** The tab that changed the setting — the follow-up status is stamped for it. */
+  sessionId?: string | undefined,
 ): Promise<void> {
   if (!ctx.brainRuntime) {
     sendResult(
@@ -169,7 +171,7 @@ export async function handleBrainConfigSet(
       },
     });
     // Keep risk-only surfaces (status views, TUI mirrors) in sync.
-    handleBrainStatus(ctx, ws);
+    handleBrainStatus(ctx, ws, sessionId);
   } catch (err) {
     ctx.send(ws, {
       type: 'brain.config',
@@ -182,7 +184,12 @@ export async function handleBrainConfigSet(
   }
 }
 
-export function handleBrainRisk(ctx: BrainHandlerContext, ws: WebSocket, level: string): void {
+export function handleBrainRisk(
+  ctx: BrainHandlerContext,
+  ws: WebSocket,
+  level: string,
+  sessionId?: string | undefined,
+): void {
   const valid = ['off', 'low', 'medium', 'high', 'all'];
   if (!valid.includes(level)) {
     sendResult(ctx, ws, false, `Unknown risk level "${level}". Use: ${valid.join(', ')}.`);
@@ -193,16 +200,25 @@ export function handleBrainRisk(ctx: BrainHandlerContext, ws: WebSocket, level: 
     return;
   }
   ctx.brainSettings.maxAutoRisk = level as BrainAutoRisk;
-  ctx.send(ws, {
-    type: 'brain.status',
-    payload: { maxAutoRisk: ctx.brainSettings.maxAutoRisk, log: ctx.getBrainLog?.() ?? [] },
-  });
+  // The ceiling itself is project-wide (one shared settings object), but the
+  // status frame that reports it is not: sending the unfiltered log handed
+  // the asking tab three other tabs' decisions, and sending it untagged put
+  // it in whichever lane happened to be in front.
+  handleBrainStatus(ctx, ws, sessionId);
 }
 
 export async function handleBrainAsk(
   ctx: BrainHandlerContext,
   ws: WebSocket,
   question: string | undefined,
+  /**
+   * The tab that asked. `ctx.getSessionId()` is the runtime's session — with
+   * four tabs open that is the one the runtime last switched to, so a
+   * background tab's `/brain ask` was attributed to another session, filed
+   * under its decisions, and answered with a stamp the asking tab's own
+   * session gate then dropped.
+   */
+  sessionId?: string | undefined,
 ): Promise<void> {
   const q = question?.trim();
   if (!q) {
@@ -215,15 +231,15 @@ export async function handleBrainAsk(
     return;
   }
   try {
+    const answerSessionId = sessionId ?? ctx.getSessionId?.();
     const decision = await arbiter.decide({
       id: `brain-ask-${Date.now().toString(36)}`,
-      sessionId: ctx.getSessionId?.(),
+      sessionId: answerSessionId,
       source: 'user',
       question: q,
       risk: 'medium',
       fallback: 'ask_human',
     });
-    const answerSessionId = ctx.getSessionId?.();
     ctx.send(ws, {
       type: 'brain.answer',
       // Omit sessionId when there is no session: this is a direct reply to

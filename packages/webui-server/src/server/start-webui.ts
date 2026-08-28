@@ -381,6 +381,7 @@ export async function startWebUI(
     agent,
     getAgent,
     peekAgent,
+    sessionAgentIds,
     isSessionLive,
     toolExecutor,
     permissionPolicy,
@@ -417,7 +418,13 @@ export async function startWebUI(
     getModeId: () => modeId,
     getContextMode: () =>
       String(context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID),
-    getNeedsSetup: () => needsSetup,
+    // `needsSetup` is the BOOT-time resolution (no provider+model configured
+    // then). Runtime provider.add must clear it without a server restart:
+    // once the live config has a provider AND model selected, setup is
+    // satisfied — otherwise every session.start frame keeps navigating the
+    // client back to the setup screen on fresh homes.
+    getNeedsSetup: () =>
+      needsSetup && !(state.getConfig().provider && state.getConfig().model),
     modelsRegistry,
     // Per-tab truth: a session that switched model/mode/context strategy
     // reports its OWN values, not the process-wide defaults.
@@ -504,21 +511,21 @@ export async function startWebUI(
     );
   }
 
-  let _runLockSession: string | null = null;
+  /**
+   * One run lock per conversation, and nothing that names a "current" one.
+   *
+   * The map used to be fronted by a `_runLockSession` pointer so that
+   * zero-argument `get()`/`set()` could mean "the run" — a leftover from when
+   * this server drove one session. With four tabs running at once that
+   * pointer names whichever tab started a run last, which is nobody in
+   * particular, so both accessors now require the session id and the pointer
+   * is gone.
+   */
   const runLockControl = {
-    get: (sessionId?: string): AbortController | null => {
-      if (sessionId) return _sessionRunLocks.get(sessionId) ?? null;
-      return _runLockSession ? (_sessionRunLocks.get(_runLockSession) ?? null) : null;
-    },
-    set: (ctrl: AbortController | null, sessionId?: string) => {
-      const key = sessionId ?? _runLockSession;
-      if (!key) return;
-      if (ctrl) _sessionRunLocks.set(key, ctrl);
-      else _sessionRunLocks.delete(key);
-    },
-    getSession: () => _runLockSession,
-    setSession: (id: string | null) => {
-      _runLockSession = id;
+    get: (sessionId: string): AbortController | null => _sessionRunLocks.get(sessionId) ?? null,
+    set: (ctrl: AbortController | null, sessionId: string) => {
+      if (ctrl) _sessionRunLocks.set(sessionId, ctrl);
+      else _sessionRunLocks.delete(sessionId);
     },
     has: (sessionId: string) => _sessionRunLocks.has(sessionId),
     hasAny: () => _sessionRunLocks.size > 0,
@@ -737,7 +744,6 @@ export async function startWebUI(
         // what let opening a new tab kill a different tab's in-flight run.
         _sessionRunLocks.get(sessionId)?.abort();
         _sessionRunLocks.delete(sessionId);
-        if (runLockControl.getSession() === sessionId) runLockControl.setSession(null);
         // Stopping a run means stopping the WORK, and this session's
         // subagents are part of that work. Aborting the leader's controller
         // only unwinds workers it is blocked on; async ones (spawn_subagent +
@@ -749,7 +755,6 @@ export async function startWebUI(
       const running = [..._sessionRunLocks.keys()];
       for (const ctrl of _sessionRunLocks.values()) ctrl.abort();
       _sessionRunLocks.clear();
-      runLockControl.setSession(null);
       for (const id of running) stopSessionFleet(id);
     },
     isRunActive: (sessionId?: string) =>
@@ -764,6 +769,7 @@ export async function startWebUI(
     agent,
     getAgent,
     ...(peekAgent ? { peekAgent } : {}),
+    ...(sessionAgentIds ? { sessionAgentIds } : {}),
     ...(isSessionLive ? { isSessionLive } : {}),
     // Real ownership check: a request may name the root session, any session
     // this runtime has an agent for, or any session a CONNECTED CLIENT

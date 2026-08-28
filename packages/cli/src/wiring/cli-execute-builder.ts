@@ -277,6 +277,7 @@ export async function runCliExecution(params: {
       fleet: {
         director: director ?? null,
         getDirector: () => director,
+        releaseSessionHelpers: (sessionId: string) => multiAgentHost.releaseSession(sessionId),
         coordinatorController,
         fleetRoster: FLEET_ROSTER as Record<string, { name: string }>,
         fleetStreamController,

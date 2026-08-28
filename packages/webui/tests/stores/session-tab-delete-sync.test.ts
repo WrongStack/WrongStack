@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getWSClient } from '../../src/lib/ws-client';
 import { DEFAULT_LANE_ID, ensureLane, useChatLanes } from '../../src/stores/chat-lanes';
 import { useFleetStore } from '../../src/stores/fleet-store';
-import { useHistoryStore } from '../../src/stores/history-store';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 import {
   ensureSessionLane,
   SESSION_DEFAULT_LANE_ID,
   useSessionLanes,
 } from '../../src/stores/session-lanes';
-import { isNeverStartedSession, useSessionTabStore } from '../../src/stores/session-tab-store';
-import type { SessionHistoryEntry } from '../../src/stores/types.js';
+import {
+  readStoredTabs,
+  TAB_STORAGE_KEY,
+  useSessionTabStore,
+  writeStoredTabs,
+} from '../../src/stores/session-tab-store';
 import { useUIStore } from '../../src/stores/ui-store';
 
 vi.mock('../../src/lib/ws-client', () => ({ getWSClient: vi.fn() }));
@@ -23,24 +26,9 @@ const deleteSession = vi.fn();
  *
  *   1. Removing sessions (delete button, clear-empty) closes their tabs first
  *      and never lets the strip drop to zero.
- *   2. Closing the tab of a never-started session deletes the record with the
- *      close — after re-declaring the open set, so the server does not refuse
- *      the delete as "still displayed".
+ *   2. Closing a tab is not history deletion. It only closes that local
+ *      session slot and re-declares the remaining displayed sessions.
  */
-function historyEntry(overrides: Partial<SessionHistoryEntry> = {}): SessionHistoryEntry {
-  return {
-    id: 'sess-1',
-    title: 'Session',
-    startedAt: '2026-01-01T00:00:00.000Z',
-    model: 'test-model',
-    provider: 'test-provider',
-    tokenTotal: 0,
-    messageCount: 0,
-    isCurrent: false,
-    ...overrides,
-  } as SessionHistoryEntry;
-}
-
 function openTabs(ids: string[]): void {
   for (const id of ids) {
     ensureLane(id);
@@ -50,13 +38,13 @@ function openTabs(ids: string[]): void {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   subscribeSessions.mockClear();
   deleteSession.mockClear();
   vi.mocked(getWSClient).mockReturnValue({ subscribeSessions, deleteSession } as never);
   useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
   useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
-  useHistoryStore.setState({ entries: [], loading: false, error: null });
   useFleetStore.setState({ agents: new Map() } as never);
   useLocalPrefs.setState({ bySession: {}, activeSessionId: null });
   useUIStore.setState({
@@ -69,84 +57,50 @@ beforeEach(() => {
   });
 });
 
-describe('isNeverStartedSession', () => {
-  it('is true for an idle, empty lane with an empty record', () => {
-    ensureLane('tab-a');
-    useHistoryStore.setState({ entries: [historyEntry({ id: 'tab-a' })] });
-    expect(isNeverStartedSession('tab-a')).toBe(true);
+describe('tab slot storage', () => {
+  it('restores validated tab slots from localStorage', () => {
+    localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(['old-a', 'old-b']));
+
+    expect(readStoredTabs()).toEqual(['old-a', 'old-b']);
   });
 
-  it('is false when the record has tokens', () => {
-    ensureLane('tab-a');
-    useHistoryStore.setState({
-      entries: [historyEntry({ id: 'tab-a', tokenTotal: 42 })],
-    });
-    expect(isNeverStartedSession('tab-a')).toBe(false);
+  it('ignores malformed stored tab slots', () => {
+    localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify({ not: 'an array' }));
+
+    expect(readStoredTabs()).toEqual([]);
   });
 
-  it('is false when the record has messages', () => {
-    ensureLane('tab-a');
-    useHistoryStore.setState({
-      entries: [historyEntry({ id: 'tab-a', messageCount: 3 })],
-    });
-    expect(isNeverStartedSession('tab-a')).toBe(false);
+  it('persists open tab slots for the next WebUI boot', () => {
+    writeStoredTabs(['tab-a', 'tab-b']);
+
+    // The strip must survive a reload: the boot-time lane/slot reconciler
+    // (useF5Resilience) disposes every lane without a slot, so an unpersisted
+    // strip makes a refresh destroy all but the foreground session's lane —
+    // the "four tabs collapsed to one" regression.
+    expect(readStoredTabs()).toEqual(['tab-a', 'tab-b']);
+    expect(localStorage.getItem(TAB_STORAGE_KEY)).not.toBeNull();
   });
 
-  it('is false when the lane holds a transcript (resume replay race)', () => {
-    ensureLane('tab-a');
-    useChatLanes.setState((s) => ({
-      lanes: {
-        ...s.lanes,
-        'tab-a': {
-          ...s.lanes['tab-a']!,
-          messages: [{ id: 'm1', role: 'user', content: 'x', timestamp: 0 }],
-        },
-      },
-    }));
-    expect(isNeverStartedSession('tab-a')).toBe(false);
-  });
+  it('persists at most MAX_OPEN_TABS slots', () => {
+    writeStoredTabs(['a', 'b', 'c', 'd', 'e', 'f']);
 
-  it('is false when the session is not in the history list', () => {
-    ensureLane('tab-a');
-    expect(isNeverStartedSession('tab-a')).toBe(false);
-  });
-
-  it('is false while the tab owns a running subagent', () => {
-    ensureLane('tab-a');
-    useHistoryStore.setState({ entries: [historyEntry({ id: 'tab-a' })] });
-    useFleetStore.setState({
-      agents: new Map([
-        ['agent-1', { sessionId: 'tab-a', status: 'running' } as never],
-      ]),
-    } as never);
-    expect(isNeverStartedSession('tab-a')).toBe(false);
+    expect(readStoredTabs()).toEqual(['a', 'b', 'c', 'd']);
   });
 });
 
-describe('closeTab deletes never-started records', () => {
-  it('re-declares the open set and then deletes the empty record', () => {
+describe('closeTab only closes the displayed slot', () => {
+  it('re-declares the open set without deleting an empty record', () => {
     openTabs(['tab-a', 'tab-empty']);
-    useHistoryStore.setState({
-      entries: [historyEntry({ id: 'tab-empty' })],
-    });
 
     useSessionTabStore.getState().closeTab('tab-empty');
 
     expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a']);
-    expect(deleteSession).toHaveBeenCalledWith('tab-empty');
-    // The subscription update must reach the socket first: the server refuses
-    // to delete a session this connection still declares.
-    expect(subscribeSessions.mock.invocationCallOrder[0]).toBeLessThan(
-      deleteSession.mock.invocationCallOrder[0],
-    );
+    expect(deleteSession).not.toHaveBeenCalled();
     expect(subscribeSessions).toHaveBeenCalledWith(['tab-a']);
   });
 
-  it('does not delete a session that has content', () => {
+  it('does not delete a session that has content either', () => {
     openTabs(['tab-a', 'tab-used']);
-    useHistoryStore.setState({
-      entries: [historyEntry({ id: 'tab-used', tokenTotal: 10 })],
-    });
 
     useSessionTabStore.getState().closeTab('tab-used');
 
@@ -159,7 +113,6 @@ describe('closeTab deletes never-started records', () => {
       throw new Error('no socket');
     });
     openTabs(['tab-a', 'tab-empty']);
-    useHistoryStore.setState({ entries: [historyEntry({ id: 'tab-empty' })] });
 
     useSessionTabStore.getState().closeTab('tab-empty');
 
@@ -197,14 +150,10 @@ describe('closeTabsForSessions', () => {
   it('never returns a session whose tab owns an active run', () => {
     openTabs(['tab-a', 'tab-running']);
     useFleetStore.setState({
-      agents: new Map([
-        ['agent-1', { sessionId: 'tab-running', status: 'running' } as never],
-      ]),
+      agents: new Map([['agent-1', { sessionId: 'tab-running', status: 'running' } as never]]),
     } as never);
 
-    const removable = useSessionTabStore
-      .getState()
-      .closeTabsForSessions(['tab-a', 'tab-running']);
+    const removable = useSessionTabStore.getState().closeTabsForSessions(['tab-a', 'tab-running']);
 
     // The busy tab stays open and its session is not deletable.
     expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-running']);
@@ -215,5 +164,44 @@ describe('closeTabsForSessions', () => {
     const removable = useSessionTabStore.getState().closeTabsForSessions(['sess-x']);
     expect(removable).toEqual(['sess-x']);
     expect(subscribeSessions).not.toHaveBeenCalled();
+  });
+});
+
+describe('openTab on the foreground session', () => {
+  it('adds the missing foreground tab to the strip instead of no-oping', () => {
+    // Strip out of sync with the lane pointer — the state a reload produced
+    // while slot persistence was broken: pointer names the session, strip is
+    // empty, and the replay announce calls openTab for exactly this session.
+    ensureLane('tab-fg');
+    ensureSessionLane('tab-fg');
+    useChatLanes.setState({ activeSessionId: 'tab-fg' });
+    useSessionLanes.setState({ activeSessionId: 'tab-fg' });
+    useSessionTabStore.setState({ openTabIds: [] });
+
+    const result = useSessionTabStore.getState().openTab('tab-fg');
+
+    expect(result).toEqual({ success: true, reason: 'already_active' });
+    // The strip must now contain the foreground session — previously the
+    // guard ran against a locally mutated copy and the set was dead code.
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-fg']);
+  });
+
+  it('releases a displaced slot when the strip is full without the foreground', () => {
+    ensureLane('tab-fg');
+    ensureSessionLane('tab-fg');
+    for (const id of ['tab-a', 'tab-b']) {
+      ensureLane(id);
+      ensureSessionLane(id);
+    }
+    useChatLanes.setState({ activeSessionId: 'tab-fg' });
+    useSessionLanes.setState({ activeSessionId: 'tab-fg' });
+    useSessionTabStore.setState({ openTabIds: ['tab-a', 'tab-b'] });
+
+    const result = useSessionTabStore.getState().openTab('tab-fg');
+
+    expect(result).toEqual({ success: true, reason: 'already_active' });
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a', 'tab-b', 'tab-fg']);
+    // The foreground kept its slot; nothing was dropped, so nothing re-pointed.
+    expect(useSessionTabStore.getState().openTabIds).not.toContain('');
   });
 });

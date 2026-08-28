@@ -176,7 +176,6 @@ export const DEFAULT_EXPLORE_EDIT_TOOLS: readonly string[] = [
 
 /** Tools whose successful zero-result run is a "search came up empty" signal. */
 export const DEFAULT_EXPLORE_SEARCH_TOOLS: readonly string[] = [
-  'search',
   'grep',
   'codebase-search',
 ];
@@ -198,7 +197,13 @@ interface ResolvedExploreCompanionConfig {
  * subagent task text from a structured probe.
  */
 export function buildProbeTaskText(probe: ExploreProbe): string {
-  const payload: Record<string, unknown> = { probe: probe.probe };
+  const payload: Record<string, unknown> = {
+    probe: probe.probe,
+    // Repeated on every assign so a long-lived resident cannot treat a
+    // later probe as permission to keep mapping the previous subject.
+    scope:
+      'Help the leader, then stop. Answer only this probe with codebase-* tools first. Do not map adjacent files, features, tests, or docs unless named in probe/hint. Do not reindex. Deliver via submit_result only.',
+  };
   if (probe.hint) payload.hint = probe.hint;
   if (probe.context) payload.context = probe.context;
   return JSON.stringify(payload, null, 2);
@@ -412,7 +417,7 @@ export class ExploreCompanion {
       if (!this.readSet.has(path)) {
         this.engage({
           id: randomUUID(),
-          probe: `Map file ${path}: role, exports, dependencies, and callers — the leader is about to edit it.`,
+          probe: `Map file ${path} for the leader: role, exports, incoming/outgoing calls, and blast radius if they edit it.`,
           hint: { file: path },
           context: `Leader edited ${path} without reading it first.`,
           source: 'edit_unread_file',
@@ -428,7 +433,7 @@ export class ExploreCompanion {
         this.readSet.add(path);
         this.engage({
           id: randomUUID(),
-          probe: `Skeleton + callers + dependents of ${path}: what it exports, who imports it, and how it fits the feature flow.`,
+          probe: `Give the leader a skeleton of ${path} plus callers and dependents — what it exports, who imports it.`,
           hint: { file: path },
           context: `Leader read unfamiliar file ${path}.`,
           source: 'unfamiliar_read',
@@ -450,8 +455,8 @@ export class ExploreCompanion {
       this.engage({
         id: randomUUID(),
         probe: query
-          ? `Locate "${query}" — the leader's ${e.name} returned no hits. Try synonyms, a refreshed index, and lexical fallbacks.`
-          : `The leader's ${e.name} returned no results. Find where the concept actually lives.`,
+          ? `Locate "${query}" for the leader — ${e.name} returned no hits. Try codebase-search synonyms, then grep/glob. Do not reindex.`
+          : `The leader's ${e.name} returned no results. Find where the concept actually lives via codebase-search, then grep/glob. Do not reindex.`,
         hint: query ? { symbol: query } : undefined,
         context: `${e.name} for "${query}" returned zero results.`,
         source: 'search_zero_hits',
@@ -473,7 +478,7 @@ export class ExploreCompanion {
         const first = mentions[0];
         this.engage({
           id: randomUUID(),
-          probe: `Pre-map the files/symbols behind this in-progress todo: "${todo.content.slice(0, 160)}".`,
+          probe: `Pre-map files/symbols for the leader's in-progress todo so they can start already oriented: "${todo.content.slice(0, 160)}".`,
           hint: first
             ? { [first.kind]: first.value }
             : undefined,
@@ -492,7 +497,7 @@ export class ExploreCompanion {
     for (const token of tokens.slice(0, 2)) {
       this.engage({
         id: randomUUID(),
-        probe: `What is ${token.value}, where does it live, and who uses it? The leader hit an error naming it.`,
+        probe: `What is ${token.value}, where does it live, and who uses it? Answer so the leader can recover from the error that named it.`,
         hint: { [token.kind]: token.value },
         context: `Error: ${err.message.slice(0, 300)}`,
         source: 'error_symbol',

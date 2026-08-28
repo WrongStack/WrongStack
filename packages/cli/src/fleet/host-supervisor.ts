@@ -3,8 +3,8 @@ import {
   type Director,
   dispatchAgent,
   FleetSupervisor,
-  getSharedProjectMailbox,
   mailboxSessionTag,
+  postSessionNote,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Config, SubagentConfig } from '@wrongstack/core/types';
@@ -18,25 +18,27 @@ export interface HostFleetSupervisorInput {
   supervisorConfig: NonNullable<Config['fleet']>['supervisor'] | undefined;
   events: EventBus;
   sessionId: string;
+  /**
+   * The conversation a worker belongs to, from the coordinator's spawn-time
+   * stamp. The supervisor watches ONE fleet — that part is genuinely
+   * process-wide — but everything it SAYS is addressed: a steer is delivered
+   * through the session-note hub, which routes strictly by session, so a note
+   * posted under the host's own session never reached a worker spawned by any
+   * other tab, and the leader told about it was the wrong one.
+   */
+  sessionFor?: ((subagentId: string) => string) | undefined;
   mailboxProjectDir: string;
   roster: Record<string, SubagentConfig>;
   getLeaderMailboxId?: (() => string | undefined) | undefined;
 }
 
 export function createHostFleetSupervisor(input: HostFleetSupervisorInput): FleetSupervisor | null {
-  const {
-    director,
-    brain,
-    supervisorConfig,
-    events,
-    sessionId,
-    mailboxProjectDir,
-    roster,
-    getLeaderMailboxId,
-  } = input;
+  const { director, brain, supervisorConfig, events, sessionId, roster } = input;
   if (!director || !brain || supervisorConfig?.enabled === false) return null;
-  const supTag = () => mailboxSessionTag(sessionId);
-  const mailbox = () => getSharedProjectMailbox(mailboxProjectDir, events);
+  /** Owning conversation of a worker; the host session for fleet-wide notes. */
+  const sessionOf = (subagentId?: string): string =>
+    (subagentId ? input.sessionFor?.(subagentId) : undefined) ?? sessionId;
+  const supTag = (sid: string) => mailboxSessionTag(sid);
   const supervisor = new FleetSupervisor({
     events,
     fleet: director.fleet,
@@ -68,6 +70,9 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
             name: `fleet helper (${routed.role})`,
             role: routed.role,
             systemPromptOverride: helperPrompt,
+            // The helper drains a specific backlog, so it belongs to whoever
+            // owns that work — not to the tab this host booted with.
+            originSessionId: sessionOf(task?.subagentId),
           });
           return { subagentId };
         } catch (err) {
@@ -75,24 +80,27 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
         }
       },
       steerAgent: async (subagentId, subject, body) => {
-        await mailbox().send({
-          from: `supervisor@${supTag()}`,
-          to: `${subagentId}@${supTag()}`,
-          type: 'steer',
+        const sid = sessionOf(subagentId);
+        postSessionNote({
+          sessionId: sid,
+          from: `supervisor@${supTag(sid)}`,
+          to: subagentId,
+          kind: 'steer',
           subject,
           body,
-          priority: 'high',
+          events,
         });
       },
-      notifyLeader: async (subject, body) => {
-        const leaderId = getLeaderMailboxId?.() ?? `leader@${supTag()}`;
-        await mailbox().send({
-          from: `supervisor@${supTag()}`,
-          to: leaderId,
-          type: 'status',
+      notifyLeader: async (subject, body, subagentId) => {
+        const sid = sessionOf(subagentId);
+        postSessionNote({
+          sessionId: sid,
+          from: `supervisor@${supTag(sid)}`,
+          to: 'leader',
+          kind: 'note',
           subject,
           body,
-          priority: 'normal',
+          events,
         });
       },
       terminate: (subagentId) => director.terminate(subagentId),

@@ -21,6 +21,7 @@ import type { AgentInternals } from './agent-internals.js';
 import { type Context, type RunOptions, resolveEventSessionId } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
 import { maybeAppendPendingNextSteps } from './next-steps-slot.js';
+import { bindRequestConversation } from './request-conversation-binding.js';
 import { bindRequestProvider } from './request-provider-binding.js';
 import { SYSTEM_BLOCK_SOURCE } from './system-prompt-blocks.js';
 
@@ -474,7 +475,15 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       // partition when the actual prefix bytes did not change.
       cache: { key: deriveCachePrefixKey(stableSystem) },
     };
+    // Bind BEFORE the pipeline runs: the request pipeline is shared by every
+    // conversation in the process, and its payload carries no session, so a
+    // middleware asking "what did THIS conversation configure" has nowhere
+    // else to look. Both bindings are re-applied to the pipeline's result
+    // because middleware conventionally returns a copy.
+    bindRequestConversation(baseReq, a.ctx);
+    bindRequestProvider(baseReq, provider);
     const request = await a.pipelines.request.run(baseReq);
+    bindRequestConversation(request, a.ctx);
     bindRequestProvider(request, provider);
     return { request, provider };
   }

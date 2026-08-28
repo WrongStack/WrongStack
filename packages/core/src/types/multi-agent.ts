@@ -88,6 +88,25 @@ export interface SubagentConfig {
   spawnLineage?: SubagentSpawnLineage | undefined;
 
   /**
+   * The conversation that ASKED for this spawn.
+   *
+   * The coordinator otherwise stamps a new worker with "which session is the
+   * host on right now", read from the host's own writer. In a single-session
+   * CLI those are the same answer. With four WebUI tabs sharing one process
+   * they are not: the host writer stays pinned to the boot tab, so every
+   * worker spawned from tabs 2-4 was filed under tab 1 — its lifecycle,
+   * budget and context events surfaced in the wrong roster, its spend was
+   * charged to the wrong conversation, and `stopSession` could not find it
+   * because nothing recorded who it belonged to.
+   *
+   * Set by the tools that spawn on an agent's behalf, from the run-pinned
+   * session of the caller. Absent (a host spawning for itself) the
+   * coordinator's live reading stands, which is what single-session hosts
+   * have always used.
+   */
+  originSessionId?: string | undefined;
+
+  /**
    * Working directory for this subagent's tools. Defaults to the factory's
    * cwd. Goal sets this to a per-phase git worktree so parallel phases
    * edit isolated checkouts instead of clobbering one shared working tree.

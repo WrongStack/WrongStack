@@ -358,9 +358,10 @@ describe('setTodos', () => {
 
 // ── F5 resilience: persistence + migrate ─────────────────────────
 //
-// The persist middleware covers the F5 contract: after a page refresh the
-// session pointer + env fields must come back from localStorage without
-// help from the WebSocket.
+// The persist middleware keeps lightweight session env fields available after
+// F5, but deliberately does not restore the foreground session pointer. A new
+// WebUI boot starts with no old tab in front until the server announces or the
+// user resumes a session.
 //
 // Partialize is intentional: heavy fields (modes, contextModes,
 // iteration, todos, totalTokens, cost, startTime) are NOT persisted so
@@ -369,13 +370,14 @@ describe('setTodos', () => {
 describe('F5 resilience — persistence', () => {
   const laneOptions = useSessionStore.persist.getOptions();
 
-  function activeLane(blob: {
-    state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
-  }) {
-    return blob.state.lanes[blob.state.activeSessionId]!;
+  function storedLane(
+    blob: { state: { lanes: Record<string, Record<string, unknown>> } },
+    sessionId: string,
+  ) {
+    return blob.state.lanes[sessionId]!;
   }
 
-  it('writes the persisted session pointer + env on setSession', () => {
+  it('writes persisted session env without persisting the foreground pointer', () => {
     useSessionStore.setState({
       projectName: 'wrongstack-demo',
       projectRoot: '/tmp/wrongstack-demo',
@@ -385,17 +387,17 @@ describe('F5 resilience — persistence', () => {
     useSessionStore.setState({ mode: 'code', contextMode: 'frugal' });
     flushWrites();
     const blob = getPersisted() as unknown as {
-      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+      state: { activeSessionId?: string; lanes: Record<string, Record<string, unknown>> };
     } | null;
     expect(blob).toBeTruthy();
-    // Project fields are shared by all four tabs; the session pointer, mode
-    // and context policy belong to the tab that owns them.
+    // Project fields are shared by all four tabs; mode and context policy
+    // belong to the tab that owns them. The active pointer does not.
     expect((blob!.state as unknown as Record<string, unknown>).projectName).toBe('wrongstack-demo');
     expect((blob!.state as unknown as Record<string, unknown>).cwd).toBe(
       '/tmp/wrongstack-demo/src',
     );
-    expect(blob!.state.activeSessionId).toBe('sess-XYZ');
-    const lane = activeLane(blob!);
+    expect(blob!.state.activeSessionId).toBeUndefined();
+    const lane = storedLane(blob!, 'sess-XYZ');
     expect(lane.session).toMatchObject({ id: 'sess-XYZ' });
     expect(lane.mode).toBe('code');
     expect(lane.contextMode).toBe('frugal');
@@ -412,9 +414,9 @@ describe('F5 resilience — persistence', () => {
     });
     flushWrites();
     const blob = getPersisted() as unknown as {
-      state: { activeSessionId: string; lanes: Record<string, Record<string, unknown>> };
+      state: { lanes: Record<string, Record<string, unknown>> };
     };
-    const lane = activeLane(blob);
+    const lane = storedLane(blob, 'sess-heavy');
     for (const field of ['iteration', 'totalTokens', 'cost', 'startTime', 'todos']) {
       expect(lane[field], field).toBeUndefined();
     }
@@ -433,7 +435,7 @@ describe('F5 resilience — persistence', () => {
     expect(s.lastVisitedAt).toBeLessThanOrEqual(after);
   });
 
-  it('merge() round-trips the session pointer, env and per-tab mode', () => {
+  it('merge() round-trips env and per-tab mode without restoring the session pointer', () => {
     const merged = laneOptions.merge?.(
       {
         activeSessionId: 'restored-after-f5',
@@ -462,7 +464,7 @@ describe('F5 resilience — persistence', () => {
       cwd: string;
       lanes: Record<string, Record<string, unknown>>;
     };
-    expect(merged.activeSessionId).toBe('restored-after-f5');
+    expect(merged.activeSessionId).toBe('__unbound__');
     expect(merged.projectName).toBe('persisted-project');
     expect(merged.cwd).toBe('/tmp/persisted-project');
     expect(merged.lanes['restored-after-f5']).toMatchObject({

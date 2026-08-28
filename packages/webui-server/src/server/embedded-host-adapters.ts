@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Agent } from '@wrongstack/core/agent';
+import type { Agent, Context } from '@wrongstack/core/agent';
 import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type {
@@ -62,8 +62,17 @@ export async function applyEmbeddedModelSwitch(
   ctx: EmbeddedAgentConfigContext,
   providerId: string,
   modelId: string,
+  /**
+   * The tab that asked. A model switch rebuilds the provider, the model, the
+   * context ceiling and the price table OF ONE CONVERSATION; applying it to
+   * `ctx.agent.ctx` — the leader, i.e. the boot tab's runtime — meant that
+   * choosing a model in ANY tab re-pointed the boot tab instead, and left the
+   * asking tab still running the model it had. Resolved through the caller so
+   * hosts without a registry keep the single-context behaviour.
+   */
+  targetContext?: Context | undefined,
 ): Promise<void> {
-  const agentContext = ctx.agent.ctx;
+  const agentContext = targetContext ?? ctx.agent.ctx;
   await agentContext.runModelTransition(async () => {
     const saved = await ctx.loadSavedProviders();
     const providerConfig = saved[providerId] ?? { type: providerId };
@@ -98,7 +107,21 @@ export async function applyEmbeddedModelSwitch(
 
     agentContext.provider = nextProvider;
     agentContext.model = modelId;
-    if (ctx.onMaxContextResolved) ctx.onMaxContextResolved(providerId, modelId, maxContext);
+    // The host's `onMaxContextResolved` is PROCESS-WIDE: it rewrites the shared
+    // `effectiveMaxContext` ref, the leader context's meta (window size and
+    // context-window policy), the shared auto-compactor's ceiling, and it
+    // announces `ctx.max_context` under the LEADER's session. That is exactly
+    // right when the tab that switched IS the leader — the CLI and the TUI have
+    // no other — and completely wrong for any other tab: choosing a model in
+    // tab 3 moved tab 1's context window, re-resolved tab 1's policy, and told
+    // every surface the change belonged to tab 1.
+    //
+    // So the global hook runs only for its own context; every other
+    // conversation takes the per-context branch, which writes its own meta and
+    // names itself in the broadcast.
+    const isHostContext = agentContext === ctx.agent.ctx;
+    if (ctx.onMaxContextResolved && isHostContext)
+      ctx.onMaxContextResolved(providerId, modelId, maxContext);
     else {
       if (maxContext > 0) agentContext.meta['effectiveMaxContext'] = maxContext;
       else delete agentContext.meta['effectiveMaxContext'];
@@ -156,6 +179,19 @@ export interface EmbeddedConversationContext extends EmbeddedHostTransport {
    * blocked on, so async ones keep running unless someone asks them to stop.
    */
   stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
+  /**
+   * The host's session-transition serialiser, SHARED with the session routes.
+   *
+   * `user_message` setup reads and mutates the target agent's context, so it
+   * must not interleave with a `session.new` / `session.resume` that is
+   * halfway through re-pointing writers and contexts. The standalone host has
+   * always passed its gate here; this one passed nothing, so
+   * `createConversationOperations` fell back to a pass-through and the CLI
+   * host — the one people actually run — serialised transitions against each
+   * other but never against turn setup. Only the SETUP is gated; runs proceed
+   * outside it so four tabs still stream concurrently.
+   */
+  withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
 }
 
 export function createEmbeddedConversationRoutes(
@@ -203,7 +239,25 @@ export function createEmbeddedConversationRoutes(
     },
     pendingConfirms: ctx.pendingConfirms,
     send: ctx.send,
-    notifyAbort: (ws, message) => ctx.send(ws, message),
+    // Broadcast, not reply: the abort notice belongs to the SESSION, and a
+    // second page showing that tab has to clear its spinner too. The host's
+    // broadcast is session-filtered, so it reaches exactly the connections
+    // displaying it — matching the standalone host, which answered this way
+    // from the start.
+    notifyAbort: (_ws, message) => ctx.broadcast(message),
+    // Per-session iteration ceiling. `maxIterations` is a session-scoped
+    // preference living on that tab's context meta; reading the leader's
+    // (what happens when this is absent) applies the boot tab's ceiling to
+    // every tab and makes the "3 / 500" readout describe the wrong one.
+    // `peekAgent` first — this must not materialise an agent for a stale id.
+    getMaxIterations: (sessionId?: string) => {
+      const agent = sessionId
+        ? (ctx.peekAgent?.(sessionId) ?? ctx.getAgent?.(sessionId))
+        : undefined;
+      const meta = agent?.ctx.meta ?? ctx.agent.ctx.meta;
+      return typeof meta['maxIterations'] === 'number' ? meta['maxIterations'] : undefined;
+    },
+    ...(ctx.withSessionTransition ? { withSessionTransition: ctx.withSessionTransition } : {}),
     busyPhase: 'agent.run',
     busyMessage: 'A run is already in progress. Abort it first.',
   });
@@ -288,6 +342,13 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
   abortActiveRun?: ((sessionId?: string) => void) | undefined;
   /** True while an embedded agent run is active. */
   isRunActive?: ((sessionId?: string) => boolean) | undefined;
+  /**
+   * The host's session-transition serialiser, SHARED with the conversation
+   * routes. Omitting it leaves the session handlers to create a PRIVATE gate,
+   * which orders transitions against each other but not against turn setup —
+   * see the note on `EmbeddedConversationContext.withSessionTransition`.
+   */
+  withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
 }
 
 function sessionStoreFor(opts: EmbeddedSessionOptions): SessionStore {
@@ -333,7 +394,12 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
     abortActiveRun: ctx.abortActiveRun,
     isRunActive: ctx.isRunActive,
+    ...(ctx.withSessionTransition ? { withSessionTransition: ctx.withSessionTransition } : {}),
     ...(ctx.getAgent ? { getAgent: ctx.getAgent } : {}),
+    // Read-only twin of `getAgent` above: context.debug resolves through the
+    // non-creating lookup so a stale id is an honest error, not a freshly
+    // materialised agent or another tab's root context.
+    ...(ctx.peekAgent ? { peekAgent: ctx.peekAgent } : {}),
     // Same reason as the conversation routes: a request naming a background
     // tab's session is legitimate here, not a mismatch to refuse — but only
     // when the registry actually knows that session (peek is non-creating) or
@@ -385,6 +451,12 @@ export interface EmbeddedProjectContext extends EmbeddedHostTransport {
    */
   getForegroundSession?: (() => SessionWriter) | undefined;
   setForegroundSession?: ((next: SessionWriter) => void) | undefined;
+  /**
+   * Deliver to every connection regardless of what it displays. The project
+   * switch needs it: `broadcast` routes on the payload's session, and the
+   * switch announces one no client has had a chance to subscribe to.
+   */
+  broadcastEveryone?: ((message: WSServerMessage) => void) | undefined;
 }
 
 export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): ProjectRouteHandlers {
@@ -426,5 +498,6 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
     sessionStartPayload: ctx.buildSessionStart,
     sendMessage: ctx.send,
     broadcastMessage: ctx.broadcast,
+    ...(ctx.broadcastEveryone ? { broadcastEveryone: ctx.broadcastEveryone } : {}),
   });
 }

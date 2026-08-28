@@ -38,7 +38,10 @@ Rules:
 **After a significant task, when `remember` is live, remember durable key findings** — established conventions, confirmed decisions, or stable facts likely to help a future session. Pick the most specific `kind`, set `importance`, add tags, and `anchor` to the relevant file/symbol when applicable.
 <!--ws:end-->
 
+<!--ws:if tool=session_note-->
+**When other agents are live in this session, post a compact `session_note`** (`to="@session"` or `to="leader"`) so they can discover what you finished without waiting on mailbox.
+<!--ws:end-->
 <!--ws:if tool=mailbox-->
-**When an inter-agent mailbox tool is live and peer coordination is active, also post a status update** so other agents can discover what you finished and route follow-on work:
+**When an inter-agent mailbox tool is live and peer coordination spans sessions, also post a status update** so other clients can discover what you finished and route follow-on work:
 `mailbox action=send to=* type=status subject="<one-line task summary>" body="<brief outcome>"`
 <!--ws:end-->

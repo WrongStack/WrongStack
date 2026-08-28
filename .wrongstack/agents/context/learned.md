@@ -4,6 +4,15 @@
 
 ## What to avoid
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-27T11:05:48.475Z -->
+- **Always locate JSX render sites by grepping the **bare component name** (e.g. pattern `StatusBar`) or its import statement — never a pattern with a leading `<`. Why: in this environment an angle-bracket-prefixed pattern returns a false zero even when the tag is present (verified against `packages/tui/src/app-status-region.tsx`, which renders `<StatusBar` at while the bracketed pattern matched nothing); a bracketed alternation silently degrades to only its non-bracketed branch. Anchor: `grep`, `packages/tui/src/app-status-region.tsx`.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `StatusBar`
+  - *How:* `<`
+  - *How:* `packages/tui/src/app-status-region.tsx`
+  - *How:* `<StatusBar`
+  - *How:* `grep`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-08-22T18:52:08.216Z; skill=output-standards; applied=3; wins=3 -->
 - **Always scan build output in this repo by enumerating `packages/*/dist` with `glob` using an explicit `path` argument (e.g. `path: packages/providers/dist`, pattern `**/*.js`) and then grepping each **exact file path** — never by repo-root glob patterns (`packages/*/dist/*.js` returns 0 files) and never by directory-mode `grep` with `path` set to a dist directory. Reason: rg honors `.gitignore` ( ignores `dist/`), so directory-mode grep into `dist/` returns a false zero even when files inside contain the needle, while explicit-file grep and explicit-path glob do see ignored files.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -17,7 +26,7 @@
   - *How:* `.gitignore`
   - *How:* `dist/`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=64; wins=64 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:55:16.207Z; applied=65; wins=65 -->
 - **Always verify React component wiring in `packages/webui/src` with an exact-text grep of the component name — never from `codebase-incoming-calls` returning zero or a `codebase-skeleton` import block, because JSX render edges are invisible to both (verified: AgentTabs showed 0 incoming calls while `ChatView/index.tsx` imported it at L21 and rendered it at L102). Key takeaway: the map shows a feature that is ~90% landed — the real remaining work is tests and polish, and any consumer must treat exact line numbers as perishable while a peer edits concurrently.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src`
@@ -25,7 +34,7 @@
   - *How:* `codebase-skeleton`
   - *How:* `ChatView/index.tsx`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-25T17:29:35.130Z; skill=output-standards; applied=4; wins=4 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-25T17:29:35.130Z; skill=output-standards; applied=6; wins=6 -->
 - **Treat `packages/tui/src/components/status-bar.tsx` as a facade when routing TUI edits: only the `StatusBar` component is defined there; formatting helpers live in `status-bar-format.tsx`, colors/icons in `status-bar-icons.tsx`, prop types in `status-bar-types.tsx`, and chip construction in `status-bar-rails.tsx`. Its single render site is `AppStatusRegion` in `packages/tui/src/app-status-region.tsx` (mounted by `app-view.tsx`), and all importers are package-internal — route changes to the owning sibling module, never the facade.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/tui/src/components/status-bar.tsx`
@@ -38,7 +47,7 @@
   - *How:* `packages/tui/src/app-status-region.tsx`
   - *How:* `app-view.tsx`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=47; wins=46 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:09:12.562Z; applied=52; wins=51 -->
 - **Treat files under `packages/webui/tests/**` as vitest entry points: confirm discovery and environment by reading the package's `vitest.config.ts` inline `projects` blocks (include globs + `globals: true`), never by searching for code importers. When a webui test uses hooks like `beforeEach` without importing them from `vitest`, check `test.globals: true` before flagging it as a bug — but note bare-hook usage only works inside projects with globals enabled, not root-config suites.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/tests/**`
@@ -68,28 +77,14 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-24T07:59:23.739Z; applied=7; wins=7 -->
-- **[skill: context] When probing a hook in `packages/tui/src/hooks/`, treat sibling hooks (`useAuthPanel`, `useBrainPanel`, `useShadowPanel`, `useHelpPanel`, `useModePicker`) as opener-PRODUCERS consumed BY the target hook, not as competitors; their openers flow in as `PanelControllersOptions` fields and get repackaged into the slash-command bridge via `createPanelOpenDispatcher`.**
+<!-- learned-stamp: category=convention; capturedAt=2026-08-27T11:13:55.809Z; skill=output-standards; applied=2; wins=2 -->
+- **Always write `submit_result` `summary`/`findings`/`suggested_next_steps` entries in plain ASCII using only commas and periods — this validator rejected reports twice that contained em-dashes and parentheses even when every field was present with a numeric confidence, and accepted the identical content after ASCII-only sanitization. Anchor: `submit_result`, `coordination.result.submit`.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `packages/tui/src/hooks/`
-  - *How:* `useAuthPanel`
-  - *How:* `useBrainPanel`
-  - *How:* `useShadowPanel`
-  - *How:* `useHelpPanel`
-  - *How:* `useModePicker`
-  - *How:* `PanelControllersOptions`
-  - *How:* `createPanelOpenDispatcher`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T18:47:12.278Z; applied=89; wins=88 -->
-- **Treat the exports map in `packages/webui/package.json` as packaging metadata, not a live API: no workspace code imports `@wrongstack/webui` or `@wrongstack/webui/types`; only `packages/cli` and `apps/desktop` declare it, as a presence pin. Its real delivery path is the Vite bundle from `packages/webui/src/main.tsx` served by `@wrongstack/webui-server`, so probing "who imports this package" must grep import statements, not just dependency declarations.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `packages/webui/package.json`
-  - *How:* `@wrongstack/webui`
-  - *How:* `@wrongstack/webui/types`
-  - *How:* `packages/cli`
-  - *How:* `apps/desktop`
-  - *How:* `packages/webui/src/main.tsx`
-  - *How:* `@wrongstack/webui-server`
+  - *How:* `submit_result`
+  - *How:* `summary`
+  - *How:* `findings`
+  - *How:* `suggested_next_steps`
+  - *How:* `coordination.result.submit`
 
 ---
-*Last capture: 2026-08-25T17:29:35.130Z · 8 entries*
+*Last capture: 2026-08-27T11:13:55.809Z · 8 entries*

@@ -50,6 +50,35 @@ export interface MailToolsOptions {
   events?: EventBus | undefined;
 }
 
+/**
+ * Scope an agent's mail to the conversation it belongs to when — and only
+ * when — the recipient is the ambiguous `leader` alias.
+ *
+ * Four WebUI tabs are four live conversations in ONE process. Each registers a
+ * leader, all four poll the same project mailbox, and a message carrying no
+ * affinity token is accepted by every one of them
+ * (`acceptMailboxMessageForSession` reads "no affinity" as "for everyone"), so
+ * a worker reporting to "leader" folded its findings into three conversations
+ * that never asked for them.
+ *
+ * Two deliberate narrowings. Only the ambiguous alias is scoped: a NAMED
+ * recipient already identifies one agent, and `*` means what it says. And only
+ * a sender carrying an explicit owning stamp is scoped: without one the best
+ * available answer is the sender's own writer, which for a worker with its own
+ * journal is a session no leader is on — stamping that would replace a
+ * fan-out with silence. Same rule as the WebUI's `scopeToSenderSession`.
+ */
+function scopeAgentMailToOwningSession(
+  ctx: Context,
+  to: string,
+  sessionId: string,
+): { sessionAffinity: { sessionId: string } } | Record<string, never> {
+  const owning = ctx.meta['sessionId'];
+  if (typeof owning !== 'string' || owning.length === 0) return {};
+  if (to.trim().toLowerCase() !== 'leader') return {};
+  return { sessionAffinity: { sessionId } };
+}
+
 function makeResolver(opts: MailToolsOptions): MailboxResolver {
   return (
     opts.resolveMailbox ??
@@ -217,6 +246,7 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
         priority: parsed.priority,
         replyTo: parsed.replyTo,
         senderSessionId: identity.sessionId,
+        ...scopeAgentMailToOwningSession(ctx, delivery.to, identity.sessionId),
       });
       return {
         ok: true,

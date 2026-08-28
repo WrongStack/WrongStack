@@ -11,7 +11,9 @@ describe('AgentDetailSection data paths', () => {
 
   it('stores and retrieves agent transcript entries', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'AgentOne',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'AgentOne',
     });
 
     useFleetStore.getState().pushAgentTimelineEntry({
@@ -45,13 +47,21 @@ describe('AgentDetailSection data paths', () => {
 
   it('records tool execution in toolLog', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Worker',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Worker',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'read_file', ok: true,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'read_file',
+      ok: true,
     });
     useFleetStore.getState().applyEvent({
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'bash', ok: false,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'bash',
+      ok: false,
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -64,13 +74,19 @@ describe('AgentDetailSection data paths', () => {
 
   it('records partialText from iteration_summary', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Writer',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Writer',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'iteration_summary', subagentId: 'a1', partialText: 'Working on task...',
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      partialText: 'Working on task...',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'iteration_summary', subagentId: 'a1', partialText: 'Almost done...',
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      partialText: 'Almost done...',
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -79,10 +95,15 @@ describe('AgentDetailSection data paths', () => {
 
   it('records failureReason on task_completed with failed status', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'FailingAgent',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'FailingAgent',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a1', status: 'failed', failureReason: 'provider_auth',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      status: 'failed',
+      failureReason: 'provider_auth',
       error: { kind: 'auth_error', message: 'Invalid API key' },
     });
 
@@ -95,8 +116,11 @@ describe('AgentDetailSection data paths', () => {
 
   it('records description and taskId for config display', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'ConfiguredAgent',
-      description: 'Audits auth layer', taskId: 'task_42',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'ConfiguredAgent',
+      description: 'Audits auth layer',
+      taskId: 'task_42',
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -106,12 +130,17 @@ describe('AgentDetailSection data paths', () => {
 
   it('toolLog is capped and most-recent-first', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'BusyAgent',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'BusyAgent',
     });
     // Push 55 tool calls (toolLog is capped at 50)
     for (let i = 0; i < 55; i++) {
       useFleetStore.getState().applyEvent({
-        kind: 'tool_executed', subagentId: 'a1', toolName: `tool_${i}`, ok: true,
+        kind: 'tool_executed',
+        subagentId: 'a1',
+        toolName: `tool_${i}`,
+        ok: true,
       });
     }
 
@@ -123,8 +152,11 @@ describe('AgentDetailSection data paths', () => {
 
   it('agent has provider and model from spawned event', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'ModelAgent',
-      provider: 'anthropic', model: 'claude-opus-4',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'ModelAgent',
+      provider: 'anthropic',
+      model: 'claude-opus-4',
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -134,10 +166,14 @@ describe('AgentDetailSection data paths', () => {
 
   it('spawned event records costUsd via iteration_summary', () => {
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Costly',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Costly',
     });
     useFleetStore.getState().applyEvent({
-      kind: 'iteration_summary', subagentId: 'a1', costUsd: 0.042,
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      costUsd: 0.042,
     });
 
     const agent = useFleetStore.getState().agents.get('a1');
@@ -147,20 +183,29 @@ describe('AgentDetailSection data paths', () => {
   it('expand/collapse clears via clearFinishedAgents and pushAgentTimelineEntry', () => {
     // Simulate: agent runs, has transcript, gets finished, then cleared
     useFleetStore.getState().applyEvent({
-      kind: 'spawned', subagentId: 'a1', name: 'Temp',
+      kind: 'spawned',
+      subagentId: 'a1',
+      name: 'Temp',
+      sessionId: 'sess-a',
     });
     useFleetStore.getState().pushAgentTimelineEntry({
-      subagentId: 'a1', agentName: 'Temp', content: 'work', kind: 'text', iteration: 1,
+      subagentId: 'a1',
+      agentName: 'Temp',
+      content: 'work',
+      kind: 'text',
+      iteration: 1,
       ts: new Date().toISOString(),
     });
     useFleetStore.getState().applyEvent({
-      kind: 'task_completed', subagentId: 'a1', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      status: 'success',
     });
 
     expect(useFleetStore.getState().agents.get('a1')).toBeDefined();
     expect(useFleetStore.getState().getAgentTranscript('a1').length).toBeGreaterThan(0);
 
-    useFleetStore.getState().clearFinishedAgents();
+    useFleetStore.getState().clearFinishedAgents('sess-a');
 
     expect(useFleetStore.getState().agents.get('a1')).toBeUndefined();
     expect(useFleetStore.getState().getAgentTranscript('a1')).toEqual([]);

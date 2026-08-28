@@ -8,5 +8,23 @@
     "generic": "Etwas ist schiefgelaufen.",
     "connectionLost": "Verbindung verloren. Verbindung wird wiederhergestellt…",
     "reconnected": "Verbindung wiederhergestellt."
+  },
+  "menu": {
+    "title": "Benachrichtigungen",
+    "unreadCount": "{{count}} ungelesen",
+    "allRead": "Alles gelesen",
+    "markAllRead": "Alle als gelesen markieren",
+    "clearAll": "Alle löschen",
+    "tabAll": "Alle",
+    "tabUnread": "Ungelesen",
+    "empty": "Keine Benachrichtigungen",
+    "emptyHint": "Benachrichtigungen und Systemmeldungen werden hier angezeigt.",
+    "markAsRead": "Als gelesen markieren",
+    "remove": "Benachrichtigung entfernen",
+    "justNow": "Gerade eben",
+    "secondsAgo": "vor {{count}} s",
+    "minutesAgo": "vor {{count}} Min.",
+    "hoursAgo": "vor {{count}} Std.",
+    "daysAgo": "vor {{count}} T."
   }
 }

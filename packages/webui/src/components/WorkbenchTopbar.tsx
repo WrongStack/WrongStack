@@ -18,6 +18,8 @@ import { getPalette, PALETTES } from '@/lib/palettes';
 import { cn } from '@/lib/utils';
 import { useConfigStore, useSessionStore, useUIStore } from '@/stores';
 import { CronTrigger } from './CronTrigger';
+import { InspectorTrigger } from './InspectorPanel';
+import { NotificationMenu } from './NotificationMenu';
 import { useTheme } from './ThemeProvider';
 import {
   DropdownMenu,
@@ -188,6 +190,10 @@ export function WorkbenchTopbar({
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          {/* AGENTS entry — shared top bar, present on every tab/view (icon +
+              badge only at this width; the label expands in on lg screens). */}
+          <InspectorTrigger />
+          <NotificationMenu />
           <button
             type="button"
             onClick={toggleTheme}
@@ -287,6 +293,10 @@ export function WorkbenchTopbar({
                     </span>
                   ) : null}
                 </span>
+                {/* AGENTS entry — lives in the shared top bar so it stays on
+                    screen across every tab and main view, with the running
+                    subagent count for the active session always visible. */}
+                <InspectorTrigger showCountWhenZero />
                 {serverProcess ? (
                   <span
                     className={cn(
@@ -402,6 +412,7 @@ export function WorkbenchTopbar({
               </DropdownMenuContent>
             </DropdownMenu>
             <CronTrigger />
+            <NotificationMenu />
             <span
               role="status"
               aria-label={wsConnected ? 'Connected' : 'Disconnected'}

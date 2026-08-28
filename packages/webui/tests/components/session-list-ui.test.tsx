@@ -102,4 +102,33 @@ describe('SessionList workspace', () => {
     expect(screen.getByText('21–21 of 21 sessions')).toBeDefined();
     expect(document.querySelectorAll('[data-session-id]')).toHaveLength(1);
   });
+
+  it('badges the clear-empty control with the removable count when empty sessions exist', () => {
+    // Never-started records are no longer auto-deleted on tab close, so this
+    // control is the only signal that clearable empty sessions exist. The
+    // count must be visible in every variant, not just workspace mode.
+    renderWorkspace({
+      historyEntries: [
+        entry({ id: 'session-empty-1', tokenTotal: 0 }),
+        entry({ id: 'session-empty-2', tokenTotal: 0 }),
+        entry(), // session-1 has tokens → not removable
+      ],
+    });
+
+    // Same i18n call the component makes, so the assertion survives locale
+    // edits: the accessible name carries the count via aria-label/title.
+    const name = i18n.t('activity:sessions.deleteEmptyTitle', { count: 2 }) as string;
+    const button = screen.getByRole('button', { name });
+
+    // The count badge is the button's only text content (icon is an svg).
+    expect(button.textContent).toContain('2');
+  });
+
+  it('hides the clear-empty control when every session has content', () => {
+    renderWorkspace({
+      historyEntries: [entry(), entry({ id: 'session-2', tokenTotal: 900 })],
+    });
+
+    expect(screen.queryByRole('button', { name: i18n.t('activity:sessions.deleteEmptyTitle', { count: 0 }) as string })).toBeNull();
+  });
 });

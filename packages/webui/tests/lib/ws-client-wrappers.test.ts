@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WrongStackWebSocketClient } from '../../src/lib/ws-client';
+import { DEFAULT_LANE_ID, useChatLanes } from '../../src/stores/chat-lanes';
+import {
+  SESSION_DEFAULT_LANE_ID,
+  setActiveSessionLane,
+  useSessionLanes,
+} from '../../src/stores/session-lanes';
 
 /**
  * The client exposes ~50 one-line methods that translate a call-site
@@ -20,6 +26,8 @@ function frame(): Record<string, unknown> {
 }
 
 beforeEach(() => {
+  useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
+  useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   client = new WrongStackWebSocketClient(URL);
   send = vi.spyOn(client, 'send').mockReturnValue(true);
 });
@@ -356,6 +364,48 @@ describe('sendConfirm', () => {
   it.each(['yes', 'no', 'always', 'deny'] as const)('forwards the %s decision', (decision) => {
     client.sendConfirm('c1', decision);
     expect(frame()).toMatchObject({ payload: expect.objectContaining({ id: 'c1', decision }) });
+  });
+});
+
+// ── foreground send routing ─────────────────────────────────────────────────
+
+describe('foreground send routing', () => {
+  it('stamps user messages from the foreground lane before session.start lands', () => {
+    setActiveSessionLane('sess-front');
+
+    client.sendMessage('hello');
+
+    expect(frame()).toMatchObject({
+      type: 'user_message',
+      payload: { sessionId: 'sess-front', content: 'hello' },
+    });
+  });
+
+  it('stamps aborts and mailbox sends with the foreground lane', () => {
+    setActiveSessionLane('sess-front');
+
+    client.sendAbort();
+    expect(frame()).toMatchObject({ type: 'abort', payload: { sessionId: 'sess-front' } });
+
+    send.mockClear();
+    client.sendMailboxMessage({
+      type: 'btw',
+      to: 'leader',
+      subject: 'note',
+      body: 'keep going',
+    });
+
+    expect(frame()).toMatchObject({
+      type: 'mailbox.send',
+      payload: { sessionId: 'sess-front', body: 'keep going' },
+    });
+  });
+
+  it('honours explicit background-session overrides', () => {
+    setActiveSessionLane('sess-front');
+
+    client.sendAbort('sess-background');
+    expect(frame()).toMatchObject({ type: 'abort', payload: { sessionId: 'sess-background' } });
   });
 });
 

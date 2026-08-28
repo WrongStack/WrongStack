@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 304,
-      "typeOnly": 241,
-      "runtimeOrMixed": 80
+      "files": 306,
+      "typeOnly": 242,
+      "runtimeOrMixed": 81
     },
     "@wrongstack/core/agent-catalog": {
       "files": 17,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 189,
-      "typeOnly": 83,
-      "runtimeOrMixed": 159
+      "files": 194,
+      "typeOnly": 85,
+      "runtimeOrMixed": 162
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -29,6 +29,11 @@
       "runtimeOrMixed": 0
     },
     "@wrongstack/core/coordination/brain.js": {
+      "files": 1,
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    "@wrongstack/core/core": {
       "files": 1,
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -79,9 +84,9 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 246,
+      "files": 250,
       "typeOnly": 131,
-      "runtimeOrMixed": 128
+      "runtimeOrMixed": 132
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -89,9 +94,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 29,
+      "files": 30,
       "typeOnly": 9,
-      "runtimeOrMixed": 21
+      "runtimeOrMixed": 23
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -107,6 +112,11 @@
       "files": 27,
       "typeOnly": 16,
       "runtimeOrMixed": 23
+    },
+    "@wrongstack/core/plugins/review-report-store": {
+      "files": 2,
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
     },
     "@wrongstack/core/prompts": {
       "files": 7,
@@ -154,8 +164,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1013,
-      "typeOnly": 936,
+      "files": 1016,
+      "typeOnly": 939,
       "runtimeOrMixed": 246
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -1909,6 +1919,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/src/server/provider-fanout.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/routes.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -2026,6 +2042,12 @@
       "file": "packages/webui-server/tests/setup-events.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/system-prompt-rebuild-variant-scope.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -2341,6 +2363,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/fleet/host-explore-companion-registry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/fleet/host-explore-companion.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2587,6 +2615,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/webui-server/setup-events.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/brain-and-orchestration.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
@@ -2728,6 +2762,18 @@
       "file": "packages/cli/tests/fleet-status-broadcast.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/fleet/explore-companion-registry.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/fleet/supervisor-session-addressing.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -3277,6 +3323,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/src/server/standalone-session-identity.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3362,6 +3414,12 @@
     {
       "specifier": "@wrongstack/core/coordination/brain.js",
       "file": "packages/sdd/tests/sdd-supervisor.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/core",
+      "file": "packages/core/tests/core/system-prompt-variant-per-conversation.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5581,7 +5639,25 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fleet/shadow-per-session.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fleet/subagent-event-session-attribution.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/fleet/subagent-session-audit.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/fleet/supervisor-session-addressing.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5720,6 +5796,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/webui-server-redaction.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/webui-server/session-retire-helpers.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -6732,6 +6814,12 @@
       "runtimeOrMixed": 1
     },
     {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/webui/tests/lib/zod-jitless-under-csp.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
       "specifier": "@wrongstack/core/notifications",
       "file": "packages/cli/src/wiring/lifecycle-plugins.ts",
       "typeOnly": 0,
@@ -6980,6 +7068,18 @@
     {
       "specifier": "@wrongstack/core/plugin",
       "file": "packages/webui-server/src/server/pref-helpers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugins/review-report-store",
+      "file": "packages/webui-server/src/server/chimera-routes.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/plugins/review-report-store",
+      "file": "packages/webui-server/tests/chimera-routes.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -11269,6 +11369,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/fleet/shadow-per-session.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/fleet/subagent-file-snapshots.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11738,6 +11844,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/codebase-index-mcp/src/adapter.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/core/tests/core/system-prompt-variant-per-conversation.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -15146,6 +15258,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/provider-config-standalone.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/provider-fanout.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

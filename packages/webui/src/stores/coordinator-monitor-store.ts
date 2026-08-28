@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import type { StateCreator } from 'zustand';
+import { createSessionScopedStore } from './session-scoped-store';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -213,7 +214,17 @@ function capMap<V>(map: Map<string, V>, max: number, evictableFirst?: (v: V) => 
   }
 }
 
-export const useCoordinatorMonitorStore = create<CoordinatorMonitorState>()((set) => ({
+/**
+ * One coordinator snapshot PER TAB.
+ *
+ * A coordinator run belongs to the conversation that started it: its
+ * subagents, task counts, budget alerts and consensus votes are that tab's
+ * fleet. As one global store it held whichever tab last emitted, and the
+ * handlers had to defend it by dropping every background tab's task
+ * lifecycle at the door — so a tab that ran a fleet while another was in
+ * front came back to an empty monitor. Four tabs, four instances.
+ */
+const coordinatorMonitorState: StateCreator<CoordinatorMonitorState, [], []> = (set) => ({
   coordinatorStatus: 'idle',
   subagents: new Map(),
   events: [],
@@ -479,4 +490,8 @@ export const useCoordinatorMonitorStore = create<CoordinatorMonitorState>()((set
       budgetAlerts: [],
       lastUpdated: Date.now(),
     }),
-}));
+});
+
+export const useCoordinatorMonitorStore = createSessionScopedStore(coordinatorMonitorState, {
+  max: 4,
+});

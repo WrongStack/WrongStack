@@ -353,6 +353,15 @@ async function executeSend(
     priority: (i.priority as 'low' | 'normal' | 'high') ?? 'normal',
     replyTo: i.replyTo as string | undefined,
     senderSessionId: sessionId,
+    // Same scoping rule as `mail_send`: with four tabs live, every one of them
+    // has a leader on this mailbox and an unscoped "to: leader" is accepted by
+    // all four. Only the ambiguous alias, and only from a sender that carries
+    // an explicit owning stamp — see `scopeAgentMailToOwningSession`.
+    ...(typeof ctx.meta['sessionId'] === 'string' &&
+    (ctx.meta['sessionId'] as string).length > 0 &&
+    delivery.to.trim().toLowerCase() === 'leader'
+      ? { sessionAffinity: { sessionId } }
+      : {}),
   });
 
   return {

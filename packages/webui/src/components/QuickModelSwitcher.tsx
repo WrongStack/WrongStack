@@ -51,8 +51,10 @@ export function QuickModelSwitcher() {
   }, [open]);
 
   const wsUrl = useConfigStore((s) => s.wsUrl);
-  const currentProvider = useConfigStore((s) => s.provider);
-  const currentModel = useConfigStore((s) => s.model);
+  const fallbackProvider = useConfigStore((s) => s.provider);
+  const fallbackModel = useConfigStore((s) => s.model);
+  const currentProvider = useSessionStore((s) => s.session?.provider ?? fallbackProvider);
+  const currentModel = useSessionStore((s) => s.session?.model ?? fallbackModel);
   const paletteOpen = useUIStore((s) => s.paletteOpen);
   // Destructure the stable action callbacks from useWebSocket() so we
   // can list them as effect deps without re-firing on every render.

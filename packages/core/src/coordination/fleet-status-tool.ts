@@ -62,7 +62,8 @@ export function makeFleetStatusTool(opts: FleetStatusToolOptions = {}): Tool {
       'sessions, branches, and linked Git worktrees): who is online, what task each is on, which tool is running, ' +
       'and progress counters. Check it before starting work that might overlap with a peer, ' +
       'when deciding whether to wait for someone or proceed, or when a task mentions ' +
-      'another agent. Read-only. To talk to a peer, use mail_send with the returned id.',
+      'another agent. Read-only. Same-session talk: session_note with the returned id. ' +
+      'Durable cross-session mail: mail_send.',
     usageHint: 'fleet_status  (optionally: onlineOnly=false to include recently-offline agents)',
     category: 'Coordination',
     permission: 'auto',

@@ -273,7 +273,8 @@ export interface LocalPrefs {
  * Must stay in step with `SESSION_SCOPED_PREF_KEYS` on the server
  * (`webui-server/src/server/prefs-handlers.ts`) — the server already keys
  * these off the calling tab's context meta, and a client that treats them as
- * global shows tab 1's autonomy while tab 3 is on screen.
+ * global shows tab 1's autonomy while tab 3 is on screen. Parity is enforced
+ * by `tests/server/session-scoped-prefs-parity.test.ts`, not by memory.
  */
 export const SESSION_SCOPED_PREFS = [
   'autonomy',

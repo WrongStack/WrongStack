@@ -1580,9 +1580,26 @@ kbd {
  * Pair with `inert` + `aria-hidden` on the element so a parked view can be
  * neither focused nor read out.
  */
+.ws-view-pane {
+  transition: opacity 140ms ease;
+}
+
 .ws-view-parked {
   position: absolute;
   inset: 0;
   visibility: hidden;
   pointer-events: none;
+  /* Crossfade for pane swaps (leader ↔ agent tabs): the pane fades out and
+     only then leaves visibility, while the incoming pane is revealed at once
+     and fades in — the destination state's transition rules drive this, so
+     parking fades-then-hides and un-parking shows-then-fades-in. */
+  opacity: 0;
+  transition: opacity 140ms ease, visibility 0s linear 140ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-view-pane,
+  .ws-view-parked {
+    transition: none;
+  }
 }

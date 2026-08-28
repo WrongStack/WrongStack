@@ -166,9 +166,8 @@ export const useChatLanes = create<ChatLanesState>()(
     }),
     {
       name: 'wrongstack-chat-lanes',
-      version: 1,
+      version: 2,
       partialize: (s) => ({
-        activeSessionId: s.activeSessionId,
         lanes: Object.fromEntries(
           Object.entries(s.lanes)
             .slice(0, MAX_LANES)
@@ -215,10 +214,7 @@ export const useChatLanes = create<ChatLanesState>()(
         return {
           ...current,
           lanes,
-          activeSessionId:
-            typeof p.activeSessionId === 'string' && p.activeSessionId
-              ? p.activeSessionId
-              : DEFAULT_LANE_ID,
+          activeSessionId: DEFAULT_LANE_ID,
         };
       },
       onRehydrateStorage: () => (_state, error) => {
@@ -283,16 +279,17 @@ export function onLaneDisposed(fn: (sessionId: string) => void): () => void {
 
 export function disposeLane(sessionId: string): void {
   const lane = useChatLanes.getState().lanes[sessionId];
-  if (!lane) return;
-  for (const item of lane.queue) {
-    if (item.itemId !== undefined) cancelDispatchedGraceTimer(item.itemId);
+  if (lane) {
+    for (const item of lane.queue) {
+      if (item.itemId !== undefined) cancelDispatchedGraceTimer(item.itemId);
+    }
+    useChatLanes.setState((s) => {
+      const next = { ...s.lanes };
+      delete next[sessionId];
+      return { lanes: next };
+    });
   }
   actionCache.delete(sessionId);
-  useChatLanes.setState((s) => {
-    const next = { ...s.lanes };
-    delete next[sessionId];
-    return { lanes: next };
-  });
   for (const dispose of laneDisposers) {
     try {
       dispose(sessionId);

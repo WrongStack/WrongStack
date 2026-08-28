@@ -29,6 +29,9 @@ export interface ConfirmModalOptions {
   title: string;
   /** Optional body text shown under the title. */
   message?: string | undefined;
+  /** Optional bullet lines rendered under the message — for warnings that
+   *  must enumerate exactly what is affected (e.g. running subagents). */
+  details?: string[] | undefined;
   /** Label for the confirming button. Default "Confirm". */
   confirmLabel?: string | undefined;
   /** Label for the dismissing button. Default "Cancel". */
@@ -116,6 +119,18 @@ export function ConfirmModalHost() {
         <DialogHeader>
           <DialogTitle>{request?.title}</DialogTitle>
           {request?.message && <DialogDescription>{request.message}</DialogDescription>}
+          {request?.details && request.details.length > 0 && (
+            <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-left text-xs text-foreground/85">
+              {request.details.map((line, i) => (
+                <li key={`${i}-${line}`} className="flex gap-2">
+                  <span aria-hidden="true" className="shrink-0 text-warning">
+                    •
+                  </span>
+                  <span className="min-w-0 break-words">{line}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </DialogHeader>
         <DialogFooter className="gap-2">
           <Button

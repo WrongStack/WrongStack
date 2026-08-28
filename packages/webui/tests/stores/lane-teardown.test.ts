@@ -32,11 +32,16 @@ describe('lane disposal notifies its subscribers', () => {
     off();
   });
 
-  it('does not fire for a lane that was never there', () => {
+  it('fires even when the tab never materialised a chat lane', () => {
+    // Teardown is unconditional on purpose. A tab can be opened, given a
+    // draft, a pref override and an auto-submit streak, and closed again
+    // without ever receiving a chat event — so keying the notification on
+    // "did a chat lane exist" leaked exactly the state of the tabs that did
+    // the least.
     const spy = vi.fn();
     const off = onLaneDisposed(spy);
     disposeLane('never-existed');
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith('never-existed');
     off();
   });
 

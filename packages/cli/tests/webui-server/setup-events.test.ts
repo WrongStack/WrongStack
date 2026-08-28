@@ -68,7 +68,7 @@ describe('CLI setup-events canonical adapter', () => {
     expect(h.flushThinkingDelta).toHaveBeenCalledOnce();
     expect(h.queueTextDelta).toHaveBeenCalledWith('delta', 'session-live');
     expect(h.flushAllStreamBuffers).toHaveBeenCalledOnce();
-    expect(h.broadcast).toHaveBeenCalledWith(
+    expect(h.broadcast.mock.calls.map(([message]) => message)).toContainEqual(
       expect.objectContaining({
         type: 'tool.started',
         payload: expect.objectContaining({ input: { scrubbed: { token: 'secret' } } }),

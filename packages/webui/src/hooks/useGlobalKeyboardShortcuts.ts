@@ -1,10 +1,22 @@
-import { useEffect } from 'react';
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
+import { useEffect } from 'react';
+import {
+  ACTIVITY_SHORTCUT_BY_KEY,
+  navigateToView,
+  openMainView,
+  openPanel,
+  showPanel,
+} from '@/components/activity-bar/nav';
+import { downloadChatAsMarkdown } from '@/components/CommandPalette';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { getWSClient } from '@/lib/ws-client';
-import { useChatStore, useConfigStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
-import { ACTIVITY_SHORTCUT_BY_KEY, navigateToView, openMainView, openPanel, showPanel } from '@/components/activity-bar/nav';
-import { downloadChatAsMarkdown } from '@/components/CommandPalette';
+import {
+  useChatStore,
+  useConfigStore,
+  useHistoryStore,
+  useSessionTabStore,
+  useUIStore,
+} from '@/stores';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
 export interface UseGlobalKeyboardShortcutsOptions {
@@ -94,9 +106,12 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
         const idx = Number(e.key) - 1;
         const entries = useHistoryStore.getState().entries;
         const target = entries[idx];
-        if (target && target.id !== useSessionStore.getState().session?.id) {
+        if (target) {
           e.preventDefault();
-          getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(target.id);
+          const client = getWSClient(useConfigStore.getState().wsUrl);
+          useSessionTabStore.getState().openTab(target.id, {
+            resumeSession: (id) => client?.resumeSession?.(id),
+          });
           return;
         }
       }

@@ -70,6 +70,26 @@
     "jkNavigateTitle": "j/k para navegar",
     "noProvider": "sem-provedor",
     "noModel": "sem-modelo",
-    "memoryContextTitle": "Contexto de memória — memórias SAGE injetadas"
+    "memoryContextTitle": "Contexto de memória — memórias SAGE injetadas",
+    "toolStatsTitle": "Estatísticas de ferramentas"
+  },
+  "toolStats": {
+    "title": "Estatísticas de chamadas de ferramentas",
+    "liveScope": "Esta página · sessões ativas e encerradas",
+    "calls": "Chamadas",
+    "ok": "Sucesso",
+    "failed": "Falhas",
+    "successRate": "Taxa de sucesso",
+    "inFlight": "Em andamento",
+    "totalDuration": "Tempo de ferramentas",
+    "liveSessions": "Abas abertas",
+    "noLiveData": "Nenhuma chamada de ferramenta registrada nesta página ainda. Execute um prompt — as estatísticas aparecem aqui ao vivo, por aba.",
+    "pastSessions": "Sessões anteriores",
+    "running": "{{count}} em execução",
+    "agentToAgent": "Agente-para-agente",
+    "delegations": "{{count}} execução(ões) delegada(s)",
+    "delegationFailed": "{{count}} falha(s)",
+    "delegateToolCalls": "{{count}} ferramentas dentro",
+    "leaderLine": "Líder: {{ok}}✓ {{failed}}✗"
   }
 }

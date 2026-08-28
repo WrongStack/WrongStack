@@ -17,6 +17,14 @@ export {
   setBtwNote,
 } from './btw.js';
 export {
+  buildSessionNoteBlock,
+  consumeSessionNotes,
+  enqueueSessionNote,
+  pendingSessionNoteCount,
+  type SessionNote,
+  type SessionNoteKind,
+} from './session-notes.js';
+export {
   Context,
   type ContextInit,
   type ProviderMemoryEvidence,

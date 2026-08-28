@@ -13,7 +13,10 @@
  * gone (removed/reaped/never spawned), the next probe spawns a fresh one.
  * Probes are `assignInternal`ed, never awaited — the leader is never
  * blocked, and internal tasks stay out of the leader-visible task surface
- * (same treatment as shadow passes).
+ * (same treatment as shadow passes). When the resident `submit_result`s,
+ * this host posts a same-session `session.note` so the leader folds the
+ * findings at its next iteration. Mailbox stays the durable cross-session
+ * channel; it is not the in-session talk path.
  *
  * @module host-explore-companion
  */
@@ -25,11 +28,13 @@ import {
   type Director,
   ExploreCompanion,
   type ExploreCompanionOptions,
+  formatSubagentStructuredReport,
   getSharedProjectMailbox,
   mailboxSessionTag,
+  postSessionNote,
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { SubagentConfig } from '@wrongstack/core/types';
+import type { SubagentConfig, TaskResult } from '@wrongstack/core/types';
 
 /** Config block for the explore-companion host wiring (FleetConfig.exploreCompanion). */
 export interface HostExploreCompanionConfig {
@@ -76,6 +81,10 @@ export function createHostExploreCompanion(
       ...template,
       id: `explore-companion-${sessionTag}`,
       name: 'Explore Companion',
+      // The resident belongs to the conversation it explores for. Without the
+      // stamp the coordinator files it under the host's own session, and every
+      // WebUI tab but the first would see its companion's activity in tab 1.
+      originSessionId: sessionId,
     });
     residentId = subagentId;
     return subagentId;
@@ -103,6 +112,50 @@ export function createHostExploreCompanion(
   };
 
   const companion = new ExploreCompanion(options);
+  const offCompleted = director.on('task.completed', ({ result }) => {
+    if (result.subagentId !== residentId) return;
+    forwardExploreFindings({
+      result,
+      from: options.companionAgentId ?? `${DEFAULT_EXPLORE_COMPANION_AGENT_ID}@${sessionTag}`,
+      sessionId,
+      events,
+    });
+  });
+  const stopWatching = companion.stop.bind(companion);
+  Object.assign(companion, {
+    stop(): void {
+      offCompleted();
+      stopWatching();
+    },
+  });
   companion.start();
   return companion;
+}
+
+function forwardExploreFindings(input: {
+  result: TaskResult;
+  from: string;
+  sessionId: string;
+  events: EventBus;
+}): void {
+  const { result, from, sessionId, events } = input;
+  const raw = result.report
+    ? formatSubagentStructuredReport(result.report)
+    : typeof result.result === 'string'
+      ? result.result
+      : undefined;
+  if (!raw?.trim()) return;
+  try {
+    postSessionNote({
+      sessionId,
+      from,
+      to: 'leader',
+      kind: 'result',
+      subject: '[explore]',
+      body: raw,
+      events,
+    });
+  } catch {
+    // Forwarding must never disturb the leader or the resident.
+  }
 }

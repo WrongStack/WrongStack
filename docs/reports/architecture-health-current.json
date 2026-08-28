@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-27T13:10:57.586Z",
+  "generatedAt": "2026-08-27T22:43:33.407Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,17 +12,17 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3385,
-    "testFiles": 2977,
-    "sourceLines": 814139,
+    "sourceFiles": 3389,
+    "testFiles": 2989,
+    "sourceLines": 817083,
     "workspaceEdges": 128,
-    "moduleEdges": 10470,
+    "moduleEdges": 10504,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
-    "testsWithoutTypecheck": 0,
+    "testsWithoutTypecheck": 1,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 831
+    "testOnlyExports": 834
   },
   "errors": [],
   "packageCycles": [],
@@ -139,7 +139,7 @@
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
       "sourceFiles": 472,
-      "testFiles": 440,
+      "testFiles": 441,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -178,7 +178,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 440
+          "testFiles": 441
         }
       ]
     },
@@ -208,8 +208,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 767,
-      "testFiles": 668,
+      "sourceFiles": 771,
+      "testFiles": 670,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -224,7 +224,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 668
+          "testFiles": 670
         }
       ]
     },
@@ -454,7 +454,7 @@
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
       "sourceFiles": 4,
-      "testFiles": 0,
+      "testFiles": 1,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -801,7 +801,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 476,
-      "testFiles": 365,
+      "testFiles": 370,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -825,7 +825,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 365
+          "testFiles": 370
         }
       ]
     },
@@ -878,7 +878,7 @@
       "name": "@wrongstack/webui-server",
       "dir": "packages/webui-server",
       "sourceFiles": 199,
-      "testFiles": 174,
+      "testFiles": 177,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -904,7 +904,7 @@
         {
           "path": "packages/webui-server/tsconfig.test.json",
           "error": null,
-          "testFiles": 174
+          "testFiles": 177
         }
       ]
     },
@@ -1024,6 +1024,7 @@
           "packages/core/src/extension/extension-points.ts",
           "packages/core/src/extension/registry.ts",
           "packages/core/src/mailbox-attach.ts",
+          "packages/core/src/session-note-attach.ts",
           "packages/core/src/types/plugin.ts"
         ]
       },
@@ -4152,6 +4153,12 @@
         ]
       },
       {
+        "file": "packages/cli/tests/webui-server/route-context-seams.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/cli/tests/webui-server/session-start-payload.test.ts",
         "projects": [
           "root-node"
@@ -5418,6 +5425,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/coordination/session-note-hub.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/coordination/single-instance-mailbox.test.ts",
         "projects": [
           "root-node"
@@ -5797,6 +5810,12 @@
       },
       {
         "file": "packages/core/tests/core/scope-discipline-anchors.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/core/session-notes.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10087,6 +10106,12 @@
       },
       {
         "file": "packages/plugins/tests/webhook-channel.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/session-id.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15984,6 +16009,12 @@
         ]
       },
       {
+        "file": "packages/webui-server/tests/host-seam-parity.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/webui-server/tests/http-server.test.ts",
         "projects": [
           "root-node"
@@ -16207,6 +16238,12 @@
       },
       {
         "file": "packages/webui-server/tests/pending-confirms.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/per-session-answering.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16495,6 +16532,12 @@
       },
       {
         "file": "packages/webui-server/tests/session-routes.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/webui-server/tests/session-seam-arity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -16993,6 +17036,12 @@
       },
       {
         "file": "packages/webui/tests/components/design-gallery-view.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/design-studio-panel-per-tab.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -17574,6 +17623,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/workspace-dock.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/hooks/background-tool-confirm.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18120,6 +18175,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/lib/session-scoped-send-stamping.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/lib/stream-coalescer.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18546,6 +18607,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/server/session-scoped-prefs-parity.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/server/setup-events-watcher.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18858,6 +18925,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/stores/session-catalogue-current-tab.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/stores/session-store.test.ts",
         "projects": [
           "webui-jsdom"
@@ -18949,7 +19022,15 @@
       }
     ],
     "invalidRuntime": [],
-    "withoutTypecheck": [],
+    "withoutTypecheck": [
+      {
+        "file": "packages/primitives/tests/session-id.test.ts",
+        "runtimeProjects": [
+          "root-node"
+        ],
+        "typecheckProjects": []
+      }
+    ],
     "multipleTypechecks": []
   },
   "unresolvedRelativeImports": [
@@ -19181,7 +19262,7 @@
     },
     {
       "file": "packages/core/src/core/system-prompt-builder.ts",
-      "lines": 880,
+      "lines": 889,
       "relativeImports": 24
     },
     {
@@ -19221,8 +19302,8 @@
     },
     {
       "file": "packages/core/src/index.ts",
-      "lines": 1038,
-      "relativeImports": 161
+      "lines": 1047,
+      "relativeImports": 163
     },
     {
       "file": "packages/core/src/plugin/api.ts",
@@ -19521,7 +19602,7 @@
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1080,
+      "lines": 1085,
       "relativeImports": 18
     },
     {
@@ -19536,13 +19617,18 @@
     },
     {
       "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1035,
+      "lines": 1046,
       "relativeImports": 2
     },
     {
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
       "lines": 1063,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/webui/src/components/FileExplorer.tsx",
+      "lines": 845,
+      "relativeImports": 6
     },
     {
       "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
@@ -19561,7 +19647,7 @@
     },
     {
       "file": "packages/webui/src/components/SettingsPanel/BrainSection.tsx",
-      "lines": 986,
+      "lines": 1001,
       "relativeImports": 6
     },
     {
@@ -19576,7 +19662,7 @@
     },
     {
       "file": "packages/webui/src/components/SidePanel/SessionList.tsx",
-      "lines": 930,
+      "lines": 932,
       "relativeImports": 0
     },
     {
@@ -19601,17 +19687,17 @@
     },
     {
       "file": "packages/webui/src/stores/chat-lanes.ts",
-      "lines": 919,
+      "lines": 916,
       "relativeImports": 4
     },
     {
       "file": "packages/webui/src/stores/local-prefs.ts",
-      "lines": 853,
+      "lines": 854,
       "relativeImports": 0
     },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
-      "lines": 817,
+      "lines": 1279,
       "relativeImports": 4
     },
     {
@@ -19620,8 +19706,13 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/webui/src/types/client-message.ts",
+      "lines": 800,
+      "relativeImports": 7
+    },
+    {
       "file": "packages/webui/src/types/server-message.ts",
-      "lines": 982,
+      "lines": 1032,
       "relativeImports": 10
     },
     {
@@ -19650,8 +19741,13 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/webui-server/src/server/embedded-message-router.ts",
+      "lines": 806,
+      "relativeImports": 52
+    },
+    {
       "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 916,
+      "lines": 1048,
       "relativeImports": 3
     },
     {
@@ -19666,12 +19762,12 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 865,
+      "lines": 890,
       "relativeImports": 45
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1236,
+      "lines": 1360,
       "relativeImports": 10
     },
     {
@@ -19702,14 +19798,19 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/webui-server/src/server/session-handlers.ts",
+      "lines": 1360,
+      "relativeImports": 10
+    },
+    {
       "file": "packages/core/src/chronicle/query.ts",
       "lines": 1297,
       "relativeImports": 3
     },
     {
-      "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1236,
-      "relativeImports": 10
+      "file": "packages/webui/src/stores/ui-store.ts",
+      "lines": 1279,
+      "relativeImports": 4
     },
     {
       "file": "packages/webui/src/lib/ws-client.ts",
@@ -19733,7 +19834,7 @@
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
-      "lines": 1080,
+      "lines": 1085,
       "relativeImports": 18
     },
     {
@@ -19762,9 +19863,19 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/webui-server/src/server/file-handlers.ts",
+      "lines": 1048,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/core/src/index.ts",
-      "lines": 1038,
-      "relativeImports": 161
+      "lines": 1047,
+      "relativeImports": 163
+    },
+    {
+      "file": "packages/webui/src/components/ContextDashboard.tsx",
+      "lines": 1046,
+      "relativeImports": 2
     },
     {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
@@ -19775,11 +19886,6 @@
       "file": "packages/tui/src/components/kanban-panel.tsx",
       "lines": 1036,
       "relativeImports": 4
-    },
-    {
-      "file": "packages/webui/src/components/ContextDashboard.tsx",
-      "lines": 1035,
-      "relativeImports": 2
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
@@ -19800,6 +19906,11 @@
       "file": "packages/webui-server/src/server/start-webui.ts",
       "lines": 1032,
       "relativeImports": 28
+    },
+    {
+      "file": "packages/webui/src/types/server-message.ts",
+      "lines": 1032,
+      "relativeImports": 10
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
@@ -19862,6 +19973,11 @@
       "relativeImports": 2
     },
     {
+      "file": "packages/webui/src/components/SettingsPanel/BrainSection.tsx",
+      "lines": 1001,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/tui/src/components/agents-monitor.tsx",
       "lines": 999,
       "relativeImports": 14
@@ -19907,11 +20023,6 @@
       "relativeImports": 9
     },
     {
-      "file": "packages/webui/src/components/SettingsPanel/BrainSection.tsx",
-      "lines": 986,
-      "relativeImports": 6
-    },
-    {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 984,
       "relativeImports": 3
@@ -19927,24 +20038,9 @@
       "relativeImports": 14
     },
     {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 982,
-      "relativeImports": 10
-    },
-    {
       "file": "packages/webui/src/components/KanbanTaskInspector.tsx",
       "lines": 980,
       "relativeImports": 16
-    },
-    {
-      "file": "packages/core/src/execution/eternal-autonomy.ts",
-      "lines": 977,
-      "relativeImports": 8
-    },
-    {
-      "file": "packages/kanban/src/types.ts",
-      "lines": 975,
-      "relativeImports": 1
     }
   ],
   "testOnlyExports": [
@@ -20675,6 +20771,10 @@
     {
       "file": "packages/core/src/coordination/delegate-tool.ts",
       "name": "hintForKind"
+    },
+    {
+      "file": "packages/core/src/coordination/fleet.ts",
+      "name": "EXPLORE_COMPANION_TOOLS"
     },
     {
       "file": "packages/core/src/coordination/mailbox-codecs.ts",
@@ -22713,10 +22813,6 @@
       "name": "toView"
     },
     {
-      "file": "packages/webui-server/src/server/prefs-handlers.ts",
-      "name": "SESSION_SCOPED_PREF_KEYS"
-    },
-    {
       "file": "packages/webui-server/src/server/provider-config-standalone.ts",
       "name": "vaultKeyFileForConfigPath"
     },
@@ -23257,6 +23353,10 @@
       "name": "useGoalStore"
     },
     {
+      "file": "packages/webui/src/stores/local-prefs.ts",
+      "name": "SESSION_SCOPED_PREFS"
+    },
+    {
       "file": "packages/webui/src/stores/memory-lifecycle-store.ts",
       "name": "toMemoryLifecycleItem"
     },
@@ -23270,7 +23370,15 @@
     },
     {
       "file": "packages/webui/src/stores/session-tab-store.ts",
-      "name": "isNeverStartedSession"
+      "name": "readStoredTabs"
+    },
+    {
+      "file": "packages/webui/src/stores/session-tab-store.ts",
+      "name": "TAB_STORAGE_KEY"
+    },
+    {
+      "file": "packages/webui/src/stores/session-tab-store.ts",
+      "name": "writeStoredTabs"
     }
   ]
 }

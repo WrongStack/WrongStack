@@ -6,11 +6,11 @@
  */
 
 import { DiffEditor, loader } from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
 import { Check, Loader2, Save } from 'lucide-react';
+import * as monaco from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getWSClient } from '@/lib/ws-client';
 import { useAppTranslation } from '@/i18n';
+import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
 import './monaco-theme';
@@ -19,10 +19,31 @@ import { getMonacoTheme } from './monaco-theme';
 loader.config({ monaco });
 
 const LANG_MAP: Record<string, string> = {
-  ts: 'typescript', tsx: 'typescript', js: 'javascript', jsx: 'javascript', mjs: 'javascript',
-  json: 'json', css: 'css', scss: 'scss', html: 'html', md: 'markdown', py: 'python',
-  go: 'go', rs: 'rust', java: 'java', c: 'c', cpp: 'cpp', cs: 'csharp', rb: 'ruby',
-  php: 'php', sh: 'shell', bash: 'shell', yml: 'yaml', yaml: 'yaml', toml: 'toml', sql: 'sql',
+  ts: 'typescript',
+  tsx: 'typescript',
+  js: 'javascript',
+  jsx: 'javascript',
+  mjs: 'javascript',
+  json: 'json',
+  css: 'css',
+  scss: 'scss',
+  html: 'html',
+  md: 'markdown',
+  py: 'python',
+  go: 'go',
+  rs: 'rust',
+  java: 'java',
+  c: 'c',
+  cpp: 'cpp',
+  cs: 'csharp',
+  rb: 'ruby',
+  php: 'php',
+  sh: 'shell',
+  bash: 'shell',
+  yml: 'yaml',
+  yaml: 'yaml',
+  toml: 'toml',
+  sql: 'sql',
 };
 
 function guessLanguage(path: string): string {
@@ -52,15 +73,12 @@ export function MonacoDiffView({
     setSavedAt(null);
   }, []);
 
-  const handleMount = useCallback(
-    (editor: monaco.editor.IStandaloneDiffEditor) => {
-      editorRef.current = editor;
-      monaco.editor.setTheme(getMonacoTheme());
-      const modified = editor.getModifiedEditor();
-      modified.onDidChangeModelContent(() => setDirty(true));
-    },
-    [],
-  );
+  const handleMount = useCallback((editor: monaco.editor.IStandaloneDiffEditor) => {
+    editorRef.current = editor;
+    monaco.editor.setTheme(getMonacoTheme());
+    const modified = editor.getModifiedEditor();
+    modified.onDidChangeModelContent(() => setDirty(true));
+  }, []);
 
   const apply = useCallback(() => {
     const content = editorRef.current?.getModifiedEditor().getValue();
@@ -85,7 +103,7 @@ export function MonacoDiffView({
       setSaving(false);
     }, 5000);
 
-    ws.send({ type: 'files.write', payload: { filePath: path, content } });
+    ws.send({ type: 'files.write', payload: ws.withSession({ filePath: path, content }) });
   }, [path]);
 
   const language = guessLanguage(path);
@@ -108,7 +126,11 @@ export function MonacoDiffView({
           ) : (
             <Save className="h-3.5 w-3.5" />
           )}
-          {saving ? t('activity:monacoDiff.applying') : savedAt && !dirty ? t('activity:monacoDiff.applied') : t('activity:monacoDiff.apply')}
+          {saving
+            ? t('activity:monacoDiff.applying')
+            : savedAt && !dirty
+              ? t('activity:monacoDiff.applied')
+              : t('activity:monacoDiff.apply')}
         </button>
       </div>
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">

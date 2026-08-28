@@ -6,6 +6,7 @@ const FILE = { path: 'a/b.ts', status: 'M', added: 3, deleted: 1, staged: false 
 describe('git changes store', () => {
   afterEach(() => {
     useGitChangesStore.getState().clear();
+    useGitChangesStore.setState({ gitChangesSessionId: null, gitChangesBySession: {} });
   });
 
   it('setFiles stores the list, clears the error and stops the spinner', () => {
@@ -65,5 +66,38 @@ describe('git changes store', () => {
     expect(s.selectedPath).toBeNull();
     expect(s.diff).toBeNull();
     expect(s.loadingDiff).toBe(false);
+  });
+
+  it('keeps the selected diff per session while the file list stays global', () => {
+    useGitChangesStore.getState().setFiles([FILE], null);
+    useGitChangesStore.getState().bindSessionGitChanges('sess-a');
+    useGitChangesStore.getState().select('a/b.ts');
+    useGitChangesStore.getState().setDiff({ path: 'a/b.ts', oldText: 'a-old', newText: 'a-new' });
+
+    useGitChangesStore.getState().bindSessionGitChanges('sess-b');
+    expect(useGitChangesStore.getState()).toMatchObject({
+      gitChangesSessionId: 'sess-b',
+      files: [FILE],
+      selectedPath: null,
+      diff: null,
+      loadingDiff: false,
+    });
+
+    useGitChangesStore.getState().select('c/d.ts');
+    useGitChangesStore.getState().bindSessionGitChanges('sess-a');
+    expect(useGitChangesStore.getState()).toMatchObject({
+      gitChangesSessionId: 'sess-a',
+      files: [FILE],
+      selectedPath: 'a/b.ts',
+      diff: { path: 'a/b.ts', newText: 'a-new' },
+      loadingDiff: false,
+    });
+
+    useGitChangesStore.getState().bindSessionGitChanges('sess-b');
+    expect(useGitChangesStore.getState()).toMatchObject({
+      selectedPath: 'c/d.ts',
+      diff: null,
+      loadingDiff: true,
+    });
   });
 });

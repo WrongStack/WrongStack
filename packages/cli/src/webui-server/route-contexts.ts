@@ -14,6 +14,7 @@ import { resolveWstackPaths } from '@wrongstack/core/utils';
 import {
   type BrainHandlerContext,
   type CustomModeStore,
+  createChimeraRouteHandlers,
   createMailboxRouteHandlers,
   type DesignContext,
   type EmbeddedAgentConfigContext,
@@ -77,10 +78,14 @@ export interface RouteContextsParams {
   onSessionsUndisplayed: (sessionIds: string[]) => void;
   /** Stop the subagents one session spawned, when that session is aborted. */
   stopSessionFleet?: ((sessionId: string) => void | Promise<void>) | undefined;
-  getAbortController: () => AbortController | null;
-  clearAbortController: () => void;
   send: (ws: WebSocket, msg: WSServerMessage) => void;
   broadcast: (msg: WSServerMessage) => void;
+  /**
+   * Bypasses the session filter `broadcast` applies. Only the project switch
+   * uses it: that frame names a session created moments earlier, so no
+   * connection can be subscribed to it yet.
+   */
+  broadcastEveryone?: ((msg: WSServerMessage) => void) | undefined;
 }
 
 export function createWebuiRouteContexts({
@@ -104,10 +109,9 @@ export function createWebuiRouteContexts({
   clients,
   onSessionsUndisplayed,
   stopSessionFleet,
-  getAbortController,
-  clearAbortController,
   send,
   broadcast,
+  broadcastEveryone,
 }: RouteContextsParams) {
   const brainCtx: BrainHandlerContext = {
     brainSettings: opts.brainSettings,
@@ -125,6 +129,15 @@ export function createWebuiRouteContexts({
   const introspectionConfigStore = opts.agent.container?.safeResolve?.(TOKENS.ConfigStore);
   const introspectionCtx: IntrospectionRouteContext = {
     agent: opts.agent,
+    // Answer `diag.get` / `stats.get` / `side_effects.list` from the agent that
+    // owns the ASKING session. `opts.agent` is the leader, i.e. whichever tab
+    // the runtime last switched to, so a background tab asking for its own
+    // stats got the foreground's numbers stamped with the foreground's id —
+    // which the browser's session filter then dropped, leaving the panel blank.
+    // Read path, so `peek` first: `getAgent` creates, and materialising an
+    // agent for a stale id can evict a live tab's.
+    getAgent: (sessionId?: string) =>
+      peekSessionAgent?.(sessionId) ?? (sessionId ? getSessionAgent(sessionId) : opts.agent),
     modelsRegistry: opts.modelsRegistry,
     configStore: introspectionConfigStore,
     getConfig: () => {
@@ -289,16 +302,21 @@ export function createWebuiRouteContexts({
     getForegroundSession,
     setForegroundSession,
     abortControllers,
+    // Switching projects re-roots the server, so every conversation's run
+    // has to stop — there is no single "legacy" run to cancel here. The name
+    // is the shared context's; this host answers it with the only registry it
+    // has, one controller per tab. It used to read a process-wide controller
+    // that nothing ever set, so the teardown ran on nothing.
     abortLegacyRun: () => {
-      const controller = getAbortController();
-      if (controller) {
-        controller.abort();
-        clearAbortController();
-      }
+      for (const controller of abortControllers.values()) controller.abort();
+      abortControllers.clear();
     },
     buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
     send,
     broadcast,
+    // A project switch re-roots the whole server; it is the one announcement
+    // that must reach connections which are displaying something else.
+    ...(broadcastEveryone ? { broadcastEveryone } : {}),
     log: (m) => console.log(m),
   };
 
@@ -309,6 +327,22 @@ export function createWebuiRouteContexts({
       '',
     getGlobalRoot: () => (opts.globalConfigPath ? path.dirname(opts.globalConfigPath) : ''),
     events: opts.events,
+  });
+
+  const chimeraRoutes = createChimeraRouteHandlers({
+    // Same lazily-resolved layout the mailbox routes read roots through:
+    // projectDir is the per-project WrongStack home where review-reports.jsonl
+    // lives. A project switch re-roots it, hence the getter.
+    projectDir: () =>
+      resolveWstackPaths({
+        projectRoot:
+          opts.projectRoot ??
+          (opts.agent.ctx as { projectRoot?: string | undefined }).projectRoot ??
+          '',
+        globalRoot: opts.globalConfigPath ? path.dirname(opts.globalConfigPath) : '',
+      }).projectDir,
+    send,
+    log: (m) => console.warn(m),
   });
 
   const sessionsCtx: EmbeddedSessionContext = {
@@ -358,6 +392,7 @@ export function createWebuiRouteContexts({
     prefsCtx,
     projectsCtx,
     mailboxRoutes,
+    chimeraRoutes,
     sessionsCtx,
     connectionCtx,
   };

@@ -68,6 +68,8 @@ export const domainMethods = {
    * session id made the server read it as "the session being replaced", so
    * it aborted that session's in-flight run and closed its journal writer.
    * Retiring a session alongside the new one is opt-in via `replaceSessionId`.
+   *
+   * session-stamping: deliberately-unstamped
    */
   newSession(
     this: WsClientDomainHost,

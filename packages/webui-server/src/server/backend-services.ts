@@ -183,6 +183,8 @@ interface AgentServices {
    * could evict a live tab's.
    */
   peekAgent?: (sessionId?: string) => Agent | undefined;
+  /** Conversations holding a live agent — see `WebuiDeps.sessionAgentIds`. */
+  sessionAgentIds?: () => string[];
   /** Does this host already hold an open journal writer for that session? */
   isSessionLive?: (sessionId: string) => boolean;
   permissionPolicy: PermissionPolicy;
@@ -903,6 +905,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     // about a stale session id used to materialise an agent for it and could
     // evict a live tab's.
     peekAgent: (sessionId?: string) => sessionAgents.peek(sessionId),
+    // Conversations holding a live agent. A setting that belongs to the whole
+    // project has to reach every one of them, not just the leader.
+    sessionAgentIds: () => sessionAgents.ids(),
     isSessionLive: (sessionId: string) => sessionAgents.isLive(sessionId),
     permissionPolicy,
     pipelines,

@@ -146,7 +146,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * spawned (a caller reporting `completeTask` for an unknown worker); a
    * subagent this coordinator created always has its own stamp.
    */
-  private sessionOf(subagentId: string): string {
+  sessionOf(subagentId: string): string {
     const entry = this.subagents.get(subagentId);
     if (entry) return entry.sessionId;
     return this.currentSessionId();
@@ -273,9 +273,14 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       maxConcurrent: this.config.maxConcurrent ?? 16,
     };
 
-    // Read the host's session ONCE, here, and keep it. From this line on the
-    // worker belongs to that session no matter which tab is in front later.
-    const sessionId = this.currentSessionId();
+    // Capture the owning session ONCE, here, and keep it. From this line on
+    // the worker belongs to that session no matter which tab is in front
+    // later. `originSessionId` is the caller's answer — the run-pinned session
+    // of whoever asked for the spawn — and it is the only correct one when
+    // several conversations share this coordinator: the host's own reading
+    // names the process's boot session, not the tab that delegated. Hosts
+    // spawning for themselves pass nothing and keep the live reading.
+    const sessionId = cfg.originSessionId ?? this.currentSessionId();
 
     this.subagents.set(id, {
       config: { ...cfg, id },

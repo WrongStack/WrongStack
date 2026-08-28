@@ -221,22 +221,21 @@ export function ChatInput({
       useUIStore.getState().setRefinePanel(null);
       if (panelOwner) {
         const saved = sessionDraftMap.get(panelOwner) ?? { input: '', images: [], refs: [] };
-        if (!saved.input.trim()) {
-          sessionDraftMap.set(panelOwner, { ...saved, input: panel.original });
-        }
+        sessionDraftMap.set(panelOwner, { ...saved, input: panel.original });
       }
     }
 
     if (sessionId && sessionDraftMap.has(sessionId)) {
       const saved = sessionDraftMap.get(sessionId)!;
-      setInput(saved.input);
+      const projectedDraft = useUIStore.getState().draftInput;
+      setInput(saved.input.trim() ? saved.input : projectedDraft);
       setPendingImages(saved.images);
       clearRefs();
       for (const r of saved.refs) {
         useFileReferenceStore.getState().addRef(r);
       }
     } else {
-      setInput('');
+      setInput(sessionId ? useUIStore.getState().draftInput : '');
       clearPendingImages();
       clearRefs();
     }
@@ -976,8 +975,14 @@ export function ChatInput({
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
+        data-session-id={sessionId ?? undefined}
+        data-running={isLoading ? 'true' : 'false'}
+        data-chat-started={chatStarted ? 'true' : 'false'}
+        data-has-draft={input.trim() || pendingImages.length > 0 ? 'true' : 'false'}
         className={cn(
           'relative flex flex-col gap-2 rounded-xl border border-border/70 bg-background/85 p-2 shadow-lg shadow-black/5 transition-colors sm:flex-row sm:items-end',
+          isLoading && 'border-warning/45 bg-warning/5 shadow-warning/10',
+          !chatStarted && !isLoading && 'border-border/50 bg-card/55 shadow-none',
           draggingOver && 'ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/5',
         )}
       >

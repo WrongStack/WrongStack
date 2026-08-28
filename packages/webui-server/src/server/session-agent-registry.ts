@@ -23,6 +23,7 @@
 import { Agent, Context } from '@wrongstack/core/agent';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { ModelsRegistry, SessionStore, TokenCounter } from '@wrongstack/core/types';
+import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 
 /** Session-writer shape, as `SessionStore.create()` produces it. */
 type Session = Awaited<ReturnType<SessionStore['create']>>;
@@ -130,6 +131,29 @@ export function createSessionTokenCounter(opts: {
   };
 }
 
+/**
+ * The part of the leader's meta a NEW conversation may inherit.
+ *
+ * Host-level facts (mode, feature flags, the resolved window size) describe the
+ * project, so a fresh tab starts configured rather than bare. The
+ * SESSION-SCOPED PREFERENCES are removed, and that is the point: they are
+ * per-conversation by design (YOLO, autonomy, the iteration ceiling, the
+ * context strategy, the Lite/Standard/Pro identity), and the leader's meta is
+ * not the project's copy of them — it is whatever the FIRST TAB last chose.
+ * Copying it started a brand-new conversation under another tab's settings,
+ * YOLO included. Each of those keys already falls back to the project default
+ * when absent, so leaving them off is exactly "starts clean"; the tab's own
+ * first choice writes its own.
+ */
+export function inheritedSessionMeta(rootMeta: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(rootMeta)) {
+    if (SESSION_SCOPED_PREF_KEYS.has(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 const DEFAULT_MAX_AGENTS = 4;
 
 export function createSessionAgentRegistry(
@@ -141,6 +165,24 @@ export function createSessionAgentRegistry(
 
   const bootSessionId = template.ctx.session?.id;
   if (bootSessionId) agents.set(bootSessionId, template);
+
+  /**
+   * Agents the cap actually governs.
+   *
+   * The leader's own agent is pinned — `evictOneIdle` skips it and `drop`
+   * refuses it — so counting it against the budget spent a slot that could
+   * never be reclaimed: four tabs plus the pinned entry read as "over cap" and
+   * evicted a tab the user still had open. (It reads as over-cap on its own
+   * the moment the leader's context moves to a new session, which
+   * `session.new` does, leaving the previous id behind as an ordinary entry.)
+   * Budgeting only what can be evicted keeps the ceiling honest.
+   */
+  const evictableCount = (): number => {
+    const pinned = template.ctx.session?.id;
+    let n = 0;
+    for (const key of agents.keys()) if (key !== pinned) n++;
+    return n;
+  };
 
   const evictOneIdle = (): void => {
     // Evict the oldest IDLE session. A running one owns a live transcript that
@@ -210,10 +252,20 @@ export function createSessionAgentRegistry(
       tools: root.tools,
       catalogTools: root.catalogTools,
     });
-    // Host-level facts (mode, context-window mode, feature flags) describe the
+    // Host-level facts (mode, feature flags, resolved window size) describe the
     // project, not one tab — copied so a new tab starts configured rather than
     // bare. Per-run state is NOT copied: it belongs to the tab that earned it.
-    Object.assign(sessionCtx.meta, root.meta);
+    //
+    // The SESSION-SCOPED PREFERENCES are excluded, and that is the point of the
+    // filter. They are per-conversation by design (YOLO, autonomy, the
+    // iteration ceiling, the context strategy, the Lite/Standard/Pro identity),
+    // and `root.meta` is not the project's copy of them — it is the LEADER's
+    // live copy, i.e. whatever tab 1 last chose. Copying it made a brand-new
+    // conversation start under another tab's settings, YOLO included, instead
+    // of the project defaults. Each of these keys already falls back to the
+    // project default when absent, so leaving them off is what "starts clean"
+    // means; the tab's own first choice writes its own.
+    Object.assign(sessionCtx.meta, inheritedSessionMeta(root.meta));
 
     const agent = new Agent({
       container: template.container,
@@ -245,7 +297,7 @@ export function createSessionAgentRegistry(
         agents.set(sessionId, template);
         return template;
       }
-      if (agents.size >= cap) evictOneIdle();
+      if (evictableCount() >= cap) evictOneIdle();
       const agent = build(sessionId);
       agents.set(sessionId, agent);
       return agent;

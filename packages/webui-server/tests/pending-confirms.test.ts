@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isDestructivePendingConfirm,
   resolveAllPendingConfirms,
+  resolvePendingConfirmsForSession,
   resolveYoloEligiblePendingConfirms,
 } from '../src/server/pending-confirms.js';
 
@@ -146,5 +147,41 @@ describe('pending-confirms', () => {
       // conversation it could belong to.
       expect(answered).toEqual(['yes']);
     });
+  });
+});
+
+/**
+ * A prompt parked on a tab that was then closed is unanswerable: the lane
+ * holding it is disposed client-side, and the blanket drain only runs when the
+ * LAST socket disconnects. Left pending it wedges `agent.run`, whose lock then
+ * blocks `session.delete` forever.
+ */
+describe('resolvePendingConfirmsForSession', () => {
+  it('answers only the prompts owned by the closed session', () => {
+    const answered: Array<[string, string]> = [];
+    const map = new Map([
+      ['a', { resolve: (d: string) => answered.push(['a', d]), sessionId: 'sess_closed' }],
+      ['b', { resolve: (d: string) => answered.push(['b', d]), sessionId: 'sess_open' }],
+      ['c', { resolve: (d: string) => answered.push(['c', d]), sessionId: 'sess_closed' }],
+    ] as never);
+
+    expect(resolvePendingConfirmsForSession(map as never, 'sess_closed')).toBe(2);
+    expect(answered).toEqual([
+      ['a', 'no'],
+      ['c', 'no'],
+    ]);
+    expect([...map.keys()]).toEqual(['b']);
+  });
+
+  it('leaves prompts with no recorded owner alone', () => {
+    const map = new Map([['a', { resolve: () => {} }]] as never);
+    expect(resolvePendingConfirmsForSession(map as never, 'sess_closed')).toBe(0);
+    expect(map.size).toBe(1);
+  });
+
+  it('is a no-op for an empty session id', () => {
+    const map = new Map([['a', { resolve: () => {}, sessionId: 'sess_a' }]] as never);
+    expect(resolvePendingConfirmsForSession(map as never, '')).toBe(0);
+    expect(map.size).toBe(1);
   });
 });

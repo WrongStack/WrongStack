@@ -58,6 +58,11 @@ describe('files + mailbox ws-handler map', () => {
       activeFilePath: null,
       treeLoading: false,
       error: null,
+      targetLine: null,
+      projectIdentity: '',
+      hydratingPaths: new Set<string>(),
+      fileSessionId: null,
+      filesBySession: {},
     } as never);
   });
 
@@ -251,6 +256,27 @@ describe('files + mailbox ws-handler map', () => {
       expect(s.tree).toEqual(tree);
       expect(s.projectRoot).toBe('/old');
     });
+
+    it('routes a background session tree into its own file lane', () => {
+      const activeTree = [{ name: 'active', path: 'active', type: 'dir' }];
+      const backgroundTree = [{ name: 'background', path: 'background', type: 'dir' }];
+      useFileStore.getState().bindSessionFiles('sess-a');
+      useFileStore.getState().setTree('/repo-a', activeTree as never);
+
+      handleFilesTree(
+        msg('files.tree', { root: '/repo-b', tree: backgroundTree, sessionId: 'sess-b' }),
+      );
+
+      const s = useFileStore.getState();
+      expect(s.fileSessionId).toBe('sess-a');
+      expect(s.projectRoot).toBe('/repo-a');
+      expect(s.tree).toEqual(activeTree);
+      expect(s.filesBySession['sess-b']).toMatchObject({
+        projectRoot: '/repo-b',
+        tree: backgroundTree,
+        treeLoading: false,
+      });
+    });
   });
 
   describe('files.read', () => {
@@ -269,6 +295,55 @@ describe('files + mailbox ws-handler map', () => {
       expect(s.error).toBe('ENOENT');
       expect(s.openFiles).toEqual([]);
       expect(s.activeFilePath).toBeNull();
+    });
+
+    it('opens a background session file without stealing the active tab editor', () => {
+      useFileStore.getState().bindSessionFiles('sess-a');
+      useFileStore.getState().openFile('a.ts', 'active');
+
+      handleFilesRead(
+        msg('files.read', { filePath: 'b.ts', content: 'background', sessionId: 'sess-b' }),
+      );
+
+      const s = useFileStore.getState();
+      expect(s.fileSessionId).toBe('sess-a');
+      expect(s.activeFilePath).toBe('a.ts');
+      expect(s.openFiles).toEqual([
+        { path: 'a.ts', content: 'active', dirty: false, savedContent: 'active' },
+      ]);
+      expect(s.filesBySession['sess-b']?.activeFilePath).toBe('b.ts');
+      expect(s.filesBySession['sess-b']?.openFiles).toEqual([
+        { path: 'b.ts', content: 'background', dirty: false, savedContent: 'background' },
+      ]);
+    });
+  });
+
+  describe('reconcileFileTabsAfterEnvChange', () => {
+    it('hydrates background session file stubs without touching the active file lane', () => {
+      useFileStore.getState().bindSessionFiles('sess-a');
+      useFileStore.getState().openFile('active.ts', 'active');
+      useFileStore.getState().bindSessionFiles('sess-b');
+      useFileStore.setState({
+        openFiles: [{ path: 'background.ts', content: '', dirty: false, savedContent: '' }],
+        activeFilePath: 'background.ts',
+        projectIdentity: '/repo',
+      } as never);
+      useFileStore.getState().bindSessionFiles('sess-a');
+      send.mockReset();
+
+      handlers.reconcileFileTabsAfterEnvChange('/repo', 'sess-b');
+
+      const s = useFileStore.getState();
+      expect(s.fileSessionId).toBe('sess-a');
+      expect(s.openFiles).toEqual([
+        { path: 'active.ts', content: 'active', dirty: false, savedContent: 'active' },
+      ]);
+      expect(s.hydratingPaths.size).toBe(0);
+      expect(s.filesBySession['sess-b']?.hydratingPaths.has('background.ts')).toBe(true);
+      expect(send).toHaveBeenCalledWith({
+        type: 'files.read',
+        payload: { filePath: 'background.ts', sessionId: 'sess-b' },
+      });
     });
   });
 

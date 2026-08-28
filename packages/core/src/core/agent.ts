@@ -302,6 +302,13 @@ export class Agent {
           const onlineAgents = Array.isArray(this.ctx.meta['promptOnlineAgents'])
             ? (this.ctx.meta['promptOnlineAgents'] as NonNullable<BuildContext['onlineAgents']>)
             : undefined;
+          // The identity variant is THIS conversation's, not the process's.
+          // Without it the refresh rebuilt every tab's prompt from the boot
+          // variant, silently undoing a Lite/Pro choice on that tab's very
+          // next turn — the builder is one shared instance and took the
+          // variant once, at construction.
+          const systemVariant = this.ctx.meta['systemPromptVariant'];
+          const autonomy = this.ctx.meta['autonomy'];
           this.ctx.systemPrompt = await builder.build({
             cwd: this.ctx.cwd,
             projectRoot: this.ctx.projectRoot,
@@ -310,6 +317,10 @@ export class Agent {
             provider: this.ctx.provider.id,
             model: opts.model ?? this.ctx.model,
             onlineAgents,
+            ...(systemVariant === 'lite' || systemVariant === 'pro' || systemVariant === 'default'
+              ? { systemVariant }
+              : {}),
+            ...(typeof autonomy === 'string' ? { autonomy } : {}),
           });
         }
       }

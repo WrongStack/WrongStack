@@ -1,9 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import {
-  selectSortedAgentList,
-  shallow,
-  useFleetStore,
-} from '../../src/stores/fleet-store';
+import { selectSortedAgentList, shallow, useFleetStore } from '../../src/stores/fleet-store';
 
 /**
  * Transcript merging, leader hand-off, session-scoped queries and the
@@ -188,7 +184,12 @@ describe('session-scoped queries', () => {
   });
 
   it('returns only agents belonging to the session', () => {
-    expect(useFleetStore.getState().getAgentsBySession('sess_a').map((a) => a.id)).toEqual(['sa1']);
+    expect(
+      useFleetStore
+        .getState()
+        .getAgentsBySession('sess_a')
+        .map((a) => a.id),
+    ).toEqual(['sa1']);
   });
 
   it('returns nothing for an unknown session', () => {
@@ -199,7 +200,9 @@ describe('session-scoped queries', () => {
 describe('clearFinishedAgents', () => {
   /** `spawned` always lands as running; `task_completed` carries the outcome. */
   function spawn(id: string, status?: string) {
-    useFleetStore.getState().applyEvent({ kind: 'spawned', subagentId: id, name: id } as never);
+    useFleetStore
+      .getState()
+      .applyEvent({ kind: 'spawned', subagentId: id, name: id, sessionId: 'sess-a' } as never);
     if (status) {
       useFleetStore
         .getState()
@@ -212,7 +215,7 @@ describe('clearFinishedAgents', () => {
     spawn('done', 'success');
     spawn('bad', 'failed');
 
-    useFleetStore.getState().clearFinishedAgents();
+    useFleetStore.getState().clearFinishedAgents('sess-a');
     const ids = [...useFleetStore.getState().agents.keys()];
     expect(ids).toEqual(['run']);
   });
@@ -228,7 +231,7 @@ describe('clearFinishedAgents', () => {
       ts: '2026-01-01T00:00:00.000Z',
     } as never);
 
-    useFleetStore.getState().clearFinishedAgents();
+    useFleetStore.getState().clearFinishedAgents('sess-a');
     expect(useFleetStore.getState().getAgentTranscript('done')).toEqual([]);
   });
 });

@@ -1,5 +1,6 @@
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
+import { messageSessionId } from '@/lib/ws-client-utils';
 import { useFileStore, useSessionStore } from '@/stores';
 import type { TreeNode } from '@/stores/file-store';
 import { type MailboxAgent, type MailboxMessage, useMailboxStore } from '@/stores/mailbox-store';
@@ -29,6 +30,21 @@ function debouncedRefresh(): void {
 
 export { debouncedRefresh, queryMailbox };
 
+function withSessionPayload<T extends Record<string, unknown>>(
+  payload: T,
+  sessionId: string | null | undefined,
+): T & { sessionId?: string } {
+  return sessionId ? { ...payload, sessionId } : payload;
+}
+
+function isHydratingFile(filePath: string, sessionId: string | null): boolean {
+  const store = useFileStore.getState();
+  if (sessionId && store.fileSessionId !== sessionId) {
+    return store.filesBySession[sessionId]?.hydratingPaths.has(filePath) ?? false;
+  }
+  return store.hydratingPaths.has(filePath);
+}
+
 /**
  * Reconcile rehydrated editor tabs once the server environment is known.
  *
@@ -42,73 +58,107 @@ export { debouncedRefresh, queryMailbox };
  * restored. Re-fetch responses route through `hydrateFileContent`, which
  * never steals focus and never overwrites mid-flight user edits.
  */
-export function reconcileFileTabsAfterEnvChange(projectRoot: string): void {
+export function reconcileFileTabsAfterEnvChange(
+  projectRoot: string,
+  sessionId = useSessionStore.getState().session?.id ?? null,
+): void {
   const store = useFileStore.getState();
-  if (store.openFiles.length === 0) {
-    store.setProjectIdentity(projectRoot);
+  const fileSession =
+    sessionId && store.fileSessionId !== sessionId ? store.filesBySession[sessionId] : store;
+  const openFiles = fileSession?.openFiles ?? [];
+  const projectIdentity = fileSession?.projectIdentity ?? '';
+  if (openFiles.length === 0) {
+    store.setProjectIdentity(projectRoot, sessionId);
     return;
   }
-  if (store.projectIdentity && store.projectIdentity !== projectRoot) {
-    store.clearOpenTabs();
-    store.setProjectIdentity(projectRoot);
+  if (projectIdentity && projectIdentity !== projectRoot) {
+    store.clearOpenTabs(sessionId);
+    store.setProjectIdentity(projectRoot, sessionId);
     return;
   }
-  store.setProjectIdentity(projectRoot);
-  const stubPaths = store.openFiles
-    .filter((f) => f.content === '' && !f.dirty)
-    .map((f) => f.path);
+  store.setProjectIdentity(projectRoot, sessionId);
+  const stubPaths = openFiles.filter((f) => f.content === '' && !f.dirty).map((f) => f.path);
   if (stubPaths.length === 0) return;
-  useFileStore.setState({ hydratingPaths: new Set(stubPaths) });
+  useFileStore.getState().setHydratingPaths(stubPaths, sessionId);
   const ws = getWSClient();
   for (const filePath of stubPaths) {
-    ws?.send?.({ type: 'files.read', payload: { filePath } });
+    ws?.send?.({
+      type: 'files.read',
+      payload: withSessionPayload({ filePath }, sessionId),
+    });
   }
 }
 
 export function handleFilesTree(msg: WSServerMessage) {
   const p = msg.payload as { root: string; tree: TreeNode[]; error?: string | undefined };
+  const sessionId = messageSessionId(msg);
   if (p.error) {
-    useFileStore.getState().setError(p.error);
+    useFileStore.getState().setError(p.error, sessionId);
     return;
   }
-  useFileStore.getState().setTree(p.root, p.tree);
+  useFileStore.getState().setTree(p.root, p.tree, sessionId);
 }
 
 export function handleFilesRead(msg: WSServerMessage) {
-  const p = msg.payload as { filePath: string; content: string; error?: string | undefined };
+  const p = msg.payload as {
+    filePath: string;
+    content: string;
+    binary?: boolean | undefined;
+    tooLarge?: boolean | undefined;
+    error?: string | undefined;
+  };
+  const sessionId = messageSessionId(msg);
   const store = useFileStore.getState();
   if (p.error) {
     // A hydration read whose file vanished on disk: drop the dead stub
     // instead of leaving an empty tab that the next save would resurrect.
-    if (store.hydratingPaths.has(p.filePath)) {
-      store.hydrateFileFailed(p.filePath);
+    if (isHydratingFile(p.filePath, sessionId)) {
+      store.hydrateFileFailed(p.filePath, sessionId);
       return;
     }
-    store.setError(p.error);
+    store.setError(p.error, sessionId);
+    return;
+  }
+  // Size/binary guard (mirrors handleGitDiff): the server flags these
+  // instead of returning content — never open an editor tab for them. A
+  // rehydrated stub for an unopenable file is a dead tab; drop it like a
+  // vanished file.
+  if (p.binary || p.tooLarge) {
+    if (isHydratingFile(p.filePath, sessionId)) {
+      store.hydrateFileFailed(p.filePath, sessionId);
+      return;
+    }
+    store.setError(
+      p.binary
+        ? `Binary file not displayed: ${p.filePath}`
+        : `File exceeds the 2 MB display limit: ${p.filePath}`,
+      sessionId,
+    );
     return;
   }
   // Hydration reads (rehydrated stub tabs) go through the guarded path:
   // they never steal focus and never overwrite user edits made mid-flight.
-  if (store.hydratingPaths.has(p.filePath)) {
-    store.hydrateFileContent(p.filePath, p.content);
+  if (isHydratingFile(p.filePath, sessionId)) {
+    store.hydrateFileContent(p.filePath, p.content, sessionId);
     return;
   }
-  store.openFile(p.filePath, p.content);
+  store.openFile(p.filePath, p.content, sessionId);
 }
 
 export function handleFilesWritten(msg: WSServerMessage) {
   const p = msg.payload as { filePath: string; success: boolean; error?: string | undefined };
+  const sessionId = messageSessionId(msg);
   if (p.success) {
-    useFileStore.getState().markSaved(p.filePath);
+    useFileStore.getState().markSaved(p.filePath, sessionId);
   } else if (p.error) {
-    useFileStore.getState().setError(`Save failed: ${p.error}`);
+    useFileStore.getState().setError(`Save failed: ${p.error}`, sessionId);
   }
 }
 
 export function handleFilesCreated(msg: WSServerMessage) {
   const p = msg.payload as { filePath: string; success: boolean; error?: string | undefined };
   if (!p.success && p.error) {
-    useFileStore.getState().setError(`Create failed: ${p.error}`);
+    useFileStore.getState().setError(`Create failed: ${p.error}`, messageSessionId(msg));
   }
   // On success, the project watcher broadcasts files.tree.changed
   // which triggers a tree refresh — no explicit action needed here.
@@ -116,11 +166,12 @@ export function handleFilesCreated(msg: WSServerMessage) {
 
 export function handleFilesDeleted(msg: WSServerMessage) {
   const p = msg.payload as { filePath: string; success: boolean; error?: string | undefined };
+  const sessionId = messageSessionId(msg);
   if (p.success) {
     // Close any open editor tab for the deleted file
-    useFileStore.getState().closeFile(p.filePath);
+    useFileStore.getState().closeFile(p.filePath, sessionId);
   } else if (p.error) {
-    useFileStore.getState().setError(`Delete failed: ${p.error}`);
+    useFileStore.getState().setError(`Delete failed: ${p.error}`, sessionId);
   }
 }
 
@@ -131,12 +182,13 @@ export function handleFilesRenamed(msg: WSServerMessage) {
     success: boolean;
     error?: string | undefined;
   };
+  const sessionId = messageSessionId(msg);
   if (p.success) {
     // If the renamed file was open in an editor tab, close the old tab
     // (the tree watcher will refresh and the user can reopen at the new path).
-    useFileStore.getState().closeFile(p.oldPath);
+    useFileStore.getState().closeFile(p.oldPath, sessionId);
   } else if (p.error) {
-    useFileStore.getState().setError(`Rename failed: ${p.error}`);
+    useFileStore.getState().setError(`Rename failed: ${p.error}`, sessionId);
   }
 }
 
@@ -147,10 +199,11 @@ export function handleFilesMoved(msg: WSServerMessage) {
     success: boolean;
     error?: string | undefined;
   };
+  const sessionId = messageSessionId(msg);
   if (p.success) {
-    useFileStore.getState().closeFile(p.srcPath);
+    useFileStore.getState().closeFile(p.srcPath, sessionId);
   } else if (p.error) {
-    useFileStore.getState().setError(`Move failed: ${p.error}`);
+    useFileStore.getState().setError(`Move failed: ${p.error}`, sessionId);
   }
 }
 
@@ -170,12 +223,16 @@ let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 const TREE_REFRESH_DEBOUNCE_MS = 500;
 
 export function handleFilesTreeChanged(_msg: WSServerMessage) {
+  const sessionId = messageSessionId(_msg);
   if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
   treeRefreshTimer = setTimeout(() => {
     treeRefreshTimer = null;
     const cwd = useSessionStore.getState().cwd;
-    useFileStore.getState().setTreeLoading(true);
-    getWSClient().send({ type: 'files.tree', payload: { path: cwd } });
+    useFileStore.getState().setTreeLoading(true, sessionId);
+    getWSClient().send({
+      type: 'files.tree',
+      payload: withSessionPayload({ path: cwd }, sessionId),
+    });
   }, TREE_REFRESH_DEBOUNCE_MS);
 }
 

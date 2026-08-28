@@ -146,6 +146,7 @@ export interface WebUIDispatchContext {
   /** Live fleet budget for WebUI concurrency/spawn gauges (issue #323). */
   getFleetBudget?: CliWebUIOptions['getFleetBudget'];
   stopSessionFleet?: CliWebUIOptions['stopSessionFleet'];
+  onSessionRetired?: CliWebUIOptions['onSessionRetired'];
   /** Internal one-session child launch metadata, when --webui-session-child is active. */
   webuiSessionChild?: WebuiSessionChildOptions | undefined;
 }
@@ -193,6 +194,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     onKanbanDispatch,
     getFleetBudget,
     stopSessionFleet,
+    onSessionRetired,
     webuiSessionChild,
   } = ctx;
   const isSessionChild = Boolean(webuiSessionChild);
@@ -341,6 +343,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     sessionStore,
     ...(getFleetBudget ? { getFleetBudget } : {}),
     ...(stopSessionFleet ? { stopSessionFleet } : {}),
+    ...(onSessionRetired ? { onSessionRetired } : {}),
     sessionsDir: projectSessionsDir,
     claimSession: activateSessionIdentity
       ? async (sessionId: string) => {
@@ -435,7 +438,14 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     },
     // Make autonomy.switch from the browser flip the CLI's real
     // autonomy mode — context.meta alone never reaches the run loop.
-    onAutonomySwitch: (mode: string) => {
+    onAutonomySwitch: (mode: string, sessionId?: string) => {
+      // The prefs handler has already written the ASKING tab's meta, and the
+      // system prompt reads autonomy from there. `onAutonomy` additionally
+      // moves the PROCESS-WIDE mode ref, which the shared prompt builder also
+      // consults — so routing another tab's change through it put the ETERNAL
+      // AUTONOMY block into the system prompt of every conversation, including
+      // ones the user never switched. Same gate as `onYoloSwitch`.
+      if (sessionId !== undefined && sessionId !== agent.ctx.session?.id) return;
       if (
         mode === 'off' ||
         mode === 'suggest' ||

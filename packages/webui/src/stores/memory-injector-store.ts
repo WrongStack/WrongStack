@@ -1,4 +1,5 @@
-import { create } from 'zustand';
+import type { StateCreator } from 'zustand/vanilla';
+import { createSessionScopedStore } from './session-scoped-store';
 
 export interface MemoryInjectorTraceMemory {
   id: string;
@@ -121,7 +122,13 @@ function pruneExitedMemories(
   return pruned;
 }
 
-export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((set) => ({
+/**
+ * Injector traces and the live context set — both describe ONE conversation's
+ * prompt, so each tab keeps its own. The `sessionId` on the payloads was
+ * already there; nothing used it, and the handler dropped every background
+ * tab's trace instead.
+ */
+const injectorTraceState: StateCreator<MemoryInjectorTraceState> = (set) => ({
   traces: [],
   contextMemories: {},
   transitions: [],
@@ -232,7 +239,9 @@ export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((s
     }),
   resetContext: () => set({ contextMemories: {}, transitions: [] }),
   clear: () => set({ traces: [], contextMemories: {}, transitions: [] }),
-}));
+});
+
+export const useMemoryInjectorTraceStore = createSessionScopedStore(injectorTraceState);
 
 function placeholderContextMemory(
   id: string,

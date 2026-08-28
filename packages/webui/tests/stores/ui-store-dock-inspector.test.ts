@@ -17,6 +17,8 @@ function ui() {
 beforeEach(() => {
   useUIStore.setState({
     dockSection: null,
+    chromeSessionId: null,
+    chromeBySession: {},
     hiddenChips: [],
     dockCustomizeOpen: false,
     inspectorOpen: false,
@@ -66,6 +68,270 @@ describe('dock sections', () => {
   it('setWorkDashboardTab writes straight through', () => {
     ui().setWorkDashboardTab('tasks');
     expect(ui().workDashboardTab).toBe('tasks');
+  });
+
+  it('parks dock and work tabs per session when the foreground tab changes', () => {
+    ui().bindSessionChrome('session-a');
+    ui().setSidebarOpen(false);
+    ui().selectActivity('agents');
+    ui().setCurrentView('roster');
+    ui().setAgentRosterActiveTab('officemap');
+    ui().setChangesPanelTab('worktrees');
+    ui().setDockSection('fleet');
+    ui().setWorkDashboardTab('plan');
+    ui().setDockCustomizeOpen(true);
+    ui().setScrollPosition('roster', 111);
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-b',
+      sidebarOpen: true,
+      activeActivity: 'chat',
+      currentView: 'chat',
+      dockSection: null,
+      workDashboardTab: 'todos',
+      dockCustomizeOpen: false,
+      scrollPositions: {},
+      agentRosterActiveTab: 'live',
+      changesPanelTab: 'changes',
+    });
+
+    ui().setSidebarOpen(true);
+    ui().selectActivity('changes');
+    ui().setCurrentView('files');
+    ui().setDockSection('work');
+    ui().setWorkDashboardTab('tasks');
+    ui().setScrollPosition('files', 222);
+    ui().bindSessionChrome('session-a');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-a',
+      sidebarOpen: false,
+      activeActivity: 'agents',
+      currentView: 'roster',
+      dockSection: 'fleet',
+      workDashboardTab: 'plan',
+      dockCustomizeOpen: true,
+      scrollPositions: { roster: 111 },
+      agentRosterActiveTab: 'officemap',
+      changesPanelTab: 'worktrees',
+    });
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-b',
+      sidebarOpen: true,
+      activeActivity: 'changes',
+      currentView: 'files',
+      dockSection: 'work',
+      workDashboardTab: 'tasks',
+      dockCustomizeOpen: false,
+      scrollPositions: { files: 222 },
+    });
+  });
+
+  it('parks inspector and session inspection per session', () => {
+    ui().bindSessionChrome('session-a');
+    ui().openInspectorTarget({ kind: 'agent', agentId: 'agent-a' });
+    ui().setInspectSession('inspect-a');
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-b',
+      currentView: 'chat',
+      inspectSessionId: null,
+      inspectorOpen: false,
+      inspectorTab: 'fleet',
+      inspectorTarget: null,
+      inspectorFocusedAgentId: null,
+    });
+
+    ui().bindSessionChrome('session-a');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-a',
+      currentView: 'session-inspect',
+      inspectSessionId: 'inspect-a',
+      inspectorOpen: true,
+      inspectorTab: 'agents',
+      inspectorTarget: { kind: 'agent', agentId: 'agent-a' },
+      inspectorFocusedAgentId: 'agent-a',
+    });
+  });
+
+  it('parks transient visible panels and composer state per session', () => {
+    ui().bindSessionChrome('session-a');
+    ui().setSearchOpen(true);
+    ui().setSearchQuery('from-a');
+    ui().setModelSwitcherOpen(true);
+    ui().setPromptLibraryOpen(true);
+    ui().setProcessMonitorOpen(true);
+    ui().setQueuePanelOpen(true);
+    ui().setCronJobsOpen(true);
+    ui().setSideContextBreakdownOpen(true);
+    ui().setChatSwitcherOpen(true);
+    ui().setChatCheckpointOpen(true);
+    ui().setChatMemoryPanelOpen(true);
+    ui().setChatContextBreakdownOpen(true);
+    ui().setChatContextEditorOpen(true);
+    ui().setChatInputCollapsed(true);
+    ui().setTerminalOpen(true);
+    ui().setDraftInput('draft-a');
+    ui().setDraftImages([
+      { id: 'img-a', dataUrl: 'data:image/png;base64,a', mediaType: 'image/png', bytes: 1 },
+    ]);
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-b',
+      searchOpen: false,
+      searchQuery: '',
+      modelSwitcherOpen: false,
+      promptLibraryOpen: false,
+      processMonitorOpen: false,
+      queuePanelOpen: false,
+      cronJobsOpen: false,
+      sideContextBreakdownOpen: false,
+      chatSwitcherOpen: false,
+      chatCheckpointOpen: false,
+      chatMemoryPanelOpen: false,
+      chatContextBreakdownOpen: false,
+      chatContextEditorOpen: false,
+      chatInputCollapsed: false,
+      terminalOpen: false,
+      draftInput: '',
+      draftImages: [],
+    });
+
+    ui().setDraftInput('draft-b');
+    ui().setQueuePanelOpen(true);
+    ui().setChatMemoryPanelOpen(true);
+
+    ui().bindSessionChrome('session-a');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-a',
+      searchOpen: true,
+      searchQuery: 'from-a',
+      modelSwitcherOpen: true,
+      promptLibraryOpen: true,
+      processMonitorOpen: true,
+      queuePanelOpen: true,
+      cronJobsOpen: true,
+      sideContextBreakdownOpen: true,
+      chatSwitcherOpen: true,
+      chatCheckpointOpen: true,
+      chatMemoryPanelOpen: true,
+      chatContextBreakdownOpen: true,
+      chatContextEditorOpen: true,
+      chatInputCollapsed: true,
+      terminalOpen: true,
+      draftInput: 'draft-a',
+    });
+    expect(ui().draftImages).toHaveLength(1);
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      chromeSessionId: 'session-b',
+      draftInput: 'draft-b',
+      queuePanelOpen: true,
+      chatMemoryPanelOpen: true,
+      chatCheckpointOpen: false,
+      searchOpen: false,
+      promptLibraryOpen: false,
+    });
+  });
+
+  it('parks subagent chat focus per session when callers omit the session id', () => {
+    ui().bindSessionChrome('session-a');
+    ui().setSubagentChatFocus('worker-a');
+    expect(ui()).toMatchObject({
+      subagentChatFocusId: 'worker-a',
+      subagentChatFocusSessionId: 'session-a',
+      subagentChatFocusBySession: { 'session-a': 'worker-a' },
+    });
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      subagentChatFocusId: null,
+      subagentChatFocusSessionId: 'session-b',
+    });
+
+    ui().setSubagentChatFocus('worker-b');
+    ui().bindSessionChrome('session-a');
+    expect(ui()).toMatchObject({
+      subagentChatFocusId: 'worker-a',
+      subagentChatFocusSessionId: 'session-a',
+    });
+
+    ui().bindSessionChrome('session-b');
+    expect(ui()).toMatchObject({
+      subagentChatFocusId: 'worker-b',
+      subagentChatFocusSessionId: 'session-b',
+    });
+  });
+
+  it('parks mailbox detail and skills navigation per session', () => {
+    ui().bindSessionChrome('session-a');
+    ui().setSelectedMailMessage({ id: 'mail-a', subject: 'A' } as never);
+    ui().setSkillsState({
+      selectedSkill: {
+        name: 'skill-a',
+        description: 'A',
+        version: '1',
+        source: 'project',
+        sourceUrl: '',
+        ref: 'a',
+        path: 'skills/a',
+        trigger: 'a',
+        scope: ['project'],
+      },
+      navHistory: [],
+      historyIndex: 0,
+      detailOpen: true,
+      knownRefs: { 'skill-a': 'a' },
+      updateAvailableCount: 1,
+    });
+
+    ui().bindSessionChrome('session-b');
+    expect(ui().selectedMailMessage).toBeNull();
+    expect(ui().skillsState).toMatchObject({
+      selectedSkill: null,
+      navHistory: [],
+      historyIndex: -1,
+      detailOpen: false,
+      knownRefs: {},
+      updateAvailableCount: 0,
+    });
+
+    ui().setSelectedMailMessage({ id: 'mail-b', subject: 'B' } as never);
+    ui().setSkillsState({
+      selectedSkill: null,
+      navHistory: [
+        {
+          name: 'skill-b',
+          description: 'B',
+          version: '1',
+          source: 'user',
+          sourceUrl: '',
+          ref: 'b',
+          path: 'skills/b',
+          trigger: 'b',
+          scope: ['user'],
+        },
+      ],
+      historyIndex: 0,
+      detailOpen: false,
+      knownRefs: { 'skill-b': 'b' },
+      updateAvailableCount: 0,
+    });
+
+    ui().bindSessionChrome('session-a');
+    expect(ui().selectedMailMessage).toMatchObject({ id: 'mail-a' });
+    expect(ui().skillsState.selectedSkill).toMatchObject({ name: 'skill-a' });
+    expect(ui().skillsState.knownRefs).toEqual({ 'skill-a': 'a' });
+
+    ui().bindSessionChrome('session-b');
+    expect(ui().selectedMailMessage).toMatchObject({ id: 'mail-b' });
+    expect(ui().skillsState.selectedSkill).toBeNull();
+    expect(ui().skillsState.navHistory[0]).toMatchObject({ name: 'skill-b' });
   });
 });
 
@@ -202,6 +468,12 @@ describe('panel toggles', () => {
     ['setCronJobsOpen', 'cronJobsOpen'],
     ['setTerminalOpen', 'terminalOpen'],
     ['setSideContextBreakdownOpen', 'sideContextBreakdownOpen'],
+    ['setChatSwitcherOpen', 'chatSwitcherOpen'],
+    ['setChatCheckpointOpen', 'chatCheckpointOpen'],
+    ['setChatMemoryPanelOpen', 'chatMemoryPanelOpen'],
+    ['setChatContextBreakdownOpen', 'chatContextBreakdownOpen'],
+    ['setChatContextEditorOpen', 'chatContextEditorOpen'],
+    ['setChatInputCollapsed', 'chatInputCollapsed'],
   ] as const)('%s writes %s', (setter, key) => {
     (ui()[setter] as (open: boolean) => void)(true);
     expect(ui()[key]).toBe(true);
@@ -313,10 +585,7 @@ describe('persist migrate', () => {
   });
 
   it('coerces the v5 fields only when they are present', () => {
-    const out = migrate(
-      { currentView: 'nope', dockSection: 'nope', settingsActiveTab: 'nope' },
-      4,
-    );
+    const out = migrate({ currentView: 'nope', dockSection: 'nope', settingsActiveTab: 'nope' }, 4);
     expect(out.currentView).not.toBe('nope');
     expect(out.dockSection).not.toBe('nope');
     expect(out.settingsActiveTab).not.toBe('nope');
@@ -326,6 +595,24 @@ describe('persist migrate', () => {
     const out = migrate({}, 4);
     expect(out).not.toHaveProperty('currentView');
     expect(out).not.toHaveProperty('dockSection');
+  });
+
+  it('drops persisted session chrome from v6 blobs', () => {
+    const out = migrate(
+      {
+        chromeSessionId: 'old-session',
+        chromeBySession: {
+          'old-session': {
+            currentView: 'roster',
+            dockSection: 'work',
+          },
+        },
+      },
+      6,
+    );
+
+    expect(out).not.toHaveProperty('chromeSessionId');
+    expect(out).not.toHaveProperty('chromeBySession');
   });
 });
 

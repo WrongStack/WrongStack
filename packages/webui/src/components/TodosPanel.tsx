@@ -1,9 +1,10 @@
 import { CheckCircle2, Circle, Clock, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useActiveSessionId, useSessionStore } from '@/stores';
+import { onLaneDisposed } from '@/stores/chat-lanes';
 
 interface TodoItem {
   id: string;
@@ -21,6 +22,15 @@ const STATUS_ORDER: Record<TodoItem['status'], number> = {
   pending: 1,
   completed: 2,
 };
+
+const TODOS_PANEL_NO_SESSION = '__no_session__';
+const todosCollapsedBySession = new Map<string, Set<string>>();
+const disposedTodosPanelSessions = new Set<string>();
+
+onLaneDisposed((sessionId) => {
+  todosCollapsedBySession.delete(sessionId);
+  disposedTodosPanelSessions.add(sessionId);
+});
 
 /**
  * Live agent todo list panel. Connects to the WebSocket on mount,
@@ -40,9 +50,19 @@ export function TodosPanel(): React.ReactElement | null {
   const sessionId = useActiveSessionId();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const ws = getWSClient();
+  const collapsedSessionRef = useRef<string>(sessionId ?? TODOS_PANEL_NO_SESSION);
+
+  useLayoutEffect(() => {
+    if (!disposedTodosPanelSessions.has(collapsedSessionRef.current)) {
+      todosCollapsedBySession.set(collapsedSessionRef.current, new Set(collapsedSections));
+    }
+    const next = sessionId ?? TODOS_PANEL_NO_SESSION;
+    disposedTodosPanelSessions.delete(next);
+    setCollapsedSections(new Set(todosCollapsedBySession.get(next) ?? []));
+    collapsedSessionRef.current = next;
+  }, [sessionId]);
 
   useEffect(() => {
-    setCollapsedSections(new Set());
     if (sessionId) ws.send({ type: 'todos.get', payload: { sessionId } });
   }, [sessionId, ws]);
 

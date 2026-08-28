@@ -1,13 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const newSession = vi.hoisted(() => vi.fn());
 const updatePrefs = vi.hoisted(() => vi.fn());
 const switchAutonomy = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useWebSocket', () => ({
   useWebSocket: () => ({
-    client: { newSession },
     updatePrefs,
     switchAutonomy,
   }),
@@ -17,8 +15,16 @@ vi.mock('@/components/CommandPalette', () => ({
   downloadChatAsMarkdown: vi.fn(),
 }));
 
-import { ConfirmModalHost, useConfirmModalStore } from '../../src/components/ConfirmModal.js';
+const send = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/ws-client', () => ({
+  getWSClient: () => ({
+    send,
+    withSession: (payload: Record<string, unknown>) => ({ ...payload, sessionId: 'sess-a' }),
+  }),
+}));
+
 import { SessionPanel } from '../../src/components/SidePanel/SessionPanel.js';
+import { chatLane, readLane, setActiveLane } from '../../src/stores/chat-lanes.js';
 import {
   useChatStore,
   useConfigStore,
@@ -26,31 +32,19 @@ import {
   useSessionStore,
   useUIStore,
 } from '../../src/stores/index.js';
-import { useSystemPromptStore } from '../../src/stores/system-prompt-store.js';
-
-/** The panel now hands off to the system-prompt picker, which owns the actual
- *  `session.new` send once the user confirms a variant. These tests therefore
- *  assert the hand-off, and `SystemPromptDialog`'s own tests cover the send. */
-const pickerState = () => useSystemPromptStore.getState();
 
 function renderPanel() {
-  return render(
-    <>
-      <SessionPanel />
-      <ConfirmModalHost />
-    </>,
-  );
+  return render(<SessionPanel />);
 }
 
-describe('SessionPanel — New session confirmation', () => {
+describe('SessionPanel quick actions', () => {
   beforeEach(() => {
-    newSession.mockClear();
+    send.mockClear();
     updatePrefs.mockClear();
     switchAutonomy.mockClear();
 
     act(() => {
-      useConfirmModalStore.setState({ request: null });
-      useChatStore.setState({ isLoading: false, messages: [] });
+      useChatStore.setState({ messages: [], isLoading: false } as never);
       useConfigStore.setState({
         wsConnected: true,
         wsUrl: 'ws://127.0.0.1:3457',
@@ -59,7 +53,7 @@ describe('SessionPanel — New session confirmation', () => {
       });
       useFleetStore.setState({ agents: new Map() });
       useSessionStore.setState({
-        session: null,
+        session: { id: 'sess-a', startedAt: 1, provider: 'openai', model: 'gpt-5' },
         totalTokens: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         cost: 0,
         iteration: null,
@@ -67,81 +61,61 @@ describe('SessionPanel — New session confirmation', () => {
         lastInputTokens: 0,
         maxContext: 0,
       });
-      useUIStore.setState({ currentView: 'settings', sidebarOpen: false });
-      useSystemPromptStore.setState({ pickerOpen: false, pickerStartsSession: false });
+      useUIStore.setState({
+        currentView: 'chat',
+        sidebarOpen: true,
+        draftInput: '',
+        draftImages: [],
+        refinePanel: null,
+        queuePanelOpen: false,
+      });
     });
   });
 
   afterEach(() => cleanup());
 
-  it('opens the system-prompt picker immediately while idle', () => {
+  it('does not render a duplicate New session button', () => {
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New session' }));
-
-    expect(pickerState().pickerOpen).toBe(true);
-    // `startsSession` is what makes the picker's confirm button start the
-    // session rather than only applying the variant.
-    expect(pickerState().pickerStartsSession).toBe(true);
-    expect(useUIStore.getState().currentView).toBe('chat');
+    expect(screen.queryByRole('button', { name: 'New session' })).toBeNull();
   });
 
-  it('keeps the running job when the user cancels', async () => {
-    useChatStore.setState({ isLoading: true });
+  it('clears only the active session lane and sends a session-scoped clear', () => {
+    act(() => {
+      setActiveLane('sess-a');
+      chatLane('sess-a').addMessage({ role: 'user', content: 'clear me' });
+      chatLane('sess-a').enqueue('queued in a');
+      chatLane('sess-b').addMessage({ role: 'user', content: 'keep me' });
+      useUIStore.getState().setDraftInput('draft a');
+      useUIStore.getState().setQueuePanelOpen(true);
+    });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New session' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Are you sure?' });
-    expect(
-      within(dialog).getByText('A job is still in progress. Start a new session anyway?'),
-    ).toBeDefined();
-    expect(newSession).not.toHaveBeenCalled();
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(newSession).not.toHaveBeenCalled();
-    expect(pickerState().pickerOpen).toBe(false);
-    expect(useUIStore.getState().currentView).toBe('settings');
+    expect(readLane('sess-a').messages).toEqual([]);
+    expect(readLane('sess-a').queue).toEqual([]);
+    expect(readLane('sess-b').messages.map((m) => m.content)).toEqual(['keep me']);
+    expect(useUIStore.getState()).toMatchObject({
+      draftInput: '',
+      draftImages: [],
+      refinePanel: null,
+      queuePanelOpen: false,
+    });
+    expect(send).toHaveBeenCalledWith({ type: 'context.clear', payload: { sessionId: 'sess-a' } });
   });
 
-  it('keeps the running job when the user dismisses with Escape', async () => {
-    useChatStore.setState({ isLoading: true });
+  it('keeps local clear working while disconnected', () => {
+    useConfigStore.setState({ wsConnected: false });
+    act(() => {
+      setActiveLane('sess-a');
+      chatLane('sess-a').addMessage({ role: 'user', content: 'offline clear' });
+    });
     renderPanel();
 
-    fireEvent.click(screen.getByRole('button', { name: 'New session' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Are you sure?' });
-    fireEvent.keyDown(dialog, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
 
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(newSession).not.toHaveBeenCalled();
-    expect(pickerState().pickerOpen).toBe(false);
-    expect(useUIStore.getState().currentView).toBe('settings');
-  });
-
-  it('focuses the New session confirmation action when the dialog opens', async () => {
-    useChatStore.setState({ isLoading: true });
-    renderPanel();
-
-    fireEvent.click(screen.getByRole('button', { name: 'New session' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Are you sure?' });
-    const confirmButton = within(dialog).getByRole('button', { name: 'New session' });
-
-    await waitFor(() => expect(document.activeElement).toBe(confirmButton));
-    expect(newSession).not.toHaveBeenCalled();
-  });
-
-  it('opens the system-prompt picker when the user confirms', async () => {
-    useChatStore.setState({ isLoading: true });
-    renderPanel();
-
-    fireEvent.click(screen.getByRole('button', { name: 'New session' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Are you sure?' });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'New session' }));
-
-    await waitFor(() => expect(pickerState().pickerOpen).toBe(true));
-    expect(pickerState().pickerStartsSession).toBe(true);
-    expect(useUIStore.getState().currentView).toBe('chat');
+    expect(readLane('sess-a').messages).toEqual([]);
+    expect(send).not.toHaveBeenCalled();
   });
 });
