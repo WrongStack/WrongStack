@@ -195,10 +195,14 @@ export function createConversationOperations(
           // against the placeholder fails deep inside the turn with an opaque
           // "append is not a function" after tokens have already been spent,
           // so say plainly what is missing instead. The client answers a
-          // `session_not_ready` by resuming that tab and sending again.
-          // Narrow on purpose: a session object that exists but cannot append
-          // is the placeholder. A missing one means the host keeps the writer
-          // somewhere else entirely, which is not this bug.
+          // `session_not_ready` by resuming that tab and resending the echo
+          // below once the session's `session.start` announces it live (see
+          // ws-client armNotReadyResend). The echo is the contract: the retry
+          // replays EXACTLY what was refused without reaching back into
+          // client lane state. Narrow on purpose: a session object that
+          // exists but cannot append is the placeholder. A missing one means
+          // the host keeps the writer somewhere else entirely, which is not
+          // this bug.
           const writer = agent.ctx.session as { append?: unknown } | null | undefined;
           if (writer && typeof writer.append !== 'function') {
             ctx.runControl.end(ws, originSessionId, claimed);
@@ -211,6 +215,11 @@ export function createConversationOperations(
                 phase: 'user_message',
                 code: 'session_not_ready',
                 message: `Session ${originSessionId} is not open in this runtime yet. Resume it and send again.`,
+                ...(typeof payload.content === 'string' && payload.content
+                  ? { content: payload.content }
+                  : {}),
+                ...(payload.freshContext === true ? { freshContext: true } : {}),
+                ...(payload.images ? { images: payload.images } : {}),
               }),
             });
             return null;

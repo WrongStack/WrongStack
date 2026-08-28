@@ -13,6 +13,7 @@ import {
   stopConnection,
 } from '@wrongstack/webui-protocol';
 import { safeId } from '@/lib/utils';
+import { hasLane } from '../stores/chat-lanes';
 import type {
   WSClientMessage,
   WSModelSwitchResult,
@@ -212,6 +213,24 @@ class WrongStackWebSocketClientBase {
   private readonly seenSessionIds = new Set<string>();
   /** Last declared open-tab set — see `subscribeSessions`. */
   private subscribedSessionIds: string[] = [];
+  /** Minimum spacing between automatic `session_not_ready` retries for ONE session. */
+  private static readonly NOT_READY_RETRY_COOLDOWN_MS = 15_000;
+  /** Upper bound on parked retries, so tab churn cannot grow the map forever. */
+  private static readonly MAX_ARMED_RESENDS = 8;
+  /**
+   * Auto-retry parking for a `session_not_ready` refusal: the message the
+   * server refused while its session had no live writer, held until that
+   * session's `session.start` announces it open again. See `armNotReadyResend`.
+   */
+  private readonly armedResends = new Map<
+    string,
+    {
+      content: string;
+      freshContext?: boolean | undefined;
+      images?: WSUserMessageImage[] | undefined;
+      armedAt: number;
+    }
+  >();
   /** Stored last close reason / error message so the UI can show "what
    *  went wrong" while reconnecting instead of a generic spinner. */
   private lastErrorText: string | undefined;
@@ -660,6 +679,13 @@ class WrongStackWebSocketClientBase {
       this.requestedSwitchSessionId = this.matchesPendingSwap(payload) ? payload.sessionId : null;
       if (this.requestedSwitchSessionId) this.pendingSwapTarget = null;
       this.rememberSeenSession(payload.sessionId);
+      this.emit(msg);
+      // Handlers have now bound and replayed this session's lane — the right
+      // moment to replay a message the server refused with `session_not_ready`
+      // while the session was not open in the runtime. One-shot: see
+      // `armNotReadyResend` / `consumeArmedResend`.
+      this.consumeArmedResend(payload.sessionId);
+      return;
     } else if (
       msg.type === 'error' &&
       (msg.payload.phase === 'session.new' || msg.payload.phase === 'session.resume')
@@ -709,6 +735,53 @@ class WrongStackWebSocketClientBase {
     if (!sessionId || this.requestedSwitchSessionId !== sessionId) return false;
     this.requestedSwitchSessionId = null;
     return true;
+  }
+
+  /**
+   * Park ONE automatic retry for a `session_not_ready` refusal.
+   *
+   * The refusal means the session is not open in the runtime yet (placeholder
+   * writer — the F5-restored-tab case): resuming it and resending exactly what
+   * was refused is safe and expected. The cooldown makes the retry one-shot
+   * per window, so a resume→announce→resend→refuse race degrades to the
+   * ordinary error bubble on the second refusal instead of ping-ponging
+   * forever. Returns false while on cooldown — the caller then renders the
+   * refusal as a normal error (manual recovery).
+   */
+  armNotReadyResend(
+    sessionId: string,
+    message: {
+      content: string;
+      freshContext?: boolean | undefined;
+      images?: WSUserMessageImage[] | undefined;
+    },
+  ): boolean {
+    if (!sessionId) return false;
+    const now = Date.now();
+    const held = this.armedResends.get(sessionId);
+    if (held && now - held.armedAt < WrongStackWebSocketClientBase.NOT_READY_RETRY_COOLDOWN_MS) {
+      return false;
+    }
+    if (this.armedResends.size >= WrongStackWebSocketClientBase.MAX_ARMED_RESENDS) {
+      const oldest = this.armedResends.keys().next();
+      if (!oldest.done) this.armedResends.delete(oldest.value);
+    }
+    this.armedResends.set(sessionId, { ...message, armedAt: now });
+    return true;
+  }
+
+  /**
+   * Fire the armed retry once the refused session announces itself live.
+   *
+   * Guarded on the lane still existing: a tab closed while the retry was
+   * parked must not start a server-side run nobody is watching.
+   */
+  private consumeArmedResend(sessionId: string): void {
+    const held = this.armedResends.get(sessionId);
+    if (!held) return;
+    this.armedResends.delete(sessionId);
+    if (!hasLane(sessionId)) return;
+    this.sendMessage(held.content, held.images, held.freshContext === true, sessionId);
   }
 
   /**
@@ -946,19 +1019,20 @@ class WrongStackWebSocketClientBase {
     sessionId?: string | undefined,
   ): string {
     const id = `msg_${Date.now()}_${safeId().slice(0, 8)}`;
-    this.send({
-      type: 'user_message',
-      payload: this.withSession(
-        {
-          id,
-          content,
-          timestamp: Date.now(),
-          ...(freshContext ? { freshContext: true } : {}),
-          ...(images && images.length > 0 ? { images } : {}),
-        },
-        sessionId,
-      ),
-    });
+    const payload = this.withSession(
+      {
+        id,
+        content,
+        timestamp: Date.now(),
+        ...(freshContext ? { freshContext: true } : {}),
+        ...(images && images.length > 0 ? { images } : {}),
+      },
+      sessionId,
+    );
+    // A manual send on this session supersedes any armed auto-retry — firing
+    // the parked replay after this would duplicate the user's own message.
+    if (payload.sessionId) this.armedResends.delete(payload.sessionId);
+    this.send({ type: 'user_message', payload });
     return id;
   }
 

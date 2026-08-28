@@ -16,7 +16,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const send = vi.fn();
-const wsClient = { send, requestedSwitch: null as string | null };
+const armNotReadyResend = vi.fn(() => true);
+const resumeSession = vi.fn();
+const wsClient = { send, requestedSwitch: null as string | null, armNotReadyResend, resumeSession };
 vi.mock('@/lib/ws-client', () => ({ getWSClient: () => wsClient }));
 
 const toast = { success: vi.fn(), error: vi.fn(), warn: vi.fn(), info: vi.fn() };
@@ -120,5 +122,83 @@ describe('a context-op refusal reaches the tab that asked', () => {
     expect(readLane('sess_bg').messages).toHaveLength(0);
     expect(readLane('sess_bg').isLoading).toBe(true);
     expect(useChatStore.getState().messages).toHaveLength(0);
+  });
+});
+
+describe('a session_not_ready refusal arms one automatic retry', () => {
+  beforeEach(() => {
+    if (!window.matchMedia) {
+      window.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        onchange: null,
+        dispatchEvent: vi.fn(),
+      })) as never;
+    }
+    streamCoalescer.flushAll();
+    useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
+    armNotReadyResend.mockClear();
+    resumeSession.mockClear();
+    armNotReadyResend.mockReturnValue(true);
+    start('sess_front');
+    start('sess_bg');
+  });
+
+  const refusal = {
+    sessionId: 'sess_bg',
+    phase: 'user_message',
+    code: 'session_not_ready',
+    message: 'Session sess_bg is not open in this runtime yet. Resume it and send again.',
+    content: 'resend me',
+    freshContext: true,
+  };
+
+  it('arms the retry, resumes the session, and notes the lane instead of erroring', () => {
+    runStarted('sess_bg');
+    expect(readLane('sess_bg').isLoading).toBe(true);
+
+    handleError({ type: 'error', payload: { ...refusal } } as never);
+
+    // Exactly what the server refused is what the retry will replay.
+    expect(armNotReadyResend).toHaveBeenCalledWith(
+      'sess_bg',
+      expect.objectContaining({ content: 'resend me', freshContext: true }),
+    );
+    expect(resumeSession).toHaveBeenCalledWith('sess_bg');
+    // The refused message never started a run: the lane is unblocked with an
+    // informational note, not an error bubble.
+    const lane = readLane('sess_bg');
+    expect(lane.isLoading).toBe(false);
+    expect(lane.messages.at(-1)?.content).toContain('reopening');
+    expect(lane.messages.at(-1)?.isError).not.toBe(true);
+  });
+
+  it('degrades to the ordinary error bubble once the retry guard is on cooldown', () => {
+    armNotReadyResend.mockReturnValue(false);
+    runStarted('sess_bg');
+
+    handleError({ type: 'error', payload: { ...refusal } } as never);
+
+    // Cooldown spent (one-shot per session): manual recovery, classic bubble.
+    expect(resumeSession).not.toHaveBeenCalled();
+    const lane = readLane('sess_bg');
+    expect(lane.isLoading).toBe(false);
+    expect(lane.messages.at(-1)?.isError).toBe(true);
+    expect(lane.messages.at(-1)?.content).toContain('user_message');
+  });
+
+  it('bubbles a refusal that carries no replay material instead of arming', () => {
+    handleError({
+      type: 'error',
+      payload: { ...refusal, content: undefined },
+    } as never);
+
+    expect(armNotReadyResend).not.toHaveBeenCalled();
+    expect(resumeSession).not.toHaveBeenCalled();
+    expect(readLane('sess_bg').messages.at(-1)?.isError).toBe(true);
   });
 });

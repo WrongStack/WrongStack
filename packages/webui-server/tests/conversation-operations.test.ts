@@ -54,6 +54,57 @@ describe('createConversationOperations', () => {
     expect(h.begin).not.toHaveBeenCalled();
   });
 
+  it('refuses a placeholder-writer session with session_not_ready and echoes the replay material', async () => {
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const run = vi.fn(async () => ({ status: 'completed', iterations: 1, finalText: 'nope' }));
+    const begin = vi.fn(() => new AbortController());
+    const end = vi.fn();
+    // A per-tab agent is born with a PLACEHOLDER writer: a session object
+    // that exists but cannot append (conversation-operations userMessage).
+    const routes = createConversationOperations({
+      getAgent: () =>
+        ({
+          run,
+          ctx: {
+            provider: { id: 'provider', capabilities: { vision: true } },
+            model: 'model',
+            messages: [],
+            meta: {},
+            session: {},
+          },
+          tools: { list: () => [] },
+        }) as never,
+      getSessionId: () => 'session-live',
+      runControl: { begin, end, abort: vi.fn() },
+      pendingConfirms: new Map(),
+      send: (_ws, message) => sent.push(message),
+      notifyAbort: vi.fn(),
+    });
+
+    const images = [{ kind: 'url', url: 'https://example.invalid/x.png' }];
+    await routes.userMessage(ws, {
+      type: 'user_message',
+      payload: { id: 'm1', content: 'hello again', freshContext: true, images },
+    } as never);
+
+    // Refused before any turn started, lock released, and the refusal carries
+    // the replay material the client's auto-retry (resume → resend) needs.
+    expect(run).not.toHaveBeenCalled();
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      type: 'error',
+      payload: {
+        sessionId: 'session-live',
+        phase: 'user_message',
+        code: 'session_not_ready',
+        content: 'hello again',
+        freshContext: true,
+        images,
+      },
+    });
+  });
+
   it('applies a fresh boundary before running while preserving the session id', async () => {
     const sent: Array<{ type: string; payload: unknown }> = [];
     const controller = new AbortController();

@@ -81,6 +81,12 @@ export function isActiveSessionMessage(msg: WSServerMessage): boolean {
   // still applies, same as `foregroundSessionId`.
   const activeId = foregroundSessionId();
   if (sessionId === '') return false;
+  // Untagged while a session is bound is the documented fail-open for
+  // boot-time and project-wide broadcasts — but it is also exactly what a
+  // server surface that FORGOT to stamp looks like. One warn per message type
+  // keeps such regressions visible instead of silently polluting the
+  // foreground tab's viz/diagnostics surfaces.
+  if (!sessionId && activeId) warnUntaggedWhileBound(msg.type);
   return !sessionId || !activeId || sessionId === activeId;
 }
 
@@ -174,6 +180,7 @@ export function sessionFor(msg: WSServerMessage): SessionLaneActions | null {
       ensureSessionLane(sessionId);
       return sessionLane(sessionId);
     }
+    warnSessionLaneOverflow(msg.type, sessionId);
     return null;
   }
   // Same pre-session allowance as `chatFor`.
@@ -213,6 +220,44 @@ function warnLaneOverflow(type: string, sessionId: string): void {
       messageType: type,
       sessionId,
       reason: 'no lane for this session and all four lanes are taken; event dropped',
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
+const warnedSessionOverflowSessions = new Set<string>();
+/** Twin of `warnLaneOverflow` for the session-accounting router: tokens and
+ *  cost vanishing from a tab's counters looks like a budgeting bug, so say
+ *  so — once per session — instead of dropping silently. */
+function warnSessionLaneOverflow(type: string, sessionId: string): void {
+  if (warnedSessionOverflowSessions.has(sessionId)) return;
+  warnedSessionOverflowSessions.add(sessionId);
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'ws_client.session_lane_overflow',
+      messageType: type,
+      sessionId,
+      reason:
+        'no session lane for this session and all four lanes are taken; token/cost accounting event dropped',
+      timestamp: new Date().toISOString(),
+    }),
+  );
+}
+
+const warnedUntaggedWhileBoundTypes = new Set<string>();
+/** Warn once per message type when an untagged frame reaches a session
+ *  guard while a session is bound (see `isActiveSessionMessage`). */
+function warnUntaggedWhileBound(type: string): void {
+  if (warnedUntaggedWhileBoundTypes.has(type)) return;
+  warnedUntaggedWhileBoundTypes.add(type);
+  console.warn(
+    JSON.stringify({
+      level: 'warn',
+      event: 'ws_client.untagged_guard_event',
+      messageType: type,
+      reason:
+        'untagged frame passed a session guard while a session was bound; if this event is session-scoped, the server surface forgot to stamp sessionId',
       timestamp: new Date().toISOString(),
     }),
   );

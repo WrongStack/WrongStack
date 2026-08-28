@@ -12,7 +12,7 @@ import {
 import { useConfigStore } from '@/stores';
 import { activeChatLane, activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
 import { readSessionLane, setSessionGlobals } from '@/stores/session-lanes';
-import type { WSServerMessage } from '@/types';
+import type { WSServerMessage, WSUserMessageImage } from '@/types';
 
 /**
  * Models this conversation has already warned about, per conversation.
@@ -353,6 +353,10 @@ export function handleError(msg: WSServerMessage) {
     phase: string;
     message: string;
     requestedSessionId?: unknown;
+    code?: unknown;
+    content?: unknown;
+    freshContext?: unknown;
+    images?: unknown;
   };
   if (payload.phase === 'todos.get') return;
   // Session-swap guard rejections — "Request targeted session X, but this
@@ -363,6 +367,43 @@ export function handleError(msg: WSServerMessage) {
   // switch) and cleared THAT lane's loading flag. The client's own swap state
   // is already unwound in ws-client.handleMessage; swallow the frame.
   if (typeof payload.requestedSessionId === 'string') return;
+  // `session_not_ready` — the placeholder-writer refusal for a message sent
+  // to a session that is not open in the runtime yet (the F5-restored-tab
+  // case). The refusal echoes the original message, so ONE automatic retry
+  // is possible: arm it, resume the session, and the session's
+  // `session.start` replay fires the resend (ws-client `consumeArmedResend`).
+  // The arm call is the one-shot guard — while it is on cooldown it returns
+  // false and this frame degrades to the ordinary error bubble below
+  // instead of a resume→refuse loop.
+  if (payload.code === 'session_not_ready') {
+    const sessionId = messageSessionId(msg);
+    const content = typeof payload.content === 'string' ? payload.content : '';
+    if (sessionId && content) {
+      const images = Array.isArray(payload.images)
+        ? (payload.images as WSUserMessageImage[])
+        : undefined;
+      const client = getWSClient();
+      if (
+        client.armNotReadyResend(sessionId, {
+          content,
+          freshContext: payload.freshContext === true,
+          ...(images ? { images } : {}),
+        })
+      ) {
+        client.resumeSession(sessionId);
+        // Say what is happening instead of bubbling an error for a failure
+        // the client is about to fix. The refused message never started a
+        // run, so the lane's run flag comes down.
+        const retryLane = chatFor(msg);
+        retryLane?.addMessage({
+          role: 'assistant',
+          content: 'ℹ️ Session is reopening — your message will be resent automatically.',
+        });
+        retryLane?.setLoading(false);
+        return;
+      }
+    }
+  }
   // Routed by session, NEVER gated on "is this the tab in front".
   //
   // This handler owns per-lane state — the error bubble and, critically,
