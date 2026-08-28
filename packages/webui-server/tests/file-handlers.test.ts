@@ -16,6 +16,13 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocket } from 'ws';
 
+/** The subset of a `files.tree` node these tests assert on. */
+interface TreeNodeShape {
+  name: string;
+  size?: number;
+  children?: TreeNodeShape[];
+}
+
 // We'll test the actual implementation by creating temp directories
 // and checking the output
 
@@ -65,6 +72,44 @@ describe('file handlers integration', () => {
       expect(response.type).toBe('files.tree');
       expect(response.payload.root).toBe(tempDir);
       expect(Array.isArray(response.payload.tree)).toBe(true);
+    });
+
+    it('emits directories before files, each alphabetically, at every level', async () => {
+      // The walk resolves entries concurrently; `Promise.all` keeps array
+      // order, but only because `entries` is sorted BEFORE the map. Pin the
+      // emitted order so a refactor cannot quietly shuffle the explorer.
+      fsSync.mkdirSync(path.join(tempDir, 'zeta'), { recursive: true });
+      fsSync.mkdirSync(path.join(tempDir, 'alpha'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'zeta', 'b.ts'), '');
+      fsSync.writeFileSync(path.join(tempDir, 'zeta', 'a.ts'), '');
+      fsSync.writeFileSync(path.join(tempDir, 'b.txt'), '');
+      fsSync.writeFileSync(path.join(tempDir, 'a.txt'), '');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      expect(tree.map((n) => n.name)).toEqual(['alpha', 'zeta', 'a.txt', 'b.txt']);
+      const zeta = tree.find((n) => n.name === 'zeta');
+      expect(zeta?.children?.map((n) => n.name)).toEqual(['a.ts', 'b.ts']);
+    });
+
+    it('reports file sizes and omits the unread lastModified field', async () => {
+      // `size` drives the explorer's sort-by-size toggle, so it stays on the
+      // wire. `lastModified` had no reader in any client and cost a stat() per
+      // node on a tree walked in full on every request.
+      fsSync.mkdirSync(path.join(tempDir, 'dir'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'sized.txt'), 'abcde');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      const file = tree.find((n) => n.name === 'sized.txt');
+      const dir = tree.find((n) => n.name === 'dir');
+      expect(file?.size).toBe(5);
+      expect(file).not.toHaveProperty('lastModified');
+      expect(dir).not.toHaveProperty('lastModified');
     });
 
     it('handles path outside projectRoot', async () => {
