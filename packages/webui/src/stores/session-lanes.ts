@@ -123,7 +123,7 @@ export interface SessionGlobals {
   updateAvailable: boolean;
 }
 
-export interface SessionLanesState extends SessionGlobals {
+interface SessionLanesState extends SessionGlobals {
   lanes: Record<string, SessionLaneData>;
   activeSessionId: string;
 }

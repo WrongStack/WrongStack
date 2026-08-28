@@ -12,7 +12,7 @@ export type MemoryLifecycleAction =
   | 'staled'
   | 'contradicted';
 
-export interface MemoryLifecycleItem {
+interface MemoryLifecycleItem {
   id: string;
   at: string;
   event: string;

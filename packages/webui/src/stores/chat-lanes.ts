@@ -103,7 +103,7 @@ export interface ChatLaneData {
 }
 
 /** The provider-fallback prompt payload, as the dialog needs it. */
-export interface LaneFallbackPrompt {
+interface LaneFallbackPrompt {
   requestId: string;
   from: { providerId: string; model: string };
   status: number;
@@ -123,7 +123,7 @@ export interface PendingConfirm {
   boundaryReason?: string | undefined;
 }
 
-export function createLaneData(): ChatLaneData {
+function createLaneData(): ChatLaneData {
   return {
     messages: [],
     currentAssistantMessageId: null,
@@ -152,7 +152,7 @@ export function createLaneData(): ChatLaneData {
  */
 export const EMPTY_LANE: ChatLaneData = createLaneData();
 
-export interface ChatLanesState {
+interface ChatLanesState {
   lanes: Record<string, ChatLaneData>;
   /** Which lane the chat surface renders. Owned by the tab registry. */
   activeSessionId: string;

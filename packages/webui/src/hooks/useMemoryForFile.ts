@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getWSClient, type WSSendOptions } from '@/lib/ws-client';
 import type { MemoryForFileResponse } from '@/types';
 
-export interface UseMemoryForFileOptions {
+interface UseMemoryForFileOptions {
   /** Project-relative file path. When null the hook stays idle. */
   filePath: string | null;
   /** Optional cursor range — symbol anchors overlapping get a boost. */
@@ -35,7 +35,7 @@ export interface UseMemoryForFileOptions {
   sendOptions?: WSSendOptions;
 }
 
-export interface UseMemoryForFileResult {
+interface UseMemoryForFileResult {
   data: MemoryForFileResponse | null;
   loading: boolean;
   error: string | null;

@@ -10,7 +10,7 @@ import type {
   ContextEditorDiagnostics,
 } from '@/types/runtime';
 
-export type ContextEditorPhase =
+type ContextEditorPhase =
   | 'closed'
   | 'loading_snapshot'
   | 'clean_snapshot'
@@ -64,7 +64,7 @@ interface AppliedResult {
   warnings: ContextEditorWarning[];
 }
 
-export interface ContextEditorState {
+interface ContextEditorState {
   phase: ContextEditorPhase;
   revision: string | null;
   messages: ContextEditorMessage[];
@@ -80,7 +80,7 @@ export interface ContextEditorState {
   errorMessage: string | null;
 }
 
-export interface ContextEditorActions {
+interface ContextEditorActions {
   open: () => void;
   close: () => void;
   loadSnapshot: (payload: {
@@ -103,7 +103,7 @@ export interface ContextEditorActions {
   getProposedMessages: () => ContextEditorMessage[];
 }
 
-export type ContextEditorStore = ContextEditorState & ContextEditorActions;
+type ContextEditorStore = ContextEditorState & ContextEditorActions;
 
 function isToolResultMessage(message: ContextEditorMessage | undefined): boolean {
   return Boolean(
@@ -114,7 +114,7 @@ function isToolResultMessage(message: ContextEditorMessage | undefined): boolean
   );
 }
 
-export function findPairedAssistantIndices(
+function findPairedAssistantIndices(
   messages: readonly ContextEditorMessage[],
   userIndex: number,
 ): number[] {

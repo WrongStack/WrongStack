@@ -13,7 +13,7 @@
  * always uses `ws.undoProviderClear` (not `ws.updateProvider`),
  * so the audit log is uniform".
  */
-export type UndoSendDecision =
+type UndoSendDecision =
   | { kind: 'skip' }
   | { kind: 'callback'; providerId: string; previousModels: string[] }
   | { kind: 'ws-default'; providerId: string; previousModels: string[] };

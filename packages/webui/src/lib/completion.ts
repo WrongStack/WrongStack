@@ -35,12 +35,12 @@ export const COMPLETION_TIMEOUT_MS = 5_000;
 export const COMPLETION_CACHE_TTL_MS = 10_000;
 export const COMPLETION_DOCUMENT_CHARS = 500_000;
 
-export interface CompletionTriggerInfo {
+interface CompletionTriggerInfo {
   triggerCharacter?: string;
   triggerKind?: number;
 }
 
-export interface CompletionCacheKeyInput {
+interface CompletionCacheKeyInput {
   filePath: string;
   language: string;
   lineNumber: number;

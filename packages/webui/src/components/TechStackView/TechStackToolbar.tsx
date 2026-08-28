@@ -13,7 +13,7 @@ import { useAppTranslation } from '@/i18n';
 
 export type DependencySort = 'attention' | 'name' | 'drift';
 
-export interface TechStackToolbarProps {
+interface TechStackToolbarProps {
   searchQuery: string;
   ecosystemFilter: string;
   statusFilter: string;

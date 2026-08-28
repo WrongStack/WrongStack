@@ -10,7 +10,7 @@ import {
 } from './image-attachments.js';
 import { useUIStore } from '@/stores';
 
-export interface PasteHintState {
+interface PasteHintState {
   chars: number;
   lines: number;
   /** Detected language if code was auto-fenced. */

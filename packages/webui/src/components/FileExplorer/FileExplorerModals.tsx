@@ -47,7 +47,7 @@ function restoreTreeFocus(): void {
   document.getElementById('ws-file-tree')?.focus();
 }
 
-export interface BreadcrumbContextMenuProps {
+interface BreadcrumbContextMenuProps {
   contextMenu: { x: number; y: number; crumb: CrumbContext };
   /** Clears the parent's contextMenu state (Escape / outside click / item select). */
   onClose: () => void;
@@ -130,7 +130,7 @@ export function BreadcrumbContextMenu({
   );
 }
 
-export interface NodeContextMenuProps {
+interface NodeContextMenuProps {
   nodeMenu: { x: number; y: number; node: TreeNode };
   /** Clears the parent's nodeMenu state (Escape / outside click / item select). */
   onClose: () => void;
@@ -216,7 +216,7 @@ export function NodeContextMenu({
   );
 }
 
-export interface CreatePromptModalProps {
+interface CreatePromptModalProps {
   createPrompt: CreatePromptState;
   createName: string;
   setCreateName: (val: string) => void;
@@ -286,7 +286,7 @@ export function CreatePromptModal({
   );
 }
 
-export interface RenamePromptModalProps {
+interface RenamePromptModalProps {
   renamePrompt: RenamePromptState;
   renameValue: string;
   setRenameValue: (val: string) => void;

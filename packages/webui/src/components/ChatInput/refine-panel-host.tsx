@@ -6,10 +6,10 @@ import { ModelPickDialog } from '../ModelPickDialog.js';
 import type { RefineDecision } from '../RefinePanel.js';
 import { RefinePanel } from '../RefinePanel.js';
 
-export const REFINE_RETRY_FEEDBACK =
+const REFINE_RETRY_FEEDBACK =
   'Make another pass that is sharper and more self-contained. Use the provided project memory, current session context, and recent conversation only to resolve references and preserve project vocabulary; keep the original scope unchanged.';
 
-export interface ChatInputRefinePanelHostProps {
+interface ChatInputRefinePanelHostProps {
   enhanceEnabled: boolean;
   refinePickOpen: boolean;
   setRefinePickOpen: (open: boolean) => void;

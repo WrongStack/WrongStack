@@ -9,7 +9,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 
-export interface VectorMemoryCacheStats {
+interface VectorMemoryCacheStats {
   entries: number;
   providers: number;
   totalUseCount: number;
@@ -111,7 +111,7 @@ export async function forgetVectorMemory(
 }
 
 /** Hook: track the live status, re-fetching on focus. */
-export function useVectorMemoryStatus(baseUrl = ''): {
+function useVectorMemoryStatus(baseUrl = ''): {
   status: VectorMemoryStatus | undefined;
   error: string | undefined;
   reload: () => void;

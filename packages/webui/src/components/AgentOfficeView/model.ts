@@ -50,9 +50,9 @@ export interface ClientOfficeModel {
 }
 
 export type AgentVisualRole = 'leader' | 'builder' | 'researcher' | 'reviewer' | 'planner' | 'operator';
-export type DeskPalette = 'amber' | 'mint' | 'ocean' | 'plum' | 'rose' | 'graphite';
+type DeskPalette = 'amber' | 'mint' | 'ocean' | 'plum' | 'rose' | 'graphite';
 
-export interface DeskPersonality {
+interface DeskPersonality {
   palette: DeskPalette;
   layout: number;
   clutter: number;
@@ -158,7 +158,7 @@ export function shortPath(value: string | undefined, max = 46): string | undefin
   return tail.length <= max ? `…/${tail}` : `…${value.slice(-(max - 1))}`;
 }
 
-export interface DeskWaitState {
+interface DeskWaitState {
   /** True when the agent is alive but has produced no tool/mail work for a while. */
   waiting: boolean;
   /** Milliseconds since the last observable activity (tool call or mail). */

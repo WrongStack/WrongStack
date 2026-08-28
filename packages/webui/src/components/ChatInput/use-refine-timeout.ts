@@ -3,7 +3,7 @@ import type { WSUserMessageImage } from '@/types';
 import { useChatStore, useUIStore } from '@/stores';
 import { toast } from '../Toaster.js';
 
-export interface UseRefineTimeoutOptions {
+interface UseRefineTimeoutOptions {
   clientConnected?: boolean | undefined;
   t: (key: string) => string;
   sendMessage: (

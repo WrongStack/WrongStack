@@ -11,7 +11,7 @@ import type { WrongStackWebSocketClient } from '@/lib/ws-client';
 import type { MemoryCandidateEntry } from '@/types';
 import { memoryPreview, relativeDate } from './shared';
 
-export interface ReviewQueueProps {
+interface ReviewQueueProps {
   listCandidates: (
     params?: { includeResolved?: boolean },
     options?: { echoToChat?: boolean },

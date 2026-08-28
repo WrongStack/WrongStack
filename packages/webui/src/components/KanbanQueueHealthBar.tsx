@@ -4,7 +4,7 @@ import type { KanbanQueueHealth } from '@wrongstack/kanban';
 import { hasKanbanQueueAnomalies } from '@wrongstack/kanban/queue-anomalies';
 import { useAppTranslation } from '@/i18n';
 
-export type KanbanQueueHealthBarProps = {
+type KanbanQueueHealthBarProps = {
   queueHealth: KanbanQueueHealth;
   runningCostTotal: number;
 };

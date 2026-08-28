@@ -12,15 +12,15 @@ import { PickerCardList } from './ui/PickerCardList';
  * - 'fallback': fallback profile name from the named profiles
  * - 'both': tabs — first tab shows fallback profiles, second shows provider/model
  */
-export type ModelSelectMode = 'provider-model' | 'fallback' | 'both';
+type ModelSelectMode = 'provider-model' | 'fallback' | 'both';
 
 /** The value the user picked. */
-export type ModelSelectResult =
+type ModelSelectResult =
   | { type: 'provider-model'; provider: string; model: string; label: string }
   | { type: 'fallback-profile'; name: string }
   | { type: 'clear' };
 
-export interface ModelSelectDialogProps {
+interface ModelSelectDialogProps {
   open: boolean;
   /** What selection modes to offer. */
   mode: ModelSelectMode;

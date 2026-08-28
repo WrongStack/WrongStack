@@ -7,7 +7,7 @@ import type { TreeNode } from '@/stores/file-store';
 import { fileIcon, fileIconColor } from '@/lib/file-icons';
 import { treeRowId } from './tree-helpers.js';
 
-export const GIT_STATUS_COLORS: Record<string, string> = {
+const GIT_STATUS_COLORS: Record<string, string> = {
   M: 'text-warning',
   A: 'text-success',
   D: 'text-destructive',
@@ -17,7 +17,7 @@ export const GIT_STATUS_COLORS: Record<string, string> = {
   '?': 'text-primary',
 };
 
-export const GIT_STATUS_LABELS: Record<string, string> = {
+const GIT_STATUS_LABELS: Record<string, string> = {
   M: 'Modified',
   A: 'Added',
   D: 'Deleted',
@@ -27,7 +27,7 @@ export const GIT_STATUS_LABELS: Record<string, string> = {
   '?': 'Untracked',
 };
 
-export function GitStatusDot({ status }: { status: string }) {
+function GitStatusDot({ status }: { status: string }) {
   const letter = status[0] ?? '?';
   const color = GIT_STATUS_COLORS[letter] ?? 'text-muted-foreground';
   const label = GIT_STATUS_LABELS[letter] ?? 'Unknown';
@@ -43,7 +43,7 @@ export function GitStatusDot({ status }: { status: string }) {
   );
 }
 
-export interface TreeRowProps {
+interface TreeRowProps {
   node: TreeNode;
   depth: number;
   emptyPlaceholder?: boolean | undefined;

@@ -1,7 +1,7 @@
 export const TERMINAL_HEIGHT_STORAGE_KEY = 'wrongstack.terminalDockHeight';
 export const MIN_TERMINAL_HEIGHT = 140;
 export const MAX_TERMINAL_HEIGHT = 640;
-export const MIN_MAIN_AREA_WHEN_TERMINAL_OPEN = 260;
+const MIN_MAIN_AREA_WHEN_TERMINAL_OPEN = 260;
 
 export function clampTerminalHeight(height: number): number {
   const viewportMax =

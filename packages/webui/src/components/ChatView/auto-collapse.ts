@@ -26,7 +26,7 @@
  * Extracted as a pure function so the decision matrix is unit-testable
  * without mounting the heavy ChatView dependency graph.
  */
-export interface AutoCollapseDecision {
+interface AutoCollapseDecision {
   /** Current transcript presence (messages.length > 0). */
   hasMessages: boolean;
   /** Current value of the autoCollapseInput pref. */

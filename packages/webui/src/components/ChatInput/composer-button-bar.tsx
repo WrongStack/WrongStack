@@ -7,7 +7,7 @@ import type { ImageAttachment } from './image-attachments.js';
 import { StopControls } from './stop-controls.js';
 import { Button } from '../ui/button.js';
 
-export interface ComposerButtonBarProps {
+interface ComposerButtonBarProps {
   imagePickerRef: React.RefObject<HTMLInputElement | null>;
   disabled: boolean;
   topicCheckBusy: boolean;

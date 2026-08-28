@@ -209,7 +209,7 @@ export async function processImageFile(file: File): Promise<ImageAttachment> {
 }
 
 /** Wire shape sent inside the `user_message` payload (`images` field). */
-export interface WireImage {
+interface WireImage {
   data: string;
   mediaType: string;
   name?: string | undefined;

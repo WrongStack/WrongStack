@@ -13,7 +13,7 @@ import { useEffect, useState } from 'react';
  * - `desktop`: > 768px (at or above `md`)
  */
 
-export interface ViewportState {
+interface ViewportState {
   /** True when viewport width ≤ 768px (Tailwind `md` breakpoint). */
   isMobile: boolean;
   /** True when viewport width ≤ 640px (Tailwind `sm` breakpoint). */
@@ -75,4 +75,4 @@ export function isMobileViewport(): boolean {
   return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
 }
 
-export { MOBILE_BREAKPOINT, SMALL_BREAKPOINT };
+export { MOBILE_BREAKPOINT };

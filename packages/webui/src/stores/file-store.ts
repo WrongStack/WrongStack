@@ -108,7 +108,7 @@ export interface FileStoreState {
 }
 
 /** Shape written to localStorage — tabs are paths only, never content. */
-export interface PersistedFileStoreState {
+interface PersistedFileStoreState {
   openFilePaths: string[];
   activeFilePath: string | null;
   /** Canonical absolute project root (env identity), not the display label. */

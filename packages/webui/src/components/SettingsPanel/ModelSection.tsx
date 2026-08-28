@@ -22,7 +22,7 @@ interface CatalogProvider {
   name: string;
 }
 
-export interface ModelSectionProps {
+interface ModelSectionProps {
   /** Current provider id. */
   provider: string;
   /** Provider → models cache. */

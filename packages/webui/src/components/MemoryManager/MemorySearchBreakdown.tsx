@@ -19,7 +19,7 @@ import type { ReactNode } from 'react';
 import type { WSSearchBreakdownHit } from '@/types/sage';
 import { cn } from '@/lib/utils';
 
-export interface MemorySearchBreakdownProps {
+interface MemorySearchBreakdownProps {
   query: string;
   /** `breakdown` = rich variant succeeded; `lexical` = fallback synthesized. */
   channel: 'breakdown' | 'lexical' | undefined;

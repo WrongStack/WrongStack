@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T17:09:53.577Z",
+  "generatedAt": "2026-08-28T17:35:31.570Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,9 +12,9 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3411,
-    "testFiles": 3029,
-    "sourceLines": 825273,
+    "sourceFiles": 3410,
+    "testFiles": 3028,
+    "sourceLines": 824987,
     "workspaceEdges": 128,
     "moduleEdges": 10588,
     "nonCommandSlashImports": 0,
@@ -805,8 +805,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 491,
-      "testFiles": 394,
+      "sourceFiles": 490,
+      "testFiles": 393,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -830,7 +830,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 394
+          "testFiles": 393
         }
       ]
     },
@@ -17863,12 +17863,6 @@
       },
       {
         "file": "packages/webui/tests/hooks/use-horizontal-scroll.test.tsx",
-        "projects": [
-          "webui-jsdom"
-        ]
-      },
-      {
-        "file": "packages/webui/tests/hooks/use-integration-status.test.tsx",
         "projects": [
           "webui-jsdom"
         ]

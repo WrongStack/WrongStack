@@ -21,7 +21,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 // ── Props ──────────────────────────────────────────────────────────────────
 
-export interface CronJobsPanelProps {
+interface CronJobsPanelProps {
   open: boolean;
   onClose: () => void;
 }

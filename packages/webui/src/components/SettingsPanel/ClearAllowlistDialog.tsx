@@ -27,7 +27,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 
-export interface ClearAllowlistDialogProps {
+interface ClearAllowlistDialogProps {
   open: boolean;
   providerId: string;
   /** How many ids will be removed. Used in the dialog body. */

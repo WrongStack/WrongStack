@@ -35,24 +35,7 @@ import type { ChatState } from './chat-store-types';
 export const MAX_CHAT_MESSAGES = 1000;
 export const MAX_PERSISTED_MESSAGES = 200;
 
-export {
-  activeChatLane,
-  activeLaneId,
-  adoptDefaultLane,
-  type ChatLaneActions,
-  type ChatLaneData,
-  chatLane,
-  DEFAULT_LANE_ID,
-  disposeLane,
-  ensureLane,
-  hasLane,
-  laneIds,
-  MAX_LANES,
-  overrideLaneActions,
-  readLane,
-  setActiveLane,
-  useChatLanes,
-} from './chat-lanes';
+export { activeChatLane, activeLaneId, adoptDefaultLane, type ChatLaneActions, type ChatLaneData, chatLane, DEFAULT_LANE_ID, disposeLane, ensureLane, hasLane, laneIds, MAX_LANES, readLane, setActiveLane, useChatLanes } from './chat-lanes';
 export { BTW_DISPATCH_GRACE_MS } from './chat-queue-helpers';
 export {
   boundChatField,
@@ -224,6 +207,6 @@ export const useChatStore: ChatStoreFacade = Object.assign(
  * Retire a lane whose tab was closed. Frees its transcript, queue and timers —
  * a closed tab must not keep accruing memory or fire deferred bubbles.
  */
-export function closeChatLane(sessionId: string): void {
+function closeChatLane(sessionId: string): void {
   disposeLane(sessionId);
 }

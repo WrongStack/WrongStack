@@ -11,10 +11,10 @@ type AssertNever<T extends never> = T;
  * A newly added detailed message cannot compile until the canonical runtime
  * registry represents its wire name in the matching direction.
  */
-export type UnregisteredClientSurfaceMessage = AssertNever<
+type UnregisteredClientSurfaceMessage = AssertNever<
   Exclude<WSClientMessageCore['type'], CanonicalClientMessageType>
 >;
 
-export type UnregisteredServerSurfaceMessage = AssertNever<
+type UnregisteredServerSurfaceMessage = AssertNever<
   Exclude<WSServerMessage['type'], CanonicalServerMessageType>
 >;

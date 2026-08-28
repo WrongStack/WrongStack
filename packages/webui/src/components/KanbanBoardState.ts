@@ -1,7 +1,7 @@
 import type { KanbanBoard } from '@wrongstack/kanban';
 import type { RunLink } from './KanbanRunControls.js';
 
-export interface FleetAgentLike {
+interface FleetAgentLike {
   id: string;
   name: string;
   status: string;

@@ -10,7 +10,7 @@ export type OfficeToolKind =
   | 'memory'
   | 'other';
 
-export interface OfficeFileTarget {
+interface OfficeFileTarget {
   filePath: string;
   operation?: string | undefined;
   line?: number | undefined;
@@ -40,7 +40,7 @@ export interface OfficeToolCall {
   raw?: unknown;
 }
 
-export interface OfficeMailboxMessage {
+interface OfficeMailboxMessage {
   id: string;
   from: string;
   to: string;
@@ -412,7 +412,7 @@ export function buildSnapshotMailActivities(
     .slice(0, 12);
 }
 
-export interface OfficeMailRoute {
+interface OfficeMailRoute {
   /** Mail id — also used to suppress the duplicate per-lane flyby. */
   id: string;
   mail: OfficeMailActivity;

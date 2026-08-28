@@ -16,7 +16,7 @@ function toHeight(count: number, maxCount: number): number {
   return Math.min(8, Math.round((count / maxCount) * 8));
 }
 
-export interface SparklineChartProps {
+interface SparklineChartProps {
   /** 12-element array of event counts per bucket. Index 0 = most recent. */
   bins: number[];
   /** Optional CSS class for the wrapper. */

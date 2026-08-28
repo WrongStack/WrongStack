@@ -1,4 +1,4 @@
-export interface BrainModelEntryWire {
+interface BrainModelEntryWire {
   provider?: string | undefined;
   model: string;
 }
@@ -11,7 +11,7 @@ export interface BrainCouncilVoterWire extends BrainModelEntryWire {
 }
 
 /** Predicate half of a deterministic Brain rule on the wire (mirrors BrainRuleMatch). */
-export interface BrainRuleMatchWire {
+interface BrainRuleMatchWire {
   source?: string | string[] | undefined;
   risk?: string | string[] | undefined;
   minRisk?: string | undefined;
@@ -26,7 +26,7 @@ export interface BrainRuleMatchWire {
 }
 
 /** Action half of a deterministic Brain rule on the wire (mirrors BrainRuleAction). */
-export type BrainRuleActionWire =
+type BrainRuleActionWire =
   | {
       action: 'answer';
       optionId?: string | undefined;
@@ -38,7 +38,7 @@ export type BrainRuleActionWire =
   | { action: 'defer' };
 
 /** One deterministic Brain rule on the wire (mirrors core's BrainRule). */
-export interface BrainRuleWire {
+interface BrainRuleWire {
   id: string;
   enabled?: boolean | undefined;
   description?: string | undefined;
@@ -47,7 +47,7 @@ export interface BrainRuleWire {
 }
 
 /** Built-in pattern-heuristic toggles on the wire (mirrors BrainHeuristicsConfig). */
-export interface BrainHeuristicsWire {
+interface BrainHeuristicsWire {
   lowRiskAutoAnswer: boolean;
   blockedResolved: boolean;
   deadlockSkip: boolean;
@@ -57,7 +57,7 @@ export interface BrainHeuristicsWire {
 }
 
 /** Writable form of the heuristic toggles (every field optional, `null` clears the block). */
-export interface BrainHeuristicsPatchWire {
+interface BrainHeuristicsPatchWire {
   lowRiskAutoAnswer?: boolean | undefined;
   blockedResolved?: boolean | undefined;
   deadlockSkip?: boolean | undefined;
@@ -67,7 +67,7 @@ export interface BrainHeuristicsPatchWire {
 }
 
 /** Effective single-LLM tier quality gate. */
-export interface BrainLlmWire {
+interface BrainLlmWire {
   maxTokens: number;
   rejectUncertain: boolean;
   minConfidence: number;
@@ -75,7 +75,7 @@ export interface BrainLlmWire {
 }
 
 /** Writable single-LLM tier quality gate. */
-export interface BrainLlmPatchWire {
+interface BrainLlmPatchWire {
   maxTokens?: number | undefined;
   rejectUncertain?: boolean | undefined;
   minConfidence?: number | undefined;
@@ -89,14 +89,14 @@ export interface BrainLlmPatchWire {
 }
 
 /** Effective replay-trace settings. */
-export interface BrainTraceWire {
+interface BrainTraceWire {
   enabled: boolean;
   content: 'none' | 'redacted' | 'full';
   path?: string | undefined;
 }
 
 /** Writable replay-trace settings. */
-export interface BrainTracePatchWire {
+interface BrainTracePatchWire {
   enabled?: boolean | undefined;
   content?: 'none' | 'redacted' | 'full' | undefined;
   path?: string | undefined;
@@ -104,7 +104,7 @@ export interface BrainTracePatchWire {
 }
 
 /** BrainMonitor distress-signal settings (same shape read + written). */
-export interface BrainMonitorWire {
+interface BrainMonitorWire {
   enabled?: boolean | undefined;
   policy?: 'llm' | 'steer' | 'observe' | undefined;
   signals?:
@@ -127,7 +127,7 @@ export interface BrainMonitorWire {
 }
 
 /** Effective decision-cache settings plus live counters (`hits`/`misses`/`size` are read-only). */
-export interface BrainCacheWire {
+interface BrainCacheWire {
   enabled: boolean;
   ttlMs: number;
   maxEntries: number;
@@ -137,20 +137,20 @@ export interface BrainCacheWire {
 }
 
 /** Writable decision-cache settings. */
-export interface BrainCachePatchWire {
+interface BrainCachePatchWire {
   enabled?: boolean | undefined;
   ttlMs?: number | undefined;
   maxEntries?: number | undefined;
 }
 
 /** One council seat template on the wire. */
-export interface BrainCouncilSeatWire {
+interface BrainCouncilSeatWire {
   persona: string;
   veto?: boolean | undefined;
 }
 
 /** One selectable Council decision lens, published from the server's registry. */
-export interface BrainCouncilPersonaWire {
+interface BrainCouncilPersonaWire {
   id: string;
   name: string;
   description: string;
@@ -159,7 +159,7 @@ export interface BrainCouncilPersonaWire {
 }
 
 /** Headless escalation variant. */
-export type BrainTerminalPolicyWire = 'conservative' | 'deny-all' | 'continue-on-recommended';
+type BrainTerminalPolicyWire = 'conservative' | 'deny-all' | 'continue-on-recommended';
 
 /** JSON-safe snapshot of the live Brain config (mirrors core's BrainConfigSnapshot). */
 export interface BrainConfigWire {

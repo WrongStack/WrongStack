@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 /**
  * A single selectable option in a PickerCardList.
  */
-export interface PickerOption {
+interface PickerOption {
   id: string;
   label: string;
   /** Smaller text shown beside the label. */
@@ -20,7 +20,7 @@ export interface PickerOption {
   rightContent?: ReactNode | undefined;
 }
 
-export interface PickerCardListProps {
+interface PickerCardListProps {
   options: PickerOption[];
   selectedId: string;
   onSelect: (id: string) => void;

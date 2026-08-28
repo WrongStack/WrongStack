@@ -76,7 +76,7 @@ export const useSystemPromptStore = create<SystemPromptState>()((set) => ({
 }));
 
 /** Variant list with a stable fallback so the picker can render before the first reply. */
-export function systemPromptVariants(info: WSSystemPromptInfo | null): WSSystemPromptVariantInfo[] {
+function systemPromptVariants(info: WSSystemPromptInfo | null): WSSystemPromptVariantInfo[] {
   return info?.variants ?? [];
 }
 

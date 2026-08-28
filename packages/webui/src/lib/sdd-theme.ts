@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react';
 
-export type SddStatus =
+type SddStatus =
   | 'pending'
   | 'queued'
   | 'in_progress'
@@ -32,7 +32,7 @@ export type SddStatus =
   | 'completed'
   | 'cancelled';
 
-export interface SddStatusStyle {
+interface SddStatusStyle {
   /** Short label, e.g. "Running". */
   label: string;
   /** Lucide icon for the status. */
@@ -121,7 +121,7 @@ export function statusStyle(s: string): SddStatusStyle {
   return SDD_STATUS[s as SddStatus] ?? SDD_STATUS.pending;
 }
 
-export type SddPriority = 'critical' | 'high' | 'medium' | 'low';
+type SddPriority = 'critical' | 'high' | 'medium' | 'low';
 
 export const SDD_PRIORITY: Record<SddPriority, { text: string; chip: string }> = {
   critical: {

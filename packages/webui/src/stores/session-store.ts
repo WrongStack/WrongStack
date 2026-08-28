@@ -341,7 +341,7 @@ export const useSessionStore: SessionStoreFacade = Object.assign(
 // Compatibility shims
 // ---------------------------------------------------------------------------
 
-export interface SessionSnapshot {
+interface SessionSnapshot {
   session: SessionInfo | null;
   provider?: string | undefined;
   model?: string | undefined;
@@ -425,7 +425,7 @@ export const memorySessionSnapshots = {
  * Now a plain lane write — background accrual is the DEFAULT, not a special
  * case bolted onto the side. Creates the lane if the run outran its tab.
  */
-export function accrueBackgroundUsage(
+function accrueBackgroundUsage(
   sessionId: string,
   usage: {
     input: number;

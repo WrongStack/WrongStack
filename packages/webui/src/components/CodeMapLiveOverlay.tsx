@@ -4,7 +4,7 @@ import type { FileActivity, LiveAgentPresence } from '@/stores/codemap-activity-
 import { agentColor, agentInitials, shortPath } from './CodeMapVisuals';
 import { useAppTranslation } from '@/i18n';
 
-export function OperationBadge({ activity }: { activity: FileActivity }): React.ReactElement {
+function OperationBadge({ activity }: { activity: FileActivity }): React.ReactElement {
   return (
     <span
       className={cn(

@@ -3,18 +3,18 @@ import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
 
-export interface KanbanToolOption {
+interface KanbanToolOption {
   name: string;
   description?: string | undefined;
 }
 
-export interface KanbanSkillOption {
+interface KanbanSkillOption {
   name: string;
   description?: string | undefined;
   source?: string | undefined;
 }
 
-export interface KanbanMeta {
+interface KanbanMeta {
   /** Real registered tools from the live agent runtime (not hardcoded). */
   tools: KanbanToolOption[];
   /** Installed skills available for explicit task-level force loading. */

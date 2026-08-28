@@ -38,7 +38,7 @@ onLaneDisposed((sessionId) => {
 
 /** Queue Panel overlay — triggered by /queue slash command.
  *  Shows the pending message queue and lets users dequeue or clear items. */
-export interface QueuePanelProps {
+interface QueuePanelProps {
   open: boolean;
   onClose: () => void;
   className?: string;

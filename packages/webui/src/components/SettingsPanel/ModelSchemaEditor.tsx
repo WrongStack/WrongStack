@@ -13,7 +13,7 @@ import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 
-export interface ModelSchemaEditorProps {
+interface ModelSchemaEditorProps {
   providerId: string;
   modelId: string;
   initialModelsDev: Record<string, unknown>;

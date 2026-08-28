@@ -4,7 +4,7 @@ import type { WSUserMessageImage } from '@/types';
 import { useChatStore } from '@/stores';
 import { toast } from '../Toaster.js';
 
-export interface UseChatInputMcpOptions {
+interface UseChatInputMcpOptions {
   client?: WrongStackWebSocketClient | null | undefined;
   sendMessage: (
     content: string,

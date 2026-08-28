@@ -16,7 +16,7 @@ import { useFleetStore } from '@/stores';
 import type { SubagentView, FleetSummary } from '@/stores';
 import { tallyAgents } from '@/lib/agent-status';
 
-export interface FleetPollingResult {
+interface FleetPollingResult {
   /** Derived fleet-wide summary (running/completed/failed/total/cost/tokens). */
   summary: FleetSummary;
   /** Agent list sorted leader-first, running-first, then by startedAt. */

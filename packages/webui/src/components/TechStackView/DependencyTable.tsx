@@ -15,7 +15,7 @@ import { Badge, coverageMeta, EcosystemIcon, ecosystemLabel, installedVersion, s
 import { Pagination } from '../ui/pagination';
 import { useAppTranslation } from '@/i18n';
 
-export interface DependencyTableProps {
+interface DependencyTableProps {
   dependencies: readonly TechStackDependency[];
   selectedId: string | null;
   hasDependencies: boolean;

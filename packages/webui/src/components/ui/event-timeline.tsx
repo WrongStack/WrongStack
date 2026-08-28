@@ -8,7 +8,7 @@
 import { i18n, useAppTranslation } from '@/i18n';
 import type { FleetTimelineEvent } from '@/stores';
 
-export interface EventTimelineProps {
+interface EventTimelineProps {
   events: FleetTimelineEvent[];
   /** Max events to render (default 20). */
   max?: number;

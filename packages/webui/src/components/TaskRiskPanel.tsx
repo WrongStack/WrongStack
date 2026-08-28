@@ -4,7 +4,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from './ui/pagination';
 import { useAppTranslation } from '@/i18n';
 
-export type TaskRiskSeverity = 'critical' | 'warning' | 'info';
+type TaskRiskSeverity = 'critical' | 'warning' | 'info';
 
 /**
  * A finding carries i18n KEYS, not prose: `analyzeTaskRisk` is a pure function
@@ -12,7 +12,7 @@ export type TaskRiskSeverity = 'critical' | 'warning' | 'info';
  * not depend on a translator. The panel resolves the keys at render time and
  * feeds `detailParams` into the interpolation.
  */
-export interface TaskRiskFinding {
+interface TaskRiskFinding {
   id: string;
   severity: TaskRiskSeverity;
   category: 'operational' | 'audit';
@@ -22,7 +22,7 @@ export interface TaskRiskFinding {
   remediationKey: string;
 }
 
-export interface TaskRiskAssessment {
+interface TaskRiskAssessment {
   score: number;
   findings: TaskRiskFinding[];
   critical: number;

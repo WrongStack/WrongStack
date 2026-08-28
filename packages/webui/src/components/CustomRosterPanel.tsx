@@ -42,7 +42,7 @@ export interface ProjectAgentLearnStats {
 
 let wsRef: WebSocket | null = null;
 
-export function setCustomRosterWS(ws: WebSocket | null): void {
+function setCustomRosterWS(ws: WebSocket | null): void {
   wsRef = ws;
 }
 

@@ -50,7 +50,7 @@ export function clampCtxPct(value: number | null | undefined): number {
 
 // ── Status LED ────────────────────────────────────────────────────────────
 
-export function StatusLED({
+function StatusLED({
   status,
   small,
   activity = 0,
@@ -93,7 +93,7 @@ export function StatusLED({
 
 // ── Shared helpers ────────────────────────────────────────────────────────
 
-export function NodeHandles() {
+function NodeHandles() {
   const style = {
     opacity: 0,
     width: 1,
@@ -110,7 +110,7 @@ export function NodeHandles() {
   );
 }
 
-export function ClientMeta({ data }: { data: OfficeNodeData }) {
+function ClientMeta({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   return (
     <div className="mt-2 flex items-center justify-between border-t border-border/60 pt-1.5 text-[10px] text-muted-foreground">
@@ -129,7 +129,7 @@ export function ClientMeta({ data }: { data: OfficeNodeData }) {
 
 // ── Node Components ───────────────────────────────────────────────────────
 
-export function WebUINode({ data }: { data: OfficeNodeData }) {
+function WebUINode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const isActive = data.status === 'active' || data.status === 'streaming';
   const isError = data.status === 'error';
@@ -196,7 +196,7 @@ export function WebUINode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function TUINode({ data }: { data: OfficeNodeData }) {
+function TUINode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const isActive = data.status === 'active' || data.status === 'streaming';
   const isError = data.status === 'error';
@@ -244,7 +244,7 @@ export function TUINode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function REPLNode({ data }: { data: OfficeNodeData }) {
+function REPLNode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const isActive = data.status === 'active' || data.status === 'streaming';
   const color = data.color || OFFICE_COLOR.warning;
@@ -285,7 +285,7 @@ export function REPLNode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function CoordinatorNode({ data }: { data: OfficeNodeData }) {
+function CoordinatorNode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const isActive = data.status === 'active' || data.status === 'streaming';
   const color = data.color || OFFICE_COLOR.primary;
@@ -350,7 +350,7 @@ export function CoordinatorNode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function AgentNode({ data }: { data: OfficeNodeData }) {
+function AgentNode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const isActive = data.status === 'active' || data.status === 'streaming';
   const isError = data.status === 'error';
@@ -466,7 +466,7 @@ export function AgentNode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function DeskNode({ data }: { data: OfficeNodeData }) {
+function DeskNode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   return (
     <div
@@ -488,7 +488,7 @@ export function DeskNode({ data }: { data: OfficeNodeData }) {
   );
 }
 
-export function MailboxNode({ data }: { data: OfficeNodeData }) {
+function MailboxNode({ data }: { data: OfficeNodeData }) {
   const { t } = useAppTranslation();
   const color = data.color || OFFICE_COLOR.warning;
   const hasUnread = (data.unreadCount || 0) > 0;

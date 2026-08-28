@@ -15,15 +15,15 @@ interface TaskActivityTimelineProps {
   onRefresh?: (() => void) | undefined;
 }
 
-export type TaskActivityFilter = 'all' | 'execution' | 'changes' | 'notes' | 'failures';
+type TaskActivityFilter = 'all' | 'execution' | 'changes' | 'notes' | 'failures';
 
-export interface TaskFieldChange {
+interface TaskFieldChange {
   field: string;
   before: unknown;
   after: unknown;
 }
 
-export interface TaskActivityExport {
+interface TaskActivityExport {
   format: 'wrongstack-kanban-task-activity';
   version: 1;
   exportedAt: string;

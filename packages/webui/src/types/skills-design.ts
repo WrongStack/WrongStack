@@ -31,7 +31,7 @@ export interface WSSkillContent {
   };
 }
 
-export interface WSDesignKitSummary {
+interface WSDesignKitSummary {
   id: string;
   name: string;
   aesthetic: string;

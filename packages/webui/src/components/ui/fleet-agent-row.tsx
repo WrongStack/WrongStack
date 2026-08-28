@@ -15,7 +15,7 @@ import { useAppTranslation } from '@/i18n';
 import { fmtCost } from '@/components/dashboard-primitives';
 import type { SubagentView } from '@/stores';
 
-export const FLEET_ROW_STATUS_META: Record<
+const FLEET_ROW_STATUS_META: Record<
   SubagentView['status'],
   { led: string; labelKey: string; pulse: boolean; color: string }
 > = {
@@ -26,7 +26,7 @@ export const FLEET_ROW_STATUS_META: Record<
   stopped: { led: 'bg-muted-foreground', labelKey: 'statusStopped', pulse: false, color: 'text-muted-foreground' },
 };
 
-export interface FleetAgentRowProps {
+interface FleetAgentRowProps {
   agent: SubagentView;
   isSelected: boolean;
   isLeader: boolean;

@@ -31,7 +31,7 @@ import type { PluginConfig } from '@wrongstack/core/types';
 
 type PluginEntry = string | PluginConfig;
 
-export interface ResolvedPluginState {
+interface ResolvedPluginState {
   /** Plugin name as it appears in `Config.plugins`. */
   readonly name: string;
   /** True iff the canonical config says this plugin is enabled. */

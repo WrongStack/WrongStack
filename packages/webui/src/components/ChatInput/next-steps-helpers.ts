@@ -1,7 +1,7 @@
 import { useChatStore } from '@/stores';
 import { parseNextSteps } from '../NextStepsBar.js';
 
-export function stepsFromMessage(
+function stepsFromMessage(
   m:
     | {
         content: string;
@@ -19,7 +19,7 @@ export function stepsFromMessage(
   }));
 }
 
-export function stepsFromLastAssistant(): Array<{ index: number; text: string }> {
+function stepsFromLastAssistant(): Array<{ index: number; text: string }> {
   const all = useChatStore.getState().messages;
   for (let i = all.length - 1; i >= 0; i--) {
     const m = all[i];

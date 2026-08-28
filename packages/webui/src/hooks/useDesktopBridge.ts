@@ -28,7 +28,7 @@ import { downloadChatAsMarkdown } from '@/components/CommandPalette';
 import { toast } from '@/components/Toaster';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
-export interface UseDesktopBridgeOptions {
+interface UseDesktopBridgeOptions {
   setPaletteOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
   setShortcutsOpen: (open: boolean) => void;

@@ -4,7 +4,7 @@ import { ArrowLeft, Columns3, Plus, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Pagination } from './ui/pagination';
 
-export type KanbanBoardSidebarProps = {
+type KanbanBoardSidebarProps = {
   boardTotal: number;
   activeBoardTotal: number;
   orphanedBoardTotal: number;

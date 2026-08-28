@@ -1079,7 +1079,7 @@ export type WSServerMessage =
   | { type: 'prompts.journal'; payload: WSPromptsJournalPayload };
 
 // Helper to broadcast to all clients
-export type BroadcastFn = (msg: WSServerMessage) => void;
+type BroadcastFn = (msg: WSServerMessage) => void;
 
 /** One entry from the hierarchical prompt journal (mirrors core `PromptJournalEntry`). */
 export interface WSPromptJournalEntry {

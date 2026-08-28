@@ -5,7 +5,7 @@
  * Matches the TUI's fleet concurrency gauge for quick at-a-glance status.
  */
 
-export interface ConcurrencyGaugeProps {
+interface ConcurrencyGaugeProps {
   /** Current active concurrency (running agents). */
   current: number;
   /** Maximum allowed concurrency slots. */

@@ -23,7 +23,7 @@ import { SparklineChart } from '@/components/ui/sparkline';
 import { ContextFillBar } from '@/components/ContextBar';
 import { AgentDetailSection } from '@/components/agents/AgentDetailSection';
 
-export interface AgentRosterCardProps {
+interface AgentRosterCardProps {
   agent: SubagentView;
   isLeader?: boolean | undefined;
   isExpanded?: boolean | undefined;

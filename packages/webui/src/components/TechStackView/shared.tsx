@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 
 // ── Status presentation ───────────────────────────────────────────────────
 
-export interface StatusMeta {
+interface StatusMeta {
   readonly labelKey: string;
   /** Full literal class strings. */
   readonly badge: string;
@@ -141,7 +141,7 @@ export function statusMeta(status: string): StatusMeta {
 
 // ── Ecosystem presentation ───────────────────────────────────────────────
 
-export interface EcosystemMeta {
+interface EcosystemMeta {
   /** Human-readable display name — a proper noun (npm, Python, Rust…), so it
    *  is NOT translated. The unknown-ecosystem fallback uses `labelKey`. */
   readonly label?: string | undefined;
@@ -185,7 +185,7 @@ export function ecosystemLabel(ecosystem: string, t: (key: string) => string): s
   return meta.labelKey ? t(meta.labelKey) : (meta.label ?? ecosystem);
 }
 
-export function ecosystemMeta(ecosystem: string): EcosystemMeta {
+function ecosystemMeta(ecosystem: string): EcosystemMeta {
   return ECOSYSTEM_META[ecosystem] ?? FALLBACK_ECOSYSTEM;
 }
 
@@ -242,7 +242,7 @@ export const ACTION_LABELS: Record<string, string> = {
 
 // ── Coverage ──────────────────────────────────────────────────────────────
 
-export interface CoverageMeta {
+interface CoverageMeta {
   readonly labelKey: string;
   readonly badge: string;
   /** Short inline text for the dependency row subtitle (e.g. "limited", "best-effort"). */
@@ -287,7 +287,7 @@ function majorOf(version: string | undefined): number | null {
   return Number.isFinite(major) ? major : null;
 }
 
-export interface VersionDrift {
+interface VersionDrift {
   /** Whole major versions behind latest stable. `0` when on the latest major. */
   readonly majorsBehind: number;
   /** Human summary, e.g. "2 majors behind". `null` when there's nothing to say. */

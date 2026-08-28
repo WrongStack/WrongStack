@@ -220,7 +220,7 @@ export function isTabBusy(sessionId: string): boolean {
 /** Everything a busy-tab warning needs to say about one session, gathered in
  *  one place. The close dialog and the switch-away toast render the same
  *  `lines`, so the two warnings cannot drift apart or go vague. */
-export interface SessionActivityReport {
+interface SessionActivityReport {
   sessionId: string;
   isBusy: boolean;
   /** True when the tab holds nothing at all — no chat history, no agents
@@ -412,7 +412,7 @@ function declareOpenTabsNow(openTabIds: string[]): void {
  * inventing a new ordering rule. The `now` parameter is injected so the
  * helper stays pure and testable.
  */
-export type RestorePickForeground = (candidates: string[], now: number) => string | null;
+type RestorePickForeground = (candidates: string[], now: number) => string | null;
 
 const defaultPickForeground: RestorePickForeground = (candidates, _now) => {
   // `_now` is the RestorePickForeground test seam (tests inject a frozen
@@ -431,7 +431,7 @@ const defaultPickForeground: RestorePickForeground = (candidates, _now) => {
   return best;
 };
 
-export interface RestoreOpenTabsOptions {
+interface RestoreOpenTabsOptions {
   /** Injected clock for tests. Defaults to `Date.now()`. */
   now?: number;
   /** Injected picker for tests. Defaults to `defaultPickForeground`. */
@@ -740,7 +740,7 @@ export function summarizeTab(sessionId: string, slot: number): TabSummary {
 }
 
 /** Ordered summaries for every open slot. */
-export function summarizeTabs(): TabSummary[] {
+function summarizeTabs(): TabSummary[] {
   return useSessionTabStore.getState().openTabIds.map((id, i) => summarizeTab(id, i));
 }
 
@@ -752,7 +752,7 @@ export function slotOf(sessionId: string): number {
 
 /** True when the session has a lane but no slot — a state that should never
  *  persist; used by the reconciler to clean up after a dropped tab. */
-export function isOrphanLane(sessionId: string): boolean {
+function isOrphanLane(sessionId: string): boolean {
   return hasLane(sessionId) && slotOf(sessionId) === -1;
 }
 

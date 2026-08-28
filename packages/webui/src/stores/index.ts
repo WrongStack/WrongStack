@@ -2,7 +2,7 @@
 
 export { useChatStore } from './chat-store.js';
 export type { ChimeraReportNotice } from './chimera-reports-store.js';
-export { useChimeraReportsStore, useSessionChimeraReports } from './chimera-reports-store.js';
+export { useChimeraReportsStore } from './chimera-reports-store.js';
 export type { ActivityType, FileActivity } from './codemap-activity-store.js';
 export {
   extractActivitiesFromMessage,
@@ -107,20 +107,8 @@ export {
 } from './sdd-wizard-store.js';
 /** The lane pointer — the single answer to "which tab is in front". */
 export { activeSessionLaneId, useActiveSessionId } from './session-lanes.js';
-export {
-  accrueBackgroundUsage,
-  memorySessionSnapshots,
-  useSessionStore,
-} from './session-store.js';
-export {
-  isTabBusy,
-  MAX_OPEN_TABS,
-  slotOf,
-  summarizeTab,
-  summarizeTabs,
-  type TabSummary,
-  useSessionTabStore,
-} from './session-tab-store.js';
+export { memorySessionSnapshots, useSessionStore } from './session-store.js';
+export { isTabBusy, MAX_OPEN_TABS, slotOf, summarizeTab, type TabSummary, useSessionTabStore } from './session-tab-store.js';
 export { type SideEffectEntry, useSideEffectStore } from './side-effect-store.js';
 export {
   type BoardTaskItem,
@@ -155,21 +143,7 @@ export {
   type ToolStatsSession,
   useToolStatsStore,
 } from './tool-stats-store.js';
-export type {
-  AgentTranscriptEntry,
-  AgentTranscriptKind,
-  BrainDecisionData,
-  ChatMessage,
-  CouncilDecisionData,
-  CouncilSeatVote,
-  FleetTimelineEvent,
-  MessageContent,
-  SessionHistoryEntry,
-  SessionInfo,
-  SubagentEvent,
-  SubagentView,
-  ToolExecution,
-} from './types.js';
+export type { AgentTranscriptEntry, AgentTranscriptKind, BrainDecisionData, ChatMessage, CouncilDecisionData, CouncilSeatVote, FleetTimelineEvent, SessionHistoryEntry, SessionInfo, SubagentEvent, SubagentView, ToolExecution } from './types.js';
 export type { Activity, DockSection, InspectorTab, WorkDashboardTab } from './ui-store.js';
 export {
   coerceActivity,

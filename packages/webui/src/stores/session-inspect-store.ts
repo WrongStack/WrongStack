@@ -16,7 +16,7 @@ interface InspectFileEntry {
   ts: string;
 }
 
-export interface SessionInspectData {
+interface SessionInspectData {
   id: string;
   title: string;
   name?: string | undefined;

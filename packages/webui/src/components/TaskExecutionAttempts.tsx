@@ -5,7 +5,7 @@ import { usePagination } from '@/hooks/usePagination';
 import { Pagination } from './ui/pagination';
 import { useAppTranslation } from '@/i18n';
 
-export interface TaskExecutionAttempt {
+interface TaskExecutionAttempt {
   attempt: number;
   status: string;
   startedAt: string;

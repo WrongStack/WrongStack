@@ -20,7 +20,7 @@ export interface TaskItem {
 }
 
 // Token-driven so every state reads correctly in both light and dark.
-export const TASK_STATUS_CONFIG: Record<
+const TASK_STATUS_CONFIG: Record<
   TaskItem['status'],
   { icon: React.ReactNode; color: string }
 > = {
@@ -32,14 +32,14 @@ export const TASK_STATUS_CONFIG: Record<
   completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-success' },
 };
 
-export const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {
+const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {
   critical: 'bg-destructive/15 text-destructive',
   high: 'bg-warning/15 text-warning',
   medium: 'bg-info/15 text-info',
   low: 'bg-muted text-muted-foreground',
 };
 
-export const TYPE_BADGE: Record<TaskItem['type'], string> = {
+const TYPE_BADGE: Record<TaskItem['type'], string> = {
   feature: 'bg-success/15 text-success',
   bugfix: 'bg-destructive/15 text-destructive',
   refactor: 'bg-primary/15 text-primary',
@@ -57,7 +57,7 @@ function formatTime(ms?: number): string {
   return rem > 0 ? `${h}h ${rem}m` : `${h}h`;
 }
 
-export interface TaskCardProps {
+interface TaskCardProps {
   task: TaskItem;
   /** Change task status (Start / Complete / Fail quick actions). */
   onStatusChange?: ((taskId: string, status: TaskItem['status']) => void) | undefined;

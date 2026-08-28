@@ -18,7 +18,7 @@ import { normalizedPath, scopeKey } from './codemap-model';
 const MAX_TREE_FILES_VISIBLE = 80;
 const MAX_TREE_SYMBOLS_VISIBLE = 40;
 
-export interface DirectoryBranchProps {
+interface DirectoryBranchProps {
   directory: DirectoryNode;
   packageName: string;
   depth: number;

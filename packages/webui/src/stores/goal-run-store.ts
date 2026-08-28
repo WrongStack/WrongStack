@@ -3,10 +3,10 @@ import type { PhaseItem } from '@/components/PhasePanel';
 
 // ── Goal Run Store ─────────────────────────────────────────────────────────
 
-export type GoalRunStatus = 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
+type GoalRunStatus = 'idle' | 'running' | 'paused' | 'completed' | 'failed' | 'stopped';
 
 /** A persisted kanban board (one Goal graph JSON per board on disk). */
-export interface GoalRunBoardSummary {
+interface GoalRunBoardSummary {
   id: string;
   title: string;
   updatedAt: number;

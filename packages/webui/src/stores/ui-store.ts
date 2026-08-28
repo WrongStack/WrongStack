@@ -73,7 +73,7 @@ type View = (typeof VIEWS)[number];
 /** Coerce an arbitrary value onto the current view union. Used by migrate
  *  when reading from localStorage so a stale value (e.g. 'context', a view
  *  removed in v3) lands on 'chat' rather than crashing the router. */
-export function coerceView(value: unknown): View {
+function coerceView(value: unknown): View {
   return (VIEWS as readonly string[]).includes(value as string) ? (value as View) : 'chat';
 }
 

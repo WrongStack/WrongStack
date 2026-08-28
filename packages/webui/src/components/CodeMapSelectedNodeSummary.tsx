@@ -7,7 +7,7 @@ import {
 import { NODE_STYLE } from './CodeMapVisuals';
 import { useAppTranslation } from '@/i18n';
 
-export type CodeMapSelectedNodeSummaryProps = {
+type CodeMapSelectedNodeSummaryProps = {
   node: GraphNodeData;
   incomingCount: number;
   outgoingCount: number;

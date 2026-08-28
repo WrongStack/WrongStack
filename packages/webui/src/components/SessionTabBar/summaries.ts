@@ -23,7 +23,7 @@ import { useUIStore } from '@/stores/ui-store';
  * "which tab am I looking at" is answerable at a glance instead of by reading
  * a session id.
  */
-export const SLOT_ACCENTS = [
+const SLOT_ACCENTS = [
   {
     name: 'primary',
     dot: 'bg-primary',

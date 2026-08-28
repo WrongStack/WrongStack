@@ -12,7 +12,7 @@
  * shape the panel needs to display the result.
  */
 
-export type ProbeStatus =
+type ProbeStatus =
   | 'ok'
   | 'unreachable'
   | 'timeout'

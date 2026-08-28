@@ -175,7 +175,7 @@ export function handleFilesDeleted(msg: WSServerMessage) {
   }
 }
 
-export function handleFilesRenamed(msg: WSServerMessage) {
+function handleFilesRenamed(msg: WSServerMessage) {
   const p = msg.payload as {
     oldPath: string;
     newPath: string;
@@ -192,7 +192,7 @@ export function handleFilesRenamed(msg: WSServerMessage) {
   }
 }
 
-export function handleFilesMoved(msg: WSServerMessage) {
+function handleFilesMoved(msg: WSServerMessage) {
   const p = msg.payload as {
     srcPath: string;
     destPath: string;

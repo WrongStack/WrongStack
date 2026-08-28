@@ -42,7 +42,7 @@ export function boundChatField(text: string, maxChars = MAX_CHAT_FIELD_CHARS): s
 
 const unknownBytesCache = new WeakMap<object, number>();
 
-export function estimateUnknownBytes(value: unknown): number {
+function estimateUnknownBytes(value: unknown): number {
   if (value === undefined) return 0;
   const cacheable = typeof value === 'object' && value !== null;
   if (cacheable) {
@@ -59,7 +59,7 @@ export function estimateUnknownBytes(value: unknown): number {
   return bytes;
 }
 
-export function normalizeRetainedMessage(message: ChatMessage, maxFieldChars: number): ChatMessage {
+function normalizeRetainedMessage(message: ChatMessage, maxFieldChars: number): ChatMessage {
   const content = boundChatField(message.content, maxFieldChars);
   const toolResult =
     message.toolResult === undefined
@@ -89,7 +89,7 @@ export function normalizeRetainedMessage(message: ChatMessage, maxFieldChars: nu
   };
 }
 
-export function retainedChatMessageBytes(message: ChatMessage): number {
+function retainedChatMessageBytes(message: ChatMessage): number {
   let bytes =
     384 +
     message.content.length * 2 +

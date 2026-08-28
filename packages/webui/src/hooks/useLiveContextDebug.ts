@@ -11,7 +11,7 @@ const FIRST_SNAPSHOT_TIMEOUT_MS = 5_000;
  * Kept loose (the modal re-types the fields it cares about) so a future
  * server-side addition does not break every consumer of the hook.
  */
-export interface LiveContextDebugPayload {
+interface LiveContextDebugPayload {
   total: number;
   mode?: string | undefined;
   policy?: unknown | undefined;
@@ -28,7 +28,7 @@ export interface LiveContextDebugPayload {
   };
 }
 
-export interface UseLiveContextDebugOptions {
+interface UseLiveContextDebugOptions {
   /**
    * When `false`, the hook idles: no subscription, no polling, no
    * requests. Defaults to `true` so a typical modal consumer can call
@@ -49,7 +49,7 @@ export interface UseLiveContextDebugOptions {
   pauseWhenHidden?: boolean | undefined;
 }
 
-export interface UseLiveContextDebugResult<T extends LiveContextDebugPayload> {
+interface UseLiveContextDebugResult<T extends LiveContextDebugPayload> {
   /**
    * Latest snapshot, or `null` until the first response arrives. Each
    * incoming payload overwrites the prior one — the most recent server

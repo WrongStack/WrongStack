@@ -84,7 +84,7 @@ export interface ChimeraReportFullDetail {
   }>;
 }
 
-export interface ChimeraHubState {
+interface ChimeraHubState {
   reports: ChimeraReportSummaryItem[];
   selectedReportId: string | null;
   detail: ChimeraReportFullDetail | null;

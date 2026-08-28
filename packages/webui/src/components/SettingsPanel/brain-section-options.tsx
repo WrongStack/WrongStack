@@ -27,10 +27,10 @@ export const RISK_COPY: Record<RiskLevel, string> = {
  * this list is only three of the six built-in lenses, and hard-coding it here
  * is what made `security`, `maintainer` and `user-advocate` unselectable.
  */
-export const PERSONAS = ['executor', 'skeptic', 'auditor'] as const;
+const PERSONAS = ['executor', 'skeptic', 'auditor'] as const;
 
 /** One entry of the lens picker. */
-export interface CouncilPersonaOption {
+interface CouncilPersonaOption {
   id: string;
   name: string;
   description?: string | undefined;
@@ -176,7 +176,7 @@ export const INTERVENTION_WINDOWS: BrainOption[] = [
  * anything with words carries `labelKey` and is resolved at render time —
  * this module is hook-free, so it cannot call `t()` itself.
  */
-export interface BrainOption {
+interface BrainOption {
   value: string;
   label?: string;
   labelKey?: string;

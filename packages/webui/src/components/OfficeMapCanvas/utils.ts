@@ -1,6 +1,6 @@
 // Types, formatting helpers, and layout constants extracted from OfficeMapCanvas.
 
-export type ClientKind = 'webui' | 'tui' | 'repl' | 'coordinator' | 'agent' | 'mailbox';
+type ClientKind = 'webui' | 'tui' | 'repl' | 'coordinator' | 'agent' | 'mailbox';
 export type ClientStatus = 'idle' | 'active' | 'streaming' | 'completed' | 'error' | 'offline';
 
 export interface OfficeNodeData extends Record<string, unknown> {
@@ -82,25 +82,25 @@ export function compactFlowLabel(value: string | undefined, maxLength = 56): str
 // ── Layout constants ──────────────────────────────────────────────────────────
 
 export const CENTER_X = 600;
-export const HUB_Y = 50;
+const HUB_Y = 50;
 export const HUB_GAP = 230;
 export const MAILBOX_Y = HUB_Y;
 export const COORD_Y = HUB_Y;
-export const CLIENT_Y = 370;
-export const AGENT_Y0 = 640;
-export const CLIENT_COL_W = 380;
+const CLIENT_Y = 370;
+const AGENT_Y0 = 640;
+const CLIENT_COL_W = 380;
 export const AGENT_COLS = 3;
-export const AGENT_FAN_W = 190;
-export const AGENT_ROW_H = 150;
+const AGENT_FAN_W = 190;
+const AGENT_ROW_H = 150;
 export const CLIENT_AGENT_GAP = AGENT_Y0 - CLIENT_Y;
-export const CLIENT_ROW_GAP = 100;
+const CLIENT_ROW_GAP = 100;
 
-export interface ClientClusterInput {
+interface ClientClusterInput {
   id: string;
   agentCount: number;
 }
 
-export interface ClientClusterLayout {
+interface ClientClusterLayout {
   positions: Map<string, { x: number; y: number }>;
   columns: number;
   rows: number;

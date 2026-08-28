@@ -176,7 +176,7 @@ function scoreLabel(value: number): string {
   return 'low';
 }
 
-export function statusClasses(status: SageStatus): string {
+function statusClasses(status: SageStatus): string {
   switch (status) {
     case 'active':
       return 'border-success/35 bg-success/10 text-success';

@@ -14,7 +14,7 @@
 
 import type { SubagentView } from '@/stores';
 
-export type AgentStatus = SubagentView['status'];
+type AgentStatus = SubagentView['status'];
 
 /** Canonical short label per status (shared by the Fleet surfaces). */
 export const AGENT_STATUS_LABEL: Record<AgentStatus, string> = {
@@ -46,7 +46,7 @@ export function compareAgentsByActivity<T extends { status: string; startedAt: n
   return a.startedAt - b.startedAt;
 }
 
-export interface AgentTally {
+interface AgentTally {
   running: number;
   completed: number;
   /** failed + timeout — the two terminal-error states the Fleet UIs group. */
@@ -74,7 +74,7 @@ export function tallyAgents<T extends { status: string }>(list: readonly T[]): A
 // aggregated via `computeAgentStats` for the roster-card use-case.
 
 /** Context-fill severity band. */
-export type CtxSeverity = 'low' | 'medium' | 'high';
+type CtxSeverity = 'low' | 'medium' | 'high';
 
 const CTX_THRESHOLD_HIGH = 85;
 const CTX_THRESHOLD_MEDIUM = 70;
@@ -142,7 +142,7 @@ export function fmtDuration(ms: number | undefined | null): string {
  * Pre-computed display values for an agent card or row.
  * All fields are derived from the SubagentView and ready to render.
  */
-export interface AgentDisplayStats {
+interface AgentDisplayStats {
   /** Context percentage [0..100], clamped. */
   ctxClamped: number;
   /** Severity band for the context bar colour. */

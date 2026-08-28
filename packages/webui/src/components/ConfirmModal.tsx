@@ -25,7 +25,7 @@ import {
 } from './ui/dialog';
 import { Input } from './ui/input';
 
-export interface ConfirmModalOptions {
+interface ConfirmModalOptions {
   title: string;
   /** Optional body text shown under the title. */
   message?: string | undefined;
@@ -77,7 +77,7 @@ export function confirmModal(options: ConfirmModalOptions): Promise<boolean> {
   });
 }
 
-export type ConfirmModalChoice = 'confirm' | 'cancel' | 'dismiss';
+type ConfirmModalChoice = 'confirm' | 'cancel' | 'dismiss';
 
 /** Three-way variant for workflows where dismissing must not equal either button. */
 export function confirmModalChoice(options: ConfirmModalOptions): Promise<ConfirmModalChoice> {
@@ -157,7 +157,7 @@ export function ConfirmModalHost() {
 
 // ── promptModal — in-app replacement for window.prompt() ────────────────────
 
-export interface PromptModalOptions {
+interface PromptModalOptions {
   title: string;
   message?: string | undefined;
   placeholder?: string | undefined;
@@ -177,7 +177,7 @@ interface PromptModalState {
 }
 
 /** Internal — used by PromptModalHost and tests. Call promptModal() instead. */
-export const usePromptModalStore = create<PromptModalState>()((set, get) => ({
+const usePromptModalStore = create<PromptModalState>()((set, get) => ({
   request: null,
   open: (request) => {
     get().request?.resolve(null);

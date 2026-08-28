@@ -3,7 +3,7 @@ import type { FileActivity } from '@/stores/codemap-activity-store';
 import { LiveOperationRow } from './CodeMapLiveOverlay';
 import { useAppTranslation } from '@/i18n';
 
-export type CodeMapActivityStreamPanelProps = {
+type CodeMapActivityStreamPanelProps = {
   activeOperations: FileActivity[];
   recentActivities: FileActivity[];
   activityTotalCount: number;

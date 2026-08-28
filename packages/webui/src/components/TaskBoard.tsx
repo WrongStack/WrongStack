@@ -7,7 +7,7 @@ import { TaskCard, type TaskItem } from './TaskCard';
 // after the card was extracted into its own reusable component.
 export type { TaskItem } from './TaskCard';
 
-export interface TaskBoardProps {
+interface TaskBoardProps {
   phaseName: string;
   phaseStatus: string;
   tasks: TaskItem[];

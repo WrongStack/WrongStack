@@ -27,9 +27,9 @@ import { cn } from '@/lib/utils';
 import type { SessionHistoryEntry } from '@/stores';
 import { useActiveSessionId, useSessionTabStore, useUIStore } from '@/stores';
 
-export type HistoryFilter = 'all' | 'favorites' | 'active' | 'completed' | 'issues';
-export type HistorySort = 'recent' | 'tokens' | 'activity';
-export type HistoryListVariant = 'sidebar' | 'workspace';
+type HistoryFilter = 'all' | 'favorites' | 'active' | 'completed' | 'issues';
+type HistorySort = 'recent' | 'tokens' | 'activity';
+type HistoryListVariant = 'sidebar' | 'workspace';
 
 const SIDEBAR_PAGE_SIZE = 10;
 const WORKSPACE_PAGE_SIZE = 20;
@@ -55,13 +55,13 @@ interface HistoryViewOptions {
   favoriteIds: readonly string[];
 }
 
-export interface SessionHistoryGroup {
+interface SessionHistoryGroup {
   label: 'favorites' | 'today' | 'yesterday' | 'thisWeek' | 'earlier';
   rows: SessionHistoryEntry[];
   favorite?: boolean | undefined;
 }
 
-export interface SessionHistoryStats {
+interface SessionHistoryStats {
   sessions: number;
   active: number;
   tokens: number;

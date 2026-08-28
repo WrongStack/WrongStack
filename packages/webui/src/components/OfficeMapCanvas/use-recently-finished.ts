@@ -17,7 +17,7 @@ const TERMINAL_STATUSES: ReadonlySet<string> = new Set([
   'stopped',
 ]);
 
-export interface RecentlyFinishedFleetAgents {
+interface RecentlyFinishedFleetAgents {
   readonly map: Map<string, FinishedFleetAgent>;
   /**
    * Wall-clock instant captured at the same point in the render as the

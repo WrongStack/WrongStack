@@ -25,7 +25,7 @@ export interface CouncilSeatVote {
   at: number;
 }
 
-export interface MessageContent {
+interface MessageContent {
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string | ContentBlock[];
 }

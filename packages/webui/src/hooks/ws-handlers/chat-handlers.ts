@@ -26,7 +26,7 @@ function wireAgentName(msg: WSServerMessage): string | undefined {
   return typeof p?.agentName === 'string' && p.agentName.length > 0 ? p.agentName : undefined;
 }
 
-export const chatHandlers = {
+const chatHandlers = {
   handleIterationStarted,
   handleTextDelta,
   handleThinkingDelta,

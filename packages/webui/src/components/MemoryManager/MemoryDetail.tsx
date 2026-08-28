@@ -31,7 +31,7 @@ import {
   StatusBadge,
 } from './shared';
 
-export interface MemoryDetailProps {
+interface MemoryDetailProps {
   memory: SageEntry;
   allMemories: SageEntry[];
   relatedMemories: Array<{ relation: string; id: string }>;

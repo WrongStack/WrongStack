@@ -104,7 +104,7 @@ export interface LiveAgentActivity {
 }
 
 /** Project-wide totals summed across every live session's agents. */
-export interface FleetAggregate {
+interface FleetAggregate {
   toolCalls: number;
   costUsd: number;
   tokensIn: number;
@@ -206,7 +206,7 @@ export interface CurrentSessionStats {
   timestamp?: number;
 }
 
-export interface MonitorState {
+interface MonitorState {
   /** Connected client counts by type */
   clientCounts: ClientCounts;
   /** Recent mail queue activity (last 50 events) */

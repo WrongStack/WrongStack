@@ -77,11 +77,11 @@ export interface SavedProvider {
 
 export type ProviderTab = 'catalog' | 'saved';
 
-export const PROVIDER_FAMILIES = ['anthropic', 'openai', 'google', 'openai-compatible'] as const;
+const PROVIDER_FAMILIES = ['anthropic', 'openai', 'google', 'openai-compatible'] as const;
 
 // ── Props ──
 
-export interface ProviderSectionProps {
+interface ProviderSectionProps {
   /** Currently selected provider id. */
   activeProvider: string;
   /** Catalog providers list. */

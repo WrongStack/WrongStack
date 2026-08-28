@@ -38,7 +38,7 @@ const PRIORITY: Record<BoardTaskItem['priority'], { labelKey: string; cls: strin
   low: { labelKey: 'activity:depGraph.prioLow', cls: 'bg-success/12 text-success' },
 };
 
-export interface DependencyGraphProps {
+interface DependencyGraphProps {
   columns: SpecColumn[];
   onTaskClick?: ((taskId: string) => void) | undefined;
 }

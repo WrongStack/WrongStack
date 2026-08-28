@@ -129,7 +129,7 @@ export interface ChronicleGraphResult {
 /** Derived aggregates served from the server-side Chronicle metrics store
  *  (metrics.db) — no raw journal scan on the request path. */
 export type ChronicleMetricsView = 'summary' | 'providers' | 'tasks' | 'files';
-export interface ChronicleMetricsRefresh {
+interface ChronicleMetricsRefresh {
   ingestedEvents: number;
   ingestedBytes: number;
   sourceFiles: number;
@@ -179,7 +179,7 @@ export interface ChronicleFileLineageRow {
   modelId: string;
   source: string;
 }
-export interface ChronicleMetricsSummaryView {
+interface ChronicleMetricsSummaryView {
   providers: { attempts: number; completed: number; failed: number; successRate: number };
   tasks: Record<string, number>;
   files: { mutations: number; uniquePaths: number };

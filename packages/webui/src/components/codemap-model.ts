@@ -1,4 +1,4 @@
-export type GraphNodeKind = 'package' | 'file' | 'symbol';
+type GraphNodeKind = 'package' | 'file' | 'symbol';
 export type GraphRefType = 'call' | 'import' | 'type_ref' | 'inherit' | 'implement';
 
 export interface GraphNodeData {
@@ -37,7 +37,7 @@ export type CodeMapScope =
 
 export type CodeMapLayout = 'layers' | 'orbit';
 
-export interface PositionedGraphNode {
+interface PositionedGraphNode {
   node: GraphNodeData;
   position: { x: number; y: number };
 }

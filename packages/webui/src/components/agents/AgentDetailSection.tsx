@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
 import { EMPTY_AGENT_TRANSCRIPT, selectSessionLeaderId, useFleetStore, useUIStore } from '@/stores';
 
-export interface AgentDetailSectionProps {
+interface AgentDetailSectionProps {
   agent: SubagentView;
   isExpanded: boolean;
   /** Called when user clicks "Open in Inspector". */

@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
 import { statusStyle, priorityStyle, agentInitials } from '@/lib/sdd-theme';
 import { useAppTranslation } from '@/i18n';
 
-export type FlowStatus =
+type FlowStatus =
   | 'pending'
   | 'queued'
   | 'in_progress'
@@ -48,7 +48,7 @@ export interface FlowTask {
   retries?: number | undefined;
 }
 
-export interface FlowColumn {
+interface FlowColumn {
   label: string;
   taskIds: string[];
 }

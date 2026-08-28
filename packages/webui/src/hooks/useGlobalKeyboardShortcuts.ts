@@ -20,7 +20,7 @@ import {
 } from '@/stores';
 import { useSystemPromptStore } from '@/stores/system-prompt-store';
 
-export interface UseGlobalKeyboardShortcutsOptions {
+interface UseGlobalKeyboardShortcutsOptions {
   toggleSidebar: () => void;
   setSearchOpen: (open: boolean) => void;
   toggleInspector: () => void;

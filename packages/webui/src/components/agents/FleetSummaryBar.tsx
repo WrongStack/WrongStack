@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
 import { useActiveSessionId, useFleetStore, useSessionFleetTotals } from '@/stores';
 
-export interface FleetSummaryBarProps {
+interface FleetSummaryBarProps {
   /** Optional CSS class for the wrapper. */
   className?: string;
   /** Session whose agents should be summarized. Undefined falls back to the active session. */

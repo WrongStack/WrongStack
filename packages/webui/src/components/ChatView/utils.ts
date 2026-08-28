@@ -16,7 +16,7 @@ export function fmtTok(n: number): string {
 
 /** A single item inside an agent turn — either a message bubble or a run of
  *  consecutive tool calls rendered as one collapsible group. */
-export type AgentItem =
+type AgentItem =
   | { kind: 'msg'; key: string; message: ChatMessage; isFirst: boolean; isContinuation: boolean }
   | {
       kind: 'tools';

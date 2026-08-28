@@ -9,7 +9,7 @@ import { useAppTranslation } from '@/i18n';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
 import type { WSServerMessage } from '../../types';
 
-export interface CatalogMatch {
+interface CatalogMatch {
   providerId: string;
   providerName: string;
   modelId: string;
@@ -23,7 +23,7 @@ export interface CatalogMatch {
   capabilities: string[];
 }
 
-export interface ModelCatalogPickerProps {
+interface ModelCatalogPickerProps {
   ws: WrongStackWebSocketClient;
   onSelect: (modelId: string, modelsDev: Record<string, unknown>) => void;
   onClose: () => void;

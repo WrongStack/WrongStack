@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import type { SageEntry } from '@/types';
 import { KIND_LABELS, kindClasses, memoryPreview, relativeDate, StatusBadge } from './shared';
 
-export interface MemoryListProps {
+interface MemoryListProps {
   memoryListRef: RefObject<HTMLDivElement | null>;
   memories: SageEntry[];
   filteredMemories: SageEntry[];

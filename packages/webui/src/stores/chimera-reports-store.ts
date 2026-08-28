@@ -104,7 +104,7 @@ export const useChimeraReportsStore = create<ChimeraReportsState>()((set, get) =
 const EMPTY_NOTICES: ChimeraReportNotice[] = [];
 
 /** The reports known for one session tab (never undefined; stable when empty). */
-export function useSessionChimeraReports(
+function useSessionChimeraReports(
   sessionId: string | null | undefined,
 ): ChimeraReportNotice[] {
   return (

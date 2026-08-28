@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
  * is full-height, matching the existing FleetMonitor / AgentsMonitor UX.
  */
 const Sheet = DialogPrimitive.Root;
-const SheetTrigger = DialogPrimitive.Trigger;
+export const SheetTrigger = DialogPrimitive.Trigger;
 const SheetClose = DialogPrimitive.Close;
 const SheetPortal = DialogPrimitive.Portal;
 
@@ -114,4 +114,4 @@ const SheetDescription = React.forwardRef<
 ));
 SheetDescription.displayName = DialogPrimitive.Description.displayName;
 
-export { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger };
+export { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle };

@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 
 export type { ModelCandidate } from '@/hooks/useProviderModels';
 
-export interface ModelPickDialogProps {
+interface ModelPickDialogProps {
   open: boolean;
   /** Dialog title — say what the model is FOR ("Add council voter"). */
   title: string;

@@ -1,9 +1,9 @@
-export interface ModelMatrixRouteRole {
+interface ModelMatrixRouteRole {
   role: string;
   name: string;
 }
 
-export interface ModelMatrixRouteGroup {
+interface ModelMatrixRouteGroup {
   phase: string;
   label: string;
   roles: readonly ModelMatrixRouteRole[];
@@ -38,7 +38,7 @@ export const MODEL_MATRIX_ROUTE_GROUPS: readonly ModelMatrixRouteGroup[] = Objec
 
 export const MODEL_MATRIX_PHASE_ROUTES = MODEL_MATRIX_ROUTE_GROUPS.map((group) => group.phase);
 
-export const MODEL_MATRIX_ROUTE_ROLES: readonly ModelMatrixRouteRole[] =
+const MODEL_MATRIX_ROUTE_ROLES: readonly ModelMatrixRouteRole[] =
   MODEL_MATRIX_ROUTE_GROUPS.flatMap((group) => [...group.roles]);
 
 export const MODEL_MATRIX_ROLE_ROUTES = MODEL_MATRIX_ROUTE_ROLES.map((role) => role.role);

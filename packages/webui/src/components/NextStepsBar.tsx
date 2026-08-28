@@ -9,7 +9,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 
-export type { NextStep, ParseNextStepsResult };
+export type { ParseNextStepsResult };
 // Re-export the shared parser functions and types for back-compat with
 // downstream consumers that import them from this file.
 export { parseNextSteps, stripNextStepsBlock };
@@ -413,6 +413,6 @@ export function NextStepsBar({
  * Hook-friendly version: takes raw markdown content and returns the parse
  * result, including the steps array and the content with the block stripped.
  */
-export function useNextSteps(content: string): ParseNextStepsResult {
+function useNextSteps(content: string): ParseNextStepsResult {
   return useMemo(() => parseNextSteps(content), [content]);
 }

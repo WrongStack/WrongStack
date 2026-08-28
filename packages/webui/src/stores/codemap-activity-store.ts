@@ -11,8 +11,8 @@ export type ActivityType =
   | 'memory'
   | 'index'
   | 'execute';
-export type ActivityStatus = 'active' | 'completed' | 'failed' | 'observed';
-export type ActivitySource =
+type ActivityStatus = 'active' | 'completed' | 'failed' | 'observed';
+type ActivitySource =
   | 'tool'
   | 'editor'
   | 'deterministic'
@@ -20,14 +20,14 @@ export type ActivitySource =
   | 'external'
   | 'legacy';
 
-export interface ActivitySymbol {
+interface ActivitySymbol {
   id: string;
   name: string;
   kind?: string | undefined;
   line?: number | undefined;
 }
 
-export interface ActivityChange {
+interface ActivityChange {
   added: number;
   removed: number;
   before?: string | undefined;

@@ -55,7 +55,7 @@ export interface ModelRowData {
   source: 'catalog' | 'custom' | 'overridden';
 }
 
-export interface ModelListEditorProps {
+interface ModelListEditorProps {
   providerId: string;
   models: string[];
   customModels?:

@@ -54,7 +54,7 @@ interface ActivityRecord {
   raw?: unknown;
 }
 
-export interface FileActivityAnalysis {
+interface FileActivityAnalysis {
   level: 'quiet' | 'active' | 'churn';
   mutationCount: number;
   sessionCount: number;
@@ -64,7 +64,7 @@ export interface FileActivityAnalysis {
 
 /** Full-history rollup of a file's mutation lineage, sourced from the Chronicle
  *  metrics store (indexed by path) rather than a bounded event scan. */
-export interface FileLineageSummary {
+interface FileLineageSummary {
   mutations: number;
   sessions: number;
   tasks: number;

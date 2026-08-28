@@ -1,6 +1,6 @@
 import type { WSError } from './runtime.js';
 
-export type CollabPanelMessage =
+type CollabPanelMessage =
   | WSCollabState
   | WSCollabParticipantJoined
   | WSCollabParticipantLeft

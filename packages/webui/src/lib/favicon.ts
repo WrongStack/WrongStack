@@ -13,7 +13,7 @@
  * tab becomes visible — so the badge only persists while the user is away.
  */
 
-export type FaviconStatus = 'idle' | 'running' | 'ready' | 'error' | 'attention';
+type FaviconStatus = 'idle' | 'running' | 'ready' | 'error' | 'attention';
 
 function buildSvg(status: FaviconStatus): string {
   const badge = (() => {

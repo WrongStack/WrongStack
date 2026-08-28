@@ -52,7 +52,7 @@ export interface MemoryContextSnapshot {
   sessionId?: string | undefined;
 }
 
-export interface ContextMemoryRecord extends MemoryInjectorTraceMemory {
+interface ContextMemoryRecord extends MemoryInjectorTraceMemory {
   state: 'injected' | 'active' | 'exited';
   trigger: string;
   enteredAt: string;

@@ -9,7 +9,7 @@ import {
   buildUndoClearMessage,
 } from './ws-client-helpers';
 
-export interface WsClientDomainHost {
+interface WsClientDomainHost {
   send(message: WSClientMessage, options?: WSSendOptions): boolean;
   withSession<T extends Record<string, unknown>>(
     payload: T,
@@ -17,7 +17,7 @@ export interface WsClientDomainHost {
   ): T & { sessionId?: string };
 }
 
-export const domainMethods = {
+const domainMethods = {
   getGitInfo(this: WsClientDomainHost) {
     this.send({ type: 'git.info' });
   },

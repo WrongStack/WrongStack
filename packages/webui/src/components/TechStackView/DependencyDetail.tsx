@@ -23,7 +23,7 @@ import {
   versionDrift,
 } from './shared';
 
-export interface DependencyDetailProps {
+interface DependencyDetailProps {
   dependency: TechStackDependency;
   findings: readonly TechStackFinding[];
   deepDive: { status: 'idle' | 'loading' | 'error'; error: string | null };

@@ -2,7 +2,7 @@ import type { KanbanManualActivityKind, KanbanManualActivityOutcome } from '@wro
 import { Plus } from 'lucide-react';
 import { useAppTranslation } from '@/i18n';
 
-export type KanbanTaskActivityRecorderProps = {
+type KanbanTaskActivityRecorderProps = {
   activityKind: KanbanManualActivityKind;
   activityOutcome: KanbanManualActivityOutcome;
   note: string;

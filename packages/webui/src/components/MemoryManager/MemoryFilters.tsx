@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import type { SageStats, SageStatus } from '@/types';
 import { KIND_LABELS, MEMORY_KINDS, MEMORY_STATUSES } from './shared';
 
-export interface MemoryFiltersProps {
+interface MemoryFiltersProps {
   searchQuery: string;
   statusFilter: 'all' | SageStatus;
   kindFilter: string;

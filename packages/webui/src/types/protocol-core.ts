@@ -1,7 +1,7 @@
 import type { SessionMarker, Usage } from '@wrongstack/core/types';
 
 // Event types for WebSocket communication
-export interface WSMessage {
+interface WSMessage {
   type: string;
   payload: unknown;
 }
@@ -298,7 +298,7 @@ export interface WSProviderStatusSnapshot {
 }
 
 /** One durable block/open audit entry (tail of provider-status-audit.jsonl). */
-export interface WSProviderAuditLine {
+interface WSProviderAuditLine {
   ts: number;
   providerId: string;
   model: string;

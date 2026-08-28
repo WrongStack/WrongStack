@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
-export interface PaginationState<T> {
+interface PaginationState<T> {
   page: number;
   pageSize: number;
   totalItems: number;

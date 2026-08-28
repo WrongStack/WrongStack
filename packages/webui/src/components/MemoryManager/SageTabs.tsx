@@ -56,7 +56,7 @@ function TabFallback({ label }: { label: string }) {
   );
 }
 
-export type SageTabValue = 'all' | 'audience' | 'vector';
+type SageTabValue = 'all' | 'audience' | 'vector';
 
 const SAGE_TABS: ReadonlyArray<{
   value: SageTabValue;

@@ -14,7 +14,7 @@ import { ACTION_LABELS, Badge, isInterpretation, SEVERITY_META, SEVERITY_ORDER }
 import { Pagination } from '../ui/pagination';
 import { useAppTranslation } from '@/i18n';
 
-export interface FindingsPanelProps {
+interface FindingsPanelProps {
   findings: readonly TechStackFinding[];
   dependenciesById: ReadonlyMap<string, TechStackDependency>;
   onSelectDependency: (dependencyId: string) => void;

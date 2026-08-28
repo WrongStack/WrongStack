@@ -24,7 +24,7 @@ interface TrackedProcess {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export interface ProcessMonitorProps {
+interface ProcessMonitorProps {
   open: boolean;
   onClose: () => void;
   className?: string | undefined;

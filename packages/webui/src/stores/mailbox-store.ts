@@ -21,7 +21,7 @@ const MAX_MAILBOX_AGENTS = 50;
 const OFFLINE_AGENT_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 /** Mirrors HQ/HqMailboxMessageScope. Derived server-side, but always revalidated client-side. */
-export type MailboxMessageScope = 'project' | 'session' | 'agent';
+type MailboxMessageScope = 'project' | 'session' | 'agent';
 
 const SESSION_RECIPIENT_PREFIX = '@session:';
 
@@ -89,7 +89,7 @@ export interface MailboxAgent {
   toolCalls?: number;
 }
 
-export interface MailboxCompactionResult {
+interface MailboxCompactionResult {
   readByAllRemoved: number;
   expiredRemoved: number;
   stalePurged: number;

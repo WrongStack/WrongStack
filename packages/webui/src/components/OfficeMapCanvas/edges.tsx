@@ -15,7 +15,7 @@ import {
 import { useOfficeMapStore } from '@/stores';
 import { OFFICE_COLOR } from './nodes.js';
 
-export type OfficeEdgeData = {
+type OfficeEdgeData = {
   color?: string;
   animated?: boolean;
   intensity?: number;

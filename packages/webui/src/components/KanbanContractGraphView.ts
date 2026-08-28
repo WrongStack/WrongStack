@@ -61,7 +61,7 @@ const EDGE_COLOR_BY_TYPE: Record<
   relates_to: '#67e8f9',
 };
 
-export interface ContractTaskHealth {
+interface ContractTaskHealth {
   taskId: string;
   title: string;
   contracted: boolean;
@@ -74,7 +74,7 @@ export interface ContractTaskHealth {
   readinessIssueMessages: string[];
 }
 
-export interface BoardContractHealth {
+interface BoardContractHealth {
   enforcement: KanbanContractGraphEnforcement;
   totalTasks: number;
   contractedTasks: number;

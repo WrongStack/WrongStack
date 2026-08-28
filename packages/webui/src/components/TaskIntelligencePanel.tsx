@@ -29,7 +29,7 @@ interface RelatedTask {
   status: string;
 }
 
-export interface TaskIntelligence {
+interface TaskIntelligence {
   column: string;
   reason: string;
   owner: string;

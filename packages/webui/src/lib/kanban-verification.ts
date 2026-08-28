@@ -27,7 +27,7 @@ export function verificationStateOf(
   return verdict;
 }
 
-export interface VerificationSummary {
+interface VerificationSummary {
   totalTasks: number;
   /** Only tasks in a terminal-ish state are graded (completed/review/failed). */
   gradedTasks: number;
@@ -101,7 +101,7 @@ export function selectVerificationSummary(board: KanbanBoard): VerificationSumma
   return summary;
 }
 
-export interface TaskTreeNode {
+interface TaskTreeNode {
   task: KanbanTask;
   children: TaskTreeNode[];
   depth: number;

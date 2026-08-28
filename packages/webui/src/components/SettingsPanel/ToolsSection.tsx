@@ -8,7 +8,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 
-export interface ToolInfo {
+interface ToolInfo {
   name: string;
   owner: string;
   description: string;

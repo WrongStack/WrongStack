@@ -28,7 +28,7 @@ import {
   updateAnchorValue,
 } from './shared';
 
-export interface MemoryEditorProps {
+interface MemoryEditorProps {
   mode: 'create' | 'edit';
   draft: MemoryDraft;
   busy: boolean;

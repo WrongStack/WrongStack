@@ -30,7 +30,7 @@ import {
 } from './ProviderModelsPanel.filter';
 import { resolveUndoSend } from './undo-send-decision';
 
-export interface ProviderModelsPanelProps {
+interface ProviderModelsPanelProps {
   /** The saved provider id — used for the WS request and panel keying. */
   providerId: string;
   /**

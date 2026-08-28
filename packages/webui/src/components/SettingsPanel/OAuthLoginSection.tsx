@@ -75,12 +75,12 @@ const ACTIVE_PHASES: OAuthPhase[] = [
 ];
 
 /** A saved subscription provider profile as seen by the OAuth section. */
-export interface SavedProfileInfo {
+interface SavedProfileInfo {
   id: string;
   hasActiveKey: boolean;
 }
 
-export interface OAuthLoginSectionProps {
+interface OAuthLoginSectionProps {
   ws: WrongStackWebSocketClient;
   /** Existing saved provider profiles grouped by OAuth kind. */
   savedByKind?: Partial<Record<OAuthKind, SavedProfileInfo[]>>;

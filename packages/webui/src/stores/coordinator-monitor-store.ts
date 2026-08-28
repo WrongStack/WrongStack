@@ -147,7 +147,7 @@ function buildEventMessage(type: string, payload: Record<string, unknown>): stri
 
 // ── Store ───────────────────────────────────────────────────────────────────
 
-export interface CoordinatorMonitorState {
+interface CoordinatorMonitorState {
   // Coordinator
   coordinatorStatus: CoordinatorStatus;
   coordinatorMode?: string;
