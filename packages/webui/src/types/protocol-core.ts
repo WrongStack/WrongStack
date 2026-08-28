@@ -297,6 +297,29 @@ export interface WSProviderStatusSnapshot {
   payload: Record<string, unknown>;
 }
 
+/** One durable block/open audit entry (tail of provider-status-audit.jsonl). */
+export interface WSProviderAuditLine {
+  ts: number;
+  providerId: string;
+  model: string;
+  from: 'healthy' | 'degraded' | 'blocked';
+  to: 'healthy' | 'degraded' | 'blocked';
+  reason: string;
+  expiresAt: number | null;
+  error: {
+    kind: string;
+    status: number | null;
+    message: string;
+    sessionId: string | null;
+    agentId: string | null;
+  } | null;
+}
+
+export interface WSProviderAuditHistory {
+  type: 'provider.audit.history';
+  payload: SessionScopedPayload & { lines: WSProviderAuditLine[] };
+}
+
 export interface WSProviderActiveBlocked {
   type: 'provider.active_blocked';
   payload: SessionScopedPayload & {

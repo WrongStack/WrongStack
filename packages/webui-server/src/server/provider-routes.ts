@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import { modelsDevModelSchema } from '@wrongstack/core/models';
 import type { ProviderConfig } from '@wrongstack/core/types';
@@ -81,6 +82,9 @@ export interface ProviderRouteHandlers {
   /** Live provider/model health tracker (the "waiting room"). Undefined when
    * the host is not wired with a tracker (e.g. test harnesses). */
   statusTracker?: ProviderModelStatusTracker | undefined;
+  /** Durable block/open audit trail (JSONL) next to the profile config.
+   * Undefined when the host did not provide a profile path (test harnesses). */
+  providerAuditFile?: string | undefined;
 }
 
 function asPayloadRecord(msg: WSClientMessage): Record<string, unknown> | null {
@@ -92,6 +96,31 @@ function asPayloadRecord(msg: WSClientMessage): Record<string, unknown> | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Tail the durable block/open audit trail (JSONL), newest first. Torn or
+ * corrupt lines are skipped — the audit trail is best-effort by design. */
+async function readAuditTail(
+  file: string,
+  count: number,
+): Promise<Array<Record<string, unknown>>> {
+  let raw = '';
+  try {
+    raw = await fs.readFile(file, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    return [];
+  }
+  const lines: Array<Record<string, unknown>> = [];
+  for (const line of raw.trim().split('\n')) {
+    if (!line) continue;
+    try {
+      lines.push(JSON.parse(line) as Record<string, unknown>);
+    } catch {
+      // Skip torn/corrupt lines.
+    }
+  }
+  return lines.slice(-count).reverse();
 }
 
 function requiredString(payload: Record<string, unknown>, key: string): string | null {
@@ -465,6 +494,22 @@ export async function handleProviderRoute(
         type: 'provider.status.snapshot',
         payload: routes.statusTracker.getSnapshot(),
       });
+      return true;
+    }
+
+    case 'provider.audit.get': {
+      // Strict string check: test-harness stubs may auto-fill this optional
+      // field with non-strings, and fs.readFile would throw on those.
+      const auditFile = routes.providerAuditFile;
+      if (typeof auditFile !== 'string' || auditFile.length === 0) {
+        send(ws, { type: 'provider.audit.history', payload: { lines: [] } });
+        return true;
+      }
+      const auditPayload = asPayloadRecord(msg);
+      const requested = auditPayload ? optionalNumber(auditPayload, 'count') : undefined;
+      const count = Math.min(Math.max(Math.trunc(requested ?? 20) || 20, 1), 200);
+      const lines = await readAuditTail(auditFile, count);
+      send(ws, { type: 'provider.audit.history', payload: { lines } });
       return true;
     }
 

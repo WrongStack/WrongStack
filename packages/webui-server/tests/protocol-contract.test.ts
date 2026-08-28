@@ -38,8 +38,8 @@ describe('surface protocol contract', () => {
   });
 
   it('keeps every exact registry entry executable through its directional decoder', () => {
-    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(242);
-    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(255);
+    expect(new Set(CLIENT_MESSAGE_TYPES).size).toBe(248);
+    expect(new Set(SERVER_MESSAGE_TYPES).size).toBe(260);
     for (const type of CLIENT_MESSAGE_TYPES) {
       expect(decodeProtocolMessage({ type }, 'client')).toEqual({
         ok: true,

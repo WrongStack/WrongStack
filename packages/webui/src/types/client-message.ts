@@ -50,9 +50,39 @@ export type WSClientMessageCore =
       payload: SessionScopedPayload & { requestId: string; prompt: string };
     }
   | {
-      /** Ask the server which persisted Chimera review reports a session has. */
-      type: 'chimera.reports.list';
-      payload: SessionScopedPayload & { sessionId?: string | undefined };
+      /** Ask the server which persisted Chimera review reports a session has, or query all. */
+      type: 'chimera.reports.list' | 'chimera.reports.query';
+      payload: SessionScopedPayload & {
+        sessionId?: string | undefined;
+        all?: boolean | undefined;
+        lifecycle?: string | undefined;
+        limit?: number | undefined;
+      };
+    }
+  | {
+      /** Fetch full details (findings + journal events) for a Chimera report. */
+      type: 'chimera.report.get';
+      payload: { reportId: string };
+    }
+  | {
+      /** Transition a Chimera report lifecycle. */
+      type: 'chimera.report.transition';
+      payload: { reportId: string; to: string; reason?: string | undefined };
+    }
+  | {
+      /** Add an annotation note to a Chimera report. */
+      type: 'chimera.report.add_note';
+      payload: { reportId: string; note: string };
+    }
+  | {
+      /** Transition a Chimera finding lifecycle. */
+      type: 'chimera.finding.transition';
+      payload: {
+        findingId: string;
+        to: string;
+        outcome?: string | undefined;
+        reason?: string | undefined;
+      };
     }
   | WSToolConfirmResult
   | { type: 'side_effects.list'; payload?: SessionScopedPayload | undefined }
@@ -332,6 +362,7 @@ export type WSClientMessageCore =
   | { type: 'auth.oauth.code'; payload: { kind: OAuthKind; input: string } }
   | { type: 'auth.oauth.cancel'; payload: { kind: OAuthKind } }
   | { type: 'provider.status.get' }
+  | { type: 'provider.audit.get'; payload?: { count?: number | undefined } }
   | { type: 'provider.status.retry'; payload: { providerId: string; model: string } }
   | { type: 'provider.status.clear'; payload: { providerId: string; model: string } }
   | { type: 'memory.list' }

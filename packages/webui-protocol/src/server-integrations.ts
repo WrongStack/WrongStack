@@ -37,6 +37,10 @@ export const SERVER_KNOWLEDGE_MESSAGE_TYPES = [
 ] as const;
 
 export const SERVER_EXTENSION_MESSAGE_TYPES = [
+  'chimera.finding.updated',
+  'chimera.report.detail',
+  'chimera.report.note_added',
+  'chimera.report.updated',
   'chimera.reports',
   'mcp.content.error',
   'mcp.content.selected',
@@ -54,6 +58,7 @@ export const SERVER_EXTENSION_MESSAGE_TYPES = [
   'mcp.server.sleeping',
   'mcp.server.updated',
   'mcp.server.waking',
+  'provider.audit.history',
   'prompts.content',
   'prompts.created',
   'prompts.favorite',

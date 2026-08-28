@@ -516,3 +516,48 @@ describe('resolveProviderModelMetadata', () => {
     expect(getModel).toHaveBeenNthCalledWith(2, 'openai-compatible', 'generic');
   });
 });
+
+describe('provider.audit.get — durable audit trail route', () => {
+  it('tails the audit JSONL, newest first, honoring count', async () => {
+    const { mkdtempSync, writeFileSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const home = mkdtempSync(join(tmpdir(), 'wstack-routes-audit-'));
+    try {
+      const auditFile = join(home, 'provider-status-audit.jsonl');
+      writeFileSync(
+        auditFile,
+        `${JSON.stringify({ ts: 1, providerId: 'a', model: 'm1', from: 'healthy', to: 'blocked', reason: 'r1', expiresAt: 9, error: { kind: 'rate_limit', status: 429, message: 'm', sessionId: 's', agentId: 'g' } })}\n` +
+          `${JSON.stringify({ ts: 2, providerId: 'a', model: 'm2', from: 'blocked', to: 'healthy', reason: 'r2', expiresAt: null, error: null })}\n`,
+      );
+      const ws = mockWs();
+      const deps = routes();
+      deps.providerAuditFile = auditFile;
+
+      await handleProviderRoute(ws, { type: 'provider.audit.get', payload: { count: 1 } }, deps);
+
+      const frames = ws.send.mock.calls.map(
+        ([raw]) => JSON.parse(String(raw)) as { type: string; payload: { lines: Array<Record<string, unknown>> } },
+      );
+      const frame = frames.find((f) => f.type === 'provider.audit.history');
+      expect(frame?.payload.lines).toHaveLength(1);
+      expect(frame?.payload.lines[0]).toMatchObject({ providerId: 'a', model: 'm2' });
+    } finally {
+      const { rmSync } = await import('node:fs');
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('answers with empty lines when no audit file is wired', async () => {
+    const ws = mockWs();
+    const deps = routes();
+
+    await handleProviderRoute(ws, { type: 'provider.audit.get' }, deps);
+
+    const frames = ws.send.mock.calls.map(([raw]) => JSON.parse(String(raw)));
+    expect(frames.at(-1)).toMatchObject({
+      type: 'provider.audit.history',
+      payload: { lines: [] },
+    });
+  });
+});

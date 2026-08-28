@@ -24,6 +24,7 @@ import {
   handleIterationCompleted,
   handleIterationLimitReached,
   handleProviderActiveBlocked,
+  handleProviderAuditHistory,
   handleProviderError,
   handleProviderFallback,
   handleProviderFallbackPending,
@@ -83,6 +84,7 @@ export {
   handleProviderFallbackPending,
   handleProviderStatusChanged,
   handleProviderStatusSnapshot,
+  handleProviderAuditHistory,
   handleProviderActiveBlocked,
   handleProviderStreamError,
   handleToolLoopDetected,
@@ -133,5 +135,6 @@ export const sessionHandlerMap: Partial<Record<string, (msg: WSServerMessage) =>
   'context.mode.changed': handleContextModeChanged,
   'sessions.list': handleSessionsList,
   'provider.status.snapshot': handleProviderStatusSnapshot,
+  'provider.audit.history': handleProviderAuditHistory,
   error: handleError,
 };

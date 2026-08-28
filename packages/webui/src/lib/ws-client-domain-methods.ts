@@ -53,6 +53,10 @@ export const domainMethods = {
     this.send({ type: 'provider.status.get' });
   },
 
+  getProviderAuditHistory(this: WsClientDomainHost, count?: number | undefined) {
+    this.send({ type: 'provider.audit.get', payload: { count } });
+  },
+
   retryProviderModel(this: WsClientDomainHost, providerId: string, model: string) {
     this.send({ type: 'provider.status.retry', payload: { providerId, model } });
   },

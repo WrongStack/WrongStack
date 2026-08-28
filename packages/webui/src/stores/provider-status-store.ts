@@ -45,8 +45,27 @@ export interface ProviderHealthEntry {
   lastFailureAt?: number | null | undefined;
 }
 
+export interface ProviderAuditEntry {
+  ts: number;
+  providerId: string;
+  model: string;
+  from: ProviderHealthState;
+  to: ProviderHealthState;
+  reason: string;
+  expiresAt: number | null;
+  error: {
+    kind: string;
+    status: number | null;
+    message: string;
+    sessionId: string | null;
+    agentId: string | null;
+  } | null;
+}
+
 interface ProviderStatusStore {
   entries: Record<string, ProviderHealthEntry>;
+  /** Durable block/open audit trail tail (newest first), fed by provider.audit.get. */
+  audit: ProviderAuditEntry[];
   /** Summary counts from the last full snapshot (or null before first fetch). */
   summary: {
     totalPairs: number;
@@ -62,6 +81,7 @@ interface ProviderStatusStore {
   update: (entry: ProviderHealthEntry) => void;
   hydrate: (entries: ProviderHealthEntry[]) => void;
   applySnapshot: (snapshot: Record<string, unknown>) => void;
+  setAudit: (lines: ProviderAuditEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clear: () => void;
@@ -73,6 +93,7 @@ const keyOf = (entry: Pick<ProviderHealthEntry, 'providerId' | 'model'>) =>
 
 export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
   entries: {},
+  audit: [],
   summary: null,
   loading: false,
   error: null,
@@ -187,6 +208,7 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
     });
   },
 
+  setAudit: (lines) => set({ audit: lines }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),
 
@@ -197,5 +219,5 @@ export const useProviderStatusStore = create<ProviderStatusStore>((set) => ({
       return { entries: next };
     }),
 
-  clear: () => set({ entries: {}, summary: null, error: null }),
+  clear: () => set({ entries: {}, audit: [], summary: null, error: null }),
 }));

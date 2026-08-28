@@ -43,9 +43,11 @@ export function ProviderWaitingRoom() {
   const entriesByKey = useProviderStatusStore((state) => state.entries);
   const _summary = useProviderStatusStore((state) => state.summary);
   const removeEntry = useProviderStatusStore((state) => state.removeEntry);
+  const audit = useProviderStatusStore((state) => state.audit);
   const calendarRules = useLocalPrefs((state) => state.modelAvailabilitySchedule);
   const [expanded, setExpanded] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
   const [now, setNow] = useState(Date.now());
 
   const entries = useMemo(
@@ -65,6 +67,14 @@ export function ProviderWaitingRoom() {
 
   const refresh = useCallback(() => {
     getWSClient().getProviderStatus();
+  }, []);
+
+  const toggleAudit = useCallback(() => {
+    setAuditOpen((value) => {
+      const next = !value;
+      if (next) getWSClient().getProviderAuditHistory(20);
+      return next;
+    });
   }, []);
 
   const handleRetry = useCallback(
@@ -252,6 +262,61 @@ export function ProviderWaitingRoom() {
               </span>
             </div>
           ))}
+          <button
+            type="button"
+            className="mt-1 flex w-full items-center gap-2 border-t border-border/30 py-1.5 text-left hover:bg-warning/5"
+            onClick={toggleAudit}
+            aria-expanded={auditOpen}
+          >
+            <Clock3 className="h-3.5 w-3.5 text-warning" />
+            <span className="text-muted-foreground">
+              {audit.length > 0
+                ? `Recent block/open events (${audit.length})`
+                : 'Recent block/open events'}
+            </span>
+            <span className="ml-auto text-muted-foreground">{auditOpen ? 'Hide' : 'Show'}</span>
+          </button>
+          {auditOpen && (
+            <div className="pt-1">
+              {audit.length === 0 ? (
+                <div className="py-1 text-muted-foreground">No block/open events recorded yet.</div>
+              ) : (
+                audit.map((entry, idx) => {
+                  const opened = entry.to !== 'blocked';
+                  const who = [entry.error?.sessionId, entry.error?.agentId]
+                    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+                    .map((value) => `${value.slice(0, 12)}…`)
+                    .join(' / ');
+                  return (
+                    <div
+                      key={`${entry.ts}-${idx}`}
+                      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-0.5"
+                    >
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {formatAgo(entry.ts, now)}
+                      </span>
+                      <code className="text-foreground">
+                        {entry.providerId}/{entry.model}
+                      </code>
+                      <span className={opened ? 'text-info' : 'text-warning'}>
+                        {entry.from} → {entry.to}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {entry.reason.replaceAll('_', ' ')}
+                      </span>
+                      {entry.error && (
+                        <span className="text-destructive">
+                          {entry.error.kind}
+                          {entry.error.status != null ? ` ${entry.error.status}` : ''}
+                        </span>
+                      )}
+                      {who && <span className="ml-auto text-muted-foreground">{who}</span>}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
           <div className="mt-1 text-[11px] text-muted-foreground">
             {t('activity:providerWait.wrongstackRoutesAroundActiveSchedulesAnd')}
           </div>

@@ -359,4 +359,23 @@ describe('provider status store', () => {
     expect(entry?.lastSessionId).toBe('sess_9');
     expect(entry?.lastAgentId).toBe('agent_9');
   });
+
+  it('setAudit stores the durable block/open tail and clear resets it', () => {
+    useProviderStatusStore.getState().setAudit([
+      {
+        ts: 1,
+        providerId: 'openai',
+        model: 'gpt-4o',
+        from: 'healthy',
+        to: 'blocked',
+        reason: 'rate_limit_threshold_1',
+        expiresAt: 9999,
+        error: { kind: 'rate_limit', status: 429, message: 'x', sessionId: 's', agentId: 'a' },
+      },
+    ]);
+    expect(useProviderStatusStore.getState().audit).toHaveLength(1);
+
+    useProviderStatusStore.getState().clear();
+    expect(useProviderStatusStore.getState().audit).toEqual([]);
+  });
 });

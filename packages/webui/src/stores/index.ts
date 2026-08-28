@@ -2,7 +2,13 @@
 
 export { useChatStore } from './chat-store.js';
 export { useChimeraReportsStore, useSessionChimeraReports } from './chimera-reports-store.js';
+export { useChimeraHubStore, ensureChimeraHubHandlersInstalled } from './chimera-hub-store.js';
 export type { ChimeraReportNotice } from './chimera-reports-store.js';
+export type {
+  ChimeraReportSummaryItem,
+  ChimeraReportFullDetail,
+  FindingDetailItem,
+} from './chimera-hub-store.js';
 export type { ActivityType, FileActivity } from './codemap-activity-store.js';
 export {
   extractActivitiesFromMessage,
@@ -88,6 +94,7 @@ export {
   useToastStore,
 } from './notification-store.js';
 export {
+  type ProviderAuditEntry,
   type ProviderHealthEntry,
   type ProviderHealthState,
   useProviderStatusStore,

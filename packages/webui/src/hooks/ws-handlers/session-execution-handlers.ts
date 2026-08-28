@@ -2,7 +2,7 @@ import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
-import type { SessionHistoryEntry } from '@/stores';
+import type { ProviderAuditEntry, SessionHistoryEntry } from '@/stores';
 import {
   useConfigStore,
   useFallbackStore,
@@ -335,6 +335,36 @@ export function handleProviderStatusSnapshot(msg: WSServerMessage) {
     return;
   }
   useProviderStatusStore.getState().applySnapshot(payload as Record<string, unknown>);
+}
+
+/** `provider.audit.history` — durable block/open tail for the waiting room. */
+export function handleProviderAuditHistory(msg: WSServerMessage) {
+  const payload = msg.payload as { lines?: unknown };
+  const lines = Array.isArray(payload?.lines) ? payload.lines : [];
+  const audit: ProviderAuditEntry[] = [];
+  for (const raw of lines) {
+    if (!raw || typeof raw !== 'object') continue;
+    const item = raw as Record<string, unknown>;
+    const providerId = typeof item['providerId'] === 'string' ? item['providerId'] : '';
+    const model = typeof item['model'] === 'string' ? item['model'] : '';
+    const from = item['from'];
+    const to = item['to'];
+    if (!providerId || !model) continue;
+    if (from !== 'healthy' && from !== 'degraded' && from !== 'blocked') continue;
+    if (to !== 'healthy' && to !== 'degraded' && to !== 'blocked') continue;
+    const error = (item['error'] ?? null) as ProviderAuditEntry['error'];
+    audit.push({
+      ts: typeof item['ts'] === 'number' ? item['ts'] : 0,
+      providerId,
+      model,
+      from,
+      to,
+      reason: typeof item['reason'] === 'string' ? item['reason'] : '',
+      expiresAt: typeof item['expiresAt'] === 'number' ? item['expiresAt'] : null,
+      error,
+    });
+  }
+  useProviderStatusStore.getState().setAudit(audit);
 }
 
 export function handleProviderActiveBlocked(msg: WSServerMessage) {

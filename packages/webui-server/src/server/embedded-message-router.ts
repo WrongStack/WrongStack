@@ -162,6 +162,9 @@ export interface EmbeddedMessageRouterDeps {
   /** Shared provider/model health tracker for the WebUI waiting-room panel.
    * Undefined when the host has not wired one (e.g. test harnesses). */
   statusTracker?: ProviderModelStatusTracker | undefined;
+  /** Durable block/open audit trail (JSONL) next to the profile config.
+   * Undefined when the host did not provide a profile path (test harnesses). */
+  providerAuditFile?: string | undefined;
 }
 
 export type EmbeddedMessageRouter = (
@@ -511,6 +514,10 @@ export function createEmbeddedMessageRouter(
     adoptDefaultProviderIfUnset: providerOperations.adoptDefaultProviderIfUnset,
     providerHandlers: providerOperations,
     statusTracker: deps.statusTracker,
+    // Derived from the host profile path — no new dep threading needed.
+    providerAuditFile: opts.profileConfigPath
+      ? path.join(path.dirname(opts.profileConfigPath), 'provider-status-audit.jsonl')
+      : undefined,
   };
 
   const session = createEmbeddedSessionRoutes({

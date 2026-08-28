@@ -140,3 +140,77 @@ describe('handleProviderStatusSnapshot', () => {
     expect(store.error).toBeNull();
   });
 });
+
+describe('handleProviderAuditHistory', () => {
+  beforeEach(() => useProviderStatusStore.getState().clear());
+
+  it('stores validated audit lines and skips malformed ones', async () => {
+    const { handleProviderAuditHistory } = await import(
+      '../../src/hooks/ws-handlers/session-handlers'
+    );
+    handleProviderAuditHistory({
+      type: 'provider.audit.history',
+      payload: {
+        lines: [
+          {
+            ts: 123,
+            providerId: 'openai',
+            model: 'gpt-4o',
+            from: 'healthy',
+            to: 'blocked',
+            reason: 'rate_limit_threshold_1',
+            expiresAt: 9999,
+            error: {
+              kind: 'rate_limit',
+              status: 429,
+              message: 'Too many requests',
+              sessionId: 's1',
+              agentId: 'a1',
+            },
+          },
+          {
+            ts: 2,
+            providerId: '',
+            model: 'm',
+            from: 'healthy',
+            to: 'blocked',
+            reason: '',
+            expiresAt: null,
+            error: null,
+          },
+          null,
+        ],
+      },
+    } as never);
+
+    const audit = useProviderStatusStore.getState().audit;
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ providerId: 'openai', model: 'gpt-4o', to: 'blocked' });
+    expect(audit[0]?.error?.sessionId).toBe('s1');
+  });
+
+  it('clears the audit tail when the server sends an empty one', async () => {
+    const { handleProviderAuditHistory } = await import(
+      '../../src/hooks/ws-handlers/session-handlers'
+    );
+    useProviderStatusStore.getState().setAudit([
+      {
+        ts: 1,
+        providerId: 'a',
+        model: 'm',
+        from: 'healthy',
+        to: 'blocked',
+        reason: 'r',
+        expiresAt: null,
+        error: null,
+      },
+    ]);
+
+    handleProviderAuditHistory({
+      type: 'provider.audit.history',
+      payload: { lines: [] },
+    } as never);
+
+    expect(useProviderStatusStore.getState().audit).toEqual([]);
+  });
+});
