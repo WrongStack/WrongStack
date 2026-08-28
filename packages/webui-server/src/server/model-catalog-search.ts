@@ -1,6 +1,6 @@
 import type { ModelsDevModel, ModelsRegistry } from '@wrongstack/core/types';
 
-export interface CatalogModelMatch {
+interface CatalogModelMatch {
   providerId: string;
   providerName: string;
   modelId: string;

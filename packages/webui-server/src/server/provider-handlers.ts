@@ -51,7 +51,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
   };
 }
 
-export interface ProviderHandlerDeps {
+interface ProviderHandlerDeps {
   /** Path to the active profile config; the only provider mutation target. */
   profileConfigPath: string;
   vault: import('@wrongstack/core/types').SecretVault;

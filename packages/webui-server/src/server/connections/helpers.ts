@@ -1,8 +1,8 @@
 import * as net from 'node:net';
 import type { ConnectionHealthService } from './types.js';
 
-export const RESTART_POLL_INTERVAL_MS = 250;
-export const RESTART_DEADLINE_MS = 3_000;
+const RESTART_POLL_INTERVAL_MS = 250;
+const RESTART_DEADLINE_MS = 3_000;
 
 /**
  * Raw socket probe — checks if anything is listening on an IPC endpoint

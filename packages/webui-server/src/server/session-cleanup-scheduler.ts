@@ -10,7 +10,7 @@ type StrictEmptySessionStore = SessionStore & {
   isEmpty?: (id: string) => Promise<boolean>;
 };
 
-export interface EmptySessionCleanupContext extends SessionDeletionContext {
+interface EmptySessionCleanupContext extends SessionDeletionContext {
   hasParticipants: (sessionId: string) => boolean;
   logger: Pick<Logger, 'info' | 'error'>;
 }
@@ -27,7 +27,7 @@ function protectedSessionIds(ctx: EmptySessionCleanupContext): Set<string> {
   return new Set(ids.filter(Boolean));
 }
 
-export interface EmptySessionCleanupResult {
+interface EmptySessionCleanupResult {
   deleted: number;
   errors: number;
 }

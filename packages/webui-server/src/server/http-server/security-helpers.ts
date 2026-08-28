@@ -15,7 +15,7 @@ export const MIME_TYPES: Record<string, string> = {
   '.ico': 'image/x-icon',
 };
 
-export function escapeHtmlAttr(value: string): string {
+function escapeHtmlAttr(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
@@ -33,14 +33,14 @@ export function injectWsConfig(html: string, opts: { publicWsUrl?: string | unde
   return `${tag}\n${out}`;
 }
 
-export function firstHeader(value: string | string[] | undefined): string | undefined {
+function firstHeader(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
 export const WS_TOKEN_COOKIE = 'ws_token';
 export const WS_TOKEN_COOKIE_SECURE = '__Host-ws_token';
 
-export function wsTokenCookie(token: string, secure: boolean): string {
+function wsTokenCookie(token: string, secure: boolean): string {
   const name = secure ? WS_TOKEN_COOKIE_SECURE : WS_TOKEN_COOKIE;
   const parts = [
     `${name}=${encodeURIComponent(token)}`,
@@ -85,11 +85,11 @@ export function isLoopbackPeer(req: http.IncomingMessage): boolean {
   return address !== undefined && isLoopbackHostname(address);
 }
 
-export function formatCspHostname(hostname: string): string {
+function formatCspHostname(hostname: string): string {
   return hostname.includes(':') && !hostname.startsWith('[') ? `[${hostname}]` : hostname;
 }
 
-export function cspSourceFromUrl(rawUrl: string): string | undefined {
+function cspSourceFromUrl(rawUrl: string): string | undefined {
   try {
     const url = new URL(rawUrl);
     if (url.protocol !== 'ws:' && url.protocol !== 'wss:') return undefined;
@@ -99,7 +99,7 @@ export function cspSourceFromUrl(rawUrl: string): string | undefined {
   }
 }
 
-export const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
+const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
 
 export function buildCspHeader(
   publicWsUrl?: string | undefined,

@@ -172,7 +172,7 @@ function withSessionEcho<T extends Record<string, unknown>>(
   return sessionId ? { ...payload, sessionId } : payload;
 }
 
-export interface FilesWriteOptions {
+interface FilesWriteOptions {
   onWritten?: ((filePath: string) => void | Promise<void>) | undefined;
 }
 

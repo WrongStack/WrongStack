@@ -12,7 +12,7 @@ import { kanbanBoardMessage, publishKanbanBoard } from './kanban-broadcast.js';
 import { activityContext, fail, ok } from './kanban-route-helpers.js';
 import type { WSServerMessage } from './types.js';
 
-export interface KanbanDecompositionRouteContext {
+interface KanbanDecompositionRouteContext {
   projectRoot: string;
   context?: Context | undefined;
   /** Tab that sent the request — the session every emitted event belongs to. */

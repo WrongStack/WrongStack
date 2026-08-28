@@ -5,13 +5,13 @@ import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/st
 import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from 'ws';
 
-export interface StandaloneSessionIdentityPaths {
+interface StandaloneSessionIdentityPaths {
   globalRoot: string;
   projectRoot: string;
   projectSlug: string;
 }
 
-export interface StandaloneSessionIdentityOptions {
+interface StandaloneSessionIdentityOptions {
   config: Config;
   events: EventBus;
   logger: Logger;

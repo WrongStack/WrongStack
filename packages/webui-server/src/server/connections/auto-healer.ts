@@ -27,9 +27,9 @@ import type {
  */
 
 export const AUTO_HEAL_ENV_FLAG = 'WRONGSTACK_AUTO_HEAL_SERVICES';
-export const AUTO_HEAL_DEFAULT_INTERVAL_MS = 30_000;
+const AUTO_HEAL_DEFAULT_INTERVAL_MS = 30_000;
 export const AUTO_HEAL_DEFAULT_COOLDOWN_MS = 5 * 60_000;
-export const AUTO_HEAL_DEFAULT_MAX_ATTEMPTS = 3;
+const AUTO_HEAL_DEFAULT_MAX_ATTEMPTS = 3;
 
 /** Services with a working `executeServiceAction` restart path. */
 const RESTARTABLE_SERVICE_IDS = new Set<ConnectionHealthService['id']>([
@@ -40,7 +40,7 @@ const RESTARTABLE_SERVICE_IDS = new Set<ConnectionHealthService['id']>([
   'mailbox',
 ]);
 
-export interface AutoHealServiceState {
+interface AutoHealServiceState {
   lastAttemptAt: number | null;
   consecutiveFailures: number;
   lastSuccess: boolean | null;
@@ -66,14 +66,14 @@ export interface AutoHealStatusEvent {
   attempt: number;
 }
 
-export interface AutoHealSnapshot {
+interface AutoHealSnapshot {
   enabled: boolean;
   running: boolean;
   lastTickAt: number | null;
   services: Record<string, AutoHealServiceState>;
 }
 
-export interface AutoHealerOptions {
+interface AutoHealerOptions {
   projectRoot: () => string;
   indexDir: () => string | undefined;
   /** Policy boundary. When absent, auto-heal refuses to act (same rule as the manual WS path). */
@@ -101,7 +101,7 @@ export interface AutoHealerOptions {
   maxAttempts?: number;
 }
 
-export interface AutoHealer {
+interface AutoHealer {
   start(): void;
   stop(): void;
   /**

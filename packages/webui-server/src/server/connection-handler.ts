@@ -18,7 +18,7 @@ import type { ConnectedClient, WSClientMessage } from './types.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { send } from './ws-utils.js';
 
-export interface ConnectionHandlerOptions {
+interface ConnectionHandlerOptions {
   getSessionId(): string;
   sessionStartPayload(): Promise<Record<string, unknown>>;
   tokenCounter: TokenCounter;

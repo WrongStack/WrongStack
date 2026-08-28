@@ -31,7 +31,7 @@ import type { WSServerMessage } from './types.js';
  * land in the neighbouring session's `.plan.json` / `.tasks.json`.
  */
 
-export interface SessionWorklistDeps {
+interface SessionWorklistDeps {
   /** Shared root context — bound to whichever session the runtime last activated. */
   rootContext: Context;
   /** Agent for a session WITHOUT creating one; preferred for read paths. */

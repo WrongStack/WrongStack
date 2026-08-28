@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import { authorizeWebUIAction } from './privileged-actions.js';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 
-export interface CodebaseIndexServerControlDeps {
+interface CodebaseIndexServerControlDeps {
   trustBoundary: TrustBoundary;
   logger?: Logger | undefined;
   getProjectRoot(): string;

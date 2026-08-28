@@ -75,7 +75,7 @@ async function authorizeMcpMutation(
 }
 
 /** Wire view of a server as the browser MCP panel consumes it. */
-export interface MCPServerView {
+interface MCPServerView {
   name: string;
   transport: string;
   status: 'stopped' | 'connecting' | 'connected' | 'sleeping' | 'discovering' | 'error';

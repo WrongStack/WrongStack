@@ -13,7 +13,7 @@ import type { MemoryPort } from '@wrongstack/core/types';
 import { sanitizeApiError } from '@wrongstack/core/security';
 import { decodeSessionId, strictDecodeParam } from './security-helpers.js';
 
-export interface VectorMemoryStatusResponse {
+interface VectorMemoryStatusResponse {
   enabled: boolean;
   storePath?: string | undefined;
   modelCacheDir?: string | undefined;
@@ -31,7 +31,7 @@ export interface VectorMemoryStatusResponse {
   } | undefined;
 }
 
-export interface VectorMemorySearchHit {
+interface VectorMemorySearchHit {
   id: string;
   score: number;
   text: string;
@@ -53,7 +53,7 @@ export interface VectorMemorySearchResponse {
 }
 
 /** Shape the store exposes. Kept narrow so we don't leak the full class. */
-export interface VectorMemorySnapshot {
+interface VectorMemorySnapshot {
   storePath?: string | undefined;
   modelCacheDir?: string | undefined;
   stats: {
@@ -339,7 +339,7 @@ export async function handleVectorMemoryForget(
   }
 }
 
-export interface MemorySearchHit {
+interface MemorySearchHit {
   id: string;
   text: string;
   kind: string;
@@ -354,7 +354,7 @@ export interface MemorySearchHit {
   source: 'lexical' | 'vector' | 'both';
 }
 
-export interface MemorySearchResponse {
+interface MemorySearchResponse {
   hits: MemorySearchHit[];
   count: number;
   /**

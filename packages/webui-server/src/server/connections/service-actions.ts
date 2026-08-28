@@ -318,7 +318,7 @@ export async function killSageServer(
   }
 }
 
-export async function restartSageServer(projectRoot: string): Promise<ServiceActionResult> {
+async function restartSageServer(projectRoot: string): Promise<ServiceActionResult> {
   await waitForShutdown(async () => {
     const probe = new SageProjectServerConnection(projectRoot);
     try {
@@ -389,7 +389,7 @@ export async function killChronicleServer(
   }
 }
 
-export async function restartChronicleServer(projectRoot: string): Promise<ServiceActionResult> {
+async function restartChronicleServer(projectRoot: string): Promise<ServiceActionResult> {
   const options = resolveChronicleProjectServerOptions({ projectRoot });
   const endpoint = new ChronicleProjectServerClient(options).endpoint;
   await waitForShutdown(async () => isEndpointAlive(endpoint));
@@ -461,7 +461,7 @@ export async function killCodebaseIndexServer(
   }
 }
 
-export async function restartCodebaseIndexServer(
+async function restartCodebaseIndexServer(
   projectRoot: string,
   indexDir: string | undefined,
 ): Promise<ServiceActionResult> {
@@ -550,7 +550,7 @@ export async function killMailboxServer(
   }
 }
 
-export async function restartMailboxServer(projectRoot: string): Promise<ServiceActionResult> {
+async function restartMailboxServer(projectRoot: string): Promise<ServiceActionResult> {
   await waitForShutdown(async () => {
     const probe = new MailboxProjectServerConnection(
       resolveWstackPaths({ projectRoot }).projectDir,

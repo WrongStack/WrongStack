@@ -12,7 +12,7 @@
  * `process.exit` — `log` and `exit` are injectable seams.
  */
 
-export interface LifecycleResources {
+interface LifecycleResources {
   /** Persist + close the active session (best-effort; errors are logged). */
   flushSession: () => Promise<void>;
   /**

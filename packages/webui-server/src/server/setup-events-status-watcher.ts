@@ -14,7 +14,7 @@ import {
 } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
-export interface SetupEventsStatusWatcherDeps {
+interface SetupEventsStatusWatcherDeps {
   wpaths?: WstackPaths | undefined;
   watcherMetrics?: FileWatcherMetrics | undefined;
   clients: Map<WebSocket, ConnectedClient>;

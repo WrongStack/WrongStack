@@ -53,7 +53,7 @@ export async function collectConnectionsHealth(options: {
   };
 }
 
-export function webuiHealth(backend: ConnectionsHealthReport['backend']): ConnectionHealthService {
+function webuiHealth(backend: ConnectionsHealthReport['backend']): ConnectionHealthService {
   return {
     id: 'webui',
     label: 'WebUI transport',
@@ -65,7 +65,7 @@ export function webuiHealth(backend: ConnectionsHealthReport['backend']): Connec
   };
 }
 
-export async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHealthService> {
+async function sessionCatalogHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
   try {
     const paths = resolveWstackPaths({ projectRoot });
@@ -424,7 +424,7 @@ export async function mailboxHealth(projectRoot: string): Promise<ConnectionHeal
   }
 }
 
-export async function governanceHealth(projectRoot: string): Promise<ConnectionHealthService> {
+async function governanceHealth(projectRoot: string): Promise<ConnectionHealthService> {
   const startedAt = Date.now();
   const result = await readGovernanceDaemonOperatorStatus(projectRoot);
   if (!result.available) {

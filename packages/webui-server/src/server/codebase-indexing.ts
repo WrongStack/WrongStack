@@ -22,7 +22,7 @@ import { clearCodemapGraphCache } from './codemap-cache.js';
 const WATCHER_DEDUP_TTL_MS = 60_000;
 const WATCHER_DEDUP_MAX_PATHS = 4_096;
 
-export interface WebUICodebaseIndexingDeps {
+interface WebUICodebaseIndexingDeps {
   config: { indexing?: IndexingConfig | undefined };
   context: Context;
   projectRoot: string;
@@ -30,7 +30,7 @@ export interface WebUICodebaseIndexingDeps {
   events?: EventBus | undefined;
 }
 
-export interface WebUICodebaseIndexing {
+interface WebUICodebaseIndexing {
   onFileWritten(filePath: string): void;
   dispose(): void;
 }

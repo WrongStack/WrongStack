@@ -18,7 +18,7 @@ const MAX_CACHE_BODY_CHARS = 4 * 1024 * 1024;
 /** JS strings may use two bytes per code unit, so this is roughly a 32 MiB heap budget. */
 const MAX_CACHE_TOTAL_CHARS = 16 * 1024 * 1024;
 
-export interface CodemapCacheEntry {
+interface CodemapCacheEntry {
   version: string;
   /** Pre-serialized JSON body — avoids re-stringify on cache hits. */
   body: string;

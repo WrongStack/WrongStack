@@ -66,7 +66,7 @@ const LIFECYCLE_TYPES = new Set<SddLifecycleOp>(['cleanup_worktrees', 'rollback'
 const POLL_INTERVAL_MS = 5_000;
 
 /** Project paths the handler needs to apply lifecycle ops directly. */
-export interface SddBoardLifecycleDeps {
+interface SddBoardLifecycleDeps {
   projectRoot: string;
   /** Explicit compatibility hook for file-codec tests and old integrations. */
   controlTransport?: 'kanban' | 'legacy-file' | undefined;
@@ -80,7 +80,7 @@ export interface SddBoardLifecycleDeps {
   };
 }
 
-export interface SddBoardSecurityDeps {
+interface SddBoardSecurityDeps {
   trustBoundary: TrustBoundary;
   logger?: Logger | undefined;
 }

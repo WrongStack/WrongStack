@@ -52,7 +52,7 @@ function sendNotFound(res: http.ServerResponse, intakeId: string): void {
 }
 
 /** Map a domain error to an HTTP status + JSON error body. */
-export function sendIntakeError(res: http.ServerResponse, error: unknown): void {
+function sendIntakeError(res: http.ServerResponse, error: unknown): void {
   if (error instanceof IntakeValidationError) {
     sendJson(res, 400, {
       error: { code: error.code, message: error.message, issues: error.issues },

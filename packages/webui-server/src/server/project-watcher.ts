@@ -28,7 +28,7 @@ import { type ProjectWatchSubscription, watchProjectTree } from '@wrongstack/cor
 import { SKIP_DIRS } from './file-picker.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
-export interface ProjectWatcherDeps {
+interface ProjectWatcherDeps {
   /** Absolute project root to watch. */
   projectRoot: string;
   /** Broadcast a message to all connected WS clients. */

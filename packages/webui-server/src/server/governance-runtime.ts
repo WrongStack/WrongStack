@@ -30,7 +30,7 @@ const DEFAULT_DEPENDENCIES: WebUiGovernanceDependencies = {
   createMutationBridge: createGovernanceMutationSnapshotBridge,
 };
 
-export interface WebUiGovernanceRuntimeHandle {
+interface WebUiGovernanceRuntimeHandle {
   installToolBoundary(pipelines: AgentPipelines): void;
   close(): Promise<GovernanceRuntimeBootstrapCloseResult>;
 }

@@ -15,7 +15,7 @@ export interface Participant {
 }
 
 /** One removal produced by `removeBySocket`, with leave-choreography facts. */
-export interface SocketRemoval {
+interface SocketRemoval {
   sessionId: string;
   participant: Participant;
   /** True when this removal emptied the session bucket (no broadcast due). */

@@ -16,7 +16,7 @@ import {
 } from './kanban-route-helpers.js';
 import type { WSServerMessage } from './types.js';
 
-export interface KanbanTaskRouteContext {
+interface KanbanTaskRouteContext {
   projectRoot: string;
   context?: Context | undefined;
   /** Tab that sent the request — the session every emitted event belongs to. */

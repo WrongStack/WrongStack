@@ -90,7 +90,7 @@ function probePort(host: string, port: number): Promise<NodeJS.ErrnoException | 
   });
 }
 
-export interface FindFreePortOptions {
+interface FindFreePortOptions {
   /** Ports to skip even if free (e.g. one already chosen for the sibling server). */
   exclude?: Set<number> | undefined;
   /** How many consecutive ports to try before giving up. Default 200. */
@@ -124,7 +124,7 @@ export async function findFreePort(
   });
 }
 
-export interface ListenWithRetryOptions {
+interface ListenWithRetryOptions {
   /** Bind attempts before giving up on EADDRINUSE. Default 10. */
   maxTries?: number | undefined;
 }

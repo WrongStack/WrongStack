@@ -61,21 +61,21 @@ function blockText(block: ContentBlock | string): string {
   }
 }
 
-export interface SessionInspectEvent {
+interface SessionInspectEvent {
   ts: string;
   type: SessionEvent['type'];
   label: string;
   detail: string;
 }
 
-export interface SessionInspectFileEntry {
+interface SessionInspectFileEntry {
   operation: string;
   filePath: string;
   toolName: string;
   ts: string;
 }
 
-export interface SessionInspectPayload {
+interface SessionInspectPayload {
   id: string;
   title: string;
   name?: string | undefined;

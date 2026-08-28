@@ -24,7 +24,7 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { Provider } from '@wrongstack/core/types';
 
-export interface ProviderFanoutInput {
+interface ProviderFanoutInput {
   /** Conversations holding a live agent; absent on single-conversation hosts. */
   sessionAgentIds?: (() => string[]) | undefined;
   /** Read-only agent lookup — must never materialise one. */

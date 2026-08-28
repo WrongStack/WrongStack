@@ -53,7 +53,7 @@ export function validateModelSwitchPayload(
   };
 }
 
-export interface ModelFallbackChoicePayload {
+interface ModelFallbackChoicePayload {
   requestId: string;
   providerId?: string | undefined;
   model?: string | undefined;
@@ -835,7 +835,7 @@ export function validateGitDiffPayload(payload: unknown): PayloadValidationResul
   return { ok: true, value: { path } };
 }
 
-export interface GitPathsPayload {
+interface GitPathsPayload {
   paths: string[];
 }
 
@@ -878,7 +878,7 @@ export function validateGitDiscardPayload(
   return parsePathsPayload(payload, 'git.discard');
 }
 
-export interface GitCommitPayload {
+interface GitCommitPayload {
   message: string;
 }
 
@@ -958,7 +958,7 @@ export function validateProjectsSelectPayload(
  * configures. The spawn itself is hardened separately by
  * `buildWin32CmdShimInvocation` (CMDI-005).
  */
-export interface McpServerPayload {
+interface McpServerPayload {
   name: string;
   [key: string]: unknown;
 }

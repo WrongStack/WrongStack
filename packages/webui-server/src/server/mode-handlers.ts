@@ -26,7 +26,7 @@ type ModelCapabilities = NonNullable<
   ConstructorParameters<typeof DefaultSystemPromptBuilder>[0]
 >['modelCapabilities'];
 
-export interface ModeHandlersContext {
+interface ModeHandlersContext {
   modeStore: DefaultModeStore;
   memoryStore: MemoryPort;
   skillLoader: SkillLoader | undefined;

@@ -21,7 +21,7 @@ const ACTIVE_STATUSES = new Set(['allocating', 'active', 'committing', 'merging'
  */
 const MANAGED_BRANCH_RE = /^wstack\/ap\/[A-Za-z0-9._/-]+$/;
 
-export interface WorktreeManagementDeps {
+interface WorktreeManagementDeps {
   projectRoot: string;
   /** Board snapshot dir — powers the cross-process liveness guard on cleanup. */
   boardsDir: string;

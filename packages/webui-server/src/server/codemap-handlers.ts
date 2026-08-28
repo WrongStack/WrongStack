@@ -20,7 +20,7 @@ import {
   setCachedCodemapBody,
 } from './codemap-cache.js';
 
-export interface CodemapHandlerDeps {
+interface CodemapHandlerDeps {
   projectRoot: string;
   /** Optional index directory override (tests, custom wiring). */
   indexDir?: string | undefined;

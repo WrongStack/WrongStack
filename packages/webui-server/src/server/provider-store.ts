@@ -8,7 +8,7 @@ import type { ProviderApiKey, ProviderConfig } from '@wrongstack/core/types';
 // private copy of `maskedKey`, so a change to how much of a secret is shown
 // had to be made twice to take effect on every surface.
 import { maskedKey } from './provider-keys.js';
-export interface ProviderStoreDeps {
+interface ProviderStoreDeps {
   /** Active profile config path. */
   profileConfigPath: string;
   vault: DefaultSecretVault;

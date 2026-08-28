@@ -67,12 +67,12 @@ import type { WSServerMessage } from './types.js';
  * embedded and standalone routers can supply this from the active agent
  * context (`agent.ctx.provider` / `agent.ctx.model`).
  */
-export interface AgentRosterLlm {
+interface AgentRosterLlm {
   provider: Provider;
   model: string;
 }
 
-export interface AgentRosterHandlerOptions {
+interface AgentRosterHandlerOptions {
   projectRoot: string | (() => string);
   /**
    * Resolves the LLM used to synthesize consolidations directly on the server,

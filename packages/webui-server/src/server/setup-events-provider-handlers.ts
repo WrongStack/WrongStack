@@ -10,7 +10,7 @@ type SetupEventBroadcast = (
 ) => void;
 type SessionPayload = <T extends Record<string, unknown>>(payload: T) => T & { sessionId: string };
 
-export interface SetupEventsProviderHandlersDeps {
+interface SetupEventsProviderHandlersDeps {
   on: SetupEventOn;
   broadcast: SetupEventBroadcast;
   clients: Map<WebSocket, ConnectedClient>;

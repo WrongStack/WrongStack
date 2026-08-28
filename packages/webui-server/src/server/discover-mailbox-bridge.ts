@@ -9,7 +9,7 @@ import {
 } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 
-export interface MailboxBridgeParams {
+interface MailboxBridgeParams {
   projectRoot: string;
   config: { features?: { mailboxBridge?: 'auto' | 'off' | undefined } } | undefined;
   logger: {

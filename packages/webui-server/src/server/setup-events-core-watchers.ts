@@ -7,7 +7,7 @@ import type { WebSocket } from 'ws';
 import { subscribeKanbanDaemonEvents } from './kanban-daemon-subscriber.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
-export interface SetupEventsCoreWatcherDeps {
+interface SetupEventsCoreWatcherDeps {
   events: EventBus;
   broadcast: (
     clients: Map<WebSocket, ConnectedClient>,

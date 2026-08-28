@@ -1,7 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 
-export interface SetupEventSessionHelperOptions {
+interface SetupEventSessionHelperOptions {
   /**
    * Resolve an audit bridge bound to ONE session's writer.
    *

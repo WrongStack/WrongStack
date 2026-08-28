@@ -1,9 +1,9 @@
-export interface EventBusLike {
+interface EventBusLike {
   on(event: string, listener: (...args: any[]) => void): any;
   off(event: string, listener: (...args: any[]) => void): any;
 }
 
-export interface WebUIStatusLoggerOptions {
+interface WebUIStatusLoggerOptions {
   events: EventBusLike;
   getSessionList: () => Array<{
     id: string;

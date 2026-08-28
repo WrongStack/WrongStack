@@ -28,7 +28,7 @@ import { fanOutProviderRebuild } from './provider-fanout.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
 import type { WebuiDeps, WebuiMutableState } from './routes.js';
 
-export interface WebuiProxyApplyOptions {
+interface WebuiProxyApplyOptions {
   state: WebuiMutableState;
   deps: WebuiDeps;
   /** Mirrors `cb.updateAutoCompactionMaxContext` in start-webui.ts. */

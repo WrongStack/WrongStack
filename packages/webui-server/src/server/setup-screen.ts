@@ -55,14 +55,14 @@ function makeUnconfiguredProvider(): Provider {
   };
 }
 
-export interface ResolveSetupProviderOptions {
+interface ResolveSetupProviderOptions {
   config: Config;
   /** True when neither provider nor model is set in config. */
   needsProvider: boolean;
   providerRegistry: ProviderRegistry;
 }
 
-export interface ResolvedSetupProvider {
+interface ResolvedSetupProvider {
   provider: Provider;
   /**
    * True when no provider could be resolved and a stub was created — the

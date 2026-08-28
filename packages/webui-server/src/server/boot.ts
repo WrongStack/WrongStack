@@ -3,7 +3,7 @@ import type { DefaultSecretVault } from '@wrongstack/core/security';
 import type { Config } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
-export interface BootResult {
+interface BootResult {
   config: Config;
   vault: DefaultSecretVault;
   globalConfigPath: string;

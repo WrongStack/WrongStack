@@ -14,7 +14,7 @@ import type * as http from 'node:http';
 import { runDeadCodeScan } from '@wrongstack/tools/codebase-index';
 import type { DeadCodeScanOutput } from '@wrongstack/tools/codebase-index';
 
-export interface DeadCodeHandlerDeps {
+interface DeadCodeHandlerDeps {
   projectRoot: string;
   indexDir?: string | undefined;
 }

@@ -5,7 +5,7 @@ import { requireJoinedRole } from './collab-context.js';
 import type { CollabFeature } from './dispatcher.js';
 
 /** How long the middleware waits before auto-resuming (mirrors the middleware default). */
-export const PAUSE_TIMEOUT_MS = 60_000;
+const PAUSE_TIMEOUT_MS = 60_000;
 
 /**
  * Controller flow, Phase 3 (6A-2). Moved verbatim from

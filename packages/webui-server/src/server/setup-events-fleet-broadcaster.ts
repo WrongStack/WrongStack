@@ -4,7 +4,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 
-export interface SetupEventsFleetBroadcasterDeps {
+interface SetupEventsFleetBroadcasterDeps {
   globalConfigPath?: string | undefined;
   wpaths?: WstackPaths | undefined;
   context: Context;
