@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import { commandExistsOnPath, resolveServerCommand } from '../utils/command-resolver.js';
 
-export interface LanguageServerConfig {
+interface LanguageServerConfig {
   binary: string;
   npmPackages?: string[];
   args?: string[];

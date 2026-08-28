@@ -7,7 +7,7 @@ import type {
 import type { ServerConfig } from '../types.js';
 import type { Connection } from './connection.js';
 
-export const CLIENT_CAPABILITIES: InitializeParams['capabilities'] = {
+const CLIENT_CAPABILITIES: InitializeParams['capabilities'] = {
   workspace: {
     workspaceFolders: true,
     didChangeWatchedFiles: { dynamicRegistration: false },

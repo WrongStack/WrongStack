@@ -75,7 +75,7 @@ const INSTALLS: Record<string, LanguageInstall> = {
   },
 };
 
-export interface SetupOptions {
+interface SetupOptions {
   cwd: string;
   languages: string[];
   dryRun: boolean;

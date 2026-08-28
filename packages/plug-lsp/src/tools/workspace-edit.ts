@@ -5,7 +5,7 @@ import type { DocumentTracker } from '../document-tracker.js';
 import { editsByPath } from '../formatters/workspace-edit.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 
-export interface ApplyWorkspaceEditResult {
+interface ApplyWorkspaceEditResult {
   files: string[];
   edits: number;
 }

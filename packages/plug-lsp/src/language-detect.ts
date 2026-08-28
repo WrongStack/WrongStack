@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-export const LANGUAGE_MAP: Readonly<Record<string, string>> = {
+const LANGUAGE_MAP: Readonly<Record<string, string>> = {
   '.ts': 'typescript',
   '.tsx': 'typescriptreact',
   '.js': 'javascript',

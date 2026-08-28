@@ -34,7 +34,7 @@ import { pathToUri, uriToPath } from '../utils/uri.js';
 import { Connection } from './connection.js';
 import { initializeServer } from './initialize.js';
 
-export interface ServerContext {
+interface ServerContext {
   cwd: string;
   rootPath: string;
   log: Logger;

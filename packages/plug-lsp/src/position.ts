@@ -1,19 +1,19 @@
-export interface LSPPosition {
+interface LSPPosition {
   line: number;
   character: number;
 }
 
-export interface HumanPosition {
+interface HumanPosition {
   line: number;
   character: number;
 }
 
-export interface LSPRange {
+interface LSPRange {
   start: LSPPosition;
   end: LSPPosition;
 }
 
-export interface HumanRange {
+interface HumanRange {
   start: HumanPosition;
   end: HumanPosition;
 }

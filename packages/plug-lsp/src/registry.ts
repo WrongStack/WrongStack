@@ -10,7 +10,7 @@ import type { AutoStartMode, PlugLSPConfig } from './types.js';
 import { LSPError, LSPErrorCode } from './types.js';
 import { findWorkspaceRoot } from './workspace-root.js';
 
-export interface RegistryContext {
+interface RegistryContext {
   cwd: string;
   log: Logger;
   events: EventBus;
