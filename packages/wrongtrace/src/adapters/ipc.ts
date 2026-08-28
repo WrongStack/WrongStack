@@ -157,4 +157,4 @@ export function createIpcTransport(socketPath?: string, timeouts?: IpcTimeouts):
 }
 
 // Re-exporting for tests / advanced consumers that want the underlying timeout error.
-export { TimeoutError as IpcTimeoutError };
+;

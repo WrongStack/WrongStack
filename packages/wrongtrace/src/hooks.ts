@@ -152,7 +152,7 @@ export interface WrongTraceHookOptions {
  * the LAST finisher's postToolUse decrements it to zero — a sibling finishing
  * early can never unlock a path another in-flight edit still holds.
  */
-export function newWrongTraceLockCounter(): Map<string, number> {
+function newWrongTraceLockCounter(): Map<string, number> {
   return new Map<string, number>();
 }
 
