@@ -65,6 +65,10 @@ const coreEntries = entryMap([
   // the core-api policy forbids new root-barrel imports — so it ships as its
   // own narrow entry next to the other dependency-free ones.
   'src/plugins/review-report-store.ts',
+  'src/plugins/review-finding-store.ts',
+  'src/plugins/review-finding-types.ts',
+  'src/plugins/review-report-types.ts',
+  'src/plugins/review-report-integration.ts',
   'src/design/index.ts',
   'src/coordination/index.ts',
   'src/coordination/agents/index.ts',

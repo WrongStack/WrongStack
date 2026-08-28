@@ -7,9 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.316.0] — 2026-08-28
+
+Consolidates the intermediate `0.314.0` version bump into one documented
+release.
+
 ### Added
 
-- **Stats-driven tool auto-thinning (`tools.autoThin`).** Off by default. Opt in with `/settings autothin on` (or directly in your profile config). The pipeline observes every tool invocation via the EventBus, folds the counts into a per-tool, per-day Chronicle rollup (`tool_daily`), and — only on an explicit `/tool autothin apply` or with `applyOnBoot: true` — disables the tools that match `minInvocations` and `idleDays`. Decisions are tagged `reason: 'auto-thinned'` in `ToolsConfig.disabledToolMeta` so they survive restarts; `/tool autothin undo` re-enables only the auto-thinned subset (operator-authored disables are preserved). The in-process event-bridge Map is the fallback when Chronicle is unavailable. New: `ToolsConfig.autoThin`, `ToolsConfig.disabledToolMeta`, `AutoThinConfig`, `DisabledToolMeta`, `ToolRegistry.thinUnderused()`, `ToolRegistry.enableAutoThinned()`, `ToolRegistry.applyDisabledMeta()`, `ToolUsageSource` (hybrid Chronicle/in-process resolver), `/tool autothin {status|candidates|apply|undo|config}`, `/settings autothin on|off`, `/settings autothin-idle <days>`, `/settings autothin-min <count>`, `/settings autothin-boot on|off`. See `docs/auto-thinning.md`.
+- **Provider waiting-room events now have a durable audit trail.** Model block/open events are written to JSONL, exposed through the provider-status command path, and broadcast with real-time error context so operators can see why a route is blocked or reopened. (`23de1b801`, `23fd22342`, `99a5fdbb9`)
+- **Stats-driven tool auto-thinning (`tools.autoThin`).** Off by default. Opt in with `/settings autothin on` (or directly in your profile config). The pipeline observes every tool invocation via the EventBus, folds the counts into a per-tool, per-day Chronicle rollup (`tool_daily`), and — only on an explicit `/tool autothin apply` or with `applyOnBoot: true` — disables the tools that match `minInvocations` and `idleDays`. Decisions are tagged `reason: 'auto-thinned'` in `ToolsConfig.disabledToolMeta` so they survive restarts; `/tool autothin undo` re-enables only the auto-thinned subset (operator-authored disables are preserved). The in-process event-bridge Map is the fallback when Chronicle is unavailable. New: `ToolsConfig.autoThin`, `ToolsConfig.disabledToolMeta`, `AutoThinConfig`, `DisabledToolMeta`, `ToolRegistry.thinUnderused()`, `ToolRegistry.enableAutoThinned()`, `ToolRegistry.applyDisabledMeta()`, `ToolUsageSource` (hybrid Chronicle/in-process resolver), `/tool autothin {status|candidates|apply|undo|config}`, `/settings autothin on|off`, `/settings autothin-idle <days>`, `/settings autothin-min <count>`, `/settings autothin-boot on|off`. See `docs/auto-thinning.md`. (`33285dde2`)
+- **WebUI session startup can recover itself.** Browser sessions now auto-resume and retry after `session_not_ready`, with lane-guard warnings emitted once instead of repeatedly interrupting the operator. (`14e70bb09`)
+
+### Changed
+
+- **Provider cooldowns separate quota exhaustion from ordinary temporary blocks.** Quota failures escalate deliberately, ordinary blocks expire sooner, and the waiting room stops over-quarantining routes that should be retried. (`4d1579ba1`, `37767a0ce`)
+- **WebUI orchestration state is scoped per active session.** Todos, tasks, plan state, tab-slot recycling, orchestration stores, and session fixtures now preserve ownership across multi-tab workflows. (`f3d5a9c90`, `a3b1328d4`, `25ef39037`, `6fd692bbf`, `c8ff4aa83`, `6964de260`, `9f4ff2e1e`, `9adeac00e`)
+- **ActivityBar navigation is denser and session-oriented.** Worktrees moved under Changes, Office Map moved under Roster, and retired officemap literals were removed from tests and architecture evidence. (`04f4d6494`, `42e5dde5d`)
+- **TUI statusline chips are grouped into four semantic rails.** The workspace reorder is covered by refreshed fixtures so field positions remain intentional. (`426738354`, `30e686cd6`)
+- **All public release surfaces align to `0.316.0`.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD metadata, and both changelog surfaces now describe the same release.
+
+### Fixed
+
+- **Pruned agent registry rows rebuild from HTTP heartbeats.** Heartbeats can restore missing rows with registration guards instead of leaving provider status stale. (`7ea907627`, `22371a7b1`)
+- **Mailbox serve startup output keeps stdout and stderr separated.** `TerminalRenderer.writeStderr()` routes banners correctly and tests cover the stream split. (`7b156dd67`, `2c2697cde`, `3c79dae34`)
+- **Mailbox MCP credentials require an explicit project id.** Credential issuance now fails closed when the project boundary is missing. (`9d421d46a`)
 
 ## [0.313.1] — 2026-08-25
 

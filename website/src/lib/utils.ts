@@ -283,13 +283,14 @@ export const slashCommands = [
   '/yolo',
 ] as const;
 
-/** Published workspace inventory: 31 packages and 2 apps. */
+/** Published workspace inventory: 34 packages and 2 apps. */
 export const packages = [
   'wrongstack',
   '@wrongstack/core',
   '@wrongstack/cli',
   '@wrongstack/providers',
   '@wrongstack/plugin-sdk',
+  '@wrongstack/primitives',
   '@wrongstack/tools',
   '@wrongstack/mcp',
   '@wrongstack/plug-lsp',
@@ -310,6 +311,7 @@ export const packages = [
   '@wrongstack/techstack',
   '@wrongstack/tui',
   '@wrongstack/webui',
+  '@wrongstack/webui-protocol',
   '@wrongstack/webui-server',
   '@wrongstack/webui-hq',
   '@wrongstack/telegram',
@@ -317,6 +319,7 @@ export const packages = [
   '@wrongstack/plugins',
   '@wrongstack/bench',
   '@wrongstack/acp',
+  '@wrongstack/wrongtrace',
   '@wrongstack/desktop',
 ] as const;
 
@@ -341,9 +344,24 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.316.0',
+    date: '2026-08-28',
+    latest: true,
+    consolidated: true,
+    tagline: 'Provider audit history, session isolation & tool auto-thinning',
+    highlights: [
+      'Provider waiting-room block/open events are recorded to durable JSONL, exposed through provider-status commands, and streamed into the WebUI with real-time error context',
+      'Provider cooldowns distinguish quota exhaustion from ordinary temporary blocks, shortening normal quarantines while escalating real quota failures deliberately',
+      'WebUI todos, tasks, plan state, tab slot reuse, orchestration stores, and E2E fixtures now enforce active-session ownership across multi-tab workflows',
+      'WebUI auto-resumes and retries after session_not_ready while lane-guard warnings are emitted once instead of repeatedly interrupting operators',
+      'tools.autoThin can opt in to Chronicle-backed usage rollups, explicit candidate application, boot-time application, and undo limited to auto-thinned disables',
+      'ActivityBar navigation is denser, TUI statusline chips map to four semantic rails, and architecture evidence/ratchets were refreshed with the release',
+      'All root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces align to 0.316.0',
+    ],
+  },
+  {
     version: '0.313.1',
     date: '2026-08-25',
-    latest: true,
     tagline: 'Reliable failover, persistent TUI layouts & 50 themes',
     highlights: [
       'The provider waiting room now gates every leader and subagent call before the wire, records outcomes exactly once, and preserves fallback-worthy ProviderError metadata across built-package boundaries',
@@ -1268,7 +1286,7 @@ export const releaseProcess: ReleaseStep[] = [
     phase: 'Version bump',
     steps: [
       'node scripts/bump-version.mjs <patch|minor|major>',
-      'Version bumped in root + all 29 package manifests + both apps + website/',
+      'Version bumped in root + all 34 package manifests + both apps + website/',
       'CHANGELOG.md updated with release date and highlights',
     ],
   },
