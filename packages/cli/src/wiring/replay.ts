@@ -32,7 +32,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
  * has to be in place before the first `run()` — which is what lets `--record`
  * name the real session instead of inventing one.
  */
-export interface BindReplayOptions {
+interface BindReplayOptions {
   container: Container;
   wpaths: WstackPaths;
   /**

@@ -15,7 +15,7 @@ import {
 } from '../auth-menu/openai-codex-oauth.js';
 import { resolveProviderCfgWithProxy } from './provider-runtime.js';
 
-export interface ProviderSetupResult {
+interface ProviderSetupResult {
   resolvedProvider: ResolvedProvider | undefined;
   provider: ReturnType<ProviderRegistry['create']>;
   providerRegistry: ProviderRegistry;

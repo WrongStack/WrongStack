@@ -4,9 +4,9 @@ import * as path from 'node:path';
 import type { WorkspaceCheckpointRef } from '@wrongstack/core/types';
 
 export const MAX_GOVERNANCE_PLAN_BYTES = 1024 * 1024;
-export const MAX_GOVERNANCE_ACTIVE_STEP_IDS = 128;
+const MAX_GOVERNANCE_ACTIVE_STEP_IDS = 128;
 
-export type GovernancePlanTrace =
+type GovernancePlanTrace =
   | { readonly state: 'missing' | 'invalid' | 'unreadable' }
   | { readonly state: 'refreshing'; readonly observedAt: string }
   | {
@@ -23,7 +23,7 @@ export type GovernancePlanTrace =
       readonly activeStepIdsTruncated: boolean;
     };
 
-export type GovernanceWorkspaceTrace =
+type GovernanceWorkspaceTrace =
   | { readonly state: 'not_captured' }
   | {
       readonly state: 'unavailable';
@@ -65,7 +65,7 @@ export interface GovernanceTraceContext {
   snapshot(taskId: string | null, boardId?: string | undefined): GovernanceTraceContextSnapshot;
 }
 
-export interface GovernanceTraceContextDependencies {
+interface GovernanceTraceContextDependencies {
   readonly readFile: (filePath: string) => Promise<string>;
   readonly now: () => string;
 }

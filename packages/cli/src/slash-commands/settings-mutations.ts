@@ -15,7 +15,7 @@ import { formatDelay } from '../utils/delay-format.js';
 import type { SlashCommandContext } from './command-context.js';
 import { unknownSubcommand } from './helpers.js';
 
-export const ALL_SETTINGS_KEYS = [
+const ALL_SETTINGS_KEYS = [
   'delay',
   'mode',
   'hints',

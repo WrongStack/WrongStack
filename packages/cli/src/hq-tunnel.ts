@@ -11,7 +11,7 @@ export interface HqQuickTunnelHandle {
   close(): Promise<void>;
 }
 
-export interface HqQuickTunnelOptions {
+interface HqQuickTunnelOptions {
   executable?: string | undefined;
   timeoutMs?: number | undefined;
   onUnexpectedExit?: ((message: string) => void) | undefined;

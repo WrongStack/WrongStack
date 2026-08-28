@@ -13,7 +13,7 @@ type ConfigStoreLike = {
   update(patch: Partial<Config>): void;
 };
 
-export interface RegisterCliManagementToolsDeps {
+interface RegisterCliManagementToolsDeps {
   toolRegistry: ToolRegistry;
   configStore: ConfigStoreLike;
   profileConfigPath: string;

@@ -8,7 +8,7 @@ import {
 } from '@wrongstack/core/hq';
 import { resolveAuditActor } from './audit-actor.js';
 
-export interface HqPreflightOptions {
+interface HqPreflightOptions {
   host?: string;
   port?: number;
   dataDir?: string;
@@ -18,7 +18,7 @@ export interface HqPreflightOptions {
   allowInsecureOpen?: boolean;
 }
 
-export interface HqPreflightResult {
+interface HqPreflightResult {
   host: string;
   port: number;
   dataDir: string;

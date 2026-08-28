@@ -29,7 +29,7 @@ import type { CliContext } from '../cli-context.js';
 import type { loadOnlineAgentsForPrompt } from '../cli-main-helpers.js';
 import { setupSession } from './session.js';
 
-export interface SessionEstablishmentArgs {
+interface SessionEstablishmentArgs {
   /** Container used to resolve SessionStore + TokenCounter. */
   container: Pick<CliContext['container'], 'resolve'>;
   config: { provider: string; model: string };

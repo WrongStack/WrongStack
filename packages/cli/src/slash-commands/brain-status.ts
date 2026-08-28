@@ -10,7 +10,7 @@ import { color } from '@wrongstack/core/utils';
 import { judgeSummary } from './brain-council.js';
 import type { SlashCommandContext } from './command-context.js';
 
-export const DETERMINISTIC_TIER_NAMES = [
+const DETERMINISTIC_TIER_NAMES = [
   'rule',
   'policy',
   'heuristic',

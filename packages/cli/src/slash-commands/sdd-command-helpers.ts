@@ -1,4 +1,4 @@
-export interface SddSubtaskInput {
+interface SddSubtaskInput {
   title: string;
   description: string;
 }
@@ -36,7 +36,7 @@ export const SDD_KNOWN_SUBCOMMANDS = [
   'history',
 ];
 
-export interface SddDestroyResult {
+interface SddDestroyResult {
   worktreesRemoved: number;
   deleted: readonly string[];
   reverted: number;

@@ -54,8 +54,8 @@ import { setupProvider } from '../wiring/provider.js';
 import { awaitFirstWrongProxyProbe, bootstrapWrongProxy } from '../wiring/proxy-wiring.js';
 import { getWrongTrace } from '../wiring/wrongtrace-gate.js';
 
-export type ModeId = string;
-export type ModePrompt = string;
+type ModeId = string;
+type ModePrompt = string;
 
 export interface ModelCapabilities {
   maxContextTokens: number;
@@ -64,7 +64,7 @@ export interface ModelCapabilities {
   supportsReasoning: boolean;
 }
 
-export type ResolvedModeResult =
+type ResolvedModeResult =
   | {
       kind: 'ok';
       resolvedProvider: ResolvedProvider;

@@ -21,7 +21,7 @@ import type {
   Provider,
 } from '@wrongstack/core/types';
 
-export interface ProviderUtilityToolsInput {
+interface ProviderUtilityToolsInput {
   toolRegistry: ToolRegistry;
   buildProvider: (providerId: string) => Provider;
   getConfig: () => Config;

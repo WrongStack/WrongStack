@@ -1,11 +1,11 @@
 import type { Director } from '@wrongstack/core/coordination';
 
-export interface ReplFleetCallbacksOptions {
+interface ReplFleetCallbacksOptions {
   director: Director | null | undefined;
   getDirector: (() => Director | null | undefined) | undefined;
 }
 
-export interface ReplFleetCallbacks {
+interface ReplFleetCallbacks {
   onInterruptFleet: () => number;
   onAgentIterationComplete: (tokens: number) => void;
 }

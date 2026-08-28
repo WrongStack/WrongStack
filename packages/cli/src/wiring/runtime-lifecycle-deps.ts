@@ -10,7 +10,7 @@ import type { LifecycleDeps } from '../execute-deps.js';
 import { getSuggestions, setSuggestions } from '../services/suggestion-store.js';
 import type { SessionStats } from '../session-stats.js';
 
-export interface RuntimeLifecycleDepsInput {
+interface RuntimeLifecycleDepsInput {
   getConfig: () => Config;
   context: Context;
   getCurrentSuggestions: () => string[];

@@ -13,7 +13,7 @@ export interface CliHqConnection {
   stop(): void;
 }
 
-export interface CliHqConnectionOptions extends CliHqPublisherOptions {
+interface CliHqConnectionOptions extends CliHqPublisherOptions {
   onConnect?: ((publisher: HqPublisher) => void) | undefined;
   retryIntervalMs?: number | undefined;
 }

@@ -2,7 +2,7 @@
  * Minimal diagnostic page used only when the packaged HQ SPA assets cannot be found.
  * It intentionally contains no telemetry UI or control-plane implementation.
  */
-export const HQ_RECOVERY_HTML = `<!doctype html>
+const HQ_RECOVERY_HTML = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">

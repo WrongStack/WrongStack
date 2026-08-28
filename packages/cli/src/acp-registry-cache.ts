@@ -28,7 +28,7 @@ export interface LoadedAcpRegistry {
 }
 
 /** Where the synced registry snapshot lives. */
-export function acpRegistryCachePath(paths: WstackPaths): string {
+function acpRegistryCachePath(paths: WstackPaths): string {
   return path.join(paths.cacheDir, 'acp-registry.json');
 }
 

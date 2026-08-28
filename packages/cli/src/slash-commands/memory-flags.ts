@@ -164,7 +164,7 @@ export function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
   return out;
 }
 
-export interface ParsedForFileFlags {
+interface ParsedForFileFlags {
   singleLine: number | undefined;
   limit: number;
   showDeleted: boolean;

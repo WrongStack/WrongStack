@@ -66,7 +66,7 @@ import { recordGateDecision } from './wrongtrace-gate-counters.js';
 // biome-ignore lint/suspicious/noExplicitAny: large dependency bag — exact types add no safety here
 type AnyRecord = Record<string, any>;
 
-export interface LifecyclePluginsDeps {
+interface LifecyclePluginsDeps {
   flags: Record<string, string | boolean>;
   config: Config;
   // biome-ignore lint/suspicious/noExplicitAny: DI container shape
@@ -104,7 +104,7 @@ export interface LifecyclePluginsDeps {
   buildProviderForIdRuntime: any;
 }
 
-export interface LifecyclePluginsResult {
+interface LifecyclePluginsResult {
   hookRegistry: HookRegistry;
   hookRunner: HookRunner;
   // biome-ignore lint/suspicious/noExplicitAny: auto-compactor

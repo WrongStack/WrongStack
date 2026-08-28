@@ -27,7 +27,7 @@ interface TelegramUpdatesResponse {
   result?: TelegramPairingUpdate[] | undefined;
 }
 
-export type TelegramPairingChatType = 'private' | 'group' | 'supergroup' | 'channel' | 'unknown';
+type TelegramPairingChatType = 'private' | 'group' | 'supergroup' | 'channel' | 'unknown';
 
 export interface TelegramPairingCandidate {
   chatId: number;
@@ -38,7 +38,7 @@ export interface TelegramPairingCandidate {
   warning?: 'group' | 'ambiguous' | undefined;
 }
 
-export type TelegramPairingChoice =
+type TelegramPairingChoice =
   | { kind: 'cancel' }
   | { kind: 'invalid' }
   | { kind: 'selected'; candidate: TelegramPairingCandidate };

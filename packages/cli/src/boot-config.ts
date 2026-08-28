@@ -3,7 +3,7 @@ import { bootConfig as coreBootConfig } from '@wrongstack/core/infrastructure';
 import type { Config } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
 
-export interface BootPaths {
+interface BootPaths {
   cwd: string;
   projectRoot: string;
   userHome: string;

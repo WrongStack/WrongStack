@@ -63,7 +63,7 @@ export function resolveSpecifierEntry(spec: string): string | undefined {
   }
 }
 
-export interface ExternalPluginHooks {
+interface ExternalPluginHooks {
   /** Normalize a config spec to its bare plugin name (null for paths/URLs). */
   nameFromSpec(spec: string): string | null;
   /** True when the spec refers to a built-in plugin (loaded elsewhere). */
@@ -72,7 +72,7 @@ export interface ExternalPluginHooks {
   warnIfDeprecated(name: string): boolean;
 }
 
-export interface LoadExternalPluginsContext {
+interface LoadExternalPluginsContext {
   config: Config;
   log: Logger;
   /** `~/.wrongstack` — anchors global discovery + the default trust store. */

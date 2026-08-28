@@ -1,14 +1,14 @@
 import { fallbackProfileChain, parseModelRef } from '@wrongstack/core/agent';
 import type { Config } from '@wrongstack/core/types';
 
-export interface KanbanDispatchRouteInput {
+interface KanbanDispatchRouteInput {
   provider?: string | undefined;
   model?: string | undefined;
   fallbackModels?: string[] | undefined;
   fallbackProfile?: string | undefined;
 }
 
-export interface KanbanDispatchRoute {
+interface KanbanDispatchRoute {
   provider?: string | undefined;
   model?: string | undefined;
   fallbackModels?: string[] | undefined;

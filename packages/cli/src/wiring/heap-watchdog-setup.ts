@@ -1,6 +1,6 @@
 import { startSharedHeapWatchdog } from '@wrongstack/core/utils';
 
-export interface SetupCliHeapWatchdogOptions {
+interface SetupCliHeapWatchdogOptions {
   flags: Record<string, unknown>;
   tuiOwnsScreen: boolean;
   context: {

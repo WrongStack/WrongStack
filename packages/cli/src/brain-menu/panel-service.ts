@@ -12,7 +12,7 @@ import { BUILTIN_COUNCIL_PERSONAS } from '@wrongstack/core/execution';
 import type { BrainCouncilVoterConfig, BrainModelEntry } from '@wrongstack/core/types';
 import type { BrainPanelHost, BrainPanelPersona, BrainPanelSettings } from '@wrongstack/tui';
 
-export interface BrainPanelServiceDeps {
+interface BrainPanelServiceDeps {
   brainRuntime: BrainRuntime;
 }
 

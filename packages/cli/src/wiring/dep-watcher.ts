@@ -10,7 +10,7 @@ import type { DefaultLogger } from '@wrongstack/core/infrastructure';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { MultiAgentHost } from '../multi-agent.js';
 
-export interface SetupDepWatcherConsumersDeps {
+interface SetupDepWatcherConsumersDeps {
   dwCfg: Record<string, unknown> | undefined;
   globalRoot: string;
   projectSlug: string;

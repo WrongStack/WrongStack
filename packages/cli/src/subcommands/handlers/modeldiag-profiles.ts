@@ -165,7 +165,7 @@ export interface CacheProvider {
   models?: CacheModel[];
 }
 
-export interface ScoredModel {
+interface ScoredModel {
   provider: string;
   model: string;
   profile?: ModelProfile | undefined;

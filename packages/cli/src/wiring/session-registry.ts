@@ -14,7 +14,7 @@ import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { createGracefulShutdown } from '../shutdown-cleanup.js';
 
-export interface SetupSessionRegistryDeps {
+interface SetupSessionRegistryDeps {
   wpaths: {
     globalRoot: string;
     projectDir: string;
@@ -27,7 +27,7 @@ export interface SetupSessionRegistryDeps {
   events: EventBus;
 }
 
-export interface SetupSessionRegistryResult {
+interface SetupSessionRegistryResult {
   /** AgentStatusTracker when the dynamic import and setup succeeded, else undefined. */
   tracker: InstanceType<
     typeof import('@wrongstack/core/coordination').AgentStatusTracker

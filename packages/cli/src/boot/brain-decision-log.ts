@@ -13,7 +13,7 @@
  * (and indirectly `pushBrainLog`) for the duration of the session.
  */
 
-export type BrainDecisionKind =
+type BrainDecisionKind =
   | 'answered'
   | 'ask_human'
   | 'denied'

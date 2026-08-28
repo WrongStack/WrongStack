@@ -11,7 +11,7 @@ import {
 import { diffLineStyle } from './diff-renderer.js';
 import { theme } from './theme.js';
 
-export type PromptDecision = 'yes' | 'no' | 'always' | 'deny';
+type PromptDecision = 'yes' | 'no' | 'always' | 'deny';
 
 /** Signature the Agent expects for confirming tool calls. */
 export type ConfirmAwaiter = (

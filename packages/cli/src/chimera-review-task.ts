@@ -134,7 +134,7 @@ export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload)
  * and returns a JSON block with the exact commands and their exit codes; the
  * re-review step re-runs those commands and compares.
  */
-export const CASCADE_EVIDENCE_INSTRUCTIONS = [
+const CASCADE_EVIDENCE_INSTRUCTIONS = [
   `After fixing, run the project's REAL verification commands on the code you changed`,
   `(typecheck, lint, and the tests covering the fixed code) and return a machine-evidence`,
   `block as the LAST section of your response. The block MUST be a fenced JSON block`,

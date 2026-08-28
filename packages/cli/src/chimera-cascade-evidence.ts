@@ -40,7 +40,7 @@ export type {
 // ---------------------------------------------------------------------------
 
 /** One claimed verification check: the exact command and its observed exit code. */
-export interface CascadeEvidenceCheck {
+interface CascadeEvidenceCheck {
   command: string;
   exitCode: number;
   /** Optional truncated output the agent chose to include (informational). */
@@ -55,7 +55,7 @@ export interface CascadeEvidence {
 }
 
 /** Result of verifying a cascade agent's claimed evidence. */
-export interface CascadeEvidenceVerification {
+interface CascadeEvidenceVerification {
   status: CascadeEvidenceStatus;
   checks: CascadeEvidenceCheckResult[];
 }
@@ -177,16 +177,16 @@ const SAFE_EXECUTABLES = new Set([
 export const CASCADE_EVIDENCE_COMMAND_TIMEOUT_MS = 120_000;
 
 /** Exit code used when the re-run is refused (unsafe command). */
-export const CASCADE_EVIDENCE_UNSAFE_EXIT = 126;
+const CASCADE_EVIDENCE_UNSAFE_EXIT = 126;
 
 /** Exit code used when the re-run times out or cannot execute. */
-export const CASCADE_EVIDENCE_RUN_ERROR_EXIT = 127;
+const CASCADE_EVIDENCE_RUN_ERROR_EXIT = 127;
 
-export interface RunCommandResult {
+interface RunCommandResult {
   exitCode: number;
 }
 
-export type RunCommandFn = (
+type RunCommandFn = (
   command: string,
   cwd: string,
   timeoutMs: number,
@@ -198,7 +198,7 @@ export type RunCommandFn = (
  * metacharacters). Shell-free spawning is the second layer — even a validated
  * command is run with `shell: false`.
  */
-export function isSafeCascadeCommand(command: string): boolean {
+function isSafeCascadeCommand(command: string): boolean {
   if (!command || command.length > 500) return false;
   const tokens = command.trim().split(/\s+/);
   if (tokens.length === 0) return false;
@@ -213,7 +213,7 @@ export function isSafeCascadeCommand(command: string): boolean {
  * Never throws — every failure mode (unsafe, timeout, spawn error) resolves to
  * an exit code so the caller's comparison stays uniform.
  */
-export const runCascadeVerificationCommand: RunCommandFn = (
+const runCascadeVerificationCommand: RunCommandFn = (
   command,
   cwd,
   timeoutMs,

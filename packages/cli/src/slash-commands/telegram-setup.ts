@@ -33,7 +33,7 @@ const HELP = [
 
 const BOT_TOKEN_RE = /^\d+:[A-Za-z0-9_-]+$/;
 
-export type TelegramChatIdClassification =
+type TelegramChatIdClassification =
   | { kind: 'private'; chatId: number }
   | { kind: 'group'; chatId: number }
   | { kind: 'invalid' };

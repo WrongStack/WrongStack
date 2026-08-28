@@ -22,7 +22,7 @@
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { createTeardownEventRegistrar } from '../cli-main-helpers.js';
 
-export interface TeardownRegistrarArgs {
+interface TeardownRegistrarArgs {
   flags: { tui?: unknown; 'no-tui'?: unknown };
   events: Parameters<typeof createTeardownEventRegistrar>[0];
   logger: {
@@ -32,7 +32,7 @@ export interface TeardownRegistrarArgs {
   vectorMemoryStore: VectorMemoryStore | undefined;
 }
 
-export interface TeardownRegistrarResult {
+interface TeardownRegistrarResult {
   tuiOwnsScreen: boolean;
   evOn: ReturnType<typeof createTeardownEventRegistrar>;
 }

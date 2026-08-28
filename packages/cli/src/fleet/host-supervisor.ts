@@ -12,7 +12,7 @@ import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type { MultiAgentHostOptions } from './host-types.js';
 import { setActiveFleetSupervisor } from './supervisor-registry.js';
 
-export interface HostFleetSupervisorInput {
+interface HostFleetSupervisorInput {
   director: Director | undefined;
   brain: MultiAgentHostOptions['brain'];
   supervisorConfig: NonNullable<Config['fleet']>['supervisor'] | undefined;

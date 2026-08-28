@@ -30,7 +30,7 @@ export interface FleetAgentState {
   extensions?: number | undefined;
 }
 
-export interface FleetStatusLineOptions {
+interface FleetStatusLineOptions {
   events: EventBus;
   out?: NodeJS.WriteStream | undefined;
   /** Minimum ms between repaints. Default 150. */

@@ -1,7 +1,7 @@
 import type { GovernanceDaemonOperatorStatusReadResult } from '@wrongstack/runtime/governance-bootstrap';
 import type { SubcommandDeps, SubcommandHandler } from '../contracts.js';
 
-export interface GovernanceStatusCommandDependencies {
+interface GovernanceStatusCommandDependencies {
   readonly readStatus: (projectRoot: string) => Promise<GovernanceDaemonOperatorStatusReadResult>;
 }
 

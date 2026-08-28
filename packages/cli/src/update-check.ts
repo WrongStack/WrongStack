@@ -190,7 +190,7 @@ export async function fetchLatestFromNpm(
   throw new Error('No valid version field in npm response');
 }
 
-export interface CheckForUpdateOptions {
+interface CheckForUpdateOptions {
   signal?: AbortSignal | undefined;
   homeFn?: HomeDirFn | undefined;
   packageName?: UpdatePackageName | undefined;

@@ -44,6 +44,8 @@ import {
 } from './auth-menu-audit.js';
 import { loadProviders } from './helpers.js';
 import { LOCAL_LLM_PRESETS, type LocalLlmPresetEntry } from './local-presets.js';
+
+export type { LocalLlmPresetEntry } from './local-presets.js';
 import { suggestLabel } from './shared.js';
 import type { AuthMenuDeps } from './types.js';
 
@@ -56,13 +58,7 @@ import type { AuthMenuDeps } from './types.js';
 // provider picker can import them without pulling in the probe/config
 // machinery this file depends on. Re-exported here to keep the public
 // import path (`@wrongstack/cli` barrel, tests) stable.
-export {
-  LOCAL_LLM_PRESETS,
-  type LocalLlmPresetEntry,
-  type ProbeOptions,
-  type ProbeResult,
-  probeLocalLlm,
-};
+export { LOCAL_LLM_PRESETS, type ProbeOptions, type ProbeResult, probeLocalLlm };;
 
 const PRESET_BY_ID = new Map(LOCAL_LLM_PRESETS.map((p) => [p.id, p]));
 

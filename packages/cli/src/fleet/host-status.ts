@@ -44,7 +44,7 @@ export interface FleetHostUsage {
   totals: { tasks: number; iterations: number; toolCalls: number; durationMs: number };
 }
 
-export interface FleetHostStatusInputs {
+interface FleetHostStatusInputs {
   coordinatorStatus?:
     | {
         subagents: readonly {

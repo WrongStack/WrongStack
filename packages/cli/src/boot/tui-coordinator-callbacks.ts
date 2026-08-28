@@ -2,7 +2,7 @@ import type { Context } from '@wrongstack/core/agent';
 import type { AutonomousCoordinator, CoordinatorEvent } from '@wrongstack/core/coordination';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
-export interface TuiCoordinatorCallbacksContext {
+interface TuiCoordinatorCallbacksContext {
   state: TuiRuntimeState;
   context: Context;
   coordinatorEvents: Set<(event: CoordinatorEvent) => void>;

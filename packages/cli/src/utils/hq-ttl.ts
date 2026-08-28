@@ -23,7 +23,7 @@ const TTL_UNIT_MS: Record<string, number> = {
   w: 604_800_000,
 };
 
-export interface ParsedTtl {
+interface ParsedTtl {
   value?: number | undefined;
   error?: string | undefined;
 }

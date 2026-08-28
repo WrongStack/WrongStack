@@ -8,7 +8,7 @@ import type { Config } from '@wrongstack/core/types';
 
 export type FleetBudgetSource = 'cli-flag' | 'env' | 'profile' | 'default';
 
-export interface ResolvedFleetBudget {
+interface ResolvedFleetBudget {
   maxConcurrent: number;
   maxConcurrentSource: FleetBudgetSource;
   maxSpawns: number;

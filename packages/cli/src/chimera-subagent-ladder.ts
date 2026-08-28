@@ -32,7 +32,7 @@ export interface LadderAttemptFailure {
   toolCalls: number;
 }
 
-export interface LadderRunOutcome {
+interface LadderRunOutcome {
   /** Terminal result, when a rung produced one. */
   result?: TaskResult | undefined;
   /** Winning subagent, left alive only when `keepWinnerAlive` is set. */
@@ -45,7 +45,7 @@ export interface LadderRunOutcome {
   lastError?: unknown;
 }
 
-export interface LadderRunOptions {
+interface LadderRunOptions {
   director: Director;
   ladder: readonly ReviewerAttempt[];
   /** Build the spawn config for a rung. Must apply the rung's model itself. */

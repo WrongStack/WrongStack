@@ -70,11 +70,11 @@ export { HQ_HTML };
 export const DEFAULT_HOST = '127.0.0.1';
 export const DEFAULT_PORT = 3499;
 export const MAX_EVENT_LOG = 5000;
-export const MAX_NON_STRICT_PORT_SCAN = 50;
-export const CLIENT_TTL_MS = 60_000;
-export const CLIENT_CLEANUP_INTERVAL_MS = 30_000;
-export const BROWSER_HEARTBEAT_INTERVAL_MS = 15_000;
-export const SESSION_SNAPSHOT_TTL_MS = 30_000;
+const MAX_NON_STRICT_PORT_SCAN = 50;
+const CLIENT_TTL_MS = 60_000;
+const CLIENT_CLEANUP_INTERVAL_MS = 30_000;
+const BROWSER_HEARTBEAT_INTERVAL_MS = 15_000;
+const SESSION_SNAPSHOT_TTL_MS = 30_000;
 
 export {
   agentMessageToEntry,
@@ -86,7 +86,7 @@ export {
 
 // ── Public interfaces ──────────────────────────────────────────────────────
 
-export interface HqServerOptions {
+interface HqServerOptions {
   trustBoundary?: TrustBoundary | undefined;
   host?: string;
   port?: number;

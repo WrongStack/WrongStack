@@ -27,7 +27,7 @@ export interface HqPublisherRef {
   getKanbanSyncStats?: (() => KanbanHqSyncStats | undefined) | undefined;
 }
 
-export interface SetupHqTelemetryDeps {
+interface SetupHqTelemetryDeps {
   events: EventBus;
   session: SessionWriter;
   config: Config;
@@ -45,7 +45,7 @@ export interface SetupHqTelemetryDeps {
   mcpRegistry: Pick<MCPRegistry, 'onOperation' | 'operationalHealth'>;
 }
 
-export interface HqTelemetryResult {
+interface HqTelemetryResult {
   hqCommandController: HqCommandController;
   hqOnCommand: ReturnType<typeof createHqCommandDispatcher>;
 }

@@ -17,7 +17,7 @@ import type { CommitLLMProvider } from './services/commit-message.js';
 /** Provider shape required to predict — same structural contract as commit-llm. */
 export type PredictLLMProvider = CommitLLMProvider;
 
-export interface PredictionInput {
+interface PredictionInput {
   /** The user's request that kicked off the turn we just finished. */
   userRequest: string;
   /** The agent's final assistant text for the turn (its summary of what it did). */
@@ -26,7 +26,7 @@ export interface PredictionInput {
   todos: readonly TodoItem[];
 }
 
-export interface PredictOpts {
+interface PredictOpts {
   provider: PredictLLMProvider;
   model: string;
   /** Max predictions to return. Default 3. */

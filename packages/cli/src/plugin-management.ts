@@ -30,7 +30,7 @@ export type { PluginAuditEntry };
 // Re-exported here for existing CLI consumers (management-tools.ts, /plugin).
 export { PLUGIN_AUDIT_ENTRIES };
 
-export const OFFICIAL_PLUGINS = [
+const OFFICIAL_PLUGINS = [
   {
     alias: 'telegram',
     specifier: '@wrongstack/telegram',
@@ -43,7 +43,7 @@ export const OFFICIAL_PLUGINS = [
   },
 ] as const;
 
-export interface PluginManagementDeps {
+interface PluginManagementDeps {
   config: Config;
   configPath: string;
   /** Override `~/.wrongstack` for tests. Defaults to the real home dir. */
@@ -52,13 +52,13 @@ export interface PluginManagementDeps {
   runPackageManager?: ((pm: string, args: readonly string[], cwd: string) => Promise<PackageManagerRunResult>) | undefined;
 }
 
-export interface PackageManagerRunResult {
+interface PackageManagerRunResult {
   code: number | null;
   stdout: string;
   stderr: string;
 }
 
-export interface PluginManagementResult {
+interface PluginManagementResult {
   code: number;
   level: 'output' | 'info' | 'error';
   message: string;
@@ -420,7 +420,7 @@ function mergeExtensionsForPatch(
   return merged;
 }
 
-export function resolvePluginSpecifier(input: string): string {
+function resolvePluginSpecifier(input: string): string {
   return OFFICIAL_ALIASES.get(input.toLowerCase()) ?? input;
 }
 
@@ -430,7 +430,7 @@ function resolvePluginToggleSpecifier(input: string): string {
   return resolvePluginSpecifier(input);
 }
 
-export function renderOfficialPlugins(config?: Config): string {
+function renderOfficialPlugins(config?: Config): string {
   return [
     'Official plugins:',
     ...OFFICIAL_PLUGINS.map((p) => {

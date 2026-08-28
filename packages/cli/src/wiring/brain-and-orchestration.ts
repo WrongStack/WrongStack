@@ -46,7 +46,7 @@ type AnyObj = any;
  * and the TUI Brain panel. `describe` fields are static wiring facts surfaced
  * in `/brain status`.
  */
-export interface BrainRuntimeSettings {
+interface BrainRuntimeSettings {
   maxAutoRisk: BrainAutoRisk;
   /** 'headless' = never block on a human; terminal policy resolves escalations. */
   mode: BrainEscalationMode;
@@ -58,7 +58,7 @@ export interface BrainRuntimeSettings {
   readonly ledgerPath?: string | undefined;
 }
 
-export interface BrainOrchestrationDeps {
+interface BrainOrchestrationDeps {
   events: AnyObj;
   config: Config;
   /** Secret vault for the global-config persist path of Brain settings. */
@@ -104,7 +104,7 @@ export interface BrainOrchestrationDeps {
     | undefined;
 }
 
-export interface BrainOrchestrationResult {
+interface BrainOrchestrationResult {
   brain: ObservableBrainArbiter;
   brainLog: AnyObj[];
   brainSettings: BrainRuntimeSettings;

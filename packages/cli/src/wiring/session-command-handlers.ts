@@ -19,7 +19,7 @@ import { patchConfig } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type SlashCommandDeps = BuiltinSlashCommandDeps;
-export type SessionCommandHandlers = Pick<
+type SessionCommandHandlers = Pick<
   SlashCommandDeps,
   | 'onPlugin'
   | 'onContextLimit'
@@ -46,7 +46,7 @@ interface ErrorRecord {
   message: string;
 }
 
-export interface SessionCommandHandlersInput {
+interface SessionCommandHandlersInput {
   getConfig: () => Config;
   setConfig: (config: Config) => void;
   configStore: ConfigStore;

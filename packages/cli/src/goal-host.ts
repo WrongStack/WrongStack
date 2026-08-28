@@ -284,13 +284,13 @@ export interface GoalHostDeps {
 }
 
 /** A live, read-only view of the running Goal, exposed to slash commands. */
-export interface GoalRunnerView {
+interface GoalRunnerView {
   graph: PhaseGraph;
   getProgress: () => PhaseProgress | null;
   isRunning: () => boolean;
 }
 
-export type GoalStartResult = { ok: true; graph: PhaseGraph } | { ok: false; error: string };
+type GoalStartResult = { ok: true; graph: PhaseGraph } | { ok: false; error: string };
 
 export interface GoalHostHooks {
   onGoalStart: (opts: {

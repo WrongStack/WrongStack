@@ -82,14 +82,14 @@ function coerceAgentSwarmMode(
   return 'bottom';
 }
 
-export interface SettingsAdapterContext {
+interface SettingsAdapterContext {
   configStore: ConfigStore;
   wpaths: WstackPaths;
   fleetStreamController: { setMode?: ((mode: FleetChatVerbosity) => void) | undefined } | undefined;
   applyLiveSettings: ((s: LiveSettingsInput) => void) | undefined;
 }
 
-export interface SettingsAdapter {
+interface SettingsAdapter {
   getSettings: () => Record<string, unknown>;
   saveSettings: (s: LiveSettingsInput) => Promise<string | null>;
 }

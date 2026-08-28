@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 
-export interface SimpleUiDistDeps {
+interface SimpleUiDistDeps {
   resolvePackageJson?: (id: string) => string;
   exists?: (file: string) => boolean;
 }
@@ -33,7 +33,7 @@ export function resolveSimpleUiDistDir(deps: SimpleUiDistDeps = {}): string {
   return distDir;
 }
 
-export interface EnsureSimpleUiDistDeps extends SimpleUiDistDeps {
+interface EnsureSimpleUiDistDeps extends SimpleUiDistDeps {
   /** Override the build command runner (tests). Receives the workspace root cwd. */
   runBuild?: (cwd: string) => void | Promise<void>;
   /** Override the workspace-root finder (tests). Receives the simpleui package dir. */

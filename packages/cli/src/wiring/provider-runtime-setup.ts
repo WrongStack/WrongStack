@@ -76,7 +76,7 @@ export interface ProviderRuntimeDeps {
   statusTracker: ProviderModelStatusTracker;
 }
 
-export interface ProviderRuntimeResult {
+interface ProviderRuntimeResult {
   resolveProviderCfg: (providerId: string) => { cfg: ProviderConfig };
   buildProviderForId: (providerId: string) => Provider;
   /**

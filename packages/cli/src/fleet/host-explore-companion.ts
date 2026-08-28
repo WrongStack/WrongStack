@@ -37,7 +37,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { SubagentConfig, TaskResult } from '@wrongstack/core/types';
 
 /** Config block for the explore-companion host wiring (FleetConfig.exploreCompanion). */
-export interface HostExploreCompanionConfig {
+interface HostExploreCompanionConfig {
   /** Kill switch. Default true. */
   enabled?: boolean | undefined;
   /** Min gap between probes on the same subject (ms). Default 120_000. */
@@ -48,7 +48,7 @@ export interface HostExploreCompanionConfig {
   pollIntervalMs?: number | undefined;
 }
 
-export interface HostExploreCompanionInput {
+interface HostExploreCompanionInput {
   director: Director;
   events: EventBus;
   sessionId: string;

@@ -10,7 +10,7 @@
 import type { AgentPipelines, Context } from '@wrongstack/core/agent';
 import { installDesignStudioMiddleware } from '@wrongstack/core/design';
 
-export interface InstallDesignStudioDeps {
+interface InstallDesignStudioDeps {
   pipelines: AgentPipelines;
   context: Context;
   /** When false, no middleware is installed (the tool + /design stay manual). */

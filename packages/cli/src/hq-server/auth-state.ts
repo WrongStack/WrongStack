@@ -16,7 +16,7 @@ export interface HqAuthState {
   tokenStats(): NonNullable<HqSnapshot['totals']['tokenStats']>;
 }
 
-export interface HqAuthStateOptions {
+interface HqAuthStateOptions {
   /**
    * Invoked after every {@link HqAuthState.apply}, with the freshly projected
    * `mutableAuth`. The server wires this to the WS-010 exposure re-assessment

@@ -8,7 +8,7 @@ import { atomicWrite, deepMerge } from '@wrongstack/core/utils';
 /** Configuration and storage dependencies needed to persist a setting.
  *  This is safe to call from non-interactive surfaces such as the TUI,
  *  headless runs, and the arg-driven `/settings` slash command. */
-export interface PersistSettingDeps {
+interface PersistSettingDeps {
   configStore: ConfigStore;
   /** Path to the active profile config (~/.wrongstack/profiles/<name>/config.json). */
   profileConfigPath: string;

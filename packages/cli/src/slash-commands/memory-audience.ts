@@ -3,14 +3,14 @@ import type { MemoryAudienceSelector, SageSurface } from '@wrongstack/sage';
 
 // ── /memory audience — view and manage role-scoped memories ──────────
 
-export interface ParsedAudienceFlags {
+interface ParsedAudienceFlags {
   roles?: string[];
   taskTypes?: string[];
   modes?: string[];
   errors: string[];
 }
 
-export function parseAudienceFlags(tokens: string[]): ParsedAudienceFlags {
+function parseAudienceFlags(tokens: string[]): ParsedAudienceFlags {
   const out: ParsedAudienceFlags = { errors: [] };
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i] ?? '';
@@ -48,11 +48,11 @@ export function parseAudienceFlags(tokens: string[]): ParsedAudienceFlags {
   return out;
 }
 
-export function hasAudienceSelector(parsed: ParsedAudienceFlags): boolean {
+function hasAudienceSelector(parsed: ParsedAudienceFlags): boolean {
   return !(!(parsed.roles?.length || parsed.taskTypes?.length || parsed.modes?.length));
 }
 
-export function formatAudienceSelector(audience: MemoryAudienceSelector): string {
+function formatAudienceSelector(audience: MemoryAudienceSelector): string {
   const parts: string[] = [];
   if (audience.roles?.length) parts.push(`roles: ${audience.roles.join(', ')}`);
   if (audience.taskTypes?.length) parts.push(`taskTypes: ${audience.taskTypes.join(', ')}`);

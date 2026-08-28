@@ -38,7 +38,7 @@ import { fmtTok } from './utils.js';
 const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
 
 export type { ReplOptions } from './repl-options.js';
-export { parseAutoSuggestionsFromOutput, parseSuggestionsFromOutput } from './repl-suggestions.js';
+export { parseSuggestionsFromOutput } from './repl-suggestions.js';;
 
 export async function runRepl(opts: ReplOptions): Promise<number> {
   if (opts.banner !== false) printBanner(opts.renderer, opts.projectName);

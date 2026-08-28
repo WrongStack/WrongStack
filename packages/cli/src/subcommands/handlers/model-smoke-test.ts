@@ -10,12 +10,12 @@ import type {
 import { ProviderError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 
-export interface ModelSmokeTarget {
+interface ModelSmokeTarget {
   providerId: string;
   modelId: string;
 }
 
-export interface ModelSmokeOptions {
+interface ModelSmokeOptions {
   allModels: boolean;
   planOnly: boolean;
   json: boolean;

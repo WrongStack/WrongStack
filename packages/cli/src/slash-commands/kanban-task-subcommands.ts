@@ -45,7 +45,7 @@ import {
   resolveColumnReference,
 } from './kanban-lifecycle-diagnostics.js';
 
-export function extractSpawnedSubagentId(summary: string): string | undefined {
+function extractSpawnedSubagentId(summary: string): string | undefined {
   return summary.match(/Spawned subagent\s+([^\s]+)/)?.[1];
 }
 

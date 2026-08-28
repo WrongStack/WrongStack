@@ -44,9 +44,9 @@ import type { TerminalRenderer } from '../../renderer.js';
  *   - `'value'` — the flag accepts a value (`--flag <value>`).
  *     The parser reads these via `flagStr(deps, name)` directly.
  */
-export type BenchRunFlagGroup = 'suite' | 'models' | 'control';
+type BenchRunFlagGroup = 'suite' | 'models' | 'control';
 
-export interface BenchRunFlag {
+interface BenchRunFlag {
   /** The flag's canonical name (no `--` prefix, no value placeholder). */
   name: string;
   /**
@@ -180,7 +180,7 @@ export const BENCH_RUN_VALUE_FLAG_NAMES: ReadonlyArray<string> = BENCH_RUN_FLAGS
  * Chosen so the longest flag (`--polyglot-dir <path>`) fits
  * with one space of padding before the description starts.
  */
-export const BENCH_RUN_FLAG_COLUMN_WIDTH = 28;
+const BENCH_RUN_FLAG_COLUMN_WIDTH = 28;
 
 /**
  * Build the `wstack bench run` help block as a string. The

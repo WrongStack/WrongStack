@@ -42,10 +42,10 @@ import { CLI_VERSION } from '../version.js';
 import { launchBannerLines } from './launch-banner.js';
 
 /** Top-level surfaces the user can launch from the menu. */
-export type LaunchMenuMode = LaunchMenuChoice['mode'];
+type LaunchMenuMode = LaunchMenuChoice['mode'];
 
 /** Resolved menu result — the caller must act on this, not re-derive. */
-export interface LaunchMenuResult extends LaunchMenuChoice {
+interface LaunchMenuResult extends LaunchMenuChoice {
   /**
    * True when the user typed `q` (or pressed Ctrl+C) at any prompt.
    * Caller should exit gracefully with code 0.

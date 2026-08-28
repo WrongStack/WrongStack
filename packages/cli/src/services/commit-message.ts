@@ -21,7 +21,7 @@ export interface CommitLLMProvider {
   }>;
 }
 
-export interface CommitLLMOpts {
+interface CommitLLMOpts {
   provider: CommitLLMProvider;
   model: string;
 }

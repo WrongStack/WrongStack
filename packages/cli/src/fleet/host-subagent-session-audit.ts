@@ -30,7 +30,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { SessionWriter, TokenCounter } from '@wrongstack/core/types';
 
-export interface SubagentSessionAudit {
+interface SubagentSessionAudit {
   /**
    * Append `session_end` carrying this subagent's own cumulative usage, then
    * drop the tool subscriptions. Call before `session.close()` — close()

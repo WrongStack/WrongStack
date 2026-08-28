@@ -32,7 +32,7 @@ const GOAL_EVENTS: readonly string[] = [
   'countdown.tick',
 ];
 
-export interface GoalWiring {
+interface GoalWiring {
   /**
    * Called by the TUI to receive forwarded events. Each call registers
    * one listener per event name; the returned function unregisters all.

@@ -1,6 +1,6 @@
-export type TerminalTone = 'blue' | 'cyan' | 'green' | 'magenta' | 'muted' | 'success' | 'yellow';
+type TerminalTone = 'blue' | 'cyan' | 'green' | 'magenta' | 'muted' | 'success' | 'yellow';
 
-export interface TerminalStyleOptions {
+interface TerminalStyleOptions {
   readonly bold?: boolean;
   /** Capability override for deterministic tests; production derives this from env/TTY. */
   readonly enabled?: boolean;

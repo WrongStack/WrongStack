@@ -6,7 +6,7 @@ import { readJsonObjectFile } from '@wrongstack/core/utils';
 import type { ResourceMenuId, ResourceMenuItem, ResourceMenuSnapshot } from '@wrongstack/tui';
 import { runGit } from './services/run-git.js';
 
-export interface TuiResourceMenuContext {
+interface TuiResourceMenuContext {
   configStore: ConfigStore;
   paths: WstackPaths;
   memoryStore?: MemoryPort | undefined;

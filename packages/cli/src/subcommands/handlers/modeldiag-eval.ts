@@ -44,7 +44,7 @@ export function createProviderForId(
   }
 }
 
-export async function rankResponses(
+ async function rankResponses(
   provider: ReturnType<typeof makeProviderFromConfig>,
   leaderModel: string,
   taskPrompt: string,

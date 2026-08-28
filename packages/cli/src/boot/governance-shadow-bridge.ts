@@ -8,15 +8,15 @@ import type { GovernanceTraceContext } from './governance-trace-context.js';
 
 const SHADOW_SOURCE = 'wrongstack.cli.shadow.v1';
 
-export interface GovernanceObservationSink {
+interface GovernanceObservationSink {
   observe(input: GovernanceRuntimeObservationInput): Promise<GovernanceRuntimeObservationResult>;
 }
 
-export interface GovernanceShadowLogger {
+interface GovernanceShadowLogger {
   warn(message: string, context?: unknown): void;
 }
 
-export interface GovernanceShadowBridge {
+interface GovernanceShadowBridge {
   close(): void;
 }
 

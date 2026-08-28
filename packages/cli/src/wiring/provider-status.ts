@@ -6,7 +6,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { atomicWrite, withFileLock } from '@wrongstack/core/utils';
 
-export interface ProviderStatusInput {
+interface ProviderStatusInput {
   events: EventBus;
   paths: WstackPaths;
   fallbackProfileManager: FallbackProfileManager;

@@ -38,7 +38,7 @@ export const HQ_SESSION_IDLE_TIMEOUT_MS = 30 * 60_000; // 30 min
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export interface HqBrowserAuthContext {
+interface HqBrowserAuthContext {
   kind: 'token';
   token: string;
   id: string;
@@ -51,7 +51,7 @@ export interface HqBrowserAuthContext {
  * access). Token-origin cookies carry the source token's capabilities
  * so capability checks (e.g. `control.enqueue`) still apply.
  */
-export interface HqCookieAuthContext {
+interface HqCookieAuthContext {
   kind: 'cookie';
   tokenId?: string;
   capabilities?: string[];

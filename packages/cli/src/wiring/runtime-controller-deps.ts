@@ -9,7 +9,7 @@ import type { AutonomyMode } from '../services/autonomy-mode.js';
 import { deriveFsAccessPair } from '../settings-menu.js';
 import { patchConfig } from '../utils.js';
 
-export interface RuntimeControllerDepsInput {
+interface RuntimeControllerDepsInput {
   interruptController: ControllerDeps['interruptController'];
   enhanceController: ControllerDeps['enhanceController'];
   getEnhancerReasoning: ControllerDeps['getEnhancerReasoning'];

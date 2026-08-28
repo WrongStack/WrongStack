@@ -6,7 +6,7 @@ import {
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 
-export type ReportTaskResultToLeaderOptions = {
+type ReportTaskResultToLeaderOptions = {
   notification: TaskResultNotification;
   sessionId: string;
   mailboxProjectDir: string;

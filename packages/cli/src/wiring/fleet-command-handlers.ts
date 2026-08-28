@@ -15,7 +15,7 @@ import { fmtTaskResultLine } from '../utils.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type SlashCommandDeps = BuiltinSlashCommandDeps;
-export type FleetCommandHandlers = Pick<
+type FleetCommandHandlers = Pick<
   SlashCommandDeps,
   | 'onSpawn'
   | 'onSpawnAndWait'
@@ -32,7 +32,7 @@ export type FleetCommandHandlers = Pick<
   | 'onDirector'
 >;
 
-export interface FleetCommandHandlersInput {
+interface FleetCommandHandlersInput {
   multiAgentHost: MultiAgentHost;
   getDirector: () => Director | null;
   events: EventBus;

@@ -8,7 +8,7 @@ import { color } from '@wrongstack/core/utils';
 import { renderDiff } from './diff-renderer.js';
 import { theme } from './theme.js';
 
-export interface TerminalRendererOptions {
+interface TerminalRendererOptions {
   out?: NodeJS.WriteStream | undefined;
   err?: NodeJS.WriteStream | undefined;
 }

@@ -12,7 +12,7 @@ import type { MCPRegistry } from '@wrongstack/mcp';
 import type { PickerDeps, PluginPickerItem, ToolPickerItem } from '../execute-deps.js';
 import { patchConfig } from '../utils.js';
 
-export interface RuntimePickerDepsInput {
+interface RuntimePickerDepsInput {
   getConfig: () => Config;
   setConfig: (config: Config) => void;
   profileConfigPath: string;

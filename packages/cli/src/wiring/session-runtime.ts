@@ -28,7 +28,7 @@ import type { setupReplayAndGovernance } from './replay-governance-setup.js';
 type WireArgs = Parameters<typeof wireSessionEvents>[0];
 type GovernanceHandle = Awaited<ReturnType<typeof setupReplayAndGovernance>>['governanceHandle'];
 
-export interface SessionRuntimeArgs {
+interface SessionRuntimeArgs {
   evOn: WireArgs['evOn'];
   events: NonNullable<WireArgs['events']>;
   /** Live config binding; provider/model are read once at setup time. */

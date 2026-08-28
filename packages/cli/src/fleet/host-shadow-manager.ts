@@ -43,7 +43,7 @@ import type { Director } from '@wrongstack/core/coordination';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 
-export interface HostShadowManagerContext {
+interface HostShadowManagerContext {
   deps: MultiAgentDeps;
   opts: MultiAgentHostOptions;
   getDirector: () => Director | undefined;

@@ -34,7 +34,7 @@ import { patchConfig } from './utils.js';
  */
 type ContainerLike = { resolve: <T>(token: Token<T>) => T };
 
-export interface EternalFlagDeps {
+interface EternalFlagDeps {
   /** The `--eternal` flag value (already trimmed). Empty string = no-op. */
   eternalFlag: string;
   projectRoot: string;

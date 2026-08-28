@@ -5,7 +5,7 @@ import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { startCliHqConnection } from './hq-publisher.js';
 import type { ReplOptions } from './repl-options.js';
 
-export interface ReplClientRegistration {
+interface ReplClientRegistration {
   clientId: string;
   close(): void;
 }

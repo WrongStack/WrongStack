@@ -20,7 +20,7 @@ import * as path from 'node:path';
 import { restrictFilePermissions } from '@wrongstack/core/security';
 import { atomicWrite } from '@wrongstack/core/utils';
 
-export interface LoginAttemptEntry {
+interface LoginAttemptEntry {
   count: number;
   blockedUntil: number;
   lastAttempt: number;

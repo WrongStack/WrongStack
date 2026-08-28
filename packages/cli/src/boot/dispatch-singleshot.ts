@@ -18,7 +18,7 @@ import { contextOverflowHint } from '../context-overflow-diagnostic.js';
 import type { TerminalRenderer } from '../renderer.js';
 import { fmtTok } from '../utils.js';
 
-export interface SingleShotDispatchContext {
+interface SingleShotDispatchContext {
   /** The agent to run. */
   agent: Agent;
   /** Joined positional args forming the query string. */

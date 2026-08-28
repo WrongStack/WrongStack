@@ -29,7 +29,7 @@ import * as path from 'node:path';
 import { type MailboxBridgeLock, readLiveLock } from '@wrongstack/core/coordination';
 import { buildWin32CmdShimInvocation } from './utils/win32-cmd.js';
 
-export const MAILBOX_BRIDGE_BOOTSTRAP_TIMEOUT_MS = 5_000;
+const MAILBOX_BRIDGE_BOOTSTRAP_TIMEOUT_MS = 5_000;
 export const MAILBOX_BRIDGE_HEALTHZ_PROBE_MS = 500;
 
 export interface MailboxBridgeHandle {
@@ -54,7 +54,7 @@ export interface MailboxBridgeHandle {
   source: 'joined' | 'spawned' | 'unhealthy' | 'failed';
 }
 
-export interface BootstrapOptions {
+interface BootstrapOptions {
   /**
    * WrongStack's per-project STATE directory
    * (`~/.wrongstack/projects/<slug>`). Owns the lock file and is what we
@@ -98,7 +98,7 @@ export interface BootstrapOptions {
 
 export type SpawnFn = (args: string[], cwd: string) => SpawnedChild;
 
-export interface SpawnedChild {
+interface SpawnedChild {
   pid: number | undefined;
   unref(): void;
 }
@@ -257,7 +257,7 @@ export { type MailboxBridgeLock, readLiveLock };
 // Helper to keep the fs import alive for future token-file fallback
 // reads (currently unused but exported for callers that want to
 // re-read the token without going through the lock).
-export async function readTokenFromFile(tokenPath: string): Promise<string | null> {
+ export async function readTokenFromFile(tokenPath: string): Promise<string | null> {
   try {
     return (await fsp.readFile(tokenPath, 'utf-8')).trim();
   } catch {

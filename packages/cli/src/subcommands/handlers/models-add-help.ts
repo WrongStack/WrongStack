@@ -43,9 +43,9 @@ import type { TerminalRenderer } from '../../renderer.js';
  *   - `'value'` — the flag accepts a value (`--flag <value>`).
  *     The parser reads these via `flags[flagName]` directly.
  */
-export type ModelsAddFlagGroup = 'identity' | 'capabilities';
+type ModelsAddFlagGroup = 'identity' | 'capabilities';
 
-export interface ModelsAddFlag {
+interface ModelsAddFlag {
   /** The flag's canonical name (no `--` prefix, no value placeholder). */
   name: string;
   /**
@@ -163,7 +163,7 @@ export const MODELS_ADD_VALUE_FLAG_NAMES: ReadonlyArray<string> = MODELS_ADD_FLA
  * Chosen so the longest flag (`--max-context <N>`) fits with
  * one space of padding before the description starts.
  */
-export const MODELS_ADD_FLAG_COLUMN_WIDTH = 30;
+const MODELS_ADD_FLAG_COLUMN_WIDTH = 30;
 
 /**
  * Build the `wstack models add` help block as a string. The

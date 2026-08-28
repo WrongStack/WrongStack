@@ -21,7 +21,7 @@ const SIBLING_CATALOG: Record<string, string> = {
   'github-copilot': 'openai',
 };
 
-export interface ResolveMaxContextInput {
+interface ResolveMaxContextInput {
   modelsRegistry?: ModelsRegistry | undefined;
   config: {
     provider?: string | undefined;
@@ -89,7 +89,7 @@ export type MaxContextBranch =
   | 'diverging-baseurl-family-default'
   | 'unknown';
 
-export interface ResolvedMaxContext {
+interface ResolvedMaxContext {
   /** The resolved window (0 = unknown). */
   maxContext: number;
   /** The priority-chain branch that produced {@link maxContext}. */
@@ -263,7 +263,7 @@ const SUSPICIOUS_SHRINK_BRANCHES: ReadonlySet<MaxContextBranch> = new Set([
   'diverging-baseurl-family-default',
 ]);
 
-export interface MaxContextChangeTelemetry {
+interface MaxContextChangeTelemetry {
   /** Log severity for this change: 'warn' for a suspicious shrink, else 'debug'. */
   level: 'warn' | 'debug';
   /** Fully-rendered log line. */

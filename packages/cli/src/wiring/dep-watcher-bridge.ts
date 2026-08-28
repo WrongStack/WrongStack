@@ -13,7 +13,7 @@ import * as path from 'node:path';
 import { attachDepWatcherBridge, getSharedProjectMailbox } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 
-export interface SetupDepWatcherBridgeDeps {
+interface SetupDepWatcherBridgeDeps {
   config: { extensions?: Record<string, unknown> };
   wpaths: { globalRoot: string; projectSlug: string };
   projectRoot: string;
@@ -22,7 +22,7 @@ export interface SetupDepWatcherBridgeDeps {
   teardownHandlers: Array<() => void>;
 }
 
-export interface SetupDepWatcherBridgeResult {
+interface SetupDepWatcherBridgeResult {
   /** Parsed dep-watcher config fragment (or undefined when absent/disabled). */
   dwCfg: Record<string, unknown> | undefined;
 }

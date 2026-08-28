@@ -251,7 +251,7 @@ export function parseAuthFlags(args: string[]): AuthFlags {
 
 // -------------------------------------------------------------- spawn flags
 
-export interface SpawnFlags {
+interface SpawnFlags {
   description: string;
   opts: {
     provider?: string | undefined;

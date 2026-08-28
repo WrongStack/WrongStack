@@ -11,7 +11,7 @@ export const WEBUI_SESSION_CHILD_CAPABILITIES = [
   'graceful-shutdown',
 ] as const;
 
-export type WebuiSessionChildPhase =
+type WebuiSessionChildPhase =
   | 'validate_args'
   | 'boot_config'
   | 'claim_session'
@@ -90,7 +90,7 @@ export interface WebuiSessionChildReadyPayload {
   capabilities: string[];
 }
 
-export interface WebuiSessionChildErrorPayload {
+interface WebuiSessionChildErrorPayload {
   type: 'webui.session_child.error';
   protocolVersion: number;
   runtimeId?: string | undefined;

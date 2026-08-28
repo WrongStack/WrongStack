@@ -10,7 +10,7 @@ import { patchConfig } from '../utils.js';
 import { setupCodebaseIndexing } from './codebase-index.js';
 import { setupSage } from './sage.js';
 
-export interface RuntimeDispatchStateInput {
+interface RuntimeDispatchStateInput {
   getConfig: () => Config;
   setConfig: (config: Config) => void;
   configStore: ConfigStore;

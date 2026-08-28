@@ -11,7 +11,7 @@ import type { LoginAttemptStore } from './login-attempt-store.js';
 import type { MailboxGatewayManager } from './mailbox-gateway-manager.js';
 import { clearHqRuntimeMarker } from './startup.js';
 
-export interface HqServerShutdownParams {
+interface HqServerShutdownParams {
   cleanupTimer: NodeJS.Timeout;
   browserHeartbeatTimer: NodeJS.Timeout;
   timeseriesFlushTimer: NodeJS.Timeout;

@@ -15,7 +15,7 @@ import type { ContextSnapshot, SessionWriter, TokenCounter } from '@wrongstack/c
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
-export interface SessionResumeContext {
+interface SessionResumeContext {
   state: TuiRuntimeState;
   agent: Agent;
   tokenCounter: TokenCounter;
@@ -26,7 +26,7 @@ export interface SessionResumeContext {
   events?: EventBus | undefined;
 }
 
-export interface SessionResumeResult {
+interface SessionResumeResult {
   entries: unknown[];
   nextId: number;
   sessionId: string;

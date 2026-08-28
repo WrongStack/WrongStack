@@ -17,7 +17,7 @@ import {
 import type { ConnectedClient, HqSessionEntry, TranscriptRing } from './types.js';
 import * as HqServerWs from './ws.js';
 
-export interface HqUpgradeHandlerDeps {
+interface HqUpgradeHandlerDeps {
   host: string;
   port: number;
   listeningPort: () => number;

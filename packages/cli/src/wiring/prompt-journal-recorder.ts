@@ -119,7 +119,7 @@ export function createPromptJournalRecorder(): PromptJournalRecorder {
  * Best-effort by design, same as the userInput recorder: writes are
  * fire-and-forget and failures are swallowed.
  */
-export interface PromptJournalToolCallRecorder {
+interface PromptJournalToolCallRecorder {
   name: string;
   handler: (
     payload: ToolCallPipelinePayload,

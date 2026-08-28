@@ -50,7 +50,7 @@ import { ensureSessionShell } from '@wrongstack/tools';
 import { printUpdateNotice } from './cli-update-notice.js';
 import type { UpdateInfo } from './update-check.js';
 
-export interface PreflightResult {
+interface PreflightResult {
   /** The (possibly refreshed) update info, after the 2-second
    *  quick-check. Undefined if the check was aborted. */
   updateInfo: UpdateInfo | undefined;

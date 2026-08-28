@@ -34,7 +34,7 @@ const DEFAULT_MAX_COMPANIONS = 4;
 /** A conversation with no run for this long is not being worked on. */
 const DEFAULT_IDLE_MS = 15 * 60_000;
 
-export interface ExploreCompanionRegistryInput {
+interface ExploreCompanionRegistryInput {
   /**
    * Build a companion for one session. Returns null when the feature is off
    * for this host, in which case the registry stays permanently empty and

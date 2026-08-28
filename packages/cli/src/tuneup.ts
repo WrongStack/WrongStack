@@ -21,7 +21,7 @@
 import type { Config } from '@wrongstack/core/types';
 import type { UpdateInfo } from './update-check.js';
 
-export type TuneupSeverity = 'error' | 'warning' | 'info' | 'ok';
+type TuneupSeverity = 'error' | 'warning' | 'info' | 'ok';
 
 /** Stable check-group ids — one section per group in the rendered report. */
 export type TuneupCategory =
@@ -71,7 +71,7 @@ export interface TuneupSkill {
 }
 
 /** Live MCP server status, reduced from `mcpRegistry.describe()`. */
-export interface TuneupMcpServer {
+interface TuneupMcpServer {
   name: string;
   state: string;
   enabled: boolean;
@@ -95,7 +95,7 @@ export type TuneupTrustPolicy = Record<
 >;
 
 /** Ambient facts the command precomputes (host / disk / env) for the checks. */
-export interface TuneupEnv {
+interface TuneupEnv {
   /** Logical CPU count, for the maxConcurrent sanity check. */
   cpuCount?: number | undefined;
   /** Number of configured providers, for the fallback-chain check. */
@@ -137,7 +137,7 @@ export interface TuneupInput {
   power?: boolean | undefined;
 }
 
-export interface TuneupReport {
+interface TuneupReport {
   findings: TuneupFinding[];
   /** Composed agent follow-up prompt for fuzzy items; empty when none. */
   agentHandoff: string;
@@ -421,7 +421,7 @@ function previewCommand(command: string): string {
 
 // ── Item 5: version ──────────────────────────────────────────────────────────
 
-export function checkVersion(input: TuneupInput): TuneupFinding[] {
+function checkVersion(input: TuneupInput): TuneupFinding[] {
   const info = input.update;
   if (!info) return [];
   if (info.outdated) {

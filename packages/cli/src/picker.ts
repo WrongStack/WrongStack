@@ -52,7 +52,7 @@ export { codexPickerPreamble } from './picker-ui.js';
  * provider always wins over the preset default. Mutates and returns
  * `merged` for call-site convenience. Pure aside from the push.
  */
-export function appendLocalPresetProviders(merged: ResolvedProvider[]): ResolvedProvider[] {
+function appendLocalPresetProviders(merged: ResolvedProvider[]): ResolvedProvider[] {
   const existing = new Set(merged.map((p) => p.id));
   for (const preset of LOCAL_LLM_PRESETS) {
     if (existing.has(preset.id)) continue;

@@ -14,7 +14,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 
-export interface AcpGateVerdict {
+interface AcpGateVerdict {
   ok: boolean;
   /** WebSocket close code to send when `ok` is false. */
   code?: number;
@@ -23,7 +23,7 @@ export interface AcpGateVerdict {
 
 const OK: AcpGateVerdict = { ok: true };
 
-export interface AcpConnectionGateOptions {
+interface AcpConnectionGateOptions {
   host: string;
   port: number;
   token: string;
@@ -31,7 +31,7 @@ export interface AcpConnectionGateOptions {
   maxConnections?: number;
 }
 
-export interface AcpConnectionGate {
+interface AcpConnectionGate {
   /** Decide whether to admit a handshake. Does not mutate connection count. */
   check(req: Pick<IncomingMessage, 'headers' | 'url'>, liveConnections: number): AcpGateVerdict;
 }

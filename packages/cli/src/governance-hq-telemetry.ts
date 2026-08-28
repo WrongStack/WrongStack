@@ -4,9 +4,9 @@ import {
   readGovernanceDaemonOperatorStatus,
 } from '@wrongstack/runtime/governance-bootstrap';
 
-export const GOVERNANCE_HQ_SNAPSHOT_INTERVAL_MS = 15_000;
+const GOVERNANCE_HQ_SNAPSHOT_INTERVAL_MS = 15_000;
 
-export interface GovernanceHqTelemetryOptions {
+interface GovernanceHqTelemetryOptions {
   readonly publisher: Pick<HqPublisher, 'project' | 'publishEvent'>;
   readonly projectRoot: string;
   readonly intervalMs?: number;

@@ -3,7 +3,7 @@ import type { ChimeraWorkRegistry } from './chimera-work-registry.js';
 import type { ExecuteDeps } from './execute-deps.js';
 import type { FleetStatusLine } from './fleet-statusline.js';
 
-export interface ExecutionCleanupInput {
+interface ExecutionCleanupInput {
   offStorageObservability: () => void;
   fleetStatusLine: FleetStatusLine | null;
   onCoordinatorStop?: (() => void) | undefined;

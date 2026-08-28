@@ -23,7 +23,7 @@ import {
 } from './routes.js';
 import type { HqSessionEntry } from './types.js';
 
-export interface MailboxGatewayManagerDeps {
+interface MailboxGatewayManagerDeps {
   host: string;
   port: number;
   mutableAuth: HqAuthState['mutableAuth'];

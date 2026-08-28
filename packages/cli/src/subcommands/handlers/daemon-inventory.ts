@@ -52,7 +52,7 @@ interface DaemonDescriptor {
   readonly metadataPath?: string;
 }
 
-export type DaemonStatus =
+type DaemonStatus =
   /** Answering on its endpoint. */
   | 'live'
   /**
@@ -73,7 +73,7 @@ export interface DaemonReport {
   readonly pid?: number;
 }
 
-export interface DaemonInventoryOptions {
+interface DaemonInventoryOptions {
   readonly projectRoot: string;
   /**
    * The project's slot under the global root — `~/.wrongstack/projects/<hash>`,

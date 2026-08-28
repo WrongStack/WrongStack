@@ -46,13 +46,13 @@ export type {
 
 // ── In-memory data structures ──────────────────────────────────────────────
 
-export interface TrackedSessionSnapshot {
+interface TrackedSessionSnapshot {
   payload: HqSessionSnapshotPayload;
   /** Epoch ms of the last `session.snapshot` refresh — freshness authority for the cleanup timer. */
   receivedAt: number;
 }
 
-export interface TrackedFleetSnapshot {
+interface TrackedFleetSnapshot {
   payload: HqFleetSnapshotPayload;
   /** Owning session, when the publisher supplied one. */
   sessionId?: string;

@@ -5,7 +5,7 @@
  * launchers, and execute(): a one-shot prompt owns the process, WebUI owns
  * stdout when requested alongside TUI, and --no-tui falls back to REPL.
  */
-export type ExecutionMode = 'single-shot' | 'tui' | 'webui' | 'repl';
+type ExecutionMode = 'single-shot' | 'tui' | 'webui' | 'repl';
 
 export function resolveExecutionMode(
   positional: readonly string[],

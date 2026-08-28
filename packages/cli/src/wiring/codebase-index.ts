@@ -31,7 +31,7 @@ import {
 /** Mutating builtin tools whose input carries a single `path`. */
 const FILE_EDIT_TOOLS = new Set(['write', 'edit']);
 
-export interface CodebaseIndexingDeps {
+interface CodebaseIndexingDeps {
   config: { indexing?: IndexingConfig | undefined };
   context: Context;
   pipelines: AgentPipelines;

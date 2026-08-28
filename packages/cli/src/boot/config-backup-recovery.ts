@@ -4,7 +4,7 @@ import { atomicWrite, backupConfigFile, color, toErrorMessage } from '@wrongstac
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { TerminalRenderer } from '../renderer.js';
 
-export interface ProviderConfigBackup {
+interface ProviderConfigBackup {
   filePath: string;
   fileName: string;
   raw: string;
@@ -106,7 +106,7 @@ export async function findLatestProviderBackup(
   return undefined;
 }
 
-export async function restoreDefaultProfileBackup(opts: {
+ async function restoreDefaultProfileBackup(opts: {
   backup: ProviderConfigBackup;
   globalRoot: string;
   profilePath: string;

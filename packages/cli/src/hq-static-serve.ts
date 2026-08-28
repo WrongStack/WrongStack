@@ -84,7 +84,7 @@ function isInsideDist(filePath: string, distDir: string): boolean {
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-export interface ServeStaticResult {
+interface ServeStaticResult {
   handled: boolean;
 }
 

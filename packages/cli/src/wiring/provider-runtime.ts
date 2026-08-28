@@ -34,7 +34,7 @@ import {
  *
  * We pass `providerId` (the user-visible id) to both, and let them resolve.
  */
-export interface ResolvedProviderCfg {
+interface ResolvedProviderCfg {
   /**
    * `cfg` passed to either `providerRegistry.create(cfg)` or
    * `makeProviderFromConfig(id, cfg)`. `cfg.type === providerId` so the

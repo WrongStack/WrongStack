@@ -67,7 +67,7 @@ export interface MutableRef<T> {
  * on the full WstackPaths shape (which is huge and subject
  * to change).
  */
-export interface SystemPromptBuilderPaths {
+interface SystemPromptBuilderPaths {
   projectGoal: string;
   projectSessions: string;
   globalInstructions?: string | undefined;
@@ -97,7 +97,7 @@ import type { DomainGlossaryListProvider as DomainGlossaryAdapter } from '../wir
 
 export type { DomainGlossaryListProvider } from '../wiring/domain-glossary.js';
 
-export interface BindSystemPromptBuilderDeps {
+interface BindSystemPromptBuilderDeps {
   /**
    * The `container` from main(). The helper only calls
    * `container.bind(token, factory)`. To keep the helper

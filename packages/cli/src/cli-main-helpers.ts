@@ -17,11 +17,11 @@ import { buildPickableProviders } from './provider-helpers.js';
 
 export const WRONGSTACK_GOVERNANCE_ENV = 'WRONGSTACK_GOVERNANCE';
 
-export interface BootstrapCliGovernanceOptions extends BootstrapGovernanceRuntimeOptions {
+interface BootstrapCliGovernanceOptions extends BootstrapGovernanceRuntimeOptions {
   readonly environment: Readonly<Record<string, string | undefined>>;
 }
 
-export type CliGovernanceBootstrapResult =
+type CliGovernanceBootstrapResult =
   | { readonly mode: 'disabled'; readonly reason: 'feature_flag_off' }
   | GovernanceRuntimeBootstrapResult
   | {
@@ -165,7 +165,7 @@ export async function setupCliGovernance(input: {
   return undefined;
 }
 
-export interface CliMainEventSource {
+interface CliMainEventSource {
   on(event: string, handler: (...args: unknown[]) => void): void;
   off(event: string, handler: (...args: unknown[]) => void): void;
 }

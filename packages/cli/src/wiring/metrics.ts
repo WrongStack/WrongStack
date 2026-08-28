@@ -18,7 +18,7 @@ import type {
   MCPServerOperationalHealth,
 } from '@wrongstack/mcp';
 
-export interface MetricsWiringDeps {
+interface MetricsWiringDeps {
   flags: Record<string, unknown>;
   wpaths: WstackPaths;
   events: EventBus;
@@ -26,7 +26,7 @@ export interface MetricsWiringDeps {
   config: { provider: string; model: string };
 }
 
-export interface MetricsWiringResult {
+interface MetricsWiringResult {
   metricsSink: MetricsSink | undefined;
   healthRegistry: HealthRegistry | undefined;
   metricsServerHandle: MetricsServerHandle | undefined;

@@ -46,7 +46,7 @@ export class AcpServerConfigError extends Error {
   }
 }
 
-export interface AcpAgentFactoryOptions {
+interface AcpAgentFactoryOptions {
   /** Caller-supplied logger; a minimal stderr logger is created when omitted. */
   logger?: Logger | undefined;
 }

@@ -24,7 +24,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
-export interface CoordinatorSetupContext {
+interface CoordinatorSetupContext {
   /** The shared mutable runtime state. */
   state: TuiRuntimeState;
   /** The main EventBus — used for the Director lifecycle hook. */
@@ -45,7 +45,7 @@ export interface CoordinatorSetupContext {
   onCoordinatorStopSetter: (fn: (() => void) | undefined) => void;
 }
 
-export interface CoordinatorSetupResult {
+interface CoordinatorSetupResult {
   /** The ensureAutonomousCoordinator function (idempotent). */
   ensure: () => AutonomousCoordinator | null;
   /** Call to remove the Director lifecycle listener (for TUI cleanup). */

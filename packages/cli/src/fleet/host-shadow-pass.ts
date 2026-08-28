@@ -1,7 +1,7 @@
 import type { Config, SubagentConfig } from '@wrongstack/core/types';
 import { buildShadowAgentTaskDescription } from './host-helpers.js';
 
-export interface HostShadowPassContext {
+interface HostShadowPassContext {
   getDirector: () => { isWorkComplete(): boolean } | undefined;
   getLiveConfig: () => Config;
   getObservedWorkDepth: () => number;

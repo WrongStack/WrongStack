@@ -8,7 +8,7 @@ import {
 } from '@wrongstack/sdd';
 
 /** Key used to store SDD session state in ctx.meta for session isolation. */
-export const SDD_META_KEY = 'sdd.state';
+const SDD_META_KEY = 'sdd.state';
 
 /** Single shared SDD session state for the process lifetime. */
 export class SDDState {

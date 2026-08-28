@@ -121,7 +121,7 @@ export function resolveColumnReference(board: KanbanBoard, requested: string): s
   return null;
 }
 
-export interface TaskEvidenceFlags {
+interface TaskEvidenceFlags {
   attachment?: string | undefined;
   note?: string | undefined;
   tickChecks: { checkId: string; checkStatus: 'passed' | 'failed' | 'skipped' }[];

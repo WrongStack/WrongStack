@@ -4,7 +4,7 @@ import type { Logger, MemoryPort, SessionStore } from '@wrongstack/core/types';
 import { setupCliGovernance } from '../cli-main-helpers.js';
 import { configureSimpleUiRuntimeContext, type CliFlags } from '../boot/simpleui-full-auto.js';
 
-export interface SetupReplayAndGovernanceOptions {
+interface SetupReplayAndGovernanceOptions {
   flags: CliFlags;
   container: Container;
   wpaths: WstackPaths;

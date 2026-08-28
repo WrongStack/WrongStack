@@ -43,7 +43,7 @@ export interface ErrorEntry {
   message: string;
 }
 
-export interface WireSessionEventsDeps {
+interface WireSessionEventsDeps {
   // biome-ignore lint/suspicious/noExplicitAny: dynamic EventBus dispatch
   evOn: (event: string, handler: (...args: any[]) => void) => void;
   /** Concrete bus is required for Chronicle lifecycle subscriptions. */
@@ -63,7 +63,7 @@ export interface WireSessionEventsDeps {
   tuiOwnsScreen?: boolean;
 }
 
-export interface WireSessionEventsResult {
+interface WireSessionEventsResult {
   errorRing: ErrorEntry[];
   sessionBridge: SessionEventBridge;
   appendSessionEvent: (
@@ -81,7 +81,7 @@ const MIN_CHRONICLE_RETENTION_DAYS = 7;
 
 /** `0` disables auto-purge; positive values are floored at 7 days so a
  *  project-committed config cannot flush recent evidence. */
-export function resolveChronicleRetentionDays(config: Record<string, unknown>): number {
+function resolveChronicleRetentionDays(config: Record<string, unknown>): number {
   const raw = (config.chronicle as { retentionDays?: unknown } | undefined)?.retentionDays;
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return DEFAULT_CHRONICLE_RETENTION_DAYS;
   if (raw <= 0) return 0;

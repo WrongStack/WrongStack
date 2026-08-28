@@ -10,7 +10,7 @@
 import * as path from 'node:path';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
-export interface LiveSessionsContext {
+interface LiveSessionsContext {
   state: TuiRuntimeState;
 }
 

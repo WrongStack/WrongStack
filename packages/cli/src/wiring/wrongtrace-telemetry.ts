@@ -17,7 +17,7 @@ import type { WrongTraceTelemetryReport } from '@wrongstack/wrongtrace';
 import { getWrongTrace } from './wrongtrace-gate.js';
 
 /** Inputs the session-completion path already has in hand. */
-export interface WrongTraceTelemetryInput {
+interface WrongTraceTelemetryInput {
   sessionId: string;
   /** Stable agent identity, e.g. 'wrongstack-cli'. */
   agentName: string;

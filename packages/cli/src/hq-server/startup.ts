@@ -59,7 +59,7 @@ export async function clearHqRuntimeMarker(dataDir: string, url: string): Promis
 
 // ── Startup info ───────────────────────────────────────────────────────────
 
-export interface HqStartupInfoHandle {
+interface HqStartupInfoHandle {
   host: string;
   port: number;
   firstRunSetup?: {
@@ -115,7 +115,7 @@ export function writeHqStartupInfo(
 }
 
 /** When bound to all interfaces, print LAN URLs so other machines can reach HQ. */
-export function writeHqLanEndpoints(
+function writeHqLanEndpoints(
   write: (line: string) => void,
   handle: HqStartupInfoHandle,
   browserToken: string | undefined,

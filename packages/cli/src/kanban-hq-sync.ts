@@ -25,7 +25,7 @@ interface LocalSyncState {
   tombstones: Record<string, HqKanbanTombstone>;
 }
 
-export interface KanbanHqSync {
+interface KanbanHqSync {
   attachPublisher(publisher: HqPublisher): Promise<void>;
   handleRemote(snapshot: HqKanbanSnapshotPayload): Promise<void>;
   /** Explicit refresh seam for hosts/tests; daemon events call the same path. */

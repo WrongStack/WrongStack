@@ -17,7 +17,7 @@ export interface Classification {
   detail: string;
 }
 
-export type ErrorCategory =
+type ErrorCategory =
   | 'ts'
   | 'security'
   | 'runtime'

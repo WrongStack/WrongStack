@@ -29,12 +29,12 @@ import { activeProfileConfigPath } from '../profile-config-path.js';
  */
 const VALID_PRESETS: ReadonlySet<ThemePresetId> = new Set<ThemePresetId>(THEME_PRESET_IDS);
 
-export interface ThemeAdapterDeps {
+interface ThemeAdapterDeps {
   configStore: ConfigStore;
   wpaths: Pick<WstackPaths, 'profileConfig'>;
 }
 
-export interface ThemeAdapter {
+interface ThemeAdapter {
   /** Read the live preset (memory-backed). Returns undefined when unset. */
   getThemePreset: () => ThemePresetId | undefined;
   /**

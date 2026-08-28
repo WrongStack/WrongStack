@@ -1,6 +1,6 @@
 import { startSharedHeapWatchdog } from '@wrongstack/core/utils';
 
-export interface CliHeapWatchdogParams {
+interface CliHeapWatchdogParams {
   flags: { simpleui?: boolean; webui?: boolean; [key: string]: unknown };
   tuiOwnsScreen: boolean;
   context: {

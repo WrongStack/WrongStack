@@ -157,7 +157,7 @@ function shouldSuppress(flags: Record<string, string | boolean>): boolean {
   return false;
 }
 
-export interface LaunchHintOptions {
+interface LaunchHintOptions {
   /**
    * File holding the rotation cursor. When set, each call advances it so
    * consecutive launches show different categories (round-robin). Missing

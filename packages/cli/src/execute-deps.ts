@@ -109,7 +109,7 @@ export interface RestoredToolCall {
 // ─── Sub-interfaces ───────────────────────────────────────────────
 
 /** Always-required runtime essentials. */
-export interface CoreDeps {
+interface CoreDeps {
   agent: Agent;
   events: EventBus;
   config: Config;
@@ -153,7 +153,7 @@ export interface CoreDeps {
 }
 
 /** Session + state stores. */
-export interface SessionDeps {
+interface SessionDeps {
   session: SessionWriter;
   context: Context;
   attachments: AttachmentStore;
@@ -182,7 +182,7 @@ export interface SessionDeps {
 }
 
 /** Provider/model registry, selection and switching. */
-export interface ProviderDeps {
+interface ProviderDeps {
   statusTracker?: import('@wrongstack/core/coordination').ProviderModelStatusTracker | undefined;
   modelsRegistry: ModelsRegistry;
   savedProviderCfg: ProviderConfig | undefined;
@@ -225,7 +225,7 @@ export interface ProviderDeps {
 }
 
 /** I/O surface components. */
-export interface UiDeps {
+interface UiDeps {
   renderer: TerminalRenderer;
   reader: ReadlineInputReader;
   /** Mutable bridge replaced by the TUI while Ink owns stdin. */
@@ -242,7 +242,7 @@ export interface UiDeps {
 }
 
 /** Director, multi-agent, and fleet-related state. */
-export interface FleetDeps {
+interface FleetDeps {
   director: Director | null;
   getDirector?: (() => Director | null) | undefined;
   /**

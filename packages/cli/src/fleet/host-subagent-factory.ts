@@ -63,7 +63,7 @@ import {
 import { installSubagentSessionAudit } from './host-subagent-session-audit.js';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
-export interface HostSubagentFactoryContext {
+interface HostSubagentFactoryContext {
   deps: MultiAgentDeps;
   opts: MultiAgentHostOptions;
   roster: Record<string, SubagentConfig>;

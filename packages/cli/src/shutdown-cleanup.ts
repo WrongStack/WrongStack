@@ -20,7 +20,7 @@
  * process-exit handshake around it.
  */
 
-export interface ShutdownCleanup {
+interface ShutdownCleanup {
   /**
    * Async cleanup. Called exactly once across all signals. May throw — errors
    * are swallowed so a stuck cleanup can't wedge the exit path.
@@ -30,7 +30,7 @@ export interface ShutdownCleanup {
   exitCode?: number;
 }
 
-export interface ShutdownHandle {
+interface ShutdownHandle {
   /** Install SIGINT + SIGTERM + beforeExit listeners. Idempotent. */
   install: () => void;
   /** Uninstall listeners (for tests). */

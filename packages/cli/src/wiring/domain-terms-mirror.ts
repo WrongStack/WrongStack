@@ -41,7 +41,7 @@
 import { writeErr } from '@wrongstack/core/utils';
 import { SageDomainTermExtractor } from '@wrongstack/sage';
 
-export interface RefreshDomainTermsMirrorOptions {
+interface RefreshDomainTermsMirrorOptions {
   /** Absolute project root whose `.wrongstack/domain-terms.md` should be refreshed. */
   projectRoot: string;
 }

@@ -68,7 +68,7 @@ export function parseToolsFlag(
   return set.size > 0 ? set : null;
 }
 
-export interface SelectedMcpServeContent {
+interface SelectedMcpServeContent {
   resources: MCPServerResource[];
   prompts: MCPServerPrompt[];
 }

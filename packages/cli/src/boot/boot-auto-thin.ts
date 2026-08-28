@@ -28,7 +28,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import { activeProfileConfigPath } from '../profile-config-path.js';
 import { persistConfigSetting } from '../settings-menu.js';
 
-export interface BootAutoThinDeps {
+interface BootAutoThinDeps {
   toolRegistry: ToolRegistry;
   events: EventBus;
   configStore: ConfigStore;
@@ -46,7 +46,7 @@ export interface BootAutoThinDeps {
   dryRun?: boolean;
 }
 
-export interface BootAutoThinResult {
+interface BootAutoThinResult {
   candidates: UnderusedToolCandidate[];
   applied: string[];
   skipped: string[];

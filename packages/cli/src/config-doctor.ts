@@ -20,7 +20,7 @@ import { validateAgainstSchema } from '@wrongstack/core/utils';
 import { nextCustomProviderId } from './provider-id.js';
 import { MAX_TUI_THINKING_WORD_LENGTH, normalizeTuiThinkingWord } from './tui-thinking-word.js';
 
-export type DoctorSeverity = 'error' | 'warning';
+type DoctorSeverity = 'error' | 'warning';
 
 export interface DoctorFinding {
   /** Dot path of the offending value, e.g. `autonomy.defaultMode`. */
@@ -31,7 +31,7 @@ export interface DoctorFinding {
   fix?: string | undefined;
 }
 
-export interface DoctorReport {
+interface DoctorReport {
   findings: DoctorFinding[];
   /** Deep copy of the input with every fixable finding repaired. */
   fixed: Record<string, unknown>;

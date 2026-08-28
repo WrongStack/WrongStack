@@ -60,7 +60,7 @@ const BUILTIN_PLUGIN_CONFIG_ALIASES: Record<string, string> = {
   '@wrongstack/telegram': 'telegram',
 };
 
-export const BUILTIN_PLUGIN_CONFIG_NAMES = new Set<string>([
+const BUILTIN_PLUGIN_CONFIG_NAMES = new Set<string>([
   ...PLUGIN_AUDIT_ENTRIES.map((entry) => entry.name),
   ...PLUGIN_AUDIT_ENTRIES.map((entry) => `@wrongstack/plugins/${entry.name}`),
   ...Object.keys(BUILTIN_PLUGIN_CONFIG_ALIASES),

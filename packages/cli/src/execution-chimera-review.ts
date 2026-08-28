@@ -60,7 +60,7 @@ export function normalizeFileKeyForCitation(raw: string, cwd: string): string {
   return process.platform === 'win32' ? relative.toLowerCase() : relative;
 }
 
-export type InstallChimeraReviewHandlerOptions = {
+type InstallChimeraReviewHandlerOptions = {
   events: Events;
   director: Director | null | undefined;
   session: Session;

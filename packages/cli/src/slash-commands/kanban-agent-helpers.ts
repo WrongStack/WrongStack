@@ -1,6 +1,6 @@
 import { describeKanbanBoundary, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
 
-export interface KanbanAgentFlags {
+interface KanbanAgentFlags {
   provider?: string | undefined;
   model?: string | undefined;
   name?: string | undefined;

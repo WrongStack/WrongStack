@@ -33,7 +33,7 @@ const CASCADE_ATTEMPT_TIMEOUT_MS = 600_000;
 /** Ladder budget per cascade agent — bounds how long shutdown can wait. */
 const CASCADE_LADDER_BUDGET_MS = 900_000;
 
-export type InstallChimeraCascadeHandlerOptions = {
+type InstallChimeraCascadeHandlerOptions = {
   events: Events;
   director: Director | null | undefined;
   session: Session;

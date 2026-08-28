@@ -28,7 +28,7 @@ import { hqMachineKey } from './utils.js';
 
 // ── Broadcast debounce ─────────────────────────────────────────────────────
 
-export const HQ_SNAPSHOT_BROADCAST_DEBOUNCE_MS = 100;
+const HQ_SNAPSHOT_BROADCAST_DEBOUNCE_MS = 100;
 /**
  * Minimum spacing between disk checkpoints of snapshot.json. Browser broadcasts
  * stay at the 100ms debounce, but the on-disk checkpoint (only used to re-seed a
@@ -36,7 +36,7 @@ export const HQ_SNAPSHOT_BROADCAST_DEBOUNCE_MS = 100;
  * stops an idle HQ — running behind active local TUIs/REPLs with nobody viewing
  * the dashboard — from doing a full rebuild + atomic disk write at up to 10 Hz.
  */
-export const HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS = 3_000;
+const HQ_SNAPSHOT_PERSIST_MIN_INTERVAL_MS = 3_000;
 
 /** Unsent bytes retained for one dashboard socket before it is disconnected. */
 export const HQ_BROWSER_MAX_BUFFERED_BYTES = 32 * 1024 * 1024;

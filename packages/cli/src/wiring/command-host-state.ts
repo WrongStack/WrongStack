@@ -29,7 +29,7 @@ import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type CoordinatorController = NonNullable<BuiltinSlashCommandDeps['coordinatorController']>;
 
-export interface CommandHostStateInput {
+interface CommandHostStateInput {
   getConfig: () => Config;
   setConfig: (config: Config) => void;
   getDirector: () => Director | null;

@@ -9,7 +9,7 @@ import {
   writeOut,
 } from '@wrongstack/core/utils';
 
-export interface ReadlineInputReaderOptions {
+interface ReadlineInputReaderOptions {
   historyFile?: string | undefined;
   prompt?: string | undefined;
 }

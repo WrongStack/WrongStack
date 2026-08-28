@@ -16,11 +16,11 @@ import { resolveFleetBudgetSources } from '../fleet/budget-source.js';
  * Persistent ref for autonomy mode — set once here, read elsewhere via
  * `autonomyModeRef.current`. Matches the shape created in cli-main.ts.
  */
-export interface AutonomyModeRef {
+interface AutonomyModeRef {
   current: import('../services/autonomy-mode.js').AutonomyMode;
 }
 
-export interface DirectorAutonomyDeps {
+interface DirectorAutonomyDeps {
   flags: Record<string, string | boolean>;
   config: Config;
   wpaths: WstackPaths;

@@ -24,7 +24,7 @@ import {
   wrapMemoryPortWithVectorRecall,
 } from '@wrongstack/vector-memory';
 
-export interface VectorMemoryArgs {
+interface VectorMemoryArgs {
   projectRoot: string;
   flags: { 'vector-sync'?: unknown };
   logger: {
@@ -38,7 +38,7 @@ export interface VectorMemoryArgs {
   teardownHandlers: Array<() => void>;
 }
 
-export interface VectorMemoryResult {
+interface VectorMemoryResult {
   memoryStore: MemoryPort;
   vectorMemoryStore: VectorMemoryStore | undefined;
   /**

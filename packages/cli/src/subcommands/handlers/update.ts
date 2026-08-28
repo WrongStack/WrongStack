@@ -32,7 +32,7 @@ interface UpdateProcessResult {
 
 const MAX_UPDATE_OUTPUT_CHARS = 256 * 1024;
 
-export interface UpdateCommandDeps {
+interface UpdateCommandDeps {
   cwd: string;
   userHome: string;
   renderer: Pick<TerminalRenderer, 'write'>;

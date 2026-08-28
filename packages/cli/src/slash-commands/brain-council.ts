@@ -15,10 +15,10 @@ import type { BrainCouncilVoterConfig } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { SlashCommandContext } from './command-context.js';
 
-export const COUNCIL_RISKS: ReadonlySet<string> = new Set(['medium', 'high', 'critical']);
+const COUNCIL_RISKS: ReadonlySet<string> = new Set(['medium', 'high', 'critical']);
 export const COUNCIL_DISTINCTNESS: ReadonlySet<string> = new Set(['none', 'model', 'provider']);
 
-export const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
+const COUNCIL_NUMERIC_OPS: Record<string, string | undefined> = {
   timeout: 'perCallTimeoutMs',
   concurrency: 'maxConcurrency',
   votertokens: 'voterMaxTokens',
@@ -48,7 +48,7 @@ export function judgeSummary(s: {
   return `, judge: ${s.judgeLabel}${origin}${s.judgeIsVoter ? ' ⚠ also a voter' : ''}`;
 }
 
-export function parseSeat(token: string): BrainCouncilVoterConfig | null {
+function parseSeat(token: string): BrainCouncilVoterConfig | null {
   const parts = token.split(':');
   const mods: string[] = [];
   while (parts.length > 1) {

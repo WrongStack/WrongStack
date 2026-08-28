@@ -37,7 +37,7 @@ export function buildCommandHostSlashCommands(
   return buildBuiltinSlashCommands(deps);
 }
 
-export interface SlashCommandsDeps {
+interface SlashCommandsDeps {
   slashRegistry: SlashCommandRegistry;
   toolRegistry: ToolRegistry;
   paths: WstackPaths;

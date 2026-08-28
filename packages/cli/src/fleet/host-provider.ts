@@ -90,7 +90,7 @@ export async function resolveHostSubagentReasoningConfig(
   }
 }
 
-export interface HostSubagentModelSelection {
+interface HostSubagentModelSelection {
   effProvider: string;
   effModel: string;
   fallbackProfile: string | undefined;

@@ -27,7 +27,7 @@ import type { Mailbox } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { FleetConfig } from '@wrongstack/core/types';
 
-export interface FleetStatusBroadcasterOptions {
+interface FleetStatusBroadcasterOptions {
   /** Host EventBus carrying the re-emitted `subagent.*` lifecycle events. */
   events: EventBus;
   /** Lazily construct the project mailbox (created once, on first use). */

@@ -8,7 +8,7 @@ import { resolveKanbanDispatchRoute } from './kanban-dispatch-route.js';
 
 type KanbanDispatchHandler = NonNullable<WebUIDispatchContext['onKanbanDispatch']>;
 
-export type CreateKanbanDispatchHandlerOptions = {
+type CreateKanbanDispatchHandlerOptions = {
   config: ExecuteDeps['core']['config'];
   events: ExecuteDeps['core']['events'];
   skillLoader: ExecuteDeps['ui']['skillLoader'];

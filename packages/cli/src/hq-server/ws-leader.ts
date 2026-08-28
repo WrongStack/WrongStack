@@ -101,7 +101,7 @@ export function computeIsLeader(
  * `control.receive` to leader. Returns the promoted client id, or null if
  * no surviving client has `control.receive`.
  */
-export function promoteNewLeader(
+function promoteNewLeader(
   clients: Map<WebSocket, ConnectedClient>,
   projectId: string,
   excludeWs: WebSocket,
