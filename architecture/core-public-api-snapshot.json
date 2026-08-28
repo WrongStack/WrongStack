@@ -236,7 +236,27 @@
         "export * from './phase3-wave2-meta.js';",
         "export * from './phase8-wave3-products.js';",
         "export * from './phase9-wave4-platform-meta.js';",
+        "export * from './project-agent-auto-optimize.js';",
+        "export * from './project-agent-capture-window.js';",
+        "export * from './project-agent-capture.js';",
+        "export * from './project-agent-config-io.js';",
+        "export * from './project-agent-config-validation.js';",
+        "export * from './project-agent-consolidation.js';",
+        "export * from './project-agent-directive-outcome.js';",
+        "export * from './project-agent-files.js';",
+        "export * from './project-agent-identity-types.js';",
         "export * from './project-agent-identity.js';",
+        "export * from './project-agent-knowledge-manifests.js';",
+        "export * from './project-agent-learning-entries.js';",
+        "export * from './project-agent-learning-normalize.js';",
+        "export * from './project-agent-learning-policy.js';",
+        "export * from './project-agent-learning-structured.js';",
+        "export * from './project-agent-optimizer.js';",
+        "export * from './project-agent-paths.js';",
+        "export * from './project-agent-profile.js';",
+        "export * from './project-agent-quarantine.js';",
+        "export * from './project-agent-roster.js';",
+        "export * from './project-agent-skill-layer.js';",
         "export * from './role-skills.js';",
         "export * from './types.js';",
         "export const AGENTS_BY_PHASE",
@@ -1242,14 +1262,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 10261
+      "sourceLines": 10255
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 171,
-      "sourceLines": 49994
+      "sourceLines": 49888
     },
     {
       "directory": "core",
@@ -1270,7 +1290,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17983
+      "sourceLines": 17965
     },
     {
       "directory": "extension",
@@ -1298,7 +1318,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8844
+      "sourceLines": 8837
     },
     {
       "directory": "infrastructure",
@@ -1347,7 +1367,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 21,
-      "sourceLines": 8170
+      "sourceLines": 8160
     },
     {
       "directory": "prompts",
@@ -1375,7 +1395,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6494
+      "sourceLines": 6479
     },
     {
       "directory": "session-catalog",
@@ -1396,7 +1416,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 91,
-      "sourceLines": 20140
+      "sourceLines": 20131
     },
     {
       "directory": "tasking",
@@ -1424,7 +1444,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10533
+      "sourceLines": 10529
     },
     {
       "directory": "wiring",

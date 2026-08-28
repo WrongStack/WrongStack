@@ -54,7 +54,7 @@ export interface SessionEventBridge {
 }
 
 /** Core events that are always written regardless of auditLevel. */
-const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
+export const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
   'session_start',
   'session_resumed',
   'session_forked',
@@ -79,7 +79,7 @@ const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
  * Events that are considered "standard" audit detail.
  * These are lightweight and high-value for forensics.
  */
-const STANDARD_AUDIT_EVENTS = new Set<SessionEvent['type']>([
+export const STANDARD_AUDIT_EVENTS = new Set<SessionEvent['type']>([
   'llm_request',
   'tool_use',
   'tool_call_start',
@@ -254,8 +254,7 @@ export function createSessionEventBridge(
   };
 }
 
-/** Convenience re-export of the allowed core set for tests/docs. */
-export { CORE_RECONSTRUCT_EVENTS, STANDARD_AUDIT_EVENTS };
+
 
 /**
  * Safely extract the auditLevel from a (possibly partial) Config object.

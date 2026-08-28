@@ -55,25 +55,7 @@ const COLLAB_ID_PREFIXES = ['bug-hunter-', 'refactor-planner-', 'critic-'];
  * These flow through the FleetBus so the host can display them in the UI.
  */
 export { DirectorAlertLevel } from './collab-debug-types.js';
-export type {
-  BugFinding,
-  CollabBudgetConfig,
-  BugFoundPayload,
-  CollabBudgetOverrides,
-  CollabBudgetWarningPayload,
-  CollabDebugReport,
-  CollabSessionOptions,
-  CriticConcern,
-  CriticEvaluation,
-  CriticEvaluationPayload,
-  DirectorAlert,
-  DirectorCancelCollabPayload,
-  RefactorPlan,
-  RefactorPlanPayload,
-  RefactorPhase,
-  SharedFileEntry,
-  SharedFileSnapshot,
-} from './collab-debug-types.js';
+export type { BugFinding, CollabBudgetConfig, CollabBudgetOverrides, CollabBudgetWarningPayload, CollabDebugReport, CollabSessionOptions, CriticConcern, CriticEvaluation, DirectorAlert, DirectorCancelCollabPayload, RefactorPlan, RefactorPhase, SharedFileEntry, SharedFileSnapshot } from './collab-debug-types.js';;
 import { DirectorAlertLevel } from './collab-debug-types.js';
 import type {
   BugFinding,

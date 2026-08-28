@@ -305,7 +305,7 @@ export class HqEventLog {
   }
 }
 
-export async function readRecentEvents(
+ async function readRecentEvents(
   filePath: string,
   limit: number,
   typeFilter?: string,

@@ -1,5 +1,5 @@
 import type { CollaborationBus, InjectedToolResult } from './collab-bus.js';
-import type { ToolCallPipelinePayload } from '../core/agent.js';
+import type { ToolCallPipelinePayload } from '../core/agent-types.js';
 import type { Middleware } from '../kernel/pipeline.js';
 
 /**

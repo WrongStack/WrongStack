@@ -468,7 +468,7 @@ export function buildCompletedWorkLedgerBlock(ctx: AgentContext): TextBlock | un
   if (items.length === 0) return undefined;
   // Deliberately marker-free: this block changes whenever work completes, and
   // it rides the live-context tail AFTER the deep cache boundary — a
-  // cache_control marker here would re-introduce per-request cache-write churn.
+  // per-request addition that costs nothing in prefix churn.
   return {
     type: 'text',
     text: formatCompletedWorkLedger(items),

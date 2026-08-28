@@ -18,6 +18,8 @@ import {
   shouldCascade,
   trimKnownFingerprints,
 } from './auto-review-config.js';
+
+export type { ReviewerModelAssignment };
 import {
   type ChangedFile,
   type ChangedFileSnapshot,
@@ -33,19 +35,7 @@ import type {
 import { emitReviewIfChanged } from './review-claim-registry.js';
 import { buildReviewContext } from './review-context-builder.js';
 
-export {
-  buildReviewerModelPool,
-  decideCascadeAgents,
-  parseReviewSeverity,
-  resolveAutoReviewConfig,
-  selectRoundRobinReviewerAssignment,
-  severitiesFromFindings,
-  shouldCascade,
-  trimKnownFingerprints,
-  type AutoReviewConfig,
-  type ResolvedAutoReviewConfig,
-  type ReviewerModelAssignment,
-};
+export { buildReviewerModelPool, decideCascadeAgents, parseReviewSeverity, resolveAutoReviewConfig, selectRoundRobinReviewerAssignment, severitiesFromFindings, shouldCascade, trimKnownFingerprints };;
 
 interface InFlightReview {
   files: string[];

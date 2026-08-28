@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-28T15:37:58.657Z
+**Generated:** 2026-08-28T16:18:23.652Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3410 |
-| Production source lines | 825264 |
+| Production source lines | 825060 |
 | Test files | 3028 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10564 |
+| Relative module edges | 10590 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -101,11 +101,11 @@ None.
 | 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
-| 1052 | `packages/core/src/core/context.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
 | 1048 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1047 | `packages/core/src/index.ts` |
 | 1046 | `packages/webui/src/components/ContextDashboard.tsx` |
+| 1041 | `packages/core/src/core/context.ts` |
 | 1038 | `packages/webui-server/src/server/start-webui.ts` |
 | 1038 | `packages/webui-server/src/server/ws-payload-validation.ts` |
 | 1036 | `packages/tui/src/components/kanban-panel.tsx` |

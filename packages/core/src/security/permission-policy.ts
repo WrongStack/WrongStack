@@ -24,16 +24,7 @@ import {
 } from './yolo-risk.js';
 
 export { AutoApprovePermissionPolicy } from './auto-approve-policy.js';
-export {
-  alwaysAllowUnavailableReason,
-  hasShellSubject,
-  inputPathLooksSensitive,
-  matchesCommandTrust,
-  matchesTrust,
-  permissionFingerprint,
-  shellCommandLineFromInput,
-  shellCommandReadsSensitivePath,
-} from './permission-helpers.js';
+export { alwaysAllowUnavailableReason, inputPathLooksSensitive, matchesTrust, shellCommandLineFromInput, shellCommandReadsSensitivePath } from './permission-helpers.js';;
 
 import {
   alwaysAllowUnavailableReason,

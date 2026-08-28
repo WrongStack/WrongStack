@@ -384,7 +384,7 @@ function extendChunkBoundaryPastPem(
   const marker = PEM_PRIVATE_KEY_BEGIN_RE.exec(fromBegin);
   // A stray "-----BEGIN " in prose that never completes into a private-key
   // marker must not grow the chunk.
-  if (!marker || marker.index !== 0) return proposedEnd;
+  if (marker?.index !== 0) return proposedEnd;
   const bodyStart = marker[0].length;
   const cap = Math.min(text.length, chunkStart + lastBegin + MAX_PEM_BLOCK_BYTES);
   const closeIdx = fromBegin.indexOf(PEM_END_MARKER, bodyStart);

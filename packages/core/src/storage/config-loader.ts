@@ -36,22 +36,14 @@ import type {
   MemoizedConfigSource,
 } from './config-loader/types.js';
 
-export {
-  type ConfigDefaultRepair,
-  type ConfigDefaultRepairReport,
-  fillMissingDefaults,
-  repairConfigDefaults,
-} from './config-loader/default-repair.js';
+export { fillMissingDefaults, repairConfigDefaults } from './config-loader/default-repair.js';;
 export { CONFIG_BEHAVIOR_DEFAULTS } from './config-loader/defaults.js';
 export {
   assertInProjectAllowListComplete,
   stripUnsafeInProjectFields,
 } from './config-loader/in-project-policy.js';
-export type {
-  ConfigLoaderOptions,
-  ConfigSource,
-  MemoizedConfigSource,
-} from './config-loader/types.js';
+export type { ConfigLoaderOptions, ConfigSource } from './config-loader/types.js';
+export type { ConfigDefaultRepair, ConfigDefaultRepairReport } from './config-loader/default-repair.js';
 
 /**
  * Config-layer deep merge — delegates to the shared utility with

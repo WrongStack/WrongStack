@@ -22,7 +22,7 @@ const notWired = (): never => {
   );
 };
 
-let port: KanbanBoundaryOpsPort | undefined = undefined;
+let port: KanbanBoundaryOpsPort | undefined;
 
 /** Composition-root hook: register the real kanban-backed implementation. */
 export function setKanbanBoundaryOps(impl: KanbanBoundaryOpsPort): void {

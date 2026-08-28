@@ -435,7 +435,7 @@ async function listReports(
  * Resolve a report by exact ID or short-ID prefix (≥8 chars).
  * Exported for integration testing.
  */
-export async function resolveReportId(
+ async function resolveReportId(
   store: Awaited<ReturnType<typeof loadReportStore>>,
   id: string,
 ): Promise<ReviewReport | null> {

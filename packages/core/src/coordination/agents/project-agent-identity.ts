@@ -36,43 +36,12 @@ import { parseStructuredLearnedEntriesFromContent } from './project-agent-learni
 import { roleDir } from './project-agent-paths.js';
 import { listProjectSkillAugmentations } from './project-agent-skill-layer.js';
 
-export {
-  type AutoOptimizeDecision,
-  type AutoOptimizeEvent,
-  type AutoOptimizePolicy,
-  type AutoOptimizePolicyOverrides,
-  DEFAULT_AUTO_OPTIMIZE_POLICY,
-  evaluateAutoOptimize,
-  LearningOptimizationScheduler,
-  type LearningOptimizationSchedulerOptions,
-  resolveAutoOptimizePolicy,
-} from './project-agent-auto-optimize.js';
-export {
-  CAPTURE_SESSION_WINDOW_MS,
-  resetCaptureWindow,
-  resetCaptureWindows,
-} from './project-agent-capture-window.js';
+export { DEFAULT_AUTO_OPTIMIZE_POLICY, evaluateAutoOptimize, LearningOptimizationScheduler, resolveAutoOptimizePolicy } from './project-agent-auto-optimize.js';;
+export { CAPTURE_SESSION_WINDOW_MS, resetCaptureWindow, resetCaptureWindows } from './project-agent-capture-window.js';
 export { loadProjectAgentConfig } from './project-agent-config-io.js';
 export { validateProjectAgentConfig } from './project-agent-config-validation.js';
-export {
-  buildConsolidationInstruction,
-  type ConsolidationMetadata,
-  clearProjectAgentConsolidated,
-  consolidatedDocumentPath,
-  isConsolidated,
-  loadConsolidationMetadata,
-  loadProjectAgentConsolidated,
-  readRawLearnedEntries,
-  type SaveConsolidationOptions,
-  saveProjectAgentConsolidated,
-} from './project-agent-consolidation.js';
-export {
-  DIRECTIVE_QUARANTINE_MAX_UTILITY,
-  DIRECTIVE_QUARANTINE_MIN_APPLIED,
-  type DirectiveOutcomeResult,
-  directiveWasApplied,
-  recordDirectiveOutcomes,
-} from './project-agent-directive-outcome.js';
+export { buildConsolidationInstruction, clearProjectAgentConsolidated, consolidatedDocumentPath, isConsolidated, loadConsolidationMetadata, loadProjectAgentConsolidated, readRawLearnedEntries, saveProjectAgentConsolidated } from './project-agent-consolidation.js';;
+export { DIRECTIVE_QUARANTINE_MAX_UTILITY, DIRECTIVE_QUARANTINE_MIN_APPLIED, directiveWasApplied, recordDirectiveOutcomes } from './project-agent-directive-outcome.js';;
 export type {
   CreateProjectAgentInput,
   LearnedCaptureResult,
@@ -81,70 +50,13 @@ export type {
   RoleKnowledgeManifest,
 } from './project-agent-identity-types.js';
 export { splitLearnedEntries, tokenOverlap } from './project-agent-learning-entries.js';
-export {
-  classifyLearnedEntry,
-  LEARNED_ENTRY_MAX_CHARS,
-  LEARNED_HARD_LIMIT,
-  LEARNED_SOFT_LIMIT,
-  type LearnedEntryCategory,
-  normalizeLearnedEntry,
-} from './project-agent-learning-normalize.js';
-export {
-  loadProjectAgentLearningPolicy,
-  type ProjectAgentLearningPolicy,
-  recordProjectAgentOptimizePass,
-  updateProjectAgentLearningPolicy,
-} from './project-agent-learning-policy.js';
-export {
-  DIRECTIVE_PROVEN_MIN_APPLIED,
-  DIRECTIVE_PROVEN_MIN_UTILITY,
-  decomposeLearnedEntry,
-  directiveTrials,
-  directiveUtility,
-  enforceLearnedBudget,
-  isProvenDirective,
-  mergeStructuredEntries,
-  parseLearnedEntryStamp,
-  parseStructuredLearnedEntriesFromContent,
-  renderLearnedInstructions,
-  type StructuredLearnedEntry,
-} from './project-agent-learning-structured.js';
-export {
-  type LearningOptimizerLlm,
-  type OptimizeLearningOptions,
-  type OptimizeLearningResult,
-  optimizeProjectAgentLearning,
-  unwrapWholeDocumentFence,
-} from './project-agent-optimizer.js';
+export { classifyLearnedEntry, LEARNED_ENTRY_MAX_CHARS, LEARNED_HARD_LIMIT, LEARNED_SOFT_LIMIT, normalizeLearnedEntry } from './project-agent-learning-normalize.js';;
+export { loadProjectAgentLearningPolicy, recordProjectAgentOptimizePass, updateProjectAgentLearningPolicy } from './project-agent-learning-policy.js';;
+export { DIRECTIVE_PROVEN_MIN_APPLIED, DIRECTIVE_PROVEN_MIN_UTILITY, decomposeLearnedEntry, directiveTrials, directiveUtility, enforceLearnedBudget, isProvenDirective, mergeStructuredEntries, parseLearnedEntryStamp, parseStructuredLearnedEntriesFromContent, renderLearnedInstructions } from './project-agent-learning-structured.js';;
+export { optimizeProjectAgentLearning, unwrapWholeDocumentFence } from './project-agent-optimizer.js';;
 export { assertProjectAgentRole } from './project-agent-paths.js';
-export {
-  type QuarantinedDirective,
-  quarantinePath,
-  readQuarantinedDirectives,
-  retiredDirectivesToWarnAbout,
-  scrubRetiredLines,
-} from './project-agent-quarantine.js';
-export {
-  buildSkillDistillInstruction,
-  clearProjectSkillAugmentation,
-  DEFAULT_EAGER_SKILL_LIMIT,
-  listProjectSkillAugmentations,
-  loadProjectSkillAugmentation,
-  loadSkillAffinity,
-  rankRoleSkills,
-  recordSkillLoad,
-  recordSkillOutcome,
-  renderSkillAugmentation,
-  resolveRoleSkillCandidates,
-  routeDirectiveToSkill,
-  SKILL_AUGMENTATION_MAX_BYTES,
-  SKILL_EVIDENCE_HALF_LIFE_DAYS,
-  type SkillAffinity,
-  type SkillAffinityEntry,
-  saveProjectSkillAugmentation,
-  scoreSkillAffinity,
-  setSkillPinned,
-} from './project-agent-skill-layer.js';
+export { quarantinePath, readQuarantinedDirectives, retiredDirectivesToWarnAbout, scrubRetiredLines } from './project-agent-quarantine.js';;
+export { buildSkillDistillInstruction, clearProjectSkillAugmentation, DEFAULT_EAGER_SKILL_LIMIT, listProjectSkillAugmentations, loadProjectSkillAugmentation, loadSkillAffinity, rankRoleSkills, recordSkillLoad, recordSkillOutcome, renderSkillAugmentation, resolveRoleSkillCandidates, routeDirectiveToSkill, SKILL_AUGMENTATION_MAX_BYTES, SKILL_EVIDENCE_HALF_LIFE_DAYS, saveProjectSkillAugmentation, scoreSkillAffinity, setSkillPinned } from './project-agent-skill-layer.js';;
 export { CAPTURE_COOLDOWN_MS, CAPTURE_MAX_PER_SESSION };
 
 export {
@@ -167,18 +79,7 @@ export {
   createProjectAgentRoster,
 } from './project-agent-roster.js';
 
-export {
-  canCaptureNewLearned,
-  captureLearnedFromAgentOutput,
-  captureLearnedFromAgentOutputDetailed,
-  detectLearnedConflicts,
-  getProjectAgentLearnStats,
-  hintLearnedNeedsSummarization,
-  listProjectAgentLearnedEntries,
-  loadProjectAgentLearned,
-  parseStructuredLearnedEntries,
-  type ProjectAgentLearnStats,
-} from './project-agent-capture.js';
+export { canCaptureNewLearned, captureLearnedFromAgentOutput, captureLearnedFromAgentOutputDetailed, detectLearnedConflicts, getProjectAgentLearnStats, hintLearnedNeedsSummarization, listProjectAgentLearnedEntries, loadProjectAgentLearned, parseStructuredLearnedEntries } from './project-agent-capture.js';;
 
 import { loadProjectAgentLearned } from './project-agent-capture.js';
 

@@ -41,8 +41,8 @@ export {
   DEFAULT_MAX_ITERATIONS,
   normalizeInput,
   type ResolvedLoopDetectionConfig,
-  type RunResult,
   resolveLoopDetection,
+  type RunResult,
   type ToolCallPipelinePayload,
   type UserInputPayload,
 } from './agent-types.js';

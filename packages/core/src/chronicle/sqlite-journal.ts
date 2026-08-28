@@ -51,13 +51,7 @@ import {
   type ChronicleVerifyResult,
 } from './types.js';
 
-export {
-  CHRONICLE_SQLITE_FILE,
-  ChronicleStorageQuotaError,
-  LEGACY_JSONL_BOUNDARY_KEY,
-  LEGACY_JSONL_MIGRATION_KEY,
-  LEGACY_JSONL_QUARANTINE_KEY,
-};
+export { CHRONICLE_SQLITE_FILE, ChronicleStorageQuotaError, LEGACY_JSONL_BOUNDARY_KEY, LEGACY_JSONL_MIGRATION_KEY };
 
 /**
  * How far `maxEvents` may be overshot before prefix eviction runs.

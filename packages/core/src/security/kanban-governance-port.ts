@@ -46,7 +46,7 @@ const notWired = (): never => {
   );
 };
 
-let port: KanbanGovernancePort | undefined = undefined;
+let port: KanbanGovernancePort | undefined;
 
 /** Composition-root hook: register the real kanban-backed implementation. */
 export function setKanbanGovernance(impl: KanbanGovernancePort): void {

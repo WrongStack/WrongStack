@@ -3,7 +3,7 @@ import type { Notifier } from '../notifications/notifier.js';
 
 export type { Notifier };
 
-import type { ToolCallPipelinePayload } from '../core/agent.js';
+import type { ToolCallPipelinePayload } from '../core/agent-types.js';
 import type { AgentContext } from './context.js';
 import type { ExtensionRegistry } from '../extension/registry.js';
 import type { Container } from '../kernel/container.js';

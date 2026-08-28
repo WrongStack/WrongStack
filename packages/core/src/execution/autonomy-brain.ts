@@ -53,8 +53,8 @@ import {
   parseOptionDecision,
 } from './autonomy-brain-llm.js';
 
+export type { BrainLlmTarget };
 export {
-  type BrainLlmTarget,
   DEFAULT_BRAIN_MAX_TOKENS,
   buildBrainUserMessage,
   withDecisionDigest,

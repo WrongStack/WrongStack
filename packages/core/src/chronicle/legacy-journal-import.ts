@@ -43,7 +43,7 @@ export interface ChronicleLegacyImportResult {
 }
 
 /** A chain break found while importing; carries enough context to act on. */
-export class ChronicleImportError extends Error {
+ class ChronicleImportError extends Error {
   constructor(
     message: string,
     readonly day: string,

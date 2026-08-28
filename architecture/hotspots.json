@@ -67,7 +67,7 @@
       "relativeImports": 14
     },
     "packages/core/src/coordination/collab-debug.ts": {
-      "lines": 918,
+      "lines": 900,
       "relativeImports": 10
     },
     "packages/core/src/coordination/delegate-tool.ts": {
@@ -75,7 +75,7 @@
       "relativeImports": 10
     },
     "packages/core/src/coordination/director-tools.ts": {
-      "lines": 860,
+      "lines": 854,
       "relativeImports": 17
     },
     "packages/core/src/coordination/director.ts": {
@@ -103,7 +103,7 @@
       "relativeImports": 3
     },
     "packages/core/src/core/context.ts": {
-      "lines": 1052,
+      "lines": 1041,
       "relativeImports": 14
     },
     "packages/core/src/core/fallback-model.ts": {

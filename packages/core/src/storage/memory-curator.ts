@@ -261,7 +261,7 @@ export class SessionMemoryCurator implements AgentExtension {
           if (targetMap.size >= this.maxTargetMemories) break;
           if (c.memoryId && !targetMap.has(c.memoryId) && this.Sage.getSage) {
             const mem = await this.Sage.getSage(c.memoryId);
-            if (mem && mem.id) {
+            if (mem?.id) {
               targetMap.set(mem.id, mem);
             }
           }

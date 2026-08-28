@@ -40,13 +40,7 @@ export {
 } from './director-collab-tools.js';
 export { makeMutationTestTool } from './director-mutation-test-tool.js';
 export { makeQualityGateTool } from './director-quality-gate-tool.js';
-export {
-  applyMutation,
-  type MutationKind,
-  type MutationPlanItem,
-  parseMutationReport,
-  planMutations,
-} from './mutation-engine.js';
+export { applyMutation, parseMutationReport, planMutations } from './mutation-engine.js';;
 
 // ---------------------------------------------------------------------------
 // Director-facing tool factories.

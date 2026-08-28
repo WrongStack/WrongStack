@@ -12,6 +12,7 @@
 export {
   type CompileFail,
   type CompileResult,
+  type CompileUserRegexResult,
   capSubject,
   compileUserRegex,
   MAX_SUBJECT_LEN,

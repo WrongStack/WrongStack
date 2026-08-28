@@ -28,15 +28,15 @@ import {
 } from './metrics-schema.js';
 import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 
-export {
-  type ChronicleFileLineageRow,
-  type ChronicleMetricsRefreshResult,
-  type ChronicleMetricsSummary,
-  type ChronicleProviderDailyRow,
-  type ChronicleTaskOutcomeRow,
-  type ChronicleUnderusedToolRow,
-  isChronicleMetricsAvailable,
+export type {
+  ChronicleFileLineageRow,
+  ChronicleMetricsRefreshResult,
+  ChronicleMetricsSummary,
+  ChronicleProviderDailyRow,
+  ChronicleTaskOutcomeRow,
+  ChronicleUnderusedToolRow,
 };
+export { isChronicleMetricsAvailable };
 
 export class ChronicleMetricsStore {
   private readonly db: DatabaseSync;

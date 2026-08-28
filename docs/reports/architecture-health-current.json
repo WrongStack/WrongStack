@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T15:37:58.657Z",
+  "generatedAt": "2026-08-28T16:18:23.652Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3410,
     "testFiles": 3028,
-    "sourceLines": 825264,
+    "sourceLines": 825060,
     "workspaceEdges": 128,
-    "moduleEdges": 10564,
+    "moduleEdges": 10590,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -19448,7 +19448,7 @@
     },
     {
       "file": "packages/core/src/coordination/collab-debug.ts",
-      "lines": 918,
+      "lines": 900,
       "relativeImports": 10
     },
     {
@@ -19458,7 +19458,7 @@
     },
     {
       "file": "packages/core/src/coordination/director-tools.ts",
-      "lines": 860,
+      "lines": 854,
       "relativeImports": 17
     },
     {
@@ -19493,7 +19493,7 @@
     },
     {
       "file": "packages/core/src/core/context.ts",
-      "lines": 1052,
+      "lines": 1041,
       "relativeImports": 14
     },
     {
@@ -20114,11 +20114,6 @@
       "relativeImports": 11
     },
     {
-      "file": "packages/core/src/core/context.ts",
-      "lines": 1052,
-      "relativeImports": 14
-    },
-    {
       "file": "packages/plugins/src/path-guard/shell-targets.ts",
       "lines": 1048,
       "relativeImports": 1
@@ -20137,6 +20132,11 @@
       "file": "packages/webui/src/components/ContextDashboard.tsx",
       "lines": 1046,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/core/src/core/context.ts",
+      "lines": 1041,
+      "relativeImports": 14
     },
     {
       "file": "packages/webui-server/src/server/start-webui.ts",

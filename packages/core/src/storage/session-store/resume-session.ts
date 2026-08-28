@@ -247,7 +247,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
   }
 }
 
-export async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
+ async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
   const handle = await fsp.open(file, 'a+', 0o600);
   try {
     const stat = await handle.stat();

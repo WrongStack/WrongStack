@@ -17,6 +17,8 @@ import {
   type MailboxHttpAccessDecision,
   parseCredentialAuthorization,
 } from './mailbox-http-auth.js';
+
+export type { MailboxHttpAccessDecision };
 import type { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
 import { createCredentialRevalidator, handleSse } from './mailbox-http-sse.js';
 import {
@@ -48,12 +50,7 @@ export {
 export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
 export const MAILBOX_HTTP_DEFAULT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
 
-export {
-  authorizeMailboxBearerToken,
-  authorizePersistedMailboxCredential,
-  type MailboxHttpAccessDecision,
-  type MailboxHttpCredentialDecision,
-} from './mailbox-http-auth.js';
+export { authorizeMailboxBearerToken, authorizePersistedMailboxCredential } from './mailbox-http-auth.js';;
 export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
 export interface MailboxHttpRouterOptions {

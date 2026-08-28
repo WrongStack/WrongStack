@@ -76,24 +76,24 @@ const TOKEN_PATTERNS: readonly TokenPattern[] = [
     kind: 'relax-boundary',
     // `>` not followed by `=` and not part of `=>` or `>>`; require code-ish
     // context on both sides so generic text (JSX, strings) is not touched.
-    regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>>(?!=|>))/g,
+    regex: /(?<=[\w)\]}'"`])\s*\x20?(?<op>>(?!=|>))/g,
     replace: () => '>=',
   },
   {
     kind: 'tighten-boundary',
-    regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>>=)/g,
+    regex: /(?<=[\w)\]}'"`])\s*\x20?(?<op>>=)/g,
     replace: () => '>',
   },
   {
     kind: 'arith-plus-to-minus',
     // `+` between operands (binary), not `++`, unary `+x`, or `+=`.
-    regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>\+(?!\+|=))/g,
+    regex: /(?<=[\w)\]}'"`])\s*\x20?(?<op>\+(?!\+|=))/g,
     replace: () => '-',
   },
   {
     kind: 'arith-minus-to-plus',
     // Binary `-` between operands, not `--`, `-=` or negative-number literal.
-    regex: /(?<=[\w\)\]\}'"`])\s*\x20?(?<op>-(?!-|=))/g,
+    regex: /(?<=[\w)\]}'"`])\s*\x20?(?<op>-(?!-|=))/g,
     replace: () => '+',
   },
   {
@@ -157,20 +157,29 @@ export function planMutations(
 
     for (const pattern of TOKEN_PATTERNS) {
       pattern.regex.lastIndex = 0;
-      let m: RegExpExecArray | null;
-      while ((m = pattern.regex.exec(line)) !== null) {
+      let m = pattern.regex.exec(line);
+      while (m !== null) {
         const token = m.groups?.['op'] ?? m[0];
         const tokenStart = m.index + m[0].indexOf(token);
         // Only mutate tokens that begin in real code.
-        if (!inCode(tokenStart)) continue;
+        if (!inCode(tokenStart)) {
+          m = pattern.regex.exec(line);
+          continue;
+        }
         // And for endpoint-checked families (return-null), tokens whose
         // terminating character sits in masked content — a lazy match
         // that stopped at a semicolon inside a string/template — are
         // partial-token matches: never plan them.
-        if (pattern.endpointsInCode && !inCode(tokenStart + token.length - 1)) continue;
+        if (pattern.endpointsInCode && !inCode(tokenStart + token.length - 1)) {
+          m = pattern.regex.exec(line);
+          continue;
+        }
         const original = line.slice(tokenStart, tokenStart + token.length);
         const replacement = pattern.replace(token);
-        if (replacement === original) continue;
+        if (replacement === original) {
+          m = pattern.regex.exec(line);
+          continue;
+        }
         out.push({
           id: `${pattern.kind}#${lineIdx + 1}#${tokenStart + 1}`,
           kind: pattern.kind,
@@ -180,6 +189,7 @@ export function planMutations(
           original,
           replacement,
         });
+        m = pattern.regex.exec(line);
       }
     }
     if (out.length >= maxPerFile) break;

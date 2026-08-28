@@ -5,16 +5,14 @@ import type {
   MailboxTaskContext,
 } from './mailbox-message-types.js';
 import type { MailboxMessageType } from './mailbox-type-properties.js';
-
-export {
-  expandMailboxCapabilities,
-  hasMailboxCapability,
-  MAILBOX_CAPABILITY_IMPLICATIONS,
-  type MailboxActorContext,
-  type MailboxAuthMode,
-  type MailboxCapability,
-  type MailboxPrincipalKind,
+import type { MailboxSessionAffinityContext } from './mailbox-session-sync.js';
+export type {
+  MailboxActorContext,
+  MailboxAuthMode,
+  MailboxCapability,
+  MailboxPrincipalKind,
 } from './mailbox-auth-types.js';
+export { expandMailboxCapabilities, hasMailboxCapability, MAILBOX_CAPABILITY_IMPLICATIONS } from './mailbox-auth-types.js';
 export {
   isActionRequiredForActor,
   isMailboxLeader,
@@ -27,13 +25,9 @@ export {
   sessionRecipient,
   validateSendType,
 } from './mailbox-predicates.js';
-export {
-  MAILBOX_TYPE_PROPERTIES,
-  type MailboxMessageType,
-  type MailboxTypeCategory,
-} from './mailbox-type-properties.js';
-
-import type { MailboxSessionAffinityContext } from './mailbox-session-sync.js';
+export type { MailboxMessageType } from './mailbox-type-properties.js';
+export { MAILBOX_TYPE_PROPERTIES } from './mailbox-type-properties.js';
+export type { MailboxSessionAffinityContext } from './mailbox-session-sync.js';
 
 export type {
   ActorMailboxMessage,
@@ -46,11 +40,7 @@ export type {
   MailboxTaskContext,
   ReadReceipts,
 } from './mailbox-message-types.js';
-export {
-  acceptMailboxMessageForSession,
-  acceptMailboxMessageForSessionSync,
-  type MailboxSessionAffinityContext,
-} from './mailbox-session-sync.js';
+export { acceptMailboxMessageForSession, acceptMailboxMessageForSessionSync } from './mailbox-session-sync.js';;
 
 export interface RegisteredAgent {
   agentId: string;

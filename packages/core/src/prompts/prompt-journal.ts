@@ -171,7 +171,7 @@ export async function recordPromptJournalEntry(
   const timestamp = now.toISOString();
   const dateStr = timestamp.slice(0, 10); // YYYY-MM-DD
   const monthStr = dateStr.slice(0, 7); // YYYY-MM
-  const sessionId = opts.sessionId && opts.sessionId.trim() ? opts.sessionId.trim() : 'general';
+  const sessionId = opts.sessionId?.trim() || 'general';
   const id = `pmt_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
   // SEC-004: the journal persists raw user input (`raw_user`/`rawContent`)

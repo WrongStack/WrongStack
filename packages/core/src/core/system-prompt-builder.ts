@@ -38,7 +38,7 @@ import { buildMemoryAndSkills, renderOnlineAgents } from './system-prompt-memory
 import { type ActivePlanCache, readActivePlanBlock } from './system-prompt-plan.js';
 import { compactTrigger } from './system-prompt-skill-text.js';
 
-export { type EffectiveShell, effectiveShell, shellGuidanceBlock } from './system-prompt-shell.js';
+export { effectiveShell, shellGuidanceBlock } from './system-prompt-shell.js';;
 
 export const LAYER_1_IDENTITY = DEFAULT_PROMPT;
 

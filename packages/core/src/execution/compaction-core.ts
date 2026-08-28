@@ -1,8 +1,8 @@
 import { estimateMessageTokens } from '../utils/token-estimate.js';
 
 export {
-  buildSmartDigest,
   type ContentScore,
+  buildSmartDigest,
   extractText,
   hasLargeToolResult,
   hasToolUse,
@@ -10,10 +10,10 @@ export {
 } from './compaction-scoring.js';
 
 export {
+  type EliseResult,
   collapseAcknowledgedToolReceipts,
   eliseAcknowledgedToolResults,
   eliseOldToolResults,
-  type EliseResult,
   findPreserveStart,
   isElidedResultContent,
   isElidedToolInput,
@@ -24,26 +24,8 @@ export {
   summarizeToolUseInputElision,
 } from './compaction-elision.js';
 
-export {
-  buildLosslessDigest,
-  type DedupResult,
-  dedupStaleReads,
-  elideMessageToolIo,
-  enforceHardBudget,
-  findExchangeStart,
-  findSafeBoundary,
-  type HardBudgetResult,
-  hasTextContent,
-  headTailTruncate,
-  truncateMessageText,
-} from './compaction-budget.js';
+export { buildLosslessDigest, dedupStaleReads, elideMessageToolIo, enforceHardBudget, findExchangeStart, findSafeBoundary, hasTextContent, headTailTruncate, truncateMessageText } from './compaction-budget.js';;
 
-export {
-  CompactionSummaryCache,
-  type CompactionSummaryCacheOptions,
-  compactionSummaryKey,
-  isPlaceholderSummary,
-  PLACEHOLDER_SUMMARIES,
-} from './compaction-summary-cache.js';
+export { CompactionSummaryCache, compactionSummaryKey, isPlaceholderSummary, PLACEHOLDER_SUMMARIES } from './compaction-summary-cache.js';;
 
 export const estimateMessages = estimateMessageTokens;
