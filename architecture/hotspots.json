@@ -259,8 +259,8 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 825,
-      "relativeImports": 22
+      "lines": 824,
+      "relativeImports": 21
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
       "lines": 1007,

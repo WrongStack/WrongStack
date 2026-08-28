@@ -97,7 +97,7 @@ import type { DomainGlossaryListProvider as DomainGlossaryAdapter } from '../wir
 
 export type { DomainGlossaryListProvider } from '../wiring/domain-glossary.js';
 
-interface BindSystemPromptBuilderDeps {
+export interface BindSystemPromptBuilderDeps {
   /**
    * The `container` from main(). The helper only calls
    * `container.bind(token, factory)`. To keep the helper

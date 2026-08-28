@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Minimal WebSocket polyfill for Node
 class FakeWebSocket {
-  readyState = FakeWebSocket.CONNECTING;
   static CONNECTING = 0;
   static OPEN = 1;
   static CLOSING = 2;
   static CLOSED = 3;
+  readyState = FakeWebSocket.CONNECTING;
   onopen: ((ev: unknown) => void) | null = null;
   onclose: ((ev: unknown) => void) | null = null;
   onerror: ((ev: unknown) => void) | null = null;

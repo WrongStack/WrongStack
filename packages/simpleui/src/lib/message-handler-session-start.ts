@@ -152,6 +152,7 @@ export function handleSessionStartMessage(params: {
     resetAgentNameCache();
     setSessionStart(Date.now());
     setAttachedImages([]);
+    setSessionMenuOpen?.(false);
   }
   const payloadLastInput = finiteNumber(payload['lastInputTokens']);
   const replayInput = replayUsage ? finiteNumber(replayUsage['input']) : payloadLastInput;

@@ -258,16 +258,7 @@ describe('buildLiveFeed', () => {
   });
 
   it('returns `truncated=false` when result is within limit', () => {
-    const flat = [
-      {
-        key: 'x',
-        flat: {
-          message: messageSummary({ mailId: 'x', messageId: 'x' }),
-          source: 'event' as const,
-          key: 'x',
-        },
-      },
-    ];
+    const flat = [flatOf(messageSummary({ mailId: 'x', messageId: 'x' }))];
     const r = buildLiveFeed(flat, { limit: 10 });
     expect(r.truncated).toBe(false);
   });
@@ -321,7 +312,7 @@ describe('buildLiveFeed', () => {
       completed: false,
       subject: 'unrelated',
     });
-    const flat = [matches, wrongType, wrongPriority, wrongCompleted, wrongQuery].map(flatOf);
+    const flat = [matches, wrongType, wrongPriority, wrongCompleted, wrongQuery].map((m) => flatOf(m));
     const r = buildLiveFeed(flat, {
       types: ['ask'],
       priorities: ['high'],

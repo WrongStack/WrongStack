@@ -24,21 +24,12 @@ import {
   handleToolProgress,
   handleToolExecuted,
 } from './message-handler-tool-events.js';
-import type { FallbackPendingProjection } from '../fallback-modal.js';
 import { projectFallbackPending } from '../fallback-modal.js';
 import type {
   AgentMode,
-  AgentTranscriptEntry,
-  ChatMessage,
-  ContextInfo,
-  FileEditMeta,
   ModelDescriptor,
-  PendingConfirm,
   ServerMessage,
-  SessionInfo,
-  SimpleSessionSummary,
   SimpleSubagent,
-  ToolCallInfo,
 } from '../types.js';
 import {
   appendAgentTranscriptEntry,
@@ -54,7 +45,6 @@ import {
   retainSimpleChatMessages,
   updateSubagents,
 } from './chat-model.js';
-import type { FileMention } from './file-mention.js';
 import { projectAssistantMessage } from './message-projection.js';
 import {
   parseCatalogProviders,

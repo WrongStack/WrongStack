@@ -21,7 +21,7 @@ function mockFetch(status: number, body: unknown): void {
   );
 }
 
-const BASE_INPUT = { mailId: 'msg-1', projectId: 'proj-demo' } as const;
+const BASE_INPUT = { mailId: 'msg-1', projectId: 'proj-demo', readerId: 'reader-1' } as const;
 
 describe('mailboxActions', () => {
   describe('markRead', () => {

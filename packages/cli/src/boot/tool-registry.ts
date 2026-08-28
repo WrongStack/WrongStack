@@ -26,7 +26,7 @@ import { configureDangerBypass, configureExecPolicy } from '@wrongstack/tools';
 import type { VectorMemoryStore } from '@wrongstack/vector-memory';
 import { configureGoalPolicy } from '../goal-host.js';
 
-interface RegisterBuiltinToolsDeps {
+export interface RegisterBuiltinToolsDeps {
   toolRegistry: ToolRegistry;
   compactor: unknown;
   config: {

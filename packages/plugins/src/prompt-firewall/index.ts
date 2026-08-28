@@ -258,7 +258,7 @@ function growMatch(
     const ext = text.slice(absStart, extEnd);
     re.lastIndex = 0;
     const em = re.exec(ext);
-    if (!em || em.index !== 0 || em[0].length === 0) return null;
+    if (em?.index !== 0 || em[0].length === 0) return null;
     const end = absStart + em[0].length;
     if (end < extEnd || extEnd === text.length) {
       return { start: absStart, end, matched: em[0] };

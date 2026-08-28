@@ -7,20 +7,23 @@ import { registerBuiltinTools } from '../boot/tool-registry.js';
 import { createDomainGlossaryAdapter } from './domain-glossary.js';
 import { refreshDomainTermsMirror } from './domain-terms-mirror.js';
 
+// biome-ignore lint/suspicious/noExplicitAny: large dependency bag — exact types add no safety here
+type AnyObj = any;
+
 export async function setupCliPromptAndTools(params: {
-  container: any;
-  modeStore: any;
-  memoryStore: any;
-  skillLoader: any;
+  container: AnyObj;
+  modeStore: AnyObj;
+  memoryStore: AnyObj;
+  skillLoader: AnyObj;
   sessionRef: { current: import('@wrongstack/core/types').SessionWriter | undefined };
   autonomyModeRef: { current: import('../services/autonomy-mode.js').AutonomyMode };
   modeId: string;
   modePrompt?: string | undefined;
-  modelCapabilitiesRef: { current: any };
-  config: any;
-  wpaths: any;
+  modelCapabilitiesRef: { current: AnyObj };
+  config: AnyObj;
+  wpaths: AnyObj;
   projectRoot: string;
-  events: any;
+  events: AnyObj;
   /**
    * Optional vector memory store. When provided, the four
    * `vector_memory_*` tools are registered alongside the SAGE tools so

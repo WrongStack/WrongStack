@@ -8,9 +8,12 @@ export interface CliHeapWatchdogParams {
     state: { messages: ReadonlyArray<{ _estTokens?: number | undefined }> };
   };
   hqPublisherRef: {
+    // biome-ignore lint/suspicious/noExplicitAny: stats shape
     current?: { getQueueStats: () => any } | null | undefined;
+    // biome-ignore lint/suspicious/noExplicitAny: stats shape
     getKanbanSyncStats?: (() => any) | undefined;
   };
+  // biome-ignore lint/suspicious/noExplicitAny: stats shape
   brainMailbox: { getHqSnapshotStats: () => any };
   metricsSink?: { droppedObservations: () => number } | undefined;
   teardownHandlers: Array<() => void>;

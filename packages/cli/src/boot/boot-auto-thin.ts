@@ -84,7 +84,7 @@ export async function runBootAutoThin(deps: BootAutoThinDeps): Promise<BootAutoT
   let raw: UnderusedToolCandidate[] = [];
   try {
     raw = await source.candidates(policy);
-  } catch (error) {
+  } catch (_error) {
     // Chronicle can fail at boot on platforms without node:sqlite; treat as
     // an empty source so the rest of the boot path continues. The dry-run
     // variant surfaces the error string in the result so `/tool autothin

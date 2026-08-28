@@ -34,7 +34,7 @@ function mount(props: Parameters<typeof LiveMailboxView>[0] = {}): MountHandle {
   document.body.appendChild(container);
   const root = createRoot(container);
   act(() => {
-    root.render(createElement(LiveMailboxView, props));
+    root.render(createElement(LiveMailboxView as any, props));
   });
   return { root, container };
 }

@@ -184,13 +184,13 @@ describe('prettyInput', () => {
   it('returns the raw input when JSON.stringify throws', () => {
     // Stub JSON.stringify so the try-catch inside prettyInput falls through
     // to the error handler and returns the original string.
-    const OrigStringify = JSON.stringify;
-    // @ts-expect-error: deliberate side-channel for the test
-    JSON.stringify = vi.fn(() => { throw new Error('cannot serialize'); });
+    const spy = vi.spyOn(JSON, 'stringify').mockImplementation(() => {
+      throw new Error('cannot serialize');
+    });
     try {
       expect(prettyInput('{"a":1}')).toBe('{"a":1}');
     } finally {
-      JSON.stringify = OrigStringify;
+      spy.mockRestore();
     }
   });
 });

@@ -71,12 +71,12 @@
 
 ## What to do
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=96; wins=95 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=97; wins=96 -->
 - ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`
 
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=114; wins=113 -->
+<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=115; wins=114 -->
 - **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
   - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
   - *How:* `submit_result`

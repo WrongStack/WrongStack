@@ -7,14 +7,14 @@ import {
   useSessionTabStore,
   useUIStore,
 } from '../../src/stores';
-import { useSessionLanes } from '../../src/stores/session-lanes.js';
+import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '../../src/stores/session-lanes.js';
 
 const fleet = () => useFleetStore.getState();
 
 beforeEach(() => {
   fleet().clear();
   useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
-  useSessionLanes.setState({ lanes: {}, activeSessionId: null });
+  useSessionLanes.setState({ lanes: {}, activeSessionId: SESSION_DEFAULT_LANE_ID });
   useUIStore.setState({ sessionNicknames: {} });
 });
 

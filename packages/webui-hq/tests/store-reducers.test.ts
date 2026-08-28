@@ -123,6 +123,7 @@ function snapshotWithClient(
     clientId,
     machineId: 'machine-1',
     kind: 'cli',
+    connected: true,
     connectedAt: generatedAt,
     lastSeenAt: generatedAt,
     capabilities: [],

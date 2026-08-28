@@ -96,7 +96,7 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
       const matches = [...primary, ...symbol, ...related];
       const rawMemories = matches.map((m) => (m['memory'] as Record<string, unknown> | undefined) ?? m) as unknown as MemoryEntry[];
       const uniqueMemories = Array.from(
-        new Map(rawMemories.filter((m) => m && m.id).map((m) => [m.id, m])).values(),
+        new Map(rawMemories.filter((m) => m?.id).map((m) => [m.id, m])).values(),
       );
       setResults(uniqueMemories);
     });

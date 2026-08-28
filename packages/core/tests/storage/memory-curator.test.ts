@@ -21,7 +21,7 @@ const mkCuratorSage = () =>
     rememberSage: vi.fn(async () => ({ id: 'mem_new_123' })),
     updateSage: vi.fn(async () => ({})),
     deleteSage: vi.fn(async () => {}),
-    getSage: vi.fn(async (id: string) => null),
+    getSage: vi.fn(async (_id: string) => null),
     listCandidates: vi.fn(async () => []),
     retrieveForPath: vi.fn(async () => []),
     searchSage: vi.fn(async () => []),
@@ -38,8 +38,8 @@ const ctx = (provider?: Provider, overrides: Partial<Context> = {}): Context =>
     model: 'haiku',
     session: { id: '2026-08-28/sess_curator' },
     projectRoot: '/project',
-    writtenFiles: ['/project/src/auth.ts'],
-    readFiles: ['/project/src/user.ts'],
+    writtenFiles: new Set(['/project/src/auth.ts']),
+    readFiles: new Set(['/project/src/user.ts']),
     ...overrides,
   }) as never as Context;
 
@@ -72,7 +72,7 @@ describe('SessionMemoryCurator', () => {
 
   it('skips when no files are written and no candidates exist', async () => {
     const curator = new SessionMemoryCurator({ memoryStore: store, Sage: sage });
-    await curator.afterRun(ctx(mkProvider('{}'), { writtenFiles: [] }), result());
+    await curator.afterRun(ctx(mkProvider('{}'), { writtenFiles: new Set<string>() }), result());
     expect(sage.retrieveForPath).not.toHaveBeenCalled();
   });
 

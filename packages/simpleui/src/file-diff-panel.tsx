@@ -2,7 +2,7 @@ import { FileText, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusTrap } from './hooks/use-focus-trap.js';
 import { type SocketRequestHandle, socketRequest } from './lib/socket-request.js';
-import type { FileEditMeta, ServerMessage } from './types.js';
+import type { FileEditMeta } from './types.js';
 import type { SimpleSocket } from './lib/ws.js';
 
 interface FileDiffPanelProps {

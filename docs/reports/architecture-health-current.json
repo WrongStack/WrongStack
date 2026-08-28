@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-28T16:18:23.652Z",
+  "generatedAt": "2026-08-28T16:31:19.327Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3410,
     "testFiles": 3028,
-    "sourceLines": 825060,
+    "sourceLines": 825066,
     "workspaceEdges": 128,
-    "moduleEdges": 10590,
+    "moduleEdges": 10589,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -19688,8 +19688,8 @@
     },
     {
       "file": "packages/simpleui/src/lib/message-handler.ts",
-      "lines": 825,
-      "relativeImports": 22
+      "lines": 824,
+      "relativeImports": 21
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
