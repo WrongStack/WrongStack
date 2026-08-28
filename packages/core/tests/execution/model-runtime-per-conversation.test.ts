@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { bindRequestConversation } from '../../src/core/request-conversation-binding.js';
 import { applyModelRuntime } from '../../src/execution/model-runtime.js';
 import type { ModelRuntimeConfig } from '../../src/types/config.js';
-import type { ReasoningConfig, Request } from '../../src/types/provider.js';
+import type { Capabilities, ReasoningConfig, Request } from '../../src/types/provider.js';
 
 const REASONING: ReasoningConfig = {
   default: 'enabled',
@@ -30,7 +30,7 @@ function opts(settings: ModelRuntimeConfig | undefined) {
   return {
     getSettings: () => settings,
     getReasoningConfig: () => REASONING,
-    getCapabilities: () => ({
+    getCapabilities: (): Capabilities => ({
       streaming: true,
       tools: true,
       parallelTools: false,
