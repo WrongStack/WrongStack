@@ -2,5 +2,22 @@
   "schemaVersion": 1,
   "project": "packages/tui",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {}
+  "diagnostics": {
+    "12926f6b4affe4c8": 1,
+    "b417665d7c64b90b": 1,
+    "0c422ee74b558db1": 1,
+    "47c5c949b79d88aa": 1,
+    "6da6bed7628fa2a8": 1,
+    "e0102c8c22c45d59": 1,
+    "ee932b9e79eeceeb": 1,
+    "6479a9acb059d359": 1,
+    "b2c1aac44b3acd3f": 1,
+    "e36a3d493741385e": 1,
+    "1a86bc2f606d8fa1": 1,
+    "d81796cbc83cce89": 1,
+    "9235533a88baab4c": 1,
+    "269e44f67bb4b14b": 2,
+    "cd0daa464427cd90": 9,
+    "b425f4314d27524c": 8
+  }
 }

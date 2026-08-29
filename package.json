@@ -86,6 +86,7 @@
     "@types/node": "^22.20.1",
     "@vitest/coverage-istanbul": "^4.1.11",
     "@vitest/coverage-v8": "^4.1.11",
+    "@wrongstack/core": "workspace:*",
     "@wrongstack/tools": "workspace:*",
     "cross-env": "^10.1.0",
     "esbuild": "^0.28.2",

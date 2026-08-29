@@ -1,6 +1,0 @@
-{
-  "schemaVersion": 1,
-  "project": "packages/security-scanner",
-  "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {}
-}

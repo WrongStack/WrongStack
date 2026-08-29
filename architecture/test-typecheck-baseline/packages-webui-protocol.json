@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "project": "packages/webui-protocol",
+  "hashAlgorithm": "sha256-64bit",
+  "diagnostics": {
+    "d6e8c90d5cb3acb3": 2,
+    "576546e0af9df3da": 1,
+    "b157aa34cd56170e": 1,
+    "1beafc6f07326b08": 1
+  }
+}
