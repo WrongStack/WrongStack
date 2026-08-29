@@ -226,7 +226,10 @@ async function readRegistryFile(filePath: string): Promise<PersistentRegistryDat
  * Write the registry file atomically using rename.
  */
 async function writeRegistryFile(filePath: string, data: PersistentRegistryData): Promise<void> {
-  const tmpPath = `${filePath}.tmp.${process.pid}`;
+  // Unique per call: concurrent writers (heartbeat sync + unregister/
+  // register run under the same pid) must never share a tmp file, or the
+  // first rename consumes it and the second fails with ENOENT (seen on CI).
+  const tmpPath = `${filePath}.tmp.${process.pid}.${Date.now().toString(36)}.${Math.random().toString(36).slice(2, 8)}`;
   const content = JSON.stringify(
     data,
     (_k, v) => {
