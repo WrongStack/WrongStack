@@ -4,6 +4,7 @@ import {
   STATUSLINE_CONFIG_KEYS,
   type StatuslineConfig,
   type StatuslineConfigKey,
+  type StatuslineDocument,
 } from '../services/statusline-config.js';
 
 export {
@@ -11,8 +12,10 @@ export {
   ensureStatuslineConfig,
   loadStatuslineConfig,
   STATUSLINE_CONFIG_KEYS,
+  STATUSLINE_CONFIG_VERSION,
   type StatuslineConfig,
   type StatuslineConfigKey,
+  type StatuslineDocument,
   saveStatuslineConfig,
 } from '../services/statusline-config.js';
 
@@ -21,8 +24,8 @@ export interface StatuslineCommandDeps {
   /** Current hidden items list. Written by the command when toggling. */
   hiddenItems: Array<StatuslineConfigKey>;
   setHiddenItems: (items: Array<StatuslineConfigKey>) => void;
-  getConfig: () => Promise<StatuslineConfig>;
-  setConfig: (cfg: StatuslineConfig) => Promise<void>;
+  getConfig: () => Promise<StatuslineDocument>;
+  setConfig: (cfg: StatuslineDocument) => Promise<void>;
   /**
    * Atomically updates hidden items in memory AND persists to disk.
    * Used by the TUI statusline picker.
@@ -123,7 +126,7 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
       if (!item) {
         const lines = ['StatusBar chips:'];
         for (const k of ALL_CONFIG_KEYS) {
-          const val = cfg[k];
+          const val = cfg.chips[k];
           if (val === undefined) continue;
           lines.push(`  ${val ? '●' : '○'} ${k.padEnd(12)} ${ITEM_DESCRIPTIONS[k]}`);
         }
@@ -132,7 +135,8 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
 
       // Reset
       if (item === 'reset') {
-        await deps.setConfig({ ...DEFAULTS });
+        // Chip visibility resets; the line assignment is a separate axis and is preserved.
+        await deps.setConfig({ ...cfg, chips: { ...DEFAULTS } });
         deps.setHiddenItems([]);
         return { message: 'StatusBar config reset to defaults.' };
       }
@@ -143,11 +147,11 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
         if (!onOff || (onOff !== 'on' && onOff !== 'off')) {
           return { message: 'Usage: /statusline all on|off' };
         }
-        const next: StatuslineConfig = {};
+        const chips: StatuslineConfig = {};
         for (const k of ALL_CONFIG_KEYS) {
-          next[k] = onOff === 'on';
+          chips[k] = onOff === 'on';
         }
-        await deps.setConfig(next);
+        await deps.setConfig({ ...cfg, chips });
         deps.setHiddenItems(onOff === 'off' ? [...ALL_CONFIG_KEYS] : []);
         return {
           message: `statusline all: ${onOff === 'on' ? 'showing all chips' : 'hiding all chips'}`,
@@ -165,10 +169,9 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
       // If no action specified, toggle the item
       const onOff = action?.toLowerCase();
       if (!onOff) {
-        const currentValue = cfg[item as keyof StatuslineConfig] ?? true;
+        const currentValue = cfg.chips[item as keyof StatuslineConfig] ?? true;
         const newValue = !currentValue;
-        const next = { ...cfg, [item]: newValue };
-        await deps.setConfig(next);
+        await deps.setConfig({ ...cfg, chips: { ...cfg.chips, [item]: newValue } });
         if (newValue) {
           deps.setHiddenItems(deps.hiddenItems.filter((i) => i !== item));
         } else {
@@ -181,8 +184,7 @@ export function buildStatuslineCommand(deps: StatuslineCommandDeps): SlashComman
         return { message: `Usage: /statusline ${item} on|off` };
       }
 
-      const next = { ...cfg, [item]: onOff === 'on' };
-      await deps.setConfig(next);
+      await deps.setConfig({ ...cfg, chips: { ...cfg.chips, [item]: onOff === 'on' } });
 
       // Sync hiddenItems list with TUI
       if (onOff === 'off') {

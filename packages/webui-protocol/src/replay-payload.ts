@@ -14,12 +14,19 @@
  * markers cross the wire — never the raw event stream — so a 50k-event session
  * still costs a few dozen short strings.
  */
-import type { Message, SessionEvent, SessionMarker, Usage } from '@wrongstack/core/types';
+import type {
+  Message,
+  SessionEvent,
+  SessionMarker,
+  SessionToolMeta,
+  Usage,
+} from '@wrongstack/core/types';
 // Narrow subpath, not the `types` barrel: this module is the only value import
 // in `src/protocol/`, which the browser bundles pull in wholesale. Going
 // through the barrel reached `types/mode.ts` → `types/mode-prompts.ts` and
 // dragged `node:fs`/`node:path`/`node:url` into every UI build.
 import { CHAT_MARKER_SOURCES, projectSessionMarkers } from '@wrongstack/core/types/session-markers';
+import { projectSessionToolMeta } from '@wrongstack/core/types/session-timeline';
 
 /**
  * Upper bound on replayed conversation messages. A very long session would
@@ -38,6 +45,19 @@ export interface ReplaySource {
 export interface ReplayPayloadFields {
   replayMessages?: Message[] | undefined;
   replayMarkers?: SessionMarker[] | undefined;
+  /**
+   * How long each tool call took and how much it produced.
+   *
+   * The conversation records WHICH tool ran and WHAT it returned; the timing
+   * and output size live in separate `tool_call_end` records, which never
+   * crossed the wire. So a browser surface rebuilt its tool cards without a
+   * duration or a size chip, and the same call that had shown `read · 1.2s ·
+   * 4.1 kB` while it ran came back bare after a reload. The TUI never had the
+   * problem because it holds the raw event array; this is the projection that
+   * gives the browsers the same facts. Bounded by the number of tool calls,
+   * with a handful of numbers each.
+   */
+  replayToolMeta?: SessionToolMeta[] | undefined;
   replayUsage?: Usage | undefined;
 }
 
@@ -58,6 +78,8 @@ export function buildReplayPayload(source: ReplaySource): ReplayPayloadFields {
   if (source.events && source.events.length > 0) {
     const markers = projectSessionMarkers(source.events, CHAT_MARKER_SOURCES);
     if (markers.length > 0) out.replayMarkers = markers;
+    const toolMeta = projectSessionToolMeta(source.events);
+    if (toolMeta.length > 0) out.replayToolMeta = toolMeta;
   }
 
   const usage = source.usage;

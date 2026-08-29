@@ -1,5 +1,6 @@
 import { isFinalTurnStopReason } from '@wrongstack/tools/next-steps';
 import { toast } from '@/components/Toaster';
+import { truncateDelegateTask } from '@/lib/delegate-format';
 import { streamCoalescer } from '@/lib/stream-coalescer';
 import { chatFor, isActiveSessionMessage, pipeViz, sessionFor } from '@/lib/ws-client-utils';
 import type { ProviderAuditEntry, SessionHistoryEntry } from '@/stores';
@@ -426,12 +427,8 @@ export function handleDelegateStarted(msg: WSServerMessage) {
   if (!chat) return;
   pipeViz(msg);
   const p = msg.payload as { target: string; task: string; subagentId?: string | undefined };
-  const task = truncateLine(p.task, 180);
+  const task = truncateDelegateTask(p.task);
   const subagentId = p.subagentId ?? p.target;
-  chat.addMessage({
-    role: 'assistant',
-    content: `Delegating to \`${p.target}\`: ${task}`,
-  });
   const fleet = useFleetStore.getState();
   fleet.applyEvent({
     kind: 'spawned',
@@ -476,18 +473,6 @@ export function handleDelegateCompleted(msg: WSServerMessage) {
     costUsd?: number | undefined;
     subagentId?: string | undefined;
   };
-  const seconds = Math.max(0, Math.round(p.durationMs / 100) / 10);
-  const cost = typeof p.costUsd === 'number' && p.costUsd > 0 ? ` · $${p.costUsd.toFixed(4)}` : '';
-  const stats = `${p.iterations} iteration(s), ${p.toolCalls} tool call(s), ${seconds}s${cost}`;
-  chat.addMessage({
-    role: 'assistant',
-    content: [
-      `Delegate ${p.ok ? 'completed' : 'failed'} for \`${p.target}\`${p.status ? ` (${p.status})` : ''}.`,
-      p.summary,
-      stats,
-    ].join('\n'),
-    isError: !p.ok,
-  });
   const fleet = useFleetStore.getState();
   const subagentId = p.subagentId ?? p.target;
   fleet.applyEvent({

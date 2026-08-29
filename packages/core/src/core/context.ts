@@ -16,6 +16,14 @@ import type { Tool } from '../types/tool.js';
 import { createContextEvidenceState } from '../utils/context-evidence.js';
 import { ConversationState } from './conversation-state.js';
 
+function isAppendableSessionWriter(writer: unknown): writer is SessionWriter {
+  return Boolean(
+    writer &&
+      typeof writer === 'object' &&
+      typeof (writer as { append?: unknown }).append === 'function',
+  );
+}
+
 export type { TodoItem };
 
 export interface RunOptions {
@@ -394,9 +402,11 @@ export class Context implements RunEnv, AgentContext {
     event: SessionEvent;
     bytes: number;
     writer: SessionWriter;
+    attempts?: number;
   }> = [];
   _conversationJournalBytes = 0;
   _conversationJournalDrain: Promise<void> | null = null;
+  _conversationJournalLastError: Error | null = null;
   private static readonly CONVERSATION_JOURNAL_MAX_EVENTS = 256;
   private static readonly CONVERSATION_JOURNAL_MAX_BYTES = 4 * 1024 * 1024;
   private static readonly MAX_FILE_EVENTS = 1000;
@@ -409,6 +419,9 @@ export class Context implements RunEnv, AgentContext {
       const drain = this._conversationJournalDrain;
       if (!drain) break;
       await drain;
+      if (this._conversationJournalQueue.length > 0 && this._conversationJournalLastError) {
+        throw this._conversationJournalLastError;
+      }
     }
     // After the drain completes, forcefully clear the queue to release
     // references to the old session's SessionEvent objects. The drain
@@ -417,6 +430,7 @@ export class Context implements RunEnv, AgentContext {
     // here makes the old objects unreachable immediately.
     this._conversationJournalQueue.length = 0;
     this._conversationJournalBytes = 0;
+    this._conversationJournalLastError = null;
   }
 
   conversationJournalBytes(event: SessionEvent): number {
@@ -452,6 +466,11 @@ export class Context implements RunEnv, AgentContext {
   }
 
   enqueueConversationJournal(event: SessionEvent, writer: SessionWriter): void {
+    if (!isAppendableSessionWriter(writer)) {
+      this.warnConversationJournalDrop(event.type);
+      return;
+    }
+    this._conversationJournalLastError = null;
     const bytes = this.conversationJournalBytes(event);
     const shouldSnapshot =
       event.type === 'messages_replaced' ||
@@ -518,14 +537,42 @@ export class Context implements RunEnv, AgentContext {
         const queued = this._conversationJournalQueue.shift();
         if (!queued) continue;
         this._conversationJournalBytes = Math.max(0, this._conversationJournalBytes - queued.bytes);
-        await queued.writer.append(queued.event).catch(() => {
-          // Session persistence is best-effort. FileSessionWriter separately
-          // bounds and retries its durable buffer.
-        });
+        if (!isAppendableSessionWriter(queued.writer)) {
+          this.warnConversationJournalDrop(queued.event.type);
+          continue;
+        }
+        try {
+          await queued.writer.append(queued.event);
+          this._conversationJournalLastError = null;
+        } catch (err) {
+          const attempts = (queued.attempts ?? 0) + 1;
+          this._conversationJournalQueue.unshift({ ...queued, attempts });
+          this._conversationJournalBytes += queued.bytes;
+          const error = err instanceof Error ? err : new Error(String(err));
+          this._conversationJournalLastError = error;
+          if (attempts < 3) {
+            await new Promise((resolve) => setTimeout(resolve, attempts * 25));
+            continue;
+          }
+          console.warn(
+            JSON.stringify({
+              level: 'error',
+              event: 'session.conversation_journal_write_failed',
+              sessionId: this.session?.id,
+              eventType: queued.event.type,
+              attempts,
+              message: error.message,
+              timestamp: new Date().toISOString(),
+            }),
+          );
+          break;
+        }
       }
     })().finally(() => {
       if (this._conversationJournalDrain === drain) this._conversationJournalDrain = null;
-      if (this._conversationJournalQueue.length > 0) this.startConversationJournalDrain();
+      if (this._conversationJournalQueue.length > 0 && !this._conversationJournalLastError) {
+        this.startConversationJournalDrain();
+      }
     });
     this._conversationJournalDrain = drain;
   }

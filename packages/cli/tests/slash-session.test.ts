@@ -113,7 +113,7 @@ describe('buildLoadCommand --incomplete', () => {
   // and SessionRecovery.listResumable scans the dir. We point the
   // dir at a real tempdir; the helper below creates a stale log
   // and asserts the command surfaces it.
-  it('lists incomplete sessions with their crash context', async () => {
+  it('lists incomplete sessions and says how each of them ended', async () => {
     const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
@@ -141,28 +141,46 @@ describe('buildLoadCommand --incomplete', () => {
       const res = await cmd.run('--incomplete', fakeCtx());
       expect(res?.message).toContain('1 incomplete session');
       expect(res?.message).toContain('s-crash');
-      expect(res?.message).toContain('iteration 7 / tool: read');
+      expect(res?.message).toContain('died mid-iteration');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   });
 
-  it('returns a "no incomplete sessions" message when the dir has no stale logs', async () => {
+  it('returns a "no incomplete sessions" message only when a log actually ended', async () => {
     const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
     const dir = await mkdtemp(join(tmpdir(), 'resume-clean-'));
     try {
-      // Clean shutdown.
+      // A clean shutdown is a TRAILING session_end, and nothing weaker.
+      // `in_flight_end` only says the last turn finished — a host killed at
+      // the prompt leaves exactly that and never closes the log, which is the
+      // most common crash there is. Calling that clean is what made recovery
+      // report an empty list for a project full of hung sessions.
       const log = [
         JSON.stringify({ type: 'in_flight_start', ts: '2026-01-01T00:00:00Z', context: 'x' }),
         JSON.stringify({ type: 'in_flight_end', ts: '2026-01-01T00:00:01Z', reason: 'clean' }),
+        JSON.stringify({ type: 'session_end', ts: '2026-01-01T00:00:02Z' }),
         '',
       ].join('\n');
       await writeFile(join(dir, 's-clean.jsonl'), log, 'utf8');
       const cmd = buildLoadCommand({ paths: { projectSessions: dir } } as never);
       const res = await cmd.run('--incomplete', fakeCtx());
       expect(res?.message).toMatch(/no incomplete/i);
+
+      // Drop the terminal marker and the very same log is a hung session.
+      await writeFile(
+        join(dir, 's-clean.jsonl'),
+        log
+          .split('\n')
+          .filter((line) => !line.includes('session_end'))
+          .join('\n'),
+        'utf8',
+      );
+      const hung = await cmd.run('--incomplete', fakeCtx());
+      expect(hung?.message).toContain('s-clean');
+      expect(hung?.message).toContain('died between turns');
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

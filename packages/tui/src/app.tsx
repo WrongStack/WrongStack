@@ -158,6 +158,7 @@ export function App(props: AppProps): React.ReactElement {
     statuslineHiddenItems,
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,
+    statuslineLines,
     agentsMonitorController,
     initialGoal,
     initialAsk,
@@ -200,6 +201,7 @@ export function App(props: AppProps): React.ReactElement {
     getSettings,
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,
+    statuslineLines,
   });
   const {
     liveModel,

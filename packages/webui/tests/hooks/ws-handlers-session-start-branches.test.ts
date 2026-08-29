@@ -265,6 +265,35 @@ describe('session.start — fleet eviction', () => {
   });
 });
 
+describe('session.start — agentSessions replay isolation', () => {
+  it('ignores subagent sessions on the main resume screen', () => {
+    start({
+      agentSessions: [
+        {
+          subagentId: 'w-disk-1',
+          agentName: 'Disk Worker',
+          status: 'completed',
+          task: 'Find memory leaks',
+          transcript: [
+            {
+              id: 't-1',
+              subagentId: 'w-disk-1',
+              agentName: 'Disk Worker',
+              content: 'Inspected heap profiles',
+              kind: 'text',
+              iteration: 1,
+              ts: '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(useFleetStore.getState().agents.has('w-disk-1')).toBe(false);
+    expect(useFleetStore.getState().getAgentTranscript('w-disk-1')).toEqual([]);
+  });
+});
+
 describe('session.start — post-replay navigation', () => {
   const replay = [{ role: 'user', content: 'hi', ts: '2026-01-01T00:00:00.000Z' }];
 

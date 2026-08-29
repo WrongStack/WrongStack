@@ -25,6 +25,7 @@ const send = vi.fn();
 const wsClient = {
   send,
   listSavedProviders: vi.fn(),
+  focusSessionById: vi.fn(),
   requestedSwitch: null as string | null,
   consumeRequestedSwitch(sessionId: string): boolean {
     if (!sessionId || wsClient.requestedSwitch !== sessionId) return false;
@@ -177,6 +178,14 @@ describe('session.start — tab isolation', () => {
     expect(contents).toContain('streaming right now');
     expect(contents).not.toContain('stale persisted copy');
     expect(useChatStore.getState().isLoading).toBe(true);
+  });
+
+  it('keeps the original session start time when hydrating a resumed tab', () => {
+    start('sess_a', { startedAt: '2026-07-25T10:00:00.000Z' });
+
+    expect(useSessionStore.getState().session?.startedAt).toBe(
+      Date.parse('2026-07-25T10:00:00.000Z'),
+    );
   });
 
   it('applies a background tab model switch to that tab, not the one in front', () => {
@@ -524,12 +533,16 @@ describe('the four slots', () => {
     expect(resumeSession).toHaveBeenCalledTimes(1);
     expect(resumeSession).toHaveBeenCalledWith('s3');
 
+    wsClient.focusSessionById.mockClear();
     expect(useSessionTabStore.getState().openTab('s1', { resumeSession })).toMatchObject({
       success: true,
       reason: 'switched',
     });
     expect(useChatStore.getState().boundSessionId).toBe('s1');
+    // Still one — the switch moved the foreground, it did not reopen s1.
     expect(resumeSession).toHaveBeenCalledTimes(1);
+    // What the server IS told is which tab is in front.
+    expect(wsClient.focusSessionById).toHaveBeenCalledExactlyOnceWith('s1');
   });
 
   it('never evicts an open slot to make room for an unrequested announce', () => {

@@ -25,6 +25,7 @@ export const CLIENT_CONVERSATION_MESSAGE_TYPES = [
   'modes.list',
   'session.checkpoints',
   'session.delete',
+  'session.focus',
   'session.inspect',
   'session.new',
   'session.rename',

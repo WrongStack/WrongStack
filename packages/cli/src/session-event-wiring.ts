@@ -397,7 +397,132 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
     },
   );
 
-  // ── Delegate lifecycle (non-TUI only) ────────────────────────────────────
+  // ── Delegate lifecycle ───────────────────────────────────────────────────
+  //
+  // PERSISTED unconditionally, rendered only where a renderer owns the screen.
+  // These two used to exist only as console lines behind `!tuiOwnsScreen`, so
+  // the minutes a leader spent blocked on a subagent left NOTHING in the
+  // journal: a resumed transcript jumped from the delegating turn straight to
+  // whatever came after it, with no record that a delegation had happened at
+  // all. The record is the point; the console line is a bonus.
+  evOn(
+    'delegate.started',
+    (e: {
+      sessionId?: string | undefined;
+      task: string;
+      target: string;
+      subagentId?: string | undefined;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'delegate_started',
+        ts: new Date().toISOString(),
+        target: e.target,
+        task: e.task,
+        ...(e.subagentId ? { subagentId: e.subagentId } : {}),
+      });
+    },
+  );
+  evOn(
+    'delegate.completed',
+    (e: {
+      sessionId?: string | undefined;
+      target: string;
+      task: string;
+      ok: boolean;
+      status?: string | undefined;
+      summary: string;
+      durationMs: number;
+      iterations: number;
+      toolCalls: number;
+      costUsd?: number | undefined;
+      subagentId?: string | undefined;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'delegate_completed',
+        ts: new Date().toISOString(),
+        target: e.target,
+        task: e.task,
+        ok: e.ok,
+        summary: e.summary,
+        durationMs: e.durationMs,
+        iterations: e.iterations,
+        toolCalls: e.toolCalls,
+        ...(e.status !== undefined ? { status: e.status } : {}),
+        ...(e.costUsd !== undefined ? { costUsd: e.costUsd } : {}),
+        ...(e.subagentId ? { subagentId: e.subagentId } : {}),
+      });
+    },
+  );
+
+  // Loop detection: a `cut` ENDS the turn, so it is journaled — without it the
+  // run came back as a bare `max_iterations` with no stated cause. A `steer`
+  // is an in-band nudge the model absorbs and stays off both the journal and
+  // the screen.
+  evOn(
+    'tool.loop_detected',
+    (e: {
+      sessionId?: string | undefined;
+      tools: string;
+      repeatCount: number;
+      iteration: number;
+      kind?: 'tool' | 'message' | 'mixed' | undefined;
+      action?: 'steer' | 'cut' | undefined;
+    }) => {
+      if (e.action === 'steer') return;
+      appendSessionEvent(e.sessionId, {
+        type: 'loop_detected',
+        ts: new Date().toISOString(),
+        tools: e.tools,
+        repeatCount: e.repeatCount,
+        iteration: e.iteration,
+        ...(e.kind !== undefined ? { kind: e.kind } : {}),
+        action: 'cut',
+      });
+    },
+  );
+
+  // ── Model changes ────────────────────────────────────────────────────────
+  //
+  // Everything after one of these was produced by a different model than the
+  // one `session_start` names. Unrecorded, a reader attributes the whole
+  // session to the first model — and the fallback case, which is the one a
+  // user most wants to see afterwards, was the more invisible of the two.
+  evOn(
+    'provider.fallback',
+    (e: {
+      sessionId?: string | undefined;
+      from: { providerId: string; model: string };
+      to: { providerId: string; model: string };
+      status: number;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'model_switched',
+        ts: new Date().toISOString(),
+        from: e.from,
+        to: e.to,
+        reason: 'fallback',
+        ...(typeof e.status === 'number' ? { status: e.status } : {}),
+      });
+    },
+  );
+  evOn(
+    'provider.model_switched',
+    (e: {
+      sessionId?: string | undefined;
+      from?: { providerId: string; model: string } | undefined;
+      to: { providerId: string; model: string };
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'model_switched',
+        ts: new Date().toISOString(),
+        ...(e.from ? { from: e.from } : {}),
+        to: e.to,
+        reason: 'user',
+      });
+    },
+  );
+
+  // ── Delegate / loop console lines (non-TUI only) ─────────────────────────
   if (!deps.tuiOwnsScreen && deps.renderer?.writeInfo) {
     evOn('delegate.started', (e: { task: string; target: string }) => {
       const task = e.task.length > 100 ? `${e.task.slice(0, 99)}…` : e.task;
@@ -408,10 +533,6 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       deps.renderer!.writeInfo!(`${e.ok ? '✅' : '❌'} ${e.summary}${cost}`);
     });
 
-    // Loop detection had no subscriber outside tests, so a run the detector
-    // cut came back as a bare `max_iterations` with no stated cause. Only
-    // `action: 'cut'` surfaces: a 'steer' is an in-band nudge the model
-    // absorbs on its own, and announcing it would be noise.
     evOn(
       'tool.loop_detected',
       (e: {

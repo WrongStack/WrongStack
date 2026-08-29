@@ -33,9 +33,43 @@ export interface SessionMarker {
   source: SessionEvent['type'];
   level: SessionMarkerLevel;
   text: string;
-  /** Set only for the `agent_*` sources. */
+  /** Set only for the `agent_*` and `delegate_*` sources. */
   agentId?: string | undefined;
+  /**
+   * The source event's own fields, for the sources a surface renders as
+   * something richer than a line of text.
+   *
+   * `text` stays the fallback every surface can always use. But the TUI draws
+   * a delegation as a labelled subagent row with its own icon, colour and
+   * compact stat line, and the WebUI as a two-line assistant message — both
+   * built from the structured payload, live. Handing replay only the rendered
+   * sentence would have forced those surfaces to show something they never
+   * showed while running, which is the exact divergence this module exists to
+   * prevent. Kept to the few sources that need it, and JSON-serializable so it
+   * survives the wire alongside the rest of the marker.
+   */
+  detail?: SessionMarkerDetail | undefined;
 }
+
+/** Structured payload for the marker sources whose surfaces render richly. */
+export type SessionMarkerDetail =
+  | {
+      kind: 'delegate_started';
+      target: string;
+      task: string;
+    }
+  | {
+      kind: 'delegate_completed';
+      target: string;
+      task: string;
+      ok: boolean;
+      status?: string | undefined;
+      summary: string;
+      durationMs: number;
+      iterations: number;
+      toolCalls: number;
+      costUsd?: number | undefined;
+    };
 
 /**
  * Every event type that projects to a marker. Conversation-bearing events
@@ -50,8 +84,13 @@ export const SESSION_MARKER_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new
   'skill_activated',
   'skill_deactivated',
   'agent_spawned',
+  'agent_session_linked',
   'agent_stopped',
   'agent_error',
+  'delegate_started',
+  'delegate_completed',
+  'loop_detected',
+  'model_switched',
   'error',
   'provider_retry',
   'provider_error',
@@ -66,9 +105,25 @@ export const SESSION_MARKER_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new
  * line restating the user message immediately next to it. Dense timeline
  * surfaces like the TUI use {@link SESSION_MARKER_EVENT_TYPES} instead, where
  * the checkpoint marker doubles as a `/rewind` target hint.
+ *
+ * Subagent/delegation lifecycle is excluded from the main chat replay too.
+ * Those sessions cannot be resumed as live workers after a process restart, so
+ * injecting ended or stale workers into the visible conversation makes resume
+ * look busier than the session the user can actually continue. The raw events
+ * stay in the journal for a dedicated subagent history view.
  */
+const CHAT_EXCLUDED_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = new Set([
+  'checkpoint',
+  'agent_spawned',
+  'agent_session_linked',
+  'agent_stopped',
+  'agent_error',
+  'delegate_started',
+  'delegate_completed',
+]);
+
 export const CHAT_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = new Set(
-  [...SESSION_MARKER_EVENT_TYPES].filter((type) => type !== 'checkpoint'),
+  [...SESSION_MARKER_EVENT_TYPES].filter((type) => !CHAT_EXCLUDED_MARKER_SOURCES.has(type)),
 );
 
 /**
@@ -140,6 +195,18 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
         agentId: ev.agentId,
       };
 
+    case 'agent_session_linked':
+      return {
+        ts: ev.ts,
+        source: ev.type,
+        level: 'info',
+        // The transcript path is the point of the marker: it is how a reader
+        // of a resumed session gets from "this agent ran" to what it actually
+        // did. Falls back to the journal id when the writer had no file.
+        text: `transcript → ${ev.transcriptPath ?? ev.agentSessionId}`,
+        agentId: ev.agentId,
+      };
+
     case 'agent_stopped':
       return {
         ts: ev.ts,
@@ -148,6 +215,67 @@ export function sessionEventToMarker(ev: SessionEvent): SessionMarker | null {
         text: 'stopped',
         agentId: ev.agentId,
       };
+
+    case 'delegate_started':
+      return {
+        ts: ev.ts,
+        source: ev.type,
+        level: 'info',
+        text: `🤝 delegating → ${ev.target}: ${ev.task.length > 100 ? `${ev.task.slice(0, 99)}…` : ev.task}`,
+        agentId: ev.subagentId,
+        detail: { kind: 'delegate_started', target: ev.target, task: ev.task },
+      };
+
+    case 'delegate_completed': {
+      const cost = ev.costUsd && ev.costUsd > 0 ? ` · $${ev.costUsd.toFixed(4)}` : '';
+      return {
+        ts: ev.ts,
+        source: ev.type,
+        level: ev.ok ? 'info' : 'error',
+        text: `${ev.ok ? '✅' : '❌'} ${ev.summary}${cost}`,
+        agentId: ev.subagentId,
+        detail: {
+          kind: 'delegate_completed',
+          target: ev.target,
+          task: ev.task,
+          ok: ev.ok,
+          status: ev.status,
+          summary: ev.summary,
+          durationMs: ev.durationMs,
+          iterations: ev.iterations,
+          toolCalls: ev.toolCalls,
+          costUsd: ev.costUsd,
+        },
+      };
+    }
+
+    case 'loop_detected': {
+      const what =
+        ev.kind === 'message' ? 'the same reply' : ev.tools ? `\`${ev.tools}\`` : 'the same step';
+      return {
+        ts: ev.ts,
+        source: ev.type,
+        level: 'warn',
+        text:
+          ev.action === 'steer'
+            ? `🔁 Loop detected — ${what} repeated ${ev.repeatCount}× ; the run was steered.`
+            : `🔁 Loop detected — ${what} repeated ${ev.repeatCount}× ; the run was stopped.`,
+      };
+    }
+
+    case 'model_switched': {
+      const to = `${ev.to.providerId}/${ev.to.model}`;
+      const from = ev.from ? `${ev.from.providerId}/${ev.from.model} → ` : '';
+      return {
+        ts: ev.ts,
+        source: ev.type,
+        level: ev.reason === 'fallback' ? 'warn' : 'info',
+        text:
+          ev.reason === 'fallback'
+            ? `⚠ fallback${ev.status ? ` (HTTP ${ev.status})` : ''}: ${from}${to}`
+            : `model: ${from}${to}`,
+      };
+    }
 
     case 'agent_error':
       return {
@@ -236,10 +364,33 @@ export const SYSTEM_INJECTION_PREFIXES: readonly string[] = [
   '[QUEUED MESSAGES —',
   '[FLEET PULSE]',
   '[loop-detector]',
-  '[SESSION RESUME FILE VALIDATION]',
-  '[SESSION RESUME INTERRUPTED WORK]',
+  // Written by `compaction-elision.ts` in place of the tool history it
+  // elided — a note addressed to the MODEL about what it can no longer see.
+  // It was replaying as the first line of the transcript, so every resumed
+  // session opened with a machine-readable inventory of its own compaction
+  // instead of the user's first prompt.
+  '[tool_history_digest:',
   '[session.resume] Request targeted session',
 ];
+
+/*
+ * NOT in the list, deliberately: `[SESSION RESUME FILE VALIDATION]` and
+ * `[SESSION RESUME INTERRUPTED WORK]`.
+ *
+ * Everything above is addressed to the MODEL — context the agent loop folded
+ * into the conversation so the LLM could see it. The resume notices are the
+ * opposite: `executeResumeSession` builds them FOR THE HUMAN, to say that
+ * files changed underneath the session or that calls were left unfinished.
+ * Filtering them meant the store detected the drift, wrote the sentence, and
+ * every surface then threw it away — nothing else reads `resumeValidation`
+ * either, so the answer existed and reached nobody. Their sibling
+ * `[SESSION RESUME CRASH RECOVERY]` was never filtered, which is what makes
+ * the omission look accidental rather than intended.
+ *
+ * Repeated resumes do not stack them: `isResumeNoticeMessage` strips the
+ * previous run's notices from the carried conversation before the current
+ * run's are appended.
+ */
 
 /**
  * Check if a text block is an internal runtime system injection that should be

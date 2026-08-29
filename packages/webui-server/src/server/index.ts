@@ -31,8 +31,8 @@ export {
   type ChimeraReportDetail,
   type ChimeraReportSummary,
   type ChimeraRouteHandlers,
-  type FindingWithEvents,
   createChimeraRouteHandlers,
+  type FindingWithEvents,
   handleChimeraRoute,
   listChimeraReportsForSession,
   queryAllChimeraReports,
@@ -471,10 +471,17 @@ export {
 } from './session-cleanup-scheduler.js';
 export { deleteWebUISession } from './session-deletion.js';
 export {
+  collectDisplayedSessionIds,
   createSessionHandlers,
   createSessionTransitionGate,
   type SessionHandlersContext,
 } from './session-handlers.js';
+export {
+  type AgentSessionPayload,
+  type AgentVirtualSessionLike,
+  buildAgentSessionsPayload,
+  type LoadAgentSessions,
+} from './session-agent-sessions.js';
 export {
   type SessionHistoryWireEntry,
   toSessionHistoryEntries,
@@ -523,6 +530,17 @@ export {
   rebuildSystemPrompt,
   type SystemPromptRebuildDeps,
 } from './system-prompt-rebuild.js';
+export {
+  type DashboardConsoleTarget,
+  type DashboardSessionRow,
+  type DashboardStdout,
+  isWebUIVerboseEnv,
+  prettifyStructuredLine,
+  renderSessionPanelLines,
+  startTerminalDashboard,
+  type TerminalDashboard,
+  type TerminalDashboardOptions,
+} from './terminal-dashboard.js';
 export { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 export {
   type ContextBreakdown,
@@ -547,6 +565,13 @@ export {
   getCostRates,
   type TokenUsage,
 } from './usage-cost.js';
+export {
+  buildSessionRows,
+  formatSessionRowsBlock,
+  type StatusSessionInfo,
+  startWebUILiveStatusLogger,
+  type WebUILiveStatusLoggerOptions,
+} from './webui-status-logger.js';
 export {
   createWorklistRouteHandlers,
   handleWorklistRoute,

@@ -39,6 +39,7 @@ import { useFleetStore } from './fleet-store';
 import { useGitChangesStore } from './git-changes-store';
 import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
+import { useRestoreTabsStore } from './restore-tabs-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -390,6 +391,19 @@ function repointForegroundAfterRelease(remaining: string[]): void {
  * runs only after paint. `subscribeSessions` dedupes, so the later effect
  * call for the same set is a no-op.
  */
+/**
+ * Tell the server this tab is in front. Never asks for its conversation back —
+ * that is `session.resume`, and a tab already on screen must not be resumed.
+ */
+function focusOnServer(sessionId: string): void {
+  try {
+    getWSClient().focusSessionById(sessionId);
+  } catch {
+    // No socket (tests, a page before connect): the foreground is a client-side
+    // pointer either way, and the next stamped message names the session.
+  }
+}
+
 function declareOpenTabsNow(openTabIds: string[]): void {
   const active = foregroundTabId();
   const ids = active && !openTabIds.includes(active) ? [...openTabIds, active] : openTabIds;
@@ -453,6 +467,81 @@ interface RestoreOpenTabsOptions {
  * Called once from `useF5Resilience` at app mount; safe to call again
  * later but a no-op once the foreground has been set.
  */
+/**
+ * Drop persisted tabs the SERVER is not holding, and return what survives.
+ *
+ * The tab strip lives in `localStorage`, so it outlives the process that
+ * created it. After a restart every id in it names a session this runtime has
+ * never heard of — and promoting them anyway is what made a fresh
+ * `wstack --webui` open wearing the previous run's tabs, front a conversation
+ * from days ago, and sit through a full journal resume (todo board included)
+ * before the user had typed a character.
+ *
+ * A dropped tab is not a deleted session: the transcript stays on disk and in
+ * History, where reopening it is an explicit act. This only says it is no
+ * longer *open*.
+ *
+ * `live` is the runtime's own list (`openSessionIds` on the boot frame). An
+ * empty or absent list means "trust nothing" and is treated as no tabs — the
+ * caller then seeds the strip with the session the server just announced.
+ */
+export function pruneTabsToLiveSessions(live: readonly string[]): string[] {
+  const alive = new Set(live.filter((id) => typeof id === 'string' && id.length > 0));
+  const stored = useSessionTabStore.getState().openTabIds;
+  const kept = stored.filter((id) => alive.has(id));
+  if (kept.length === stored.length) return kept;
+  for (const id of stored) {
+    if (!alive.has(id)) releaseTab(id);
+  }
+  writeStoredTabs(kept);
+  useSessionTabStore.setState({ openTabIds: kept });
+  return kept;
+}
+
+/** One-shot latch: the boot restore may only run once per page load. */
+let bootRestoreDone = false;
+
+/** Test seam — lets a suite re-arm the one-shot latch. */
+export function resetBootRestoreLatchForTests(): void {
+  bootRestoreDone = false;
+}
+
+/**
+ * Reconcile the persisted tab strip with the server, then promote what is left.
+ *
+ * Runs once per page load, driven by whichever comes first:
+ *
+ * - the boot `session.start` frame, which carries `openSessionIds` — the
+ *   sessions this runtime is actually holding. Stale slots are dropped, and if
+ *   NOTHING survives the strip stays empty so the announced session becomes the
+ *   single tab. That is the whole point: a fresh `wstack --webui` must open on
+ *   an empty conversation, not on a tab strip from a previous run.
+ * - a fallback timer, for a server too old to send the field or a page that
+ *   never connects. There the strip is restored unfiltered, which is the
+ *   behaviour that existed before this reconciliation.
+ *
+ * `live === undefined` means "no answer", NOT "nothing is live" — the two must
+ * not collapse, or an old server would wipe the user's tabs on every open.
+ */
+export function restoreTabsAfterBoot(
+  live: readonly string[] | undefined,
+  options: RestoreOpenTabsOptions = {},
+): string[] {
+  if (bootRestoreDone) return [];
+  bootRestoreDone = true;
+  if (live === undefined) return restoreOpenTabsOnBoot(options);
+
+  const alive = new Set(live.filter((id) => typeof id === 'string' && id.length > 0));
+  const stale = useSessionTabStore.getState().openTabIds.filter((id) => !alive.has(id));
+  pruneTabsToLiveSessions(live);
+  const restored = restoreOpenTabsOnBoot(options);
+  // Offered, not resumed. A session the runtime does not hold costs a full
+  // journal read to bring back, and doing that unasked is what made a fresh
+  // WebUI open on somebody else's conversation.
+  if (stale.length > 0) useRestoreTabsStore.getState().offer(stale);
+  return restored;
+}
+
 export function restoreOpenTabsOnBoot(options: RestoreOpenTabsOptions = {}): string[] {
   // Doc-promise guard: once any foreground is bound, a repeat call is a
   // no-op — re-running the picker would yank the user off the tab they are
@@ -492,6 +581,14 @@ export function restoreOpenTabsOnBoot(options: RestoreOpenTabsOptions = {}): str
   if (foreground) {
     activate(foreground);
     useSessionTabStore.getState().markSeen(foreground);
+    // Tell the server which tab this page came back on. Without it the runtime
+    // stays wherever it was, which after a RESTART is a session that has
+    // nothing to do with the restored strip: every message from the tab in
+    // front is then answered with "this WebUI runtime is currently on …" and
+    // the page looks alive but cannot be typed into. A focus on a session the
+    // process is not holding opens it, so this doubles as the moment a
+    // reloaded page reclaims its conversation.
+    focusOnServer(foreground);
   }
 
   // Declare the open set to the server BEFORE the first React commit so
@@ -562,10 +659,19 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
     }
 
     // Already open: switch to its slot. One session, one slot — never a
-    // second copy of the same session in another tab. Still notify the server
-    // when this was a user-initiated switch: after F5 a persisted tab can have
-    // a slot without a live writer/replay, and even live background tabs need
-    // the runtime foreground moved onto the session the user just selected.
+    // second copy of the same session in another tab.
+    //
+    // A session on screen is NEVER resumed again. Resuming re-reads a
+    // conversation the page is already displaying and answers with a replay
+    // rebuilt from the working set — no live tool cards, no audit markers,
+    // every message under a new id — so a click that should have moved a
+    // pointer rewrote the tab instead. What the server actually needs to know
+    // is only which tab is in front, and that is `session.focus`: it moves the
+    // runtime's session, the connection's acting id and the todo board, and
+    // sends no transcript. (A focus on a session the server is not holding —
+    // a page that outlived its process — still falls through to a real resume
+    // server-side, so a stale tab is not left blank.)
+    //
     // The busy-tab toast is emitted ONLY on the three branches that actually
     // move the foreground off `activeId` — a tabs_full refusal leaves the
     // busy tab in front and must not claim it "keeps running in background".
@@ -574,7 +680,7 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
       if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
       activate(sessionId);
       get().markSeen(sessionId);
-      options?.resumeSession?.(sessionId);
+      focusOnServer(sessionId);
       return { success: true, reason: 'switched' };
     }
 

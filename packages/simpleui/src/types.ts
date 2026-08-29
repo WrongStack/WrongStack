@@ -6,6 +6,8 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'thinking' | 'assistant' | 'system';
   text: string;
+  /** Canonical replay order from the session timeline; preserves same-timestamp tool/text order. */
+  replayOrder?: number | undefined;
   streaming?: boolean | undefined;
   /**
    * Whether this assistant message ended its turn — the provider stopped
@@ -132,6 +134,8 @@ export interface ToolCallInfo {
   name: string;
   input: unknown;
   status: 'running' | 'done' | 'error';
+  /** Canonical replay order from the session timeline; preserves same-timestamp tool/text order. */
+  replayOrder?: number | undefined;
   output?: string | undefined;
   durationMs?: number | undefined;
   ok?: boolean | undefined;
@@ -163,12 +167,9 @@ export interface FileEditMeta {
 }
 
 /** Unified timeline entry — either a chat message or an interleaved tool call. */
-export interface TimelineEntry {
-  kind: 'message' | 'tool_call';
-  ts: string;
-  message?: ChatMessage | undefined;
-  toolCall?: ToolCallInfo | undefined;
-}
+export type TimelineEntry =
+  | { kind: 'message'; ts: string; message: ChatMessage }
+  | { kind: 'tool_call'; ts: string; toolCall: ToolCallInfo };
 
 export interface ServerMessage {
   type: ExactServerMessageType;

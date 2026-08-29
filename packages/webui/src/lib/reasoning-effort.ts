@@ -18,6 +18,19 @@ export const ALL_EFFORTS = [
 
 export type Effort = (typeof ALL_EFFORTS)[number];
 
+/**
+ * Sentinel for "follow the general (project-wide) setting". Never a wire
+ * value: the runtime resolver treats a conversation meta of `auto` as "no
+ * conversation-level override", so the global
+ * `Config.modelRuntime.reasoning.effort` applies (core's
+ * `withConversationReasoning` skips it, and the server never persists it as
+ * a concrete effort).
+ */
+export const AUTO_EFFORT = 'auto';
+
+/** Every value an effort dropdown may offer. */
+export type EffortOption = typeof AUTO_EFFORT | Effort;
+
 const EFFORT_SET: ReadonlySet<string> = new Set(ALL_EFFORTS);
 
 /** Guard for server-supplied lists — anything outside the canonical enum
@@ -45,7 +58,21 @@ export const EFFORT_LABEL_KEYS: Record<ReasoningEffort, string> = {
 };
 
 /**
+ * Kept OUT of EFFORT_LABEL_KEYS so that Record stays pinned to core's union
+ * — `auto` is a WebUI-only sentinel, not a provider vocabulary level.
+ */
+export const AUTO_EFFORT_LABEL_KEY = 'settings:agent.reasoningEffortAuto';
+
+/** Label key for any option value an effort select renders (auto included). */
+export function effortLabelKey(value: EffortOption): string {
+  return value === AUTO_EFFORT ? AUTO_EFFORT_LABEL_KEY : EFFORT_LABEL_KEYS[value];
+}
+
+/**
  * The effort options to offer for the ACTIVE model.
+ *
+ * `auto` always leads: it means "this tab follows the general setting"
+ * (`Config.modelRuntime.reasoning.effort`), whatever that currently is.
  *
  * `levels` is `session.reasoningEffortLevels` — the vocabulary the active
  * model documents (models.dev reasoningConfig, sent only when the catalog
@@ -61,8 +88,11 @@ export const EFFORT_LABEL_KEYS: Record<ReasoningEffort, string> = {
 export function resolveEffortOptions(
   levels: readonly string[] | undefined,
   current: string,
-): Effort[] {
-  const narrowed = levels?.length ? (levels.filter(isEffort) as Effort[]) : [...ALL_EFFORTS];
+): EffortOption[] {
+  const narrowed: EffortOption[] = [
+    AUTO_EFFORT,
+    ...(levels?.length ? (levels.filter(isEffort) as Effort[]) : [...ALL_EFFORTS]),
+  ];
   if (isEffort(current) && !narrowed.includes(current)) narrowed.push(current);
   return narrowed;
 }
@@ -72,11 +102,24 @@ export function resolveEffortOptions(
  * model — i.e. the model documents an explicit level list and the current
  * value is not in it. Absent levels mean "vocabulary undocumented", which is
  * not evidence of support or its absence; the resolver forwards the value and
- * the UI must not claim it is wrong.
+ * the UI must not claim it is wrong. `auto` is never "not advertised" — it is
+ * not a level at all, it defers to the general setting.
  */
 export function effortNotAdvertised(
   levels: readonly string[] | undefined,
   current: string,
 ): boolean {
-  return !!levels?.length && !levels.includes(current);
+  return current !== AUTO_EFFORT && !!levels?.length && !levels.includes(current);
+}
+
+/**
+ * Tri-state visibility gate, mirroring the resolver's: hide the control only
+ * when the model DOCUMENTS that it has no effort control
+ * (`reasoningConfig.effortSupported === false`). `undefined` means the
+ * vocabulary is undocumented — the resolver forwards the value, so the UI
+ * shows the full canonical set rather than claiming support is absent.
+ * Boolean-coercing this tri-state is a bug: `undefined` is not `false`.
+ */
+export function effortControlHidden(effortSupported: boolean | undefined): boolean {
+  return effortSupported === false;
 }

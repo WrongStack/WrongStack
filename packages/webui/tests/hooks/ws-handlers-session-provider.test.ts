@@ -431,7 +431,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
   // ── delegation ────────────────────────────────────────────────────────────
 
   describe('delegate.started', () => {
-    it('announces the delegation and opens a timeline entry', () => {
+    it('keeps delegation out of main chat and opens a timeline entry', () => {
       useSessionStore.setState({ session: { id: 'sess-a' } } as never);
       const pushAgentTimelineEntry = vi.fn();
       useFleetStore.setState({ pushAgentTimelineEntry } as never);
@@ -442,7 +442,7 @@ describe('session ws-handlers — provider / delegate / context', () => {
           sessionId: 'sess-a',
         }),
       );
-      expect(chat()).toBe('Delegating to `worker-1`: refactor the store');
+      expect(chat()).toBe('');
       expect(pushAgentTimelineEntry).toHaveBeenCalledWith(
         expect.objectContaining({
           subagentId: 'worker-1',
@@ -455,10 +455,10 @@ describe('session ws-handlers — provider / delegate / context', () => {
       );
     });
 
-    it('truncates a long task description', () => {
+    it('truncates a long task description for the agent journal only', () => {
       useFleetStore.setState({ pushAgentTimelineEntry: vi.fn() } as never);
       handleDelegateStarted(msg('delegate.started', { target: 'w1', task: 'x'.repeat(300) }));
-      expect(chat().length).toBeLessThan(300);
+      expect(chat()).toBe('');
     });
 
     it('adds the running delegate to the live fleet roster by stable id', () => {
@@ -492,40 +492,36 @@ describe('session ws-handlers — provider / delegate / context', () => {
       toolCalls: 9,
     };
 
-    it('renders the success summary and stats', () => {
+    it('keeps the success summary out of main chat and records the agent journal', () => {
       useFleetStore.setState({ pushAgentTimelineEntry: vi.fn() } as never);
       handleDelegateCompleted(msg('delegate.completed', base));
-      expect(chat()).toContain('Delegate completed for `worker-1`.');
-      expect(chat()).toContain('done the thing');
-      expect(chat()).toContain('4 iteration(s), 9 tool call(s), 12.3s');
-      expect(lastMessage()?.isError).toBe(false);
+      expect(chat()).toBe('');
       expect(toast.warn).not.toHaveBeenCalled();
     });
 
-    it('appends a cost when one was reported', () => {
+    it('does not append delegate cost to main chat', () => {
       useFleetStore.setState({ pushAgentTimelineEntry: vi.fn() } as never);
       handleDelegateCompleted(msg('delegate.completed', { ...base, costUsd: 0.12345 }));
-      expect(chat()).toContain('12.3s · $0.1235');
+      expect(chat()).toBe('');
     });
 
-    it('omits a zero cost', () => {
+    it('keeps zero-cost delegate completions out of main chat too', () => {
       useFleetStore.setState({ pushAgentTimelineEntry: vi.fn() } as never);
       handleDelegateCompleted(msg('delegate.completed', { ...base, costUsd: 0 }));
-      expect(chat()).not.toContain('$');
+      expect(chat()).toBe('');
     });
 
-    it('includes an explicit status label', () => {
+    it('keeps explicit delegate status labels out of main chat', () => {
       useFleetStore.setState({ pushAgentTimelineEntry: vi.fn() } as never);
       handleDelegateCompleted(msg('delegate.completed', { ...base, status: 'partial' }));
-      expect(chat()).toContain('Delegate completed for `worker-1` (partial).');
+      expect(chat()).toBe('');
     });
 
-    it('renders a failure and warns', () => {
+    it('records a failure and warns without cluttering main chat', () => {
       const pushAgentTimelineEntry = vi.fn();
       useFleetStore.setState({ pushAgentTimelineEntry } as never);
       handleDelegateCompleted(msg('delegate.completed', { ...base, ok: false }));
-      expect(chat()).toContain('Delegate failed for `worker-1`.');
-      expect(lastMessage()?.isError).toBe(true);
+      expect(chat()).toBe('');
       expect(toast.warn).toHaveBeenCalledWith('Delegate failed: worker-1');
       expect(pushAgentTimelineEntry).toHaveBeenCalledWith(
         expect.objectContaining({ kind: 'error', status: 'failed' }),

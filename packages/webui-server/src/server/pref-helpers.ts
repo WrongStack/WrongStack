@@ -496,7 +496,11 @@ export async function persistPrefsToConfig(
         const mr = (decrypted.modelRuntime as Record<string, unknown>) ?? {};
         const reasoning = (mr.reasoning as Record<string, unknown>) ?? {};
         if (typeof payload['reasoningMode'] === 'string') reasoning.mode = payload['reasoningMode'];
-        if (typeof payload['reasoningEffort'] === 'string')
+        // 'auto' = "follow the general setting" sentinel: valid as this tab's
+        // session-scoped pref, but it must never become the persisted global
+        // effort or it would reach the wire as a literal level on models with
+        // an undocumented vocabulary.
+        if (typeof payload['reasoningEffort'] === 'string' && payload['reasoningEffort'] !== 'auto')
           reasoning.effort = payload['reasoningEffort'];
         if (typeof payload['reasoningPreserve'] === 'boolean')
           reasoning.preserve = payload['reasoningPreserve'];

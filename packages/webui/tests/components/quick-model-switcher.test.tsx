@@ -541,8 +541,15 @@ describe('per-session reasoning effort', () => {
     const effort = screen.getByRole('combobox', {
       name: 'Reasoning effort',
     }) as HTMLSelectElement;
-    // Desync guard: the persisted-but-unadvertised value stays visible.
-    expect([...effort.options].map((o) => o.value)).toEqual(['low', 'high', 'max', 'medium']);
+    // Desync guard: the persisted-but-unadvertised value stays visible,
+    // and the auto sentinel (follow the general setting) always leads.
+    expect([...effort.options].map((o) => o.value)).toEqual([
+      'auto',
+      'low',
+      'high',
+      'max',
+      'medium',
+    ]);
 
     fireEvent.change(effort, { target: { value: 'high' } });
     expect(useLocalPrefs.getState().reasoningEffort).toBe('high');
@@ -561,6 +568,26 @@ describe('per-session reasoning effort', () => {
         'Not offered by this model (supported: low, high, max) — the setting will be omitted.',
       ),
     ).toBeTruthy();
+  });
+
+  it('hints the project-wide effort while auto is picked', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ reasoningEffort: 'auto' } as never);
+    useSessionStore.setState({ projectReasoningEffort: 'low' } as never);
+
+    await openWithCatalogue();
+
+    expect(screen.getByText('Project setting: Low')).toBeTruthy();
+  });
+
+  it('hides the project-effort hint for a concrete selection', async () => {
+    const { useLocalPrefs } = await import('@/stores/local-prefs');
+    useLocalPrefs.setState({ reasoningEffort: 'medium' } as never);
+    useSessionStore.setState({ projectReasoningEffort: 'low' } as never);
+
+    await openWithCatalogue();
+
+    expect(screen.queryByText(/Project setting/)).toBeNull();
   });
 
   it('shows per-candidate effort levels and seeds them on switch', async () => {

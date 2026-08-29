@@ -383,6 +383,17 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         ...(e.requestId ? { requestId: e.requestId } : {}),
       }),
     });
+    // Journaled: everything after this point was produced by a different
+    // model than the one `session_start` names, and a reader with no record
+    // of the switch credits the whole session to the first one.
+    appendForCurrentSession(e.sessionId, {
+      type: 'model_switched',
+      ts: new Date().toISOString(),
+      from: e.from,
+      to: e.to,
+      reason: 'fallback',
+      ...(typeof e.status === 'number' ? { status: e.status } : {}),
+    });
   });
 
   on('provider.model_switched', (e) => {
@@ -394,6 +405,13 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         to: e.to,
         timestamp: e.timestamp,
       }),
+    });
+    appendForCurrentSession(e.sessionId, {
+      type: 'model_switched',
+      ts: new Date().toISOString(),
+      ...(e.from ? { from: e.from } : {}),
+      to: e.to,
+      reason: 'user',
     });
   });
 

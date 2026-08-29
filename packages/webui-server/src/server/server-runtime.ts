@@ -113,6 +113,7 @@ interface SessionStartPayloadGetters {
 interface SessionRuntimeContext {
   model?: string | undefined;
   provider?: { id?: string | undefined } | undefined;
+  session?: { startedAt?: string | undefined } | undefined;
   meta?: Record<string, unknown> | undefined;
 }
 
@@ -146,6 +147,10 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
   protocolCapabilities: string[];
   needsSetup?: boolean | undefined;
   reasoningEffortLevels?: string[] | undefined;
+  /** Tri-state effort-support signal (see SessionLaneData.effortSupported). */
+  effortSupported?: boolean | undefined;
+  /** Project-wide effort — display-only hint for the composer's auto option. */
+  projectReasoningEffort?: string | undefined;
   [key: string]: unknown;
 }> {
   return async (overrides?: Record<string, unknown>) => {
@@ -160,6 +165,10 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
         ? (overrides['sessionId'] as string)
         : g.getSessionId();
     const sessionCtx = g.getSessionContext?.(targetSessionId);
+    const startedAt =
+      typeof sessionCtx?.session?.startedAt === 'string' && sessionCtx.session.startedAt.length > 0
+        ? sessionCtx.session.startedAt
+        : undefined;
     const config = {
       ...globalConfig,
       provider: sessionCtx?.provider?.id ?? globalConfig.provider,
@@ -170,6 +179,7 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
     let outputCost = 0;
     let cacheReadCost = 0;
     let reasoningEffortLevels: string[] | undefined;
+    let effortSupported: boolean | undefined;
     try {
       const m = await resolveProviderModelMetadata(
         g.modelsRegistry,
@@ -182,6 +192,9 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
       if (rc?.effortSupported && rc.effortLevels?.length) {
         reasoningEffortLevels = rc.effortLevels;
       }
+      // Tri-state passthrough: undefined = undocumented vocabulary, false =
+      // the model documents that it has no effort control. Never coerce.
+      effortSupported = rc?.effortSupported;
       if (!maxContext) {
         try {
           const provider = await (
@@ -224,9 +237,12 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
       protocolCapabilities: string[];
       needsSetup?: boolean | undefined;
       reasoningEffortLevels?: string[] | undefined;
+      effortSupported?: boolean | undefined;
+      projectReasoningEffort?: string | undefined;
       [key: string]: unknown;
     } = {
       sessionId: targetSessionId,
+      ...(startedAt ? { startedAt } : {}),
       model: config.model,
       provider: config.provider,
       maxContext,
@@ -245,6 +261,16 @@ export function createSessionStartPayload(g: SessionStartPayloadGetters): (
       ...(overrides ?? {}),
     };
     if (reasoningEffortLevels) result.reasoningEffortLevels = reasoningEffortLevels;
+    if (effortSupported !== undefined) result.effortSupported = effortSupported;
+    // Display-only hint: the project-wide effort the composer's auto option
+    // follows. Read from the LIVE global config, not the session meta — a
+    // tab that picked 'auto' has no concrete value of its own to show.
+    const projectReasoningEffort = (
+      globalConfig.modelRuntime as { reasoning?: { effort?: string } } | undefined
+    )?.reasoning?.effort;
+    if (typeof projectReasoningEffort === 'string' && projectReasoningEffort !== 'auto') {
+      result.projectReasoningEffort = projectReasoningEffort;
+    }
     if (g.getNeedsSetup()) result.needsSetup = true;
     return result;
   };

@@ -290,3 +290,100 @@ describe('selectSortedAgentList', () => {
     expect(selectSortedAgentList(useFleetStore.getState())).toEqual([]);
   });
 });
+
+describe('applyEvent transcript synthesis', () => {
+  it('creates system entry on spawned with description', () => {
+    useFleetStore.getState().applyEvent({
+      kind: 'spawned',
+      subagentId: 'sa-w1',
+      name: 'worker 1',
+      description: 'Audit SQL queries',
+    } as never);
+
+    const entries = transcript('sa-w1');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: 'system',
+      content: '🎯 Spawned: Audit SQL queries',
+    });
+  });
+
+  it('creates status and tool entries across subagent lifecycle', () => {
+    useFleetStore.getState().applyEvent({
+      kind: 'spawned',
+      subagentId: 'sa-w2',
+      name: 'worker 2',
+    } as never);
+    useFleetStore.getState().applyEvent({
+      kind: 'task_started',
+      subagentId: 'sa-w2',
+      name: 'worker 2',
+      description: 'Analyze performance',
+    } as never);
+    useFleetStore.getState().applyEvent({
+      kind: 'tool_executed',
+      subagentId: 'sa-w2',
+      name: 'worker 2',
+      toolName: 'read_file',
+      ok: true,
+      durationMs: 42,
+    } as never);
+    useFleetStore.getState().applyEvent({
+      kind: 'iteration_summary',
+      subagentId: 'sa-w2',
+      name: 'worker 2',
+      iteration: 1,
+      partialText: 'I found 2 bottlenecks in the database query.',
+    } as never);
+    useFleetStore.getState().applyEvent({
+      kind: 'task_completed',
+      subagentId: 'sa-w2',
+      name: 'worker 2',
+      status: 'success',
+      finalText: 'I found 2 bottlenecks in the database query. Summary of fix: add index.',
+    } as never);
+
+    const entries = transcript('sa-w2');
+    expect(entries.length).toBe(3);
+    expect(entries.some((e) => e.kind === 'status' && e.content.includes('Analyze performance'))).toBe(true);
+    expect(entries.some((e) => e.kind === 'tool_result' && e.toolName === 'read_file')).toBe(true);
+    expect(entries.some((e) => e.kind === 'text' && e.content.includes('Summary of fix'))).toBe(true);
+  });
+});
+
+describe('hydrateAgentSessions', () => {
+  it('hydrates subagent sessions and transcripts from disk replay payload', () => {
+    useFleetStore.getState().hydrateAgentSessions(
+      [
+        {
+          subagentId: 'sub-past-1',
+          agentName: 'Past Worker',
+          status: 'completed',
+          task: 'Past task on disk',
+          transcript: [
+            {
+              id: 'past-1',
+              subagentId: 'sub-past-1',
+              agentName: 'Past Worker',
+              content: 'Historical message from disk',
+              kind: 'text',
+              iteration: 1,
+              ts: '2026-01-01T12:00:00.000Z',
+            },
+          ],
+        },
+      ],
+      'sess-main',
+    );
+
+    const agent = useFleetStore.getState().agents.get('sub-past-1');
+    expect(agent).toBeDefined();
+    expect(agent?.name).toBe('Past Worker');
+    expect(agent?.description).toBe('Past task on disk');
+
+    const entries = transcript('sub-past-1');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.content).toBe('Historical message from disk');
+  });
+});
+

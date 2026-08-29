@@ -7,7 +7,7 @@ import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { noOpVault } from '@wrongstack/core/security';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULTS } from '../src/slash-commands/statusline.js';
+import { DEFAULTS, STATUSLINE_CONFIG_VERSION } from '../src/slash-commands/statusline.js';
 import { setupSlashCommands } from '../src/wiring/slash-commands.js';
 import { makeFakeMemoryStore } from './fake-memory-store.js';
 
@@ -118,7 +118,11 @@ describe('setupSlashCommands', () => {
     const written = JSON.parse(
       await fs.readFile(process.env.WRONGSTACK_STATUSLINE_CONFIG!, 'utf8'),
     );
-    expect(written).toEqual(DEFAULTS);
+    expect(written).toEqual({
+      version: STATUSLINE_CONFIG_VERSION,
+      chips: DEFAULTS,
+      lines: {},
+    });
   });
 
   it('runs with all chips enabled (default statusline)', async () => {

@@ -101,7 +101,12 @@ describe('per-session runtime — preferences', () => {
 describe('per-session runtime — session.start payload', () => {
   const contexts = new Map<
     string,
-    { model: string; provider: { id: string }; meta: Record<string, unknown> }
+    {
+      model: string;
+      provider: { id: string };
+      meta: Record<string, unknown>;
+      session?: { startedAt: string } | undefined;
+    }
   >([
     [
       'sess_a',
@@ -109,6 +114,7 @@ describe('per-session runtime — session.start payload', () => {
         model: 'model-a',
         provider: { id: 'prov-a' },
         meta: { modeId: 'review', contextWindowMode: 'frugal' },
+        session: { startedAt: '2026-07-25T10:00:00.000Z' },
       },
     ],
     ['sess_b', { model: 'model-b', provider: { id: 'prov-b' }, meta: {} }],
@@ -140,6 +146,12 @@ describe('per-session runtime — session.start payload', () => {
 
     expect(payload.mode).toBe('review');
     expect(payload.contextMode).toBe('frugal');
+  });
+
+  it('reports a tab original session start time', async () => {
+    const payload = await build()({ sessionId: 'sess_a' });
+
+    expect(payload.startedAt).toBe('2026-07-25T10:00:00.000Z');
   });
 
   it('falls back to the global defaults for a tab that never overrode them', async () => {

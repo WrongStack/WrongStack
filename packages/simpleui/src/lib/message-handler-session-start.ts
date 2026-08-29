@@ -1,7 +1,7 @@
 import type { projectNextStepsToolInput } from '@wrongstack/tools/next-steps';
 import { projectSessionMessage } from '@wrongstack/webui-protocol';
 import type { ServerMessage } from '../types.js';
-import { LEADER_AGENT_ID, parseAgentSessionReplays } from './agent-model.js';
+import { LEADER_AGENT_ID } from './agent-model.js';
 import { replayToMessages, replayToToolCalls } from './chat-model.js';
 import type { MessageHandlerDeps } from './message-handler-deps.js';
 
@@ -65,13 +65,18 @@ export function handleSessionStartMessage(params: {
     maxContext,
     projectName,
     cwd,
+    startedAt,
+    isRunning,
     replayMessages,
     replayMarkers,
+    replayToolMeta,
     replayUsage,
   } = sessionProjection;
   const previousId = sessionIdRef.current;
   const switchedSession = Boolean(previousId && id && previousId !== id);
   const resetSessionState = switchedSession || sessionProjection.reset;
+  const startedAtMs = Date.parse(startedAt);
+  const sessionStartedAt = Number.isFinite(startedAtMs) ? startedAtMs : Date.now();
   if (switchedSession && previousId) {
     writeComposerDraft(previousId, {
       text: draftRef.current,
@@ -99,9 +104,10 @@ export function handleSessionStartMessage(params: {
       ? current[provider]
       : [{ id: model, name: model }, ...(current[provider] ?? [])].filter((item) => item.id),
   }));
+  const replayedToolCalls = replayMessages ? replayToToolCalls(replayMessages, replayToolMeta) : [];
   if (replayMessages) {
-    setMessages(replayToMessages(replayMessages, replayMarkers));
-    setToolCalls(replayToToolCalls(replayMessages));
+    setMessages(replayToMessages(replayMessages, replayMarkers, replayToolMeta));
+    setToolCalls(replayedToolCalls);
   } else if (resetSessionState) {
     setMessages([]);
     setToolCalls([]);
@@ -115,20 +121,8 @@ export function handleSessionStartMessage(params: {
   }
 
   if (!previousId || resetSessionState) {
-    const agentSessions = parseAgentSessionReplays(payload['agentSessions']);
-    setSubagents(
-      agentSessions.map(({ subagentId, agentName, status, task }) => ({
-        id: subagentId,
-        name: agentName,
-        status,
-        task,
-      })),
-    );
-    setAgentTranscripts(
-      Object.fromEntries(
-        agentSessions.map(({ subagentId, transcript }) => [subagentId, transcript]),
-      ),
-    );
+    setSubagents([]);
+    setAgentTranscripts({});
   }
   if (!previousId || switchedSession) {
     const savedDraft = readComposerDraft(id);
@@ -147,11 +141,12 @@ export function handleSessionStartMessage(params: {
   }
   if (resetSessionState) {
     setPendingConfirm(null);
-    setRunning(false);
-    setActivity('');
+    setRunning(isRunning);
+    const runningTool = replayedToolCalls.find((call) => call.status === 'running');
+    setActivity(isRunning ? (runningTool ? `Running ${runningTool.name}` : 'Thinking') : '');
     setSelectedAgentId(LEADER_AGENT_ID);
     resetAgentNameCache();
-    setSessionStart(Date.now());
+    setSessionStart(sessionStartedAt);
     setAttachedImages([]);
     setSessionMenuOpen?.(false);
   }

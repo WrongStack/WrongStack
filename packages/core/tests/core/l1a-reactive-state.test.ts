@@ -56,7 +56,7 @@ describe('L1-A: ctx.state is the single source of reactive truth', () => {
     expect(ctx.messages).toHaveLength(1);
   });
 
-  it('serializes exact journal events in state-mutation order and survives an append failure', async () => {
+  it('serializes exact journal events in state-mutation order and retries an append failure', async () => {
     const persisted: Array<{ type: string; message?: Message }> = [];
     let calls = 0;
     const session = {
@@ -83,8 +83,42 @@ describe('L1-A: ctx.state is the single source of reactive truth', () => {
     ctx.state.appendMessage({ role: 'user', content: 'three' });
     await ctx.flushConversationJournal();
 
+    expect(session.append).toHaveBeenCalledTimes(4);
+    expect(persisted.map((event) => event.message?.content)).toEqual(['one', 'two', 'three']);
+  });
+
+  it('keeps failed journal events queued and surfaces persistent append failure on flush', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const session = {
+      ...fakeSession,
+      append: vi.fn(async () => {
+        throw new Error('disk unavailable');
+      }),
+    } satisfies SessionWriter;
+    const ctx = new Context({
+      systemPrompt: [{ type: 'text', text: 'sys' }],
+      provider: fakeProvider,
+      session,
+      signal: new AbortController().signal,
+      tokenCounter: new DefaultTokenCounter(),
+      cwd: '/cwd',
+      projectRoot: '/root',
+      model: 'm',
+    });
+
+    ctx.state.appendMessage({ role: 'user', content: 'must survive' });
+    await expect(ctx.flushConversationJournal()).rejects.toThrow('disk unavailable');
+
     expect(session.append).toHaveBeenCalledTimes(3);
-    expect(persisted.map((event) => event.message?.content)).toEqual(['one', 'three']);
+    expect(ctx._conversationJournalQueue).toHaveLength(1);
+    expect(ctx._conversationJournalQueue[0]?.event).toMatchObject({
+      type: 'message_appended',
+      message: expect.objectContaining({ content: 'must survive' }),
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"session.conversation_journal_write_failed"'),
+    );
+    warn.mockRestore();
   });
 
   it('captures the writer active at mutation time when a session is swapped', async () => {
@@ -118,6 +152,29 @@ describe('L1-A: ctx.state is the single source of reactive truth', () => {
         message: expect.objectContaining({ content: 'next session' }),
       }),
     );
+  });
+
+  it('drops conversation journal events when a placeholder writer has no append function', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const ctx = new Context({
+      systemPrompt: [{ type: 'text', text: 'sys' }],
+      provider: fakeProvider,
+      session: { id: 'placeholder' } as SessionWriter,
+      signal: new AbortController().signal,
+      tokenCounter: new DefaultTokenCounter(),
+      cwd: '/cwd',
+      projectRoot: '/root',
+      model: 'm',
+    });
+
+    ctx.state.replaceMessages([{ role: 'user', content: 'restored' }]);
+    await expect(ctx.flushConversationJournal()).resolves.toBeUndefined();
+
+    expect(ctx._conversationJournalQueue).toHaveLength(0);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"session.conversation_journal_drop"'),
+    );
+    warn.mockRestore();
   });
 
   it('bounds pending journal work and collapses pressure into a snapshot', async () => {

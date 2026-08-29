@@ -45,6 +45,7 @@ const coreEntries = entryMap([
   'src/index.ts',
   'src/kernel/index.ts',
   'src/core/index.ts',
+  'src/statusline/index.ts',
   // Narrow, dependency-free entries so browser bundles (webui, webui-hq,
   // simpleui) can import these helpers without dragging the `types` / `core`
   // barrels — those reach `types/mode-prompts.ts`, which reads instruction
@@ -53,6 +54,7 @@ const coreEntries = entryMap([
   'src/core/model-ref.ts',
   'src/types/index.ts',
   'src/types/session-markers.ts',
+  'src/types/session-timeline.ts',
   'src/utils/index.ts',
   'src/utils/expect-defined.ts',
   'src/utils/error.ts',

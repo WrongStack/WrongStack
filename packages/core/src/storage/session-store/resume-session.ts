@@ -191,7 +191,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
     const writer = new FileSessionWriter(
       canonicalId,
       handle,
-      new Date().toISOString(),
+      data.metadata.startedAt,
       {
         id: canonicalId,
         model: data.metadata.model,

@@ -407,6 +407,8 @@
     "reasoningModeOn": "Açık — düşünmeyi zorla",
     "reasoningModeOff": "Kapalı — düşünmeyi kapat",
     "reasoningEffortLabel": "Akıl yürütme çabası",
+    "reasoningEffortAuto": "Otomatik (genel)",
+    "reasoningEffortAutoHint": "Genel ayar: {{value}}",
     "reasoningEffortHint": "Modelin düşünmeye harcadığı işlem gücü. Yalnızca model desteklediğinde gönderilir.",
     "reasoningEffortNone": "Yok",
     "reasoningEffortMinimal": "Minimal",

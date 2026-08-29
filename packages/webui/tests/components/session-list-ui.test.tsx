@@ -103,7 +103,7 @@ describe('SessionList workspace', () => {
     expect(props.resumeSession).toHaveBeenCalledExactlyOnceWith('session-1');
   });
 
-  it('switches an already-open background tab and still asks the backend for its replay', () => {
+  it('switches an already-open background tab without asking the backend to resume it', () => {
     useSessionTabStore.setState({
       openTabIds: ['session-active', 'session-1'],
       lastSeenCounts: {},
@@ -117,7 +117,11 @@ describe('SessionList workspace', () => {
 
     expect(useSessionTabStore.getState().openTabIds).toEqual(['session-active', 'session-1']);
     expect(useSessionLanes.getState().activeSessionId).toBe('session-1');
-    expect(props.resumeSession).toHaveBeenCalledExactlyOnceWith('session-1');
+    // The row's Resume button on a session that is ALREADY in a slot is a
+    // switch, nothing more: the tab holds the conversation, so reopening it
+    // would replace what it shows with a poorer replay. The server hears
+    // `session.focus` instead (see session-tab-store).
+    expect(props.resumeSession).not.toHaveBeenCalled();
   });
 
   it('refuses a new resume when all four slots contain non-empty sessions', () => {

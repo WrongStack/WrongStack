@@ -108,6 +108,7 @@ export interface WsClientActionMethods {
   getStats(options?: WSSendOptions): void;
   saveSession(): void;
   resumeSessionById(id: string): void;
+  focusSessionById(id: string): void;
   listModes(): void;
   switchMode(id: string): void;
   listFiles(query?: string, limit?: number, path?: string): void;
@@ -383,6 +384,14 @@ const actionMethods = {
 
   resumeSessionById(this: WsClientActionHost, id: string) {
     this.send({ type: 'session.resume', payload: this.withSession({ id }) });
+  },
+
+  /**
+   * Move the foreground onto a tab that is already open, without asking for
+   * its conversation back. See the `session.focus` note in client-message.ts.
+   */
+  focusSessionById(this: WsClientActionHost, id: string) {
+    this.send({ type: 'session.focus', payload: this.withSession({ id }) });
   },
 
   listModes(this: WsClientActionHost) {

@@ -69,6 +69,7 @@ import { setupWebuiProxyInstantApply } from './start-webui-proxy-apply.js';
 import { createPackageOperationExecutor } from './start-webui-remediation.js';
 import { setupWebuiShutdown } from './start-webui-shutdown.js';
 import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js';
+import { startTerminalDashboard } from './terminal-dashboard.js';
 import type { WebUIOptions } from './types.js';
 import { startWebUILiveStatusLogger } from './webui-status-logger.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
@@ -423,8 +424,7 @@ export async function startWebUI(
     // once the live config has a provider AND model selected, setup is
     // satisfied — otherwise every session.start frame keeps navigating the
     // client back to the setup screen on fresh homes.
-    getNeedsSetup: () =>
-      needsSetup && !(state.getConfig().provider && state.getConfig().model),
+    getNeedsSetup: () => needsSetup && !(state.getConfig().provider && state.getConfig().model),
     modelsRegistry,
     // Per-tab truth: a session that switched model/mode/context strategy
     // reports its OWN values, not the process-wide defaults.
@@ -782,9 +782,7 @@ export async function startWebUI(
     hasSession: (id: string) =>
       id === agent.ctx.session?.id ||
       Boolean(peekAgent?.(id)) ||
-      [...clients.values()].some(
-        (c) => c.sessionId === id || c.sessionIds?.has(id) === true,
-      ),
+      [...clients.values()].some((c) => c.sessionId === id || c.sessionIds?.has(id) === true),
     context,
     container,
     toolRegistry,
@@ -884,8 +882,15 @@ export async function startWebUI(
     }),
   });
 
+  // The fixed bottom panel + ordered log stream for this terminal. Disabled
+  // by itself on non-TTY output or WEBUI_VERBOSE=1 (append-only logs).
+  const terminalDashboard = startTerminalDashboard({
+    title: 'WebUI',
+    getUrl: () => `http://${wsHost}:${httpPort}`,
+  });
   const stopLiveStatusLogger = startWebUILiveStatusLogger({
     events,
+    dashboard: terminalDashboard,
     getSessionList: () => {
       const activeIds = new Set<string>();
       for (const client of clients.values()) {
@@ -908,8 +913,6 @@ export async function startWebUI(
         };
       });
     },
-    // Read-only: a status line must not create the agent it is describing.
-    getAgent: (sessionId) => deps.peekAgent?.(sessionId),
   });
 
   const routes = buildRoutes(state, deps, cb);
@@ -956,7 +959,7 @@ export async function startWebUI(
     tokenCounter,
     context,
     loadReplay: async () => {
-      await session.flush().catch(() => undefined);
+      await session.flush();
       const data = await sessionStore.load(session.id);
       return { messages: data.messages, events: data.events, usage: data.usage };
     },
@@ -1015,6 +1018,7 @@ export async function startWebUI(
     todosCheckpoint,
     stopHeapWatchdog,
     stopLiveStatusLogger,
+    stopTerminalDashboard: () => terminalDashboard.stop(),
     getCredentialWatcherClose: () => credentialWatcherClose,
     getProxyInstantApplyDispose: () => proxyInstantApplyDispose,
     disposeRealtimeHandlers,
@@ -1032,6 +1036,8 @@ export async function startWebUI(
     codebaseIndexing,
     memoryStore,
     vectorMemoryStore,
+    flushSessionJournalsSync: agentServices.flushSessionJournalsSync,
+    closeSessionJournals: agentServices.closeSessionJournals,
     globalConfigPath,
   });
 }

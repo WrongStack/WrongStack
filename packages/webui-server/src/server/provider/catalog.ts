@@ -122,8 +122,13 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
           const rc = reasoningByModelId.get(model.id);
           const reasoningEffortLevels =
             rc?.effortSupported && rc.effortLevels?.length ? [...rc.effortLevels] : undefined;
+          // Tri-state companion to the levels: undefined = undocumented, false
+          // = the model documents that it has no effort control.
+          const effortSupported = rc?.effortSupported;
           if (model.contextWindow && model.capabilities.length > 0) {
-            return reasoningEffortLevels ? { ...model, reasoningEffortLevels } : model;
+            return reasoningEffortLevels || effortSupported !== undefined
+              ? { ...model, reasoningEffortLevels, effortSupported }
+              : model;
           }
           const resolved = await resolveProviderModelMetadata(
             ctx.deps.modelsRegistry as ModelsRegistry,
@@ -131,7 +136,11 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
             model.id,
             config,
           ).catch(() => undefined);
-          if (!resolved) return reasoningEffortLevels ? { ...model, reasoningEffortLevels } : model;
+          if (!resolved) {
+            return reasoningEffortLevels || effortSupported !== undefined
+              ? { ...model, reasoningEffortLevels, effortSupported }
+              : model;
+          }
           const capabilities = new Set(model.capabilities);
           if (resolved.capabilities.tools) capabilities.add('tools');
           if (resolved.capabilities.reasoning) capabilities.add('reasoning');
@@ -143,6 +152,7 @@ export function createCatalogHandlers(ctx: ProviderServiceContext) {
             outputCost: model.outputCost ?? resolved.cost?.output,
             capabilities: [...capabilities],
             ...(reasoningEffortLevels ? { reasoningEffortLevels } : {}),
+            ...(effortSupported !== undefined ? { effortSupported } : {}),
           };
         }),
       );

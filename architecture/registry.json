@@ -37,6 +37,7 @@
       "targetOwner": "session-catalog"
     },
     "skills": { "classification": "feature-runtime", "targetOwner": "skills" },
+    "statusline": { "classification": "feature-runtime", "targetOwner": "runtime-review-required" },
     "storage": { "classification": "persistence-runtime", "targetOwner": "storage" },
     "tasking": { "classification": "agent-domain", "targetOwner": "core-review-required" },
     "tools": { "classification": "product-feature", "targetOwner": "tools" },

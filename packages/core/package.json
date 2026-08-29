@@ -40,6 +40,10 @@
       "types": "./dist/types/session-markers.d.ts",
       "import": "./dist/types/session-markers.js"
     },
+    "./types/session-timeline": {
+      "types": "./dist/types/session-timeline.d.ts",
+      "import": "./dist/types/session-timeline.js"
+    },
     "./core/model-ref": {
       "types": "./dist/core/model-ref.d.ts",
       "import": "./dist/core/model-ref.js"
@@ -120,6 +124,10 @@
     "./security": {
       "types": "./dist/security/index.d.ts",
       "import": "./dist/security/index.js"
+    },
+    "./statusline": {
+      "types": "./dist/statusline/index.d.ts",
+      "import": "./dist/statusline/index.js"
     },
     "./infrastructure": {
       "types": "./dist/infrastructure/index.d.ts",

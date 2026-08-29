@@ -1,4 +1,4 @@
-import type { SessionMarker, Usage } from '@wrongstack/core/types';
+import type { SessionMarker, SessionToolMeta, Usage } from '@wrongstack/core/types';
 
 // Event types for WebSocket communication
 interface WSMessage {
@@ -10,6 +10,8 @@ export interface WSSessionStart {
   type: 'session.start';
   payload: {
     sessionId: string;
+    /** Original session start timestamp; resume must not reset uptime. */
+    startedAt?: string | undefined;
     model: string;
     provider: string;
     maxContext?: number | undefined;
@@ -26,6 +28,10 @@ export interface WSSessionStart {
      *  provider retries, truncation) projected server-side. Replayed alongside
      *  the conversation so a reconnect shows what the live stream showed. */
     replayMarkers?: SessionMarker[] | undefined;
+    /** Per-tool timing/output metadata projected from `tool_call_end`, so a
+     *  replayed tool card shows the same duration and size chips it showed
+     *  live. */
+    replayToolMeta?: SessionToolMeta[] | undefined;
     replayUsage?: Usage | undefined;
     /** True when no provider+model is configured yet — show the setup screen. */
     needsSetup?: boolean | undefined;

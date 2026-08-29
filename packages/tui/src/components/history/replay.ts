@@ -3,9 +3,10 @@ import type {
   Message,
   SessionEvent,
   SessionMarker,
+  SessionTimelineEntry,
 } from '@wrongstack/core/types';
 import {
-  isSystemInjectedMessage,
+  projectSessionTimeline,
   SESSION_MARKER_EVENT_TYPES,
   sessionEventToMarker,
 } from '@wrongstack/core/types';
@@ -29,18 +30,18 @@ import type { HistoryEntry } from './types.js';
  * | `provider_retry`         | `warn`            |
  * | `provider_error`         | `error`           |
  * | `checkpoint`             | `info`            |
- * | `agent_spawned`/`agent_stopped` | `subagent`  |
- * | `agent_error`            | `subagent`        |
+ * | `agent_spawned`/`agent_stopped` | excluded    |
+ * | `agent_error`            | excluded          |
  * | `mode_changed`           | `info`            |
  * | `skill_activated`/`skill_deactivated` | `info` |
  * | `message_truncated`      | `warn`            |
  *
  * ## Non-resumable events (subagent transcripts)
  *
- * Subagent events (`agent_spawned`, `agent_stopped`, `agent_error`) are
- * rendered as `subagent` entries in the main TUI history but the full
- * subagent tool-call details live in per-subagent JSONL files. The main
- * session only holds the lifecycle markers.
+ * Subagent lifecycle events (`agent_spawned`, `agent_stopped`, `agent_error`)
+ * are deliberately excluded from the main TUI history. Their raw journal
+ * records stay on disk for a dedicated inspection surface; resume must restore
+ * the leader's screen, not a mixed leader/subagent ledger.
  *
  * ## Compaction events
  *
@@ -61,32 +62,28 @@ import type { HistoryEntry } from './types.js';
  * The set and the wording both live in core (`types/session-markers.ts`) so the
  * TUI, WebUI, SimpleUI and HQ cannot drift on what a resumed session says.
  */
-const MARKER_EVENT_TYPES = SESSION_MARKER_EVENT_TYPES;
+const TUI_RESUME_EXCLUDED_MARKER_SOURCES: ReadonlySet<SessionEvent['type']> = new Set([
+  'agent_spawned',
+  'agent_session_linked',
+  'agent_stopped',
+  'agent_error',
+  'delegate_started',
+  'delegate_completed',
+]);
+
+const MARKER_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set(
+  [...SESSION_MARKER_EVENT_TYPES].filter(
+    (type) => !TUI_RESUME_EXCLUDED_MARKER_SOURCES.has(type),
+  ),
+);
 
 type PreEntry = DistributiveOmit<HistoryEntry, 'id'>;
-
-/** Presentation for the subagent lifecycle markers, keyed by source event. */
-const SUBAGENT_MARKER_STYLE: Record<string, { color: string; icon: string }> = {
-  agent_spawned: { color: 'magenta', icon: '⚡' },
-  agent_stopped: { color: 'gray', icon: '⊘' },
-  agent_error: { color: 'red', icon: '✗' },
-};
 
 /**
  * Render a core {@link SessionMarker} as a TUI history entry. Only the visual
  * treatment is decided here — the text came from core.
  */
-function markerToEntry(marker: SessionMarker): PreEntry {
-  if (marker.agentId !== undefined) {
-    const style = SUBAGENT_MARKER_STYLE[marker.source] ?? { color: 'gray', icon: '·' };
-    return {
-      kind: 'subagent',
-      agentLabel: marker.agentId.slice(0, 8),
-      agentColor: style.color,
-      icon: style.icon,
-      text: marker.text,
-    } as PreEntry;
-  }
+function markerToEntry(marker: SessionMarker): PreEntry | null {
   if (marker.level === 'error') return { kind: 'error', text: marker.text };
   if (marker.level === 'warn') return { kind: 'warn', text: marker.text };
   return { kind: 'info', text: marker.text };
@@ -103,7 +100,8 @@ function toolOutputPreview(content: unknown): string {
  * backbone — user/assistant/system text, thinking blocks, and tool calls with
  * their input + output) and interleaves the audit `events` marker stream
  * (mode/compaction/checkpoint/skill/agent/error/retry/truncation) at their
- * chronological positions.
+ * chronological positions. Subagent/delegate lifecycle markers are excluded
+ * from the main resume screen.
  *
  * Ordering is a two-pointer merge of two already-chronological sequences
  * (message backbone by construction, marker events by JSONL order) so the
@@ -117,141 +115,67 @@ export function replaySessionMessages(
   events: readonly SessionEvent[],
   startId: number,
 ): HistoryEntry[] {
-  const toolEnds = new Map(
-    events
-      .filter(
-        (event): event is Extract<SessionEvent, { type: 'tool_call_end' }> =>
-          event.type === 'tool_call_end',
-      )
-      .map((event) => [event.id, event]),
-  );
+  // Ordering, pairing and visibility come from core; only the TUI's own
+  // presentation is decided here.
+  const timeline = projectSessionTimeline({
+    messages,
+    events,
+    markerSources: MARKER_EVENT_TYPES,
+    thinkingPlacement: 'inline',
+  });
 
-  // ── Conversation backbone (in message-walk order) ─────────────────────────
-  const backbone: Array<{ ts: string; entry: PreEntry }> = [];
-  const toolEntries = new Map<string, Extract<PreEntry, { kind: 'tool' }>>();
-  let lastTs = '';
-
-  const push = (ts: string, entry: PreEntry): PreEntry => {
-    backbone.push({ ts, entry });
-    return entry;
-  };
-  // `final` marks the last assistant message of a turn — the only kind that
-  // may surface a `<nextsteps>` panel on replay. A message carrying a tool_use
-  // block stopped for a tool call, so its prose is mid-turn.
-  const appendText = (role: Message['role'], text: string, ts: string, final: boolean): void => {
-    if (!text.trim()) return;
-    if (isSystemInjectedMessage(text)) return;
-    push(
-      ts,
-      role === 'assistant'
-        ? { kind: 'assistant', text, final }
-        : role === 'system'
-          ? { kind: 'info', text }
-          : { kind: 'user', text },
-    );
-  };
-
-  for (const message of messages) {
-    const ts = message.ts ?? lastTs;
-    if (message.ts) lastTs = message.ts;
-
-    if (typeof message.content === 'string') {
-      // String content cannot carry a tool_use block, so it always ended its turn.
-      appendText(message.role, message.content, ts, true);
-      continue;
-    }
-
-    // Thinking blocks appear before text/tool_use per the provider contract
-    // (blocks.ts) — emit them in that order so resume matches live rendering.
-    for (const block of message.content) {
-      if (block.type === 'thinking' && block.thinking.trim()) {
-        push(ts, { kind: 'thinking', text: block.thinking });
-      }
-    }
-
-    // Walk content blocks in order, interleaving text and tool entries.
-    // Concatenating all text first would move prose that appeared after a
-    // tool ahead of that tool on resume — the same class of bug as sorting
-    // messages by role instead of by timeline.
-    const final = !message.content.some((block) => block.type === 'tool_use');
-    const textParts: string[] = [];
-    const flushText = (): void => {
-      const text = textParts.join('').trim();
-      if (text) appendText(message.role, text, ts, final);
-      textParts.length = 0;
-    };
-
-    for (const block of message.content) {
-      if (block.type === 'text') {
-        textParts.push(block.text);
-        continue;
-      }
-      if (block.type === 'tool_use') {
-        flushText();
-        const end = toolEnds.get(block.id);
-        const entry = push(ts, {
-          kind: 'tool',
-          name: block.name,
-          durationMs: end?.durationMs ?? 0,
-          ok: false,
-          input: block.input,
-          outputBytes: end?.outputBytes,
-          outputTokens: end?.outputTokens,
-          outputLines: end?.outputLines,
-        }) as Extract<PreEntry, { kind: 'tool' }>;
-        toolEntries.set(block.id, entry);
-        continue;
-      }
-      if (block.type !== 'tool_result') continue;
-      flushText();
-      const existing = toolEntries.get(block.tool_use_id);
-      if (existing) {
-        existing.output = toolOutputPreview(block.content);
-        existing.ok = !block.is_error;
-        toolEntries.delete(block.tool_use_id);
-        continue;
-      }
-      const end = toolEnds.get(block.tool_use_id);
-      push(ts, {
-        kind: 'tool',
-        name: block.name ?? block.tool_use_id,
-        durationMs: end?.durationMs ?? 0,
-        ok: !block.is_error,
-        output: toolOutputPreview(block.content),
-        outputBytes: end?.outputBytes,
-        outputTokens: end?.outputTokens,
-        outputLines: end?.outputLines,
-      });
-    }
-    flushText();
-  }
-
-  // ── Marker events (already chronological in JSONL order) ──────────────────
-  const dummyPending = new Map<string, { name: string; input: unknown; ts: string }>();
-  const dummyCompleted = new Map<string, Extract<HistoryEntry, { kind: 'tool' }>>();
-  const markers: Array<{ ts: string; entry: PreEntry }> = [];
-  for (const ev of events) {
-    if (!MARKER_EVENT_TYPES.has(ev.type)) continue;
-    const entry = eventToEntry(ev, dummyPending, dummyCompleted);
-    if (entry) markers.push({ ts: ev.ts, entry });
-  }
-
-  // ── Two-pointer merge: interleave markers into the backbone by ts without
-  // ever reordering the conversation. Ties keep the backbone entry first. ────
   const entries: HistoryEntry[] = [];
   let nextId = startId;
-  let i = 0;
-  let j = 0;
-  const emit = (entry: PreEntry): void => {
-    entries.push({ ...entry, id: nextId++ } as HistoryEntry);
-  };
-  while (i < backbone.length && j < markers.length) {
-    if (markers[j]!.ts < backbone[i]!.ts) emit(markers[j++]!.entry);
-    else emit(backbone[i++]!.entry);
+  for (const item of timeline) {
+    const entry = timelineToEntry(item);
+    if (entry) entries.push({ ...entry, id: nextId++ } as HistoryEntry);
   }
-  while (i < backbone.length) emit(backbone[i++]!.entry);
-  while (j < markers.length) emit(markers[j++]!.entry);
   return entries;
+}
+
+/** Map one core timeline entry to the TUI's history row. */
+function timelineToEntry(item: SessionTimelineEntry): PreEntry | null {
+  switch (item.kind) {
+    case 'marker':
+      return markerToEntry({
+        ts: item.ts,
+        source: item.source,
+        level: item.level,
+        text: item.text,
+        agentId: item.agentId,
+        detail: item.detail,
+      });
+    case 'user':
+      // An image-only prompt has no text row of its own in the TUI; the
+      // attachment is surfaced by the composer, not the transcript.
+      return item.text ? { kind: 'user', text: item.text } : null;
+    case 'assistant':
+      return { kind: 'assistant', text: item.text, final: item.final };
+    case 'system':
+      return { kind: 'info', text: item.text };
+    case 'thinking':
+      return { kind: 'thinking', text: item.text };
+    case 'tool':
+      // Subagent delegates are journal/audit records, not leader-chat rows on
+      // resume. The dedicated subagent history can inspect the raw records.
+      if (item.name === 'delegate') return null;
+      return {
+        kind: 'tool',
+        name: item.name,
+        durationMs: item.durationMs ?? 0,
+        ok: item.ok ?? false,
+        input: item.input,
+        output: item.output === undefined ? undefined : toolOutputPreview(item.output),
+        outputBytes: item.outputBytes,
+        outputTokens: item.outputTokens,
+        outputLines: item.outputLines,
+      };
+    default: {
+      const _exhaustive: never = item;
+      void _exhaustive;
+      return null;
+    }
+  }
 }
 
 /**
@@ -422,8 +346,6 @@ function eventToEntry(
     case 'task_updated':
     case 'task_completed':
     case 'task_failed':
-    case 'spec_parsed':
-    case 'spec_analyzed':
       return null;
 
     default:

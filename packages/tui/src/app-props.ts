@@ -2,6 +2,7 @@ import type { Agent } from '@wrongstack/core/agent';
 import type { CoordinatorEvent, Director } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { QueueStore } from '@wrongstack/core/storage';
 import type {
   AttachmentStore,
@@ -615,6 +616,13 @@ export interface AppProps {
    * statusline picker so each toggle is immediately durable.
    */
   saveStatuslineHiddenItems: (items: StatuslineItem[]) => Promise<void>;
+  /**
+   * Per-chip statusline line assignment (statusline.json schema v2).
+   * Optional: hosts that don't load it keep the core contract defaults.
+   */
+  statuslineLines?: StatuslineLines | undefined;
+  setStatuslineLines?: (lines: StatuslineLines) => void;
+  saveStatuslineLines?: (lines: StatuslineLines) => Promise<void>;
   /**
    * Controller for the agents monitor overlay. App installs a dispatch-backed
    * setter on mount so the `/agents on|off` slash command can toggle the

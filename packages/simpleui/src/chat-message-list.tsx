@@ -8,10 +8,14 @@ import {
   markdownRemarkPlugins,
 } from './lib/markdown-config.js';
 import { projectAssistantMessage } from './lib/message-projection.js';
-import type { ChatMessage, FileEditMeta } from './types.js';
+import { buildTimeline } from './lib/timeline-model.js';
+import { ToolCallEntry } from './tool-call-entry.js';
+import type { ChatMessage, FileEditMeta, ToolCallInfo } from './types.js';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
+  /** Tool calls to show at their canonical position in the chat timeline. */
+  toolCalls?: ToolCallInfo[] | undefined;
   /** File edits to show as inline widgets in the chat timeline. */
   fileEdits?: Array<{ edit: FileEditMeta; ts?: string | undefined }> | undefined;
   copiedMessageId: string | null;
@@ -160,6 +164,7 @@ const MessageItem = memo(function MessageItem({
  */
 export function ChatMessageList({
   messages,
+  toolCalls,
   fileEdits,
   copiedMessageId,
   running,
@@ -182,18 +187,22 @@ export function ChatMessageList({
     return null;
   }, [messages]);
 
-  // Interleave file edits into the timeline by timestamp
+  // Interleave replay/live tool calls into the timeline by timestamp, using
+  // replayOrder as the tie-breaker when the journal gave text and tool blocks
+  // the same timestamp. File edits are kept only as a legacy fallback when no
+  // tool-call timeline is supplied by the parent.
   const timeline = useMemo(() => {
     const entries: Array<
       | { kind: 'message'; ts: string; message: ChatMessage }
+      | { kind: 'tool_call'; ts: string; toolCall: ToolCallInfo }
       | { kind: 'file_edit'; ts: string; edit: FileEditMeta }
     > = [];
 
-    for (const m of messages) {
-      entries.push({ kind: 'message', ts: m.ts ?? '0', message: m });
+    for (const entry of buildTimeline(messages, toolCalls ?? [])) {
+      entries.push(entry);
     }
 
-    if (fileEdits) {
+    if ((!toolCalls || toolCalls.length === 0) && fileEdits) {
       for (const fe of fileEdits) {
         entries.push({ kind: 'file_edit', ts: fe.ts ?? '0', edit: fe.edit });
       }
@@ -213,7 +222,7 @@ export function ChatMessageList({
     });
 
     return entries;
-  }, [messages, fileEdits]);
+  }, [messages, toolCalls, fileEdits]);
 
   if (timeline.length === 0) {
     return <div className="conversation">{emptyState}</div>;
@@ -235,6 +244,9 @@ export function ChatMessageList({
               consumedNextSteps={consumedNextSteps}
             />
           );
+        }
+        if (entry.kind === 'tool_call') {
+          return <ToolCallEntry key={`tc-${entry.toolCall.id}`} toolCall={entry.toolCall} />;
         }
         // file_edit
         return (

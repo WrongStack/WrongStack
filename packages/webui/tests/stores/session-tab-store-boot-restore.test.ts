@@ -10,10 +10,13 @@ import {
   useSessionLanes,
 } from '../../src/stores/session-lanes';
 import {
+  resetBootRestoreLatchForTests,
   restoreOpenTabsOnBoot,
+  restoreTabsAfterBoot,
   useSessionTabStore,
   writeStoredTabs,
 } from '../../src/stores/session-tab-store';
+import { useRestoreTabsStore } from '../../src/stores/restore-tabs-store';
 import { useUIStore } from '../../src/stores/ui-store';
 
 /**
@@ -245,5 +248,120 @@ describe('restoreOpenTabsOnBoot', () => {
 
     expect(result).toEqual({ success: false, reason: 'tabs_full' });
     expect(useSessionTabStore.getState().openTabIds).toEqual([...TAB_IDS]);
+  });
+});
+
+/**
+ * `restoreTabsAfterBoot` — the server-driven wrapper.
+ *
+ * The tab strip lives in `localStorage`, so it outlives the process that made
+ * it. Promoting it blindly is what made a fresh `wstack --webui` open wearing
+ * the previous run's tabs, front a conversation from days ago, and sit through
+ * a full journal resume — todo board and all — before the user typed anything.
+ */
+describe('restoreTabsAfterBoot', () => {
+  beforeEach(() => {
+    resetBootRestoreLatchForTests();
+    useRestoreTabsStore.setState({ candidates: [] });
+  });
+
+  it('a restarted server keeps NO stale tab, so the strip opens empty', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    // The runtime holds only its own brand-new session; none of the persisted
+    // ids are its.
+    const kept = restoreTabsAfterBoot(['sess-fresh']);
+
+    expect(kept).toEqual([]);
+    expect(useSessionTabStore.getState().openTabIds).toEqual([]);
+    expect(localStorage.getItem('wrongstack.open_session_tabs')).toBe('[]');
+    // Nothing fronted, nothing subscribed — `handleSessionStart` then opens the
+    // announced session as the single tab.
+    expect(subscribeSessions).not.toHaveBeenCalled();
+    // Offered, not resumed: the work is not lost, it is a question.
+    expect(useRestoreTabsStore.getState().candidates).toEqual([...TAB_IDS]);
+  });
+
+  it('offers only the tabs the runtime dropped, never the ones it kept', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    restoreTabsAfterBoot(['sess-a', 'sess-c']);
+
+    expect(useRestoreTabsStore.getState().candidates).toEqual(['sess-b', 'sess-d']);
+  });
+
+  it('asks nothing when every tab survived', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    restoreTabsAfterBoot([...TAB_IDS]);
+
+    expect(useRestoreTabsStore.getState().candidates).toEqual([]);
+  });
+
+  it('asks nothing when the server could not answer', () => {
+    // `undefined` restores unfiltered, so nothing was dropped and there is
+    // nothing to offer.
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    restoreTabsAfterBoot(undefined);
+
+    expect(useRestoreTabsStore.getState().candidates).toEqual([]);
+  });
+
+  it('keeps exactly the tabs the runtime still holds', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    const kept = restoreTabsAfterBoot(['sess-a', 'sess-c']);
+
+    expect(kept).toEqual(['sess-a', 'sess-c']);
+    expect(useSessionTabStore.getState().openTabIds).toEqual(['sess-a', 'sess-c']);
+    expect(subscribeSessions).toHaveBeenCalledWith(['sess-a', 'sess-c']);
+  });
+
+  it('an F5 against a live server restores every tab', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    const kept = restoreTabsAfterBoot([...TAB_IDS]);
+
+    expect(kept).toEqual([...TAB_IDS]);
+    expect(subscribeSessions).toHaveBeenCalledWith([...TAB_IDS]);
+  });
+
+  it('a server that cannot answer restores the strip unfiltered', () => {
+    // `undefined` is "no answer", NOT "nothing is live" — collapsing the two
+    // would wipe the user's tabs on every open against an older server.
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    const kept = restoreTabsAfterBoot(undefined);
+
+    expect(kept).toEqual([...TAB_IDS]);
+  });
+
+  it('runs once per page load — a later frame cannot re-front the user', () => {
+    writeStoredTabs([...TAB_IDS]);
+    useSessionTabStore.setState({ openTabIds: [...TAB_IDS] });
+    seedLanesWithVisitedAt();
+
+    restoreTabsAfterBoot([...TAB_IDS]);
+    subscribeSessions.mockClear();
+    // A second boot frame (re-announce, model switch) must not re-run the
+    // picker and yank the user off the tab they are reading.
+    expect(restoreTabsAfterBoot(['sess-a'])).toEqual([]);
+    expect(useSessionTabStore.getState().openTabIds).toEqual([...TAB_IDS]);
+    expect(subscribeSessions).not.toHaveBeenCalled();
   });
 });

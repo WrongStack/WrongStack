@@ -251,21 +251,21 @@ describe('transcript mapper — audit markers', () => {
     });
   });
 
-  it('attributes subagent lifecycle markers to their agent', () => {
+  it('keeps subagent lifecycle markers out of the main transcript mapper', () => {
     expect(
       mapSessionEventToEntries({
         type: 'agent_spawned',
         ts: 't',
         agentId: 'agt_1',
         role: 'reviewer',
-      })[0],
-    ).toMatchObject({ role: 'system', text: 'spawned as reviewer', agentId: 'agt_1' });
+      }),
+    ).toEqual([]);
     expect(
-      mapSessionEventToEntries({ type: 'agent_stopped', ts: 't', agentId: 'agt_1' })[0],
-    ).toMatchObject({ role: 'system', text: 'stopped', agentId: 'agt_1' });
+      mapSessionEventToEntries({ type: 'agent_stopped', ts: 't', agentId: 'agt_1' }),
+    ).toEqual([]);
     expect(
-      mapSessionEventToEntries({ type: 'agent_error', ts: 't', agentId: 'agt_1', error: 'nope' })[0],
-    ).toMatchObject({ role: 'error', text: 'error: nope', agentId: 'agt_1' });
+      mapSessionEventToEntries({ type: 'agent_error', ts: 't', agentId: 'agt_1', error: 'nope' }),
+    ).toEqual([]);
   });
 
   it('skips checkpoints — one per prompt would restate the user message next to it', () => {

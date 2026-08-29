@@ -211,6 +211,12 @@ class WrongStackWebSocketClientBase {
    * this client has never seen.
    */
   private readonly seenSessionIds = new Set<string>();
+  /**
+   * Should the next `session.subscribe` ask the server for each tab's
+   * transcript? True for a page's first declaration and after every
+   * reconnect; cleared as soon as one goes out. See `subscribeSessions`.
+   */
+  private replayOnNextSubscribe = true;
   /** Last declared open-tab set — see `subscribeSessions`. */
   private subscribedSessionIds: string[] = [];
   /** Minimum spacing between automatic `session_not_ready` retries for ONE session. */
@@ -1126,12 +1132,38 @@ class WrongStackWebSocketClientBase {
       if (same) return;
     }
     this.subscribedSessionIds = unique;
-    this.send({ type: 'session.subscribe', payload: this.withSession({ sessionIds: unique }) });
+    // The FIRST declaration on a connection asks for every tab's transcript
+    // back; later ones ask for none.
+    //
+    // What the browser restored after a reload is a localStorage copy, and
+    // that copy is capped (`MAX_PERSISTED_MESSAGES`) and carries no audit
+    // markers — so a long conversation came back as its last couple of
+    // hundred messages, silently, with the compaction and provider-error
+    // lines missing. The journal on the server is the complete record, so the
+    // page asks for it once per connection and the panes are then identical
+    // to what they showed before the reload.
+    //
+    // Later subscribes are tab opens and closes. The one id that changed
+    // already received its transcript from the `session.resume` that opened
+    // it, and the tabs that did not change must NOT be re-sent one: their
+    // lanes are live and a replay is the poorer record.
+    const replayFor = this.replayOnNextSubscribe ? unique : [];
+    this.replayOnNextSubscribe = false;
+    this.send({
+      type: 'session.subscribe',
+      payload: this.withSession({
+        sessionIds: unique,
+        ...(replayFor.length > 0 ? { replayFor } : {}),
+      }),
+    });
   }
 
   /** Forget the declared set so the next call re-sends it (used on reconnect). */
   clearSessionSubscription(): void {
     this.subscribedSessionIds = [];
+    // A fresh connection means the panes may be showing a stale or truncated
+    // localStorage copy: ask for the journal again with the re-declaration.
+    this.replayOnNextSubscribe = true;
   }
 
   sendConfirm(id: string, decision: 'yes' | 'no' | 'always' | 'deny') {

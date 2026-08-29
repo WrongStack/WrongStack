@@ -278,6 +278,19 @@ export function registerSetupEventsToolHandlers(options: {
         scope: e.scope,
       }),
     });
+    // A `cut` ends the turn; journal it so a resumed run says WHY it stopped
+    // instead of showing a bare `max_iterations`. A `steer` is an in-band
+    // nudge the model absorbs — not a timeline event.
+    if (e.action === 'steer') return;
+    appendForCurrentSession(e.sessionId, {
+      type: 'loop_detected',
+      ts: new Date().toISOString(),
+      tools: e.tools,
+      repeatCount: e.repeatCount,
+      iteration: e.iteration,
+      ...(e.kind !== undefined ? { kind: e.kind } : {}),
+      action: 'cut',
+    });
   });
 
   on('trust.persisted', (e) => {
@@ -297,6 +310,16 @@ export function registerSetupEventsToolHandlers(options: {
       type: 'delegate.started',
       payload: sessionPayload({ sessionId: e.sessionId, target: e.target, task: e.task }),
     });
+    // Journaled as well as broadcast: the minutes a leader spends blocked on a
+    // subagent left no trace on disk, so a resumed transcript jumped straight
+    // over the delegation.
+    appendForCurrentSession(e.sessionId, {
+      type: 'delegate_started',
+      ts: new Date().toISOString(),
+      target: e.target,
+      task: e.task,
+      ...(e.subagentId ? { subagentId: e.subagentId } : {}),
+    });
   });
 
   on('delegate.completed', (e) => {
@@ -315,6 +338,20 @@ export function registerSetupEventsToolHandlers(options: {
         costUsd: e.costUsd,
         subagentId: e.subagentId,
       }),
+    });
+    appendForCurrentSession(e.sessionId, {
+      type: 'delegate_completed',
+      ts: new Date().toISOString(),
+      target: e.target,
+      task: e.task,
+      ok: e.ok,
+      summary: e.summary,
+      durationMs: e.durationMs,
+      iterations: e.iterations,
+      toolCalls: e.toolCalls,
+      ...(e.status !== undefined ? { status: e.status } : {}),
+      ...(e.costUsd !== undefined ? { costUsd: e.costUsd } : {}),
+      ...(e.subagentId ? { subagentId: e.subagentId } : {}),
     });
   });
 

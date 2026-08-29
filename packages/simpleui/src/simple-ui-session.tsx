@@ -828,6 +828,7 @@ export function SimpleUiSession() {
         >
           <ChatMessageList
             messages={displayMessages}
+            toolCalls={leaderSelected ? toolCalls : undefined}
             fileEdits={leaderSelected ? fileEdits : undefined}
             copiedMessageId={copiedMessageId}
             running={running}

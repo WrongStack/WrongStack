@@ -4,6 +4,19 @@
 
 ## What to avoid
 
+<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=1; wins=1 -->
+- **- Always filter `slash-commands/index` importer greps to the owning package path (`packages/cli`, `packages/plug-lsp`, `packages/telegram`) — each package owns a same-named `slash-commands/index.ts`, so unscoped `grep slash-commands/index` caller sets include 4+ cross-package false positives in WrongStack. - Do not trust `codebase-skeleton` on import-dominated composition-root files (e.g. `packages/cli/src/slash-commands/index.ts` collapsed 215 lines to 1 at 99.6% "savings"); when the skeleton result looks degenerate, fall back to a full `read` before citing exports.**
+  - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
+  - *How:* `slash-commands/index`
+  - *How:* `packages/cli`
+  - *How:* `packages/plug-lsp`
+  - *How:* `packages/telegram`
+  - *How:* `slash-commands/index.ts`
+  - *How:* `grep slash-commands/index`
+  - *How:* `codebase-skeleton`
+  - *How:* `packages/cli/src/slash-commands/index.ts`
+  - *How:* `read`
+
 <!-- learned-stamp: category=warning; capturedAt=2026-08-22T09:38:36.469Z; applied=6; wins=6 -->
 - **Always check importers *before* mapping or editing any `project-server-*.ts` helper in `packages/tools/src/codebase-index/` — grep both the exported symbol names (`ServerQueryCaches`, `staleAwareRead`) **and** the module basename (`project-server-query-cache`), because some of these files are extraction drafts that were never wired into `project-server.ts`, which still carries the inline original. A symbol-only grep can miss the module-path import form and vice versa; run both before concluding a file is live or dead.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
@@ -14,7 +27,7 @@
   - *How:* `project-server-query-cache`
   - *How:* `project-server.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=21; wins=21 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=23; wins=23 -->
 - **Always trace a `packages/core/src/storage/*` helper's consumers by grepping its module basename first (e.g. `grep session-write-buffer`) — storage helpers there typically have exactly one importer (e.g. `session-write-buffer.ts` ← `file-session-writer.ts`), so one hop plus one `new X` grep usually completes the dependency picture without broad exploration. Never treat `codebase-incoming-calls` import/type_ref entries as call sites alone — pair them with a targeted `read` of the constructor and producer methods to distinguish ownership (who creates the object) from usage (who feeds it).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/core/src/storage/*`
@@ -47,7 +60,7 @@
   - *How:* `packages/tools/src/codebase-index/background-indexer.ts`
   - *How:* `./codebase-index/index`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=17; wins=17 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=20; wins=20 -->
 - **When tracing importers of a module in `packages/webui/src/stores/`, always run one extra grep of the bare basename scoped to `packages/webui/src/stores/` in addition to the `stores/<name>` specifier pattern — intra-store importers use relative specifiers (`./session-lanes`, `./session-lanes.js`) that the `stores/<name>` pattern never matches, and in this repo those relative importers (`session-store.ts`, `session-tab-store.ts`) are usually the heaviest dependents. Pair with `codebase-incoming-calls` import hints to catch what the specifier greps miss.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/stores/`
@@ -58,7 +71,7 @@
   - *How:* `session-tab-store.ts`
   - *How:* `codebase-incoming-calls`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=30; wins=30 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=38; wins=38 -->
 - **When tracing importers of any module under `packages/webui/src/` (not just `stores/`), grep the bare basename repo-wide in addition to specifier patterns — sibling-directory consumers use relative specifiers (`./useChatViewState`) that `components/<name>` style patterns never match; in this repo the bare-basename grep plus `codebase-incoming-calls` together resolved the full consumer set in one pass (`useChatViewState` had exactly one: `ChatView/index.tsx`).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/`
@@ -69,17 +82,5 @@
   - *How:* `useChatViewState`
   - *How:* `ChatView/index.tsx`
 
-## What to do
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-22T10:31:12.790Z; applied=97; wins=96 -->
-- ****Always submit `submit_result` payloads in compact ASCII batches when the validator returns the misleading "confidence must be 0..1" error in this fleet environment — splitting one long payload into two ASCII-only retries (first full, then minimal) succeeded where neither single longer submission did.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `submit_result`
-
-<!-- learned-stamp: category=convention; capturedAt=2026-08-21T19:18:44.222Z; applied=115; wins=114 -->
-- **Always keep `submit_result` payloads short and pure ASCII (no arrows, em-dashes, or ellipses in summary/findings) in this fleet environment — two long multi-byte payloads were rejected with a misleading "required/confidence must be 0..1" validation error while a compact ASCII-only retry with identical information was accepted. If a first submission fails validation, shorten and de-accent before assuming a schema problem.**
-  - *Why:* Established convention for this codebase — skipping it risks regressions, merge friction, or out-of-sync state with peers.
-  - *How:* `submit_result`
-
 ---
-*Last capture: 2026-08-28T06:42:52.331Z · 8 entries*
+*Last capture: 2026-08-29T12:41:06.198Z · 7 entries*

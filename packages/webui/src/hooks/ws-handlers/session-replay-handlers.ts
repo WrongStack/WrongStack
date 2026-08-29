@@ -1,12 +1,17 @@
-import type { SessionMarker } from '@wrongstack/core/types';
-import { isSystemInjectedMessage } from '@wrongstack/core/types/session-markers';
+import type {
+  Message,
+  SessionMarker,
+  SessionTimelineImage,
+  SessionToolMeta,
+} from '@wrongstack/core/types';
+import { projectSessionTimeline } from '@wrongstack/core/types/session-timeline';
 import { isMobileViewport } from '@/hooks/useViewport';
 import { reconcileFileTabsAfterEnvChange } from '@/hooks/ws-handlers/files-mailbox-handlers';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
-import type { ChatMessage, SubagentView } from '@/stores';
+import type { ChatMessage, ChatMessageAttachment, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
   useConfigStore,
@@ -17,6 +22,7 @@ import {
   useSessionTabStore,
   useUIStore,
 } from '@/stores';
+import { restoreTabsAfterBoot } from '@/stores/session-tab-store';
 import {
   activeLaneId,
   adoptDefaultLane,
@@ -99,116 +105,147 @@ export function sessionRouteIdentifier(value: unknown): string {
   return '';
 }
 
+/**
+ * Rebuild a lane's chat from a replayed session.
+ *
+ * Ordering, tool pairing and visibility come from core's
+ * {@link projectSessionTimeline} — the same function the TUI, SimpleUI and HQ
+ * project through — so a resumed session cannot read differently here than it
+ * does there. Everything below the projection is WebUI presentation: which
+ * `ChatMessage` shape a timeline entry becomes.
+ *
+ * `thinkingPlacement: 'merged-after'` is not a style choice. Live, the thinking
+ * bubble is transient and the archived log is only committed when the
+ * iteration completes — i.e. AFTER the prose and tool cards are already on
+ * screen. Replaying it inline would put the log somewhere it never appeared.
+ */
 export function hydrateReplayMessages(
   replay: ReplayMessage[],
   markers: readonly SessionMarker[] = [],
+  toolMeta: readonly SessionToolMeta[] = [],
 ): ChatMessage[] {
+  const conversation = replay.filter(
+    (m): m is ReplayMessage & { role: 'user' | 'assistant' | 'system' } =>
+      m.role === 'user' || m.role === 'assistant' || m.role === 'system',
+  ) as unknown as Message[];
+
+  const timeline = projectSessionTimeline({
+    messages: conversation,
+    markers: markers.filter((marker) => !isSubagentResumeMarker(marker.source)),
+    toolMeta,
+    thinkingPlacement: 'merged-after',
+  });
+
   const messages: ChatMessage[] = [];
-  const toolMessagesByUseId = new Map<string, ChatMessage>();
-  let thinkingLogIteration = 0;
-  let markerIndex = 0;
-
-  const pushText = (role: 'user' | 'assistant' | 'system', content: string, timestamp: number) => {
-    if (!content) return;
-    if (isSystemInjectedMessage(content)) return;
-    messages.push({ id: replayMessageId(messages.length), role, content, timestamp });
-  };
-  const pushMarker = (marker: SessionMarker) => {
-    messages.push({
-      id: replayMessageId(messages.length),
-      role: 'system',
-      content: marker.text,
-      timestamp: replayTimestamp(marker.ts),
-      isError: marker.level === 'error' ? true : undefined,
-    });
-  };
-
-  const flushMarkersBefore = (boundary: string | undefined) => {
-    if (typeof boundary !== 'string') return;
-    while (markerIndex < markers.length && markers[markerIndex]!.ts < boundary) {
-      pushMarker(markers[markerIndex]!);
-      markerIndex += 1;
-    }
-  };
-  const pushThinkingLog = (text: string, timestamp: number) => {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-    thinkingLogIteration += 1;
-    messages.push({
-      id: replayMessageId(messages.length),
-      role: 'system',
-      content: '',
-      timestamp,
-      thinkingLog: {
-        iteration: thinkingLogIteration,
-        text: trimmed,
-        startedAt: timestamp,
-        durationMs: 0,
-        replayed: true,
-      },
-    });
-  };
-
-  for (const m of replay) {
-    flushMarkersBefore(m.ts);
-    if (m.role !== 'user' && m.role !== 'assistant' && m.role !== 'system') continue;
-    const role = m.role;
-    const timestamp = replayTimestamp(m.ts);
-    if (typeof m.content === 'string') {
-      pushText(role, m.content, timestamp);
-      continue;
-    }
-    if (!Array.isArray(m.content)) continue;
-
-    let text = '';
-    const thinking: string[] = [];
-    for (const block of m.content as Array<Record<string, unknown>>) {
-      if (block.type === 'thinking' && typeof block.thinking === 'string') {
-        thinking.push(block.thinking);
-        continue;
-      }
-      if (block.type === 'text' && typeof block.text === 'string') {
-        text += (text ? '\n' : '') + block.text;
-        continue;
-      }
-      if (block.type === 'tool_use') {
-        pushText(role, text, timestamp);
-        text = '';
-        const toolUseId = String(block.id ?? '');
-        const toolMessage: ChatMessage = {
-          id: replayMessageId(messages.length),
+  for (const item of timeline) {
+    const timestamp = replayTimestamp(item.ts);
+    const id = replayMessageId(messages.length);
+    switch (item.kind) {
+      case 'user':
+        messages.push({
+          id,
+          role: 'user',
+          content: item.text,
+          timestamp,
+          ...(item.images ? { attachments: replayAttachments(item.images, id) } : {}),
+        });
+        break;
+      case 'assistant':
+        messages.push({ id, role: 'assistant', content: item.text, timestamp });
+        break;
+      case 'system':
+        messages.push({ id, role: 'system', content: item.text, timestamp });
+        break;
+      case 'thinking':
+        messages.push({
+          id,
+          role: 'system',
+          content: '',
+          timestamp,
+          thinkingLog: {
+            iteration: item.index,
+            text: item.text,
+            startedAt: timestamp,
+            durationMs: 0,
+            replayed: true,
+          },
+        });
+        break;
+      case 'tool':
+        messages.push({
+          id,
           role: 'tool',
           content: '',
-          toolName: String(block.name ?? 'tool'),
-          toolInput: block.input,
-          toolUseId,
+          toolName: item.name,
+          toolInput: item.input,
+          toolUseId: item.toolUseId,
           timestamp,
-        };
-        messages.push(toolMessage);
-        if (toolUseId) toolMessagesByUseId.set(toolUseId, toolMessage);
-        continue;
+          ...(item.output !== undefined ? { toolResult: item.output } : {}),
+          // `!ok`, matching what `setToolResult` writes live — but only once
+          // the journal actually resolved the call. An unfinished call keeps
+          // `isError` absent, exactly as a live tool card does while it runs.
+          ...(item.ok !== undefined ? { isError: !item.ok } : {}),
+          ...(item.durationMs !== undefined ? { toolDurationMs: item.durationMs } : {}),
+        });
+        break;
+      case 'marker': {
+        messages.push({
+          id,
+          role: 'system',
+          content: item.text,
+          timestamp,
+          isError: item.level === 'error' ? true : undefined,
+        });
+        break;
       }
-      if (block.type === 'tool_result') {
-        const toolUseId = String(block.tool_use_id ?? '');
-        const toolMessage = toolMessagesByUseId.get(toolUseId);
-        if (toolMessage) {
-          toolMessage.toolResult = contentToToolResult(block.content);
-          toolMessage.isError = Boolean(block.is_error);
-        }
+      default: {
+        const _exhaustive: never = item;
+        void _exhaustive;
       }
     }
-    pushText(role, text, timestamp);
-    if (role === 'assistant' && thinking.length > 0) {
-      pushThinkingLog(thinking.join('\n\n'), timestamp);
-    }
-  }
-
-  while (markerIndex < markers.length) {
-    pushMarker(markers[markerIndex]!);
-    markerIndex += 1;
   }
 
   return messages;
+}
+
+const SUBAGENT_RESUME_MARKER_SOURCES = new Set<string>([
+  'agent_spawned',
+  'agent_session_linked',
+  'agent_stopped',
+  'agent_error',
+  'delegate_started',
+  'delegate_completed',
+]);
+
+function isSubagentResumeMarker(source: string): boolean {
+  return SUBAGENT_RESUME_MARKER_SOURCES.has(source);
+}
+
+/**
+ * Rebuild the attachment chips of a replayed prompt.
+ *
+ * The journal keeps the image the model saw, so the chip can show a real
+ * thumbnail again instead of the empty placeholder a reload used to leave —
+ * these blocks were dropped entirely by the old replay walk.
+ */
+function replayAttachments(
+  images: readonly SessionTimelineImage[],
+  messageId: string,
+): ChatMessageAttachment[] {
+  return images.map((image, index) => {
+    const mediaType = image.mediaType ?? 'image/png';
+    const dataUrl = image.data
+      ? `data:${mediaType};base64,${image.data}`
+      : image.url;
+    return {
+      id: `${messageId}_img_${index}`,
+      kind: 'image' as const,
+      mediaType,
+      // Base64 expands 3 bytes into 4 characters; close enough for a size chip.
+      bytes: image.data ? Math.floor((image.data.length * 3) / 4) : 0,
+      ...(dataUrl ? { dataUrl } : {}),
+    };
+  });
 }
 
 /**
@@ -237,6 +274,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     sessionId: string;
     model: unknown;
     provider: unknown;
+    startedAt?: string | undefined;
     maxContext?: number | undefined;
     projectName?: string | undefined;
     projectRoot?: string | undefined;
@@ -248,12 +286,29 @@ export function handleSessionStart(msg: WSServerMessage) {
     cacheReadCost?: number | undefined;
     lastInputTokens?: number | undefined;
     reasoningEffortLevels?: string[] | undefined;
+    /** Tri-state: undefined = undocumented vocabulary, false = no effort control. */
+    effortSupported?: boolean | undefined;
+    /** Project-wide effort — the "general setting" the composer auto option follows. */
+    projectReasoningEffort?: string | undefined;
     isRunning?: boolean | undefined;
     reset?: boolean | undefined;
+    /**
+     * Set to `'redisplay'` on the frames this page asked for by naming the
+     * session in `session.subscribe.replayFor`. Those carry the journal's own
+     * record and may replace what a pane is showing; an unsolicited
+     * `session.start` for a background tab may not.
+     */
+    replayReason?: string | undefined;
     clearedSessionId?: string | undefined;
     needsSetup?: boolean | undefined;
     replayMessages?: ReplayMessage[] | undefined;
     replayMarkers?: SessionMarker[] | undefined;
+    replayToolMeta?: SessionToolMeta[] | undefined;
+    /**
+     * Sessions this RUNTIME holds. Present only on the boot frame; the client
+     * keeps exactly these tabs and discards the rest of its persisted strip.
+     */
+    openSessionIds?: string[] | undefined;
     replayUsage?:
       | { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
       | undefined;
@@ -268,10 +323,35 @@ export function handleSessionStart(msg: WSServerMessage) {
     appVersion?: unknown;
     latestVersion?: unknown;
     updateAvailable?: unknown;
+    agentSessions?: Array<{
+      subagentId: string;
+      agentName?: string | undefined;
+      status?: string | undefined;
+      task?: string | undefined;
+      transcript?: import('@/stores').AgentTranscriptEntry[] | undefined;
+    }> | undefined;
   };
 
   const sessionId = payload.sessionId;
   if (!sessionId) return;
+
+  // -- Reconcile the persisted tab strip with the RUNTIME ----------------
+  // Before any lane is promoted or fronted, because promoting a slot this
+  // server never had is what cost a full journal resume — and its todo board —
+  // on a fresh `wstack --webui`. `restoreTabsAfterBoot` is a one-shot latch, so
+  // only the first `session.start` of the page does this; every later frame
+  // falls straight through.
+  //
+  // Key-presence, not truthiness: a server too old to send the field must fall
+  // back to restoring the strip unfiltered, while a server that sends an empty
+  // list is stating a fact — it holds nothing yet, so nothing is an open tab.
+  if ('openSessionIds' in payload) {
+    restoreTabsAfterBoot(
+      Array.isArray(payload.openSessionIds)
+        ? payload.openSessionIds.filter((id): id is string => typeof id === 'string')
+        : [],
+    );
+  }
 
   // -- Project-wide state (shared by all four tabs) ---------------------
   if (payload.appVersion || payload.latestVersion) {
@@ -318,6 +398,9 @@ export function handleSessionStart(msg: WSServerMessage) {
   const rawModel = sessionRouteIdentifier(payload.model);
   const provider = rawProvider || laneSession?.provider || currentConfig.provider || '';
   const model = rawModel || laneSession?.model || currentConfig.model || '';
+  const payloadStartedAt =
+    typeof payload.startedAt === 'string' ? Date.parse(payload.startedAt) : Number.NaN;
+  const sessionStartedAt = Number.isFinite(payloadStartedAt) ? payloadStartedAt : Date.now();
 
   const isRunning = Boolean(payload.isRunning);
   // Switching BACK to a tab we already hold answers with `reset: true` as well
@@ -329,7 +412,7 @@ export function handleSessionStart(msg: WSServerMessage) {
   const isReset = isFirstSightOfLane || (payload.reset === true && !returningToKnownTab);
 
   if (isReset) {
-    meta.startSession({ id: sessionId, startedAt: Date.now(), model, provider });
+    meta.startSession({ id: sessionId, startedAt: sessionStartedAt, model, provider });
     // THIS conversation's injector trace, not the one in front. A fresh
     // session starting in a background tab used to wipe the panel the user was
     // reading in another tab.
@@ -337,7 +420,7 @@ export function handleSessionStart(msg: WSServerMessage) {
   } else {
     meta.setSession({
       id: sessionId,
-      startedAt: laneSession?.startedAt ?? Date.now(),
+      startedAt: laneSession?.startedAt ?? sessionStartedAt,
       model,
       provider,
       ...(laneSession?.title ? { title: laneSession.title } : {}),
@@ -354,18 +437,65 @@ export function handleSessionStart(msg: WSServerMessage) {
     reasoningEffortLevels: payload.reasoningEffortLevels,
     // Key-presence: an omitted list means "this model advertises none".
     hasReasoningEffortKey: 'reasoningEffortLevels' in payload,
+    // Tri-state companion: undefined = undocumented vocabulary (show control),
+    // false = the model documents that it has no effort control (hide it).
+    effortSupported: payload.effortSupported === true || payload.effortSupported === false
+      ? payload.effortSupported
+      : undefined,
+    hasEffortSupportedKey: 'effortSupported' in payload,
+    // Display-only hint: the project-wide effort the composer auto option
+    // follows (absent when the project pins no effort — provider default).
+    projectReasoningEffort: typeof payload.projectReasoningEffort === 'string'
+      ? payload.projectReasoningEffort
+      : undefined,
+    hasProjectEffortKey: 'projectReasoningEffort' in payload,
   });
 
   // -- Transcript -------------------------------------------------------
   const replay = payload.replayMessages;
   const hasReplayMessages = Array.isArray(replay) && replay.length > 0;
   const hydrated = hasReplayMessages
-    ? hydrateReplayMessages(replay, payload.replayMarkers ?? [])
+    ? hydrateReplayMessages(replay, payload.replayMarkers ?? [], payload.replayToolMeta ?? [])
     : [];
   const hasLiveTranscript = chat.messages.length > 0;
-  if (hydrated.length > 0 && !(isRunning && hasLiveTranscript)) {
-    // Server replay wins, except for a lane whose run is still streaming: its
-    // in-memory transcript is ahead of anything the journal can replay.
+  // A tab that is ALREADY on screen must never be re-hydrated from a replay.
+  //
+  // Switching to an open tab makes the client ask the server to move the
+  // foreground, and the server answers with a `session.start` — for a session
+  // it is already holding, so its replay is rebuilt from the live working set
+  // with no event stream behind it (`events: []`). Letting that win threw away
+  // strictly more than it restored: every audit marker the lane had rendered
+  // live (compaction, provider error, mode switch) disappeared, the streamed
+  // tool cards were rebuilt from message blocks, and every message got a new
+  // `replay_*` id, so anything the UI keyed on an id — search anchors, expanded
+  // tool output, scroll position — reset on a click that changed nothing.
+  //
+  // The lane's own transcript is the fuller record whenever it has one, so a
+  // lane we already know keeps what it has. An EMPTY known lane still takes
+  // the replay: that is the case where the persisted copy did not survive
+  // (storage cleared, quota refused the write) and the pane would otherwise
+  // stay blank until clicked.
+  const keepLiveTranscript = hasLiveTranscript && (isRunning || returningToKnownTab);
+  // A redisplay is the one frame that may touch a populated lane, and even it
+  // may only ADD.
+  //
+  // What a reloaded page shows came out of localStorage, which keeps the last
+  // `MAX_PERSISTED_MESSAGES` messages and nothing older — so a long
+  // conversation silently came back beheaded. The journal has the rest, so a
+  // redisplay splices back exactly the part that is missing from the FRONT and
+  // leaves everything the lane already holds untouched. Replacing wholesale
+  // would have been the easy version and the wrong one: the lane's own entries
+  // carry live tool cards and the audit markers the server rebuilds without,
+  // so a "restore" would have cost more than it returned.
+  const isRedisplay = payload.replayReason === 'redisplay';
+  if (isRedisplay && hasLiveTranscript && hydrated.length > 0) {
+    const oldestShown = chat.messages[0]?.timestamp ?? 0;
+    const missingPrefix = hydrated.filter((m) => m.timestamp < oldestShown);
+    if (missingPrefix.length > 0) chat.setMessages([...missingPrefix, ...chat.messages]);
+  } else if (hydrated.length > 0 && !keepLiveTranscript) {
+    // Server replay wins, except for a lane whose run is still streaming (its
+    // in-memory transcript is ahead of anything the journal can replay) or a
+    // background lane that already holds this session's chat.
     chat.setMessages(hydrated);
   } else if (isReset && payload.reset === true && hydrated.length === 0 && !isRunning) {
     chat.clearMessages();
@@ -398,7 +528,6 @@ export function handleSessionStart(msg: WSServerMessage) {
     if (totalPrompt > 0) meta.patch({ lastInputTokens: totalPrompt });
   }
 
-  // -- Subagents belong to their session --------------------------------
   // Retiring one session must not wipe the fleets of the tabs still running.
   const retiredSessionId = payload.clearedSessionId;
   if (retiredSessionId) {

@@ -107,6 +107,20 @@ describe('WebUI preference persistence helpers', () => {
     );
   });
 
+  it('never persists the WebUI "auto" effort sentinel as a concrete level', async () => {
+    await persistPrefsToConfig(deps, holder, {
+      reasoningMode: 'on',
+      reasoningEffort: 'auto',
+      reasoningPreserve: true,
+    });
+
+    // 'auto' means "this tab follows the general setting": the session-scoped
+    // pref lands on the tab meta, but the global config keeps whatever
+    // concrete effort it already had (here: none at all).
+    const config = await readConfig();
+    expect(config.modelRuntime).toEqual({ reasoning: { mode: 'on', preserve: true } });
+  });
+
   it('logs mutation/write failures without poisoning later writes', async () => {
     await fs.writeFile(configPath, '{}', 'utf8');
 

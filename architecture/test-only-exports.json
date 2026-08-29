@@ -893,7 +893,8 @@
     ],
     "packages/simpleui/src/lib/agent-model.ts": [
       "IDLE_AGENT_TTL_MS",
-      "isActiveStatus"
+      "isActiveStatus",
+      "parseAgentSessionReplays"
     ],
     "packages/simpleui/src/lib/model-catalog-view.ts": [
       "isLikelyNonChatModel"
@@ -913,9 +914,6 @@
     "packages/simpleui/src/lib/ws.ts": [
       "exchangeAuthCookie",
       "scrubPageToken"
-    ],
-    "packages/simpleui/src/tool-call-entry.tsx": [
-      "ToolCallEntry"
     ],
     "packages/techstack/src/adapters/python.ts": [
       "parsePoetryLock"
@@ -1190,6 +1188,10 @@
       "SIDEBAR_FRACTION",
       "SIDEBAR_HORIZONTAL_CHROME",
       "SIDEBAR_MIN_TERMINAL"
+    ],
+    "packages/tui/src/components/status-line-registry.tsx": [
+      "canonicalChipKey",
+      "partitionRailEntries"
     ],
     "packages/tui/src/components/statusline-detail-panel.tsx": [
       "StatuslineDetailPanel"
@@ -1650,7 +1652,7 @@
     ],
     "packages/webui/src/lib/reasoning-effort.ts": [
       "ALL_EFFORTS",
-      "isEffort"
+      "AUTO_EFFORT_LABEL_KEY"
     ],
     "packages/webui/src/lib/sdd-theme.ts": [
       "SDD_PRIORITY",
@@ -1697,6 +1699,8 @@
     ],
     "packages/webui/src/stores/session-tab-store.ts": [
       "readStoredTabs",
+      "resetBootRestoreLatchForTests",
+      "restoreOpenTabsOnBoot",
       "TAB_STORAGE_KEY",
       "writeStoredTabs"
     ]

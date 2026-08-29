@@ -23,6 +23,7 @@ import { createProjectHandlers } from './project-handlers.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
 import { createProviderOperations } from './provider-handlers.js';
 import { routeProviderCfgThroughProxy } from './proxy-runtime.js';
+import type { LoadAgentSessions } from './session-agent-sessions.js';
 import { createSessionHandlers, type SessionHandlersContext } from './session-handlers.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
@@ -324,6 +325,11 @@ export interface EmbeddedSessionContext extends EmbeddedHostTransport {
   /** Does this host already hold an open writer for that session? */
   isSessionLive?: ((sessionId: string) => boolean) | undefined;
   /**
+   * Read back NAMED subagents' transcripts, so a replayed session brings its
+   * fleet panel back with it. See `session-agent-sessions.ts`.
+   */
+  loadAgentSessions?: LoadAgentSessions | undefined;
+  /**
    * Per-connection display registry, so `session.subscribe` is honoured and
    * "which sessions are on screen right now" has an answer.
    *
@@ -414,6 +420,7 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
         }
       : {}),
     ...(ctx.isSessionLive ? { isSessionLive: ctx.isSessionLive } : {}),
+    ...(ctx.loadAgentSessions ? { loadAgentSessions: ctx.loadAgentSessions } : {}),
     ...(ctx.onSessionsUndisplayed ? { onSessionsUndisplayed: ctx.onSessionsUndisplayed } : {}),
     // Structural: the handlers only read `sessionId`/`sessionIds` off these
     // records, and never broadcast through the map (this host passes its own

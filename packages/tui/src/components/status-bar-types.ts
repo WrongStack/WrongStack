@@ -2,6 +2,7 @@ import type { EventBus } from '@wrongstack/core/kernel';
 import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { GitInfo } from '../git-info.js';
 import type { MemoryContextMonitorState } from '../memory-context-monitor.js';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { AnimationStyle } from './animation-style.js';
 import type { StatuslineMode } from './settings-picker.js';
 import type { ChipMeta, StatuslineItem } from './statusline-picker.js';
@@ -235,6 +236,12 @@ export interface StatusBarProps {
   processCount?: number | undefined;
   /** Items to hide from the status bar. Canonical set: {@link StatuslineItem}. */
   hiddenItems?: StatuslineItem[] | undefined;
+  /**
+   * Per-chip line assignment (statusline.json schema v2). Absent keys render
+   * on the core contract's DEFAULT_LINES; values outside 1–4 are clamped by
+   * the persistence layer and again by the registry partition.
+   */
+  statuslineLines?: StatuslineLines | undefined;
   /**
    * Statusline density. The prop default 'detailed' is kept for back-compat
    * with tests/callers that omit `mode`; the user-facing default is 'minimum'

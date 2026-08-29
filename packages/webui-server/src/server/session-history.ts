@@ -184,10 +184,14 @@ function labelForEvent(e: SessionEvent): string {
       return `In-flight ended: ${e.reason}`;
     case 'side_effect':
       return `Side effect: ${e.toolName} (${e.risk})`;
-    case 'spec_parsed':
-      return `Spec parsed: ${e.title}`;
-    case 'spec_analyzed':
-      return `Spec analyzed: ${e.specId}`;
+    case 'delegate_started':
+      return `Delegated to ${e.target}`;
+    case 'delegate_completed':
+      return `Delegation ${e.ok ? 'finished' : 'failed'}: ${e.target}`;
+    case 'loop_detected':
+      return `Loop detected (${e.action ?? 'cut'})`;
+    case 'model_switched':
+      return `Model switched (${e.reason})`;
     case 'skill_activated':
       return `Skill: ${e.skillName}`;
     case 'skill_deactivated':
@@ -286,10 +290,14 @@ function detailForEvent(e: SessionEvent): string {
       return `${e.isError ? 'error' : 'ok'}`;
     case 'checkpoint':
       return `prompt #${e.promptIndex}`;
-    case 'spec_parsed':
-      return `${e.title} (${e.completeness}% complete)`;
-    case 'spec_analyzed':
-      return `${e.gaps.length} gaps identified`;
+    case 'delegate_started':
+      return e.task.length > 80 ? `${e.task.slice(0, 79)}…` : e.task;
+    case 'delegate_completed':
+      return `${e.summary} · ${e.iterations} iterations · ${e.toolCalls} tools`;
+    case 'loop_detected':
+      return `${e.tools || 'message'} ×${e.repeatCount} at iteration ${e.iteration}`;
+    case 'model_switched':
+      return `${e.from ? `${e.from.providerId}/${e.from.model} → ` : ''}${e.to.providerId}/${e.to.model}`;
     case 'skill_activated':
       return `at ${e.skillName}`;
     case 'skill_deactivated':

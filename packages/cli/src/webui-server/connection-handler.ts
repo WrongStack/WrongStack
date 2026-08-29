@@ -1,4 +1,5 @@
 import type { IncomingMessage } from 'node:http';
+import { deriveSessionAgents } from '@wrongstack/core/storage';
 import type { Message, SessionEvent, Usage } from '@wrongstack/core/types';
 import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-protocol';
 import type {
@@ -63,8 +64,32 @@ export interface ConnectionHandlerDeps {
         usage?: Usage | undefined;
       } | null>)
     | undefined;
+  /**
+   * The sessions this RUNTIME currently holds open — the boot session plus any
+   * tab the registry is still keeping alive.
+   *
+   * The browser persists its tab strip in `localStorage`, and on every open it
+   * promoted that list back into live tabs. After the server had restarted
+   * that list is history: none of those ids belong to this process, so a fresh
+   * `wstack --webui` came up wearing the tab strip of some previous run,
+   * fronted a session from days ago, and paid for a FULL journal resume (with
+   * its todo board) before the user had typed anything. Handing the client the
+   * live set lets it keep only the tabs that still exist and start clean
+   * otherwise.
+   */
+  openSessionIds?: (() => string[]) | undefined;
+  /**
+   * Read back NAMED subagents' transcripts.
+   *
+   * `subagentIds` comes from the session's OWN journal, because the
+   * transcripts directory is shared by every session of the project: asked for
+   * everything, this handed each of four open tabs the union of all four tabs'
+   * workers.
+   */
   loadAgentSessions?:
-    | (() => Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>)
+    | ((
+        subagentIds: readonly string[],
+      ) => Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>)
     | undefined;
   needsSetup: boolean;
 }
@@ -163,15 +188,33 @@ export function createConnectionHandler(
     // So there is deliberately NO `onClose` here.
     buildInitialPayload: async () => {
       const payload = { ...(await deps.buildSessionStartPayload({}, deps.needsSetup)) };
+      // Declared BEFORE the replay so a client that gets nothing else still
+      // learns which tabs are real.
+      try {
+        const open = deps.openSessionIds?.();
+        if (open) payload['openSessionIds'] = [...new Set([...open, deps.currentSessionId()])];
+      } catch {
+        console.debug('[WebUI] Failed to list open sessions');
+      }
+      let replayEvents: readonly SessionEvent[] | undefined;
       try {
         const replay = await deps.loadReplay?.();
-        if (replay) Object.assign(payload, buildReplayPayload(replay));
+        if (replay) {
+          Object.assign(payload, buildReplayPayload(replay));
+          replayEvents = replay.events;
+        }
       } catch {
         // Replay is best-effort.
         console.debug('[WebUI] Failed to load replay');
       }
       try {
-        const sessions = await deps.loadAgentSessions?.();
+        // Scope to the agents THIS session's journal names — the replay just
+        // loaded above carries the events that say so.
+        const roster = deriveSessionAgents(replayEvents ?? []);
+        const sessions =
+          roster.length > 0
+            ? await deps.loadAgentSessions?.(roster.map((agent) => agent.agentId))
+            : [];
         if (sessions?.length) payload['agentSessions'] = sessions;
       } catch {
         // Worker replay is independently best-effort.

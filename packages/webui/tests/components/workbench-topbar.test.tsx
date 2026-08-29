@@ -136,4 +136,37 @@ describe('WorkbenchTopbar responsive component', () => {
     // The Agents panel pairs with the chat surface, so the view steers home.
     expect(ui.currentView).toBe('chat');
   });
+
+  it('renders WrongProxy, HQ and WS indicators and triggers onSettings on click', () => {
+    const onSettings = vi.fn();
+    render(
+      <WorkbenchTopbar
+        currentView="chat"
+        projectName="TestProject"
+        sessionLabel="Session Alpha"
+        isLoading={false}
+        iteration={null}
+        onPalette={vi.fn()}
+        onSettings={onSettings}
+      />,
+    );
+
+    const wrongProxyBtn = screen.getByTestId('wrongproxy-status-button');
+    expect(wrongProxyBtn).toBeDefined();
+    expect(wrongProxyBtn.getAttribute('title')).toContain('WrongProxy');
+
+    const hqBtn = screen.getByTestId('hq-status-button');
+    expect(hqBtn).toBeDefined();
+    expect(hqBtn.getAttribute('title')).toContain('HQ');
+
+    const wsIndicator = screen.getByTestId('ws-status-indicator');
+    expect(wsIndicator).toBeDefined();
+
+    fireEvent.click(wrongProxyBtn);
+    expect(onSettings).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(hqBtn);
+    expect(onSettings).toHaveBeenCalledTimes(2);
+  });
 });
+

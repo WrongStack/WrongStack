@@ -279,6 +279,12 @@ export function createEmbeddedMessageRouter(
     return peek ? peek(sessionId) !== undefined : false;
   };
 
+  // `session.focus` is deliberately NOT guarded. The guard's job is to refuse
+  // a request aimed at a session this runtime cannot serve — but a focus IS
+  // the request to start serving it. A focus is sent after the client has
+  // already moved its pointer, so both payload fields name the same session.
+  // Guarding it would reject exactly the case it exists for: a page that
+  // outlived its process, clicking a restored tab.
   const guardSession = (ws: WebSocket, message: WSClientMessage): boolean => {
     if (!guardedTypes.has(message.type)) return true;
     const payload = message.payload;
@@ -290,6 +296,29 @@ export function createEmbeddedMessageRouter(
         : undefined;
     const current = deps.currentSessionId();
     if (!requested || requested === current) return true;
+    // A request that TARGETS the session it is stamped with is that session
+    // asking to be opened, and refusing it is refusing the only message that
+    // could ever make the answer "yes".
+    //
+    // This is what broke Resume from the session list. The client moves its
+    // foreground pointer onto the session first (the pane has to exist before
+    // the transcript can land in it), so `withSession` stamps the payload with
+    // the very id the resume is asking for — a session this runtime has never
+    // heard of. `canServeSession` said no, the refusal came back as an error
+    // frame the client discards as session-swap noise, and the tab sat there
+    // empty with no transcript and no error: "Resume never resumes".
+    // Scoped to `session.resume`, the only guarded type whose `id` IS a
+    // session id — everywhere else `id` names a todo, a mode, a checkpoint or
+    // a confirmation, and widening the exemption to those would let a stale
+    // tab act on a session this host cannot serve.
+    const target =
+      message.type === 'session.resume' &&
+      payload &&
+      typeof payload === 'object' &&
+      typeof (payload as { id?: unknown }).id === 'string'
+        ? (payload as { id: string }).id
+        : undefined;
+    if (target && target === requested) return true;
     // Four tabs share one socket, so "the session the runtime is on" is only
     // ever ONE of them. Refusing every other named session turned every
     // background tab into a dead tab on this host: its `user_message`, its

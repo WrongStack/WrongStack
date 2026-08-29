@@ -128,28 +128,23 @@ describe('replaySessionEvents — additional coverage', () => {
   });
 
   describe('agent_stopped / agent_error', () => {
-    it('renders agent_stopped as subagent', () => {
+    it('does not render agent_stopped into resumed main history', () => {
       const events: SessionEvent[] = [{
         type: 'agent_stopped', ts: '2026-01-01T00:00:00Z',
         agentId: 'agent_abcdef12', role: 'bug-hunter',
       }] as never;
       const entries = replaySessionEvents(events, 1);
-      expect(entries).toHaveLength(1);
-      expect(entries[0]).toMatchObject({ kind: 'subagent', agentLabel: 'agent_ab', icon: '⊘' });
-      expect((entries[0] as { text: string }).text).toContain('stopped');
+      expect(entries).toEqual([]);
     });
 
-    it('renders agent_error as subagent with truncated error', () => {
+    it('does not render agent_error into resumed main history', () => {
       const longError = 'x'.repeat(200);
       const events: SessionEvent[] = [{
         type: 'agent_error', ts: '2026-01-01T00:00:00Z',
         agentId: 'agent_abcdef12', role: 'bug-hunter', error: longError,
       }] as never;
       const entries = replaySessionEvents(events, 1);
-      expect(entries).toHaveLength(1);
-      expect(entries[0]).toMatchObject({ kind: 'subagent', agentLabel: 'agent_ab', icon: '✗' });
-      // Error truncated to 80 chars
-      expect((entries[0] as { text: string }).text.length).toBeLessThanOrEqual(80 + 'error: '.length);
+      expect(entries).toEqual([]);
     });
   });
 
@@ -205,7 +200,7 @@ describe('replaySessionEvents — additional coverage', () => {
       'in_flight_start', 'in_flight_end', 'llm_request',
       'tool_progress', 'rewound', 'file_snapshot',
       'task_created', 'task_updated', 'task_completed', 'task_failed',
-      'spec_parsed', 'spec_analyzed',
+      'session_forked', 'side_effect',
     ];
 
     for (const type of internalTypes) {
@@ -284,8 +279,12 @@ describe('replaySessionMessages — additional coverage', () => {
     ] as never;
     const entries = replaySessionMessages(messages, events, 1);
     expect(entries).toHaveLength(2); // assistant + tool
+    // `ok` comes from the tool_call_end record, exactly as the live bridge
+    // takes it from `tool.executed`. This used to replay as `ok: false`
+    // whenever the conversation held no tool_result block — a call the
+    // journal explicitly recorded as successful came back marked failed.
     expect(entries[1]).toMatchObject({
-      kind: 'tool', name: 'read', ok: false, durationMs: 15,
+      kind: 'tool', name: 'read', ok: true, durationMs: 15,
     });
   });
 

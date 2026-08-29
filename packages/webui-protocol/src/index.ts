@@ -39,6 +39,36 @@ export {
   type ReplayPayloadFields,
   type ReplaySource,
 } from './replay-payload.js';
+// Re-exported for SimpleUI, which depends on this package rather than on
+// `@wrongstack/core` directly. Both browser surfaces must project a resumed
+// session through the SAME function the TUI and the servers use, or the
+// ordering drifts again — which is exactly how the four separate replay
+// renderers came about.
+export type {
+  ProjectSessionTimelineInput,
+  SessionTimelineEntry,
+  SessionTimelineImage,
+  SessionTimelineToolEntry,
+  SessionToolMeta,
+  TextBlockMode,
+  ThinkingPlacement,
+} from '@wrongstack/core/types/session-timeline';
+// The two core types the projector's input names. Re-exported for the same
+// reason as the projector itself: SimpleUI reaches core only through this
+// package.
+export type { Message, SessionEvent, SessionMarker, SessionMarkerDetail } from '@wrongstack/core/types';
+// The marker projector itself, so a LIVE surface can render an event with the
+// same wording its replay will use. Without it the SimpleUI would have had to
+// hand-write a second copy of every marker sentence.
+export {
+  isSystemInjectedMessage,
+  sessionEventToMarker,
+  SYSTEM_INJECTION_PREFIXES,
+} from '@wrongstack/core/types/session-markers';
+export {
+  projectSessionTimeline,
+  projectSessionToolMeta,
+} from '@wrongstack/core/types/session-timeline';
 export {
   CLIENT_MESSAGE_TYPES,
   type ExactClientMessageType,

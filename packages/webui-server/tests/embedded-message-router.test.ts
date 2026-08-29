@@ -355,6 +355,59 @@ describe('createEmbeddedMessageRouter — background tabs are servable', () => {
     }
   });
 
+  /**
+   * Resume from the session list was refused by the gate that exists to
+   * protect it. The client moves its foreground pointer onto the session
+   * before asking — the pane has to exist before a transcript can land in it —
+   * so `withSession` stamps the request with the very id it is asking to open,
+   * a session this runtime has never held. The refusal came back as an error
+   * frame the client discards as session-swap noise, so the tab sat empty with
+   * no transcript and no error: "Resume never resumes".
+   */
+  it('lets a resume open a session this host has never held', async () => {
+    const { d, send } = withRegistry();
+    const r = createEmbeddedMessageRouter(d);
+    const ws = mockWs();
+
+    await r(ws, null, {
+      type: 'session.resume',
+      payload: { id: 'sess-never-seen', sessionId: 'sess-never-seen' },
+    } as any);
+
+    expect(refusals(send)).toHaveLength(0);
+  });
+
+  it('still refuses a resume aimed at a session OTHER than the one asking', async () => {
+    const { d, send } = withRegistry();
+    const r = createEmbeddedMessageRouter(d);
+    const ws = mockWs();
+
+    // The exemption is only for a self-targeted transition. A stale tab asking
+    // this host to resume something on behalf of a session it cannot serve is
+    // exactly what the gate is for.
+    await r(ws, null, {
+      type: 'session.resume',
+      payload: { id: 'sess-other', sessionId: 'sess-nope' },
+    } as any);
+
+    expect(refusals(send)).toHaveLength(1);
+  });
+
+  it('does not widen the exemption to types whose `id` is not a session', async () => {
+    const { d, send } = withRegistry();
+    const r = createEmbeddedMessageRouter(d);
+    const ws = mockWs();
+
+    // `todos.remove` carries a TODO id. An id that happens to equal the
+    // unservable session id must not buy its way past the gate.
+    await r(ws, null, {
+      type: 'todos.remove',
+      payload: { id: 'sess-nope', sessionId: 'sess-nope' },
+    } as any);
+
+    expect(refusals(send)).toHaveLength(1);
+  });
+
   it('still refuses a session this host cannot serve', async () => {
     const { d, send } = withRegistry();
     const r = createEmbeddedMessageRouter(d);

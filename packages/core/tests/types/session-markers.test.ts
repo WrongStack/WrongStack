@@ -168,8 +168,31 @@ describe('marker source sets', () => {
     expect(CHAT_MARKER_SOURCES.has('checkpoint')).toBe(false);
   });
 
+  it('excludes subagent and delegation lifecycle from the chat subset', () => {
+    for (const type of [
+      'agent_spawned',
+      'agent_session_linked',
+      'agent_stopped',
+      'agent_error',
+      'delegate_started',
+      'delegate_completed',
+    ] as const) {
+      expect(SESSION_MARKER_EVENT_TYPES.has(type)).toBe(true);
+      expect(CHAT_MARKER_SOURCES.has(type)).toBe(false);
+    }
+  });
+
   it('otherwise holds exactly the same sources', () => {
-    const chatOnly = [...SESSION_MARKER_EVENT_TYPES].filter((t) => t !== 'checkpoint');
+    const chatOnly = [...SESSION_MARKER_EVENT_TYPES].filter(
+      (t) =>
+        t !== 'checkpoint' &&
+        t !== 'agent_spawned' &&
+        t !== 'agent_session_linked' &&
+        t !== 'agent_stopped' &&
+        t !== 'agent_error' &&
+        t !== 'delegate_started' &&
+        t !== 'delegate_completed',
+    );
     expect([...CHAT_MARKER_SOURCES].sort()).toEqual(chatOnly.sort());
   });
 

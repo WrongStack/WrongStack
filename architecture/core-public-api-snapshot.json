@@ -309,11 +309,12 @@
         "export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';",
         "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReasoningOption, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './models-registry.js';",
         "export type { OneShotLLMInput, OneShotLLMResult, OneShotModelPick, OneShotModelRouter, OneShotOrchestratorOptions, } from './one-shot-llm.js';",
+        "export type { ProjectSessionTimelineInput, SessionTimelineAssistantEntry, SessionTimelineEntry, SessionTimelineImage, SessionTimelineMarkerEntry, SessionTimelineSystemEntry, SessionTimelineThinkingEntry, SessionTimelineToolEntry, SessionTimelineUserEntry, SessionToolMeta, TextBlockMode, ThinkingPlacement, } from './session-timeline.js';",
         "export type { ProviderRunner, RunProviderOptions } from './provider-runner.js';",
         "export type { Renderer } from './renderer.js';",
         "export type { RotatableSecretVault, SecretVault } from './secret-vault.js';",
         "export type { SecretScrubber } from './secret-scrubber.js';",
-        "export type { SessionMarker, SessionMarkerLevel } from './session-markers.js';",
+        "export type { SessionMarker, SessionMarkerDetail, SessionMarkerLevel, } from './session-markers.js';",
         "export type { SideEffect } from './side-effect.js';",
         "export type { SkillEntry, SkillLoader, SkillManifest } from './skill.js';",
         "export type { SlashCommand } from './slash-command.js';",
@@ -335,7 +336,8 @@
         "export { defineMemoryCapability, MEMORY_TYPE_LABELS } from './memory.js';",
         "export { diffRegistry, validateRegistryManifest } from './prompt-registry.js';",
         "export { flattenSystemPromptRegions } from './system-prompt.js';",
-        "export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock } from './blocks.js';"
+        "export { isImageBlock, isTextBlock, isToolResultBlock, isToolUseBlock } from './blocks.js';",
+        "export { projectSessionTimeline, projectSessionToolMeta } from './session-timeline.js';"
       ]
     },
     {
@@ -353,7 +355,32 @@
         "export function projectSessionMarkers",
         "export function sessionEventToMarker",
         "export interface SessionMarker",
+        "export type SessionMarkerDetail",
         "export type SessionMarkerLevel"
+      ]
+    },
+    {
+      "subpath": "./types/session-timeline",
+      "target": {
+        "types": "./dist/types/session-timeline.d.ts",
+        "import": "./dist/types/session-timeline.js"
+      },
+      "source": "packages/core/src/types/session-timeline.ts",
+      "declarations": [
+        "export function projectSessionTimeline",
+        "export function projectSessionToolMeta",
+        "export interface ProjectSessionTimelineInput",
+        "export interface SessionTimelineAssistantEntry",
+        "export interface SessionTimelineImage",
+        "export interface SessionTimelineMarkerEntry",
+        "export interface SessionTimelineSystemEntry",
+        "export interface SessionTimelineThinkingEntry",
+        "export interface SessionTimelineToolEntry",
+        "export interface SessionTimelineUserEntry",
+        "export interface SessionToolMeta",
+        "export type SessionTimelineEntry",
+        "export type TextBlockMode",
+        "export type ThinkingPlacement"
       ]
     },
     {
@@ -847,7 +874,7 @@
         "export { createGoalKanbanBoard, deleteGoalKanbanBoard, findGoalBoardByTag, findGoalKanbanBoard, formatGoalAutonomyChoice, formatGoalEvent, formatGoalKanbanPreview, type GoalFileWithKanban, parseAutonomyChoice, } from './goal-kanban.js';",
         "export { deriveSessionAgents, type SessionAgentRecord, type SessionAgentStatus, } from '../session-catalog/session-agents.js';",
         "export { emptyTaskFile, loadTasks, mutateTasks, saveTasks, type TaskFile, } from './task-store.js';",
-        "export { extractInterruptedTools, type InterruptedToolDetail, type RecoveryPlan, SessionRecovery, type StaleSession, } from './session-recovery.js';",
+        "export { extractInterruptedTools, type InterruptedToolDetail, type RecoveryPlan, SessionRecovery, type StaleSession, type UnclosedSession, } from './session-recovery.js';",
         "export { formatPlanTemplates, getPlanTemplate, listPlanTemplates, type PlanTemplate, } from './plan-templates.js';",
         "export { generateSessionId, sanitizeModel } from './session-id.js';",
         "export { getProjectSessionRegistry as getSessionRegistry, hasProjectSessionRegistry as hasSessionRegistry, ProjectSessionRegistry as SessionRegistry, } from '../session-catalog/registry.js';",
@@ -914,6 +941,22 @@
         "export { kanbanGovernance, type KanbanGovernancePort, setKanbanGovernance, } from './kanban-governance-port.js';",
         "export { noOpVault } from '../types/secret-vault.js';",
         "export { restrictDirPermissions, restrictFilePermissions, SECRET_DIR_MODE, SECRET_FILE_MODE, } from './file-permissions.js';"
+      ]
+    },
+    {
+      "subpath": "./statusline",
+      "target": {
+        "types": "./dist/statusline/index.d.ts",
+        "import": "./dist/statusline/index.js"
+      },
+      "source": "packages/core/src/statusline/index.ts",
+      "declarations": [
+        "export const DEFAULT_LINES",
+        "export const STATUSLINE_FIELD_COUNT",
+        "export const STATUSLINE_ITEMS",
+        "export type StatuslineItem",
+        "export type StatuslineLine",
+        "export type StatuslineLines"
       ]
     },
     {
@@ -1271,14 +1314,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 173,
-      "sourceLines": 50626
+      "sourceLines": 50644
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12006
+      "sourceLines": 12053
     },
     {
       "directory": "design",
@@ -1292,7 +1335,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 17965
+      "sourceLines": 17968
     },
     {
       "directory": "extension",
@@ -1414,11 +1457,18 @@
       "sourceLines": 2341
     },
     {
+      "directory": "statusline",
+      "classification": "host/application concern",
+      "intendedOwner": "CLI/TUI presentation contract; host rendering stays outside Core",
+      "sourceFiles": 1,
+      "sourceLines": 181
+    },
+    {
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 91,
-      "sourceLines": 20131
+      "sourceLines": 20266
     },
     {
       "directory": "tasking",
@@ -1438,8 +1488,8 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 70,
-      "sourceLines": 12070
+      "sourceFiles": 71,
+      "sourceLines": 12792
     },
     {
       "directory": "utils",

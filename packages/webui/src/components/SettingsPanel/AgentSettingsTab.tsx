@@ -2,7 +2,7 @@ import { Activity, Cpu, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import {
-  EFFORT_LABEL_KEYS,
+  effortLabelKey,
   effortNotAdvertised,
   resolveEffortOptions,
 } from '@/lib/reasoning-effort';
@@ -30,7 +30,7 @@ export function AgentSettingsTab({
   // it stays visible and changeable instead of silently vanishing.
   const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
   const effortOptions = resolveEffortOptions(effortLevels, localPrefs.reasoningEffort).map(
-    (level) => ({ value: level, label: t(EFFORT_LABEL_KEYS[level]) }),
+    (level) => ({ value: level, label: t(effortLabelKey(level)) }),
   );
 
   return (

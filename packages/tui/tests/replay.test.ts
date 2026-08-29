@@ -120,7 +120,7 @@ describe('replaySessionEvents', () => {
     expect((entries[0] as { text: string }).text).toContain('something broke');
   });
 
-  it('converts agent_spawned to subagent entries', () => {
+  it('does not render agent_spawned into resumed main history', () => {
     const events: SessionEvent[] = [
       {
         type: 'agent_spawned',
@@ -130,13 +130,7 @@ describe('replaySessionEvents', () => {
       },
     ];
     const entries = replaySessionEvents(events, 1);
-    expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({
-      kind: 'subagent',
-      agentLabel: 'agent_12',
-      icon: '⚡',
-      text: 'spawned as bug-hunter',
-    });
+    expect(entries).toEqual([]);
   });
 
   it('skips internal events (session_start, in_flight, etc.)', () => {

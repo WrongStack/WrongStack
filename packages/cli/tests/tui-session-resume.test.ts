@@ -227,39 +227,27 @@ describe('TUI session resume ownership', () => {
     expect(h.activateSessionIdentity).toHaveBeenLastCalledWith(h.oldWriter.id);
   });
 
-  it('keeps a committed resume usable when journal flush or model restoration fails', async () => {
+  it('fails closed and rolls back when the resumed journal snapshot cannot flush', async () => {
     const h = harness();
+    h.state.sessionRef = { current: h.oldWriter };
     h.context.flushConversationJournal.mockRejectedValue(new Error('journal unavailable'));
-    h.ctx.switchProviderAndModel.mockRejectedValue(new Error('provider unavailable'));
 
     const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
 
-    expect(result).toEqual({
-      entries: [{ id: 1, kind: 'user' }],
-      nextId: 2,
-      sessionId: h.resumedWriter.id,
-      // The host sums `tokenCounter.currentRequestTokens()`'s
-      // `{ input, cacheRead, cacheWrite }` into a flat `tokens` field for
-      // the TUI snapshot, so the TUI reducer's `snap.tokens > 0` guard
-      // sees a number (not NaN from object coercion). The harness sets
-      // input=7, cacheRead=3, cacheWrite=2 → tokens=12. `maxContext` is
-      // read from `agent.ctx.provider.capabilities.maxContext`.
-      contextSnapshot: { tokens: 12, maxContext: 200_000 },
-    });
-    expect(h.context.session).toBe(h.resumedWriter);
-    expect(h.tokenCounter.reset).toHaveBeenCalledOnce();
-    expect(h.tokenCounter.account).toHaveBeenCalledWith(
-      h.usage,
-      'resumed-model',
-      'resumed-provider',
-    );
-    expect(h.activateSessionIdentity).toHaveBeenCalledTimes(1);
-    expect(mocks.loadTodosCheckpoint).toHaveBeenCalledWith(
-      expect.stringContaining('sess_resumed.todos.json'),
-      undefined,
-      'trace-test',
+    expect(result).toBeNull();
+    expect(h.context.session).toBe(h.oldWriter);
+    expect(h.context.messages).toEqual(h.oldMessages);
+    expect(h.state.sessionRef.current).toBe(h.oldWriter);
+    expect(h.resumedWriter.close).toHaveBeenCalledOnce();
+    expect(h.tokenCounter.reset).not.toHaveBeenCalled();
+    expect(h.tokenCounter.account).not.toHaveBeenCalled();
+    expect(h.context.state.replaceTodos).toHaveBeenCalledOnce();
+    expect(h.context.state.replaceTodos).toHaveBeenCalledWith([]);
+    expect(mocks.attachTodosCheckpoint).not.toHaveBeenCalled();
+    expect(h.activateSessionIdentity.mock.calls.map(([id]) => id)).toEqual([
       h.resumedWriter.id,
-    );
+      h.oldWriter.id,
+    ]);
   });
 
   it('rolls back the writer + messages + identity when a post-swap step throws', async () => {
@@ -293,6 +281,7 @@ describe('TUI session resume ownership', () => {
     expect(h.context.session).toBe(h.oldWriter);
     expect(h.context.messages).toEqual(h.oldMessages);
     expect(h.oldWriter.close).not.toHaveBeenCalled();
+    expect(h.resumedWriter.close).toHaveBeenCalledOnce();
 
     // Identity rolled back to the previous session: claim first
     // (resume path), then rollback (post-swap arm of the outer catch).

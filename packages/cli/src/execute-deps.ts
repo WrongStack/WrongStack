@@ -48,6 +48,7 @@ import type { ReadlineInputReader } from './input-reader.js';
 import type { LiveSettingsInput } from './live-settings-input.js';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { StatuslineConfigKey } from './services/statusline-config.js';
 import type { SessionStats } from './session-stats.js';
 import type { UpdateInfo } from './update-check.js';
@@ -279,10 +280,16 @@ interface FleetDeps {
           limit?: number,
         ): import('@wrongstack/core/coordination').AgentTimelineEntry[];
         getAllSessions(): import('@wrongstack/core/coordination').AgentVirtualSession[];
-        /** Ring + on-disk transcripts, for surfaces that survive a process restart. */
-        loadSessionsFromDisk(): Promise<
-          import('@wrongstack/core/coordination').AgentVirtualSession[]
-        >;
+        /**
+         * Ring + on-disk transcripts, for surfaces that survive a process
+         * restart. `only` restricts the result to named subagents — the
+         * transcripts directory is shared by every session of the project, so
+         * an unfiltered read hands each of four open tabs the union of all
+         * four tabs' workers.
+         */
+        loadSessionsFromDisk(
+          only?: readonly string[],
+        ): Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>;
       }
     | undefined;
   authHost?: import('@wrongstack/tui').AuthPanelHost | undefined;
@@ -333,6 +340,11 @@ export interface ControllerDeps {
   statuslineHiddenItems: StatuslineConfigKey[];
   setStatuslineHiddenItems: (items: StatuslineConfigKey[]) => void;
   saveStatuslineHiddenItems: (items: StatuslineConfigKey[]) => Promise<void>;
+  /** Per-chip statusline line assignment (schema v2). Optional: hosts that
+   *  don't load it (older embedders, tests) keep the contract defaults. */
+  statuslineLines?: StatuslineLines | undefined;
+  setStatuslineLines?: ((lines: StatuslineLines) => void) | undefined;
+  saveStatuslineLines?: ((lines: StatuslineLines) => Promise<void>) | undefined;
   getYolo?: (() => boolean) | undefined;
   onYolo?: ((setTo?: boolean) => boolean) | undefined;
   getAutonomy?: (() => AutonomyMode) | undefined;

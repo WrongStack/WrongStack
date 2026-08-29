@@ -4,8 +4,10 @@ import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { useAppTranslation } from '@/i18n';
 import {
-  EFFORT_LABEL_KEYS,
+  AUTO_EFFORT,
+  effortLabelKey,
   effortNotAdvertised,
+  isEffort,
   resolveEffortOptions,
 } from '@/lib/reasoning-effort';
 import { cn } from '@/lib/utils';
@@ -28,6 +30,8 @@ interface CatalogModel {
   contextWindow?: number | undefined;
   /** Effort levels the model documents (models.dev reasoningConfig). */
   reasoningEffortLevels?: string[] | undefined;
+  /** Tri-state: undefined=undocumented, false=model documents no effort control. */
+  effortSupported?: boolean | undefined;
 }
 
 /**
@@ -69,11 +73,21 @@ export function QuickModelSwitcher() {
   // levels the active model documents; an undocumented vocabulary offers the
   // full canonical set, matching the runtime resolver's conservative gate.
   const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
+  const projectEffort = useSessionStore((s) => s.projectReasoningEffort);
   const reasoningEffort = useLocalPrefs((s) => s.reasoningEffort);
   const effortOptions = useMemo(
     () => resolveEffortOptions(effortLevels, reasoningEffort),
     [effortLevels, reasoningEffort],
   );
+  // Same trip as the composer select: while `auto` is picked, show the LIVE
+  // project-wide effort it follows (session.start snapshot); absent when the
+  // project pins no effort — the provider default applies.
+  const autoHint =
+    reasoningEffort === AUTO_EFFORT && projectEffort
+      ? t('settings:agent.reasoningEffortAutoHint', {
+          value: isEffort(projectEffort) ? t(effortLabelKey(projectEffort)) : projectEffort,
+        })
+      : undefined;
   const paletteOpen = useUIStore((s) => s.paletteOpen);
   // Destructure the stable action callbacks from useWebSocket() so we
   // can list them as effect deps without re-firing on every render.
@@ -201,13 +215,15 @@ export function QuickModelSwitcher() {
           provider: pick.provider,
           model: pick.model,
         });
-        // Seed the picked model's documented effort vocabulary right away:
-        // the route-change reset in setSession cleared the previous model's
-        // levels, and the authoritative snapshot only arrives later.
-        if (pick.reasoningEffortLevels) {
-          useSessionStore
-            .getState()
-            .setEnv({ reasoningEffortLevels: pick.reasoningEffortLevels });
+        // Seed the picked model's effort vocabulary + tri-state support flag
+        // right away: the route-change reset in setSession cleared the
+        // previous model's values, and the authoritative snapshot only
+        // arrives later.
+        if (pick.reasoningEffortLevels || pick.effortSupported !== undefined) {
+          useSessionStore.getState().setEnv({
+            reasoningEffortLevels: pick.reasoningEffortLevels,
+            effortSupported: pick.effortSupported,
+          });
         }
         const snap = memorySessionSnapshots.get(cur.id);
         if (snap) {
@@ -364,7 +380,7 @@ export function QuickModelSwitcher() {
           >
             {effortOptions.map((level) => (
               <option key={level} value={level}>
-                {t(EFFORT_LABEL_KEYS[level])}
+                {t(effortLabelKey(level))}
               </option>
             ))}
           </select>
@@ -378,6 +394,11 @@ export function QuickModelSwitcher() {
               {t('settings:agent.reasoningEffortUnsupported', {
                 levels: (effortLevels ?? []).join(', '),
               })}
+            </span>
+          )}
+          {autoHint && (
+            <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+              {autoHint}
             </span>
           )}
         </div>

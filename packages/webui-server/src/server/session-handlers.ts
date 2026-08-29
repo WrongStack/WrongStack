@@ -24,7 +24,7 @@ import {
 } from '@wrongstack/core/types';
 import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
-import { buildReplayPayload } from '@wrongstack/webui-protocol';
+import { buildReplayPayload, type ReplaySource } from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
 import {
   applyContextEditorProposal,
@@ -33,6 +33,7 @@ import {
 } from './context-editor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
 import { deleteWebUISession } from './session-deletion.js';
+import type { LoadAgentSessions } from './session-agent-sessions.js';
 import { buildInspectPayload, toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
@@ -55,6 +56,7 @@ function isRecordPayload(value: unknown): value is Record<string, unknown> {
 }
 type SessionStartPayload = {
   sessionId: string;
+  startedAt?: string | undefined;
   model: string;
   provider: string;
   maxContext: number;
@@ -79,7 +81,18 @@ type SessionStartPayload = {
  */
 export function collectDisplayedSessionIds(ctx: {
   getSession: () => { id: string };
-  clients?: Map<WebSocket, ConnectedClient> | undefined;
+  // Structural, not `Map<WebSocket, ConnectedClient>`: the embedded CLI host
+  // keeps its own, narrower client record, and this helper reads only these
+  // two fields. Naming the full type here made the shared rule unusable from
+  // the host that needed it most.
+  clients?:
+    | {
+        values(): Iterable<{
+          sessionId?: string | null | undefined;
+          sessionIds?: ReadonlySet<string> | undefined;
+        }>;
+      }
+    | undefined;
 }): string[] {
   const ids = new Set<string>();
   ids.add(ctx.getSession().id);
@@ -229,6 +242,12 @@ export interface SessionHandlersContext {
    * transitions against each other but not against run setup.
    */
   withSessionTransition?: (<T>(operation: () => Promise<T>) => Promise<T>) | undefined;
+  /**
+   * Read back the transcripts of NAMED subagents (see
+   * `session-agent-sessions.ts`). Hosts that run a fleet supply it; hosts that
+   * do not leave it undefined and their replays simply carry no subagents.
+   */
+  loadAgentSessions?: LoadAgentSessions | undefined;
 }
 
 /**
@@ -342,7 +361,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         targetCtx.lastRequestTokens = usage.input;
       }
     }
-    ctx.setSessionStartedAt?.(Date.now());
+    const originalStartedAt = Date.parse(next.startedAt ?? '');
+    ctx.setSessionStartedAt?.(Number.isFinite(originalStartedAt) ? originalStartedAt : Date.now());
     await ctx.onSessionSwapped?.(next.id);
   };
   const modeStore = async (): Promise<CustomModeStore> => {
@@ -386,6 +406,83 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
   // it there preserves the old behaviour without the hazard.
   const peekForRead = (sessionId: string): Agent | undefined =>
     ctx.peekAgent ? ctx.peekAgent(sessionId) : ctx.getAgent?.(sessionId);
+  /**
+   * Send one session's transcript to one socket, without touching anything.
+   *
+   * Deliberately NOT a resume: no writer is opened, no claim is taken, the
+   * runtime's current session does not move, and the client is not marked as
+   * acting on this id. It is a redisplay — the answer to "this tab is on
+   * screen again, what does it say?".
+   *
+   * Served from the JOURNAL whenever the journal is not behind, live session
+   * or not: the markers the pane draws are projected from events, and a
+   * context's in-memory transcript has none. The live working set is the
+   * fallback for a session whose journal cannot be read or has not caught up.
+   */
+  /**
+   * The best replay source for one session: its JOURNAL, falling back to the
+   * live working set.
+   *
+   * The journal comes first even when the session is live in this runtime. A
+   * context's in-memory transcript is messages and nothing else, while every
+   * mark the pane draws around them — audit marks, checkpoints, and the
+   * `tool_call_end` records behind the tool cards' duration and size chips —
+   * is projected from EVENTS. Replaying a live tab from memory therefore
+   * brought it back as a wall of plain text: the same conversation, visibly
+   * not the same session.
+   *
+   * The journal trails memory by at most one flush window of non-critical
+   * records (every record that carries a message is critical and lands
+   * immediately), so the only way it can be short is mid-turn — and the length
+   * check keeps memory in that case rather than truncating.
+   *
+   * Shared by BOTH replay paths. `sendSessionReplay` (redisplay) had this
+   * fixed while `resumeSession`'s already-live branch still passed
+   * `events: []`, so which of the two the client happened to trigger decided
+   * whether its markers and tool timings came back.
+   */
+  const replaySourceFor = async (sessionId: string): Promise<ReplaySource | undefined> => {
+    const liveCtx = peekForRead(sessionId)?.ctx;
+    const live: ReplaySource | undefined =
+      liveCtx && liveCtx.session?.id === sessionId
+        ? {
+            messages: liveCtx.state?.messages ?? [],
+            events: [],
+            usage: { input: liveCtx.lastRequestTokens ?? 0, output: 0 },
+          }
+        : undefined;
+    // Defensive: a store that cannot read (no `load`, an unreadable file, a
+    // deleted journal) must degrade to the working set, never break the
+    // resume. This runs on a path a tab click can reach.
+    const stored = await Promise.resolve()
+      .then(() => ctx.getSessionStore().load(sessionId))
+      .then((data) =>
+        Array.isArray(data?.messages)
+          ? { messages: data.messages, events: data.events, usage: data.usage }
+          : undefined,
+      )
+      .catch(() => undefined);
+    return stored && stored.messages.length >= (live?.messages.length ?? 0) ? stored : live;
+  };
+
+  const sendSessionReplay = async (ws: WebSocket, sessionId: string): Promise<void> => {
+    const isRunning = ctx.isRunActive?.(sessionId) ?? false;
+    const source = await replaySourceFor(sessionId);
+    if (!source || source.messages.length === 0) return;
+    sendTo(ws, {
+      type: 'session.start',
+      payload: await ctx.sessionStartPayload({
+        sessionId,
+        isRunning,
+        // Tells the client this frame was ASKED for, so its transcript may
+        // replace what the pane is showing. Every other `session.start` for a
+        // tab that is not in front must leave that tab's lane alone — see
+        // `handleSessionStart`.
+        replayReason: 'redisplay',
+        ...buildReplayPayload(source),
+      }),
+    });
+  };
   /**
    * Resolve the Context belonging to the session that SENT this message.
    * With up to four tabs live, `ctx.context` (the shared root) is only
@@ -1102,9 +1199,26 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         result(ws, false, errMessage(err));
       }
     },
+    /**
+     * Serves BOTH `session.resume` and `session.focus`.
+     *
+     * They differ in exactly one place: what a session this process is already
+     * holding gets back. `session.resume` means "open this conversation" and
+     * answers with its transcript. `session.focus` means "this tab came to the
+     * front" — the runtime's current session, the connection's acting id and
+     * the todo board all move, and the transcript is deliberately NOT sent,
+     * because the tab is already displaying it and the replay would be the
+     * poorer copy (rebuilt from the working set, with no audit markers and
+     * fresh message ids).
+     *
+     * A focus on a session this process is NOT holding falls through to the
+     * full resume below — the tab has to be reopened before it can be fronted,
+     * which is what a page that outlived its server needs.
+     */
     resumeSession: (ws, msg) =>
       serializeSessionTransition(async () => {
         const { id } = (msg as { payload: { id: string } }).payload;
+        const focusOnly = (msg as { type?: string }).type === 'session.focus';
         if (ctx.canSwapSessions?.() === false) {
           result(ws, false, 'Session store not available');
           return;
@@ -1145,21 +1259,26 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
               if (liveWriter && liveWriter.id === canonicalId) ctx.setSession(liveWriter);
               await ctx.onSessionSwapped?.(canonicalId);
             }
+            const liveReplaySource: ReplaySource = focusOnly
+              ? { messages: [] }
+              : ((await replaySourceFor(canonicalId)) ?? {
+                  messages: liveMessages,
+                  events: [],
+                  // This session's own pre-flight estimate. Reading the root
+                  // context reported the foreground tab's number on a
+                  // background tab's context bar.
+                  usage: { input: activeCtx?.lastRequestTokens ?? 0, output: 0 },
+                });
             const startPayload = await ctx.sessionStartPayload({
               reset: true,
               sessionId: canonicalId,
               isRunning,
-              ...buildReplayPayload({
-                messages: liveMessages,
-                events: [],
-                usage: {
-                  // This session's own pre-flight estimate. Reading the root
-                  // context reported the foreground tab's number on a
-                  // background tab's context bar.
-                  input: activeCtx?.lastRequestTokens ?? 0,
-                  output: 0,
-                },
-              }),
+              // A focus carries no transcript: see the note on this handler.
+              // A resume gets the journal-first source, so an already-live
+              // session replays with its markers and tool timings intact —
+              // reading the in-memory working set here handed the tab a
+              // marker-less, timing-less copy of its own conversation.
+              ...(focusOnly ? {} : buildReplayPayload(liveReplaySource)),
             });
             sendTo(ws, {
               type: 'session.start',
@@ -1364,8 +1483,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
      * receiving.
      */
     subscribeSessions: async (ws, msg) => {
-      const payload = (msg as { payload?: { sessionIds?: unknown } }).payload ?? {};
+      const payload =
+        (msg as { payload?: { sessionIds?: unknown; replayFor?: unknown } }).payload ?? {};
       const raw = Array.isArray(payload.sessionIds) ? payload.sessionIds : [];
+      const replayFor = new Set(
+        (Array.isArray(payload.replayFor) ? payload.replayFor : []).filter(
+          (id): id is string => typeof id === 'string' && id.length > 0,
+        ),
+      );
       const client = ctx.clients?.get(ws);
       if (!client) return;
       const previous = client.sessionIds;
@@ -1399,6 +1524,34 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         next.add(client.sessionId);
       }
       client.sessionIds = next.size > 0 ? next : undefined;
+
+      // Hand every NEWLY declared tab its transcript.
+      //
+      // This is what makes a reload bring all four tabs back. The browser
+      // persists its slot list, so after F5 `restoreOpenTabsOnBoot` recreates
+      // four lanes — but only the foreground one had ever been given a
+      // transcript (`buildInitialPayload` builds exactly one replay, for the
+      // runtime's own session). The other three came back as empty chat panes
+      // that only filled in if the user happened to click them, and clicking
+      // them went down the resume path, which is not what a redisplay should
+      // cost.
+      //
+      // Two gates, both necessary. `replayFor` is the client saying THIS pane
+      // is empty — a tab that already shows its chat must not have it replaced
+      // by a replay rebuilt from the working set, which carries no live tool
+      // cards and no audit markers for a session this process still holds.
+      // `!previous.has(id)` keeps it to ids this connection had not declared
+      // before, so a later subscribe (a tab opened or closed) cannot re-send
+      // transcripts for the tabs that did not change.
+      const freshlyDeclared = [...next].filter((id) => replayFor.has(id) && !previous?.has(id));
+      for (const id of freshlyDeclared) {
+        try {
+          await sendSessionReplay(ws, id);
+        } catch {
+          // Best-effort per tab: one unreadable transcript must not stop the
+          // other tabs from coming back.
+        }
+      }
 
       // Answer, per declared tab, whether its run is still live.
       //

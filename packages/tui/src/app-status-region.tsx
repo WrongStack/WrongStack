@@ -97,6 +97,7 @@ export function AppStatusRegion({
     autonomyLive,
     liveModeLabel,
     hiddenItems,
+    lines,
     sessionCount,
     memoryContextMonitor,
     memoryRecordTotal,
@@ -190,6 +191,7 @@ export function AppStatusRegion({
               ? hiddenItems
               : [...hiddenItems, 'state' as const]) as StatuslineItem[]
           }
+          statuslineLines={lines}
           mode={liveStatuslineMode}
           visibleChips={state.statuslinePicker.visibleChips}
           events={events}

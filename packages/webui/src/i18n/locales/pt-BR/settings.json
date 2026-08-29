@@ -403,6 +403,8 @@
     "reasoningModeOn": "Ligado — forçar pensamento",
     "reasoningModeOff": "Desligado — desativar pensamento",
     "reasoningEffortLabel": "Esforço de raciocínio",
+    "reasoningEffortAuto": "Auto (geral)",
+    "reasoningEffortAutoHint": "Configuração geral: {{value}}",
     "reasoningEffortHint": "Quanto compute o modelo gasta pensando. Enviado apenas quando o modelo suporta.",
     "reasoningEffortNone": "Nenhum",
     "reasoningEffortMinimal": "Mínimo",

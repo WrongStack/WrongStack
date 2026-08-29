@@ -8,8 +8,10 @@ import {
   ensureStatuslineConfig,
   loadStatuslineConfig,
   STATUSLINE_CONFIG_KEYS,
+  STATUSLINE_CONFIG_VERSION,
   type StatuslineCommandDeps,
   type StatuslineConfig,
+  type StatuslineDocument,
   saveStatuslineConfig,
 } from '../src/slash-commands/statusline.js';
 
@@ -20,6 +22,11 @@ let prevWrongstackHome: string | undefined;
 
 function profileDir(): string {
   return path.join(tmp, '.wrongstack', 'profiles', 'default');
+}
+
+/** Build a v2 document from a partial chips map (the pre-v2 fixture shape). */
+function doc(chips: StatuslineConfig, lines: StatuslineDocument['lines'] = {}): StatuslineDocument {
+  return { version: STATUSLINE_CONFIG_VERSION, chips, lines };
 }
 
 beforeEach(async () => {
@@ -49,9 +56,10 @@ describe('loadStatuslineConfig', () => {
 
   it('returns DEFAULTS when no file present', async () => {
     const cfg = await loadStatuslineConfig();
-    expect(cfg.todos).toBe(true);
-    expect(cfg.cost).toBe(true);
-    expect(cfg.working_dir).toBe(true);
+    expect(cfg.chips.todos).toBe(true);
+    expect(cfg.chips.cost).toBe(true);
+    expect(cfg.chips.working_dir).toBe(true);
+    expect(cfg.lines).toEqual({});
   });
 
   it('returns DEFAULTS merged with user overrides', async () => {
@@ -62,9 +70,9 @@ describe('loadStatuslineConfig', () => {
       JSON.stringify({ git: false, cost: false }),
     );
     const cfg = await loadStatuslineConfig();
-    expect(cfg.git).toBe(false);
-    expect(cfg.cost).toBe(false);
-    expect(cfg.todos).toBe(true); // not overridden
+    expect(cfg.chips.git).toBe(false);
+    expect(cfg.chips.cost).toBe(false);
+    expect(cfg.chips.todos).toBe(true); // not overridden
   });
 
   it('returns DEFAULTS on malformed JSON', async () => {
@@ -72,7 +80,7 @@ describe('loadStatuslineConfig', () => {
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(path.join(dir, 'statusline.json'), '{not json');
     const cfg = await loadStatuslineConfig();
-    expect(cfg).toMatchObject({ todos: true, plan: true });
+    expect(cfg.chips).toMatchObject({ todos: true, plan: true });
   });
 
   it('honors WRONGSTACK_STATUSLINE_CONFIG env path', async () => {
@@ -80,7 +88,7 @@ describe('loadStatuslineConfig', () => {
     process.env.WRONGSTACK_STATUSLINE_CONFIG = custom;
     await fs.writeFile(custom, JSON.stringify({ fleet: false }));
     const cfg = await loadStatuslineConfig();
-    expect(cfg.fleet).toBe(false);
+    expect(cfg.chips.fleet).toBe(false);
   });
 
   it('honors WRONGSTACK_HOME over HOME for config resolution', async () => {
@@ -98,8 +106,8 @@ describe('loadStatuslineConfig', () => {
       const cfg = await loadStatuslineConfig();
       // If WRONGSTACK_HOME were ignored, we'd get DEFAULTS (all true) from the
       // empty HOME-based path. The overrides prove the env var took precedence.
-      expect(cfg.fleet).toBe(false);
-      expect(cfg.cost).toBe(false);
+      expect(cfg.chips.fleet).toBe(false);
+      expect(cfg.chips.cost).toBe(false);
     } finally {
       if (prevWsHome === undefined) delete process.env.WRONGSTACK_HOME;
       else process.env.WRONGSTACK_HOME = prevWsHome;
@@ -109,15 +117,17 @@ describe('loadStatuslineConfig', () => {
 });
 
 describe('ensureStatuslineConfig', () => {
-  it('writes all default settings when no file is present', async () => {
+  it('writes a v2 document with all default chips when no file is present', async () => {
     const cfg = await ensureStatuslineConfig();
     const written = JSON.parse(
       await fs.readFile(path.join(profileDir(), 'statusline.json'), 'utf8'),
     );
 
-    expect(cfg).toEqual(DEFAULTS);
-    expect(written).toEqual(DEFAULTS);
-    expect(Object.keys(written).sort()).toEqual([...STATUSLINE_CONFIG_KEYS].sort());
+    expect(cfg.chips).toEqual(DEFAULTS);
+    expect(cfg.lines).toEqual({});
+    expect(written['version']).toBe(STATUSLINE_CONFIG_VERSION);
+    expect(written['chips']).toEqual(DEFAULTS);
+    expect(written['lines']).toEqual({});
   });
 
   it('persists missing default keys for old partial config files', async () => {
@@ -128,27 +138,30 @@ describe('ensureStatuslineConfig', () => {
     const cfg = await ensureStatuslineConfig();
     const written = JSON.parse(await fs.readFile(path.join(dir, 'statusline.json'), 'utf8'));
 
-    expect(cfg.git).toBe(false);
-    expect(cfg.mailbox).toBe(true);
-    expect(written.git).toBe(false);
-    expect(written.mailbox).toBe(true);
-    expect(Object.keys(written).sort()).toEqual([...STATUSLINE_CONFIG_KEYS].sort());
+    expect(cfg.chips.git).toBe(false);
+    expect(cfg.chips.mailbox).toBe(true);
+    const chips = written['chips'] as Record<string, unknown>;
+    expect(chips['git']).toBe(false);
+    expect(chips['mailbox']).toBe(true);
+    expect(Object.keys(chips).sort()).toEqual([...STATUSLINE_CONFIG_KEYS].sort());
   });
 });
 
 describe('saveStatuslineConfig', () => {
   it('writes the config atomically to the resolved path', async () => {
-    await saveStatuslineConfig({ todos: false, plan: true });
+    await saveStatuslineConfig(doc({ todos: false, plan: true }));
     const written = JSON.parse(
       await fs.readFile(path.join(profileDir(), 'statusline.json'), 'utf8'),
     );
-    expect(written).toEqual({ todos: false, plan: true });
+    expect(written['version']).toBe(STATUSLINE_CONFIG_VERSION);
+    // save normalizes chips to the canonical full map (defaults filled, junk dropped).
+    expect(written['chips']).toEqual({ ...DEFAULTS, todos: false, plan: true });
   });
 
   it('creates parent directory if missing', async () => {
     const dir = profileDir();
     // Directory does not exist yet — save must mkdir -p.
-    await saveStatuslineConfig({ cost: false });
+    await saveStatuslineConfig(doc({ cost: false }));
     const stat = await fs.stat(dir);
     expect(stat.isDirectory()).toBe(true);
   });
@@ -167,8 +180,10 @@ function makeDeps(
     cost: true,
     working_dir: true,
   },
-): StatuslineCommandDeps & { _cfg: StatuslineConfig } {
-  const state = { cfg: { ...initial } };
+): StatuslineCommandDeps & { _cfg: StatuslineDocument } {
+  const state = {
+    cfg: { version: STATUSLINE_CONFIG_VERSION, chips: { ...initial }, lines: {} },
+  };
   return {
     cwd: tmp,
     hiddenItems: [],
@@ -306,15 +321,17 @@ describe('buildStatuslineCommand', () => {
     expect(res?.message ?? '').toBe('statusline all: hiding all chips');
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        todos: false,
-        plan: false,
-        tasks: false,
-        fleet: false,
-        git: false,
-        elapsed: false,
-        context: false,
-        cost: false,
-        working_dir: false,
+        chips: expect.objectContaining({
+          todos: false,
+          plan: false,
+          tasks: false,
+          fleet: false,
+          git: false,
+          elapsed: false,
+          context: false,
+          cost: false,
+          working_dir: false,
+        }),
       }),
     );
     expect(setHidden).toHaveBeenCalledWith(
@@ -346,15 +363,17 @@ describe('buildStatuslineCommand', () => {
     expect(res?.message ?? '').toBe('statusline all: showing all chips');
     expect(setConfig).toHaveBeenCalledWith(
       expect.objectContaining({
-        todos: true,
-        plan: true,
-        tasks: true,
-        fleet: true,
-        git: true,
-        elapsed: true,
-        context: true,
-        cost: true,
-        working_dir: true,
+        chips: expect.objectContaining({
+          todos: true,
+          plan: true,
+          tasks: true,
+          fleet: true,
+          git: true,
+          elapsed: true,
+          context: true,
+          cost: true,
+          working_dir: true,
+        }),
       }),
     );
     expect(setHidden).toHaveBeenCalledWith([]);

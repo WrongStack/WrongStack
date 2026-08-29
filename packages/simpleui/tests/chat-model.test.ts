@@ -26,6 +26,7 @@ import {
   sessionDisplayName,
 } from '../src/lib/session-model.js';
 import { projectStatusNotice } from '../src/lib/status-notice.js';
+import { buildTimeline } from '../src/lib/timeline-model.js';
 
 describe('SimpleUI chat projection', () => {
   it('bounds a runaway stream while preserving its beginning and tail', () => {
@@ -86,7 +87,7 @@ describe('SimpleUI chat projection', () => {
     ]);
   });
 
-  it('keeps tool blocks out of chat text while preserving them for the replayed tool panel', () => {
+  it('keeps replayed tool calls in canonical order between model text runs', () => {
     const replay = [
       { role: 'user', content: 'Search the code' },
       {
@@ -105,20 +106,37 @@ describe('SimpleUI chat projection', () => {
       },
     ];
 
-    expect(replayToMessages(replay).map(({ role, text }) => ({ role, text }))).toEqual([
+    const messages = replayToMessages(replay);
+    const toolCalls = replayToToolCalls(replay);
+
+    expect(messages.map(({ role, text }) => ({ role, text }))).toEqual([
       { role: 'user', text: 'Search the code' },
-      { role: 'assistant', text: 'I found the issue.\n\nThe fix is in line 42.' },
+      { role: 'assistant', text: 'I found the issue.' },
+      { role: 'assistant', text: 'The fix is in line 42.' },
     ]);
-    expect(replayToToolCalls(replay)).toEqual([
+    expect(toolCalls).toEqual([
       {
         id: 'call1',
         name: 'read',
         input: { path: 'file.ts' },
+        replayOrder: 2,
         status: 'done',
         ok: true,
         output: 'file content here',
         ts: '2026-07-25T10:00:05Z',
       },
+    ]);
+    expect(
+      buildTimeline(messages, toolCalls).map((entry) =>
+        entry.kind === 'message'
+          ? `${entry.message?.role}:${entry.message?.text}`
+          : `tool:${entry.toolCall?.name}`,
+      ),
+    ).toEqual([
+      'user:Search the code',
+      'assistant:I found the issue.',
+      'tool:read',
+      'assistant:The fix is in line 42.',
     ]);
   });
 
@@ -151,6 +169,7 @@ describe('SimpleUI chat projection', () => {
         id: 't1',
         name: 'read',
         input: { path: 'x.ts' },
+        replayOrder: 2,
         status: 'done',
         ok: true,
         output: 'data',

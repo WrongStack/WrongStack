@@ -6,6 +6,8 @@ import {
   Moon,
   MoreVertical,
   Palette,
+  Radio,
+  Route,
   Settings,
   Sparkles,
   Sun,
@@ -13,6 +15,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { useHqStatus, useWrongProxyStatus } from '@/hooks/useIntegrationStatus';
 import { useAppTranslation } from '@/i18n';
 import { getPalette, PALETTES } from '@/lib/palettes';
 import { cn } from '@/lib/utils';
@@ -154,6 +157,27 @@ export function WorkbenchTopbar({
     setTheme(effectiveTheme === 'dark' ? 'light' : 'dark');
   }, [effectiveTheme, setTheme]);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const wrongProxy = useWrongProxyStatus();
+  const hq = useHqStatus();
+
+  const wrongProxyTooltip =
+    wrongProxy.status === 'connected'
+      ? `WrongProxy: Connected${wrongProxy.latencyMs != null ? ` (${wrongProxy.latencyMs}ms)` : ''} · ${wrongProxy.url}`
+      : wrongProxy.status === 'error'
+        ? `WrongProxy: Unreachable · ${wrongProxy.url}${wrongProxy.error ? ` (${wrongProxy.error})` : ''}`
+        : wrongProxy.status === 'checking'
+          ? `WrongProxy: Checking · ${wrongProxy.url}`
+          : 'WrongProxy: Disabled';
+
+  const hqTooltip =
+    hq.status === 'connected'
+      ? `HQ: Connected${hq.latencyMs != null ? ` (${hq.latencyMs}ms)` : ''} · ${hq.url}`
+      : hq.status === 'error'
+        ? `HQ: Unreachable · ${hq.url}${hq.error ? ` (${hq.error})` : ''}`
+        : hq.status === 'checking'
+          ? `HQ: Checking · ${hq.url}`
+          : 'HQ: Disabled';
+
   const serverProcess = useServerProcessMetrics();
   const heapLoad = serverProcess ? serverProcess.memoryUsage.heapUsed / serverProcess.heapLimit : 0;
   const indexServer = serverProcess?.codebaseIndexServer;
@@ -226,16 +250,56 @@ export function WorkbenchTopbar({
                 <Settings className="h-4 w-4" />
                 <span>{t('activity:topbar.settings')}</span>
               </DropdownMenuItem>
-              <div className="border-t border-border/60 my-1 px-2 py-1 flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Status</span>
-                <span
-                  className={cn(
-                    'font-mono font-medium',
-                    wsConnected ? 'text-success' : 'text-warning',
-                  )}
-                >
-                  {wsConnected ? 'Connected' : 'Offline'}
-                </span>
+              <div className="border-t border-border/60 my-1 px-2 py-1 space-y-1 text-[11px] text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>Backend WS</span>
+                  <span
+                    className={cn(
+                      'font-mono font-medium',
+                      wsConnected ? 'text-success' : 'text-warning',
+                    )}
+                  >
+                    {wsConnected ? 'Connected' : 'Offline'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>WrongProxy</span>
+                  <span
+                    className={cn(
+                      'font-mono font-medium',
+                      wrongProxy.status === 'connected'
+                        ? 'text-success'
+                        : wrongProxy.status === 'error'
+                          ? 'text-destructive'
+                          : 'text-muted-foreground',
+                    )}
+                  >
+                    {wrongProxy.status === 'connected'
+                      ? 'Connected'
+                      : wrongProxy.status === 'error'
+                        ? 'Offline'
+                        : 'Disabled'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>HQ</span>
+                  <span
+                    className={cn(
+                      'font-mono font-medium',
+                      hq.status === 'connected'
+                        ? 'text-success'
+                        : hq.status === 'error'
+                          ? 'text-destructive'
+                          : 'text-muted-foreground',
+                    )}
+                  >
+                    {hq.status === 'connected'
+                      ? 'Connected'
+                      : hq.status === 'error'
+                        ? 'Offline'
+                        : 'Disabled'}
+                  </span>
+                </div>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -413,6 +477,45 @@ export function WorkbenchTopbar({
             </DropdownMenu>
             <CronTrigger />
             <NotificationMenu />
+            {/* WrongProxy Status */}
+            <button
+              type="button"
+              onClick={onSettings}
+              className={cn(
+                'inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background/60 transition-colors',
+                wrongProxy.status === 'connected'
+                  ? 'border-border/70 text-success hover:bg-accent/60'
+                  : wrongProxy.status === 'error'
+                    ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20'
+                    : 'border-border/50 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/60',
+              )}
+              title={wrongProxyTooltip}
+              aria-label={wrongProxyTooltip}
+              data-testid="wrongproxy-status-button"
+            >
+              <Route className="h-3.5 w-3.5" />
+            </button>
+
+            {/* HQ Status */}
+            <button
+              type="button"
+              onClick={onSettings}
+              className={cn(
+                'inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background/60 transition-colors',
+                hq.status === 'connected'
+                  ? 'border-border/70 text-success hover:bg-accent/60'
+                  : hq.status === 'error'
+                    ? 'border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20'
+                    : 'border-border/50 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/60',
+              )}
+              title={hqTooltip}
+              aria-label={hqTooltip}
+              data-testid="hq-status-button"
+            >
+              <Radio className="h-3.5 w-3.5" />
+            </button>
+
+            {/* Backend WS Status */}
             <span
               role="status"
               aria-label={wsConnected ? 'Connected' : 'Disconnected'}
@@ -421,6 +524,7 @@ export function WorkbenchTopbar({
                 wsConnected ? 'text-success' : 'text-warning',
               )}
               title={wsConnected ? 'Connected' : 'Disconnected'}
+              data-testid="ws-status-indicator"
             >
               {wsConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
             </span>

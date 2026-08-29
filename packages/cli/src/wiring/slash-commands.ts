@@ -22,8 +22,8 @@ import {
   ensureStatuslineConfig,
   loadStatuslineConfig,
   STATUSLINE_CONFIG_KEYS,
-  type StatuslineConfig,
   type StatuslineConfigKey,
+  type StatuslineDocument,
   saveStatuslineConfig,
 } from '../services/statusline-config.js';
 import { buildBuiltinSlashCommands } from '../slash-commands/index.js';
@@ -96,8 +96,8 @@ interface SlashCommandsDeps {
 }
 
 export interface StatuslineConfigDeps {
-  get(): Promise<StatuslineConfig>;
-  set(cfg: StatuslineConfig): Promise<void>;
+  get(): Promise<StatuslineDocument>;
+  set(cfg: StatuslineDocument): Promise<void>;
 }
 
 export async function setupSlashCommands(params: SlashCommandsDeps): Promise<void> {
@@ -139,10 +139,10 @@ export async function setupSlashCommands(params: SlashCommandsDeps): Promise<voi
   };
 
   // Statusline hidden items — derived from the config file
-  const hiddenItemsFromConfig = await ensureStatuslineConfig();
+  const hiddenItemsDoc = await ensureStatuslineConfig();
   const hiddenItemsList: StatuslineConfigKey[] = [];
   for (const k of STATUSLINE_CONFIG_KEYS) {
-    if (!hiddenItemsFromConfig[k]) hiddenItemsList.push(k);
+    if (!hiddenItemsDoc.chips[k]) hiddenItemsList.push(k);
   }
   const statuslineHiddenItems = hiddenItemsList;
   let currentHiddenItems = [...statuslineHiddenItems];

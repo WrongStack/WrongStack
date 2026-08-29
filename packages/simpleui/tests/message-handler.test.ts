@@ -575,6 +575,7 @@ describe('session.start', () => {
         id: 'tc-1',
         name: 'read',
         input: { path: 'src/app.ts' },
+        replayOrder: 3,
         status: 'done',
         ok: true,
         output: 'source text',
@@ -583,7 +584,39 @@ describe('session.start', () => {
     ]);
   });
 
-  it('hydrates the leader agent and rejects leader snapshots from the worker store', () => {
+  it('keeps a resumed running session visibly running', () => {
+    harness.handler({
+      type: 'session.start',
+      payload: {
+        sessionId: 'running-resume',
+        startedAt: '2026-07-25T10:00:00Z',
+        provider: 'openai',
+        model: 'gpt-4o',
+        reset: true,
+        isRunning: true,
+        replayMessages: [
+          { role: 'user', content: 'Keep going', ts: '2026-07-25T10:00:00Z' },
+          {
+            role: 'assistant',
+            ts: '2026-07-25T10:00:05Z',
+            content: [
+              { type: 'text', text: 'Checking the file.' },
+              { type: 'tool_use', id: 'tc-live', name: 'read', input: { path: 'src/app.ts' } },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(harness.state.running).toBe(true);
+    expect(harness.state.activity).toBe('Running read');
+    expect(harness.state.sessionStart).toBe(Date.parse('2026-07-25T10:00:00Z'));
+    expect(harness.state.toolCalls).toMatchObject([
+      { id: 'tc-live', name: 'read', status: 'running' },
+    ]);
+  });
+
+  it('does not hydrate subagent snapshots into the resumed main screen', () => {
     harness.handler({
       type: 'session.start',
       payload: {
@@ -628,9 +661,8 @@ describe('session.start', () => {
       },
     });
 
-    expect(harness.state.subagents.map((agent) => agent.id)).toEqual(['worker-a']);
-    expect(harness.state.agentTranscripts[LEADER_AGENT_ID]).toBeUndefined();
-    expect(harness.state.agentTranscripts['worker-a']).toHaveLength(1);
+    expect(harness.state.subagents).toEqual([]);
+    expect(harness.state.agentTranscripts).toEqual({});
   });
 });
 

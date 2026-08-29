@@ -80,6 +80,65 @@ describe('FileSessionWriter', () => {
     expect(handle.datasync).toHaveBeenCalledTimes(1);
   });
 
+  it('surfaces direct-write fallback failures instead of reporting a persisted append', async () => {
+    let calls = 0;
+    handle.appendFile.mockImplementation(async (data: string) => {
+      calls += 1;
+      if (calls === 2) throw new Error('direct write failed');
+      capturedWrites.push(data);
+    });
+
+    await expect(
+      writer.append({
+        type: 'user_input',
+        ts: now(),
+        content: 'x'.repeat(17 * 1024 * 1024),
+      } as SessionEvent),
+    ).rejects.toThrow('direct write failed');
+  });
+
+  it('surfaces direct-write fallback failures from appendBatch', async () => {
+    let calls = 0;
+    handle.appendFile.mockImplementation(async (data: string) => {
+      calls += 1;
+      if (calls === 2) throw new Error('batch direct write failed');
+      capturedWrites.push(data);
+    });
+
+    await expect(
+      writer.appendBatch([
+        {
+          type: 'user_input',
+          ts: now(),
+          content: 'x'.repeat(17 * 1024 * 1024),
+        } as SessionEvent,
+      ]),
+    ).rejects.toThrow('batch direct write failed');
+  });
+
+  it('logs synchronous direct-write fallback failures instead of silently dropping them', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let calls = 0;
+    handle.appendFile.mockImplementation(async (data: string) => {
+      calls += 1;
+      if (calls === 2) throw new Error('sync direct write failed');
+      capturedWrites.push(data);
+    });
+
+    (writer as any).bufferSynchronousEvent({
+      type: 'user_input',
+      ts: now(),
+      content: 'x'.repeat(17 * 1024 * 1024),
+    } as SessionEvent);
+
+    await vi.waitFor(() => {
+      const writeFailure = warnSpy.mock.calls.find((call) =>
+        String(call[0]).includes('"event":"session.sync_journal_write_failed"'),
+      )?.[0];
+      expect(writeFailure).toContain('sync direct write failed');
+    });
+  });
+
   it('deferred timer flushes stay page-cache only (no datasync)', async () => {
     vi.useFakeTimers();
     try {

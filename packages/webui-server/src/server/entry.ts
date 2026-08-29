@@ -58,6 +58,10 @@ Options:
   --open, -o                Open the browser after startup
   --list, -l, ls            List running WebUI instances
   --help, -h                Show this help
+
+Terminal output environment:
+  WEBUI_VERBOSE=1           Raw append-only logs (no stats panel, no formatting)
+  WEBUI_QUIET=1             Panel + warnings only (info-level logs muted)
 `);
 }
 
@@ -73,12 +77,14 @@ if (argv.includes('--help') || argv.includes('-h')) {
       process.exit(0);
     })
     .catch((err) => {
-      console.error(JSON.stringify({
-        level: 'fatal',
-        event: 'webui.instance_registry_read_failed',
-        message: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString(),
-      }));
+      console.error(
+        JSON.stringify({
+          level: 'fatal',
+          event: 'webui.instance_registry_read_failed',
+          message: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
       process.exit(1);
     });
 } else {
@@ -90,10 +96,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
   let distDir: string | undefined;
   try {
     wsHost =
-      readArg(['--host']) ??
-      process.env['WEBUI_HOST'] ??
-      process.env['WS_HOST'] ??
-      '127.0.0.1';
+      readArg(['--host']) ?? process.env['WEBUI_HOST'] ?? process.env['WS_HOST'] ?? '127.0.0.1';
     httpPort = parsePort(
       readArg(['--port', '--http-port']) ?? process.env['WEBUI_PORT'] ?? process.env['PORT'],
       3456,
@@ -110,8 +113,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
     console.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
   }
-  const open =
-    argv.includes('--open') || argv.includes('-o') || process.env['WEBUI_OPEN'] === '1';
+  const open = argv.includes('--open') || argv.includes('-o') || process.env['WEBUI_OPEN'] === '1';
   const requireToken = argv.includes('--require-token') || envFlag('WEBUI_REQUIRE_TOKEN');
 
   console.log(`[WebUI] Starting standalone server on ${wsHost} (http:${httpPort})...`);
@@ -126,12 +128,14 @@ if (argv.includes('--help') || argv.includes('-h')) {
     open,
     distDir,
   }).catch((err) => {
-    console.error(JSON.stringify({
-      level: 'fatal',
-      event: 'webui.startup_failed',
-      message: err instanceof Error ? err.message : String(err),
-      timestamp: new Date().toISOString(),
-    }));
+    console.error(
+      JSON.stringify({
+        level: 'fatal',
+        event: 'webui.startup_failed',
+        message: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
     process.exit(1);
   });
 }

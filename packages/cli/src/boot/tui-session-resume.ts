@@ -91,6 +91,7 @@ export async function resumeSession(
   // resumed JSONL under a failed-resume UI).
   let oldWriter: typeof agent.ctx.session | undefined;
   let oldMessages: typeof agent.ctx.messages | undefined;
+  let oldSessionRefCurrent: SessionWriter | undefined;
   // Hoisted sidecar captures for the rollback arm. The pre-swap
   // `state.detachActiveTodosCheckpoint` (prior session's todo write
   // handle) and the prior `todos` / `plan.path` / `task.path` values
@@ -179,7 +180,10 @@ export async function resumeSession(
     // the ref was only set once at boot (cli-main.ts:317). The ref is
     // optional on TuiRuntimeState, so older hosts that predate the fix
     // simply skip the repoint — same behavior as before.
-    if (state.sessionRef) state.sessionRef.current = resumed.writer;
+    if (state.sessionRef) {
+      oldSessionRefCurrent = state.sessionRef.current;
+      state.sessionRef.current = resumed.writer;
+    }
     await agent.ctx.flushConversationJournal().catch((err) => {
       console.error(
         JSON.stringify({
@@ -189,6 +193,7 @@ export async function resumeSession(
           timestamp: new Date().toISOString(),
         }),
       );
+      throw err;
     });
 
     // ── Re-point session-scoped sidecars (todos/plan/task) to the resumed
@@ -409,6 +414,7 @@ export async function resumeSession(
       //
       // Restores:
       //   - `agent.ctx.session` from `oldWriter`
+      //   - `state.sessionRef.current` from `oldSessionRefCurrent`
       //   - `agent.ctx.messages` from the defensive `oldMessages` copy
       //   - `state.detachActiveTodosCheckpoint` from `previousDetachFn`
       //     (the prior session's todos write handle)
@@ -418,6 +424,7 @@ export async function resumeSession(
       //     missing meta on a legacy session is not a restore target).
       try {
         if (oldWriter !== undefined) agent.ctx.session = oldWriter;
+        if (state.sessionRef) state.sessionRef.current = oldSessionRefCurrent;
         if (oldMessages !== undefined) agent.ctx.state.replaceMessages(oldMessages);
         if (previousDetachFn !== undefined) state.detachActiveTodosCheckpoint = previousDetachFn;
         // Always restore the original todos — even when empty. A later
@@ -436,6 +443,18 @@ export async function resumeSession(
             timestamp: new Date().toISOString(),
           }),
         );
+      }
+      if (openedWriter && openedWriter !== oldWriter) {
+        await openedWriter.close().catch((closeErr) => {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              event: 'execution.resume_opened_writer_close_failed',
+              message: closeErr instanceof Error ? closeErr.message : String(closeErr),
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        });
       }
     }
     console.error(

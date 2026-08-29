@@ -23,6 +23,9 @@ interface RuntimeControllerDepsInput {
   statuslineHiddenItems: ControllerDeps['statuslineHiddenItems'];
   setStatuslineHiddenItems: ControllerDeps['setStatuslineHiddenItems'];
   saveStatuslineHiddenItems: ControllerDeps['saveStatuslineHiddenItems'];
+  statuslineLines?: ControllerDeps['statuslineLines'];
+  setStatuslineLines?: ControllerDeps['setStatuslineLines'];
+  saveStatuslineLines?: ControllerDeps['saveStatuslineLines'];
   getYolo: NonNullable<ControllerDeps['getYolo']>;
   onYolo: NonNullable<ControllerDeps['onYolo']>;
   getAutonomy: () => AutonomyMode;
@@ -63,6 +66,9 @@ export function createRuntimeControllerDeps(input: RuntimeControllerDepsInput): 
     statuslineHiddenItems: input.statuslineHiddenItems,
     setStatuslineHiddenItems: input.setStatuslineHiddenItems,
     saveStatuslineHiddenItems: input.saveStatuslineHiddenItems,
+    statuslineLines: input.statuslineLines,
+    setStatuslineLines: input.setStatuslineLines,
+    saveStatuslineLines: input.saveStatuslineLines,
     getYolo: input.getYolo,
     onYolo: input.onYolo,
     getAutonomy: input.getAutonomy,

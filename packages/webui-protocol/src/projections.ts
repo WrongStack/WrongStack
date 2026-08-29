@@ -46,10 +46,14 @@ export interface SessionProjection {
   projectName: string;
   cwd: string;
   maxContext: number;
+  startedAt: string;
   reset: boolean;
+  isRunning: boolean;
   replayMessages: unknown[] | null;
   /** Audit markers replayed alongside the conversation. */
   replayMarkers: unknown[] | null;
+  /** Per-tool timing/output metadata, projected from `tool_call_end`. */
+  replayToolMeta: unknown[] | null;
   replayUsage: Record<string, unknown> | null;
 }
 
@@ -65,9 +69,12 @@ export function projectSessionMessage(message: ProtocolEnvelope): SessionProject
     projectName: text(payload['projectName'], 'Project'),
     cwd: text(payload['cwd']),
     maxContext: finite(payload['maxContext']),
+    startedAt: text(payload['startedAt']),
     reset: payload['reset'] === true,
+    isRunning: payload['isRunning'] === true,
     replayMessages: Array.isArray(payload['replayMessages']) ? payload['replayMessages'] : null,
     replayMarkers: Array.isArray(payload['replayMarkers']) ? payload['replayMarkers'] : null,
+    replayToolMeta: Array.isArray(payload['replayToolMeta']) ? payload['replayToolMeta'] : null,
     replayUsage: record(payload['replayUsage']),
   };
 }

@@ -403,6 +403,8 @@
     "reasoningModeOn": "An — Thinking erzwingen",
     "reasoningModeOff": "Aus — Thinking deaktivieren",
     "reasoningEffortLabel": "Reasoning-Aufwand",
+    "reasoningEffortAuto": "Auto (allgemein)",
+    "reasoningEffortAutoHint": "Projekteinstellung: {{value}}",
     "reasoningEffortHint": "Wie viel Compute das Modell fürs Denken aufwendet. Nur gesendet, wenn das Modell es unterstützt.",
     "reasoningEffortNone": "Keine",
     "reasoningEffortMinimal": "Minimal",

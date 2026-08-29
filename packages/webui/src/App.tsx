@@ -24,6 +24,7 @@ import { navigateToView, openMainView } from './components/activity-bar/nav';
 import { CommandPalette } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { ConfirmModalHost, PromptModalHost } from './components/ConfirmModal';
+import { RestoreTabsModal } from './components/RestoreTabsModal';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { ContextBreakdownModal } from './components/ContextBreakdownModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -445,6 +446,7 @@ function AppInner() {
       <ConfirmDialog />
       <SystemPromptDialog />
       <ConfirmModalHost />
+      <RestoreTabsModal />
       <PromptModalHost />
       <CommandPalette />
       <ShortcutsOverlay />

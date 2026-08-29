@@ -85,8 +85,19 @@ beforeEach(() => {
   useChatLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   useSessionLanes.setState({ lanes: {}, activeSessionId: '__unbound__' });
   useSessionTabStore.setState({ openTabIds: [], lastSeenCounts: {}, attention: {} });
-  useFileStore.setState({ fileSessionId: null, filesBySession: {} });
-  useFileStore.getState().clear?.();
+  useFileStore.setState({
+    projectRoot: '',
+    tree: [],
+    openFiles: [],
+    activeFilePath: null,
+    treeLoading: false,
+    error: null,
+    targetLine: null,
+    projectIdentity: '',
+    hydratingPaths: new Set<string>(),
+    fileSessionId: null,
+    filesBySession: {},
+  });
   send.mockClear();
 });
 

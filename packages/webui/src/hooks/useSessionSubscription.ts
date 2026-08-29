@@ -75,6 +75,18 @@ export function useSessionSubscription(): void {
       const active = foregroundSessionId();
       const full = active && !ids.includes(active) ? [...ids, active] : ids;
       if (full.length > 0) client.subscribeSessions(full);
+      // And which of them is in front. A new connection's runtime is wherever
+      // it was — after a RESTART, a session that has nothing to do with the
+      // restored strip — so without this every message from the tab the user
+      // is looking at comes back "this WebUI runtime is currently on …": a
+      // page that looks alive and cannot be typed into. A focus on a session
+      // the process is not holding opens it, so this is also the moment a
+      // reconnecting page reclaims its conversation.
+      //
+      // `restoreOpenTabsOnBoot` sends the same focus, but only if the socket
+      // happens to be open by the time it runs at mount. This one fires on
+      // every open, which is the case that has to be covered.
+      if (active) client.focusSessionById(active);
     });
   }, []);
 }

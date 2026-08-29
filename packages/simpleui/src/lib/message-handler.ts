@@ -51,16 +51,12 @@ import {
   parseSavedProviderIds,
   providersNeedingModels,
 } from './model-switch.js';
-import type { SimplePrefs } from './prefs-model.js';
 import { parsePrefs } from './prefs-model.js';
-import type { QueuedItem } from './queue-model.js';
 import { dequeueItem } from './queue-model.js';
-import type { RefineResultPayload, RefineState } from './refine-model.js';
+import type { RefineResultPayload } from './refine-model.js';
 import { projectRefineResult } from './refine-model.js';
 import { parseSessionSummaries } from './session-model.js';
-import type { StatusNoticeProjection } from './status-notice.js';
 import { projectStatusNotice } from './status-notice.js';
-import type { WorklistStore } from './worklist-store.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
@@ -114,8 +110,6 @@ export interface ServerMessageHandler {
 export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHandler {
   const {
     prefsRef,
-    draftRef,
-    fileRefsRef,
     queueRef,
     sessionIdRef,
     activeModelRef,
@@ -130,37 +124,24 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     setSubagents,
     setAgentTranscripts,
     setSession,
-    setSessionMenuOpen,
     setSessions,
     setContext,
     setModels,
     setModes,
     setActiveModeId,
     setPrefs,
-    setDraft,
-    setFileRefs,
-    setFileMention,
     setNotice,
     setQueue,
     setRefineState,
     setPendingConfirm,
-    setSelectedAgentId,
-    setSessionStart,
-    setShowJumpToLatest,
     setFileMatches,
     setFilePickerIndex,
     setFileSearching,
-    setAttachedImages,
     setProviderLabels,
-    resetAgentNameCache,
     onChime,
     dispatchUserMessage,
     requestProviderModels,
-    writeComposerDraft,
-    clearComposerDraft,
-    readComposerDraft,
     worklists,
-    stickToBottomRef,
   } = deps;
 
   /**
@@ -524,6 +505,17 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
       case 'tool.loop_detected':
         setActivity('Stopping repeated tool loop');
         break;
+      case 'delegate.started':
+      case 'delegate.completed': {
+        if (
+          typeof payload['sessionId'] === 'string' &&
+          payload['sessionId'] !== sessionIdRef.current
+        ) {
+          break;
+        }
+        setActivity(message.type === 'delegate.started' ? 'Delegating' : 'Working');
+        break;
+      }
       case 'iteration.started':
         setRunning(true);
         setActivity('Thinking');

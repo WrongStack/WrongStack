@@ -259,7 +259,31 @@ export type WSClientMessageCore =
    * broadcast filter drops the other three tabs' runs at the wire. Re-sent in
    * full whenever a tab opens or closes — it replaces, it does not merge.
    */
-  | { type: 'session.subscribe'; payload: { sessionIds: string[] } & SessionScopedPayload }
+  /**
+   * This tab came to the front. Moves the runtime's current session, this
+   * connection's acting id and the todo board onto it — and deliberately
+   * sends no transcript back, because the tab is already showing one.
+   * `session.resume` is the other half: it OPENS a conversation and does
+   * answer with its transcript.
+   */
+  | { type: 'session.focus'; payload: { id: string } & SessionScopedPayload }
+  | {
+      type: 'session.subscribe';
+      payload: {
+        sessionIds: string[];
+        /**
+         * The subset of `sessionIds` whose chat pane is EMPTY on this page and
+         * therefore needs its transcript sent back. After a reload the browser
+         * restores its four slots from storage but holds no messages for any of
+         * them, so without this the three background tabs come back blank and
+         * only fill in if the user clicks them. Naming them explicitly keeps the
+         * server from re-sending a transcript to a tab that already shows one —
+         * a replay is rebuilt from the working set and is strictly poorer than
+         * what a live lane already has.
+         */
+        replayFor?: string[];
+      } & SessionScopedPayload;
+    }
   | { type: 'context.clear'; payload?: SessionScopedPayload }
   | { type: 'context.compact'; payload: { aggressive: boolean } & SessionScopedPayload }
   | { type: 'context.repair'; payload?: SessionScopedPayload }

@@ -68,6 +68,15 @@ export interface SessionLaneData {
   outputCost: number;
   cacheReadCost: number;
   reasoningEffortLevels?: string[] | undefined;
+  /**
+   * Tri-state effort-support signal from the model's reasoningConfig
+   * (`undefined` = undocumented → show the control with the full canonical
+   * set; `false` = model documents NO effort control → hide it). Never
+   * boolean-coerce: undefined is not false.
+   */
+  effortSupported?: boolean | undefined;
+  /** Project-wide effort — display-only hint behind the composer auto option. */
+  projectReasoningEffort?: string | undefined;
   mode: string;
   contextMode: string;
   iteration: { index: number; max: number } | null;
@@ -90,6 +99,8 @@ export function createSessionLaneData(): SessionLaneData {
     outputCost: 0,
     cacheReadCost: 0,
     reasoningEffortLevels: undefined,
+    effortSupported: undefined,
+    projectReasoningEffort: undefined,
     mode: 'default',
     contextMode: 'balanced',
     iteration: null,
@@ -336,6 +347,10 @@ export interface SessionLaneActions {
     cacheReadCost?: number | undefined;
     reasoningEffortLevels?: string[] | undefined;
     hasReasoningEffortKey?: boolean;
+    effortSupported?: boolean | undefined;
+    hasEffortSupportedKey?: boolean;
+    projectReasoningEffort?: string | undefined;
+    hasProjectEffortKey?: boolean;
   }) => void;
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
@@ -383,7 +398,12 @@ export function sessionLane(sessionId: string): SessionLaneActions {
           // model's advertised effort list; keeping either would show the
           // previous route's numbers under the new one.
           ...(routeChanged
-            ? { contextLimitWarning: null, cacheStats: null, reasoningEffortLevels: undefined }
+            ? {
+                contextLimitWarning: null,
+                cacheStats: null,
+                reasoningEffortLevels: undefined,
+                effortSupported: undefined,
+              }
             : {}),
         };
       }),
@@ -404,6 +424,7 @@ export function sessionLane(sessionId: string): SessionLaneActions {
         contextLimitWarning: null,
         cacheStats: null,
         reasoningEffortLevels: undefined,
+        effortSupported: undefined,
       })),
 
     endSession: () =>
@@ -415,6 +436,7 @@ export function sessionLane(sessionId: string): SessionLaneActions {
         contextLimitWarning: null,
         cacheStats: null,
         reasoningEffortLevels: undefined,
+        effortSupported: undefined,
       })),
 
     updateUsage: (usage, providerId) =>
@@ -482,6 +504,16 @@ export function sessionLane(sessionId: string): SessionLaneActions {
         reasoningEffortLevels: env.hasReasoningEffortKey
           ? env.reasoningEffortLevels
           : lane.reasoningEffortLevels,
+        // Same key-presence rule as the effort list: an omitted field must
+        // not keep the previous model's tri-state alive across a switch.
+        effortSupported: env.hasEffortSupportedKey
+          ? env.effortSupported
+          : lane.effortSupported,
+        // Project-wide hint: process-wide, not per-model — refreshed via
+        // key-presence on every session.start, never reset on route change.
+        projectReasoningEffort: env.hasProjectEffortKey
+          ? env.projectReasoningEffort
+          : lane.projectReasoningEffort,
       })),
 
     setIteration: (iteration) => mutate(sid, () => ({ iteration })),

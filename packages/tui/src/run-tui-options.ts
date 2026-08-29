@@ -19,6 +19,7 @@ import type {
   TokenCounter,
   TokenSavingTier,
 } from '@wrongstack/core/types';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { AgentTranscriptReader } from './components/agents-monitor.js';
@@ -352,6 +353,13 @@ export interface RunTuiOptions {
    * make each toggle immediately durable.
    */
   saveStatuslineHiddenItems: (items: StatuslineItem[]) => Promise<void>;
+  /**
+   * Per-chip statusline line assignment (statusline.json schema v2).
+   * Optional: hosts that don't load it keep the core contract defaults.
+   */
+  statuslineLines?: StatuslineLines | undefined;
+  setStatuslineLines?: (lines: StatuslineLines) => void;
+  saveStatuslineLines?: (lines: StatuslineLines) => Promise<void>;
   /**
    * Controller for the agents monitor overlay. App installs a dispatch-backed
    * setter on mount so the `/agents on|off` slash command can toggle the

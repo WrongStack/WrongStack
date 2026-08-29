@@ -88,6 +88,9 @@ export async function runCliExecution(params: {
   statuslineHiddenItems: RC['statuslineHiddenItems'];
   setStatuslineHiddenItems: NonNullable<RC['setStatuslineHiddenItems']>;
   saveStatuslineHiddenItems: NonNullable<RC['saveStatuslineHiddenItems']>;
+  statuslineLines?: RC['statuslineLines'];
+  setStatuslineLines?: NonNullable<RC['setStatuslineLines']>;
+  saveStatuslineLines?: NonNullable<RC['saveStatuslineLines']>;
   setYoloMode: NonNullable<RC['getYolo']>;
   autonomyMode: ReturnType<RC['getAutonomy']>;
   setAutonomyMode: NonNullable<RC['setAutonomy']>;
@@ -177,6 +180,9 @@ export async function runCliExecution(params: {
     statuslineHiddenItems,
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,
+    statuslineLines,
+    setStatuslineLines,
+    saveStatuslineLines,
     setYoloMode,
     autonomyMode,
     setAutonomyMode,
@@ -323,6 +329,9 @@ export async function runCliExecution(params: {
         statuslineHiddenItems,
         setStatuslineHiddenItems,
         saveStatuslineHiddenItems,
+        statuslineLines,
+        setStatuslineLines,
+        saveStatuslineLines,
         getYolo: setYoloMode,
         onYolo: setYoloMode,
         getAutonomy: () => autonomyMode,

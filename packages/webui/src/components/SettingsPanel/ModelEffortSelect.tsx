@@ -1,6 +1,7 @@
 import { useAppTranslation } from '@/i18n';
 import {
   EFFORT_LABEL_KEYS,
+  effortLabelKey,
   effortNotAdvertised,
   resolveEffortOptions,
 } from '@/lib/reasoning-effort';
@@ -26,7 +27,7 @@ export function ModelEffortSelect({
   const effortLevels = useSessionStore((s) => s.reasoningEffortLevels);
   const effortOptions = resolveEffortOptions(effortLevels, reasoningEffort).map((level) => ({
     value: level,
-    label: t(EFFORT_LABEL_KEYS[level]),
+    label: t(effortLabelKey(level)),
   }));
 
   return (

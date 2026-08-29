@@ -23,7 +23,7 @@ function mockAgentCtx(overrides?: Record<string, unknown>): Context {
       capabilities: { maxContext: 128_000 },
     },
     model: 'test-model',
-    session: { id: 'sess_test' },
+    session: { id: 'sess_test', startedAt: '2026-07-25T10:00:00.000Z' },
     meta: {},
     lastRequestTokens: 0,
     ...overrides,
@@ -120,5 +120,16 @@ describe('createSessionStartPayloadBuilder', () => {
     expect(payload.latestVersion).toBeUndefined();
     expect(payload.updateAvailable).toBe(false);
     expect(payload.updateCheckFailed).toBe(false);
+  });
+
+  it('carries the original session start time', async () => {
+    const { createSessionStartPayloadBuilder } = await import(
+      '../../src/webui-server/session-start-payload.js'
+    );
+
+    const buildPayload = createSessionStartPayloadBuilder(mockDeps());
+
+    const payload = await buildPayload();
+    expect(payload.startedAt).toBe('2026-07-25T10:00:00.000Z');
   });
 });

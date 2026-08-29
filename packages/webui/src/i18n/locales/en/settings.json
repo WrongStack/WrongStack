@@ -407,6 +407,8 @@
     "reasoningModeOn": "On — force thinking on",
     "reasoningModeOff": "Off — force thinking off",
     "reasoningEffortLabel": "Reasoning effort",
+    "reasoningEffortAuto": "Auto (general)",
+    "reasoningEffortAutoHint": "Project setting: {{value}}",
     "reasoningEffortHint": "How much compute the model spends thinking. Only sent when the model supports it.",
     "reasoningEffortNone": "None",
     "reasoningEffortMinimal": "Minimal",

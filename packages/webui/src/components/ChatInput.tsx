@@ -28,6 +28,7 @@ import { type ImageAttachment, toWireImages } from './ChatInput/image-attachment
 import { handleNextList, handleNextSelect } from './ChatInput/next-steps-helpers.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
+import { SessionEffortSelect } from './ChatInput/session-effort-select.js';
 import { detectAtMention, matchSlash } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
@@ -951,8 +952,8 @@ export function ChatInput({
         </button>
         {/* Model chip — moved here from the chat header so it is visible on
             every viewport (the header chip was hidden below `sm`) and sits
-            next to the prompt library. Opens the same switcher modal, which
-            also carries the per-session effort control. */}
+            next to the prompt library. Opens the same switcher modal; the
+            effort select beside it edits the same per-session pref inline. */}
         <button
           type="button"
           onClick={() => useUIStore.getState().setModelSwitcherOpen(true)}
@@ -966,6 +967,7 @@ export function ChatInput({
             {(sessionModel ?? fallbackModel) || t('chat:header.noModel')}
           </span>
         </button>
+        <SessionEffortSelect />
       </div>
 
       {hasFileRefs && (

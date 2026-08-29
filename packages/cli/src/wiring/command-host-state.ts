@@ -25,6 +25,11 @@ import {
   createStatuslineConfigDeps,
   loadStatuslineHiddenItems,
 } from './controllers.js';
+import {
+  loadStatuslineLines,
+  saveStatuslineLines as persistStatuslineLines,
+} from '../services/statusline-config.js';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 
 type CoordinatorController = NonNullable<BuiltinSlashCommandDeps['coordinatorController']>;
@@ -78,6 +83,17 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     currentHiddenItems = items;
     await hidden.saveHiddenItems(items);
   };
+  // Per-chip line assignment (schema v2). The import is aliased so the
+  // host-facing callback keeps the RunTuiOptions field name.
+  const statuslineLines = await loadStatuslineLines();
+  let currentLines: StatuslineLines = { ...statuslineLines };
+  const setStatuslineLines = (next: StatuslineLines) => {
+    currentLines = { ...next };
+  };
+  const saveStatuslineLines = async (next: StatuslineLines) => {
+    currentLines = { ...next };
+    await persistStatuslineLines(next);
+  };
   const agentsMonitorController = createAgentsMonitorController();
   const onPanelOpen: { current: ((action: string) => boolean) | null } = { current: null };
   const goalHost = createGoalHost({
@@ -124,6 +140,10 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
     getCurrentHiddenItems: () => currentHiddenItems,
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,
+    statuslineLines: { ...statuslineLines },
+    getCurrentStatuslineLines: () => currentLines,
+    setStatuslineLines,
+    saveStatuslineLines,
     agentsMonitorController,
     onPanelOpen,
     goalHost,

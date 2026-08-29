@@ -16,17 +16,22 @@ import type { Server as HttpServer } from 'node:http';
 import * as path from 'node:path';
 import { createCompatibilityTrustBoundary, DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { ProviderConfig, SessionWriter } from '@wrongstack/core/types';
-import { startSharedHeapWatchdog, wstackGlobalRoot } from '@wrongstack/core/utils';
+import {
+  addFatalSalvageHook,
+  startSharedHeapWatchdog,
+  wstackGlobalRoot,
+} from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import {
   buildWebUIAccessUrl,
   type CustomModeStore,
+  clientWantsSession,
+  collectDisplayedSessionIds,
   createCustomModeStore,
   createEmbeddedMessageRouter,
   createEmbeddedProviderOperations,
   createSessionAgentRegistry,
   type EmbeddedProviderContext,
-  clientWantsSession,
   envFlag,
   findFreePort,
   findInstalledPackageJson,
@@ -35,7 +40,11 @@ import {
   resolveAuthToken,
   resolvePendingConfirmsForSession,
   type SessionAgentRegistry,
+  scheduleOwnerlessEmptySessionCleanup,
   sendSerialized,
+  startTerminalDashboard,
+  startWebUILiveStatusLogger,
+  toSessionHistoryEntries,
 } from '@wrongstack/webui-server';
 import { type WebSocket, WebSocketServer } from 'ws';
 import { createWebuiClientRegistration } from './webui-server/client-registration.js';
@@ -71,13 +80,11 @@ import { createSessionStartPayloadBuilder } from './webui-server/session-start-p
 import { createSetupEvents } from './webui-server/setup-events.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import { createStreamCoalescer } from './webui-server/stream-coalescer.js';
-import { startQuietSurfaceConsole } from './webui-server/terminal-log-view.js';
 
 import type { CliWebUIOptions } from './webui-server-options.js';
 
 export type { CliWebUIOptions } from './webui-server-options.js';
 export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
-  const terminalLogView = startQuietSurfaceConsole();
   const trustBoundary =
     opts.trustBoundary ??
     createCompatibilityTrustBoundary({ policyId: 'cli-webui-trusted-host-compat-v1' });
@@ -88,6 +95,20 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const surface = opts.surface ?? 'webui';
   const surfaceDefaults = surface === 'simpleui' ? { http: 3466 } : { http: 3456 };
   const requestedHttpPort = opts.httpPort ?? opts.port ?? surfaceDefaults.http;
+  /**
+   * One coordinator for the whole terminal: a fixed session-stats panel at
+   * the bottom (live rows for every open tab, running or idle) plus an
+   * ordered, timestamped log stream above it. `quiet` keeps the embedded
+   * host's browser-owns-chatter contract — info-level lines land in the
+   * ring buffer, warn/error still flow — and WEBUI_LOGS=1 streams the info
+   * lines in as well. WEBUI_VERBOSE=1 or a non-TTY stdout bypasses the
+   * dashboard entirely, keeping the raw append-only log.
+   */
+  const terminalLogView = startTerminalDashboard({
+    title: surface === 'simpleui' ? 'SimpleUI' : 'WebUI',
+    quiet: !envFlag('WEBUI_LOGS'),
+    getUrl: () => `http://${host}:${httpPort}`,
+  });
   const strictPort = opts.strictPort ?? isStrictPort();
   let httpPort = requestedHttpPort;
   if (!strictPort) {
@@ -481,6 +502,53 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   sessionAgentsRef = sessionAgents;
 
   /**
+   * Live rows for the terminal panel: every session a connected browser tab
+   * displays (plus the boot session when none do), with its running state,
+   * model and provider. `peek`, never `get` — the panel must not materialise
+   * agents for stale tab ids.
+   */
+  const stopLiveStatusLogger = startWebUILiveStatusLogger({
+    events: opts.events,
+    dashboard: terminalLogView,
+    getSessionList: () => {
+      const ids = new Set<string>();
+      for (const client of clients.values()) {
+        if (client.sessionId) ids.add(client.sessionId);
+        for (const id of client.sessionIds ?? []) ids.add(id);
+      }
+      const currentId = opts.agent.ctx.session?.id ?? opts.session.id;
+      if (ids.size === 0 && currentId) ids.add(currentId);
+      return Array.from(ids).map((id) => {
+        const ctx = sessionAgentsRef?.peek(id)?.ctx;
+        return {
+          id,
+          model: ctx?.model ?? opts.agent.ctx.model ?? '',
+          provider: ctx?.provider?.id ?? opts.agent.ctx.provider?.id ?? '',
+          isRunning: abortControllers.has(id),
+        };
+      });
+    },
+  });
+
+  /**
+   * Salvage every tab's journal on a fatal exit, not just the leader's.
+   *
+   * The boot-time salvage hook drains `sessionRef.current` — the session the
+   * host itself speaks for. The other three tabs write through their own
+   * writers, each with its own buffer, so a crash-shield exit or an unhandled
+   * rejection truncated their journals at whatever the last critical record
+   * happened to be. Registering here keeps the hook alive for exactly as long
+   * as the registry it drains.
+   */
+  const releaseSessionSalvage = addFatalSalvageHook(() => {
+    try {
+      sessionAgents.flushAllSync();
+    } catch {
+      // best-effort — the process is already going down
+    }
+  });
+
+  /**
    * Retire the runtime of a tab that was closed.
    *
    * A closed tab used to leave everything behind: its Agent, that agent's
@@ -522,15 +590,59 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.onSessionRetired?.(sessionId);
       const agent = sessionAgents.peek(sessionId);
       if (!agent || agent === opts.agent) continue;
-      const writer = agent.ctx.session;
-      sessionAgents.drop(sessionId);
-      // Close the journal LAST and best-effort: the handle is the scarce
-      // resource, but a failed close must not stop the drop.
-      if (writer && writer.id === sessionId) {
-        void Promise.resolve(writer.close?.()).catch(() => undefined);
-      }
+      // Ends the journal (`session_end`, then close) and forgets the agent.
+      // The marker is not optional: "no trailing session_end" is exactly how
+      // recovery recognises a journal a crash left hanging
+      // (`SessionRecovery.listUnclosed`, `resolveSessionOutcome`), so without
+      // it every tab the user closed on purpose was indistinguishable from one
+      // that died — the recovery list filled up with finished work and the
+      // history showed those sessions with no outcome at all.
+      //
+      // Fire-and-forget: the registry entry is gone before this returns, and
+      // nothing the closing tab does next depends on the journal's last write.
+      void sessionAgents.endAndClose(sessionId);
     }
   };
+
+  /**
+   * Sweep sessions that were started and never used.
+   *
+   * Every launch of this host opens a session, and so does every `New tab`
+   * the user then closes without typing. This sweeper existed but was wired
+   * into the STANDALONE WebUI host only, so the host `wstack --webui` actually
+   * runs accumulated one dead, empty record per launch forever. They filled
+   * the history list, and the ones the runtime or a tab still held could not
+   * even be deleted by hand — "empty sessions I can't delete, and it says
+   * they are live".
+   *
+   * Everything volatile is read at sweep time, never captured: the runtime's
+   * current session, every session a connected page declares (a background
+   * tab's brand-new session is empty BY DEFINITION and must not be swept out
+   * from under it), and — stricter than the standalone host — every session
+   * with a live run, whose journal is empty only because its first turn has
+   * not landed yet. The store's own fail-closed `isEmpty` is the final word.
+   */
+  const stopEmptySessionCleanup = opts.sessionStore
+    ? scheduleOwnerlessEmptySessionCleanup({
+        getSessionStore: () => opts.sessionStore as NonNullable<typeof opts.sessionStore>,
+        getActiveSessionId: () => foregroundSession.id,
+        getActiveSessionIds: () =>
+          collectDisplayedSessionIds({ getSession: () => foregroundSession, clients }),
+        // A run outlives the tab that started it, and a turn that has not
+        // written its first record yet looks exactly like a session nobody
+        // ever used.
+        hasParticipants: (sessionId) => abortControllers.has(sessionId),
+        refreshSessions: async () => {
+          const list = await opts.sessionStore?.list(200);
+          if (!list) return;
+          broadcastEveryone({
+            type: 'sessions.list',
+            payload: { sessions: toSessionHistoryEntries(list, foregroundSession.id) },
+          });
+        },
+        logger: consoleLogger,
+      })
+    : null;
 
   const routeContexts = createWebuiRouteContexts({
     opts,
@@ -656,7 +768,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         buildSessionStartPayload,
         loadReplay: async () => {
           const activeSession = opts.agent.ctx.session ?? opts.session;
-          await activeSession.flush().catch(() => undefined);
+          await activeSession.flush();
           if (opts.sessionStore) {
             const data = await opts.sessionStore.load(activeSession.id);
             return { messages: data.messages, events: data.events, usage: data.usage };
@@ -664,7 +776,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           const usage = opts.agent.ctx.tokenCounter.total();
           return { messages: opts.agent.ctx.messages, usage };
         },
-        loadAgentSessions: async () => (await opts.agentTranscripts?.loadSessionsFromDisk()) ?? [],
+        loadAgentSessions: async (subagentIds) =>
+          (await opts.agentTranscripts?.loadSessionsFromDisk(subagentIds)) ?? [],
+        // What this process is actually holding right now. The browser
+        // reconciles its persisted tab strip against it, so a restarted server
+        // is not dressed in the previous run's tabs.
+        openSessionIds: () => sessionAgents.ids(),
         needsSetup: opts.needsSetup ?? false,
       }),
     );
@@ -715,6 +832,15 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         }
       },
       disposeResources: async () => {
+        releaseSessionSalvage();
+        await stopEmptySessionCleanup?.dispose();
+        // End the journals of every tab that is not the leader's. `close()`
+        // alone would flush them, but a journal with no trailing
+        // `session_end` is indistinguishable from one a crash left hanging —
+        // so a clean quit with three background tabs used to hand the next
+        // launch three sessions to "recover". The leader's own journal is
+        // finalized by the CLI's execution teardown, which runs after this.
+        await sessionAgents.closeAll().catch(() => undefined);
         credentialWatcherClose?.();
         credentialWatcherClose = undefined;
         goalHandler.dispose();
@@ -742,11 +868,14 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       pid: process.pid,
       registryBaseDir,
       onStopped: () => {
+        // Unsubscribe the panel from the event bus FIRST, then erase it and
+        // restore the raw console so the teardown lines print plainly.
+        stopLiveStatusLogger();
         const muted = terminalLogView.mutedCount;
         terminalLogView.stop();
         if (muted > 0) {
           console.log(
-            `[WebUI] ${muted} progress line(s) kept out of this terminal — set WEBUI_VERBOSE=1 to see them.`,
+            `[WebUI] ${muted} progress line(s) kept out of this terminal — set WEBUI_LOGS=1 to stream them.`,
           );
         }
         opts.onExit?.();

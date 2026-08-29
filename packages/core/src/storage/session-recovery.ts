@@ -37,6 +37,36 @@ export interface StaleSession {
   eventCount: number;
 }
 
+/**
+ * A session whose journal has no trailing `session_end`.
+ *
+ * Broader than {@link StaleSession} on purpose. `StaleSession` answers "did a
+ * process die *mid-iteration*", which needs a dangling `in_flight_start`. But a
+ * host killed while the agent was idle — waiting for the next prompt — closes
+ * its last turn with `in_flight_end` and then simply stops writing. Such a
+ * session is every bit as unfinished, and matching only on `in_flight_start`
+ * made exactly the common case (close the terminal, kill the daemon, reboot)
+ * invisible to recovery.
+ *
+ * Detection is a tail scan for the newest lifecycle boundary:
+ *   - `session_end`            -> closed, not reported
+ *   - `in_flight_start`        -> unclosed AND stale (died mid-iteration)
+ *   - `in_flight_end` / none   -> unclosed, not stale (died between turns)
+ */
+export interface UnclosedSession {
+  sessionId: string;
+  /** Path to the JSONL log. */
+  path: string;
+  /** Newest lifecycle boundary, or null for a journal that has none. */
+  lastBoundary: 'in_flight_start' | 'in_flight_end' | null;
+  /** Boundary timestamp when there is one, else the file's mtime as ISO. */
+  lastEventTs: string;
+  /** True when the newest boundary is a dangling `in_flight_start`. */
+  stale: boolean;
+  /** File mtime in ms — the ordering key, since a boundary-less log has no ts. */
+  modifiedAt: number;
+}
+
 export interface RecoveryPlan {
   sessionId: string;
   /** True if the session is stale (has a dangling in_flight_start). */
@@ -392,9 +422,76 @@ export class SessionRecovery {
    */
   async listResumable(): Promise<StaleSession[]> {
     const out: StaleSession[] = [];
-    // Modern sessions live inside date-shard subdirectories
-    // ("2026-06-11/<base>.jsonl"); legacy/flat sessions sit at the root.
-    // Scan both — a root-only scan silently misses every modern crash.
+    for (const { sessionId } of await this.collectTranscripts()) {
+      const stale = await this.detectStaleExact(sessionId);
+      if (stale) out.push(stale);
+    }
+    return out.sort((a, b) => b.lastEventTs.localeCompare(a.lastEventTs));
+  }
+
+  /**
+   * List every session whose journal has no trailing `session_end`, newest
+   * file first. This is the read side of "recovery" as a user means it: the
+   * conversations a crash, a `kill`, or a closed laptop lid left hanging.
+   *
+   * Ordering is by file mtime, not by boundary timestamp: a journal with no
+   * lifecycle boundary at all (a session that never completed a turn) has no
+   * timestamp to sort on, and mtime is the one key every candidate has.
+   *
+   * @param options.limit Stop after this many unclosed sessions are found.
+   *   Candidates are examined newest-mtime-first, so the cap keeps the common
+   *   "give me the last one" call to a couple of tail reads instead of a scan
+   *   of every transcript the project ever wrote.
+   */
+  async listUnclosed(options: { limit?: number } = {}): Promise<UnclosedSession[]> {
+    const limit = options.limit ?? Number.POSITIVE_INFINITY;
+    if (limit <= 0) return [];
+    const candidates = await this.collectTranscripts();
+    // Newest file first — the cap below is only meaningful against this order.
+    candidates.sort((a, b) => b.modifiedAt - a.modifiedAt);
+    const out: UnclosedSession[] = [];
+    for (const candidate of candidates) {
+      if (out.length >= limit) break;
+      const unclosed = await this.detectUnclosedExact(candidate);
+      if (unclosed) out.push(unclosed);
+    }
+    return out;
+  }
+
+  private async detectUnclosedExact(
+    candidate: TranscriptCandidate,
+  ): Promise<UnclosedSession | null> {
+    if (candidate.size === 0) return null;
+    let boundary: LifecycleBoundary | null;
+    try {
+      boundary = await scanLatestLifecycleBoundary(candidate.path, candidate.size, {
+        countEvents: false,
+      }).then((scan) => scan?.boundary ?? null);
+      /* v8 ignore start -- defensive: reverse scan failure after a successful stat is rare */
+    } catch {
+      return null;
+    }
+    /* v8 ignore stop */
+    if (boundary?.type === 'session_end') return null;
+    return {
+      sessionId: candidate.sessionId,
+      path: candidate.path,
+      lastBoundary: boundary ? boundary.type : null,
+      lastEventTs: boundary ? boundary.ts : new Date(candidate.modifiedAt).toISOString(),
+      stale: boundary?.type === 'in_flight_start',
+      modifiedAt: candidate.modifiedAt,
+    };
+  }
+
+  /**
+   * Every session transcript under `dir`, with the stat both scanners need.
+   *
+   * Modern sessions live inside date-shard subdirectories
+   * ("2026-06-11/<base>.jsonl"); legacy/flat sessions sit at the root. Scan
+   * both — a root-only scan silently misses every modern crash.
+   */
+  private async collectTranscripts(): Promise<TranscriptCandidate[]> {
+    const out: TranscriptCandidate[] = [];
     const collect = async (dir: string, prefix: string, depth: number): Promise<void> => {
       let entries: import('node:fs').Dirent[];
       try {
@@ -417,12 +514,20 @@ export class SessionRecovery {
         if (!entry.isFile() || !isSessionTranscriptFileName(entry.name)) continue;
         const base = entry.name.slice(0, -'.jsonl'.length);
         const sessionId = prefix ? `${prefix}/${base}` : base;
-        const stale = await this.detectStaleExact(sessionId);
-        if (stale) out.push(stale);
+        const fp = path.join(dir, entry.name);
+        let stat: Awaited<ReturnType<typeof fs.stat>>;
+        try {
+          stat = await fs.stat(fp);
+          /* v8 ignore start -- defensive: the file was just listed by readdir */
+        } catch {
+          continue;
+        }
+        /* v8 ignore stop */
+        out.push({ sessionId, path: fp, size: stat.size, modifiedAt: stat.mtimeMs });
       }
     };
     await collect(this.dir, '', 0);
-    return out.sort((a, b) => b.lastEventTs.localeCompare(a.lastEventTs));
+    return out;
   }
 
   // ── Internals ──────────────────────────────────────────────────────────
@@ -435,6 +540,13 @@ export class SessionRecovery {
   }
 
   constructor(private readonly dir: string) {}
+}
+
+interface TranscriptCandidate {
+  sessionId: string;
+  path: string;
+  size: number;
+  modifiedAt: number;
 }
 
 type LifecycleBoundary = Extract<
@@ -475,7 +587,14 @@ function hasNonWhitespace(line: Buffer): boolean {
 async function scanLatestLifecycleBoundary(
   filePath: string,
   size: number,
+  options: { countEvents?: boolean } = {},
 ): Promise<{ boundary: LifecycleBoundary; eventCount: number } | null> {
+  // `listResumable` documents `eventCount` as the log's TOTAL, which is why a
+  // dangling `in_flight_start` keeps reading to byte 0. `listUnclosed` only
+  // needs to know WHICH boundary is newest, so it opts out and stops at the
+  // first one found — otherwise every unclosed multi-hundred-MB transcript
+  // would be read end to end just to answer a yes/no question.
+  const countEvents = options.countEvents !== false;
   const CHUNK_SIZE = 64 * 1024;
   const handle = await fs.open(filePath, 'r');
   let position = size;
@@ -508,7 +627,7 @@ async function scanLatestLifecycleBoundary(
 
       // A clean boundary needs no exact event count because no StaleSession is
       // returned. The common clean path therefore remains a one-chunk read.
-      if (latestBoundary && latestBoundary.type !== 'in_flight_start') {
+      if (latestBoundary && (!countEvents || latestBoundary.type !== 'in_flight_start')) {
         return { boundary: latestBoundary, eventCount };
       }
     }

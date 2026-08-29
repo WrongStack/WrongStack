@@ -81,6 +81,10 @@ export interface SessionState extends SessionGlobals, SessionLaneData {
     outputCost?: number | undefined;
     cacheReadCost?: number | undefined;
     reasoningEffortLevels?: string[] | undefined;
+    /** Tri-state: undefined=undocumented, false=model documents no effort control. */
+    effortSupported?: boolean | undefined;
+    /** Project-wide effort — display-only hint behind the composer auto option. */
+    projectReasoningEffort?: string | undefined;
   }) => void;
   setIteration: (it: { index: number; max: number } | null) => void;
   setContextUsage: (tokens: number, maxContext?: number | undefined) => void;
@@ -139,6 +143,8 @@ function projectActiveLane(state: LanesState): SessionState {
     outputCost: lane.outputCost,
     cacheReadCost: lane.cacheReadCost,
     reasoningEffortLevels: lane.reasoningEffortLevels,
+    effortSupported: lane.effortSupported,
+    projectReasoningEffort: lane.projectReasoningEffort,
     mode: lane.mode,
     contextMode: lane.contextMode,
     iteration: lane.iteration,
@@ -265,6 +271,10 @@ function setEnvOnActiveLane(env: Parameters<SessionState['setEnv']>[0]): void {
     cacheReadCost: env.cacheReadCost,
     reasoningEffortLevels: env.reasoningEffortLevels,
     hasReasoningEffortKey: 'reasoningEffortLevels' in env,
+    effortSupported: env.effortSupported,
+    hasEffortSupportedKey: 'effortSupported' in env,
+    projectReasoningEffort: env.projectReasoningEffort,
+    hasProjectEffortKey: 'projectReasoningEffort' in env,
   });
 }
 

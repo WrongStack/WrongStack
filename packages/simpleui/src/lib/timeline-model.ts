@@ -26,6 +26,9 @@ export function buildTimeline(
   entries.sort((a, b) => {
     if (a.ts < b.ts) return -1;
     if (a.ts > b.ts) return 1;
+    const orderA = a.kind === 'message' ? a.message?.replayOrder : a.toolCall?.replayOrder;
+    const orderB = b.kind === 'message' ? b.message?.replayOrder : b.toolCall?.replayOrder;
+    if (orderA !== undefined && orderB !== undefined) return orderA - orderB;
     return 0;
   });
 

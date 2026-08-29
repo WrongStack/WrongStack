@@ -156,14 +156,31 @@ export class AgentMonitorService {
    *
    * Entries already in the ring win: a live subagent's in-memory segment is
    * newer than its JSONL, which is only written when a segment closes.
+   *
+   * `only` restricts BOTH the disk scan and the returned set to a known list of
+   * subagent ids. This is how a session gets ITS OWN subagents back: the
+   * transcripts directory is shared by every session of the project, so the
+   * unfiltered form hands each of four open tabs the union of all four tabs'
+   * workers. The caller derives the list from the session's own journal
+   * (`deriveSessionAgents`), which is the only record that says which agents
+   * belong to which session.
    */
-  async loadSessionsFromDisk(): Promise<AgentVirtualSession[]> {
+  async loadSessionsFromDisk(only?: readonly string[]): Promise<AgentVirtualSession[]> {
+    const wanted = only === undefined ? undefined : new Set(only);
+    if (wanted?.size === 0) return [];
     let subagentIds: string[];
-    try {
-      const dirents = await fs.readdir(this._transcriptsDir, { withFileTypes: true });
-      subagentIds = dirents.filter((d) => d.isDirectory()).map((d) => d.name);
-    } catch {
-      return this.getAllSessions(); // no transcripts dir yet — nothing to restore
+    if (wanted) {
+      // Named ids need no directory scan — a missing transcript simply yields
+      // an entry-less row, which is the right answer for an agent that ran on
+      // the parent-interleaved writer and never had a file of its own.
+      subagentIds = [...wanted];
+    } else {
+      try {
+        const dirents = await fs.readdir(this._transcriptsDir, { withFileTypes: true });
+        subagentIds = dirents.filter((d) => d.isDirectory()).map((d) => d.name);
+      } catch {
+        return this.getAllSessions(); // no transcripts dir yet — nothing to restore
+      }
     }
 
     for (const subagentId of subagentIds) {
@@ -182,7 +199,8 @@ export class AgentMonitorService {
         transcript: transcript.slice(-this._maxEntries),
       });
     }
-    return this.getAllSessions();
+    const all = this.getAllSessions();
+    return wanted ? all.filter((session) => wanted.has(session.subagentId)) : all;
   }
 
   private async _readTranscriptFile(subagentId: string): Promise<AgentTimelineEntry[]> {

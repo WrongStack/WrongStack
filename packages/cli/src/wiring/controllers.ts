@@ -9,7 +9,7 @@
  */
 
 import type { Config, FleetChatVerbosity } from '@wrongstack/core/types';
-import type { StatuslineConfigKey } from '../services/statusline-config.js';
+import type { StatuslineConfigKey, StatuslineDocument } from '../services/statusline-config.js';
 import {
   DEFAULTS,
   ensureStatuslineConfig,
@@ -98,14 +98,14 @@ export function createAgentsMonitorController(): AgentsMonitorController {
 // ─── Statusline config helper ──────────────────────────────────────
 
 export interface StatuslineConfigDeps {
-  get: () => Promise<StatuslineConfig>;
-  set: (cfg: StatuslineConfig) => Promise<void>;
+  get: () => Promise<StatuslineDocument>;
+  set: (cfg: StatuslineDocument) => Promise<void>;
 }
 
 export function createStatuslineConfigDeps(): StatuslineConfigDeps {
   return {
     get: () => loadStatuslineConfig(),
-    set: (cfg: StatuslineConfig) => saveStatuslineConfig(cfg),
+    set: (cfg: StatuslineDocument) => saveStatuslineConfig(cfg),
   };
 }
 
@@ -118,21 +118,25 @@ export async function loadStatuslineHiddenItems(): Promise<{
   setHiddenItems: (items: StatuslineConfigKey[]) => void;
   saveHiddenItems: (items: StatuslineConfigKey[]) => Promise<void>;
 }> {
-  const hiddenItemsFromConfig = await ensureStatuslineConfig();
+  const doc = await ensureStatuslineConfig();
   const hiddenItemsList: StatuslineConfigKey[] = [];
   for (const k of STATUSLINE_CONFIG_KEYS) {
-    if (!hiddenItemsFromConfig[k]) hiddenItemsList.push(k);
+    if (!doc.chips[k]) hiddenItemsList.push(k);
   }
   const setHiddenItems = (_items: StatuslineConfigKey[]) => {
     hiddenItemsList.splice(0, hiddenItemsList.length, ..._items);
   };
   const saveHiddenItems = async (items: StatuslineConfigKey[]): Promise<void> => {
     setHiddenItems(items);
-    const cfg: StatuslineConfig = { ...DEFAULTS };
+    const chips: StatuslineConfig = { ...DEFAULTS };
     for (const k of STATUSLINE_CONFIG_KEYS) {
-      cfg[k] = !items.includes(k);
+      chips[k] = !items.includes(k);
     }
-    await saveStatuslineConfig(cfg);
+    // Hidden-item writes are scoped to chips — the stored line assignment is
+    // preserved. ensure (not load) so a corrupt file is quarantined before
+    // the RMW instead of silently persisting lines: {} over the user's data.
+    const doc = await ensureStatuslineConfig();
+    await saveStatuslineConfig({ ...doc, chips });
   };
   return { hiddenItems: hiddenItemsList, setHiddenItems, saveHiddenItems };
 }

@@ -194,13 +194,26 @@ describe('Session Lifecycle & Invariant Verification Suite (Code-Proven)', () =>
       '[loop-detector] detected repetition',
       '[BY THE WAY — keep this in mind',
       '[QUEUED MESSAGES — 1 task pending',
-      '[SESSION RESUME FILE VALIDATION] 2 files changed',
-      '[SESSION RESUME INTERRUPTED WORK] 1 tool call was in flight',
+      '[tool_history_digest: 40 older acknowledged exchange(s) omitted',
       '[session.resume] Request targeted session 2026-08-26/sess_old, but this WebUI runtime is currently on 2026-08-26/sess_a.',
     ];
 
     for (const injection of systemInjections) {
       expect(isSystemInjectedMessage(injection)).toBe(true);
+    }
+
+    // The resume notices are NOT injections: the store writes them for the
+    // HUMAN, to say files moved underneath the session or calls were left in
+    // flight. Hiding them meant the drift was detected, worded, and then
+    // silently discarded on every surface.
+    const humanFacingResumeNotices = [
+      '[SESSION RESUME FILE VALIDATION] 2 files changed',
+      '[SESSION RESUME INTERRUPTED WORK] 1 tool call was in flight',
+      '[SESSION RESUME CRASH RECOVERY] The previous run stopped mid-iteration',
+    ];
+
+    for (const notice of humanFacingResumeNotices) {
+      expect(isSystemInjectedMessage(notice)).toBe(false);
     }
 
     const realUserMessages = [

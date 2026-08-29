@@ -79,9 +79,9 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 250,
+      "files": 251,
       "typeOnly": 131,
-      "runtimeOrMixed": 132
+      "runtimeOrMixed": 133
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -138,10 +138,15 @@
       "typeOnly": 3,
       "runtimeOrMixed": 5
     },
+    "@wrongstack/core/statusline": {
+      "files": 11,
+      "typeOnly": 8,
+      "runtimeOrMixed": 3
+    },
     "@wrongstack/core/storage": {
-      "files": 110,
-      "typeOnly": 31,
-      "runtimeOrMixed": 113
+      "files": 115,
+      "typeOnly": 32,
+      "runtimeOrMixed": 117
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -154,8 +159,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1018,
-      "typeOnly": 941,
+      "files": 1022,
+      "typeOnly": 945,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -167,6 +172,11 @@
       "files": 2,
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    "@wrongstack/core/types/session-timeline": {
+      "files": 3,
+      "typeOnly": 1,
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/types/spec.js": {
       "files": 6,
@@ -5797,6 +5807,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/webui-server/empty-session-sweep.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/webui-server/session-retire-helpers.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8748,6 +8764,72 @@
       "runtimeOrMixed": 0
     },
     {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/cli/src/execute-deps.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/cli/src/services/statusline-config.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/cli/src/wiring/command-host-state.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/cli/tests/statusline-contract-drift.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/app-props.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/components/status-bar-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/components/status-line-registry.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/components/statusline-picker.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/hooks/use-statusline-state.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/src/run-tui-options.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/statusline",
+      "file": "packages/tui/tests/status-line-registry.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
       "specifier": "@wrongstack/core/storage",
       "file": "apps/desktop/src/main/main.ts",
       "typeOnly": 0,
@@ -8875,6 +8957,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/webui-server/connection-handler.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/webui-server/credential-watcher.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8906,6 +8994,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/wiring/replay.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/wiring/resume-candidate.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -8989,6 +9083,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/resume-candidate.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/tests/slash-context.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -9016,6 +9116,12 @@
       "file": "packages/cli/tests/tui-project-switch-identity.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/tests/tui-resume-end-to-end.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -9292,6 +9398,12 @@
       "file": "packages/webui-server/src/server/prompts-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/src/server/session-agent-sessions.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -11072,6 +11184,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/replay.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/wiring/resume-candidate.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -14971,6 +15089,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-protocol/src/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-protocol/src/replay-payload.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15373,6 +15497,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/session-agent-sessions.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/session-cleanup-scheduler.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15637,6 +15767,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/lib/delegate-format.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui/src/lib/plugin-enablement.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -15751,12 +15887,30 @@
     },
     {
       "specifier": "@wrongstack/core/types/session-markers",
-      "file": "packages/webui-protocol/src/replay-payload.ts",
+      "file": "packages/webui-protocol/src/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types/session-markers",
+      "file": "packages/webui-protocol/src/replay-payload.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
+      "file": "packages/webui-protocol/src/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
+      "file": "packages/webui-protocol/src/replay-payload.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
       "file": "packages/webui/src/hooks/ws-handlers/session-replay-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1

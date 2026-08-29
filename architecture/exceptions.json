@@ -129,10 +129,11 @@
       "members": [
         "packages/tui/src/components/status-bar-chips.tsx",
         "packages/tui/src/components/status-bar-rails.tsx",
-        "packages/tui/src/components/status-bar.tsx"
+        "packages/tui/src/components/status-bar.tsx",
+        "packages/tui/src/components/status-line-registry.tsx"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include status-bar-rails.tsx (status-bar decomposition). No further new members are allowed. Re-reviewed 2026-08-18 ahead of the 2026-09-15 lapse: membership verified exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-08-14 to include status-bar-rails.tsx (status-bar decomposition), and 2026-08-29 to include status-line-registry.tsx after extracting the shared chip registry. No further new members are allowed. Re-reviewed on membership update: exact-current against the computed SCC and still type-only (runtime cycles: 0); decoupling deferred behind higher-priority deliverables, next review 2026-10-01.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-10-01",
       "removeWhen": "TUI feature models and reducers no longer import views or the root shell.",

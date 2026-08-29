@@ -26,6 +26,11 @@ const LOG_LEVEL_VALUES = new Set(['debug', 'info', 'warn', 'error']);
 const AUDIT_LEVEL_VALUES = new Set(['minimal', 'standard', 'full']);
 const REASONING_MODE_VALUES = new Set(['auto', 'on', 'off']);
 const REASONING_EFFORT_VALUES = new Set([
+  // WebUI sentinel: "follow the general setting". Valid as a session-scoped
+  // pref, but never persisted to Config.modelRuntime (pref-helpers skips it)
+  // and never forwarded on the wire (core's withConversationReasoning skips
+  // it) — it is not a provider effort level.
+  'auto',
   'none',
   'minimal',
   'low',

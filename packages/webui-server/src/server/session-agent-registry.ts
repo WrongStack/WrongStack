@@ -22,7 +22,12 @@
 
 import { Agent, Context } from '@wrongstack/core/agent';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import type { ModelsRegistry, SessionStore, TokenCounter } from '@wrongstack/core/types';
+import type {
+  ModelsRegistry,
+  SessionStore,
+  SessionWriter,
+  TokenCounter,
+} from '@wrongstack/core/types';
 import { SESSION_SCOPED_PREF_KEYS } from './session-scoped-prefs.js';
 
 /** Session-writer shape, as `SessionStore.create()` produces it. */
@@ -83,8 +88,35 @@ export interface SessionAgentRegistry {
   isLive(sessionId: string): boolean;
   has(sessionId: string): boolean;
   ids(): string[];
-  /** Forget a session's agent — its tab closed. */
+  /** Forget a session's agent, keeping its journal open. */
   drop(sessionId: string): void;
+  /**
+   * End a session for good: `session_end`, close, forget.
+   *
+   * What a CLOSED TAB gets. `drop` alone left the journal open with no
+   * terminal marker, which is indistinguishable from a journal a crash left
+   * hanging — so every tab the user closed on purpose came back on the
+   * recovery list, and its history entry had no outcome.
+   */
+  endAndClose(sessionId: string): Promise<void>;
+  /**
+   * Drain every open session journal to disk, synchronously.
+   *
+   * For fatal-exit salvage only (crash-shield, `process.on('exit')`). The
+   * per-session writers buffer non-critical records for up to a flush window,
+   * and the host's own salvage hook only knows the LEADER's writer — so a
+   * crash silently truncated the tail of every other open tab.
+   */
+  flushAllSync(): void;
+  /**
+   * End and close every non-leader session journal.
+   *
+   * Clean shutdown only. Without it, quitting a host with three background
+   * tabs left three journals with no trailing `session_end`, which is exactly
+   * how a crash looks: the next launch offered all three for recovery. The
+   * leader's own journal is left alone — its host teardown owns it.
+   */
+  closeAll(): Promise<void>;
 }
 
 /**
@@ -154,6 +186,20 @@ export function inheritedSessionMeta(rootMeta: Record<string, unknown>): Record<
   return out;
 }
 
+/**
+ * This session's REAL journal writer, or undefined.
+ *
+ * A freshly built agent carries a placeholder `{ id, traceId }` until the
+ * session transition that owns the id installs the real writer, and the
+ * leader's context moves between sessions — so the id must match before
+ * anything is written or closed.
+ */
+function journalOf(agent: Agent | undefined, sessionId: string): SessionWriter | undefined {
+  const writer = agent?.ctx.session as SessionWriter | undefined;
+  if (!writer || writer.id !== sessionId || typeof writer.append !== 'function') return undefined;
+  return writer;
+}
+
 const DEFAULT_MAX_AGENTS = 4;
 
 export function createSessionAgentRegistry(
@@ -208,6 +254,21 @@ export function createSessionAgentRegistry(
     const victim = candidates(false)[0] ?? candidates(true)[0];
     if (victim !== undefined) {
       const evicted = agents.get(victim);
+      // The journal is the one part of an evicted agent that is not just
+      // cache. Dropping the reference left a whole buffer window of
+      // non-critical records unwritten and the file handle open, so the tab's
+      // next visit resumed a transcript missing its own tail. No
+      // `session_end`: eviction is memory pressure, not a close — the session
+      // stays open, and the next visit reopens this journal to append to it.
+      const journal = journalOf(evicted, victim);
+      if (journal) {
+        try {
+          journal.flushSync?.();
+        } catch {
+          // close() below flushes too; a failed sync drain is not fatal here.
+        }
+        void Promise.resolve(journal.close()).catch(() => undefined);
+      }
       evicted?.ctx.readFiles.clear();
       evicted?.ctx.fileMtimes.clear();
       agents.delete(victim);
@@ -223,6 +284,35 @@ export function createSessionAgentRegistry(
         timestamp: new Date().toISOString(),
       }),
     );
+  };
+
+  /**
+   * End one session's journal and forget its agent.
+   *
+   * The map entry goes before the first `await`, so a caller that does not
+   * await this still sees the session gone the moment it returns.
+   */
+  const endAndCloseOne = async (sessionId: string): Promise<void> => {
+    if (sessionId === template.ctx.session?.id) return;
+    const agent = agents.get(sessionId);
+    const journal = journalOf(agent, sessionId);
+    agent?.ctx.readFiles.clear();
+    agent?.ctx.fileMtimes.clear();
+    agents.delete(sessionId);
+    if (!journal) return;
+    try {
+      // This session's OWN usage: the counters are per-session, and the host
+      // total would stamp each of four tabs with the sum of all four.
+      await journal.append({
+        type: 'session_end',
+        ts: new Date().toISOString(),
+        usage: agent?.ctx.tokenCounter?.total() ?? { input: 0, output: 0 },
+      });
+    } catch {
+      // A missing marker costs less than an undrained buffer: close anyway so
+      // the tail still reaches disk.
+    }
+    await Promise.resolve(journal.close()).catch(() => undefined);
   };
 
   const create = (sessionId: string): Agent => {
@@ -322,6 +412,24 @@ export function createSessionAgentRegistry(
       agent?.ctx.readFiles.clear();
       agent?.ctx.fileMtimes.clear();
       agents.delete(sessionId);
+    },
+    endAndClose: (sessionId) => endAndCloseOne(sessionId),
+    flushAllSync() {
+      for (const [sessionId, agent] of agents) {
+        try {
+          journalOf(agent, sessionId)?.flushSync?.();
+        } catch {
+          // Salvage runs while the process is already dying: one writer that
+          // cannot drain must not stop the others from draining.
+        }
+      }
+    },
+    async closeAll() {
+      const pinned = template.ctx.session?.id;
+      for (const sessionId of [...agents.keys()]) {
+        if (sessionId === pinned) continue;
+        await endAndCloseOne(sessionId);
+      }
     },
   };
 }

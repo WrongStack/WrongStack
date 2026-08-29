@@ -403,6 +403,8 @@
     "reasoningModeOn": "Activé — forcer la pensée",
     "reasoningModeOff": "Désactivé — désactiver la pensée",
     "reasoningEffortLabel": "Effort de raisonnement",
+    "reasoningEffortAuto": "Auto (général)",
+    "reasoningEffortAutoHint": "Réglage général : {{value}}",
     "reasoningEffortHint": "Quantité de calcul que le modèle consacre à la pensée. Envoyé seulement si le modèle le supporte.",
     "reasoningEffortNone": "Aucun",
     "reasoningEffortMinimal": "Minimal",

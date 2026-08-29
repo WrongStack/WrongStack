@@ -265,27 +265,34 @@ export function buildLoadCommand(opts: SlashCommandContext): SlashCommand {
           };
         }
         const recovery = new SessionRecovery(opts.paths.projectSessions);
-        const resumable = await recovery.listResumable();
-        if (resumable.length === 0) {
+        // Unclosed, not merely "died mid-iteration": a host killed while the
+        // agent sat idle closes its last turn with `in_flight_end` and then
+        // simply stops writing, which `listResumable` cannot see. That is the
+        // ordinary crash, so listing only mid-iteration ones answered "every
+        // recorded run ended cleanly" for a project full of half-finished
+        // sessions.
+        const unclosed = await recovery.listUnclosed({ limit: 50 });
+        if (unclosed.length === 0) {
           return {
             message: color.dim('No incomplete sessions. (Every recorded run ended cleanly.)'),
           };
         }
         const lines: string[] = [
-          color.bold(`${resumable.length} incomplete session(s)`),
-          color.dim('  (process died mid-iteration; the last event was in_flight_start)'),
+          color.bold(`${unclosed.length} incomplete session(s)`),
+          color.dim('  (no trailing session_end — the process never closed the log)'),
           '',
         ];
-        for (const s of resumable) {
+        for (const s of unclosed) {
           const t = color.dim(s.lastEventTs.slice(0, 19).replace('T', ' '));
-          lines.push(
-            `  ${color.cyan(s.sessionId)}  ${t}  ${color.dim(`${s.eventCount} events`)}  ${s.context}`,
-          );
+          const how = s.stale
+            ? color.yellow('died mid-iteration')
+            : color.dim('died between turns');
+          lines.push(`  ${color.cyan(s.sessionId)}  ${t}  ${how}`);
         }
         lines.push('');
         lines.push(
           color.dim(
-            '  Resuming re-executes the in-flight work from the last checkpoint. Full resume is coming in a follow-up; for now use this list to identify crashes and decide whether to restart fresh.',
+            '  Reopen one with `wstack --resume <id>`, or `wstack --recover` for the most recent of them.',
           ),
         );
         return { message: lines.join('\n') };

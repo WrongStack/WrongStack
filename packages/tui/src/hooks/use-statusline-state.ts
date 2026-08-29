@@ -15,6 +15,7 @@
 // happens to mount first.
 
 import { useState } from 'react';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { StatuslineItem } from '../components/statusline-picker.js';
 
 export type AutonomyStage = 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
@@ -41,6 +42,8 @@ interface UseStatuslineStateOptions {
    * internally as a `Set<string>` and exposes the same.
    */
   statuslineHiddenItems: Set<string> | readonly string[];
+  /** Per-chip line assignment (schema v2); absent keys use DEFAULT_LINES. */
+  statuslineLines?: StatuslineLines | undefined;
 }
 
 interface UseStatuslineState {
@@ -58,6 +61,8 @@ interface UseStatuslineState {
   setLiveModeLabel: (v: string) => void;
   hiddenItems: StatuslineHiddenItem[];
   setHiddenItems: (v: StatuslineHiddenItem[]) => void;
+  lines: StatuslineLines;
+  setLines: (v: StatuslineLines) => void;
   sessionCount: number;
   setSessionCount: (v: number) => void;
 }
@@ -83,6 +88,7 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
       ? [...opts.statuslineHiddenItems]
       : [...(opts.statuslineHiddenItems as readonly string[])]) as StatuslineHiddenItem[],
   );
+  const [lines, setLines] = useState<StatuslineLines>(opts.statuslineLines ?? {});
   const [sessionCount, setSessionCount] = useState<number>(0);
 
   return {
@@ -93,6 +99,7 @@ export function useStatuslineState(opts: UseStatuslineStateOptions): UseStatusli
     autonomyLive, setAutonomyLive,
     liveModeLabel, setLiveModeLabel,
     hiddenItems, setHiddenItems,
+    lines, setLines,
     sessionCount, setSessionCount,
   };
 }

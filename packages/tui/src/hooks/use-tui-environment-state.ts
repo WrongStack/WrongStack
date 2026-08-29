@@ -20,6 +20,7 @@ type EnvironmentProps = Omit<
   | 'getAutonomy'
   | 'modeLabel'
   | 'statuslineHiddenItems'
+  | 'statuslineLines'
   | 'toolCount'
   | 'getSettings'
   | 'setStatuslineHiddenItems'
@@ -38,6 +39,7 @@ export function useTuiEnvironmentState({
   getAutonomy,
   modeLabel,
   statuslineHiddenItems,
+  statuslineLines,
   toolCount,
   getSettings,
   setStatuslineHiddenItems,
@@ -78,6 +80,7 @@ export function useTuiEnvironmentState({
     getAutonomy,
     modeLabel,
     statuslineHiddenItems,
+    statuslineLines,
   });
   const hiddenItemsRef = useRef(statusline.hiddenItems);
   hiddenItemsRef.current = statusline.hiddenItems;

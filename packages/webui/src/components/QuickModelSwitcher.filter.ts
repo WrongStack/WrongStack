@@ -17,6 +17,9 @@ export interface CatalogModelLite {
   /** Effort levels the model documents (models.dev reasoningConfig).
    *  Absent = undocumented; the UI then shows no effort hint for it. */
   reasoningEffortLevels?: string[] | undefined;
+  /** Tri-state effort-support signal: undefined = undocumented vocabulary,
+   *  false = the model documents NO effort control. */
+  effortSupported?: boolean | undefined;
 }
 
 export interface ModelCandidate {
@@ -26,6 +29,7 @@ export interface ModelCandidate {
   description?: string | undefined;
   contextWindow?: number | undefined;
   reasoningEffortLevels?: string[] | undefined;
+  effortSupported?: boolean | undefined;
   isCurrent: boolean;
   isFavorite: boolean;
 }
@@ -101,6 +105,7 @@ export function buildModelCandidates(
         description: m.description,
         contextWindow: m.contextWindow,
         reasoningEffortLevels: m.reasoningEffortLevels,
+        effortSupported: m.effortSupported,
         isCurrent: sp.id === currentProvider && m.id === currentModel,
         isFavorite: isFav,
       });

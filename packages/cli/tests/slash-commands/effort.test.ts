@@ -279,6 +279,48 @@ describe('/effort', () => {
     expect(res?.message).toContain('Usage:');
   });
 
+  it('auto removes the persisted effort (WebUI parity: follow the project setting)', async () => {
+    // Seed the FILE plus the in-memory mirror, matching how a real session
+    // reaches this state (same shape as the clear test).
+    await fs.writeFile(
+      path.join(profileDir, 'default', 'config.json'),
+      JSON.stringify({ modelRuntime: { reasoning: { effort: 'high', mode: 'on' } } }),
+      'utf8',
+    );
+    const deps = mkDeps({
+      profileDir,
+      registry: mkRegistry({ capabilities: { reasoningConfig: GPT52_RC } }),
+      config: {
+        provider: 'openai',
+        model: 'gpt-5.2',
+        modelRuntime: { reasoning: { effort: 'high', mode: 'on' } },
+      } as never as Partial<Config>,
+    });
+    const cmd = buildEffortCommand(deps);
+    const res = await cmd.run('auto');
+    expect(res?.message).toContain('auto');
+    // The literal sentinel must never be persisted — only the pin removed.
+    // `mode` (a different reasoning knob) survives untouched.
+    await expect(readPersisted()).resolves.toEqual({
+      modelRuntime: { reasoning: { mode: 'on' } },
+    });
+    expect(deps.configStore.get().modelRuntime?.reasoning?.effort).toBeUndefined();
+  });
+
+  it('auto is a no-op message when no effort is pinned (already follows the setting)', async () => {
+    // Same guard as `clear`: nothing pinned → nothing to remove, and no
+    // config file churn. Applies regardless of the model's effort vocabulary.
+    const cmd = buildEffortCommand(
+      mkDeps({
+        profileDir,
+        registry: mkRegistry({ capabilities: { reasoningConfig: NO_EFFORT_RC } }),
+      }),
+    );
+    const res = await cmd.run('auto');
+    expect(res?.message).toContain('No session effort set');
+    await expect(readPersisted()).rejects.toThrow();
+  });
+
   it('clear removes the persisted effort', async () => {
     // Seed the FILE (source of truth for patchSessionEffort) plus the
     // in-memory mirror, matching how a real session reaches this state.

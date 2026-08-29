@@ -32,16 +32,13 @@ import {
   STATUSLINE_ICONS,
 } from './status-bar-icons.js';
 import {
-  buildConnectivityChipEntries,
   buildIndexStatusChip,
   buildMemoryDetailChips,
   buildMinimumChips,
   buildPrimaryChips,
-  buildRunStateChipEntries,
-  buildWorkRowEntries,
-  buildWorkspaceChipEntries,
   type StatusBarRailBuildParams,
 } from './status-bar-rails.js';
+import { buildDetailedRails, type DetailedRail } from './status-line-registry.js';
 import type { StatusBarProps } from './status-bar-types.js';
 import type { StatuslineItem } from './statusline-picker.js';
 
@@ -122,6 +119,7 @@ export function StatusBar({
   memoryContextMonitor,
   contextStrategy,
   hiddenItems,
+  statuslineLines,
   mode = 'detailed',
   events,
   sessionId,
@@ -350,11 +348,6 @@ export function StatusBar({
   const primaryChips = buildPrimaryChips(buildParams);
   buildParams.primaryChips = primaryChips;
 
-  const workspaceChipEntries = buildWorkspaceChipEntries(buildParams, modelStatusChip);
-  const runStateChipEntries = buildRunStateChipEntries(buildParams);
-  const workspaceChips = workspaceChipEntries.map((entry) => entry.node);
-  const runStateChips = runStateChipEntries.map((entry) => entry.node);
-
   const showUpdateNotice =
     Boolean(updateAvailable) &&
     typeof latestVersion === 'string' &&
@@ -374,53 +367,47 @@ export function StatusBar({
 
   const minimumChips = buildMinimumChips(buildParams);
 
-  const workRowEntries = buildWorkRowEntries(buildParams);
-  const workRowChips = workRowEntries.map((entry) => entry.node);
+  // Four detailed rails: the builders remain the single source of chip JSX
+  // and data gating (a hidden or data-less chip emits no entry and can never
+  // open a rail); the registry partitions the surviving entries per the
+  // user's line assignment. With no overrides this is exactly the
+  // pre-registry four-rail composition pinned by the rail-order suites.
+  const detailedRails = buildDetailedRails(buildParams, {
+    lines: statuslineLines,
+    modelChip: modelStatusChip,
+    versionChip: versionStatusChip,
+    indexChip: indexStatusChip,
+  });
 
-  // Line 3 gate — active work & countdowns only. Derived from the entries
-  // themselves because every entry already applies its own showChip gate —
-  // so a hidden chip (e.g. droppedTools > 0 with 'dropped_tools' toggled
-  // off) can never open an empty rail. Connectivity chips (mailbox, fleet,
-  // brain, debug_stream) live on line 4 and never open this rail.
-  const hasWorkActivity = workRowEntries.length > 0;
+  // Rails 1–2 always render so a vanilla session keeps its two-line
+  // footprint; conditional rails render when they have content. The index
+  // chip alone opens the services rail (right-anchored, no left chips).
+  const rendersRail = (rail: DetailedRail, logical: number): boolean =>
+    logical < 2 || rail.entries.length > 0 || rail.rightAnchor != null;
 
-  // Line 4 gate — fleet, connectivity & background services.
-  const connectivityEntries = buildConnectivityChipEntries(buildParams);
-  const connectivityChips = connectivityEntries.map((entry) => entry.node);
-  const hasConnectivityActivity = connectivityChips.length > 0;
-
-  // Click-map: physical lines are 0 (L1 workspace), 1 (L2 run state) —
-  // unconditional rails — and 2/3 only when their conditional rails render.
-  // Model/autonomy/state/todos hit targets now live on these physical lines.
+  // Click-map: physical rows are the rails that publish left spans, top to
+  // bottom — conditional rows shift up when an earlier rail is gated off
+  // (the separators suite pins fleet's physical line for exactly this).
+  // Right-anchored chips carry no left spans, so an anchor-only rail
+  // publishes no row.
   if (clickMapRef) {
     const railBudget = Math.max(12, termWidth);
-    const clickLines = [
-      {
-        line: 0,
-        spans: computeRailSpans(
-          isCompact ? workspaceChipEntries.slice(0, 5) : workspaceChipEntries,
-          railBudget,
-          versionStatusChip,
-        ),
-      },
-      {
-        line: 1,
-        spans: computeRailSpans(runStateChipEntries, railBudget),
-      },
-    ];
-    if (hasWorkActivity) {
-      clickLines.push({ line: 2, spans: computeRailSpans(workRowEntries, railBudget) });
-    }
-    if (hasConnectivityActivity) {
-      // The connectivity rail renders directly below the work rail; when the
-      // work rail is gated off, connectivity physically sits on line 2.
-      clickLines.push({
-        line: hasWorkActivity ? 3 : 2,
-        spans: computeRailSpans(connectivityEntries, railBudget),
-      });
-    }
+    const clickableRails = detailedRails.filter(
+      (rail, logical) => logical < 2 || rail.entries.length > 0,
+    );
     clickMapRef.current =
-      mode === 'minimum' ? { lines: [] } : { lines: clickLines };
+      mode === 'minimum'
+        ? { lines: [] }
+        : {
+            lines: clickableRails.map((rail, physical) => ({
+              line: physical,
+              spans: computeRailSpans(
+                physical === 0 && isCompact ? rail.entries.slice(0, 5) : rail.entries,
+                railBudget,
+                rail.rightAnchor,
+              ),
+            })),
+          };
   }
 
   if (mode === 'minimum') {
@@ -439,43 +426,25 @@ export function StatusBar({
 
   return (
     <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
-      {/* Line 1 — Workspace & identity */}
-      <PowerlineRail
-        segments={isCompact ? workspaceChips.slice(0, 5) : workspaceChips}
-        rightAnchor={versionStatusChip}
-        budget={Math.max(12, termWidth)}
-        monochrome={isNoColor}
-        fillBg={LINE_BG_COLORS[0]}
-      />
-
-      {/* Line 2 — Run state & safety */}
-      <PowerlineRail
-        segments={runStateChips}
-        budget={Math.max(12, termWidth)}
-        monochrome={isNoColor}
-        fillBg={LINE_BG_COLORS[1]}
-      />
-
-      {/* Line 3 — Active work & countdowns */}
-      {hasWorkActivity ? (
-        <PowerlineRail
-          segments={workRowChips}
-          budget={Math.max(12, termWidth)}
-          monochrome={isNoColor}
-          fillBg={LINE_BG_COLORS[2]}
-        />
-      ) : null}
-
-      {/* Line 4 — Fleet, connectivity & background services */}
-      {hasConnectivityActivity || indexStatusChip ? (
-        <PowerlineRail
-          segments={connectivityChips}
-          rightAnchor={indexStatusChip}
-          budget={Math.max(12, termWidth)}
-          monochrome={isNoColor}
-          fillBg={LINE_BG_COLORS[3]}
-        />
-      ) : null}
+      {/* Logical rails 1–4: workspace & identity, run state & safety, active
+          work & countdowns, fleet/connectivity & services. Conditional rails
+          drop out when empty; the click-map renumbers physical rows to match. */}
+      {detailedRails.map((rail, logical) =>
+        rendersRail(rail, logical) ? (
+          <PowerlineRail
+            key={`rail-${logical}`}
+            segments={
+              logical === 0 && isCompact
+                ? rail.entries.slice(0, 5).map((entry) => entry.node)
+                : rail.entries.map((entry) => entry.node)
+            }
+            rightAnchor={rail.rightAnchor}
+            budget={Math.max(12, termWidth)}
+            monochrome={isNoColor}
+            fillBg={LINE_BG_COLORS[logical as 0 | 1 | 2 | 3]}
+          />
+        ) : null,
+      )}
     </Box>
   );
 }

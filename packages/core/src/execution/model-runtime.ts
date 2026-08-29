@@ -274,7 +274,10 @@ function withConversationReasoning(
   const preserve = meta['reasoningPreserve'];
   const scoped: Record<string, unknown> = {};
   if (typeof mode === 'string') scoped.mode = mode;
-  if (typeof effort === 'string') scoped.effort = effort;
+  // 'auto' is the WebUI "follow the general setting" sentinel, not an effort
+  // level: treat it as no conversation-level override so the project-wide
+  // effort (or the provider default, when unset) applies.
+  if (typeof effort === 'string' && effort !== 'auto') scoped.effort = effort;
   if (typeof preserve === 'boolean') scoped.preserve = preserve;
   if (Object.keys(scoped).length === 0) return settings;
   return {

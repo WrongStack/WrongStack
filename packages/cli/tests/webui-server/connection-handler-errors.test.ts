@@ -57,6 +57,35 @@ afterEach(() => {
 });
 
 describe('CLI WebUI connection-handler errors', () => {
+  it('omits replay fields when replay loading fails during initial connect', async () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    const deps = createDeps(async () => undefined);
+    deps.buildSessionStartPayload = async () => ({
+      sessionId: 'session-1',
+      provider: 'p',
+      model: 'm',
+    });
+    deps.loadReplay = async () => {
+      throw new Error('flush failed before replay');
+    };
+    const socket = new TestSocket();
+
+    await createConnectionHandler(deps)(socket as never as WebSocket, request);
+
+    expect(deps.send).toHaveBeenCalledWith(
+      socket,
+      expect.objectContaining({
+        type: 'session.start',
+        payload: expect.not.objectContaining({
+          replayMessages: expect.anything(),
+          replayMarkers: expect.anything(),
+          replayToolMeta: expect.anything(),
+        }),
+      }),
+    );
+    expect(debug).toHaveBeenCalledWith('[WebUI] Failed to load replay');
+  });
+
   it('labels invalid JSON as a parse failure without dispatching it', async () => {
     const handleMessage = vi.fn();
     const socket = new TestSocket();

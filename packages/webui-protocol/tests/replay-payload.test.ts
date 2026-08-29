@@ -131,3 +131,42 @@ describe('buildReplayPayload — field omission policy', () => {
     expect(Object.keys(out)).toEqual(['replayMessages', 'replayUsage']);
   });
 });
+
+describe('buildReplayPayload — tool metadata', () => {
+  const toolEnd = {
+    type: 'tool_call_end',
+    ts: '2026-01-01T00:00:01Z',
+    name: 'read',
+    id: 'tu-1',
+    durationMs: 42,
+    outputSize: 80,
+    outputBytes: 80,
+    outputTokens: 20,
+    outputLines: 4,
+    ok: true,
+  } as unknown as NonNullable<ReplaySource['events']>[number];
+
+  it('projects tool_call_end so a replayed tool card keeps its duration', () => {
+    // Without this the browser surfaces rebuilt tool cards from message
+    // blocks alone — the same call that showed `read · 42ms` while it ran
+    // came back bare after a reload.
+    const out = buildReplayPayload({ messages: [message('a')], events: [toolEnd] });
+    expect(out.replayToolMeta).toEqual([
+      {
+        id: 'tu-1',
+        name: 'read',
+        durationMs: 42,
+        outputBytes: 80,
+        outputTokens: 20,
+        outputLines: 4,
+        ok: true,
+        agentId: undefined,
+      },
+    ]);
+  });
+
+  it('omits replayToolMeta when no tool ever finished', () => {
+    const out = buildReplayPayload({ messages: [message('a')], events: [] });
+    expect(out.replayToolMeta).toBeUndefined();
+  });
+});

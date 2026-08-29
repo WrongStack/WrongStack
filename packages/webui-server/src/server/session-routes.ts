@@ -82,6 +82,10 @@ export async function handleSessionRoute(
       await handlers.deleteSession(ws, msg);
       return true;
     case 'session.resume':
+    // `session.focus` is the same transition with the transcript left out —
+    // one handler, so the two can never drift on claiming, writer swaps or
+    // todo restoration. It reads `msg.type` to decide.
+    case 'session.focus':
       await handlers.resumeSession(ws, msg);
       return true;
     case 'session.save':

@@ -107,9 +107,9 @@ export interface WebUIDispatchContext {
   agentTranscripts?:
     | {
         getAllSessions(): import('@wrongstack/core/coordination').AgentVirtualSession[];
-        loadSessionsFromDisk(): Promise<
-          import('@wrongstack/core/coordination').AgentVirtualSession[]
-        >;
+        loadSessionsFromDisk(
+          only?: readonly string[],
+        ): Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>;
       }
     | undefined;
   /**

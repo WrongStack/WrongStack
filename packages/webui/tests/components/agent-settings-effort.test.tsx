@@ -43,19 +43,19 @@ afterEach(() => {
 });
 
 describe('AgentSettingsTab effort dropdown (model-aware)', () => {
-  it('shows the full canonical set when the model advertises no levels', () => {
+  it('shows auto + the full canonical set when the model advertises no levels', () => {
     renderTab();
     const options = Array.from(effortSelect().options).map((o) => o.value);
-    expect(options).toEqual(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+    expect(options).toEqual(['auto', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
   });
 
-  it('narrows to the advertised levels when session.start carries them', () => {
+  it('narrows to auto + the advertised levels when session.start carries them', () => {
     act(() => {
       useSessionStore.setState({ reasoningEffortLevels: ['low', 'high'] });
     });
     renderTab();
     const options = Array.from(effortSelect().options).map((o) => o.value);
-    expect(options).toEqual(['low', 'high']);
+    expect(options).toEqual(['auto', 'low', 'high']);
   });
 
   it('keeps the current value selectable when it is advertised', () => {
@@ -66,17 +66,18 @@ describe('AgentSettingsTab effort dropdown (model-aware)', () => {
     expect(effortSelect().value).toBe('high');
   });
 
-  it('falls back to the full set when the store list is empty after a switch', () => {
+  it('falls back to auto + the full set when the store list is empty after a switch', () => {
     act(() => {
       useSessionStore.setState({ reasoningEffortLevels: ['low', 'high'] });
     });
     renderTab();
-    expect(Array.from(effortSelect().options).map((o) => o.value)).toEqual(['low', 'high']);
+    expect(Array.from(effortSelect().options).map((o) => o.value)).toEqual(['auto', 'low', 'high']);
     // Model switch clears the list (setSession lifecycle) → full set returns.
     act(() => {
       useSessionStore.setState({ reasoningEffortLevels: undefined });
     });
     expect(Array.from(effortSelect().options).map((o) => o.value)).toEqual([
+      'auto',
       'none',
       'minimal',
       'low',

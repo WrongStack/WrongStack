@@ -258,6 +258,7 @@ export {
   type RecoveryPlan,
   SessionRecovery,
   type StaleSession,
+  type UnclosedSession,
 } from './session-recovery.js';
 export {
   type ApplyRewindOptions,

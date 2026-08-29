@@ -67,6 +67,10 @@ export function createSessionStartPayloadBuilder(
         ? (overrides['sessionId'] as string)
         : (deps.agent.ctx.session?.id ?? deps.session.id);
     const ctx = deps.getSessionContext?.(targetSessionId) ?? deps.agent.ctx;
+    const startedAt =
+      typeof ctx.session?.startedAt === 'string' && ctx.session.startedAt.length > 0
+        ? ctx.session.startedAt
+        : undefined;
     let maxContext = 0;
     let inputCost = 0;
     let outputCost = 0;
@@ -100,6 +104,7 @@ export function createSessionStartPayloadBuilder(
 
     return {
       sessionId: targetSessionId,
+      ...(startedAt ? { startedAt } : {}),
       model: ctx.model,
       provider: ctx.provider.id,
       mode: deps.modeId ?? 'default',

@@ -1,144 +1,364 @@
+/**
+ * Live status tracker for the WebUI host terminal.
+ *
+ * Subscribes to the agent/iteration events, merges them with the host's
+ * session list, and feeds one {@link DashboardSessionRow} per session to the
+ * terminal dashboard's fixed panel — running/idle state, iteration counter,
+ * subagent counts and run elapsed time. Redraws are debounced and
+ * fingerprint-gated by the dashboard, so bursts of events cost at most one
+ * panel repaint, and the heartbeat only refreshes the elapsed column.
+ *
+ * When the dashboard is disabled (non-TTY output or `WEBUI_VERBOSE=1`) the
+ * tracker falls back to printing a compact status block on change — the
+ * append-only shape redirected output and log collectors expect.
+ */
+
+import type {
+  DashboardAgentRow,
+  DashboardSessionRow,
+  TerminalDashboard,
+} from './terminal-dashboard.js';
+
 interface EventBusLike {
-  on(event: string, listener: (...args: any[]) => void): any;
-  off(event: string, listener: (...args: any[]) => void): any;
+  on(event: string, listener: (...args: unknown[]) => void): unknown;
+  off(event: string, listener: (...args: unknown[]) => void): unknown;
 }
 
-interface WebUIStatusLoggerOptions {
-  events: EventBusLike;
-  getSessionList: () => Array<{
-    id: string;
-    model: string;
-    provider: string;
-    isRunning: boolean;
-  }>;
-  getAgent?: ((sessionId?: string) => unknown) | undefined;
+export interface StatusSessionInfo {
+  id: string;
+  model: string;
+  provider: string;
+  isRunning: boolean;
 }
 
 interface SubagentRecord {
   id: string;
   role: string;
   status: string;
+  provider?: string | undefined;
+  model?: string | undefined;
+  iteration?: { index: number; max?: number | undefined } | undefined;
+  toolCalls: number;
+  startedAt?: number | undefined;
+  durationMs?: number | undefined;
 }
 
-export function startWebUILiveStatusLogger(options: WebUIStatusLoggerOptions): () => void {
-  const { events, getSessionList } = options;
+export interface WebUILiveStatusLoggerOptions {
+  events: EventBusLike;
+  getSessionList: () => StatusSessionInfo[];
+  /** The terminal dashboard that owns the fixed panel. */
+  dashboard: Pick<TerminalDashboard, 'enabled' | 'setSessions'>;
+  debounceMs?: number | undefined;
+  heartbeatMs?: number | undefined;
+  now?: (() => number) | undefined;
+}
+
+/**
+ * Merge the host session list with the tracked subagents, iterations and
+ * run-start timestamps into panel rows. Pure — exported for tests.
+ */
+export function buildSessionRows(
+  sessions: readonly StatusSessionInfo[],
+  sessionSubagents: ReadonlyMap<string, Map<string, SubagentRecord>>,
+  sessionIterations: ReadonlyMap<string, { index: number; max?: number | undefined }>,
+  runStartedAt: ReadonlyMap<string, number>,
+  sessionToolCalls: ReadonlyMap<string, number> = new Map(),
+): DashboardSessionRow[] {
+  return sessions.map((session) => {
+    const subagentMap = sessionSubagents.get(session.id);
+    const subagents = subagentMap ? Array.from(subagentMap.values()) : [];
+    const runningSubagents = subagents.filter((a) => a.status === 'running').length;
+    const iteration = sessionIterations.get(session.id);
+    const leader: DashboardAgentRow = {
+      id: 'leader',
+      label: 'leader',
+      provider: session.provider,
+      model: session.model,
+      status: session.isRunning ? 'running' : 'idle',
+      ...(session.isRunning && iteration
+        ? {
+            iteration: {
+              index: iteration.index,
+              ...(iteration.max !== undefined ? { max: iteration.max } : {}),
+            },
+          }
+        : {}),
+      toolCalls: sessionToolCalls.get(session.id) ?? 0,
+      ...(session.isRunning && runStartedAt.has(session.id)
+        ? { startedAt: runStartedAt.get(session.id) }
+        : {}),
+    };
+    const agents: DashboardAgentRow[] = [
+      leader,
+      ...subagents.map((sub) => ({
+        id: sub.id,
+        label: sub.role || 'subagent',
+        provider: sub.provider ?? session.provider,
+        model: sub.model ?? session.model,
+        status: sub.status,
+        ...(sub.iteration ? { iteration: sub.iteration } : {}),
+        toolCalls: sub.toolCalls ?? 0,
+        ...(sub.startedAt !== undefined ? { startedAt: sub.startedAt } : {}),
+        ...(sub.durationMs !== undefined ? { durationMs: sub.durationMs } : {}),
+      })),
+    ];
+    return {
+      id: session.id,
+      provider: session.provider,
+      model: session.model,
+      isRunning: session.isRunning,
+      ...(session.isRunning && iteration
+        ? {
+            iteration: {
+              index: iteration.index,
+              ...(iteration.max !== undefined ? { max: iteration.max } : {}),
+            },
+          }
+        : {}),
+      runningSubagents,
+      totalSubagents: subagents.length,
+      ...(session.isRunning && runStartedAt.has(session.id)
+        ? { runningSince: runStartedAt.get(session.id) }
+        : {}),
+      agents,
+    };
+  });
+}
+
+/** Compact append-only block for non-TTY output (log files, pipes). */
+export function formatSessionRowsBlock(rows: readonly DashboardSessionRow[]): string {
+  if (rows.length === 0) return '[WebUI Live Status] No active sessions.';
+  const runningCount = rows.filter((r) => r.isRunning).length;
+  const agents = runningCount + rows.reduce((sum, r) => sum + Math.max(0, r.runningSubagents), 0);
+  const lines = rows.map((row) => {
+    const parts = [
+      `[${row.id.slice(0, 14)}]`,
+      `${row.provider}/${row.model} →`,
+      row.isRunning ? 'RUNNING' : 'IDLE',
+    ];
+    if (row.iteration)
+      parts.push(
+        `(iter ${row.iteration.index}${row.iteration.max ? `/${row.iteration.max}` : ''})`,
+      );
+    if (row.totalSubagents > 0) parts.push(`| sub ${row.runningSubagents}/${row.totalSubagents}`);
+    const agentLines = (row.agents ?? [])
+      .map((agent) => {
+        const target = [agent.provider, agent.model].filter(Boolean).join('/');
+        const iter = agent.iteration
+          ? `${agent.iteration.index}${agent.iteration.max ? `/${agent.iteration.max}` : ''}`
+          : '-';
+        return `      └── ${agent.label}:${agent.id.slice(0, 8)} ${target} ${agent.status} iter ${iter} tools ${agent.toolCalls}`;
+      })
+      .join('\n');
+    return [`  ├── ${parts.join(' ')}`, agentLines].filter(Boolean).join('\n');
+  });
+  return `[WebUI Live Status] ${rows.length} session${rows.length === 1 ? '' : 's'} | ${agents} running agent${agents === 1 ? '' : 's'}\n${lines.join('\n')}`;
+}
+
+export function startWebUILiveStatusLogger(options: WebUILiveStatusLoggerOptions): () => void {
+  const { events, getSessionList, dashboard } = options;
+  const now = options.now ?? Date.now;
+  const debounceMs = options.debounceMs ?? 400;
+  const heartbeatMs = options.heartbeatMs ?? 5_000;
 
   const sessionSubagents = new Map<string, Map<string, SubagentRecord>>();
   const sessionIterations = new Map<string, { index: number; max?: number | undefined }>();
+  const sessionToolCalls = new Map<string, number>();
+  const runStartedAt = new Map<string, number>();
+  const wasRunning = new Set<string>();
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastLoggedFingerprint = '';
+  let initialTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastBlock = '';
 
-  const formatStatus = (): string => {
-    const sessions = getSessionList();
-    if (sessions.length === 0) {
-      return '[WebUI Live Status] No active sessions.';
-    }
-
-    let totalRunningAgents = 0;
-    const sessionLines: string[] = [];
-
+  const trackRunTransitions = (sessions: readonly StatusSessionInfo[]): void => {
     for (const session of sessions) {
-      const subagentMap = sessionSubagents.get(session.id);
-      const subagents = subagentMap ? Array.from(subagentMap.values()) : [];
-      const runningSubagents = subagents.filter((a) => a.status === 'running');
-      const sessionRunningAgents = (session.isRunning ? 1 : 0) + runningSubagents.length;
-      totalRunningAgents += sessionRunningAgents;
-
-      const iter = sessionIterations.get(session.id);
-      const iterStr =
-        session.isRunning && iter ? ` (iter ${iter.index}${iter.max ? `/${iter.max}` : ''})` : '';
-
-      const statusIcon = session.isRunning ? '🟢 RUNNING' : '⚪ IDLE';
-
-      let agentSummary = '';
-      if (subagents.length > 0) {
-        const subagentList = subagents
-          .map((a) => `${a.role || a.id.slice(0, 8)} [${a.status === 'running' ? '🟢' : '✓'}]`)
-          .join(', ');
-        agentSummary = ` | Subagents (${subagents.length}): ${subagentList}`;
+      if (session.isRunning && !wasRunning.has(session.id)) {
+        if (!runStartedAt.has(session.id)) runStartedAt.set(session.id, now());
+        if (!sessionToolCalls.has(session.id)) sessionToolCalls.set(session.id, 0);
+        wasRunning.add(session.id);
+      } else if (!session.isRunning && wasRunning.has(session.id)) {
+        wasRunning.delete(session.id);
+        runStartedAt.delete(session.id);
       }
-
-      sessionLines.push(
-        `  ├── [${session.id.slice(0, 14)}] ${session.provider} / ${session.model} → ${statusIcon}${iterStr}${agentSummary}`,
-      );
     }
-
-    const header = `[WebUI Live Status] ${sessions.length} Active Session${sessions.length > 1 ? 's' : ''} | ${totalRunningAgents} Running Agent${totalRunningAgents !== 1 ? 's' : ''}`;
-    return [header, ...sessionLines].join('\n');
   };
 
-  const printStatus = (): void => {
-    const output = formatStatus();
-    if (output === lastLoggedFingerprint) return;
-    lastLoggedFingerprint = output;
-    console.log(`\n${output}\n`);
+  const emit = (): void => {
+    const sessions = getSessionList();
+    // Track idle→running flips BEFORE building rows so the row carries the
+    // fresh run-start stamp on the very first emit of a run.
+    trackRunTransitions(sessions);
+    const rows = buildSessionRows(
+      sessions,
+      sessionSubagents,
+      sessionIterations,
+      runStartedAt,
+      sessionToolCalls,
+    );
+    if (dashboard.enabled) {
+      dashboard.setSessions(rows);
+      return;
+    }
+    const block = formatSessionRowsBlock(rows);
+    if (block === lastBlock) return;
+    lastBlock = block;
+    console.log(`\n${block}\n`);
   };
 
-  const requestPrint = (immediate = false): void => {
+  const requestEmit = (immediate = false): void => {
     if (immediate) {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      printStatus();
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      emit();
       return;
     }
     if (debounceTimer) return;
     debounceTimer = setTimeout(() => {
       debounceTimer = null;
-      printStatus();
-    }, 400);
+      emit();
+    }, debounceMs);
   };
 
-  // Event handlers
+  const ensureSubagentMap = (sessionId: string): Map<string, SubagentRecord> => {
+    let map = sessionSubagents.get(sessionId);
+    if (!map) {
+      map = new Map();
+      sessionSubagents.set(sessionId, map);
+    }
+    return map;
+  };
+
   const onAgentSpawned = (ev: unknown): void => {
-    const data = ev as { agentId?: string; id?: string; role?: string; sessionId?: string };
-    const agentId = data.agentId || data.id;
+    const data = ev as {
+      agentId?: string;
+      subagentId?: string;
+      id?: string;
+      role?: string;
+      name?: string;
+      provider?: string;
+      model?: string;
+      sessionId?: string;
+    };
+    const agentId = data.agentId || data.subagentId || data.id;
     const sessionId = data.sessionId;
     if (!agentId || !sessionId) return;
 
-    if (!sessionSubagents.has(sessionId)) {
-      sessionSubagents.set(sessionId, new Map());
-    }
-    sessionSubagents.get(sessionId)?.set(agentId, {
+    ensureSubagentMap(sessionId).set(agentId, {
       id: agentId,
-      role: data.role || 'subagent',
+      role: data.role || data.name || 'subagent',
       status: 'running',
+      toolCalls: 0,
+      startedAt: now(),
+      ...(data.provider ? { provider: data.provider } : {}),
+      ...(data.model ? { model: data.model } : {}),
     });
-    requestPrint();
+    requestEmit();
   };
 
   const onAgentStatus = (ev: unknown): void => {
-    const data = ev as { agentId?: string; id?: string; status?: string; sessionId?: string };
-    const agentId = data.agentId || data.id;
-    const sessionId = data.sessionId;
+    const data = ev as {
+      agentId?: string;
+      subagentId?: string;
+      id?: string;
+      agentName?: string;
+      status?: string;
+      sessionId?: string;
+    };
+    const agentId = data.agentId || data.subagentId || data.id;
     if (!agentId) return;
 
-    // Find and update the subagent
-    if (sessionId && sessionSubagents.has(sessionId)) {
-      const sub = sessionSubagents.get(sessionId)?.get(agentId);
+    if (data.sessionId && sessionSubagents.has(data.sessionId)) {
+      const sub = sessionSubagents.get(data.sessionId)?.get(agentId);
       if (sub) {
         sub.status = data.status || 'unknown';
+        if (data.agentName) sub.role = data.agentName;
       }
     } else {
       for (const map of sessionSubagents.values()) {
         const sub = map.get(agentId);
         if (sub) {
           sub.status = data.status || 'unknown';
+          if (data.agentName) sub.role = data.agentName;
           break;
         }
       }
     }
-    requestPrint();
+    requestEmit();
   };
 
   const onIterationStarted = (ev: unknown): void => {
     const data = ev as { index?: number; maxIterations?: number; sessionId?: string };
     if (data.sessionId && typeof data.index === 'number') {
+      if (!runStartedAt.has(data.sessionId)) runStartedAt.set(data.sessionId, now());
+      if (!sessionToolCalls.has(data.sessionId)) sessionToolCalls.set(data.sessionId, 0);
       sessionIterations.set(data.sessionId, {
         index: data.index,
         ...(typeof data.maxIterations === 'number' ? { max: data.maxIterations } : {}),
       });
     }
-    requestPrint();
+    requestEmit();
+  };
+
+  const onToolExecuted = (ev: unknown): void => {
+    const data = ev as { sessionId?: string };
+    if (!data.sessionId) return;
+    sessionToolCalls.set(data.sessionId, (sessionToolCalls.get(data.sessionId) ?? 0) + 1);
+    requestEmit();
+  };
+
+  const onSubagentToolExecuted = (ev: unknown): void => {
+    const data = ev as {
+      subagentId?: string;
+      id?: string;
+      sessionId?: string;
+      agentName?: string;
+    };
+    const agentId = data.subagentId || data.id;
+    if (!agentId || !data.sessionId) return;
+    const sub = ensureSubagentMap(data.sessionId).get(agentId);
+    if (sub) {
+      sub.toolCalls += 1;
+      sub.status = 'running';
+      if (data.agentName) sub.role = data.agentName;
+    }
+    requestEmit();
+  };
+
+  const onSubagentIterationSummary = (ev: unknown): void => {
+    const data = ev as {
+      subagentId?: string;
+      sessionId?: string;
+      iteration?: number;
+      toolCalls?: number;
+    };
+    if (!data.subagentId || !data.sessionId) return;
+    const sub = ensureSubagentMap(data.sessionId).get(data.subagentId);
+    if (!sub) return;
+    if (typeof data.iteration === 'number') sub.iteration = { index: data.iteration };
+    if (typeof data.toolCalls === 'number') sub.toolCalls = data.toolCalls;
+    requestEmit();
+  };
+
+  const onSubagentTaskCompleted = (ev: unknown): void => {
+    const data = ev as {
+      subagentId?: string;
+      sessionId?: string;
+      status?: string;
+      iterations?: number;
+      toolCalls?: number;
+      durationMs?: number;
+    };
+    if (!data.subagentId || !data.sessionId) return;
+    const sub = ensureSubagentMap(data.sessionId).get(data.subagentId);
+    if (!sub) return;
+    sub.status = data.status || 'completed';
+    if (typeof data.iterations === 'number') sub.iteration = { index: data.iterations };
+    if (typeof data.toolCalls === 'number') sub.toolCalls = data.toolCalls;
+    if (typeof data.durationMs === 'number') sub.durationMs = data.durationMs;
+    requestEmit(true);
   };
 
   const onRunResult = (ev: unknown): void => {
@@ -146,7 +366,7 @@ export function startWebUILiveStatusLogger(options: WebUIStatusLoggerOptions): (
     if (data.sessionId) {
       sessionIterations.delete(data.sessionId);
     }
-    requestPrint(true);
+    requestEmit(true);
   };
 
   events.on('agent_spawned', onAgentSpawned);
@@ -154,29 +374,46 @@ export function startWebUILiveStatusLogger(options: WebUIStatusLoggerOptions): (
   events.on('agent:spawned', onAgentSpawned);
   events.on('agent:status', onAgentStatus);
   events.on('iteration_started', onIterationStarted);
+  events.on('subagent.spawned', onAgentSpawned);
+  events.on('agent.status_changed', onAgentStatus);
+  events.on('iteration.started', onIterationStarted);
+  events.on('tool.executed', onToolExecuted);
+  events.on('subagent.tool_executed', onSubagentToolExecuted);
+  events.on('subagent.iteration_summary', onSubagentIterationSummary);
+  events.on('subagent.task_completed', onSubagentTaskCompleted);
   events.on('run.result', onRunResult);
   events.on('run:result', onRunResult);
 
-  // Periodic heartbeat when runs are active (every 8 seconds)
+  // Heartbeat: while anything is running, refresh the panel so the elapsed
+  // column stays live. With the dashboard enabled this repaints in place;
+  // without it, the fingerprint check keeps the block out of the log.
   const heartbeatTimer = setInterval(() => {
-    const sessions = getSessionList();
-    const hasRunning = sessions.some((s) => s.isRunning);
-    if (hasRunning) {
-      printStatus();
-    }
-  }, 8_000);
+    const hasRunning = getSessionList().some((s) => s.isRunning);
+    if (hasRunning) emit();
+  }, heartbeatMs);
 
-  // Initial print shortly after boot
-  setTimeout(() => requestPrint(true), 600);
+  // Initial panel shortly after boot.
+  initialTimer = setTimeout(() => {
+    initialTimer = null;
+    requestEmit(true);
+  }, 600);
 
   return () => {
     if (debounceTimer) clearTimeout(debounceTimer);
+    if (initialTimer) clearTimeout(initialTimer);
     clearInterval(heartbeatTimer);
     events.off('agent_spawned', onAgentSpawned);
     events.off('agent_status', onAgentStatus);
     events.off('agent:spawned', onAgentSpawned);
     events.off('agent:status', onAgentStatus);
     events.off('iteration_started', onIterationStarted);
+    events.off('subagent.spawned', onAgentSpawned);
+    events.off('agent.status_changed', onAgentStatus);
+    events.off('iteration.started', onIterationStarted);
+    events.off('tool.executed', onToolExecuted);
+    events.off('subagent.tool_executed', onSubagentToolExecuted);
+    events.off('subagent.iteration_summary', onSubagentIterationSummary);
+    events.off('subagent.task_completed', onSubagentTaskCompleted);
     events.off('run.result', onRunResult);
     events.off('run:result', onRunResult);
   };

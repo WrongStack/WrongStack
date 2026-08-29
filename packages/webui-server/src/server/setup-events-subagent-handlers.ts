@@ -163,35 +163,43 @@ export function registerSetupEventsSubagentHandlers(options: {
 
   on('agent.timeline.message', (e) => {
     const timeline = e as typeof e & { toolOk?: boolean };
-    broadcast(clients, {
-      type: 'agent.timeline.message',
-      payload: sessionPayload({
-        sessionId: e.sessionId,
-        subagentId: e.subagentId,
-        agentName: e.agentName,
-        content: e.content,
-        kind: e.kind,
-        iteration: e.iteration,
-        ts: e.ts,
-        toolName: e.toolName,
-        ...(typeof timeline.toolOk === 'boolean' ? { toolOk: timeline.toolOk } : {}),
-        costUsd: e.costUsd,
-      }),
-    });
+    broadcast(
+      clients,
+      {
+        type: 'agent.timeline.message',
+        payload: sessionPayload({
+          sessionId: e.sessionId,
+          subagentId: e.subagentId,
+          agentName: e.agentName,
+          content: e.content,
+          kind: e.kind,
+          iteration: e.iteration,
+          ts: e.ts,
+          toolName: e.toolName,
+          ...(typeof timeline.toolOk === 'boolean' ? { toolOk: timeline.toolOk } : {}),
+          costUsd: e.costUsd,
+        }),
+      },
+      e.sessionId,
+    );
   });
   on('agent.status_changed', (e) => {
-    broadcast(clients, {
-      type: 'agent.status_changed',
-      payload: sessionPayload({
-        sessionId: e.sessionId,
-        subagentId: e.subagentId,
-        agentName: e.agentName,
-        status: e.status,
-        ts: e.ts,
-        summary: e.summary,
-        task: e.task,
-      }),
-    });
+    broadcast(
+      clients,
+      {
+        type: 'agent.status_changed',
+        payload: sessionPayload({
+          sessionId: e.sessionId,
+          subagentId: e.subagentId,
+          agentName: e.agentName,
+          status: e.status,
+          ts: e.ts,
+          summary: e.summary,
+          task: e.task,
+        }),
+      },
+      e.sessionId,
+    );
   });
 
   // ── Leader (main session) events — forwarded as subagent.event with subagentId 'leader' ──

@@ -187,6 +187,10 @@ interface AgentServices {
   sessionAgentIds?: () => string[];
   /** Does this host already hold an open journal writer for that session? */
   isSessionLive?: (sessionId: string) => boolean;
+  /** Drain every open tab's journal synchronously — fatal-exit salvage. */
+  flushSessionJournalsSync?: () => void;
+  /** End + close the journals of every tab that is not the leader's. */
+  closeSessionJournals?: () => Promise<void>;
   permissionPolicy: PermissionPolicy;
   pipelines: AgentPipelines;
   brain: ObservableBrainArbiter;
@@ -909,6 +913,10 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     // project has to reach every one of them, not just the leader.
     sessionAgentIds: () => sessionAgents.ids(),
     isSessionLive: (sessionId: string) => sessionAgents.isLive(sessionId),
+    // Journal durability for the tabs that are NOT the leader's — the host's
+    // own teardown and salvage hook only know the leader's writer.
+    flushSessionJournalsSync: () => sessionAgents.flushAllSync(),
+    closeSessionJournals: () => sessionAgents.closeAll(),
     permissionPolicy,
     pipelines,
     brain,

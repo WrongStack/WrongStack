@@ -88,6 +88,14 @@ describe('applyModelRuntime reasoning scope', () => {
     expect(applyModelRuntime(req, opts(PROJECT)).reasoning?.effort).toBe('low');
   });
 
+  it('treats the WebUI "auto" sentinel as no conversation-level override', () => {
+    const req = request();
+    bindRequestConversation(req, { meta: { reasoningEffort: 'auto' } });
+
+    // The tab defers to the project setting; 'auto' never reaches the wire.
+    expect(applyModelRuntime(req, opts(PROJECT)).reasoning?.effort).toBe('low');
+  });
+
   it('carries the binding onto the request it returns', () => {
     // Middleware returns a copy; the next middleware in the pipeline must
     // still be able to see whose request this is.

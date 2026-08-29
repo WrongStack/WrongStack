@@ -19,14 +19,20 @@ import { createSessionHandlers } from '../src/server/session-handlers.js';
 
 const ws = {} as WebSocket;
 
-type Writer = { id: string; append: () => Promise<void>; close: () => Promise<void> };
-const writer = (id: string): Writer => ({
+type Writer = { id: string; startedAt: string; append: () => Promise<void>; close: () => Promise<void> };
+const writer = (id: string, startedAt = '2026-01-01T00:00:00.000Z'): Writer => ({
   id,
+  startedAt,
   append: async () => undefined,
   close: async () => undefined,
 });
 
-function harness(options?: { live?: string[] }) {
+function harness(options?: {
+  live?: string[];
+  /** Journal contents `store.load()` hands back, per session id. */
+  stored?: Record<string, { messages: unknown[]; events: unknown[] }>;
+  loadAgentSessions?: (ids: readonly string[]) => Promise<unknown[]>;
+}) {
   const bootWriter = writer('sess_boot');
   const contexts = new Map<string, Record<string, unknown>>();
   const mkCtx = (id: string) => {
@@ -57,6 +63,7 @@ function harness(options?: { live?: string[] }) {
 
   const resumeCalls: string[] = [];
   const sent: Array<{ type: string; payload: unknown }> = [];
+  const setSessionStartedAt = vi.fn();
   let current: Writer = bootWriter;
 
   const handlers = createSessionHandlers({
@@ -71,21 +78,30 @@ function harness(options?: { live?: string[] }) {
     getSessionStore: () =>
       ({
         resolveId: async (id: string) => id,
+        load: async (id: string) =>
+          options?.stored?.[id] ?? { messages: [], events: [], usage: undefined },
         resume: async (id: string) => {
           resumeCalls.push(id);
-          return { writer: writer(id), data: { messages: [], events: [], usage: undefined } };
+          return {
+            writer: writer(id, '2026-07-25T10:00:00.000Z'),
+            data: { messages: [], events: [], usage: undefined },
+          };
         },
         list: async () => [],
       }) as never,
+    ...(options?.loadAgentSessions
+      ? { loadAgentSessions: options.loadAgentSessions as never }
+      : {}),
     isSessionLive: (id) => contexts.has(id),
     isRunActive: (id) => id === 'sess_running',
     getAgent: (id) => ({ ctx: contexts.get(id ?? '') ?? rootCtx }) as never,
+    setSessionStartedAt,
     sessionStartPayload: async (overrides) => ({ ...overrides }) as never,
     sendMessage: (_ws, message) => sent.push(message),
     broadcastMessage: (message) => sent.push(message),
   });
 
-  return { handlers, resumeCalls, sent, currentId: () => current.id };
+  return { handlers, resumeCalls, sent, setSessionStartedAt, currentId: () => current.id };
 }
 
 describe('resuming a tab that is already open', () => {
@@ -126,6 +142,44 @@ describe('resuming a tab that is already open', () => {
 
     expect(h.resumeCalls).toEqual(['sess_cold']);
   });
+
+  it('restores backend session start state from the original journal timestamp on cold resume', async () => {
+    const h = harness();
+
+    await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_cold' } });
+
+    expect(h.setSessionStartedAt).toHaveBeenCalledWith(
+      Date.parse('2026-07-25T10:00:00.000Z'),
+    );
+  });
+
+  it('sends no transcript for a focus on a session the tab is already showing', async () => {
+    const h = harness({ live: ['sess_bg'] });
+
+    await h.handlers.resumeSession(ws, { type: 'session.focus', payload: { id: 'sess_bg' } });
+
+    const start = h.sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as Record<string, unknown> | undefined;
+    // A tab on screen already holds this conversation, with its live tool
+    // cards and the audit markers a replay is rebuilt without. Sending one
+    // would replace the richer record with the poorer one.
+    expect(payload).toMatchObject({ sessionId: 'sess_bg' });
+    expect(payload).not.toHaveProperty('replayMessages');
+    expect(payload).not.toHaveProperty('replayUsage');
+    // The foreground still moves — that is the entire job of a focus.
+    expect(h.currentId()).toBe('sess_bg');
+    expect(h.resumeCalls).toEqual([]);
+  });
+
+  it('falls through to a real resume when a focus names a session it does not hold', async () => {
+    const h = harness();
+
+    await h.handlers.resumeSession(ws, { type: 'session.focus', payload: { id: 'sess_cold' } });
+
+    // A page that outlived its process focuses a tab the server has never
+    // opened. Leaving it blank would be the worse answer.
+    expect(h.resumeCalls).toEqual(['sess_cold']);
+  });
 });
 
 describe('session.subscribe', () => {
@@ -134,6 +188,7 @@ describe('session.subscribe', () => {
     clients.set(ws, { sessionId: null });
     const sent: Array<{ type: string; payload: unknown }> = [];
     const undisplayed: string[][] = [];
+    const loads: string[] = [];
     const handlers = createSessionHandlers({
       config: { model: 'm', provider: 'p' },
       context: { session: writer('sess_boot') } as never,
@@ -142,15 +197,141 @@ describe('session.subscribe', () => {
       getProjectRoot: () => '/repo',
       getSession: () => writer('sess_boot') as never,
       setSession: vi.fn(),
-      getSessionStore: () => ({}) as never,
+      getSessionStore: () =>
+        ({
+          load: async (id: string) => {
+            loads.push(id);
+            return {
+              messages: [{ role: 'user', content: `journal of ${id}` }],
+              events: [],
+              usage: undefined,
+            };
+          },
+        }) as never,
       isRunActive: (id) => id === 'sess_2',
       onSessionsUndisplayed: (ids) => undisplayed.push(ids),
       sessionStartPayload: async (o) => ({ ...o }) as never,
       sendMessage: (_ws, message) => sent.push(message),
       broadcastMessage: (message) => sent.push(message),
     });
-    return { handlers, sent, undisplayed, clients };
+    return { handlers, sent, undisplayed, clients, loads };
   }
+
+  it('hands back the transcript of every tab that says its pane is empty', async () => {
+    const h = subscribeHarness();
+
+    await h.handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_1', 'sess_2'], replayFor: ['sess_1'] },
+    });
+
+    // What a reloaded page shows comes out of localStorage, which keeps only
+    // the last couple of hundred messages and no markers. The tab says so by
+    // naming itself in `replayFor`; the tab that did not ask keeps what it has.
+    const starts = h.sent.filter((m) => m.type === 'session.start');
+    expect(starts).toHaveLength(1);
+    expect(starts[0]?.payload).toMatchObject({
+      sessionId: 'sess_1',
+      replayReason: 'redisplay',
+    });
+    expect(h.loads).toEqual(['sess_1']);
+  });
+
+  it('never re-sends a transcript for a tab this connection already declared', async () => {
+    const h = subscribeHarness();
+    const declare = (ids: string[]) =>
+      h.handlers.subscribeSessions(ws, {
+        type: 'session.subscribe',
+        payload: { sessionIds: ids, replayFor: ids },
+      });
+
+    await declare(['sess_1']);
+    await declare(['sess_1', 'sess_3']);
+
+    // A later subscribe is a tab open or close. The id that changed got its
+    // transcript from the `session.resume` that opened it; re-sending one for
+    // the tabs that did not change would overwrite live panes.
+    expect(h.loads).toEqual(['sess_1', 'sess_3']);
+  });
+
+  it('redisplays a LIVE tab from its journal, so the markers come back with it', async () => {
+    // The live path used to answer from the context's in-memory transcript,
+    // which is messages and nothing else — so a reloaded page got the same
+    // conversation back as a wall of plain text, with every audit mark,
+    // checkpoint and tool record gone. They are projected from journal
+    // EVENTS, so the journal is what a redisplay has to read.
+    const loads: string[] = [];
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const clients = new Map<WebSocket, { sessionId: string | null; sessionIds?: Set<string> }>();
+    clients.set(ws, { sessionId: null });
+    const handlers = createSessionHandlers({
+      config: { model: 'm', provider: 'p' },
+      context: { session: writer('sess_boot') } as never,
+      tokenCounter: { account: vi.fn(), total: () => ({}) } as never,
+      clients: clients as never,
+      getProjectRoot: () => '/repo',
+      getSession: () => writer('sess_boot') as never,
+      setSession: vi.fn(),
+      // The tab IS live in this runtime — its agent holds a shorter,
+      // marker-less working set than the journal behind it.
+      peekAgent: (id?: string) =>
+        id === 'sess_live'
+          ? ({
+              ctx: {
+                session: writer('sess_live'),
+                lastRequestTokens: 5,
+                state: { messages: [{ role: 'user', content: 'in memory' }] },
+              },
+            } as never)
+          : undefined,
+      getSessionStore: () =>
+        ({
+          load: async (id: string) => {
+            loads.push(id);
+            return {
+              messages: [
+                { role: 'user', content: 'first' },
+                { role: 'assistant', content: 'second' },
+              ],
+              events: [
+                {
+                  type: 'error',
+                  ts: '2026-01-01T00:00:00.000Z',
+                  message: 'provider timed out',
+                },
+              ],
+              usage: undefined,
+            };
+          },
+        }) as never,
+      sessionStartPayload: async (o) => ({ ...o }) as never,
+      sendMessage: (_ws, message) => sent.push(message),
+      broadcastMessage: (message) => sent.push(message),
+    });
+
+    await handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_live'], replayFor: ['sess_live'] },
+    });
+
+    expect(loads).toEqual(['sess_live']);
+    const start = sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as { replayMessages?: unknown[]; replayMarkers?: unknown[] };
+    expect(payload?.replayMessages).toHaveLength(2);
+    expect(payload?.replayMarkers?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('sends nothing back when no tab asks for a redisplay', async () => {
+    const h = subscribeHarness();
+
+    await h.handlers.subscribeSessions(ws, {
+      type: 'session.subscribe',
+      payload: { sessionIds: ['sess_1', 'sess_2'] },
+    });
+
+    expect(h.sent.filter((m) => m.type === 'session.start')).toEqual([]);
+    expect(h.loads).toEqual([]);
+  });
 
   it('answers every declared tab with its own run state', async () => {
     const h = subscribeHarness();
@@ -386,5 +567,236 @@ describe('per-tab agent registry', () => {
     // Created, but the session transition that owns the id has not installed
     // its writer yet — running against it would fail deep inside the turn.
     expect(registry.isLive('sess_new')).toBe(false);
+  });
+
+  /**
+   * A stub agent whose journal records what was asked of it, plus a
+   * session-scoped token counter so `closeAll` can be checked for stamping
+   * each tab with its OWN usage rather than the host total.
+   */
+  const journalAgent = (sessionId: string, tokens = 1) => {
+    const appended: { type: string; usage?: unknown }[] = [];
+    const calls = { flushSync: 0, close: 0 };
+    const agent = {
+      ctx: {
+        session: {
+          id: sessionId,
+          append: async (event: { type: string; usage?: unknown }) => {
+            appended.push(event);
+          },
+          close: async () => {
+            calls.close++;
+          },
+          flushSync: () => {
+            calls.flushSync++;
+          },
+        },
+        tokenCounter: { total: () => ({ input: tokens, output: 0 }) },
+        readFiles: new Set<string>(),
+        fileMtimes: new Map<string, number>(),
+      },
+    };
+    return { agent: agent as never, appended, calls };
+  };
+
+  it('drains and closes the journal of a session it evicts', async () => {
+    // Eviction used to delete the agent and nothing else, so a whole buffer
+    // window of records never reached disk and the file handle stayed open —
+    // the tab came back to a transcript missing its own tail.
+    const evicted = journalAgent('sess_closed');
+    const registry = createSessionAgentRegistry({
+      template: stubAgent('sess_boot'),
+      maxAgents: 1,
+      createAgent: (id) => (id === 'sess_closed' ? evicted.agent : stubAgent(id, false)),
+    });
+    registry.get('sess_closed');
+
+    registry.get('sess_new');
+    await Promise.resolve();
+
+    expect(registry.has('sess_closed')).toBe(false);
+    expect(evicted.calls.flushSync).toBe(1);
+    expect(evicted.calls.close).toBe(1);
+    // NOT ended: the tab may still be open, and the next visit reopens this
+    // journal to append to it. Only a real close writes the terminal marker.
+    expect(evicted.appended).toEqual([]);
+  });
+
+  it('endAndClose ends a closed tab, drops it, and never touches the leader', async () => {
+    const closed = journalAgent('sess_closed', 9);
+    const registry = createSessionAgentRegistry({
+      template: stubAgent('sess_boot'),
+      createAgent: () => closed.agent,
+    });
+    registry.get('sess_closed');
+
+    await registry.endAndClose('sess_closed');
+    // The leader IS the host; ending its journal here would close the log the
+    // whole process is still writing to.
+    await registry.endAndClose('sess_boot');
+
+    expect(closed.appended.map((e) => e.type)).toEqual(['session_end']);
+    expect(closed.appended[0]?.usage).toEqual({ input: 9, output: 0 });
+    expect(closed.calls.close).toBe(1);
+    expect(registry.ids()).toEqual(['sess_boot']);
+  });
+
+  it('flushAllSync drains every tab, not just the leader', () => {
+    // The host's salvage hook only knows the leader's writer, so a crash
+    // truncated the buffered tail of all three tabs beside it.
+    const a = journalAgent('sess_a');
+    const b = journalAgent('sess_b');
+    const registry = createSessionAgentRegistry({
+      template: stubAgent('sess_boot'),
+      createAgent: (id) => (id === 'sess_a' ? a.agent : b.agent),
+    });
+    registry.get('sess_a');
+    registry.get('sess_b');
+
+    registry.flushAllSync();
+
+    expect(a.calls.flushSync).toBe(1);
+    expect(b.calls.flushSync).toBe(1);
+  });
+
+  it('closeAll ends each background journal with its own usage and spares the leader', async () => {
+    // Without the marker a clean quit left every background tab looking
+    // exactly like a crash, and the next launch offered them all for recovery.
+    const a = journalAgent('sess_a', 11);
+    const b = journalAgent('sess_b', 22);
+    const registry = createSessionAgentRegistry({
+      template: stubAgent('sess_boot'),
+      createAgent: (id) => (id === 'sess_a' ? a.agent : b.agent),
+    });
+    registry.get('sess_a');
+    registry.get('sess_b');
+
+    await registry.closeAll();
+
+    expect(a.appended.map((e) => e.type)).toEqual(['session_end']);
+    expect(a.appended[0]?.usage).toEqual({ input: 11, output: 0 });
+    // Each tab's OWN counter: a shared one would stamp every tab with the sum.
+    expect(b.appended[0]?.usage).toEqual({ input: 22, output: 0 });
+    expect(a.calls.close).toBe(1);
+    expect(b.calls.close).toBe(1);
+    // The leader's journal belongs to the host teardown that runs after this.
+    expect(registry.ids()).toEqual(['sess_boot']);
+  });
+});
+
+describe('a resumed live session comes back whole', () => {
+  const journal = {
+    sess_bg: {
+      messages: [
+        { role: 'user', content: 'first', ts: '2026-01-01T00:00:00Z' },
+        {
+          role: 'assistant',
+          content: [{ type: 'tool_use', id: 'tu-1', name: 'read', input: {} }],
+          ts: '2026-01-01T00:00:02Z',
+        },
+      ],
+      events: [
+        { type: 'compaction', ts: '2026-01-01T00:00:01Z', before: 100_000, after: 40_000 },
+        {
+          type: 'tool_call_end',
+          ts: '2026-01-01T00:00:03Z',
+          name: 'read',
+          id: 'tu-1',
+          durationMs: 42,
+          outputSize: 10,
+          ok: true,
+        },
+        { type: 'agent_spawned', ts: '2026-01-01T00:00:04Z', agentId: 'scout', role: 'reviewer' },
+      ],
+    },
+  };
+
+  it('carries the journal’s markers and tool timings, not the bare working set', async () => {
+    // The live branch used to build its replay from `events: []`, so a tab it
+    // was already holding came back as plain text: no compaction line, no
+    // duration on the tool card. The redisplay path had been fixed; this one
+    // had not, so which of the two the client happened to trigger decided
+    // whether the session looked like itself.
+    const h = harness({ live: ['sess_bg'], stored: journal });
+
+    await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_bg' } });
+
+    const start = h.sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as {
+      replayMarkers?: Array<{ source: string }>;
+      replayToolMeta?: Array<{ id: string; durationMs?: number }>;
+    };
+    expect(payload.replayMarkers?.map((m) => m.source)).toEqual(['compaction']);
+    expect(payload.replayToolMeta).toEqual([
+      expect.objectContaining({ id: 'tu-1', durationMs: 42, ok: true }),
+    ]);
+    // Still no second writer on a file that already has one.
+    expect(h.resumeCalls).toEqual([]);
+  });
+
+  it('does not inject subagent sessions into the resumed main screen', async () => {
+    // Subagent sessions are not resumable workers after restart. Keep their
+    // raw journal data available for an inspect/history view, but do not hydrate
+    // the main session.start payload with stale roster cards.
+    const asked: string[][] = [];
+    const h = harness({
+      live: ['sess_bg'],
+      stored: journal,
+      loadAgentSessions: async (ids) => {
+        asked.push([...ids]);
+        return [{ subagentId: 'scout', agentName: 'Scout', transcript: [{ content: 'hi' }] }];
+      },
+    });
+
+    await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_bg' } });
+
+    expect(asked).toEqual([]);
+    const start = h.sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as { agentSessions?: Array<Record<string, unknown>> };
+    expect(payload.agentSessions).toBeUndefined();
+  });
+
+  it('does not read subagent sessions while resuming the main screen', async () => {
+    // Some producers stamp the leader's own interleaved events with the
+    // reserved id `leader`. Right for attribution, wrong for a fleet panel:
+    // it put a permanently "running" worker card in every resumed tab.
+    const asked: string[][] = [];
+    const h = harness({
+      live: ['sess_bg'],
+      stored: {
+        sess_bg: {
+          messages: journal.sess_bg.messages,
+          events: [
+            ...journal.sess_bg.events,
+            { type: 'tool_call_start', ts: '2026-01-01T00:00:05Z', name: 'read', id: 'x', input: {}, agentId: 'leader' },
+          ],
+        },
+      },
+      loadAgentSessions: async (ids) => {
+        asked.push([...ids]);
+        return [];
+      },
+    });
+
+    await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_bg' } });
+
+    expect(asked).toEqual([]);
+    const start = h.sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as { agentSessions?: Array<{ subagentId: string }> };
+    expect(payload.agentSessions).toBeUndefined();
+  });
+
+  it('a focus still carries no transcript and reads no journal', async () => {
+    const reads: string[] = [];
+    const h = harness({ live: ['sess_bg'], stored: journal });
+    void reads;
+
+    await h.handlers.resumeSession(ws, { type: 'session.focus', payload: { id: 'sess_bg' } });
+
+    const start = h.sent.find((m) => m.type === 'session.start');
+    const payload = start?.payload as Record<string, unknown>;
+    expect(payload['replayMessages']).toBeUndefined();
+    expect(payload['replayMarkers']).toBeUndefined();
+    expect(payload['agentSessions']).toBeUndefined();
   });
 });

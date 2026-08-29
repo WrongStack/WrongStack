@@ -359,6 +359,15 @@ export function createWebuiRouteContexts({
     isRunActive: (sessionId) =>
       sessionId ? abortControllers.has(sessionId) : abortControllers.size > 0,
     isSessionLive,
+    // A replayed session brings its own fleet back: the roster comes from that
+    // session's journal, the bodies from here. Scoped by id, because the
+    // transcripts directory is shared by every session of the project.
+    ...(opts.agentTranscripts
+      ? {
+          loadAgentSessions: async (subagentIds: readonly string[]) =>
+            (await opts.agentTranscripts?.loadSessionsFromDisk(subagentIds)) ?? [],
+        }
+      : {}),
     getForegroundSession,
     setForegroundSession,
     clients,

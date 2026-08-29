@@ -143,7 +143,7 @@ export {
   type ToolStatsSession,
   useToolStatsStore,
 } from './tool-stats-store.js';
-export type { AgentTranscriptEntry, AgentTranscriptKind, BrainDecisionData, ChatMessage, CouncilDecisionData, CouncilSeatVote, FleetTimelineEvent, SessionHistoryEntry, SessionInfo, SubagentEvent, SubagentView, ToolExecution } from './types.js';
+export type { AgentTranscriptEntry, AgentTranscriptKind, BrainDecisionData, ChatMessage, ChatMessageAttachment, CouncilDecisionData, CouncilSeatVote, FleetTimelineEvent, SessionHistoryEntry, SessionInfo, SubagentEvent, SubagentView, ToolExecution } from './types.js';
 export type { Activity, DockSection, InspectorTab, WorkDashboardTab } from './ui-store.js';
 export {
   coerceActivity,

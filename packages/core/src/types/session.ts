@@ -284,8 +284,76 @@ type SessionEventVariant =
       usage?: Usage | undefined;
     }
   | { type: 'agent_error'; ts: string; agentId: string; error: string }
-  | { type: 'spec_parsed'; ts: string; specId: string; title: string; completeness: number }
-  | { type: 'spec_analyzed'; ts: string; specId: string; gaps: string[] }
+  | {
+      /**
+       * A `delegate` tool call handing work to a subagent.
+       *
+       * Distinct from `agent_spawned`, which records that an agent exists.
+       * This records that the LEADER stopped and waited on it, which is the
+       * thing the transcript shows: every surface renders a delegation line
+       * live (the TUI even suppresses the generic tool card in its favour),
+       * and none of it reached disk — so a resumed session showed a gap where
+       * minutes of delegated work had happened.
+       */
+      type: 'delegate_started';
+      ts: string;
+      /** Resolved roster role or free-form subagent name. */
+      target: string;
+      /** The instruction handed to the subagent. */
+      task: string;
+      subagentId?: string | undefined;
+    }
+  | {
+      type: 'delegate_completed';
+      ts: string;
+      target: string;
+      task: string;
+      ok: boolean;
+      /** `success` | `timeout` | `host_timeout` | `stopped` | … */
+      status?: string | undefined;
+      /** One-line human summary, as the live surfaces render it. */
+      summary: string;
+      durationMs: number;
+      iterations: number;
+      toolCalls: number;
+      costUsd?: number | undefined;
+      subagentId?: string | undefined;
+    }
+  | {
+      /**
+       * The loop detector acted on a repeating run.
+       *
+       * Only `action: 'cut'` is worth a record: a `steer` is an in-band nudge
+       * the model absorbs, while a cut ENDS the turn — and without this the
+       * run came back as a bare `max_iterations` with nothing saying why.
+       */
+      type: 'loop_detected';
+      ts: string;
+      /** Comma-separated tool names, or empty for a pure message loop. */
+      tools: string;
+      repeatCount: number;
+      iteration: number;
+      kind?: 'tool' | 'message' | 'mixed' | undefined;
+      action?: 'steer' | 'cut' | undefined;
+    }
+  | {
+      /**
+       * The active provider/model changed mid-session.
+       *
+       * `reason: 'fallback'` is the automatic switch after a provider failure;
+       * `'user'` is an explicit `/model` or UI change. Either way the rest of
+       * the transcript was produced by a different model than the one
+       * `session_start` names, and a reader with no record of the switch
+       * attributes it all to the first one.
+       */
+      type: 'model_switched';
+      ts: string;
+      from?: { providerId: string; model: string } | undefined;
+      to: { providerId: string; model: string };
+      reason: 'fallback' | 'user';
+      /** HTTP status that triggered an automatic fallback, when there was one. */
+      status?: number | undefined;
+    }
   | { type: 'skill_activated'; ts: string; skillName: string }
   | { type: 'skill_deactivated'; ts: string; skillName: string }
   | { type: 'tool_call_start'; ts: string; name: string; id: string; input: unknown }
@@ -672,6 +740,8 @@ export interface SessionStore {
 
 export interface SessionWriter {
   readonly id: string;
+  /** Original session start timestamp, used by resumed surfaces to keep uptime stable. */
+  readonly startedAt?: string | undefined;
   /**
    * Session-level trace ID for correlating storage events with agent
    * iterations in observability pipelines. Generated once at Context

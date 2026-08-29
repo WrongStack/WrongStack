@@ -1,5 +1,9 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
+import {
+  loadStatuslineConfig,
+  saveStatuslineConfig,
+} from '../services/statusline-config.js';
 
 export type { ToolRegistry } from '@wrongstack/core/registry';
 export type { TokenCounter } from '@wrongstack/core/types';
@@ -191,8 +195,15 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
       cwd: opts.cwd,
       hiddenItems: opts.statuslineHiddenItems ?? [],
       setHiddenItems: opts.setStatuslineHiddenItems ?? (() => {}),
-      getConfig: opts.statuslineConfig?.get ?? (async () => ({})),
-      setConfig: opts.statuslineConfig?.set ?? (async () => {}),
+      // Fallback hosts (REPL/args without the TUI wiring) get a real
+      // config-backed implementation, not a stub: the /statusline text
+      // output reads chips and every toggle persists through the service.
+      getConfig: opts.statuslineConfig?.get ?? (async () => loadStatuslineConfig()),
+      setConfig:
+        opts.statuslineConfig?.set ??
+        (async (cfg) => {
+          await saveStatuslineConfig(cfg);
+        }),
       saveStatuslineHiddenItems: opts.saveStatuslineHiddenItems ?? (async () => {}),
       onPanelOpen: opts.onPanelOpen,
     }),

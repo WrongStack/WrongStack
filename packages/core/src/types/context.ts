@@ -174,9 +174,11 @@ export interface AgentContext extends RunEnv {
     event: SessionEvent;
     bytes: number;
     writer: SessionWriter;
+    attempts?: number;
   }>;
   _conversationJournalBytes: number;
   _conversationJournalDrain: Promise<void> | null;
+  _conversationJournalLastError: Error | null;
   /** Wait until every exact conversation event queued so far is in the writer buffer. */
   flushConversationJournal(): Promise<void>;
   conversationJournalBytes(event: SessionEvent): number;

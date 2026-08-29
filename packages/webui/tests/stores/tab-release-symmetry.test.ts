@@ -201,7 +201,7 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(disposeStreakState).not.toHaveBeenCalledWith('tab-used');
   });
 
-  it('switching to an already-open background tab resumes the target without adding a slot', () => {
+  it('switching to an already-open background tab focuses it instead of resuming it', () => {
     openTabs(['tab-a', 'tab-b']);
     useSessionLanes.setState({ activeSessionId: 'tab-a' });
     useChatLanes.setState({ activeSessionId: 'tab-a' });
@@ -212,7 +212,10 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(outcome).toEqual({ success: true, reason: 'switched' });
     expect(useSessionTabStore.getState().openTabIds).toEqual(['tab-a', 'tab-b']);
     expect(useSessionLanes.getState().activeSessionId).toBe('tab-b');
-    expect(resumeSession).toHaveBeenCalledExactlyOnceWith('tab-b');
+    // A session already on screen is never resumed again: resuming re-reads a
+    // conversation the page is displaying and answers with a poorer replay.
+    // The switch sends `session.focus` instead — see session-tab-store.
+    expect(resumeSession).not.toHaveBeenCalled();
   });
 
   it('re-opening the foreground tab marks it seen without sending a duplicate resume', () => {

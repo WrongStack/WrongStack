@@ -56,6 +56,17 @@ export interface FleetState {
   getAgentsBySession: (sessionId: string) => SubagentView[];
   /** Return one agent's full ordered transcript. */
   getAgentTranscript: (subagentId: string) => AgentTranscriptEntry[];
+  /** Hydrate subagent virtual sessions and historical transcripts (from session.start replay). */
+  hydrateAgentSessions: (
+    sessions: Array<{
+      subagentId: string;
+      agentName?: string | undefined;
+      status?: string | undefined;
+      task?: string | undefined;
+      transcript?: AgentTranscriptEntry[] | undefined;
+    }>,
+    sessionId?: string | undefined,
+  ) => void;
   /** Remove non-running agents (completed, failed, timeout, stopped) from the
    *  roster. Scoped: only agents belonging to `sessionId` are removed, so a
    *  panel in one tab never drops another tab's finished agents. */
@@ -166,15 +177,69 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
         ...entry,
         kind: normalizeTranscriptKind(entry.kind),
       };
+      const agents = new Map(state.agents);
+      if (
+        fullEntry.subagentId &&
+        fullEntry.subagentId !== 'leader' &&
+        !agents.has(fullEntry.subagentId)
+      ) {
+        agents.set(
+          fullEntry.subagentId,
+          blankAgent(fullEntry.subagentId, fullEntry.agentName, fullEntry.sessionId),
+        );
+      }
       const agentTranscripts = new Map(state.agentTranscripts);
       agentTranscripts.set(
         fullEntry.subagentId,
         appendTranscriptEntry(agentTranscripts.get(fullEntry.subagentId) ?? [], fullEntry),
       );
       return {
+        agents,
         agentTimeline: [fullEntry, ...state.agentTimeline].slice(0, MAX_AGENT_TIMELINE),
         agentTranscripts,
       };
+    }),
+  hydrateAgentSessions: (sessions, sessionId) =>
+    set((state) => {
+      if (!Array.isArray(sessions) || sessions.length === 0) return state;
+      const agents = new Map(state.agents);
+      const agentTranscripts = new Map(state.agentTranscripts);
+      for (const s of sessions) {
+        if (!s || !s.subagentId || s.subagentId === 'leader') continue;
+        const id = s.subagentId;
+        const name = s.agentName?.trim() || id;
+        const existingAgent = agents.get(id);
+        if (!existingAgent) {
+          const newAgent = blankAgent(id, name, sessionId);
+          if (s.status) newAgent.status = s.status as SubagentView['status'];
+          if (s.task) newAgent.description = s.task;
+          agents.set(id, newAgent);
+        } else if (s.task && !existingAgent.description) {
+          existingAgent.description = s.task;
+          agents.set(id, existingAgent);
+        }
+        if (Array.isArray(s.transcript) && s.transcript.length > 0) {
+          const current = agentTranscripts.get(id) ?? [];
+          if (current.length === 0) {
+            agentTranscripts.set(id, s.transcript.slice(-MAX_AGENT_TRANSCRIPT));
+          } else {
+            let merged = [...current];
+            for (const item of s.transcript) {
+              if (
+                !merged.some(
+                  (m) =>
+                    m.id === item.id ||
+                    (m.ts === item.ts && m.content === item.content && m.kind === item.kind),
+                )
+              ) {
+                merged = appendTranscriptEntry(merged, item);
+              }
+            }
+            agentTranscripts.set(id, merged.slice(-MAX_AGENT_TRANSCRIPT));
+          }
+        }
+      }
+      return { agents, agentTranscripts };
     }),
   clear: () =>
     set({
@@ -336,6 +401,8 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       const prev = agents.get(e.subagentId) ?? blankAgent(e.subagentId, e.name, e.sessionId);
       const next: SubagentView = { ...prev };
       const now = Date.now();
+      const isLeader = e.subagentId === 'leader' || prev.isLeader;
+      let transcriptChanged = false;
 
       switch (e.kind) {
         case 'spawned':
@@ -355,6 +422,25 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             timestamp: now,
             message: `${next.name} spawned`,
           });
+          if (!isLeader && e.description) {
+            const existing = agentTranscripts.get(e.subagentId) ?? [];
+            if (existing.length === 0) {
+              agentTranscripts.set(
+                e.subagentId,
+                appendTranscriptEntry(existing, {
+                  id: `agent_tl_${now}_spawn`,
+                  subagentId: e.subagentId,
+                  sessionId: e.sessionId,
+                  agentName: next.name,
+                  content: `🎯 Spawned: ${e.description}`,
+                  kind: 'system',
+                  iteration: 0,
+                  ts: new Date(now).toISOString(),
+                }),
+              );
+              transcriptChanged = true;
+            }
+          }
           break;
         case 'task_started':
           next.description = e.description ?? next.description;
@@ -368,6 +454,27 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             timestamp: now,
             message: `${next.name} started: ${e.description ?? 'new task'}`,
           });
+          if (!isLeader && (e.description || e.taskId)) {
+            const taskText = e.description || e.taskId;
+            const existing = agentTranscripts.get(e.subagentId) ?? [];
+            const lastEntry = existing[existing.length - 1];
+            if (!lastEntry || !lastEntry.content.includes(taskText as string)) {
+              agentTranscripts.set(
+                e.subagentId,
+                appendTranscriptEntry(existing, {
+                  id: `agent_tl_${now}_task`,
+                  subagentId: e.subagentId,
+                  sessionId: e.sessionId,
+                  agentName: next.name,
+                  content: `🎯 Task: ${taskText}`,
+                  kind: 'status',
+                  iteration: 0,
+                  ts: new Date(now).toISOString(),
+                }),
+              );
+              transcriptChanged = true;
+            }
+          }
           break;
         case 'tool_executed': {
           const ok = typeof e.ok === 'boolean' ? e.ok : true;
@@ -390,6 +497,26 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             message: `${next.name} ${ok ? '✓' : '✗'} ${e.toolName ?? 'tool'}`,
             value: dur,
           });
+          if (!isLeader) {
+            const toolContent = dur > 0 ? `Completed in ${dur}ms` : ok ? 'Success' : 'Failed';
+            const existing = agentTranscripts.get(e.subagentId) ?? [];
+            agentTranscripts.set(
+              e.subagentId,
+              appendTranscriptEntry(existing, {
+                id: `agent_tl_${now}_tool_${Math.random().toString(36).slice(2, 6)}`,
+                subagentId: e.subagentId,
+                sessionId: e.sessionId,
+                agentName: next.name,
+                content: toolContent,
+                kind: 'tool_result',
+                toolName: e.toolName,
+                toolOk: ok,
+                iteration: next.iteration,
+                ts: new Date(now).toISOString(),
+              }),
+            );
+            transcriptChanged = true;
+          }
           break;
         }
         case 'iteration_summary':
@@ -411,6 +538,24 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             message: `${next.name} iter ${e.iteration ?? next.iteration} · ${e.currentTool ? `${e.currentTool}` : ''}`,
             value: e.costUsd,
           });
+          if (!isLeader && typeof e.partialText === 'string' && e.partialText) {
+            const existing = agentTranscripts.get(e.subagentId) ?? [];
+            agentTranscripts.set(
+              e.subagentId,
+              appendTranscriptEntry(existing, {
+                id: `agent_tl_${now}_iter_${e.iteration ?? 0}`,
+                subagentId: e.subagentId,
+                sessionId: e.sessionId,
+                agentName: next.name,
+                content: e.partialText,
+                kind: 'text',
+                iteration: e.iteration ?? next.iteration,
+                costUsd: e.costUsd,
+                ts: new Date(now).toISOString(),
+              }),
+            );
+            transcriptChanged = true;
+          }
           break;
         case 'budget_warning': {
           const kind = e.budgetKind ?? 'budget';
@@ -506,6 +651,65 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
             message: `${next.name} ${statusLabel}`,
             value: next.costUsd,
           });
+          if (!isLeader) {
+            const existing = agentTranscripts.get(e.subagentId) ?? [];
+            if (typeof e.finalText === 'string' && e.finalText) {
+              const cleaned = stripNextStepsBlock(e.finalText);
+              const alreadyHas = existing.some(
+                (item) => item.kind === 'text' && item.content.includes(cleaned),
+              );
+              if (!alreadyHas) {
+                agentTranscripts.set(
+                  e.subagentId,
+                  appendTranscriptEntry(existing, {
+                    id: `agent_tl_${now}_done_text`,
+                    subagentId: e.subagentId,
+                    sessionId: e.sessionId,
+                    agentName: next.name,
+                    content: cleaned,
+                    kind: 'text',
+                    iteration: e.iterations ?? next.iteration,
+                    ts: new Date(now).toISOString(),
+                  }),
+                );
+                transcriptChanged = true;
+              }
+            }
+            if (e.status === 'failed' || e.status === 'timeout') {
+              const errMsg =
+                e.error?.message ??
+                (e.failureReason ? `Failed: ${e.failureReason}` : `Agent ${e.status}`);
+              agentTranscripts.set(
+                e.subagentId,
+                appendTranscriptEntry(agentTranscripts.get(e.subagentId) ?? [], {
+                  id: `agent_tl_${now}_err`,
+                  subagentId: e.subagentId,
+                  sessionId: e.sessionId,
+                  agentName: next.name,
+                  content: errMsg,
+                  kind: 'error',
+                  iteration: e.iterations ?? next.iteration,
+                  ts: new Date(now).toISOString(),
+                }),
+              );
+              transcriptChanged = true;
+            } else if (!e.finalText) {
+              agentTranscripts.set(
+                e.subagentId,
+                appendTranscriptEntry(agentTranscripts.get(e.subagentId) ?? [], {
+                  id: `agent_tl_${now}_done_status`,
+                  subagentId: e.subagentId,
+                  sessionId: e.sessionId,
+                  agentName: next.name,
+                  content: 'Task completed successfully',
+                  kind: 'status',
+                  iteration: e.iterations ?? next.iteration,
+                  ts: new Date(now).toISOString(),
+                }),
+              );
+              transcriptChanged = true;
+            }
+          }
           break;
         }
       }
@@ -534,10 +738,7 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
       }
       return {
         agents,
-        // Only publish the transcript clone when eviction actually touched
-        // it — replacing the Map identity on EVERY event would re-render
-        // every transcript subscriber per fleet event.
-        ...(evicted ? { agentTranscripts } : {}),
+        agentTranscripts: transcriptChanged || evicted ? agentTranscripts : state.agentTranscripts,
         leaderId,
         fleetTokensIn,
         fleetTokensOut,

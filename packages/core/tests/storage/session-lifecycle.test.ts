@@ -53,6 +53,7 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     // ── Run 1: create with a date-sharded id (the production default) ──
     const writer1 = await store.create({ id: '', model: 'model-x', provider: 'prov-y' });
     const id = writer1.id;
+    const originalStartedAt = writer1.startedAt;
     expect(id).toMatch(/^\d{4}-\d{2}-\d{2}\//); // date shard prefix
     expect(id).toMatch(/^\d{4}-\d{2}-\d{2}\/sess_[0-9A-HJKMNP-TV-Z]{26}$/);
     expect(id).not.toContain('model-x');
@@ -108,8 +109,10 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
 
     // ── Run 2: resume the same session through a unique leaf prefix ──
     const leafPrefix = base.slice(0, -4);
+    const resumeRequestedAt = Date.now();
     const { writer: writer2, data } = await store.resume(leafPrefix);
     expect(writer2.id).toBe(id);
+    expect(writer2.startedAt).toBe(originalStartedAt);
     expect(data.messages).toHaveLength(4); // user, assistant(tool_use), user(tool_result), assistant
     expect(data.usage).toMatchObject({ input: 30, output: 13 });
     expect(data.metadata.endedAt).toBe(ts(5));
@@ -135,6 +138,8 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     );
     const resumeEvent = lines2.find((l) => l['type'] === 'session_resumed');
     expect(resumeEvent?.['id']).toBe(id);
+    expect(Date.parse(String(resumeEvent?.['ts']))).toBeGreaterThanOrEqual(resumeRequestedAt - 1_000);
+    expect(resumeEvent?.['ts']).not.toBe(originalStartedAt);
     expect(lines2.at(-1)!['type']).toBe('session_end');
 
     // Sidecar refreshed IN THE SHARD DIR (not orphaned at the root).

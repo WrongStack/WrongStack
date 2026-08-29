@@ -105,10 +105,16 @@ export interface CliWebUIOptions {
   agentTranscripts?:
     | {
         getAllSessions(): import('@wrongstack/core/coordination').AgentVirtualSession[];
-        /** Ring + on-disk transcripts, for surfaces that survive a process restart. */
-        loadSessionsFromDisk(): Promise<
-          import('@wrongstack/core/coordination').AgentVirtualSession[]
-        >;
+        /**
+         * Ring + on-disk transcripts, for surfaces that survive a process
+         * restart. `only` restricts the result to named subagents — the
+         * transcripts directory is shared by every session of the project, so
+         * an unfiltered read hands each of four open tabs the union of all
+         * four tabs' workers.
+         */
+        loadSessionsFromDisk(
+          only?: readonly string[],
+        ): Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>;
       }
     | undefined;
   /**

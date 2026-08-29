@@ -10,7 +10,7 @@ import {
 } from '@/stores/session-lanes';
 import {
   releaseTab,
-  restoreOpenTabsOnBoot,
+  restoreTabsAfterBoot,
   useSessionTabStore,
 } from '@/stores/session-tab-store';
 
@@ -38,6 +38,13 @@ import {
  *    (debug, analytics, design-gallery, setup), auto-navigate to `chat` so
  *    the user lands on a usable surface instead of a stale debug screen.
  */
+/**
+ * How long to wait for the boot `session.start` frame before restoring the tab
+ * strip unfiltered. Long enough for a local socket round-trip, short enough
+ * that a disconnected page still gets its tabs back promptly.
+ */
+const BOOT_RESTORE_FALLBACK_MS = 2_000;
+
 export function useF5Resilience(): void {
   // ── 1. Persist flush ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -131,7 +138,19 @@ export function useF5Resilience(): void {
    * no-op rather than racing against ours.
    */
   useEffect(() => {
-    restoreOpenTabsOnBoot();
+    // The restore is DRIVEN BY THE SERVER now: the boot `session.start` frame
+    // carries `openSessionIds`, and `handleSessionStart` calls
+    // `restoreTabsAfterBoot` with it so stale slots are dropped before any of
+    // them is promoted or fronted. Fronting a session this runtime never had
+    // is what cost a full journal resume — todo board included — on a fresh
+    // `wstack --webui`.
+    //
+    // This timer is the fallback for the cases where that frame never comes:
+    // a server too old to send the field, or a page that fails to connect.
+    // `restoreTabsAfterBoot` is a one-shot latch, so whichever fires first
+    // wins and the other is a no-op.
+    const timer = setTimeout(() => restoreTabsAfterBoot(undefined), BOOT_RESTORE_FALLBACK_MS);
+    return () => clearTimeout(timer);
   }, []);
 
   // ── 4. View fallback ─────────────────────────────────────────────────────

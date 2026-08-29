@@ -722,7 +722,13 @@ export function SessionList({
                           ) : (
                             <button
                               type="button"
-                              disabled={entry.isCurrent || resumingId !== null}
+                              // Only THIS row waits. Disabling every row on
+                              // any pending resume meant one resume that never
+                              // completed — a refusal the client discards as
+                              // guard noise — froze the whole list until the
+                              // 10s timer expired, which read as "Resume does
+                              // nothing" for every session in the list.
+                              disabled={entry.isCurrent || isResuming}
                               onClick={() => handleResume(entry.id)}
                               onDoubleClick={() => beginRename(entry)}
                               aria-current={entry.isCurrent ? 'page' : undefined}

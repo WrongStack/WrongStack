@@ -27,6 +27,7 @@ import {
   hydrateSessionKanban,
   sessionKanbanDegradation,
 } from '@wrongstack/tools/session-kanban';
+import { announceRecoverableSession, pickResumeCandidate } from './resume-candidate.js';
 export interface SessionResult {
   session: SessionWriter;
   sessionRef: { current?: SessionWriter | undefined };
@@ -145,6 +146,59 @@ export async function setupSession(params: {
   }
 
   let resumeId = typeof flags['resume'] === 'string' ? (flags['resume'] as string) : undefined;
+  // `--resume` with no id, and `--recover`, are resolved here rather than by
+  // the caller: both mean "pick a session for me", and the pick needs the
+  // store and the live-session registry that only this phase holds.
+  //
+  //   --resume            -> the most recent session, closed or not
+  //   --recover           -> the most recent session with NO trailing
+  //                          `session_end` (crash, kill, closed lid)
+  //
+  // Both skip sessions another process is currently writing to; resuming one
+  // of those would open a second writer on the same journal. `--no-recovery`
+  // suppresses `--recover` so old launch scripts that pass both still start
+  // fresh. A pick that finds nothing is not an error — the boot continues
+  // with a new session, which is what the user would have got anyway.
+  if (!resumeId) {
+    const wantsLatest = flags['resume'] === true;
+    const wantsRecover = flags['recover'] === true && flags['no-recovery'] !== true;
+    if (wantsLatest || wantsRecover) {
+      const picked = await pickResumeCandidate({
+        sessionsDir: wpaths.projectSessions,
+        globalRoot: wpaths.globalRoot,
+        sessionStore,
+        unclosedOnly: !wantsLatest,
+      }).catch((err: unknown) => {
+        console.debug(`[session] resume candidate lookup failed: ${toErrorMessage(err)}`);
+        return undefined;
+      });
+      if (picked) {
+        resumeId = picked;
+      } else {
+        renderer.writeInfo(
+          wantsLatest
+            ? 'No previous session to resume — starting a new one.'
+            : 'No unclosed session to recover — starting a new one.',
+        );
+      }
+    }
+  }
+
+  // Nothing to resume, but something to say: if the LAST thing this project
+  // did was a session that never closed its log, tell the user it is still
+  // there. Silence is what made a crash look like an ordinary fresh start —
+  // the conversation was on disk the whole time and nothing ever mentioned it.
+  //
+  // A hint, not a prompt: it must not block a boot, and a stale hung session
+  // from last week is not worth interrupting for, so only a recent one speaks
+  // up. Fire-and-forget, exactly like the prune above.
+  if (!resumeId && flags['no-recovery'] !== true) {
+    void announceRecoverableSession({
+      sessionsDir: wpaths.projectSessions,
+      globalRoot: wpaths.globalRoot,
+      onHint: (message) => renderer.writeInfo(message),
+    }).catch(() => undefined);
+  }
 
   let session: SessionWriter | undefined;
   let restoredMessages: import('@wrongstack/core/types').Message[] = [];

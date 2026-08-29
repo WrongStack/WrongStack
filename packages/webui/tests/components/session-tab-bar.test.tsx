@@ -16,6 +16,7 @@ const mockResumeSession = vi.fn();
 const mockNewSession = vi.fn();
 const mockListSessions = vi.fn();
 const mockSendAbort = vi.fn();
+const mockFocusSession = vi.fn();
 const mockConfirmModal = vi.fn();
 
 vi.mock('../../src/i18n', () => {
@@ -45,7 +46,7 @@ vi.mock('../../src/hooks/useWebSocket', () => ({
 }));
 
 vi.mock('../../src/lib/ws-client', () => ({
-  getWSClient: () => ({ sendAbort: mockSendAbort }),
+  getWSClient: () => ({ sendAbort: mockSendAbort, focusSessionById: mockFocusSession }),
 }));
 
 vi.mock('../../src/components/ConfirmModal', () => ({
@@ -318,6 +319,9 @@ describe('SessionTabBar component', () => {
       expect(useSessionTabStore.getState().openTabIds).toEqual(['sess-12345678']),
     );
     expect(mockSendAbort).not.toHaveBeenCalled();
-    expect(mockResumeSession).toHaveBeenCalledWith('sess-87654321');
+    // Facing the tab before discarding it is a foreground move, not a reopen:
+    // the session is already on screen, so it is focused, never resumed.
+    expect(mockResumeSession).not.toHaveBeenCalled();
+    expect(mockFocusSession).toHaveBeenCalledWith('sess-87654321');
   });
 });

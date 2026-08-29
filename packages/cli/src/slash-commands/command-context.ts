@@ -406,8 +406,8 @@ export interface SlashCommandContext {
     | undefined;
   /** StatusBar visibility config — loaded from the active profile/statusline.json */
   statuslineConfig?: {
-    get: () => Promise<import('../services/statusline-config.js').StatuslineConfig>;
-    set: (cfg: import('../services/statusline-config.js').StatuslineConfig) => Promise<void>;
+    get: () => Promise<import('../services/statusline-config.js').StatuslineDocument>;
+    set: (cfg: import('../services/statusline-config.js').StatuslineDocument) => Promise<void>;
   };
   /**
    * Current list of hidden status bar items. Written by the /statusline command

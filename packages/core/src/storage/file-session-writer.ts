@@ -1,6 +1,5 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type { EventBus } from './event-bus-port.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type {
   FileSnapshot,
@@ -12,6 +11,7 @@ import type {
 } from '../types/session.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
+import type { EventBus } from './event-bus-port.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { SessionSummaryTracker } from './session-summary-tracker.js';
 import { SessionWriteBuffer } from './session-write-buffer.js';
@@ -79,6 +79,7 @@ export class FileSessionWriter implements SessionWriter {
     return this.initPromise;
   }
   private readonly resumed: boolean;
+  private readonly lifecyclePreambleTs: string;
   private readonly secretScrubber?: SecretScrubber | undefined;
   private readonly checkpointCas?: SessionCheckpointCas | undefined;
   /** Mutable slot for onAppend callback — constructor opts seed it, setOnAppend replaces it. */
@@ -190,7 +191,18 @@ export class FileSessionWriter implements SessionWriter {
               if (!critical) return;
               return this.handle.datasync().catch(() => undefined);
             })
-            .catch(() => undefined);
+            .catch((err) => {
+              console.warn(
+                JSON.stringify({
+                  level: 'error',
+                  event: 'session.sync_journal_write_failed',
+                  sessionId: this.id,
+                  eventType: appendEvent.type,
+                  message: toErrorMessage(err),
+                  timestamp: new Date().toISOString(),
+                }),
+              );
+            });
         });
     } else if (critical || this.buffer.shouldFlushNow()) {
       this.buffer.cancelTimer();
@@ -294,7 +306,7 @@ export class FileSessionWriter implements SessionWriter {
   constructor(
     public readonly id: string,
     private handle: fsp.FileHandle,
-    private readonly startedAt: string,
+    public readonly startedAt: string,
     private readonly meta: Omit<SessionMetadata, 'startedAt'>,
     private readonly events?: EventBus | undefined,
     opts: {
@@ -333,6 +345,7 @@ export class FileSessionWriter implements SessionWriter {
     traceId?: string | undefined,
   ) {
     this.resumed = opts.resumed ?? false;
+    this.lifecyclePreambleTs = this.resumed ? new Date().toISOString() : startedAt;
     // id already contains a date-prefix shard (e.g. "2026-06-06/sess_<ULID>").
     // opts.dir is the shard directory — join with basename so the manifest
     // lives next to the JSONL file instead of creating a double-nested path.
@@ -380,7 +393,7 @@ export class FileSessionWriter implements SessionWriter {
     // while later events survived, leaving an unidentifiable transcript.
     this.buffer.push({
       type: this.resumed ? 'session_resumed' : 'session_start',
-      ts: this.startedAt,
+      ts: this.lifecyclePreambleTs,
       id: this.id,
       model: this.meta.model ?? 'unknown',
       provider: this.meta.provider ?? 'unknown',
@@ -523,8 +536,7 @@ export class FileSessionWriter implements SessionWriter {
           .then(() => {
             if (!isCriticalEvent(scrubbed)) return;
             return this.handle.datasync().catch(() => undefined);
-          })
-          .catch(() => undefined);
+          });
       }
     }
 
@@ -572,8 +584,7 @@ export class FileSessionWriter implements SessionWriter {
             .then(() => {
               if (!isCriticalEvent(scrubbed)) return;
               return this.handle.datasync().catch(() => undefined);
-            })
-            .catch(() => undefined);
+            });
         }
       }
       scrubbedBatch.push(scrubbed);

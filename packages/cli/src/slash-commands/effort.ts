@@ -46,6 +46,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
     'Usage:',
     '  /effort                       Show current session effort + supported levels',
     `  /effort <level>               Set session effort (${levelsHint})`,
+    '  /effort auto                  Follow the project-wide setting (WebUI parity)',
     '  /effort clear                 Remove the setting — provider default applies',
     '  /effort matrix                Show per-role/phase effort overrides (/setmodel)',
     '',
@@ -99,7 +100,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
     name: 'effort',
     category: 'Config',
     description: 'View or set the session-wide reasoning effort for the active model.',
-    argsHint: `[${levelsHint}|clear|matrix]`,
+    argsHint: `[auto|${levelsHint}|clear|matrix]`,
     help,
     async run(args) {
       const parts = args.trim().split(/\s+/).filter(Boolean);
@@ -167,7 +168,7 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
             `  ${color.bold('effort')}  ${color.bold(current)}${ok ? '' : `  ${color.amber(`(not advertised by this model — supported: ${levels.join(', ')})`)}`}`,
           );
         } else {
-          lines.push(`  ${color.bold('effort')}  ${color.dim('(not set — provider default)')}`);
+          lines.push(`  ${color.bold('effort')}  ${color.dim('(not set — auto · provider default applies)')}`);
         }
         if (levels) {
           const rendered = REASONING_EFFORT_LEVELS.filter((l) => levels.includes(l)).map((l) =>
@@ -211,10 +212,36 @@ export function buildEffortCommand(opts: SlashCommandContext): SlashCommand {
         };
       }
 
+      // ---- auto (WebUI parity) ----
+      // The composer select stores 'auto' as the per-tab sentinel for "follow
+      // the project-wide setting". The CLI has a single session, so the
+      // sentinel maps to removing the explicit pin — same mechanics as
+      // `clear`. The literal 'auto' must never be PERSISTED as the effort
+      // value: the resolver would forward it to the wire on models with an
+      // undocumented vocabulary (core's withConversationReasoning only skips
+      // it on the conversation meta).
+      if (sub === 'auto') {
+        if (current === undefined) {
+          return {
+            message: `${color.dim('No session effort set — auto already applies (provider default).')}`,
+          };
+        }
+        await patchSessionEffort(undefined, opts.paths, config.activeProfile ?? 'default');
+        opts.configStore.update({
+          modelRuntime: {
+            ...(config.modelRuntime as object),
+            reasoning: { ...(config.modelRuntime?.reasoning as object), effort: undefined },
+          },
+        });
+        return {
+          message: `${color.green('✓')} session effort → ${color.bold('auto')}  ${color.dim('(follows the project-wide setting · provider default when unset)')}`,
+        };
+      }
+
       // ---- set ----
       if (!isReasoningEffort(sub)) {
         return {
-          message: `${color.amber('Usage:')} /effort ${REASONING_EFFORT_LEVELS.join('|')} | clear | matrix`,
+          message: `${color.amber('Usage:')} /effort auto | ${REASONING_EFFORT_LEVELS.join('|')} | clear | matrix`,
         };
       }
       if (supported === false) {
