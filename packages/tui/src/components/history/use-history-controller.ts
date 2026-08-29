@@ -19,7 +19,7 @@ import {
   assembleSelectionText,
   isOutOfBand,
   normalizeSelection,
-  selectionToSlices,
+  selectionTouchedEntryIds,
 } from './selection-helpers.js';
 import type { HistoryEntry } from './types.js';
 
@@ -238,10 +238,11 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           return false;
         }
         const rect = normalizeSelection(cur.anchor, cur.head, cur.inProgress);
-        const slices = selectionToSlices({
+        // Block-based copy: the rect only decides WHICH blocks it touched;
+        // every touched block is copied whole, in viewport order.
+        const entryIds = selectionTouchedEntryIds({
           selection: rect,
           cards: mountedGroupSpansRef.current,
-          cardVisibleCols: termWidth,
         });
         const toolGroupsByHeadId = new Map<number, readonly number[]>();
         for (const span of mountedGroupSpansRef.current) {
@@ -250,11 +251,8 @@ export function useHistoryController(opts: UseHistoryControllerOptions): {
           }
         }
         const text = assembleSelectionText({
-          slices,
+          entryIds,
           entriesById: entriesByIdRef.current,
-          // Wrap-aware row→line translation (v1.1 M4): termWidth is the same
-          // render width the card geometry was built with.
-          termWidth,
           ...(toolGroupsByHeadId.size > 0 ? { toolGroupsByHeadId } : {}),
         });
         selectionRef.current = { anchor: null, head: null, inProgress: false };

@@ -4,8 +4,9 @@
  * The gesture's two halves are exercised separately:
  *
  *  1. Pure helpers — `buildMountedCardSpans`, `selectionHitAt`,
- *     `normalizeSelection`, `selectionToSlices`, `assembleSelectionText`.
- *     Asserted directly with no React mount and no mouse plumbing.
+ *     `normalizeSelection`, `selectionTouchedEntryIds`,
+ *     `assembleSelectionText`. Asserted directly with no React mount and no
+ *     mouse plumbing.
  *
  *  2. Component-level — a bare `ScrollableHistory` mounted with realistic
  *     entries; the controller surface (beginSelection / extendSelection /
@@ -50,9 +51,8 @@ import {
   ScrollableHistory,
   SELECTION_COPY_ID,
   type SelectionRect,
-  type SelectionSlice,
   selectionHitAt,
-  selectionToSlices,
+  selectionTouchedEntryIds,
 } from '../src/components/scrollable-history.js';
 import { EntryHeightCache } from '../src/height-cache.js';
 import { SCROLLBAR_HIT_WIDTH } from '../src/hit-test.js';
@@ -88,7 +88,8 @@ const HELPERS_NOT_INTERNAL = (() => {
   if (typeof buildMountedCardSpans !== 'function') throw new Error('buildMountedCardSpans missing');
   if (typeof selectionHitAt !== 'function') throw new Error('selectionHitAt missing');
   if (typeof normalizeSelection !== 'function') throw new Error('normalizeSelection missing');
-  if (typeof selectionToSlices !== 'function') throw new Error('selectionToSlices missing');
+  if (typeof selectionTouchedEntryIds !== 'function')
+    throw new Error('selectionTouchedEntryIds missing');
   if (typeof assembleSelectionText !== 'function') throw new Error('assembleSelectionText missing');
   if (typeof isOutOfBand !== 'function') throw new Error('isOutOfBand missing');
   return true;
@@ -164,46 +165,41 @@ describe('buildMountedCardSpans + selectionHitAt', () => {
   });
 });
 
-describe('selectionToSlices', () => {
+describe('selectionTouchedEntryIds', () => {
   const cards = [
     { entryId: 10, viewportStartRow: 0, viewportEndRow: 3 },
     { entryId: 11, viewportStartRow: 4, viewportEndRow: 6 },
   ];
 
-  it('spans one card with the inclusive column range', () => {
+  it('returns the card when the rect touches even ONE of its rows', () => {
     const rect: SelectionRect = {
       topLeft: { row: 1, col: 4 },
       bottomRight: { row: 1, col: 12 },
       inProgress: false,
     };
-    const slices = selectionToSlices({ selection: rect, cards, cardVisibleCols: 80 });
-    expect(slices).toEqual([{ entryId: 10, startRow: 1, startCol: 4, endRow: 1, endCol: 12 }]);
+    // Block-based: a single-row touch claims the whole block — the id is all
+    // that survives; no row/col clipping exists anymore.
+    expect(selectionTouchedEntryIds({ selection: rect, cards })).toEqual([10]);
   });
 
-  it('crosses into a second card with column clipped to 0/maxCol', () => {
+  it('returns every touched card in viewport order across a multi-card drag', () => {
     const rect: SelectionRect = {
       topLeft: { row: 2, col: 10 },
       bottomRight: { row: 5, col: 30 },
       inProgress: false,
     };
-    const slices = selectionToSlices({ selection: rect, cards, cardVisibleCols: 20 });
-    // Slices are returned in entry-local (card-relative) coordinates:
-    // viewport rows 2..5 in card 10 (viewportStartRow 0) → rows 2..2; viewport
-    // rows 4..5 in card 11 (viewportStartRow 4) → rows 0..1.
-    expect(slices).toEqual([
-      { entryId: 10, startRow: 2, startCol: 10, endRow: 2, endCol: 19 },
-      { entryId: 11, startRow: 0, startCol: 0, endRow: 1, endCol: 19 },
-    ]);
+    // Rows 2..5 touch card 10 (rows 0..2) and card 11 (rows 4..5); the ids
+    // come back in document order regardless of drag direction.
+    expect(selectionTouchedEntryIds({ selection: rect, cards })).toEqual([10, 11]);
   });
 
-  it('returns no slices when the selection lands in a gap', () => {
+  it('returns no ids when the selection lands in a gap', () => {
     const rect: SelectionRect = {
       topLeft: { row: 3, col: 0 },
       bottomRight: { row: 3, col: 79 },
       inProgress: false,
     };
-    const slices = selectionToSlices({ selection: rect, cards, cardVisibleCols: 80 });
-    expect(slices).toEqual([]);
+    expect(selectionTouchedEntryIds({ selection: rect, cards })).toEqual([]);
   });
 });
 
@@ -213,79 +209,47 @@ describe('assembleSelectionText', () => {
     [42, { id: 42, kind: 'assistant', text: CARD_TEXT }],
   ]);
 
-  it('returns "" when no slices are provided', () => {
-    expect(assembleSelectionText({ slices: [], entriesById: entries })).toBe('');
+  it('returns "" when no blocks are touched', () => {
+    expect(assembleSelectionText({ entryIds: [], entriesById: entries })).toBe('');
   });
 
-  it('slices a single row inside a card', () => {
-    const slices: SelectionSlice[] = [
-      { entryId: 42, startRow: 1, startCol: 0, endRow: 1, endCol: 4 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries })).toBe('line ');
+  it('copies the WHOLE block from a partial touch — no row/col slicing', () => {
+    // The core block contract: one touched block = its full copyable text,
+    // regardless of which rows/cols the drag actually passed over.
+    expect(assembleSelectionText({ entryIds: [42], entriesById: entries })).toBe(CARD_TEXT);
   });
 
-  it('slices a multi-row range inside a card', () => {
-    // Slice row 0 from startCol=5 to end-of-line and row 1 from col 0 to
-    // endCol=3 inclusive. With text 'line one\nline two\nline three':
-    // row 0 ("line one") from col 5 onward → "one"; row 1 ("line two") from
-    // col 0 to col 3 inclusive (4 chars) → "line". Joined: "one\nline".
-    const slices: SelectionSlice[] = [
-      { entryId: 42, startRow: 0, startCol: 5, endRow: 1, endCol: 3 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries })).toBe('one\nline');
-  });
-
-  it('joins multiple slices of the same entry with newline', () => {
-    // Two row-only slices inside one entry. The function still produces a
-    // useful payload: the union of those slices joined with newlines.
-    const slices: SelectionSlice[] = [
-      { entryId: 42, startRow: 0, startCol: 0, endRow: 0, endCol: 0 },
-      { entryId: 42, startRow: 2, startCol: 5, endRow: 2, endCol: 9 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries })).toBe('l\nthree');
-  });
-
-  it('joins distinct entries with the "---" card boundary', () => {
+  it('joins distinct blocks in the given order with the "---" card boundary', () => {
     const entries2 = new Map<number, HistoryEntry>([
       [42, { id: 42, kind: 'assistant', text: 'A' }],
       [43, { id: 43, kind: 'assistant', text: 'B' }],
     ]);
-    const slices: SelectionSlice[] = [
-      { entryId: 42, startRow: 0, startCol: 0, endRow: 0, endCol: 0 },
-      { entryId: 43, startRow: 0, startCol: 0, endRow: 0, endCol: 0 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries2 })).toBe('A\n---\nB');
+    expect(assembleSelectionText({ entryIds: [42, 43], entriesById: entries2 })).toBe('A\n---\nB');
   });
 
   it('returns "" when the underlying entry is no longer in the map', () => {
-    const slices: SelectionSlice[] = [
-      { entryId: 999, startRow: 0, startCol: 0, endRow: 0, endCol: 5 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries })).toBe('');
+    expect(assembleSelectionText({ entryIds: [999], entriesById: entries })).toBe('');
   });
 
-  it('coerces column indices into [0, line.length]', () => {
-    // Out-of-range start/end must not crash and must not include content
-    // outside the source line; v1's coarseness is acceptable as long as the
-    // contract holds.
-    const slices: SelectionSlice[] = [
-      { entryId: 42, startRow: 1, startCol: -10, endRow: 1, endCol: 999 },
-    ];
-    expect(assembleSelectionText({ slices, entriesById: entries })).toBe('line two');
+  it('skips unknown ids but keeps the known blocks around them', () => {
+    const entries2 = new Map<number, HistoryEntry>([
+      [42, { id: 42, kind: 'assistant', text: 'A' }],
+      [44, { id: 44, kind: 'assistant', text: 'C' }],
+    ]);
+    expect(assembleSelectionText({ entryIds: [42, 999, 44], entriesById: entries2 })).toBe(
+      'A\n---\nC',
+    );
   });
 
-  it('expands every member of a compact tool group', () => {
+  it('expands every member of a compact tool group as ONE block', () => {
     const groupEntries = new Map<number, HistoryEntry>([
       [50, { id: 50, kind: 'assistant', text: 'first' }],
       [51, { id: 51, kind: 'assistant', text: 'second' }],
     ]);
-    const slices: SelectionSlice[] = [
-      { entryId: 50, startRow: 0, startCol: 0, endRow: 99, endCol: 99 },
-    ];
     const toolGroupsByHeadId = new Map<number, readonly number[]>([[50, [50, 51]]]);
     const expected = JSON.stringify([groupEntries.get(50), groupEntries.get(51)], null, 2);
     expect(
-      assembleSelectionText({ slices, entriesById: groupEntries, toolGroupsByHeadId }),
+      assembleSelectionText({ entryIds: [50], entriesById: groupEntries, toolGroupsByHeadId }),
     ).toContain(expected);
   });
 });
@@ -404,119 +368,108 @@ describe('Selection highlight band (external-store rail feedback)', () => {
 });
 
 describe('HistoryScrollController: beginSelection / extendSelection / commitSelection', () => {
-  it('starts a drag inside a card, extends, ends, and copies the right text', async () => {
+  it('starts a drag inside a card, extends, ends, and copies the whole block', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
     try {
       // With viewportRows={1} the first (and only) card mounts at row 0.
-      // The card is an assistant entry with a 2-col gutter (border+padding):
-      // band col 0 clamps to text col 0, band col 6 → text col 4.
+      // Columns only register the drag motion — the copy is the whole block.
       h.controller.beginSelection(0, 0);
-      h.controller.extendSelection(0, 6); // inclusive endpoint: 'alpha'
+      h.controller.extendSelection(0, 6);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
       expect(writeClipboardTextMock).toHaveBeenCalledTimes(1);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+      // Block-based: a one-row partial drag still copies the card whole.
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha bravo charlie');
     } finally {
       h.unmount();
     }
   });
 
-  it('clamps a gutter press to the text start (M3): border/padding columns select from col 0', async () => {
+  it('copies the whole block from a gutter press (border/padding column start)', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
     try {
-      // A press ON the gutter (band col 1 = the padding column) anchors at
-      // text col 0 exactly like a press on the text's first column.
+      // A press ON the gutter (band col 1 = the padding column) still starts
+      // the gesture; block-based copy takes the full card text regardless of
+      // which columns the drag crossed.
       h.controller.beginSelection(0, 1);
-      h.controller.extendSelection(0, 6); // band 6 → text 4 → 'alpha'
+      h.controller.extendSelection(0, 6);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha bravo charlie');
     } finally {
       h.unmount();
     }
   });
 
-  it('keeps info gutterless but translates the ℹ icon prefix (band col 2 = text col 0)', async () => {
+  it('copies an info card whole even when the drag starts on the ℹ icon column', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([{ id: 5, kind: 'info', text: 'alpha bravo charlie' }]);
     try {
-      // info rows get NO gutter translation (gutterWidthForEntry → 0) — the
-      // band column flows to the assembler unchanged — but the 2-cell 'ℹ '
-      // icon prefix (entry.tsx) is now translated row-aware (wrap-geometry):
-      // band cols 0-1 are the icon and CLAMP to the text start; col 2 is the
-      // first text cell. A drag from col 0 (on the icon) through col 4
-      // inclusive covers text chars 0..2 → 'alp'. The pre-translation
-      // behavior sliced 'alpha' — two columns of invisible offset; this
-      // pins the fix end-to-end.
+      // info rows have no gutter and a 2-cell 'ℹ ' icon prefix; under the
+      // line-based contract those columns skewed the sliced text ('alp').
+      // Block-based copy ignores chrome columns entirely — any in-card drag
+      // copies the card's full copyable text.
       h.controller.beginSelection(0, 0);
       h.controller.extendSelection(0, 4);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alp');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha bravo charlie');
     } finally {
       h.unmount();
     }
   });
 
-  it('translates the user-card label: a drag under the label copies the text under it', async () => {
+  it('copies a user card whole when the drag starts on the 👤 label cells', async () => {
     writeClipboardTextMock.mockClear();
     const h = mountHistory([{ id: 6, kind: 'user', text: 'hello world' }]);
     try {
       // Row 0 renders border(1) + padding(1) + '👤 USER  '(9 cells) + text.
-      // The controller subtracts the 2-cell gutter (M3); the wrap map then
-      // shifts row-0 body cols past the 9-cell label — band col 11 is the
-      // FIRST TEXT CELL and col 15 is the 'o' of 'hello'. Label cells clamp
-      // to the text start (same margin-click semantics as the gutter).
-      h.controller.beginSelection(0, 11); // border 1 + pad 1 + label 9
-      h.controller.extendSelection(0, 15); // inclusive → text chars 0..4
+      // The drag starts AND ends on the label cells — the block copy still
+      // takes the card's full copy base (pasteContent || text); label chrome
+      // is excluded by the copy contract, not by column math.
+      h.controller.beginSelection(0, 2);
+      h.controller.extendSelection(0, 6);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('hello');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('hello world');
     } finally {
       h.unmount();
     }
   });
 
-  it('uses the banded termWidth (viewportWidth − rail), not maxWidth, for the wrap map', async () => {
+  it('copies the full source text even when the card wraps on screen', async () => {
     writeClipboardTextMock.mockClear();
-    // maxWidth=16 → controller termWidth = 16 − SCROLLBAR_HIT_WIDTH(3) = 13
-    // → wrap contentWidth = 13 − gutter(2) = 11. 'aaaa bbbb cccc' wraps at
-    // 11 into ['aaaa bbbb ', 'cccc'] (wrap-ansi keeps the trailing space on
-    // segment 1 under trim:false; 10 + 4 = 14 = source length). Row 0's
-    // span is therefore [0, 10): a drag to text col 10 inclusive resolves
-    // through the CLAMP to offset 10 → source chars 0..9 = 'aaaa bbbb '
-    // (trailing space load-bearing). If the controller threaded
-    // maxWidth/viewportWidth instead, contentWidth 14 would fit the whole
-    // line as ONE [0,14) span and the same drag would recover
-    // 'aaaa bbbb ccc' — so this expectation pins the banded width
-    // end-to-end through commitSelection's assembleSelectionText call.
+    // maxWidth=16 → banded termWidth 13 → gutter leaves content width 11, so
+    // 'aaaa bbbb cccc' WRAPS into two visual rows on screen. Block-based copy
+    // is geometry-blind: the payload is the card's whole source text, never
+    // the dragged visual rows (the old wrap-map translation is gone).
     const h = mountHistory([textEntry(1, 'aaaa bbbb cccc')], 16);
     try {
-      h.controller.beginSelection(0, 2); // band 2 → text col 0 (gutter clamp)
-      h.controller.extendSelection(0, 12); // band 12 → text col 10, inclusive
+      h.controller.beginSelection(0, 2);
+      h.controller.extendSelection(0, 12);
       h.controller.endSelection();
       const ok = await h.controller.commitSelection();
       expect(ok).toBe(true);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('aaaa bbbb ');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('aaaa bbbb cccc');
     } finally {
       h.unmount();
     }
   });
 
-  it('a drag over a compact tool-group copies EVERY member (v1.1 H1), not just the head', async () => {
+  it('a drag over a compact tool-group copies EVERY member as ONE block', async () => {
     writeClipboardTextMock.mockClear();
     // Two consecutive same-name tool calls (bash ×2, not in
-    // STRUCTURED_DIFF_TOOLS) compact into one render group. The full chain —
-    // groupEntries → buildMountedCardSpans (entryIds = every member) →
+    // STRUCTURED_DIFF_TOOLS) compact into ONE block. The full chain —
+    // render group → buildMountedCardSpans (entryIds = every member) →
     // commitSelection's toolGroupsByHeadId → copyableTextForEntries — must
-    // land the WHOLE group's raw JSON on the clipboard. The assembler-level
-    // test passes that map by hand; this pins the mounted chain end-to-end.
+    // land the WHOLE group's raw JSON on the clipboard from a partial drag;
+    // this pins the mounted chain end-to-end.
     const tools: HistoryEntry[] = [
       { id: 10, kind: 'tool', name: 'bash', durationMs: 5, ok: true, output: 'first result' },
       { id: 11, kind: 'tool', name: 'bash', durationMs: 7, ok: true, output: 'second result' },
@@ -783,10 +736,9 @@ describe('Regression: release-commits-copy routing', () => {
     writeClipboardTextMock.mockClear();
     const onHistoryCopy = vi.fn();
     // Real mounted controller: with viewportRows={1} the card sits at
-    // history row 0 = terminal row 1 (1-based SGR). The entry is an
-    // assistant card with a 2-col gutter (border+padding), so band col N
-    // maps to text col N-2 after the M3 clamp: press x=1 (band 0 → text 0)
-    // through drag x=7 (band 6 → text 4) selects 'alpha'.
+    // history row 0 = terminal row 1 (1-based SGR). The press x=1 → drag x=7
+    // only has to register motion — the release then commits the WHOLE
+    // assistant block, columns irrelevant.
     const h = mountHistory([textEntry(1, 'alpha bravo charlie')]);
     const handleKey = makeHandler({
       historyScrollRef: { current: h.controller },
@@ -802,7 +754,7 @@ describe('Regression: release-commits-copy routing', () => {
       // The async clipboard write is detached inside the handler; flush it.
       await new Promise((resolve) => setImmediate(resolve));
       expect(writeClipboardTextMock).toHaveBeenCalledTimes(1);
-      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha');
+      expect(writeClipboardTextMock.mock.calls[0]?.[0]).toBe('alpha bravo charlie');
       expect(onHistoryCopy).toHaveBeenCalledWith(SELECTION_COPY_ID);
     } finally {
       h.unmount();

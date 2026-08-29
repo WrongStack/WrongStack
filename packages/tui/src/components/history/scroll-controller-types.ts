@@ -64,18 +64,13 @@ export interface HistoryScrollController {
    * margin-click behavior. Gutterless kinds (info, memory-lifecycle, tool
    * groups, …) pass the column through unchanged.
    *
-   * Known limitation: `warn` rows still render a `⚠ ` prefix inline with no
-   * prefix translation (the wrap map covers assistant/thinking/user/info —
-   * see wrap-geometry.ts). User cards WITH a paste block also keep the v1
-   * naive path: they render two text regions while the copy base holds one.
-   *
-   * Inline prefixes (user `👤 USER  ` label, info `ℹ ` icon) are translated
-   * row-aware in the assembler: the wrap map wraps `prefix + first line`
-   * together exactly as the renderer's single Text node does, and
-   * resolveRowCol shifts row-0 columns past the measured prefix width
-   * (string-width cells), clamping label/icon clicks to the text start —
-   * the same margin-click semantics as the gutter clamp above. Constants
-   * are single-sourced in wrap-geometry.ts and consumed by entry.tsx.
+   * Copy contract (block-based): the selection rect only decides WHICH
+   * blocks it touches — every touched block is copied in full via
+   * copyableTextForEntry (the same payload the copy icon writes), so inline
+   * chrome (card gutter, `👤 USER  ` label, `ℹ ` icon) neither leaks into
+   * nor offsets the payload. Columns still drive the GESTURE: band bounds
+   * (`isOutOfBand`), the highlight band, and the drag-vs-click distinction
+   * (a zero-size selection commits nothing).
    */
   beginSelection(row: number, col: number): void;
   /**

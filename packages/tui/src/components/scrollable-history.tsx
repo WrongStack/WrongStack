@@ -57,10 +57,9 @@ export {
 } from './history/copy-geometry.js';
 export {
   type SelectionRect,
-  type SelectionSlice,
   normalizeSelection,
   isOutOfBand,
-  selectionToSlices,
+  selectionTouchedEntryIds,
   assembleSelectionText,
 } from './history/selection-helpers.js';
 export {
