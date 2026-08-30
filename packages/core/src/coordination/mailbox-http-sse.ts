@@ -7,6 +7,26 @@ import { isMailboxMessageVisibleTo } from './mailbox-types.js';
 
 export const MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
 
+/**
+ * How long a single mid-stream credential revalidation may take before the
+ * stream is closed. Revalidation shares the serialized delivery queue with
+ * event deliveries and keepalives, so a call that never settles (wedged
+ * project server, dropped IPC) would otherwise stall that queue forever:
+ * everything after it queues behind it, nothing is written, and `close()`
+ * never runs. The timeout turns a wedged stream into a closed one.
+ */
+export const SSE_REVALIDATION_TIMEOUT_MS = 10_000;
+
+/**
+ * Maximum operations (event deliveries + keepalives) allowed to sit in the
+ * serialized delivery queue. {@link MAX_SSE_BUFFER_BYTES} bounds the socket
+ * buffer, not this in-memory chain: past this cap the stream is closed,
+ * because a queue this deep means the client cannot keep up or revalidation
+ * is wedged — accumulating closures (each retaining its event payload) is
+ * the one failure mode the socket-buffer cap cannot see.
+ */
+export const MAX_PENDING_SSE_OPERATIONS = 256;
+
 export function mailboxEventRecords(event: unknown): Record<string, unknown>[] {
   if (event === null || typeof event !== 'object') return [];
   const record = event as Record<string, unknown>;
@@ -109,20 +129,60 @@ export function handleSse(
     }
   };
 
+  /**
+   * Race one revalidation against {@link SSE_REVALIDATION_TIMEOUT_MS}. A
+   * revalidation that never settles would otherwise hold the delivery queue
+   * forever (a later keepalive cannot rescue it — it queues behind the same
+   * chain); rejecting here makes the operation's catch close the stream.
+   */
+  const revalidate = async (): Promise<boolean> => {
+    if (revalidateCredential === undefined) return true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        revalidateCredential(),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('mailbox SSE credential revalidation timed out')),
+            SSE_REVALIDATION_TIMEOUT_MS,
+          );
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
+  };
+
   let deliveryChain = Promise.resolve();
+  let pendingOperations = 0;
   const enqueue = (operation: () => Promise<void>): void => {
     if (revalidateCredential === undefined) {
       void operation();
       return;
     }
-    deliveryChain = deliveryChain.then(operation, operation);
+    // The queue is in-memory and unbounded by MAX_SSE_BUFFER_BYTES, which only
+    // sees the socket. Cap it and close rather than accumulate closures (each
+    // retaining its event payload) when the stream cannot keep up.
+    if (pendingOperations >= MAX_PENDING_SSE_OPERATIONS) {
+      close();
+      return;
+    }
+    pendingOperations += 1;
+    deliveryChain = deliveryChain
+      .then(operation, operation)
+      .finally(() => {
+        pendingOperations -= 1;
+      });
   };
 
   unsubscribe = eventEmitter.subscribe((event) => {
     enqueue(async () => {
       if (closed) return;
       try {
-        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
+        // Conditional await: with no revalidator the write must stay
+        // synchronous (callers rely on it); the timeout race only applies
+        // when a real revalidation is in play.
+        if (revalidateCredential !== undefined && !(await revalidate())) {
           close();
           return;
         }
@@ -149,7 +209,10 @@ export function handleSse(
     enqueue(async () => {
       if (closed) return;
       try {
-        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
+        // Conditional await: with no revalidator the write must stay
+        // synchronous (callers rely on it); the timeout race only applies
+        // when a real revalidation is in play.
+        if (revalidateCredential !== undefined && !(await revalidate())) {
           close();
           return;
         }

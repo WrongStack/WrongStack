@@ -382,6 +382,10 @@
     "packages/core/src/coordination/mailbox-credential-store.ts": [
       "resolveCredentialStorePath"
     ],
+    "packages/core/src/coordination/mailbox-http-sse.ts": [
+      "MAX_PENDING_SSE_OPERATIONS",
+      "SSE_REVALIDATION_TIMEOUT_MS"
+    ],
     "packages/core/src/coordination/mailbox-message-codec.ts": [
       "parseMailboxLine",
       "parseMailboxLines",

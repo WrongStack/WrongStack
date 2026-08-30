@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-30T17:52:24.179Z",
+  "generatedAt": "2026-08-30T18:35:41.794Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3431,
-    "testFiles": 3064,
-    "sourceLines": 835667,
+    "testFiles": 3065,
+    "sourceLines": 835904,
     "workspaceEdges": 128,
     "moduleEdges": 10665,
     "nonCommandSlashImports": 0,
@@ -22,9 +22,12 @@
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 849
+    "testOnlyExports": 851
   },
-  "errors": [],
+  "errors": [
+    "packages/tui/src/components/history/code-block.tsx: hotspot grew from 846 to 852 lines; review and update the ratchet in the same change",
+    "packages/tui/src/components/history/utils.tsx: hotspot grew from 953 to 994 lines; review and update the ratchet in the same change"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -211,7 +214,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 781,
-      "testFiles": 691,
+      "testFiles": 692,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -226,7 +229,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 691
+          "testFiles": 692
         }
       ]
     },
@@ -5314,6 +5317,12 @@
       },
       {
         "file": "packages/core/tests/coordination/mailbox-http-router.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/mailbox-http-sse.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19997,12 +20006,12 @@
     },
     {
       "file": "packages/tui/src/components/history/code-block.tsx",
-      "lines": 846,
+      "lines": 852,
       "relativeImports": 6
     },
     {
       "file": "packages/tui/src/components/history/utils.tsx",
-      "lines": 953,
+      "lines": 994,
       "relativeImports": 17
     },
     {
@@ -20488,6 +20497,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/tui/src/components/history/utils.tsx",
+      "lines": 994,
+      "relativeImports": 17
+    },
+    {
       "file": "packages/sage/src/types.ts",
       "lines": 993,
       "relativeImports": 0
@@ -20526,11 +20540,6 @@
       "file": "packages/tui/src/components/agents-monitor.tsx",
       "lines": 984,
       "relativeImports": 14
-    },
-    {
-      "file": "apps/desktop/src/main/runtime-manager.ts",
-      "lines": 983,
-      "relativeImports": 4
     }
   ],
   "testOnlyExports": [
@@ -21289,6 +21298,14 @@
     {
       "file": "packages/core/src/coordination/mailbox-credential-store.ts",
       "name": "resolveCredentialStorePath"
+    },
+    {
+      "file": "packages/core/src/coordination/mailbox-http-sse.ts",
+      "name": "MAX_PENDING_SSE_OPERATIONS"
+    },
+    {
+      "file": "packages/core/src/coordination/mailbox-http-sse.ts",
+      "name": "SSE_REVALIDATION_TIMEOUT_MS"
     },
     {
       "file": "packages/core/src/coordination/mailbox-message-codec.ts",

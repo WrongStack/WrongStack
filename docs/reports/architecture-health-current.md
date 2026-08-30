@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-30T17:52:24.179Z
+**Generated:** 2026-08-30T18:35:41.794Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3431 |
-| Production source lines | 835667 |
-| Test files | 3064 |
+| Production source lines | 835904 |
+| Test files | 3065 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10665 |
 | Non-command slash imports | 0 |
@@ -21,7 +21,8 @@
 
 ## Verification result
 
-PASS — no blocking architecture-health errors.
+- packages/tui/src/components/history/code-block.tsx: hotspot grew from 846 to 852 lines; review and update the ratchet in the same change
+- packages/tui/src/components/history/utils.tsx: hotspot grew from 953 to 994 lines; review and update the ratchet in the same change
 
 ## Workspace packages
 
@@ -31,7 +32,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 475 | 450 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 781 | 691 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 781 | 692 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
 | @wrongstack/governance | 39 | 26 | @wrongstack/persistence |
 | @wrongstack/kanban | 87 | 63 | @wrongstack/persistence, @wrongstack/primitives |
@@ -127,6 +128,7 @@ None.
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
+| 994 | `packages/tui/src/components/history/utils.tsx` |
 | 993 | `packages/sage/src/types.ts` |
 | 992 | `packages/kanban/src/types.ts` |
 | 992 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
@@ -135,11 +137,10 @@ None.
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |
-| 983 | `apps/desktop/src/main/runtime-manager.ts` |
 
 ## Exports only tests reference
 
-- 849 runtime exports are referenced by tests and by no other production file.
+- 851 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 

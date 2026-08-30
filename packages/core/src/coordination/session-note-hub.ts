@@ -61,14 +61,37 @@ function identityKeys(inbox: SessionNoteInbox): Set<string> {
 export class SessionNoteHub {
   private readonly inboxes = new Set<SessionNoteInbox>();
   private readonly buses = new Map<string, EventBus>();
+  /**
+   * Live contributing inboxes per session id. When a session's count drops to
+   * zero its `buses` entry is removed — otherwise this process-wide singleton
+   * would retain a torn-down agent's EventBus (and everything its listeners
+   * close over) for every session id it has ever seen.
+   */
+  private readonly busRefCounts = new Map<string, number>();
 
   register(inbox: SessionNoteInbox): () => void {
     this.inboxes.add(inbox);
     const rawSid = resolveInboxSessionId(inbox);
     const sid = rawSid ? rawSid.trim().replace(/\\/g, '/') : undefined;
-    if (sid && inbox.events && !this.buses.has(sid)) this.buses.set(sid, inbox.events);
+    const contributes = Boolean(sid && inbox.events);
+    if (sid && inbox.events) {
+      this.busRefCounts.set(sid, (this.busRefCounts.get(sid) ?? 0) + 1);
+      if (!this.buses.has(sid)) this.buses.set(sid, inbox.events);
+    }
+    let disposed = false;
     return () => {
+      if (disposed) return;
+      disposed = true;
       this.inboxes.delete(inbox);
+      if (contributes && sid) {
+        const remaining = (this.busRefCounts.get(sid) ?? 1) - 1;
+        if (remaining <= 0) {
+          this.busRefCounts.delete(sid);
+          this.buses.delete(sid);
+        } else {
+          this.busRefCounts.set(sid, remaining);
+        }
+      }
     };
   }
 

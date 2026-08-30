@@ -133,6 +133,78 @@ describe('SessionNoteHub', () => {
     });
     expect(seen).toEqual(['leader:hi']);
   });
+
+  it('drops the cached session bus once the last contributing inbox unregisters', () => {
+    const hub = new SessionNoteHub();
+    const firstBus = new EventBus();
+    const secondBus = new EventBus();
+    const firstSeen: string[] = [];
+    const secondSeen: string[] = [];
+    firstBus.on('session.note', (e) => firstSeen.push(e.body));
+    secondBus.on('session.note', (e) => secondSeen.push(e.body));
+
+    const offFirst = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'leader',
+      events: firstBus,
+      deliver: () => {},
+    });
+    const offSecond = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'worker-1',
+      events: secondBus,
+      deliver: () => {},
+    });
+
+    // First-wins: the first contributor's bus carries session.note.
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'one' });
+    expect(firstSeen).toEqual(['one']);
+
+    // While another contributor is live, the cached bus must survive.
+    offFirst();
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'two' });
+    expect(firstSeen).toEqual(['one', 'two']);
+
+    // After the last contributor unregisters the cached bus is dropped — no
+    // zombie emissions on a torn-down agent's bus.
+    offSecond();
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'three' });
+    expect(firstSeen).toEqual(['one', 'two']);
+    expect(secondSeen).toEqual([]);
+
+    // A later live inbox re-primes the cache with its own bus.
+    const thirdBus = new EventBus();
+    const thirdSeen: string[] = [];
+    thirdBus.on('session.note', (e) => thirdSeen.push(e.body));
+    const offThird = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'leader-2',
+      events: thirdBus,
+      deliver: () => {},
+    });
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'leader-2', kind: 'note', body: 'four' });
+    expect(thirdSeen).toEqual(['four']);
+    expect(firstSeen).toEqual(['one', 'two']);
+    offThird();
+  });
+
+  it('treats a disposer as single-use so a repeated call cannot drop a live bus', () => {
+    const hub = new SessionNoteHub();
+    const bus = new EventBus();
+    const seen: string[] = [];
+    bus.on('session.note', (e) => seen.push(e.body));
+    const offA = hub.register({ sessionId: 'sess-1', agentId: 'a', events: bus, deliver: () => {} });
+    const offB = hub.register({ sessionId: 'sess-1', agentId: 'b', events: bus, deliver: () => {} });
+
+    offA();
+    offA(); // Second call must not decrement the ref count again.
+    hub.post({ sessionId: 'sess-1', from: 'x', to: 'b', kind: 'note', body: 'still live' });
+    expect(seen).toEqual(['still live']);
+
+    offB();
+    hub.post({ sessionId: 'sess-1', from: 'x', to: 'b', kind: 'note', body: 'after last' });
+    expect(seen).toEqual(['still live']);
+  });
 });
 
 describe('session_note tool', () => {
