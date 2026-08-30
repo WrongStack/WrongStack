@@ -165,14 +165,12 @@ export async function runSqliteSageHygiene(
           }
           try {
             const result = await verifyMemoryAnchors(ctx.projectRoot, memory, verificationRunAt);
-            const ok = result.status === 'verified' || result.status === 'unknown';
             // `unknown` (e.g. git unavailable) does not force stale; only explicit
             // stale/contradicted outcomes demote the memory.
             const demote = result.status === 'stale' || result.status === 'contradicted';
             verificationOutcomes.set(memory.id, !demote);
             if (demote) stale.push(memory.id);
             else verified.push(memory.id);
-            void ok;
           } catch {
             // Fail-open: leave active if deep verify itself errors.
             verificationOutcomes.set(memory.id, true);
