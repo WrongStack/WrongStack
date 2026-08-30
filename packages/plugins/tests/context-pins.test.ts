@@ -111,7 +111,7 @@ describe('context-pins plugin', () => {
     await add.execute({ text: 'fact two', label: 'two' });
     const pin = first['pin'] as { id: string };
     expect((await remove.execute({ id: pin.id }))['ok']).toBe(true);
-    expect((await remove.execute({ id: 'two' }))['ok']).toBe(true);
+    expect((await remove.execute({ label: 'two' }))['ok']).toBe(true);
     const list = await getTool(api, 'pin_list').execute({});
     expect(list['totalPins']).toBe(0);
   });

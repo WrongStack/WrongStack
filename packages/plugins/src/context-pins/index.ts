@@ -280,15 +280,16 @@ const plugin: Plugin = {
         type: 'object',
         properties: {
           id: { type: 'string', description: 'Pin id (pin-N) or label to remove.' },
+          label: { type: 'string', description: 'Alternative label to remove.' },
         },
-        required: ['id'],
       },
       permission: 'auto',
       category: 'Memory',
       mutating: true,
-      async execute(input: { id: string }) {
+      async execute(input: { id?: string | undefined; label?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'context-pins is disabled' };
-        const key = String(input.id ?? '').trim();
+        const key = String(input.id ?? input.label ?? '').trim();
+        if (!key) return { ok: false, error: 'id or label is required' };
         const before = state.pins.length;
         state.pins = state.pins.filter((p) => p.id !== key && p.label !== key);
         const removed = before - state.pins.length;

@@ -33,6 +33,7 @@ import * as fsp from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
+import { nowIso } from '@wrongstack/primitives';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -153,8 +154,6 @@ const state = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-import { nowIso } from '@wrongstack/primitives';
 
 function ensureFile(): TodoTrackerFile {
   if (!state.file) {

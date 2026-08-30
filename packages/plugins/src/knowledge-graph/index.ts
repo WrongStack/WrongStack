@@ -373,11 +373,12 @@ const plugin: Plugin = {
           if (input.confidence && f.confidence !== input.confidence) return false;
           return true;
         });
+        const returnedFacts = matches.slice(-limit);
         return {
           ok: true,
           totalFacts: state.facts.length,
-          returned: Math.min(matches.length, limit),
-          facts: matches.slice(-limit),
+          returned: returnedFacts.length,
+          facts: returnedFacts,
         };
       },
     });

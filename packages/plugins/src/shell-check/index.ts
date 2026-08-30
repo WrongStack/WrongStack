@@ -24,6 +24,7 @@ const API_VERSION = '^0.1.10';
 // `relative()` that must not start with `..` or be absolute.
 // ---------------------------------------------------------------------------
 function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > MAX_PATH_LEN) return false;
   // Leading dash first. `resolve(root, '-x')` lands INSIDE the root, so the
   // containment test below returns true for `-x` / `-P` — and these strings go
   // straight into shellcheck's argv, where they are options, not paths.
@@ -206,7 +207,15 @@ async function findShellFiles(dir: string, pattern: string): Promise<string[]> {
     const full = join(dir, entry.name);
     if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
       results.push(...(await findShellFiles(full, pattern)));
-    } else if (entry.isFile() && (entry.name.endsWith('.sh') || entry.name === 'Dockerfile')) {
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith('.sh') ||
+        entry.name.endsWith('.bash') ||
+        entry.name.endsWith('.zsh') ||
+        entry.name === 'Dockerfile' ||
+        entry.name === '.bashrc' ||
+        entry.name === '.zshrc')
+    ) {
       if (!pattern || entry.name.includes(pattern)) {
         results.push(full);
       }

@@ -309,7 +309,10 @@ describe('issue #366 status counters + silent skip', () => {
 
   it('exposes bytesBefore/bytesAfter/durationMs on format_on_save_status', async () => {
     let size = 100;
-    mockStat.mockImplementation(async () => ({ size: (size += 10) }));
+    mockStat.mockImplementation(async () => {
+      size += 10;
+      return { size };
+    });
     const api = makeApi();
     await formatOnSavePlugin.setup(api as never);
     const hook = getHook(api);
