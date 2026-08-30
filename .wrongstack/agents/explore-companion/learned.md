@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1731; wins=1719 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1742; wins=1730 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -31,7 +31,7 @@
   - *How:* `inherit`
   - *How:* `implement`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=805; wins=800 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T18:52:31.629Z; applied=806; wins=801 -->
 - **Before reporting a webui component as having no callers, read its sibling directory barrel/parent (e.g. `packages/webui/src/components/ChatView/index.tsx`) in full - `lazy(() => import(...))` and renamed imports never match a bare-symbol grep or incoming-calls, so only a parent-file read rules out hidden wiring. Always check `t('ns:key')` literals against whole-package locale resources (`grep` with glob `*.json` over `packages/webui`, not just `src`) before trusting that an i18n key resolves - keys like `activity:agents.tabsLabel` can have zero resource entries package-wide.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/components/ChatView/index.tsx`
@@ -43,7 +43,7 @@
   - *How:* `src`
   - *How:* `activity:agents.tabsLabel`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:34:09.873Z; applied=97; wins=97 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T20:34:09.873Z; applied=100; wins=100 -->
 - **Grep for kill-related test coverage with precise tokens (`SIGKILL`, `killed-session`, `never-closed`) or word boundaries — bare `kill` matches `skills` across config-store/cloud-sync suites and floods results. When pre-mapping a "Tests:" todo, grep `it\('` names across the package's test dir first; behavior tests often live under grab-bag files whose name mismatches the symbol under test (e.g. `DefaultSessionStore.list()` kill-visibility coverage sits inside `session-store-extra.test.ts`, not a list-named file), so absence of a matching filename proves nothing about coverage.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `SIGKILL`
@@ -66,7 +66,7 @@
   - *How:* `cd packages/webui && npx vitest run <file>`
   - *How:* `packages/webui/**`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:15:30.282Z; applied=180; wins=179 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:15:30.282Z; applied=181; wins=180 -->
 - **Never infer a missing key in a locale catalog from aligned line offsets — top-level section ORDER differs between locale copies of the same namespace (e.g. `connection` sits at in `en/activity.json` but in `tr/activity.json`); grep the quoted section name across `packages/webui/src/i18n/locales/*/activity.json` instead before reporting drift.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `connection`
@@ -84,7 +84,7 @@
   - *How:* `packages/**/*.ts`
   - *How:* `packages/cli/src/index.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=590; wins=587 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=591; wins=588 -->
 - **Never use `codebase-incoming-calls` on generic overloaded symbol names like `create` in WrongStack - the ref graph returns cross-file noise (91 same-named symbols) and its `file` filter cannot disambiguate methods of one class. Fall back to a targeted grep such as `(sessionStore|store)\.create\(` over `packages/**/src` and filter test files by name instead.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-08-30T19:16:23.741Z · 8 entries*
+*Last capture: 2026-08-30T20:09:03.074Z · 8 entries*
