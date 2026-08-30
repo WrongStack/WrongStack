@@ -131,7 +131,7 @@
       "relativeImports": 13
     },
     "packages/core/src/execution/eternal-autonomy.ts": {
-      "lines": 977,
+      "lines": 978,
       "relativeImports": 8
     },
     "packages/core/src/execution/prompt-enhancer.ts": {

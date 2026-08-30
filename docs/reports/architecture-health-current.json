@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-30T22:02:07.917Z",
+  "generatedAt": "2026-08-30T22:46:18.109Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3431,
     "testFiles": 3065,
-    "sourceLines": 835999,
+    "sourceLines": 836007,
     "workspaceEdges": 128,
     "moduleEdges": 10666,
     "nonCommandSlashImports": 0,
@@ -19753,7 +19753,7 @@
     },
     {
       "file": "packages/core/src/execution/eternal-autonomy.ts",
-      "lines": 977,
+      "lines": 978,
       "relativeImports": 8
     },
     {
