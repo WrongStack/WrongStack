@@ -115,6 +115,30 @@ describe('classifyTier precedence', () => {
     // ...and resolution yields nothing, so the caller keeps its own model.
     expect(resolveTier(config, { tier: 'gold' })).toBeUndefined();
   });
+
+  it('does not resolve Object.prototype keys as routing entries or levels', () => {
+    // Role and tier ids index plain config objects, so `routing['toString']`
+    // used to inherit Object.prototype.toString and read as a configured
+    // entry; `levels['constructor']` likewise read as a configured level.
+    const protoConfig = makeConfig({
+      enabled: true,
+      levels: LEVELS,
+      routing: { [sampleRole]: 'premium' },
+    });
+    // An unconfigured role falls through to the config default — it must not
+    // classify as a `role` hit whose "tier" is an inherited function.
+    expect(classifyTier(protoConfig, { role: 'toString' })).toMatchObject({
+      tier: DEFAULT_TIER_ID,
+      source: 'config-default',
+    });
+    // Own keys keep working; inherited keys do not count as configured.
+    expect(classifyTier(protoConfig, { role: sampleRole })).toMatchObject({
+      tier: 'premium',
+      source: 'role',
+    });
+    expect(isConfiguredTier(protoConfig, 'constructor')).toBe(false);
+    expect(isConfiguredTier(protoConfig, 'toString')).toBe(false);
+  });
 });
 
 describe('resolveTier expansion', () => {

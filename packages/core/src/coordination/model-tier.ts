@@ -76,11 +76,22 @@ export function listTierIds(config: Config): string[] {
   return Object.keys(tiers?.levels ?? {});
 }
 
+/**
+ * `record[key]` without the Object.prototype chain. Role and tier ids come
+ * from user config and are used as plain index keys, so
+ * `routing['constructor']` / `levels['toString']` would otherwise resolve to
+ * the inherited function and read as a configured tier.
+ */
+function ownEntry<T>(record: Record<string, T> | undefined, key: string): T | undefined {
+  if (record === undefined || !Object.hasOwn(record, key)) return undefined;
+  return record[key];
+}
+
 /** The configured level for a tier id, or undefined. */
 export function tierLevel(config: Config, tier: string | undefined): ModelTierLevel | undefined {
   if (!tier) return undefined;
   const tiers = activeTierConfig(config);
-  return tiers?.levels?.[tier];
+  return ownEntry(tiers?.levels, tier);
 }
 
 /** True when `tier` names a level this config actually defines. */
@@ -118,7 +129,7 @@ export function classifyTier(
 
   const routing = tiers.routing ?? {};
   const role = input.role;
-  const roleTier = role ? routing[role] : undefined;
+  const roleTier = role ? ownEntry(routing, role) : undefined;
   if (roleTier) {
     return {
       tier: roleTier,
@@ -129,7 +140,7 @@ export function classifyTier(
   }
 
   const phase = phaseForRole(role);
-  const phaseTier = phase ? routing[phase] : undefined;
+  const phaseTier = phase ? ownEntry(routing, phase) : undefined;
   if (phaseTier) {
     return {
       tier: phaseTier,
@@ -139,7 +150,7 @@ export function classifyTier(
     };
   }
 
-  const starTier = routing['*'];
+  const starTier = ownEntry(routing, '*');
   if (starTier) {
     return {
       tier: starTier,

@@ -219,7 +219,19 @@ export function evaluateLeaderTierSwitch(
 
   if (policy.maxTier !== undefined) {
     const ceiling = tierRank(config, policy.maxTier);
-    if (ceiling >= 0 && targetRank > ceiling) {
+    if (ceiling < 0) {
+      // Fail closed. `ceiling >= 0` here would silently drop the guard on a
+      // typo — the one failure mode where "skip the check" removes the user's
+      // spending authority without telling anyone.
+      return {
+        allowed: false,
+        code: 'ceiling',
+        reason:
+          `The configured ceiling "${policy.maxTier}" is not a configured tier, so it cannot be ` +
+          'enforced. Fix or remove modelTiers.leader.maxTier before switching again.',
+      };
+    }
+    if (targetRank > ceiling) {
       return {
         allowed: false,
         code: 'ceiling',
@@ -261,13 +273,14 @@ export function evaluateLeaderTierSwitch(
   const projectedTurns = request.projectedTurns ?? policy.dwellTurns;
   const economics = evaluateSwitchEconomics(request, projectedTurns);
 
-  // With no published prices for EITHER model, every term above is zero and a
-  // strict break-even test would refuse literally every downgrade — turning a
-  // missing price list into a silent kill switch. Skip the economic gate in
-  // that case and rely on the structural guards; the switch is still only a
-  // proposal unless the user turned on 'auto'.
+  // BOTH sides need a published input price before the arithmetic means
+  // anything. The `?? 0` fallbacks below price an unknown model as FREE —
+  // with only the current model priced, a downgrade to an unpriced target
+  // would project maximal savings and slip past the break-even gate. An
+  // unknown price is not a cheap price, so a switch with an unpriced side is
+  // judged on the structural guards alone, exactly like the both-unknown case.
   const pricingKnown =
-    request.economics.from.inputPerMTok !== undefined ||
+    request.economics.from.inputPerMTok !== undefined &&
     request.economics.to.inputPerMTok !== undefined;
 
   // The break-even test applies to DOWNGRADES only. A downgrade is a
@@ -280,9 +293,9 @@ export function evaluateLeaderTierSwitch(
       code: 'not-worth-it',
       economics,
       reason:
-        `Projected saving $${economics.projectedSavingsUsd.toFixed(4)} over ${projectedTurns} ` +
-        `turn(s) is below the $${policy.minSavingsUsd.toFixed(4)} floor once the ` +
-        `$${economics.reWarmCostUsd.toFixed(4)} cache re-warm is paid for.`,
+        `Projected saving ${economics.projectedSavingsUsd.toFixed(4)} over ${projectedTurns} ` +
+        `turn(s) is below the ${policy.minSavingsUsd.toFixed(4)} floor once the ` +
+        `${economics.reWarmCostUsd.toFixed(4)} cache re-warm is paid for.`,
     };
   }
 
@@ -292,7 +305,7 @@ export function evaluateLeaderTierSwitch(
       mode: policy.mode === 'auto' ? 'auto' : 'propose',
       economics,
       reason:
-        `No published pricing for either model, so the switch to "${request.toTier}" ` +
+        `No published pricing for one or both models, so the switch to "${request.toTier}" ` +
         'was judged on the structural guards alone (dwell, context window, ceiling).',
     };
   }

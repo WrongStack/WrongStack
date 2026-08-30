@@ -108,6 +108,7 @@ function safeHomedir(): string {
  * directory with different casing than `os.homedir()` reports.
  */
 function replaceAllCaseInsensitive(haystack: string, needle: string, replacement: string): string {
+  if (!needle || needle.length === 0) return haystack;
   const lowerHay = haystack.toLowerCase();
   const lowerNeedle = needle.toLowerCase();
   let idx = lowerHay.indexOf(lowerNeedle);

@@ -193,6 +193,27 @@ describe('evaluateLeaderTierSwitch guards', () => {
     expect(v.allowed).toBe(true);
     expect(v.reason).toContain('No published pricing');
   });
+
+  it('judges a switch with an unpriced TARGET on the structural guards alone', () => {
+    // Only the current model publishes a price. The target's price is
+    // UNKNOWN, not zero — `?? 0` used to make a downgrade to an arbitrary
+    // uncataloged model project maximal savings and slip past break-even.
+    const v = evaluateLeaderTierSwitch(makeConfig(), {
+      ...baseRequest,
+      economics: { from: EXPENSIVE, to: { maxContext: 200_000 } },
+    });
+    expect(v.allowed).toBe(true);
+    expect(v.reason).toContain('No published pricing');
+  });
+
+  it('fails closed when the ceiling names an unconfigured tier', () => {
+    // A typo'd ceiling must surface as a refusal, not silently disable the
+    // user's spending limit.
+    const config = makeConfig({ leader: { maxTier: 'standrad' } });
+    const v = evaluateLeaderTierSwitch(config, baseRequest);
+    expect(v).toMatchObject({ allowed: false, code: 'ceiling' });
+    expect(v.reason).toContain('standrad');
+  });
   it('does not apply the break-even test to an upgrade', () => {
     // An upgrade always "loses money"; it is justified by capability, not cost.
     const v = evaluateLeaderTierSwitch(makeConfig(), {

@@ -173,7 +173,9 @@ export function nicknameKeyFromDisplay(display: string): string | undefined {
 /** Format role id into human-readable title-case. */
 function formatRole(role: string): string {
   return role
-    .split(/[-_]/)
+    .trim()
+    .split(/[-_\s]+/)
+    .filter((w) => w.length > 0)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ');
 }
