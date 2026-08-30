@@ -432,8 +432,8 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     const nodes: React.ReactNode[] = [];
     let last = 0;
     let key = 0;
-    let match: RegExpExecArray | null;
-    while ((match = pattern.exec(text)) !== null) {
+    let match: RegExpExecArray | null = pattern.exec(text);
+    while (match !== null) {
       if (match.index > last) nodes.push(text.slice(last, match.index));
       const className = match[1]
         ? 'hl-comment'
@@ -448,6 +448,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
         </span>,
       );
       last = match.index + match[0].length;
+      match = pattern.exec(text);
     }
     if (last < text.length) nodes.push(text.slice(last));
     return nodes;
