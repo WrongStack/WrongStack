@@ -252,3 +252,15 @@ describe('schema exports', () => {
     expect(result.success).toBe(true);
   });
 });
+
+describe('normalizeRequestType', () => {
+  it('normalizes valid and hyphenated request types', () => {
+    expect(normalizeRequestType('feature')).toBe('feature');
+    expect(normalizeRequestType('bug-fix')).toBe('bug_fix');
+    expect(normalizeRequestType('UI-CHANGE')).toBe('ui_change');
+    expect(normalizeRequestType('api-change')).toBe('api_change');
+    expect(normalizeRequestType('unknown-custom')).toBe('other');
+    expect(normalizeRequestType('')).toBe('unspecified');
+    expect(normalizeRequestType(null)).toBe('unspecified');
+  });
+});

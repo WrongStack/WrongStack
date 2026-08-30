@@ -195,7 +195,8 @@ export function normalizeRequestType(value: unknown): RequestType {
   if (typeof value !== 'string') return 'unspecified';
   const trimmed = value.trim().toLowerCase();
   if (trimmed.length === 0) return 'unspecified';
-  if ((REQUEST_TYPES as readonly string[]).includes(trimmed)) return trimmed as RequestType;
+  const normalized = trimmed.replace(/-/g, '_');
+  if ((REQUEST_TYPES as readonly string[]).includes(normalized)) return normalized as RequestType;
   return 'other';
 }
 
