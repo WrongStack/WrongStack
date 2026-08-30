@@ -1,7 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { toErrorMessage } from '../../utils/index.js';
-import { sessionPath as sessionStorePath } from './paths.js';
+import { sessionPath as sessionStorePath, shardManifestPath } from './paths.js';
 
 export type DeleteSessionArtifactsOptions = {
   rootDir: string;
@@ -24,6 +24,7 @@ export async function deleteSessionArtifacts({
     fsp.unlink(sessionStorePath(rootDir, id, '.plan.json')),
     fsp.unlink(sessionStorePath(rootDir, id, '.tasks.json')),
     fsp.unlink(sessionStorePath(rootDir, id, '.todos.json')),
+    fsp.unlink(shardManifestPath(rootDir, path.dirname(id) === '.' ? '' : path.dirname(id))),
   ];
 
   const results = await Promise.allSettled(deletions);

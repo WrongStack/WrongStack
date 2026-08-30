@@ -231,6 +231,13 @@ describe('deepMerge — scalar collisions', () => {
     const result = deepMerge(null, { a: 1 }, { conflictResolution: 'prefer-base' });
     expect(result).toBeNull();
   });
+
+  it('prefer-base: object property scalar collisions keep base value while accepting new keys', () => {
+    const base = { a: 1, b: 2 };
+    const patch = { a: 99, c: 3 };
+    const result = deepMerge(base, patch, { conflictResolution: 'prefer-base' });
+    expect(result).toEqual({ a: 1, b: 2, c: 3 });
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -371,6 +371,7 @@ describe('coverage runner script', () => {
     const gateLocation: Record<string, string> = {
       'plug-lsp': 'packages',
       webui: 'packages',
+      'webui-protocol': 'packages',
       desktop: 'apps',
     };
     for (const [packageName, parentDir] of Object.entries(gateLocation)) {
@@ -404,6 +405,14 @@ describe('coverage runner script', () => {
       {
         label: 'WebUI package',
         args: ['--filter', '@wrongstack/webui', 'test:coverage'],
+      },
+      {
+        label: 'webui-protocol package',
+        args: ['--filter', '@wrongstack/webui-protocol', 'test:coverage'],
+      },
+      {
+        label: 'Desktop package',
+        args: ['--filter', '@wrongstack/desktop', 'test:coverage'],
       },
       { label: 'Coverage runtime scripts', args: ['test:coverage:scripts'] },
     ]);

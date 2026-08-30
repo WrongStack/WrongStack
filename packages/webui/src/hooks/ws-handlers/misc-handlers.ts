@@ -894,10 +894,22 @@ export function handleChimeraReportAvailable(msg: WSServerMessage) {
 
 /**
  * Server answered `chimera.reports.list` — merge the session's persisted
- * report list and re-materialize transcript cards for actionable reports
- * this lane has not seen (tab reopened, page refreshed, or the original
- * event landed while no lane slot was free). Live events wrote their own
- * cards; hydration only backfills, keyed on reportId.
+ * report list into the registry that feeds the Chimera panel and the reviews
+ * view.
+ *
+ * Deliberately writes NO transcript cards. This request fires whenever a tab
+ * becomes active, so on every resume and every tab switch it re-materialized
+ * review cards into a conversation that was replayed from the journal without
+ * them — the resumed session read as a wall of Chimera notices that were never
+ * part of it. Worse, it raced the replay it accompanied: the report list comes
+ * back in milliseconds while a large journal takes seconds, so the cards were
+ * either wiped by the transcript landing on top of them or (when the replay
+ * was discarded) the only thing left on screen.
+ *
+ * A report that arrives while the session is open still gets its card, from
+ * `handleChimeraReportAvailable` — that one is an event about THIS run and
+ * belongs in the transcript where it happened. Everything else is history, and
+ * history has a panel.
  */
 export function handleChimeraReports(msg: WSServerMessage) {
   const sessionId = messageSessionId(msg);
@@ -940,32 +952,6 @@ export function handleChimeraReports(msg: WSServerMessage) {
       }),
   );
 
-  const lane = chatFor(msg);
-  if (!lane) return;
-  const notices = useChimeraReportsStore.getState().bySession[sessionId] ?? [];
-  const known = new Set(
-    lane.messages.flatMap((m) => (m.chimeraReport ? [m.chimeraReport.reportId] : [])),
-  );
-  for (const notice of notices) {
-    // No source filter here: event-sourced notices whose card never landed
-    // (their lane was not held at event time) must re-materialize on the
-    // next hydration exactly like hydrate-sourced ones. The `known` set
-    // above already dedupes every reportId that DID land a card.
-    if (known.has(notice.reportId)) continue;
-    // Live semantics: only actionable reports earn a transcript card;
-    // information-only notices stay recorded-but-cardless.
-    if (!notice.hasActionableFindings) continue;
-    known.add(notice.reportId);
-    lane.addMessage({
-      role: 'system',
-      content: notice.message,
-      chimeraReport: {
-        reportId: notice.reportId,
-        actionable: notice.hasActionableFindings,
-        actionedAt: notice.actionedAt,
-      },
-    });
-  }
 }
 
 export const miscHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {

@@ -9,12 +9,13 @@
  * detail sections — can jump straight into an agent's chat view.
  */
 
-import { Bot, CheckCircle2, Crown, Loader2 } from 'lucide-react';
+import { Bot, CheckCircle2, Crown, Loader2, Square } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { taskBriefPreview } from '@/lib/task-brief-preview';
 import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
 import type { SubagentView } from '@/stores';
 import {
   selectSortedAgentList,
@@ -127,10 +128,25 @@ export function AgentTabs() {
       {/* Session & Fleet Summary Pill */}
       <div className="flex shrink-0 items-center gap-2 pl-2 border-l border-border/30">
         {isLoading ? (
-          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
-            <Loader2 className="h-2.5 w-2.5 animate-spin" />
-            <span>Processing...</span>
-          </span>
+          <div className="inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              <span>Processing...</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                getWSClient().sendAbort(currentSessionId ?? undefined);
+                useChatStore.getState().setLoading(false);
+              }}
+              title={t('chat:input.abortTitle', 'Stop/Abort')}
+              aria-label={t('chat:input.abortTitle', 'Stop/Abort')}
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-destructive bg-destructive/10 hover:bg-destructive/20 px-1.5 py-0.5 rounded border border-destructive/20 transition-colors"
+            >
+              <Square className="h-2 w-2 fill-current" />
+              <span>Stop</span>
+            </button>
+          </div>
         ) : (
           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded border border-border/40">
             <CheckCircle2 className="h-2.5 w-2.5 text-success" />

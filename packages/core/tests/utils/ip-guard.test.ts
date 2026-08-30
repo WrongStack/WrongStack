@@ -39,6 +39,8 @@ describe('isPrivateIPv4', () => {
     expect(isPrivateIPv4('1.2.3')).toBe(true); // too few octets
     expect(isPrivateIPv4('1.2.3.999')).toBe(true); // out of range
     expect(isPrivateIPv4('a.b.c.d')).toBe(true); // NaN
+    expect(isPrivateIPv4('0177.0.0.1')).toBe(true); // octal notation
+    expect(isPrivateIPv4('127.0.0.1abc')).toBe(true); // trailing non-digits
   });
 });
 

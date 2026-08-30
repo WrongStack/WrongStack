@@ -100,7 +100,13 @@ const PAYLOAD_TOKEN_MEMO = new WeakMap<object, number>();
 function memoizedPayloadTokens(payload: object): number {
   const cached = PAYLOAD_TOKEN_MEMO.get(payload);
   if (cached !== undefined) return cached;
-  const estimate = RoughTokenEstimate(JSON.stringify(payload));
+  let str: string;
+  try {
+    str = JSON.stringify(payload) ?? '';
+  } catch {
+    str = String(payload);
+  }
+  const estimate = RoughTokenEstimate(str);
   PAYLOAD_TOKEN_MEMO.set(payload, estimate);
   return estimate;
 }
@@ -153,7 +159,15 @@ export function computeMessageTokens(msg: Message): number {
     if (b.type === 'text') total += estimateTextTokens(b.text);
     else if (b.type === 'tool_use') total += estimateToolInputTokens(b.input);
     else if (b.type === 'tool_result') total += estimateToolResultTokens(b.content);
-    else total += RoughTokenEstimate(JSON.stringify(b));
+    else {
+      let str: string;
+      try {
+        str = JSON.stringify(b) ?? '';
+      } catch {
+        str = String(b);
+      }
+      total += RoughTokenEstimate(str);
+    }
   }
   return total;
 }

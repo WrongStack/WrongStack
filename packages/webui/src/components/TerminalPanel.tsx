@@ -160,14 +160,14 @@ export function TerminalPanel({
 
   useEffect(() => () => resizeCleanupRef.current?.(), []);
 
+  // Updaters must stay pure — the tab id side effects live outside setTabs
+  // so a StrictMode double-invoke can't bump the counter or reselect twice.
   const addTerminal = () => {
-    setTabs((current) => {
-      if (current.length >= MAX_TERMINALS) return current;
-      terminalCounterRef.current += 1;
-      const next = createTerminalTab(terminalCounterRef.current);
-      setActiveId(next.id);
-      return [...current, next];
-    });
+    if (tabs.length >= MAX_TERMINALS) return;
+    terminalCounterRef.current += 1;
+    const next = createTerminalTab(terminalCounterRef.current);
+    setTabs([...tabs, next]);
+    setActiveId(next.id);
   };
 
   useEffect(() => {
@@ -177,38 +177,35 @@ export function TerminalPanel({
   }, [terminalCreateNonce]);
 
   const closeTerminal = (id: string) => {
-    setTabs((current) => {
-      const index = current.findIndex((tab) => tab.id === id);
-      if (index === -1) return current;
-      const next = current.filter((tab) => tab.id !== id);
-      if (next.length === 0) {
-        queueMicrotask(onClose);
-        return next;
-      }
-      if (activeId === id) {
-        setActiveId(next[Math.max(0, index - 1)]?.id ?? next[0]?.id ?? '');
-      }
-      return next;
-    });
+    const index = tabs.findIndex((tab) => tab.id === id);
+    if (index === -1) return;
+    const next = tabs.filter((tab) => tab.id !== id);
+    setTabs(next);
+    if (next.length === 0) {
+      queueMicrotask(onClose);
+      return;
+    }
+    if (activeId === id) {
+      setActiveId(next[Math.max(0, index - 1)]?.id ?? next[0]?.id ?? '');
+    }
   };
 
   const restartTerminal = (id: string) => {
     const nextId = newTerminalId();
-    setTabs((current) => {
-      let found = false;
-      const next = current.map((tab) => {
-        if (tab.id !== id) return tab;
-        found = true;
-        return {
-          ...tab,
-          id: nextId,
-          status: 'starting' as const,
-          exitCode: undefined,
-        };
-      });
-      if (found) setActiveId(nextId);
-      return next;
-    });
+    if (!tabs.some((tab) => tab.id === id)) return;
+    setTabs(
+      tabs.map((tab) =>
+        tab.id !== id
+          ? tab
+          : {
+              ...tab,
+              id: nextId,
+              status: 'starting' as const,
+              exitCode: undefined,
+            },
+      ),
+    );
+    setActiveId(nextId);
   };
 
   const closeAllTerminals = () => {

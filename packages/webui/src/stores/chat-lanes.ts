@@ -42,15 +42,21 @@ import {
 import {
   boundChatField,
   dedupeRepeatedBlocks,
+  indexToolExecutions,
   indexToolMessages,
   MAX_PERSISTED_MESSAGES,
   retainWebChatMessages,
 } from './chat-retention';
+import { MAX_OPEN_SESSIONS_PER_CONNECTION } from '@wrongstack/webui-protocol';
 import type { QueuedItem, ToolExecution } from './chat-store-types';
 import type { ChatMessage } from './types.js';
 
-/** Hard ceiling on concurrent lanes. Four tabs, four lanes, no exceptions. */
-export const MAX_LANES = 4;
+/**
+ * Hard ceiling on concurrent lanes. Four tabs, four lanes, no exceptions —
+ * and the server accepts exactly this many declared sessions per connection,
+ * hence the shared constant rather than a second 4 that could drift from it.
+ */
+export const MAX_LANES = MAX_OPEN_SESSIONS_PER_CONNECTION;
 
 /**
  * Lane used before any session exists (boot, setup screen, tests that never
@@ -200,6 +206,7 @@ export const useChatLanes = create<ChatLanesState>()(
           const lane = createLaneData();
           const messages = Array.isArray(raw.messages) ? raw.messages : [];
           lane.messages = retainWebChatMessages(messages as ChatMessage[]);
+          lane.executions = indexToolExecutions(lane.messages);
           lane.toolMessageIdsByUseId = indexToolMessages(lane.messages);
           lane.queue = (Array.isArray(raw.queue) ? raw.queue : []).flatMap((item): QueuedItem[] => {
             const normalized = normalizeQueuedItem(item);
@@ -565,7 +572,7 @@ export function chatLane(sessionId: string): ChatLaneActions {
         messages: retained,
         currentAssistantMessageId: null,
         currentToolId: null,
-        executions: new Map(),
+        executions: indexToolExecutions(retained),
         toolMessageIdsByUseId: indexToolMessages(retained),
         thinkingBuffer: '',
         thinkingStartedAt: null,

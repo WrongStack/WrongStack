@@ -135,7 +135,8 @@ export async function ensureProjectGitignore(projectRoot: string): Promise<void>
   }
 
   if (!changed) return;
-  await fsPromises.writeFile(filePath, `${lines.join('\n')}\n`, 'utf8');
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  await atomicWrite(filePath, `${lines.join(eol)}${eol}`);
 }
 
 function makeIdentity(projectId: string): ProjectIdentityFile {

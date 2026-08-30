@@ -11,6 +11,7 @@ import type {
   ContextSnapshot,
   FleetChatVerbosity,
   Message,
+  SessionLoadProgress,
   SkillLoader,
   TokenCounter,
   TokenSavingTier,
@@ -486,7 +487,17 @@ export interface AppProps {
    * exactly as it appeared during live interaction.
    */
   onResumeSession?:
-    | ((sessionId: string) => Promise<{
+    | ((
+        sessionId: string,
+        onLoadProgress?: (progress: SessionLoadProgress) => void,
+        /**
+         * Live stage names as each step of the resume begins (`resolve_id`,
+         * `open_journal`, `swap_writer`, …). Drives the rolling rows of the
+         * resume loading block, so the screen reports what is actually
+         * happening instead of a spinner over an unexplained multi-second wait.
+         */
+        onStage?: (stage: string) => void,
+      ) => Promise<{
         entries: HistoryEntry[];
         nextId: number;
         sessionId: string;
@@ -500,6 +511,28 @@ export interface AppProps {
          * event lands.
          */
         contextSnapshot?: ContextSnapshot | undefined;
+        /**
+         * `false` when the transcript loaded but the session was NOT claimed
+         * for writing — another process owns it, or the claim lapsed. The
+         * conversation is still shown (read-only); the agent keeps writing to
+         * the session it was already in. Treated as present-but-true by hosts
+         * that predate the field.
+         */
+        attached?: boolean | undefined;
+        /**
+         * Non-fatal problems to print alongside the replayed transcript
+         * (sidecars that did not re-point, a provider that is gone). These no
+         * longer abort a resume, so they have to be visible somewhere.
+         */
+        warnings?: string[] | undefined;
+        /**
+         * `<nextsteps>` parsed from the resumed session's final assistant turn.
+         *
+         * OFFERED, never executed: the resume lists them and stops. Empty when
+         * the session did not end on a next-steps block, when it has open todos
+         * (the board keeps precedence), or when the transcript is read-only.
+         */
+        nextSteps?: string[] | undefined;
       } | null>)
     | undefined;
 

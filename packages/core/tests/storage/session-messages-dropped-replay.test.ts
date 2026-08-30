@@ -91,6 +91,27 @@ describe('messages_dropped replay', () => {
     expect(JSON.stringify(data.messages[0]?.content)).toContain('after');
   });
 
+  it('applies message_updated by absolute index after a prefix drop', async () => {
+    await writeSession([
+      start,
+      appended('2026-01-01T00:01:00.000Z', 'a'),
+      appended('2026-01-01T00:02:00.000Z', 'b'),
+      appended('2026-01-01T00:03:00.000Z', 'c'),
+      { type: 'messages_dropped', ts: '2026-01-01T00:04:00.000Z', version: 1, count: 2 },
+      {
+        type: 'message_updated',
+        ts: '2026-01-01T00:05:00.000Z',
+        version: 1,
+        index: 2,
+        message: userMessage('c-updated'),
+      },
+    ]);
+
+    const data = await new DefaultSessionStore({ dir }).load(SESSION_ID);
+    expect(data.messages).toHaveLength(1);
+    expect(JSON.stringify(data.messages[0]?.content)).toContain('c-updated');
+  });
+
   it('ignores a malformed count rather than corrupting the history', async () => {
     await writeSession([
       start,

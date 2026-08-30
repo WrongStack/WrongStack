@@ -12,6 +12,10 @@
  *      leaking plugin or MCP server can hang the process indefinitely.
  *      A 500ms `setTimeout(exit)` with `.unref()` lets the natural drain
  *      finish first, then forces exit if anything is still pending. The
+ *      grace window is durability-aware: it extends in 500ms steps while a
+ *      fs write stream is still active (hard 5s ceiling), grants sockets one
+ *      extra window (idle keep-alives must not stall exit), and every forced
+ *      exit is reported via a structured `exit.forced` warning. The
  *      `.unref()` is critical: it prevents the timer itself from keeping
  *      the event loop alive.
  *   3. **Stack-trace on rejection** — a top-level `main().catch(...)` that
@@ -120,6 +124,89 @@ export function installBrokenPipeHandlers(options: BrokenPipeHandlerOptions = {}
   };
 }
 
+// ── Forced-exit scheduling ────────────────────────────────────────────────
+//
+// After main() resolves, the process should exit with its code. Node drains
+// pending async handles naturally; the unref'd timer below is the backstop
+// for handles that never close (leaked plugin/MCP servers). Two refinements
+// over a fixed 500ms kill:
+//
+//   • Durability-aware grace: while handles that can carry unflushed writes
+//     are still active, the window extends in 500ms steps up to a hard 5s
+//     ceiling. The ceiling keeps the original anti-hang guarantee — a leaked
+//     handle delays exit by at most 5s, never forever.
+//   • Observability: an exit that HAD to be forced emits a structured
+//     `exit.forced` warning naming the surviving handles, so field reports
+//     can distinguish "clean drain" from "work was truncated". A natural
+//     drain (the overwhelmingly common case) prints nothing.
+//
+// The hints are evidence-tuned to what process.getActiveResourcesInfo() can
+// actually tell us: libuv OWNER CONSTRUCTOR NAMES only. It cannot distinguish
+// an idle keep-alive socket from one mid-flush, and TLS connections report as
+// 'TCPSocketWrap' (there is no 'TLSSocket' value — do not re-add that entry).
+// So each resource type earns a different amount of waiting:
+//   • 'WriteStream' is fs-backed (redirected output, log files, session
+//     JSONL) — unflushed bytes are real, so it may extend repeatedly up to
+//     the hard ceiling.
+//   • 'TCPSocketWrap' may equally be an idle undici keep-alive or HQ/MCP
+//     sidecar socket, so it earns at most ONE extra window — enough for a
+//     socket mid-flush, without making every HTTP-touching invocation pay
+//     the full ceiling at exit.
+const EXIT_GRACE_MS = 500;
+const EXIT_GRACE_MAX_MS = 5_000;
+const MAX_SOCKET_GRACE_EXTENSIONS = 1;
+
+interface ForcedExitDeps {
+  readonly getActiveResources?: () => readonly string[];
+  readonly exit?: ((code: number) => void) | undefined;
+}
+
+export function scheduleForcedExit(code: number, deps: ForcedExitDeps = {}): void {
+  const getActiveResources =
+    deps.getActiveResources ?? (() => process.getActiveResourcesInfo?.() ?? []);
+  const exit = deps.exit ?? ((exitCode: number) => process.exit(exitCode));
+  const startedAt = Date.now();
+  let extensions = 0;
+  let socketExtensions = 0;
+
+  const check = (): void => {
+    const active = getActiveResources();
+    const waitedMs = Date.now() - startedAt;
+    const hasWriteStream = active.includes('WriteStream');
+    const hasSocket = active.includes('TCPSocketWrap');
+    const canFlush =
+      waitedMs < EXIT_GRACE_MAX_MS &&
+      (hasWriteStream || (hasSocket && socketExtensions < MAX_SOCKET_GRACE_EXTENSIONS));
+    if (canFlush) {
+      extensions += 1;
+      // A fs stream justifies the wait on its own; only count the extension
+      // against the socket budget when a socket is the sole justification.
+      if (!hasWriteStream) socketExtensions += 1;
+      const timer = setTimeout(check, Math.min(EXIT_GRACE_MS, EXIT_GRACE_MAX_MS - waitedMs));
+      timer.unref();
+      return;
+    }
+    if (active.length > 0) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'exit.forced',
+          message: `Forcing exit after ${waitedMs}ms grace; ${active.length} active handle(s) remained`,
+          exitCode: code,
+          waitedMs,
+          extensions,
+          activeResources: active,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+    exit(code);
+  };
+
+  const first = setTimeout(check, EXIT_GRACE_MS);
+  first.unref();
+}
+
 export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
   if (!isMain) return;
   installBrokenPipeHandlers();
@@ -136,23 +223,23 @@ export function runAsMain(mainFn: (argv: string[]) => Promise<number>): void {
   mainFn(process.argv.slice(2)).then(
     (c) => {
       // Set exitCode and let Node drain async handles (undici TLS, log file
-      // flushes) naturally. Force-exit after a brief grace period so we don't
-      // hang if a plugin or MCP server leaks. Avoids libuv UV_HANDLE_CLOSING
-      // assertions seen on Windows when process.exit() races with handle teardown.
+      // flushes) naturally. Force-exit after the durability-aware grace
+      // window so we don't hang if a plugin or MCP server leaks. Avoids
+      // libuv UV_HANDLE_CLOSING assertions seen on Windows when
+      // process.exit() races with handle teardown.
       process.exitCode = c;
-      // 500ms grace: let undici TLS, log flushes, and plugin teardown complete.
-      // The unref() prevents this timer from keeping the event loop alive
-      // if everything else finishes first.
-      setTimeout(() => process.exit(c), 500).unref();
+      scheduleForcedExit(c);
     },
     (err) => {
       // Salvage durability-critical state synchronously before reporting —
-      // the unref'd force-exit below gives only ~500ms of drain, which a
-      // datasync or sidecar write can exceed on slow disks.
+      // the unref'd force-exit below gives only a bounded drain window,
+      // which a datasync or sidecar write can exceed on slow disks. The
+      // window now extends while write-capable handles are still active,
+      // up to the hard ceiling in scheduleForcedExit.
       runFatalSalvageSync();
       writeErr((err instanceof Error ? err.stack : String(err)) + '\n');
       process.exitCode = 1;
-      setTimeout(() => process.exit(1), 500).unref();
+      scheduleForcedExit(1);
     },
   );
 }

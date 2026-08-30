@@ -160,7 +160,7 @@
     },
     "@wrongstack/core/types": {
       "files": 1022,
-      "typeOnly": 945,
+      "typeOnly": 946,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -174,9 +174,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/types/session-timeline": {
-      "files": 3,
+      "files": 6,
       "typeOnly": 1,
-      "runtimeOrMixed": 3
+      "runtimeOrMixed": 6
     },
     "@wrongstack/core/types/spec.js": {
       "files": 6,
@@ -9973,7 +9973,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/boot/tui-session-resume.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10074,7 +10074,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/execution.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -11239,7 +11239,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/wiring/session.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 9
+      "runtimeOrMixed": 8
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -15899,6 +15899,18 @@
     },
     {
       "specifier": "@wrongstack/core/types/session-timeline",
+      "file": "packages/cli/src/boot/tui-session-resume.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
+      "file": "packages/cli/src/wiring/session.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
       "file": "packages/webui-protocol/src/index.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
@@ -15906,6 +15918,12 @@
     {
       "specifier": "@wrongstack/core/types/session-timeline",
       "file": "packages/webui-protocol/src/replay-payload.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types/session-timeline",
+      "file": "packages/webui-server/src/server/session-handlers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

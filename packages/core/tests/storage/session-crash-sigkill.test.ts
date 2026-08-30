@@ -100,7 +100,15 @@ it('survives SIGKILL: critical events reach disk, the crash is detected, the tur
 
   const store = new DefaultSessionStore({ dir });
   const resumed = await store.resume(sessionId);
-  expect(resumed.data.pendingToolUseCount).toBe(1);
+  // Crash-aware resume heals the interrupted call: a synthetic error
+  // tool_result is appended to the replayed conversation, so the stale
+  // pendingToolUseCount diagnostic is deliberately stripped on resume
+  // (resume-session.ts). Pin the heal itself instead of the removed count.
+  expect(resumed.data.pendingToolUseCount).toBeUndefined();
+  const healedResult = resumed.data.messages
+    .flatMap((message) => (Array.isArray(message.content) ? message.content : []))
+    .find((block) => block.type === 'tool_result' && block.tool_use_id === 'tu-1');
+  expect(healedResult).toMatchObject({ is_error: true });
   // The usage on the surviving llm_response replays intact, cache included.
   expect(resumed.data.usage).toMatchObject({ input: 100, output: 10, cacheRead: 5_000 });
 

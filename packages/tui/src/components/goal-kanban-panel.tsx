@@ -6,6 +6,7 @@ import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { usePanelShortcutsEnabled } from './monitor-shell.js';
+import { fmtPct } from './status-bar-format.js';
 
 interface GoalKanbanPanelProps {
   projectRoot: string;
@@ -257,7 +258,7 @@ function renderGoalProgressHeader(goal: GoalSummary): React.ReactElement | null 
         <Text color={theme.success}>[{'█'.repeat(filled)}</Text>
         <Text color={theme.textMuted}>{'░'.repeat(empty)}]</Text>
         <Text color={theme.textPrimary} bold>
-          {pct}%
+          {fmtPct(pct)}
         </Text>
         {trendIcon ? <Text color={theme.textMuted}>{trendIcon}</Text> : null}
         <Text color={theme.textMuted}>

@@ -107,6 +107,12 @@ export function compileGlob(pattern: string, commandSubject = false): RegExp {
       re += question;
       i++;
     } else if (c === '[') {
+      const closeIndex = pattern.indexOf(']', i + 1);
+      if (closeIndex === -1) {
+        re += '\\[';
+        i++;
+        continue;
+      }
       let cls = '[';
       i++;
       if (pattern[i] === '!' || pattern[i] === '^') {

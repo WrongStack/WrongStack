@@ -558,7 +558,7 @@ function reinjectLocalSecrets(local: unknown, incoming: unknown): unknown {
   for (const [key, value] of Object.entries(local)) {
     const secretish =
       SECRET_KEY.test(key) || (typeof value === 'string' && ENCRYPTED_VALUE.test(value));
-    if (secretish && !(key in incoming)) {
+    if (secretish && (!(key in incoming) || incoming[key] === undefined || incoming[key] === null)) {
       out[key] = value;
       continue;
     }

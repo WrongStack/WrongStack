@@ -50,6 +50,12 @@ export function inheritsIntoFork(event: SessionEvent): boolean {
     case 'in_flight_start':
     case 'in_flight_end':
     case 'rewound':
+    case 'agent_spawned':
+    case 'agent_session_linked':
+    case 'agent_stopped':
+    case 'agent_error':
+    case 'delegate_started':
+    case 'delegate_completed':
       return false;
     // Parent snapshots describe mutations owned by the parent journal. A
     // child that shares the current workspace must not inherit authority to

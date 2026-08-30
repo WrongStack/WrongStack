@@ -6,10 +6,10 @@ import type { AgentTimelineEntry } from '@wrongstack/core/coordination';
 import type { AgentTranscriptReader } from '../ui-contracts.js';
 export type { AgentTranscriptReader } from '../ui-contracts.js';
 import type { FleetEntry } from '../app-state.js';
-import type { HistoryEntry } from './history/types.js';
 import { theme } from '../theme.js';
 import { fmtModelLabel } from './fleet-monitor.js';
-import { fmtElapsed } from './status-bar.js';
+import type { HistoryEntry } from './history.js';
+import { fmtElapsed, fmtRatioPct } from './status-bar-format.js';
 import { getToolVisual } from '../tool-glyph.js';
 import { glyphs } from '../ui-glyphs.js';
 import {
@@ -46,7 +46,7 @@ interface AgentsMonitorProps {
   fullscreen?: boolean | undefined;
 }
 
-export { EMPTY_AGENTS_CLOSE_DELAY_MS, IDLE_HIDE_MS } from './agents-monitor-constants.js';;
+export { EMPTY_AGENTS_CLOSE_DELAY_MS, IDLE_HIDE_MS } from './agents-monitor-constants.js';
 
 function isLeaderEntry(entry: FleetEntry): boolean {
   return entry.id === 'leader' || entry.name === 'LEADER';
@@ -126,9 +126,7 @@ export function formatAgentDetailHeader(entry: FleetEntry): string {
   return entry.name || entry.id;
 }
 
-export function agentRisk(
-  entry: FleetEntry,
-): 'calm' | 'busy' | 'hot' | 'critical' {
+export function agentRisk(entry: FleetEntry): 'calm' | 'busy' | 'hot' | 'critical' {
   const pct = entry.ctxPct ?? 0;
   if (entry.budgetWarning || entry.failureReason || pct >= 0.9) return 'critical';
   if (pct >= 0.75 || (entry.extensions ?? 0) > 0) return 'hot';
@@ -171,10 +169,7 @@ function currentAction(entry: FleetEntry, now: number): string {
   return 'standing by';
 }
 
-export function selectAgentDetail(
-  live: FleetEntry[],
-  selectedId?: string,
-): FleetEntry | undefined {
+export function selectAgentDetail(live: FleetEntry[], selectedId?: string): FleetEntry | undefined {
   return live.find((entry) => entry.id === selectedId) ?? live.find(isLeaderEntry) ?? live[0];
 }
 
@@ -214,7 +209,7 @@ function selectHotAgent(entries: FleetEntry[]): FleetEntry | undefined {
 
 function pctTextFromRatio(pct: number | undefined): string {
   if (typeof pct !== 'number' || !Number.isFinite(pct)) return '0%';
-  return `${Math.min(100, Math.max(0, Math.round(pct * 100)))}%`;
+  return fmtRatioPct(pct);
 }
 
 // ─── Transcript Helpers ───────────────────────────────────────────────
@@ -277,9 +272,7 @@ export function formatTranscriptLine(e: AgentTimelineEntry, maxWidth = 110): str
  * interleaved) is the whole point of the per-agent view. Banners and
  * confirm prompts are UI chrome, not history, and are skipped too.
  */
-export function leaderTimelineFromEntries(
-  entries: readonly HistoryEntry[],
-): AgentTimelineEntry[] {
+export function leaderTimelineFromEntries(entries: readonly HistoryEntry[]): AgentTimelineEntry[] {
   const out: AgentTimelineEntry[] = [];
   for (const e of entries) {
     const base = {
@@ -416,11 +409,7 @@ function DashboardHeader({
 
       {/* Context pressure */}
       <Text dimColor>ctx</Text>
-      <Text
-        color={
-          pressure >= 0.9 ? theme.error : pressure >= 0.75 ? theme.warn : theme.success
-        }
-      >
+      <Text color={pressure >= 0.9 ? theme.error : pressure >= 0.75 ? theme.warn : theme.success}>
         {pctTextFromRatio(pressure)}
       </Text>
 
@@ -487,9 +476,7 @@ function AgentCard({
   return (
     <Box flexDirection="row" gap={1} height={1}>
       {/* Selection indicator */}
-      <Text color={selected ? theme.monitor.agents : 'transparent'}>
-        {selected ? '▶' : ' '}
-      </Text>
+      <Text color={selected ? theme.monitor.agents : 'transparent'}>{selected ? '▶' : ' '}</Text>
 
       {/* Status icon */}
       <Text color={s.color} bold>
@@ -500,34 +487,29 @@ function AgentCard({
       <Text color={risk.color}>{risk.icon}</Text>
 
       {/* Agent name — bold when selected */}
-      <Text
-        bold={selected}
-        color={selected ? theme.monitor.agents : theme.textPrimary}
-      >
+      <Text bold={selected} color={selected ? theme.monitor.agents : theme.textPrimary}>
         {truncatePanelText(entry.name || entry.id, nameW)}
       </Text>
 
       {/* Context bar — 3 dots */}
-      {entry.ctxPct !== undefined ? (
-        (() => {
-          const clamped = Math.max(0, Math.min(1, entry.ctxPct));
-          const bars = 3;
-          const filled = Math.round(clamped * bars);
-          const barColor =
-            clamped < 0.6 ? theme.success : clamped < 0.75 ? theme.warn : theme.error;
-          return (
-            <Text color={barColor}>
-              {'█'.repeat(filled)}
-              {'░'.repeat(Math.max(0, bars - filled))}
-            </Text>
-          );
-        })()
-      ) : null}
+      {entry.ctxPct !== undefined
+        ? (() => {
+            const clamped = Math.max(0, Math.min(1, entry.ctxPct));
+            const bars = 3;
+            const filled = Math.round(clamped * bars);
+            const barColor =
+              clamped < 0.6 ? theme.success : clamped < 0.75 ? theme.warn : theme.error;
+            return (
+              <Text color={barColor}>
+                {'█'.repeat(filled)}
+                {'░'.repeat(Math.max(0, bars - filled))}
+              </Text>
+            );
+          })()
+        : null}
 
       {/* Extensions badge */}
-      {entry.extensions && entry.extensions > 0 ? (
-        <Text color={theme.warn}>⚡</Text>
-      ) : null}
+      {entry.extensions && entry.extensions > 0 ? <Text color={theme.warn}>⚡</Text> : null}
 
       <Box flexGrow={1} />
 
@@ -645,7 +627,9 @@ function AgentDetailPanel({
       {/* Streaming tail (leader only — subagents suppressed to avoid flicker) */}
       {!transcript && entry.status === 'running' && streamTail ? (
         <Box height={1}>
-          <Text dimColor>{'>'} {streamTail}</Text>
+          <Text dimColor>
+            {'>'} {streamTail}
+          </Text>
         </Box>
       ) : null}
 
@@ -817,9 +801,7 @@ export function AgentsMonitor({
   // Inline mode (default): cap at 28 rows so the history + status bar +
   // input still have room above the panel. For small terminals (<32 rows)
   // the cap relaxes to terminalRows - 4 so we don't waste space.
-  const maxPanelRows = fullscreen
-    ? terminalRows
-    : Math.max(14, Math.min(terminalRows - 6, 28));
+  const maxPanelRows = fullscreen ? terminalRows : Math.max(14, Math.min(terminalRows - 6, 28));
 
   // ── Column widths (left-right split) ────────────────────────────────
   // Left sidebar gets ~32% of width (min 26, max 42 chars for readability).
@@ -842,9 +824,7 @@ export function AgentsMonitor({
   // Right column: border(1) + detail header(~4 rows: name/status,
   //   runtime/throughput, alert/activity, recent tools) + border(1) = 6
   // Remaining rows inside the right column = maxColHeight - 6
-  const detailRows = transcript
-    ? Math.max(4, maxColHeight - 6)
-    : 4;
+  const detailRows = transcript ? Math.max(4, maxColHeight - 6) : 4;
 
   // ── Roster window ───────────────────────────────────────────────────
   const rosterWindow = panelWindow(live.length, Math.max(0, selectedIndex), rosterLimit);
@@ -886,9 +866,19 @@ export function AgentsMonitor({
       maxHeight={maxPanelRows + 2}
       right={
         <Text>
-          <Text color={theme.warn}>{glyphs.running} {running}</Text>
-          <Text color={theme.success}> {glyphs.success} {totalDone}</Text>
-          {totalFailed > 0 ? <Text color={theme.error}> {glyphs.failure} {totalFailed}</Text> : null}
+          <Text color={theme.warn}>
+            {glyphs.running} {running}
+          </Text>
+          <Text color={theme.success}>
+            {' '}
+            {glyphs.success} {totalDone}
+          </Text>
+          {totalFailed > 0 ? (
+            <Text color={theme.error}>
+              {' '}
+              {glyphs.failure} {totalFailed}
+            </Text>
+          ) : null}
         </Text>
       }
       footer={

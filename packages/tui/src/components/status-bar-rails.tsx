@@ -11,6 +11,7 @@ import {
   contextBarColor,
   fmtDebugBytes,
   fmtElapsed,
+  fmtRatioPct,
   fmtTok,
   renderMeter,
   truncateChip,
@@ -175,7 +176,7 @@ export function buildPrimaryChips(p: StatusBarRailBuildParams): React.ReactEleme
               ) : null}
               {hasCache ? (
                 <Text dimColor={!isNoColor}>
-                  {STATUSLINE_ICONS.cache} {(cache.hitRatio * 100).toFixed(0)}%
+                  {STATUSLINE_ICONS.cache} {fmtRatioPct(cache.hitRatio)}
                   {/* Compact read/write figures — `r`/`w` prefixes distinguish
                       cache tokens from the ↑/↓ request tokens of the tokens
                       chip. Saved USD last, only when cache reads actually
@@ -993,13 +994,14 @@ export function buildMemoryDetailChips(
       );
     }
     if (memorySummary.contextPressure > 0) {
-      const pressurePct = Math.round(memorySummary.contextPressure * 100);
+      const pressurePct = fmtRatioPct(memorySummary.contextPressure);
+      const pressureVal = memorySummary.contextPressure * 100;
       const pressureColor =
-        pressurePct >= 80 ? theme.error : pressurePct >= 65 ? theme.warn : theme.textSecondary;
+        pressureVal >= 80 ? theme.error : pressureVal >= 65 ? theme.warn : theme.textSecondary;
       memoryDetailChips.push(
         <Text key="pressure">
           <Text dimColor={!isNoColor}>{' · '}</Text>
-          <Text color={chipColor(pressureColor, isNoColor)}>{pressurePct}% ctx</Text>
+          <Text color={chipColor(pressureColor, isNoColor)}>{pressurePct} ctx</Text>
         </Text>,
       );
     }

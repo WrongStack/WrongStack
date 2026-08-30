@@ -80,51 +80,74 @@ describe('FileSessionWriter', () => {
     expect(handle.datasync).toHaveBeenCalledTimes(1);
   });
 
-  it('surfaces direct-write fallback failures instead of reporting a persisted append', async () => {
-    let calls = 0;
+  it('close() drains a started-unsettled in-flight append and everything queued behind it', async () => {
+    // Gate the FIRST append: once started it stays unsettled until released —
+    // exactly the state a SIGTERM teardown observes mid-write. flushSync can
+    // only defer here; close() is the step that must wait for the chain.
+    let releaseFirst: (() => void) | undefined;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    let appendCalls = 0;
     handle.appendFile.mockImplementation(async (data: string) => {
-      calls += 1;
-      if (calls === 2) throw new Error('direct write failed');
+      appendCalls += 1;
+      if (appendCalls === 1) await firstGate;
       capturedWrites.push(data);
     });
 
-    await expect(
-      writer.append({
+    // Critical appends await the flush they start — and that flush parks on
+    // the gated in-flight append — so NEITHER append may be awaited here.
+    const firstAppend = writer
+      .append({ type: 'user_input', ts: now(), content: 'in-flight' } as SessionEvent)
+      .catch(() => undefined);
+    // The write chain has issued the first append (started, gated → unsettled).
+    await vi.waitFor(() => expect(appendCalls).toBe(1), { timeout: 2000, interval: 10 });
+    // A teardown-time event queues BEHIND the gated in-flight append.
+    const lateAppend = writer
+      .append({ type: 'user_input', ts: now(), content: 'late' } as SessionEvent)
+      .catch(() => undefined);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(capturedWrites).toHaveLength(0); // gate closed — nothing landed yet
+
+    // close() must not finalize before the chain (in-flight + queued) drained.
+    const closing = writer.close();
+    releaseFirst?.();
+    await Promise.all([firstAppend, lateAppend, closing]);
+
+    const journal = capturedWrites.join('');
+    const inFlightIdx = journal.indexOf('in-flight');
+    const lateIdx = journal.indexOf('late');
+    expect(inFlightIdx).toBeGreaterThanOrEqual(0);
+    expect(lateIdx).toBeGreaterThan(inFlightIdx);
+    // Finalization happened only after the drain: the handle was closed.
+    expect(handle.close).toHaveBeenCalled();
+  });
+
+  it('persists oversized user input instead of silently dropping it', async () => {
+    await writer.append({
+      type: 'user_input',
+      ts: now(),
+      content: 'x'.repeat(17 * 1024 * 1024),
+    } as SessionEvent);
+
+    expect(capturedWrites.join('')).toContain('"type":"user_input"');
+    expect(capturedWrites.join('')).toContain('x'.repeat(1024));
+  });
+
+  it('persists oversized user input from appendBatch instead of silently dropping it', async () => {
+    await writer.appendBatch([
+      {
         type: 'user_input',
         ts: now(),
         content: 'x'.repeat(17 * 1024 * 1024),
-      } as SessionEvent),
-    ).rejects.toThrow('direct write failed');
+      } as SessionEvent,
+    ]);
+
+    expect(capturedWrites.join('')).toContain('"type":"user_input"');
+    expect(capturedWrites.join('')).toContain('x'.repeat(1024));
   });
 
-  it('surfaces direct-write fallback failures from appendBatch', async () => {
-    let calls = 0;
-    handle.appendFile.mockImplementation(async (data: string) => {
-      calls += 1;
-      if (calls === 2) throw new Error('batch direct write failed');
-      capturedWrites.push(data);
-    });
-
-    await expect(
-      writer.appendBatch([
-        {
-          type: 'user_input',
-          ts: now(),
-          content: 'x'.repeat(17 * 1024 * 1024),
-        } as SessionEvent,
-      ]),
-    ).rejects.toThrow('batch direct write failed');
-  });
-
-  it('logs synchronous direct-write fallback failures instead of silently dropping them', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    let calls = 0;
-    handle.appendFile.mockImplementation(async (data: string) => {
-      calls += 1;
-      if (calls === 2) throw new Error('sync direct write failed');
-      capturedWrites.push(data);
-    });
-
+  it('synchronously buffers oversized events instead of silently dropping them', async () => {
     (writer as any).bufferSynchronousEvent({
       type: 'user_input',
       ts: now(),
@@ -132,10 +155,8 @@ describe('FileSessionWriter', () => {
     } as SessionEvent);
 
     await vi.waitFor(() => {
-      const writeFailure = warnSpy.mock.calls.find((call) =>
-        String(call[0]).includes('"event":"session.sync_journal_write_failed"'),
-      )?.[0];
-      expect(writeFailure).toContain('sync direct write failed');
+      expect(capturedWrites.join('')).toContain('"type":"user_input"');
+      expect(capturedWrites.join('')).toContain('x'.repeat(1024));
     });
   });
 

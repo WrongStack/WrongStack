@@ -1,4 +1,4 @@
-import type { ChatRetentionBudget } from './chat-store-types';
+import type { ChatRetentionBudget, ToolExecution } from './chat-store-types';
 import type { ChatMessage } from './types.js';
 
 export function dedupeRepeatedBlocks(text: string): string {
@@ -137,6 +137,24 @@ export function indexToolMessages(messages: readonly ChatMessage[]): Map<string,
   const index = new Map<string, string>();
   for (const m of messages) {
     if (m.role === 'tool' && m.toolUseId) index.set(m.toolUseId, m.id);
+  }
+  return index;
+}
+
+export function indexToolExecutions(messages: readonly ChatMessage[]): Map<string, ToolExecution> {
+  const index = new Map<string, ToolExecution>();
+  for (const message of messages) {
+    if (message.role !== 'tool' || !message.toolUseId) continue;
+    index.set(message.toolUseId, {
+      id: message.toolUseId,
+      name: message.toolName ?? 'tool',
+      input: message.toolInput,
+      output: message.toolResult,
+      durationMs: message.toolDurationMs,
+      ok: message.isError !== true,
+      startedAt: message.timestamp,
+      ...(message.toolResult !== undefined ? { completedAt: message.timestamp } : {}),
+    });
   }
   return index;
 }

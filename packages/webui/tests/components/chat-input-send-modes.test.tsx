@@ -443,6 +443,32 @@ describe('ChatInput — send-mode buttons', () => {
     expect(wsMock.sendAbort).toHaveBeenCalledTimes(1);
   });
 
+  it('Stop and Stop-and-Edit buttons are rendered when isLoading is true even before any messages exist', () => {
+    useChatStore.setState({
+      isLoading: true,
+      messages: [],
+    });
+    render(<ChatInput />);
+
+    expect(screen.getByTestId('stop')).toBeDefined();
+    expect(screen.getByTestId('stop-and-edit')).toBeDefined();
+
+    fireEvent.click(screen.getByTestId('stop'));
+    expect(wsMock.sendAbort).toHaveBeenCalledTimes(1);
+  });
+
+  it('Btw, Steer and Queue buttons are rendered when isLoading is true even before any messages exist', () => {
+    useChatStore.setState({
+      isLoading: true,
+      messages: [],
+    });
+    render(<ChatInput />);
+
+    expect(screen.getByTestId('send-btw')).toBeDefined();
+    expect(screen.getByTestId('send-steer')).toBeDefined();
+    expect(screen.getByTestId('send-queue')).toBeDefined();
+  });
+
   it('Enter (form submit) defaults to btw mode once the chat has started', () => {
     useChatStore.setState({
       messages: [{ id: 'm1', role: 'user', content: 'hi', timestamp: 1 }],

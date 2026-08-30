@@ -162,6 +162,52 @@ export type Action =
   | { type: 'resumePickerBusy'; on: boolean }
   | { type: 'resumePickerHint'; text?: string | undefined }
   | { type: 'resumePickerError'; text: string }
+  /**
+   * Release the post-resume auto-proceed hold.
+   *
+   * Dispatched by the manual submit path only. The hold exists so a resumed
+   * session's restored todo board cannot arm an automatic turn before the user
+   * has done anything; sending a message IS that something.
+   */
+  | { type: 'autoProceedRelease' }
+  /**
+   * Begin a `/resume`: wipe the screen to a clean slate (banner only, exactly
+   * like `/clear`) and put the live progress block in its place.
+   *
+   * The wipe is the point. Leaving the previous conversation on screen while a
+   * different one loaded meant the user could not tell whether anything was
+   * happening, or which session they were looking at once it did.
+   */
+  | { type: 'resumeLoadStart'; sessionId: string; label: string }
+  /**
+   * Advance the progress block. Every field is optional so the same action
+   * serves the spinner ticker (nothing but a frame bump), the byte-progress
+   * sink, and the host's stage reports.
+   */
+  | {
+      type: 'resumeLoadTick';
+      loadedBytes?: number | undefined;
+      totalBytes?: number | undefined;
+      /** Human-readable stage line to push onto the rolling log. */
+      note?: string | undefined;
+    }
+  /**
+   * Commit one batch of the replayed transcript.
+   *
+   * The first batch flips the phase and clears the progress block, so the
+   * transcript streams into a screen that holds nothing else. `done` finishes
+   * the resume and applies the context snapshot.
+   */
+  | {
+      type: 'resumeStreamChunk';
+      entries: HistoryEntry[];
+      /** Total entries in the replay, for the batch counter. */
+      total: number;
+      done?: boolean | undefined;
+      contextSnapshot?: ContextSnapshot | undefined;
+    }
+  /** Abandon an in-flight resume (failure, or a second resume superseding it). */
+  | { type: 'resumeLoadAbort' }
   /** Replace all history entries with the given hydrated entries from a resumed session. */
   | {
       type: 'replaceHistory';

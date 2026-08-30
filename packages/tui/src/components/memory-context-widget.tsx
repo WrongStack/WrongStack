@@ -4,6 +4,7 @@ import {
   type MemoryContextMonitorState,
 } from '../memory-context-monitor.js';
 import { theme } from '../theme.js';
+import { fmtRatioPct } from './status-bar-format.js';
 
 export function MemoryContextWidget({ state }: { state: MemoryContextMonitorState }) {
   const summary = state.latest;
@@ -31,7 +32,7 @@ export function MemoryContextWidget({ state }: { state: MemoryContextMonitorStat
         <Text color="red">{`${summary.error}`}</Text>
       ) : (
         <Text color={theme.textMuted}>
-          {`${summary.trigger} · ctx ${Math.round(summary.contextPressure * 100)}% · +${summary.injectedChars} chars · /context = details`}
+          {`${summary.trigger} · ctx ${fmtRatioPct(summary.contextPressure)} · +${summary.injectedChars} chars · /context = details`}
         </Text>
       )}
     </Box>

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SessionWriter } from '../../src/types/session.js';
-import {
-  createSessionEventBridge,
-} from '../../src/storage/session-event-bridge.js';
+import { createSessionEventBridge } from '../../src/storage/session-event-bridge.js';
 
 function makeMockWriter() {
   const append = vi.fn().mockResolvedValue(undefined);
@@ -27,7 +25,7 @@ function makeMockWriter() {
 
 function makeProgressEvent(
   type: 'log' | 'warning' | 'metric' | 'file_changed' | 'partial_output',
-  overrides: Partial<{ name: string; id: string; text: string }> = {}
+  overrides: Partial<{ name: string; id: string; text: string }> = {},
 ) {
   return {
     type: 'tool_progress' as const,
@@ -70,13 +68,23 @@ describe('SessionEventBridge', () => {
         reason: 'compaction',
         messages: [{ role: 'system', content: 'compacted' }],
       });
+      await bridge.append({ type: 'tool_use', ts: 't', id: 'tu-1', name: 'bash', input: {} });
+      await bridge.append({
+        type: 'tool_result',
+        ts: 't',
+        id: 'tu-1',
+        content: 'ok',
+        isError: false,
+      });
       await bridge.append({ type: 'compaction', ts: 't', before: 100, after: 50 });
       await bridge.append({ type: 'error', ts: 't', message: 'boom', phase: 'agent' });
 
-      expect(append).toHaveBeenCalledTimes(3);
+      expect(append).toHaveBeenCalledTimes(5);
       expect(append.mock.calls[0]![0].type).toBe('user_input');
       expect(append.mock.calls[1]![0].type).toBe('file_observation');
       expect(append.mock.calls[2]![0].type).toBe('context_snapshot');
+      expect(append.mock.calls[3]![0].type).toBe('tool_use');
+      expect(append.mock.calls[4]![0].type).toBe('tool_result');
     });
 
     it('standard: writes core + standard audit events', async () => {
@@ -84,7 +92,14 @@ describe('SessionEventBridge', () => {
 
       await bridge.append({ type: 'user_input', ts: 't', content: 'hi' });
       await bridge.append({ type: 'compaction', ts: 't', before: 100, after: 50 });
-      await bridge.append({ type: 'tool_call_end', ts: 't', name: 'bash', id: '1', durationMs: 10, outputSize: 100 });
+      await bridge.append({
+        type: 'tool_call_end',
+        ts: 't',
+        name: 'bash',
+        id: '1',
+        durationMs: 10,
+        outputSize: 100,
+      });
 
       expect(append).toHaveBeenCalledTimes(3);
     });
@@ -175,6 +190,8 @@ describe('SessionEventBridge', () => {
       const full = createSessionEventBridge(null, 'full');
 
       expect(minimal.allows('user_input')).toBe(true);
+      expect(minimal.allows('tool_use')).toBe(true);
+      expect(minimal.allows('tool_result')).toBe(true);
       expect(minimal.allows('compaction')).toBe(false);
       expect(minimal.allows('tool_progress')).toBe(false);
 

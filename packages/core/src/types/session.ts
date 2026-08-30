@@ -643,9 +643,29 @@ export interface ForkedSession {
   workspaceCheckpoint?: WorkspaceCheckpointRef | undefined;
 }
 
+/**
+ * Byte-level progress for a session JSONL load. `loadedBytes` counts raw
+ * source bytes consumed so far (newline-inclusive approximation) and
+ * `totalBytes` is the source file size at load start.
+ */
+export interface SessionLoadProgress {
+  loadedBytes: number;
+  totalBytes: number;
+}
+
 export interface SessionStore {
   create(meta: Omit<SessionMetadata, 'startedAt'>): Promise<SessionWriter>;
-  load(id: string): Promise<SessionData>;
+  /**
+   * Read a session without claiming it for writing.
+   *
+   * `onLoadProgress` mirrors {@link SessionStore.resume} — the implementation
+   * has always accepted it, but the interface did not declare it, so the only
+   * caller that can stream progress for a read-only view (a resume falling
+   * back to showing the transcript it could not attach to) had to drop it and
+   * leave the user staring at a frozen screen for the length of a 131 MB
+   * parse. Implementations may ignore it.
+   */
+  load(id: string, onLoadProgress?: (progress: SessionLoadProgress) => void): Promise<SessionData>;
   /**
    * Open an existing session for append, returning both a writer that
    * continues writing to the same JSONL file and the replayed state
@@ -653,8 +673,15 @@ export interface SessionStore {
    * `session_resumed` marker is appended for audit. New writers may also
    * persist the exact conversation journal (`message_*` events); legacy logs
    * containing only user/assistant/tool events remain replayable.
+   *
+   * Optional `onLoadProgress` streams byte-level parse progress for large
+   * journals so callers can surface a live indicator; implementations may
+   * ignore it, and a warm load cache reports a single completed event.
    */
-  resume(id: string): Promise<ResumedSession>;
+  resume(
+    id: string,
+    onLoadProgress?: (progress: SessionLoadProgress) => void,
+  ): Promise<ResumedSession>;
   /**
    * Create a non-destructive child journal from a persisted parent boundary.
    * Parent file snapshots are intentionally not inherited as rewind authority;

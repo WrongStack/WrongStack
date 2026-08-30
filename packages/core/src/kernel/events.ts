@@ -598,6 +598,14 @@ function makePatternMatcher(pattern: string): (event: string) => boolean {
     const prefix = pattern.slice(0, -2);
     return (e: string) => e.startsWith(`${prefix}.`);
   }
+  if (pattern.endsWith(':*')) {
+    const prefix = pattern.slice(0, -2);
+    return (e: string) => e.startsWith(`${prefix}:`);
+  }
+  if (pattern.endsWith('*')) {
+    const prefix = pattern.slice(0, -1);
+    return (e: string) => e.startsWith(prefix);
+  }
   // Exact match fallback
   return (e: string) => e === pattern;
 }

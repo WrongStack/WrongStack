@@ -20,6 +20,8 @@ import type { AuthPanelState } from './auth-panel-model.js';
 import type { BrainLogEntry, BrainRiskLevel } from './brain-contracts.js';
 import type { BrainPanelSettings } from './brain-panel-model.js';
 import type { HistoryEntry } from './history-entry.js';
+import type { TuiHistoryBudget } from './history-retention.js';
+import type { ResumeLoadState } from './resume-load.js';
 import type {
   AuditLevel,
   CacheTtl,
@@ -75,6 +77,40 @@ export type State = {
    * compatibility and the legacy standalone History renderer.
    */
   historyGen: number;
+  /**
+   * Retention budget applied to `entries` on every history mutation.
+   *
+   * `undefined` = the live defaults. A session resume widens it (see
+   * `TUI_RESUME_HISTORY_BUDGET`) and the widened budget must PERSIST: the very
+   * next `addEntry` — the "Resumed session …" line itself — re-runs retention,
+   * so a budget that only applied to the `replaceHistory` dispatch would trim
+   * the transcript back one tick later and look like the resume never loaded.
+   */
+  historyBudget: TuiHistoryBudget | undefined;
+  /**
+   * Auto-proceed is armed only after the user has sent something.
+   *
+   * A resume restores the session's todo board, and the auto-proceed selector
+   * treats any open todo as grounded work — so resuming a session with an
+   * unfinished board silently started a turn on a countdown, without the user
+   * ever pressing anything. A resume must land in a waiting state: show the
+   * conversation, then stop.
+   *
+   * This holds only the ARMING. Autonomy itself is the user's setting and is
+   * never touched here — the hold clears on the next manual submit, exactly
+   * like the consecutive-turn cap does.
+   */
+  autoProceedHold: boolean;
+  /**
+   * Live `/resume` progress, or null when no resume is in flight.
+   *
+   * Set for the whole operation: the seconds spent reading the journal (during
+   * which the transcript is empty and this is the only thing on screen) and the
+   * streaming replay that follows. The block itself is rendered as a normal
+   * history entry — this is the model behind it, kept in state so the spinner
+   * ticker and the chunk pump have one authority to read.
+   */
+  resumeLoad: ResumeLoadState | null;
   buffer: string;
   cursor: number;
   streamingText: string;

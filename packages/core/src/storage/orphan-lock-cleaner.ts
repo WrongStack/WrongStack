@@ -54,12 +54,20 @@ export async function cleanOrphanLocks(
           if (Number.isInteger(pid) && pid > 0) {
             if (!pidAlive(pid)) {
               // Owning process is dead, remove stale lock
-              await fsp.unlink(lockPath).catch(() => undefined);
-              result.cleanedWorktrees.push(wtPath);
+              try {
+                await fsp.unlink(lockPath);
+                result.cleanedWorktrees.push(wtPath);
+              } catch (unlinkErr) {
+                result.errors.push(`Failed removing stale lock ${lockPath}: ${toErrorMessage(unlinkErr)}`);
+              }
             }
           } else if (now - lockStat.mtimeMs > maxAgeMs) {
-            await fsp.unlink(lockPath).catch(() => undefined);
-            result.cleanedWorktrees.push(wtPath);
+            try {
+              await fsp.unlink(lockPath);
+              result.cleanedWorktrees.push(wtPath);
+            } catch (unlinkErr) {
+              result.errors.push(`Failed removing expired lock ${lockPath}: ${toErrorMessage(unlinkErr)}`);
+            }
           }
         }
       } catch (err) {

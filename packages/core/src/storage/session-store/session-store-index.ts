@@ -132,7 +132,10 @@ export async function compactIndexInner(
       parts.push(JSON.stringify({ action: 'delete', id }));
     }
   }
-  if (parts.length === 0) return;
+  if (parts.length === 0) {
+    await atomicWrite(indexFile, '', { mode: 0o600 });
+    return;
+  }
   const lines = parts.join('\n') + '\n';
   await atomicWrite(indexFile, lines, { mode: 0o600 });
 }

@@ -11,7 +11,13 @@ import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { attachTodosCheckpoint, loadTodosCheckpoint } from '@wrongstack/core/storage';
-import type { ContextSnapshot, SessionWriter, TokenCounter } from '@wrongstack/core/types';
+import type {
+  ContextSnapshot,
+  SessionLoadProgress,
+  SessionWriter,
+  TokenCounter,
+} from '@wrongstack/core/types';
+import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
@@ -24,41 +30,207 @@ interface SessionResumeContext {
     | undefined;
   /** App EventBus — forwarded to the re-pointed todos checkpoint for storage.* events. */
   events?: EventBus | undefined;
+  /**
+   * Byte-level parse progress sink for large journals. When provided, the
+   * store's JSONL loader throttles it to ~4 updates/sec so the TUI picker
+   * hint can stream load progress instead of a static line.
+   */
+  onLoadProgress?: ((progress: SessionLoadProgress) => void) | undefined;
+  /**
+   * Why a resume returned `null`.
+   *
+   * `resumeSession` deliberately keeps returning `null` on failure — every
+   * rollback test pins that contract, and a throw escaping mid-rollback would
+   * be worse than a clean `null`. But `null` alone reaches the user as a bare
+   * "Failed to resume session <id>." with no reason, on every surface, which
+   * makes a broken resume undiagnosable. This sink carries the reason (and the
+   * STAGE it died at) out to the caller, which turns it into the message the
+   * user actually reads.
+   */
+  onFailure?: ((failure: SessionResumeFailure) => void) | undefined;
+  /**
+   * Live stage reporter.
+   *
+   * The same `stage` string the failure sink reports, but emitted as each step
+   * BEGINS rather than only when one fails. The TUI turns it into the rolling
+   * "what is happening right now" rows of the resume block — without it the
+   * only honest thing that surface could show during a multi-second journal
+   * parse was a spinner.
+   */
+  onStage?: ((stage: string) => void) | undefined;
 }
+
+/** The stage a failed resume died at, plus the underlying error text. */
+export interface SessionResumeFailure {
+  /** Machine-readable step name, e.g. `resolve_id`, `open_writer`, `hydrate`. */
+  stage: string;
+  /** Error text from the failing step — never empty. */
+  message: string;
+}
+
+/**
+ * Reservation window requested up front.
+ *
+ * The daemon's default is 15s and it clamps anything above `MAX_RESERVATION_MS`
+ * (60s) down to that ceiling, so this asks for the ceiling directly. It is a
+ * floor on safety, not a substitute for {@link RESERVATION_RENEW_MS}: journals
+ * in this corpus reach 131 MB and the hydration below also waits on the same
+ * catalog daemon, so the window has to be renewed, not merely widened.
+ */
+const RESERVATION_WINDOW_MS = 60_000;
+/** Renew well inside the window so one slow round-trip cannot lose the claim. */
+const RESERVATION_RENEW_MS = 20_000;
 
 interface SessionResumeResult {
   entries: unknown[];
   nextId: number;
   sessionId: string;
   /**
+   * Whether the agent is now WRITING to this session.
+   *
+   * `false` means the transcript is on screen but ownership was never taken:
+   * the session stays read-only and the next prompt continues the session the
+   * user was already in. Showing the transcript anyway is deliberate — the
+   * expensive, safe half of a resume (read the journal, render the timeline)
+   * has no reason to be discarded because the risky half (claim the journal
+   * for writing) failed.
+   */
+  attached: boolean;
+  /**
+   * Non-fatal problems the user should see, e.g. a sidecar that could not be
+   * re-pointed or a provider that is no longer configured. These used to abort
+   * the whole resume and roll back a transcript that had already loaded.
+   */
+  warnings: string[];
+  /**
    * Optional context-window snapshot for the resumed session. `tokens` is a
-   * flat `number` (sum of `tokenCounter.currentRequestTokens()?.`'s
-   * `{ input, cacheRead, cacheWrite }` fields) — the TUI consumer
-   * (`packages/tui/src/reducers/composer.ts:561-577`) reads `tokens` as a
-   * flat number and gates on `snap.tokens > 0`. Forwarding the raw object
-   * would coerce to NaN and silently drop the snapshot at runtime.
+   * flat `number` — the prompt size of the session's LAST request, read from
+   * its journal by `projectLastRequestTokens`. The TUI consumer
+   * (`packages/tui/src/reducers/composer.ts:561-577`) reads it as a flat
+   * number and gates on `snap.tokens > 0`, so a session that never reached the
+   * model reports 0 and simply leaves the chip alone.
    */
   contextSnapshot?: ContextSnapshot | undefined;
+  /**
+   * Text of the LAST assistant message in the resumed transcript.
+   *
+   * The caller parses `<nextsteps>` out of it. Deterministic by construction —
+   * the TUI's per-entry parser fires on whichever assistant entry happens to
+   * mount last during a replay, which is not necessarily the final turn, so a
+   * resume needs the authoritative one from the transcript itself.
+   */
+  lastAssistantText?: string | undefined;
+}
+
+/** Flatten a message's content to plain text (string form or text blocks). */
+function messageText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .map((block) =>
+      block && typeof block === 'object' && 'text' in block && typeof block.text === 'string'
+        ? block.text
+        : '',
+    )
+    .filter(Boolean)
+    .join('\n');
+}
+
+/** Text of the final assistant turn, or undefined when the session has none. */
+function lastAssistantTextOf(
+  messages: readonly { role: string; content: unknown }[],
+): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (message?.role !== 'assistant') continue;
+    const text = messageText(message.content).trim();
+    if (text) return text;
+  }
+  return undefined;
 }
 
 /**
  * Resume a past session by id.
  *
- * Returns the replayed history entries + new session id, or null on
- * failure. Throws if the session is live in another process.
+ * Three outcomes, in decreasing order of success:
+ *
+ * 1. `{ attached: true }` — transcript replayed AND the agent now writes to
+ *    this session. `warnings` may still list best-effort steps that failed
+ *    (sidecars, provider restore, token accounting); none of them are worth
+ *    throwing away a working resume for.
+ * 2. `{ attached: false }` — ownership could not be taken (another process
+ *    holds it, the reservation lapsed, the writer would not open), but the
+ *    journal read fine, so the transcript is shown read-only with the reason
+ *    in `warnings`. The agent stays on the session it was already writing.
+ * 3. `null` — the journal itself could not be read. `onFailure` carries the
+ *    stage and reason.
  */
 export async function resumeSession(
   ctx: SessionResumeContext,
   sessionId: string,
 ): Promise<SessionResumeResult | null> {
-  const { state, agent, tokenCounter, switchProviderAndModel, events } = ctx;
+  const { state, agent, tokenCounter, switchProviderAndModel, events, onLoadProgress } = ctx;
+  const fail = (stage: string, message: string): null => {
+    try {
+      ctx.onFailure?.({ stage, message: message || 'unknown error' });
+    } catch {
+      /* a reporting sink must never turn a failed resume into a throw */
+    }
+    return null;
+  };
+  /**
+   * Best-effort steps report here instead of aborting.
+   *
+   * Everything after the writer swap is decoration: the todo board, the
+   * provider the session last used, the context chip. A resume that showed the
+   * transcript and attached the writer has already done its job; losing the
+   * todo sidecar is a line in the chat, not a rollback.
+   */
+  const warnings: string[] = [];
+  const warn = (label: string, err: unknown): void => {
+    warnings.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+  };
+  // Advanced as the resume walks its steps so the `catch` below can name the
+  // step that actually threw. Without it every post-reservation failure —
+  // journal load, writer open, hydration, sidecars, token accounting — reaches
+  // the user as the same anonymous "failed".
+  let stage = 'start';
+  /**
+   * Advance the stage AND tell the caller.
+   *
+   * Every `stage = …` goes through here so the progress display and the failure
+   * report can never disagree about which step the resume was on.
+   */
+  const setStage = (next: string): void => {
+    stage = next;
+    try {
+      ctx.onStage?.(next);
+    } catch {
+      /* a reporting sink must never turn a working resume into a throw */
+    }
+  };
 
-  if (!state.activeSessionStore) return null;
+  if (!state.activeSessionStore) {
+    return fail('no_session_store', 'No session store is bound to this project.');
+  }
   // Import before claiming/opening the target so a packaging failure leaves
-  // the current writer and registry identity untouched.
-  const { replaySessionMessages } = await import('@wrongstack/tui');
+  // the current writer and registry identity untouched. A bundling regression
+  // that drops the named export leaves `replaySessionMessages` undefined and
+  // only blows up 60 lines later, AFTER the writer swap — check it here, while
+  // rolling back still costs nothing.
+  setStage('load_replay_module');
+  let replaySessionMessages: typeof import('@wrongstack/tui').replaySessionMessages;
+  try {
+    ({ replaySessionMessages } = await import('@wrongstack/tui'));
+    if (typeof replaySessionMessages !== 'function') {
+      throw new TypeError('@wrongstack/tui does not export replaySessionMessages');
+    }
+  } catch (err) {
+    return fail(stage, err instanceof Error ? err.message : String(err));
+  }
 
   // Resolve before reserving so every contender races on one canonical key.
+  setStage('resolve_id');
   let canonicalSessionId = sessionId;
   try {
     if (state.activeSessionStore.resolveId) {
@@ -76,9 +248,14 @@ export async function resumeSession(
         timestamp: new Date().toISOString(),
       }),
     );
-    return null;
+    return fail(stage, err instanceof Error ? err.message : String(err));
   }
   const previousSessionId = agent.ctx.session?.id;
+  /**
+   * The journal, once read. Hoisted so the failure arm can render the
+   * transcript read-only instead of re-reading a 100 MB file it already has.
+   */
+  let hydrated: import('@wrongstack/core/types').SessionData | undefined;
   let identityClaimed = false;
   let resumeClaim: import('@wrongstack/core/storage').SessionResumeClaim | undefined;
   let writerSwapped = false;
@@ -106,6 +283,7 @@ export async function resumeSession(
   let oldTaskPath: unknown;
 
   try {
+    setStage('reserve_ownership');
     if (state.wpaths.projectSlug && state.wpaths.globalRoot) {
       const { getSessionRegistry } = await import('@wrongstack/core/storage');
       const registry = getSessionRegistry(state.wpaths.globalRoot);
@@ -113,6 +291,7 @@ export async function resumeSession(
         sessionId: canonicalSessionId,
         projectSlug: state.wpaths.projectSlug,
         projectRoot: state.projectRoot,
+        reservationMs: RESERVATION_WINDOW_MS,
       });
     } else if (state.activateSessionIdentity) {
       // Host adapters predating the reservation API still provide an atomic
@@ -120,8 +299,52 @@ export async function resumeSession(
       await state.activateSessionIdentity(canonicalSessionId);
       identityClaimed = true;
     }
-    const resumed = await state.activeSessionStore.resume(canonicalSessionId);
+    setStage('open_journal');
+    // Hydration is the slow half of a resume — journal parse, summary rebuild,
+    // file-observation hashing, opening the append handle, and catalog-daemon
+    // round-trips for the summary manifest. On this corpus that is 2.7s for a
+    // 131 MB journal on a warm cache and far more on a cold one, against a
+    // reservation window measured in seconds. Keep the claim alive for exactly
+    // as long as the work is still running, then stop.
+    //
+    // Renewal is best-effort on purpose: a daemon predating `renew_reservation`
+    // rejects the op, and this must degrade to the old behaviour (activate
+    // decides) rather than turn a working resume into a failed one.
+    const claimToRenew = resumeClaim;
+    let renewFailures = 0;
+    const renew = (): void => {
+      if (!claimToRenew) return;
+      void claimToRenew.renew(RESERVATION_WINDOW_MS).catch((err) => {
+        if (renewFailures++ > 0) return;
+        console.error(
+          JSON.stringify({
+            level: 'warn',
+            event: 'execution.resume_reservation_renew_failed',
+            sessionId: canonicalSessionId,
+            message: err instanceof Error ? err.message : String(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      });
+    };
+    const renewTimer = setInterval(renew, RESERVATION_RENEW_MS);
+    // Do not hold the process open on the renewal timer: a resume that somehow
+    // never settles must not become the reason the CLI cannot exit.
+    renewTimer.unref?.();
+    let resumed: Awaited<ReturnType<typeof state.activeSessionStore.resume>>;
+    try {
+      resumed = await state.activeSessionStore.resume(canonicalSessionId, onLoadProgress);
+    } finally {
+      clearInterval(renewTimer);
+    }
     openedWriter = resumed.writer;
+    // Kept for the read-only fallback: once the journal is in hand, no later
+    // failure justifies re-reading (or discarding) it.
+    hydrated = resumed.data;
+    setStage('activate_ownership');
+    // One last renewal immediately before activation: the window has to cover
+    // the activate round-trip itself, not merely the load that preceded it.
+    await Promise.resolve(resumeClaim?.renew(RESERVATION_WINDOW_MS)).catch(() => undefined);
     if (resumeClaim) {
       await resumeClaim.activate({
         sessionId: canonicalSessionId,
@@ -136,12 +359,14 @@ export async function resumeSession(
       identityClaimed = true;
       await state.activateSessionIdentity?.(canonicalSessionId);
     }
+    setStage('replay_history');
     const meta = resumed.data.metadata;
     const entries = replaySessionMessages(
       resumed.data.messages,
       resumed.data.events,
       /* startId */ 1,
     );
+    setStage('read_sidecars');
     const sessionsDir = state.wpaths.projectSessions;
     const resumedTodosPath = sessionScopedPath(sessionsDir, resumed.writer.id, '.todos.json');
     const restoredTodos = await loadTodosCheckpoint(
@@ -158,6 +383,7 @@ export async function resumeSession(
     // ~108 — reassigning here (rather than shadowing via `const`) lets the
     // outer `catch` at the end of this function restore them when a
     // failure occurs AFTER `writerSwapped = true`.
+    setStage('swap_writer');
     oldWriter = agent.ctx.session;
     oldMessages = [...agent.ctx.messages];
     agent.ctx.session = resumed.writer;
@@ -184,6 +410,11 @@ export async function resumeSession(
       oldSessionRefCurrent = state.sessionRef.current;
       state.sessionRef.current = resumed.writer;
     }
+    setStage('flush_journal');
+    // Best-effort from here on. The writer is swapped and the transcript is
+    // built; a queue that will not drain is a durability problem for the NEXT
+    // turn, not a reason to tear down a resume the user can already see. It
+    // used to rethrow, which rolled the whole thing back to a blank screen.
     await agent.ctx.flushConversationJournal().catch((err) => {
       console.error(
         JSON.stringify({
@@ -193,7 +424,7 @@ export async function resumeSession(
           timestamp: new Date().toISOString(),
         }),
       );
-      throw err;
+      warn('conversation journal did not flush', err);
     });
 
     // ── Re-point session-scoped sidecars (todos/plan/task) to the resumed
@@ -209,33 +440,50 @@ export async function resumeSession(
     // the original session's todos persistence detached AND the resumed
     // session's checkpoint never bound — every subsequent todo edit on
     // the original session would write to nowhere.
+    setStage('repoint_sidecars');
     previousDetachFn = state.detachActiveTodosCheckpoint;
     oldTodos = agent.ctx.state.todos
       ? [...(agent.ctx.state.todos as import('@wrongstack/core/agent').TodoItem[])]
       : [];
     oldPlanPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.['plan.path'];
     oldTaskPath = (agent.ctx.state as { meta?: Record<string, unknown> }).meta?.['task.path'];
-    await Promise.resolve(previousDetachFn?.()).catch(() => undefined);
-    agent.ctx.state.setMeta(
-      'plan.path',
-      sessionScopedPath(sessionsDir, resumed.writer.id, '.plan.json'),
-    );
-    agent.ctx.state.setMeta(
-      'task.path',
-      sessionScopedPath(sessionsDir, resumed.writer.id, '.tasks.json'),
-    );
-    agent.ctx.state.replaceTodos(restoredTodos ?? []);
-    // Re-attach so subsequent todo edits persist to the RESUMED session file.
+    // Best-effort: a todo board that will not re-point is a warning line, not
+    // a reason to unwind an attached session. On failure the PREVIOUS session's
+    // sidecar wiring is restored here, inline — the outer rollback arm no
+    // longer runs for this block because nothing rethrows out of it.
     try {
-      state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
-        agent.ctx.state,
-        resumedTodosPath,
-        resumed.writer.id,
-        events,
-        agent.ctx.traceId,
+      await Promise.resolve(previousDetachFn?.()).catch(() => undefined);
+      agent.ctx.state.setMeta(
+        'plan.path',
+        sessionScopedPath(sessionsDir, resumed.writer.id, '.plan.json'),
       );
-    } catch {
-      state.detachActiveTodosCheckpoint = undefined;
+      agent.ctx.state.setMeta(
+        'task.path',
+        sessionScopedPath(sessionsDir, resumed.writer.id, '.tasks.json'),
+      );
+      agent.ctx.state.replaceTodos(restoredTodos ?? []);
+      // Re-attach so subsequent todo edits persist to the RESUMED session file.
+      try {
+        state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
+          agent.ctx.state,
+          resumedTodosPath,
+          resumed.writer.id,
+          events,
+          agent.ctx.traceId,
+        );
+      } catch {
+        state.detachActiveTodosCheckpoint = undefined;
+      }
+    } catch (err) {
+      warn('todo/plan sidecars were not re-pointed', err);
+      try {
+        state.detachActiveTodosCheckpoint = previousDetachFn;
+        agent.ctx.state.replaceTodos([...oldTodos]);
+        if (oldPlanPath !== undefined) agent.ctx.state.setMeta('plan.path', oldPlanPath);
+        if (oldTaskPath !== undefined) agent.ctx.state.setMeta('task.path', oldTaskPath);
+      } catch {
+        /* restoring the prior board is itself best-effort */
+      }
     }
 
     // Sync the agent's provider/model to what was used in the resumed session.
@@ -243,6 +491,7 @@ export async function resumeSession(
     // provider instance, ConfigStore, auto-compactor denominator, and context
     // chip are refreshed together. If the target provider/model is unavailable,
     // gracefully fall back to the active working provider/model.
+    setStage('restore_model');
     const currentProviderId = (agent.ctx.provider as { id?: string }).id;
     const targetProviderId =
       typeof meta.provider === 'string' && meta.provider.length > 0
@@ -268,6 +517,7 @@ export async function resumeSession(
             timestamp: new Date().toISOString(),
           }),
         );
+        warn(`could not restore ${targetProviderId}/${targetModel}`, err);
       }
     } else if (targetModel !== agent.ctx.model) {
       agent.ctx.model = targetModel;
@@ -288,6 +538,7 @@ export async function resumeSession(
     // re-bound `agent.ctx.session = oldWriter` (rollback arm) while
     // the close was already in flight against the (resumed) writer.
     // The fix is to defer the close until after the snapshot return.
+    setStage('finalize_previous_session');
     let finalizeOldWriter: (() => Promise<void>) | undefined;
     if (oldWriter && oldWriter !== resumed.writer) {
       // Capture the narrowed writer for the async closure below — TS cannot
@@ -337,11 +588,36 @@ export async function resumeSession(
 
     // Token accounting is per-session: without a reset the resumed
     // session's summary/cost chips inherit the old session's totals.
-    tokenCounter.reset();
-    tokenCounter.account(resumed.data.usage, targetModel, targetProviderId);
-    if (typeof resumed.data.usage?.input === 'number' && resumed.data.usage.input > 0) {
-      agent.ctx.lastRequestTokens = resumed.data.usage.input;
+    setStage('token_accounting');
+    // Best-effort: cost chips are cosmetic. A malformed `usage` block on an
+    // old journal used to throw here — AFTER the writer swap — and roll a
+    // fully working resume back to nothing.
+    try {
+      tokenCounter.reset();
+      tokenCounter.account(resumed.data.usage, targetModel, targetProviderId);
+    } catch (err) {
+      warn('token accounting for the resumed session failed', err);
     }
+    // The context-fill estimate is one request's prompt, and `data.usage` is
+    // the session's running total across every request it ever made — reading
+    // it here opened `/resume` with a statusline several times the size of the
+    // window. The journal's last `llm_response` is the only per-request
+    // measurement on disk; a session that never reached the model leaves the
+    // estimate unset rather than claiming a measured zero.
+    const resumedRequestTokens = projectLastRequestTokens(resumed.data.events);
+    // Assign unconditionally, including the `undefined` case: a session that
+    // never reached the model has NO measurement, and leaving the previous
+    // session's number in place makes every context surface report the size of
+    // a conversation that is no longer loaded.
+    agent.ctx.lastRequestTokens = resumedRequestTokens;
+    // `account()` above set the per-request snapshot to the value it was handed
+    // — which is the session's CUMULATIVE usage, because that is what the cost
+    // chips need. The statusline's fill ladder reads that same snapshot as its
+    // second source and only rejects it when it exceeds the window, so a
+    // session whose lifetime spend happens to fit under the ceiling had its
+    // total spend drawn as its context fill. Overwrite it with the one number
+    // that is actually a per-request prompt size.
+    tokenCounter.setCurrentRequestTokens?.(resumedRequestTokens ?? 0);
 
     // Build the context-window snapshot the TUI uses to refresh its
     // statusline chip and `/context` panel immediately after `/resume`,
@@ -352,28 +628,25 @@ export async function resumeSession(
     // capabilities.maxContext) degrades to a 0/anything chip — same as
     // today's behavior — instead of throwing.
     //
-    // `currentRequestTokens()` returns `{ input, cacheRead, cacheWrite }`,
-    // NOT a flat number. The TUI reducer at `reducers/composer.ts:563`
-    // expects a flat `number`; forwarding the object literal would coerce
-    // to NaN in the `snap.tokens > 0` guard and silently drop the
-    // snapshot at runtime. Sum the three fields explicitly — input
-    // accounts for non-cached tokens, cacheRead/cacheWrite account for
-    // the prompt-cache hit/miss that the provider already paid for.
-    const reqTokens = tokenCounter.currentRequestTokens?.();
-    const tokens =
-      (typeof reqTokens === 'number' ? reqTokens : 0) +
-      (typeof reqTokens?.input === 'number' ? reqTokens.input : 0) +
-      (typeof reqTokens?.cacheRead === 'number' ? reqTokens.cacheRead : 0) +
-      (typeof reqTokens?.cacheWrite === 'number' ? reqTokens.cacheWrite : 0);
+    // Same number the estimate above uses, and for the same reason: this chip
+    // reports how full the window is, so it must be one request's prompt. It
+    // used to sum `tokenCounter.currentRequestTokens()` — but the counter was
+    // just handed the session's CUMULATIVE usage two lines up, so the "current
+    // request" it reported was the whole session's history added together.
+    const tokens = resumedRequestTokens ?? 0;
     const maxContext =
       (agent.ctx.provider as { capabilities?: { maxContext?: number } } | undefined)?.capabilities
         ?.maxContext ?? 0;
 
-    const result = {
+    const finalText = lastAssistantTextOf(resumed.data.messages);
+    const result: SessionResumeResult = {
       entries,
       nextId: entries.length + 1,
       sessionId: resumed.writer.id,
       contextSnapshot: { tokens, maxContext },
+      attached: true,
+      warnings,
+      ...(finalText !== undefined ? { lastAssistantText: finalText } : {}),
     };
     // Now that the resume has fully succeeded, kick off the
     // fire-and-forget oldWriter close. Doing this AFTER the snapshot
@@ -457,14 +730,72 @@ export async function resumeSession(
         });
       }
     }
+    const reason = err instanceof Error ? (err.stack ?? err.message) : String(err);
     console.error(
       JSON.stringify({
         level: 'error',
         event: 'execution.resume_session_failed',
-        message: err instanceof Error ? err.message : String(err),
+        sessionId: canonicalSessionId,
+        stage,
+        message: reason,
         timestamp: new Date().toISOString(),
       }),
     );
-    return null;
+    const message = err instanceof Error ? err.message : String(err);
+    // ── Read-only fallback ──────────────────────────────────────────────
+    // Ownership is gone (rolled back above) but the transcript may not be.
+    // Reading the journal and rendering it is the half of a resume that
+    // cannot corrupt anything, and it is the half the user actually asked
+    // for: see the conversation. Show it, say plainly that the session is
+    // not attached, and leave the agent writing where it already was.
+    //
+    // `hydrated` is set once `store.resume()` returned, so a failure at
+    // activate/swap costs no second read. A failure BEFORE that (reservation
+    // conflict, missing journal) pays one `load()` — the cheap path measured
+    // at 0.4s/18 MB and 2.7s/131 MB.
+    let data = hydrated;
+    if (!data) {
+      try {
+        // try/catch, not `.catch()`: a store double (or a host predating the
+        // widened interface) can be missing `load` entirely, which throws
+        // synchronously and would replace the real reason with a TypeError.
+        data = await state.activeSessionStore.load(canonicalSessionId, onLoadProgress);
+      } catch {
+        data = undefined;
+      }
+    }
+    if (data) {
+      try {
+        const entries = replaySessionMessages(data.messages, data.events, /* startId */ 1);
+        const finalText = lastAssistantTextOf(data.messages);
+        // Report through `fail` for its swallow-the-sink guard; the `null` it
+        // returns is discarded because this path has a transcript to hand back.
+        fail(stage, message);
+        return {
+          entries,
+          nextId: entries.length + 1,
+          sessionId: canonicalSessionId,
+          // Deliberately no contextSnapshot: the chip reports the LIVE
+          // window, and the live session is still the one we rolled back to.
+          // Painting the viewed session's fill over it would be a lie.
+          attached: false,
+          warnings: [...warnings, `not attached (at ${stage}): ${message}`],
+          ...(finalText !== undefined ? { lastAssistantText: finalText } : {}),
+        };
+      } catch (renderErr) {
+        // Rendering the fallback failed too — fall through to the null
+        // contract rather than masking the ORIGINAL failure with this one.
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'execution.resume_readonly_render_failed',
+            sessionId: canonicalSessionId,
+            message: renderErr instanceof Error ? renderErr.message : String(renderErr),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+    }
+    return fail(stage, message);
   }
 }

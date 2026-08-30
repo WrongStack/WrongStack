@@ -58,6 +58,20 @@ import {
   type OfficeNodeData,
 } from './OfficeMapCanvas/utils.js';
 
+// ── Viz overlay helper ───────────────────────────────────────────────────────
+
+/**
+ * Structural wire for an agent: `client->agent`. Office ids are namespaced
+ * `${clientId}__agent-${serverId}`, so the owning client id is the prefix
+ * before `__agent-` (falls back to the coordinator edge for un-namespaced ids).
+ */
+function agentEdgeId(officeId: string): string {
+  const clientId = officeId.split('__agent-')[0];
+  return clientId && clientId !== officeId
+    ? `${clientId}->${officeId}`
+    : `coordinator->${officeId}`;
+}
+
 // ── Main Canvas Component ────────────────────────────────────────────────────
 
 export function OfficeMapCanvas() {
@@ -500,52 +514,50 @@ export function OfficeMapCanvas() {
   // Office node ids mirror the server agent id 1:1 (`agent-<serverId>`), so the
   // mapping is direct. We still build the set of currently-rendered agents (from
   // the resolved client model) to scope mailbox/iteration fan-outs to real nodes.
-  const renderedAgents = clients.flatMap((c) =>
-    c.agents.map((a) => ({
-      clientId: c.id,
-      clientType: c.type,
-      officeId: a.officeId,
-      serverId: a.serverId,
-    })),
-  );
-  const clientIds = clients.map((c) => c.id);
-
-  // serverId → officeId for the viz overlay. Office ids are namespaced per
-  // client, so a viz event (which only carries the bare agent id) maps to the
-  // attached WebUI client's node when the same id exists in several sessions.
-  const serverIdToOffice = new Map<string, string>();
-  for (const a of renderedAgents) {
-    if (!serverIdToOffice.has(a.serverId) || a.clientType === 'webui') {
-      serverIdToOffice.set(a.serverId, a.officeId);
+  //
+  // Memoized off `clients` (itself memoized off the snapshot/fleet stores) so
+  // the id→node mapping has a stable identity between snapshot changes. The
+  // overlay effect depends on this model directly — NOT on `fleetAgents` as a
+  // proxy — closing the window where a viz event could resolve against a
+  // mapping built from a previous snapshot.
+  const vizTargetModel = useMemo(() => {
+    const renderedAgents = clients.flatMap((c) =>
+      c.agents.map((a) => ({
+        clientId: c.id,
+        clientType: c.type,
+        officeId: a.officeId,
+        serverId: a.serverId,
+      })),
+    );
+    // serverId → officeId for the viz overlay. Office ids are namespaced per
+    // client, so a viz event (which only carries the bare agent id) maps to the
+    // attached WebUI client's node when the same id exists in several sessions.
+    const serverIdToOffice = new Map<string, string>();
+    for (const a of renderedAgents) {
+      if (!serverIdToOffice.has(a.serverId) || a.clientType === 'webui') {
+        serverIdToOffice.set(a.serverId, a.officeId);
+      }
     }
-  }
+    return { renderedAgents, serverIdToOffice, clientIds: clients.map((c) => c.id) };
+  }, [clients]);
 
-  function toOfficeAgentId(serverId: string): string {
-    return serverIdToOffice.get(serverId) ?? `agent-${serverId}`;
-  }
-
-  // The structural wire for an agent is `client->agent`. Office ids are
-  // namespaced `${clientId}__agent-${serverId}`, so the owning client id is the
-  // prefix before `__agent-` (falls back to the coordinator edge for un-namespaced ids).
-  function agentEdgeId(officeId: string): string {
-    const clientId = officeId.split('__agent-')[0];
-    return clientId && clientId !== officeId
-      ? `${clientId}->${officeId}`
-      : `coordinator->${officeId}`;
-  }
-
-  function vizEventToTargets(event: (typeof vizEvents)[0]): {
+  const vizEventToTargets = useCallback((event: (typeof vizEvents)[0]): {
     nodes: string[];
     edges: string[];
     status: ClientStatus;
-  } {
+  } => {
+    const toOfficeAgentId = (serverId: string): string =>
+      vizTargetModel.serverIdToOffice.get(serverId) ?? `agent-${serverId}`;
     switch (event.kind) {
       case 'mailbox:send':
       case 'mailbox:deliver':
         return {
           nodes: ['mailbox'],
           // Mail flows from the hub out to every connected client.
-          edges: event.kind === 'mailbox:send' ? clientIds.map((id) => `mailbox->${id}`) : [],
+          edges:
+            event.kind === 'mailbox:send'
+              ? vizTargetModel.clientIds.map((id) => `mailbox->${id}`)
+              : [],
           status: 'active',
         };
 
@@ -596,7 +608,7 @@ export function OfficeMapCanvas() {
       case 'iteration:end':
         return {
           nodes: ['coordinator'],
-          edges: renderedAgents.map((a) => agentEdgeId(a.officeId)),
+          edges: vizTargetModel.renderedAgents.map((a) => agentEdgeId(a.officeId)),
           status: event.kind === 'iteration:start' ? 'streaming' : 'active',
         };
 
@@ -693,21 +705,49 @@ export function OfficeMapCanvas() {
       default:
         return { nodes: [], edges: [], status: 'idle' };
     }
-  }
+  }, [vizTargetModel]);
 
   // Handle viz events for live updates — now handles ALL event types.
+  // Coalescing: the store can append several events between two renders
+  // (agents spam tools faster than React commits). Track the id of the last
+  // processed newest event and consume EVERY event newer than it, oldest
+  // first, so the newest status per node wins and burst events are not
+  // silently dropped the way the old vizEvents[0]-only path did.
+  const lastProcessedVizEventIdRef = useRef<string | null>(null);
+  const vizCoalesceArmedRef = useRef(false);
   useEffect(() => {
     if (vizEvents.length === 0) return;
 
-    const latestEvent = vizEvents[0];
-    if (!latestEvent) return;
+    if (!vizCoalesceArmedRef.current) {
+      // First run after mount: adopt the current window without replaying
+      // it — these events predate the live view.
+      vizCoalesceArmedRef.current = true;
+      lastProcessedVizEventIdRef.current = vizEvents[0]?.id ?? null;
+      return;
+    }
 
-    const { nodes: targetNodes, edges: targetEdges, status } = vizEventToTargets(latestEvent);
+    const lastProcessedId = lastProcessedVizEventIdRef.current;
+    lastProcessedVizEventIdRef.current = vizEvents[0]?.id ?? null;
+    // Events are newest-first: everything in front of the previously
+    // processed event is fresh. If that event was evicted from the ring
+    // buffer (long burst), the whole visible window is fresh.
+    const freshEnd = lastProcessedId
+      ? vizEvents.findIndex((event) => event.id === lastProcessedId)
+      : -1;
+    if (freshEnd === 0) return; // no new events since the last run
+    const freshCount = freshEnd === -1 ? vizEvents.length : freshEnd;
+
     const now = Date.now();
+    // Per-node latest status across the fresh slice — the newest event that
+    // targeted a node decides its status.
+    const nodeStatuses = new Map<string, ClientStatus>();
+    const boostedEdges = new Set<string>();
 
-    // Highlight target nodes and boost their activity
-    if (targetNodes.length > 0) {
-      targetNodes.forEach((nodeId) => {
+    for (let index = freshCount - 1; index >= 0; index--) {
+      const event = vizEvents[index];
+      if (!event) continue;
+      const { nodes: targetNodes, edges: targetEdges, status } = vizEventToTargets(event);
+      for (const nodeId of targetNodes) {
         activeNodesRef.current.set(nodeId, now + ACTIVE_MS);
         const currentActivity = vizActivityRef.current.get(nodeId) ?? 0;
         // Boost: new activity = existing + (1 - existing) * 0.5 so repeated events saturate toward 1
@@ -715,34 +755,40 @@ export function OfficeMapCanvas() {
           nodeId,
           Math.min(1, currentActivity + (1 - currentActivity) * 0.5),
         );
-      });
+        nodeStatuses.set(nodeId, status as ClientStatus);
+      }
+      for (const edgeId of targetEdges) {
+        const current = edgeIntensitiesRef.current.get(edgeId) ?? 0;
+        edgeIntensitiesRef.current.set(edgeId, Math.min(1, current + 0.5));
+        boostedEdges.add(edgeId);
+      }
+    }
 
+    // Highlight target nodes and boost their activity — one setNodes for the
+    // whole coalesced batch, not one per event.
+    if (nodeStatuses.size > 0) {
       setNodes((nds) =>
-        nds.map((n) =>
-          targetNodes.includes(n.id)
-            ? {
+        nds.map((n) => {
+          const nextStatus = nodeStatuses.get(n.id);
+          return nextStatus === undefined
+            ? n
+            : {
                 ...n,
                 data: {
                   ...n.data,
-                  status: status as ClientStatus,
+                  status: nextStatus,
                   vizActivity: vizActivityRef.current.get(n.id) ?? 0,
                 },
-              }
-            : n,
-        ),
+              };
+        }),
       );
     }
 
     // Animate target edges — boost their intensity.
-    if (targetEdges.length > 0) {
-      targetEdges.forEach((edgeId) => {
-        const current = edgeIntensitiesRef.current.get(edgeId) ?? 0;
-        edgeIntensitiesRef.current.set(edgeId, Math.min(1, current + 0.5));
-      });
-
+    if (boostedEdges.size > 0) {
       setEdges((eds) =>
         eds.map((e) =>
-          targetEdges.includes(e.id)
+          boostedEdges.has(e.id)
             ? {
                 ...e,
                 animated: true,
@@ -756,7 +802,7 @@ export function OfficeMapCanvas() {
         ),
       );
     }
-  }, [vizEvents, setNodes, setEdges, ACTIVE_MS, fleetAgents]);
+  }, [vizEvents, vizEventToTargets, setNodes, setEdges, ACTIVE_MS]);
 
   // Decay edge intensities and node activity over time (runs every second).
   //

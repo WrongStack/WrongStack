@@ -40,6 +40,12 @@ function globToRegex(pat: string): RegExp {
       re += '[^/\\\\]';
       i++;
     } else if (c === '[') {
+      const closeIndex = pat.indexOf(']', i + 1);
+      if (closeIndex === -1) {
+        re += '\\[';
+        i++;
+        continue;
+      }
       let cls = '[';
       i++;
       if (pat[i] === '!' || pat[i] === '^') {
@@ -93,10 +99,12 @@ function baseDir(pat: string): string {
 export async function expandGlob(pattern: string): Promise<string[]> {
   if (!isGlob(pattern)) return [pattern];
 
+  const normalized = pattern.replace(/\\/g, '/');
   const results = new Set<string>();
   const abs = isAbsolute(pattern);
-  const base = abs ? baseDir(pattern) : baseDir(pattern);
-  const relPat = base === '.' ? pattern : pattern.slice(base.length + 1);
+  const base = baseDir(pattern);
+  const baseNorm = base.replace(/\\/g, '/');
+  const relPat = base === '.' ? normalized : normalized.slice(baseNorm.length + 1);
 
   async function walk(dir: string, pat: string): Promise<void> {
     let entries: import('node:fs').Dirent[];

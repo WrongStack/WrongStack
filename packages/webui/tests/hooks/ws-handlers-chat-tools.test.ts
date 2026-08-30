@@ -17,9 +17,7 @@ const notifyIfHidden = vi.fn();
 const ensureNotificationPermission = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/lib/notify', () => ({ notifyIfHidden, ensureNotificationPermission }));
 
-const { useChatStore, useSessionStore, useUIStore } = await import(
-  '../../src/stores'
-);
+const { useChatStore, useSessionStore, useUIStore } = await import('../../src/stores');
 const { useLocalPrefs } = await import('../../src/stores/local-prefs');
 const { streamCoalescer } = await import('../../src/lib/stream-coalescer');
 const {
@@ -159,7 +157,9 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
     it('is dropped for a non-active session', () => {
       useSessionStore.setState({ session: { id: 's1' } } as never);
       const { handleTextDelta } = chatHandlerMapModule();
-      handleTextDelta(msg('provider.text_delta', { sessionId: 'other', text: 'x', messageId: 'y' }));
+      handleTextDelta(
+        msg('provider.text_delta', { sessionId: 'other', text: 'x', messageId: 'y' }),
+      );
       flush();
       expect(messages()).toHaveLength(0);
     });
@@ -208,7 +208,12 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
     });
 
     it('reuses the existing bubble when the same tool_use id repeats', () => {
-      const frame = msg('tool.started', { id: 'tu1', name: 'read_file', input: {}, messageId: 'm' });
+      const frame = msg('tool.started', {
+        id: 'tu1',
+        name: 'read_file',
+        input: {},
+        messageId: 'm',
+      });
       handleToolStarted(frame);
       const count = messages().length;
       handleToolStarted(frame);
@@ -222,7 +227,9 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
       const assistantId = chat().currentAssistantMessageId;
       expect(assistantId).not.toBeNull();
 
-      handleToolStarted(msg('tool.started', { id: 'tu1', name: 'bash', input: {}, messageId: 'm' }));
+      handleToolStarted(
+        msg('tool.started', { id: 'tu1', name: 'bash', input: {}, messageId: 'm' }),
+      );
       const assistant = messages().find((m) => m.id === assistantId);
       expect(assistant?.streaming).toBeFalsy();
       expect(chat().currentAssistantMessageId).toBeNull();
@@ -244,7 +251,11 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
     it('appends progress lines to the owning tool bubble', () => {
       startTool();
       handleToolProgress(
-        msg('tool.progress', { id: 'tu1', name: 'bash', event: { type: 'stdout', text: 'line 1' } }),
+        msg('tool.progress', {
+          id: 'tu1',
+          name: 'bash',
+          event: { type: 'stdout', text: 'line 1' },
+        }),
       );
       flush();
       const bubble = messages().find((m) => m.toolUseId === 'tu1');
@@ -313,6 +324,31 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
       expect(chat().executions.get('tu1')?.completedAt).toBeGreaterThan(0);
     });
 
+    it('completes a tool bubble restored after F5', () => {
+      chat().setMessages([
+        {
+          id: 'msg-tool',
+          role: 'tool',
+          content: '',
+          toolName: 'bash',
+          toolInput: {},
+          toolUseId: 'tu1',
+          timestamp: 123,
+        },
+      ] as never);
+
+      handleToolExecuted(
+        msg('tool.executed', { id: 'tu1', name: 'bash', ok: true, output: 'done', durationMs: 9 }),
+      );
+
+      expect(messages()[0]).toMatchObject({ toolResult: 'done', toolDurationMs: 9 });
+      expect(chat().executions.get('tu1')).toMatchObject({
+        ok: true,
+        output: 'done',
+        durationMs: 9,
+      });
+    });
+
     it('treats a missing ok flag as success', () => {
       startTool();
       handleToolExecuted(msg('tool.executed', { id: 'tu1', name: 'bash', durationMs: 1 }));
@@ -321,7 +357,9 @@ describe('chat ws-handlers — iteration / deltas / tool lifecycle', () => {
 
     it('defaults a missing output to an empty string', () => {
       startTool();
-      handleToolExecuted(msg('tool.executed', { id: 'tu1', name: 'bash', ok: true, durationMs: 1 }));
+      handleToolExecuted(
+        msg('tool.executed', { id: 'tu1', name: 'bash', ok: true, durationMs: 1 }),
+      );
       const bubble = messages().find((m) => m.toolUseId === 'tu1');
       expect(bubble?.toolResult ?? '').toBe('');
     });

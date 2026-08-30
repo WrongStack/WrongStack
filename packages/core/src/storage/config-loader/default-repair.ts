@@ -116,6 +116,7 @@ export function repairConfigDefaults(input: Record<string, unknown>): ConfigDefa
       }
 
       const defaultIsArray = Array.isArray(defaultValue);
+      const defaultIsNumber = typeof defaultValue === 'number';
       // Array element shape is NOT validated here — if an array default's
       // element type changes in a future version, existing arrays with the
       // old element type will be kept even though their elements no longer
@@ -124,7 +125,9 @@ export function repairConfigDefaults(input: Record<string, unknown>): ConfigDefa
       // (b) the config-doctor is a best-effort repair, not a type checker.
       const compatible = defaultIsArray
         ? Array.isArray(current)
-        : !Array.isArray(current) && typeof current === typeof defaultValue;
+        : defaultIsNumber
+          ? typeof current === 'number' && Number.isFinite(current)
+          : !Array.isArray(current) && typeof current === typeof defaultValue;
       if (!compatible) {
         target[key] = cloneJsonValue(defaultValue);
         changes.push({ path, action: 'replaced' });

@@ -2,8 +2,8 @@ import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it, vi } from 'vitest';
-import { installBrokenPipeHandlers } from '../src/cli-entry-point.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { installBrokenPipeHandlers, scheduleForcedExit } from '../src/cli-entry-point.js';
 
 describe('CLI crash shield', () => {
   // `runAsMain` early-returns unless the module IS the process entry point, so
@@ -100,5 +100,102 @@ describe('CLI broken-pipe handling', () => {
 
     expect(stdout.listenerCount('error')).toBe(0);
     expect(stderr.listenerCount('error')).toBe(0);
+  });
+});
+
+describe('forced-exit scheduling', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('extends the grace window while a fs write stream stays active, then forces at the ceiling', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const exit = vi.fn();
+    scheduleForcedExit(7, {
+      getActiveResources: () => ['WriteStream'],
+      exit,
+    });
+
+    // Under the 5s ceiling: every 500ms check finds a durability handle and
+    // re-arms instead of killing.
+    vi.advanceTimersByTime(4_500);
+    expect(exit).not.toHaveBeenCalled();
+
+    // At the ceiling the window stops extending and the exit is forced.
+    vi.advanceTimersByTime(1_000);
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(7);
+
+    const payload = JSON.parse(String(warn.mock.calls[0]?.[0])) as {
+      event: string;
+      exitCode: number;
+      waitedMs: number;
+      extensions: number;
+      activeResources: string[];
+    };
+    expect(payload.event).toBe('exit.forced');
+    expect(payload.exitCode).toBe(7);
+    expect(payload.waitedMs).toBeGreaterThanOrEqual(5_000);
+    expect(payload.extensions).toBeGreaterThan(0);
+    expect(payload.activeResources).toContain('WriteStream');
+  });
+
+  it('caps socket-only extensions at one extra window so idle keep-alives cannot stall exit', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const exit = vi.fn();
+    scheduleForcedExit(0, { getActiveResources: () => ['TCPSocketWrap'], exit });
+
+    // First window: the socket earns one extension — it may be mid-flush.
+    vi.advanceTimersByTime(500);
+    expect(exit).not.toHaveBeenCalled();
+
+    // Second check: the socket budget is spent, so exit is forced instead of
+    // stalling to the 5s ceiling on an idle keep-alive.
+    vi.advanceTimersByTime(500);
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(0);
+
+    const payload = JSON.parse(String(warn.mock.calls[0]?.[0])) as {
+      waitedMs: number;
+      extensions: number;
+    };
+    expect(payload.waitedMs).toBe(1_000);
+    expect(payload.extensions).toBe(1);
+  });
+
+  it('does not extend for handles that cannot carry writes (TTYWrap), but still reports the forced exit', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const exit = vi.fn();
+    scheduleForcedExit(0, { getActiveResources: () => ['TTYWrap'], exit });
+
+    vi.advanceTimersByTime(500);
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(0);
+
+    const payload = JSON.parse(String(warn.mock.calls[0]?.[0])) as {
+      event: string;
+      waitedMs: number;
+      extensions: number;
+      activeResources: string[];
+    };
+    expect(payload.event).toBe('exit.forced');
+    expect(payload.waitedMs).toBe(500);
+    expect(payload.extensions).toBe(0);
+    expect(payload.activeResources).toEqual(['TTYWrap']);
+  });
+
+  it('exits silently when the loop has nothing left to drain', () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const exit = vi.fn();
+    scheduleForcedExit(3, { getActiveResources: () => [], exit });
+
+    vi.advanceTimersByTime(2_000);
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(3);
+    expect(warn).not.toHaveBeenCalled();
   });
 });

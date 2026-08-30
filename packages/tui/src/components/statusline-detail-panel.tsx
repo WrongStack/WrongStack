@@ -10,7 +10,7 @@ import {
   truncatePanelText,
   useMonitorSize,
 } from './monitor-shell.js';
-import { fmtElapsed, fmtMemory, renderMeter, truncateChip } from './status-bar-format.js';
+import { fmtElapsed, fmtMemory, fmtRatioPct, renderMeter, truncateChip } from './status-bar-format.js';
 import type { StatusBarProps } from './status-bar-types.js';
 import { STATUSLINE_ITEMS } from './statusline-picker.js';
 
@@ -72,7 +72,7 @@ export function StatuslineDetailPanel(
   const elapsedMs = startedAt != null ? Date.now() - startedAt : 0;
   const stateLabel = stateChipLabel(state, fleet?.running ?? 0, thinkingWord);
   const ctxRatio = context ? context.used / context.max : 0;
-  const ctxPct = context ? `${Math.min(Math.round(ctxRatio * 100), 100)}%` : '—';
+  const ctxPct = context ? fmtRatioPct(ctxRatio) : '—';
 
   function chipRow(
     label: string,

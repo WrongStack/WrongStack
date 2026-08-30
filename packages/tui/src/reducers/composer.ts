@@ -3,7 +3,8 @@ import type { Action } from '../app-action-type.js';
 import type { QueueItem, State } from '../app-state.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
 import { filterResourceMenuItems } from '../components/resource-menu.js';
-import { retainTuiHistory } from '../history-retention.js';
+import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from '../history-retention.js';
+import { appendResumeLog, type ResumeLoadState, renderResumeLoadBlock } from '../resume-load.js';
 import { getActiveThemeName, THEME_OPTIONS } from '../theme.js';
 import { closePanels, MAX_TOOL_STREAM_RETAINED_CHARS, retainStreamTail } from './helpers.js';
 
@@ -75,6 +76,10 @@ const composerActionTypes = [
   'resumePickerHint',
   'resumePickerError',
   'replaceHistory',
+  'resumeLoadStart',
+  'resumeLoadTick',
+  'resumeStreamChunk',
+  'resumeLoadAbort',
 ] as const satisfies readonly Action['type'][];
 
 type ComposerAction = Extract<Action, { type: (typeof composerActionTypes)[number] }>;
@@ -682,7 +687,118 @@ export function reduceComposer(state: State, action: ComposerAction): State {
     case 'resumePickerHint':
       return { ...state, resumePicker: { ...state.resumePicker, hint: action.text } };
     case 'resumePickerError':
-      return { ...state, resumePicker: { ...state.resumePicker, error: action.text, busy: false } };
+      return {
+        ...state,
+        resumePicker: { ...state.resumePicker, error: action.text, busy: false, hint: undefined },
+      };
+    case 'resumeLoadStart': {
+      // Wipe to the same clean slate `/clear` leaves: the banner and nothing
+      // else. The previous conversation must not sit under a different
+      // session's loading block — that is how the user loses track of which
+      // transcript is on screen.
+      const banner = state.entries.find((e) => e.kind === 'banner');
+      const blockId = (banner?.id ?? 0) + 1;
+      const load: ResumeLoadState = {
+        sessionId: action.sessionId,
+        label: action.label,
+        blockEntryId: blockId,
+        phase: 'reading',
+        loadedBytes: 0,
+        totalBytes: 0,
+        log: [],
+        replayed: 0,
+        total: 0,
+        frame: 0,
+      };
+      return {
+        ...state,
+        entries: [
+          ...(banner ? [banner] : []),
+          { id: blockId, kind: 'info' as const, text: renderResumeLoadBlock(load) },
+        ],
+        nextId: blockId + 1,
+        historyGen: state.historyGen + 1,
+        // Pin the view to the tail so the block, and then the streaming
+        // transcript, stay in sight without the user scrolling.
+        historyScrolled: false,
+        // Resume posture, set at the START of the operation rather than at the
+        // commit: an auto-proceed countdown must not arm during the seconds the
+        // journal is being read either.
+        historyBudget: TUI_RESUME_HISTORY_BUDGET,
+        autoProceedHold: true,
+        resumeLoad: load,
+        // Drop the LEAVING session's context reading with its transcript.
+        //
+        // `state.leader.ctxTokens` is the statusline's and `/context`'s
+        // first-choice source, and nothing else clears it on a resume (the
+        // agent loop only rewrites it on the next request). Left in place it
+        // outlives the conversation it measured: the chip kept reporting a
+        // 400k session's fill after resuming a 5k one, and would go on doing so
+        // for a resumed session that never reached the model at all. Cleared,
+        // the fill ladder falls through to the local estimate over whatever
+        // context is actually loaded — which stays correct for a read-only
+        // resume too, where the agent never left the session it was in.
+        leader: { ...state.leader, ctxTokens: undefined, ctxMaxTokens: undefined },
+        contextChipVersion: state.contextChipVersion + 1,
+      };
+    }
+    case 'resumeLoadTick': {
+      const current = state.resumeLoad;
+      // Late ticks after an abort/finish are expected: the loader is throttled
+      // and the spinner interval can fire once more before it is cleared.
+      if (!current) return state;
+      const next: ResumeLoadState = {
+        ...current,
+        frame: current.frame + 1,
+        ...(action.loadedBytes !== undefined ? { loadedBytes: action.loadedBytes } : {}),
+        ...(action.totalBytes !== undefined ? { totalBytes: action.totalBytes } : {}),
+        ...(action.note !== undefined ? { log: appendResumeLog(current.log, action.note) } : {}),
+      };
+      const text = renderResumeLoadBlock(next);
+      const entries = state.entries.map((entry) =>
+        entry.id === current.blockEntryId && entry.kind === 'info' ? { ...entry, text } : entry,
+      );
+      return { ...state, entries, resumeLoad: next };
+    }
+    case 'resumeStreamChunk': {
+      const first = state.resumeLoad?.phase === 'reading';
+      // The first batch drops the progress block: from here the transcript
+      // itself is the progress indicator, scrolling into place the way it did
+      // when it was live.
+      const base = first ? state.entries.filter((e) => e.kind === 'banner') : state.entries;
+      let nextId = first ? (base.at(-1)?.id ?? 0) + 1 : state.nextId;
+      const appended = [...base];
+      for (const entry of action.entries) appended.push({ ...entry, id: nextId++ });
+      const replayed = (first ? 0 : (state.resumeLoad?.replayed ?? 0)) + action.entries.length;
+      const snap = action.contextSnapshot;
+      return {
+        ...state,
+        entries: retainTuiHistory(appended, TUI_RESUME_HISTORY_BUDGET),
+        nextId,
+        historyScrolled: false,
+        historyGen: first ? state.historyGen + 1 : state.historyGen,
+        resumeLoad: action.done
+          ? null
+          : state.resumeLoad
+            ? { ...state.resumeLoad, phase: 'replaying', replayed, total: action.total }
+            : null,
+        ...(action.done && snap && snap.tokens > 0
+          ? {
+              leader: {
+                ...state.leader,
+                ctxTokens: snap.tokens,
+                ctxMaxTokens: snap.maxContext > 0 ? snap.maxContext : state.leader.ctxMaxTokens,
+              },
+              contextChipVersion: state.contextChipVersion + 1,
+            }
+          : {}),
+      };
+    }
+    case 'resumeLoadAbort':
+      // Leaves the entries alone: the block stays as the last thing that
+      // happened, and the caller writes the reason beneath it. Blanking the
+      // screen here would erase the only record of what was attempted.
+      return state.resumeLoad ? { ...state, resumeLoad: null } : state;
     case 'replaceHistory': {
       // Preserve any existing banner entries (kind='banner') and prepend them
       // to the replayed history so the startup greeting survives a resume.
@@ -719,9 +835,18 @@ export function reduceComposer(state: State, action: ComposerAction): State {
           : state.leader;
       return {
         ...state,
-        entries: retainTuiHistory([...banners, ...shifted]),
+        entries: retainTuiHistory([...banners, ...shifted], TUI_RESUME_HISTORY_BUDGET),
         nextId,
         historyGen: state.historyGen + 1,
+        // Persist the widened budget: the "Resumed session …" line dispatched
+        // immediately after this would otherwise re-trim the transcript to the
+        // live 400/1 MB window one tick later.
+        historyBudget: TUI_RESUME_HISTORY_BUDGET,
+        // A resume lands WAITING. Restoring the session's todo board would
+        // otherwise arm auto-proceed and start a turn on a countdown that the
+        // user never asked for. Autonomy itself is untouched; the next manual
+        // submit releases the hold.
+        autoProceedHold: true,
         leader: leaderWithSnap,
         contextChipVersion: state.contextChipVersion + 1,
       };

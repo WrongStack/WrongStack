@@ -103,7 +103,7 @@ describe('SessionList workspace', () => {
     expect(props.resumeSession).toHaveBeenCalledExactlyOnceWith('session-1');
   });
 
-  it('switches an already-open background tab without asking the backend to resume it', () => {
+  it('offers no Resume for a session that already owns a slot, and switches on the row', () => {
     useSessionTabStore.setState({
       openTabIds: ['session-active', 'session-1'],
       lastSeenCounts: {},
@@ -113,14 +113,19 @@ describe('SessionList workspace', () => {
     useChatLanes.setState({ activeSessionId: 'session-active' });
     const props = renderWorkspace();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
+    // One session, one slot. A conversation that is already on screen cannot
+    // be "resumed" — the tab holds the richer record, and re-reading it from
+    // disk would replace live tool cards and audit markers with a plainer
+    // replay. Offering the button promised exactly that, so it is not there.
+    expect(screen.queryByRole('button', { name: 'Resume' })).toBeNull();
+    // The row itself is the switch affordance, and the badge says where it is.
+    expect(screen.getByText('Tab 2')).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: /Rebuild the WebUI/ }));
 
     expect(useSessionTabStore.getState().openTabIds).toEqual(['session-active', 'session-1']);
     expect(useSessionLanes.getState().activeSessionId).toBe('session-1');
-    // The row's Resume button on a session that is ALREADY in a slot is a
-    // switch, nothing more: the tab holds the conversation, so reopening it
-    // would replace what it shows with a poorer replay. The server hears
-    // `session.focus` instead (see session-tab-store).
+    // The server hears `session.focus`, never a resume (see session-tab-store).
     expect(props.resumeSession).not.toHaveBeenCalled();
   });
 

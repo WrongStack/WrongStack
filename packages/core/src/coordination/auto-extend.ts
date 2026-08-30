@@ -105,6 +105,10 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
             Math.ceil(limit * (1 + factor)),
             ceiling.timeoutMs ?? DEFAULT_CEILING.timeoutMs,
           );
+          if (next <= limit) {
+            deny();
+            return;
+          }
           extend({ timeoutMs: next });
         } else {
           // No new work since the last timeout extension — the agent is stuck.
@@ -122,6 +126,10 @@ export function attachAutoExtend(events: EventBus, policy: AutoExtendPolicy = {}
       const field = FIELD_BY_KIND[kind];
       const cap = ceiling[field] ?? DEFAULT_CEILING[field];
       const next = Math.min(Math.ceil(limit * (1 + factor)), cap);
+      if (next <= limit) {
+        deny();
+        return;
+      }
       extend({ [field]: next });
     }),
   ];

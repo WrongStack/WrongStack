@@ -194,7 +194,8 @@ export async function getPackagesByAgent(
   const map = new Map<string, PackageAuthorEntry>();
   for (const e of log.entries) {
     if (e.agentId === agentId) {
-      const key = `${e.manifestPath}|${e.packageName}`;
+      const normPath = e.manifestPath.replace(/\\/g, '/');
+      const key = `${normPath}|${e.packageName}`;
       map.set(key, e);
     }
   }

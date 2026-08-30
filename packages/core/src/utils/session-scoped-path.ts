@@ -13,7 +13,7 @@ import { ERROR_CODES, FsError } from '../types/errors.js';
  * several stores ended up throwing on every modern session id.
  */
 export function sessionScopedPath(dir: string, sessionId: string, suffix: string): string {
-  if (!sessionId || sessionId.includes('\\') || sessionId.includes('..')) {
+  if (!sessionId || sessionId.includes('..') || sessionId.includes('\\')) {
     throw invalid(sessionId);
   }
   const resolved = path.resolve(dir, `${sessionId}${suffix}`);

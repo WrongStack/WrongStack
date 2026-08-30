@@ -44,7 +44,10 @@ export function containedJsonlPath(sessionsDir: string, id: string): string | un
  * display text — transcript content is untrusted picker input. */
 function stripControlChars(text: string): string {
   // eslint-disable-next-line no-control-regex
-  return text.replaceAll(/\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)|[\u0000-\u001f\u007f-\u009f]/g, '');
+  return text.replaceAll(
+    /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*(?:\x07|\x1b\\)|[\u0000-\u001f\u007f-\u009f]/g,
+    '',
+  );
 }
 
 function truncate(text: string): string {
@@ -74,7 +77,10 @@ interface UserInputHit {
 }
 
 /** Parse a raw JSONL chunk and return the first and last user_input events. */
-function scanUserInputs(chunk: string): { first?: UserInputHit | undefined; last?: UserInputHit | undefined } {
+function scanUserInputs(chunk: string): {
+  first?: UserInputHit | undefined;
+  last?: UserInputHit | undefined;
+} {
   let first: UserInputHit | undefined;
   let last: UserInputHit | undefined;
   for (const line of chunk.split('\n')) {
@@ -142,12 +148,43 @@ function effectiveLastActivity(s: SessionSummary): string {
 }
 
 /**
+ * Did anything actually happen in this session?
+ *
+ * Every launch opens a session, and most of them are abandoned before a single
+ * prompt — so the raw store listing is mostly empty shells, and the ones worth
+ * resuming are pushed off the end of the window by them.
+ *
+ * The test is deliberately a union rather than `messageCount > 0`: a killed
+ * process never writes its close-time summary, so a session with a full
+ * transcript can still report zero counts. `enrichStubSummaries` recovers its
+ * title/lastUserMessage from real `user_input` events in the journal, and those
+ * derived fields are the only evidence such a session has. Requiring the
+ * counter alone would hide exactly the crashed sessions a user most wants back.
+ */
+function hasActivity(s: SessionSummary): boolean {
+  return (
+    (s.messageCount ?? 0) > 0 ||
+    (s.iterationCount ?? 0) > 0 ||
+    (s.toolCallCount ?? 0) > 0 ||
+    (s.tokenTotal ?? 0) > 0 ||
+    Boolean(s.title?.trim()) ||
+    Boolean(s.lastUserMessage?.trim())
+  );
+}
+
+/**
  * Build the /resume picker list from an over-fetched store pool.
  *
  * Enrichment can *raise* a stub's lastActivityAt to its real kill time, so
  * ordering must happen after enrichment — otherwise stale-ordered stubs crowd
  * richer sessions out of the top-N window. Fetch a pool ~3x the requested
- * limit, enrich, re-sort most-recent-first (store COALESCE order), slice.
+ * limit, enrich, drop the empties, re-sort most-recent-first (store COALESCE
+ * order), slice.
+ *
+ * Order matters twice over: the empties are dropped AFTER enrichment (which is
+ * what gives a crashed session its evidence of activity) and BEFORE the slice
+ * (so the picker still fills up to `limit` with real sessions instead of
+ * returning a short list full of holes).
  */
 export async function selectPickerSessions(
   storeList: (limit: number) => Promise<SessionSummary[]>,
@@ -157,6 +194,7 @@ export async function selectPickerSessions(
   const poolSize = Math.min(200, Math.max(limit, limit * 3));
   const enriched = await enrichStubSummaries(await storeList(poolSize), sessionsDir);
   return enriched
+    .filter(hasActivity)
     .sort((a, b) => effectiveLastActivity(b).localeCompare(effectiveLastActivity(a)))
     .slice(0, limit);
 }

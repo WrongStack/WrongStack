@@ -188,6 +188,23 @@ export function useNextStepsAutoSubmit({
       return;
     }
 
+    // A resume just landed: show the conversation and STOP. The restored todo
+    // board looks like grounded work to `selectAutoProceedCandidate`, so
+    // without this a resumed session starts a turn on a countdown the user
+    // never armed. Autonomy is untouched (it is the user's setting) — the hold
+    // clears on the next manual submit, the same trigger that re-arms the
+    // consecutive-turn cap.
+    if (state.autoProceedHold) {
+      clearInterval(nextStepsAutoSubmitTimerRef.current);
+      nextStepsAutoSubmitTimerRef.current = undefined;
+      setNextStepsAutoSubmitCountdown(null);
+      setNextStepsAutoSubmitLabel(null);
+      nextStepsAutoSubmitSuggestionRef.current = null;
+      nextStepsAutoSubmitSourceRef.current = null;
+      nextStepsAutoSubmitTodoIdRef.current = null;
+      return;
+    }
+
     // Don't start while enhance panel or a bare-continue confirm panel is active
     if (
       state.enhance != null ||
@@ -520,6 +537,7 @@ export function useNextStepsAutoSubmit({
     };
   }, [
     state.status,
+    state.autoProceedHold,
     autonomyLive,
     state.enhance,
     state.enhanceBusy,

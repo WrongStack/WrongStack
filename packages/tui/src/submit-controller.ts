@@ -238,6 +238,10 @@ export function createSubmitController(host: SubmitControllerHost) {
     autoSubmitStreakRef.current = 0;
     autoSubmitCapWarnedRef.current = false;
     autoSubmitLoopGuardRef.current.reset();
+    // …and releases the post-resume hold. Only this path reaches here: the
+    // auto-proceed loop feeds `runBlocks` directly, so it cannot release its
+    // own hold. That asymmetry is the point — a resume waits for a human.
+    dispatch({ type: 'autoProceedRelease' });
     // Submitting anything snaps the managed viewport back to the newest output
     // (no-op when already pinned or outside mouse mode).
     host.refs.historyScroll.current?.scrollToBottom();
@@ -447,10 +451,7 @@ export function createSubmitController(host: SubmitControllerHost) {
             // Wait briefly for any in-flight abort to settle into
             // 'idle' before kicking the next iteration — otherwise
             // runBlocks would early-return on the busy guard.
-            await waitForIdleSettle(
-              () => stateRef.current.status === 'idle',
-              1500,
-            );
+            await waitForIdleSettle(() => stateRef.current.status === 'idle', 1500);
             // Submit directly without placing the text into the input field.
             // The draft was already cleared above (clearDraft before dispatch),
             // and runBlocks will handle the execution. The finally block
@@ -832,10 +833,7 @@ export function createSubmitController(host: SubmitControllerHost) {
           // Wait briefly for the aborting iteration to settle into 'idle' before
           // kicking the next one — otherwise runBlocks early-returns on the busy
           // guard. Same wait-loop the `/steer` runText path uses.
-          await waitForIdleSettle(
-            () => stateRef.current.status === 'idle',
-            1500,
-          );
+          await waitForIdleSettle(() => stateRef.current.status === 'idle', 1500);
           try {
             stampJournalMarker();
             await runBlocks(steerBlocks);

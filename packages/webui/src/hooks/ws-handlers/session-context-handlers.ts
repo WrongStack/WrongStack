@@ -11,6 +11,7 @@ import {
 } from '@/lib/ws-client-utils';
 import { useConfigStore } from '@/stores';
 import { activeChatLane, activeLaneId, type ChatLaneActions } from '@/stores/chat-lanes';
+import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import { readSessionLane, setSessionGlobals } from '@/stores/session-lanes';
 import type { WSServerMessage, WSUserMessageImage } from '@/types';
 
@@ -358,6 +359,18 @@ export function handleError(msg: WSServerMessage) {
     freshContext?: unknown;
     images?: unknown;
   };
+  // A refused resume is still an answer: the tab it named stops waiting for a
+  // transcript that is not coming. Done before the routing-noise swallow
+  // below, because the swap-guard rejection IS one of the refusals a resume
+  // can get back, and swallowing it silently would leave the pane loading
+  // until the five-minute ceiling.
+  if (payload.phase === 'session.resume' || payload.phase === 'session.focus') {
+    const target =
+      typeof payload.requestedSessionId === 'string'
+        ? payload.requestedSessionId
+        : messageSessionId(msg);
+    if (target) useResumeProgressStore.getState().end(target);
+  }
   if (payload.phase === 'todos.get') return;
   // Session-swap guard rejections — "Request targeted session X, but this
   // WebUI runtime is currently on Y" — are routing noise, not run failures:

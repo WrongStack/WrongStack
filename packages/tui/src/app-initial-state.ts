@@ -10,7 +10,7 @@ import { retainCheckpoints } from './checkpoint-retention.js';
 import { replaySessionMessages } from './components/history/replay.js';
 import type { AutonomyAgentStatus } from './components/history/types.js';
 import { type ContextMode, DEFAULT_STATUSLINE_MODE } from './components/settings-picker.js';
-import { retainTuiHistory } from './history-retention.js';
+import { retainTuiHistory, TUI_RESUME_HISTORY_BUDGET } from './history-retention.js';
 import { rehydrateHistory } from './rehydrate-history.js';
 import { DEFAULT_PANEL_POSITIONS } from './ui-contracts.js';
 
@@ -45,13 +45,19 @@ export function buildRestoredEntries(
     // surfaces in heap-watchdog logs, the right fix is truncate-then-replay
     // (slice `messages` / `restoredEvents` to the retained window first) —
     // which requires preserving tool_use/tool_result pairing across the window.
-    return retainTuiHistory(replaySessionMessages(messages, restoredEvents, 1));
+    return retainTuiHistory(
+      replaySessionMessages(messages, restoredEvents, 1),
+      TUI_RESUME_HISTORY_BUDGET,
+    );
   }
   // Legacy fallback (no events — older callers / unit tests): meta-only tool
   // chips with system messages filtered out.
   const visible = messages.filter((m) => m.role !== 'system');
   if (visible.length === 0) return [];
-  return retainTuiHistory(rehydrateHistory(visible, 1, restoredToolCalls));
+  return retainTuiHistory(
+    rehydrateHistory(visible, 1, restoredToolCalls),
+    TUI_RESUME_HISTORY_BUDGET,
+  );
 }
 
 /**
@@ -187,6 +193,13 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     ],
     archiveLoading: false,
     historyGen: 0,
+    // A boot `--resume` is a resume: it gets the widened retention budget and
+    // the same "wait for the user" hold as the in-session picker. Without the
+    // hold, `wstack --resume` on a session with an open todo board starts a
+    // turn ~15s after launch, before the user has typed anything.
+    historyBudget: restoredEntries.length > 0 ? TUI_RESUME_HISTORY_BUDGET : undefined,
+    autoProceedHold: restoredEntries.length > 0,
+    resumeLoad: null,
     buffer: '',
     cursor: 0,
     streamingText: '',

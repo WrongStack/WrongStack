@@ -41,8 +41,60 @@ describe('useNextStepsAutoSubmit', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it('stays parked while a resumed session holds auto-proceed', async () => {
+    // The bug this pins: `/resume` restores the session's todo board, and an
+    // open todo is grounded work as far as `selectAutoProceedCandidate` is
+    // concerned — so resuming a session with unfinished todos started a turn
+    // on a countdown the user never armed. A resume must land waiting.
+    const todos = [
+      { id: 'fix', content: 'Close the finished todo', status: 'in_progress' as const },
+    ];
+    const runBlocks = vi.fn(async () => undefined);
+    const options = (autoProceedHold: boolean): Parameters<typeof useNextStepsAutoSubmit>[0] => ({
+      state: createTestState({ status: 'idle', autoProceedHold }),
+      autonomyLive: 'auto',
+      agent: { ctx: { todos } } as never,
+      getAutonomy: () => 'auto',
+      getSettings: () => ({ delayMs: 0, autoProceedMaxIterations: 0 }) as never,
+      getSuggestions: () => [],
+      getAutoSuggestions: () => [],
+      getYolo: () => false,
+      setSuggestions: vi.fn(),
+      autonomyNextPrompt: undefined,
+      dispatch: vi.fn(),
+      clearDraft: vi.fn(),
+      runBlocksRef: { current: runBlocks },
+    });
+
+    const { rerender, result } = renderHook(
+      ({ hold }: { hold: boolean }) => useNextStepsAutoSubmit(options(hold)),
+      { initialProps: { hold: true } },
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(5_000);
+      await Promise.resolve();
+    });
+
+    expect(runBlocks).not.toHaveBeenCalled();
+    // No countdown is shown either — a visible timer that will never fire is
+    // worse than none.
+    expect(result.current.nextStepsAutoSubmitCountdown).toBeNull();
+
+    // Releasing the hold (what the manual submit path dispatches) re-arms the
+    // same board without touching autonomy, which stayed 'auto' throughout.
+    rerender({ hold: false });
+    await act(async () => {
+      vi.advanceTimersByTime(500);
+      await Promise.resolve();
+    });
+    expect(runBlocks).toHaveBeenCalled();
+  });
+
   it('does not persist a todo continuation as a reusable suggestion', async () => {
-    const todos = [{ id: 'fix', content: 'Close the finished todo', status: 'in_progress' as const }];
+    const todos = [
+      { id: 'fix', content: 'Close the finished todo', status: 'in_progress' as const },
+    ];
     const suggestionStore = ['stale next step'];
     const setSuggestions = vi.fn((next: string[]) => {
       suggestionStore.splice(0, suggestionStore.length, ...next);
@@ -76,9 +128,9 @@ describe('useNextStepsAutoSubmit', () => {
     expect(setSuggestions).not.toHaveBeenCalledWith([
       expect.stringContaining('Close the finished todo'),
     ]);
-    const blocks = (runBlocks.mock.calls as unknown as Array<Array<Array<{ text?: string }>>>)[0]?.[0] as
-      | Array<{ text?: string }>
-      | undefined;
+    const blocks = (
+      runBlocks.mock.calls as unknown as Array<Array<Array<{ text?: string }>>>
+    )[0]?.[0] as Array<{ text?: string }> | undefined;
     expect(blocks?.[0]?.text).toContain('Close the finished todo');
     expect(blocks?.[0]?.text).not.toContain('stale next step');
   });
@@ -175,7 +227,8 @@ describe('useNextStepsAutoSubmit', () => {
       await Promise.resolve();
     });
     expect(runBlocks).toHaveBeenCalledTimes(1);
-    const cycle1Text = (runBlocks.mock.calls[0]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
+    const cycle1Text =
+      (runBlocks.mock.calls[0]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
     expect(cycle1Text).toContain('Fix the login bug');
     // Normal continuation prompt, not an advancement prompt.
     expect(cycle1Text).toContain('Continue with the plan');
@@ -197,7 +250,8 @@ describe('useNextStepsAutoSubmit', () => {
       await Promise.resolve();
     });
     expect(runBlocks).toHaveBeenCalledTimes(2);
-    const cycle2Text = (runBlocks.mock.calls[1]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
+    const cycle2Text =
+      (runBlocks.mock.calls[1]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
     expect(cycle2Text).toContain('Fix the login bug');
     // Steer text is appended on the first repetition.
     expect(cycle2Text).toContain('todo board has not changed');
@@ -219,7 +273,8 @@ describe('useNextStepsAutoSubmit', () => {
       await Promise.resolve();
     });
     expect(runBlocks).toHaveBeenCalledTimes(3);
-    const cycle3Text = (runBlocks.mock.calls[2]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
+    const cycle3Text =
+      (runBlocks.mock.calls[2]?.[0] as Array<{ text: string }> | undefined)?.[0]?.text ?? '';
     // The advancement prompt targets the NEXT open todo.
     expect(cycle3Text).toContain('Write unit tests for parser');
     // It is NOT the original stalled continuation prompt.
@@ -230,7 +285,8 @@ describe('useNextStepsAutoSubmit', () => {
 
     // No halt warning was dispatched — the loop kept going.
     const warnCalls = dispatch.mock.calls.filter(
-      ([action]) => (action as { type: string }).type === 'addEntry' &&
+      ([action]) =>
+        (action as { type: string }).type === 'addEntry' &&
         (action as { entry: { kind: string } }).entry?.kind === 'warn',
     );
     expect(warnCalls).toHaveLength(0);
@@ -268,16 +324,28 @@ describe('useNextStepsAutoSubmit', () => {
       vi.advanceTimersByTime(500);
       await Promise.resolve();
     });
-    await act(async () => { currentStatus = 'running'; rerender(); });
-    await act(async () => { currentStatus = 'idle'; rerender(); });
+    await act(async () => {
+      currentStatus = 'running';
+      rerender();
+    });
+    await act(async () => {
+      currentStatus = 'idle';
+      rerender();
+    });
 
     // Cycle 2: steer
     await act(async () => {
       vi.advanceTimersByTime(500);
       await Promise.resolve();
     });
-    await act(async () => { currentStatus = 'running'; rerender(); });
-    await act(async () => { currentStatus = 'idle'; rerender(); });
+    await act(async () => {
+      currentStatus = 'running';
+      rerender();
+    });
+    await act(async () => {
+      currentStatus = 'idle';
+      rerender();
+    });
 
     // Cycle 3: halt — no next todo to advance to
     await act(async () => {
@@ -348,8 +416,14 @@ describe('useNextStepsAutoSubmit', () => {
         break;
       }
 
-      await act(async () => { currentStatus = 'running'; rerender(); });
-      await act(async () => { currentStatus = 'idle'; rerender(); });
+      await act(async () => {
+        currentStatus = 'running';
+        rerender();
+      });
+      await act(async () => {
+        currentStatus = 'idle';
+        rerender();
+      });
     }
 
     expect(halted).toBe(true);
@@ -359,9 +433,8 @@ describe('useNextStepsAutoSubmit', () => {
     expect(warnEntries.length).toBeGreaterThan(0);
     // The halt message is either the advancement-cap or the no-todos message.
     const lastWarn = warnEntries[warnEntries.length - 1]!.entry!.text;
-    expect(
-      lastWarn.includes('No more open todos') ||
-      lastWarn.includes('Auto-submit halted'),
-    ).toBe(true);
+    expect(lastWarn.includes('No more open todos') || lastWarn.includes('Auto-submit halted')).toBe(
+      true,
+    );
   });
 });

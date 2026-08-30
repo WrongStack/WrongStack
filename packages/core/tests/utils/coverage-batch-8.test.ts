@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { sanitizeModel, generateSessionId } from '../../src/storage/session-id.js';
 import { sessionContentText, userInputTitle } from '../../src/storage/session-helpers.js';
 import { mapWithConcurrency } from '../../src/storage/storage-concurrency.js';
@@ -40,10 +40,15 @@ describe('generateSessionId', () => {
     expect(id1.slice(0, 10)).toBe(id2.slice(0, 10));
   });
   it('falls back to Date.now() on invalid date', () => {
-    const id = generateSessionId('not-a-date');
-    expect(id.startsWith('not-a-date/')).toBe(true); // uses raw string prefix
-    // The seedTime falls back to Date.now()
-    expect(id.length).toBeGreaterThan(20);
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date('2026-08-30T12:34:56.000Z'));
+      const id = generateSessionId('not-a-date');
+      expect(id.startsWith('2026-08-30/sess_')).toBe(true);
+      expect(id).toMatch(/^2026-08-30\/sess_[0-9A-HJKMNP-TV-Z]{26}$/);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -13,6 +13,7 @@ const conversationActionTypes = [
   'archiveLoaded',
   'startArchiveLoad',
   'compactHistory',
+  'autoProceedRelease',
   'setBuffer',
   'clearInput',
   'clearHistory',
@@ -65,7 +66,7 @@ export function reduceConversation(state: State, action: ConversationAction): St
       const appended = [...state.entries, { ...stored, id: state.nextId } as HistoryEntry];
       return {
         ...state,
-        entries: retainTuiHistory(appended),
+        entries: retainTuiHistory(appended, state.historyBudget),
         nextId: state.nextId + 1,
       };
     }
@@ -90,8 +91,12 @@ export function reduceConversation(state: State, action: ConversationAction): St
     }
     case 'startArchiveLoad':
       return { ...state, archiveLoading: true };
+    case 'autoProceedRelease':
+      // Idempotent: the manual submit path dispatches this on every message,
+      // and returning the same object keeps that from scheduling a render.
+      return state.autoProceedHold ? { ...state, autoProceedHold: false } : state;
     case 'compactHistory': {
-      const entries = retainTuiHistory(state.entries);
+      const entries = retainTuiHistory(state.entries, state.historyBudget);
       return entries === state.entries ? state : { ...state, entries };
     }
     case 'setBuffer':

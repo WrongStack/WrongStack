@@ -63,7 +63,12 @@ export class LargeAnswerStore {
       return { summary: String(value), inline: true };
     }
 
-    const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+    let serialized: string;
+    try {
+      serialized = typeof value === 'string' ? value : (JSON.stringify(value) ?? String(value));
+    } catch {
+      serialized = String(value);
+    }
     const size = serialized.length;
     const bytes = Buffer.byteLength(serialized, 'utf8');
 

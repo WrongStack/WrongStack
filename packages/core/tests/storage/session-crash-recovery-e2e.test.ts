@@ -111,9 +111,11 @@ describe('crash recovery end-to-end', () => {
 
     const store2 = new DefaultSessionStore({ dir });
     const resumed = await store2.resume('cont');
-    // The dangling tool_use is reported, and the assistant turn holding it is
-    // withheld from the replayed conversation until a result closes it.
-    expect(resumed.data.pendingToolUseCount).toBe(1);
+    // The dangling tool_use is healed in the returned model context too, not
+    // only in the JSONL file that resume() appends to.
+    expect(resumed.data.pendingToolUseCount ?? 0).toBe(0);
+    expect(JSON.stringify(resumed.data.messages)).toContain('"tool_use_id":"tu-9"');
+    expect(JSON.stringify(resumed.data.messages)).toContain('[interrupted]');
 
     // Carry on working on the resumed writer, then shut down cleanly.
     await resumed.writer.append({

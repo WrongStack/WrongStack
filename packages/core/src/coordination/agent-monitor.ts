@@ -623,7 +623,8 @@ export class AgentMonitorService {
   }
 
   private async _appendToFile(subagentId: string, line: string): Promise<void> {
-    const dir = path.join(this._transcriptsDir, subagentId);
+    const cleanId = subagentId.replace(/\\/g, '/');
+    const dir = path.join(this._transcriptsDir, cleanId);
     // One mkdir per subagent dir, not per append. If the dir is removed
     // mid-session the append's ENOENT clears the cache entry so the next
     // append recreates it.

@@ -79,6 +79,13 @@ describe('estimateToolInputTokens', () => {
     expect(a).toBe(b);
   });
 
+  it('handles circular references without throwing', () => {
+    const cyclic: Record<string, unknown> = { command: 'echo loop' };
+    cyclic['self'] = cyclic;
+    expect(() => estimateToolInputTokens(cyclic)).not.toThrow();
+    expect(estimateToolInputTokens(cyclic)).toBeGreaterThan(0);
+  });
+
   it('cache eviction kicks in when crossing the size cap', () => {
     // Push >10k unique keys to trigger the eviction branch. Different shapes
     // each call → unique JSON.stringify keys.

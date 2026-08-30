@@ -64,7 +64,8 @@ export class SessionNoteHub {
 
   register(inbox: SessionNoteInbox): () => void {
     this.inboxes.add(inbox);
-    const sid = resolveInboxSessionId(inbox);
+    const rawSid = resolveInboxSessionId(inbox);
+    const sid = rawSid ? rawSid.trim().replace(/\\/g, '/') : undefined;
     if (sid && inbox.events && !this.buses.has(sid)) this.buses.set(sid, inbox.events);
     return () => {
       this.inboxes.delete(inbox);
@@ -72,7 +73,7 @@ export class SessionNoteHub {
   }
 
   post(input: SessionNotePost): SessionNotePostResult {
-    const sessionId = input.sessionId.trim();
+    const sessionId = input.sessionId.trim().replace(/\\/g, '/');
     const body = input.body.trim();
     if (!sessionId || !body) return { delivered: 0 };
 
@@ -89,7 +90,8 @@ export class SessionNoteHub {
     let delivered = 0;
     const fromKey = from.toLowerCase();
     for (const inbox of this.inboxes) {
-      if (resolveInboxSessionId(inbox) !== sessionId) continue;
+      const inboxSid = resolveInboxSessionId(inbox)?.trim().replace(/\\/g, '/');
+      if (inboxSid !== sessionId) continue;
       const keys = identityKeys(inbox);
       if (keys.has(fromKey)) continue;
       if (!broadcast && !keys.has(to)) continue;

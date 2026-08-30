@@ -27,6 +27,7 @@
     "test:coverage:root": "node scripts/coverage-lock.mjs cross-env NODE_OPTIONS=--max-old-space-size=4096 node scripts/run-vitest-coverage.mjs run --coverage",
     "test:coverage:scripts": "node scripts/coverage-lock.mjs node scripts/run-vitest-coverage.mjs run --config vitest.scripts.config.ts --coverage",
     "check:coverage-zero": "node scripts/check-zero-coverage.mjs",
+    "coverage:matrix": "node scripts/coverage-matrix.mjs",
     "test:e2e": "playwright test",
     "lint": "biome lint .",
     "lint:distributive": "node scripts/lint-distributive-types.mjs",

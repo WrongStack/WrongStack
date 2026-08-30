@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Message } from '../../src/types/messages.js';
 import { CHAT_MARKER_SOURCES } from '../../src/types/session-markers.js';
 import {
+  projectLastRequestTokens,
   projectSessionTimeline,
   projectSessionToolMeta,
   type SessionTimelineEntry,
@@ -339,5 +340,58 @@ describe('projectSessionTimeline — marker merge', () => {
     });
     expect(kinds(entries)).toEqual(['user', 'marker', 'assistant']);
     expect(entries[1]).toMatchObject({ source: 'agent_spawned', agentId: 'scout' });
+  });
+});
+
+/**
+ * How full is the window? — answered from the journal.
+ *
+ * Every resume path used to answer it with `SessionData.usage.input`, the sum
+ * of every request the session ever made. On a long conversation that reported
+ * millions of tokens against a window measured in hundreds of thousands, and
+ * the fill bar drew it faithfully.
+ */
+describe('projectLastRequestTokens', () => {
+  const response = (ts: string, usage: { input: number; cacheRead?: number }): SessionEvent =>
+    ({
+      type: 'llm_response',
+      ts,
+      content: [],
+      stopReason: 'end_turn',
+      usage: { output: 10, ...usage },
+    }) as SessionEvent;
+
+  it('reads the LAST response, never the sum of every one before it', () => {
+    const events: SessionEvent[] = [
+      response('t1', { input: 100_000 }),
+      response('t2', { input: 150_000 }),
+      response('t3', { input: 180_000 }),
+    ];
+
+    expect(projectLastRequestTokens(events)).toBe(180_000);
+  });
+
+  it('counts the whole prompt the model loaded, cache included', () => {
+    expect(projectLastRequestTokens([response('t1', { input: 2_000, cacheRead: 118_000 })])).toBe(
+      120_000,
+    );
+  });
+
+  it('scans past everything that is not a response', () => {
+    const events: SessionEvent[] = [
+      response('t1', { input: 90_000 }),
+      { type: 'tool_call_start', ts: 't2', name: 'read', id: 'tu-1', input: {} } as SessionEvent,
+      { type: 'user_input', ts: 't3', content: 'hi' } as SessionEvent,
+    ];
+
+    expect(projectLastRequestTokens(events)).toBe(90_000);
+  });
+
+  it('is undefined when the session never reached the model', () => {
+    // Deliberately not 0: the caller must leave the estimate UNSET, because a
+    // published zero draws an authoritative "0% full" instead of nothing.
+    expect(projectLastRequestTokens([])).toBeUndefined();
+    expect(projectLastRequestTokens(undefined)).toBeUndefined();
+    expect(projectLastRequestTokens([response('t1', { input: 0 })])).toBeUndefined();
   });
 });

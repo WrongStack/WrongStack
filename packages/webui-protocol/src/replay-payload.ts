@@ -35,6 +35,19 @@ import { projectSessionToolMeta } from '@wrongstack/core/types/session-timeline'
  */
 export const REPLAY_MESSAGE_CAP = 2_000;
 
+/**
+ * How many sessions one connection may hold open at once.
+ *
+ * Both ends enforce this and they must agree. The browser allocates lanes and
+ * tab slots up to this number; the server accepts a declared set up to this
+ * number and DROPS the rest — a connection whose extra tabs were trimmed
+ * silently stops receiving their runs, their redisplays and their run-state
+ * answers, which on screen is a tab that "stopped working" for no visible
+ * reason. Two independent constants in two packages had no way to disagree
+ * loudly, so this is the one both import.
+ */
+export const MAX_OPEN_SESSIONS_PER_CONNECTION = 4;
+
 export interface ReplaySource {
   messages: readonly Message[];
   /** Raw JSONL events, when the caller loaded them. Markers are projected from these. */

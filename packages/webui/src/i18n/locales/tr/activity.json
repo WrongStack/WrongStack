@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Araçları grupla",
     "compact": "📦 Sıkışık",
     "providerLimit": "Sağlayıcı sınırı {{limit}}",
-    "providerLimitDecreased": "Sağlayıcı bağlam penceresi {{previous}} tokendan {{current}} tokene düşürüldü."
+    "providerLimitDecreased": "Sağlayıcı bağlam penceresi {{previous}} tokendan {{current}} tokene düşürüldü.",
+    "restoringTranscript": "Konuşma geri yükleniyor…",
+    "restoringTranscriptHint": "Bu oturumun günlüğü okunuyor. Uzun konuşmalar biraz sürebilir."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token Dağılımı",

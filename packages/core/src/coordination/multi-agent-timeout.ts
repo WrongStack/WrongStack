@@ -48,6 +48,7 @@ export async function executeSubagentWithTimeout({
 
   const start = Date.now();
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let settled = false;
   enum PreemptState {
     ACTIVE = 'active',
     LOCKED = 'locked',
@@ -70,6 +71,7 @@ export async function executeSubagentWithTimeout({
       timer = setTimeout(onTick, Math.max(0, ms));
     };
     const scheduleNext = () => {
+      if (settled) return;
       const wallLimit = budget.limits.timeoutMs ?? initialTimeoutMs;
       const wallRemaining =
         initialTimeoutMs === undefined
@@ -154,6 +156,7 @@ export async function executeSubagentWithTimeout({
     };
 
     const onTick = async () => {
+      if (settled) return;
       const elapsed = Date.now() - start;
       const wallLimit =
         initialTimeoutMs === undefined ? undefined : budget.limits.timeoutMs ?? initialTimeoutMs;
@@ -211,6 +214,7 @@ export async function executeSubagentWithTimeout({
         budget.setWatchdogNegotiation(wallLimit);
         try {
           const decision = await negotiateTimeout(elapsed, wallLimit);
+          if (settled) return;
           if (typeof decision !== 'string' && decision.extend.timeoutMs !== undefined) {
             budget.patchLimits({ timeoutMs: decision.extend.timeoutMs });
             lastGrantActivityTs = Date.now() - budget.idleMs();
@@ -276,6 +280,7 @@ export async function executeSubagentWithTimeout({
       budget.setWatchdogNegotiation(limit);
       try {
         const decision = await negotiateTimeout(elapsed, limit);
+        if (settled) return;
         if (decision === 'throw') {
           terminate('timeout', limit, elapsed);
           return;
@@ -301,6 +306,7 @@ export async function executeSubagentWithTimeout({
         terminate('timeout', limit, elapsed);
         return;
       } catch (err) {
+        if (settled) return;
         abortSubagent(ctx.subagentId);
         reject(
           err instanceof BudgetExceededError
@@ -318,6 +324,7 @@ export async function executeSubagentWithTimeout({
   try {
     return await Promise.race([runner(task, ctx), timeoutPromise]);
   } finally {
+    settled = true;
     if (timer) clearTimeout(timer);
   }
 }

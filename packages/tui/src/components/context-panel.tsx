@@ -16,7 +16,7 @@ import {
 // The bracket-style `[000o····]` meter is the statusline's context bar; reuse
 // it here so the panel's fill bars mirror the statusline instead of using a
 // second (block `█░`) visual language.
-import { renderMeter } from './status-bar.js';
+import { fmtPct, fmtRatioPct, renderMeter } from './status-bar-format.js';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -330,7 +330,7 @@ function CompositionSection({
       <SectionLabel>CONTEXT COMPOSITION</SectionLabel>
       <Text color={theme.textMuted}>
         Measured breakdown of {total.toLocaleString('en-US')} tokens ·{' '}
-        {((Number.isFinite(breakdown.usedPct) ? breakdown.usedPct : 0) * 100).toFixed(1)}% of{' '}
+        {fmtRatioPct(Number.isFinite(breakdown.usedPct) ? breakdown.usedPct : 0)} of{' '}
         {fmtTok(breakdown.effectiveMaxContext)}
       </Text>
       {rows.map((row) => {
@@ -342,7 +342,7 @@ function CompositionSection({
               <Text color={theme.textSecondary}>{row.label.padEnd(9)}</Text>
               <Text color={theme.textMuted}>{renderMeter(frac, barLen)}</Text>
               <Text> </Text>
-              <Text color={theme.textMuted}>{(frac * 100).toFixed(1).padStart(4)}%</Text>
+              <Text color={theme.textMuted}>{fmtRatioPct(frac).padStart(6)}</Text>
               <Text> </Text>
               <Text color={theme.textPrimary}>{fmtTok(row.tokens).padStart(6)}</Text>
             </Text>
@@ -377,13 +377,14 @@ function ThresholdSection({
   // Distance to the next threshold above the current fill, in % and tokens.
   const nextBoundary = ZONES.find((z) => curVal < z.from);
   const maxTok = data.ctxMaxTokens ?? 0;
+  const diffPct = nextBoundary ? nextBoundary.from - curVal : 0;
   const headroom =
     nextBoundary && maxTok > 0
-      ? `${(nextBoundary.from - curVal).toFixed(1)}% (${fmtTok(
-          ((nextBoundary.from - curVal) / 100) * maxTok,
+      ? `${fmtPct(diffPct)} (${fmtTok(
+          (diffPct / 100) * maxTok,
         )}) until ${nextBoundary.desc}`
       : nextBoundary
-        ? `${(nextBoundary.from - curVal).toFixed(1)}% until ${nextBoundary.desc}`
+        ? `${fmtPct(diffPct)} until ${nextBoundary.desc}`
         : 'in the final zone — compaction is overdue';
 
   const LABEL_W = 9;
@@ -397,7 +398,7 @@ function ThresholdSection({
       {/* Compact visual bar with axis */}
       <Box marginTop={1}>
         <Text color={azClr}>
-          {renderMeter(pct, barWidth)} {curVal.toFixed(1)}%
+          {renderMeter(pct, barWidth)} {fmtPct(curVal)}
         </Text>
       </Box>
       <Text color={theme.textMuted}> {axis}</Text>
@@ -438,7 +439,7 @@ function ThresholdSection({
       {/* Headroom line with emoji */}
       <Box marginTop={1}>
         <Text color={azClr}>
-          {'◆'} {curVal.toFixed(1)}% {zoneLabel(pct)}
+          {'◆'} {fmtPct(curVal)} {zoneLabel(pct)}
         </Text>
         <Text color={theme.textMuted}> · {headroom}</Text>
       </Box>
@@ -508,7 +509,7 @@ function AgentFootprintSection({
         const apct = a.ctxPct;
         const aEmoji = zoneEmoji(apct);
         const aColor = zoneColor(zoneFor(apct));
-        const aPct = `${(apct * 100).toFixed(0)}%`.padStart(4);
+        const aPct = fmtRatioPct(apct).padStart(6);
         const tag = a.name === 'LEADER' ? '👑' : '  ';
         const aBar = renderMeter(apct, agentBarLen);
         // Mini sparkbar alongside the meter
@@ -546,7 +547,7 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
   const max = data.ctxMaxTokens ?? 200_000;
   const pct = data.ctxPct ?? (max > 0 ? used / max : 0);
   const free = max - used;
-  const freePct = max > 0 ? ((free / max) * 100).toFixed(1) : '0.0';
+  const freePct = max > 0 ? fmtRatioPct(free / max) : '0%';
   const utilBar20 = renderMeter(pct, 20);
   const utilBar8 = renderMeter(pct, 8);
   const zClr = zoneColor(zoneFor(pct));
@@ -567,7 +568,7 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
           <Text>
             <Text color={theme.textMuted}>Free </Text>
             <Text color={theme.textSecondary}>
-              {free.toLocaleString('en-US')} ({freePct}%)
+              {free.toLocaleString('en-US')} ({freePct})
             </Text>
           </Text>
         </Box>
@@ -585,7 +586,7 @@ function MetricsSection({ data }: { data: ContextPanelData }): React.ReactElemen
         <Text> </Text>
         <Text color={zClr}>{utilBar20}</Text>
         <Text> </Text>
-        <Text color={theme.textSecondary}>{(pct * 100).toFixed(1)}%</Text>
+        <Text color={theme.textSecondary}>{fmtRatioPct(pct)}</Text>
         <Text> </Text>
         <Text color={zClr}>{utilBar8}</Text>
       </Box>
@@ -635,7 +636,7 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
       <Box>
         <Text color={theme.textMuted}>Hit ratio </Text>
         <Text color={hasCache ? theme.success : theme.textMuted} bold>
-          {(cs.hitRatio * 100).toFixed(1)}%
+          {fmtRatioPct(cs.hitRatio)}
         </Text>
         <Text color={theme.textMuted}> · read </Text>
         <Text color={theme.textPrimary}>{cs.readTokens.toLocaleString('en-US')}</Text>
@@ -670,7 +671,7 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
               <Text color={theme.textPrimary}> {provider.provider}</Text>
               <Text color={theme.textMuted}> · </Text>
               <Text color={provider.cacheRead > 0 ? theme.success : theme.textMuted}>
-                {(provider.hitRatio * 100).toFixed(1)}%
+                {fmtRatioPct(provider.hitRatio)}
               </Text>
               <Text color={theme.textMuted}> · read </Text>
               <Text color={theme.textPrimary}>
@@ -711,7 +712,7 @@ function CacheSection({ data }: { data: ContextPanelData }): React.ReactElement 
             <Text color={theme.textMuted}> </Text>
             <Text color={theme.success}>
               {coverage.toLocaleString('en-US')} / {max.toLocaleString('en-US')} (
-              {covPct.toFixed(1)}%)
+              {fmtPct(covPct)})
             </Text>
           </Box>
           <Text color={theme.textMuted}>
@@ -762,7 +763,7 @@ function StatusSection({ data }: { data: ContextPanelData }): React.ReactElement
       <SectionLabel>STATUS</SectionLabel>
       <Box>
         <Text color={zClr}>
-          {bar} {(pct * 100).toFixed(1)}%
+          {bar} {fmtRatioPct(pct)}
         </Text>
         <Text> </Text>
         <Text color={theme.textMuted}>

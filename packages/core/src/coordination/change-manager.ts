@@ -266,7 +266,6 @@ export class ChangeManager {
     // Update the original change's rollback link
     this.appliedChanges.set(appliedChangeId, rollback.id);
     await this.graph.update(appliedChangeId, {
-      rolledBackAt: new Date().toISOString(),
       rollbackReason: reason,
     });
 

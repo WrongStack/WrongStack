@@ -15,6 +15,7 @@ export async function pruneSessionFiles(
   storeDir: string,
   maxAgeDays: number,
   deleteSession: (id: string) => Promise<void>,
+  isSessionInUse?: ((sessionId: string) => Promise<string | null>) | undefined,
 ): Promise<number> {
   const cutoff = Date.now() - maxAgeDays * 86_400_000;
   let deleted = 0;
@@ -31,6 +32,7 @@ export async function pruneSessionFiles(
     /* v8 ignore stop */
     const base = name.replace(/\.jsonl$/, '');
     const id = prefix ? `${prefix}/${base}` : base;
+    if (isSessionInUse && (await isSessionInUse(id))) return;
     await deleteSession(id);
     deleted++;
   };

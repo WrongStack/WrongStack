@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Raggruppa strumenti",
     "compact": "📦 Compatto",
     "providerLimit": "Limite provider {{limit}}",
-    "providerLimitDecreased": "La finestra di contesto del provider è stata ridotta da {{previous}} a {{current}} token."
+    "providerLimitDecreased": "La finestra di contesto del provider è stata ridotta da {{previous}} a {{current}} token.",
+    "restoringTranscript": "Ripristino della conversazione…",
+    "restoringTranscriptHint": "Lettura del journal di questa sessione. Le conversazioni lunghe possono richiedere un momento."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Allocazione dei token",

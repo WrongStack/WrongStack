@@ -1,6 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MailboxAgentStatus, MailboxMessage } from '../../src/coordination/mailbox-types.js';
-import { HqPublisher, type HqSocketLike } from '../../src/hq/publisher.js';
+import {
+  HqPublisher,
+  type HqSocketLike,
+  resetHqPublisherWarningStateForTests,
+} from '../../src/hq/publisher.js';
+
+beforeEach(() => {
+  resetHqPublisherWarningStateForTests();
+});
 
 describe('HqPublisher Kanban snapshots', () => {
   it('delivers server snapshots to the registered handler', async () => {
@@ -61,11 +69,8 @@ describe('HqPublisher connect-failure diagnostics', () => {
     publisher.close();
   });
 
-  it('suppresses duplicate connect-failure warnings process-wide until the cooldown window elapses', () => {
+  it('suppresses duplicate connect-failure warnings process-wide while endpoint is unreachable', () => {
     vi.useFakeTimers();
-    // Jump the faked clock past any warning emitted earlier in this file so
-    // THIS test owns the module-level cooldown baseline.
-    vi.setSystemTime(new Date(Date.now() + 5 * 60_000 + 1_000));
 
     const makeFailingPublisher = (warn: (message: string) => void) =>
       new HqPublisher({
@@ -86,23 +91,21 @@ describe('HqPublisher connect-failure diagnostics', () => {
     const publisherA = makeFailingPublisher(warnA);
     publisherA.connect();
     // Reconnect delays 1,2,2,2 → 5 failures at fake t+7ms → first warning of
-    // the process (default 5-minute cooldown window is cold at this point).
+    // the process.
     vi.advanceTimersByTime(7);
     expect(warnA).toHaveBeenCalledTimes(1);
 
-    // A second instance failing identically inside the window is suppressed:
-    // its 5th failure crosses the threshold, but the module-level cooldown
-    // (shared across all instances in this process) holds it back.
+    // A second instance failing identically is suppressed:
+    // its 5th failure crosses the threshold, but process-wide suppression holds it back.
     const publisherB = makeFailingPublisher(warnB);
     publisherB.connect();
     vi.advanceTimersByTime(100);
     expect(warnB).not.toHaveBeenCalled();
     expect(warnA).toHaveBeenCalledTimes(1);
 
-    // Once the window elapses, B (still failing, never marked done) emits its
-    // single diagnostic; A stays one-shot.
-    vi.advanceTimersByTime(5 * 60_000 + 1_000);
-    expect(warnB).toHaveBeenCalledTimes(1);
+    // Retries continue silently without recurring interval warnings.
+    vi.advanceTimersByTime(500);
+    expect(warnB).not.toHaveBeenCalled();
     expect(warnA).toHaveBeenCalledTimes(1);
 
     publisherA.close();
@@ -125,6 +128,46 @@ describe('HqPublisher connect-failure diagnostics', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(warn).not.toHaveBeenCalled();
     publisher.close();
+  });
+
+  it('resets connect warning state after a successful connection', () => {
+    vi.useFakeTimers();
+    let socket = new FakeSocket();
+    let shouldFail = false;
+    const warn = vi.fn();
+    const publisher = new HqPublisher({
+      url: 'http://127.0.0.1:3499',
+      client,
+      project,
+      reconnectBaseMs: 1,
+      reconnectMaxMs: 2,
+      warn,
+      socketFactory: () => {
+        if (shouldFail) {
+          throw new Error('connect refused');
+        }
+        socket = new FakeSocket();
+        return socket;
+      },
+    });
+
+    // 1. Initial connection succeeds.
+    publisher.connect();
+    socket.open();
+    expect(warn).not.toHaveBeenCalled();
+
+    // 2. Connection drops and subsequent reconnects fail 5 times.
+    shouldFail = true;
+    socket.close();
+    vi.advanceTimersByTime(10);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    // 3. Further retries while failing do not trigger another warning.
+    vi.advanceTimersByTime(500);
+    expect(warn).toHaveBeenCalledTimes(1);
+
+    publisher.close();
+    vi.useRealTimers();
   });
 });
 

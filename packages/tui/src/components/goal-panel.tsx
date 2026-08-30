@@ -13,6 +13,7 @@ import {
   useMonitorSize,
   usePanelShortcutsEnabled,
 } from './monitor-shell.js';
+import { fmtPct } from './status-bar-format.js';
 
 export interface GoalPanelProps {
   goal: GoalSummary;
@@ -219,7 +220,7 @@ export function GoalPanel({
 }
 
 function renderProgressBar(progress: number, trend?: string, width = 20): React.ReactElement {
-  const pct = Math.min(100, Math.max(0, Math.round(progress)));
+  const pct = Math.min(100, Math.max(0, progress));
   const filled = Math.round((pct / 100) * width);
   const empty = width - filled;
 
@@ -233,7 +234,7 @@ function renderProgressBar(progress: number, trend?: string, width = 20): React.
       <Text color={theme.textMuted}>{'░'.repeat(empty)}]</Text>
       <Text color={theme.textPrimary} bold>
         {' '}
-        {pct}%
+        {fmtPct(pct)}
       </Text>
       {trend && (
         <Text color={trend === 'stalling' ? theme.warn : theme.textMuted}>

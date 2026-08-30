@@ -41,6 +41,10 @@ describe('detectContinueIntent', () => {
       'sürdür',
       'surdur',
       'hadi devam',
+      'bir tur daha',
+      'bir tur daha at',
+      'bir tur daha bakalım',
+      'bir tur daha atalım',
     ]) {
       expect(detectContinueIntent(s), s).toBe(true);
     }

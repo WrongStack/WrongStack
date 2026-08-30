@@ -24,10 +24,10 @@ export function configHistoryDir(globalRoot: string): string {
  *   config.json                            →  config
  *   profiles/default/config.json           →  profiles-default-config
  */
-function configSlug(absolutePath: string, globalRoot: string): string {
+export function configSlug(absolutePath: string, globalRoot: string): string {
   const rel = path.relative(globalRoot, absolutePath);
   const normalized = rel.replace(/\\/g, '/').replace(/\.json$/i, '');
-  return normalized.replace(/\//g, '-');
+  return normalized.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || 'config';
 }
 
 /**

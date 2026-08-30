@@ -35,6 +35,7 @@ export {
 } from './projections.js';
 export {
   buildReplayPayload,
+  MAX_OPEN_SESSIONS_PER_CONNECTION,
   REPLAY_MESSAGE_CAP,
   type ReplayPayloadFields,
   type ReplaySource,

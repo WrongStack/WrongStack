@@ -31,7 +31,7 @@ export const MAX_PATH_SEGMENT_LENGTH = 256;
  * `%2e%2e%2f` passes every check above and decodes to `../`.
  */
 export function isSafePathSegment(value: string): boolean {
-  if (value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
+  if (typeof value !== 'string' || value.length === 0 || value.length > MAX_PATH_SEGMENT_LENGTH) return false;
   if (value === '.' || value === '..') return false;
   if (value.includes('/') || value.includes('\\')) return false;
   if (value.includes('\0')) return false;

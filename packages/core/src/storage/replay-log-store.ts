@@ -151,6 +151,7 @@ export class ReplayLogStore {
             } catch (err) {
               if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
             }
+            await fs.mkdir(path.dirname(fp), { recursive: true });
             await fs.appendFile(fp, line, { encoding: 'utf8', mode: SECRET_FILE_MODE });
             cache.set(hash, { entry, offset, length: Buffer.byteLength(line, 'utf8') });
             this.diskCount.set(input.sessionId, currentCount + 1);

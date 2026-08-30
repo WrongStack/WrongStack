@@ -30,7 +30,9 @@ export function sanitizeModel(model: string): string {
  * not file paths. Older IDs that contain model/provider text remain readable.
  */
 export function generateSessionId(startedAt: string, _model?: string): string {
-  const date = startedAt.slice(0, 10); // "2026-06-06"
-  const seedTime = Number.isNaN(Date.parse(startedAt)) ? Date.now() : Date.parse(startedAt);
+  const parsedTime = Date.parse(startedAt);
+  const isValidDate = !Number.isNaN(parsedTime) && /^\d{4}-\d{2}-\d{2}/.test(startedAt);
+  const seedTime = isValidDate ? parsedTime : Date.now();
+  const date = isValidDate ? startedAt.slice(0, 10) : new Date(seedTime).toISOString().slice(0, 10);
   return `${date}/sess_${ulid(seedTime)}`;
 }

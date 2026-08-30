@@ -16,6 +16,24 @@ export default defineConfig({
     include: ['tests/**/*.test.ts'],
     testTimeout: 60_000,
     hookTimeout: 60_000,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'json-summary'],
+      reportOnFailure: true,
+      include: ['src/**/*.ts'],
+      exclude: [
+        // Barrel re-export — no runnable code
+        'src/index.ts',
+        // Type-only module — no runnable statements
+        'src/types.ts',
+      ],
+      thresholds: {
+        lines: 90,
+        functions: 90,
+        statements: 90,
+        branches: 85,
+      },
+    },
   },
   resolve: {
     alias: {

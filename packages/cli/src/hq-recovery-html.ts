@@ -19,7 +19,7 @@ const HQ_RECOVERY_HTML = `<!doctype html>
   <main data-hq-recovery-shell>
     <h1>HQ frontend assets are unavailable</h1>
     <p>The HQ backend is running, but the packaged React application could not be resolved.</p>
-    <p>Rebuild or reinstall <code>@wrongstack/webui-hq</code>, then restart HQ. API routes remain available for diagnostics.</p>
+    <p>Rebuild or reinstall <code>@wrongstack/webui-hq</code>, then restart HQ. From a workspace checkout, run <code>pnpm --filter @wrongstack/webui-hq build</code>. API routes remain available for diagnostics.</p>
   </main>
 </body>
 </html>`;

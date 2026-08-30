@@ -90,6 +90,12 @@ describe('safe-json', () => {
     const raw = '{\n  "a": 1,\n  "b": 2\n}';
     expect(JSON.parse(sanitizeJsonString(raw)!)).toEqual({ a: 1, b: 2 });
   });
+  it('sanitizeJsonString handles strings ending with escaped backslashes before control characters', () => {
+    const raw = '{"path":"C:\\\\","code":"line1\nline2"}';
+    const fixed = sanitizeJsonString(raw);
+    expect(fixed).not.toBe(null);
+    expect(JSON.parse(fixed!)).toEqual({ path: 'C:\\', code: 'line1\nline2' });
+  });
 
   describe('stripCodeFences', () => {
     it('strips a ```json fence with closer', () => {

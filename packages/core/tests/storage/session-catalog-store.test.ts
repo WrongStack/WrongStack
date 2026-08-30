@@ -2,8 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SessionCatalogStore } from '../../src/session-catalog/store.js';
 import type { SessionRegistryEntry } from '../../src/session-catalog/session-registry-types.js';
+import { SessionCatalogStore } from '../../src/session-catalog/store.js';
 
 const roots: string[] = [];
 
@@ -65,6 +65,71 @@ describe('SessionCatalogStore', () => {
     expect(store.getLive(id)?.sessionId).toBe(id);
     expect(() => store.activateReservation(reservation, entry(id))).toThrow(/expired|owned/);
     store.release(credential);
+    store.close();
+  });
+
+  it('renews a reservation so slow hydration cannot outlive its own claim', async () => {
+    // A resume reserves BEFORE it knows how long opening the transcript takes,
+    // and the default window is 15s. Journals in the field reach 131 MB and
+    // hydration also waits on this daemon, so without renewal `activate` fails
+    // with "reservation expired" after all the expensive work already
+    // succeeded — and the caller rolls back to a blank screen.
+    const { root, store } = await fixture();
+    const id = '2026-08-08/sess_renew';
+    const transcript = path.join(root, 'sessions', `${id}.jsonl`);
+    await fs.mkdir(path.dirname(transcript), { recursive: true });
+    await fs.writeFile(
+      transcript,
+      `${JSON.stringify({ type: 'session_start', ts: new Date().toISOString(), id, model: 'm', provider: 'p' })}
+`,
+    );
+    store.rebuildCatalog();
+
+    // Reserve with the shortest window we can, then push it out.
+    const reservation = store.reserveResume(id, 'owner-a', undefined, 1);
+    const renewed = store.renewReservation(reservation.reservationId, 'owner-a', 60_000);
+    expect(renewed.reservationId).toBe(reservation.reservationId);
+    expect(renewed.targetSessionId).toBe(id);
+    expect(renewed.expiresAt).toBeGreaterThan(reservation.expiresAt);
+
+    // Renewal is not a back door: only the holder can extend it.
+    expect(() => store.renewReservation(reservation.reservationId, 'owner-b')).toThrow(
+      /not owned by this requester/,
+    );
+    expect(() => store.renewReservation('no-such-reservation', 'owner-a')).toThrow(
+      /not owned by this requester/,
+    );
+
+    // The renewed reservation still activates — that is the whole point.
+    const credential = store.activateReservation(renewed, entry(id));
+    expect(store.getLive(id)?.sessionId).toBe(id);
+    // Settled reservations are gone; renewing one is an error, not a no-op
+    // that silently resurrects a claim someone else may now hold.
+    expect(() => store.renewReservation(reservation.reservationId, 'owner-a')).toThrow(
+      /not owned by this requester/,
+    );
+    store.release(credential);
+    store.close();
+  });
+
+  it('refuses to renew a reservation that already expired', async () => {
+    const { root, store } = await fixture();
+    const id = '2026-08-08/sess_renew_late';
+    const transcript = path.join(root, 'sessions', `${id}.jsonl`);
+    await fs.mkdir(path.dirname(transcript), { recursive: true });
+    await fs.writeFile(
+      transcript,
+      `${JSON.stringify({ type: 'session_start', ts: new Date().toISOString(), id, model: 'm', provider: 'p' })}
+`,
+    );
+    store.rebuildCatalog();
+    // 1000ms is the floor `boundedMs` enforces — the shortest window the
+    // store will hand out, and short enough to expire inside a test.
+    const reservation = store.reserveResume(id, 'owner-a', undefined, 1_000);
+    await new Promise((resolve) => setTimeout(resolve, 1_100));
+    // "expired" and "not yours" are deliberately distinguishable: the caller
+    // needs to know whether it lost a race or was too slow.
+    expect(() => store.renewReservation(reservation.reservationId, 'owner-a')).toThrow(/expired/);
     store.close();
   });
 

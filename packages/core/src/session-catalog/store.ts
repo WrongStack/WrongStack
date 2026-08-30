@@ -346,6 +346,41 @@ export class SessionCatalogStore {
     });
   }
 
+  /**
+   * Extend a live reservation the requester still owns.
+   *
+   * Deliberately does NOT call `reapExpired()` first: reaping would delete an
+   * already-expired row and turn the accurate "expired" answer into the
+   * indistinguishable "not owned by this requester". The caller needs to know
+   * which of the two happened.
+   */
+  renewReservation(
+    reservationId: string,
+    requesterInstanceId: string,
+    reservationMs?: number,
+  ): ResumeReservation {
+    return this.transaction(() => {
+      const row = this.db
+        .prepare('SELECT * FROM resume_reservations WHERE reservation_id=?')
+        .get(reservationId) as unknown as ReservationRow | undefined;
+      if (!row || row.requester_instance_id !== requesterInstanceId)
+        throw conflict('Resume reservation is not owned by this requester');
+      if (row.expires_at <= Date.now()) throw conflict('Resume reservation expired');
+      const expiresAt =
+        Date.now() +
+        boundedMs(reservationMs, SESSION_CATALOG_DEFAULT_RESERVATION_MS, MAX_RESERVATION_MS);
+      this.db
+        .prepare('UPDATE resume_reservations SET expires_at=? WHERE reservation_id=?')
+        .run(expiresAt, reservationId);
+      return {
+        reservationId,
+        targetSessionId: row.target_session_id,
+        requesterInstanceId,
+        expiresAt,
+      };
+    });
+  }
+
   cancelReservation(reservationId: string, requesterInstanceId: string): void {
     this.db
       .prepare('DELETE FROM resume_reservations WHERE reservation_id=? AND requester_instance_id=?')

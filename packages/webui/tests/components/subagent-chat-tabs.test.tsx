@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AgentDetailSection } from '../../src/components/agents/AgentDetailSection.js';
 import {
   AgentTabs,
@@ -8,8 +8,15 @@ import {
 import { SubagentTranscriptView } from '../../src/components/ChatView/SubagentTranscriptView.js';
 import { taskBriefPreview } from '../../src/lib/task-brief-preview.js';
 import type { AgentTranscriptEntry, SubagentView } from '../../src/stores/index.js';
-import { useFleetStore, useUIStore } from '../../src/stores/index.js';
+import { useChatStore, useFleetStore, useUIStore } from '../../src/stores/index.js';
 import { SESSION_DEFAULT_LANE_ID, useSessionLanes } from '../../src/stores/session-lanes.js';
+
+const mockSendAbort = vi.fn();
+vi.mock('../../src/lib/ws-client.js', () => ({
+  getWSClient: () => ({
+    sendAbort: mockSendAbort,
+  }),
+}));
 
 function makeAgent(id: string, overrides: Partial<{ name: string; status: string }> = {}) {
   return {
@@ -104,6 +111,25 @@ describe('subagent chat tabs', () => {
       useUIStore.setState({ subagentChatFocusId: 's1' });
     });
     expect(screen.getByRole('tab', { name: /Alpha/ }).getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('renders Stop button in summary pill when isLoading is true and clicks sendAbort', () => {
+    mockSendAbort.mockClear();
+    const agents = new Map([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ['s1', makeAgent('s1', { name: 'Alpha' })],
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+    useChatStore.setState({ isLoading: true });
+
+    render(<AgentTabs />);
+
+    const stopBtn = screen.getByRole('button', { name: /abort|stop/i });
+    expect(stopBtn).toBeDefined();
+
+    fireEvent.click(stopBtn);
+    expect(mockSendAbort).toHaveBeenCalledTimes(1);
+    expect(useChatStore.getState().isLoading).toBe(false);
   });
 
   it('does not throw when a subagent has a non-canonical status', () => {

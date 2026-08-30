@@ -11,7 +11,7 @@ import {
   truncatePanelText,
   useMonitorSize,
 } from './monitor-shell.js';
-import { fmtElapsed, renderProgress } from './status-bar.js';
+import { fmtElapsed, fmtRatioPct, renderProgress } from './status-bar-format.js';
 
 function shortSessionId(sessionId: string): string {
   const leaf = sessionId.split('/').pop() ?? sessionId;
@@ -313,7 +313,7 @@ export function FleetMonitor({
             const model = fmtModelLabel(e.provider, e.model) || '—';
             const ltCtx =
               e.ctxPct !== undefined
-                ? `L${e.iterations} ${e.toolCalls}t ${Math.min(100, Math.max(0, Math.round(e.ctxPct * 100)))}%`
+                ? `L${e.iterations} ${e.toolCalls}t ${fmtRatioPct(e.ctxPct)}`
                 : `L${e.iterations} ${e.toolCalls}t`;
             return (
               <Box key={e.id} flexDirection="column">

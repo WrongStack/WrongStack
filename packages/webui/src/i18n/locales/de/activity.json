@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Tools gruppieren",
     "compact": "📦 Kompakt",
     "providerLimit": "Anbieterlimit {{limit}}",
-    "providerLimitDecreased": "Das Kontextfenster des Anbieters wurde von {{previous}} auf {{current}} Token reduziert."
+    "providerLimitDecreased": "Das Kontextfenster des Anbieters wurde von {{previous}} auf {{current}} Token reduziert.",
+    "restoringTranscript": "Verlauf wird wiederhergestellt…",
+    "restoringTranscriptHint": "Das Journal dieser Sitzung wird gelesen. Bei langen Unterhaltungen kann das einen Moment dauern."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token-Zuteilung",

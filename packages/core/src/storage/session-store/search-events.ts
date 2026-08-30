@@ -1,4 +1,5 @@
 import * as fsp from 'node:fs/promises';
+import { StringDecoder } from 'node:string_decoder';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
 import type { SessionEvent } from '../../types/session.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
@@ -27,6 +28,7 @@ export async function searchSessionEvents(args: {
     fh = await fsp.open(file, 'r');
     const CHUNK = 64 * 1024;
     const buf = Buffer.alloc(CHUNK);
+    const decoder = new StringDecoder('utf8');
     let leftover = '';
     let eventIndex = 0;
     for (let position = 0; ; position += buf.byteLength) {
@@ -36,7 +38,7 @@ export async function searchSessionEvents(args: {
       }
       const { bytesRead } = await fh.read(buf, 0, CHUNK, position);
       if (bytesRead === 0) break;
-      const text = leftover + buf.subarray(0, bytesRead).toString('utf8');
+      const text = leftover + decoder.write(buf.subarray(0, bytesRead));
       const parts = text.split('\n');
       leftover = parts.pop() ?? '';
       for (const line of parts) {
@@ -50,6 +52,7 @@ export async function searchSessionEvents(args: {
         eventIndex++;
       }
     }
+    leftover += decoder.end();
     const trailing = parseSessionEventLine(leftover.trim() ? leftover : '', secretScrubber);
     if (trailing && predicate(trailing, eventIndex, trailing.ts)) {
       out.push({ event: trailing, eventIndex, ts: trailing.ts });
@@ -60,10 +63,7 @@ export async function searchSessionEvents(args: {
   }
 }
 
-function parseSessionEventLine(
-  line: string,
-  secretScrubber: SecretScrubber,
-): SessionEvent | null {
+function parseSessionEventLine(line: string, secretScrubber: SecretScrubber): SessionEvent | null {
   if (!line) return null;
   try {
     const parsed: unknown = JSON.parse(line);

@@ -35,11 +35,28 @@ import type { ChatState } from './chat-store-types';
 export const MAX_CHAT_MESSAGES = 1000;
 export const MAX_PERSISTED_MESSAGES = 200;
 
-export { activeChatLane, activeLaneId, adoptDefaultLane, type ChatLaneActions, type ChatLaneData, chatLane, DEFAULT_LANE_ID, disposeLane, ensureLane, hasLane, laneIds, MAX_LANES, readLane, setActiveLane, useChatLanes } from './chat-lanes';
+export {
+  activeChatLane,
+  activeLaneId,
+  adoptDefaultLane,
+  type ChatLaneActions,
+  type ChatLaneData,
+  chatLane,
+  DEFAULT_LANE_ID,
+  disposeLane,
+  ensureLane,
+  hasLane,
+  laneIds,
+  MAX_LANES,
+  readLane,
+  setActiveLane,
+  useChatLanes,
+} from './chat-lanes';
 export { BTW_DISPATCH_GRACE_MS } from './chat-queue-helpers';
 export {
   boundChatField,
   dedupeRepeatedBlocks,
+  indexToolExecutions,
   indexToolMessages,
   MAX_CHAT_FIELD_CHARS,
   MAX_CHAT_RETAINED_BYTES,

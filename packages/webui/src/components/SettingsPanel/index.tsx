@@ -1,5 +1,4 @@
 import {
-  Activity,
   Bot,
   Brain,
   Bug,
@@ -26,7 +25,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { useConfigStore, useUIStore } from '@/stores';
-import { useLocalPrefs } from '@/stores/local-prefs';
+import { type LocalPrefs, useLocalPrefs } from '@/stores/local-prefs';
 import type { ProviderCustomModelWire, WSServerMessage } from '@/types';
 import { Button } from '../ui/button';
 import {
@@ -51,15 +50,16 @@ import { IntegrationsSection } from './IntegrationsSection';
 import { LogsSettingsTab } from './LogsSettingsTab';
 import { ModelEffortSelect } from './ModelEffortSelect';
 import { ModelSection } from './ModelSection';
+import { ModelTiersSection } from './ModelTiersSection';
 import {
   type CatalogProvider,
   ProviderSection,
   type ProviderTab,
   type SavedProvider,
 } from './ProviderSection';
-import { ModelTiersSection } from './ModelTiersSection';
 import { RoutingSection } from './RoutingSection';
 import { SecuritySection } from './SecuritySection';
+import { syncSettingsPreference } from './sync-settings-preference';
 
 interface TabDef {
   id: string;
@@ -193,17 +193,16 @@ export function SettingsPanel() {
   );
   const ws = useWebSocket();
   const wsClient = ws.client;
-  const { updatePrefs, switchAutonomy } = ws;
+  const { updatePrefs, switchAutonomy, switchContextMode } = ws;
   const localPrefs = useLocalPrefs();
   const { t } = useAppTranslation();
   const fallbackCandidates = useProviderModels(true);
 
   const syncPref = useCallback(
     (key: string, value: unknown) => {
-      localPrefs.set({ [key]: value } as Parameters<typeof localPrefs.set>[0]);
-      updatePrefs({ [key]: value });
+      syncSettingsPreference(localPrefs, updatePrefs, switchContextMode, key, value);
     },
-    [localPrefs, updatePrefs],
+    [localPrefs, updatePrefs, switchContextMode],
   );
 
   const [catalogProviders, setCatalogProviders] = useState<CatalogProvider[]>([]);

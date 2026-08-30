@@ -23,6 +23,7 @@ import {
   useUIStore,
 } from '@/stores';
 import { restoreTabsAfterBoot } from '@/stores/session-tab-store';
+import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import {
   activeLaneId,
   adoptDefaultLane,
@@ -124,9 +125,14 @@ export function hydrateReplayMessages(
   markers: readonly SessionMarker[] = [],
   toolMeta: readonly SessionToolMeta[] = [],
 ): ChatMessage[] {
-  const conversation = replay.filter(
+  const conversation = (Array.isArray(replay) ? replay : []).filter(
     (m): m is ReplayMessage & { role: 'user' | 'assistant' | 'system' } =>
-      m.role === 'user' || m.role === 'assistant' || m.role === 'system',
+      Boolean(
+        m &&
+          typeof m === 'object' &&
+          typeof (m as { role?: unknown }).role === 'string' &&
+          (m.role === 'user' || m.role === 'assistant' || m.role === 'system'),
+      ),
   ) as unknown as Message[];
 
   const timeline = projectSessionTimeline({
@@ -270,7 +276,9 @@ export function handleSessionStart(msg: WSServerMessage) {
     useVizStore.getState().setActive(true);
   }
 
-  const payload = msg.payload as {
+  const payload = (msg?.payload && typeof msg.payload === 'object'
+    ? msg.payload
+    : {}) as {
     sessionId: string;
     model: unknown;
     provider: unknown;
@@ -334,6 +342,13 @@ export function handleSessionStart(msg: WSServerMessage) {
 
   const sessionId = payload.sessionId;
   if (!sessionId) return;
+
+  // The answer this tab was waiting for — whatever it turns out to say. Ended
+  // here rather than in the transcript branch below so a frame that carries no
+  // messages (a focus, a session with an empty journal) also takes the pane
+  // out of its loading state instead of leaving it spinning on a wait that is
+  // over.
+  useResumeProgressStore.getState().end(sessionId);
 
   // -- Reconcile the persisted tab strip with the RUNTIME ----------------
   // Before any lane is promoted or fronted, because promoting a slot this
@@ -403,12 +418,31 @@ export function handleSessionStart(msg: WSServerMessage) {
   const sessionStartedAt = Number.isFinite(payloadStartedAt) ? payloadStartedAt : Date.now();
 
   const isRunning = Boolean(payload.isRunning);
+  // Did THIS client ask to land here? Claimed once, high up, because two
+  // separate decisions need the answer: whether a replay may replace what the
+  // lane holds, and whether the surface moves. Claiming it twice would let the
+  // first read consume the grant and leave the second looking unrequested.
+  const requested = claimRequestedSwitch(sessionId);
   // Switching BACK to a tab we already hold answers with `reset: true` as well
   // — the session id changed from the server's point of view. Treating that as
   // a reset is what zeroed a tab's transcript and counters the moment you
   // returned to it, so a lane we already know is only reset when it is the one
   // already in front (a genuine in-place clear).
-  const returningToKnownTab = !isFirstSightOfLane && activeLaneId() !== sessionId;
+  //
+  // The server has to SAY which of the two this is. The original test —
+  // "the lane exists and is not the one in front" — could never be true on the
+  // path it was written for: `openTab` calls `activate()`, which moves the
+  // active lane synchronously, BEFORE `focusSessionById` goes out. By the time
+  // the focus answer arrives the lane IS in front, so `returningToKnownTab`
+  // was always false, `isReset` was always true, and a transcript-less
+  // `reset: true` fell straight through to `clearMessages()`. Every switch
+  // back to an open tab emptied it. `replayReason: 'focus'` is the server
+  // stating the fact instead of the client guessing from a pointer it has
+  // already moved; the positional test stays for the case it does answer
+  // correctly — an unrequested re-announce for a background lane.
+  const isFocusFrame = payload.replayReason === 'focus';
+  const returningToKnownTab =
+    !isFirstSightOfLane && (isFocusFrame || activeLaneId() !== sessionId);
   const isReset = isFirstSightOfLane || (payload.reset === true && !returningToKnownTab);
 
   if (isReset) {
@@ -475,7 +509,18 @@ export function handleSessionStart(msg: WSServerMessage) {
   // the replay: that is the case where the persisted copy did not survive
   // (storage cleared, quota refused the write) and the pane would otherwise
   // stay blank until clicked.
-  const keepLiveTranscript = hasLiveTranscript && (isRunning || returningToKnownTab);
+  //
+  // A frame this client ASKED for is the exception to the exception. Resuming
+  // a large journal can take the server tens of seconds, and in that window
+  // anything at all may land in the target lane — a Chimera card, a restored
+  // todo notice — and the user may well have clicked away and back. Both make
+  // the lane "known and populated", which is exactly the shape this guard
+  // discards, so the transcript the user waited for was thrown away on arrival
+  // and no later click could ask for it again (a tab on screen is focused, not
+  // resumed, and a focus carries nothing). A run that is still streaming still
+  // wins: its in-memory transcript is genuinely ahead of the journal.
+  const keepLiveTranscript =
+    hasLiveTranscript && (isRunning || (returningToKnownTab && !requested));
   // A redisplay is the one frame that may touch a populated lane, and even it
   // may only ADD.
   //
@@ -520,12 +565,15 @@ export function handleSessionStart(msg: WSServerMessage) {
         1_000_000,
     });
   }
+  // `lastInputTokens` drives the context-fill bar, so only a real per-request
+  // measurement may set it. The fallback that used to sit here summed
+  // `replayUsage` — the session's RUNNING TOTAL — and published it as the size
+  // of one prompt, which drew a resumed session at several hundred percent of
+  // its window. A session the server cannot measure yet keeps the bar unset;
+  // the cumulative numbers still reach the usage and cost readouts above.
   const serverLastInput = payload.lastInputTokens;
   if (typeof serverLastInput === 'number' && serverLastInput > 0) {
     meta.patch({ lastInputTokens: serverLastInput });
-  } else if (usage) {
-    const totalPrompt = (usage.input ?? 0) + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
-    if (totalPrompt > 0) meta.patch({ lastInputTokens: totalPrompt });
   }
 
   // Retiring one session must not wipe the fleets of the tabs still running.
@@ -538,15 +586,21 @@ export function handleSessionStart(msg: WSServerMessage) {
     useFleetStore.setState({ agents: survivors });
   }
 
+  if (Array.isArray(payload.agentSessions) && payload.agentSessions.length > 0) {
+    useFleetStore.getState().hydrateAgentSessions(payload.agentSessions, sessionId);
+  }
+
   // -- Does this session come to the front? -----------------------------
   // Only when THIS client asked for it, or when nothing is in front yet.
   // A server-side re-announce for a background tab (model switch, a
   // re-broadcast) updates the lane above and stops here — yanking the user out
   // of the tab they are typing in is exactly the "tabs go haywire" symptom
   // this design exists to remove.
+  // `requested` was claimed once at the top of this handler — the transcript
+  // decision needs the same answer, and a second claim would find the grant
+  // already spent and report this frame as unrequested.
   const activeId = activeLaneId();
   const nothingInFront = activeId === DEFAULT_LANE_ID || !hasLane(activeId);
-  const requested = claimRequestedSwitch(sessionId);
   const tabStore = useSessionTabStore.getState();
   const preservePlainWebView =
     isReset &&

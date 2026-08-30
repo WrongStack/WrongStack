@@ -182,7 +182,7 @@ describe('cross-process session discovery', () => {
     expect((await registry.get('sess-webui-child'))?.webuiEndpoint).toEqual(webuiEndpoint);
   });
 
-  it('re-registering the same process (project switch) replaces its entry, not adds one', async () => {
+  it('re-registering the same process preserves sibling sessions owned by that process', async () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     // Initial registration — process is "in" project Alpha.
@@ -195,7 +195,9 @@ describe('cross-process session discovery', () => {
       pid: 9001,
       startedAt: new Date().toISOString(),
     });
-    // WebUI switches projects in place: same pid, fresh session id, new root.
+    // A WebUI process can own multiple tab sessions: same pid, fresh session
+    // id, and possibly a different root must not make the old tab look
+    // abandoned to external clients.
     await reg.register({
       sessionId: 'sess-new',
       projectSlug: 'beta',
@@ -207,13 +209,16 @@ describe('cross-process session discovery', () => {
     });
 
     const list = await reg.list();
-    // Exactly one entry for this process — no phantom pointing at the old root.
-    expect(list).toHaveLength(1);
-    expect(list[0]!.sessionId).toBe('sess-new');
-    expect(list[0]!.projectSlug).toBe('beta');
-    expect(list[0]!.workingDir).toBe('/home/beta');
-    expect(await reg.get('sess-old')).toBeUndefined();
-    expect(await reg.listByProject('alpha')).toHaveLength(0);
+    expect(list.map((session) => session.sessionId).sort()).toEqual(['sess-new', 'sess-old']);
+    expect(await reg.get('sess-old')).toMatchObject({
+      projectSlug: 'alpha',
+      workingDir: '/home/alpha',
+    });
+    expect(await reg.get('sess-new')).toMatchObject({
+      projectSlug: 'beta',
+      workingDir: '/home/beta',
+    });
+    expect(await reg.listByProject('alpha')).toHaveLength(1);
   });
 
   it('rejects a second process claiming the same live session', async () => {
@@ -1205,7 +1210,8 @@ describe('updateAgents write coalescing', () => {
 
     await pending;
     await new Promise((resolve) => setTimeout(resolve, 400));
-    expect(await reg.get('sess-throttle')).toBeUndefined();
+    const oldSession = await reg.get('sess-throttle');
+    expect(oldSession?.agents.map((agent) => agent.id)).toEqual(['leader']);
     expect((await reg.get('sess-next'))?.agents.map((agent) => agent.id)).toEqual([
       'new-session-agent',
     ]);

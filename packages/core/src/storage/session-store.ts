@@ -16,6 +16,7 @@ import type {
   SessionData,
   SessionEvent,
   SessionForkOptions,
+  SessionLoadProgress,
   SessionMetadata,
   SessionStore,
   SessionSummary,
@@ -425,7 +426,10 @@ export class DefaultSessionStore implements SessionStore {
     throw sessionIdResolutionError(resolution);
   }
 
-  async resume(id: string): Promise<ResumedSession> {
+  async resume(
+    id: string,
+    onLoadProgress?: (progress: SessionLoadProgress) => void,
+  ): Promise<ResumedSession> {
     const canonicalId = await this.resolveId(id);
     const file = this.sessionPath(canonicalId, '.jsonl');
     return executeResumeSession({
@@ -438,7 +442,7 @@ export class DefaultSessionStore implements SessionStore {
       checkpointCas: this.checkpointCas,
       onAppend: this.onAppend,
       onAppendBatch: this.onAppendBatch,
-      load: (loadId) => this.load(loadId),
+      load: (loadId) => this.load(loadId, onLoadProgress),
       readSummaryManifest: (summaryId) => this.readSummaryManifest(summaryId),
       searchEvents: (searchId, pred) => this.searchEvents(searchId, pred),
       persistCatalogSummary: (sum) => this.persistCatalogSummary(sum),
@@ -447,8 +451,11 @@ export class DefaultSessionStore implements SessionStore {
     });
   }
 
-  async load(id: string): Promise<SessionData> {
-    return this.loadInternal(id, { full: true });
+  async load(
+    id: string,
+    onLoadProgress?: (progress: SessionLoadProgress) => void,
+  ): Promise<SessionData> {
+    return this.loadInternal(id, { full: true }, onLoadProgress);
   }
 
   async loadEventsOnly(id: string): Promise<SessionData> {
@@ -458,6 +465,7 @@ export class DefaultSessionStore implements SessionStore {
   private async loadInternal(
     id: string,
     mode: { full: true } | { full: false },
+    onLoadProgress?: (progress: SessionLoadProgress) => void,
   ): Promise<SessionData> {
     const file = this.sessionPath(id, '.jsonl');
     const t0 = Date.now();
@@ -470,6 +478,9 @@ export class DefaultSessionStore implements SessionStore {
       const cached = this.loadCache.getFresh(id, stat, mode.full);
       if (cached) {
         cacheHit = true;
+        // A warm cache parses nothing — report a single completed event so a
+        // progress consumer still sees the load reach 100%.
+        onLoadProgress?.({ loadedBytes: stat.size, totalBytes: stat.size });
         return cached;
       }
 
@@ -479,6 +490,7 @@ export class DefaultSessionStore implements SessionStore {
         full: mode.full,
         events: this.events,
         secretScrubber: this.secretScrubber,
+        onLoadProgress,
       });
 
       if (mode.full) {
@@ -1032,7 +1044,12 @@ export class DefaultSessionStore implements SessionStore {
         holderId: this.maintenanceHolderId,
       });
     }
-    const deleted = await pruneSessionFiles(this.dir, maxAgeDays, (id) => this.deleteSession(id));
+    const deleted = await pruneSessionFiles(
+      this.dir,
+      maxAgeDays,
+      (id) => this.deleteSession(id),
+      this.isSessionInUse,
+    );
     if (deleted > 0) {
       await this.compactIndex().catch(() => undefined);
     }
@@ -1049,6 +1066,9 @@ export class DefaultSessionStore implements SessionStore {
       ensureShardDir: (sid) => this.ensureShardDir(sid),
       sessionPath: (sid, ext) => this.sessionPath(sid, ext),
     });
+    if (!this.catalogClient) {
+      await this.appendToIndexStrict(await this.summaryFor(canonical));
+    }
     this.clearLoadCache(canonical);
     // loadInternal() caches under the id it was called with, so a session
     // previously loaded via an alias would keep a raw-keyed entry after a

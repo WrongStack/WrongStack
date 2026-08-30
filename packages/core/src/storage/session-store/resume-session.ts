@@ -1,9 +1,15 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../event-bus-port.js';
+import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { ResumedSession, SessionData, SessionEvent, SessionSummary } from '../../types/session.js';
+import type {
+  ResumedSession,
+  SessionData,
+  SessionEvent,
+  SessionSummary,
+} from '../../types/session.js';
 import { toErrorMessage } from '../../utils/index.js';
 import { FileSessionWriter } from '../file-session-writer.js';
 import type { SessionCheckpointCas } from '../session-checkpoint-cas.js';
@@ -120,10 +126,7 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
       const validationEvents =
         eventsDropped > 0
           ? (
-              await searchEvents(
-                canonicalId,
-                (ev: SessionEvent) => ev.type === 'file_observation',
-              )
+              await searchEvents(canonicalId, (ev: SessionEvent) => ev.type === 'file_observation')
             ).map((h) => h.event)
           : data.events;
       resumeValidation = await validateResumeFileObservations(validationEvents, projectRoot);
@@ -170,10 +173,18 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
   }
 
   const carriedMessages = data.messages.filter((message) => !isResumeNoticeMessage(message));
+  const recoveredMessages = appendSyntheticRecoveryMessages(
+    carriedMessages,
+    recoveryPlan.pendingEvents,
+    synthesizedResults,
+  );
+  const { pendingToolUseCount: _healedPendingToolUseCount, ...dataWithoutPendingToolUseCount } =
+    data;
+  const resumedBase = synthesizedResults.length > 0 ? dataWithoutPendingToolUseCount : data;
   const resumedData: SessionData = {
-    ...data,
+    ...resumedBase,
     ...(resumeValidation ? { resumeValidation } : {}),
-    messages: [...carriedMessages, ...noticeMessages],
+    messages: [...recoveredMessages, ...noticeMessages],
   };
 
   let handle: fsp.FileHandle;
@@ -181,10 +192,9 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
     handle = await openSessionForAppend(file);
   } catch (err) {
     emitSessionStoreError(events, canonicalId, file, 'resume', toErrorMessage(err), false);
-    throw new Error(
-      `Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`,
-      { cause: err },
-    );
+    throw new Error(`Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`, {
+      cause: err,
+    });
   }
 
   try {
@@ -247,7 +257,96 @@ export async function executeResumeSession(params: ResumeSessionParams): Promise
   }
 }
 
- async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
+function appendSyntheticRecoveryMessages(
+  messages: Message[],
+  pendingEvents: readonly SessionEvent[],
+  synthesizedResults: readonly SessionEvent[],
+): Message[] {
+  if (synthesizedResults.length === 0) return messages;
+  const next = [...messages];
+  for (const result of synthesizedResults) {
+    if (result.type !== 'tool_result') continue;
+    const toolUse =
+      findToolUseBlock(next, result.id) ?? findToolUseBlockInEvents(pendingEvents, result.id);
+    if (!toolUse) continue;
+    if (!isLastMessageToolUseFor(next, result.id)) {
+      next.push({
+        role: 'assistant',
+        content: [toolUse],
+        ts: result.ts,
+      });
+    }
+    next.push({
+      role: 'user',
+      content: [
+        {
+          type: 'tool_result',
+          tool_use_id: result.id,
+          content:
+            typeof result.content === 'string' ? result.content : JSON.stringify(result.content),
+          is_error: result.isError,
+        },
+      ],
+      ts: result.ts,
+    });
+  }
+  return next;
+}
+
+function findToolUseBlock(messages: readonly Message[], id: string): ContentBlock | null {
+  for (const message of messages) {
+    if (message.role !== 'assistant' || !Array.isArray(message.content)) continue;
+    for (const block of message.content) {
+      if (block.type === 'tool_use' && block.id === id) return block;
+    }
+  }
+  return null;
+}
+
+function findToolUseBlockInEvents(
+  events: readonly SessionEvent[],
+  id: string,
+): ContentBlock | null {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i];
+    if (!event) continue;
+    if (event.type === 'llm_response') {
+      const block = event.content.find((item) => item.type === 'tool_use' && item.id === id);
+      if (block) return block;
+    } else if (
+      event.type === 'message_appended' &&
+      event.message.role === 'assistant' &&
+      Array.isArray(event.message.content)
+    ) {
+      const block = event.message.content.find(
+        (item) => item.type === 'tool_use' && item.id === id,
+      );
+      if (block) return block;
+    } else if (event.type === 'tool_use' && event.id === id) {
+      return { type: 'tool_use', id: event.id, name: event.name, input: recordInput(event.input) };
+    } else if (event.type === 'tool_call_start' && event.id === id) {
+      return { type: 'tool_use', id: event.id, name: event.name, input: recordInput(event.input) };
+    }
+  }
+  return null;
+}
+
+function recordInput(input: unknown): Record<string, unknown> {
+  return input !== null && typeof input === 'object' && !Array.isArray(input)
+    ? (input as Record<string, unknown>)
+    : {};
+}
+
+function isLastMessageToolUseFor(messages: readonly Message[], id: string): boolean {
+  const last = messages[messages.length - 1];
+  return (
+    last?.role === 'assistant' &&
+    Array.isArray(last.content) &&
+    last.content.some((block) => block.type === 'tool_use' && block.id === id)
+  );
+}
+
+async function openSessionForAppend(file: string): Promise<fsp.FileHandle> {
   const handle = await fsp.open(file, 'a+', 0o600);
   try {
     const stat = await handle.stat();

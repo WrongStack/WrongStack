@@ -57,13 +57,19 @@ function stripTerminalControls(value: string): string {
  * here to avoid a bidirectional import between those two modules.
  */
 export function sessionContentText(content: string | ContentBlock[]): string {
+  if (!content) return '';
   const text =
     typeof content === 'string'
       ? content
-      : content
-          .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-          .map((b) => b.text)
-          .join(' ');
+      : Array.isArray(content)
+        ? content
+            .filter(
+              (b): b is { type: 'text'; text: string } =>
+                Boolean(b && b.type === 'text' && typeof b.text === 'string'),
+            )
+            .map((b) => b.text)
+            .join(' ')
+        : String(content);
   return stripTerminalControls(text).trim().replace(/\s+/g, ' ');
 }
 

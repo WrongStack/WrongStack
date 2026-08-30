@@ -24,6 +24,8 @@ import type { SessionEvent } from '../../src/types/session.js';
 
 const now = () => new Date().toISOString();
 
+type UserInputSessionEvent = Extract<SessionEvent, { type: 'user_input' }>;
+
 type PublicSessionWriteBuffer = {
   [Key in keyof InstanceType<typeof ProductionSessionWriteBuffer>]: InstanceType<
     typeof ProductionSessionWriteBuffer
@@ -42,20 +44,20 @@ const SessionWriteBuffer = ProductionSessionWriteBuffer as unknown as {
   readonly WRITE_BUFFER_MAX_BYTES: number;
 };
 
-function makeEvent(): SessionEvent {
+function makeEvent(): UserInputSessionEvent {
   return {
     type: 'user_input',
     ts: now(),
     content: 'hello world',
-  } as SessionEvent;
+  };
 }
 
-function makeLargeEvent(): SessionEvent {
+function makeLargeEvent(): UserInputSessionEvent {
   return {
     type: 'user_input',
     ts: now(),
     content: 'x'.repeat(SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES + 1),
-  } as SessionEvent;
+  };
 }
 
 describe('SessionWriteBuffer — coverage', () => {
@@ -111,7 +113,17 @@ describe('SessionWriteBuffer — coverage', () => {
       circular: undefined as unknown,
     } as unknown as SessionEvent & { circular?: unknown };
     event.circular = event; // circular reference → JSON.stringify throws
-    expect(buffer.push(event as never)).toBe(false);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      expect(buffer.push(event as never)).toBe(false);
+      expect(buffer.length).toBe(0);
+      // The drop is reported, never silent.
+      expect(
+        warnSpy.mock.calls.some((call) => String(call[0]).includes('buffer_push_invalid')),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('push returns false when the event count exceeds the limit', () => {
@@ -124,9 +136,31 @@ describe('SessionWriteBuffer — coverage', () => {
     expect(buffer.push(makeEvent())).toBe(false);
   });
 
-  it('push returns false when a single event exceeds the byte limit', () => {
+  it('accepts an oversized single event and marks the buffer flush-ready', async () => {
     const buffer = new SessionWriteBuffer(makeOpts());
-    expect(buffer.push(makeLargeEvent())).toBe(false);
+    expect(buffer.push(makeLargeEvent())).toBe(true);
+    expect(buffer.length).toBe(1);
+    expect(buffer.shouldFlushNow()).toBe(true);
+    await expect(buffer.flushBuffer()).resolves.toBeUndefined();
+  });
+
+  it('push rejects a single event above the hard per-event ceiling', () => {
+    const buffer = new SessionWriteBuffer(makeOpts());
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      // Pathological payload: far above the retention budget, so the
+      // empty-buffer exemption must NOT apply — reject instead of pinning
+      // memory and stalling the event loop on stringify.
+      const huge = makeLargeEvent();
+      huge.content = 'x'.repeat(SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES * 4 + 1);
+      expect(buffer.push(huge)).toBe(false);
+      expect(buffer.length).toBe(0);
+      expect(
+        warnSpy.mock.calls.some((call) => String(call[0]).includes('session.buffer_overflow')),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('shouldFlushNow returns true when the buffer reaches the flush size', () => {
@@ -491,5 +525,82 @@ describe('SessionWriteBuffer — coverage', () => {
         return name === 'storage.write' && payload?.traceId === 'trace-456';
       }),
     ).toBe(true);
+  });
+
+  it('flushSync defers teardown events behind an already-started async append', async () => {
+    const filePath = path.join(tmp, 'sigterm-teardown.jsonl');
+    await fs.writeFile(filePath, '');
+    const handle = {
+      appendFile: vi.fn(async (data: string) => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        await fs.appendFile(filePath, data);
+      }),
+      datasync: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const buffer = new SessionWriteBuffer({
+      sessionId: 's',
+      filePath,
+      getHandle: () => handle as unknown as fs.FileHandle,
+      setHandle: () => undefined,
+    });
+    buffer.push({ type: 'user_input', ts: now(), content: 'in-flight' } as SessionEvent);
+    const flushPromise = buffer.flushBuffer();
+    // Let the flush issue its async append (started, not yet settled).
+    await new Promise((resolve) => setImmediate(resolve));
+    // Teardown-time events land in the buffer after the flush snapshot.
+    buffer.push({ type: 'user_input', ts: now(), content: 'late-1' } as SessionEvent);
+    buffer.push({ type: 'user_input', ts: now(), content: 'late-2' } as SessionEvent);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      buffer.flushSync();
+      expect(buffer.length).toBe(2);
+      expect(
+        warnSpy.mock.calls.some((call) => String(call[0]).includes('flush_sync_deferred')),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
+    await flushPromise.catch(() => undefined);
+
+    const content = await fs.readFile(filePath, 'utf8');
+    const inFlightIdx = content.indexOf('in-flight');
+    const late1Idx = content.indexOf('late-1');
+    const late2Idx = content.indexOf('late-2');
+    expect(inFlightIdx).toBeGreaterThanOrEqual(0);
+    expect(late1Idx).toBeGreaterThan(inFlightIdx);
+    expect(late2Idx).toBeGreaterThan(late1Idx);
+    expect(buffer.length).toBe(0);
+  }, 10_000);
+
+  it('flushSync defers with the buffer preserved when the in-flight append never settles', async () => {
+    const filePath = path.join(tmp, 'defer-budget.jsonl');
+    await fs.writeFile(filePath, '');
+    const handle = {
+      appendFile: vi.fn(() => new Promise<undefined>(() => {})),
+      datasync: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    const buffer = new SessionWriteBuffer({
+      sessionId: 's',
+      filePath,
+      getHandle: () => handle as unknown as fs.FileHandle,
+      setHandle: () => undefined,
+    });
+    buffer.push({ type: 'user_input', ts: now(), content: 'pre' } as SessionEvent);
+    void buffer.flushBuffer();
+    await new Promise((resolve) => setImmediate(resolve));
+    buffer.push({ type: 'user_input', ts: now(), content: 'teardown' } as SessionEvent);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      buffer.flushSync(); // started async append is left alone; buffer is kept
+      expect(buffer.length).toBe(1);
+      expect(
+        warnSpy.mock.calls.some((call) => String(call[0]).includes('flush_sync_deferred')),
+      ).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

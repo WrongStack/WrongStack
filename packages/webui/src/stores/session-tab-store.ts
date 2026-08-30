@@ -40,6 +40,7 @@ import { useGitChangesStore } from './git-changes-store';
 import { useHistoryStore } from './history-store';
 import { useLocalPrefs } from './local-prefs';
 import { useRestoreTabsStore } from './restore-tabs-store';
+import { useResumeProgressStore } from './resume-progress-store';
 import {
   activeSessionLaneId,
   disposeSessionLane,
@@ -680,6 +681,17 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
       if (activeId && !recycleReentry) notifyBusyTabLeftBehind(activeId);
       activate(sessionId);
       get().markSeen(sessionId);
+      // An EMPTY slot is the one focus that may turn into a real wait. The
+      // server answers a focus for a session it holds with no transcript
+      // (the tab already has it), but a page that outlived its process is
+      // focusing a session the runtime has never opened — and there the
+      // focus falls through to a full journal resume server-side. That slot
+      // has nothing on screen meanwhile, which is the same blank pane the
+      // resume indicator exists for. A focus the server answers immediately
+      // clears the flag on arrival, so marking it costs nothing.
+      if (readLane(sessionId).messages.length === 0) {
+        useResumeProgressStore.getState().begin(sessionId);
+      }
       focusOnServer(sessionId);
       return { success: true, reason: 'switched' };
     }
@@ -691,7 +703,17 @@ export const useSessionTabStore = create<SessionTabState>((set, get) => ({
       writeStoredTabs(next);
       activate(sessionId);
       get().markSeen(sessionId);
-      options?.resumeSession?.(sessionId);
+      // Mark the wait BEFORE the request goes out. The slot is already on
+      // screen and the lane is empty, so without this the pane renders the
+      // welcome screen for however long the server needs to replay the
+      // journal — which on a large one is long enough to read as "the
+      // transcript is gone". Every resume reaches the server through this
+      // callback, so one call here covers the history list, the tab strip, the
+      // command palette and the restore-tabs modal alike.
+      if (options?.resumeSession) {
+        useResumeProgressStore.getState().begin(sessionId);
+        options.resumeSession(sessionId);
+      }
       // A re-entry through the recycle path reports the honest reason: the
       // strip did not simply gain a slot — an empty slot was REPLACED.
       return {

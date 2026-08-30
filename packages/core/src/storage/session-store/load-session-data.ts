@@ -1,6 +1,8 @@
 import { createReadStream } from 'node:fs';
+import { stat as fspStat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../event-bus-port.js';
+import type { SessionLoadProgress } from '../../types/session.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
@@ -36,6 +38,8 @@ export const DEFAULT_MAX_RETAINED_EVENT_BYTES = 96 * 1024 * 1024;
 const EVICT_TO_FRACTION = 0.9;
 /** What a snapshot event still costs once `stripSnapshotPayload` empties it. */
 const SNAPSHOT_ENVELOPE_BYTES = 256;
+/** Minimum wall time between onLoadProgress emissions. */
+const LOAD_PROGRESS_INTERVAL_MS = 250;
 
 export async function loadSessionDataFromFile(params: {
   id: string;
@@ -44,6 +48,16 @@ export async function loadSessionDataFromFile(params: {
   events?: EventBus | undefined;
   secretScrubber: SecretScrubber;
   maxRetainedEventBytes?: number | undefined;
+  /**
+   * Byte-level parse progress for large journals. Throttled to one call per
+   * `progressIntervalMs` (the per-line accounting approximates delimiters)
+   * plus an unthrottled final call at EOF reporting
+   * `loadedBytes === totalBytes` exactly. When omitted,
+   * no progress work happens at all — not even the source-size stat.
+   */
+  onLoadProgress?: ((progress: SessionLoadProgress) => void) | undefined;
+  /** Test seam: override the throttle window (0 = every line). */
+  progressIntervalMs?: number | undefined;
 }): Promise<SessionData> {
   const events: SessionEvent[] = [];
   const eventBytes: number[] = [];
@@ -62,15 +76,34 @@ export async function loadSessionDataFromFile(params: {
   const messages: Message[] | undefined = params.full ? [] : undefined;
   const openToolUses: Set<string> | undefined = params.full ? new Set<string>() : undefined;
   let exactJournalActive = false;
+  let messageIndexOffset = 0;
   let usage: UsageTotals = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
   /** Newest snapshot seen so far; its predecessor is stripped when it arrives. */
   let lastSnapshot: SnapshotEvent | undefined;
 
+  // Progress is opt-in: without a consumer neither the size stat nor the
+  // per-line accounting happens at all. Stat BEFORE constructing the stream:
+  // a rejected stat (deleted/unreadable journal) must not leak a stream and
+  // readline that the try/finally below has not claimed yet.
+  const totalBytes = params.onLoadProgress ? (await fspStat(params.file)).size : 0;
+
   const stream = createReadStream(params.file, { encoding: 'utf8' });
   const rl = createInterface({ input: stream, crlfDelay: Infinity });
+  let loadedBytes = 0;
+  let lastProgressAt = 0;
+  const progressIntervalMs = params.progressIntervalMs ?? LOAD_PROGRESS_INTERVAL_MS;
 
   try {
     for await (const line of rl) {
+      // Opt-in per contract: the default path (no consumer) must stay a
+      // zero-extra-cost scan on OOM-scale journals — no stat, no accounting.
+      if (params.onLoadProgress) {
+        loadedBytes += Buffer.byteLength(line, 'utf8') + 1;
+        if (Date.now() - lastProgressAt >= progressIntervalMs) {
+          lastProgressAt = Date.now();
+          params.onLoadProgress({ loadedBytes, totalBytes });
+        }
+      }
       if (!line.trim()) continue;
       try {
         const parsed: unknown = JSON.parse(line);
@@ -146,9 +179,11 @@ export async function loadSessionDataFromFile(params: {
             messages,
             openToolUses,
             exactJournalActive,
+            messageIndexOffset,
             usage,
           });
           exactJournalActive = replayState.exactJournalActive;
+          messageIndexOffset = replayState.messageIndexOffset;
           usage = replayState.usage ?? usage;
         } else if (ev.type === 'llm_response') {
           usage = accumulateUsage(usage, ev);
@@ -156,6 +191,12 @@ export async function loadSessionDataFromFile(params: {
       } catch {
         // skip malformed JSON
       }
+    }
+    if (params.onLoadProgress) {
+      // Unthrottled EOF marker: the authoritative completion signal — the
+      // per-line +1 accounting only approximates delimiters, so report the
+      // exact source size (lets callers flip to "parsed — replaying…").
+      params.onLoadProgress({ loadedBytes: totalBytes, totalBytes });
     }
   } finally {
     rl.close();
@@ -170,7 +211,7 @@ export async function loadSessionDataFromFile(params: {
         detail: `${openToolUses.size} tool_use blocks without matching results - replay repaired`,
       });
     }
-    const repaired = repairToolUseAdjacency(messages);
+    const repaired = repairToolUseAdjacency(messages, { preserveTrailingToolUse: true });
     if (repaired.report.changed) {
       params.events?.emit('session.damaged', {
         sessionId: params.id,
@@ -270,19 +311,22 @@ function replaySessionEvent(params: {
   messages: Message[];
   openToolUses: Set<string>;
   exactJournalActive: boolean;
+  messageIndexOffset: number;
   usage: UsageTotals;
-}): { exactJournalActive: boolean; usage?: UsageTotals } {
+}): { exactJournalActive: boolean; messageIndexOffset: number; usage?: UsageTotals } {
   const { ev, messages, openToolUses } = params;
   let exactJournalActive = params.exactJournalActive;
+  let messageIndexOffset = params.messageIndexOffset;
 
   if (ev.type === 'message_appended' && ev.version === 1) {
     const message = replayableMessage(ev.message, ev.ts);
     if (message) {
-      if (!exactJournalActive) {
+      if (!exactJournalActive && shouldReplaceLegacyReplay(messages, ev.ts)) {
         messages.length = 0;
         openToolUses.clear();
-        exactJournalActive = true;
+        messageIndexOffset = 0;
       }
+      exactJournalActive = true;
       messages.push(message);
       trackMessageToolState(message, openToolUses);
     } else {
@@ -290,8 +334,9 @@ function replaySessionEvent(params: {
     }
   } else if (ev.type === 'message_updated' && ev.version === 1) {
     const message = replayableMessage(ev.message, ev.ts);
-    if (message && exactJournalActive && ev.index >= 0 && ev.index < messages.length) {
-      messages[ev.index] = message;
+    const index = ev.index - messageIndexOffset;
+    if (message && exactJournalActive && index >= 0 && index < messages.length) {
+      messages[index] = message;
       openToolUses.clear();
       for (const current of messages) trackMessageToolState(current, openToolUses);
     } else {
@@ -305,6 +350,7 @@ function replaySessionEvent(params: {
       );
     } else if (applyContextSnapshot(messages, openToolUses, ev.messages)) {
       exactJournalActive = true;
+      messageIndexOffset = 0;
     } else {
       emitDamaged(params, 'Ignored malformed messages_replaced event');
     }
@@ -315,7 +361,9 @@ function replaySessionEvent(params: {
     // `message_updated`, and for the same reason: splicing a prefix off an
     // array reconstructed from inferred events would cut the wrong messages.
     if (exactJournalActive && Number.isInteger(ev.count) && ev.count > 0) {
-      messages.splice(0, Math.min(ev.count, messages.length));
+      const dropped = Math.min(ev.count, messages.length);
+      messages.splice(0, dropped);
+      messageIndexOffset += dropped;
       openToolUses.clear();
       for (const current of messages) trackMessageToolState(current, openToolUses);
     } else if (!exactJournalActive) {
@@ -329,10 +377,22 @@ function replaySessionEvent(params: {
         params,
         `Ignored context_snapshot event whose payload was stripped before persistence (${String(ev.messagesOmitted)} messages)`,
       );
-    } else if (!applyContextSnapshot(messages, openToolUses, ev.messages)) {
+    } else if (applyContextSnapshot(messages, openToolUses, ev.messages)) {
+      // Same base as `messages_replaced` above: the snapshot replaces the
+      // whole array, and the writer's subsequent `message_updated` indices
+      // are positions in THAT array (conversation-state emits live array
+      // positions — there is no global journal counter). A pre-snapshot
+      // `messages_dropped` offset must not leak into them.
+      messageIndexOffset = 0;
+    } else {
       emitDamaged(params, 'Ignored malformed context_snapshot event');
     }
-  } else if (ev.type === 'messages_replaced' || ev.type === 'message_appended' || ev.type === 'message_updated' || ev.type === 'messages_dropped') {
+  } else if (
+    ev.type === 'messages_replaced' ||
+    ev.type === 'message_appended' ||
+    ev.type === 'message_updated' ||
+    ev.type === 'messages_dropped'
+  ) {
     // Reached only when `version` is not 1. Falling through silently made an
     // unreadable journal look like an empty one; say so instead.
     emitDamaged(params, `Ignored ${ev.type} event with unsupported version`);
@@ -346,11 +406,11 @@ function replaySessionEvent(params: {
         if (b.type === 'tool_use') openToolUses.add(b.id);
       }
     }
-    return { exactJournalActive, usage: accumulateUsage(params.usage, ev) };
+    return { exactJournalActive, messageIndexOffset, usage: accumulateUsage(params.usage, ev) };
   } else if (!exactJournalActive && ev.type === 'tool_result') {
     if (!openToolUses.has(ev.id)) {
       emitDamaged(params, `Orphan tool_result "${ev.id}" has no matching tool_use`);
-      return { exactJournalActive };
+      return { exactJournalActive, messageIndexOffset };
     }
     openToolUses.delete(ev.id);
     const resultBlock: ContentBlock = {
@@ -371,7 +431,13 @@ function replaySessionEvent(params: {
     }
   }
 
-  return { exactJournalActive };
+  return { exactJournalActive, messageIndexOffset };
+}
+
+function shouldReplaceLegacyReplay(messages: readonly Message[], eventTs: string): boolean {
+  if (messages.length === 0) return true;
+  const lastTs = messages[messages.length - 1]?.ts;
+  return typeof lastTs === 'string' && lastTs >= eventTs;
 }
 
 function accumulateUsage(

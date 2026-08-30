@@ -182,7 +182,7 @@ export async function finalize(
   // as the lock's token field so an external agent that only reads
   // `.mailbox.token` (without knowing about the lock) still gets
   // a valid bearer.
-  await fsp.writeFile(tokenPath, finalized.token, { mode: 0o600 });
+  await atomicWriteString(tokenPath, finalized.token);
   return finalized;
 }
 
@@ -332,20 +332,22 @@ export async function readLiveLock(projectDir: string): Promise<LiveLockResult> 
  * Windows, Node's fs.rename is implemented via MoveFileEx which is
  * also atomic on the same volume.
  */
-async function atomicWriteJson(targetPath: string, value: unknown): Promise<void> {
+async function atomicWriteString(targetPath: string, content: string): Promise<void> {
   const dir = path.dirname(targetPath);
   await fsp.mkdir(dir, { recursive: true });
   const tmp = `${targetPath}.tmp.${process.pid}.${randomBytes(4).toString('hex')}`;
-  const body = JSON.stringify(value, null, 2) + '\n';
-  await fsp.writeFile(tmp, body, { mode: 0o600 });
+  await fsp.writeFile(tmp, content, { mode: 0o600 });
   try {
     await fsp.rename(tmp, targetPath);
   } catch (err) {
-    // rename failed — clean up the tmpfile and rethrow.
     /* v8 ignore next -- best-effort: tmp already gone during cleanup is fine */
     await fsp.unlink(tmp).catch(() => undefined);
     throw err;
   }
+}
+
+async function atomicWriteJson(targetPath: string, value: unknown): Promise<void> {
+  await atomicWriteString(targetPath, JSON.stringify(value, null, 2) + '\n');
 }
 
 // ── Cross-platform PID + healthz probe helpers ─────────────────────────
@@ -404,6 +406,7 @@ async function probeHealthz(url: string): Promise<boolean> {
     const ctrl = new AbortController();
     /* v8 ignore next -- 500ms abort backstop fires only on a hung probe */
     const t = setTimeout(() => ctrl.abort(), 500);
+    if (typeof t.unref === 'function') t.unref();
     const res = await fetch(`${url}/healthz`, {
       signal: ctrl.signal,
       redirect: 'manual',

@@ -60,7 +60,7 @@ export function ComposerButtonBar({
         title={t('chat:input.attachImagesTitle')}
         addImageFiles={addImageFiles}
       />
-      {isLoading && chatStarted ? (
+      {isLoading ? (
         <StopControls
           stopEditTitle={t('chat:input.stopEditTitle')}
           abortTitle={t('chat:input.abortTitle')}
@@ -131,7 +131,7 @@ export function ComposerButtonBar({
         <Send className="h-4 w-4" />
       </Button>
 
-      {chatStarted && (
+      {(chatStarted || isLoading) && (
         <>
           <Button
             type="button"

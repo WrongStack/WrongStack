@@ -137,7 +137,7 @@ export class DefaultPromptStore implements PromptStore {
       // dir doesn't exist yet
     }
     return entries.sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      (a, b) => (Date.parse(b.updatedAt) || 0) - (Date.parse(a.updatedAt) || 0),
     );
   }
 

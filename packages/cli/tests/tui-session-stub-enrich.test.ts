@@ -1,13 +1,13 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { SessionSummary } from '@wrongstack/core/types';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   containedJsonlPath,
   enrichStubSummaries,
   selectPickerSessions,
 } from '../src/boot/tui-session-stub-enrich.js';
-import type { SessionSummary } from '@wrongstack/core/types';
 
 let dir: string;
 
@@ -120,9 +120,7 @@ describe('enrichStubSummaries', () => {
     // Stale-order stub (old startedAt) but real mtime is today → must rank #1.
     await writeJsonl(
       '2026-08-21/sess_KILLED',
-      [
-        writeUserInput('2026-08-21T17:00:45Z', 'Recover my work please'),
-      ],
+      [writeUserInput('2026-08-21T17:00:45Z', 'Recover my work please')],
       new Date('2026-08-21T17:30:00.000Z'),
     );
     // Healthy session with endedAt 16:00Z — fresh but older than the killed mtime.
@@ -139,5 +137,48 @@ describe('enrichStubSummaries', () => {
       '2026-08-21/sess_HEALTHY',
     ]);
     expect(selected[0]?.title).toBe('Recover my work please');
+  });
+
+  it('drops sessions nothing ever happened in, and keeps crashed ones that look empty', async () => {
+    // Every launch opens a session and most are abandoned before a prompt, so
+    // the raw listing is mostly shells. They pushed the sessions worth resuming
+    // off the end of the picker's window.
+    await writeJsonl(
+      '2026-08-22/sess_CRASHED',
+      [writeUserInput('2026-08-22T10:00:00Z', 'half-finished refactor')],
+      new Date('2026-08-22T10:05:00.000Z'),
+    );
+    const empty = stubSummary('2026-08-22/sess_EMPTY');
+    const busy = {
+      ...stubSummary('2026-08-22/sess_BUSY'),
+      title: 'Real work',
+      messageCount: 12,
+    } as SessionSummary;
+    // Counters all zero AND no title: indistinguishable from an empty shell
+    // until enrichment reads its journal. This is the case a naive
+    // `messageCount > 0` filter would hide — and it is the one users most want.
+    const crashed = stubSummary('2026-08-22/sess_CRASHED');
+
+    const selected = await selectPickerSessions(async () => [empty, busy, crashed], dir, 10);
+
+    expect(selected.map((s) => s.id)).toEqual(['2026-08-22/sess_CRASHED', '2026-08-22/sess_BUSY']);
+  });
+
+  it('fills the window with real sessions instead of returning holes', async () => {
+    // The filter runs BEFORE the slice. Filtering afterwards would return
+    // `limit` rows of which most are empty, then drop them — a picker showing
+    // one session when ten exist.
+    const pool = [
+      stubSummary('2026-08-23/sess_E1'),
+      stubSummary('2026-08-23/sess_E2'),
+      { ...stubSummary('2026-08-23/sess_R1'), title: 'one', messageCount: 3 } as SessionSummary,
+      stubSummary('2026-08-23/sess_E3'),
+      { ...stubSummary('2026-08-23/sess_R2'), title: 'two', messageCount: 4 } as SessionSummary,
+    ];
+
+    const selected = await selectPickerSessions(async () => pool, dir, 2);
+
+    expect(selected).toHaveLength(2);
+    expect(selected.every((s) => s.title)).toBe(true);
   });
 });

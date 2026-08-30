@@ -36,4 +36,11 @@ describe('unifiedDiff', () => {
     expect(d).toContain('--- foo.ts');
     expect(d).toContain('+++ foo.ts');
   });
+
+  it('normalizes CRLF and LF so equivalent line endings do not produce false diffs', () => {
+    expect(unifiedDiff('a\r\nb\r\n', 'a\nb\n')).toBe('');
+    const d = unifiedDiff('a\r\nb\r\n', 'a\r\nB\r\n');
+    expect(d).toContain('-b');
+    expect(d).toContain('+B');
+  });
 });

@@ -5,6 +5,7 @@ import { Box, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/use-terminal-size.js';
 import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
+import { fmtRatioPct } from './status-bar-format.js';
 
 interface FleetPanelProps {
   /** Per-subagent state, keyed by subagentId. */
@@ -158,7 +159,7 @@ function elapsedText(entry: FleetEntry, now: number): string {
 function metricsText(entry: FleetEntry, tileWidth: number): string {
   const parts = [`${entry.iterations}i`, `${entry.toolCalls}t`];
   if (tileWidth >= 44 && entry.ctxPct !== undefined) {
-    parts.push(`${Math.round(Math.max(0, Math.min(1, entry.ctxPct)) * 100)}% ctx`);
+    parts.push(`${fmtRatioPct(entry.ctxPct)} ctx`);
   }
   if (tileWidth >= 52 && entry.extensions) parts.push(`+${entry.extensions}x`);
   return parts.join(' · ');

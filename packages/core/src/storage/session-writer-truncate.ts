@@ -5,6 +5,8 @@ const CHUNK_SIZE = 65_536;
 export interface SessionTruncatePlan {
   checkpointByteOffset: number;
   removedCount: number;
+  /** Transcript paths referenced ONLY by the removed window — safe to delete. */
+  removedSubagentTranscriptPaths: string[];
 }
 
 export async function findSessionCheckpointTruncatePlan(
@@ -16,6 +18,8 @@ export async function findSessionCheckpointTruncatePlan(
   let pendingLine = Buffer.alloc(0);
   let checkpointByteOffset = -1;
   let removedCount = 0;
+  const removedSubagentTranscriptPaths = new Set<string>();
+  const retainedSubagentTranscriptPaths = new Set<string>();
 
   try {
     fd = await fsp.open(filePath, 'r', 0o600);
@@ -37,16 +41,28 @@ export async function findSessionCheckpointTruncatePlan(
         if (idx === -1) break;
 
         const lineStartOffset = chunkFileOffset + chunkPos;
+        const lineBytes = chunk.subarray(chunkPos, idx);
         if (checkpointByteOffset !== -1) {
           removedCount++;
+          collectSubagentTranscriptPath(lineBytes, removedSubagentTranscriptPaths);
         } else {
-          const lineBytes = chunk.subarray(chunkPos, idx);
           // eslint-disable-next-line no-sync
           const line = new TextDecoder('utf-8', { fatal: false }).decode(lineBytes);
           if (line.trim()) {
             try {
-              const event = JSON.parse(line) as { type?: string; promptIndex?: number };
-              if (event.type === 'checkpoint') {
+              const event = JSON.parse(line) as {
+                type?: string;
+                promptIndex?: number;
+                transcriptPath?: unknown;
+              };
+              if (event.type === 'agent_session_linked') {
+                // Retained history may still reference a transcript that a
+                // later (removed) re-link also mentions — the file must
+                // survive while any surviving event points at it.
+                if (typeof event.transcriptPath === 'string' && event.transcriptPath.trim()) {
+                  retainedSubagentTranscriptPaths.add(event.transcriptPath);
+                }
+              } else if (event.type === 'checkpoint') {
                 if (event.promptIndex === targetPromptIndex) {
                   checkpointByteOffset = lineStartOffset;
                 } else if (
@@ -73,7 +89,31 @@ export async function findSessionCheckpointTruncatePlan(
   }
 
   if (checkpointByteOffset === -1) return null;
-  return { checkpointByteOffset, removedCount };
+  return {
+    checkpointByteOffset,
+    removedCount,
+    removedSubagentTranscriptPaths: [...removedSubagentTranscriptPaths]
+      .filter((transcriptPath) => !retainedSubagentTranscriptPaths.has(transcriptPath))
+      .sort(),
+  };
+}
+
+function collectSubagentTranscriptPath(lineBytes: Buffer, out: Set<string>): void {
+  // eslint-disable-next-line no-sync
+  const line = new TextDecoder('utf-8', { fatal: false }).decode(lineBytes);
+  if (!line.trim()) return;
+  try {
+    const event = JSON.parse(line) as {
+      type?: string;
+      transcriptPath?: unknown;
+    };
+    if (event.type !== 'agent_session_linked') return;
+    if (typeof event.transcriptPath === 'string' && event.transcriptPath.trim()) {
+      out.add(event.transcriptPath);
+    }
+  } catch {
+    // Malformed JSON is preserved/ignored consistently with checkpoint scan.
+  }
 }
 
 export async function rewriteSessionToCheckpoint(

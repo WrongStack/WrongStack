@@ -128,9 +128,9 @@ export class SessionAnalyzer {
         if (!filter.toolNames.includes(toolEvent.name)) return false;
       }
       if (filter.timeRange) {
-        const ts = new Date(e.ts).getTime();
-        const start = new Date(filter.timeRange.start).getTime();
-        const end = new Date(filter.timeRange.end).getTime();
+        const ts = Date.parse(e.ts) || 0;
+        const start = Date.parse(filter.timeRange.start) || 0;
+        const end = Date.parse(filter.timeRange.end) || Number.POSITIVE_INFINITY;
         if (ts < start || ts > end) return false;
       }
       return true;
@@ -143,8 +143,8 @@ export class SessionAnalyzer {
     const lastEvent = events[events.length - 1];
     /* v8 ignore next -- defensive: length>=2 guard above guarantees both ends exist */
     if (!firstEvent || !lastEvent) return 0;
-    const first = new Date(firstEvent.ts).getTime();
-    const last = new Date(lastEvent.ts).getTime();
-    return last - first;
+    const first = Date.parse(firstEvent.ts) || 0;
+    const last = Date.parse(lastEvent.ts) || 0;
+    return Math.max(0, last - first);
   }
 }

@@ -133,10 +133,13 @@ export class RecoveryLock {
         // conversation activity. Legacy /save wrote mid-stream session_end
         // markers — `some()` would treat a session that crashed AFTER such a
         // marker as cleanly closed and silently skip recovery.
-        const lastEnd = data.events.findLastIndex((e) => e.type === 'session_end');
+        const events = Array.isArray(data?.events) ? data.events : [];
+        const lastEnd = events.findLastIndex
+          ? events.findLastIndex((e) => e.type === 'session_end')
+          : -1;
         const closed =
           lastEnd >= 0 &&
-          !data.events
+          !events
             .slice(lastEnd + 1)
             .some(
               (e) =>
@@ -145,8 +148,8 @@ export class RecoveryLock {
                 e.type === 'in_flight_start',
             );
         if (closed) return null;
-        messageCount = data.messages.length;
-        for (const event of data.events) {
+        messageCount = Array.isArray(data?.messages) ? data.messages.length : 0;
+        for (const event of events) {
           if (event.type !== 'user_input') continue;
           if (title === undefined) title = userInputTitle(event.content);
           lastUserMessage = sessionContentPreview(event.content);

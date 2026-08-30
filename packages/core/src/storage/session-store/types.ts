@@ -50,8 +50,16 @@ export interface SessionStoreOptions {
  */
 export interface LoadCacheEntry {
   mtimeMs: number;
+  /** Source journal size — the freshness key, paired with `mtimeMs`. */
   size: number;
   data: SessionData;
+  /**
+   * Estimated heap this entry occupies, and what it is charged against the
+   * cache budget. Distinct from `size`: a journal is mostly superseded
+   * snapshots and evicted events, so the file dwarfs what survives into
+   * `data`. Optional for entries written before the distinction existed.
+   */
+  bytes?: number | undefined;
 }
 
 export interface IndexCacheEntry {

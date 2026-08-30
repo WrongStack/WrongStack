@@ -111,36 +111,54 @@ export function stripCodeFences(s: string): string | null {
  */
 function escapeControlCharsInStrings(s: string): string {
   let inString = false;
+  let escaped = false;
   let out = '';
   for (let i = 0; i < s.length; i++) {
     const c = s.charAt(i);
-    if (c === '"' && (i === 0 || s[i - 1] !== '\\')) {
-      inString = !inString;
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        out += c;
+        continue;
+      }
+      if (c === '\\') {
+        escaped = true;
+        out += c;
+        continue;
+      }
+      if (c === '"') {
+        inString = false;
+        out += c;
+        continue;
+      }
+      const code = c.charCodeAt(0);
+      if (code < 0x20) {
+        switch (c) {
+          case '\n':
+            out += '\\n';
+            break;
+          case '\r':
+            out += '\\r';
+            break;
+          case '\t':
+            out += '\\t';
+            break;
+          case '\b':
+            out += '\\b';
+            break;
+          case '\f':
+            out += '\\f';
+            break;
+          default:
+            out += `\\u${code.toString(16).padStart(4, '0')}`;
+        }
+        continue;
+      }
       out += c;
       continue;
     }
-    const code = c.charCodeAt(0);
-    if (inString && code < 0x20) {
-      switch (c) {
-        case '\n':
-          out += '\\n';
-          break;
-        case '\r':
-          out += '\\r';
-          break;
-        case '\t':
-          out += '\\t';
-          break;
-        case '\b':
-          out += '\\b';
-          break;
-        case '\f':
-          out += '\\f';
-          break;
-        default:
-          out += `\\u${code.toString(16).padStart(4, '0')}`;
-      }
-      continue;
+    if (c === '"') {
+      inString = true;
     }
     out += c;
   }

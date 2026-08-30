@@ -79,4 +79,11 @@ describe('LargeAnswerStore', () => {
     expect(s.size).toBe(0);
     expect(s.totalBytes).toBe(0);
   });
+
+  it('handles circular and non-serializable objects without throwing', () => {
+    const s = new LargeAnswerStore(10);
+    const cyclic: Record<string, unknown> = { a: 1 };
+    cyclic['self'] = cyclic;
+    expect(() => s.storeAnswer(cyclic)).not.toThrow();
+  });
 });

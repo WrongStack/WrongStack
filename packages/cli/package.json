@@ -41,8 +41,8 @@
     "data"
   ],
   "scripts": {
-    "build": "node ../../scripts/build.mjs --target @wrongstack/webui-hq --skip-if-workspace-build && node ../../scripts/build-package.mjs",
-    "typecheck": "pnpm --filter @wrongstack/tools run build && pnpm --filter @wrongstack/tui run build && tsc --noEmit",
+    "build": "node ../../scripts/build-package.mjs",
+    "typecheck": "pnpm --filter @wrongstack/tools run build && pnpm --filter @wrongstack/tui run build && tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "test": "vitest run",
     "test:hqdash": "vitest run --config vitest.hqdash.config.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""

@@ -38,6 +38,7 @@ const CRITICAL_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
   'user_input',
   'llm_response',
   'checkpoint',
+  'rewound',
   'in_flight_start',
   'in_flight_end',
 ]);
@@ -892,6 +893,7 @@ export class FileSessionWriter implements SessionWriter {
     }
     try {
       await rewriteSessionToCheckpoint(this.filePath, plan.checkpointByteOffset);
+      await this.deleteRewoundSubagentTranscripts(plan.removedSubagentTranscriptPaths);
       // Re-open in append mode for continued use of this file.
       this.handle = await fsp.open(this.filePath, 'a', 0o600);
       /* v8 ignore start -- defensive: close/rename/reopen of a just-written temp file */
@@ -928,6 +930,48 @@ export class FileSessionWriter implements SessionWriter {
     });
 
     return plan.removedCount;
+  }
+
+  private async deleteRewoundSubagentTranscripts(
+    transcriptPaths: readonly string[],
+  ): Promise<void> {
+    if (transcriptPaths.length === 0) return;
+    const sessionsRoot = this.id.includes('/')
+      ? path.dirname(path.dirname(this.filePath))
+      : path.dirname(this.filePath);
+    const allowedRoot = path.join(sessionsRoot, 'subagents');
+    const realAllowedRoot = await fsp.realpath(allowedRoot).catch(() => null);
+    if (!realAllowedRoot) return;
+
+    const deleted: string[] = [];
+    for (const transcriptPath of transcriptPaths) {
+      const resolved = path.resolve(transcriptPath);
+      const relative = path.relative(realAllowedRoot, resolved);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) continue;
+      await fsp.rm(resolved, { force: true }).then(
+        () => {
+          deleted.push(resolved);
+        },
+        (err) => {
+          console.warn(
+            JSON.stringify({
+              level: 'warn',
+              event: 'session.rewind_subagent_delete_failed',
+              sessionId: this.id,
+              filePath: resolved,
+              error: toErrorMessage(err),
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        },
+      );
+    }
+    if (deleted.length > 0) {
+      this.events?.emit('session.rewind_subagents_deleted', {
+        sessionId: this.id,
+        transcriptPaths: deleted,
+      });
+    }
   }
 
   async clearSession(): Promise<void> {

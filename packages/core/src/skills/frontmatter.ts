@@ -132,14 +132,31 @@ function parseFrontmatterBlock(block: string): ParsedSkillFrontmatter {
       key === 'optional-capabilities' ||
       key === 'optionalCapabilities'
     ) {
-      const values = rest
-        .replace(/^\[/, '')
-        .replace(/\]$/, '')
-        .split(/[\s,]+/)
-        .map(unquote)
-        .filter(Boolean);
-      (out as Record<string, unknown>)[normalizeKey(key)] = values;
-      i++;
+      if (rest !== '') {
+        const values = rest
+          .replace(/^\[/, '')
+          .replace(/\]$/, '')
+          .split(/[\s,]+/)
+          .map(unquote)
+          .filter(Boolean);
+        (out as Record<string, unknown>)[normalizeKey(key)] = values;
+        i++;
+      } else {
+        const values: string[] = [];
+        i++;
+        while (i < lines.length) {
+          const sub = lines[i] ?? '';
+          const bm = /^\s*-\s+(.*)$/.exec(sub);
+          if (bm) {
+            const val = unquote((bm[1] ?? '').trim());
+            if (val) values.push(val);
+            i++;
+          } else {
+            break;
+          }
+        }
+        (out as Record<string, unknown>)[normalizeKey(key)] = values;
+      }
       continue;
     }
 

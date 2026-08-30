@@ -150,11 +150,31 @@ function retainTuiHistoryEntry(
   }
 }
 
-interface TuiHistoryBudget {
+export interface TuiHistoryBudget {
   maxEntries?: number | undefined;
   maxBytes?: number | undefined;
   maxEntryBytes?: number | undefined;
 }
+
+/**
+ * Retention budget for a session the user explicitly resumed.
+ *
+ * The live budget (400 entries / 1 MB) sizes a scrollback window that grows a
+ * few entries at a time and is backed by a journal the user can always reopen.
+ * A resume is the opposite: the whole conversation arrives at once and IS what
+ * was asked for. Measured on this corpus, a 131 MB journal replays to 740
+ * entries / 1.28 MB — under the live budget it lost 340 of them to the count
+ * cap before the user saw anything, which reads as "resume did not load".
+ *
+ * These caps still bound the window (a resume cannot make history unbounded)
+ * but with roughly 5x headroom over the largest session observed here. The
+ * per-entry cap is deliberately NOT raised: one pathological tool payload
+ * should never be allowed to consume the whole budget.
+ */
+export const TUI_RESUME_HISTORY_BUDGET: TuiHistoryBudget = {
+  maxEntries: 2000,
+  maxBytes: 6 * 1024 * 1024,
+};
 
 /**
  * Retain the newest display entries within both a count and serialized-byte

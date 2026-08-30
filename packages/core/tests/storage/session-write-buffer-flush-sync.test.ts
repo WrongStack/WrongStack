@@ -96,6 +96,54 @@ describe('SessionWriteBuffer.flushSync', () => {
     expect(handleWrites).toBe(0);
   });
 
+  it('does not race a sync append against an already-started async append', async () => {
+    const filePath = path.join(tmp, 'started-race.jsonl');
+    await fs.writeFile(filePath, '');
+    let releaseWrite: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
+    let handleWrites = 0;
+    const handle = {
+      appendFile: async (data: string) => {
+        handleWrites += 1;
+        await gate;
+        await fs.appendFile(filePath, `ASYNC:${data}`);
+      },
+      datasync: async () => undefined,
+    };
+    const buffer = new SessionWriteBuffer({
+      sessionId: 's',
+      filePath,
+      getHandle: () => handle as never,
+      setHandle: () => undefined,
+    });
+    expect(buffer.push(toolResult('started'))).toBe(true);
+    const flushing = buffer.flushBuffer();
+    await vi.waitFor(() => expect(handleWrites).toBe(1));
+    expect(buffer.push(toolResult('tail'))).toBe(true);
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let warnings: unknown[][] = [];
+    try {
+      buffer.flushSync();
+      warnings = warn.mock.calls.map((call) => [...call]);
+    } finally {
+      warn.mockRestore();
+    }
+    releaseWrite?.();
+    await flushing;
+
+    const text = await fs.readFile(filePath, 'utf8');
+    expect(text.match(/ASYNC:/g)).toHaveLength(2);
+    expect(text).toContain('"started"');
+    expect(text).toContain('"tail"');
+    expect(buffer.length).toBe(0);
+    expect(
+      warnings.some((call) => String(call[0]).includes('"event":"session.flush_sync_deferred"')),
+    ).toBe(true);
+  });
+
   it('reports a failed sync append instead of dropping events silently', () => {
     const filePath = path.join(tmp, 'missing-dir', 'sess.jsonl');
     const buffer = new SessionWriteBuffer({

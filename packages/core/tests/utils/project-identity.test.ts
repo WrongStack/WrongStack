@@ -63,4 +63,13 @@ describe('committed project identity', () => {
     expect(content).toContain('!/.wrongstack/project.json\n');
     expect(content.match(/!\/\.wrongstack\/project\.json/g)).toHaveLength(1);
   });
+
+  it('preserves CRLF line endings when present in .gitignore', async () => {
+    await fs.writeFile(path.join(root, '.gitignore'), 'node_modules/\r\n', 'utf8');
+    await ensureProjectGitignore(root);
+
+    const content = await fs.readFile(path.join(root, '.gitignore'), 'utf8');
+    expect(content).toContain('\r\n');
+    expect(content).toContain('!/.wrongstack/project.json\r\n');
+  });
 });

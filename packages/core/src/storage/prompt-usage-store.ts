@@ -83,7 +83,7 @@ export class PromptUsageStore {
       .map(([slug, u]) => ({ slug, usage: u }))
       .sort(
         (a, b) =>
-          new Date(b.usage.lastUsedAt).getTime() - new Date(a.usage.lastUsedAt).getTime() ||
+          toTimestamp(b.usage.lastUsedAt) - toTimestamp(a.usage.lastUsedAt) ||
           b.usage.count - a.usage.count,
       )
       .slice(0, limit);
@@ -97,7 +97,7 @@ export class PromptUsageStore {
       .sort(
         (a, b) =>
           b.usage.count - a.usage.count ||
-          new Date(b.usage.lastUsedAt).getTime() - new Date(a.usage.lastUsedAt).getTime(),
+          toTimestamp(b.usage.lastUsedAt) - toTimestamp(a.usage.lastUsedAt),
       )
       .slice(0, limit);
   }
@@ -170,4 +170,10 @@ function sameSignature(a: FileSignature | null, b: FileSignature | null): boolea
 
 function cloneUsage(usage: Record<string, PromptUsage>): Record<string, PromptUsage> {
   return Object.fromEntries(Object.entries(usage).map(([slug, value]) => [slug, { ...value }]));
+}
+
+function toTimestamp(iso?: string): number {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  return Number.isNaN(t) ? 0 : t;
 }

@@ -73,7 +73,7 @@ export class DefaultConfigStore implements ConfigStore {
     // Notify watchers AFTER mutating `current` so re-entrant watcher reads
     // see the new state. Watcher exceptions are caught individually so one
     // misbehaving subscriber can't block the others.
-    for (const w of this.watchers) {
+    for (const w of [...this.watchers]) {
       try {
         w(next, prev);
       } catch (err) {

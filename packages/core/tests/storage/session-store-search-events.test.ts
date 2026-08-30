@@ -87,7 +87,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
   it('assigns eventIndex monotonically, skipping malformed lines', async () => {
     const file = path.join(tmp, 's.jsonl');
     const lines = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
       'this is not json',
       JSON.stringify({ type: 'user_input', ts: '2026-06-26T10:00:01.000Z', content: 'alpha' }),
       '{"type":"unknown_future_type","ts":"2026-06-26T10:00:02.000Z"}', // shape-valid but unknown type
@@ -107,7 +112,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
   it('skips lines missing the required shape (no type, no ts)', async () => {
     const file = path.join(tmp, 's.jsonl');
     const lines = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
       JSON.stringify({ ts: '2026-06-26T10:00:01.000Z' }), // no type
       JSON.stringify({ type: 'user_input' }), // no ts
       JSON.stringify({ type: 'user_input', ts: '2026-06-26T10:00:02.000Z', content: 'kept' }),
@@ -127,7 +137,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
   it('stops walking once limit matches are collected', async () => {
     const file = path.join(tmp, 's.jsonl');
     const lines: string[] = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
     ];
     // 1000 user_input events, every one a match.
     for (let i = 1; i <= 1000; i++) {
@@ -154,7 +169,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
     // session_start with newline, then a single user_input WITHOUT newline.
     await fs.writeFile(
       file,
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }) +
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }) +
         '\n' +
         JSON.stringify({ type: 'user_input', ts: '2026-06-26T10:00:01.000Z', content: 'tail' }),
       'utf8',
@@ -170,11 +190,7 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
     // The walker should not throw, not synthesize a false hit, and not
     // allocate a fake eventIndex for the leftover.
     const file = path.join(tmp, 's.jsonl');
-    await fs.writeFile(
-      file,
-      '{"type":"user_input","ts":"2026-06-26T10:00:01.000Z",',
-      'utf8',
-    );
+    await fs.writeFile(file, '{"type":"user_input","ts":"2026-06-26T10:00:01.000Z",', 'utf8');
 
     const out = await store.searchEvents('s', () => true);
     expect(out).toEqual([]);
@@ -185,7 +201,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
     // match. We count predicate invocations to confirm we stop early.
     const file = path.join(tmp, 's.jsonl');
     const lines: string[] = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
     ];
     for (let i = 1; i <= 5000; i++) {
       // Only the first 3 user_inputs match; the rest are llm_response (no
@@ -223,7 +244,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
   it('honors an AbortSignal between chunks', async () => {
     const file = path.join(tmp, 's.jsonl');
     const lines: string[] = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
     ];
     // Force multiple read() iterations: 256 events × ~80 bytes = 20KB,
     // comfortably above the 64KB chunk size with a few dozen chunks worth
@@ -263,7 +289,12 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
     const file = path.join(tmp, 's.jsonl');
     const bigContent = 'B'.repeat(80_000);
     const lines = [
-      JSON.stringify({ type: 'session_start', ts: '2026-06-26T10:00:00.000Z', model: 'm', provider: 'p' }),
+      JSON.stringify({
+        type: 'session_start',
+        ts: '2026-06-26T10:00:00.000Z',
+        model: 'm',
+        provider: 'p',
+      }),
       JSON.stringify({
         type: 'user_input',
         ts: '2026-06-26T10:00:01.000Z',
@@ -280,5 +311,26 @@ describe('DefaultSessionStore.searchEvents — streaming walker', () => {
     // eventIndex is independent of payload size.
     expect(out[0]?.eventIndex).toBe(1);
     expect(out[1]?.eventIndex).toBe(2);
+  });
+
+  it('preserves multi-byte UTF-8 split across the 64KB read boundary', async () => {
+    const file = path.join(tmp, 'utf8.jsonl');
+    const prefix = JSON.stringify({
+      type: 'user_input',
+      ts: '2026-06-26T10:00:01.000Z',
+      content: '',
+    });
+    const contentPrefix = prefix.slice(0, -2);
+    const contentSuffix = prefix.slice(-2);
+    const target = 64 * 1024 - Buffer.byteLength(`${contentPrefix}\n`, 'utf8') - 1;
+    const splitContent = `${'a'.repeat(target)}ğ-NEEDLE`;
+    await fs.writeFile(file, `${contentPrefix}${splitContent}${contentSuffix}\n`, 'utf8');
+
+    const out = await store.searchEvents(
+      'utf8',
+      (ev) => ev.type === 'user_input' && String(ev.content).includes('ğ-NEEDLE'),
+    );
+    expect(out).toHaveLength(1);
+    expect(String((out[0]!.event as { content: string }).content)).not.toContain('\uFFFD');
   });
 });

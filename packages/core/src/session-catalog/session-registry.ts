@@ -168,11 +168,11 @@ export class SessionRegistry {
     },
   ): Promise<void> {
     // Safe to call again on a project switch: the WebUI re-roots in place and
-    // creates a fresh session id pointing at the new project. Clear the prior
-    // heartbeat timer (otherwise each switch leaks a timer that keeps writing).
-    // A process owns exactly one entry, so the same-pid dedup below drops our
-    // own previous entry — the registry never carries a phantom session still
-    // pointing at the old project's root/workingDir.
+    // creates a fresh session id pointing at the new project. Clear this
+    // registry instance's prior heartbeat timer so it does not keep writing.
+    // Do not delete other entries merely because they share this PID: a WebUI
+    // process can own multiple tab sessions, and pruning same-PID siblings
+    // makes those live journals look abandoned to external clients.
     const full: SessionRegistryEntry = {
       ...entry,
       status: 'active',
@@ -195,14 +195,6 @@ export class SessionRegistry {
       // A just-created entry has no heartbeat yet — don't prune it.
       const now = Date.now();
       for (const [id, existing] of Object.entries(registry)) {
-        if (existing.pid === entry.pid) {
-          // Our own process owns exactly one entry. When re-registering under
-          // a new session id (project switch re-roots in place), drop the
-          // stale same-pid entry so it doesn't linger pointing at the old
-          // project's root/workingDir.
-          if (id !== entry.sessionId) delete registry[id];
-          continue;
-        }
         const heartbeatAt = Date.parse(existing.lastHeartbeatAt);
         if (
           !Number.isFinite(heartbeatAt) ||

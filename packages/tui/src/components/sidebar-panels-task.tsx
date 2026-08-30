@@ -17,6 +17,7 @@ import {
   liveSessionGlyph,
   SidebarWorklistRow,
 } from './sidebar-panels-shared.js';
+import { fmtRatioPct } from './status-bar-format.js';
 
 export interface PlanPanelSidebarProps {
   openCount: number;
@@ -59,7 +60,7 @@ export function PlanPanelSidebar({
       title="PLAN"
       width={width}
       kicker={title ? trunc(title, 20) : undefined}
-      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? `${Math.round(ratio * 100)}%` : undefined}
+      pillLabel={inner >= PILL_MIN_INNER_WIDTH ? fmtRatioPct(ratio) : undefined}
       pillColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
       right={
         inner < PILL_MIN_INNER_WIDTH ? (
@@ -83,7 +84,7 @@ export function PlanPanelSidebar({
         glyph={glyphs.plan}
         label="PROGRESS"
         color={theme.accent}
-        badge={`${Math.round(ratio * 100)}%`}
+        badge={fmtRatioPct(ratio)}
         badgeColor={ratio === 1 && total > 0 ? theme.success : theme.accent}
         innerWidth={bodyWidth}
         pill

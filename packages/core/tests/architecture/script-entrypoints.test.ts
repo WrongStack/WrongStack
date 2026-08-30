@@ -23,6 +23,7 @@ const executableScripts = [
   'scripts/check-test-skips.mjs',
   'scripts/check-test-typecheck.mjs',
   'scripts/coverage-lock.mjs',
+  'scripts/coverage-matrix.mjs',
   'scripts/coverage-tmp-guard.mjs',
   'scripts/generate-plugin-projections.mjs',
   'scripts/generate-provider-catalog.mjs',

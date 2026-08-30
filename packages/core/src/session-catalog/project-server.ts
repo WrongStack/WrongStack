@@ -107,6 +107,7 @@ const OPERATION_KEYS: Record<SessionCatalogOperationName, readonly string[]> = {
   reconnect_lease: ['sessionId', 'leaseId', 'leaseSecret', 'ownerInstanceId', 'expiresAt'],
   reserve_resume: ['targetSessionId', 'requesterInstanceId', 'currentSessionId', 'reservationMs'],
   activate_reservation: ['reservation', 'entry', 'leaseMs'],
+  renew_reservation: ['reservationId', 'requesterInstanceId', 'reservationMs'],
   cancel_reservation: ['reservationId', 'requesterInstanceId'],
   heartbeat: ['credential', 'status'],
   publish_agents: ['credential', 'revision', 'agents'],
@@ -247,6 +248,14 @@ async function dispatch<O extends SessionCatalogOperationName>(
         value.reservation,
         value.entry,
         value.leaseMs,
+      ) as SessionCatalogOperations[O]['result'];
+    }
+    case 'renew_reservation': {
+      const value = args as SessionCatalogOperations['renew_reservation']['args'];
+      return catalog.renewReservation(
+        value.reservationId,
+        value.requesterInstanceId,
+        value.reservationMs,
       ) as SessionCatalogOperations[O]['result'];
     }
     case 'cancel_reservation': {

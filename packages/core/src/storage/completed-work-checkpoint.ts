@@ -21,6 +21,19 @@ export async function loadCompletedWorkCheckpoint(
   try {
     raw = await fsp.readFile(filePath, 'utf8');
   } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'ENOENT') {
+      events?.emit('storage.read', {
+        sessionId: traceId ?? '~boot~',
+        store: 'completed-work',
+        filePath,
+        operation: 'load',
+        outcome: 'success',
+        durationMs: Date.now() - t0,
+        ...(traceId !== undefined && { traceId }),
+      });
+      return null;
+    }
     events?.emit('storage.error', {
       sessionId: traceId ?? '~boot~',
       store: 'completed-work',

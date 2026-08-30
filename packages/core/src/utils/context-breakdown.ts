@@ -198,13 +198,27 @@ export function getContextBreakdown(ctx: AgentContext): ContextBreakdown {
         case 'tool_result':
           histToolResults += estimateToolResultTokens(b.content);
           break;
-        case 'thinking':
+        case 'thinking': {
           // The canonical message estimator serializes the whole block so
           // opaque signatures/provider metadata count toward the wire budget.
-          histThinking += estimateTextTokens(JSON.stringify(b));
+          let str: string;
+          try {
+            str = JSON.stringify(b) ?? '';
+          } catch {
+            str = String(b);
+          }
+          histThinking += estimateTextTokens(str);
           break;
-        default:
-          histOther += estimateTextTokens(JSON.stringify(b));
+        }
+        default: {
+          let str: string;
+          try {
+            str = JSON.stringify(b) ?? '';
+          } catch {
+            str = String(b);
+          }
+          histOther += estimateTextTokens(str);
+        }
       }
     }
   }

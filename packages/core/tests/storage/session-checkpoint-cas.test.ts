@@ -130,13 +130,23 @@ describe('SessionCheckpointCas', () => {
     expect(second?.manifestHash).toBe(first?.manifestHash);
   });
 
-  it('refuses parent-root overwrite, base mismatch, and tampered manifests', async () => {
+  it('allows parent-root materialization but still rejects base mismatch and tampering', async () => {
     await fsp.writeFile(path.join(project, 'src', 'a.ts'), 'value', 'utf8');
     const runGit = git({ tracked: ['src/a.ts'] });
     const cas = new SessionCheckpointCas({ rootDir: casRoot, projectRoot: project, runGit });
     const checkpoint = await cas.capture('session-2', 1);
 
-    await expect(cas.materialize(checkpoint!, project)).rejects.toThrow('parent project root');
+    await fsp.writeFile(path.join(project, 'src', 'a.ts'), 'after checkpoint', 'utf8');
+    runGit.mockImplementation(async (args: string[], cwd?: string) => {
+      if (args[0] === 'rev-parse') return { code: 0, stdout: `${HEAD}\n`, stderr: '' };
+      if (args[0] === 'status' && cwd === project) {
+        return { code: 0, stdout: ' M src/a.ts\0', stderr: '' };
+      }
+      return { code: 0, stdout: '', stderr: '' };
+    });
+    const parentResult = await cas.materialize(checkpoint!, project);
+    expect(parentResult.errors).toEqual([]);
+    expect(await fsp.readFile(path.join(project, 'src', 'a.ts'), 'utf8')).toBe('value');
 
     runGit.mockImplementation(async (args: string[]) => {
       if (args[0] === 'rev-parse') return { code: 0, stdout: `${'b'.repeat(40)}\n`, stderr: '' };
@@ -159,7 +169,9 @@ describe('SessionCheckpointCas', () => {
     });
     const checkpoint = await cas.capture('session-3', 0);
     expect(checkpoint).toMatchObject({ entryCount: 0, unresolvedCount: 1 });
-    await expect(cas.materialize(checkpoint!, target)).rejects.toThrow('exact materialization refused');
+    await expect(cas.materialize(checkpoint!, target)).rejects.toThrow(
+      'exact materialization refused',
+    );
   });
 
   it('marks oversized blobs unresolved without reading them into memory', async () => {

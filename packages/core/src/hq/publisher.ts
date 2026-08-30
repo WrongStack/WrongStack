@@ -191,12 +191,18 @@ const DEFAULT_COMMAND_POLL_LIMIT = 25;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 25_000;
 
 /**
- * Module-level timestamp (ms epoch) of the last emitted connect-failure
- * warning in THIS process. Shared across all HqPublisher instances so a fleet
- * of agents failing against the same HQ emits at most one warning per
- * `connectWarnCooldownMs` window instead of a burst of identical lines.
+ * Module-level set of endpoints (urls) for which a connect-failure warning has
+ * already been emitted in THIS process. Shared across all HqPublisher instances so
+ * that only one diagnostic warning is emitted across the entire process lifetime
+ * while the server is unreachable, rather than repeating warnings periodically or
+ * across multiple instances.
  */
-let lastConnectWarningAtMs = 0;
+const warnedEndpoints = new Set<string>();
+
+/** Test helper to reset the module-level process warning state. */
+export function resetHqPublisherWarningStateForTests(): void {
+  warnedEndpoints.clear();
+}
 
 interface QueuedFrame {
   serialized: string;
@@ -370,6 +376,13 @@ export class HqPublisher {
 
     const onOpen = () => {
       this.reconnectAttempt = 0;
+      this.connectWarningEmitted = false;
+      if (this.lastAttempt?.url) {
+        warnedEndpoints.delete(this.lastAttempt.url);
+      }
+      if (this.options.url) {
+        warnedEndpoints.delete(this.options.url);
+      }
       this.sendHelloNow();
       this.flushQueue();
       this.startHeartbeat();
@@ -855,11 +868,8 @@ export class HqPublisher {
     // on every successful open, so reaching the threshold means the endpoint
     // has NEVER accepted us in this streak — dead server or rejected token.
     if (!this.connectWarningEmitted && this.reconnectAttempt >= this.connectWarnAfterFailures) {
-      // Only a warning that actually EMITS marks this instance done: if the
-      // process-wide cooldown suppresses it (a sibling instance warned
-      // recently), keep re-checking so this instance still gets its one
-      // diagnostic once the window elapses.
-      if (this.emitConnectWarning()) this.connectWarningEmitted = true;
+      this.connectWarningEmitted = true;
+      this.emitConnectWarning();
     }
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -869,15 +879,15 @@ export class HqPublisher {
   }
 
   private emitConnectWarning(): boolean {
-    const nowMs = Date.now();
-    // Process-wide cooldown: a burst of agents failing against the same HQ
-    // collapses to ONE warning per window. Suppressed instances do NOT mark
-    // themselves done (see scheduleReconnect) — they re-check on later
-    // failures and emit once the window elapses, still at most once each.
-    if (nowMs - lastConnectWarningAtMs < this.connectWarnCooldownMs) {
-      return false;
+    const targetUrl = this.lastAttempt?.url ?? this.options.url;
+    // Process-wide suppression: multiple agents failing against the same HQ
+    // collapse to ONE warning across the entire process lifetime while unreachable.
+    if (this.connectWarnCooldownMs > 0) {
+      if (warnedEndpoints.has(targetUrl)) {
+        return false;
+      }
+      warnedEndpoints.add(targetUrl);
     }
-    lastConnectWarningAtMs = nowMs;
     const attempt = this.lastAttempt;
     const message =
       `WrongStack HQ publisher: ${this.reconnectAttempt} consecutive connection failures` +

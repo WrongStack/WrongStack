@@ -956,4 +956,13 @@ describe('repairConfigDefaults', () => {
     expect(second.changed).toBe(false);
     expect(second.changes).toEqual([]);
   });
+
+  it('replaces NaN and Infinity with default numeric values', () => {
+    const report = repairConfigDefaults({
+      maxConcurrent: NaN,
+      context: { warnThreshold: Infinity },
+    });
+    expect(report.fixed['maxConcurrent']).toBe(4);
+    expect((report.fixed['context'] as Record<string, unknown>)['warnThreshold']).toBe(0.55);
+  });
 });

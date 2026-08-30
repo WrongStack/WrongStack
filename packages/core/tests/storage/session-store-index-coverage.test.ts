@@ -13,7 +13,8 @@ import type { IndexCacheEntry } from '../../src/storage/session-store/types.js';
 // overridden per-test (e.g. to simulate a concurrent file change that
 // makes the range read return null inside readIndexFile).
 vi.mock('../../src/storage/session-store/index-reader.js', async (importActual) => {
-  const actual = await importActual<typeof import('../../src/storage/session-store/index-reader.js')>();
+  const actual =
+    await importActual<typeof import('../../src/storage/session-store/index-reader.js')>();
   return {
     applySessionIndexLines: vi.fn(actual.applySessionIndexLines),
     readFileRange: vi.fn(actual.readFileRange),
@@ -30,13 +31,21 @@ afterEach(async () => {
   await fsp.rm(tmp, { recursive: true, force: true });
 });
 
-const makeSummary = (id: string) =>
-  ({ id, title: `T${id}`, startedAt: '2026-01-01T00:00:00Z', model: 'm', provider: 'p', tokenTotal: 0 });
+const makeSummary = (id: string) => ({
+  id,
+  title: `T${id}`,
+  startedAt: '2026-01-01T00:00:00Z',
+  model: 'm',
+  provider: 'p',
+  tokenTotal: 0,
+});
 
 describe('compactIndexInner', () => {
-  it('returns early when there are no parts to write', async () => {
+  it('truncates the index when there are no live entries or tombstones', async () => {
     const indexFile = path.join(tmp, '_index.jsonl');
+    await fsp.writeFile(indexFile, `${JSON.stringify(makeSummary('deleted'))}\n`, 'utf8');
     await expect(compactIndexInner(indexFile, [])).resolves.toBeUndefined();
+    await expect(fsp.readFile(indexFile, 'utf8')).resolves.toBe('');
   });
 
   it('writes entries without tombstones when deletedIds is omitted', async () => {
@@ -114,7 +123,10 @@ describe('readIndexFile', () => {
       ino: st.ino,
       birthtimeMs: st.birthtimeMs,
       summaries: [s1, s2],
-      byId: new Map([['a', s1], ['b', s2]]),
+      byId: new Map([
+        ['a', s1],
+        ['b', s2],
+      ]),
       deleted: new Set<string>(),
     };
 

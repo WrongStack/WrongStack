@@ -184,10 +184,9 @@ export async function compactLog(
   const kept = log.entries.slice(-keepCount);
 
   const archivePath = path.join(opts.storageDir, `file-authors-archive-${Date.now()}.json`);
-  await fs.writeFile(
+  await atomicWrite(
     archivePath,
-    JSON.stringify({ projectRoot: opts.projectRoot, entries: archived }, null, 2) + '\n',
-    'utf-8',
+    `${JSON.stringify({ projectRoot: opts.projectRoot, entries: archived }, null, 2)}\n`,
   );
 
   log.entries = kept;

@@ -15,7 +15,11 @@ import * as net from 'node:net';
  * guaranteed to be a canonical dotted-quad at this point.
  */
 export function isPrivateIPv4(addr: string): boolean {
-  const parts = addr.split('.').map((p) => Number.parseInt(p, 10));
+  const parts = addr.split('.').map((p) => {
+    if (!/^\d+$/.test(p)) return Number.NaN;
+    if (p.length > 1 && p.startsWith('0')) return Number.NaN;
+    return Number.parseInt(p, 10);
+  });
   if (parts.length !== 4 || parts.some((n) => Number.isNaN(n) || n < 0 || n > 255)) {
     return true; // defensive: malformed → block
   }

@@ -5,6 +5,7 @@ import type { State } from '../src/app-reducer.js';
 import type { KeyEvent } from '../src/components/input.js';
 import type { ModeOption } from '../src/components/mode-picker.js';
 import type { ProviderOption } from '../src/components/model-picker.js';
+import { useAppPickerKeys } from '../src/hooks/use-app-picker-keys.js';
 import { type PickerKeysHost, usePickerKeys } from '../src/hooks/use-picker-keys.js';
 
 function key(overrides: Partial<KeyEvent> = {}): KeyEvent {
@@ -2380,5 +2381,526 @@ describe('usePickerKeys — auth panel model shortcuts (x/r/a + models view)', (
     expect(onAuthShortcut).not.toHaveBeenCalled();
     // And it swallows the key rather than leaking to other handlers
     expect(host.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'authMove' }));
+  });
+});
+
+// ── /resume in-flight guard (double-Enter regression) ─────────────────────
+// The guard lives inside the REAL onResumePickerEnter built by useAppPickerKeys.
+// Every describe above mocks that prop (they test key ROUTING), which makes
+// them blind to the lock. These tests mount the real hook ONCE — the lock is a
+// useRef, so a remount between Enters (runPickerKey's per-key pattern) would
+// reset it and silently re-arm the bug — and drive a double-Enter through a
+// single handler instance with real timers (the 50ms paint yield and the
+// 50ms Enter debounce are both real-time windows).
+describe('useAppPickerKeys — resume in-flight guards (/resume picker + F10 sessions panel)', () => {
+  const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+  function resumePickerState(): State {
+    return baseState({
+      resumePicker: {
+        open: true,
+        sessions: [
+          {
+            id: 'sess_current',
+            title: 'current session',
+            lastActivityAt: '2026-08-29T10:00:00.000Z',
+            startedAt: '2026-08-29T09:00:00.000Z',
+            tokenTotal: 1000,
+            isCurrent: true,
+          },
+          {
+            id: 'sess_target',
+            title: 'target session',
+            lastActivityAt: '2026-08-29T08:00:00.000Z',
+            startedAt: '2026-08-29T07:00:00.000Z',
+            tokenTotal: 2000,
+            isCurrent: false,
+          },
+        ],
+        selected: 1,
+        busy: false,
+        hint: undefined,
+        error: undefined,
+      },
+    });
+  }
+
+  // Minimal UseAppPickerKeysOptions (the interface is module-private, hence the
+  // parameter-type cast). The tested paths only touch host.agent.ctx.projectRoot,
+  // host.onResumeSession, state.<picker slices>, dispatch, lastEnterAtRef and
+  // inputGateRef — everything else is destructured but never invoked here.
+  function mountRealPickerKeys(
+    state: State,
+    onResumeSession: (sessionId: string) => Promise<unknown>,
+    setSuggestionsSpy: ReturnType<typeof vi.fn> = vi.fn(),
+  ): {
+    dispatch: ReturnType<typeof vi.fn>;
+    fire: () => void;
+    unmount: () => void;
+    setSuggestionsSpy: ReturnType<typeof vi.fn>;
+  } {
+    const dispatch = vi.fn();
+    // Deliberately optional: the mount may settle AFTER render() returns
+    // (React 19 concurrent root defers the initial commit off the sync call).
+    let handler: ((input: string, event: KeyEvent, isEnter: boolean) => boolean) | undefined;
+    const options = {
+      host: {
+        agent: { ctx: { projectRoot: '/proj' } },
+        onResumeSession,
+        setSuggestions: setSuggestionsSpy,
+      },
+      state,
+      dispatch,
+      environment: {},
+      statusbar: {},
+      panelControllers: {},
+      authPanelController: {},
+      brainController: {},
+      lastEnterAtRef: { current: 0 },
+      inputGateRef: { current: false },
+      submitRef: { current: () => {} },
+      promptUsageRef: { current: null },
+      setDraft: vi.fn(),
+      acceptSlashPickerSelection: vi.fn(),
+      changeBrainRisk: vi.fn(),
+      handleModelPicked: vi.fn(),
+      handleShadowStart: vi.fn(),
+      handleShadowStop: vi.fn(),
+      statuslineHiddenForPicker: vi.fn(() => []),
+      onPickerEnter: vi.fn(),
+      setPromptFavorite: vi.fn(),
+    } as unknown as Parameters<typeof useAppPickerKeys>[0];
+
+    function Probe(): null {
+      handler = useAppPickerKeys(options);
+      return null;
+    }
+    // ink-testing-library defers the commit: render() alone leaves the tree
+    // pending, and unmount() would flush it only to immediately tear the
+    // component down — which the unmount-cancelled guard treats as "drop
+    // every dispatch". A rerender flushes the commit while the component
+    // STAYS MOUNTED, so the in-flight tests fire against a live instance and
+    // unmount() at the end runs the real cleanup.
+    const instance = render(React.createElement(Probe));
+    instance.rerender(React.createElement(Probe));
+    if (typeof handler !== 'function') throw new Error('Probe never mounted');
+    const settled = handler;
+    let unmounted = false;
+    return {
+      dispatch,
+      setSuggestionsSpy,
+      fire: () => settled('', key({ return: true }), true),
+      // Idempotent: the guard tests unmount mid-flight and again at the end.
+      unmount: () => {
+        if (unmounted) return;
+        unmounted = true;
+        instance.unmount();
+      },
+    };
+  }
+
+  it('double-Enter fires onResumeSession exactly once while the first resume is in flight', async () => {
+    let resolveResume!: (value: unknown) => void;
+    const onResumeSession = vi.fn(
+      (
+        _sessionId: string,
+        onProgress?: (progress: { loadedBytes: number; totalBytes: number }) => void,
+      ) => {
+        // Drive the parse-progress sink the hook forwards: the hint must
+        // stream byte progress instead of staying on the static loading text.
+        onProgress?.({ loadedBytes: 5_242_880, totalBytes: 10_485_760 });
+        return new Promise((resolve) => {
+          resolveResume = resolve;
+        });
+      },
+    );
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter #1 — claims the in-flight lock
+    await sleep(70); // 50ms paint yield fires; the 50ms Enter debounce window also passes
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    // Three sinks now: the id, byte progress, and the live stage names that
+    // drive the loading block's rolling rows.
+    expect(onResumeSession).toHaveBeenCalledWith(
+      'sess_target',
+      expect.any(Function),
+      expect.any(Function),
+    );
+    // Enter is a commit: the picker closes at once and the screen is wiped to
+    // the loading block, instead of the panel sitting frozen over a transcript
+    // that belongs to a different session.
+    expect(dispatch).toHaveBeenCalledWith({ type: 'resumePickerClose' });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'resumeLoadStart',
+      sessionId: 'sess_target',
+      label: 'target session',
+    });
+
+    // The forwarded sink drives the block's progress bar. It deliberately does
+    // NOT open a chat entry per tick — the loader fires ~4x/sec and that would
+    // bury the transcript it is about to replay.
+    const tickCalls = dispatch.mock.calls.filter(
+      (call) => (call[0] as { type?: string }).type === 'resumeLoadTick',
+    );
+    expect(tickCalls).toContainEqual([
+      { type: 'resumeLoadTick', loadedBytes: 5_242_880, totalBytes: 10_485_760 },
+    ]);
+
+    // Enter #2 arrives after the debounce window but before any re-render: the
+    // branch's `state.resumePicker.busy` snapshot is still false (this test has
+    // no reducer), so ONLY the in-flight ref can reject it.
+    await fire();
+    await sleep(20);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+
+    resolveResume({ entries: [], nextId: 1, sessionId: 'sess_target' });
+    await sleep(0);
+    unmount();
+  });
+
+  it('streams the replayed transcript in batches and ends waiting, not running', async () => {
+    // The user's ask: clear the screen, show the load, then let the whole chat
+    // history scroll in piece by piece the way it looked live — and stop there.
+    const entries = Array.from({ length: 120 }, (_, index) => ({
+      id: index + 1,
+      kind: 'info' as const,
+      text: `entry-${index + 1}`,
+    }));
+    const onResumeSession = vi.fn(async () => ({
+      entries,
+      nextId: entries.length + 1,
+      sessionId: 'sess_target',
+      attached: true,
+      warnings: [],
+      contextSnapshot: { tokens: 4321, maxContext: 200_000 },
+    }));
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire();
+    // Long enough for the 50ms paint yield plus the whole batched stream.
+    await sleep(900);
+
+    const chunks = dispatch.mock.calls
+      .map((call) => call[0] as { type?: string; entries?: unknown[]; done?: boolean })
+      .filter((action) => action.type === 'resumeStreamChunk');
+
+    // More than one batch: a single dispatch would paint the transcript as an
+    // instantaneous wall of text instead of scrolling it into place.
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.reduce((sum, chunk) => sum + (chunk.entries?.length ?? 0), 0)).toBe(120);
+    // Exactly one terminating chunk, and it carries the context snapshot.
+    expect(chunks.filter((chunk) => chunk.done)).toHaveLength(1);
+    expect(chunks.at(-1)?.done).toBe(true);
+
+    const lines = dispatch.mock.calls
+      .map((call) => call[0] as { type?: string; entry?: { kind?: string; text?: string } })
+      .filter((action) => action.type === 'addEntry');
+    // The closing line says the session is attached AND that nothing will
+    // happen until the user acts.
+    expect(lines.at(-1)?.entry?.text).toContain('Resumed session sess_target');
+    expect(lines.at(-1)?.entry?.text).toContain('auto-proceed stays paused');
+    unmount();
+  });
+
+  it('offers the resumed session next steps instead of running them', async () => {
+    // The reported behaviour: a session that ended on a <nextsteps> block came
+    // back and just carried on. It must come back with the steps LISTED and
+    // nothing running until the user picks one.
+    const onResumeSession = vi.fn(async () => ({
+      entries: [{ id: 1, kind: 'info' as const, text: 'transcript' }],
+      nextId: 2,
+      sessionId: 'sess_target',
+      attached: true,
+      warnings: [],
+      nextSteps: ['Run the release check', 'Update the changelog'],
+    }));
+    const { dispatch, setSuggestionsSpy, fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire();
+    await sleep(400);
+
+    const texts = dispatch.mock.calls
+      .map((call) => call[0] as { type?: string; entry?: { text?: string } })
+      .filter((action) => action.type === 'addEntry')
+      .map((action) => action.entry?.text ?? '');
+    const listing = texts.find((text) => text.includes('Next steps this session proposed'));
+    expect(listing).toBeDefined();
+    expect(listing).toContain('1. Run the release check');
+    expect(listing).toContain('2. Update the changelog');
+    expect(listing).toContain('/next');
+
+    // They are offered through the same store /next reads — written LAST, so
+    // the per-entry parsers that fire while the transcript mounts cannot leave
+    // a mid-transcript block armed instead of the final turn's.
+    expect(setSuggestionsSpy).toHaveBeenCalledWith([
+      'Run the release check',
+      'Update the changelog',
+    ]);
+
+    // And nothing was submitted.
+    const submitted = dispatch.mock.calls
+      .map((call) => call[0] as { type?: string; entry?: { kind?: string } })
+      .filter((action) => action.type === 'addEntry' && action.entry?.kind === 'user');
+    expect(submitted).toHaveLength(0);
+    unmount();
+  });
+
+  it('clears stale suggestions when the resumed session proposed none', async () => {
+    // Otherwise the session being LEFT keeps its next steps armed, and they
+    // fire the moment the post-resume hold is released.
+    const onResumeSession = vi.fn(async () => ({
+      entries: [],
+      nextId: 1,
+      sessionId: 'sess_target',
+      attached: true,
+      warnings: [],
+      nextSteps: [],
+    }));
+    const { dispatch, setSuggestionsSpy, fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire();
+    await sleep(400);
+
+    expect(setSuggestionsSpy).toHaveBeenCalledWith([]);
+    const texts = dispatch.mock.calls
+      .map((call) => call[0] as { type?: string; entry?: { text?: string } })
+      .filter((action) => action.type === 'addEntry')
+      .map((action) => action.entry?.text ?? '');
+    expect(texts.some((text) => text.includes('Next steps this session proposed'))).toBe(false);
+    unmount();
+  });
+
+  it('releases the in-flight lock once the resume settles, so a later Enter resumes again', async () => {
+    const onResumeSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          queueMicrotask(() => resolve({ entries: [], nextId: 1, sessionId: 'sess_target' }));
+        }),
+    );
+    const { fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter #1
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    await sleep(10); // flush the .then/.finally chain that releases the lock
+
+    await fire(); // Enter #2 — lock released, a fresh resume must go through
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  // ── F10 sessions-panel resume (same lock, two-step confirm flow) ─────────
+  // The confirm branch of onSessionsPanelEnter reads the render-time
+  // `sessionResumeConfirm` snapshot; a third Enter before React re-renders
+  // still sees it and would re-run onResumeSession. That branch has NO
+  // busy-state guard at all, so the sync in-flight ref is the only
+  // protection against a double resume.
+  function sessionsPanelState(
+    sessionResumeConfirm: { sessionId: string; sessionName: string } | null,
+  ): State {
+    return baseState({
+      // The F10 Enter branch gates on the standalone boolean flag, not on
+      // `sessionsPanel.open`.
+      sessionsPanelOpen: true,
+      sessionsPanel: {
+        open: true,
+        sessions: [
+          {
+            sessionId: 'sess_target',
+            pid: null,
+            projectRoot: '/proj',
+            projectName: 'project',
+          },
+        ],
+        selected: 0,
+        busy: false,
+      },
+      sessionResumeConfirm,
+    });
+  }
+
+  it('asks for confirmation on the first Enter of a stopped same-project session', () => {
+    const onResumeSession = vi.fn();
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      sessionsPanelState(null),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    fire();
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'sessionResumeConfirmSet',
+      sessionId: 'sess_target',
+      sessionName: 'project',
+    });
+    expect(onResumeSession).not.toHaveBeenCalled();
+    unmount();
+  });
+
+  it('double-Enter fires onResumeSession exactly once while the first F10 resume is in flight', async () => {
+    let resolveResume!: (value: unknown) => void;
+    const onResumeSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveResume = resolve;
+        }),
+    );
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      sessionsPanelState({ sessionId: 'sess_target', sessionName: 'project' }),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter #1 — executes the confirmed resume, claims the lock
+    await sleep(70); // the 50ms Enter debounce window passes
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    expect(onResumeSession).toHaveBeenCalledWith(
+      'sess_target',
+      expect.any(Function),
+      expect.any(Function),
+    );
+    // The panel closes as part of the synchronous commit prefix now: the
+    // loading block belongs on the chat screen, not underneath a panel the
+    // user has already mentally dismissed. Same reason the /resume picker
+    // closes on Enter.
+    expect(dispatch).toHaveBeenCalledWith({ type: 'toggleSessionsPanel' });
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'resumeLoadStart',
+      sessionId: 'sess_target',
+      label: 'project',
+    });
+
+    // Enter #2: the state snapshot still carries the confirm (this test has
+    // no reducer), so ONLY the in-flight ref can reject it.
+    await fire();
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+
+    resolveResume({ entries: [], nextId: 1, sessionId: 'sess_target' });
+    await sleep(0);
+    unmount();
+  });
+
+  it('releases the in-flight lock once the F10 resume settles, so a later Enter resumes again', async () => {
+    const onResumeSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          queueMicrotask(() => resolve({ entries: [], nextId: 1, sessionId: 'sess_target' }));
+        }),
+    );
+    const { fire, unmount } = mountRealPickerKeys(
+      sessionsPanelState({ sessionId: 'sess_target', sessionName: 'project' }),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter #1
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    await sleep(10); // flush the .then/.finally chain that releases the lock
+
+    await fire(); // Enter #2 — lock released, a fresh resume must go through
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
+  it('drops /resume chain dispatches after unmount and refuses new work afterwards', async () => {
+    let resolveResume!: (value: unknown) => void;
+    const onResumeSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveResume = resolve;
+        }),
+    );
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      resumePickerState(),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter #1 — resume in flight
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+
+    unmount(); // the TUI tears down mid-resume
+    resolveResume({ entries: [], nextId: 1, sessionId: 'sess_target' });
+    await sleep(0); // the chain settles after unmount
+
+    // The sync-prefix dispatches (close + the "Resuming…" entry) happened
+    // before the teardown; everything the unmounted chain would still emit
+    // must be dropped.
+    expect(dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'replaceHistory' }));
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'addEntry',
+        entry: expect.objectContaining({ text: expect.stringContaining('Resumed session') }),
+      }),
+    );
+
+    // The .finally released the lock unconditionally, but the post-yield
+    // unmount guard must refuse to START a fresh resume for a dead
+    // component — that refusal is the point of the guard. Lock release on a
+    // live component is proven by the sibling "releases the in-flight lock"
+    // test above.
+    await fire();
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('drops F10 chain dispatches after unmount but still releases the lock', async () => {
+    let resolveResume!: (value: unknown) => void;
+    const onResumeSession = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveResume = resolve;
+        }),
+    );
+    const { dispatch, fire, unmount } = mountRealPickerKeys(
+      sessionsPanelState({ sessionId: 'sess_target', sessionName: 'project' }),
+      onResumeSession as unknown as (sessionId: string) => Promise<unknown>,
+    );
+
+    await fire(); // Enter — confirmed resume in flight
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+
+    unmount(); // teardown mid-resume
+    resolveResume({ entries: [], nextId: 1, sessionId: 'sess_target' });
+    await sleep(0);
+
+    // Nothing the unmounted chain would still emit reaches the dead reducer:
+    // no streamed transcript, no completion line.
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'resumeStreamChunk' }),
+    );
+    expect(dispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'addEntry',
+        entry: expect.objectContaining({ text: expect.stringContaining('Resumed session') }),
+      }),
+    );
+
+    // Both surfaces share one resume flow now, so F10 gets the picker's
+    // post-yield unmount guard too: a dead component refuses to START fresh
+    // work. Previously the F10 branch called the host synchronously and so
+    // reached it even after teardown.
+    await fire();
+    await sleep(70);
+    expect(onResumeSession).toHaveBeenCalledTimes(1);
+    unmount();
   });
 });

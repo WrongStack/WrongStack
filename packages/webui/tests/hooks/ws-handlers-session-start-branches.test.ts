@@ -265,8 +265,8 @@ describe('session.start — fleet eviction', () => {
   });
 });
 
-describe('session.start — agentSessions replay isolation', () => {
-  it('ignores subagent sessions on the main resume screen', () => {
+describe('session.start — agentSessions replay hydration', () => {
+  it('hydrates subagent sessions and transcripts from disk replay payload', () => {
     start({
       agentSessions: [
         {
@@ -289,8 +289,15 @@ describe('session.start — agentSessions replay isolation', () => {
       ],
     });
 
-    expect(useFleetStore.getState().agents.has('w-disk-1')).toBe(false);
-    expect(useFleetStore.getState().getAgentTranscript('w-disk-1')).toEqual([]);
+    const agent = useFleetStore.getState().agents.get('w-disk-1');
+    expect(agent).toBeDefined();
+    expect(agent?.name).toBe('Disk Worker');
+    expect(agent?.description).toBe('Find memory leaks');
+    expect(agent?.status).toBe('completed');
+    expect(useFleetStore.getState().getAgentTranscript('w-disk-1')).toHaveLength(1);
+    expect(useFleetStore.getState().getAgentTranscript('w-disk-1')[0]?.content).toBe(
+      'Inspected heap profiles',
+    );
   });
 });
 

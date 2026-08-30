@@ -48,7 +48,16 @@ export class SessionWriteBuffer {
   private static readonly FLUSH_SIZE = 50;
   private static readonly WRITE_BUFFER_MAX_EVENTS = 2_000;
   private static readonly WRITE_BUFFER_MAX_BYTES = 16 * 1024 * 1024;
-
+  /**
+   * Absolute ceiling for ONE event, even via the empty-buffer exemption in
+   * `push`. That exemption exists so a legitimately huge user prompt is
+   * persisted instead of silently dropped (its bytes are already resident —
+   * accepting it costs one reference, not a copy); without a ceiling an
+   * unbounded payload could pin memory and stall the event loop on
+   * stringify. 64MiB is 4x the retention budget and far above any real
+   * prompt, so it only fires on pathological input.
+   */
+  private static readonly MAX_SINGLE_EVENT_BYTES = 64 * 1024 * 1024;
   private writeBuffer: SessionEvent[] = [];
   private writeBufferBytes = 0;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -56,6 +65,8 @@ export class SessionWriteBuffer {
   private lastBufferOverflowWarnAt = 0;
   private appendFailCount = 0;
   private lastAppendWarnAt = 0;
+  private invalidEventCount = 0;
+  private lastInvalidEventWarnAt = 0;
 
   private writeChain: Promise<void> = Promise.resolve();
   private flushPromise: Promise<void> | null = null;
@@ -80,16 +91,43 @@ export class SessionWriteBuffer {
     try {
       return Buffer.byteLength(JSON.stringify(event), 'utf8') + 1;
     } catch {
-      return SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES + 1;
+      return Number.NaN;
     }
   }
 
   push(event: SessionEvent): boolean {
     const bytes = this.eventBytes(event);
+    if (!Number.isFinite(bytes)) {
+      // JSON.stringify threw (circular/self-referential payload): the event
+      // cannot be journaled. Drop it, but never silently — a counter-only
+      // drop made this failure invisible to operators. Rate-limited the same
+      // way as buffer_overflow so a hostile event stream cannot spam logs.
+      this.invalidEventCount++;
+      const now = Date.now();
+      if (now - this.lastInvalidEventWarnAt > 5_000) {
+        this.lastInvalidEventWarnAt = now;
+        console.warn(
+          JSON.stringify({
+            level: 'error',
+            event: 'session.buffer_push_invalid',
+            sessionId: this.opts.sessionId,
+            reason: 'event is not JSON-serializable',
+            droppedEvents: this.invalidEventCount,
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      }
+      return false;
+    }
+    const oversizedSingleEvent =
+      bytes > SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES &&
+      bytes <= SessionWriteBuffer.MAX_SINGLE_EVENT_BYTES &&
+      this.writeBuffer.length === 0;
     if (
       this.writeBuffer.length >= SessionWriteBuffer.WRITE_BUFFER_MAX_EVENTS ||
-      bytes > SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES ||
-      this.writeBufferBytes + bytes > SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES
+      (!oversizedSingleEvent &&
+        (bytes > SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES ||
+          this.writeBufferBytes + bytes > SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES))
     ) {
       this.bufferOverflowCount++;
       const now = Date.now();
@@ -125,7 +163,7 @@ export class SessionWriteBuffer {
       flight.started = true;
       if (flight.stolen) return;
       try {
-        return await this.opts.getHandle().appendFile(flight.data, 'utf8');
+        await this.opts.getHandle().appendFile(flight.data, 'utf8');
       } catch (err: unknown) {
         if (isClosedHandleError(err)) {
           const reloaded = await fsp.open(this.opts.filePath, 'a', 0o600);
@@ -143,6 +181,12 @@ export class SessionWriteBuffer {
   }
 
   scheduleFlush(isClosed = false): void {
+    // Timer-driven flushes intentionally run page-cache-only (no datasync):
+    // by the time the 500ms window elapses the batch holds only non-critical
+    // events (critical types flush immediately with datasync), so bytes are
+    // SIGKILL-durable but not power-loss durable. That tradeoff keeps fsync
+    // I/O off the hot path — power-loss durability is reserved for the
+    // critical immediate routes.
     if (this.flushTimer || isClosed) return;
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
@@ -274,6 +318,12 @@ export class SessionWriteBuffer {
   /**
    * Last-gasp synchronous append (SIGKILL/SIGTERM traps, `process.on('exit')`).
    *
+   * If an async append is actively writing when teardown arrives, flushSync
+   * must not open a second append descriptor and race it. It defers with a
+   * structured `session.flush_sync_deferred` warning, leaving the buffer
+   * untouched for the already-running flush loop to drain if the process
+   * survives.
+   *
    * Failure contract: nothing is discarded before the write is known to have
    * landed. Buffered events stay in `writeBuffer` — it is cleared only after
    * `fsyncSync` returns — and a stolen in-flight batch is handed back to the
@@ -292,6 +342,29 @@ export class SessionWriteBuffer {
     // `started` cannot flip while this synchronous method runs (it is set in a
     // microtask), so `stole` stays an accurate record for the rollback below.
     const stole = flight !== null && !flight.started && !flight.stolen;
+    if (flight !== null && flight.started && !flight.stolen) {
+      // A started async append owns the file until it settles, and a
+      // synchronous teardown function cannot wait for it: waiting requires
+      // event-loop progress, which cannot happen while this call blocks the
+      // main thread. Deferring keeps the write chain the single serializer —
+      // a surviving process drains the buffer in order; the durable
+      // teardown contract is `await drainWriteChain()` before exit, not a
+      // sync spin here.
+      console.warn(
+        JSON.stringify({
+          level: 'error',
+          event: 'session.flush_sync_deferred',
+          sessionId: this.opts.sessionId,
+          filePath: this.opts.filePath,
+          message:
+            'in-flight async append already started; sync append deferred to avoid write race',
+          pendingEvents: this.writeBuffer.length,
+          pendingBytes: this.writeBufferBytes,
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      return;
+    }
     if (stole && flight) {
       flight.stolen = true;
       chunks.push(flight.data);
@@ -352,6 +425,9 @@ export class SessionWriteBuffer {
   }
 
   shouldFlushNow(): boolean {
-    return this.writeBuffer.length >= SessionWriteBuffer.FLUSH_SIZE;
+    return (
+      this.writeBuffer.length >= SessionWriteBuffer.FLUSH_SIZE ||
+      this.writeBufferBytes >= SessionWriteBuffer.WRITE_BUFFER_MAX_BYTES
+    );
   }
 }

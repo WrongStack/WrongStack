@@ -613,6 +613,10 @@ export class KnowledgeGraph {
             this._trackSeq(parsed.node.id);
             this._addToIndex(parsed.node, this._indexKeys(parsed.node));
           } else {
+            const oldNode = this.nodes.get(parsed.id);
+            if (oldNode) {
+              this._removeFromIndex(oldNode, this._indexKeys(oldNode));
+            }
             this.nodes.set(parsed.id, parsed);
             this._trackSeq(parsed.id);
             this._addToIndex(parsed, this._indexKeys(parsed));

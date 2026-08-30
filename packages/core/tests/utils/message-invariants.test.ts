@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../../src/types/messages.js';
-import { hasMeaningfulContent, repairToolUseAdjacency } from '../../src/utils/message-invariants.js';
+import {
+  hasMeaningfulContent,
+  repairToolUseAdjacency,
+} from '../../src/utils/message-invariants.js';
 
 describe('repairToolUseAdjacency', () => {
   it('leaves valid tool_use/tool_result pairs untouched', () => {
@@ -48,6 +51,19 @@ describe('repairToolUseAdjacency', () => {
     expect(repaired.report.removedToolResults).toEqual(['missing']);
     expect(repaired.report.removedMessages).toBe(1);
     expect(repaired.messages).toEqual([{ role: 'assistant', content: 'next' }]);
+  });
+
+  it('can preserve a trailing open tool_use for crash recovery', () => {
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'pending', name: 'bash', input: {} }],
+      },
+    ];
+
+    const repaired = repairToolUseAdjacency(messages, { preserveTrailingToolUse: true });
+    expect(repaired.report.changed).toBe(false);
+    expect(repaired.messages).toBe(messages);
   });
 
   it('repairs ranges cut through a tool exchange', () => {
@@ -177,13 +193,11 @@ describe('hasMeaningfulContent', () => {
         { type: 'tool_use', id: 'u1', name: 'read', input: {} },
       ]),
     ).toBe(true);
-    expect(
-      hasMeaningfulContent([{ type: 'tool_result', tool_use_id: 'u1', content: '' }]),
-    ).toBe(true);
-    expect(hasMeaningfulContent([{ type: 'thinking', thinking: 'plan' }])).toBe(true);
-    expect(hasMeaningfulContent([{ type: 'thinking', thinking: '', signature: 's' }])).toBe(
+    expect(hasMeaningfulContent([{ type: 'tool_result', tool_use_id: 'u1', content: '' }])).toBe(
       true,
     );
+    expect(hasMeaningfulContent([{ type: 'thinking', thinking: 'plan' }])).toBe(true);
+    expect(hasMeaningfulContent([{ type: 'thinking', thinking: '', signature: 's' }])).toBe(true);
     expect(hasMeaningfulContent([{ type: 'thinking', thinking: '' }])).toBe(false);
   });
 });

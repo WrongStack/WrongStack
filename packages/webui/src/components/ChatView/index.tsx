@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Bot, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowDown, ArrowUp, Bot, ChevronDown, ChevronUp, Square } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
@@ -8,12 +8,14 @@ import { getWSClient } from '@/lib/ws-client';
 import { cn } from '@/lib/utils';
 import {
   useActiveSessionId,
+  useChatStore,
   useConfigStore,
   useFleetStore,
   useSessionLeaderId,
   useUIStore,
 } from '@/stores';
 import { DEFAULT_LANE_ID } from '@/stores/chat-lanes';
+import { useResumeProgressStore } from '@/stores/resume-progress-store';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
@@ -93,6 +95,11 @@ export function ChatView() {
   // sessionId and only backfills cards the lane has not seen.
   const wsStatus = useConfigStore((s) => s.wsStatus);
   const hydratedSessionId = state.sessionId;
+  // Is this tab still waiting for the server to replay its journal? Kept out
+  // of the chat lane deliberately — see `resume-progress-store`.
+  const isRestoringTranscript = useResumeProgressStore((s) =>
+    state.sessionId ? s.startedAt[state.sessionId] !== undefined : false,
+  );
   useEffect(() => {
     if (!hydratedSessionId || wsStatus.state !== 'open') return;
     getWSClient().getChimeraReports(hydratedSessionId);
@@ -210,7 +217,34 @@ export function ChatView() {
           {state.rows.length === 0 && !state.isLoading ? (
             <div className="h-full overflow-y-auto overscroll-contain">
               <div className="mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6 pt-4 pb-8">
-                <WelcomeScreen />
+                {/*
+                  An empty lane means one of two very different things, and the
+                  welcome screen only tells the truth about one of them. While a
+                  resume is in flight the server is still replaying this
+                  session's journal — seconds on a big one — and showing "start
+                  a conversation" over a conversation that is on its way reads
+                  as data loss.
+                */}
+                {isRestoringTranscript ? (
+                  <div
+                    className="flex flex-col items-center justify-center gap-2 py-16 text-center"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div
+                      className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin"
+                      aria-hidden="true"
+                    />
+                    <p className="text-sm font-medium">
+                      {t('activity:chatView.restoringTranscript')}
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-sm">
+                      {t('activity:chatView.restoringTranscriptHint')}
+                    </p>
+                  </div>
+                ) : (
+                  <WelcomeScreen />
+                )}
               </div>
             </div>
           ) : (
@@ -312,6 +346,22 @@ export function ChatView() {
                 </span>
               )}
             </button>
+            {state.isLoading && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  getWSClient().sendAbort(state.sessionId ?? undefined);
+                  useChatStore.getState().setLoading(false);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-destructive/15 text-destructive hover:bg-destructive/25 transition-colors"
+                title={t('chat:input.abortTitle', 'Stop/Abort')}
+                data-testid="collapsed-stop"
+              >
+                <Square className="h-3 w-3 fill-current" />
+                <span>{t('common:action.stop', 'Stop')}</span>
+              </button>
+            )}
             <ToggleSwitch
               label={t('activity:chatView.autoCollapse')}
               value={state.autoCollapseInput}

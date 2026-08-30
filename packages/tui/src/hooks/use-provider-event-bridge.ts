@@ -19,6 +19,7 @@ import {
   retainStreamTail,
 } from '../reducers/helpers.js';
 import { contentBlocksText } from '../rehydrate-history.js';
+import { fmtRatioPct } from '../components/status-bar-format.js';
 import {
   recordProviderResponse,
   recordProviderTextDelta,
@@ -57,7 +58,7 @@ function canonicalStreamSegments(content: readonly ContentBlock[]): Array<{
 function formatSageInjectionStats(run: { injectedChars: number; contextPressure: number }): string {
   const parts = [`+${run.injectedChars} chars`];
   if (run.contextPressure >= 0.65) {
-    parts.push(`ctx ${Math.round(run.contextPressure * 100)}%`);
+    parts.push(`ctx ${fmtRatioPct(run.contextPressure)}`);
   }
   return parts.join(' · ');
 }
@@ -268,7 +269,7 @@ export function useProviderEventBridge({
       const contextWarning = fallbackEvent.contextWindowWarning
         ? `\n⚠ smaller context window: ${fallbackEvent.contextWindowWarning.fromMaxContext.toLocaleString('en-US')} → ${fallbackEvent.contextWindowWarning.toMaxContext.toLocaleString('en-US')} tokens${
             fallbackEvent.contextWindowWarning.currentTokens
-              ? `; current request ≈ ${fallbackEvent.contextWindowWarning.currentTokens.toLocaleString('en-US')} tokens (${Math.round((fallbackEvent.contextWindowWarning.currentTokens / fallbackEvent.contextWindowWarning.toMaxContext) * 100)}% of new window)`
+              ? `; current request ≈ ${fallbackEvent.contextWindowWarning.currentTokens.toLocaleString('en-US')} tokens (${fmtRatioPct(fallbackEvent.contextWindowWarning.currentTokens / fallbackEvent.contextWindowWarning.toMaxContext)} of new window)`
               : ''
           }`
         : '';

@@ -211,6 +211,19 @@ export function fmtDebugBytes(n: number): string {
   return `${(n / 1_048_576).toFixed(1)}MB`;
 }
 
+export function fmtPct(pct: number, maxDecimals = 2): string {
+  if (!Number.isFinite(pct)) return '0%';
+  const clamped = Math.max(0, Math.min(100, pct));
+  const factor = 10 ** maxDecimals;
+  const rounded = Math.round(clamped * factor) / factor;
+  return `${rounded}%`;
+}
+
+export function fmtRatioPct(ratio: number, maxDecimals = 2): string {
+  if (!Number.isFinite(ratio)) return '0%';
+  return fmtPct(ratio * 100, maxDecimals);
+}
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }

@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { AgentEntry, SessionRegistryEntry } from './session-registry-types.js';
 import { SessionCatalogProjectClient } from './client.js';
 import { sessionCatalogProjectServerMetadataPath } from './endpoint.js';
 import type { ResumeReservation, SessionCatalogEvent, SessionLeaseCredential } from './protocol.js';
+import type { AgentEntry, SessionRegistryEntry } from './session-registry-types.js';
 
 const HEARTBEAT_INTERVAL_MS = 5_000;
 const AGENT_WRITE_THROTTLE_MS = 300;
@@ -20,6 +20,20 @@ interface ProjectBinding {
 export interface SessionResumeClaim {
   reservation: ResumeReservation;
   activate(entry: SessionRegistryRegistration): Promise<void>;
+  /**
+   * Push the reservation deadline out while the caller is still hydrating.
+   *
+   * The reservation is taken before the transcript is opened, so its window
+   * has to cover work whose duration nobody knows yet. Callers that do slow
+   * work between reserve and activate must call this periodically; without it
+   * a large journal simply outlives its own reservation and `activate` fails
+   * after the expensive part already succeeded.
+   *
+   * Resolves to `false` when the reservation is already settled (activated or
+   * cancelled) — renewal is then a no-op, not an error. Rejects when the
+   * daemon refuses (expired, or owned by someone else).
+   */
+  renew(reservationMs?: number): Promise<boolean>;
   cancel(): Promise<void>;
 }
 
@@ -138,6 +152,8 @@ export class ProjectSessionRegistry {
     sessionId: string;
     projectSlug: string;
     projectRoot: string;
+    /** Initial reservation window. Callers doing slow hydration should also `renew()`. */
+    reservationMs?: number | undefined;
   }): Promise<SessionResumeClaim> {
     const binding = this.binding(target.projectSlug, target.projectRoot);
     let reservation: ResumeReservation;
@@ -146,6 +162,7 @@ export class ProjectSessionRegistry {
         targetSessionId: target.sessionId,
         requesterInstanceId: this.instanceId,
         ...(this.current ? { currentSessionId: this.current.entry.sessionId } : {}),
+        ...(target.reservationMs !== undefined ? { reservationMs: target.reservationMs } : {}),
       });
     } catch (error) {
       await this.closeBinding(binding).catch(() => undefined);
@@ -153,7 +170,18 @@ export class ProjectSessionRegistry {
     }
     let settled = false;
     return {
-      reservation,
+      get reservation() {
+        return reservation;
+      },
+      renew: async (reservationMs) => {
+        if (settled) return false;
+        reservation = await binding.client.call('renew_reservation', {
+          reservationId: reservation.reservationId,
+          requesterInstanceId: this.instanceId,
+          ...(reservationMs !== undefined ? { reservationMs } : {}),
+        });
+        return true;
+      },
       activate: async (registration) => {
         if (settled) throw new Error('Resume reservation is already settled');
         const entry = this.fullEntry(registration);

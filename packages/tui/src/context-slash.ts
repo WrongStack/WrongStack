@@ -1,5 +1,6 @@
 import type { Context } from '@wrongstack/core/agent';
 import type { SlashCommand } from '@wrongstack/core/types';
+import { fmtRatioPct } from './components/status-bar-format.js';
 
 interface ContextSlashDeps {
   /** Bridge from slash-command execution to the mounted TUI reducer. */
@@ -32,7 +33,7 @@ export function contextBar(pct: number, width: number): string {
   if (pct <= 0) return `[${'░'.repeat(width)}]   0%`;
   const filled = Math.round(pct * width);
   const empty = width - filled;
-  const label = ` ${(pct * 100).toFixed(0)}%`;
+  const label = ` ${fmtRatioPct(pct)}`;
   const bar = `[${'█'.repeat(Math.max(1, filled))}${'░'.repeat(Math.max(0, empty))}]`;
   return bar.length + label.length <= width + 4
     ? `${bar}${label}`
@@ -100,7 +101,7 @@ export function formatContextPanelSummary(summary: ContextPanelSummary | undefin
   if (!summary) return 'Context panel opened.';
   const contextParts = ['Context panel opened'];
   if (summary.contextPct !== undefined) {
-    contextParts.push(`${Math.round(Math.max(0, summary.contextPct) * 100)}%`);
+    contextParts.push(fmtRatioPct(Math.max(0, summary.contextPct)));
   }
   if (
     summary.contextTokens !== undefined &&

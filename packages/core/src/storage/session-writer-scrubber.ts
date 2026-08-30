@@ -35,6 +35,21 @@ export function scrubSessionWriterEvent(
   if (event.type === 'llm_response') {
     return { ...event, content: secretScrubber.scrubObject(event.content) };
   }
+  if (event.type === 'tool_use') {
+    return { ...event, input: secretScrubber.scrubObject(event.input) };
+  }
+  if (event.type === 'tool_call_start') {
+    return { ...event, input: secretScrubber.scrubObject(event.input) };
+  }
+  if (event.type === 'tool_result') {
+    return {
+      ...event,
+      content:
+        typeof event.content === 'string'
+          ? secretScrubber.scrub(event.content)
+          : secretScrubber.scrubObject(event.content),
+    };
+  }
   if (event.type === 'file_snapshot') {
     return {
       ...event,
@@ -44,6 +59,9 @@ export function scrubSessionWriterEvent(
         after: f.after !== null ? secretScrubber.scrub(f.after) : null,
       })),
     };
+  }
+  if (event.type === 'side_effect') {
+    return secretScrubber.scrubObject(event);
   }
   return event;
 }

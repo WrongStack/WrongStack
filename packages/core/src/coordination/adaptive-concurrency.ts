@@ -233,8 +233,12 @@ export class AdaptiveConcurrencyController {
 
   private notifyStateChange(): void {
     const state = this.getState();
-    for (const handler of this.stateChangeHandlers) {
-      handler(state);
+    for (const handler of [...this.stateChangeHandlers]) {
+      try {
+        handler(state);
+      } catch {
+        // Safe dispatch — handler exception does not block other listeners
+      }
     }
   }
 

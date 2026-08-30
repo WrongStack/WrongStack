@@ -306,6 +306,46 @@ describe('DefaultSessionStore — non-destructive journal fork', () => {
     expect(await fs.readFile(path.join(tmp, 'parent.jsonl'), 'utf8')).toBe(parentBefore);
   });
 
+  it('does not inherit parent subagent transcript references into a fork', async () => {
+    const parent = await store.create({ id: 'parent-subagents', model: 'm', provider: 'p' });
+    await parent.append({ type: 'user_input', ts: now(), content: 'delegate this' });
+    await parent.append({
+      type: 'agent_spawned',
+      ts: now(),
+      agentId: 'sub-1',
+      role: 'reviewer',
+    });
+    await parent.append({
+      type: 'agent_session_linked',
+      ts: now(),
+      agentId: 'sub-1',
+      agentSessionId: 'sub-session-1',
+      transcriptPath: path.join(tmp, 'subagents', 'sub-session-1.jsonl'),
+    });
+    await parent.append({
+      type: 'delegate_completed',
+      ts: now(),
+      target: 'reviewer',
+      task: 'review',
+      ok: true,
+      summary: 'done',
+      durationMs: 1,
+      iterations: 1,
+      toolCalls: 0,
+      subagentId: 'sub-1',
+    });
+    await parent.close();
+
+    const forked = await store.fork('parent-subagents');
+    const forkedTypes = forked.data.events.map((event) => event.type);
+    expect(forkedTypes).not.toContain('agent_spawned');
+    expect(forkedTypes).not.toContain('agent_session_linked');
+    expect(forkedTypes).not.toContain('delegate_completed');
+    expect(forked.data.messages).toEqual([
+      expect.objectContaining({ role: 'user', content: 'delegate this' }),
+    ]);
+  });
+
   it('forks the latest exact replay state and rejects an unknown checkpoint', async () => {
     const parent = await store.create({ id: 'latest-parent', model: 'm', provider: 'p' });
     await parent.append({ type: 'user_input', ts: now(), content: 'old raw turn' });
@@ -452,6 +492,20 @@ describe('FileSessionWriter — appendBatch', () => {
     expect(ids).toContain('p1c');
 
     await fresh.close(); // release the handle before afterEach cleanup
+  });
+
+  it('delete removes the shard manifest so deleted sessions do not survive cached scans', async () => {
+    const writer = await store.create({ id: 'manifested', model: 'm', provider: 'p' });
+    await writer.append({ type: 'user_input', ts: now(), content: 'indexed by manifest' });
+    await writer.close();
+    await store.list();
+    const manifestPath = path.join(tmp, '_manifest.json');
+    await expect(fs.stat(manifestPath)).resolves.toBeDefined();
+
+    await store.delete('manifested');
+
+    await expect(fs.stat(manifestPath)).rejects.toBeDefined();
+    expect((await store.list()).map((summary) => summary.id)).not.toContain('manifested');
   });
 
   it('resume() heals a crashed session: synthesized error results, recovered marker, detectStale clears', async () => {
@@ -612,6 +666,30 @@ describe('FileSessionWriter — truncateToCheckpoint / clearSession / in-flight'
     expect(data.events.some((e) => e.type === 'rewound')).toBe(true);
   });
 
+  it('deletes subagent transcripts referenced only by rewound-away events', async () => {
+    const subagentsDir = path.join(tmp, 'subagents');
+    await fs.mkdir(subagentsDir, { recursive: true });
+    const transcriptPath = path.join(subagentsDir, 'sub-session-1.jsonl');
+    await fs.writeFile(transcriptPath, '{"type":"session_start"}\n', 'utf8');
+
+    const w = await store.create({ id: 'tc-subagents', model: 'm', provider: 'p' });
+    await w.writeCheckpoint(0, 'first');
+    await w.append({ type: 'user_input', ts: now(), content: 'kept' });
+    await w.writeCheckpoint(1, 'delegate');
+    await w.append({
+      type: 'agent_session_linked',
+      ts: now(),
+      agentId: 'sub-1',
+      agentSessionId: 'sub-session-1',
+      transcriptPath,
+    });
+
+    await w.truncateToCheckpoint(0);
+    await w.close();
+
+    await expect(fs.access(transcriptPath)).rejects.toThrow();
+  });
+
   it('clearSession rewrites the file to a single session_start', async () => {
     const w = await store.create({ id: 'cl', model: 'm', provider: 'p' });
     await w.append({ type: 'user_input', ts: now(), content: 'before clear' });
@@ -658,6 +736,30 @@ describe('DefaultSessionStore — best-effort cleanup paths', () => {
     expect(raw).toContain('session_start');
   });
 
+  it('clearHistory refreshes the local index row', async () => {
+    const writer = await store.create({ id: 'clear-index', model: 'm', provider: 'p' });
+    await writer.append({ type: 'user_input', ts: now(), content: 'old title text' });
+    await writer.append({
+      type: 'llm_response',
+      ts: now(),
+      content: [{ type: 'text', text: 'old response' }],
+      stopReason: 'end_turn',
+      usage: { input: 50_000, output: 10 },
+      model: 'm',
+      provider: 'p',
+    });
+    await writer.close();
+    expect((await store.list()).find((summary) => summary.id === 'clear-index')?.tokenTotal).toBe(
+      50_010,
+    );
+
+    await store.clearHistory('clear-index');
+
+    const summary = (await store.list()).find((entry) => entry.id === 'clear-index');
+    expect(summary?.tokenTotal).toBe(0);
+    expect(summary?.title).toBe('(empty session)');
+  });
+
   it('prune removes an aged session and cleans up its empty date shard', async () => {
     const shard = path.join(tmp, '2020-01-01');
     await fs.mkdir(shard, { recursive: true });
@@ -677,6 +779,28 @@ describe('DefaultSessionStore — best-effort cleanup paths', () => {
     expect(deleted).toBeGreaterThanOrEqual(1);
     // The now-empty date shard directory is removed.
     await expect(fs.stat(shard)).rejects.toBeDefined();
+  });
+
+  it('prune skips aged sessions that are still in use', async () => {
+    await writeRawSession(tmp, 'live-old', [
+      {
+        type: 'session_start',
+        ts: '2020-01-01T00:00:00.000Z',
+        id: 'live-old',
+        model: 'm',
+        provider: 'p',
+      },
+    ]);
+    const old = new Date('2020-01-01T00:00:00.000Z');
+    const livePath = path.join(tmp, 'live-old.jsonl');
+    await fs.utimes(livePath, old, old);
+    store = new DefaultSessionStore({
+      dir: tmp,
+      isSessionInUse: async (id) => (id === 'live-old' ? 'test-owner' : null),
+    });
+
+    await expect(store.prune(30)).resolves.toBe(0);
+    await expect(fs.stat(livePath)).resolves.toBeDefined();
   });
 });
 
@@ -1104,6 +1228,31 @@ describe('DefaultSessionStore — summarize / replay over raw event streams', ()
       { role: 'system', content: '[recovered exact state]' },
       { role: 'user', content: 'continue from here' },
       { role: 'assistant', content: 'continued exactly', ts },
+    ]);
+  });
+
+  it('keeps legacy replayed history when modern message_appended starts later', async () => {
+    await writeRawSession(tmp, 'legacy-modern-transition', [
+      {
+        type: 'session_start',
+        ts: '2026-01-01T00:00:00.000Z',
+        id: 'legacy-modern-transition',
+        model: 'm',
+        provider: 'p',
+      },
+      { type: 'user_input', ts: '2026-01-01T00:01:00.000Z', content: 'legacy first' },
+      {
+        type: 'message_appended',
+        ts: '2026-01-01T00:02:00.000Z',
+        version: 1,
+        message: { role: 'assistant', content: 'modern reply' },
+      },
+    ] as SessionEvent[]);
+
+    const data = await store.load('legacy-modern-transition');
+    expect(data.messages).toEqual([
+      { role: 'user', content: 'legacy first', ts: '2026-01-01T00:01:00.000Z' },
+      { role: 'assistant', content: 'modern reply', ts: '2026-01-01T00:02:00.000Z' },
     ]);
   });
 

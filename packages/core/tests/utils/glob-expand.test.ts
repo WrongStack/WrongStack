@@ -75,4 +75,12 @@ describe('expandGlob', () => {
     expect(out).toContain('b.ts');
     expect(out).toContain('d.ts');
   });
+
+  it('handles Windows backslash separators in glob patterns', async () => {
+    const out = (await expandGlob('sub\\*.ts')).map(base);
+    expect(out).toEqual(['d.ts']);
+    const outGlobstar = (await expandGlob('**\\*.ts')).map(base).sort();
+    expect(outGlobstar).toContain('a.ts');
+    expect(outGlobstar).toContain('d.ts');
+  });
 });

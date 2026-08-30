@@ -70,7 +70,6 @@ export function handleSessionStartMessage(params: {
     replayMessages,
     replayMarkers,
     replayToolMeta,
-    replayUsage,
   } = sessionProjection;
   const previousId = sessionIdRef.current;
   const switchedSession = Boolean(previousId && id && previousId !== id);
@@ -150,9 +149,14 @@ export function handleSessionStartMessage(params: {
     setAttachedImages([]);
     setSessionMenuOpen?.(false);
   }
-  const payloadLastInput = finiteNumber(payload['lastInputTokens']);
-  const replayInput = replayUsage ? finiteNumber(replayUsage['input']) : payloadLastInput;
-  const initialTokens = replayInput || payloadLastInput;
+  // The context bar means "how full is the window", so it may only be fed a
+  // per-request measurement. This preferred `replayUsage.input` — the session's
+  // RUNNING TOTAL across every request it ever made — and divided it by
+  // `maxContext`, so resuming a long conversation opened the bar at several
+  // hundred percent (one measured session: 9,672,042 against a 1M window).
+  // `lastInputTokens` is the server's reading of the last request; the
+  // cumulative totals belong to the usage and cost readouts, not here.
+  const initialTokens = finiteNumber(payload['lastInputTokens']);
   setContext((current) => ({
     load: resetSessionState
       ? maxContext > 0

@@ -298,7 +298,7 @@
         "export type { DistributiveOmit } from './utility-types.js';",
         "export type { ErrorCode, ErrorSeverity, ErrorSubsystem } from './errors.js';",
         "export type { FileEventRecord } from './file-event-record.js';",
-        "export type { FileSnapshot, ForkedSession, ResumedSession, ResumeFileStatus, ResumeFileValidationEntry, ResumeValidation, SessionData, SessionEvent, SessionForkOptions, SessionMetadata, SessionStore, SessionSummary, SessionWriter, WorkspaceCheckpointRef, WorkspaceMaterializationResult, } from './session.js';",
+        "export type { FileSnapshot, ForkedSession, ResumedSession, ResumeFileStatus, ResumeFileValidationEntry, ResumeValidation, SessionData, SessionEvent, SessionForkOptions, SessionLoadProgress, SessionMetadata, SessionStore, SessionSummary, SessionWriter, WorkspaceCheckpointRef, WorkspaceMaterializationResult, } from './session.js';",
         "export type { InputReader, PromptOption } from './input-reader.js';",
         "export type { InstalledPromptEntry, PromptManifestData, PromptRegistryManifest, PromptRegistryRef, RegistryDiff, } from './prompt-registry.js';",
         "export type { JSONSchema, Permission, RiskTier, Tool, ToolCallContext, ToolErrorInfo, ToolFinalEvent, ToolIconId, ToolProgressEvent, ToolStreamEvent, } from './tool.js';",
@@ -367,6 +367,7 @@
       },
       "source": "packages/core/src/types/session-timeline.ts",
       "declarations": [
+        "export function projectLastRequestTokens",
         "export function projectSessionTimeline",
         "export function projectSessionToolMeta",
         "export interface ProjectSessionTimelineInput",
@@ -1314,14 +1315,14 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 173,
-      "sourceLines": 50644
+      "sourceLines": 50678
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12053
+      "sourceLines": 12059
     },
     {
       "directory": "design",
@@ -1363,7 +1364,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8837
+      "sourceLines": 8847
     },
     {
       "directory": "infrastructure",
@@ -1377,7 +1378,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 19,
-      "sourceLines": 3847
+      "sourceLines": 3855
     },
     {
       "directory": "models",
@@ -1447,14 +1448,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4349
+      "sourceLines": 4428
     },
     {
       "directory": "skills",
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2341
+      "sourceLines": 2358
     },
     {
       "directory": "statusline",
@@ -1468,7 +1469,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 91,
-      "sourceLines": 20266
+      "sourceLines": 20752
     },
     {
       "directory": "tasking",
@@ -1489,14 +1490,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12792
+      "sourceLines": 12854
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10529
+      "sourceLines": 10614
     },
     {
       "directory": "wiring",

@@ -436,6 +436,49 @@ afterEach(() => {
 });
 
 describe('session.start', () => {
+  /**
+   * The context bar reports how full the WINDOW is, so it may only ever be fed
+   * a per-request measurement. This used to prefer `replayUsage.input`, the
+   * session's running total across every request it ever made, and divide it
+   * by `maxContext` — so a resumed long conversation opened at several hundred
+   * percent (one measured session reported 9,672,042 against a 1M window).
+   */
+  it('feeds the context bar the last request, not the session total', () => {
+    harness.handler({
+      type: 'session.start',
+      payload: {
+        sessionId: 'sess-resumed',
+        provider: 'openai',
+        model: 'gpt-4o',
+        maxContext: 1_000_000,
+        reset: true,
+        lastInputTokens: 120_000,
+        replayMessages: [{ role: 'user', content: 'hi', ts: '2026-01-01T00:00:00.000Z' }],
+        replayUsage: { input: 9_672_042, output: 277_805, cacheRead: 61_728_448, cacheWrite: 0 },
+      },
+    });
+
+    expect(harness.state.context.tokens).toBe(120_000);
+    expect(harness.state.context.load).toBeCloseTo(0.12, 5);
+  });
+
+  it('leaves the bar unset when the server has no per-request reading', () => {
+    harness.handler({
+      type: 'session.start',
+      payload: {
+        sessionId: 'sess-fresh',
+        provider: 'openai',
+        model: 'gpt-4o',
+        maxContext: 1_000_000,
+        reset: true,
+        replayUsage: { input: 9_672_042, output: 1, cacheRead: 0, cacheWrite: 0 },
+      },
+    });
+
+    expect(harness.state.context.tokens).toBe(0);
+    expect(harness.state.context.load).toBe(0);
+  });
+
   it('seeds session, restores draft, requests providers and recent sessions', () => {
     harness.readComposerDraft.mockReturnValue({ text: 'half a thought', fileRefs: ['a.ts'] });
 

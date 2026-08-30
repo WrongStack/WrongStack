@@ -54,4 +54,9 @@ describe('slugify', () => {
   it('treats the cap as inclusive (a 64-char input produces a 64-char output)', () => {
     expect(slugify('a'.repeat(64)).length).toBe(64);
   });
+
+  it('handles non-string inputs safely by returning fallback', () => {
+    expect(slugify(undefined as unknown as string)).toBe('prompt');
+    expect(slugify(null as unknown as string, 'custom')).toBe('custom');
+  });
 });

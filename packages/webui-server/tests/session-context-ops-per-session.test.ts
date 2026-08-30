@@ -254,6 +254,30 @@ describe('context operations act on the requesting tab', () => {
     expect(changed?.sessionId).toBe('sess_bg');
   });
 
+  it('honors an explicit balanced context-window mode on 1M windows', async () => {
+    const h = harness();
+    h.contexts.sess_bg.meta['contextWindowMode'] = 'deep';
+    h.contexts.sess_bg.meta['effectiveMaxContext'] = 1_050_000;
+
+    await h.handlers.switchContextMode(ws, {
+      type: 'context.mode.switch',
+      payload: { sessionId: 'sess_bg', id: 'balanced' },
+    });
+
+    expect(h.contexts.sess_bg.meta['contextWindowMode']).toBe('balanced');
+    expect(h.contexts.sess_bg.meta['contextMode']).toBe('balanced');
+    const changed = h.broadcasts.find((m) => m.type === 'context.mode.changed')?.payload as {
+      id?: string;
+      policy?: { id?: string };
+      sessionId?: string;
+    };
+    expect(changed).toMatchObject({
+      id: 'balanced',
+      policy: { id: 'balanced' },
+      sessionId: 'sess_bg',
+    });
+  });
+
   it('opens the context editor on the named session and stamps the snapshot', async () => {
     const h = harness();
 

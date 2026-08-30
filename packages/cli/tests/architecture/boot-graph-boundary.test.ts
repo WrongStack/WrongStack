@@ -22,15 +22,26 @@
  * A source-level grep cannot express either condition; only the emitted entry
  * bundle can, which is why this reads `dist/`.
  */
+import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 // Repo root resolved from this file (packages/cli/tests/architecture/) so the
 // suite passes from the repo root AND from the package cwd.
 const repositoryRoot = path.resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
 const ENTRY = path.join(repositoryRoot, 'packages', 'cli', 'dist', 'index.js');
+
+// The assertions below read the emitted entry bundle and dist/ contents, so a
+// missing dist is a setup failure, not a pass. Guarded once in beforeAll so
+// every test in this suite fails with the fix command instead of a bare
+// ENOENT from deep inside fs.readFile/fs.readdir.
+const MISSING_DIST_MESSAGE = [
+  'packages/cli/dist/index.js was not found.',
+  'The boot-graph assertions read the emitted entry bundle, so build the CLI first:',
+  '  pnpm --filter @wrongstack/cli build      (or workspace-wide: pnpm build)',
+].join('\n');
 
 /**
  * Packages that must never be reachable by a static import from the entry.
@@ -78,9 +89,14 @@ function staticSpecifiers(source: string): Set<string> {
 }
 
 describe('CLI boot graph boundary', () => {
+  beforeAll(() => {
+    if (!existsSync(ENTRY)) throw new Error(MISSING_DIST_MESSAGE);
+  });
+
   it('does not statically import packages that only some invocations need', async () => {
     const source = await fs.readFile(ENTRY, 'utf8');
-    // A missing/empty dist is a setup failure, not a pass.
+    // A missing/empty dist is a setup failure, not a pass — the beforeAll
+    // guard above fails with build instructions instead of a bare ENOENT.
     expect(source.length).toBeGreaterThan(1000);
 
     const specifiers = staticSpecifiers(source);

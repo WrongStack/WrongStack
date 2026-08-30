@@ -99,7 +99,8 @@ export class DefaultAttachmentStore implements AttachmentStore {
       if (m[3] !== undefined) {
         // Path-keyed `[file:<path>]` — most recent matching file ref wins.
         const wantPath = m[3];
-        ref = findLast(this.refs, (r) => r.kind === 'file' && refPath(r) === wantPath);
+        const norm = (s?: string) => s?.replace(/\\/g, '/');
+        ref = findLast(this.refs, (r) => r.kind === 'file' && norm(refPath(r)) === norm(wantPath));
       } else {
         const kind = prefixToKind(m[1] as string);
         const seq = Number(m[2]);

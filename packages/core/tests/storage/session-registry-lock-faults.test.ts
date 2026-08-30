@@ -111,3 +111,36 @@ describe('atomicUpdate stamp-failure branch', () => {
     await expect(fsp.readFile(lockPath)).rejects.toThrow();
   });
 });
+
+describe('SessionRegistry same-pid ownership', () => {
+  it('keeps sibling sessions owned by the same WebUI process', async () => {
+    const reg = new SessionRegistry(dir);
+    const startedAt = new Date().toISOString();
+
+    await reg.register({
+      sessionId: 'sess-tab-a',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      clientType: 'webui',
+      pid: process.pid,
+      startedAt,
+    });
+    await reg.register({
+      sessionId: 'sess-tab-b',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      clientType: 'webui',
+      pid: process.pid,
+      startedAt: new Date(Date.parse(startedAt) + 1).toISOString(),
+    });
+
+    const ids = (await reg.list()).map((entry) => entry.sessionId).sort();
+    expect(ids).toEqual(['sess-tab-a', 'sess-tab-b']);
+
+    await reg.unregister();
+  });
+});

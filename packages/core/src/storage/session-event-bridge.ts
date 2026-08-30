@@ -60,6 +60,7 @@ export const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
   'session_forked',
   'user_input',
   'llm_response',
+  'tool_use',
   'tool_result',
   'message_appended',
   'message_updated',
@@ -81,7 +82,6 @@ export const CORE_RECONSTRUCT_EVENTS = new Set<SessionEvent['type']>([
  */
 export const STANDARD_AUDIT_EVENTS = new Set<SessionEvent['type']>([
   'llm_request',
-  'tool_use',
   'tool_call_start',
   'tool_call_end',
   'compaction',
@@ -257,8 +257,6 @@ export function createSessionEventBridge(
     },
   };
 }
-
-
 
 /**
  * Safely extract the auditLevel from a (possibly partial) Config object.

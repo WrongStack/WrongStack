@@ -162,6 +162,44 @@ describe('updateLastUserMessage', () => {
 });
 
 describe('tool execution eviction', () => {
+  it('rebuilds running executions from persisted tool messages after F5', () => {
+    const merged = options.merge?.(
+      {
+        lanes: {
+          'sess-live': {
+            messages: [
+              {
+                id: 'msg-tool',
+                role: 'tool',
+                content: '',
+                toolName: 'Read',
+                toolInput: { file: 'a.ts' },
+                toolUseId: 'tu1',
+                timestamp: 123,
+              },
+            ],
+            queue: [],
+          },
+        },
+      },
+      { lanes: {}, activeSessionId: '__unbound__' } as never,
+    ) as {
+      lanes: Record<
+        string,
+        { executions: Map<string, unknown>; toolMessageIdsByUseId: Map<string, string> }
+      >;
+    };
+
+    expect(merged.lanes['sess-live']?.toolMessageIdsByUseId.get('tu1')).toBe('msg-tool');
+    expect(merged.lanes['sess-live']?.executions.get('tu1')).toMatchObject({
+      id: 'tu1',
+      name: 'Read',
+      input: { file: 'a.ts' },
+      ok: true,
+      startedAt: 123,
+    });
+  });
+
   it('drops executions whose tool message the trim window evicted', () => {
     const toolId = chat().addMessage({
       role: 'tool',

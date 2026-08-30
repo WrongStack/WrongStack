@@ -48,13 +48,13 @@ export function handleProviderResponse(msg: WSServerMessage) {
   const meta = sessionFor(msg);
   if (!chat || !meta) return;
   pipeViz(msg);
-  const payload = msg.payload as {
-    usage: {
+  const payload = (msg.payload && typeof msg.payload === 'object' ? msg.payload : {}) as {
+    usage?: {
       input: number;
       output: number;
       cacheRead?: number | undefined;
       cacheWrite?: number | undefined;
-    };
+    } | undefined;
     provider?: string | undefined;
     stopReason: string;
     messageId: string;
@@ -63,18 +63,20 @@ export function handleProviderResponse(msg: WSServerMessage) {
   const responseText = providerResponseText(payload.content);
 
   const u = payload.usage;
-  const delta = (u.input ?? 0) + (u.cacheRead ?? 0) + (u.cacheWrite ?? 0);
+  const delta = (u?.input ?? 0) + (u?.cacheRead ?? 0) + (u?.cacheWrite ?? 0);
   if (delta > 0) meta.patch({ lastInputTokens: delta });
 
-  meta.updateUsage(payload.usage, payload.provider);
-  const { inputCost, outputCost, cacheReadCost } = meta.data;
-  const dCost =
-    (payload.usage.input * inputCost +
-      (payload.usage.cacheWrite ?? 0) * inputCost +
-      payload.usage.output * outputCost +
-      (payload.usage.cacheRead ?? 0) * cacheReadCost) /
-    1_000_000;
-  if (dCost > 0) meta.addCost(dCost);
+  if (payload.usage) {
+    meta.updateUsage(payload.usage, payload.provider);
+    const { inputCost, outputCost, cacheReadCost } = meta.data;
+    const dCost =
+      (((payload.usage.input ?? 0) * inputCost) +
+        ((payload.usage.cacheWrite ?? 0) * inputCost) +
+        ((payload.usage.output ?? 0) * outputCost) +
+        ((payload.usage.cacheRead ?? 0) * cacheReadCost)) /
+      1_000_000;
+    if (dCost > 0) meta.addCost(dCost);
+  }
 
   const final = isFinalTurnStopReason(payload.stopReason);
   if (final) chat.setLoading(false);
@@ -94,12 +96,12 @@ export function handleProviderResponse(msg: WSServerMessage) {
       }
     }
     chat.finalizeMessage(id, { final });
-    if (payload.usage.output > 0) chat.updateMessage(id, { usage: payload.usage });
+    if (payload.usage && (payload.usage.output ?? 0) > 0) chat.updateMessage(id, { usage: payload.usage });
   } else if (responseText.trim()) {
     const messageId = chat.addMessage({
       role: 'assistant',
       content: responseText,
-      usage: payload.usage.output > 0 ? payload.usage : undefined,
+      usage: payload.usage && (payload.usage.output ?? 0) > 0 ? payload.usage : undefined,
     });
     chat.finalizeMessage(messageId, { final });
   }

@@ -56,7 +56,8 @@ export function buildLiveNextStepsGateBlock(
 ): TextBlock | undefined {
   if (ctx.agentId !== 'leader') return undefined;
 
-  const openTodos = ctx.todos.filter(
+  const todos = Array.isArray(ctx.todos) ? ctx.todos : [];
+  const openTodos = todos.filter(
     (todo) => todo.status === 'pending' || todo.status === 'in_progress',
   );
 

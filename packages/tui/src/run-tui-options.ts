@@ -6,6 +6,7 @@ import type {
 } from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { QueueStore } from '@wrongstack/core/storage';
 import type {
   AttachmentStore,
@@ -14,12 +15,12 @@ import type {
   ContextSnapshot,
   FleetChatVerbosity,
   Message,
+  SessionLoadProgress,
   SkillLoader,
   ThemePresetId,
   TokenCounter,
   TokenSavingTier,
 } from '@wrongstack/core/types';
-import type { StatuslineLines } from '@wrongstack/core/statusline';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { AgentTranscriptReader } from './components/agents-monitor.js';
@@ -582,7 +583,17 @@ export interface RunTuiOptions {
    * display. Returns null when resume fails.
    */
   onResumeSession?:
-    | ((sessionId: string) => Promise<{
+    | ((
+        sessionId: string,
+        onLoadProgress?: (progress: SessionLoadProgress) => void,
+        /**
+         * Live stage names as each step of the resume begins (`resolve_id`,
+         * `open_journal`, `swap_writer`, …). Drives the rolling rows of the
+         * resume loading block, so the screen reports what is actually
+         * happening instead of a spinner over an unexplained multi-second wait.
+         */
+        onStage?: (stage: string) => void,
+      ) => Promise<{
         entries: import('./components/history/types.js').HistoryEntry[];
         nextId: number;
         sessionId: string;
@@ -595,6 +606,18 @@ export interface RunTuiOptions {
          * until the next ctx.pct event lands.
          */
         contextSnapshot?: ContextSnapshot | undefined;
+        /** `false` = transcript replayed read-only; the session was not claimed. */
+        attached?: boolean | undefined;
+        /** Non-fatal problems to surface next to the replayed transcript. */
+        warnings?: string[] | undefined;
+        /**
+         * `<nextsteps>` parsed from the resumed session's final assistant turn.
+         *
+         * OFFERED, never executed: the resume lists them and stops. Empty when
+         * the session did not end on a next-steps block, when it has open todos
+         * (the board keeps precedence), or when the transcript is read-only.
+         */
+        nextSteps?: string[] | undefined;
       } | null>)
     | undefined;
 

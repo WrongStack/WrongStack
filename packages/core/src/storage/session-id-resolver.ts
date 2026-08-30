@@ -16,13 +16,14 @@ export function resolveSessionId(
   query: string,
   candidateIds: readonly string[],
 ): SessionIdResolution {
-  const normalized = query.trim();
+  const trimmed = query.trim();
+  const normalized = trimmed.replace(/\\/g, '/');
   if (!normalized) return { status: 'missing', query: normalized };
 
-  const uniqueIds = [...new Set(candidateIds)];
+  const uniqueIds = [...new Set(candidateIds.map((id) => id.replace(/\\/g, '/')))];
   if (uniqueIds.includes(normalized)) return { status: 'resolved', id: normalized };
 
-  const leaf = (id: string): string => path.posix.basename(id.replace(/\\/g, '/'));
+  const leaf = (id: string): string => path.posix.basename(id);
   const exactLeafMatches = uniqueIds.filter((id) => leaf(id) === normalized);
   if (exactLeafMatches.length === 1) {
     return { status: 'resolved', id: exactLeafMatches[0]! };
@@ -42,7 +43,7 @@ export function resolveSessionId(
   if (prefixMatches.length > 1) {
     return { status: 'ambiguous', query: normalized, candidates: prefixMatches.sort() };
   }
-  return { status: 'missing', query: normalized };
+  return { status: 'missing', query: trimmed };
 }
 
 export function sessionIdResolutionError(resolution: Exclude<SessionIdResolution, { status: 'resolved' }>): Error {

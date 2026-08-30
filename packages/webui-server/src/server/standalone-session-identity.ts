@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import type { EventBus } from '@wrongstack/core/kernel';
 import { AgentStatusTracker, FleetNotifier } from '@wrongstack/core/coordination';
+import type { EventBus } from '@wrongstack/core/kernel';
 import { getSessionRegistry, type SessionResumeClaim } from '@wrongstack/core/storage';
 import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from 'ws';
@@ -102,6 +102,23 @@ export async function createStandaloneSessionIdentityLifecycle(
     } catch (err) {
       logger.debug?.(`WebUI session registry update failed: ${errorMessage(err)}`);
       if (strict) throw err;
+    }
+  };
+
+  const replaceRegisteredIdentity = async (
+    sessionId: string,
+    target: SessionIdentityTarget,
+  ): Promise<void> => {
+    const previousSessionId = activeSessionId;
+    const previousTarget = activeTarget;
+    await registry.unregister();
+    try {
+      await register(sessionId, true, target);
+    } catch (err) {
+      await register(previousSessionId, true, previousTarget).catch((restoreErr) => {
+        logger.debug?.(`WebUI session registry restore failed: ${errorMessage(restoreErr)}`);
+      });
+      throw err;
     }
   };
 
@@ -253,7 +270,7 @@ export async function createStandaloneSessionIdentityLifecycle(
         });
         pendingClaim = undefined;
       } else {
-        await register(sessionId, true, target);
+        await replaceRegisteredIdentity(sessionId, target);
       }
       activeSessionId = sessionId;
       activeTarget = target;
@@ -285,7 +302,7 @@ export async function createStandaloneSessionIdentityLifecycle(
       });
       pendingClaim = { sessionId, token, claim: reservation, target };
     } else {
-      await register(sessionId, true, target);
+      await replaceRegisteredIdentity(sessionId, target);
       pendingClaim = {
         sessionId,
         token,
@@ -298,7 +315,12 @@ export async function createStandaloneSessionIdentityLifecycle(
             expiresAt: Number.MAX_SAFE_INTEGER,
           },
           activate: async () => undefined,
-          cancel: async () => register(activeSessionId, true, activeTarget),
+          // The legacy path holds no reservation, so there is nothing to
+          // extend. Report "already settled" rather than pretending a renewal
+          // happened — callers use the boolean to decide whether the window is
+          // theirs to keep alive.
+          renew: async () => false,
+          cancel: async () => replaceRegisteredIdentity(activeSessionId, activeTarget),
         },
       };
     }

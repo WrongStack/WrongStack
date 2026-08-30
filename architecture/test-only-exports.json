@@ -126,6 +126,9 @@
       "MAX_MUTATING_ATTEMPTS",
       "MAX_REVIEWER_ATTEMPTS"
     ],
+    "packages/cli/src/cli-entry-point.ts": [
+      "scheduleForcedExit"
+    ],
     "packages/cli/src/cli-main-helpers.ts": [
       "bootstrapCliGovernance",
       "governanceRuntimeEnabled",
@@ -465,6 +468,9 @@
       "mapMailboxAgentToHqSummary",
       "mapMailboxMessageToHqSummary"
     ],
+    "packages/core/src/hq/publisher.ts": [
+      "resetHqPublisherWarningStateForTests"
+    ],
     "packages/core/src/hq/redaction.ts": [
       "redactHqValue"
     ],
@@ -544,6 +550,9 @@
     ],
     "packages/core/src/utils/child-env.ts": [
       "sanitizeNodeOptions"
+    ],
+    "packages/core/src/utils/config-backup.ts": [
+      "configSlug"
     ],
     "packages/core/src/utils/config-json.ts": [
       "getJsonPath",
@@ -1314,6 +1323,9 @@
     ],
     "packages/tui/src/queue-slash.ts": [
       "handleQueueCommand"
+    ],
+    "packages/tui/src/resume-load.ts": [
+      "RESUME_SPINNER_FRAMES"
     ],
     "packages/tui/src/scroll-anchor.ts": [
       "anchorAtTopRow"

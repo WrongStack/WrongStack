@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Agrupar ferramentas",
     "compact": "📦 Compacto",
     "providerLimit": "Limite do provedor {{limit}}",
-    "providerLimitDecreased": "A janela de contexto do provedor foi reduzida de {{previous}} para {{current}} tokens."
+    "providerLimitDecreased": "A janela de contexto do provedor foi reduzida de {{previous}} para {{current}} tokens.",
+    "restoringTranscript": "Restaurando a conversa…",
+    "restoringTranscriptHint": "Lendo o registro desta sessão. Conversas longas podem levar um momento."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Alocação de tokens",

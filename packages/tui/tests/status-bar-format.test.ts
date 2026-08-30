@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dialGlyph, sparkline } from '../src/components/status-bar-format.js';
+import { dialGlyph, fmtPct, fmtRatioPct, sparkline } from '../src/components/status-bar-format.js';
 
 describe('dialGlyph (morphing load ring)', () => {
   it('renders an empty ring at zero load', () => {
@@ -48,5 +48,37 @@ describe('sparkline (8-level block trend)', () => {
 
   it('clamps out-of-range ratios before quantizing', () => {
     expect(sparkline([2, -1, 1.5], 3)).toBe('█▁█');
+  });
+});
+
+describe('fmtPct & fmtRatioPct', () => {
+  it('formats whole numbers without redundant decimal places', () => {
+    expect(fmtPct(0)).toBe('0%');
+    expect(fmtPct(50)).toBe('50%');
+    expect(fmtPct(100)).toBe('100%');
+    expect(fmtRatioPct(0)).toBe('0%');
+    expect(fmtRatioPct(0.5)).toBe('50%');
+    expect(fmtRatioPct(1)).toBe('100%');
+  });
+
+  it('formats fractions with up to 2 decimal places when appropriate', () => {
+    expect(fmtPct(68.75)).toBe('68.75%');
+    expect(fmtPct(12.5)).toBe('12.5%');
+    expect(fmtPct(12.345)).toBe('12.35%');
+    expect(fmtPct(0.25)).toBe('0.25%');
+    expect(fmtRatioPct(0.6875)).toBe('68.75%');
+    expect(fmtRatioPct(0.0672)).toBe('6.72%');
+    expect(fmtRatioPct(0.8)).toBe('80%');
+    expect(fmtRatioPct(0.0025)).toBe('0.25%');
+  });
+
+  it('clamps values cleanly to 0-100 range and handles non-finite numbers', () => {
+    expect(fmtPct(-10)).toBe('0%');
+    expect(fmtPct(150)).toBe('100%');
+    expect(fmtPct(NaN)).toBe('0%');
+    expect(fmtPct(Infinity)).toBe('0%');
+    expect(fmtRatioPct(-0.5)).toBe('0%');
+    expect(fmtRatioPct(1.5)).toBe('100%');
+    expect(fmtRatioPct(NaN)).toBe('0%');
   });
 });

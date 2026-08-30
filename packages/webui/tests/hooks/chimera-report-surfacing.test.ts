@@ -145,14 +145,14 @@ describe('chimera.report_available — surfacing in the session lane', () => {
   });
 });
 
-describe('chimera.reports — hydration backfills unseen pending reports', () => {
+describe('chimera.reports — hydration fills the registry, never the transcript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useChimeraReportsStore.setState({ bySession: {} });
     useChatLanes.setState({ lanes: {}, activeSessionId: DEFAULT_LANE_ID });
   });
 
-  it('adds cards for pending reports the lane has not seen, skipping terminal ones', () => {
+  it('registers pending reports and skips terminal ones, without carding any', () => {
     handleChimeraReports(
       hydration([
         { reportId: 'report-a', reviewedAt: '2026-08-28T00:00:00Z', lifecycleStatus: 'open', totalFindings: 2, hasActionableFindings: true },
@@ -163,28 +163,33 @@ describe('chimera.reports — hydration backfills unseen pending reports', () =>
       ]),
     );
 
-    expect(cardReportIds('sess-1')).toEqual(['report-a']);
-    // report-e is recorded (like the live path records information-only
-    // reports) but deliberately earns no transcript card.
+    // No cards, not even for the actionable `report-a`. This response arrives
+    // on every tab activation, so carding from it re-wrote review notices into
+    // a conversation replayed from a journal that never contained them.
+    expect(cardReportIds('sess-1')).toEqual([]);
+    // Terminal and finding-less reports are still filtered out of the
+    // registry; the rest are addressable for the Chimera panel.
     const hydrated = useChimeraReportsStore.getState().bySession['sess-1'] ?? [];
     expect(hydrated).toHaveLength(2);
     expect(hydrated.find((r) => r.reportId === 'report-e')?.hasActionableFindings).toBe(false);
   });
 
-  it('skips reports the lane already holds and is idempotent on replay', () => {
+  it('leaves a live card alone and adds none of its own, however often it replays', () => {
     handleChimeraReportAvailable(event({ reportId: 'report-live' }));
     const payload = [
       { reportId: 'report-live', reviewedAt: '2026-08-28T00:00:00Z', lifecycleStatus: 'open', totalFindings: 2, hasActionableFindings: true },
       { reportId: 'report-new', reviewedAt: '2026-08-28T01:00:00Z', lifecycleStatus: 'open', totalFindings: 1, hasActionableFindings: true },
     ];
 
+    // A report that arrived while this session was open keeps its card — it is
+    // an event about this run. `report-new` is history and stays in the panel.
     handleChimeraReports(hydration(payload));
-    expect(cardReportIds('sess-1')).toEqual(['report-live', 'report-new']);
+    expect(cardReportIds('sess-1')).toEqual(['report-live']);
 
-    // A tab re-activation re-requests the list — no second round of cards.
+    // A tab re-activation re-requests the list; the transcript does not move.
     handleChimeraReports(hydration(payload));
-    expect(cardReportIds('sess-1')).toEqual(['report-live', 'report-new']);
-    // The live-event card keeps its own (actionable) provenance untouched.
+    expect(cardReportIds('sess-1')).toEqual(['report-live']);
+    // Both are addressable in the registry, live provenance untouched.
     expect(useChimeraReportsStore.getState().bySession['sess-1']).toHaveLength(2);
   });
 

@@ -422,6 +422,11 @@ export function SessionList({
     (id: string) => {
       const result = useSessionTabStore.getState().openTab(id, { resumeSession });
       if (!result.success || result.reason === 'already_active') return;
+      // A session that already owns a slot is SWITCHED to, not resumed — the
+      // click moves the foreground and nothing is read back from disk. Showing
+      // the row's resume spinner for it claimed a wait that is not happening,
+      // and the row stayed disabled for the full 10s timeout afterwards.
+      if (result.reason === 'switched') return;
       setResumingId(id);
       if (resumeTimer.current) clearTimeout(resumeTimer.current);
       resumeTimer.current = setTimeout(() => setResumingId(null), 10_000);
@@ -832,7 +837,18 @@ export function SessionList({
                           )}
 
                           <div className="flex items-start gap-0.5 p-2">
-                            {!entry.isCurrent && workspace && !isRenaming ? (
+                            {/*
+                              Resume is only offered for a session that is NOT
+                              already on screen. One session, one slot: a
+                              conversation that owns a tab is reached by
+                              clicking its row (which switches to it), and
+                              labelling that "Resume" promised a reload of
+                              something the page is already showing.
+                            */}
+                            {!entry.isCurrent &&
+                            !openTabIds.includes(entry.id) &&
+                            workspace &&
+                            !isRenaming ? (
                               <button
                                 type="button"
                                 onClick={() => handleResume(entry.id)}

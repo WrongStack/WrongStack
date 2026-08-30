@@ -239,6 +239,40 @@ export function projectSessionToolMeta(events: Iterable<SessionEvent>): SessionT
   return out;
 }
 
+/**
+ * Size of the LAST prompt this session sent, from its journal.
+ *
+ * This is the number the context-fill bar means: how full the window was when
+ * the conversation last went to the model. Live, `ctx.lastRequestTokens` holds
+ * exactly that (the pre-flight total). Every resume path instead reached for
+ * `SessionData.usage.input`, which is the SUM of every request the session has
+ * ever made — so a long session came back claiming a nine-million-token
+ * context on a one-million-token model. Cumulative totals belong in the cost
+ * and usage readouts; they are never a fill source.
+ *
+ * The last `llm_response` carries that request's own usage, and its prompt is
+ * everything the provider counted on the way in: fresh input plus whatever it
+ * served or wrote through the cache — `effectiveInputTokens` in `provider.ts`,
+ * inlined here because this module must stay importable from a browser bundle
+ * and that one pulls a value chain behind it. Scanned from the end, so a 100k-
+ * event journal costs one step. Returns `undefined` when the session never reached
+ * the model — the caller must then leave the estimate unset rather than
+ * publish a zero, which reads as "0% full" instead of "not known yet".
+ */
+export function projectLastRequestTokens(
+  events: readonly SessionEvent[] | undefined,
+): number | undefined {
+  if (!events) return undefined;
+  for (let i = events.length - 1; i >= 0; i -= 1) {
+    const event = events[i];
+    if (event?.type !== 'llm_response') continue;
+    const usage = event.usage;
+    const total = usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0);
+    return total > 0 ? total : undefined;
+  }
+  return undefined;
+}
+
 function toolMetaIndex(
   meta: readonly SessionToolMeta[] | undefined,
 ): Map<string, SessionToolMeta> {

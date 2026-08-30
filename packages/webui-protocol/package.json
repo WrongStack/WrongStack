@@ -38,6 +38,7 @@
     "build": "node ../../scripts/build-package.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:coverage": "node ../../scripts/coverage-lock.mjs node ../../scripts/run-vitest-coverage.mjs run --coverage --config vitest.config.ts",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {

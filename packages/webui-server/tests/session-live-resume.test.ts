@@ -166,6 +166,13 @@ describe('resuming a tab that is already open', () => {
     expect(payload).toMatchObject({ sessionId: 'sess_bg' });
     expect(payload).not.toHaveProperty('replayMessages');
     expect(payload).not.toHaveProperty('replayUsage');
+    // …but it must SAY that is why it is empty. A focus and an in-place clear
+    // are both `reset: true` with no messages, and the client cannot tell them
+    // apart on its own — it moves the active lane before it sends the focus,
+    // so every positional test it could run is already true when this lands.
+    // Without this tag the frame reads as "the conversation was emptied" and
+    // the tab the user just switched back to is wiped.
+    expect(payload).toMatchObject({ replayReason: 'focus', reset: true });
     // The foreground still moves — that is the entire job of a focus.
     expect(h.currentId()).toBe('sess_bg');
     expect(h.resumeCalls).toEqual([]);

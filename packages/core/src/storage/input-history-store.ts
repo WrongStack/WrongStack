@@ -103,12 +103,10 @@ export class InputHistoryStore {
 
   /**
    * Heuristic: did the scrubber actually redact anything? DefaultSecretScrubber
-   * replaces matches with "***REDACTED***", so a residual marker means a secret
-   * was detected. Subclasses of SecretScrubber that use a different sentinel
-   * can be accommodated by widening this check in the future; for now the
-   * marker check covers the shipped scrubber.
+   * replaces matches with "[REDACTED:<type>]" (and legacy mocks with
+   * "***REDACTED***"), so a residual marker means a secret was detected.
    */
   private looksRedacted(text: string): boolean {
-    return text.includes('***REDACTED***');
+    return text.includes('***REDACTED***') || /\[REDACTED:[a-zA-Z0-9_-]+\]/.test(text);
   }
 }

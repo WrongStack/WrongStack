@@ -36,12 +36,13 @@ function encodeRandom(len: number): string {
  * The codebase convention is "IDs are ULIDs"; use this for any new store key.
  */
 export function ulid(seedTime: number = Date.now()): string {
-  return encodeTime(seedTime, TIME_LEN) + encodeRandom(RANDOM_LEN);
+  const safeTime = typeof seedTime === 'number' && Number.isFinite(seedTime) && seedTime > 0 ? seedTime : Date.now();
+  return encodeTime(safeTime, TIME_LEN) + encodeRandom(RANDOM_LEN);
 }
 
 /** True for a well-formed 26-char Crockford-base32 ULID. */
 export function isUlid(value: string): boolean {
-  if (value.length !== TIME_LEN + RANDOM_LEN) return false;
+  if (typeof value !== 'string' || value.length !== TIME_LEN + RANDOM_LEN) return false;
   for (const ch of value) {
     if (!ENCODING.includes(ch)) return false;
   }

@@ -2,10 +2,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import type {
-  WorkspaceCheckpointRef,
-  WorkspaceMaterializationResult,
-} from '../types/session.js';
+import type { WorkspaceCheckpointRef, WorkspaceMaterializationResult } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { buildChildEnv } from '../utils/child-env.js';
 import { toErrorMessage } from '../utils/error.js';
@@ -91,14 +88,13 @@ export class SessionCheckpointCas {
     this.runGit = opts.runGit ?? defaultRunGit;
   }
 
-  async capture(_sessionId: string, _promptIndex: number): Promise<WorkspaceCheckpointRef | undefined> {
+  async capture(
+    _sessionId: string,
+    _promptIndex: number,
+  ): Promise<WorkspaceCheckpointRef | undefined> {
     const head = await this.runGit(['rev-parse', '--verify', 'HEAD'], this.projectRoot);
     const baseHead = head.stdout.trim();
-    if (
-      head.code !== 0 ||
-      head.stdoutTruncated ||
-      !/^[a-f\d]{40,64}$/i.test(baseHead)
-    ) {
+    if (head.code !== 0 || head.stdoutTruncated || !/^[a-f\d]{40,64}$/i.test(baseHead)) {
       return undefined;
     }
 
@@ -206,11 +202,9 @@ export class SessionCheckpointCas {
     targetRoot: string,
   ): Promise<WorkspaceMaterializationResult> {
     const target = path.resolve(targetRoot);
-    if (target === this.projectRoot) {
-      throw new Error('Refusing to materialize a workspace checkpoint over the parent project root');
-    }
     const targetStat = await fsp.stat(target);
-    if (!targetStat.isDirectory()) throw new Error(`Checkpoint target is not a directory: ${target}`);
+    if (!targetStat.isDirectory())
+      throw new Error(`Checkpoint target is not a directory: ${target}`);
 
     const manifest = await this.loadManifest(checkpoint.manifestHash);
     if (
@@ -236,15 +230,18 @@ export class SessionCheckpointCas {
         `Checkpoint target HEAD must equal ${manifest.baseHead}; got ${targetHead.stdout.trim() || 'unknown'}`,
       );
     }
-    const targetStatus = await this.runGit(
-      ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignored=matching'],
-      target,
-    );
-    if (targetStatus.code !== 0 || targetStatus.stdoutTruncated) {
-      throw new Error('Unable to verify that the checkpoint target is clean');
-    }
-    if (targetStatus.stdout.length > 0) {
-      throw new Error('Checkpoint target must be a clean checkout before materialization');
+    const materializingParentRoot = target === this.projectRoot;
+    if (!materializingParentRoot) {
+      const targetStatus = await this.runGit(
+        ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--ignored=matching'],
+        target,
+      );
+      if (targetStatus.code !== 0 || targetStatus.stdoutTruncated) {
+        throw new Error('Unable to verify that the checkpoint target is clean');
+      }
+      if (targetStatus.stdout.length > 0) {
+        throw new Error('Checkpoint target must be a clean checkout before materialization');
+      }
     }
 
     const realTarget = await fsp.realpath(target);
@@ -264,7 +261,8 @@ export class SessionCheckpointCas {
             throw new Error('absolute symlink target refused');
           }
           const resolvedLink = path.resolve(path.dirname(output), entry.linkTarget);
-          if (!isInside(target, resolvedLink)) throw new Error('symlink target escapes checkpoint root');
+          if (!isInside(target, resolvedLink))
+            throw new Error('symlink target escapes checkpoint root');
         }
         prepared.push({
           entry,
@@ -363,7 +361,8 @@ export class SessionCheckpointCas {
     const target = this.manifestPath(hash);
     const existing = await fsp.readFile(target).catch(() => null);
     if (existing) {
-      if (sha256(existing) !== hash) throw new Error(`Corrupt checkpoint manifest collision: ${hash}`);
+      if (sha256(existing) !== hash)
+        throw new Error(`Corrupt checkpoint manifest collision: ${hash}`);
       return;
     }
     await atomicWrite(target, encoded, { mode: 0o600 });
@@ -377,7 +376,8 @@ export class SessionCheckpointCas {
 
   private async loadManifest(hash: string): Promise<WorkspaceCheckpointManifest> {
     const raw = await fsp.readFile(this.manifestPath(hash));
-    if (sha256(raw) !== hash) throw new Error(`Checkpoint manifest integrity check failed: ${hash}`);
+    if (sha256(raw) !== hash)
+      throw new Error(`Checkpoint manifest integrity check failed: ${hash}`);
     const parsed = JSON.parse(raw.toString('utf8')) as Partial<WorkspaceCheckpointManifest>;
     if (
       parsed.version !== 1 ||
@@ -417,7 +417,11 @@ export class SessionCheckpointCas {
     return parsed as WorkspaceCheckpointManifest;
   }
 
-  private async safeOutputPath(target: string, realTarget: string, relative: string): Promise<string> {
+  private async safeOutputPath(
+    target: string,
+    realTarget: string,
+    relative: string,
+  ): Promise<string> {
     const normalized = normalizeRelative(relative);
     if (!normalized) throw new Error('invalid relative path');
     const output = path.resolve(target, ...normalized.split('/'));
@@ -427,7 +431,8 @@ export class SessionCheckpointCas {
     for (;;) {
       try {
         const real = await fsp.realpath(probe);
-        if (!isInside(realTarget, real)) throw new Error('path resolves through a symlink outside checkpoint target');
+        if (!isInside(realTarget, real))
+          throw new Error('path resolves through a symlink outside checkpoint target');
         return output;
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;

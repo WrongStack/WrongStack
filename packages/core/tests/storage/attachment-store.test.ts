@@ -193,4 +193,18 @@ describe('DefaultAttachmentStore', () => {
     expect(text).toContain('NEW');
     expect(text).not.toContain('OLD');
   });
+
+  it('resolves path-keyed tokens with Windows backslash separators', async () => {
+    const store = new DefaultAttachmentStore();
+    await store.add({
+      kind: 'file',
+      data: 'const win = true;',
+      meta: { filename: 'src/windows.ts' },
+    });
+    const blocks = await store.expand('check [file:src\\windows.ts] please');
+    expect(blocks).toHaveLength(1);
+    const text = (blocks[0] as { text: string }).text;
+    expect(text).toContain('<file path="src/windows.ts">');
+    expect(text).toContain('const win = true;');
+  });
 });

@@ -44,6 +44,11 @@ describe('glob-match', () => {
     expect(matchGlob('file[a-z].txt', 'fileq.txt')).toBe(true);
   });
 
+  it('treats unclosed bracket as literal bracket rather than synthesizing an invalid wildcard', () => {
+    expect(matchGlob('file[1.txt', 'file[1.txt')).toBe(true);
+    expect(matchGlob('file[1.txt', 'filet')).toBe(false);
+  });
+
   it('an over-long pattern is inert, not throwing — one bad trust entry must not break other commands (#20)', () => {
     // A >1024-char trust pattern (e.g. a long one-liner auto-trusted in
     // YOLO/Auto mode) used to throw out of every permission check, failing

@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { InputHistoryStore, INPUT_HISTORY_DEFAULT_MAX } from '../../src/storage/input-history-store.js';
+import { DefaultSecretScrubber } from '../../src/security/secret-scrubber.js';
 import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
 
 /**
@@ -92,6 +93,16 @@ describe('InputHistoryStore', () => {
       // A literal REDACTED marker in the prompt text would be useless as history.
       await store.save(['keep me', `noise ${REDACTED} noise`]);
       expect(await store.load()).toEqual(['keep me']);
+    });
+
+    it('works with production DefaultSecretScrubber and drops entries containing redacted secrets', async () => {
+      const realScrubber = new DefaultSecretScrubber();
+      const store = new InputHistoryStore(file, realScrubber);
+      await store.save([
+        'explain this code',
+        'export ANTHROPIC_API_KEY=sk-ant-api03-abcdef1234567890abcdef1234567890abcdef1234567890-abcdef1234AA',
+      ]);
+      expect(await store.load()).toEqual(['explain this code']);
     });
 
     it('caps at maxEntries on write', async () => {

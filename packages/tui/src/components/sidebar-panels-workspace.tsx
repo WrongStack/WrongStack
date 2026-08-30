@@ -17,6 +17,7 @@ import {
   trunc,
 } from './sidebar-panel-frame.js';
 import { EmptyState, fleetStatusVisual, fmtShortDuration, SidebarWorklistRow } from './sidebar-panels-shared.js';
+import { fmtRatioPct } from './status-bar-format.js';
 
 export interface ProjectPickerSidebarProps {
   items: readonly ProjectPickerItem[];
@@ -272,7 +273,7 @@ export function AgentsPanelSidebar({
           </Text>
           <Text color={theme.textMuted} wrap="truncate">
             {trunc(
-              `ctx ${Math.round((hotAgent.ctxPct ?? 0) * 100)}% ${glyphs.dividerDiamond} ${hotAgent.currentTool?.name ?? 'idle'}`,
+              `ctx ${fmtRatioPct(hotAgent.ctxPct ?? 0)} ${glyphs.dividerDiamond} ${hotAgent.currentTool?.name ?? 'idle'}`,
               bodyWidth,
             )}
           </Text>

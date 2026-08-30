@@ -13,6 +13,10 @@ export interface MessageRepairResult {
   report: MessageRepairReport;
 }
 
+export interface MessageRepairOptions {
+  preserveTrailingToolUse?: boolean | undefined;
+}
+
 /**
  * Repair provider-level tool-call adjacency invariants.
  *
@@ -22,7 +26,10 @@ export interface MessageRepairResult {
  * exchange. This function removes only the now-orphaned protocol blocks,
  * preserving surrounding text/images/thinking blocks where possible.
  */
-export function repairToolUseAdjacency(messages: Message[]): MessageRepairResult {
+export function repairToolUseAdjacency(
+  messages: Message[],
+  opts: MessageRepairOptions = {},
+): MessageRepairResult {
   const removedToolUses: string[] = [];
   const removedToolResults: string[] = [];
   let removedMessages = 0;
@@ -38,7 +45,11 @@ export function repairToolUseAdjacency(messages: Message[]): MessageRepairResult
       const filtered = mapContent(msg, (blocks) => {
         const next: ContentBlock[] = [];
         for (const block of blocks) {
-          if (block.type === 'tool_use' && !nextIds.has(block.id)) {
+          const preserveTrailing =
+            opts.preserveTrailingToolUse === true &&
+            i === messages.length - 1 &&
+            block.type === 'tool_use';
+          if (block.type === 'tool_use' && !nextIds.has(block.id) && !preserveTrailing) {
             removedToolUses.push(block.id);
             changed = true;
             continue;
@@ -132,8 +143,11 @@ function mapContent(msg: Message, fn: (blocks: ContentBlock[]) => ContentBlock[]
  * treat them as empty.
  */
 export function hasMeaningfulContent(content: Message['content']): boolean {
+  if (!content) return false;
   if (typeof content === 'string') return content.trim().length > 0;
+  if (!Array.isArray(content)) return false;
   for (const block of content) {
+    if (!block || typeof block !== 'object') continue;
     if (block.type === 'text') {
       if (block.text.trim().length > 0) return true;
       continue;

@@ -322,6 +322,30 @@ export function useChatViewState() {
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
   const streamAnchor = useRef<{ id: string; at: number; len: number } | null>(null);
 
+  const lastMessage = messages[messages.length - 1];
+  const streamingBubble =
+    lastMessage?.role === 'assistant' && lastMessage.streaming && lastMessage.content
+      ? lastMessage
+      : null;
+
+  // Anchor bookkeeping lives in an effect, not inside the runningStatus memo —
+  // a useMemo must stay pure, and a render-phase ref write double-fires under
+  // StrictMode.
+  useEffect(() => {
+    if (streamingBubble) {
+      const anchor = streamAnchor.current;
+      if (!anchor || anchor.id !== streamingBubble.id) {
+        streamAnchor.current = {
+          id: streamingBubble.id,
+          at: Date.now(),
+          len: streamingBubble.content.length,
+        };
+      }
+    } else if (streamAnchor.current) {
+      streamAnchor.current = null;
+    }
+  }, [streamingBubble]);
+
   const runningStatus = useMemo(() => {
     const last = messages[messages.length - 1];
     const runningTools = messages.filter((m) => m.role === 'tool' && m.toolResult === undefined);
@@ -348,17 +372,10 @@ export function useChatViewState() {
     const elapsed =
       elapsedSec < 60 ? `${elapsedSec}s` : `${Math.floor(elapsedSec / 60)}m ${elapsedSec % 60}s`;
     let speedLabel = '';
-    const streamingBubble =
-      last?.role === 'assistant' && last.streaming && last.content ? last : null;
     if (streamingBubble) {
       const anchor = streamAnchor.current;
-      if (!anchor || anchor.id !== streamingBubble.id) {
-        streamAnchor.current = {
-          id: streamingBubble.id,
-          at: Date.now(),
-          len: streamingBubble.content.length,
-        };
-      } else {
+      // Read-only: the anchor itself is maintained by the effect above.
+      if (anchor && anchor.id === streamingBubble.id) {
         const dt = Math.max(1, nowTick - anchor.at);
         const dl = Math.max(0, streamingBubble.content.length - anchor.len);
         if (dt > 500 && dl > 0) {
@@ -366,11 +383,9 @@ export function useChatViewState() {
           speedLabel = cps >= 1000 ? `${(cps / 1000).toFixed(1)}k ch/s` : `${Math.round(cps)} ch/s`;
         }
       }
-    } else if (streamAnchor.current) {
-      streamAnchor.current = null;
     }
     return { label, elapsed, speedLabel };
-  }, [messages, nowTick, runStartedAt, t]);
+  }, [messages, nowTick, runStartedAt, t, streamingBubble]);
 
   useEffect(() => {
     if (isLoading && runStartedAt === null) setRunStartedAt(Date.now());

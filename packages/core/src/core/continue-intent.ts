@@ -99,6 +99,11 @@ const CONTINUE_PHRASES: ReadonlySet<string> = new Set([
   'devam etsen',
   'devam et hadi',
   'hadi devam',
+  'bir tur daha',
+  'bir tur daha at',
+  'bir tur daha bakalim',
+  'bir tur daha atalim',
+  'bir tur daha at bakalim',
   // ── Other Latin-script (light coverage) ──
   'weiter', // de
   'mach weiter', // de

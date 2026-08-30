@@ -1,9 +1,5 @@
 import type { Message } from '@wrongstack/core/types';
-import {
-  DEFAULT_MIN_IMPORTANCE,
-  DEFAULT_MIN_SCORE,
-  MIN_RELATION_STRENGTH,
-} from '@wrongstack/sage';
+import { DEFAULT_MIN_IMPORTANCE, DEFAULT_MIN_SCORE, MIN_RELATION_STRENGTH } from '@wrongstack/sage';
 import { describe, expect, it } from 'vitest';
 import { buildRestoredEntries, createInitialState } from '../src/app-initial-state.js';
 import { reducer } from '../src/app-reducer.js';
@@ -12,6 +8,7 @@ import {
   retainTuiHistory,
   TUI_HISTORY_MAX_ENTRIES,
   TUI_HISTORY_MAX_ENTRY_BYTES,
+  TUI_RESUME_HISTORY_BUDGET,
 } from '../src/history-retention.js';
 
 function infoEntries(count: number, startId = 1): HistoryEntry[] {
@@ -210,19 +207,36 @@ describe('bounded TUI display history', () => {
     ]);
   });
 
-  it('hydrates only the recent tail of a long resumed session', () => {
-    const messages = Array.from({ length: TUI_HISTORY_MAX_ENTRIES + 25 }, (_, index) => ({
+  it('hydrates a resumed session against the wider resume budget, not the live one', () => {
+    // A resume is not a scrollback window that grew a few entries at a time —
+    // the whole conversation arrives at once and IS what the user asked to
+    // see. Measured on real journals, a 131 MB session replays to 740 entries;
+    // under the live 400-entry cap it lost 340 of them before anything
+    // rendered, which reads as "resume did not load".
+    const resumeMax = TUI_RESUME_HISTORY_BUDGET.maxEntries ?? 0;
+    expect(resumeMax).toBeGreaterThan(TUI_HISTORY_MAX_ENTRIES);
+
+    const belowResumeCap = Array.from({ length: TUI_HISTORY_MAX_ENTRIES + 25 }, (_, index) => ({
+      role: 'user' as const,
+      content: `message-${index + 1}`,
+    })) as Message[];
+    // Comfortably over the live cap, comfortably under the resume cap: nothing
+    // is dropped and no omission marker is prepended.
+    expect(buildRestoredEntries(belowResumeCap)).toHaveLength(TUI_HISTORY_MAX_ENTRIES + 25);
+
+    // Still bounded — a resume may not make history unbounded.
+    const messages = Array.from({ length: resumeMax + 25 }, (_, index) => ({
       role: 'user' as const,
       content: `message-${index + 1}`,
     })) as Message[];
 
     const restored = buildRestoredEntries(messages);
 
-    expect(restored).toHaveLength(TUI_HISTORY_MAX_ENTRIES + 1);
+    expect(restored).toHaveLength(resumeMax + 1);
     expect(restored[0]).toMatchObject({
       text: '… 25 earlier TUI entries omitted (full session remains on disk).',
     });
-    expect(restored.at(-1)).toMatchObject({ text: `message-${TUI_HISTORY_MAX_ENTRIES + 25}` });
+    expect(restored.at(-1)).toMatchObject({ text: `message-${resumeMax + 25}` });
 
     const state = createInitialState({
       banner: false,
@@ -231,6 +245,24 @@ describe('bounded TUI display history', () => {
       restoredEntries: restored,
       enhanceEnabled: false,
     });
-    expect(state.nextId).toBe(TUI_HISTORY_MAX_ENTRIES + 26);
+    expect(state.nextId).toBe(resumeMax + 26);
+    // The widened budget has to PERSIST past the replace: the next `addEntry`
+    // re-runs retention, so a budget scoped to the hydration alone would trim
+    // the transcript back to 400 one dispatch later.
+    expect(state.historyBudget).toBe(TUI_RESUME_HISTORY_BUDGET);
+    // …and a resumed session lands waiting, never on an auto-proceed countdown.
+    expect(state.autoProceedHold).toBe(true);
+  });
+
+  it('leaves a fresh session on the live budget with auto-proceed free', () => {
+    const state = createInitialState({
+      banner: false,
+      model: 'test-model',
+      cwd: '/project',
+      restoredEntries: [],
+      enhanceEnabled: false,
+    });
+    expect(state.historyBudget).toBeUndefined();
+    expect(state.autoProceedHold).toBe(false);
   });
 });

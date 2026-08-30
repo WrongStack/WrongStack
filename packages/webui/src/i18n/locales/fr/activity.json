@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Grouper les outils",
     "compact": "📦 Compact",
     "providerLimit": "Limite fournisseur {{limit}}",
-    "providerLimitDecreased": "La fenêtre de contexte du fournisseur est passée de {{previous}} à {{current}} tokens."
+    "providerLimitDecreased": "La fenêtre de contexte du fournisseur est passée de {{previous}} à {{current}} tokens.",
+    "restoringTranscript": "Restauration de la conversation…",
+    "restoringTranscriptHint": "Lecture du journal de cette session. Une longue conversation peut prendre un moment."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Répartition des tokens",

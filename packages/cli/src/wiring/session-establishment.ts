@@ -29,6 +29,17 @@ import type { CliContext } from '../cli-context.js';
 import type { loadOnlineAgentsForPrompt } from '../cli-main-helpers.js';
 import { setupSession } from './session.js';
 
+/**
+ * Reservation window for a boot `--resume`, and how often to push it out.
+ *
+ * 60s is the daemon's ceiling (`MAX_RESERVATION_MS`); anything larger is
+ * clamped. The renewal interval is well inside it so a single slow IPC
+ * round-trip cannot lose the claim. Mirrors the in-session picker path in
+ * `boot/tui-session-resume.ts`.
+ */
+const BOOT_RESUME_RESERVATION_MS = 60_000;
+const BOOT_RESUME_RENEW_MS = 20_000;
+
 interface SessionEstablishmentArgs {
   /** Container used to resolve SessionStore + TokenCounter. */
   container: Pick<CliContext['container'], 'resolve'>;
@@ -89,11 +100,31 @@ export async function setupSessionEstablishment(args: SessionEstablishmentArgs) 
         sessionId,
         projectSlug: wpaths.projectSlug,
         projectRoot,
+        reservationMs: BOOT_RESUME_RESERVATION_MS,
       });
+      // Boot `--resume` has the same shape as the in-session picker: the
+      // reservation is taken here, the transcript is hydrated by setupSession,
+      // and only then is `activate()` called. On a large journal that gap
+      // outruns the reservation window, and the launch fails with "reservation
+      // expired" after the whole file was already parsed. Keep the claim alive
+      // for exactly as long as the hydration runs.
+      //
+      // Best-effort: a catalog daemon predating `renew_reservation` rejects the
+      // op, which must degrade to the old behaviour rather than break boot.
+      const renewTimer = setInterval(() => {
+        void claim.renew(BOOT_RESUME_RESERVATION_MS).catch(() => undefined);
+      }, BOOT_RESUME_RENEW_MS);
+      renewTimer.unref?.();
       return {
-        rollback: () => claim.cancel(),
-        activate: () =>
-          claim.activate({
+        rollback: () => {
+          clearInterval(renewTimer);
+          return claim.cancel();
+        },
+        activate: async () => {
+          clearInterval(renewTimer);
+          // The window must also cover the activate round-trip itself.
+          await claim.renew(BOOT_RESUME_RESERVATION_MS).catch(() => undefined);
+          await claim.activate({
             sessionId,
             projectSlug: wpaths.projectSlug,
             projectRoot,
@@ -102,7 +133,8 @@ export async function setupSessionEstablishment(args: SessionEstablishmentArgs) 
             clientType: flags.webui || flags.simpleui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli',
             pid: process.pid,
             startedAt: new Date().toISOString(),
-          }),
+          });
+        },
       };
     },
   });

@@ -3288,7 +3288,9 @@
     "groupTools": "🔧 Group Tools",
     "compact": "📦 Compact",
     "providerLimit": "Provider limit {{limit}}",
-    "providerLimitDecreased": "Provider context window decreased from {{previous}} to {{current}} tokens."
+    "providerLimitDecreased": "Provider context window decreased from {{previous}} to {{current}} tokens.",
+    "restoringTranscript": "Restoring transcript…",
+    "restoringTranscriptHint": "Reading this session's journal. A long conversation can take a while."
   },
   "ctxBreakdown": {
     "tokenAllocation": "Token Allocation",

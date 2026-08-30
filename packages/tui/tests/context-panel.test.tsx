@@ -95,9 +95,9 @@ describe('ContextPanel tabs', () => {
     // per-provider read/write token totals. We assert each piece separately
     // because the row wraps per provider and uses different text colors.
     expect(frame).toContain('minimax');
-    expect(frame).toContain('80.0%');
+    expect(frame).toContain('80%');
     expect(frame).toContain('anthropic');
-    expect(frame).toContain('60.0%');
+    expect(frame).toContain('60%');
     // Per-provider token counts must be visible — without them the panel
     // hides the most informative numbers for Anthropic-family routing.
     expect(frame).toContain('read');

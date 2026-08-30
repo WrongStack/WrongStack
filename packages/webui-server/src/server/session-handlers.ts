@@ -11,6 +11,7 @@
  */
 
 import type { Agent, Context, TodoItem } from '@wrongstack/core/agent';
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
 import type { createStrategyCompactor } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
@@ -19,12 +20,16 @@ import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
-  isContextWindowModeId,
+  getContextWindowMode,
   resolveContextWindowPolicy,
 } from '@wrongstack/core/types';
-import { mailboxSessionTag } from '@wrongstack/core/coordination';
+import { projectLastRequestTokens } from '@wrongstack/core/types/session-timeline';
 import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
-import { buildReplayPayload, type ReplaySource } from '@wrongstack/webui-protocol';
+import {
+  buildReplayPayload,
+  MAX_OPEN_SESSIONS_PER_CONNECTION,
+  type ReplaySource,
+} from '@wrongstack/webui-protocol';
 import type { WebSocket } from 'ws';
 import {
   applyContextEditorProposal,
@@ -32,8 +37,8 @@ import {
   validateContextEditorProposal,
 } from './context-editor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
-import { deleteWebUISession } from './session-deletion.js';
 import type { LoadAgentSessions } from './session-agent-sessions.js';
+import { deleteWebUISession } from './session-deletion.js';
 import { buildInspectPayload, toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
 import type { SessionIdentityTarget } from './standalone-session-identity.js';
@@ -159,8 +164,14 @@ async function waitForRunToStop(
   return true;
 }
 
-/** Hard ceiling on declared tabs per connection — mirrors the UI's four slots. */
-const MAX_SUBSCRIBED_SESSIONS = 4;
+/**
+ * Hard ceiling on declared tabs per connection.
+ *
+ * Imported rather than restated: the browser allocates its lanes and tab slots
+ * against the same number, and a server that trimmed a set the client believed
+ * it had declared would drop those tabs' traffic without telling anyone.
+ */
+const MAX_SUBSCRIBED_SESSIONS = MAX_OPEN_SESSIONS_PER_CONNECTION;
 
 export interface SessionHandlersContext {
   config: { provider: string; model: string };
@@ -313,6 +324,14 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     messages: Context['messages'],
     usage?: Parameters<TokenCounter['account']>[0],
     todos: TodoItem[] = [],
+    /**
+     * Size of this session's LAST prompt, from its journal — the number the
+     * context-fill bar means. Distinct from `usage`, which is the session's
+     * running total and belongs to the cost readout only. See
+     * {@link projectLastRequestTokens}; omitted by callers with no event
+     * stream (a brand-new session), which correctly leaves the estimate unset.
+     */
+    lastRequestTokens?: number | undefined,
   ): Promise<void> => {
     // Resolve the TARGET session's agent while the runtime still reports the
     // previous session as current. `getAgent` adopts the shared root agent
@@ -357,9 +376,15 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         currentConfig().model,
         targetCtx.provider?.id ?? ctx.context.provider.id,
       );
-      if (typeof usage.input === 'number' && usage.input > 0) {
-        targetCtx.lastRequestTokens = usage.input;
-      }
+    }
+    // The context-fill estimate is the LAST request's prompt, never the
+    // session's running total. This used to read `usage.input` — the sum of
+    // every request the session ever made — so resuming a long conversation
+    // published a nine-million-token estimate against a one-million-token
+    // window. A session with no journalled response leaves it unset rather
+    // than publishing a zero, which the bar would draw as "0% full".
+    if (!isRunning && typeof lastRequestTokens === 'number' && lastRequestTokens > 0) {
+      targetCtx.lastRequestTokens = lastRequestTokens;
     }
     const originalStartedAt = Date.parse(next.startedAt ?? '');
     ctx.setSessionStartedAt?.(Number.isFinite(originalStartedAt) ? originalStartedAt : Date.now());
@@ -937,12 +962,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         sendContextUnavailable(ws, msg, 'context.mode.switch');
         return;
       }
-      let policy = resolveContextWindowPolicy({}, id, readSessionWindowTokens(target));
-      // A built-in id always resolves (a ≥1M window swaps the balanced default
-      // to Deep); only a NON-built-in id that failed to resolve can be a custom
-      // mode — without the guard, that swap would make "balanced" read as
-      // unknown on a 1M session.
-      if (!isContextWindowModeId(id) && policy.id !== id) {
+      let policy = getContextWindowMode(id) ?? null;
+      if (!policy) {
         const customModes = (await modeStore())
           .list()
           .filter((m) => (m as { custom?: boolean }).custom === true);
@@ -951,9 +972,11 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           result(ws, false, `Unknown context mode "${id}"`);
           return;
         }
-        policy = custom as never as typeof policy;
+        policy = custom as never;
       }
+      if (!policy) return;
       target.meta['contextWindowMode'] = policy.id;
+      target.meta['contextMode'] = policy.id;
       target.meta['contextWindowPolicy'] = policy;
       // The user picked this policy for the session — later window changes
       // (model switch) must not overwrite it.
@@ -1278,7 +1301,18 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
               // session replays with its markers and tool timings intact —
               // reading the in-memory working set here handed the tab a
               // marker-less, timing-less copy of its own conversation.
-              ...(focusOnly ? {} : buildReplayPayload(liveReplaySource)),
+              //
+              // `replayReason: 'focus'` is the client's only way to tell this
+              // frame apart from a genuine in-place clear. Both arrive as
+              // `reset: true` with no messages; one means "the tab you already
+              // have is now in front", the other means "this conversation was
+              // emptied". Inferring it client-side is not possible — the tab
+              // store moves the active lane BEFORE it sends the focus, so
+              // every test of the form "is this lane the one in front?" is
+              // already true when the answer lands, and the frame fell through
+              // to `clearMessages()`. Switching back to an open tab therefore
+              // wiped its transcript.
+              ...(focusOnly ? { replayReason: 'focus' } : buildReplayPayload(liveReplaySource)),
             });
             sendTo(ws, {
               type: 'session.start',
@@ -1310,6 +1344,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             resumed.data.messages,
             resumed.data.usage,
             restoredTodos,
+            projectLastRequestTokens(resumed.data.events),
           );
           const client = ctx.clients?.get(ws);
           if (client) {
@@ -1512,11 +1547,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       // and now omits it removed it on purpose — the tab closed — and
       // re-adding it would keep a closed tab's session "displayed", blocking
       // its deletion and delivering events to nothing.
-      if (
-        client.sessionId &&
-        !next.has(client.sessionId) &&
-        !(previous && previous.has(client.sessionId))
-      ) {
+      if (client.sessionId && !next.has(client.sessionId) && !previous?.has(client.sessionId)) {
         if (next.size >= MAX_SUBSCRIBED_SESSIONS) {
           const lastDeclared = [...next].at(-1);
           if (lastDeclared !== undefined) next.delete(lastDeclared);

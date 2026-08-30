@@ -22,6 +22,7 @@ import {
 import { ToolEntry } from './tool-entry.js';
 import type { HistoryEntry } from './types.js';
 import { fmtTok } from './utils.js';
+import { fmtRatioPct } from '../status-bar-format.js';
 import { INFO_PREFIX, USER_LABEL } from './wrap-geometry.js';
 
 export { councilHeadline, councilSeatLine } from './entry-helpers.js';
@@ -287,7 +288,7 @@ export const Entry = React.memo(function Entry({
             </Text>
             <Text color="cyan">{entry.trigger}</Text>
             <Text dimColor>
-              {`  ${entry.activated.length} activated → ${entry.injectedIds.length} injected / ${entry.candidates} · ctx ${Math.round(entry.contextPressure * 100)}% · +${entry.injectedChars} chars`}
+              {`  ${entry.activated.length} activated → ${entry.injectedIds.length} injected / ${entry.candidates} · ctx ${fmtRatioPct(entry.contextPressure)} · +${entry.injectedChars} chars`}
             </Text>
           </Box>
           {entry.error ? <Text color="red">{`error: ${entry.error}`}</Text> : null}
@@ -402,7 +403,7 @@ export const Entry = React.memo(function Entry({
       const toChip = ctxChip(entry.toContext);
       const pct =
         shrink && entry.requestTokens && entry.requestTokens > 0 && entry.toContext
-          ? Math.round((entry.requestTokens / entry.toContext) * 100)
+          ? fmtRatioPct(entry.requestTokens / entry.toContext)
           : undefined;
       return (
         <Box
@@ -443,7 +444,7 @@ export const Entry = React.memo(function Entry({
                 entry.toContext as number,
               )}${
                 pct !== undefined
-                  ? ` · request ≈ ${fmtTok(entry.requestTokens as number)} (${pct}% of new window)`
+                  ? ` · request ≈ ${fmtTok(entry.requestTokens as number)} (${pct} of new window)`
                   : ''
               }`}
             </Text>

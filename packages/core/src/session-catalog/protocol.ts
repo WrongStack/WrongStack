@@ -131,6 +131,21 @@ export interface SessionCatalogOperations {
     args: { reservation: ResumeReservation; entry: SessionRegistryEntry; leaseMs?: number };
     result: SessionLeaseCredential;
   };
+  /**
+   * Extend a reservation that is still being worked on.
+   *
+   * A resume reserves ownership BEFORE it can know how long the transcript
+   * takes to open, and the default window is 15s. Hydrating a large journal
+   * (load + summary + file-observation validation + opening the append
+   * handle, all of which can also wait on this daemon) routinely outruns it,
+   * and `activate_reservation` then fails with "reservation expired" after
+   * the expensive work is already done. Renewal keeps the reservation alive
+   * for exactly as long as the caller is demonstrably still hydrating.
+   */
+  renew_reservation: {
+    args: { reservationId: string; requesterInstanceId: string; reservationMs?: number };
+    result: ResumeReservation;
+  };
   cancel_reservation: {
     args: { reservationId: string; requesterInstanceId: string };
     result: void;

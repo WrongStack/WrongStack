@@ -41,15 +41,16 @@ export function stampAgentId(event: SessionEvent, agentId: string): SessionEvent
  * today's behaviour instead of writing a meaningless label.
  */
 export function withAgentAttribution(writer: SessionWriter, agentId: string): SessionWriter {
-  if (!agentId) return writer;
+  const cleanId = agentId?.trim();
+  if (!cleanId) return writer;
   return new Proxy(writer, {
     get(target, property, receiver) {
       if (property === 'append') {
-        return (event: SessionEvent): Promise<void> => target.append(stampAgentId(event, agentId));
+        return (event: SessionEvent): Promise<void> => target.append(stampAgentId(event, cleanId));
       }
       if (property === 'appendBatch') {
         return (events: SessionEvent[]): Promise<void> =>
-          target.appendBatch(events.map((event) => stampAgentId(event, agentId)));
+          target.appendBatch(events.map((event) => stampAgentId(event, cleanId)));
       }
       const value = Reflect.get(target, property, receiver);
       return typeof value === 'function' ? (value as () => unknown).bind(target) : value;

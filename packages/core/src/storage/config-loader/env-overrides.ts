@@ -11,7 +11,8 @@ export function envBoolOptional(v: string | undefined): boolean {
 const LOG_LEVELS = new Set<Config['log']['level']>(['error', 'warn', 'info', 'debug', 'trace']);
 
 function envLogLevel(v: string): Config['log']['level'] {
-  return LOG_LEVELS.has(v as Config['log']['level']) ? (v as Config['log']['level']) : 'info';
+  const norm = v.trim().toLowerCase() as Config['log']['level'];
+  return LOG_LEVELS.has(norm) ? norm : 'info';
 }
 
 const defaultIndexing = {

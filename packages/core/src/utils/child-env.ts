@@ -299,6 +299,6 @@ export function buildChildEnv(optsOrSessionId?: BuildChildEnvOptions | string): 
     Object.assign(out, opts.extra);
   }
 
-  if (opts.sessionId) out['WRONGSTACK_SESSION_ID'] = opts.sessionId;
+  if (opts.sessionId) out['WRONGSTACK_SESSION_ID'] = opts.sessionId.replace(/\\/g, '/');
   return out;
 }

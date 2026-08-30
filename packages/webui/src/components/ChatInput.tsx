@@ -126,6 +126,11 @@ export function ChatInput({
   const { reset: resetAutoSubmitStreak } = useAutoSubmitStreak();
 
   const [input, setInput] = useState(() => useUIStore.getState().draftInput ?? '');
+  // Backstop timer that clears a stale refine state 30s after sendMsg. Held in
+  // a ref so the session-change effect and unmount can cancel it — otherwise a
+  // timer armed by tab A fires after the user switched to tab B and wipes the
+  // refinement B just started.
+  const refineBackstopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     isListening,
@@ -133,12 +138,11 @@ export function ChatInput({
     toggleListening: handleToggleSpeech,
     stopListening: stopSpeech,
   } = useSpeechRecognition({
+    // Pure updater — the draftInput mirror effect below persists the draft on
+    // every `input` change; writing the store inside the updater would be an
+    // impure double-fire under StrictMode.
     onTranscript: (text) => {
-      setInput((prev) => {
-        const next = prev ? `${prev} ${text}` : text;
-        useUIStore.getState().setDraftInput(next);
-        return next;
-      });
+      setInput((prev) => (prev ? `${prev} ${text}` : text));
     },
   });
 
@@ -195,6 +199,13 @@ export function ChatInput({
   useEffect(() => {
     useUIStore.getState().setDraftInput(input);
   }, [input]);
+
+  useEffect(
+    () => () => {
+      if (refineBackstopTimerRef.current !== null) clearTimeout(refineBackstopTimerRef.current);
+    },
+    [],
+  );
 
   // The lane POINTER, not the lane's SessionInfo record. That record is null
   // from the moment a tab is opened until its `session.start` answer lands, so
@@ -255,6 +266,12 @@ export function ChatInput({
     topicCheckAbortRef.current = null;
     topicCheckBusyRef.current = false;
     setTopicCheckBusy(false);
+    // The 30s refine backstop armed by the tab we just left must not fire into
+    // the tab we just entered (it clears the shared pending-refinement state).
+    if (refineBackstopTimerRef.current !== null) {
+      clearTimeout(refineBackstopTimerRef.current);
+      refineBackstopTimerRef.current = null;
+    }
     useConfirmModalStore.getState().settle(null);
     const ta = textareaRef.current;
     if (ta) ta.style.height = 'auto';
@@ -332,7 +349,9 @@ export function ChatInput({
         useChatStore.getState().setRefining(true);
         if (refineModel) {
           refineModel(content, { timeoutMs: 15_000 });
-          setTimeout(() => {
+          if (refineBackstopTimerRef.current !== null) clearTimeout(refineBackstopTimerRef.current);
+          refineBackstopTimerRef.current = setTimeout(() => {
+            refineBackstopTimerRef.current = null;
             useChatStore.getState().setRefining(false);
             useChatStore.getState().setPendingRefinement(null);
           }, 30_000);
@@ -478,7 +497,6 @@ export function ChatInput({
       stickyDraftRef.current = null;
       _clearTextarea();
       pushPrompt(content);
-      _clearTextarea();
 
       const images = pendingImagesRef.current;
       const attachments = images.map((img) => ({

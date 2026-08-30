@@ -38,6 +38,8 @@ import {
   contextBarColor,
   dialGlyph,
   fmtMemory,
+  fmtPct,
+  fmtRatioPct,
   fmtTok,
   renderMeter,
   sparkline,
@@ -454,7 +456,7 @@ export function SidebarContent({
   // Context meter
   const ctxRatio = contextWindow ? Math.min(1, contextWindow.used / contextWindow.max) : 0;
   const ctxColor = contextBarColor(ctxRatio);
-  const ctxPct = Math.round(ctxRatio * 100);
+  const ctxPct = fmtRatioPct(ctxRatio);
   // The context spectrum is sized to the *body* width (innerWidth - sides
   // - padding) inside the Card's render prop, NOT to `innerWidth` here.
   // Sizing to `innerWidth` would make the spectrum 4 cols wider than the
@@ -469,7 +471,7 @@ export function SidebarContent({
   // went.
   const cs = cacheStats ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
   const hasCacheActivity = cs.readTokens > 0 || cs.writeTokens > 0;
-  const cacheHitPct = Math.round(cs.hitRatio * 100);
+  const cacheHitPct = fmtRatioPct(cs.hitRatio);
 
   // Fleet entries: show leader first, then running subagents.
   // Cap at 12 agents total (leader + up to 11 subagents), each rendered
@@ -545,7 +547,7 @@ export function SidebarContent({
                 <>
                   {(() => {
                     const tokensLabel = `${fmtTok(contextWindow.used)} / ${fmtTok(contextWindow.max)}`;
-                    const pctLabel = `${String(ctxPct).padStart(2, ' ')}% `;
+                    const pctLabel = `${ctxPct} `;
                     const availableForMeter = bodyWidth - pctLabel.length - tokensLabel.length - 2;
                     const meterInner = Math.min(10, availableForMeter - 2);
                     const dynamicMeter =
@@ -587,12 +589,12 @@ export function SidebarContent({
                         rows.push([activeSegments[i]!, activeSegments[i + 1]]);
                       }
                       return rows.map(([left, right]) => {
-                        const leftPct = Math.round(
-                          (left.tokens / Math.max(1, contextWindow.max)) * 100,
+                        const leftPct = fmtRatioPct(
+                          left.tokens / Math.max(1, contextWindow.max),
                         );
                         const rightPct = right
-                          ? Math.round((right.tokens / Math.max(1, contextWindow.max)) * 100)
-                          : 0;
+                          ? fmtRatioPct(right.tokens / Math.max(1, contextWindow.max))
+                          : '0%';
                         return (
                           <Box
                             key={left.shortLabel}
@@ -602,12 +604,12 @@ export function SidebarContent({
                           >
                             <Text color={left.color} wrap="truncate">
                               {left.glyph} {left.shortLabel} {fmtTok(left.tokens)}
-                              <Text color={theme.textMuted}> {leftPct}%</Text>
+                              <Text color={theme.textMuted}> {leftPct}</Text>
                             </Text>
                             {right ? (
                               <Text color={right.color} wrap="truncate">
                                 {right.glyph} {right.shortLabel} {fmtTok(right.tokens)}
-                                <Text color={theme.textMuted}> {rightPct}%</Text>
+                                <Text color={theme.textMuted}> {rightPct}</Text>
                               </Text>
                             ) : null}
                           </Box>
@@ -615,8 +617,8 @@ export function SidebarContent({
                       });
                     }
                     return activeSegments.map((segment) => {
-                      const pct = Math.round(
-                        (segment.tokens / Math.max(1, contextWindow.max)) * 100,
+                      const pct = fmtRatioPct(
+                        segment.tokens / Math.max(1, contextWindow.max),
                       );
                       return (
                         <Box
@@ -629,7 +631,7 @@ export function SidebarContent({
                             {segment.glyph} {segment.shortLabel}
                           </Text>
                           <Text color={segment.color} wrap="truncate">
-                            {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}%</Text>
+                            {fmtTok(segment.tokens)} <Text color={theme.textMuted}>{pct}</Text>
                           </Text>
                         </Box>
                       );
@@ -654,7 +656,7 @@ export function SidebarContent({
                 glyph={glyphs.context}
                 label="PROMPT CACHE"
                 color={hasCacheActivity ? theme.success : theme.textMuted}
-                badge={hasCacheActivity ? `${cacheHitPct}% HIT` : 'IDLE'}
+                badge={hasCacheActivity ? `${cacheHitPct} HIT` : 'IDLE'}
                 badgeColor={hasCacheActivity ? theme.success : theme.textMuted}
                 innerWidth={bodyWidth}
                 pill
@@ -741,7 +743,7 @@ export function SidebarContent({
                 {cpuPercent != null ? (
                   <DialRow
                     label="CPU "
-                    value={`${cpuPercent.toFixed(0).padStart(2, ' ')}%`}
+                    value={fmtPct(cpuPercent)}
                     ratio={cpuPercent / 100}
                     history={cpuHistory}
                     innerWidth={bodyWidth}
@@ -815,7 +817,7 @@ export function SidebarContent({
                 const treePrefix = isLeader ? '♛ ' : isLast ? glyphs.treeLast : glyphs.treeBranch;
                 const name = trunc(entry.name || entry.id, bodyWidth - (isLeader ? 8 : 10));
                 const ctxPctAgent =
-                  entry.ctxPct != null ? `${Math.round(entry.ctxPct * 100)}%` : '';
+                  entry.ctxPct != null ? fmtRatioPct(entry.ctxPct) : '';
                 const statusLabel =
                   entry.status === 'running'
                     ? 'running'
@@ -909,7 +911,7 @@ export function SidebarContent({
                 </Text>
                 <Text color={theme.textMuted}>
                   {' '}
-                  {Math.round((mission.done / Math.max(1, mission.total)) * 100)}%
+                  {fmtRatioPct(mission.done / Math.max(1, mission.total))}
                 </Text>
               </Box>
               {mission.rows.map((m) => {

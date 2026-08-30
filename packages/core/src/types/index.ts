@@ -410,7 +410,7 @@ export type { Renderer } from './renderer.js';
 export type { SecretScrubber } from './secret-scrubber.js';
 // ── secret-vault (2 symbols) ──
 export type { RotatableSecretVault, SecretVault } from './secret-vault.js';
-// ── session (15 symbols) ──
+// ── session (16 symbols) ──
 export type {
   FileSnapshot,
   ForkedSession,
@@ -421,6 +421,7 @@ export type {
   SessionData,
   SessionEvent,
   SessionForkOptions,
+  SessionLoadProgress,
   SessionMetadata,
   SessionStore,
   SessionSummary,

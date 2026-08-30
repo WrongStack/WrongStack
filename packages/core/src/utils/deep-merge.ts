@@ -186,7 +186,7 @@ export function deepMerge(
         const existingLen = Array.isArray(existing) ? existing.length : 0;
         onNonPrimitiveArrayReplace(k, existingLen, v.length);
       }
-      out[k] = v;
+      out[k] = conflictResolution === 'prefer-base' && k in baseObj ? existing : v;
     }
     // When v === undefined, leave the existing value untouched
     // (this matches config-loader's behaviour: undefined in patch

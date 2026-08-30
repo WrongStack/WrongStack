@@ -9,6 +9,7 @@ import type {
 } from './mailbox-message-types.js';
 
 export function mailboxIdentityBase(agentId: string): string {
+  if (typeof agentId !== 'string') return '';
   return agentId.split(/[@#]/, 1)[0]!.trim().toLowerCase();
 }
 
@@ -51,7 +52,7 @@ export function validateSendType(type: MailboxMessageType, to: string): void {
 export const SESSION_RECIPIENT_PREFIX = '@session:';
 
 export function sessionRecipient(sessionId: string): string {
-  const normalizedSessionId = sessionId.trim();
+  const normalizedSessionId = sessionId.trim().replace(/\\/g, '/');
   if (!normalizedSessionId) {
     throw new TypeError('sessionId is required for the "@session" recipient');
   }

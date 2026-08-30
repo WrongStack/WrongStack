@@ -175,7 +175,7 @@ describe('cloud-config-sync sanitizer', () => {
   it('reinjects local secrets when a pull replaces an owned subtree wholesale', () => {
     const local = realisticConfig();
     const applied = applyNamespacePayload(local, 'extensions.plugins', {
-      extensions: { telegram: { notifyChatId: 999 } },
+      extensions: { telegram: { notifyChatId: 999, botToken: undefined } },
     });
     const telegram = (applied.extensions as Record<string, Record<string, unknown>>).telegram!;
     expect(telegram.notifyChatId).toBe(999);

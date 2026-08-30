@@ -55,6 +55,7 @@ export async function checkConnectivity(opts?: {
 async function probe(url: string, timeoutMs: number): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (typeof timer.unref === 'function') timer.unref();
   try {
     // The response body is irrelevant; any HTTP response (including
     // 4xx/5xx from the probe target) means the network path works —
