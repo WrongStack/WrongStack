@@ -305,4 +305,11 @@ describe('bare ANSI names follow the active theme', () => {
     expect(softColor('transparent')).toBe('transparent');
     expect(softColor('#abcdef')).toBe('#abcdef');
   });
+
+  it('mixHexColors handles 3-digit and 6-digit hex codes', async () => {
+    const { mixHexColors } = await import('../src/theme-utils.js');
+    expect(mixHexColors('#fff', '#000', 0.5)).toBe('#808080');
+    expect(mixHexColors('#ffffff', '#000000', 0)).toBe('#000000');
+    expect(mixHexColors('#ffffff', '#000000', 1)).toBe('#ffffff');
+  });
 });

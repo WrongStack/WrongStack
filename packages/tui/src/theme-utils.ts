@@ -106,11 +106,18 @@ export function mixHexColors(colorA: string, colorB: string, weight: number): st
   return `#${[r, g, bl].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Parse a `#rrggbb` color into [r, g, b] bytes, or `null` on bad input. */
+/** Parse a `#rrggbb` or `#rgb` color into [r, g, b] bytes, or `null` on bad input. */
 function parseHexColor(hex: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
-  const n = Number.parseInt(m[1]!, 16);
+  const raw = m[1]!;
+  if (raw.length === 3) {
+    const r = Number.parseInt(raw[0]! + raw[0]!, 16);
+    const g = Number.parseInt(raw[1]! + raw[1]!, 16);
+    const b = Number.parseInt(raw[2]! + raw[2]!, 16);
+    return [r, g, b];
+  }
+  const n = Number.parseInt(raw, 16);
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
@@ -119,10 +126,10 @@ export function detectSupportsBackground(
   isTTY: boolean = process.stdout.isTTY ?? false,
 ): boolean {
   if (!isTTY) return false;
-  if (typeof env.NO_COLOR === 'string' && env.NO_COLOR !== '') return false;
-  const colorterm = env.COLORTERM ?? '';
+  if (typeof env['NO_COLOR'] === 'string' && env['NO_COLOR'] !== '') return false;
+  const colorterm = env['COLORTERM'] ?? '';
   if (/^(truecolor|24bit)$/i.test(colorterm)) return true;
-  const term = env.TERM ?? '';
+  const term = env['TERM'] ?? '';
   if (/truecolor|24bit/i.test(term)) return true;
   if (/256(color)?/i.test(term)) return true;
   if (colorterm !== '' && colorterm !== 'false') return true;
