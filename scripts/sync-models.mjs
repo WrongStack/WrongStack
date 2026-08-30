@@ -127,7 +127,9 @@ function extract(upstream, target) {
     console.error('usage: --extract <providerId>[:<modelId>]');
     process.exit(1);
   }
-  const [pid, mid] = target.split(':');
+  const idx = target.indexOf(':');
+  const pid = idx === -1 ? target : target.slice(0, idx);
+  const mid = idx === -1 ? undefined : target.slice(idx + 1);
   const p = upstream[pid];
   if (!p) {
     console.error(`provider "${pid}" not found in models.dev`);
