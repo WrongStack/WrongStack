@@ -57,6 +57,12 @@ export interface ParallelEternalOptions {
   parallelSlots?: number | undefined;
   /** Per-subagent default timeout in ms. Default: 300_000 (5 min). */
   iterationTimeoutMs?: number | undefined;
+  /**
+   * Cool-down sleep between ticks, and the pacing value reported on the
+   * emitted `sleep` stage. Defaults to 2_000 so a ticking eternal loop
+   * paces itself; tests pass 0 to keep loop-driven scenarios fast.
+   */
+  noTaskCoolDownMs?: number | undefined;
   onIteration?: ((entry: JournalEntry) => void) | undefined;
   onError?: (err: Error | undefined, iteration: number) => void;
   /** Per-tick phase notifications for live UI/status updates. */
@@ -116,6 +122,7 @@ export class ParallelEternalEngine {
   private readonly goalPath: string;
   private readonly slots: number;
   private readonly timeoutMs: number;
+  private readonly noTaskCoolDownMs: number;
   private coordinator: DefaultMultiAgentCoordinator | null = null;
   private agentFactory: AgentFactory;
   private readonly dispatchEnabled: boolean;
@@ -125,6 +132,7 @@ export class ParallelEternalEngine {
     this.goalPath = opts.goalPath ?? goalFilePath(opts.projectRoot);
     this.slots = Math.min(16, Math.max(1, opts.parallelSlots ?? 4));
     this.timeoutMs = opts.iterationTimeoutMs ?? 300_000;
+    this.noTaskCoolDownMs = opts.noTaskCoolDownMs ?? 2_000;
     this.dispatchEnabled = opts.dispatch !== false;
     this.dispatchClassifier = opts.dispatchClassifier;
     this.agentFactory =
@@ -218,7 +226,7 @@ export class ParallelEternalEngine {
           await this.appendFailure('engine error', toErrorMessage(err));
         }
         if (this.stopRequested) break;
-        await sleep(2000);
+        await sleep(this.noTaskCoolDownMs);
       }
     } finally {
       this.state = 'stopped';
@@ -271,7 +279,7 @@ export class ParallelEternalEngine {
     if (!tasks || tasks.length === 0) {
       // Nothing to do this tick. The run() loop paces idle iterations itself
       // (see its sleep), so a single runOneIteration() must return promptly.
-      emit({ phase: 'sleep', ms: 2000 });
+      emit({ phase: 'sleep', ms: this.noTaskCoolDownMs });
       return false;
     }
 
@@ -323,7 +331,7 @@ export class ParallelEternalEngine {
     }
 
     await this.maybeCompact();
-    emit({ phase: 'sleep', ms: 2000 });
+    emit({ phase: 'sleep', ms: this.noTaskCoolDownMs });
     return fanOut.allSuccessful;
   }
 

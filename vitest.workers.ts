@@ -41,6 +41,14 @@ const RUN_MAX_WORKERS = 4;
  * @param argv Vitest CLI arguments; defaults to this process's arguments.
  */
 export function getVitestMaxWorkers(argv: string[] = process.argv.slice(2)): number {
+  // Explicit env override wins over both mode defaults: local group sweeps
+  // (e.g. WRONGSTACK_VITEST_MAX_WORKERS=8 pnpm exec vitest run ...) opt in to
+  // more workers for import-heavy runs without touching the release-safe
+  // defaults below. Invalid or non-positive values fall through.
+  const override = Number(process.env.WRONGSTACK_VITEST_MAX_WORKERS);
+  if (Number.isInteger(override) && override >= 1) {
+    return override;
+  }
   if (argv.some((arg) => WATCH_ARGS.has(arg))) {
     return WATCH_MAX_WORKERS;
   }

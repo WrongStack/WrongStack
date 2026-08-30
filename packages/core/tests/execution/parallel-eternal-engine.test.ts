@@ -111,7 +111,7 @@ describe('ParallelEternalEngine', () => {
   describe('constructor', () => {
     it('accepts minimal options and sets defaults', () => {
       const agent = makeMockAgent();
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       expect(engine.currentState).toBe('idle');
     });
 
@@ -121,6 +121,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 8,
       });
       // Slots are capped at 16, so 8 is accepted
@@ -134,6 +135,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 99,
       });
       expect(engine.currentState).toBe('idle');
@@ -145,6 +147,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 0,
       });
       expect(engine.currentState).toBe('idle');
@@ -154,7 +157,7 @@ describe('ParallelEternalEngine', () => {
   describe('stop()', () => {
     it('transitions state to stopped', async () => {
       const agent = makeMockAgent();
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       engine.stop();
       expect(engine.currentState).toBe('stopped');
     });
@@ -163,7 +166,7 @@ describe('ParallelEternalEngine', () => {
       const { writeFile, rm } = await import('node:fs/promises');
       const agent = makeMockAgent();
       await writeFile(goalPath, JSON.stringify(makeGoal({ engineState: 'idle' })), 'utf-8');
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       // Stop immediately, before first iteration
       setTimeout(() => engine.stop(), 50);
       const runPromise = engine.run();
@@ -176,7 +179,7 @@ describe('ParallelEternalEngine', () => {
   describe('runOneIteration()', () => {
     it('returns false and stops when no goal exists', async () => {
       const agent = makeMockAgent();
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       const result = await engine.runOneIteration();
       expect(result).toBe(false);
       expect(engine.currentState).toBe('idle');
@@ -186,7 +189,7 @@ describe('ParallelEternalEngine', () => {
       const { writeFile, rm } = await import('node:fs/promises');
       const agent = makeMockAgent();
       await writeFile(goalPath, JSON.stringify(makeGoal({ goalState: 'completed' })), 'utf-8');
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       const result = await engine.runOneIteration();
       expect(result).toBe(false);
       await rm(tmpDir, { recursive: true });
@@ -203,7 +206,7 @@ describe('ParallelEternalEngine', () => {
         })),
       });
       await writeFile(goalPath, JSON.stringify(makeGoal()), 'utf-8');
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       await engine.runOneIteration();
       const written = JSON.parse(await readFile(goalPath, 'utf-8')) as GoalFile;
       expect(written.journal.length).toBe(1);
@@ -228,6 +231,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         onIteration: (e) => entries.push(e),
       });
       await engine.runOneIteration();
@@ -252,6 +256,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         onStage: (stage) => phases.push(stage.phase),
       });
       await engine.runOneIteration();
@@ -281,6 +286,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 4,
       });
       await engine.runOneIteration();
@@ -308,6 +314,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         subagentFactory: async () => ({
           agent: makeMockAgent({
             run: vi.fn(async () => ({
@@ -365,6 +372,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         compactEveryNIterations: 3,
         compactor: { compact: compactCall } as never,
       });
@@ -389,6 +397,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         compactEveryNIterations: 2,
         compactor: { compact: compactCall } as never,
       });
@@ -404,7 +413,7 @@ describe('ParallelEternalEngine', () => {
       const { writeFile, rm } = await import('node:fs/promises');
       const agent = makeMockAgent();
       await writeFile(goalPath, JSON.stringify(makeGoal({ engineState: 'idle' })), 'utf-8');
-      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath });
+      const engine = new ParallelEternalEngine({ agent, projectRoot: tmpDir, goalPath, noTaskCoolDownMs: 0 });
       setTimeout(() => engine.stop(), 20);
       await engine.run();
       expect(engine.currentState).toBe('stopped');
@@ -435,6 +444,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 1,
         dispatchClassifier: classifier,
       });
@@ -466,6 +476,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 1,
       });
       await engine.runOneIteration();
@@ -489,6 +500,7 @@ describe('ParallelEternalEngine', () => {
         agent,
         projectRoot: tmpDir,
         goalPath,
+        noTaskCoolDownMs: 0,
         parallelSlots: 1,
         dispatch: false,
       });
