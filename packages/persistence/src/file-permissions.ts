@@ -107,9 +107,9 @@ export async function restrictDirPermissions(
 }
 
 function windowsAccountName(): string | undefined {
-  const username = process.env.USERNAME || process.env.USER;
+  const username = process.env['USERNAME'] ?? process.env['USER'];
   if (!username || username.includes('\0')) return undefined;
-  const domain = process.env.USERDOMAIN;
+  const domain = process.env['USERDOMAIN'];
   if (domain && !domain.includes('\0')) return `${domain}\\${username}`;
   return username;
 }
