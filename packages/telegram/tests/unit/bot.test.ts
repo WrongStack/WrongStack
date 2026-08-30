@@ -197,8 +197,8 @@ describe('helpers', () => {
     });
   });
 
-  it('escapeHtml replaces special chars', () => {
-    expect(escapeHtml('<b>bold</b> & text')).toBe('&lt;b&gt;bold&lt;/b&gt; &amp; text');
+  it('escapeHtml replaces special chars including quotes', () => {
+    expect(escapeHtml('<b>"bold"</b> & text')).toBe('&lt;b&gt;&quot;bold&quot;&lt;/b&gt; &amp; text');
   });
 });
 

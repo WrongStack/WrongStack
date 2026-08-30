@@ -28,12 +28,12 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
   // `curl -tSECRET` is extremely rare; a user typing `clang -target=...`
   // is daily. The lookbehind `(?<![-\w])` rejects `-t` inside `--token`
   // where the preceding char is another `-`.
-  /(?<![-\w])-t(?:[\s=][^\s,]+)/,
+  /(?<![-\w])-t(?:[\s=][^\s,]+)/g,
   /(?<![-\w])-(?:p|password)(?:[\s=][^\s,]+)/gi,
   // env-var style: TOKEN=x, API_KEY=y, DATABASE_URL=z, …
   /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD|DATABASE_URL|CONNECTION_STRING)\s*[=:][^\s,]+/gi,
   // Generic high-entropy look — only when preceded by a flag name.
-  /--\w*(?:token|key|secret|password|passwd|auth|credential)\w*[=\s,][A-Za-z0-9+/=]{32,}/,
+  /--\w*(?:token|key|secret|password|passwd|auth|credential)\w*[=\s,][A-Za-z0-9+/=]{32,}/g,
 ];
 
 /**

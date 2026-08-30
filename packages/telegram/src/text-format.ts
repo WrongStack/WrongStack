@@ -84,5 +84,9 @@ export function truncateForTelegram(text: string, maxLen = 4000): string {
  * Escape HTML special chars for Telegram's HTML parse mode.
  */
 export function escapeHtml(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

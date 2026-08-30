@@ -49,6 +49,11 @@ describe('redactSecrets', () => {
       expect(out).toContain('-t [REDACTED]');
     });
 
+    it('redacts multiple -t flags in the same string', () => {
+      const out = redactSecrets(`cmd -t ${TOKEN_VALUE} and -t ${TOKEN_VALUE}`);
+      expect(out).toBe('cmd -t [REDACTED] and -t [REDACTED]');
+    });
+
     it('does NOT redact a glued -tVALUE flag (too many false positives)', () => {
       // Glued `-tVALUE` form is intentionally NOT redacted because it
       // collides with common long flags like `-target`, `-tries`,
