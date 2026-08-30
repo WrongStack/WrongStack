@@ -58,6 +58,10 @@ describe('helpSections', () => {
 });
 
 describe('HelpOverlay', () => {
+  // The test renderer's stdout reports no size, so the overlay falls back to
+  // 90×24 → useMonitorSize().contentRows = 15, minus the header row and the
+  // 2 indicator rows = 12 visible rows. The full sheet is far taller than
+  // that, so the default frame shows only the first window.
   it('renders the header title', () => {
     const view = render(React.createElement(HelpOverlay));
     const frame = view.lastFrame() ?? '';
@@ -66,15 +70,22 @@ describe('HelpOverlay', () => {
     view.unmount();
   });
 
-  it('renders all section headings', () => {
+  it('windows the sheet: first sections visible, later ones below the fold', () => {
     const view = render(React.createElement(HelpOverlay));
     const frame = view.lastFrame() ?? '';
     expect(frame).toContain('Navigation');
-    expect(frame).toContain('Monitors');
-    expect(frame).toContain('Editing');
-    expect(frame).toContain('Commands');
-    expect(frame).toContain('Settings');
-    expect(frame).toContain('Tool Colors');
+    expect(frame).toContain('previous / next input');
+    expect(frame).toContain('↓');
+    expect(frame).toContain('more');
+    // Deep sections are outside the initial window.
+    expect(frame).not.toContain('Tool Colors');
+    view.unmount();
+  });
+
+  it('keeps the overlay within the fallback terminal height', () => {
+    const view = render(React.createElement(HelpOverlay));
+    const lines = (view.lastFrame() ?? '').split('\n');
+    expect(lines.length).toBeLessThanOrEqual(24);
     view.unmount();
   });
 
@@ -86,11 +97,23 @@ describe('HelpOverlay', () => {
     view.unmount();
   });
 
-  it('renders the tool color section with entries', () => {
+  it('scrolls to the tool color section via down-arrow keys', async () => {
     const view = render(React.createElement(HelpOverlay));
+    // Walk the cursor past the end (clamped) so the window reaches the bottom.
+    for (let i = 0; i < 100; i++) {
+      view.stdin.write('\x1b[B');
+      await new Promise((resolve) => setImmediate(resolve));
+    }
     const frame = view.lastFrame() ?? '';
-    expect(frame).toContain('read/write');
-    expect(frame).toContain('terminal');
+    // At the exact bottom the section header AND the earliest pair rows are
+    // above the fold; the bottom-most pair row + the 'N more' indicator are
+    // the only assertions stable across window-size changes.
+    expect(frame).toContain('tool_use');
+    expect(frame).toContain('tool chain');
+    // Match the indicator line itself — a bare '↑' also matches the header's
+    // '↑/↓ scroll' hint and would pass even if the indicator went missing.
+    expect(frame).toMatch(/↑ \d+ more/);
+    expect(frame).toContain('more');
     view.unmount();
   });
 

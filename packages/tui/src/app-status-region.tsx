@@ -233,7 +233,8 @@ export function AppStatusRegion({
         />
         {/* Keys-&-commands help overlay (`?` on an empty prompt). Modal: while
           open, handleKey swallows everything but Esc/?/q, so it never coexists
-          with a monitor. */}
+          with a monitor; the overlay scrolls its own height-limited window
+          with ↑/↓/PgUp/PgDn via its own useInput. */}
         {state.helpOpen ? <HelpOverlay /> : null}
         {/* Agents monitor overlay (Ctrl+G) and fleet monitor overlay (Ctrl+F)
           take up the lower region — hide FleetPanel while any overlay is open. */}

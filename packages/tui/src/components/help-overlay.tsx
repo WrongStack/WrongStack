@@ -1,8 +1,10 @@
-import { Box, Text } from '../ink.js';
+import { useState } from 'react';
 import type React from 'react';
 import { F_KEY_PANEL_ENTRIES } from '../f-key-panels.js';
+import { Box, Text, useInput } from '../ink.js';
 import { theme } from '../theme.js';
 import { getToolVisual } from '../tool-glyph.js';
+import { panelWindow, truncatePanelText, useMonitorSize } from './monitor-shell.js';
 
 export interface HelpEntry {
   /** Key chord or command, e.g. `Ctrl+F` or `/model`. */
@@ -15,6 +17,17 @@ interface HelpSection {
   title: string;
   entries: HelpEntry[];
 }
+
+/**
+ * One renderable row of the flattened cheat sheet. Sections become title
+ * rows and entries become key/description rows; the Tool Colors section is
+ * zipped into two-column `pair` rows so the whole sheet is a flat list the
+ * scroll window can slice row-exactly.
+ */
+type HelpRow =
+  | { kind: 'section'; title: string }
+  | { kind: 'entry'; keys: string; desc: string }
+  | { kind: 'pair'; left: HelpEntry; right: HelpEntry | undefined };
 
 /**
  * Static cheat-sheet content: keybindings + common slash commands, grouped by
@@ -222,26 +235,90 @@ function splitIntoColumns(entries: HelpEntry[]): [HelpEntry[], HelpEntry[]] {
   return [left, right];
 }
 
+/** Flatten sections into the row list the scroll window slices. */
+function buildHelpRows(sections: HelpSection[]): HelpRow[] {
+  const rows: HelpRow[] = [];
+  for (const sec of sections) {
+    rows.push({ kind: 'section', title: sec.title });
+    if (sec.title === 'Tool Colors') {
+      const [leftCol, rightCol] = splitIntoColumns(sec.entries);
+      for (let i = 0; i < leftCol.length; i++) {
+        const left = leftCol[i];
+        if (!left) continue;
+        rows.push({ kind: 'pair', left, right: rightCol[i] });
+      }
+    } else {
+      for (const entry of sec.entries) {
+        rows.push({ kind: 'entry', keys: entry.keys, desc: entry.desc });
+      }
+    }
+  }
+  return rows;
+}
+
 /**
  * Full-width modal cheat-sheet overlay (opened with `?` on an empty prompt,
  * closed with Esc / `?` / `q`). Mirrors the bordered-panel look of the monitor
- * overlays so it sits naturally in the bottom region. Two columns: the key
- * chord (accent) and its description (dim), with the key column padded to a
- * shared width so descriptions align. The Tool Colors section uses two sub-columns
- * so all legend entries fit without scrolling.
+ * overlays so it sits naturally in the bottom region. Height-limited: only
+ * `useMonitorSize().contentRows` rows of the flattened sheet render at a
+ * time minus the header and scroll-indicator rows (shared `panelWindow`
+ * windowing, `↑ N more` / `↓ N more` indicators), scrolled with ↑/↓ and
+ * PgUp/PgDn via
+ * the overlay's own `useInput` — the central key router ignores those chords
+ * while the modal is open, and the scroll cursor resets when the overlay
+ * unmounts. Entries keep one row each
+ * (descriptions truncated to the measured content width) so the window height
+ * math stays exact; the Tool Colors section renders as two side-by-side
+ * sub-columns.
  */
 export function HelpOverlay(): React.ReactElement {
-  const sections = helpSections();
-  // Compute key width only for non-Tool-Colors sections (they use global width)
-  const otherSections = sections.filter((s) => s.title !== 'Tool Colors');
+  const rows = buildHelpRows(helpSections());
+  const size = useMonitorSize();
+  const [cursor, setCursor] = useState(0);
+
+  // The always-rendered header row plus the two `N more` indicator rows all
+  // render outside the window, so reserve three rows up front — otherwise a
+  // mid-scroll frame (both indicators visible) exceeds the bottom-region row
+  // budget by one line. Floor 3 keeps `limit ≤ contentRows` even after the
+  // budget clamps on tiny terminals.
+  const limit = Math.max(3, size.contentRows - 3);
+  const lastRow = Math.max(0, rows.length - 1);
+  const page = Math.max(1, limit - 1);
+  useInput((_input, key) => {
+    if (key.upArrow) setCursor((c) => Math.max(0, c - 1));
+    else if (key.downArrow) setCursor((c) => Math.min(lastRow, c + 1));
+    else if (key.pageUp) setCursor((c) => Math.max(0, c - page));
+    else if (key.pageDown) setCursor((c) => Math.min(lastRow, c + page));
+  });
+
+  const win = panelWindow(rows.length, cursor, limit);
+  const visible = rows.slice(win.start, win.end);
+
+  // Shared key-column widths: standard rows pad to one width, Tool Colors
+  // pair rows to their own so both columns stay aligned.
   const otherKeyWidth = Math.max(
-    ...otherSections.flatMap((s) => s.entries.map((e) => e.keys.length)),
+    ...rows
+      .filter((r): r is Extract<HelpRow, { kind: 'entry' }> => r.kind === 'entry')
+      .map((r) => r.keys.length),
     0,
   );
-  const toolSection = sections.find((s) => s.title === 'Tool Colors');
-  const toolKeyWidth = toolSection
-    ? Math.max(...toolSection.entries.map((e) => e.keys.length), 0)
-    : 0;
+  const otherKeyCol = otherKeyWidth + 2;
+  const descWidth = Math.max(0, size.contentWidth - otherKeyCol);
+
+  const toolKeyWidth = Math.max(
+    ...rows
+      .filter((r): r is Extract<HelpRow, { kind: 'pair' }> => r.kind === 'pair')
+      .flatMap((r) => [r.left.keys.length, r.right?.keys.length ?? 0]),
+    0,
+  );
+  const toolKeyCol = toolKeyWidth + 2;
+  // The leftover width is shared by BOTH description columns — giving each
+  // the full remainder overflowed the line and wrapped pair rows to two
+  // terminal rows, breaking the one-row-per-entry height math.
+  const toolDescWidth = Math.max(
+    0,
+    Math.floor((size.contentWidth - 2 * toolKeyCol - 2) / 2),
+  );
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={theme.accent} paddingX={1}>
@@ -249,64 +326,42 @@ export function HelpOverlay(): React.ReactElement {
         <Text bold color={theme.accent}>
           Keyboard shortcuts
         </Text>
-        <Text dimColor>· Esc to close</Text>
+        <Text dimColor>· ↑/↓ scroll · PgUp/PgDn page · Esc to close</Text>
       </Box>
-      {sections.map((sec) => {
-        // Tool Colors: render in two side-by-side columns
-        if (sec.title === 'Tool Colors') {
-          const [leftCol, rightCol] = splitIntoColumns(sec.entries);
+      {win.above > 0 ? <Text dimColor>{`  ↑ ${win.above} more`}</Text> : null}
+      {visible.map((row, i) => {
+        if (row.kind === 'section') {
           return (
-            <Box key={sec.title} flexDirection="column" marginTop={1}>
-              <Text bold color={theme.brand}>
-                {sec.title}
-              </Text>
-              <Box flexDirection="row" gap={2}>
-                {/* Left column */}
-                <Box flexDirection="column">
-                  {leftCol.map((e, i) => (
-                    <Box
-                      key={i}
-                      flexDirection="row"
-                    >
-                      <Text color={theme.accent}>{e.keys.padEnd(toolKeyWidth + 2)}</Text>
-                      <Text dimColor>{e.desc}</Text>
-                    </Box>
-                  ))}
-                </Box>
-                {/* Right column */}
-                <Box flexDirection="column">
-                  {rightCol.map((e, i) => (
-                    <Box
-                      key={i}
-                      flexDirection="row"
-                    >
-                      <Text color={theme.accent}>{e.keys.padEnd(toolKeyWidth + 2)}</Text>
-                      <Text dimColor>{e.desc}</Text>
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            </Box>
+            <Text key={`section-${row.title}`} bold color={theme.brand}>
+              {row.title}
+            </Text>
           );
         }
-        // All other sections: standard single-column layout
-        return (
-          <Box key={sec.title} flexDirection="column" marginTop={1}>
-            <Text bold color={theme.brand}>
-              {sec.title}
+        if (row.kind === 'entry') {
+          return (
+            <Text key={`entry-${win.start + i}`}>
+              <Text color={theme.accent}>{row.keys.padEnd(otherKeyCol)}</Text>
+              <Text dimColor>{truncatePanelText(row.desc, descWidth)}</Text>
             </Text>
-            {sec.entries.map((e, i) => (
-              <Box
-                key={i}
-                flexDirection="row"
-              >
-                <Text color={theme.accent}>{e.keys.padEnd(otherKeyWidth + 2)}</Text>
-                <Text dimColor>{e.desc}</Text>
-              </Box>
-            ))}
-          </Box>
+          );
+        }
+        const leftDesc = truncatePanelText(row.left.desc, toolDescWidth).padEnd(
+          toolDescWidth + 2,
+        );
+        return (
+          <Text key={`pair-${win.start + i}`}>
+            <Text color={theme.accent}>{row.left.keys.padEnd(toolKeyCol)}</Text>
+            <Text dimColor>{leftDesc}</Text>
+            {row.right ? (
+              <>
+                <Text color={theme.accent}>{row.right.keys.padEnd(toolKeyCol)}</Text>
+                <Text dimColor>{truncatePanelText(row.right.desc, toolDescWidth)}</Text>
+              </>
+            ) : null}
+          </Text>
         );
       })}
+      {win.below > 0 ? <Text dimColor>{`  ↓ ${win.below} more`}</Text> : null}
     </Box>
   );
 }
