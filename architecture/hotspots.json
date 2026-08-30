@@ -331,11 +331,11 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/code-block.tsx": {
-      "lines": 846,
+      "lines": 854,
       "relativeImports": 6
     },
     "packages/tui/src/components/history/utils.tsx": {
-      "lines": 953,
+      "lines": 1015,
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {

@@ -331,9 +331,16 @@ export function DiffFileBlock({
 }): React.ReactElement {
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Text dimColor italic>
-        {path}
-      </Text>
+      <Box flexDirection="row" marginBottom={0}>
+        <Text bold color={theme.accent}>
+          {`📄 ${path}`}
+        </Text>
+        {preview.added > 0 || preview.removed > 0 ? (
+          <Text dimColor>
+            {`  (${preview.added > 0 ? `+${preview.added}` : ''}${preview.added > 0 && preview.removed > 0 ? ' ' : ''}${preview.removed > 0 ? `-${preview.removed}` : ''})`}
+          </Text>
+        ) : null}
+      </Box>
       <DiffBlock
         rows={preview.rows}
         hidden={preview.hidden}
@@ -343,6 +350,7 @@ export function DiffFileBlock({
         hiddenRemoved={preview.hiddenRemoved}
         useColor={useColor}
         lang={langFromPath(path)}
+        showStats={false}
         contentWidth={contentWidth}
       />
     </Box>

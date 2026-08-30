@@ -342,4 +342,15 @@ describe('<ToolGroup /> frame', () => {
     expect(frame).toContain('first custom lookup');
     expect(frame).toContain('second target');
   });
+
+  it('keeps replace_file_content and write_to_file as standalone structured diff entries', () => {
+    const groups = groupEntries([
+      { id: 1, kind: 'tool', name: 'replace_file_content', durationMs: 1, ok: true },
+      { id: 2, kind: 'tool', name: 'replace_file_content', durationMs: 1, ok: true },
+      { id: 3, kind: 'tool', name: 'write_to_file', durationMs: 1, ok: true },
+      { id: 4, kind: 'tool', name: 'write_to_file', durationMs: 1, ok: true },
+    ]);
+    expect(groups).toHaveLength(4);
+    expect(groups.every((g) => g.type === 'single')).toBe(true);
+  });
 });

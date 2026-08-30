@@ -576,9 +576,20 @@ export function formatToolVisualOutput(
   const text = output.trim();
   if (!text) return undefined;
 
-  if (toolName === 'read') return visualRead(text);
-  if (toolName === 'grep' || toolName === 'search') return visualSearch(toolName, text);
-  if (toolName === 'glob') return visualPathList(toolName, text);
+  if (toolName === 'read' || toolName === 'view_file') return visualRead(text);
+  if (toolName === 'grep' || toolName === 'search' || toolName === 'grep_search')
+    return visualSearch(toolName, text);
+  if (
+    toolName === 'glob' ||
+    toolName === 'find' ||
+    toolName === 'find_by_name' ||
+    toolName === 'find_files' ||
+    toolName === 'list_dir' ||
+    toolName === 'dir_list' ||
+    toolName === 'list_directory'
+  ) {
+    return visualPathList(toolName, text);
+  }
   if (toolName === 'tree') return visualTree(text);
   // Edit-style tools render two layers: a compact meta line via
   // `visualEdit` (path + replacement count) at the top, then the actual
@@ -588,7 +599,9 @@ export function formatToolVisualOutput(
   // summary even in `simple` mode where the diff body is hidden.
   if (
     toolName === 'edit' ||
+    toolName === 'replace_file_content' ||
     toolName === 'write' ||
+    toolName === 'write_to_file' ||
     toolName === 'diff' ||
     toolName === 'patch' ||
     toolName === 'replace'
@@ -598,6 +611,7 @@ export function formatToolVisualOutput(
   if (
     toolName === 'bash' ||
     toolName === 'shell' ||
+    toolName === 'run_command' ||
     toolName === 'git' ||
     toolName === 'exec' ||
     toolName === 'install'
@@ -612,7 +626,12 @@ export function formatToolVisualOutput(
   ) {
     return visualVerifier(toolName, text, ok);
   }
-  if (toolName === 'fetch' || toolName === 'webfetch' || toolName === 'web_fetch') {
+  if (
+    toolName === 'fetch' ||
+    toolName === 'webfetch' ||
+    toolName === 'web_fetch' ||
+    toolName === 'read_url_content'
+  ) {
     return visualFetch(text);
   }
   if (toolName === 'json') return visualJson(text);
@@ -638,7 +657,9 @@ export function formatToolVisualOutput(
   if (
     toolName === 'codebase-index' ||
     toolName === 'codebase-search' ||
-    toolName === 'codebase-stats'
+    toolName === 'codebase-stats' ||
+    toolName === 'codebase-incoming-calls' ||
+    toolName === 'codebase-outgoing-calls'
   ) {
     return visualCodebase(toolName, text, ok);
   }
@@ -856,12 +877,39 @@ function parseMatchHit(
 
 function visualPathList(toolName: string, text: string): ToolVisualLine[] | undefined {
   const json = tryParseJson(text);
-  const files =
-    json && typeof json === 'object' && Array.isArray((json as Record<string, unknown>)['files'])
-      ? ((json as Record<string, unknown>)['files'] as unknown[]).filter(
-          (v): v is string => typeof v === 'string',
-        )
-      : bodyLines(text).filter((line) => line.trim() && !line.startsWith(`${toolName}:`));
+  const rawList =
+    json && typeof json === 'object'
+      ? Array.isArray((json as Record<string, unknown>)['files'])
+        ? (json as Record<string, unknown>)['files']
+        : Array.isArray((json as Record<string, unknown>)['paths'])
+          ? (json as Record<string, unknown>)['paths']
+          : Array.isArray((json as Record<string, unknown>)['matches'])
+            ? (json as Record<string, unknown>)['matches']
+            : Array.isArray((json as Record<string, unknown>)['entries'])
+              ? (json as Record<string, unknown>)['entries']
+              : Array.isArray(json)
+                ? json
+                : undefined
+      : undefined;
+
+  const files = rawList
+    ? (rawList as unknown[])
+        .map((v) => {
+          if (typeof v === 'string') return v;
+          if (v && typeof v === 'object') {
+            const o = v as Record<string, unknown>;
+            return (
+              stringOf(o['path']) ??
+              stringOf(o['relativePath']) ??
+              stringOf(o['name']) ??
+              stringOf(o['file'])
+            );
+          }
+          return undefined;
+        })
+        .filter((v): v is string => typeof v === 'string')
+    : bodyLines(text).filter((line) => line.trim() && !line.startsWith(`${toolName}:`));
+
   if (files.length === 0) return undefined;
   const rows = files.slice(0, VISUAL_MAX_LINES).map(
     (file): ToolVisualLine => ({
@@ -876,6 +924,20 @@ function visualPathList(toolName: string, text: string): ToolVisualLine[] | unde
 }
 
 function visualTree(text: string): ToolVisualLine[] | undefined {
+  const json = tryParseJson(text);
+  if (json && typeof json === 'object') {
+    const obj = json as Record<string, unknown>;
+    const files = numOf(obj['total_files']) ?? numOf(obj['files']);
+    const dirs = numOf(obj['total_dirs']) ?? numOf(obj['dirs']);
+    if (files !== undefined || dirs !== undefined) {
+      const parts = [
+        files !== undefined ? `${files} file${files === 1 ? '' : 's'}` : undefined,
+        dirs !== undefined ? `${dirs} dir${dirs === 1 ? '' : 's'}` : undefined,
+        obj['truncated'] === true ? 'truncated' : undefined,
+      ].filter(Boolean);
+      return [{ kind: 'meta', text: parts.join(' · ') }];
+    }
+  }
   const lines = bodyLines(text).filter((line) => line.trim());
   if (lines.length === 0) return undefined;
   const rows = lines.slice(0, VISUAL_MAX_LINES).map(

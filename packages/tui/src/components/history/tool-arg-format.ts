@@ -28,13 +28,22 @@ export function formatToolArgs(toolName: string, input: unknown): string {
 
   switch (toolName) {
     case 'read':
+    case 'view_file':
     case 'write':
+    case 'write_to_file':
     case 'edit':
+    case 'replace_file_content':
     case 'patch':
     case 'list_dir':
+    case 'list_directory':
     case 'ls':
     case 'tree': {
-      const p = stringOf(obj['path']) ?? stringOf(obj['file']);
+      const p =
+        stringOf(obj['path']) ??
+        stringOf(obj['file']) ??
+        stringOf(obj['AbsolutePath']) ??
+        stringOf(obj['TargetFile']) ??
+        stringOf(obj['DirectoryPath']);
       return p ? shortenPath(p, ARG_BUDGET) : '';
     }
     case 'document': {
@@ -44,23 +53,40 @@ export function formatToolArgs(toolName: string, input: unknown): string {
       return [target, scope, style].filter(Boolean).join(' · ');
     }
     case 'grep':
+    case 'grep_search':
     case 'search':
     case 'replace': {
-      const pat = stringOf(obj['pattern']) ?? stringOf(obj['query']);
-      const scope = stringOf(obj['path']) ?? stringOf(obj['glob']);
+      const pat = stringOf(obj['pattern']) ?? stringOf(obj['query']) ?? stringOf(obj['Query']);
+      const scope =
+        stringOf(obj['path']) ??
+        stringOf(obj['glob']) ??
+        stringOf(obj['SearchPath']) ??
+        stringOf(obj['search_path']);
       const head = pat ? `"${truncMid(pat, 36)}"` : '';
       const tail = scope ? ` in ${shortenPath(scope, 28)}` : '';
       return `${head}${tail}` || (stringOf(obj['command']) ?? '');
     }
-    case 'glob': {
-      const pat = stringOf(obj['pattern']) ?? stringOf(obj['glob']);
-      return pat ? `"${truncMid(pat, ARG_BUDGET - 2)}"` : '';
+    case 'glob':
+    case 'find_by_name':
+    case 'find_files': {
+      const pat =
+        stringOf(obj['pattern']) ??
+        stringOf(obj['glob']) ??
+        stringOf(obj['Pattern']);
+      const dir = stringOf(obj['SearchDirectory']) ?? stringOf(obj['path']);
+      const head = pat ? `"${truncMid(pat, ARG_BUDGET - (dir ? 22 : 2))}"` : '';
+      const tail = dir ? ` in ${shortenPath(dir, 18)}` : '';
+      return `${head}${tail}`;
     }
     case 'bash':
     case 'shell':
+    case 'run_command':
     case 'install':
     case 'git': {
-      const cmd = stringOf(obj['command']) ?? stringOf(obj['args']);
+      const cmd =
+        stringOf(obj['command']) ??
+        stringOf(obj['args']) ??
+        stringOf(obj['CommandLine']);
       return cmd ? truncMid(cmd, ARG_BUDGET) : '';
     }
     case 'exec': {
@@ -83,9 +109,15 @@ export function formatToolArgs(toolName: string, input: unknown): string {
     }
     case 'fetch':
     case 'webfetch':
-    case 'web_fetch': {
-      const u = stringOf(obj['url']);
+    case 'web_fetch':
+    case 'read_url_content': {
+      const u = stringOf(obj['url']) ?? stringOf(obj['Url']);
       return u ? truncMid(u, ARG_BUDGET) : '';
+    }
+    case 'search_web':
+    case 'web_search': {
+      const q = stringOf(obj['query']) ?? stringOf(obj['q']);
+      return q ? `"${truncMid(q, ARG_BUDGET - 2)}"` : '';
     }
     case 'todo': {
       const list = obj['todos'];

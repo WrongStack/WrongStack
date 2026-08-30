@@ -66,7 +66,15 @@ const MAX_TOOL_GROUP_ENTRIES = 12;
  * Compacting them would discard that output and its configured multi-file
  * summary threshold — keep each call as its own history entry.
  */
-const STRUCTURED_DIFF_TOOLS = new Set(['edit', 'write', 'replace', 'diff', 'patch']);
+const STRUCTURED_DIFF_TOOLS = new Set([
+  'edit',
+  'replace_file_content',
+  'write',
+  'write_to_file',
+  'replace',
+  'diff',
+  'patch',
+]);
 
 function hasInjectedMemory(entry: HistoryEntry & { kind: 'tool' }): boolean {
   return resolveEntrySage(entry.output, entry.sageLines).sageLines.length > 0;
@@ -124,11 +132,16 @@ export function estimateRenderGroupRows(
     // previous chip-only estimate; the actual Ink frame can additionally
     // inherit +1 row when a flex-wrap KV cell is the only one on its line,
     // which the height-cache absorbs within the test tolerance.
+    const headerWidth = displayWidth(
+      `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`,
+    );
+    const headerRows = Math.max(1, Math.ceil(headerWidth / panelContentWidth));
     const sagePanelRows =
       showSageMemoryInject === false || memoryLines.length === 0
         ? 0
-        : 4 +
-          memoryLines.reduce((sum, line) => {
+        : 2 +
+          headerRows +
+          memoryLines.reduce((sum, line, index) => {
             const parsed = parseSageMemoryLine(line);
             // `parseSageMemoryLine` returns null on malformed lines; the
             // renderer falls back to a single literal line in that case.
@@ -136,13 +149,19 @@ export function estimateRenderGroupRows(
             const bodySource = parsed ? parsed.text : line;
             const bodyWidth = displayWidth(sanitizeTerminalText(bodySource));
             const bodyRows = Math.max(1, Math.ceil(bodyWidth / panelContentWidth));
-            // KV row is a flex-wrap of id/anchor/relation/tags; at
-            // comfortable widths it fits on one line, at narrow widths it
-            // wraps further. We model one row by default and add an extra
-            // row whenever the panel is narrow enough that the labels
-            // stack vertically with the body.
-            const kvRows = panelContentWidth < 48 ? 2 : 1;
-            return sum + 1 + bodyRows + kvRows;
+            const badgeCount =
+              (parsed?.id ? 1 : 0) +
+              (parsed?.anchor ? 1 : 0) +
+              (parsed?.relation ? 1 : 0) +
+              (parsed?.tags && parsed.tags.length > 0 ? 1 : 0);
+            const kvRows =
+              panelContentWidth < 50
+                ? badgeCount
+                : panelContentWidth < 70
+                  ? Math.max(1, Math.ceil(badgeCount / 2))
+                  : 1;
+            const sep = index > 0 ? 1 : 0;
+            return sum + 1 + bodyRows + kvRows + sep;
           }, 0);
     if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {

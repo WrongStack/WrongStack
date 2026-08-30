@@ -97,7 +97,15 @@ export function ToolEntry({
       // diff-less results keep the generic glyph header below.
       const mutation = (() => {
         const name = entry.name;
-        if (name !== 'edit' && name !== 'write' && name !== 'patch' && name !== 'replace') {
+        if (
+          name !== 'edit' &&
+          name !== 'replace_file_content' &&
+          name !== 'write' &&
+          name !== 'write_to_file' &&
+          name !== 'patch' &&
+          name !== 'replace' &&
+          name !== 'diff'
+        ) {
           return undefined;
         }
         if (!entry.ok || (!diff && !multiDiffs)) return undefined;
@@ -113,22 +121,38 @@ export function ToolEntry({
         // `created` lives in the JSON output shape; the serialized-text
         // shape carries it as a `created=true` field on the header line.
         const created =
-          name === 'write' &&
+          (name === 'write' || name === 'write_to_file') &&
           (outObj?.['created'] === true || /^[^\n]*\bcreated=true\b/.test(outputForFormatting));
-        const verb = created ? 'Write' : 'Update';
-        const path = stringOf(inputObj?.['path']) ?? stringOf(outObj?.['path']);
+        const verb = name === 'diff' ? 'Diff' : created ? 'Write' : 'Update';
+        const outFiles = Array.isArray(outObj?.['files'])
+          ? (outObj?.['files'] as unknown[])
+          : undefined;
+        const firstOutFile =
+          outFiles && outFiles.length > 0 ? stringOf(outFiles[0]) : undefined;
+        const path =
+          stringOf(inputObj?.['path']) ??
+          stringOf(inputObj?.['TargetFile']) ??
+          stringOf(inputObj?.['file']) ??
+          stringOf(inputObj?.['files']) ??
+          stringOf(inputObj?.['a']) ??
+          stringOf(outObj?.['path']) ??
+          firstOutFile;
         const agg = multiDiffs ? summarizeMultiFileDiffs(multiDiffs) : undefined;
         const target = multiDiffs
           ? agg?.fileCount === 1
             ? multiDiffs[0]!.path
             : `${agg?.fileCount ?? multiDiffs.length} files`
-          : (path ?? 'file');
+          : (path ?? 'changes');
         return {
           verb,
           target,
           added: agg ? agg.added : (diff?.added ?? 0),
           removed: agg ? agg.removed : (diff?.removed ?? 0),
-          lang: langFromPath(multiDiffs ? '' : (path ?? '')),
+          lang: langFromPath(
+            multiDiffs && multiDiffs.length > 1
+              ? ''
+              : (multiDiffs?.[0]?.path ?? path ?? ''),
+          ),
         };
       })();
       return {

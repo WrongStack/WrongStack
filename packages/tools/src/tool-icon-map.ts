@@ -50,18 +50,24 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   read: 'file',
   write: 'file',
   create: 'file',
+  view_file: 'file',
+  write_to_file: 'file',
 
   // File modification
   edit: 'edit',
   patch: 'edit',
   replace: 'edit',
+  replace_file_content: 'edit',
 
   // Content search
   grep: 'search',
   search: 'search',
+  grep_search: 'search',
 
   // File discovery
   glob: 'folder',
+  find_by_name: 'folder',
+  find_files: 'folder',
 
   // Shell/command execution
   bash: 'terminal',
@@ -71,12 +77,16 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   run: 'terminal',
   command: 'terminal',
   shell: 'terminal',
+  run_command: 'terminal',
 
   // Network
   fetch: 'web',
   curl: 'web',
   http: 'web',
   request: 'web',
+  read_url_content: 'web',
+  search_web: 'web',
+  web_search: 'web',
 
   // Version control
   git: 'git',
@@ -85,6 +95,8 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   tree: 'tree',
   ls: 'tree',
   list: 'tree',
+  list_dir: 'tree',
+  list_directory: 'tree',
 
   // Code quality
   lint: 'code',
@@ -185,6 +197,12 @@ export const TOOL_ICON_MAP: Record<string, ToolIconId> = {
   reason: 'brain',
   analyze: 'brain',
   reasoning: 'brain',
+  invoke_subagent: 'brain',
+  define_subagent: 'brain',
+  manage_subagents: 'brain',
+  ask_question: 'document',
+  generate_image: 'scaffold',
+  schedule: 'settings',
 
   // Language intelligence
   lsp_diagnostics: 'code',

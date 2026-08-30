@@ -60,7 +60,7 @@ export function visualLsp(toolName: string, text: string, ok: boolean): ToolVisu
       continue;
     }
 
-    const location = line.match(/^(.+):(\d+):(\d+)$/);
+    const location = line.match(/^((?:[A-Za-z]:)?[^:]+):(\d+):(\d+)$/);
     if (location?.[1]) {
       push({ kind: 'path', path: location[1], lineNo: location[2], text: `column ${location[3]}` });
       continue;

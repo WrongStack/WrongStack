@@ -96,6 +96,14 @@ describe('formatToolArgs', () => {
       'force · ts,tsx',
     );
     expect(formatToolArgs('set_working_dir', { path: 'packages/tui' })).toBe('packages/tui');
+    expect(formatToolArgs('view_file', { AbsolutePath: 'D:/src/app.ts' })).toBe('D:/src/app.ts');
+    expect(formatToolArgs('grep_search', { Query: 'function', SearchPath: 'src' })).toBe(
+      '"function" in src',
+    );
+    expect(formatToolArgs('read_url_content', { Url: 'https://google.com' })).toBe(
+      'https://google.com',
+    );
+    expect(formatToolArgs('search_web', { query: 'WrongStack' })).toBe('"WrongStack"');
   });
 
   it('unknown tool: picks the most identifying field', () => {
@@ -1690,6 +1698,46 @@ describe('formatToolVisualOutput — grep & search tools', () => {
       path: 'src/util.ts',
       lineNo: '15',
       text: 'util()',
+    });
+  });
+
+  it('renders find_by_name and list_dir path entries accurately', () => {
+    const findOut = formatToolVisualOutput(
+      'find_by_name',
+      JSON.stringify({
+        matches: [{ relativePath: 'src/components/button.tsx' }, { path: 'src/index.ts' }],
+      }),
+      true,
+    );
+    expect(findOut).toHaveLength(2);
+    expect(findOut?.[0]).toMatchObject({ kind: 'path', path: 'src/components/button.tsx' });
+    expect(findOut?.[1]).toMatchObject({ kind: 'path', path: 'src/index.ts' });
+  });
+
+  it('renders codebase-incoming-calls caller matches', () => {
+    const jsonStr = JSON.stringify({
+      symbol: 'formatBytes',
+      total: 1,
+      calls: [
+        {
+          symbol: {
+            name: 'renderReport',
+            file: 'src/report.ts',
+            line: 42,
+            signature: 'function renderReport()',
+          },
+          callType: 'call',
+        },
+      ],
+    });
+    const out = formatToolVisualOutput('codebase-incoming-calls', jsonStr, true);
+    expect(out).toHaveLength(2);
+    expect(out?.[0]).toMatchObject({ kind: 'ok', text: '1 caller for "formatBytes"' });
+    expect(out?.[1]).toMatchObject({
+      kind: 'match',
+      path: 'src/report.ts',
+      lineNo: '42',
+      text: 'renderReport · [call] · function renderReport()',
     });
   });
 });

@@ -291,6 +291,45 @@ export function visualCodebase(
     }
     return rows.slice(0, VISUAL_MAX_LINES);
   }
+  if (toolName === 'codebase-incoming-calls' || toolName === 'codebase-outgoing-calls') {
+    const total = numOf(obj['total']) ?? (Array.isArray(obj['calls']) ? obj['calls'].length : 0);
+    const targetSymbol = stringOf(obj['symbol']) ?? '';
+    const label =
+      toolName === 'codebase-incoming-calls'
+        ? `${total} caller${total === 1 ? '' : 's'} for "${targetSymbol}"`
+        : `${total} outgoing call${total === 1 ? '' : 's'} from "${targetSymbol}"`;
+    const rows: ToolVisualLine[] = [
+      {
+        kind: 'ok',
+        marker: 'ok ',
+        text: label,
+      },
+    ];
+    const calls = Array.isArray(obj['calls']) ? obj['calls'] : [];
+    for (const call of calls.slice(0, 5)) {
+      if (call && typeof call === 'object') {
+        const c = call as Record<string, unknown>;
+        const sym =
+          c['symbol'] && typeof c['symbol'] === 'object'
+            ? (c['symbol'] as Record<string, unknown>)
+            : undefined;
+        const file = stringOf(sym?.['file']) ?? stringOf(c['file']);
+        const line = numOf(sym?.['line']) ?? numOf(c['line']);
+        const name = stringOf(sym?.['name']) ?? stringOf(c['name']);
+        const sig = stringOf(sym?.['signature']) ?? stringOf(c['signature']);
+        const callType = stringOf(c['callType']);
+        rows.push({
+          kind: 'match',
+          path: file,
+          lineNo: line?.toString(),
+          text: [name, callType ? `[${callType}]` : undefined, sig]
+            .filter(Boolean)
+            .join(' · '),
+        });
+      }
+    }
+    return rows.slice(0, VISUAL_MAX_LINES);
+  }
   if (toolName === 'codebase-index') {
     const errors = Array.isArray(obj['errors']) ? obj['errors'] : [];
     return [
