@@ -10,7 +10,9 @@ export function normalizeMCPTools(value: unknown): MCPTool[] {
       description?: unknown | undefined;
       inputSchema?: unknown | undefined;
     };
-    if (typeof t.name !== 'string' || t.name.trim().length === 0) continue;
+    if (typeof t.name !== 'string') continue;
+    const name = t.name.trim();
+    if (name.length === 0) continue;
     const inputSchema =
       t.inputSchema && typeof t.inputSchema === 'object' && !Array.isArray(t.inputSchema)
         ? (t.inputSchema as Record<string, unknown>)
@@ -23,14 +25,14 @@ export function normalizeMCPTools(value: unknown): MCPTool[] {
         JSON.stringify({
           level: 'warn',
           event: 'mcp.tool_schema_invalid',
-          tool: t.name,
+          tool: name,
           message: 'no/invalid inputSchema — defaulting to empty object',
           timestamp: new Date().toISOString(),
         }),
       );
     }
     tools.push({
-      name: t.name,
+      name,
       ...(typeof t.description === 'string' ? { description: t.description } : {}),
       inputSchema,
     });

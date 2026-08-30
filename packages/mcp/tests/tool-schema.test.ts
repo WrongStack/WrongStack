@@ -32,8 +32,8 @@ describe('normalizeMCPTools', () => {
     expect(result).toEqual([]);
   });
 
-  it('uses empty object schema when inputSchema is missing', () => {
-    const result = normalizeMCPTools([{ name: 'test-tool' }]);
+  it('uses empty object schema when inputSchema is missing and trims name', () => {
+    const result = normalizeMCPTools([{ name: '  test-tool  ' }]);
     expect(result).toHaveLength(1);
     expect(result[0]!.name).toBe('test-tool');
     expect(result[0]!.inputSchema).toEqual({ type: 'object', properties: {} });
