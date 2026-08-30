@@ -51,7 +51,7 @@ describe('skills.export', () => {
       projectRoot: '.',
     });
     const payload = (sent[0] as { payload: { zipBase64: string; skillCount: number } }).payload;
-    expect(payload.skillCount).toBe(2);
+    expect(payload.skillCount).toBe(1);
     const entries = readZipEntries(Buffer.from(payload.zipBase64, 'base64'));
     expect(entries.get('api_design/SKILL.md')?.toString()).toBe('# API Design');
     expect(entries.has('broken/SKILL.md')).toBe(false);

@@ -3,7 +3,11 @@ import * as path from 'node:path';
 import { ToolValidationError } from '@wrongstack/core/types';
 
 export function isPathInside(root: string, target: string): boolean {
-  const relative = path.relative(root, target);
+  const normRoot =
+    process.platform === 'win32' ? path.resolve(root).toLowerCase() : path.resolve(root);
+  const normTarget =
+    process.platform === 'win32' ? path.resolve(target).toLowerCase() : path.resolve(target);
+  const relative = path.relative(normRoot, normTarget);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 

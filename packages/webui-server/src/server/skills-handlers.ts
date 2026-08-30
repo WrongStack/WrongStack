@@ -429,7 +429,7 @@ export async function handleSkillsExport(ws: WebSocket, ctx: SkillsContext): Pro
     for (const entry of entries) {
       try {
         const body = await ctx.skillLoader!.readBody(entry.name);
-        const safeName = entry.name.replace(/\//g, '_');
+        const safeName = entry.name.replace(/[\\/]/g, '_');
         zipEntries.push({ name: `${safeName}/SKILL.md`, data: body });
       } catch {
         // Skip skills we can't read
@@ -437,7 +437,7 @@ export async function handleSkillsExport(ws: WebSocket, ctx: SkillsContext): Pro
     }
     const zipBuffer = createZipBuffer(zipEntries);
     const zipBase64 = zipBuffer.toString('base64');
-    send(ws, { type: 'skills.exported', payload: { zipBase64, skillCount: entries.length, error: undefined } });
+    send(ws, { type: 'skills.exported', payload: { zipBase64, skillCount: zipEntries.length, error: undefined } });
   } catch (err) {
     send(ws, { type: 'skills.exported', payload: { zipBase64: '', skillCount: 0, error: errMessage(err) } });
   }
