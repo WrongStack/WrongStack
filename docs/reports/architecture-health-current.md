@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-30T18:35:41.794Z
+**Generated:** 2026-08-30T18:56:30.649Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3431 |
-| Production source lines | 835904 |
+| Production source lines | 835955 |
 | Test files | 3065 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10665 |
@@ -21,8 +21,7 @@
 
 ## Verification result
 
-- packages/tui/src/components/history/code-block.tsx: hotspot grew from 846 to 852 lines; review and update the ratchet in the same change
-- packages/tui/src/components/history/utils.tsx: hotspot grew from 953 to 994 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 
@@ -118,6 +117,7 @@ None.
 | 1024 | `packages/tui/src/components/context-panel.tsx` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
+| 1015 | `packages/tui/src/components/history/utils.tsx` |
 | 1014 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1013 | `packages/simpleui/src/simple-ui-session.tsx` |
 | 1013 | `packages/tools/src/codebase-index/project-server.ts` |
@@ -128,7 +128,6 @@ None.
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
-| 994 | `packages/tui/src/components/history/utils.tsx` |
 | 993 | `packages/sage/src/types.ts` |
 | 992 | `packages/kanban/src/types.ts` |
 | 992 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
