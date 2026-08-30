@@ -345,4 +345,14 @@ describe('parseSpawnFlags', () => {
     expect(r.opts.tools).toEqual(['a', 'b']);
     expect(r.description).toBe('do it');
   });
+
+  it('handles space-separated long flags and equal-separated short flags', () => {
+    const r = parseSpawnFlags(
+      '--provider openai --model gpt-4 -n="custom agent" -p=anthropic fix issue',
+    );
+    expect(r.opts.provider).toBe('anthropic');
+    expect(r.opts.model).toBe('gpt-4');
+    expect(r.opts.name).toBe('custom agent');
+    expect(r.description).toBe('fix issue');
+  });
 });

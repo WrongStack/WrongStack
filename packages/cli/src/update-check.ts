@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { FetchError } from '@wrongstack/core/types';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { atomicWrite, ensureDir, resolveWstackPaths } from '@wrongstack/core/utils';
 
 export interface UpdateInfo {
   current: string;
@@ -145,9 +145,9 @@ async function readCache(
 /** Write cache */
 async function writeCache(entry: CacheEntry, homeFn: HomeDirFn = defaultHomeDir): Promise<void> {
   try {
-    const dir = path.dirname(cachePath(homeFn));
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(cachePath(homeFn), JSON.stringify(entry, null, 2), 'utf8');
+    const file = cachePath(homeFn);
+    await ensureDir(path.dirname(file));
+    await atomicWrite(file, JSON.stringify(entry, null, 2));
   } catch {
     // best-effort
   }

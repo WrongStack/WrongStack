@@ -284,34 +284,23 @@ export function parseSpawnFlags(input: string): SpawnFlags {
   };
   while (rest.length > 0) {
     let m: RegExpMatchArray | null;
-    m = consume(/^--provider=(\S+)\s*/);
+    m = consume(/^(?:--provider|-p)[=\s]+(\S+)\s*/);
     if (m) opts.provider = m[1];
     else {
-      m = consume(/^--model=(\S+)\s*/);
+      m = consume(/^(?:--model|-m)[=\s]+(\S+)\s*/);
       if (m) opts.model = m[1];
       else {
-        m = consume(/^--name=("([^"]+)"|(\S+))\s*/);
-        if (m) opts.name = m[2] ?? m[3];
+        m = consume(/^(?:--name|-n)[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+        if (m) opts.name = m[1] ?? m[2] ?? m[3];
         else {
-          m = consume(/^--tools=(\S+)\s*/);
-          if (m)
-            opts.tools = m[1]
-              ?.split(',')
+          m = consume(/^(?:--tools|-t)[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+          if (m) {
+            const rawTools = m[1] ?? m[2] ?? m[3] ?? '';
+            opts.tools = rawTools
+              .split(',')
               .map((t) => t.trim())
               .filter(Boolean);
-          else {
-            m = consume(/^-p\s+(\S+)\s*/);
-            if (m) opts.provider = m[1];
-            else {
-              m = consume(/^-m\s+(\S+)\s*/);
-              if (m) opts.model = m[1];
-              else {
-                m = consume(/^-n\s+("([^"]+)"|(\S+))\s*/);
-                if (m) opts.name = m[2] ?? m[3];
-                else break;
-              }
-            }
-          }
+          } else break;
         }
       }
     }
