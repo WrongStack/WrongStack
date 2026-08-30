@@ -251,7 +251,7 @@ describe('SddBoardProjector', () => {
 
     proj.dispose();
     await import('node:fs/promises').then((fs) =>
-      fs.rm(isolatedDir, { recursive: true, force: true }),
+      fs.rm(isolatedDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }),
     );
   });
 
@@ -378,7 +378,9 @@ describe('SddBoardProjector', () => {
     expect(saved).toHaveLength(2);
     expect(saved.at(-1)?.wave).toBe(5);
     proj.dispose();
-    await import('node:fs/promises').then((fs) => fs.rm(slowDir, { recursive: true, force: true }));
+    await import('node:fs/promises').then((fs) =>
+      fs.rm(slowDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }),
+    );
   });
 
   it('marks a user-stopped run as "stopped" (terminal, not the resumable "paused")', async () => {

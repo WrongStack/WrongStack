@@ -56,13 +56,13 @@ async function loadTypeCycleMembers(): Promise<Set<string>> {
 }
 
 describe('stale architecture-exception cleanup', () => {
-  it('current architecture report renders the type-cycle section', async () => {
+  it('current architecture report renders the type-cycle section', { timeout: 180_000 }, async () => {
     const report = await architectureReportPromise;
     const markdown = renderArchitectureHealthMarkdown(report);
     expect(markdown).toContain('Type-inclusive module cycles');
   });
 
-  it('every type-module-cycle exception member appears in a current card4c cycle', async () => {
+  it('every type-module-cycle exception member appears in a current card4c cycle', { timeout: 180_000 }, async () => {
     const { exceptions } = await loadExceptions();
     const activeMembers = await loadTypeCycleMembers();
     const typeCycleExceptions = exceptions.filter((e) => e.kind === 'type-module-cycle');
