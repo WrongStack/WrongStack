@@ -60,6 +60,46 @@ describe('<Entry /> tool rendering', () => {
     expect(frame).toContain('beta');
   });
 
+  it('renders write_to_file alias diffs with the Write(path) header', () => {
+    const frame = renderEntry({
+      id: 20,
+      kind: 'tool',
+      name: 'write_to_file',
+      durationMs: 31,
+      ok: true,
+      input: { path: 'src/new.ts', content: 'alpha\nbeta' },
+      output: JSON.stringify({
+        path: 'src/new.ts',
+        created: true,
+        diff: '+++ src/new.ts\n+ (new file, 2 lines)',
+      }),
+    });
+
+    // Alias of `write`: canonicalized for extraction, header still Write(path).
+    expect(frame).toContain('Write(src/new.ts)');
+    expect(frame).toContain('⎿');
+    expect(frame).toContain('Added 2 lines');
+  });
+
+  it('renders replace_file_content alias diffs with the Update(path) header', () => {
+    const frame = renderEntry({
+      id: 21,
+      kind: 'tool',
+      name: 'replace_file_content',
+      durationMs: 22,
+      ok: true,
+      input: { path: 'src/a.ts', old_string: 'old line', new_string: 'new line' },
+      output: JSON.stringify({
+        path: 'src/a.ts',
+        diff: '--- src/a.ts\n+++ src/a.ts\n@@ -1,1 +1,1 @@\n-old line\n+new line',
+      }),
+    });
+
+    // Alias of `edit`: canonicalized for extraction, header stays Update(path).
+    expect(frame).toContain('Update(src/a.ts)');
+    expect(frame).toContain('⎿');
+  });
+
   it('renders batch tool execution rows with failed child details', () => {
     const frame = renderEntry({
       id: 3,

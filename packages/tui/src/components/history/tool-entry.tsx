@@ -67,8 +67,17 @@ export function ToolEntry({
         entry.ok,
         entry.input,
       );
+      // MCP-style aliases share the edit/write result shapes; canonicalize
+      // before extraction so they get diff previews (the mutation guard
+      // below already recognizes the alias names).
+      const diffSource =
+        entry.name === 'replace_file_content'
+          ? 'edit'
+          : entry.name === 'write_to_file'
+            ? 'write'
+            : entry.name;
       const diff = entry.ok
-        ? extractDiffPreview(entry.name, outputForFormatting, entry.input)
+        ? extractDiffPreview(diffSource, outputForFormatting, entry.input)
         : undefined;
       const multiDiffs =
         entry.ok &&
