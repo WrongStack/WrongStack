@@ -17,7 +17,7 @@
   - *How:* `glob packages/<pkg>/src/**/*.ts*`
   - *How:* `ts*`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1706; wins=1694 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T11:25:46.876Z; applied=1728; wins=1716 -->
 - **Always grep the full `CallType` union in `packages/tools/src/codebase-index/schema.ts` before treating a todo's "type" clause as a gap — `type_ref` is emitted only by `ts-parser.ts`, never by tree-sitter `refRules` tables in `packages/tools/src/codebase-index/tree-sitter/queries.ts`, so WASM-language test todos need only `call`/`import`/`inherit`/`implement` assertions.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `CallType`
@@ -74,7 +74,7 @@
   - *How:* `tr/activity.json`
   - *How:* `packages/webui/src/i18n/locales/*/activity.json`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:25:21.130Z; applied=195; wins=195 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:25:21.130Z; applied=198; wins=198 -->
 - **Never report "no callers" from a zero-hit `codebase-incoming-calls` result alone — the ref graph misses symbols even in ordinary CLI source (e.g. `runAsMain` in `packages/cli/src/cli-entry-point.ts` had 0 indexed hits while `packages/cli/src/index.ts:6,8` imports and calls it). Confirm with rg exact-text search over `packages/**/*.ts` before stating caller counts.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
@@ -84,7 +84,7 @@
   - *How:* `packages/**/*.ts`
   - *How:* `packages/cli/src/index.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=582; wins=579 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=590; wins=587 -->
 - **Never use `codebase-incoming-calls` on generic overloaded symbol names like `create` in WrongStack - the ref graph returns cross-file noise (91 same-named symbols) and its `file` filter cannot disambiguate methods of one class. Fall back to a targeted grep such as `(sessionStore|store)\.create\(` over `packages/**/src` and filter test files by name instead.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
