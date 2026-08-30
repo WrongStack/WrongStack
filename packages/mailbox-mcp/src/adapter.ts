@@ -378,10 +378,12 @@ async function watchForMailboxEvent(
       unsubscribe();
       resolve(value);
     };
-    unsubscribe = emitter.subscribe((event) => {
+    const sub = emitter.subscribe((event) => {
       if (eventType && event.type !== eventType) return;
       finish({ changed: true, event });
     });
+    unsubscribe = typeof sub === 'function' ? sub : () => {};
+    if (settled) unsubscribe();
     timer = setTimeout(() => finish({ changed: false, timedOut: true, timeoutMs }), timeoutMs);
   });
 }
