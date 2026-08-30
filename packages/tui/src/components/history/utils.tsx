@@ -1,5 +1,7 @@
 export { countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, numOf, scanNumberedRange, shortenPath, stringOf, truncMid, tryParseJson } from './basic-format.js';
 export {
+  AssistantStreamBox,
+  assistantStreamBoxHeight,
   MAX_STREAM_DISPLAY_CHARS,
   streamBoxRows,
   ToolStreamBox,
@@ -779,8 +781,8 @@ function visualSearch(toolName: string, text: string): ToolVisualLine[] | undefi
       consumed++;
       continue;
     }
-    const direct = line.match(/^(.+?):(\d+):(.*)$/);
-    const grouped = line.match(/^(\d+):(.*)$/);
+    const direct = line.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:\-](.*)$/);
+    const grouped = line.match(/^(\d+)[:\-](.*)$/);
     if (direct?.[1] && direct[2]) {
       rows.push({ kind: 'match', path: direct[1], lineNo: direct[2], text: direct[3] ?? '' });
       consumed++;
@@ -817,21 +819,37 @@ function parseMatchHit(
   hit: unknown,
 ): { path?: string | undefined; line?: string | undefined; text: string } | undefined {
   if (typeof hit === 'string') {
-    const m = hit.match(/^(.+?):(\d+):(.*)$/);
+    const m = hit.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:\-](.*)$/);
     return m?.[1] && m[2] ? { path: m[1], line: m[2], text: m[3] ?? '' } : { text: hit };
   }
   if (hit && typeof hit === 'object') {
     const o = hit as Record<string, unknown>;
-    const path = stringOf(o['file']) ?? stringOf(o['path']) ?? stringOf(o['url']);
-    const line = numOf(o['line']) ?? numOf(o['lineNumber']);
+    const path =
+      stringOf(o['file']) ??
+      stringOf(o['path']) ??
+      stringOf(o['url']) ??
+      stringOf(o['filename']) ??
+      stringOf(o['Filename']);
+    const lineNum =
+      numOf(o['line']) ??
+      numOf(o['lineNumber']) ??
+      numOf(o['line_number']) ??
+      numOf(o['LineNumber']);
+    const line = lineNum === undefined ? undefined : String(lineNum);
     const title = stringOf(o['title']);
-    const snippet = stringOf(o['snippet']);
+    const snippet =
+      stringOf(o['snippet']) ??
+      stringOf(o['lineContent']) ??
+      stringOf(o['LineContent']) ??
+      stringOf(o['line_content']);
     const text =
       stringOf(o['text']) ??
       stringOf(o['match']) ??
       stringOf(o['preview']) ??
+      snippet ??
+      title ??
       [title, snippet].filter(Boolean).join(' — ');
-    return { path, line: line === undefined ? undefined : String(line), text };
+    return { path, line, text };
   }
   return undefined;
 }

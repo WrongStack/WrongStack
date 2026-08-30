@@ -31,7 +31,7 @@ export {
 } from './code-block.js';
 export { Entry } from './entry.js';
 export type { AutonomyAgentStatus, BodySegment, HistoryEntry, HistoryProps } from './types.js';
-export { countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, formatToolArgs, formatToolOutput, formatToolVisualOutput, MAX_STREAM_DISPLAY_CHARS, numOf, scanNumberedRange, shortenPath, streamBoxRows, stringOf, ToolOutputLines, ToolStreamBox, type ToolVisualLine, type ToolVisualLineKind, tailForDisplay, toolStreamBoxHeight, truncMid, tryParseJson } from './utils.js';;
+export { AssistantStreamBox, assistantStreamBoxHeight, countLines, firstNonEmpty, fmtBytes, fmtDuration, fmtTok, formatMatchHit, formatToolArgs, formatToolOutput, formatToolVisualOutput, MAX_STREAM_DISPLAY_CHARS, numOf, scanNumberedRange, shortenPath, streamBoxRows, stringOf, ToolOutputLines, ToolStreamBox, type ToolVisualLine, type ToolVisualLineKind, tailForDisplay, toolStreamBoxHeight, truncMid, tryParseJson } from './utils.js';
 
 // ── History Component ──
 

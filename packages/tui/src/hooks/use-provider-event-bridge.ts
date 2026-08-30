@@ -124,9 +124,19 @@ export function useProviderEventBridge({
       }
     };
     const flush = () => {
+      if (activeRunGenerationRef.current !== sessionGenerationRef.current) {
+        pendingToolStream = null;
+        pendingDeltaRef.current = '';
+        flushTimerRef.current = null;
+        return;
+      }
       if (pendingToolStream) {
         dispatch({ type: 'toolStreamAppend', ...pendingToolStream });
         pendingToolStream = null;
+      }
+      if (pendingDeltaRef.current) {
+        dispatch({ type: 'streamDelta', delta: pendingDeltaRef.current });
+        pendingDeltaRef.current = '';
       }
       recordStreamFlush();
       flushTimerRef.current = null;
@@ -149,6 +159,8 @@ export function useProviderEventBridge({
         MAX_ASSISTANT_STREAM_RETAINED_CHARS,
       );
       appendStreamSegment('assistant', text);
+      pendingDeltaRef.current += text;
+      scheduleFlush();
     });
     const offThinking = events.on('provider.thinking_delta', (e) => {
       if (activeRunGenerationRef.current !== sessionGenerationRef.current) return;
@@ -160,6 +172,8 @@ export function useProviderEventBridge({
       const text = e.text.replace(/\x1b?\[200~|\x1b?\[201~/g, '');
       recordProviderThinkingDelta(text.length);
       appendStreamSegment('thinking', text);
+      pendingDeltaRef.current += text;
+      scheduleFlush();
     });
     const offToolStart = events.on('tool.started', (e) => {
       dispatch({ type: 'toolStarted', id: e.id, name: e.name });

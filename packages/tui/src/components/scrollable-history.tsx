@@ -31,6 +31,8 @@ import {
   ToolGroup,
 } from './history/tool-group.js';
 import {
+  AssistantStreamBox,
+  assistantStreamBoxHeight,
   Entry,
   type HistoryEntry,
   MAX_STREAM_DISPLAY_CHARS,
@@ -91,6 +93,7 @@ const MAX_UNDERFILL_BUMPS = 8;
 export const ScrollableHistory = memo(function ScrollableHistory({
   entries,
   toolStream,
+  streamingText,
   viewportRows,
   controllerRef,
   onScrollInfo,
@@ -130,6 +133,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     ? tailForDisplay(toolStream.text, MAX_STREAM_DISPLAY_CHARS)
     : '';
   const toolTailHeight = toolTail && toolStream ? toolStreamBoxHeight(toolStream.name) : 0;
+  const assistantTail = streamingText
+    ? tailForDisplay(streamingText, MAX_STREAM_DISPLAY_CHARS)
+    : '';
+  const assistantTailHeight = assistantTail ? assistantStreamBoxHeight() : 0;
   const groupedEntries = useMemo(() => groupEntries(entries), [entries]);
   const groupIds = useMemo(() => groupedEntries.map(renderGroupId), [groupedEntries]);
   const groupIdsKey = groupIds.join(',');
@@ -263,7 +270,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     cache: heightCache,
     groupCount: groupedEntries.length,
     viewportRows: vp,
-    tailRows: toolTailHeight,
+    tailRows: toolTailHeight + assistantTailHeight,
   };
 
   const groupIndexById = useMemo(() => {
@@ -343,12 +350,13 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     ? Math.max(0, maxTopRow(geometry) - anchorTopRow(geometry, effectiveAnchor))
     : 0;
 
+  const mountedTailRows = plan.mountTail ? toolTailHeight + assistantTailHeight : 0;
   const copyRegistry = buildCopyRegistry({
     renderGroups,
     heightCache,
     scrolled,
     clip,
-    tailRows: plan.mountTail ? toolTailHeight : 0,
+    tailRows: mountedTailRows,
     viewportRows: vp,
     iconCol: termWidth,
     showModelReasoning,
@@ -365,7 +373,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     heightCache,
     scrolled,
     clip,
-    tailRows: plan.mountTail ? toolTailHeight : 0,
+    tailRows: mountedTailRows,
     viewportRows: vp,
     showModelReasoning,
   });
@@ -540,6 +548,13 @@ export const ScrollableHistory = memo(function ScrollableHistory({
               name={toolStream.name}
               text={toolTail}
               startedAt={toolStream.startedAt}
+              termWidth={termWidth}
+            />
+          ) : null}
+
+          {plan.mountTail && assistantTail ? (
+            <AssistantStreamBox
+              text={assistantTail}
               termWidth={termWidth}
             />
           ) : null}

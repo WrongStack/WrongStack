@@ -101,12 +101,34 @@ export function firstNonEmpty(text: string): string | undefined {
 }
 
 export function formatMatchHit(hit: unknown): string | undefined {
-  if (typeof hit === 'string') return truncMid(hit, 70);
+  if (typeof hit === 'string') {
+    const m = hit.match(/^((?:[A-Za-z]:)?[^:]+):(\d+)[:\-](.*)$/);
+    if (m?.[1] && m[2]) {
+      const head = `${shortenPath(m[1], 40)}:${m[2]}`;
+      const snippet = m[3]?.trim();
+      return snippet ? `${head}  ${truncMid(snippet.replace(/\s+/g, ' '), 40)}` : head;
+    }
+    return truncMid(hit, 70);
+  }
   if (hit && typeof hit === 'object') {
     const o = hit as Record<string, unknown>;
-    const file = stringOf(o['file']) ?? stringOf(o['path']);
-    const line = numOf(o['line']) ?? numOf(o['lineNumber']);
-    const snippet = stringOf(o['text']) ?? stringOf(o['match']) ?? stringOf(o['preview']);
+    const file =
+      stringOf(o['file']) ??
+      stringOf(o['path']) ??
+      stringOf(o['filename']) ??
+      stringOf(o['Filename']);
+    const line =
+      numOf(o['line']) ??
+      numOf(o['lineNumber']) ??
+      numOf(o['line_number']) ??
+      numOf(o['LineNumber']);
+    const snippet =
+      stringOf(o['text']) ??
+      stringOf(o['match']) ??
+      stringOf(o['preview']) ??
+      stringOf(o['lineContent']) ??
+      stringOf(o['LineContent']) ??
+      stringOf(o['line_content']);
     if (file) {
       const head = line !== undefined ? `${shortenPath(file, 40)}:${line}` : shortenPath(file, 50);
       return snippet ? `${head}  ${truncMid(snippet.replace(/\s+/g, ' '), 40)}` : head;

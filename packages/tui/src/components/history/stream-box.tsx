@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Text, useAnimation } from '../../ink.js';
+import { theme } from '../../theme.js';
 import { sanitizeTerminalText, truncateDisplay } from '../../terminal-width.js';
 import { getToolVisual } from '../../tool-glyph.js';
 import { fmtDuration } from './basic-format.js';
@@ -9,6 +10,15 @@ const MAX_STREAM_LINES = 8;
 const WRITE_CREATE_STREAM_LINES = 3;
 const TOOL_STREAM_MARGIN_ROWS = 2;
 const TOOL_STREAM_HEADER_ROWS = 1;
+
+const ASSISTANT_STREAM_LINES = 6;
+const ASSISTANT_STREAM_MARGIN_ROWS = 2;
+const ASSISTANT_STREAM_HEADER_ROWS = 1;
+
+/** Fixed layout height of the live assistant-stream tail for scroll-range math. */
+export function assistantStreamBoxHeight(): number {
+  return ASSISTANT_STREAM_MARGIN_ROWS + ASSISTANT_STREAM_HEADER_ROWS + ASSISTANT_STREAM_LINES;
+}
 
 /** Fixed layout height of the live tool-stream tail for scroll-range math. */
 export function toolStreamBoxHeight(name: string): number {
@@ -100,6 +110,50 @@ export const ToolStreamBox = React.memo(function ToolStreamBox({
             dimColor={!isWritePreview}
             italic={Boolean(r.italic)}
           >
+            {r.text || ' '}
+          </Text>
+        ))}
+      </Box>
+    </Box>
+  );
+});
+
+export const AssistantStreamBox = React.memo(function AssistantStreamBox({
+  text,
+  termWidth,
+}: {
+  text: string;
+  termWidth: number;
+}): React.ReactElement {
+  const contentWidth = Math.max(1, Math.min(termWidth - 4, 100));
+  const totalLines = text.split('\n').length;
+  const hidden = Math.max(0, totalLines - ASSISTANT_STREAM_LINES);
+  const rows = streamBoxRows(text, ASSISTANT_STREAM_LINES, contentWidth);
+  const color = theme.assistant ?? 'cyan';
+
+  return (
+    <Box
+      flexDirection="column"
+      marginY={1}
+      borderStyle="single"
+      borderTop={false}
+      borderRight={false}
+      borderBottom={false}
+      borderColor={color}
+      paddingLeft={1}
+    >
+      <Box flexDirection="row">
+        <Text color={color}>✦ </Text>
+        <Text bold color={color}>
+          assistant · streaming
+        </Text>
+        {hidden > 0 ? (
+          <Text dimColor>{`  (${totalLines} lines, showing last ${ASSISTANT_STREAM_LINES})`}</Text>
+        ) : null}
+      </Box>
+      <Box flexDirection="column" marginLeft={1}>
+        {rows.map((r, i) => (
+          <Text key={i} color="white" italic={Boolean(r.italic)}>
             {r.text || ' '}
           </Text>
         ))}

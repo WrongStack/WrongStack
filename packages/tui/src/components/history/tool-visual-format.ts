@@ -28,7 +28,7 @@ export function appendOutputPreview(
 
 export function bodyLines(text: string): string[] {
   const lines = text.replace(/\r/g, '').split('\n');
-  if (lines.length > 0 && /^[^\n]+(?:\s+\([^)]*\))?$/.test(lines[0] ?? '')) {
+  if (lines.length > 1 && /^[^\s()]+\s+\([^)]*=[^)]*\)$/.test(lines[0] ?? '')) {
     return lines.slice(1);
   }
   return lines;

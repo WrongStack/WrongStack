@@ -102,6 +102,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               key={`history-gen-${state.historyGen}`}
               entries={state.entries}
               toolStream={state.toolStream}
+              streamingText={state.streamingText}
               viewportRows={state.viewportRows}
               maxWidth={mainColumnWidth}
               controllerRef={historyScrollRef}

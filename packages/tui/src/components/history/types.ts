@@ -34,6 +34,11 @@ export interface HistoryProps {
    */
   toolStream?: { toolUseId: string; name: string; text: string; startedAt: number } | null;
   /**
+   * Optional live assistant streaming text. Rendered at the bottom of
+   * history during LLM generation and cleared on response completion.
+   */
+  streamingText?: string | undefined;
+  /**
    * Minimum number of files before the per-tool multi-file diff summary
    * footer is rendered. `0` suppresses the footer entirely; any positive
    * number sets the cutoff. When `undefined`, the code-block module's

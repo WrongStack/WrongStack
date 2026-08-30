@@ -106,7 +106,8 @@ describe('useSessionInterruptController', () => {
       // AbortController must have been aborted.
       expect(refs.activeCtrlRef.current?.signal.aborted).toBe(true);
 
-      // Must dispatch 'aborting' status.
+      // Must dispatch streamReset and 'aborting' status.
+      expect(refs.dispatch).toHaveBeenCalledWith({ type: 'streamReset' });
       expect(refs.dispatch).toHaveBeenCalledWith({ type: 'status', status: 'aborting' });
 
       view.unmount();

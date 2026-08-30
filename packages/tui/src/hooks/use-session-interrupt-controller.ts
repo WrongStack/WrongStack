@@ -181,6 +181,7 @@ export function useSessionInterruptController({
           clearTimeout(flushTimerRef.current);
           flushTimerRef.current = null;
         }
+        dispatch({ type: 'streamReset' });
         dispatch({ type: 'status', status: 'aborting' });
         interrupted = true;
       }
