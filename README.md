@@ -52,19 +52,20 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.316.2
+### What's new in 0.317.0
 
-- **Patch release metadata is aligned for a clean npm publish.** The root
-  manifest, 34 package manifests, both apps, website package files, README,
-  `META.version`, JSON-LD metadata, and release changelog now target `0.316.2`.
-- **The update path gets a fresh package graph.** This patch is prepared after
-  `wrongstack update` exposed registry/cache resolution failures while installing
-  the `0.316.1` CLI dependency set.
-- **0.316.1 remains the feature baseline.** Model tiers, guarded leader
-  self-switching, session recovery diagnostics, TUI drag-select copy, config
-  drift checks, and Windows CI hardening are carried forward unchanged.
+- **Mailbox SSE streams are hardened against stalls and leaks.** A wedged
+  credential revalidation now times out after 10 seconds and the serialized
+  delivery queue is capped at 256 pending operations — either limit closes the
+  stream cleanly instead of accumulating queued events forever.
+- **The session-note hub releases torn-down agents' event buses.** Per-session
+  reference counting keeps the process-wide hub from pinning a dead agent's
+  listeners.
+- **MCP-alias tool calls render diffs through the canonical edit/write
+  pipeline,** with expanded tool-output rendering coverage including Windows
+  paths.
 
-See the complete [0.316.2 release notes](CHANGELOG.md).
+See the complete [0.317.0 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -73,7 +74,7 @@ See the complete [0.316.2 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.316.2](#whats-new-in-03162)
+- [What's new in 0.317.0](#whats-new-in-03170)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

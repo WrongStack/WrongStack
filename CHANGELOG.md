@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.317.0] — 2026-08-30
+
+### Added
+
+- **MCP-alias tool calls now render diffs through the canonical edit/write pipeline.** Aliased MCP tool entries reuse the standard edit/write canonicalization so patch previews stay consistent with first-class tools, and pathless patch entries fall back to a generic `Update(changes)` label. (`44c3750f8`, `b316c2140`)
+- **TUI tool output rendering was expanded and pinned by tests.** The tool-output surface covers more tool families, including Windows-path handling for grep output. (`7d621afbf`, `dca97cac2`)
+
+### Fixed
+
+- **The mailbox SSE stream can no longer stall or leak on a wedged credential check.** Mid-stream credential revalidation is raced against a 10-second timeout and the serialized delivery queue is capped at 256 pending operations; either limit closes the stream instead of letting queued event payloads accumulate while keepalives go silent forever. (`f7e306a73`)
+- **The session-note hub no longer retains torn-down agents' event buses.** Contributing inboxes are reference-counted per session and the cached first-wins bus is released when the last inbox unregisters, so the process-wide singleton cannot pin a dead agent's listeners. (`f7e306a73`)
+- **Release scripts split extract targets on the first colon.** (`54a969b76`)
+
+### Changed
+
+- **Release evidence was refreshed for 0.317.0.** Architecture report pairs, hotspot ratchets, and core-API snapshots now match the committed workspace shape. (`8ccd26450`, `a92f76477`, `f9ee6d393`, `7d8303826`)
+
+## [0.316.3] — 2026-08-30
+
+### Fixed
+
+- **Patch release metadata now targets a fresh npm package graph.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD metadata, and both changelog surfaces now describe `0.316.3`.
+
 ## [0.316.2] — 2026-08-30
 
 ### Fixed

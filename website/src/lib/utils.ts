@@ -344,9 +344,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: '0.316.2',
+    version: '0.317.0',
     date: '2026-08-30',
     latest: true,
+    tagline: 'Mailbox SSE hardening, MCP-alias diff rendering & session-note hygiene',
+    highlights: [
+      'Mailbox SSE revalidation races a 10-second timeout and the delivery queue caps at 256 pending operations — wedged streams close cleanly instead of leaking',
+      'The session-note hub releases the event buses of torn-down agents via per-session reference counting',
+      'MCP-alias tool calls render diffs through the canonical edit/write pipeline with expanded tool-output test coverage',
+    ],
+  },
+  {
+    version: '0.316.3',
+    date: '2026-08-30',
+    tagline: 'Patch release metadata for a clean npm update path',
+    highlights: [
+      'Root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces now align to 0.316.3',
+      'Carries forward the 0.316.2 publish-graph refresh, 0.316.1 model tiers, guarded leader self-switching, session recovery diagnostics, TUI drag-select copy, config drift checks, and Windows CI hardening',
+    ],
+  },
+  {
+    version: '0.316.2',
+    date: '2026-08-30',
     tagline: 'Patch release metadata for a clean npm update path',
     highlights: [
       'Root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces now align to 0.316.2',
