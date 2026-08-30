@@ -21,6 +21,8 @@ const EDIT_TOOLS = new Set([
   'multi_edit',
   'str_replace',
   'apply_patch',
+  'replace_file_content',
+  'write_to_file',
 ]);
 
 /**

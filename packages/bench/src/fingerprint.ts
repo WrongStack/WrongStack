@@ -33,7 +33,7 @@ export function computeHarnessFingerprint(input: {
   systemPromptHash?: string | undefined;
   configHash?: string | undefined;
 }): HarnessFingerprint {
-  const toolNames = [...input.toolNames].sort((a, b) => a.localeCompare(b));
+  const toolNames = [...input.toolNames].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   // Canonical, order-stable serialization of every field that affects results.
   const canonical = JSON.stringify({
     cliVersion: input.cliVersion,
@@ -79,7 +79,7 @@ export function computeToolManifestHash(tools: ToolManifestFingerprintInput[]): 
       category: tool.category ?? '',
       riskTier: tool.riskTier ?? '',
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
   return shortHash(stableStringify(manifest));
 }
 
