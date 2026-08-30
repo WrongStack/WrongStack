@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.316.2",
+  "packageVersion": "0.316.3",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1316,7 +1316,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 173,
-      "sourceLines": 50678
+      "sourceLines": 50704
     },
     {
       "directory": "core",
@@ -1442,7 +1442,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6551
+      "sourceLines": 6552
     },
     {
       "directory": "session-catalog",

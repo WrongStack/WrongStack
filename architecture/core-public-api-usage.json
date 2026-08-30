@@ -79,8 +79,8 @@
       "runtimeOrMixed": 42
     },
     "@wrongstack/core/kernel": {
-      "files": 251,
-      "typeOnly": 131,
+      "files": 252,
+      "typeOnly": 132,
       "runtimeOrMixed": 133
     },
     "@wrongstack/core/kernel/events.js": {
@@ -160,7 +160,7 @@
     },
     "@wrongstack/core/types": {
       "files": 1023,
-      "typeOnly": 947,
+      "typeOnly": 946,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -6186,6 +6186,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/sdd/src/sdd-task-execution.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/sdd/src/sdd-worktree-integration.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12834,7 +12840,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/object-utils.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {

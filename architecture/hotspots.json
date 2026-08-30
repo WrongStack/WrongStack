@@ -335,7 +335,7 @@
       "relativeImports": 6
     },
     "packages/tui/src/components/history/utils.tsx": {
-      "lines": 935,
+      "lines": 953,
       "relativeImports": 17
     },
     "packages/tui/src/components/kanban-panel.tsx": {
