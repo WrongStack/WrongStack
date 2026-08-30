@@ -222,12 +222,12 @@ export function createCodebaseIndexMcpToolHost(
         }
         if (toolName === 'codebase_file_graph') {
           return {
-            content: await getFileGraph({ ...base, packageFilter: String(args['package']) }),
+            content: await getFileGraph({ ...base, packageFilter: String(args['package']).trim() }),
             isError: false,
           };
         }
         return {
-          content: await getSymbolGraph({ ...base, fileFilter: String(args['file']) }),
+          content: await getSymbolGraph({ ...base, fileFilter: String(args['file']).trim() }),
           isError: false,
         };
       } catch (error) {
