@@ -28,6 +28,13 @@ export interface EternalAutonomyOptions {
    */
   cycleGapMs?: number | undefined;
   /**
+   * Cool-down sleep when an iteration ends without a decision (no todos,
+   * clean git tree, brainstorm found nothing actionable). Defaults to
+   * 5 s so a starved eternal loop idles instead of hot-spinning on the
+   * decide path. Tests pass 0 to keep no-task scenarios fast.
+   */
+  noTaskCoolDownMs?: number | undefined;
+  /**
    * Maximum consecutive failures before the source rotation forces a
    * brainstorm cycle. Default 3. Acts as a soft-recovery, not a stop.
    */

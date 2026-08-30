@@ -97,6 +97,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
 
@@ -123,6 +125,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => ' M packages/foo/bar.ts\n?? new-file.ts\n',
     });
 
@@ -153,6 +157,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
 
@@ -177,6 +183,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       onStage: (stage) => phases.push(stage.phase),
     });
@@ -199,6 +207,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
 
@@ -215,6 +225,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     // Simulate /goal clear by unlinking before the iteration starts.
@@ -237,6 +249,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     await engine.runOneIteration();
@@ -256,6 +270,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       compactor: compactor as any,
       compactEveryNIterations: 2,
@@ -286,6 +302,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       compactor: compactor as any,
       compactEveryNIterations: 100, // cadence shouldn't trip
@@ -305,6 +323,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       compactEveryNIterations: 1,
     });
@@ -318,6 +338,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     await engine.prime();
@@ -331,6 +353,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     await engine.prime();
@@ -350,6 +374,8 @@ describe('EternalAutonomyEngine', () => {
     const engineA = new EternalAutonomyEngine({
       agent: agentA,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     await engineA.runOneIteration();
@@ -361,6 +387,8 @@ describe('EternalAutonomyEngine', () => {
     const engineB = new EternalAutonomyEngine({
       agent: agentB,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
     await engineB.runOneIteration();
@@ -422,6 +450,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       onEternalStop: () => {
         onEternalStopCalled = true;
@@ -468,6 +498,7 @@ describe('EternalAutonomyEngine', () => {
       agent,
       projectRoot,
       cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       brain: { decide },
       onEternalStop: () => {
@@ -524,6 +555,7 @@ describe('EternalAutonomyEngine', () => {
       agent,
       projectRoot,
       cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       brain: { decide },
       now: () => new Date('2026-07-17T12:00:00.000Z'),
@@ -569,6 +601,7 @@ describe('EternalAutonomyEngine', () => {
       agent,
       projectRoot,
       cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       brain: { decide },
       now: () => new Date('2026-07-17T12:00:00.000Z'),
@@ -594,6 +627,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
     });
 
@@ -619,6 +654,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       brainstormDoneStopThreshold: 1,
     });
@@ -654,6 +691,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       todoMaxAttempts: 2,
       // Disable force-brainstorm by setting the budget high — we want
@@ -697,6 +736,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       // Tiny backoff so the test finishes within the default budget.
       transientBackoffBaseMs: 50,
@@ -734,6 +775,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       transientBackoffBaseMs: 5_000, // huge — would dominate if applied
       failureBudget: 99,
@@ -773,6 +816,7 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       transientBackoffBaseMs: 50,
       transientBackoffMaxMs: 1000,
@@ -823,6 +867,8 @@ describe('EternalAutonomyEngine', () => {
     const engine = new EternalAutonomyEngine({
       agent,
       projectRoot,
+      cycleGapMs: 0,
+      noTaskCoolDownMs: 0,
       gitStatusReader: async () => '',
       iterationMaxAgentSteps: 25,
     });

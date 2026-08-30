@@ -273,6 +273,7 @@ describe('EternalAutonomyEngine — brainstorm DONE + brain consultation', () =>
       projectRoot,
       goalPath,
       cycleGapMs: 0,
+      noTaskCoolDownMs: 0, // brain-denied iterations must not idle 5 s
       gitStatusReader: async () => '',
       brainstormDoneStopThreshold: 1, // stop after the first DONE
       ...opts,

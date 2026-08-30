@@ -229,8 +229,9 @@ export class EternalAutonomyEngine {
     const action = await this.decide(goal);
     if (!action) {
       if (!this.stopRequested) {
-        emit({ phase: 'sleep', ms: 5_000 });
-        await sleep(5_000);
+        const noTaskCoolDownMs = this.opts.noTaskCoolDownMs ?? 5_000;
+        emit({ phase: 'sleep', ms: noTaskCoolDownMs });
+        await sleep(noTaskCoolDownMs);
       } else {
         emit({ phase: 'stopped' });
       }
