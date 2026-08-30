@@ -41,6 +41,6 @@ export function systemSessionId(actor: string): string {
 }
 
 /** Whether this id names a daemon rather than a user session. */
-export function isSystemSessionId(sessionId: string): boolean {
-  return sessionId.startsWith(SYSTEM_SESSION_PREFIX);
+export function isSystemSessionId(sessionId: string | null | undefined): boolean {
+  return typeof sessionId === 'string' && sessionId.startsWith(SYSTEM_SESSION_PREFIX);
 }

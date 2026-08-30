@@ -137,7 +137,10 @@ export interface CompileFail {
 
 export type CompileUserRegexResult = CompileResult | CompileFail;
 
-export function compileUserRegex(pattern: string, flags: string): CompileResult | CompileFail {
+export function compileUserRegex(
+  pattern: string,
+  flags: string = '',
+): CompileResult | CompileFail {
   if (typeof pattern !== 'string') {
     return { ok: false, reason: 'pattern must be a string' };
   }
