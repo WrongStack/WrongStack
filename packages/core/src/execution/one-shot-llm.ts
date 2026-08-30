@@ -1,5 +1,6 @@
 import type { FallbackChain } from '../core/fallback-profile-manager.js';
 import { evaluateModelCalendar } from '../core/model-availability-calendar.js';
+import { isProviderFailureTracked } from '../core/provider-runner.js';
 import { isTextBlock } from '../types/blocks.js';
 import type { Config } from '../types/config.js';
 import type { Message } from '../types/messages.js';
@@ -100,7 +101,12 @@ export class OneShotOrchestrator {
 
     // ── 2. Build the request ───────────────────────────────────────
     const request = this.buildRequest(input, target.model);
-    const signal = this.resolveSignal(input);
+    // External cancellation lives for the WHOLE call; each provider attempt
+    // (primary + fallback entries) mints its OWN fresh timeout via
+    // attemptSignal IMMEDIATELY before its tryCall, so neither a slow
+    // buildProvider nor a blocked primary can silently consume an
+    // attempt's budget.
+    const externalSignal = input.signal;
 
     // ── 3. Build fallback chain ────────────────────────────────────
     const chain = this.resolveFallbackChain(input, config, target);
@@ -128,12 +134,16 @@ export class OneShotOrchestrator {
       // Fall through to the fallback chain
     } else {
       attempts += 1;
+      // Mint the primary's timeout HERE — the same semantic point as the
+      // fallback entries: immediately before tryCall, after buildProvider.
+      const primarySignal = this.attemptSignal(externalSignal, input.timeoutMs);
       const primaryAttempt = await this.tryCall(
         provider,
         request,
-        signal,
+        primarySignal,
         target.providerId,
         target.model,
+        externalSignal,
       );
       const result = primaryAttempt.response;
       lastError = primaryAttempt.error;
@@ -170,6 +180,9 @@ export class OneShotOrchestrator {
       : chain;
 
     for (const entry of usableChain) {
+      // The user cancelled while earlier attempts were in flight — stop
+      // rotating instead of burning a buildProvider per remaining entry.
+      if (externalSignal?.aborted) break;
       if (
         !evaluateModelCalendar(config.modelAvailabilitySchedule, entry.providerId, entry.model)
           .allowed
@@ -211,12 +224,16 @@ export class OneShotOrchestrator {
       servingProviderId = fbProvider.id;
       servingModel = entry.model;
       attempts += 1;
+      // Fresh per-attempt timeout — this entry gets the FULL budget, not
+      // whatever the primary and earlier entries happened to leave behind.
+      const attemptSignal = this.attemptSignal(externalSignal, input.timeoutMs);
       const attempt = await this.tryCall(
         fbProvider,
         this.buildRequest(input, entry.model),
-        signal,
+        attemptSignal,
         entry.providerId,
         entry.model,
+        externalSignal,
       );
       if (attempt.response) {
         tracker?.recordSuccess(entry.providerId, entry.model);
@@ -320,12 +337,19 @@ export class OneShotOrchestrator {
   }
 
   /**
-   * Resolve the abort signal. Provider calls always receive the per-call
-   * timeout, composed with external cancellation when the caller supplies it.
+   * Compose the abort signal for ONE provider attempt: a fresh hard-timeout
+   * signal (default 30s) plus the caller's external cancellation when
+   * present. Fresh-per-attempt is what keeps fallback rotation alive after
+   * a slow or hung primary exhausts its own budget — `timeout` and
+   * `stream_hang` are fallback-worthy kinds, so the chain must rotate with
+   * a full budget of its own.
    */
-  private resolveSignal(input: OneShotLLMInput): AbortSignal {
-    const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? DEFAULT_TIMEOUT_MS);
-    return input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
+  private attemptSignal(
+    external: AbortSignal | undefined,
+    timeoutMs: number | undefined,
+  ): AbortSignal {
+    const timeoutSignal = AbortSignal.timeout(timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    return external ? AbortSignal.any([external, timeoutSignal]) : timeoutSignal;
   }
 
   /**
@@ -364,6 +388,7 @@ export class OneShotOrchestrator {
     signal: AbortSignal,
     providerId?: string,
     model?: string,
+    externalSignal?: AbortSignal | undefined,
   ): Promise<CallAttempt> {
     try {
       // Through the host's extension chain when it has one — the same chain the
@@ -376,8 +401,17 @@ export class OneShotOrchestrator {
         : await direct(request);
       return { response, fallbackEligible: false };
     } catch (err) {
-      // Record the failure in the tracker
-      if (err instanceof ProviderError && providerId && model) {
+      // Record the failure in the tracker — unless an inner layer (the
+      // provider-runner funnel) already wrote this exact wire failure to the
+      // waiting room and marked the error. Counting it again would halve
+      // every consecutive-failure threshold. Mirrors the contract the
+      // agent-loop path honours in fallback-model.ts.
+      if (
+        err instanceof ProviderError &&
+        providerId &&
+        model &&
+        !isProviderFailureTracked(err)
+      ) {
         this.opts.statusTracker?.recordFailure(
           providerId,
           model,
@@ -389,13 +423,12 @@ export class OneShotOrchestrator {
       }
       return {
         error: err,
-        // Provider failures retain their normal fallback policy. A plain error
-        // thrown by the host wrapper is a local refusal (for example,
-        // prompt-firewall block mode), not evidence that another provider may
-        // succeed; retrying would only replay the same blocked request and
-        // misattribute the final error to the last fallback.
+        // Eligibility keys off the EXTERNAL signal only: the per-attempt
+        // timeout firing (the attempt signal aborting) is itself a
+        // fallback-worthy failure, while a user-initiated cancel is not —
+        // a cancelled caller must not trigger rotation.
         fallbackEligible:
-          !signal.aborted &&
+          !(externalSignal?.aborted ?? false) &&
           (err instanceof ProviderError
             ? isFallbackWorthy(err.kind)
             : this.opts.wrapProviderCall === undefined),

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { ProviderModelStatusTracker } from '../../src/coordination/provider-status-tracker.js';
 import { FallbackProfileManager } from '../../src/core/fallback-profile-manager.js';
+import {
+  PROVIDER_FAILURE_TRACKED,
+  isProviderFailureTracked,
+} from '../../src/core/provider-runner.js';
 import { OneShotOrchestrator } from '../../src/execution/one-shot-llm.js';
 import type { Config } from '../../src/types/config.js';
 import type {
@@ -646,6 +651,165 @@ describe('OneShotOrchestrator', () => {
     expect(observedSignal).not.toBe(external.signal);
     expect(observedSignal?.aborted).toBe(true);
     expect(result.error).toBe('Timed out');
+  });
+
+  it('rotates to the fallback chain after a hung primary exhausts its own timeout', async () => {
+    const hungPrimary: Provider = {
+      id: 'hung',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async (_req: Request, opts?: { signal?: AbortSignal }) => {
+        // Hang until the per-attempt timeout aborts, then fail fallback-worthy.
+        await new Promise<never>((_, reject) => {
+          opts?.signal?.addEventListener(
+            'abort',
+            () => reject(new ProviderError('Timed out', 0, false, 'hung', { kind: 'timeout' })),
+            { once: true },
+          );
+        });
+        return fakeResponse('hung', 'hung-model');
+      }),
+      stream: vi.fn(),
+    };
+    const healthyFallback: Provider = {
+      id: 'healthy',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => fakeResponse('healthy', 'healthy-model')),
+      stream: vi.fn(),
+    };
+    const buildProvider = vi.fn(async (providerId: string) => {
+      if (providerId === 'hung') return hungPrimary;
+      if (providerId === 'healthy') return healthyFallback;
+      throw new Error(`no provider "${providerId}"`);
+    });
+
+    const cfg = makeConfig({
+      providers: {
+        'test-provider': { type: 'test', apiKey: 'sk-test', models: ['test-model'] },
+        hung: { type: 'test', apiKey: 'sk-hung', models: ['hung-model'] },
+        healthy: { type: 'test', apiKey: 'sk-healthy', models: ['healthy-model'] },
+      },
+    } as Partial<Config>);
+    const orch = new OneShotOrchestrator(makeOneShotOpts(cfg, buildProvider));
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'hung',
+      model: 'hung-model',
+      fallbackModels: ['healthy/healthy-model'],
+      // Short per-attempt budget: the primary burns its whole window hanging;
+      // the fallback must still get its own fresh window and win the call.
+      timeoutMs: 20,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.fromFallback).toBe(true);
+    expect(result.attempts).toBe(2);
+    expect(result.provider).toBe('healthy');
+    expect(result.model).toBe('healthy-model');
+    expect(hungPrimary.complete).toHaveBeenCalledTimes(1);
+    expect(healthyFallback.complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('records unmarked provider failures in the waiting room', async () => {
+    const failing = new ProviderError('Provider overloaded', 503, true, 'unmarked', {
+      kind: 'overloaded',
+    });
+    const failingProvider: Provider = {
+      id: 'unmarked',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => {
+        throw failing;
+      }),
+      stream: vi.fn(),
+    };
+    const recordFailure = vi.fn();
+    const recordSuccess = vi.fn();
+    const tracker = {
+      isAvailable: () => true,
+      recordFailure,
+      recordSuccess,
+    } as unknown as ProviderModelStatusTracker;
+
+    // Single-provider config: the auto-derived chain layers collapse to the
+    // primary itself, so the failed primary returns its ORIGINAL error with
+    // exactly one tracker write — no chain rotation noise.
+    const cfg = makeConfig({
+      providers: {
+        unmarked: { type: 'test', apiKey: 'sk-unmarked', models: ['unmarked-model'] },
+      },
+    });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(cfg, async () => failingProvider),
+      statusTracker: tracker,
+    });
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'unmarked',
+      model: 'unmarked-model',
+    });
+
+    expect(result.error).toContain('overloaded');
+    expect(recordFailure).toHaveBeenCalledTimes(1);
+    expect(recordFailure).toHaveBeenCalledWith(
+      'unmarked',
+      'unmarked-model',
+      'overloaded',
+      503,
+      expect.any(String),
+      expect.objectContaining({ retryAfterMs: undefined }),
+    );
+    expect(recordSuccess).not.toHaveBeenCalled();
+  });
+
+  it('does not double-record failures already marked by the provider runner', async () => {
+    const failing = new ProviderError('Provider overloaded', 503, true, 'marked', {
+      kind: 'overloaded',
+    });
+    // The provider-runner funnel marks errors it already wrote to the
+    // waiting room — the one-shot layer must not count them again.
+    (failing as unknown as Record<symbol, unknown>)[PROVIDER_FAILURE_TRACKED] = true;
+    expect(isProviderFailureTracked(failing)).toBe(true);
+
+    const failingProvider: Provider = {
+      id: 'marked',
+      capabilities: TEST_CAPABILITIES,
+      complete: vi.fn(async () => {
+        throw failing;
+      }),
+      stream: vi.fn(),
+    };
+    const recordFailure = vi.fn();
+    const recordSuccess = vi.fn();
+    const tracker = {
+      isAvailable: () => true,
+      recordFailure,
+      recordSuccess,
+    } as unknown as ProviderModelStatusTracker;
+
+    // Single-provider config, same rationale as the unmarked test above.
+    const cfg = makeConfig({
+      providers: {
+        marked: { type: 'test', apiKey: 'sk-marked', models: ['marked-model'] },
+      },
+    });
+    const orch = new OneShotOrchestrator({
+      ...makeOneShotOpts(cfg, async () => failingProvider),
+      statusTracker: tracker,
+    });
+
+    const result = await orch.call({
+      system: 'test',
+      userPrompt: 'hello',
+      providerId: 'marked',
+      model: 'marked-model',
+    });
+
+    expect(result.error).toContain('overloaded');
+    expect(recordFailure).not.toHaveBeenCalled();
+    expect(recordSuccess).not.toHaveBeenCalled();
   });
 });
 

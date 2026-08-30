@@ -87,8 +87,10 @@ export interface OneShotLLMInput {
   signal?: AbortSignal | undefined;
 
   /**
-   * Hard timeout in milliseconds. Creates an AbortSignal internally
-   * when no external `signal` is provided. Default: 30_000 (30s).
+   * Hard timeout in milliseconds, applied PER provider attempt: the primary
+   * call and every fallback entry each receive the full budget (a fresh
+   * abort signal per attempt). An external `signal`, when supplied, still
+   * applies to the whole call. Default: 30_000 (30s).
    */
   timeoutMs?: number | undefined;
 }
