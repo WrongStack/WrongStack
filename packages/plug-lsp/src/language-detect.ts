@@ -53,5 +53,5 @@ export function languageIdFor(filePath: string): string | null {
   if (base.endsWith('.test.js') || base.endsWith('.spec.js')) return 'javascript';
   if (base.endsWith('.test.jsx') || base.endsWith('.spec.jsx')) return 'javascriptreact';
 
-  return LANGUAGE_MAP[path.extname(base)] ?? null;
+  return LANGUAGE_MAP[path.extname(base).toLowerCase()] ?? null;
 }

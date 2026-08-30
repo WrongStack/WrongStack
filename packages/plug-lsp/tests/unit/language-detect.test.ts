@@ -4,6 +4,7 @@ import { languageIdFor } from '../../src/language-detect.js';
 describe('languageIdFor', () => {
   it('detects common TypeScript and JavaScript variants', () => {
     expect(languageIdFor('src/app.ts')).toBe('typescript');
+    expect(languageIdFor('src/APP.TS')).toBe('typescript');
     expect(languageIdFor('src/app.test.ts')).toBe('typescript');
     expect(languageIdFor('src/app.tsx')).toBe('typescriptreact');
     expect(languageIdFor('src/app.jsx')).toBe('javascriptreact');
@@ -11,6 +12,7 @@ describe('languageIdFor', () => {
     expect(languageIdFor('src/app.test.tsx')).toBe('typescriptreact');
     expect(languageIdFor('src/app.spec.js')).toBe('javascript');
     expect(languageIdFor('src/app.test.jsx')).toBe('javascriptreact');
+    expect(languageIdFor('src/SCRIPT.PY')).toBe('python');
   });
 
   it('detects special filenames', () => {
