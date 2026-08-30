@@ -52,29 +52,19 @@ Every capability below — memory, tools, providers, permissions, the multi-agen
 runtime — is first-party and works together, on your machine, with no upstream
 agent to phone home to.
 
-### What's new in 0.316.0
+### What's new in 0.316.2
 
-- **Provider waiting-room events are now auditable.** Model block/open events
-  are written to JSONL, exposed through provider-status, and broadcast with live
-  error context so operators can see why a route is blocked or reopened.
-- **Stats-driven tool auto-thinning is available behind an opt-in switch.**
-  `/settings autothin on` and `/tool autothin {status|candidates|apply|undo|config}`
-  let teams disable underused tools from Chronicle or in-process usage counts
-  while preserving operator-authored disables.
-- **WebUI sessions recover from startup races.** Browser sessions auto-resume and
-  retry after `session_not_ready`, with lane-guard warnings emitted once instead
-  of repeatedly interrupting the operator.
-- **Provider cooldowns distinguish quota exhaustion from ordinary temporary
-  blocks.** Quota failures escalate deliberately, while transient blocks expire
-  sooner and stop over-quarantining retryable routes.
-- **WebUI orchestration state is scoped to the active session.** Todos, tasks,
-  plan state, tab-slot recycling, orchestration stores, and fixtures keep
-  ownership across multi-tab workflows.
-- **All release surfaces align to `0.316.0`.** The root, 34 package manifests,
-  both apps, README highlights, website metadata, JSON-LD, and release changelog
-  now describe the same release.
+- **Patch release metadata is aligned for a clean npm publish.** The root
+  manifest, 34 package manifests, both apps, website package files, README,
+  `META.version`, JSON-LD metadata, and release changelog now target `0.316.2`.
+- **The update path gets a fresh package graph.** This patch is prepared after
+  `wrongstack update` exposed registry/cache resolution failures while installing
+  the `0.316.1` CLI dependency set.
+- **0.316.1 remains the feature baseline.** Model tiers, guarded leader
+  self-switching, session recovery diagnostics, TUI drag-select copy, config
+  drift checks, and Windows CI hardening are carried forward unchanged.
 
-See the complete [0.316.0 release notes](CHANGELOG.md).
+See the complete [0.316.2 release notes](CHANGELOG.md).
 
 > **New here?** Jump to [Install](#install) → [Quick start](#quick-start).
 > **Already running it?** Keep current with [`wstack update`](#staying-current).
@@ -83,7 +73,7 @@ See the complete [0.316.0 release notes](CHANGELOG.md).
 
 ## Table of contents
 
-- [What's new in 0.316.0](#whats-new-in-03160)
+- [What's new in 0.316.2](#whats-new-in-03162)
 - [Why WrongStack](#why-wrongstack)
 - [How WrongStack compares](#how-wrongstack-compares)
 - [Requirements](#requirements)

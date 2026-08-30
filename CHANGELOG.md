@@ -7,21 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.316.2] — 2026-08-30
+
+### Fixed
+
+- **Patch release metadata now targets a fresh npm package graph.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD metadata, and both changelog surfaces now describe `0.316.2`.
+- **The update path is prepared for republishing after registry/cache resolution failures.** `wrongstack update` could fail while installing the `0.316.1` CLI dependency set if npm resolved the CLI before every matching `@wrongstack/*` package version was available.
+
+## [0.316.1] — 2026-08-30
+
 ### Added
 
 - **Model cost tiers provide deterministic routing by expense level.** The new `modelTiers` config binds a fallback profile, spend budget, and runtime settings under named levels such as `budget`, `standard`, and `premium`; `/tier`, the TUI resource menu, and the WebUI Settings panel all edit the same table, while Kanban dispatch and subagent spawning resolve explicit model, fallback profile, tier, and session-leader choices in order. (`cdb5ec0ff`)
 - **Leaders can propose or apply guarded tier switches.** Leader self-switching supports `off`, `propose`, and `auto` modes with dwell windows, max-tier ceilings, context-fit checks, and break-even savings guards so a cheaper model switch must pay for its prompt-cache warmup and cannot strand the current context. (`cdb5ec0ff`)
+- **Session diagnostics expose scrubbed recovery state across CLI and browser surfaces.** `sessions doctor`, WebUI resume handlers, SimpleUI session views, TUI resume pickers, and shared secret scrubbing now surface session metadata without leaking raw secrets. (`f68855e76`)
 
 ### Changed
 
 - **Internal barrel exports were narrowed across the workspace.** Core, WebUI, CLI, TUI, WebUI server, Tools, SAGE, Governance, ACP, SDD, primitives, WebUI protocol, WrongTrace, plug-lsp, and bench packages de-export internal-only symbols and refresh architecture evidence so public API snapshots track the smaller supported surface. (`3068168e5`, `878b698ad`, `90a85c22b`, `047f49ffe`, `dacbdf712`, `c59707eec`, `38633ee57`, `71690d6b8`, `4b686a447`, `bb5edb7c6`, `a60b8ab97`, `fe1d5e609`, `65d28f313`, `047952eea`, `97721ea02`, `29ab5a3e7`, `d14ef35ba`, `3cb23eebf`)
+- **TUI drag selection now copies complete chat-history content blocks.** Selection geometry was simplified around content-block boundaries, keeping wrapped-line copy behavior intentional and covered by focused drag-selection tests. (`a91261601`)
+- **Release evidence and CI ratchets were refreshed for 0.316.1.** The version bump, typecheck baselines, architecture reports, and stale-exception cleanup timeout now match the current workspace shape. (`f65bd058c`, `605c9fa6a`, `548f6b4ef`, `cf8205d9c`)
 
 ### Fixed
 
-- **`/doctor` no longer reports WrongStack's own settings as unknown keys.** The doctor's `KNOWN_TOP_LEVEL_KEYS` whitelist had drifted eight fields behind `Config` — `systemPrompt`, `themePreset`, `modelTiers`, `chronicle`, `cloudSync`, `activeProfile`, `fallbackProfile`, and `fallbackGateSeconds` were all flagged "unknown key — delete it manually if unwanted" while `/theme`, `/fallback gate`, and the prompt-variant picker were actively writing them; acting on that advice reset the user's theme and prompt variant. A phantom `agents` entry (that field is nested under `acp`) also waved a stray top-level `agents` block through. A new `ConfigKeyCoverage` type fails the build in both directions, naming the offending key.
-- **The in-project config drift guard now checks every `Config` field.** `assertInProjectAllowListComplete()` iterates `KNOWN_CONFIG_TOP_LEVEL_KEYS`, a hand-maintained registry that was itself missing five fields, so those were classified as neither allowed nor denied and the guard never looked at them. The registry is now compile-checked against `keyof Config`; `themePreset`, `chronicle`, `fallbackGateSeconds`, and `modelTiers` are explicitly allowed, and `systemPrompt` is explicitly denied — its `lite` variant omits the "Tool output trust boundary" section, so a repo-committed config selecting it would disable the rule protecting the user from that repo.
-
-- **Autonomous goal startup no longer leaks a tick interval when stopped mid-start.** `PhaseOrchestrator.start()` now installs the monitoring interval only if the run is still active and clears any pre-existing timer, with a regression test covering `stop()` landing while `start()` is blocked in task execution. (`6e8a90409`)
+- **`/doctor` no longer reports WrongStack's own settings as unknown keys.** The doctor's `KNOWN_TOP_LEVEL_KEYS` whitelist had drifted behind `Config`, so fields actively written by `/theme`, `/fallback gate`, prompt variants, model tiers, Chronicle, and cloud sync could be flagged for deletion. `ConfigKeyCoverage` now fails the build in both directions, and the phantom top-level `agents` allowance is gone. (`f68855e76`)
+- **The in-project config drift guard now checks every `Config` field.** `KNOWN_CONFIG_TOP_LEVEL_KEYS` is compile-checked against `keyof Config`; `themePreset`, `chronicle`, `fallbackGateSeconds`, and `modelTiers` are explicitly allowed, while repo-committed `systemPrompt` is explicitly denied because the `lite` prompt variant omits the tool-output trust boundary. (`f68855e76`)
+- **Autonomous goal startup no longer leaks work after stop or timeout.** `executeTask` now receives an `AbortSignal`, WebUI goal handling propagates cancellation, and `PhaseOrchestrator.start()` avoids installing a monitor interval after a mid-start stop. (`9c431fe50`, `6e8a90409`)
+- **Concurrent registry and SDD cleanup paths are more resilient on Windows CI.** Persistent process-registry writes use unique temporary filenames, and SDD board projector cleanup tolerates in-flight temp-file deletion. (`01e0286c0`, `f12bb9d52`)
+- **WebUI file-handler contracts cover tree ordering and payload shape.** Focused tests now pin file-tree sorting and response shape expectations around the server file handlers. (`2210d416b`)
+- **All public release surfaces align to `0.316.1`.** The root, 34 package manifests, both apps, website package files, README highlights, `META.version`, JSON-LD metadata, and both changelog surfaces now describe the same release.
 
 ## [0.316.0] — 2026-08-28
 

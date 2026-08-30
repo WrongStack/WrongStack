@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/kanban-mcp",
-  "version": "0.316.1",
+  "version": "0.316.2",
   "license": "MIT",
   "description": "WrongStack Kanban as a project-scoped MCP server with read-only, writable, destructive, and live-watch capability tiers.",
   "repository": {

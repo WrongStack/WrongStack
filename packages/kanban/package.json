@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/kanban",
-  "version": "0.316.1",
+  "version": "0.316.2",
   "license": "MIT",
   "description": "WrongStack project-scoped Kanban service with a single IPC owner, SQLite persistence, CRUD, assignment, recovery, and queue health monitoring.",
   "repository": {

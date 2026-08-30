@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.316.1',
+  version: '0.316.2',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -344,9 +344,33 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.316.2',
+    date: '2026-08-30',
+    latest: true,
+    tagline: 'Patch release metadata for a clean npm update path',
+    highlights: [
+      'Root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces now align to 0.316.2',
+      'Prepared a fresh publish graph after wrongstack update exposed npm registry/cache resolution failures while installing the 0.316.1 CLI dependency set',
+      'Carries forward the 0.316.1 model tiers, guarded leader self-switching, session recovery diagnostics, TUI drag-select copy, config drift checks, and Windows CI hardening',
+    ],
+  },
+  {
+    version: '0.316.1',
+    date: '2026-08-30',
+    tagline: 'Model tiers, safer config checks & resilient session recovery',
+    highlights: [
+      'Model cost tiers bind fallback profiles, spend budgets, and runtime settings for deterministic routing across /tier, the TUI resource menu, WebUI Settings, Kanban dispatch, and subagent spawning',
+      'Leader self-switching can propose or auto-apply cheaper tier moves only inside configured dwell windows, max-tier ceilings, context-fit checks, and break-even savings guards',
+      'Session diagnostics now expose scrubbed recovery state through sessions doctor, TUI resume pickers, WebUI resume handlers, SimpleUI session views, and shared secret scrubbing',
+      'TUI chat-history drag selection copies complete content blocks with simplified wrap geometry and focused regression coverage',
+      '/doctor and in-project config policy are compile-checked against every Config field, preventing legitimate settings from being flagged as unknown while denying repo-committed systemPrompt drift',
+      'AbortSignal-backed autonomous goals, unique registry temp filenames, resilient SDD cleanup, and refreshed release evidence harden Windows CI and cancellation paths',
+      'All root, 34 package, 2 app, README, website metadata, JSON-LD, and changelog surfaces align to 0.316.1',
+    ],
+  },
+  {
     version: '0.316.0',
     date: '2026-08-28',
-    latest: true,
     consolidated: true,
     tagline: 'Provider audit history, session isolation & tool auto-thinning',
     highlights: [
