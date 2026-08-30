@@ -3,12 +3,17 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 import { Entry, type HistoryEntry } from '../src/components/history.js';
 
-function renderEntry(entry: HistoryEntry, opts: { termWidth?: number; showModelReasoning?: boolean } = {}): string {
+function renderEntry(
+  entry: HistoryEntry,
+  opts: { termWidth?: number; showModelReasoning?: boolean } = {},
+): string {
   const { lastFrame, unmount } = render(
     React.createElement(Entry, {
       entry,
       termWidth: opts.termWidth ?? 100,
-      ...(opts.showModelReasoning !== undefined ? { showModelReasoning: opts.showModelReasoning } : {}),
+      ...(opts.showModelReasoning !== undefined
+        ? { showModelReasoning: opts.showModelReasoning }
+        : {}),
     }),
   );
   const frame = lastFrame() ?? '';
@@ -35,7 +40,12 @@ describe('<Entry /> — comprehensive coverage', () => {
     });
 
     it('shows pasteContent with arrow when text is also present', () => {
-      const frame = renderEntry({ id: 1, kind: 'user', text: 'typed', pasteContent: 'pasted content' });
+      const frame = renderEntry({
+        id: 1,
+        kind: 'user',
+        text: 'typed',
+        pasteContent: 'pasted content',
+      });
       expect(frame).toContain('typed');
       expect(frame).toContain('pasted content');
       expect(frame).toContain('↳');
@@ -44,7 +54,10 @@ describe('<Entry /> — comprehensive coverage', () => {
 
   describe('thinking kind', () => {
     it('renders model reasoning when showModelReasoning is true', () => {
-      const frame = renderEntry({ id: 1, kind: 'thinking', text: 'thinking text' }, { showModelReasoning: true });
+      const frame = renderEntry(
+        { id: 1, kind: 'thinking', text: 'thinking text' },
+        { showModelReasoning: true },
+      );
       expect(frame).toContain('Model Reasoning');
       expect(frame).toContain('thinking text');
     });
@@ -77,20 +90,44 @@ describe('<Entry /> — comprehensive coverage', () => {
     });
 
     it('renders next steps with auto flag', () => {
-      const frame = renderEntry({
-        id: 1, kind: 'assistant', final: true,
-        text: ['Done.', '', '<nextsteps>', '1. Check the logs', '2. Run tests', '</nextsteps>'].join('\n'),
-      }, { termWidth: 100 });
+      const frame = renderEntry(
+        {
+          id: 1,
+          kind: 'assistant',
+          final: true,
+          text: [
+            'Done.',
+            '',
+            '<nextsteps>',
+            '1. Check the logs',
+            '2. Run tests',
+            '</nextsteps>',
+          ].join('\n'),
+        },
+        { termWidth: 100 },
+      );
       expect(frame).toContain('NEXT STEPS');
       expect(frame).toContain('Check the logs');
       expect(frame).not.toContain('<nextsteps>');
     });
 
     it('shows auto marker on auto steps', () => {
-      const frame = renderEntry({
-        id: 1, kind: 'assistant', final: true,
-        text: ['Done.', '', '<nextsteps>', '1. Check the logs (auto)', '2. Run tests', '</nextsteps>'].join('\n'),
-      }, { termWidth: 100 });
+      const frame = renderEntry(
+        {
+          id: 1,
+          kind: 'assistant',
+          final: true,
+          text: [
+            'Done.',
+            '',
+            '<nextsteps>',
+            '1. Check the logs (auto)',
+            '2. Run tests',
+            '</nextsteps>',
+          ].join('\n'),
+        },
+        { termWidth: 100 },
+      );
       expect(frame).toContain('auto');
     });
   });
@@ -134,7 +171,11 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('confirm kind', () => {
     it('renders confirm entry with tool name', () => {
       const frame = renderEntry({
-        id: 1, kind: 'confirm', toolName: 'bash', input: { command: 'run command?' }, suggestedPattern: 'bash:*',
+        id: 1,
+        kind: 'confirm',
+        toolName: 'bash',
+        input: { command: 'run command?' },
+        suggestedPattern: 'bash:*',
       });
       expect(frame).toContain('Confirm');
       expect(frame).toContain('bash');
@@ -145,8 +186,12 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('subagent kind', () => {
     it('renders subagent entry with icon and label', () => {
       const frame = renderEntry({
-        id: 1, kind: 'subagent', icon: '⚡', agentLabel: 'agent_12',
-        agentColor: 'magenta', text: 'spawned as bug-hunter',
+        id: 1,
+        kind: 'subagent',
+        icon: '⚡',
+        agentLabel: 'agent_12',
+        agentColor: 'magenta',
+        text: 'spawned as bug-hunter',
       });
       expect(frame).toContain('agent_12');
       expect(frame).toContain('bug-hunter');
@@ -154,16 +199,25 @@ describe('<Entry /> — comprehensive coverage', () => {
 
     it('renders subagent detail when present', () => {
       const frame = renderEntry({
-        id: 1, kind: 'subagent', icon: '⚡', agentLabel: 'agent_12',
-        agentColor: 'magenta', text: 'first line', detail: 'detail line',
+        id: 1,
+        kind: 'subagent',
+        icon: '⚡',
+        agentLabel: 'agent_12',
+        agentColor: 'magenta',
+        text: 'first line',
+        detail: 'detail line',
       });
       expect(frame).toContain('detail line');
     });
 
     it('renders multi-line subagent text', () => {
       const frame = renderEntry({
-        id: 1, kind: 'subagent', icon: '⚡', agentLabel: 'agent_12',
-        agentColor: 'magenta', text: 'first line\nsecond line\nthird line',
+        id: 1,
+        kind: 'subagent',
+        icon: '⚡',
+        agentLabel: 'agent_12',
+        agentColor: 'magenta',
+        text: 'first line\nsecond line\nthird line',
       });
       expect(frame).toContain('first line');
       expect(frame).toContain('second line');
@@ -182,8 +236,12 @@ describe('<Entry /> — comprehensive coverage', () => {
     for (const { status, icon } of statuses) {
       it(`renders brain status ${status} with icon ${icon}`, () => {
         const frame = renderEntry({
-          id: 1, kind: 'brain', status, risk: 'low',
-          question: 'test question', source: 'brain',
+          id: 1,
+          kind: 'brain',
+          status,
+          risk: 'low',
+          question: 'test question',
+          source: 'brain',
         });
         expect(frame).toContain('BRAIN');
         expect(frame).toContain('test question');
@@ -204,8 +262,12 @@ describe('<Entry /> — comprehensive coverage', () => {
     for (const { risk } of risks) {
       it(`renders brain risk ${risk}`, () => {
         const frame = renderEntry({
-          id: 1, kind: 'brain', status: 'thinking', risk,
-          question: 'test', source: 'brain',
+          id: 1,
+          kind: 'brain',
+          status: 'thinking',
+          risk,
+          question: 'test',
+          source: 'brain',
         });
         expect(frame).toContain(risk);
         expect(frame).toContain('BRAIN');
@@ -216,8 +278,12 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('brain kind — with decision and rationale', () => {
     it('renders decision when present', () => {
       const frame = renderEntry({
-        id: 1, kind: 'brain', status: 'answered', risk: 'low',
-        question: 'test question', source: 'brain',
+        id: 1,
+        kind: 'brain',
+        status: 'answered',
+        risk: 'low',
+        question: 'test question',
+        source: 'brain',
         decision: 'proceed',
       });
       expect(frame).toContain('Decision');
@@ -226,8 +292,12 @@ describe('<Entry /> — comprehensive coverage', () => {
 
     it('renders rationale when present', () => {
       const frame = renderEntry({
-        id: 1, kind: 'brain', status: 'answered', risk: 'low',
-        question: 'test question', source: 'brain',
+        id: 1,
+        kind: 'brain',
+        status: 'answered',
+        risk: 'low',
+        question: 'test question',
+        source: 'brain',
         rationale: 'because it is safe',
       });
       expect(frame).toContain('because it is safe');
@@ -237,8 +307,11 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('banner kind', () => {
     it('renders banner entry through Banner component', () => {
       const frame = renderEntry({
-        id: 0, kind: 'banner', version: '1.0.0',
-        provider: 'test', model: 'test-model',
+        id: 0,
+        kind: 'banner',
+        version: '1.0.0',
+        provider: 'test',
+        model: 'test-model',
         cwd: '/workspace',
       });
       expect(frame).toContain('v1.0.0');
@@ -249,7 +322,11 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('tool kind — error (not ok)', () => {
     it('renders error tool entry', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'bash', durationMs: 100, ok: false,
+        id: 1,
+        kind: 'tool',
+        name: 'bash',
+        durationMs: 100,
+        ok: false,
         output: 'bash failed',
       });
       expect(frame).toContain('bash');
@@ -260,10 +337,15 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('tool kind — with outputLines and outputBytes', () => {
     it('renders size chip when outputLines > 0 and outputBytes > 0', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'read', durationMs: 10, ok: true,
+        id: 1,
+        kind: 'tool',
+        name: 'read',
+        durationMs: 10,
+        ok: true,
         input: { path: 'test.txt' },
         output: 'content',
-        outputLines: 5, outputBytes: 100,
+        outputLines: 5,
+        outputBytes: 100,
       });
       expect(frame).toContain('5 L');
       expect(frame).toContain('100B');
@@ -273,7 +355,11 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('tool kind — visual lines output', () => {
     it('renders visual lines when present', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'grep', durationMs: 10, ok: true,
+        id: 1,
+        kind: 'tool',
+        name: 'grep',
+        durationMs: 10,
+        ok: true,
         input: { pattern: 'foo' },
         output: JSON.stringify({ count: 1, matches: [{ file: 'a.ts', line: 1, text: 'foo' }] }),
       });
@@ -329,11 +415,16 @@ describe('<Entry /> — comprehensive coverage', () => {
 
     it('hides diff body in simple mode for edit', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'edit', durationMs: 12, ok: true,
+        id: 1,
+        kind: 'tool',
+        name: 'edit',
+        durationMs: 12,
+        ok: true,
         resultRenderMode: 'simple',
         input: { path: 'a.ts', old_string: 'a', new_string: 'b' },
         output: JSON.stringify({
-          path: 'a.ts', replacements: 1,
+          path: 'a.ts',
+          replacements: 1,
           diff: '--- a.ts\n+++ b.ts\n@@ -1 +1 @@\n-a\n+b',
         }),
       });
@@ -345,7 +436,11 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('tool kind — replace with multi-file diffs', () => {
     it('renders multi-file diff for replace tool', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'replace', durationMs: 50, ok: true,
+        id: 1,
+        kind: 'tool',
+        name: 'replace',
+        durationMs: 50,
+        ok: true,
         input: { path: 'src/' },
         output: JSON.stringify({
           results: [
@@ -364,13 +459,17 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('tool kind — patch tool with mutation output', () => {
     it('renders patch entry correctly', () => {
       const frame = renderEntry({
-        id: 1, kind: 'tool', name: 'patch', durationMs: 30, ok: true,
+        id: 1,
+        kind: 'tool',
+        name: 'patch',
+        durationMs: 30,
+        ok: true,
         input: {},
         output: JSON.stringify({
           diff: '--- a.ts\n+++ b.ts\n@@ -1 +1 @@\n-old\n+new',
         }),
       });
-      expect(frame).toContain('Update(file)');
+      expect(frame).toContain('Update(changes)');
       expect(frame).toContain('Added 1 line, removed 1 line');
     });
   });
