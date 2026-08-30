@@ -62,20 +62,17 @@ export function embedText(text: string): Float32Array {
   const vec = new Float32Array(VECTOR_DIMENSIONS);
 
   const normalized = text.toLowerCase().trim();
-  if (normalized.length < NGRAM_SIZE) {
-    // Pad short text with spaces so at least one trigram is produced.
-    const padded = ` ${normalized} `.slice(0, Math.max(NGRAM_SIZE, normalized.length + 2));
-    for (let i = 0; i <= padded.length - NGRAM_SIZE; i++) {
-      const ngram = padded.slice(i, i + NGRAM_SIZE);
-      const bucket = hashNgram(ngram) % VECTOR_DIMENSIONS;
-      vec[bucket]! += 1;
-    }
-  } else {
-    for (let i = 0; i <= normalized.length - NGRAM_SIZE; i++) {
-      const ngram = normalized.slice(i, i + NGRAM_SIZE);
-      const bucket = hashNgram(ngram) % VECTOR_DIMENSIONS;
-      vec[bucket]! += 1;
-    }
+  if (normalized.length === 0) return vec;
+
+  const target =
+    normalized.length < NGRAM_SIZE
+      ? ` ${normalized} `.slice(0, Math.max(NGRAM_SIZE, normalized.length + 2))
+      : normalized;
+
+  for (let i = 0; i <= target.length - NGRAM_SIZE; i++) {
+    const ngram = target.slice(i, i + NGRAM_SIZE);
+    const bucket = hashNgram(ngram) % VECTOR_DIMENSIONS;
+    vec[bucket]! += 1;
   }
 
   // L2-normalize so dot product = cosine similarity.
@@ -126,6 +123,10 @@ export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
   // node:sqlite returns Uint8Array for BLOB columns, not Buffer. Buffer methods
   // like readFloatLE only exist on Buffer instances. Use DataView for portable
   // float decoding regardless of which type arrives from SQLite.
+  if (buf.byteLength === 0) return new Float32Array(0);
+  if (buf.byteLength % 4 !== 0) {
+    throw new Error(`decodeVector: invalid vector byteLength ${buf.byteLength} (must be a multiple of 4)`);
+  }
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const copy = new Float32Array(buf.byteLength / 4);
   for (let i = 0; i < copy.length; i++) {

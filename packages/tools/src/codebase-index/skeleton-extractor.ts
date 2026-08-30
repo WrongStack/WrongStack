@@ -339,7 +339,7 @@ async function extractTreeSitterSkeleton(
         let bodyEnd: number | undefined;
 
         // Find body child
-        let bodyNode =
+        const bodyNode =
           node.childForFieldName('body') ??
           node.children.find((c) =>
             [
@@ -381,8 +381,8 @@ async function extractTreeSitterSkeleton(
           }
         }
 
-        let nameNode = node.childForFieldName('name') ?? node.childForFieldName('declarator');
-        let symbolName = nameNode ? nameNode.text : undefined;
+        const nameNode = node.childForFieldName('name') ?? node.childForFieldName('declarator');
+        const symbolName = nameNode ? nameNode.text : undefined;
 
         symbolRanges.push({
           name: symbolName,

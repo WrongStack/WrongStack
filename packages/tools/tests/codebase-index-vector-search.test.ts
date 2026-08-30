@@ -83,6 +83,11 @@ describe('encode/decode', () => {
       expect(decoded[i]).toBeCloseTo(original[i]!, 5);
     }
   });
+
+  it('handles empty buffer and rejects invalid byteLength', () => {
+    expect(decodeVector(Buffer.alloc(0)).length).toBe(0);
+    expect(() => decodeVector(Buffer.alloc(5))).toThrow(/invalid vector byteLength/);
+  });
 });
 
 describe('reciprocalRankFusion', () => {
