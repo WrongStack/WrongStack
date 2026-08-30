@@ -1,3 +1,4 @@
+import type { EventMap } from '@wrongstack/core/kernel';
 import type { TaskNode, TaskResult } from '@wrongstack/core/types';
 import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import type { SddParallelRunOptions } from './sdd-parallel-run-types.js';
@@ -87,7 +88,7 @@ export async function integrateTaskWorktree(params: {
   task: TaskNode;
   result?: TaskResult | undefined;
   runId: string;
-  emit: (event: any, payload: any) => void;
+  emit: <K extends keyof EventMap>(event: K, payload: EventMap[K]) => void;
   abortRun: (reason: string) => void;
 }): Promise<{ ok: boolean; conflictFiles?: string[]; reason?: string; fatal?: boolean }> {
   const { opts, state, task, result, runId, emit, abortRun } = params;
