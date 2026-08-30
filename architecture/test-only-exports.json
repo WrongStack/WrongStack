@@ -412,6 +412,9 @@
     "packages/core/src/core/fallback-profile-manager.ts": [
       "MAX_LAST_RESORT_CANDIDATES"
     ],
+    "packages/core/src/core/provider-runner.ts": [
+      "PROVIDER_FAILURE_TRACKED"
+    ],
     "packages/core/src/core/streaming-response-builder.ts": [
       "buildResponse",
       "createStreamingState",
