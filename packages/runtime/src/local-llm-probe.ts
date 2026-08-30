@@ -74,9 +74,13 @@ export async function probeLocalLlm(opts: ProbeOptions): Promise<ProbeResult> {
   const fetchFn = fetchImpl ?? fetch;
   const timeout = timeoutMs ?? PROBE_TIMEOUT_MS;
 
+  if (typeof baseUrl !== 'string' || baseUrl.trim().length === 0) {
+    return { ok: false, status: 'no_base_url', detail: 'baseUrl is empty' };
+  }
+
   // Normalize the URL: append `/models` if the user gave us the chat
   // completions base. Strip trailing slashes so we can just concatenate.
-  const base = baseUrl.replace(/\/+$/, '');
+  const base = baseUrl.trim().replace(/\/+$/, '');
   const url = /\/models$/.test(base) ? base : `${base}/models`;
 
   const headers: Record<string, string> = { accept: 'application/json' };
