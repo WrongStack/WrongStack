@@ -41,6 +41,10 @@ export function normalizeGemini(stop: string | null | undefined): StopReason {
   switch (stop) {
     case 'SAFETY':
     case 'RECITATION':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'MALICIOUS':
     case 'hallucination':
       return 'refusal';
     case 'stop':

@@ -34,6 +34,11 @@ describe('stop-reason', () => {
   describe('normalizeGemini', () => {
     it('maps SAFETY to refusal', () => expect(normalizeGemini('SAFETY')).toBe('refusal'));
     it('maps RECITATION to refusal', () => expect(normalizeGemini('RECITATION')).toBe('refusal'));
+    it('maps BLOCKLIST to refusal', () => expect(normalizeGemini('BLOCKLIST')).toBe('refusal'));
+    it('maps PROHIBITED_CONTENT to refusal', () =>
+      expect(normalizeGemini('PROHIBITED_CONTENT')).toBe('refusal'));
+    it('maps SPII to refusal', () => expect(normalizeGemini('SPII')).toBe('refusal'));
+    it('maps MALICIOUS to refusal', () => expect(normalizeGemini('MALICIOUS')).toBe('refusal'));
     it('maps hallucination to refusal', () =>
       expect(normalizeGemini('hallucination')).toBe('refusal'));
     it('maps stop / STOP to end_turn', () => {
