@@ -141,7 +141,20 @@ export function persistWrongTraceGateCounters(
         JSON.stringify({ at: new Date().toISOString(), ...snapshot }, null, 2),
         'utf8',
       );
-      await fs.rename(tmp, file);
+      let renamed = false;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+          await fs.rename(tmp, file);
+          renamed = true;
+          break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
+      if (!renamed) {
+        await fs.copyFile(tmp, file);
+        await fs.unlink(tmp).catch(() => {});
+      }
     } catch {
       // best-effort: leave the prior file intact (rename is atomic; a failed
       // write before it only orphans the tmp file).

@@ -40,14 +40,16 @@ export interface DiscoveryResult {
 }
 
 /** Default IPC paths per platform — only consulted when `/api/health` did not return `socket_path`. */
-export function defaultSocketPath(home = process.env.HOME ?? process.env.USERPROFILE ?? ""): string {
+export function defaultSocketPath(
+  home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? "",
+): string {
   if (platform() === "win32") return "\\\\.\\pipe\\wrongtrace.sock";
   if (home) return join(home, ".wrongtrace", "ipc.sock");
   return "/tmp/wrongtrace.sock";
 }
 
 export async function discover(opts: DiscoveryOptions = {}): Promise<DiscoveryResult> {
-  const baseUrl = opts.baseUrl ?? process.env.WRONGTRACE_URL ?? "http://localhost:3444";
+  const baseUrl = opts.baseUrl ?? process.env['WRONGTRACE_URL'] ?? "http://localhost:3444";
   const timeoutMs = opts.timeoutMs ?? 1000;
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
 
