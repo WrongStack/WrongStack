@@ -1650,6 +1650,50 @@ describe('formatToolVisualOutput — edit-style tools', () => {
   });
 });
 
+describe('formatToolVisualOutput — grep & search tools', () => {
+  it('correctly parses grep matches with Windows drive letters', () => {
+    const text = 'D:\\Codebox\\PROJECTS\\WrongStack\\src\\app.ts:42:const answer = 42\nC:\\Users\\test\\index.ts:10:console.log("hi")';
+    const out = formatToolVisualOutput('grep', text, true);
+    expect(out).toHaveLength(2);
+    expect(out?.[0]).toMatchObject({
+      kind: 'match',
+      path: 'D:\\Codebox\\PROJECTS\\WrongStack\\src\\app.ts',
+      lineNo: '42',
+      text: 'const answer = 42',
+    });
+    expect(out?.[1]).toMatchObject({
+      kind: 'match',
+      path: 'C:\\Users\\test\\index.ts',
+      lineNo: '10',
+      text: 'console.log("hi")',
+    });
+  });
+
+  it('correctly parses JSON grep matches with MCP uppercase and lowercase fields', () => {
+    const jsonStr = JSON.stringify({
+      count: 2,
+      matches: [
+        { Filename: 'D:\\Codebox\\src\\main.ts', LineNumber: 99, LineContent: 'main()' },
+        { file: 'src/util.ts', line: 15, text: 'util()' },
+      ],
+    });
+    const out = formatToolVisualOutput('grep', jsonStr, true);
+    expect(out).toHaveLength(2);
+    expect(out?.[0]).toMatchObject({
+      kind: 'match',
+      path: 'D:\\Codebox\\src\\main.ts',
+      lineNo: '99',
+      text: 'main()',
+    });
+    expect(out?.[1]).toMatchObject({
+      kind: 'match',
+      path: 'src/util.ts',
+      lineNo: '15',
+      text: 'util()',
+    });
+  });
+});
+
 describe('formatToolVisualOutput — LSP tools', () => {
   it('turns diagnostics into path, severity, location, and total rows', () => {
     const out = formatToolVisualOutput(
