@@ -84,7 +84,7 @@
   - *How:* `packages/**/*.ts`
   - *How:* `packages/cli/src/index.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=591; wins=588 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-22T07:22:49.756Z; skill=typescript-strict; applied=592; wins=589 -->
 - **Never use `codebase-incoming-calls` on generic overloaded symbol names like `create` in WrongStack - the ref graph returns cross-file noise (91 same-named symbols) and its `file` filter cannot disambiguate methods of one class. Fall back to a targeted grep such as `(sessionStore|store)\.create\(` over `packages/**/src` and filter test files by name instead.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `codebase-incoming-calls`
@@ -94,4 +94,4 @@
   - *How:* `packages/**/src`
 
 ---
-*Last capture: 2026-08-30T20:09:03.074Z · 8 entries*
+*Last capture: 2026-08-22T11:25:46.876Z · 8 entries*
