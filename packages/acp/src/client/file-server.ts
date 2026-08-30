@@ -155,6 +155,9 @@ export class FileServer {
 
   /** Write a text file. Atomic via write-then-rename. */
   async writeTextFile(params: WriteFileParams): Promise<void> {
+    if (typeof params.content !== 'string') {
+      throw new FsError('INVALID_PATH', params.path, 'content must be a string');
+    }
     const byteLength = Buffer.byteLength(params.content, 'utf8');
     if (byteLength > this.maxWriteBytes) {
       throw new FsError(
@@ -216,9 +219,11 @@ export class FileServer {
       throw new FsError('INVALID_PATH', p, 'path must be absolute (ACP requirement)');
     }
     const resolved = path.resolve(p);
-    // +path.sep prevents "/project-evil" matching "/project" as a prefix.
-    const rootWithSep = this.root.endsWith(path.sep) ? this.root : this.root + path.sep;
-    if (resolved !== this.root && !resolved.startsWith(rootWithSep)) {
+    const isWindows = process.platform === 'win32';
+    const normResolved = isWindows ? resolved.toLowerCase() : resolved;
+    const normRoot = isWindows ? this.root.toLowerCase() : this.root;
+    const rootWithSep = normRoot.endsWith(path.sep) ? normRoot : normRoot + path.sep;
+    if (normResolved !== normRoot && !normResolved.startsWith(rootWithSep)) {
       throw new FsError('OUTSIDE_ROOT', resolved, 'path is outside the project root');
     }
 
@@ -234,6 +239,8 @@ export class FileServer {
    */
   private async assertRealInside(resolvedPath: string): Promise<void> {
     let probe = resolvedPath;
+    const isWindows = process.platform === 'win32';
+    const normRealRoot = isWindows ? this.realRoot.toLowerCase() : this.realRoot;
     for (;;) {
       let real: string;
       try {
@@ -250,7 +257,8 @@ export class FileServer {
         }
         throw mapFsError(err, resolvedPath);
       }
-      if (real === this.realRoot || real.startsWith(this.realRoot + path.sep)) return;
+      const normReal = isWindows ? real.toLowerCase() : real;
+      if (normReal === normRealRoot || normReal.startsWith(normRealRoot + path.sep)) return;
       throw new FsError(
         'OUTSIDE_ROOT',
         resolvedPath,
