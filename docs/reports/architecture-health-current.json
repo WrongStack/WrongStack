@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-30T10:14:40.422Z",
+  "generatedAt": "2026-08-30T15:09:37.836Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3429,
-    "testFiles": 3061,
-    "sourceLines": 833869,
+    "sourceFiles": 3431,
+    "testFiles": 3064,
+    "sourceLines": 835379,
     "workspaceEdges": 128,
-    "moduleEdges": 10654,
+    "moduleEdges": 10663,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -140,7 +140,7 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 474,
+      "sourceFiles": 475,
       "testFiles": 450,
       "workspaceDependencies": [
         "@wrongstack/acp",
@@ -210,8 +210,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 780,
-      "testFiles": 689,
+      "sourceFiles": 781,
+      "testFiles": 691,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -226,7 +226,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 689
+          "testFiles": 691
         }
       ]
     },
@@ -754,7 +754,7 @@
       "name": "@wrongstack/tui",
       "dir": "packages/tui",
       "sourceFiles": 335,
-      "testFiles": 327,
+      "testFiles": 328,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -777,7 +777,7 @@
         {
           "path": "packages/tui/tsconfig.test.json",
           "error": null,
-          "testFiles": 327
+          "testFiles": 328
         }
       ]
     },
@@ -7263,6 +7263,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/security/secret-scrubber-shared.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/security/secret-scrubber.test.ts",
         "projects": [
           "root-node"
@@ -7708,6 +7714,12 @@
       },
       {
         "file": "packages/core/tests/storage/session-crash-sigkill.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/storage/session-doctor.test.ts",
         "projects": [
           "root-node"
         ]
@@ -15105,6 +15117,12 @@
         ]
       },
       {
+        "file": "packages/tui/tests/statusbar-view-model-resume-blank.test.tsx",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tui/tests/statusline-detail-panel.test.tsx",
         "projects": [
           "root-node"
@@ -19569,7 +19587,7 @@
   "hotspotCandidates": [
     {
       "file": "packages/cli/src/boot/tui-session-resume.ts",
-      "lines": 802,
+      "lines": 822,
       "relativeImports": 1
     },
     {
@@ -19584,7 +19602,7 @@
     },
     {
       "file": "packages/cli/src/execution.ts",
-      "lines": 850,
+      "lines": 878,
       "relativeImports": 41
     },
     {
@@ -19634,7 +19652,7 @@
     },
     {
       "file": "packages/cli/src/webui-server.ts",
-      "lines": 931,
+      "lines": 941,
       "relativeImports": 21
     },
     {
@@ -19899,12 +19917,12 @@
     },
     {
       "file": "packages/simpleui/src/lib/message-handler.ts",
-      "lines": 807,
+      "lines": 816,
       "relativeImports": 16
     },
     {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
-      "lines": 1008,
+      "lines": 1013,
       "relativeImports": 48
     },
     {
@@ -19964,8 +19982,8 @@
     },
     {
       "file": "packages/tui/src/app.tsx",
-      "lines": 1001,
-      "relativeImports": 71
+      "lines": 1004,
+      "relativeImports": 72
     },
     {
       "file": "packages/tui/src/components/agents-monitor.tsx",
@@ -20014,7 +20032,7 @@
     },
     {
       "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
-      "lines": 846,
+      "lines": 863,
       "relativeImports": 8
     },
     {
@@ -20184,7 +20202,7 @@
     },
     {
       "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1137,
+      "lines": 1169,
       "relativeImports": 10
     },
     {
@@ -20239,7 +20257,7 @@
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1663,
+      "lines": 1695,
       "relativeImports": 11
     },
     {
@@ -20266,7 +20284,7 @@
   "hotspots": [
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1663,
+      "lines": 1695,
       "relativeImports": 11
     },
     {
@@ -20290,14 +20308,14 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/webui/src/types/server-message.ts",
+      "lines": 1169,
+      "relativeImports": 10
+    },
+    {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
       "lines": 1166,
       "relativeImports": 11
-    },
-    {
-      "file": "packages/webui/src/types/server-message.ts",
-      "lines": 1137,
-      "relativeImports": 10
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
@@ -20425,6 +20443,11 @@
       "relativeImports": 0
     },
     {
+      "file": "packages/simpleui/src/simple-ui-session.tsx",
+      "lines": 1013,
+      "relativeImports": 48
+    },
+    {
       "file": "packages/tools/src/codebase-index/project-server.ts",
       "lines": 1013,
       "relativeImports": 9
@@ -20435,14 +20458,14 @@
       "relativeImports": 12
     },
     {
-      "file": "packages/simpleui/src/simple-ui-session.tsx",
-      "lines": 1008,
-      "relativeImports": 48
-    },
-    {
       "file": "packages/tui/src/kanban-slash.ts",
       "lines": 1005,
       "relativeImports": 1
+    },
+    {
+      "file": "packages/tui/src/app.tsx",
+      "lines": 1004,
+      "relativeImports": 72
     },
     {
       "file": "packages/cli/src/slash-commands/sdd.ts",
@@ -20453,11 +20476,6 @@
       "file": "packages/webui/src/components/ChronicleDashboard.tsx",
       "lines": 1002,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/tui/src/app.tsx",
-      "lines": 1001,
-      "relativeImports": 71
     },
     {
       "file": "packages/webui/src/components/SettingsPanel/BrainSection.tsx",
