@@ -63,6 +63,23 @@ describe('diffSnapshots', () => {
     expect(diff.removed).toHaveLength(0);
     expect(diff.changed).toHaveLength(0);
   });
+
+  it('does not report changes when optional fields are both undefined or null', () => {
+    const snapA: Snapshot = {
+      ...BASE_SNAPSHOT,
+      dependencies: [
+        { id: 'dep-1', workspaceId: 'ws-1', ecosystem: 'npm', name: 'pkg-a', sourceType: 'registry', direct: true, scope: 'runtime', status: 'current', evidence: [] },
+      ],
+    };
+    const snapB: Snapshot = {
+      ...snapA,
+      dependencies: [
+        { id: 'dep-1', workspaceId: 'ws-1', ecosystem: 'npm', name: 'pkg-a', sourceType: 'registry', direct: true, scope: 'runtime', status: 'current', evidence: [] },
+      ],
+    };
+    const diff = diffSnapshots(snapA, snapB);
+    expect(diff.changed).toHaveLength(0);
+  });
 });
 
 describe('SBOM export', () => {

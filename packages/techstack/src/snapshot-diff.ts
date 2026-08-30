@@ -50,10 +50,18 @@ export function diffSnapshots(oldSnapshot: Snapshot, newSnapshot: Snapshot): Sna
     }
 
     // Check version changes
-    const fields: Array<keyof DependencyObservation> = ['locked', 'requested', 'status', 'latestStable'];
+    const fields: Array<keyof DependencyObservation> = [
+      'locked',
+      'requested',
+      'status',
+      'latestStable',
+    ];
     for (const field of fields) {
-      const oldVal = String(oldDep[field] ?? '');
-      const newVal = String(newDep[field] ?? '');
+      const rawOld = oldDep[field];
+      const rawNew = newDep[field];
+      if (rawOld === rawNew) continue;
+      const oldVal = rawOld != null ? String(rawOld) : '';
+      const newVal = rawNew != null ? String(rawNew) : '';
       if (oldVal !== newVal) {
         changed.push({
           name: newDep.name,
