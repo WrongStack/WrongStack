@@ -37,4 +37,9 @@ describe('vector codec', () => {
     const decoded = decodeVector(encodeVector(sub));
     expect(Array.from(decoded)).toEqual([1.25, -3]);
   });
+
+  it('handles empty buffers and rejects malformed lengths', () => {
+    expect(decodeVector(Buffer.alloc(0)).length).toBe(0);
+    expect(() => decodeVector(Buffer.alloc(3))).toThrow(/invalid vector byteLength/);
+  });
 });

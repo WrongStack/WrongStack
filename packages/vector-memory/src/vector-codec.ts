@@ -12,6 +12,10 @@ export function encodeVector(vec: Float32Array): Buffer {
 }
 
 export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
+  if (buf.byteLength === 0) return new Float32Array(0);
+  if (buf.byteLength % 4 !== 0) {
+    throw new Error(`decodeVector: invalid vector byteLength ${buf.byteLength} (must be a multiple of 4)`);
+  }
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const out = new Float32Array(buf.byteLength / 4);
   for (let i = 0; i < out.length; i++) {
