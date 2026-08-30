@@ -357,7 +357,8 @@ export class GovernanceCredentialLeaseController implements GovernanceCredential
     }
     this.state = 'scheduled';
     this.stopReason = undefined;
-    this.schedule(Math.max(0, this.expiresAtMs - this.renewBeforeMs - now));
+    const delay = Math.min(2_147_483_647, Math.max(0, this.expiresAtMs - this.renewBeforeMs - now));
+    this.schedule(delay);
   }
 
   private schedule(delayMs: number): void {
