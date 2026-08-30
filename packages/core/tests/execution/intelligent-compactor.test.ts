@@ -64,7 +64,7 @@ describe('IntelligentCompactor', () => {
   });
 
   it('elides large old tool results via elision phase', async () => {
-    const big = 'x'.repeat(20_000);
+    const big = 'x'.repeat(4_000);
     const messages: Message[] = [];
     for (let i = 0; i < 20; i++) {
       messages.push({ role: 'user', content: [{ type: 'text', text: `q${i}` }] });

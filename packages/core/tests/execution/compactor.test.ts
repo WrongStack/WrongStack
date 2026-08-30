@@ -22,7 +22,7 @@ function fakeContext(messages: Message[]): Context {
 
 describe('HybridCompactor', () => {
   it('elides large old tool_results outside preserve window', async () => {
-    const big = 'x'.repeat(20_000);
+    const big = 'x'.repeat(4_000);
     const messages: Message[] = [];
     for (let i = 0; i < 30; i++) {
       messages.push({ role: 'user', content: `query ${i}` });
