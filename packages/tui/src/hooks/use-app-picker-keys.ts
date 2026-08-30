@@ -13,6 +13,7 @@ import { actionForFKeyPanel } from '../f-key-panels.js';
 import {
   RESUME_SPINNER_MS,
   RESUME_STREAM_FRAME_MS,
+  resumeBlockedReason,
   resumeChunkSize,
   resumeStageLabel,
 } from '../resume-load.js';
@@ -364,8 +365,23 @@ export function useAppPickerKeys({
     },
     onResumePickerEnter: async () => {
       const session = state.resumePicker.sessions[state.resumePicker.selected];
-      if (!session || session.isCurrent) return;
+      if (!session) return;
       if (state.resumePicker.busy) return;
+      // Refused HERE, before `runResume` dispatches `resumeLoadStart`.
+      //
+      // The host reservation refuses a live session too, but only after the
+      // screen has been wiped and a multi-hundred-MB journal read — and its
+      // failure path used to render the other session's transcript read-only,
+      // replacing the user's live screen with a stale copy of a conversation
+      // that is still moving somewhere else. Neither is what "resume" should
+      // do to a session someone is using.
+      const blocked = resumeBlockedReason(session);
+      if (blocked !== undefined) {
+        // `isCurrent` stays silent: the row is already dimmed and labelled,
+        // and Enter on it has always been a no-op rather than an error.
+        if (!session.isCurrent) dispatch({ type: 'resumePickerError', text: blocked });
+        return;
+      }
       // Guard BEFORE anything else: `onResumeSession?.(id)` evaluates to
       // undefined when the host doesn't wire the prop, and awaiting the flow
       // would leave the picker stuck with no visible error.

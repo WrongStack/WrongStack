@@ -112,6 +112,29 @@ export function useStatusbarViewModel({
   taskCounts: TaskCounts | null;
   droppedTools: number;
 } {
+  /**
+   * A `/resume` is in flight: the journal is being read, or its transcript is
+   * still streaming in.
+   *
+   * Every session-scoped reading below is blanked for that window. The reducer
+   * already clears `state.leader.ctxTokens` at `resumeLoadStart` for exactly
+   * this reason, but that only removes the FIRST source in the fill ladder —
+   * the per-request snapshot and the local estimate both keep answering from
+   * the leaving session (`tokenCounter` is not reset until the host's
+   * `token_accounting` stage, and `agent.ctx.messages` still holds the old
+   * transcript until the writer swap). So the sidebar's MODEL CORE meter and
+   * PROMPT CACHE card went on reporting a conversation that was no longer on
+   * screen, under the incoming session's loading block.
+   *
+   * Display-only, and self-healing: when the resume settles, the counter and
+   * the context both describe the resumed session; when it fails or lands
+   * read-only, the agent is back in the session it never left and its real
+   * numbers return.
+   */
+  // Truthiness, not `!== null`: `State` declares this as `ResumeLoadState |
+  // null`, but partial state stubs leave it absent, and an `undefined` must
+  // read as "no resume in flight" rather than blanking every reading below.
+  const resuming = Boolean(state.resumeLoad);
   const maxContext = activeMaxContext ?? agent.ctx.provider.capabilities.maxContext;
   // `currentRequestTokens()` is the per-request snapshot — the right number
   // for the status bar. `tokenCounter.total()` is cumulative across the
@@ -150,7 +173,12 @@ export function useStatusbarViewModel({
   const needLocalEstimate = cheapFill.needsLocalEstimate;
   const panelWantsBreakdown = state.contextPanelOpen;
   const sidebarWantsBreakdown = sidebarVisible;
-  const needBreakdown = needLocalEstimate || panelWantsBreakdown || sidebarWantsBreakdown;
+  // Skipped outright during a resume: the walk would measure the OLD
+  // conversation (`agent.ctx.messages` is not swapped until the host reaches
+  // the writer swap), and the result is discarded below anyway. Not paying for
+  // it also keeps the spinner moving while a large journal parses.
+  const needBreakdown =
+    !resuming && (needLocalEstimate || panelWantsBreakdown || sidebarWantsBreakdown);
 
   // Invalidation fingerprint for the breakdown. `getContextBreakdown` walks
   // `ctx.systemPrompt`, `ctx.tools` and `ctx.messages`, so the snapshot goes
@@ -185,18 +213,25 @@ export function useStatusbarViewModel({
   // then the local estimate, then 0 (bar hides via the `maxContext > 0` guard
   // on contextWindow). The cumulative session total is never an input — see
   // context-fill.ts for why clamping it pegs the bar at a false 100%.
-  const currentContextTokens = needLocalEstimate
-    ? resolveContextFill({
-        loopReportedTokens,
-        perRequestTokens,
-        localEstimate: contextBreakdown?.total,
-        maxContext,
-      }).used
-    : cheapFill.used;
+  const currentContextTokens = resuming
+    ? 0
+    : needLocalEstimate
+      ? resolveContextFill({
+          loopReportedTokens,
+          perRequestTokens,
+          localEstimate: contextBreakdown?.total,
+          maxContext,
+        }).used
+      : cheapFill.used;
   const contextWindow = useMemo(() => {
     void state.contextChipVersion;
+    // `undefined`, not `{used: 0}`: the MODEL CORE card reads a missing window
+    // as "awaiting telemetry" and the bar hides, which is the honest reading
+    // while a resume decides which conversation is loaded. A zeroed window
+    // would instead draw a confident empty meter.
+    if (resuming) return undefined;
     return maxContext > 0 ? { used: currentContextTokens, max: maxContext } : undefined;
-  }, [currentContextTokens, maxContext, state.contextChipVersion]);
+  }, [currentContextTokens, maxContext, resuming, state.contextChipVersion]);
 
   const todos = useMemo(() => {
     const counts = { pending: 0, inProgress: 0, completed: 0 };
@@ -388,8 +423,15 @@ export function useStatusbarViewModel({
   // without waiting for an unrelated re-render. Fall back to a direct
   // counter read so legacy callers that don't pass `tokenRefresh` still
   // see something other than zeros.
-  const cacheStats: CacheStats = tokenRefresh?.cacheStats ??
-    tokenCounter?.cacheStats?.() ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 };
+  //
+  // Zeroed during a resume: the counter still holds the LEAVING session's
+  // lifetime cache totals until the host's `token_accounting` stage resets it
+  // and re-accounts the resumed journal's usage, so the card would otherwise
+  // advertise another conversation's hit ratio underneath the loading block.
+  const cacheStats: CacheStats = resuming
+    ? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 }
+    : (tokenRefresh?.cacheStats ??
+      tokenCounter?.cacheStats?.() ?? { readTokens: 0, writeTokens: 0, hitRatio: 0, savedUsd: 0 });
 
   // Cache coverage: the cached prefix of the most recent prompt, capped at
   // the live request's `used` total so it never exceeds what is actually
@@ -397,7 +439,9 @@ export function useStatusbarViewModel({
   // snapshot is available. Surfaced as a marker on the context window
   // detail so users can see "cache covers the first N tokens" rather
   // than guessing from a percentage.
-  const requestCacheRead = tokenRefresh?.currentRequest?.cacheRead ?? perRequest?.cacheRead ?? 0;
+  const requestCacheRead = resuming
+    ? 0
+    : (tokenRefresh?.currentRequest?.cacheRead ?? perRequest?.cacheRead ?? 0);
   const cacheCoverageTokens = Math.max(0, Math.min(currentContextTokens, requestCacheRead));
 
   return {

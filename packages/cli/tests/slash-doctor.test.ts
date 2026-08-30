@@ -31,6 +31,10 @@ describe('diagnoseConfig', () => {
   });
 
   it('does not flag any valid Config key as unknown — regression', () => {
+    // Spot-check, not the safety net. This list is hand-written, so it drifts
+    // exactly like the whitelist it pins — which is how eight real fields came
+    // to be reported as "unknown key". The real gate is the `ConfigKeyCoverage`
+    // type in config-doctor.ts, which `tsc` checks against `keyof Config`.
     const report = diagnoseConfig({
       version: 1,
       provider: 'anthropic',
@@ -44,8 +48,10 @@ describe('diagnoseConfig', () => {
       brain: { defaultMode: 'off' },
       fallbackProfiles: { coding: ['gpt-4o'] },
       fallbackMaxLastResortCandidates: 20,
-      acp: { enabled: true },
-      agents: {},
+      // `agents` is nested here — it was never a top-level Config field, but
+      // the whitelist carried it as a phantom entry, so a stray top-level
+      // `agents` block used to be waved through.
+      acp: { agents: {} },
       fleet: { enabled: false },
       git: { identity: { name: 'x', email: 'x@x' } },
       pluginManager: { locked: ['secret-scanner'] },
@@ -53,6 +59,36 @@ describe('diagnoseConfig', () => {
     const unknownKeys = report.findings.filter((f) => f.problem.includes('unknown key'));
     expect(unknownKeys).toHaveLength(0);
     expect(report.findings).toHaveLength(0);
+  });
+
+  it('accepts the fields WrongStack writes to its own config — regression', () => {
+    // Every key here was reported to the user as "unknown key — left untouched
+    // (delete it manually if unwanted)" while WrongStack itself was writing it:
+    // `/theme` writes `themePreset`, the WebUI prompt-variant picker and
+    // `boot.ts` write `systemPrompt`, `/fallback gate` writes
+    // `fallbackGateSeconds`. Following that advice would have silently reset
+    // the user's theme and prompt variant.
+    const report = diagnoseConfig({
+      version: 1,
+      activeProfile: 'default',
+      themePreset: 'github-dark',
+      systemPrompt: { variant: 'pro' },
+      modelTiers: { enabled: true },
+      chronicle: { retentionDays: 30 },
+      cloudSync: { enabled: false },
+      fallbackProfile: 'coding',
+      fallbackGateSeconds: 7,
+    });
+    expect(report.findings).toEqual([]);
+    expect(report.changed).toBe(false);
+  });
+
+  it('still flags a genuinely unknown top-level key', () => {
+    // The widened whitelist must not turn the check into a no-op.
+    const report = diagnoseConfig({ version: 1, agents: {}, notAConfigField: 1 });
+    const unknown = report.findings.filter((f) => f.problem.includes('unknown key'));
+    expect(unknown.map((f) => f.path).sort()).toEqual(['agents', 'notAConfigField']);
+    expect(unknown.every((f) => f.severity === 'warning')).toBe(true);
   });
 
   it('coerces stringified booleans and removes uncoercible ones', () => {
@@ -348,6 +384,76 @@ describe('/doctor slash command', () => {
   it('rejects unknown subcommands', async () => {
     const { ctx } = makeCtx();
     const res = await buildDoctorCommand(ctx).run!('heal');
-    expect(stripAnsi(res!.message!)).toContain('Usage: /doctor [fix]');
+    // `sessions` joined `fix` as a subcommand, so the usage line names both.
+    expect(stripAnsi(res!.message!)).toContain('Usage: /doctor [fix|sessions [fix]]');
+  });
+});
+
+/**
+ * `/doctor sessions` is the session-corpus half. It shares the command so
+ * "something is wrong with my setup" has one entry point, but it diagnoses a
+ * completely different subject and must not touch the config path.
+ */
+describe('/doctor sessions', () => {
+  function sessionsCtx(): { ctx: SlashCommandContext; sessionsDir: string } {
+    const sessionsDir = mkdtempSync(path.join(tmpdir(), 'wstack-doctor-sessions-'));
+    const ctx = {
+      configStore: { get: vi.fn(() => ({})), update: vi.fn() },
+      paths: { projectSessions: sessionsDir },
+    } as never as SlashCommandContext;
+    return { ctx, sessionsDir };
+  }
+
+  const ev = (type: string, extra: Record<string, unknown> = {}): string =>
+    `${JSON.stringify({ type, ts: '2026-08-29T10:00:00.000Z', ...extra })}
+`;
+
+  it('reports on the corpus and offers a repair without performing one', async () => {
+    const { ctx, sessionsDir } = sessionsCtx();
+    const day = path.join(sessionsDir, '2026-08-29');
+    mkdirSync(day, { recursive: true });
+    const journal = path.join(day, 'sess_a.jsonl');
+    const body =
+      ev('session_start', { id: '2026-08-29/sess_a', model: 'm', provider: 'p' }) +
+      ev('user_input', { content: 'a question' });
+    writeFileSync(journal, body);
+
+    const res = await buildDoctorCommand(ctx).run!('sessions');
+    const text = stripAnsi(res!.message!);
+
+    expect(text).toContain('Session Doctor');
+    expect(text).toContain('missing_summary');
+    expect(text).toContain('/doctor sessions fix');
+    // Report mode wrote nothing: no sidecar appeared and the journal is intact.
+    expect(existsSync(path.join(day, 'sess_a.summary.json'))).toBe(false);
+    expect(readFileSync(journal, 'utf8')).toBe(body);
+  });
+
+  it('rebuilds derived artifacts on fix and leaves the journal byte-identical', async () => {
+    const { ctx, sessionsDir } = sessionsCtx();
+    const day = path.join(sessionsDir, '2026-08-29');
+    mkdirSync(day, { recursive: true });
+    const journal = path.join(day, 'sess_b.jsonl');
+    const body =
+      ev('session_start', { id: '2026-08-29/sess_b', model: 'm', provider: 'p' }) +
+      ev('user_input', { content: 'rebuild me' }) +
+      ev('session_end');
+    writeFileSync(journal, body);
+
+    const res = await buildDoctorCommand(ctx).run!('sessions fix');
+    const text = stripAnsi(res!.message!);
+
+    expect(text).toContain('rebuilt 1 summary sidecar');
+    expect(text).toContain('Journals were not modified.');
+    const sidecar = JSON.parse(readFileSync(path.join(day, 'sess_b.summary.json'), 'utf8'));
+    expect(sidecar.title).toContain('rebuild me');
+    // The invariant the whole feature rests on.
+    expect(readFileSync(journal, 'utf8')).toBe(body);
+  });
+
+  it('rejects an unknown session subcommand rather than guessing', async () => {
+    const { ctx } = sessionsCtx();
+    const res = await buildDoctorCommand(ctx).run!('sessions wipe');
+    expect(stripAnsi(res!.message!)).toContain('Usage: /doctor sessions [fix]');
   });
 });

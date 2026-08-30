@@ -40,6 +40,7 @@ import { useInterruptLadder } from './hooks/use-interrupt-ladder.js';
 import { useKanbanBoardFocus } from './hooks/use-kanban-board-focus.js';
 import { useLiveSettingsState } from './hooks/use-live-settings-state.js';
 import { useLiveTodos } from './hooks/use-live-todos.js';
+import { todosForScreen } from './resume-load.js';
 import { useMailboxViewModel } from './hooks/use-mailbox-view-model.js';
 import { useModePicker } from './hooks/use-mode-picker.js';
 import { useModelPickRequest } from './hooks/use-model-pick.js';
@@ -227,7 +228,7 @@ export function App(props: AppProps): React.ReactElement {
   } = environment;
 
   const projectRoot = agent.ctx.projectRoot;
-  const liveTodos = useLiveTodos(agent.ctx);
+  const sessionTodos = useLiveTodos(agent.ctx);
   const { state, dispatch, layoutStore } = useAppSessionState({
     agent,
     banner,
@@ -247,6 +248,8 @@ export function App(props: AppProps): React.ReactElement {
     initialFleetChat: fleetStreamController?.mode,
     sessionsDir,
   });
+  // Blanked for the length of a `/resume` — see `todosForScreen`.
+  const liveTodos = todosForScreen(sessionTodos, state.resumeLoad);
   const historyScrollRef = useRef<HistoryScrollController | null>(null);
   const onScrollInfo = useCallback(
     (info: { scrolled: boolean }) =>

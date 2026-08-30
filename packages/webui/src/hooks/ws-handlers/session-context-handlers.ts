@@ -349,6 +349,21 @@ export function handleContextModeChanged(msg: WSServerMessage) {
   meta.setEnvRates({ contextMode: p.id });
 }
 
+export function handleSessionResumeProgress(msg: WSServerMessage) {
+  const payload = msg.payload as {
+    sessionId?: unknown;
+    stage?: unknown;
+    loadedBytes?: unknown;
+    totalBytes?: unknown;
+  };
+  if (typeof payload.sessionId !== 'string' || payload.sessionId.length === 0) return;
+  useResumeProgressStore.getState().update(payload.sessionId, {
+    stage: typeof payload.stage === 'string' ? payload.stage : 'open_journal',
+    loadedBytes: typeof payload.loadedBytes === 'number' ? payload.loadedBytes : 0,
+    totalBytes: typeof payload.totalBytes === 'number' ? payload.totalBytes : 0,
+  });
+}
+
 export function handleError(msg: WSServerMessage) {
   const payload = msg.payload as {
     phase: string;

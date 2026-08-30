@@ -446,20 +446,42 @@ const PATTERN_ANCHORS: readonly string[] = [
  */
 const ALL_ANCHORS: readonly string[] = PATTERN_ANCHORS;
 
+/** Escape a literal anchor for embedding in {@link ANCHOR_PRESCAN}. */
+function escapeLiteral(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * All {@link ALL_ANCHORS} as one alternation, built once at module load.
+ *
+ * Matches exactly when some anchor is a substring — the same predicate the
+ * per-anchor `includes()` loop computed, in ONE pass over the text instead of
+ * one pass per anchor.
+ */
+const ANCHOR_PRESCAN = new RegExp(ALL_ANCHORS.map(escapeLiteral).join('|'));
+
 /**
  * Quick pre-scan: does the text contain any substring that MUST be present for
  * some credential pattern to match? If not, the text is guaranteed clean and
  * every regex pass is skipped.
  *
- * V8's `String.includes()` is hand-tuned C++ — O(n) with near-zero overhead at
- * typical tool-output lengths, and consistently faster here than one combined
- * regex over this many alternatives.
+ * One combined regex, not a loop of `String.includes()`.
+ *
+ * The loop was chosen when the anchor set was small and the inputs were single
+ * tool outputs: `includes()` is hand-tuned C++ and beats a regex at that size.
+ * But the set is derived from the pattern table and has grown to 48 anchors,
+ * and the heaviest caller is not a tool output — it is a session resume, which
+ * runs this over every string in a journal. Measured on a real 133 MB journal
+ * (309k strings, 124 MB of text, of which FOUR needed redacting): 48 sequential
+ * `includes()` passes cost 1492 ms, one combined-alternation `test()` costs
+ * 627 ms. That is 865 ms off every large resume, for an identical predicate —
+ * a regex alternation of literals matches iff one of the literals occurs.
+ *
+ * Anchor-set growth used to make this quadratically worse; now it costs one
+ * more alternative in a single scan.
  */
 function hasCredentialAnchors(text: string): boolean {
-  for (const anchor of ALL_ANCHORS) {
-    if (text.includes(anchor)) return true;
-  }
-  return false;
+  return ANCHOR_PRESCAN.test(text);
 }
 
 export class DefaultSecretScrubber implements SecretScrubber {
@@ -572,6 +594,56 @@ export class DefaultSecretScrubber implements SecretScrubber {
         out[k] = visit(val);
       }
       return out;
+    };
+    return visit(obj) as T;
+  }
+
+  /**
+   * Copy-on-write {@link scrubObject}: clean subtrees come back by reference.
+   *
+   * `scrubObject` rebuilds the entire graph unconditionally — a new object for
+   * every node, a new array for every array — whether or not anything was
+   * redacted. On the read path that is almost all waste: measured over a real
+   * 133 MB journal, 488k nodes and 309k strings were rebuilt so that FOUR
+   * strings could be redacted, costing ~480 ms of allocation and the GC
+   * pressure that comes with it. Rebuilding only the spine above an actual
+   * redaction gives the same output for a fraction of the garbage.
+   *
+   * The sharing is why this is a separate method rather than a change to
+   * `scrubObject`: see the contract note on `SecretScrubber.scrubObjectShared`.
+   */
+  scrubObjectShared<T>(obj: T): T {
+    const seen = new WeakSet();
+    const visit = (v: unknown): unknown => {
+      if (typeof v === 'string') return this.scrub(v);
+      if (v === null || typeof v !== 'object') return v;
+      // Matches `scrubObject`: a node reached twice is returned as-is rather
+      // than re-entered, which terminates on cycles.
+      if (seen.has(v as object)) return v;
+      seen.add(v as object);
+      if (Array.isArray(v)) {
+        let out: unknown[] | undefined;
+        for (let i = 0; i < v.length; i++) {
+          const before = v[i];
+          const after = visit(before);
+          if (after === before) continue;
+          // First change in this array: copy it, then patch. Later elements
+          // already sit in the copy at their original (unchanged) values.
+          out ??= [...v];
+          out[i] = after;
+        }
+        return out ?? v;
+      }
+      const source = v as Record<string, unknown>;
+      let out: Record<string, unknown> | undefined;
+      for (const k of Object.keys(source)) {
+        const before = source[k];
+        const after = visit(before);
+        if (after === before) continue;
+        out ??= { ...source };
+        out[k] = after;
+      }
+      return out ?? v;
     };
     return visit(obj) as T;
   }

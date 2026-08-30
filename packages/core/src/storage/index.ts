@@ -157,8 +157,8 @@ export {
   type CuratorSage,
   type CuratorSageCandidate,
   type CuratorSageRecord,
-  type SessionMemoryCuratorOptions,
   SessionMemoryCurator,
+  type SessionMemoryCuratorOptions,
 } from './memory-curator.js';
 export {
   GraphMemoryBackend,
@@ -228,6 +228,18 @@ export {
   SessionCheckpointCas,
   type SessionCheckpointCasOptions,
 } from './session-checkpoint-cas.js';
+export {
+  type DiagnoseSessionsOptions,
+  diagnoseSessions,
+  repairSessionSummaries,
+  type SessionDiagnosis,
+  type SessionDoctorReport,
+  type SessionDoctorTotals,
+  type SessionFinding,
+  type SessionFindingCode,
+  type SessionLifecycleBoundary,
+  type SummaryRepairResult,
+} from './session-doctor.js';
 export {
   type AuditLevel,
   CORE_RECONSTRUCT_EVENTS,

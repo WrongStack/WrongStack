@@ -6,8 +6,6 @@ import { Composer } from './composer.js';
 import { ErrorBoundary } from './error-boundary.js';
 import type { FallbackPendingProjection } from './fallback-modal.js';
 import { FileChangesButton } from './file-changes-button.js';
-import { SessionAgentStrip } from './session-agent-strip.js';
-import { SessionTopbar } from './session-topbar.js';
 import { useAgentRoster } from './hooks/use-agent-roster.js';
 import { useComposerActions } from './hooks/use-composer-actions.js';
 import { useF5Resilience } from './hooks/use-f5-resilience.js';
@@ -36,12 +34,12 @@ import {
   readComposerDraft,
   writeComposerDraft,
 } from './lib/composer-draft.js';
-import { onPersistedWriteFailure } from './lib/persisted.js';
 import { removeFileMention } from './lib/file-mention.js';
-import { dispatchSimplePanel } from './lib/panel-events.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
+import { dispatchSimplePanel } from './lib/panel-events.js';
+import { onPersistedWriteFailure } from './lib/persisted.js';
 import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
 import type { RefineState } from './lib/refine-model.js';
 import {
@@ -54,14 +52,17 @@ import {
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
 import type { SimpleSocket } from './lib/ws.js';
+import { SessionAgentStrip } from './session-agent-strip.js';
 import { SessionMailboxDrawer } from './session-mailbox-drawer.js';
 import { SessionModals } from './session-modals.js';
+import { SessionTopbar } from './session-topbar.js';
 import { ToolSidebar } from './tool-sidebar.js';
 import type {
   AgentMode,
   ChatMessage,
   FileEditMeta,
   PendingConfirm,
+  ResumeProgressInfo,
   ToolCallInfo,
 } from './types.js';
 import { UpdateBanner } from './update-banner.js';
@@ -94,6 +95,7 @@ export function SimpleUiSession() {
   const [draft, setDraft] = useState('');
   const [fileRefs, setFileRefs] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
+  const [resumeProgress, setResumeProgress] = useState<ResumeProgressInfo | null>(null);
   const [activity, setActivity] = useState('');
   const { notice, showNotice: setNotice } = useStatusNotice();
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
@@ -479,6 +481,7 @@ export function SimpleUiSession() {
     setSubagents,
     setAgentTranscripts,
     setSession,
+    setResumeProgress,
     setSessions,
     setContext,
     setModels,
@@ -641,6 +644,7 @@ export function SimpleUiSession() {
 
   const resumeSession = (id: string) => {
     if (running || !sessionIdRef.current || id === sessionIdRef.current) return;
+    setResumeProgress({ sessionId: id, stage: 'start', loadedBytes: 0, totalBytes: 0 });
     socketRef.current?.send('session.resume', { sessionId: sessionIdRef.current, id });
   };
 
@@ -739,53 +743,53 @@ export function SimpleUiSession() {
     <div className="app-shell">
       <ErrorBoundary section="topbar">
         <SessionTopbar
-        session={session}
-        sessions={sessions}
-        running={running}
-        models={{
-          selectedModel,
-          groupedModels,
-          providerLabels,
-          pendingModelSwitch,
-          selectModel,
-          confirmModelSwitch,
-          cancelModelSwitch,
-        }}
-        contextTokens={context.tokens}
-        contextMaxContext={context.maxContext}
-        load={load}
-        cache={context.cache}
-        connection={connection}
-        theme={theme}
-        commandPaletteOpen={commandPaletteOpen}
-        mailboxOpen={mailboxOpen}
-        mailboxUnreadCount={mailboxUnreadCount}
-        settingsOpen={settingsOpen}
-        appVersion={updateInfo.appVersion}
-        latestVersion={updateInfo.latestVersion}
-        hasUpdate={hasUpdate}
-        onCreateSession={createSession}
-        onResumeSession={resumeSession}
-        onRefreshSessions={() => {
-          if (sessionIdRef.current) {
-            socketRef.current?.send('sessions.list', {
-              sessionId: sessionIdRef.current,
-              limit: 12,
+          session={session}
+          sessions={sessions}
+          running={running}
+          models={{
+            selectedModel,
+            groupedModels,
+            providerLabels,
+            pendingModelSwitch,
+            selectModel,
+            confirmModelSwitch,
+            cancelModelSwitch,
+          }}
+          contextTokens={context.tokens}
+          contextMaxContext={context.maxContext}
+          load={load}
+          cache={context.cache}
+          connection={connection}
+          theme={theme}
+          commandPaletteOpen={commandPaletteOpen}
+          mailboxOpen={mailboxOpen}
+          mailboxUnreadCount={mailboxUnreadCount}
+          settingsOpen={settingsOpen}
+          appVersion={updateInfo.appVersion}
+          latestVersion={updateInfo.latestVersion}
+          hasUpdate={hasUpdate}
+          onCreateSession={createSession}
+          onResumeSession={resumeSession}
+          onRefreshSessions={() => {
+            if (sessionIdRef.current) {
+              socketRef.current?.send('sessions.list', {
+                sessionId: sessionIdRef.current,
+                limit: 12,
+              });
+            }
+          }}
+          onOpenContextBreakdown={() => setContextBreakdownOpen(true)}
+          onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+          onToggleTheme={toggleTheme}
+          onToggleMailbox={() => {
+            setMailboxOpen((current) => {
+              const next = !current;
+              if (next) refreshMailbox();
+              return next;
             });
-          }
-        }}
-        onOpenContextBreakdown={() => setContextBreakdownOpen(true)}
-        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
-        onToggleTheme={toggleTheme}
-        onToggleMailbox={() => {
-          setMailboxOpen((current) => {
-            const next = !current;
-            if (next) refreshMailbox();
-            return next;
-          });
-        }}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
+          }}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
       </ErrorBoundary>
 
       <UpdateBanner
@@ -833,6 +837,7 @@ export function SimpleUiSession() {
             copiedMessageId={copiedMessageId}
             running={running}
             activity={activity}
+            resumeProgress={resumeProgress}
             theme={theme}
             onOpenDiff={(meta) => setDiffFiles([meta])}
             emptyState={

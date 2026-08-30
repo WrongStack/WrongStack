@@ -3,7 +3,7 @@
   "thresholdLines": 800,
   "files": {
     "packages/cli/src/boot/tui-session-resume.ts": {
-      "lines": 802,
+      "lines": 822,
       "relativeImports": 1
     },
     "packages/cli/src/boot.ts": {
@@ -15,7 +15,7 @@
       "relativeImports": 34
     },
     "packages/cli/src/execution.ts": {
-      "lines": 850,
+      "lines": 878,
       "relativeImports": 41
     },
     "packages/cli/src/fleet/host.ts": {
@@ -55,7 +55,7 @@
       "relativeImports": 5
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 931,
+      "lines": 941,
       "relativeImports": 21
     },
     "packages/core/src/boot.ts": {
@@ -267,11 +267,11 @@
       "relativeImports": 3
     },
     "packages/simpleui/src/lib/message-handler.ts": {
-      "lines": 807,
+      "lines": 816,
       "relativeImports": 16
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
-      "lines": 1008,
+      "lines": 1013,
       "relativeImports": 48
     },
     "packages/tools/src/codebase-index/background-indexer.ts": {
@@ -319,8 +319,8 @@
       "relativeImports": 14
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1001,
-      "relativeImports": 71
+      "lines": 1004,
+      "relativeImports": 72
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 984,
@@ -359,7 +359,7 @@
       "relativeImports": 12
     },
     "packages/tui/src/hooks/use-tui-slash-commands.ts": {
-      "lines": 846,
+      "lines": 863,
       "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
@@ -495,7 +495,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 1137,
+      "lines": 1169,
       "relativeImports": 10
     },
     "packages/webui-hq/src/app.tsx": {
@@ -539,7 +539,7 @@
       "relativeImports": 47
     },
     "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1663,
+      "lines": 1695,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/start-webui.ts": {

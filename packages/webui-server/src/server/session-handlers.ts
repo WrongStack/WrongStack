@@ -16,7 +16,7 @@ import type { createStrategyCompactor } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { loadTodosCheckpoint } from '@wrongstack/core/storage';
-import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
+import type { SessionLoadProgress, SessionStore, TokenCounter } from '@wrongstack/core/types';
 import {
   CONTEXT_WINDOW_MODE_PINNED_META_KEY,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
@@ -309,6 +309,22 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
   };
   const result = (ws: WebSocket, success: boolean, message: string): void => {
     sendTo(ws, { type: 'key.operation_result', payload: { success, message } });
+  };
+  const sendResumeProgress = (
+    ws: WebSocket,
+    sessionId: string,
+    stage: string,
+    progress?: SessionLoadProgress,
+  ): void => {
+    sendTo(ws, {
+      type: 'session.resume_progress',
+      payload: {
+        sessionId,
+        stage,
+        loadedBytes: progress?.loadedBytes ?? 0,
+        totalBytes: progress?.totalBytes ?? 0,
+      },
+    });
   };
   const sessionsDirectory = (): string =>
     ctx.getSessionsDir?.() ?? ctx.sessionsDir ?? `${ctx.getProjectRoot()}/.wrongstack/sessions`;
@@ -1325,12 +1341,20 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             result(ws, true, 'Session is already active');
             return;
           }
+          sendResumeProgress(ws, canonicalId, 'reserve_ownership');
           rollbackClaim = await ctx.claimSession?.(canonicalId);
-          const resumed = await store.resume(canonicalId);
+          sendResumeProgress(ws, canonicalId, 'open_journal');
+          const resumed = await store.resume(canonicalId, (progress) => {
+            sendResumeProgress(ws, canonicalId, 'open_journal', progress);
+          });
           if (!ctx.hasSession) {
             await ctx.context.flushConversationJournal?.().catch(() => undefined);
             await finalizeSession(current);
           }
+          sendResumeProgress(ws, resumed.writer.id, 'read_sidecars', {
+            loadedBytes: 1,
+            totalBytes: 1,
+          });
           const restoredTodos =
             (await loadTodosCheckpoint(
               sessionScopedPath(sessionsDirectory(), resumed.writer.id, '.todos.json'),
@@ -1339,6 +1363,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
               resumed.writer.id,
             ).catch(() => null)) ?? [];
           activated = true;
+          sendResumeProgress(ws, resumed.writer.id, 'swap_writer', {
+            loadedBytes: 1,
+            totalBytes: 1,
+          });
           await activateSession(
             resumed.writer,
             resumed.data.messages,
@@ -1350,6 +1378,10 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           if (client) {
             client.sessionId = resumed.writer.id;
           }
+          sendResumeProgress(ws, resumed.writer.id, 'replay_history', {
+            loadedBytes: 1,
+            totalBytes: 1,
+          });
           const isRunning = ctx.isRunActive?.(resumed.writer.id) ?? false;
           const targetAgent = ctx.getAgent?.(resumed.writer.id);
           const liveMessages =

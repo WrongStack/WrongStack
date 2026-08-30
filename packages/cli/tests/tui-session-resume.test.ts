@@ -197,6 +197,50 @@ describe('TUI session resume ownership', () => {
     expect(h.context.session).toBe(h.oldWriter);
   });
 
+  it('refuses outright when another process holds the session, with no read-only fallback', async () => {
+    // A live session is the one case where the read-only hand-back is the
+    // WRONG answer: it blanks the user's screen and replaces it with a
+    // snapshot of a conversation that is still moving in the other process,
+    // which reads as a resume that has silently stopped updating.
+    //
+    // The picker already refuses these up front from `entry.live`; this is the
+    // race where a session goes live between the listing and Enter.
+    const h = harness();
+    const conflict = new Error('Session is already open in another running wstack (pid 4242).');
+    conflict.name = 'SessionOwnershipConflictError';
+    h.activateSessionIdentity.mockRejectedValue(conflict);
+
+    const failures: unknown[] = [];
+    const result = await resumeSession(
+      { ...h.ctx, onFailure: (f: unknown) => failures.push(f) } as never,
+      h.resumedWriter.id,
+    );
+
+    expect(result).toBeNull();
+    // The expensive half never runs: no journal read for a session we are not
+    // going to show.
+    expect(h.loadStore).not.toHaveBeenCalled();
+    expect(h.resumeStore).not.toHaveBeenCalled();
+    // The agent stays exactly where it was.
+    expect(h.context.session).toBe(h.oldWriter);
+    expect(h.context.messages).toBe(h.oldMessages);
+    // And the caller gets the reason, not a bare "failed".
+    expect(JSON.stringify(failures)).toContain('4242');
+  });
+
+  it('still hands back a read-only transcript for an ordinary claim failure', async () => {
+    // The refusal above keys on the ownership-conflict error NAME (which the
+    // catalog daemon preserves across IPC), not on "the claim failed" — a
+    // corrupt registry or a permissions error must keep the read-only path.
+    const h = harness();
+    h.activateSessionIdentity.mockRejectedValue(new Error('registry file is unreadable'));
+
+    const result = await resumeSession(h.ctx as never, h.resumedWriter.id);
+
+    expect(result?.attached).toBe(false);
+    expect(result?.entries).toEqual([{ id: 1, kind: 'user' }]);
+  });
+
   it('repoints the host sessionRef to the resumed writer on success', async () => {
     // Regression for the CLI chimera HIGH finding: before the fix, the
     // forward-declared `sessionRef.current` was only assigned once at

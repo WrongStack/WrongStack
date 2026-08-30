@@ -1,3 +1,4 @@
+import type { Config } from '../../types/config.js';
 import type { PartialConfig } from './env-overrides.js';
 
 const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
@@ -12,6 +13,10 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'autonomy',
   'indexing',
   'session',
+  // Journal retention. 'retentionDays' is clamped up to 7 on read precisely so
+  // a repo-committed config cannot flush recent evidence; 0 (auto-purge off)
+  // only ever keeps more.
+  'chronicle',
   'log',
   'launch',
   'nextPrediction',
@@ -20,6 +25,10 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'configScope',
   'maxConcurrent',
   'uiLocale',
+  // Cosmetic only: the TUI owns the canonical preset list and falls back to
+  // 'catppuccin' for an unknown value, so the worst a repo can do is pick a
+  // colour scheme.
+  'themePreset',
   'fallbackModels',
   'fallbackBridge',
   'fallbackProfiles',
@@ -32,8 +41,17 @@ const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'modelAvailabilitySchedule',
   'fallbackAuto',
   'fallbackStickiness',
+  // The countdown before the UI auto-accepts the next fallback candidate.
+  // Grants a repo nothing it does not already have: 'fallbackModels' and
+  // 'fallbackProfiles' above already let it choose the candidate itself.
+  'fallbackGateSeconds',
   'models',
   'modelMatrix',
+  // Same class as 'modelMatrix' and 'fallbackProfiles' directly above: a tier
+  // only NAMES a profile/provider/model the user already configured, and its
+  // budget fields (maxCostUsd / maxIterations / timeoutMs) can only clamp a
+  // subagent DOWNWARD. No credential or exec surface.
+  'modelTiers',
   'circuitBreaker',
   'adaptiveConcurrency',
   'modelRuntime',
@@ -61,6 +79,11 @@ const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = 
     reason: 'Carries the my.wrongstack.com machine token credential and endpoint URL.',
   },
   { key: 'yolo', reason: 'Disables all permission confirmation prompts.' },
+  {
+    key: 'systemPrompt',
+    reason:
+      "Selects the baseline identity prompt. The 'lite' variant drops whole sections of system.md — including 'Tool output trust boundary', the passage that tells the agent not to obey instructions found in repo content. A repo-committed config could therefore switch off the very rule that protects the user from that repo.",
+  },
   { key: 'extensions', reason: 'Per-plugin config can carry command/credential fields.' },
   { key: 'hq', reason: 'Carries HQ client token credential and endpoint URL.' },
   { key: 'acp', reason: 'Per-agent ACP command/args/env override → arbitrary command exec (RCE).' },
@@ -86,7 +109,17 @@ const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = 
   },
 ];
 
-const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
+/**
+ * Every top-level `Config` field, as literals. Kept exhaustive by
+ * `ConfigFieldRegistryCoverage` below rather than by hand: this registry is
+ * what `assertInProjectAllowListComplete` iterates, so a field missing HERE
+ * is a field the allow/deny drift guard never looks at. That is not
+ * hypothetical — it is exactly how `fallbackMaxLastResortCandidates` slipped
+ * past (see its deny entry above), and five more had followed it in
+ * (`systemPrompt`, `themePreset`, `modelTiers`, `chronicle`,
+ * `fallbackGateSeconds`) before the compile gate was added.
+ */
+const KNOWN_CONFIG_TOP_LEVEL_KEY_LIST = [
   'version',
   'activeProfile',
   'provider',
@@ -139,7 +172,44 @@ const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'fleet',
   'brain',
   'git',
-]);
+  'themePreset',
+  'modelTiers',
+  'fallbackGateSeconds',
+  'chronicle',
+  'systemPrompt',
+] as const;
+
+/** Compile-time `never` assertion; the TS error names the offending keys. */
+type AssertNever<T extends never> = T;
+
+/** `Config` fields the registry above forgot. Must be `never`. */
+type UnregisteredConfigField = Exclude<
+  keyof Config,
+  (typeof KNOWN_CONFIG_TOP_LEVEL_KEY_LIST)[number]
+>;
+
+/** Registry entries `Config` no longer has. Must be `never`. */
+type StaleRegistryField = Exclude<
+  (typeof KNOWN_CONFIG_TOP_LEVEL_KEY_LIST)[number],
+  keyof Config
+>;
+
+/**
+ * The gate that makes `assertInProjectAllowListComplete` trustworthy.
+ *
+ * That function is a runtime check, and a runtime check cannot see
+ * `keyof Config` — it can only iterate the registry it is handed. So the
+ * registry itself has to be verified at compile time, or "every Config field
+ * is classified" quietly degrades into "every field someone remembered to
+ * list is classified".
+ */
+export type ConfigFieldRegistryCoverage =
+  | AssertNever<UnregisteredConfigField>
+  | AssertNever<StaleRegistryField>;
+
+const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set(
+  KNOWN_CONFIG_TOP_LEVEL_KEY_LIST,
+);
 
 /**
  * Nested fields stripped from an allow-listed top-level key.

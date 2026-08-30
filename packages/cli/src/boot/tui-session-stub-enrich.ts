@@ -24,6 +24,26 @@ import type { SessionSummary } from '@wrongstack/core/types';
 const SLICE_BYTES = 256 * 1024;
 const MAX_TITLE_CHARS = 80;
 
+/**
+ * Widest pool `selectPickerSessions` will over-fetch to.
+ *
+ * The listing itself is cheap (2 ms for a full catalog), so this bounds the
+ * ENRICHMENT that follows, not the query: every stub in the pool costs two
+ * bounded transcript reads.
+ */
+const PICKER_POOL_CEILING = 1500;
+
+/**
+ * Stub transcripts read at once.
+ *
+ * Enrichment used to be one flat `Promise.all` over the whole pool. At the old
+ * 200-row ceiling that was already 400 concurrent file handles; at this one it
+ * would be 3000, which is an EMFILE on Windows rather than a fast picker. The
+ * reads are I/O-bound and individually bounded, so a small window saturates the
+ * disk without opening the floodgates.
+ */
+const ENRICH_CONCURRENCY = 16;
+
 /** A summary is a stub when it has no title and no clean end — exactly the
  * shape a killed process leaves behind. */
 function isStubSummary(s: SessionSummary): boolean {
@@ -191,7 +211,13 @@ export async function selectPickerSessions(
   sessionsDir: string,
   limit: number,
 ): Promise<SessionSummary[]> {
-  const poolSize = Math.min(200, Math.max(limit, limit * 3));
+  // Over-fetch 3x so the empties dropped below don't shrink the result, but
+  // never fetch FEWER rows than were asked for: the ceiling used to be a flat
+  // `Math.min(200, …)`, which silently clamped the pool below `limit` as soon
+  // as the picker asked for more than 200 — so raising the picker's own limit
+  // did nothing. Measured, the fetch is not what costs: `list(1000)` over a
+  // 219-session catalog returns in 2 ms.
+  const poolSize = Math.max(limit, Math.min(PICKER_POOL_CEILING, limit * 3));
   const enriched = await enrichStubSummaries(await storeList(poolSize), sessionsDir);
   return enriched
     .filter(hasActivity)
@@ -207,25 +233,43 @@ export async function enrichStubSummaries(
   summaries: SessionSummary[],
   sessionsDir: string,
 ): Promise<SessionSummary[]> {
-  return Promise.all(
-    summaries.map(async (s) => {
-      if (!isStubSummary(s)) return s;
+  const out = [...summaries];
+  // Only stubs cost anything; a healthy corpus has none, so the common path
+  // does no I/O at all and never enters the worker loop below.
+  const pending = summaries.reduce<number[]>((indexes, summary, index) => {
+    if (isStubSummary(summary)) indexes.push(index);
+    return indexes;
+  }, []);
+  if (pending.length === 0) return out;
+
+  // Bounded fan-out: `ENRICH_CONCURRENCY` workers pulling from one cursor.
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    for (;;) {
+      const slot = cursor++;
+      if (slot >= pending.length) return;
+      const index = pending[slot] as number;
+      const summary = out[index] as SessionSummary;
       // Crafted shard-relative ids must not escape the sessions directory.
-      const file = containedJsonlPath(sessionsDir, s.id);
-      if (!file) return s;
+      const file = containedJsonlPath(sessionsDir, summary.id);
+      if (!file) continue;
       try {
         const stat = await fs.stat(file);
         const [first, last] = await Promise.all([firstUserInput(file), lastUserInput(file)]);
         const title = truncate(first?.text ?? '');
-        return {
-          ...s,
+        out[index] = {
+          ...summary,
           ...(title ? { title } : {}),
           ...(last ? { lastUserMessage: truncate(last.text) } : {}),
           lastActivityAt: stat.mtime.toISOString(),
         };
       } catch {
-        return s;
+        // Best-effort: an unreadable transcript leaves the summary untouched.
       }
-    }),
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(ENRICH_CONCURRENCY, pending.length) }, () => worker()),
   );
+  return out;
 }

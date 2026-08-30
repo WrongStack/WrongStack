@@ -34,6 +34,11 @@ export async function getLiveSessions(ctx: LiveSessionsContext) {
       gitBranch: s.gitBranch,
       status: s.status,
       pid: s.pid,
+      // Which surface owns it — 'tui' | 'webui' | 'cli' | 'repl'. The /resume
+      // picker names it when it refuses a live session, because "open
+      // somewhere else" is not actionable and "open in the WebUI (pid 1234)"
+      // is. Optional on the registry entry for back-compat with older rows.
+      clientType: s.clientType,
       startedAt: s.startedAt,
       agentCount: s.agentCount,
       agents: s.agents.map((a) => ({

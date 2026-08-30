@@ -10,7 +10,7 @@ import {
 import { projectAssistantMessage } from './lib/message-projection.js';
 import { buildTimeline } from './lib/timeline-model.js';
 import { ToolCallEntry } from './tool-call-entry.js';
-import type { ChatMessage, FileEditMeta, ToolCallInfo } from './types.js';
+import type { ChatMessage, FileEditMeta, ResumeProgressInfo, ToolCallInfo } from './types.js';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -21,6 +21,7 @@ interface ChatMessageListProps {
   copiedMessageId: string | null;
   running: boolean;
   activity: string;
+  resumeProgress?: ResumeProgressInfo | null | undefined;
   emptyState: React.ReactNode;
   theme: 'dark' | 'light';
   onCopyMessage: (id: string, text: string) => void;
@@ -169,6 +170,7 @@ export function ChatMessageList({
   copiedMessageId,
   running,
   activity,
+  resumeProgress,
   emptyState,
   theme,
   onCopyMessage,
@@ -223,6 +225,33 @@ export function ChatMessageList({
 
     return entries;
   }, [messages, toolCalls, fileEdits]);
+
+  if (resumeProgress) {
+    const pct =
+      resumeProgress.totalBytes > 0
+        ? Math.max(
+            0,
+            Math.min(
+              100,
+              Math.round((resumeProgress.loadedBytes / resumeProgress.totalBytes) * 100),
+            ),
+          )
+        : null;
+    const stage = resumeProgress.stage.replaceAll('_', ' ');
+    return (
+      <div className="conversation">
+        <div className="resume-state" role="status" aria-live="polite">
+          <LoaderCircle size={22} className="spin" aria-hidden="true" />
+          <span>RESUMING SESSION</span>
+          <h1>{pct === null ? 'Reading history' : `${pct}%`}</h1>
+          <p>{stage}</p>
+          <div className="resume-progress-track" aria-hidden="true">
+            <span style={{ width: `${pct ?? 12}%` }} />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (timeline.length === 0) {
     return <div className="conversation">{emptyState}</div>;

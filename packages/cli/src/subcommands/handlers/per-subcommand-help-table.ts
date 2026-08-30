@@ -141,9 +141,18 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'List recent sessions, show one session in detail, resume a ' +
       "session, or inspect a session's audit log. The audit log is " +
       "stored as JSONL next to each session's recording.",
-    usage: 'wstack sessions [list|show|resume|fork|config|fleet] [...]',
+    usage: 'wstack sessions [list|show|resume|fork|doctor|config|fleet] [...]',
     subcommands: [
       { name: 'list', description: 'List the most recent sessions.' },
+      {
+        name: 'doctor [--fix] [--json] [--limit N]',
+        description:
+          'Diagnose every journal in this project: unparsable lines, truncated ' +
+          'tails, sessions that died mid-turn, missing or stale summary ' +
+          'sidecars, and journals large enough to be slow to open. --fix ' +
+          'rebuilds only derived artifacts (summary sidecars + the catalog ' +
+          'index); journals are never edited.',
+      },
       { name: 'show <id>', description: 'Show one session in detail.' },
       { name: 'resume [<id>]', description: 'Resume a session (latest if no id given).' },
       {
@@ -338,7 +347,8 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
       'package manager; pass `--allow-scripts` (alias `--lifecycle-scripts`) ' +
       'to opt into package lifecycle scripts during the update (off by default). ' +
       'The update is global; run from any project root.',
-    usage: 'wstack update [--check-only] [--pm <manager>] [--allow-scripts (alias: --lifecycle-scripts)]',
+    usage:
+      'wstack update [--check-only] [--pm <manager>] [--allow-scripts (alias: --lifecycle-scripts)]',
     seeAlso: 'wstack version (read-only version info)',
   },
 

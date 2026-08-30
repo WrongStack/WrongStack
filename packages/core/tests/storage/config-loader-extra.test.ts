@@ -249,6 +249,40 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     expect(() => assertInProjectAllowListComplete()).not.toThrow();
   });
 
+  it('strips systemPrompt from repo config — a repo cannot pick the baseline prompt', () => {
+    // The 'lite' variant omits sections of system.md, among them
+    // "Tool output trust boundary" — the passage instructing the agent not to
+    // treat repo content as instructions. A repo-committed config selecting it
+    // would be disabling the rule that guards against that same repo.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = stripUnsafeInProjectFields(
+      { systemPrompt: { variant: 'lite' }, model: 'gpt-4o' } as never,
+      '/tmp/.wrongstack/config.json',
+      warn,
+    );
+    expect(out).toEqual({ model: 'gpt-4o' });
+    const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(warned).toContain('systemPrompt');
+    warn.mockRestore();
+  });
+
+  it('keeps the cosmetic / already-clamped fields a repo may legitimately set', () => {
+    // These four were unclassified: absent from the allow-list they were
+    // stripped in practice, but absent from the key registry too, so the drift
+    // guard above never checked that anyone had made that call on purpose.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const payload = {
+      themePreset: 'github-dark',
+      chronicle: { retentionDays: 30 },
+      fallbackGateSeconds: 7,
+      modelTiers: { enabled: true },
+    };
+    const out = stripUnsafeInProjectFields(payload as never, '/tmp/.wrongstack/config.json', warn);
+    expect(out).toEqual(payload);
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('strips tools.kanbanGovernance from repo config so a repo cannot disable an enabled gate', () => {
     // The flag defaults to false, so the only thing a repo-committed config
     // can do with it is turn OFF a gate the operator switched on — the same

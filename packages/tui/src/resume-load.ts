@@ -153,6 +153,65 @@ export function appendResumeLog(log: readonly string[], line: string): string[] 
   return [...log, line].slice(-(LOG_ROWS * 4));
 }
 
+/**
+ * One shared empty board.
+ *
+ * A module-level constant rather than a fresh `[]` per render: the memos that
+ * key on the todo list (the statusline view model, the sidebar's mission rows)
+ * would otherwise re-run on every spinner tick for the length of the resume.
+ */
+const NO_TODOS: never[] = [];
+
+/**
+ * The todo board the screen should show.
+ *
+ * `/resume` wipes the transcript to the clean slate `/clear` leaves (see
+ * `resumeLoadStart` in `reducers/composer.ts`), but the board itself lives in
+ * `agent.ctx` and the host does not replace it until it has read the journal
+ * and re-pointed the sidecars — seconds during which the LEAVING session's
+ * missions sat under the incoming session's loading block, in the swarm panel,
+ * the F6 monitor and the sidebar's MISSIONS card alike. Blank it for the length
+ * of the resume; the host's `replaceTodos` then fills it with the resumed
+ * session's board, or leaves it empty when that session had none.
+ *
+ * Display-only on purpose. A resume that fails, or lands read-only, rolls the
+ * agent back to the session it was already in — and that session's board is
+ * still the truth, so it comes back rather than staying falsely empty.
+ */
+export function todosForScreen<T>(todos: T[], resumeLoad: ResumeLoadState | null | undefined): T[] {
+  return resumeLoad ? (NO_TODOS as T[]) : todos;
+}
+
+/** The parts of a picker row that decide whether it can be resumed at all. */
+export interface ResumableSession {
+  isCurrent?: boolean | undefined;
+  live?: { pid: number; clientType?: string | undefined } | undefined;
+}
+
+/**
+ * Why this session cannot be resumed — or `undefined` when it can.
+ *
+ * One predicate for both consumers: the picker dims and labels the row with it,
+ * and the Enter handler refuses with it. They used to be separate checks, which
+ * is how the `/resume` picker ended up enforcing less than the F10 sessions
+ * panel did for the same situation — F10 had a `pid` test, `/resume` had none,
+ * and nothing made the two disagree visible.
+ *
+ * "Live" means another process holds this session's registry lease: a second
+ * `wstack --tui`, the WebUI server, SimpleUI, a REPL. Two writers appending to
+ * one journal interleave their turns and corrupt the transcript, so this is a
+ * refusal, not a warning.
+ */
+export function resumeBlockedReason(session: ResumableSession): string | undefined {
+  if (session.isCurrent) return 'That is this session — nothing to resume.';
+  const live = session.live;
+  if (!live) return undefined;
+  return (
+    `That session is open in ${live.clientType ?? 'another wstack'} (pid ${live.pid}) ` +
+    `and is still being written. Close it there first, or pick another session.`
+  );
+}
+
 /** Frames the transcript stream is spread across, whatever its length. */
 const STREAM_FRAMES = 36;
 /** Smallest batch worth a repaint. */

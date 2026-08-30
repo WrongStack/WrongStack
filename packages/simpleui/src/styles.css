@@ -1433,6 +1433,61 @@ a:focus-visible {
   font-size: 13px;
 }
 
+.resume-state {
+  min-height: 52vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+}
+
+.resume-state svg {
+  color: var(--accent);
+}
+
+.resume-state span {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.resume-state h1 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.resume-state p {
+  margin: 0;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: lowercase;
+}
+
+.resume-progress-track {
+  width: min(320px, 80vw);
+  height: 4px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.resume-progress-track span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 180ms ease;
+}
+
 .message {
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr);

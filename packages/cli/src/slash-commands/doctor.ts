@@ -10,6 +10,104 @@ import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand } from './helpers.js';
 
 /**
+ * `/doctor sessions [fix]` — the session-corpus half of the doctor.
+ *
+ * Runs in the TUI, so it must stay answerable: the scan streams every journal
+ * in the project (tens of gigabytes on a long-lived one), and the only honest
+ * thing to return is a single message once it finishes. Report mode writes
+ * nothing; `fix` rebuilds derived artifacts only.
+ */
+async function runSessionsDoctor(
+  opts: SlashCommandContext,
+  rest: string[],
+): Promise<{ message: string }> {
+  const sessionsDir = opts.paths?.projectSessions;
+  if (!sessionsDir) {
+    return { message: `${color.red('Error')} session paths not available.` };
+  }
+  const applyFixes = rest[0] === 'fix';
+  if (rest[0] && !applyFixes) {
+    return { message: `${color.amber('Usage:')} /doctor sessions [fix]` };
+  }
+
+  const { diagnoseSessions, repairSessionSummaries } = await import('@wrongstack/core/storage');
+  let report: Awaited<ReturnType<typeof diagnoseSessions>>;
+  try {
+    report = await diagnoseSessions({ sessionsDir });
+  } catch (err) {
+    return { message: `${color.red('Session scan failed')} ${toErrorMessage(err)}` };
+  }
+
+  const lines: string[] = [`${color.bold('WrongStack')} ${color.dim('— Session Doctor')}`, ''];
+  const gb = (bytes: number) =>
+    bytes >= 1e9 ? `${(bytes / 1e9).toFixed(2)} GB` : `${(bytes / 1e6).toFixed(1)} MB`;
+  lines.push(
+    `  ${report.totals.sessions} session(s), ${gb(report.totals.bytes)} on disk`,
+    ...(report.totals.snapshotBytes > 0
+      ? [
+          color.dim(
+            `  ${gb(report.totals.snapshotBytes)} of that is superseded conversation snapshots` +
+              ' — reclaimed by pruning, never by rewriting a journal',
+          ),
+        ]
+      : []),
+  );
+
+  const counts = Object.entries(report.byCode).sort((a, b) => b[1] - a[1]);
+  if (counts.length > 0) {
+    lines.push('', color.bold('Findings'));
+    for (const [code, count] of counts) lines.push(`  ${String(count).padStart(4)}  ${code}`);
+  }
+  for (const entry of report.unreadable.slice(0, 10)) {
+    lines.push(`  ${color.red('✗')} ${color.cyan(entry.id)} — ${entry.reason}`);
+  }
+
+  const notable = report.sessions.filter((s) => s.findings.some((f) => f.severity !== 'info'));
+  if (notable.length > 0) {
+    lines.push('', color.bold(`Needing attention (${notable.length})`));
+    for (const session of notable.slice(0, 10)) {
+      lines.push(`  ${color.cyan(session.id)}`);
+      for (const finding of session.findings) {
+        if (finding.severity === 'info') continue;
+        const icon = finding.severity === 'error' ? color.red('✗') : color.amber('!');
+        lines.push(`    ${icon} ${finding.detail}`);
+      }
+    }
+    if (notable.length > 10) lines.push(color.dim(`  … ${notable.length - 10} more`));
+  } else {
+    lines.push('', color.green('  No session needs attention.'));
+  }
+
+  if (!applyFixes) {
+    const fixable = report.sessions.filter((s) => s.findings.some((f) => f.fix)).length;
+    lines.push(
+      '',
+      fixable > 0
+        ? color.dim(`Run /doctor sessions fix to repair ${fixable} of them.`)
+        : color.dim('Nothing to repair.'),
+    );
+    return { message: lines.join('\n') };
+  }
+
+  const repair = await repairSessionSummaries({ report });
+  lines.push('', color.bold('Repairs'));
+  lines.push(`  ${color.green('✓')} rebuilt ${repair.repaired.length} summary sidecar(s)`);
+  const store = opts.sessionStore;
+  if (store?.rebuildIndex) {
+    try {
+      lines.push(`  ${color.green('✓')} re-indexed ${await store.rebuildIndex()} session(s)`);
+    } catch (err) {
+      lines.push(`  ${color.red('✗')} catalog rebuild failed: ${toErrorMessage(err)}`);
+    }
+  }
+  for (const failure of repair.failed) {
+    lines.push(`  ${color.red('✗')} ${color.cyan(failure.id)} — ${failure.reason}`);
+  }
+  lines.push(color.dim('  Journals were not modified.'));
+  return { message: lines.join('\n') };
+}
+
+/**
  * `/doctor` — diagnose and auto-repair the persisted config files.
  *
  * Report mode (bare `/doctor`) never writes anything. `/doctor fix` backs the
@@ -21,8 +119,10 @@ import { parseSubcommand } from './helpers.js';
 export function buildDoctorCommand(opts: SlashCommandContext): SlashCommand {
   const help = [
     'Usage:',
-    '  /doctor        Diagnose the config files (read-only)',
-    '  /doctor fix    Apply all auto-fixes (backs up first)',
+    '  /doctor                 Diagnose the config files (read-only)',
+    '  /doctor fix             Apply all config auto-fixes (backs up first)',
+    "  /doctor sessions        Diagnose this project's session corpus (read-only)",
+    '  /doctor sessions fix    Rebuild summary sidecars + the catalog index',
     '',
     'Checks: JSON validity (restores from backup when corrupt), field types',
     '(booleans, numbers, enums like autonomy.defaultMode), plugins/extensions',
@@ -31,6 +131,14 @@ export function buildDoctorCommand(opts: SlashCommandContext): SlashCommand {
     '',
     'Fix safety: invalid values are removed so built-in / plugin defaults',
     'apply; values are only rewritten when unambiguous (e.g. "true" → true).',
+    '',
+    'Session checks: unparsable lines, truncated tails, missing session_start,',
+    'sessions that died mid-turn or were never closed, missing/stale summary',
+    'sidecars, and journals large enough to be slow to open.',
+    '',
+    'Session fix safety: only DERIVED files are written (.summary.json sidecars',
+    'and the catalog index). Journals are never edited — see the module doc for',
+    'why compacting their snapshot bytes would break rewind.',
   ].join('\n');
 
   /** Best-effort load of builtin plugin schemas for extensions validation. */
@@ -102,14 +210,18 @@ export function buildDoctorCommand(opts: SlashCommandContext): SlashCommand {
     name: 'doctor',
     category: 'Config',
     description: 'Diagnose and auto-fix problems in the persisted config files.',
-    argsHint: '[fix]',
+    argsHint: '[fix|sessions]',
     help,
     async run(args) {
-      const { cmd } = parseSubcommand(args);
+      const { cmd, rest } = parseSubcommand(args);
       if (cmd === 'help' || cmd === '--help') return { message: help };
+      // `/doctor sessions` diagnoses the session corpus rather than the config.
+      // Same report/fix split, different subject — kept behind one command so
+      // "something is wrong with my setup" has a single entry point.
+      if (cmd === 'sessions') return runSessionsDoctor(opts, rest);
       const applyFixes = cmd === 'fix';
       if (cmd && !applyFixes) {
-        return { message: `${color.amber('Usage:')} /doctor [fix]` };
+        return { message: `${color.amber('Usage:')} /doctor [fix|sessions [fix]]` };
       }
       if (!opts.paths) {
         return { message: `${color.red('Error')} config paths not available.` };

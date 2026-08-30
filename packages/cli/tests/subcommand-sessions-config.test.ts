@@ -18,6 +18,16 @@ vi.mock('../src/subcommands/handlers/sessions-fleet.js', () => ({
   sessionsFleetCmd: fleetMocks.sessionsFleetCmd,
 }));
 
+const doctorMocks = vi.hoisted(() => ({
+  diagnoseSessions: vi.fn(),
+  repairSessionSummaries: vi.fn(),
+}));
+
+vi.mock('@wrongstack/core/storage', () => ({
+  diagnoseSessions: doctorMocks.diagnoseSessions,
+  repairSessionSummaries: doctorMocks.repairSessionSummaries,
+}));
+
 import { configCmd, sessionsCmd } from '../src/subcommands/handlers/sessions-config.js';
 
 let tmp: string;
@@ -38,6 +48,8 @@ beforeEach(async () => {
   histMocks.restoreFromHistory.mockReset();
   histMocks.restoreLast.mockReset();
   fleetMocks.sessionsFleetCmd.mockReset();
+  doctorMocks.diagnoseSessions.mockReset();
+  doctorMocks.repairSessionSummaries.mockReset();
 });
 
 afterEach(async () => {
@@ -51,6 +63,7 @@ function mkDeps(over: Record<string, unknown> = {}) {
     paths: {
       globalConfig: path.join(tmp, 'config.json'),
       profileConfig: () => path.join(tmp, 'config.json'),
+      projectSessions: path.join(tmp, 'sessions'),
     },
     sessionStore: {
       list: vi.fn().mockResolvedValue([]),
@@ -67,6 +80,72 @@ describe('sessionsCmd', () => {
     const code = await sessionsCmd(['fleet', 'run-1'], mkDeps());
     expect(code).toBe(0);
     expect(fleetMocks.sessionsFleetCmd).toHaveBeenCalledWith(['run-1'], expect.anything());
+  });
+
+  it('runs session doctor without requiring a session store', async () => {
+    doctorMocks.diagnoseSessions.mockResolvedValue({
+      sessionsDir: path.join(tmp, 'sessions'),
+      totals: { sessions: 1, bytes: 2048, snapshotBytes: 1024 },
+      byCode: { missing_summary: 1 },
+      unreadable: [],
+      sessions: [
+        {
+          id: 'sess-needs-summary',
+          bytes: 2048,
+          snapshotBytes: 1024,
+          summaryPath: path.join(tmp, 'sessions', 'sess-needs-summary.summary.json'),
+          findings: [
+            {
+              severity: 'warn',
+              code: 'missing_summary',
+              detail: 'summary sidecar is missing',
+              fix: 'rebuild-summary',
+            },
+          ],
+        },
+      ],
+    });
+    const code = await sessionsCmd(['doctor', '--limit', '1'], mkDeps({ sessionStore: undefined }));
+    expect(code).toBe(0);
+    expect(doctorMocks.diagnoseSessions).toHaveBeenCalledWith({
+      sessionsDir: path.join(tmp, 'sessions'),
+      onProgress: expect.any(Function),
+    });
+    const out = writes.join('');
+    expect(out).toContain('Session doctor');
+    expect(out).toContain('sess-needs-summary');
+    expect(out).toContain('wstack sessions doctor --fix');
+  });
+
+  it('repairs session doctor findings and reports JSON results', async () => {
+    const report = {
+      sessionsDir: path.join(tmp, 'sessions'),
+      totals: { sessions: 1, bytes: 200, snapshotBytes: 0 },
+      byCode: {},
+      unreadable: [],
+      sessions: [],
+    };
+    doctorMocks.diagnoseSessions.mockResolvedValue(report);
+    doctorMocks.repairSessionSummaries.mockResolvedValue({
+      repaired: ['sess-1'],
+      failed: [],
+    });
+    const rebuildIndex = vi.fn().mockResolvedValue(1);
+    const code = await sessionsCmd(
+      ['doctor', '--fix', '--json'],
+      mkDeps({ sessionStore: { list: vi.fn(), rebuildIndex } }),
+    );
+    expect(code).toBe(0);
+    expect(doctorMocks.repairSessionSummaries).toHaveBeenCalledWith({
+      report,
+      onProgress: expect.any(Function),
+    });
+    expect(rebuildIndex).toHaveBeenCalled();
+    expect(JSON.parse(writes.join(''))).toMatchObject({
+      report,
+      repair: { repaired: ['sess-1'], failed: [] },
+      indexed: 1,
+    });
   });
 
   it('errors when no session store is wired', async () => {

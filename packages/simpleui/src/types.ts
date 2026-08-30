@@ -65,6 +65,13 @@ export interface ContextInfo {
   } | null;
 }
 
+export interface ResumeProgressInfo {
+  sessionId: string;
+  stage: string;
+  loadedBytes: number;
+  totalBytes: number;
+}
+
 export interface ModelDescriptor {
   id: string;
   name: string;

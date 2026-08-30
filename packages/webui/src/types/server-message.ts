@@ -61,6 +61,7 @@ import type {
   WSProviderStreamError,
   WSRunResult,
   WSSessionEnd,
+  WSSessionResumeProgress,
   WSSessionRunState,
   WSSessionStart,
   WSTextDelta,
@@ -172,6 +173,7 @@ export type WSServerMessage =
   | WSProviderStreamError
   | WSRunResult
   | WSSessionRunState
+  | WSSessionResumeProgress
   | WSSessionStats
   | WSError
   | WSToolConfirmNeeded
@@ -990,7 +992,15 @@ export type WSServerMessage =
           rawText: string;
           cascadeDepth?: number | undefined;
           evidenceStatus?: string | undefined;
-          evidenceChecks?: Array<{ name: string; command: string; ok: boolean; claimedExitCode?: number | null; actualExitCode?: number | null }> | undefined;
+          evidenceChecks?:
+            | Array<{
+                name: string;
+                command: string;
+                ok: boolean;
+                claimedExitCode?: number | null;
+                actualExitCode?: number | null;
+              }>
+            | undefined;
         } | null;
         findings: Array<{
           finding: {
@@ -1001,14 +1011,29 @@ export type WSServerMessage =
             location?: { file: string; line?: number | undefined } | undefined;
             category?: string | undefined;
             confidence?: string | undefined;
-            verification?: { status: string; reason: string; evidence?: string | undefined } | undefined;
+            verification?:
+              | { status: string; reason: string; evidence?: string | undefined }
+              | undefined;
             title: string;
             description: string;
             suggestedFix?: string | undefined;
             createdAt: string;
             status: string;
-            resolution?: { outcome: string; resolvedAt: string; resolvedBy: string; commitSha?: string | undefined; notes?: string | undefined } | undefined;
-            originReport: { reportId: string; sessionId: string; agentId: string; reviewerModel: string };
+            resolution?:
+              | {
+                  outcome: string;
+                  resolvedAt: string;
+                  resolvedBy: string;
+                  commitSha?: string | undefined;
+                  notes?: string | undefined;
+                }
+              | undefined;
+            originReport: {
+              reportId: string;
+              sessionId: string;
+              agentId: string;
+              reviewerModel: string;
+            };
           };
           events: Array<{
             id: string;
@@ -1038,7 +1063,12 @@ export type WSServerMessage =
     }
   | {
       type: 'chimera.report.updated';
-      payload: { reportId: string; lifecycle?: string | undefined; success: boolean; error?: string | undefined };
+      payload: {
+        reportId: string;
+        lifecycle?: string | undefined;
+        success: boolean;
+        error?: string | undefined;
+      };
     }
   | {
       type: 'chimera.report.note_added';
@@ -1046,7 +1076,12 @@ export type WSServerMessage =
     }
   | {
       type: 'chimera.finding.updated';
-      payload: { findingId: string; status?: string | undefined; success: boolean; error?: string | undefined };
+      payload: {
+        findingId: string;
+        status?: string | undefined;
+        success: boolean;
+        error?: string | undefined;
+      };
     }
   // ── Cron plugin events — state snapshots and job lifecycle ──────────────────
   | {
@@ -1077,9 +1112,6 @@ export type WSServerMessage =
       payload: { id: string; exitCode: number; signal?: number | undefined };
     }
   | { type: 'prompts.journal'; payload: WSPromptsJournalPayload };
-
-// Helper to broadcast to all clients
-type BroadcastFn = (msg: WSServerMessage) => void;
 
 /** One entry from the hierarchical prompt journal (mirrors core `PromptJournalEntry`). */
 export interface WSPromptJournalEntry {

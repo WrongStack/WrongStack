@@ -115,8 +115,16 @@ async function summarizeSessionEventSequence(opts: {
         messageCount++;
         // Cache buckets included — see totalUsageTokens for why tokenTotal
         // counts the whole prompt the model loaded, not just the fresh slice.
-        tokenIn += effectiveInputTokens(e.usage);
-        tokenOut += e.usage.output ?? 0;
+        // `usage` is required by the type, but a journal on disk is not a
+        // type — and the catch below turns ANY throw into a whole-session
+        // `(damaged)` summary, so one malformed event would cost the session
+        // its title, its counts and its place in the picker. Guarded here
+        // rather than inside `effectiveInputTokens`, whose non-null contract
+        // three other call sites rely on.
+        if (e.usage) {
+          tokenIn += effectiveInputTokens(e.usage);
+          tokenOut += e.usage.output ?? 0;
+        }
         // A mid-session model switch or fallback rotation is only visible on
         // the response that used it; session_start/session_resumed record the
         // model the session OPENED with. Last writer wins, matching the live

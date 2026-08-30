@@ -144,9 +144,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/storage": {
-      "files": 115,
+      "files": 117,
       "typeOnly": 32,
-      "runtimeOrMixed": 117
+      "runtimeOrMixed": 119
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -159,8 +159,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1022,
-      "typeOnly": 946,
+      "files": 1023,
+      "typeOnly": 947,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -189,9 +189,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 551,
+      "files": 552,
       "typeOnly": 58,
-      "runtimeOrMixed": 522
+      "runtimeOrMixed": 523
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -8915,6 +8915,12 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/slash-commands/doctor.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/slash-commands/plan.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -8952,6 +8958,12 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/subcommands/handlers/rewind.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/subcommands/handlers/sessions-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -14999,6 +15011,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/statusbar-view-model-resume-blank.test.tsx",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/submit-prompt-refinement.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -17316,6 +17334,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/subcommands/handlers/sessions-config.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/subcommands/handlers/sessions-doctor.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -4,8 +4,8 @@ import { VList } from 'virtua';
 import { MemoryInjectorPanel } from '@/components/MemoryManager/MemoryInjectorPanel';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
-import { getWSClient } from '@/lib/ws-client';
 import { cn } from '@/lib/utils';
+import { getWSClient } from '@/lib/ws-client';
 import {
   useActiveSessionId,
   useChatStore,
@@ -15,7 +15,12 @@ import {
   useUIStore,
 } from '@/stores';
 import { DEFAULT_LANE_ID } from '@/stores/chat-lanes';
-import { useResumeProgressStore } from '@/stores/resume-progress-store';
+import {
+  formatResumeBytes,
+  resumeProgressPercent,
+  resumeStageLabel,
+  useResumeProgressStore,
+} from '@/stores/resume-progress-store';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
@@ -100,6 +105,11 @@ export function ChatView() {
   const isRestoringTranscript = useResumeProgressStore((s) =>
     state.sessionId ? s.startedAt[state.sessionId] !== undefined : false,
   );
+  const restoreProgress = useResumeProgressStore((s) =>
+    state.sessionId ? s.progress[state.sessionId] : undefined,
+  );
+  const restorePct = resumeProgressPercent(restoreProgress);
+  const restoreStage = resumeStageLabel(restoreProgress?.stage);
   useEffect(() => {
     if (!hydratedSessionId || wsStatus.state !== 'open') return;
     getWSClient().getChimeraReports(hydratedSessionId);
@@ -227,17 +237,40 @@ export function ChatView() {
                 */}
                 {isRestoringTranscript ? (
                   <div
-                    className="flex flex-col items-center justify-center gap-2 py-16 text-center"
+                    className="flex flex-col items-center justify-center gap-3 py-16 text-center"
                     role="status"
                     aria-live="polite"
                   >
-                    <div
-                      className="h-5 w-5 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin"
-                      aria-hidden="true"
-                    />
+                    <div className="relative h-12 w-12" aria-hidden="true">
+                      <div className="absolute inset-0 rounded-full border-2 border-muted-foreground/20" />
+                      <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary animate-spin" />
+                      <div className="absolute inset-1.5 rounded-full bg-background/80" />
+                      <div className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums text-foreground">
+                        {restorePct === null ? '...' : `${restorePct}%`}
+                      </div>
+                    </div>
                     <p className="text-sm font-medium">
                       {t('activity:chatView.restoringTranscript')}
                     </p>
+                    <div className="w-full max-w-sm">
+                      <div className="mb-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                        <span className="truncate">{restoreStage}</span>
+                        {restoreProgress && restoreProgress.totalBytes > 0 ? (
+                          <span className="shrink-0 tabular-nums">
+                            {formatResumeBytes(restoreProgress.loadedBytes)} /{' '}
+                            {formatResumeBytes(restoreProgress.totalBytes)}
+                          </span>
+                        ) : (
+                          <span className="shrink-0 tabular-nums">reading...</span>
+                        )}
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary transition-[width] duration-200 ease-out"
+                          style={{ width: `${restorePct ?? 12}%` }}
+                        />
+                      </div>
+                    </div>
                     <p className="text-xs text-muted-foreground max-w-sm">
                       {t('activity:chatView.restoringTranscriptHint')}
                     </p>

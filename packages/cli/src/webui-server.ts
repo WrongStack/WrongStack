@@ -311,6 +311,27 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     ? new WebSocketServer({ server: httpServer.server, maxPayload: 20 * 1024 * 1024 })
     : new WebSocketServer({ port: httpPort, host, maxPayload: 20 * 1024 * 1024 });
 
+  // Armed at construction, not at wiring time. Constructing a WebSocketServer
+  // with {server} makes `ws` forward that HTTP server's 'error' events onto
+  // this emitter, and the SimpleUI surface binds the HTTP server AFTER this
+  // point (deferListen). A bind error arriving while this emitter had no
+  // 'error' listener threw out of the emit loop as an uncaughtException,
+  // which skipped the remaining HTTP-server 'error' listeners — including
+  // listenWithRetry's — so the awaited bind never settled and startup hung
+  // forever. Bun on Windows reaches that window routinely (phantom
+  // EADDRINUSE on a free port), Node can reach it through a genuine
+  // probe-to-bind race.
+  wss.on('error', (err) => {
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'webui_server.error',
+        message: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  });
+
   if (httpServer) {
     const boundPort =
       surface === 'simpleui'
@@ -785,17 +806,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         needsSetup: opts.needsSetup ?? false,
       }),
     );
-
-    wss.on('error', (err) => {
-      console.error(
-        JSON.stringify({
-          level: 'error',
-          event: 'webui_server.error',
-          message: err instanceof Error ? err.message : String(err),
-          timestamp: new Date().toISOString(),
-        }),
-      );
-    });
 
     signalShutdown = createWebuiShutdown({
       abortInFlight: () => {

@@ -78,7 +78,6 @@ describe('a resumed tab keeps its transcript', () => {
       addEventListener() {},
       removeEventListener() {},
     });
-
   });
 
   /**
@@ -166,6 +165,25 @@ describe('the tab says it is waiting', () => {
     } as unknown as WSServerMessage);
 
     expect(useResumeProgressStore.getState().startedAt[A]).toBeUndefined();
+  });
+
+  it('records server-reported journal progress and clears it on the answer', () => {
+    requestedSwitches.add(A);
+    useSessionTabStore.getState().openTab(A, { resumeSession: () => {} });
+
+    WS_HANDLERS['session.resume_progress']?.({
+      type: 'session.resume_progress',
+      payload: { sessionId: A, stage: 'open_journal', loadedBytes: 512, totalBytes: 1024 },
+    } as unknown as WSServerMessage);
+
+    expect(useResumeProgressStore.getState().progress[A]).toMatchObject({
+      stage: 'open_journal',
+      loadedBytes: 512,
+      totalBytes: 1024,
+    });
+
+    sessionStart({ sessionId: A, reset: true, replayMessages: transcript(A) });
+    expect(useResumeProgressStore.getState().progress[A]).toBeUndefined();
   });
 
   it('does not mark a plain tab switch as restoring — nothing was requested', () => {

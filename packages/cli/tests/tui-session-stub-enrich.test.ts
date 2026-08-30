@@ -181,4 +181,61 @@ describe('enrichStubSummaries', () => {
     expect(selected).toHaveLength(2);
     expect(selected.every((s) => s.title)).toBe(true);
   });
+  it('never fetches a smaller pool than the picker asked for', async () => {
+    // The over-fetch ceiling used to be a flat `Math.min(200, limit * 3)`,
+    // which CLAMPED the pool below `limit` the moment the picker asked for
+    // more than 200 — so raising the picker's own limit changed nothing and
+    // older sessions stayed unreachable.
+    const asked: number[] = [];
+    const storeList = async (poolLimit: number) => {
+      asked.push(poolLimit);
+      return [] as SessionSummary[];
+    };
+
+    await selectPickerSessions(storeList, dir, 20);
+    await selectPickerSessions(storeList, dir, 500);
+    await selectPickerSessions(storeList, dir, 5000);
+
+    expect(asked[0]).toBe(60);
+    for (const [index, limit] of [20, 500, 5000].entries()) {
+      expect(asked[index]).toBeGreaterThanOrEqual(limit);
+    }
+  });
+
+  it('returns every session in the pool when the limit allows it', async () => {
+    const pool = Array.from(
+      { length: 300 },
+      (_unused, i) =>
+        ({
+          ...stubSummary(`2026-08-24/sess_R${String(i).padStart(3, '0')}`),
+          title: `session ${i}`,
+          messageCount: 2,
+        }) as SessionSummary,
+    );
+
+    const selected = await selectPickerSessions(async () => pool, dir, 500);
+
+    // 300, not the old 20-row page and not the old 200-row pool ceiling.
+    expect(selected).toHaveLength(300);
+  });
+
+  it('bounds how many stub transcripts it opens at once', async () => {
+    // A flat `Promise.all` over the pool opened two handles per stub — at a
+    // 1500-row ceiling that is an EMFILE on Windows, not a fast picker.
+    const ids: string[] = [];
+    for (let i = 0; i < 40; i++) {
+      const id = `2026-08-25/sess_C${String(i).padStart(3, '0')}`;
+      ids.push(id);
+      await writeJsonl(id, [writeUserInput('2026-08-25T10:00:00Z', `crashed ${i}`)]);
+    }
+
+    const enriched = await enrichStubSummaries(ids.map(stubSummary), dir);
+
+    // Every stub still recovered its title from the transcript — the bounded
+    // fan-out changes the pacing, never the result.
+    expect(enriched).toHaveLength(40);
+    expect(enriched.every((s) => s.title.startsWith('crashed '))).toBe(true);
+    // Order is preserved: results are written back by index, not by completion.
+    expect(enriched.map((s) => s.id)).toEqual(ids);
+  });
 });

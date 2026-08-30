@@ -335,3 +335,76 @@ describe('ResumePicker', () => {
     unmount();
   });
 });
+
+describe('ResumePicker — sessions open elsewhere', () => {
+  function entry(over: Partial<ResumeSessionEntry> = {}): ResumeSessionEntry {
+    return {
+      id: 'sess_live',
+      startedAt: '2026-08-30T09:00:00.000Z',
+      title: 'Being written right now',
+      tokenTotal: 1000,
+      toolCallCount: 1,
+      iterationCount: 1,
+      toolErrorCount: 0,
+      isCurrent: false,
+      ...over,
+    };
+  }
+
+  it('labels a session another process is writing, with its surface and pid', () => {
+    // Without this the row is indistinguishable from history, and Enter on it
+    // wiped the screen and read a multi-hundred-MB journal before the host's
+    // reservation refused.
+    const { lastFrame, unmount } = render(
+      React.createElement(ResumePicker, {
+        sessions: [entry({ live: { pid: 4242, clientType: 'webui' } })],
+        selected: 0,
+        busy: false,
+      } as never),
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('open in webui');
+    expect(frame).toContain('4242');
+    unmount();
+  });
+
+  it('falls back to a generic owner when the registry row has no clientType', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(ResumePicker, {
+        sessions: [entry({ live: { pid: 7 } })],
+        selected: 0,
+        busy: false,
+      } as never),
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('another wstack');
+    expect(frame).not.toContain('undefined');
+    unmount();
+  });
+
+  it('leaves a closed session unlabelled', () => {
+    const { lastFrame, unmount } = render(
+      React.createElement(ResumePicker, {
+        sessions: [entry()],
+        selected: 0,
+        busy: false,
+      } as never),
+    );
+    expect(lastFrame() ?? '').not.toContain('open in');
+    unmount();
+  });
+
+  it('shows the position and total so a windowed list reads as scrollable', () => {
+    // Three rows per session means most of a long list is off-screen; without
+    // a count, 200 sessions look exactly like the page of 20 this picker used
+    // to be handed.
+    const sessions = Array.from({ length: 40 }, (_unused, i) =>
+      entry({ id: `sess_${i}`, title: `session ${i}` }),
+    );
+    const { lastFrame, unmount } = render(
+      React.createElement(ResumePicker, { sessions, selected: 3, busy: false } as never),
+    );
+    expect(lastFrame() ?? '').toContain('4/40');
+    unmount();
+  });
+});

@@ -742,6 +742,26 @@ export async function resumeSession(
       }),
     );
     const message = err instanceof Error ? err.message : String(err);
+    // ── Live-session conflict: no fallback ──────────────────────────────
+    // Another process holds this session's lease — a second `wstack --tui`,
+    // the WebUI server, SimpleUI, a REPL. The read-only fallback below is the
+    // wrong answer for that case specifically: it would blank the user's live
+    // screen and replace it with a snapshot of a conversation that is STILL
+    // MOVING somewhere else, which reads as a successful resume that has
+    // silently stopped updating. Fail cleanly instead and leave the screen as
+    // it was.
+    //
+    // The picker already refuses these up front (`onResumePickerEnter` reads
+    // `entry.live`); this closes the race where a session goes live between
+    // the listing and Enter, and covers hosts that call `resumeSession`
+    // directly.
+    //
+    // Keyed on the error NAME, which the catalog daemon preserves across IPC
+    // (`project-server` sends `errorName`, `client` restores it) — not on the
+    // message text, which is display copy and can be reworded.
+    if (err instanceof Error && err.name === 'SessionOwnershipConflictError') {
+      return fail(stage, message);
+    }
     // ── Read-only fallback ──────────────────────────────────────────────
     // Ownership is gone (rolled back above) but the transcript may not be.
     // Reading the journal and rendering it is the half of a resume that

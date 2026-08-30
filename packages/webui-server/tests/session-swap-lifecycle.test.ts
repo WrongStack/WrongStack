@@ -289,6 +289,7 @@ describe('standalone WebUI session swap lifecycle', () => {
       writer: sessionId === first.id ? first : second,
       data: {
         messages: [],
+        events: [],
         usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       },
     }));
@@ -413,13 +414,22 @@ function makeHarness(input: {
   const store = {
     create: vi.fn(async (_options: unknown) => input.created),
     delete: vi.fn(async (_sessionId: string) => undefined),
-    resume: vi.fn(async (_sessionId: string) => ({
-      writer: input.resumed,
-      data: {
-        messages: input.resumedMessages ?? [],
-        usage: input.resumedUsage ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    resume: vi.fn(
+      async (
+        _sessionId: string,
+        onLoadProgress?: (progress: { loadedBytes: number; totalBytes: number }) => void,
+      ) => {
+        onLoadProgress?.({ loadedBytes: 10, totalBytes: 20 });
+        return {
+          writer: input.resumed,
+          data: {
+            messages: input.resumedMessages ?? [],
+            events: [],
+            usage: input.resumedUsage ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+          },
+        };
       },
-    })),
+    ),
   };
   const routes = createSessionHandlers({
     config: { provider: 'test-provider', model: 'test-model' },

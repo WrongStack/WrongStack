@@ -43,6 +43,21 @@ export interface ResumeSessionEntry {
   outcome?: 'completed' | 'error' | 'timeout' | 'aborted' | undefined;
   /** The current session — marked so the picker can disallow resuming into itself. */
   isCurrent?: boolean | undefined;
+  /**
+   * Another process is writing this session RIGHT NOW.
+   *
+   * Taken from the cross-process `SessionRegistry` at listing time, so it
+   * covers every surface that claims a session lease — another `wstack --tui`,
+   * a WebUI server, SimpleUI, a plain REPL. Two processes appending to one
+   * journal interleave their turns and corrupt the transcript, so the picker
+   * refuses these outright rather than letting the host's reservation fail
+   * seconds into a multi-hundred-MB read.
+   *
+   * The F10 sessions panel has always had this (it lists live sessions and
+   * checks `pid`); the `/resume` picker was built off session SUMMARIES, which
+   * carry no liveness at all, so it had no way to know.
+   */
+  live?: { pid: number; clientType?: string | undefined } | undefined;
 }
 
 export type DraftEntry = HistoryEntry extends infer T

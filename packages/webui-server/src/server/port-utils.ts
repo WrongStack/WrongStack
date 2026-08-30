@@ -127,6 +127,14 @@ export async function findFreePort(
 interface ListenWithRetryOptions {
   /** Bind attempts before giving up on EADDRINUSE. Default 10. */
   maxTries?: number | undefined;
+  /**
+   * Same-port re-binds attempted before advancing, when the pre-bind probe
+   * said the port was free and the real bind still reported EADDRINUSE.
+   * Default 2 (see the phantom-EADDRINUSE note in `listenWithRetry`).
+   */
+  phantomRetries?: number | undefined;
+  /** Delay between those same-port re-binds, ms. Default 30. */
+  phantomRetryDelayMs?: number | undefined;
 }
 
 /**
@@ -136,6 +144,11 @@ interface ListenWithRetryOptions {
  * error (EACCES, EAFNOSUPPORT, …) rejects immediately; EADDRINUSE past the
  * final attempt rejects with the last error. Resolves with the port the
  * server actually bound, which exceeds the request when a retry advanced.
+ *
+ * Two hazards this must survive, both observed under Bun on Windows:
+ * - a co-listener that throws from the server's 'error' emit (see the
+ *   prependOnceListener note below) — settlement must not depend on it;
+ * - a phantom EADDRINUSE on a port the pre-bind probe just released.
  */
 export function listenWithRetry(
   server: net.Server,
@@ -144,6 +157,8 @@ export function listenWithRetry(
   opts: ListenWithRetryOptions = {},
 ): Promise<number> {
   const maxTries = opts.maxTries ?? 10;
+  const phantomRetries = opts.phantomRetries ?? 2;
+  const phantomRetryDelayMs = opts.phantomRetryDelayMs ?? 30;
   return new Promise<number>((resolve, reject) => {
     // Windows can deliver EADDRINUSE as a synchronous throw from a deferred
     // listen() tick (node:net setupListenHandle ← processTicksAndRejections)
@@ -159,8 +174,20 @@ export function listenWithRetry(
     const canAdvance = (candidate: number): boolean => candidate < MAX_TCP_PORT;
     const probeable = (candidate: number): boolean =>
       Number.isInteger(candidate) && candidate >= 0 && candidate <= MAX_TCP_PORT;
-    const attempt = (candidate: number, remaining: number): void => {
+    let settled = false;
+    const settleResolve = (value: number): void => {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    const settleReject = (err: unknown): void => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+    const attempt = (candidate: number, remaining: number, phantomLeft: number): void => {
       void (async () => {
+        let probedFree = false;
         if (probeable(candidate)) {
           const probeErr = await probePort(host, candidate);
           if (probeErr !== null) {
@@ -168,29 +195,56 @@ export function listenWithRetry(
             // (EACCES, EADDRNOTAVAIL, …) rejects fail-fast with the
             // real error — advancing would be silent misdiagnosis.
             if (probeErr.code === 'EADDRINUSE' && remaining > 1 && canAdvance(candidate)) {
-              attempt(candidate + 1, remaining - 1);
+              attempt(candidate + 1, remaining - 1, phantomRetries);
               return;
             }
-            reject(probeErr);
+            settleReject(probeErr);
             return;
           }
+          probedFree = true;
         }
         const onError = (err: NodeJS.ErrnoException): void => {
           server.off('listening', onListening);
           server.off('error', onError);
-          if (err.code === 'EADDRINUSE' && remaining > 1 && canAdvance(candidate)) {
-            attempt(candidate + 1, remaining - 1);
-            return;
+          if (err.code === 'EADDRINUSE') {
+            // Phantom EADDRINUSE: our own probe held this port microseconds
+            // ago and released it, and the runtime has not finished handing
+            // it back. Bun on Windows resolves `net.Server#close(cb)` before
+            // the OS releases the listening socket, so the very next bind of
+            // that port fails on a port nothing else is using (verified with
+            // netstat: no listener at all). Advancing would silently move
+            // SimpleUI off its documented default port for a hazard that
+            // clears in a few ms, so re-bind the SAME port first (bounded),
+            // and only then fall through to advancing.
+            if (probedFree && phantomLeft > 0) {
+              const timer = setTimeout(() => {
+                attempt(candidate, remaining, phantomLeft - 1);
+              }, phantomRetryDelayMs);
+              timer.unref?.();
+              return;
+            }
+            if (remaining > 1 && canAdvance(candidate)) {
+              attempt(candidate + 1, remaining - 1, phantomRetries);
+              return;
+            }
           }
-          reject(err);
+          settleReject(err);
         };
         const onListening = (): void => {
           server.off('error', onError);
           const address = server.address();
-          resolve(address && typeof address === 'object' ? address.port : candidate);
+          settleResolve(address && typeof address === 'object' ? address.port : candidate);
         };
-        server.once('error', onError);
-        server.once('listening', onListening);
+        // prepend, not append: `ws` attaches its own 'error' forwarder to the
+        // HTTP server when a WebSocketServer is constructed with {server}, and
+        // that forwarder re-emits on a WebSocketServer that has no 'error'
+        // listener yet during the bind window — an EventEmitter throw that
+        // aborts the emit loop. Appended handlers never run, this promise
+        // never settles, and the host hangs forever awaiting a bind that
+        // already failed. Running first makes settlement independent of every
+        // other listener on the server.
+        server.prependOnceListener('error', onError);
+        server.prependOnceListener('listening', onListening);
         try {
           server.listen(candidate, host);
         } catch (err) {
@@ -200,6 +254,6 @@ export function listenWithRetry(
         }
       })();
     };
-    attempt(port, maxTries);
+    attempt(port, maxTries, phantomRetries);
   });
 }

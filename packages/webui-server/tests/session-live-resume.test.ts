@@ -19,7 +19,12 @@ import { createSessionHandlers } from '../src/server/session-handlers.js';
 
 const ws = {} as WebSocket;
 
-type Writer = { id: string; startedAt: string; append: () => Promise<void>; close: () => Promise<void> };
+type Writer = {
+  id: string;
+  startedAt: string;
+  append: () => Promise<void>;
+  close: () => Promise<void>;
+};
 const writer = (id: string, startedAt = '2026-01-01T00:00:00.000Z'): Writer => ({
   id,
   startedAt,
@@ -80,8 +85,12 @@ function harness(options?: {
         resolveId: async (id: string) => id,
         load: async (id: string) =>
           options?.stored?.[id] ?? { messages: [], events: [], usage: undefined },
-        resume: async (id: string) => {
+        resume: async (
+          id: string,
+          onLoadProgress?: (progress: { loadedBytes: number; totalBytes: number }) => void,
+        ) => {
           resumeCalls.push(id);
+          onLoadProgress?.({ loadedBytes: 512, totalBytes: 1024 });
           return {
             writer: writer(id, '2026-07-25T10:00:00.000Z'),
             data: { messages: [], events: [], usage: undefined },
@@ -148,8 +157,26 @@ describe('resuming a tab that is already open', () => {
 
     await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_cold' } });
 
-    expect(h.setSessionStartedAt).toHaveBeenCalledWith(
-      Date.parse('2026-07-25T10:00:00.000Z'),
+    expect(h.setSessionStartedAt).toHaveBeenCalledWith(Date.parse('2026-07-25T10:00:00.000Z'));
+  });
+
+  it('streams byte-level progress while opening a cold resume journal', async () => {
+    const h = harness();
+
+    await h.handlers.resumeSession(ws, { type: 'session.resume', payload: { id: 'sess_cold' } });
+
+    expect(h.sent).toEqual(
+      expect.arrayContaining([
+        {
+          type: 'session.resume_progress',
+          payload: {
+            sessionId: 'sess_cold',
+            stage: 'open_journal',
+            loadedBytes: 512,
+            totalBytes: 1024,
+          },
+        },
+      ]),
     );
   });
 
@@ -392,9 +419,7 @@ describe('session.subscribe', () => {
       payload: { sessionIds: ['sess_1', 'sess_2', 'sess_3', 'sess_4'] },
     });
 
-    expect(client.sessionIds).toEqual(
-      new Set(['sess_1', 'sess_2', 'sess_3', 'sess_4']),
-    );
+    expect(client.sessionIds).toEqual(new Set(['sess_1', 'sess_2', 'sess_3', 'sess_4']));
   });
 
   it('reports the sessions that just lost their last viewer', async () => {
@@ -775,7 +800,14 @@ describe('a resumed live session comes back whole', () => {
           messages: journal.sess_bg.messages,
           events: [
             ...journal.sess_bg.events,
-            { type: 'tool_call_start', ts: '2026-01-01T00:00:05Z', name: 'read', id: 'x', input: {}, agentId: 'leader' },
+            {
+              type: 'tool_call_start',
+              ts: '2026-01-01T00:00:05Z',
+              name: 'read',
+              id: 'x',
+              input: {},
+              agentId: 'leader',
+            },
           ],
         },
       },

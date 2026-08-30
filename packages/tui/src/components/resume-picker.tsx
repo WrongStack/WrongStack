@@ -43,7 +43,13 @@ export function ResumePicker({
         ━━ Resume Session ━━
       </Text>
       <Text dimColor>
-        {busy ? 'Resuming selected session…' : '↑/↓ navigate · Enter select · Esc cancel'}
+        {busy
+          ? 'Resuming selected session…'
+          : // Position and total, because the list is windowed: three rows per
+            // session means most of it is off-screen at any moment, and without
+            // a count a scrollable list of 200 is indistinguishable from the
+            // page of 20 this picker used to be handed.
+            `${sessions.length > 0 ? `${selected + 1}/${sessions.length} · ` : ''}↑/↓ navigate · Enter select · Esc cancel`}
       </Text>
       {error ? <Text color="red">{error}</Text> : null}
       {sessions.length === 0 && !busy ? (
@@ -54,6 +60,10 @@ export function ResumePicker({
           {visibleSessions.map((s, j) => {
             const i = start + j;
             const isCurrent = s.isCurrent;
+            // Owned by another process right now. Rendered like `isCurrent` —
+            // dimmed and labelled — because it is unselectable for the same
+            // reason: you cannot resume a journal something else is writing.
+            const live = s.live;
             const isSelected = i === selected;
             const date = (s.lastActivityAt ?? s.startedAt).slice(0, 16).replace('T', ' ');
             const displayName = s.name?.trim() || s.title || s.id;
@@ -81,12 +91,20 @@ export function ResumePicker({
               <Box key={s.id} flexDirection="column">
                 <Text
                   inverse={isSelected}
-                  dimColor={isCurrent ?? false}
-                  {...(isSelected ? { color: isCurrent ? 'gray' : 'cyan' } : {})}
+                  dimColor={(isCurrent ?? false) || live !== undefined}
+                  {...(isSelected ? { color: isCurrent || live ? 'gray' : 'cyan' } : {})}
                 >
                   {isSelected ? '› ' : '  '}
-                  <Text bold dimColor={isCurrent ?? false}>{displayName}</Text>
+                  <Text bold dimColor={(isCurrent ?? false) || live !== undefined}>
+                    {displayName}
+                  </Text>
                   {isCurrent ? <Text dimColor> (current)</Text> : null}
+                  {!isCurrent && live ? (
+                    <Text color="yellow">
+                      {' '}
+                      ● open in {live.clientType ?? 'another wstack'} (pid {live.pid})
+                    </Text>
+                  ) : null}
                   <Text dimColor> · {s.id} · {date}</Text>
                 </Text>
                 <Text dimColor>

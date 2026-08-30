@@ -584,6 +584,28 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
               wpaths.projectSessions,
               limit,
             );
+            // Which of these is another process writing right now? Session
+            // SUMMARIES carry no liveness — they are built from the journal —
+            // so the picker used to offer live sessions as if they were
+            // history, and only the host's reservation (seconds and a
+            // multi-hundred-MB read later) refused. Cross-reference the
+            // registry so the refusal happens before any of that.
+            //
+            // Best-effort: a registry that cannot be read must not take the
+            // picker down with it. The host reservation is still the
+            // authority, and it fails closed.
+            const liveBySession = new Map<string, { pid: number; clientType?: string | undefined }>();
+            try {
+              for (const entry of await getLiveSessions({ state })) {
+                if (entry.pid == null) continue;
+                liveBySession.set(entry.sessionId, {
+                  pid: entry.pid,
+                  ...(entry.clientType ? { clientType: entry.clientType } : {}),
+                });
+              }
+            } catch {
+              /* liveness is an ADDITIONAL guard, never a listing prerequisite */
+            }
             const currentId = agent.ctx.session?.id ?? session.id;
             return summaries.map((s) => ({
               id: s.id,
@@ -600,6 +622,12 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
               toolErrorCount: s.toolErrorCount ?? 0,
               outcome: s.outcome,
               isCurrent: s.id === currentId,
+              // The session this process owns is `isCurrent`, not "live
+              // elsewhere" — it holds its own lease and would otherwise be
+              // labelled as owned by another surface.
+              ...(s.id !== currentId && liveBySession.has(s.id)
+                ? { live: liveBySession.get(s.id) }
+                : {}),
             }));
           },
           onResumeSession: async (

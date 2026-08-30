@@ -30,6 +30,7 @@ export function handleSessionStartMessage(params: {
     setShowJumpToLatest,
     worklists,
     setSession,
+    setResumeProgress,
     setModels,
     setMessages,
     onUpdateInfo,
@@ -89,6 +90,7 @@ export function handleSessionStartMessage(params: {
   sessionIdRef.current = id || null;
   if (!previousId || resetSessionState) worklists.reset(id || null);
   activeModelRef.current = provider && model ? { provider, model } : null;
+  setResumeProgress?.(null);
   setSession({
     id,
     provider,

@@ -1,11 +1,5 @@
 import type { SessionMarker, SessionToolMeta, Usage } from '@wrongstack/core/types';
 
-// Event types for WebSocket communication
-interface WSMessage {
-  type: string;
-  payload: unknown;
-}
-
 export interface WSSessionStart {
   type: 'session.start';
   payload: {
@@ -360,6 +354,15 @@ export interface WSSessionRunState {
   type: 'session.run_state';
   payload: SessionScopedPayload & {
     isRunning: boolean;
+  };
+}
+
+export interface WSSessionResumeProgress {
+  type: 'session.resume_progress';
+  payload: SessionScopedPayload & {
+    stage: string;
+    loadedBytes: number;
+    totalBytes: number;
   };
 }
 

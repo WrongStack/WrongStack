@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`/doctor` no longer reports WrongStack's own settings as unknown keys.** The doctor's `KNOWN_TOP_LEVEL_KEYS` whitelist had drifted eight fields behind `Config` — `systemPrompt`, `themePreset`, `modelTiers`, `chronicle`, `cloudSync`, `activeProfile`, `fallbackProfile`, and `fallbackGateSeconds` were all flagged "unknown key — delete it manually if unwanted" while `/theme`, `/fallback gate`, and the prompt-variant picker were actively writing them; acting on that advice reset the user's theme and prompt variant. A phantom `agents` entry (that field is nested under `acp`) also waved a stray top-level `agents` block through. A new `ConfigKeyCoverage` type fails the build in both directions, naming the offending key.
+- **The in-project config drift guard now checks every `Config` field.** `assertInProjectAllowListComplete()` iterates `KNOWN_CONFIG_TOP_LEVEL_KEYS`, a hand-maintained registry that was itself missing five fields, so those were classified as neither allowed nor denied and the guard never looked at them. The registry is now compile-checked against `keyof Config`; `themePreset`, `chronicle`, `fallbackGateSeconds`, and `modelTiers` are explicitly allowed, and `systemPrompt` is explicitly denied — its `lite` variant omits the "Tool output trust boundary" section, so a repo-committed config selecting it would disable the rule protecting the user from that repo.
+
 - **Autonomous goal startup no longer leaks a tick interval when stopped mid-start.** `PhaseOrchestrator.start()` now installs the monitoring interval only if the run is still active and clears any pre-existing timer, with a regression test covering `stop()` landing while `start()` is blocked in task execution. (`6e8a90409`)
 
 ## [0.316.0] — 2026-08-28

@@ -30,6 +30,23 @@ import {
 import { STATUSLINE_ITEMS, type StatuslineItem } from '../components/statusline-picker.js';
 import { THEME_OPTIONS } from '../theme.js';
 
+/**
+ * Sessions `/resume` asks the host for.
+ *
+ * It used to ask for 20 — a page size, on a picker that has been fully
+ * windowed and scrollable the whole time (`ResumePicker` → `useWindowedPicker`,
+ * rowSpan 3). So the scrolling worked and there was simply nothing under it:
+ * everything older than the last twenty sessions was unreachable, with no
+ * indication that a list had been cut.
+ *
+ * A ceiling rather than "everything" because the picker is a list the user
+ * arrows through, and the host still enriches crashed-session stubs behind it.
+ * It is sized to cover a real history instead of a page of one: measured on
+ * this corpus, the whole catalog is 219 sessions and listing all of it costs
+ * 2 ms.
+ */
+const RESUME_PICKER_SESSIONS = 500;
+
 interface TuiSlashCommandOptions {
   slashRegistry: AppProps['slashRegistry'];
   skillLoader: AppProps['skillLoader'];
@@ -810,19 +827,19 @@ export function useTuiSlashCommands({
   }, [slashRegistry, dispatch]);
 
   // Register the TUI-only `/resume` command — opens the session resume picker.
-  // Lists recent sessions; selecting one triggers onResumeSession to load and
-  // replay the full conversation history.
+  // Selecting one triggers onResumeSession to load and replay the full
+  // conversation history.
   useEffect(() => {
     const cmd = {
       name: 'resume',
       aliases: ['load'],
-      description: 'Resume a previous session — pick from a list of recent sessions.',
+      description: 'Resume a previous session — pick from your session history.',
       async run() {
         if (!listSessions) {
           return { message: 'Session listing not available.' };
         }
         try {
-          const sessions = await listSessions(20);
+          const sessions = await listSessions(RESUME_PICKER_SESSIONS);
           if (sessions.length === 0) {
             return { message: 'No saved sessions.' };
           }

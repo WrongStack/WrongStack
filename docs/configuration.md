@@ -16,6 +16,39 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 
 **Precedence** (highest wins): CLI flags → extra config sources → env vars → in-project → project-private → active profile → bootstrap metadata → built-in defaults.
 
+Only `version` and `activeProfile` are read from the bootstrap file. Settings written into it by an older version (or by hand) are ignored, and the same two keys are stripped from the profile and project-private layers — a profile cannot select another profile.
+
+### Sibling files
+
+Config is not the only state under `~/.wrongstack`. These files sit beside it and are written by their own subsystems, so editing `config.json` will not move them:
+
+| Path | Written by | Contents |
+|---|---|---|
+| `~/.wrongstack/.key` | Secret vault, on first secret | AES key used for `enc:v1:` values. Losing it makes stored keys unreadable. |
+| `~/.wrongstack/profiles/<name>/sync.json` | `/sync` | `SyncConfig` — repo + GitHub PAT. Kept out of `config.json` so a `config.json` shared with a teammate carries no token; merged into `config.sync` at boot. |
+| `~/.wrongstack/profiles/<name>/statusline.json` | `/statusline` | Statusline chip layout. Unknown keys are dropped and values clamped on load. |
+| `~/.wrongstack/profiles/<name>/mode.json` | Mode picker | Saved mode layers. |
+| `~/.wrongstack/profiles/<name>/provider-status.json` | Provider health tracker | Per-provider outage/cooldown state driving fallback. |
+| `~/.wrongstack/projects/<slug>/trust.json` | Trust prompt | Whether this repo's in-project config and skills are trusted. |
+| `~/.wrongstack/projects/<slug>/meta.json` | Project registry | Slug ↔ path mapping. |
+
+### Where a write lands
+
+Reading merges every layer; **writing targets exactly one file**. The target is resolved by `resolvePersistPath` (`packages/cli/src/settings-menu.ts`):
+
+1. `forceGlobal` — always the active profile config. Used by settings that make no sense per-project.
+2. `configScope: "project"` **and** a project config path is available → `<project>/.wrongstack/config.json`.
+3. Otherwise → `~/.wrongstack/profiles/<active>/config.json`.
+
+The default `configScope` is `"global"`, so unless you switch it, every `/theme`, `/setmodel`, `/fallback`, and settings-menu change lands in the **active profile** file — never the bootstrap file, and never the repo.
+
+Two behaviours worth knowing:
+
+- **Env-sourced values are never persisted.** `ConfigStore.update` strips fields that came from environment variables before the write, so `ANTHROPIC_API_KEY` in your shell does not end up inside `config.json`.
+- **The target is re-resolved after the mutation.** If a settings edit changes `configScope` or `activeProfile`, `resolveActualTarget` recomputes the destination, so the write lands in the profile you just switched to rather than the one you started in.
+
+Writing to a project-scoped target strips credentials first: secrets are only written unredacted to the active profile config.
+
 ---
 
 ## Full config schema
@@ -37,7 +70,11 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "yolo": false,
   "modelRuntime": { /* ... */ },
   "systemPrompt": { "variant": "default" },
+  "themePreset": "catppuccin",
   "modelMatrix": { /* ... */ },
+  "modelTiers": { /* ... */ },
+  "chronicle": { "retentionDays": 30 },
+  "cloudSync": { /* ... */ },
   "fleet": { /* ... */ },
   "fallbackModels": [],
   "fallbackBridge": "openai/gpt-5.4-mini",
@@ -45,6 +82,8 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "fallbackAuto": true,
   "fallbackMaxLastResortCandidates": 12,
   "fallbackStickiness": { "primaryProbeInterval": 60000, "stickyFallbackTurns": 0 },
+  "fallbackProfile": "coding",
+  "fallbackGateSeconds": 7,
   "cwd": ".",
   "extensions": { /* ... */ }
 }
@@ -68,6 +107,8 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `fallbackAuto` | `boolean` | `true` | Auto-derive a fallback chain from other keyed providers when `fallbackModels` is empty. Toggle with `/fallback auto on\|off`. |
 | `fallbackMaxLastResortCandidates` | `number` | `12` | Maximum number of auto-discovered models appended as a last-resort tail after the bridge, explicit chain, named profile, and default profile are all exhausted. Set to `0` to disable the tail entirely. Fractional values are floored. Validated by `/config doctor`. |
 | `fallbackStickiness` | `object` | `{ primaryProbeInterval: 60000, stickyFallbackTurns: 0 }` | Controls how the fallback engine transitions between the primary and fallback models. See [Fallback stickiness](#fallback-stickiness) below. |
+| `fallbackProfile` | `string` | — | The entry from `fallbackProfiles` currently selected for failover. Set by `/fallback profile use <name>`, cleared by `/fallback profile none`. Resolution order is `fallbackModels` → this profile → smart default, so an explicit chain still wins; selecting a profile does **not** overwrite `fallbackModels`. A name that no longer matches a defined profile is ignored. |
+| `fallbackGateSeconds` | `number` | `7` | Seconds the UI modal counts down before automatically switching to the next fallback candidate. Set with `/fallback gate <seconds>`. |
 | `favoriteModels` | `string[]` | `[]` | User-curated model refs prioritized by pickers and smart fallback derivation. |
 | `favoriteModelsOnly` | `boolean` | `false` | Restrict the **auto-derived** smart-default fallback chain to `favoriteModels`. **Explicit** settings are always honored as written — this includes `fallbackModels`, `fallbackProfiles`, and matrix model-only entries (`agent_model_assign` with `model=...`, no `profile=...`). The smart-default chain is at most as strict as the matrix model-only mode: the matrix already requires favorites whenever `favoriteModels` is non-empty (via `isFavoriteRef`), regardless of this toggle. The toggle only narrows the auto-derivation path, and only when `favoriteModels` is non-empty — an empty `favoriteModels` list means the smart default falls back to including every usable provider/model pair. Toggle with `/fallback fav only on\|off`. |
 | `modelRuntime` | `object` | — | Runtime request controls for the leader/default request path: reasoning, prompt-cache TTL, and gated generation parameters. |
@@ -77,6 +118,74 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `brain` | `BrainConfig` | — | Decision layer: autonomy ceiling, deterministic rules, heuristics, LLM quality gate + circuit breaker, council, decision cache, replay trace, ledger, monitor. See [`brain`](#brain--decision-layer-autonomy-rules-council-trace). User config only; stripped from in-project config. |
 | `hooks` | `object` | — | Lifecycle shell hooks keyed by event. See [`hooks`](#hooks--lifecycle-hooks) below and [hooks.md](./hooks.md). |
 | `cwd` | `string` | `process.cwd()` | Working directory. Overridden by `--cwd` CLI flag. Director Mode is permanently on — no `--director` flag or config field exists. |
+| `activeProfile` | `string` | `"default"` | Selects which profile directory supplies settings. **Only read from the bootstrap file** (`~/.wrongstack/config.json`) — a copy in a profile or project config is stripped, so a profile cannot select another profile. On the in-project deny list. |
+| `themePreset` | `string` | `"catppuccin"` | TUI colour theme, applied on boot and written by `/theme` in both the CLI REPL and the TUI. Unconstrained at the config layer: the TUI owns the canonical preset list and falls back to `catppuccin` for an unknown value, so a forward-compat drift never breaks the round-trip. |
+| `modelTiers` | `ModelTiersConfig` | — | Deterministic model-tier layer: named levels (`budget` / `standard` / `premium`) each binding a fallback profile, a spend/iteration budget, and runtime overrides, plus a role/phase routing table. Consumed by the subagent spawn path, `spawn_subagent`, Kanban dispatch, and the leader's self-switch policy. Opt-in via `modelTiers.enabled`. |
+| `chronicle` | `object` | `{ retentionDays: 30 }` | Chronicle durable-journal retention. Rotated partitions older than `retentionDays` are auto-purged after append batches. `0` disables auto-purge; positive values below `7` are clamped up to `7` so a repo-committed config cannot flush recent evidence. |
+| `cloudSync` | `CloudSyncConfig` | — | my.wrongstack.com config synchronization. Carries the machine bearer token and portal endpoint, so it is on the in-project deny list and honoured only from the active profile config. Distinct from `sync` (GitHub-repo based, stored in `sync.json`). |
+
+---
+
+## In-project config trust boundary
+
+`<project>/.wrongstack/config.json` is committed to the repository, so it is
+attacker-controllable: cloning a repo must not hand it your API key, a shell
+hook, or a lowered permission gate. Every top-level field is therefore
+classified exactly once, and the merge is **allow-list by default** — an
+unclassified field is dropped, not merged.
+
+**Allowed from a repo config** (37) — preferences and model routing that name
+only things you already configured:
+
+`version`, `model`, `cwd`, `context`, `tools`, `features`, `Sage`, `skills`, `autonomy`, `indexing`, `session`, `chronicle`, `log`, `launch`, `nextPrediction`, `hints`, `debugStream`, `configScope`, `maxConcurrent`, `uiLocale`, `themePreset`, `fallbackModels`, `fallbackBridge`, `fallbackProfiles`, `fallbackProfile`, `favoriteModels`, `favoriteModelsOnly`, `modelAvailabilitySchedule`, `fallbackAuto`, `fallbackStickiness`, `fallbackGateSeconds`, `models`, `modelMatrix`, `modelTiers`, `circuitBreaker`, `adaptiveConcurrency`, `modelRuntime`
+
+**Denied** (20) — each carries a credential, an exec surface, or a control the
+operator owns:
+
+`activeProfile`, `provider`, `apiKey`, `baseUrl`, `providers`, `mcpServers`, `hooks`, `plugins`, `pluginManager`, `sync`, `cloudSync`, `yolo`, `systemPrompt`, `extensions`, `hq`, `acp`, `fleet`, `brain`, `git`, `fallbackMaxLastResortCandidates`
+
+`systemPrompt` is denied for a reason worth stating: the `lite` variant omits
+whole sections of `system.md`, among them **Tool output trust boundary** — the
+passage instructing the agent not to treat repo content as instructions. A
+repo-committed config selecting it would be switching off the rule that guards
+against that same repo.
+
+### Nested denials
+
+A top-level allow is not enough when the dangerous switch lives one level down.
+These paths are stripped even though their parent is allowed:
+
+`tools.exec.allow`, `tools.exec.danger`, `tools.council`, `skills.extraDirs`, `skills.registryUrl`, `Sage.storage.directory`, `autonomy.yolo`, `autonomy.defaultMode`, `launch.autonomy`, `features.allowOutsideProjectRoot`, `tools.restrictToProjectRoot`, `tools.kanbanGovernance`, `tools.autoThin`, `tools.disabledToolMeta`, `features.mailboxBridge`, `features.pluginsTrust`
+
+`autonomy.yolo` is the one that explains the list: top-level `yolo` was
+denied, but the whole `autonomy` subtree was allowed — and `autonomy.yolo` is
+an alias for the same switch that takes *precedence* over your own
+`yolo: false`. The denial guarded the obvious spelling while the dangerous one
+sat inside an allowed parent.
+
+### Adding a new top-level field
+
+A new `Config` field must be registered in three places. Two of them are now
+`tsc`-enforced, so you will be told rather than having to remember:
+
+1. **`Config`** — `packages/core/src/types/config/root.ts`.
+2. **In-project classification** — `in-project-policy.ts`: add the key to
+   `KNOWN_CONFIG_TOP_LEVEL_KEY_LIST`, then to *either* `IN_PROJECT_ALLOWED_KEYS`
+   *or* `KNOWN_DENIED_IN_PROJECT` (with a reason). `ConfigFieldRegistryCoverage`
+   fails the build if the registry is missing the field;
+   `assertInProjectAllowListComplete()` fails a test if it is in neither list.
+3. **Doctor whitelist** — `packages/cli/src/config-doctor.ts`:
+   `KNOWN_TOP_LEVEL_KEYS`. `ConfigKeyCoverage` fails the build, naming the key,
+   if it is missing — or if the list invents a key `Config` does not have.
+
+The compile gates exist because the lists silently drifted for a long time. The
+doctor's whitelist had fallen eight fields behind `Config` and was telling users
+that `themePreset` and `systemPrompt` — both written by WrongStack itself — were
+"unknown key … delete it manually if unwanted". Following that advice would have
+reset your theme and prompt variant. A runtime test cannot catch this, because
+`keyof Config` does not survive to runtime; the previous safety net was a
+hand-written key list in a test file, which drifted alongside the list it was
+meant to pin.
 
 ---
 
@@ -169,7 +278,7 @@ filtered out of the chain **before** the stickiness controls apply.
 ## `systemPrompt` — Baseline system prompt selection
 
 The host system prompt normally loads the baseline identity/instructions from
-`system.md`. Set `systemPrompt.variant` to use the pro baseline instead:
+`system.md`. Set `systemPrompt.variant` to pick a different baseline:
 
 ```jsonc
 {
@@ -181,15 +290,27 @@ The host system prompt normally loads the baseline identity/instructions from
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `variant` | `"default" \| "pro"` | `"default"` | `default` loads `system.md`; `pro` loads `system-pro.md`. |
+| `variant` | `"default" \| "lite" \| "pro"` | `"default"` | `default` loads `system.md`; `lite` loads the compact `system-lite.md`; `pro` loads `system-pro.md`. |
+
+`lite` is a genuine reduction, not a rewording — it drops whole sections of
+`system.md`, including **Tool output trust boundary**, **Tool coordination**,
+and **The cost ladder**. Choose it to save context, not as a default.
 
 CLI flags override this setting for one launch:
 
 ```bash
 wstack --system-pro
+wstack --system-lite
 wstack --system-prompt pro
+wstack --system-prompt lite
 wstack --system-prompt default
 ```
+
+**Security:** `systemPrompt` is on the in-project config deny list. A
+repo-committed `.wrongstack/config.json` cannot select the baseline prompt —
+picking `lite` from a repo would strip the very passage that tells the agent
+not to treat that repo's content as instructions. See
+[In-project config trust boundary](#in-project-config-trust-boundary).
 
 The selected file follows the normal instruction override layers. For a
 project-local pro prompt that is not committed, create:

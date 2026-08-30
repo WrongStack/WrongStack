@@ -15,6 +15,7 @@ import type {
   FileEditMeta,
   ModelDescriptor,
   PendingConfirm,
+  ResumeProgressInfo,
   SessionInfo,
   SimpleSessionSummary,
   SimpleSubagent,
@@ -53,6 +54,7 @@ export interface MessageHandlerDeps {
   setSubagents: React.Dispatch<React.SetStateAction<SimpleSubagent[]>>;
   setAgentTranscripts: React.Dispatch<React.SetStateAction<Record<string, AgentTranscriptEntry[]>>>;
   setSession: React.Dispatch<React.SetStateAction<SessionInfo | null>>;
+  setResumeProgress?: React.Dispatch<React.SetStateAction<ResumeProgressInfo | null>>;
   setSessionMenuOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   setSessions: React.Dispatch<React.SetStateAction<SimpleSessionSummary[]>>;
   setContext: React.Dispatch<React.SetStateAction<ContextInfo>>;

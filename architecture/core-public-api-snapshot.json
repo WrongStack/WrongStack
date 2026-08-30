@@ -894,7 +894,8 @@
         "export { type CompletedWorkCheckpointFile, loadCompletedWorkCheckpoint, saveCompletedWorkCheckpoint, } from './completed-work-checkpoint.js';",
         "export { type ConfigMigration, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type MigrationContext, type MigrationResult, runConfigMigrations, } from './config-migration.js';",
         "export { type ConsolidationOp, type ConsolidatorSage, type MemoryConsolidatorOptions, SessionMemoryConsolidator, } from './memory-consolidator.js';",
-        "export { type CuratorOperation, type CuratorSage, type CuratorSageCandidate, type CuratorSageRecord, type SessionMemoryCuratorOptions, SessionMemoryCurator, } from './memory-curator.js';",
+        "export { type CuratorOperation, type CuratorSage, type CuratorSageCandidate, type CuratorSageRecord, SessionMemoryCurator, type SessionMemoryCuratorOptions, } from './memory-curator.js';",
+        "export { type DiagnoseSessionsOptions, diagnoseSessions, repairSessionSummaries, type SessionDiagnosis, type SessionDoctorReport, type SessionDoctorTotals, type SessionFinding, type SessionFindingCode, type SessionLifecycleBoundary, type SummaryRepairResult, } from './session-doctor.js';",
         "export { type PersistedQueueItem, QUEUE_MAX_BYTES, QUEUE_MAX_ITEM_BYTES, QUEUE_MAX_ITEMS, QueueStore, retainPersistedQueueItems, } from './queue-store.js';",
         "export { type PromptUsage, PromptUsageStore } from './prompt-usage-store.js';",
         "export { type ProviderConfigSnapshot, readProviderSnapshot, type WatchProviderConfigOptions, watchProviderConfig, } from './provider-config-watcher.js';",
@@ -1441,7 +1442,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6479
+      "sourceLines": 6551
     },
     {
       "directory": "session-catalog",
@@ -1468,8 +1469,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 91,
-      "sourceLines": 20752
+      "sourceFiles": 92,
+      "sourceLines": 21276
     },
     {
       "directory": "tasking",
@@ -1490,7 +1491,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12854
+      "sourceLines": 12869
     },
     {
       "directory": "utils",

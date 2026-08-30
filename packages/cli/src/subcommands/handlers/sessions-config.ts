@@ -20,6 +20,12 @@ export const sessionsCmd: SubcommandHandler = async (args, deps) => {
   if (sub === 'fleet') {
     return sessionsFleetCmd(args.slice(1), deps);
   }
+  // Before the store guard: the doctor scans the journal directory directly, so
+  // it stays useful in exactly the situation a store failed to construct.
+  if (sub === 'doctor') {
+    const { sessionsDoctorCmd } = await import('./sessions-doctor.js');
+    return sessionsDoctorCmd(args.slice(1), deps);
+  }
   if (!deps.sessionStore) {
     deps.renderer.writeError('No session store available.');
     return 1;

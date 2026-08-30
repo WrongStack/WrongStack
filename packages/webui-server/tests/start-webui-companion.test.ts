@@ -121,8 +121,14 @@ describe('setupCompanionServer', () => {
     const result = await setupCompanionServer(new FakeServer() as never, '127.0.0.1', ports.v6);
 
     expect(result).toBeNull();
-    // Exactly one bind attempt — the companion must mirror the primary's port.
-    expect(companion.listen).toHaveBeenCalledTimes(1);
+    // Never advances: every re-bind targets the primary's port. A bind that
+    // reports EADDRINUSE on a port the probe just called free is re-tried in
+    // place (the phantom-EADDRINUSE window), so the attempt count is bounded
+    // rather than one — but the port the companion asks for never moves.
+    expect(companion.listen.mock.calls.map((call) => call[0])).toEqual(
+      Array.from({ length: companion.listen.mock.calls.length }, () => ports.v6),
+    );
+    expect(companion.listen.mock.calls.length).toBeGreaterThanOrEqual(1);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('not started (EADDRINUSE)'));
   });
 

@@ -17,20 +17,8 @@ import {
   type projectNextStepsToolInput,
 } from '@wrongstack/tools/next-steps';
 import { projectChatMessage, projectFleetMessage } from '@wrongstack/webui-protocol';
-import type { MessageHandlerDeps } from './message-handler-deps.js';
-import { handleSessionStartMessage } from './message-handler-session-start.js';
-import {
-  handleToolStarted,
-  handleToolProgress,
-  handleToolExecuted,
-} from './message-handler-tool-events.js';
 import { projectFallbackPending } from '../fallback-modal.js';
-import type {
-  AgentMode,
-  ModelDescriptor,
-  ServerMessage,
-  SimpleSubagent,
-} from '../types.js';
+import type { AgentMode, ModelDescriptor, ServerMessage, SimpleSubagent } from '../types.js';
 import {
   appendAgentTranscriptEntry,
   LEADER_AGENT_ID,
@@ -45,6 +33,13 @@ import {
   retainSimpleChatMessages,
   updateSubagents,
 } from './chat-model.js';
+import type { MessageHandlerDeps } from './message-handler-deps.js';
+import { handleSessionStartMessage } from './message-handler-session-start.js';
+import {
+  handleToolExecuted,
+  handleToolProgress,
+  handleToolStarted,
+} from './message-handler-tool-events.js';
 import { projectAssistantMessage } from './message-projection.js';
 import {
   parseCatalogProviders,
@@ -246,6 +241,17 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         if (typeof payload['error'] !== 'string') {
           setSessions(parseSessionSummaries(payload['sessions']));
         }
+        break;
+      }
+      case 'session.resume_progress': {
+        const sessionId = typeof payload['sessionId'] === 'string' ? payload['sessionId'] : '';
+        if (!sessionId) break;
+        deps.setResumeProgress?.({
+          sessionId,
+          stage: typeof payload['stage'] === 'string' ? payload['stage'] : 'open_journal',
+          loadedBytes: finiteNumber(payload['loadedBytes']),
+          totalBytes: finiteNumber(payload['totalBytes']),
+        });
         break;
       }
       case 'provider.catalog': {
@@ -644,6 +650,9 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
       }
       case 'error': {
         const phase = typeof payload['phase'] === 'string' ? payload['phase'] : '';
+        if (phase === 'session.resume' || phase === 'session.focus') {
+          deps.setResumeProgress?.(null);
+        }
         if (phase === 'rate_limit') {
           // Rate-limit frames are transient throttles, not run failures.
           // Show as a dismissible notice (not a permanent chat message) and

@@ -167,6 +167,9 @@ const SESSION_SCOPED_STORES = new Set([
 
 const SELF_KEYED_STORES = new Set([
   'useCodemapActivityStore',
+  // Resume progress is one browser-global pending-request table, but every
+  // entry is addressed by the target session id.
+  'useResumeProgressStore',
   // The variant catalogue is one project fact, but WHICH variant is live is a
   // per-tab preference and is kept in `currentBySession`.
   'useSystemPromptStore',

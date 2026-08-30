@@ -7,8 +7,10 @@ import {
   RESUME_SPINNER_FRAMES,
   type ResumeLoadState,
   renderResumeLoadBlock,
+  resumeBlockedReason,
   resumeChunkSize,
   resumeStageLabel,
+  todosForScreen,
 } from '../src/resume-load.js';
 import { createTestState } from './helpers/create-test-state.js';
 
@@ -252,5 +254,66 @@ describe('resume loading reducer flow', () => {
     const state = reducer(started(), { type: 'resumeLoadAbort' });
     expect(state.resumeLoad).toBeNull();
     expect(state.entries).toHaveLength(2);
+  });
+});
+
+describe('todosForScreen', () => {
+  const board = [{ id: '1', status: 'in_progress' }];
+
+  it('shows the live board when no resume is in flight', () => {
+    // Same array back, not a copy: the sidebar's mission-row memo keys on it.
+    expect(todosForScreen(board, null)).toBe(board);
+    expect(todosForScreen(board, undefined)).toBe(board);
+  });
+
+  it('blanks the board for the length of a resume', () => {
+    // The board lives in `agent.ctx` and the host does not replace it until it
+    // has read the journal — so without this the LEAVING session's missions sat
+    // in the swarm panel underneath the incoming session's loading block.
+    expect(todosForScreen(board, load())).toEqual([]);
+    expect(todosForScreen(board, load({ phase: 'replaying', replayed: 12, total: 40 }))).toEqual([]);
+  });
+
+  it('returns one stable empty array across the whole resume', () => {
+    // A fresh `[]` per render would re-run every downstream memo on every
+    // spinner tick, for as long as the journal takes to parse.
+    const first = todosForScreen(board, load({ frame: 1 }));
+    const second = todosForScreen(board, load({ frame: 2 }));
+    expect(first).toBe(second);
+  });
+});
+
+describe('resumeBlockedReason', () => {
+  it('allows an ordinary closed session', () => {
+    expect(resumeBlockedReason({})).toBeUndefined();
+    expect(resumeBlockedReason({ isCurrent: false, live: undefined })).toBeUndefined();
+  });
+
+  it('blocks the session this process is already in', () => {
+    expect(resumeBlockedReason({ isCurrent: true })).toMatch(/this session/i);
+  });
+
+  it('blocks a session another process is writing, and names the surface', () => {
+    // The whole point of carrying `clientType`: "open somewhere else" is not
+    // actionable, "open in webui (pid 4242)" tells the user where to go.
+    const reason = resumeBlockedReason({ live: { pid: 4242, clientType: 'webui' } });
+    expect(reason).toContain('webui');
+    expect(reason).toContain('4242');
+  });
+
+  it('blocks a live session from a registry row with no clientType', () => {
+    // Older registry entries predate the field; liveness alone is enough to
+    // refuse, and the message must not read "open in undefined".
+    const reason = resumeBlockedReason({ live: { pid: 7 } });
+    expect(reason).toContain('another wstack');
+    expect(reason).not.toContain('undefined');
+  });
+
+  it('reports the current session before liveness', () => {
+    // This process holds its own lease, so the current session is also "live".
+    // Saying "open in another wstack" about the session you are sitting in
+    // would be wrong; `isCurrent` wins.
+    const reason = resumeBlockedReason({ isCurrent: true, live: { pid: 1, clientType: 'tui' } });
+    expect(reason).toMatch(/this session/i);
   });
 });

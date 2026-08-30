@@ -29,6 +29,7 @@ import type {
   FileEditMeta,
   ModelDescriptor,
   PendingConfirm,
+  ResumeProgressInfo,
   SessionInfo,
   SimplePrefs,
   SimpleSessionSummary,
@@ -70,6 +71,7 @@ interface Harness {
     readonly subagents: SimpleSubagent[];
     readonly agentTranscripts: Record<string, AgentTranscriptEntry[]>;
     readonly session: SessionInfo | null;
+    readonly resumeProgress: ResumeProgressInfo | null;
     readonly sessions: SimpleSessionSummary[];
     readonly sessionMenuOpen: boolean;
     readonly context: ContextInfo;
@@ -169,6 +171,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
   const subagents = makeHolder<SimpleSubagent[]>([]);
   const agentTranscripts = makeHolder<Record<string, AgentTranscriptEntry[]>>({});
   const session = makeHolder<SessionInfo | null>(null);
+  const resumeProgress = makeHolder<ResumeProgressInfo | null>(null);
   const sessions = makeHolder<SimpleSessionSummary[]>([]);
   const sessionMenuOpen = makeHolder<boolean>(false);
   const context = makeHolder<ContextInfo>({ load: 0, tokens: 0, maxContext: 0, cache: null });
@@ -250,6 +253,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
     setSubagents: subagents,
     setAgentTranscripts: agentTranscripts,
     setSession: session,
+    setResumeProgress: resumeProgress,
     setSessionMenuOpen: sessionMenuOpen,
     setSessions: sessions,
     setContext: context,
@@ -312,6 +316,9 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
       },
       get session() {
         return session.latest.current;
+      },
+      get resumeProgress() {
+        return resumeProgress.latest.current;
       },
       get sessions() {
         return sessions.latest.current;
@@ -481,6 +488,15 @@ describe('session.start', () => {
 
   it('seeds session, restores draft, requests providers and recent sessions', () => {
     harness.readComposerDraft.mockReturnValue({ text: 'half a thought', fileRefs: ['a.ts'] });
+    harness.handler({
+      type: 'session.resume_progress',
+      payload: {
+        sessionId: 'sess-1',
+        stage: 'open_journal',
+        loadedBytes: 10,
+        totalBytes: 100,
+      },
+    });
 
     harness.handler({
       type: 'session.start',
@@ -507,10 +523,40 @@ describe('session.start', () => {
     expect(harness.state.draft).toBe('half a thought');
     expect(harness.state.fileRefs).toEqual(['a.ts']);
     expect(harness.state.context.maxContext).toBe(128_000);
+    expect(harness.state.resumeProgress).toBeNull();
     expect(harness.requestProviderModels).toHaveBeenCalledWith('openai');
     const sent = harness.socket.sent.map((entry) => entry.type);
     expect(sent).toContain('sessions.list');
     expect(sent[0]).toBe('sessions.list');
+  });
+
+  it('tracks resume progress until the session opens or resume is refused', () => {
+    harness.handler({
+      type: 'session.resume_progress',
+      payload: {
+        sessionId: 'sess-old',
+        stage: 'open_journal',
+        loadedBytes: 4096,
+        totalBytes: 8192,
+      },
+    });
+
+    expect(harness.state.resumeProgress).toEqual({
+      sessionId: 'sess-old',
+      stage: 'open_journal',
+      loadedBytes: 4096,
+      totalBytes: 8192,
+    });
+
+    harness.handler({
+      type: 'error',
+      payload: {
+        phase: 'session.resume',
+        message: 'Session is already owned',
+      },
+    });
+
+    expect(harness.state.resumeProgress).toBeNull();
   });
 
   it('persists the previous draft when switching sessions', () => {
