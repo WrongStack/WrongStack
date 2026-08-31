@@ -694,8 +694,13 @@ describe('gitTool — checkout must not destroy uncommitted work', () => {
     );
 
     expect(result.exitCode).toBe(0);
-    // Git may rewrite the EOL on checkout (core.autocrlf on Windows).
     const restored = await fs.readFile(path.join(repo, 'docs', 'f.txt'), 'utf8');
     expect(restored.replace(/\r\n/g, '\n')).toBe('committed\n');
+  });
+
+  it('executes cleanly when opts parameter is omitted', async () => {
+    const result = await gitTool.execute({ command: 'status' }, makeCtx(repo));
+    expect(result.command).toBe('status');
+    expect(result.exitCode).toBe(0);
   });
 });

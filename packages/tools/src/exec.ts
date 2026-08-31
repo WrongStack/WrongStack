@@ -485,7 +485,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         danger,
       };
     }
-    const signal = opts.signal;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id, danger);
   },

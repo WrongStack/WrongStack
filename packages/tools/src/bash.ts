@@ -278,6 +278,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // to the project root. Historically this was hard-wired to projectRoot,
     // which made `set_working_dir` silently ineffective for shell tools.
     const spawnCwd = ctx.workingDir ?? ctx.projectRoot;
+    const callerSignal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     // On POSIX we put the shell in its own process group so that timeout /
     // abort can kill the entire group with `process.kill(-pid)`. Otherwise
@@ -393,7 +394,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached,
       windowsHide: true,
-      ...(isWin ? {} : { signal: opts.signal }),
+      ...(isWin ? {} : { signal: callerSignal }),
     });
 
     // Register with global registry so Ctrl+C / /kill can find and kill it.
@@ -501,8 +502,8 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     // abort while the shell is still alive so its grandchildren die with it.
     const onAbort = () => killWithTimeout(child, 2000);
     if (isWin) {
-      if (opts.signal.aborted) onAbort();
-      else opts.signal.addEventListener('abort', onAbort, { once: true });
+      if (callerSignal.aborted) onAbort();
+      else callerSignal.addEventListener('abort', onAbort, { once: true });
     }
 
     // Bridge the EventEmitter-style child to an async iterator.
@@ -658,7 +659,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     } finally {
       for (const t of timers) clearTimeout(t);
       spool.finalize(); // idempotent — closes the file if the stream was abandoned
-      if (isWin) opts.signal.removeEventListener('abort', onAbort);
+      if (isWin) callerSignal.removeEventListener('abort', onAbort);
       // Teardown: this generator can be abandoned mid-stream (executor
       // timeout, abort, consumer error). The data handlers above would
       // otherwise stay attached and keep appending to `pending`/`queue`

@@ -110,8 +110,8 @@ export const codebaseTargetedTestTool: Tool<TargetedTestInput, TargetedTestOutpu
     },
     additionalProperties: false,
   },
-  async execute(input, ctx) {
-    const projectRoot = ctx.projectRoot;
+  async execute(input, ctx, execOpts) {
+    const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
     const suitesSet = new Set<string>();
 
     try {
@@ -180,7 +180,7 @@ export const codebaseTargetedTestTool: Tool<TargetedTestInput, TargetedTestOutpu
         runnerArgs = ['test', ...discoveredSuites];
       }
 
-      const signal = ctx.signal ?? new AbortController().signal;
+      const signal = execOpts?.signal ?? ctx.signal ?? new AbortController().signal;
       const gen = spawnStream({
         cmd: runnerCmd,
         args: runnerArgs,

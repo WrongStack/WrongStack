@@ -276,4 +276,14 @@ describe('kanban tool — contract map', () => {
     });
     expect(started.ok).toBe(true);
   });
+
+  it('executes cleanly with a minimal context without eventSessionId', async () => {
+    const { boardId, taskId } = await seed();
+    const minimalCtx = { projectRoot: dir, cwd: dir } as any;
+    const result = await kanbanTool.execute(
+      { action: 'get_contract_graph', boardId, taskId },
+      minimalCtx,
+    );
+    expect(result.ok).toBe(true);
+  });
 });

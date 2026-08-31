@@ -89,7 +89,7 @@ export const codebaseImpactAnalysisTool: Tool<ImpactAnalysisInput, ImpactAnalysi
   },
   async execute(input, ctx) {
     try {
-      const projectRoot = ctx.projectRoot;
+      const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
       const indexDir = codebaseIndexDirOverride(ctx);
       const limit = 200;
       const transitive = input.transitive ?? true;

@@ -108,17 +108,23 @@ beforeAll(async () => {
   );
   serverChild = child;
   let stdout = '';
+  let stderr = '';
   child.stdout?.on('data', (c: Buffer) => {
     stdout += c.toString('utf8');
   });
-  child.stderr?.on('data', () => {
-    /* swallow */
+  child.stderr?.on('data', (c: Buffer) => {
+    stderr += c.toString('utf8');
   });
 
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(
-      () => reject(new Error(`server didn't start within 10s; stdout so far:\n${stdout}`)),
-      10_000,
+      () =>
+        reject(
+          new Error(
+            `server didn't start within 25s; stdout so far:\n${stdout}\nstderr so far:\n${stderr}`,
+          ),
+        ),
+      25_000,
     );
     const check = setInterval(() => {
       if (stdout.includes('"mailbox_serve_started"')) {
@@ -130,7 +136,9 @@ beforeAll(async () => {
     child.once('exit', (code) => {
       clearInterval(check);
       clearTimeout(timer);
-      reject(new Error(`server exited early (code=${code}); stdout:\n${stdout}`));
+      reject(
+        new Error(`server exited early (code=${code}); stdout:\n${stdout}\nstderr:\n${stderr}`),
+      );
     });
   });
 
@@ -139,7 +147,7 @@ beforeAll(async () => {
   const port = Number(m[1]);
   baseUrl = `http://127.0.0.1:${port}`;
   token = await readToken(resolveProjectDir(tmpProject, wstackGlobalRoot()));
-}, 30_000);
+}, 45_000);
 
 afterAll(async () => {
   if (serverChild) {

@@ -59,10 +59,12 @@ interface GitOutput {
   warning?: string | undefined;
 }
 
+type GitContext = Parameters<Tool<GitInput, GitOutput>['execute']>[1];
+
 const TIMEOUT_MS = 30_000;
 const MAX_OUTPUT = 100_000;
 
-export const gitTool: Tool<GitInput, GitOutput> = {
+export const gitTool = {
   name: 'git',
   category: 'Git',
   description:
@@ -152,7 +154,7 @@ export const gitTool: Tool<GitInput, GitOutput> = {
     },
     required: ['command'],
   },
-  async execute(input, ctx, opts) {
+  async execute(input: GitInput, ctx: GitContext, opts?: { signal: AbortSignal }) {
     if (!input?.command) throw new Error('git: command is required');
 
     if (input.command === 'commit' && !input.message) {
@@ -196,6 +198,7 @@ export const gitTool: Tool<GitInput, GitOutput> = {
     }
 
     const args = buildArgs(input);
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     // For commits, check whether the working tree holds changes this session
     // did not author (a concurrent agent / separate wrongstack process / human).
@@ -208,7 +211,7 @@ export const gitTool: Tool<GitInput, GitOutput> = {
           cwd: ctx.cwd,
           projectRoot: ctx.projectRoot,
           sessionId: ctx.session?.id,
-          signal: opts.signal,
+          signal,
         });
         if (report.warning) {
           // Committing without an explicit file list stages/commits everything
@@ -229,7 +232,7 @@ export const gitTool: Tool<GitInput, GitOutput> = {
     let stagedDiff: string | undefined;
     if (input.command === 'commit' && !input.dry_run) {
       try {
-        const diffResult = await runGit(['diff', '--cached'], gitDir, opts.signal);
+        const diffResult = await runGit(['diff', '--cached'], gitDir, signal);
         if (diffResult.exitCode === 0) {
           const MAX_DIFF = 20_000;
           stagedDiff =
@@ -242,12 +245,12 @@ export const gitTool: Tool<GitInput, GitOutput> = {
       }
     }
 
-    const result = await runGit(args, gitDir, opts.signal);
+    const result = await runGit(args, gitDir, signal);
     if (stagedDiff !== undefined) result.diff = stagedDiff;
     if (safetyWarning !== undefined) result.warning = safetyWarning;
     return result;
   },
-};
+} satisfies Tool<GitInput, GitOutput>;
 
 /**
  * Reject worktree inputs that could inject git flags or escape the project

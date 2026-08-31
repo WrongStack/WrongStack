@@ -30,6 +30,8 @@ interface AuditOutput {
   truncated: boolean;
 }
 
+type AuditContext = Parameters<Tool<AuditInput, AuditOutput>['execute']>[1];
+
 const SEVERITY_RANK: Record<string, number> = {
   info: 0,
   low: 1,
@@ -38,7 +40,7 @@ const SEVERITY_RANK: Record<string, number> = {
   critical: 4,
 };
 
-export const auditTool: Tool<AuditInput, AuditOutput> = {
+export const auditTool = {
   name: 'audit',
   category: 'Package Management',
   description:
@@ -70,7 +72,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       },
     },
   },
-  async execute(input, ctx, opts) {
+  async execute(input: AuditInput, ctx: AuditContext, opts?: { signal: AbortSignal }) {
     let final: AuditOutput | undefined;
     const executeStream = auditTool.executeStream;
     if (!executeStream) throw new Error('auditTool: stream execution unavailable');
@@ -80,7 +82,11 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
     if (!final) throw new Error('audit: stream ended without final event');
     return final;
   },
-  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<AuditOutput>> {
+  async *executeStream(
+    input: AuditInput,
+    ctx: AuditContext,
+    opts?: { signal: AbortSignal },
+  ): AsyncGenerator<ToolStreamEvent<AuditOutput>> {
     // `audit` is declared `mutating: false` — silently forwarding `--fix`
     // would rewrite package.json/lockfile behind the permission gate.
     if (input.fix === true) {
@@ -154,7 +160,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       }),
     };
   },
-};
+} satisfies Tool<AuditInput, AuditOutput>;
 
 function parseAuditOutput(
   json: string,

@@ -30,7 +30,9 @@ interface OutdatedOutput {
   truncated: boolean;
 }
 
-export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
+type OutdatedContext = Parameters<Tool<OutdatedInput, OutdatedOutput>['execute']>[1];
+
+export const outdatedTool = {
   name: 'outdated',
   category: 'Package Management',
   description:
@@ -71,7 +73,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
     },
   },
-  async execute(input, ctx, opts) {
+  async execute(input: OutdatedInput, ctx: OutdatedContext, opts?: { signal: AbortSignal }) {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const manager = await detectPackageManager(cwd, ctx.projectRoot);
@@ -141,7 +143,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
 
     return runOutdated(manager, args, cwd, signal);
   },
-};
+} satisfies Tool<OutdatedInput, OutdatedOutput>;
 
 function runOutdated(
   manager: string,

@@ -39,7 +39,7 @@ export async function handleKanbanBoardAction(
   ctx: Context,
 ): Promise<KanbanToolOutput | undefined> {
   const eventContext = {
-    sessionId: ctx.eventSessionId(),
+    sessionId: ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session',
     ...(ctx.agentId !== undefined ? { actor: ctx.agentId } : {}),
   };
   switch (input.action) {

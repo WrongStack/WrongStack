@@ -15,7 +15,9 @@ import {
 } from './kanban-tool-schema.js';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
 
-export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
+type KanbanContext = Parameters<Tool<KanbanToolInput, KanbanToolOutput>['execute']>[1];
+
+export const kanbanTool = {
   name: 'kanban',
   category: 'Project',
   description: KANBAN_TOOL_DESCRIPTION,
@@ -27,7 +29,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
   icon: 'task',
   timeoutMs: 30_000,
   inputSchema: KANBAN_INPUT_SCHEMA,
-  async execute(input, ctx) {
+  async execute(input: KanbanToolInput, ctx: KanbanContext, _opts?: { signal: AbortSignal }) {
     const projectRoot = ctx.projectRoot;
     if (!projectRoot) return fail('No project root is available.');
 
@@ -48,7 +50,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           projectRoot,
           input,
           input.author ?? input.agentId,
-          ctx.eventSessionId(),
+          ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session',
         );
         if (contractResult !== undefined) return contractResult;
 
@@ -65,4 +67,4 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
   serialize(output, input) {
     return serializeKanbanOutput(output, input);
   },
-};
+} satisfies Tool<KanbanToolInput, KanbanToolOutput>;

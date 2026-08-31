@@ -75,9 +75,10 @@ export const codebaseInvariantCheckTool: Tool<
       let lang = input.lang;
 
       if (!originalCode && input.file) {
+        const root = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
         const resolved = path.isAbsolute(input.file)
           ? input.file
-          : path.resolve(ctx.projectRoot, input.file);
+          : path.resolve(root, input.file);
         originalCode = await fs.readFile(resolved, 'utf8');
         if (!lang) {
           lang = detectLang(resolved) ?? 'ts';

@@ -20,7 +20,9 @@ interface FormatOutput {
   truncated: boolean;
 }
 
-export const formatTool: Tool<FormatInput, FormatOutput> = {
+type FormatContext = Parameters<Tool<FormatInput, FormatOutput>['execute']>[1];
+
+export const formatTool = {
   name: 'format',
   category: 'Code Quality',
   description:
@@ -57,7 +59,7 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       cwd: { type: 'string', description: 'Working directory (default: cwd)' },
     },
   },
-  async execute(input, ctx, opts) {
+  async execute(input: FormatInput, ctx: FormatContext, opts?: { signal: AbortSignal }) {
     let final: FormatOutput | undefined;
     const executeStream = formatTool.executeStream;
     if (!executeStream) throw new Error('formatTool: stream execution unavailable');
@@ -67,8 +69,13 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
     if (!final) throw new Error('format: stream ended without final event');
     return final;
   },
-  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<FormatOutput>> {
+  async *executeStream(
+    input: FormatInput,
+    ctx: FormatContext,
+    opts?: { signal: AbortSignal },
+  ): AsyncGenerator<ToolStreamEvent<FormatOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const fixer = input.fixer ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -77,7 +84,7 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       const bridge = await tryLegacyCodeOperation(op, {
         cwd,
         projectRoot: ctx.projectRoot,
-        signal: opts.signal,
+        signal,
       });
       if (bridge?.run) {
         const run = bridge.run;
@@ -138,7 +145,7 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       cmd: detected,
       args,
       cwd,
-      signal: opts.signal,
+      signal,
       maxBytes: 100_000,
     });
 
@@ -155,7 +162,7 @@ export const formatTool: Tool<FormatInput, FormatOutput> = {
       },
     };
   },
-};
+} satisfies Tool<FormatInput, FormatOutput>;
 
 /**
  * Extract file counts from real formatter output. Biome prints stable summary

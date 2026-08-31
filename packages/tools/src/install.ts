@@ -31,7 +31,9 @@ interface InstallOutput {
   truncated: boolean;
 }
 
-export const installTool: Tool<InstallInput, InstallOutput> = {
+type InstallContext = Parameters<Tool<InstallInput, InstallOutput>['execute']>[1];
+
+export const installTool = {
   name: 'install',
   category: 'Package Management',
   description:
@@ -88,7 +90,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
       },
     },
   },
-  async execute(input, ctx, opts) {
+  async execute(input: InstallInput, ctx: InstallContext, opts?: { signal: AbortSignal }) {
     let final: InstallOutput | undefined;
     const executeStream = installTool.executeStream;
     if (!executeStream) throw new Error('installTool: stream execution unavailable');
@@ -98,8 +100,13 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
     if (!final) throw new Error('install: stream ended without final event');
     return final;
   },
-  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<InstallOutput>> {
+  async *executeStream(
+    input: InstallInput,
+    ctx: InstallContext,
+    opts?: { signal: AbortSignal },
+  ): AsyncGenerator<ToolStreamEvent<InstallOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     if (!input.global) {
@@ -113,7 +120,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
         {
           cwd,
           projectRoot: ctx.projectRoot,
-          signal: opts.signal,
+          signal,
         },
         pkgList,
       );
@@ -218,7 +225,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
       cmd: pkgManager,
       args,
       cwd,
-      signal: opts.signal,
+      signal,
       maxBytes: 100_000,
     });
 
@@ -251,7 +258,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
               ecosystem: detectPackageEcosystem(manifestPath),
               agentId: ctx.agentId,
               agentName: ctx.agentName,
-              sessionId: ctx.session.id,
+              sessionId: ctx.session?.id,
             });
           } catch {
             // Best-effort — a failed record doesn't fail the install
@@ -276,7 +283,7 @@ export const installTool: Tool<InstallInput, InstallOutput> = {
 
     yield { type: 'final', output };
   },
-};
+} satisfies Tool<InstallInput, InstallOutput>;
 
 function resolveManifestPath(cwd: string, pkgManager: string): string {
   switch (pkgManager) {

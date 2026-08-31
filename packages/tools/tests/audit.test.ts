@@ -238,7 +238,7 @@ describe('auditTool', () => {
 
   it('throws when executeStream is unavailable', async () => {
     const original = auditTool.executeStream;
-    auditTool.executeStream = undefined;
+    (auditTool as { executeStream: typeof original | undefined }).executeStream = undefined;
     try {
       await expect(auditTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
         /stream execution unavailable/,

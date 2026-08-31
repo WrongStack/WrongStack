@@ -91,10 +91,11 @@ export const codebaseOutgoingCallsTool: Tool<OutgoingCallsInput, OutgoingCallsOu
     // A refresh in progress is NOT a failure: the project server serves
     // previous-generation answers flagged `stale`, and only refuses when it
     // has no cached answer for this query.
+    const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
     let serviced: Awaited<ReturnType<typeof outgoingCallsService>>;
     try {
       serviced = await outgoingCallsService({
-        projectRoot: ctx.projectRoot,
+        projectRoot,
         indexDir: codebaseIndexDirOverride(ctx),
         symbol: input.symbol,
         file: input.file,

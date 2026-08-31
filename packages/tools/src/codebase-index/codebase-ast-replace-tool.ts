@@ -82,7 +82,7 @@ export const codebaseAstReplaceTool: Tool<CodebaseAstReplaceInput, CodebaseAstRe
   },
   async execute(input, ctx) {
     try {
-      const projectRoot = ctx.projectRoot;
+      const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
       const result = await replaceSymbolInFile(input, projectRoot);
 
       return {
@@ -91,6 +91,7 @@ export const codebaseAstReplaceTool: Tool<CodebaseAstReplaceInput, CodebaseAstRe
         symbol: result.symbol,
         originalRange: result.originalRange,
         newRange: result.newRange,
+        violations: result.violations?.map((v) => `[${v.ruleId}] ${v.message}`),
       };
     } catch (err) {
       return {

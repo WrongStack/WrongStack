@@ -202,6 +202,7 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     }
 
     const startedAt = Date.now();
+    const callerSignal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const detached = !isWin;
 
     if (isBackground) {
@@ -380,8 +381,8 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     timers.push(timer);
 
     const onAbort = () => killWithTimeout(2000);
-    if (opts.signal.aborted) onAbort();
-    else opts.signal.addEventListener('abort', onAbort, { once: true });
+    if (callerSignal.aborted) onAbort();
+    else callerSignal.addEventListener('abort', onAbort, { once: true });
 
     type Chunk =
       | { kind: 'data'; text: string }

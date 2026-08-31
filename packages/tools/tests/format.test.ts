@@ -219,7 +219,7 @@ describe('formatTool', () => {
 
   it('throws when executeStream is unavailable', async () => {
     const original = formatTool.executeStream;
-    formatTool.executeStream = undefined;
+    (formatTool as { executeStream: typeof original | undefined }).executeStream = undefined;
     try {
       await expect(formatTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
         /stream execution unavailable/,
@@ -257,5 +257,13 @@ describe('formatTool', () => {
     const result = await formatTool.execute({ fixer: 'biome' }, makeCtx(), makeOpts());
     expect(result.fixer).toBe('biome');
     expect(receivedArgs).toContain('format');
+  });
+
+  it('executes cleanly when opts parameter is omitted', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawn('Checked 1 file. Fixed 0 files.'));
+    const result = await formatTool.execute({ fixer: 'biome' }, makeCtx());
+    expect(result.fixer).toBe('biome');
+    expect(result.files_checked).toBe(1);
+    expect(result.files_changed).toBe(0);
   });
 });

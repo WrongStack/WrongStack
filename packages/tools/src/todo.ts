@@ -156,7 +156,7 @@ async function createMissingManagedCards(
             item.activeForm?.trim() || `Added from the session todo list: ${item.content}`,
         },
         // The card mirrors this session's todo row, so the session owns it.
-        { sessionId: ctx.eventSessionId(), actor: 'todo' },
+        { sessionId: ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session', actor: 'todo' },
       );
       if (!result) {
         warnings.push(`Could not open a Kanban card for "${item.content}": board not found.`);

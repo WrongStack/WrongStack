@@ -57,7 +57,7 @@ export const codebaseRepoMapTool: Tool<CodebaseRepoMapInput, CodebaseRepoMapOutp
   },
   async execute(input, ctx) {
     try {
-      const projectRoot = ctx.projectRoot;
+      const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
       const result = await generateRepoMap({
         projectRoot,
         maxTokens: input.maxTokens,

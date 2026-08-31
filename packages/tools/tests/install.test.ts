@@ -188,7 +188,7 @@ describe('installTool', () => {
 
   it('throws when executeStream is unavailable', async () => {
     const original = installTool.executeStream;
-    installTool.executeStream = undefined;
+    (installTool as { executeStream: typeof original | undefined }).executeStream = undefined;
     try {
       await expect(installTool.execute({}, makeCtx(), makeOpts())).rejects.toThrow(
         /stream execution unavailable/,
@@ -446,5 +446,13 @@ describe('installTool', () => {
     );
     const call = spawnStreamMock.mock.calls[0]?.[0] as { cmd: string; args: string[] };
     expect(call.args).toContain('--ignore-scripts');
+  });
+
+  it('executes cleanly when opts parameter is omitted and session is undefined', async () => {
+    spawnStreamMock.mockClear();
+    const minimalCtx = { cwd: '.', projectRoot: '.' } as any;
+    const result = await installTool.execute({ dry_run: true }, minimalCtx);
+    expect(result.exit_code).toBe(0);
+    expect(result.dry_run).toBe(true);
   });
 });
