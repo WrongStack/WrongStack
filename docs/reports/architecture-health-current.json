@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T19:20:43.325Z",
+  "generatedAt": "2026-08-31T22:50:34.956Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,9 +12,9 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3433,
-    "testFiles": 3069,
-    "sourceLines": 839324,
+    "sourceFiles": 3434,
+    "testFiles": 3070,
+    "sourceLines": 839825,
     "workspaceEdges": 128,
     "moduleEdges": 10676,
     "nonCommandSlashImports": 0,
@@ -730,7 +730,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 191,
-      "testFiles": 199,
+      "testFiles": 200,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -746,7 +746,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 199
+          "testFiles": 200
         }
       ]
     },
@@ -807,7 +807,7 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 498,
+      "sourceFiles": 499,
       "testFiles": 403,
       "workspaceDependencies": [
         "@wrongstack/core",
@@ -12573,6 +12573,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/browser-manager-open-cleanup.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/browser-manager.test.ts",
         "projects": [
           "root-node"
@@ -19696,6 +19702,11 @@
       "relativeImports": 8
     },
     {
+      "file": "packages/core/src/chronicle/project-server.ts",
+      "lines": 833,
+      "relativeImports": 18
+    },
+    {
       "file": "packages/core/src/chronicle/query.ts",
       "lines": 1297,
       "relativeImports": 3
@@ -19867,7 +19878,7 @@
     },
     {
       "file": "packages/kanban/src/server/project-server.ts",
-      "lines": 811,
+      "lines": 852,
       "relativeImports": 10
     },
     {
@@ -19931,6 +19942,11 @@
       "relativeImports": 1
     },
     {
+      "file": "packages/sage/src/project-server.ts",
+      "lines": 817,
+      "relativeImports": 6
+    },
+    {
       "file": "packages/sage/src/sqlite-store.ts",
       "lines": 1063,
       "relativeImports": 43
@@ -19982,7 +19998,7 @@
     },
     {
       "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1020,
+      "lines": 1068,
       "relativeImports": 9
     },
     {
@@ -20398,6 +20414,11 @@
       "relativeImports": 10
     },
     {
+      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "lines": 1068,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/sage/src/sqlite-store.ts",
       "lines": 1063,
       "relativeImports": 43
@@ -20476,11 +20497,6 @@
       "file": "packages/plugins/src/git-autocommit/index.ts",
       "lines": 1022,
       "relativeImports": 0
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1020,
-      "relativeImports": 9
     },
     {
       "file": "packages/webui-server/src/server/context-editor.ts",

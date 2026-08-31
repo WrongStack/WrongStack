@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { readTool } from '../src/read.js';
 import { writeTool } from '../src/write.js';
-import { type Sandbox, mkSandbox, newSignal } from './fixtures.js';
+import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
 
 describe('write tool', () => {
   let sb: Sandbox;
@@ -92,11 +92,9 @@ describe('write tool', () => {
   });
 
   it('clean TS content carries no syntax_errors', async () => {
-    await writeTool.execute(
-      { path: 'ok.ts', content: 'export const x = 1;\n' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    await writeTool.execute({ path: 'ok.ts', content: 'export const x = 1;\n' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(await fs.readFile(path.join(sb.dir, 'ok.ts'), 'utf8')).toBe('export const x = 1;\n');
   });
 
@@ -132,7 +130,6 @@ describe('write tool', () => {
     }).rejects.toMatchObject({ name: 'AbortError' });
     await expect(fs.access(path.join(sb.dir, 'aborted_stream_ctx.txt'))).rejects.toThrow();
   });
-
 
   it('streams each line before finalizing a new file write', async () => {
     const events = [];
