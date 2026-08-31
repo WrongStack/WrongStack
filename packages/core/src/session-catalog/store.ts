@@ -117,7 +117,13 @@ export class SessionCatalogStore {
       this.db.exec('COMMIT');
       return result;
     } catch (error) {
-      this.db.exec('ROLLBACK');
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        // SQLite can end a transaction when a write (including COMMIT) fails.
+        // Preserve that original disk/database error instead of masking it with
+        // a follow-up rollback failure.
+      }
       throw error;
     }
   }

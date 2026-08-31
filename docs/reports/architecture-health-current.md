@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-31T07:55:36.476Z
+**Generated:** 2026-08-31T08:52:57.603Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,7 +9,7 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3431 |
-| Production source lines | 836495 |
+| Production source lines | 836546 |
 | Test files | 3065 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10666 |
@@ -128,11 +128,11 @@ None.
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
+| 994 | `packages/core/src/session-catalog/store.ts` |
 | 993 | `packages/sage/src/types.ts` |
 | 992 | `packages/kanban/src/types.ts` |
 | 992 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 991 | `packages/kanban/src/manager/assignment.ts` |
-| 988 | `packages/core/src/session-catalog/store.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
 | 984 | `packages/tui/src/components/agents-monitor.tsx` |

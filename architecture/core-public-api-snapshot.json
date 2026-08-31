@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.317.0",
+  "packageVersion": "0.317.1",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1365,7 +1365,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8847
+      "sourceLines": 8892
     },
     {
       "directory": "infrastructure",
@@ -1449,7 +1449,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "project-scoped ownership and catalog subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4428
+      "sourceLines": 4434
     },
     {
       "directory": "skills",

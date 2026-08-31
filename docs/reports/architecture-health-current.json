@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T07:55:36.476Z",
+  "generatedAt": "2026-08-31T08:52:57.603Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3431,
     "testFiles": 3065,
-    "sourceLines": 836495,
+    "sourceLines": 836546,
     "workspaceEdges": 128,
     "moduleEdges": 10666,
     "nonCommandSlashImports": 0,
@@ -19793,7 +19793,7 @@
     },
     {
       "file": "packages/core/src/session-catalog/store.ts",
-      "lines": 988,
+      "lines": 994,
       "relativeImports": 11
     },
     {
@@ -20499,6 +20499,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/core/src/session-catalog/store.ts",
+      "lines": 994,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/sage/src/types.ts",
       "lines": 993,
       "relativeImports": 0
@@ -20517,11 +20522,6 @@
       "file": "packages/kanban/src/manager/assignment.ts",
       "lines": 991,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/core/src/session-catalog/store.ts",
-      "lines": 988,
-      "relativeImports": 11
     },
     {
       "file": "packages/core/src/execution/brain-runtime.ts",

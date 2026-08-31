@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.317.1] — 2026-08-31
+
+### Fixed
+
+- **Session Catalog transaction failures preserve their primary SQLite error.** If SQLite has already closed a failed transaction, a best-effort rollback no longer replaces the underlying disk or database error with `cannot rollback - no transaction is active`.
+
 ## [0.317.0] — 2026-08-30
 
 ### Added

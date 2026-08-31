@@ -163,7 +163,7 @@
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
-      "lines": 988,
+      "lines": 994,
       "relativeImports": 11
     },
     "packages/core/src/storage/file-session-writer.ts": {
