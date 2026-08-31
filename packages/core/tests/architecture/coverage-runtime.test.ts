@@ -653,4 +653,32 @@ describe('Vitest worker selection', () => {
     expect(getVitestMaxWorkers(['--unknown'])).toBe(2);
     expect(getVitestMaxWorkers(['run', '--watch'])).toBe(2);
   });
+
+  it('honors a valid WRONGSTACK_VITEST_MAX_WORKERS override over both modes', () => {
+    const previous = process.env.WRONGSTACK_VITEST_MAX_WORKERS;
+    process.env.WRONGSTACK_VITEST_MAX_WORKERS = '8';
+    try {
+      expect(getVitestMaxWorkers(['run'])).toBe(8);
+      expect(getVitestMaxWorkers(['--watch'])).toBe(8);
+      expect(getVitestMaxWorkers([])).toBe(8);
+    } finally {
+      if (previous === undefined) delete process.env.WRONGSTACK_VITEST_MAX_WORKERS;
+      else process.env.WRONGSTACK_VITEST_MAX_WORKERS = previous;
+    }
+  });
+
+  it.each([['abc'], ['0'], ['-3'], ['1.5'], ['']])(
+    'falls through to mode defaults on an invalid %s override',
+    (value) => {
+      const previous = process.env.WRONGSTACK_VITEST_MAX_WORKERS;
+      process.env.WRONGSTACK_VITEST_MAX_WORKERS = value;
+      try {
+        expect(getVitestMaxWorkers(['run'])).toBe(4);
+        expect(getVitestMaxWorkers(['--watch'])).toBe(2);
+      } finally {
+        if (previous === undefined) delete process.env.WRONGSTACK_VITEST_MAX_WORKERS;
+        else process.env.WRONGSTACK_VITEST_MAX_WORKERS = previous;
+      }
+    },
+  );
 });

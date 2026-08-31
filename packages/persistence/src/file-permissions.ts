@@ -25,7 +25,7 @@
  */
 
 import * as childProcess from 'node:child_process';
-import { chmod } from 'node:fs/promises';
+import { chmod, stat } from 'node:fs/promises';
 import { promisify } from 'node:util';
 
 let _execFileAsync:
@@ -92,10 +92,16 @@ export async function restrictFilePermissions(
       await execFn('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`], {
         windowsHide: true,
       });
-    } catch {
-      // Best-effort: icacls may not be available in all environments.
+    } catch (error) {
+      // Best-effort: icacls may not be available in all environments. A file
+      // that vanished mid-hardening (daemon restart, test teardown racing the
+      // spawn) has nothing left to protect, so only real failures on live
+      // files warn — and the warning carries icacls's own error so operators
+      // can act on it instead of guessing.
+      if (await pathIsGone(filePath)) return;
+      const reason = error instanceof Error ? error.message : String(error);
       warn(
-        `[${label}] Could not restrict permissions on ${filePath} — it may be readable by other users on this system.`,
+        `[${label}] Could not restrict permissions on ${filePath} (${reason}) — it may be readable by other users on this system.`,
       );
     }
   } else {
@@ -104,6 +110,16 @@ export async function restrictFilePermissions(
     } catch {
       // Best-effort
     }
+  }
+}
+
+/** True when the path no longer exists — there is nothing left to harden. */
+async function pathIsGone(filePath: string): Promise<boolean> {
+  try {
+    await stat(filePath);
+    return false;
+  } catch {
+    return true;
   }
 }
 

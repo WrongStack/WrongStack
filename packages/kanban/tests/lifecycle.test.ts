@@ -820,7 +820,7 @@ describe('end-to-end managed lifecycle validation paths', () => {
     expect(card.columnId).toBe('backlog');
     expect(card.status).toBe('pending');
     expect(card.lifecycle?.currentStage).toBe('backlog');
-    expect(card.lifecycle?.history.some((entry) => entry.to === 'in_progress')).toBe(false);
+    expect(card.lifecycle?.history.some((entry) => entry.to !== 'backlog')).toBe(false);
 
     // ...and a legitimate next step still works (no permanent wedge).
     await expect(

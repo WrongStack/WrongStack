@@ -34,7 +34,17 @@ function truncateTextDeep(node: ReactNode): ReactNode {
     return node;
   }
   if (Array.isArray(node)) {
-    return node.map((child) => truncateTextDeep(child));
+    return node.map((child, index) => {
+      const walked = truncateTextDeep(child);
+      // Callers frequently return the Card body as a bare array; React then
+      // warns "each child in a list should have a unique key" against the
+      // Card that renders it. Fill keys the caller omitted, leaving keys the
+      // caller set untouched.
+      if (isReactElement(walked) && walked.key === null) {
+        return React.cloneElement(walked, { key: `wst-wrap-${index}` });
+      }
+      return walked;
+    });
   }
   if (!isReactElement(node)) {
     return node;

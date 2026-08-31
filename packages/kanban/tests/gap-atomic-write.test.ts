@@ -25,7 +25,9 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   for (const key of Object.keys(actual) as Array<keyof typeof actual>) {
     const origFn = actual[key];
     if (typeof origFn === 'function') {
-      (wrapped as any)[key] = vi.fn().mockImplementation((...args: any[]) => (origFn as any)(...args));
+      (wrapped as any)[key] = vi
+        .fn()
+        .mockImplementation((...args: any[]) => (origFn as any)(...args));
     } else {
       (wrapped as any)[key] = origFn;
     }
@@ -56,9 +58,7 @@ describe('withFileLock - EPERM recovery', () => {
   it('re-throws unexpected error codes (non-EEXIST/non-EPERM)', async () => {
     const target = path.join(tmpDir, 'unexpected-code', 'target.json');
     await fs.writeFile(path.join(tmpDir, 'unexpected-code'), 'not-dir', 'utf8');
-    await expect(
-      withFileLock(target, async () => 'never', { timeoutMs: 100 }),
-    ).rejects.toThrow();
+    await expect(withFileLock(target, async () => 'never', { timeoutMs: 100 })).rejects.toThrow();
   });
 });
 
@@ -149,6 +149,10 @@ describe('renameWithRetry transient retry', () => {
 
   it('fails after exhausting all retry delays', async () => {
     const originalPlatform = Object.getOwnPropertyDescriptor(process, 'platform');
+    // Retry exhaustion emits a diagnostic process warning before throwing;
+    // spy it out so the negative path stays silent while pinning its shape.
+    // Declared outside `try` so the `finally` can always restore it.
+    const emitSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
     try {
       Object.defineProperty(process, 'platform', {
         value: 'win32',
@@ -162,7 +166,12 @@ describe('renameWithRetry transient retry', () => {
 
       const target = path.join(tmpDir, 'rename-exhaust.txt');
       await expect(atomicWrite(target, 'content')).rejects.toThrow();
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Windows rename retries exhausted'),
+        expect.objectContaining({ code: 'WRONGSTACK_WIN32_RENAME_EXHAUSTED' }),
+      );
     } finally {
+      emitSpy.mockRestore();
       if (originalPlatform) {
         Object.defineProperty(process, 'platform', originalPlatform);
       } else {

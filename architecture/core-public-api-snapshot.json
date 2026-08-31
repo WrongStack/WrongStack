@@ -1310,14 +1310,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 10256
+      "sourceLines": 10302
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 174,
-      "sourceLines": 50919
+      "sourceLines": 50962
     },
     {
       "directory": "core",

@@ -7,10 +7,11 @@
  * which on Windows moves only the read-only bit, leaving both readable by
  * every other account on the machine.
  */
+import * as childProcess from 'node:child_process';
 import { chmod, mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   restrictDirPermissions,
   restrictFilePermissions,
@@ -19,6 +20,14 @@ import {
 } from '../../src/security/file-permissions.js';
 
 const POSIX = process.platform !== 'win32';
+
+// execFile is mocked (real impl by default) so a test can force an icacls
+// failure that is NOT a missing path — a vanished file is silently skipped
+// (nothing left to protect), so only a mocked outage exercises the warning.
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, execFile: vi.fn(actual.execFile) };
+});
 
 describe('file-permissions', () => {
   let dir: string;
@@ -76,11 +85,19 @@ describe('file-permissions', () => {
     // Only the Windows branch warns; on POSIX chmod failures are silent by
     // design (the caller already wrote the file with the right mode).
     if (POSIX) return;
+    // Force an icacls failure on a LIVE path: the missing-path case is now
+    // silent by design, so the warning contract needs a real outage.
+    const target = join(dir, 'auth.json');
+    await writeFile(target, '{"browserTokens":[]}');
+    vi.mocked(childProcess.execFile).mockImplementationOnce(() => {
+      throw new Error('mocked icacls outage');
+    });
     const warnings: string[] = [];
-    await restrictFilePermissions(join(dir, 'nope', 'auth.json'), {
+    await restrictFilePermissions(target, {
       label: 'hq-auth',
       warn: (m) => warnings.push(m),
     });
     expect(warnings.some((w) => w.includes('[hq-auth]'))).toBe(true);
+    expect(warnings.some((w) => w.includes('mocked icacls outage'))).toBe(true);
   });
 });

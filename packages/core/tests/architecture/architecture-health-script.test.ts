@@ -11,9 +11,9 @@ import {
   collectModuleSpecifiers,
   collectRuntimeExports,
   evaluateReportFreshness,
+  FRESHNESS_REPORT_FILES,
   findNonCommandSlashImports,
   findTestOnlyExports,
-  FRESHNESS_REPORT_FILES,
   globToRegExp,
   loadArchitectureInputs,
   parseTsConfigFiles,
@@ -446,7 +446,7 @@ describe('architecture health scanner', () => {
     // Regex flags then division: `/re/g / 2` closes the regex at the flagged `/`.
     expect(
       collectModuleSpecifiers(
-        ["const x = /re/g / 2;", "import { real } from './real.js';"].join('\n'),
+        ['const x = /re/g / 2;', "import { real } from './real.js';"].join('\n'),
         'fixture.ts',
       ),
     ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
@@ -454,7 +454,7 @@ describe('architecture health scanner', () => {
     // In-class slash: `/[a/b]/` must not close at the slash inside `[...]`.
     expect(
       collectModuleSpecifiers(
-        ["const x = /[a/b]/;", "import { real } from './real.js';"].join('\n'),
+        ['const x = /[a/b]/;', "import { real } from './real.js';"].join('\n'),
         'fixture.ts',
       ),
     ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
@@ -462,7 +462,7 @@ describe('architecture health scanner', () => {
     // Postfix increment before division: `n++ / 2` is division, not a regex.
     expect(
       collectModuleSpecifiers(
-        ["const x = n++ / 2;", "import { real } from './real.js';"].join('\n'),
+        ['const x = n++ / 2;', "import { real } from './real.js';"].join('\n'),
         'fixture.ts',
       ),
     ).toEqual([{ specifier: './real.js', typeOnly: false, syntax: 'import' }]);
@@ -773,6 +773,11 @@ describe('report freshness gate', () => {
     git(dir, 'init', '-q');
     git(dir, 'config', 'user.email', 't@t');
     git(dir, 'config', 'user.name', 't');
+    // Scratch repos inherit the developer's global core.autocrlf, so on
+    // Windows every `git add` sprayed "LF will be replaced by CRLF" warnings
+    // into the test output. Pin line-ending handling per-repo to keep the
+    // output clean and the fixture commits byte-deterministic cross-platform.
+    git(dir, 'config', 'core.autocrlf', 'false');
     await writeFile(path.join(dir, 'packages/x/a.ts'), 'export const a = 1;\n');
     git(dir, 'add', '.');
     commitAt(dir, '2026-01-01T00:00:00Z', 'source');

@@ -1,9 +1,9 @@
 /// <reference types="vitest/config" />
 
-import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
+import { defineConfig } from 'vite';
 import { getVitestMaxWorkers } from '../../vitest.workers.ts';
 
 /**
@@ -113,6 +113,12 @@ export default defineConfig({
     },
   },
   build: {
+    // The vendor chunk is deliberately monolithic (~2.9 MB minified): this is
+    // a local single-origin app that loads it once and caches it, and the
+    // markdown + app entry chunks are already split out via manualChunks.
+    // Raise Vite's advisory limit to match that decision instead of
+    // re-splitting vendor per dependency.
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
         manualChunks(id) {

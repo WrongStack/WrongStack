@@ -92,7 +92,7 @@ describe('write tool', () => {
   });
 
   it('clean TS content carries no syntax_errors', async () => {
-    const out = await writeTool.execute(
+    await writeTool.execute(
       { path: 'ok.ts', content: 'export const x = 1;\n' },
       sb.ctx,
       { signal: newSignal() },

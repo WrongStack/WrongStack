@@ -66,6 +66,10 @@
       "lines": 812,
       "relativeImports": 8
     },
+    "packages/core/src/chronicle/project-server.ts": {
+      "lines": 833,
+      "relativeImports": 18
+    },
     "packages/core/src/chronicle/query.ts": {
       "lines": 1297,
       "relativeImports": 3
@@ -203,7 +207,7 @@
       "relativeImports": 13
     },
     "packages/kanban/src/server/project-server.ts": {
-      "lines": 811,
+      "lines": 852,
       "relativeImports": 10
     },
     "packages/kanban/src/types.ts": {
@@ -254,6 +258,10 @@
       "lines": 873,
       "relativeImports": 1
     },
+    "packages/sage/src/project-server.ts": {
+      "lines": 817,
+      "relativeImports": 6
+    },
     "packages/sage/src/sqlite-store.ts": {
       "lines": 1063,
       "relativeImports": 43
@@ -295,7 +303,7 @@
       "relativeImports": 6
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 1020,
+      "lines": 1068,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {

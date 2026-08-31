@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=31; wins=31 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-29T12:07:54.956Z; applied=33; wins=33 -->
 - **- Always filter `slash-commands/index` importer greps to the owning package path (`packages/cli`, `packages/plug-lsp`, `packages/telegram`) — each package owns a same-named `slash-commands/index.ts`, so unscoped `grep slash-commands/index` caller sets include 4+ cross-package false positives in WrongStack. - Do not trust `codebase-skeleton` on import-dominated composition-root files (e.g. `packages/cli/src/slash-commands/index.ts` collapsed 215 lines to 1 at 99.6% "savings"); when the skeleton result looks degenerate, fall back to a full `read` before citing exports.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `slash-commands/index`
@@ -27,7 +27,7 @@
   - *How:* `project-server-query-cache`
   - *How:* `project-server.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=53; wins=53 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-21T19:06:14.197Z; applied=54; wins=54 -->
 - **Always trace a `packages/core/src/storage/*` helper's consumers by grepping its module basename first (e.g. `grep session-write-buffer`) — storage helpers there typically have exactly one importer (e.g. `session-write-buffer.ts` ← `file-session-writer.ts`), so one hop plus one `new X` grep usually completes the dependency picture without broad exploration. Never treat `codebase-incoming-calls` import/type_ref entries as call sites alone — pair them with a targeted `read` of the constructor and producer methods to distinguish ownership (who creates the object) from usage (who feeds it).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/core/src/storage/*`
@@ -38,7 +38,7 @@
   - *How:* `codebase-incoming-calls`
   - *How:* `read`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-26T07:31:22.592Z; skill=node-modern; applied=1; wins=1 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-26T07:31:22.592Z; skill=node-modern; applied=2; wins=2 -->
 - **Always treat `@wrongstack/simpleui` grep hits as suspect until checked against `packages/cli/src/simpleui-dist.ts` — that file resolves the package by **path string** (`resolvePackageJson('@wrongstack/simpleui/package.json')`) for static-asset serving, so it looks like a barrel consumer but never imports the module. The simpleui barrel (`packages/simpleui/src/index.ts`) has zero in-repo importers by design: the package is consumed only as a built Vite `dist/` asset.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `@wrongstack/simpleui`
@@ -60,7 +60,7 @@
   - *How:* `packages/tools/src/codebase-index/background-indexer.ts`
   - *How:* `./codebase-index/index`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=50; wins=50 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:34:49.099Z; applied=51; wins=51 -->
 - **When tracing importers of a module in `packages/webui/src/stores/`, always run one extra grep of the bare basename scoped to `packages/webui/src/stores/` in addition to the `stores/<name>` specifier pattern — intra-store importers use relative specifiers (`./session-lanes`, `./session-lanes.js`) that the `stores/<name>` pattern never matches, and in this repo those relative importers (`session-store.ts`, `session-tab-store.ts`) are usually the heaviest dependents. Pair with `codebase-incoming-calls` import hints to catch what the specifier greps miss.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/stores/`
@@ -71,7 +71,7 @@
   - *How:* `session-tab-store.ts`
   - *How:* `codebase-incoming-calls`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=75; wins=75 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-28T06:42:52.331Z; applied=76; wins=76 -->
 - **When tracing importers of any module under `packages/webui/src/` (not just `stores/`), grep the bare basename repo-wide in addition to specifier patterns — sibling-directory consumers use relative specifiers (`./useChatViewState`) that `components/<name>` style patterns never match; in this repo the bare-basename grep plus `codebase-incoming-calls` together resolved the full consumer set in one pass (`useChatViewState` had exactly one: `ChatView/index.tsx`).**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `packages/webui/src/`
@@ -83,4 +83,4 @@
   - *How:* `ChatView/index.tsx`
 
 ---
-*Last capture: 2026-08-31T17:58:02.812Z · 7 entries*
+*Last capture: 2026-08-29T12:07:54.956Z · 7 entries*

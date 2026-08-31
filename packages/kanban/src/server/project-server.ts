@@ -68,8 +68,57 @@ interface ClientState {
 let projectRoot = '';
 let endpoint = '';
 let serverInfo: KanbanProjectServerInfo | null = null;
-let sigtermHandler: (() => void) | undefined;
-let sigintHandler: (() => void) | undefined;
+/**
+ * One SIGTERM/SIGINT pair per PROCESS, not per module instance.
+ *
+ * The in-process test harness (packages/core/tests/helpers/project-server-
+ * harness.ts) imports this module once per test case with a `?case=<n>` query
+ * URL, so every case gets a fresh module instance whose start() would register
+ * new signal handlers that the previous instance can never remove — the
+ * closures are per-module, and eleven cases meant eleven live SIGTERM
+ * handlers plus a MaxListenersExceededWarning in every coverage run. The
+ * guard lives on globalThis under a Symbol.for key so every module instance
+ * shares one pair: the first start() registers the handlers, every start()
+ * re-targets them at its own stopAndExit, and detach() removes the pair.
+ */
+interface KanbanSignalGuard {
+  retarget(stopTerm: () => void, stopInt: () => void): void;
+  detach(): void;
+}
+const SIGNAL_GUARD: unique symbol = Symbol.for('wrongstack.kanban.project-server.signalGuard');
+let signalGuard: KanbanSignalGuard | undefined;
+
+function armSignalHandlers(stopAndExit: (reason: string) => void): KanbanSignalGuard {
+  const store = globalThis as typeof globalThis & {
+    [SIGNAL_GUARD]?: KanbanSignalGuard | undefined;
+  };
+  let guard = store[SIGNAL_GUARD];
+  if (!guard) {
+    let stopTerm: () => void = () => undefined;
+    let stopInt: () => void = () => undefined;
+    const sigtermHandler = (): void => stopTerm();
+    const sigintHandler = (): void => stopInt();
+    process.on('SIGTERM', sigtermHandler);
+    process.on('SIGINT', sigintHandler);
+    guard = {
+      retarget(term, int) {
+        stopTerm = term;
+        stopInt = int;
+      },
+      detach() {
+        process.removeListener('SIGTERM', sigtermHandler);
+        process.removeListener('SIGINT', sigintHandler);
+        store[SIGNAL_GUARD] = undefined;
+      },
+    };
+    store[SIGNAL_GUARD] = guard;
+  }
+  guard.retarget(
+    () => stopAndExit('SIGTERM'),
+    () => stopAndExit('SIGINT'),
+  );
+  return guard;
+}
 
 /**
  * Per-process auth token. WS-027: this daemon owns every board in the project
@@ -240,13 +289,9 @@ async function stop(_reason: string, gracefulSocket?: net.Socket): Promise<void>
   livenessTimer = undefined;
   if (leaseTimer) clearInterval(leaseTimer);
   leaseTimer = undefined;
-  if (sigtermHandler) {
-    process.removeListener('SIGTERM', sigtermHandler);
-    sigtermHandler = undefined;
-  }
-  if (sigintHandler) {
-    process.removeListener('SIGINT', sigintHandler);
-    sigintHandler = undefined;
+  if (signalGuard) {
+    signalGuard.detach();
+    signalGuard = undefined;
   }
   for (const state of clients) {
     // Handlers are intentionally NOT aborted here: once a request reaches the
@@ -751,12 +796,8 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   }, CLIENT_LEASE_SWEEP_MS);
   leaseTimer.unref?.();
 
-  if (sigtermHandler) process.removeListener('SIGTERM', sigtermHandler);
-  if (sigintHandler) process.removeListener('SIGINT', sigintHandler);
-  sigtermHandler = () => stopAndExit('SIGTERM');
-  sigintHandler = () => stopAndExit('SIGINT');
-  process.on('SIGTERM', sigtermHandler);
-  process.on('SIGINT', sigintHandler);
+  signalGuard?.detach();
+  signalGuard = armSignalHandlers(stopAndExit);
 }
 
 function acceptClient(socket: net.Socket): void {

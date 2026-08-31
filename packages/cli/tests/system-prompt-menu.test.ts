@@ -470,6 +470,10 @@ describe('maybeRunSystemPromptMenu', () => {
     await fs.chmod(path.dirname(configPath), 0o555);
     const { renderer, reader } = makeGateHarness(['2']); // pick 'default'
     let res: SystemPromptMenuOutcome | undefined;
+    // On Windows the failing atomicWrite exhausts its rename retries and
+    // emits a diagnostic process warning by design; spy it out so this
+    // negative-path test stays silent.
+    const emitSpy = vi.spyOn(process, 'emitWarning').mockImplementation(() => {});
     try {
       res = await maybeRunSystemPromptMenu({
         isInteractiveTTY: true,
@@ -480,6 +484,7 @@ describe('maybeRunSystemPromptMenu', () => {
         paths: gatePaths(),
       });
     } finally {
+      emitSpy.mockRestore();
       // Restore so the temp dir can be cleaned up.
       try {
         await fs.chmod(path.dirname(configPath), 0o755);

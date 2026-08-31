@@ -3,13 +3,6 @@
   "project": "packages/webui",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
-    "f26dd21406ece10d": 1,
-    "2d54d89ccc13b003": 1,
-    "dabbcf58d393d816": 1,
-    "7d107d8b2e50aabf": 1,
-    "41850222f76bcfb6": 1,
-    "df4943bac3476ecb": 1,
-    "4d0fe4cf9810a24f": 1,
     "95509ce0f1fb63d6": 1,
     "83cbf7cc99c8da5b": 2,
     "28adf38af5c27cea": 1,

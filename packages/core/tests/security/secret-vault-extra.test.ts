@@ -153,7 +153,7 @@ describe('migratePlaintextSecrets edges', () => {
     const res = await migratePlaintextSecrets(cfgPath, vault(), { warn });
     expect(res.migrated).toBeGreaterThan(0);
     const written = JSON.parse(await fs.readFile(cfgPath, 'utf8'));
-    expect(new DefaultSecretVault({ keyFile }).isEncrypted(written.apiKey)).toBe(true);
+    expect(vault().isEncrypted(written.apiKey)).toBe(true);
   });
 
   it('warns when the Windows user cannot be determined (win32)', async () => {
@@ -165,12 +165,17 @@ describe('migratePlaintextSecrets edges', () => {
       delete process.env.USER;
       delete process.env.USERDOMAIN;
       const warn = vi.fn();
+      // The key-file hardening scheduled under the mocked platform warns via
+      // the console.warn fallback; spy it out so the asserted logger warning
+      // is the only one leaving this test.
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
         const cfgPath = path.join(tmp, 'win.json');
         await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain' }));
         await migratePlaintextSecrets(cfgPath, vault(), { warn });
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('Windows user'));
       } finally {
+        warnSpy.mockRestore();
         if (savedUser !== undefined) process.env.USERNAME = savedUser;
         if (savedU !== undefined) process.env.USER = savedU;
         if (savedDomain !== undefined) process.env.USERDOMAIN = savedDomain;
@@ -183,12 +188,17 @@ describe('migratePlaintextSecrets edges', () => {
       const saved = { user: process.env.USERNAME, domain: process.env.USERDOMAIN };
       process.env.USERNAME = 'alice';
       process.env.USERDOMAIN = 'CORP';
+      // CORP\alice does not exist on this machine, so both the key-file and
+      // the config hardening deterministically fail icacls here; spy out the
+      // console.warn fallback so the negative path stays silent.
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
         const cfgPath = path.join(tmp, 'dom.json');
         await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain' }));
         // icacls will run with CORP\alice; we only assert it doesn't throw.
         await expect(migratePlaintextSecrets(cfgPath, vault())).resolves.toBeDefined();
       } finally {
+        warnSpy.mockRestore();
         if (saved.user !== undefined) process.env.USERNAME = saved.user;
         else delete process.env.USERNAME;
         if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain;
@@ -202,12 +212,17 @@ describe('migratePlaintextSecrets edges', () => {
       const saved = { user: process.env.USERNAME, domain: process.env.USERDOMAIN };
       process.env.USERNAME = 'solo';
       delete process.env.USERDOMAIN;
+      // The bare "solo" account does not exist on this machine either, so the
+      // hardening fails icacls by design; keep its console.warn fallback out
+      // of the test output.
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       try {
         const cfgPath = path.join(tmp, 'bare.json');
         await fs.writeFile(cfgPath, JSON.stringify({ apiKey: 'plain' }));
         // icacls runs with the bare "solo" account name; assert it completes.
         await expect(migratePlaintextSecrets(cfgPath, vault())).resolves.toBeDefined();
       } finally {
+        warnSpy.mockRestore();
         if (saved.user !== undefined) process.env.USERNAME = saved.user;
         else delete process.env.USERNAME;
         if (saved.domain !== undefined) process.env.USERDOMAIN = saved.domain;
