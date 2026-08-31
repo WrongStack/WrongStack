@@ -299,6 +299,67 @@ describe('session telemetry bridge', () => {
     dispose();
   });
 
+  it('reads a large transcript delta in bounded blocks without losing entries', async () => {
+    const sessionId = '2026-06-23/13-30-00Z_test_bounded_tail';
+    const entries = Array.from({ length: 96 }, (_, i) => ({
+      type: 'user_input',
+      ts: `t${i}`,
+      // Cross several 64 KiB read boundaries and include UTF-8 text to cover
+      // a record and character split across block boundaries.
+      content: `${i}: ${'x'.repeat(2_048)}é`,
+    }));
+    await writeSessionLog(sessionId, entries);
+
+    const calls: Calls = { snapshots: [], transcripts: [], ended: [] };
+    const dispose = startSessionTelemetryBridge({
+      publisher: fakePublisher(calls),
+      sessionId,
+      projectRoot,
+      globalRoot,
+      transcriptIntervalMs: 10,
+    });
+
+    await tick(150);
+
+    const published = calls.transcripts.flatMap((batch) => batch.entries);
+    expect(published).toHaveLength(entries.length);
+    expect(published.map((entry) => entry.text)).toEqual(entries.map((entry) => entry.content));
+
+    dispose();
+  });
+
+  it('skips an oversized unterminated record and resumes at the next valid record', async () => {
+    const sessionId = '2026-06-23/13-45-00Z_test_oversized_record';
+    const paths = resolveWstackPaths({ projectRoot, globalRoot });
+    const file = path.join(paths.projectSessions, `${sessionId}.jsonl`);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(
+      file,
+      `${JSON.stringify({ type: 'user_input', ts: 't0', content: 'before' })}\n${'x'.repeat(
+        1_100_000,
+      )}\n${JSON.stringify({ type: 'user_input', ts: 't1', content: 'recovered' })}\n`,
+      'utf8',
+    );
+
+    const calls: Calls = { snapshots: [], transcripts: [], ended: [] };
+    const dispose = startSessionTelemetryBridge({
+      publisher: fakePublisher(calls),
+      sessionId,
+      projectRoot,
+      globalRoot,
+      transcriptIntervalMs: 10,
+    });
+
+    await tick(250);
+
+    expect(calls.transcripts.flatMap((batch) => batch.entries).map((entry) => entry.text)).toEqual([
+      'before',
+      'recovered',
+    ]);
+
+    dispose();
+  });
+
   it('chunks large initial transcript tails below the HQ websocket payload limit', async () => {
     const sessionId = '2026-06-23/14-00-00Z_test_chunks';
     await writeSessionLog(

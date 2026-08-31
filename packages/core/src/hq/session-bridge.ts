@@ -93,6 +93,13 @@ const HQ_STALE_SNAPSHOT_WINDOW_MS = 5 * 60_000;
  */
 const KEEPALIVE_REPUBLISH_MS = Math.floor(HQ_STALE_SNAPSHOT_WINDOW_MS * 0.8);
 
+// Keep fallback JSONL reads bounded: a delayed tail must not allocate a buffer
+// proportional to the entire unread transcript delta.
+const TRANSCRIPT_TAIL_READ_BYTES = 64 * 1024;
+// A malformed or pathological JSONL record must not defeat the block bound by
+// growing the carried partial record indefinitely.
+const MAX_TRANSCRIPT_TAIL_LINE_BYTES = 1024 * 1024;
+
 function toAgentSummary(a: TrackedAgentSnapshot): HqSessionAgentSummary {
   const status = (
     VALID_AGENT_STATUS.has(a.status as HqSessionAgentLiveStatus) ? a.status : 'idle'
@@ -327,7 +334,10 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   // With a writer, tail() is suppressed to avoid duplicate publishing.
   if (!opts.writer?.setOnAppend) {
     let offset = 0;
-    let partial = '';
+    // Retain raw bytes rather than decoded text so a multi-byte UTF-8
+    // character split at a block boundary is decoded only once complete.
+    let partial = Buffer.alloc(0);
+    let discardingOversizedLine = false;
     let tailing = false;
     let watchPending = false;
 
@@ -373,29 +383,64 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
         const fd = await fsp.open(sessionFile, 'r');
         try {
           if (disposed) return;
-          const len = stat.size - offset;
-          const buf = Buffer.allocUnsafe(len);
-          const { bytesRead } = await fd.read(buf, 0, len, offset);
-          const actualBuf = bytesRead < len ? buf.subarray(0, bytesRead) : buf;
-          offset += bytesRead;
-          partial += actualBuf.toString('utf8');
-          const lines = partial.split('\n');
-          partial = lines.pop() ?? '';
-          const entries: HqTranscriptEntry[] = [];
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            let obj: Record<string, unknown>;
-            try {
-              obj = JSON.parse(trimmed) as Record<string, unknown>;
-            } catch {
+          // Drain the size observed by stat() in fixed-size blocks. `partial`
+          // carries an incomplete UTF-8/JSONL line into the next block.
+          while (!disposed && offset < stat.size) {
+            const len = Math.min(TRANSCRIPT_TAIL_READ_BYTES, stat.size - offset);
+            const buf = Buffer.allocUnsafe(len);
+            const { bytesRead } = await fd.read(buf, 0, len, offset);
+            if (bytesRead === 0) break;
+
+            offset += bytesRead;
+            let chunk = buf.subarray(0, bytesRead);
+            if (discardingOversizedLine) {
+              const newline = chunk.indexOf(0x0a);
+              if (newline < 0) continue;
+              chunk = chunk.subarray(newline + 1);
+              discardingOversizedLine = false;
+            }
+            const complete = Buffer.concat([partial, chunk]);
+            const lastNewline = complete.lastIndexOf(0x0a);
+            if (lastNewline < 0) {
+              if (complete.length > MAX_TRANSCRIPT_TAIL_LINE_BYTES) {
+                partial = Buffer.alloc(0);
+                discardingOversizedLine = true;
+              } else {
+                partial = complete;
+              }
               continue;
             }
-            for (const entry of mapSessionEventToEntries(obj)) entries.push(entry);
-          }
-          if (entries.length > 0) {
-            publishTranscriptEntries(entries);
-            lastActivityAt = now();
+
+            // Decode complete JSONL records one at a time. This ensures every
+            // oversized record is skipped, including one completed in this
+            // block and one that follows a valid record in the same block.
+            const completed = complete.subarray(0, lastNewline + 1);
+            partial = complete.subarray(lastNewline + 1);
+            if (partial.length > MAX_TRANSCRIPT_TAIL_LINE_BYTES) {
+              partial = Buffer.alloc(0);
+              discardingOversizedLine = true;
+            }
+            const entries: HqTranscriptEntry[] = [];
+            let lineStart = 0;
+            while (lineStart < completed.length) {
+              const lineEnd = completed.indexOf(0x0a, lineStart);
+              const line = completed.subarray(lineStart, lineEnd);
+              lineStart = lineEnd + 1;
+              if (line.length > MAX_TRANSCRIPT_TAIL_LINE_BYTES) continue;
+
+              const trimmed = line.toString('utf8').trim();
+              if (!trimmed) continue;
+              try {
+                const obj = JSON.parse(trimmed) as Record<string, unknown>;
+                for (const entry of mapSessionEventToEntries(obj)) entries.push(entry);
+              } catch {
+                // Skip malformed JSONL records; later lines remain processable.
+              }
+            }
+            if (entries.length > 0) {
+              publishTranscriptEntries(entries);
+              lastActivityAt = now();
+            }
           }
         } finally {
           await fd.close();
