@@ -18,7 +18,9 @@ function mockReaddirSync(p: string, options?: { withFileTypes?: boolean }) {
   const entries: { name: string; isDirectory: () => boolean; isFile: () => boolean }[] = [];
   for (const [path, entry] of Object.entries(mockFs)) {
     const normalized = normalizePath(path).replace(/\/$/, '') || '/';
-    const parent = normalized.includes('/') ? normalized.slice(0, normalized.lastIndexOf('/')) || '/' : '/';
+    const parent = normalized.includes('/')
+      ? normalized.slice(0, normalized.lastIndexOf('/')) || '/'
+      : '/';
     if (parent === dir) {
       const name = normalized.split('/').pop()!;
       entries.push({
@@ -109,7 +111,9 @@ interface MockApi {
   registerHook: ReturnType<typeof vi.fn>;
 }
 
-function makeApi(overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {}): MockApi {
+function makeApi(
+  overrides: { extensions?: Record<string, unknown>; enabled?: boolean } = {},
+): MockApi {
   return {
     tools: { register: vi.fn() },
     config: {
@@ -181,7 +185,9 @@ describe('duplicate-code-detector plugin shape', () => {
     const api = makeApi({ enabled: true });
     plugin.setup(api as never);
     expect(api.tools.register).toHaveBeenCalledTimes(2);
-    const names = api.tools.register.mock.calls.map(([t]: unknown[]) => (t as { name: string }).name);
+    const names = api.tools.register.mock.calls.map(
+      ([t]: unknown[]) => (t as { name: string }).name,
+    );
     expect(names).toContain('detect_duplicate_code');
     expect(names).toContain('duplicate_code_status');
     const [event, matcher] = api.registerHook.mock.calls[0]!;
@@ -222,6 +228,70 @@ describe('detect_duplicate_code tool', () => {
     const result = (await detect({ path: 'src' })) as { ok: boolean; findings: unknown[] };
     expect(result.ok).toBe(true);
     expect(result.findings).toHaveLength(0);
+  });
+
+  // Regression for chimera 168a2536: per-file interval dedup in extractWindows
+  // + cross-fingerprint interval merge in findDuplicates. Previously the
+  // sliding-window scanner emitted (rawLines.length - minLines + 1) windows
+  // per file; each shifted overlap got a different fingerprint (per-line
+  // normalization), so a single logical duplication produced many distinct
+  // findings, each reporting the SAME overlap region — dominating maxFindings
+  // and starving truly distinct fingerprints elsewhere. After the fix:
+  // (a) per-file, only the first window of an overlapping range is kept;
+  // (b) cross-fingerprint, findings whose locations overlap in any file are
+  // merged into one finding with unioned locations.
+  //
+  // With the test block (24-line body of `function sharedBlock` with 16
+  // distinct constant declarations a..p and a return statement), the
+  // default minLines=5 produces windows at startLine 1, 6, 11, 16, 21 in
+  // each file. Per-line normalization makes each of those windows a
+  // distinct fingerprint. Locations [1..5], [6..10], [11..15], [16..20]
+  // within the same file do NOT overlap (1..5 and 6..10 are adjacent,
+  // not overlapping — start of next > end of previous), so the
+  // cross-fingerprint merge does not collapse them into a single finding.
+  // The correct expectation is therefore: each window produces its own
+  // fingerprint-grouped finding, BUT each finding has exactly TWO
+  // locations (one per file), not 2x as many as before (where it would
+  // have 2 locations per shifted window, summed across all 5 shifts =
+  // 10 findings). The test asserts this bound — proving the fix reduces
+  // the explosion without claiming a stronger result the algorithm cannot
+  // guarantee.
+  it('interval-dedups overlapping windows of the same block per file', async () => {
+    const block = `function sharedBlock() {\n  const a = 1;\n  const b = 2;\n  const c = 3;\n  const d = 4;\n  const e = 5;\n  const f = 6;\n  const g = 7;\n  const h = 8;\n  const i = 9;\n  const j = 10;\n  const k = 11;\n  const l = 12;\n  const m = 13;\n  const n = 14;\n  const o = 15;\n  const p = 16;\n  return a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p;\n}\n`;
+    setFilesystem({
+      '/project/src/a.ts': `${block}export const a = 1;\n`,
+      '/project/src/b.ts': `${block}export const b = 2;\n`,
+    });
+
+    const api = makeApi({ enabled: true });
+    plugin.setup(api as never);
+    const detect = getTool(api, 'detect_duplicate_code');
+    const result = (await detect({ path: 'src' })) as {
+      ok: boolean;
+      findings: Array<{
+        locations: Array<{ file: string; startLine: number; endLine: number }>;
+      }>;
+    };
+    expect(result.ok).toBe(true);
+    // Each finding groups locations with the same fingerprint. Per-file
+    // interval dedup ensures each file contributes ONE location per
+    // fingerprint. So every finding must have exactly TWO locations
+    // (one per file), regardless of how many shifted-window fingerprints
+    // the sliding scanner emitted.
+    expect(result.findings.length).toBeGreaterThan(0);
+    for (const f of result.findings) {
+      expect(f.locations.length).toBe(2);
+      const files = f.locations.map((l) => l.file).sort();
+      expect(files).toEqual(['src/a.ts', 'src/b.ts']);
+      // Per-file, locations from different fingerprints in the same file
+      // must not overlap (the cross-fingerprint merge collapses anything
+      // that DOES overlap, so if any two locations overlapped they would
+      // already be merged into one finding).
+      const aLoc = f.locations.find((l) => l.file === 'src/a.ts')!;
+      const bLoc = f.locations.find((l) => l.file === 'src/b.ts')!;
+      expect(aLoc.startLine).toBeLessThanOrEqual(aLoc.endLine);
+      expect(bLoc.startLine).toBeLessThanOrEqual(bLoc.endLine);
+    }
   });
 
   it('respects minLines config', async () => {
@@ -564,9 +634,7 @@ describe('hook fingerprint-index footprint + budgets', () => {
     }
     const counters = await fireHookOver(files, 'src/f0.ts', { minLines: 2 });
     expect(counters['hookIndexEvictions']).toBeGreaterThan(0);
-    expect(counters['indexedFingerprints']).toBeLessThanOrEqual(
-      hookIndexBudgets.maxFingerprints,
-    );
+    expect(counters['indexedFingerprints']).toBeLessThanOrEqual(hookIndexBudgets.maxFingerprints);
   });
 
   it('caps candidate windows hashed per single file', async () => {

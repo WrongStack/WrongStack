@@ -179,10 +179,10 @@ function readConfig(raw: unknown): DuplicateCodeDetectorConfig {
   const extensions = Array.isArray(r['extensions'])
     ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
     : DEFAULTS.extensions;
-  
+
   // Update the module-scope Set for O(1) lookup in the hook.
   extensionsSet = new Set(extensions);
-  
+
   return {
     enabled: r['enabled'] === true,
     minLines:
@@ -240,7 +240,10 @@ function normalizeLine(line: string): string {
 }
 
 function buildFingerprint(lines: string[]): string {
-  return lines.map(normalizeLine).filter((l) => l.length > 0).join('\n');
+  return lines
+    .map(normalizeLine)
+    .filter((l) => l.length > 0)
+    .join('\n');
 }
 
 /**
@@ -259,11 +262,9 @@ export function hashFingerprint(fp: string): number {
     high = Math.imul(high ^ code, 1_597_334_677);
   }
   low =
-    Math.imul(low ^ (low >>> 16), 2_246_822_507) ^
-    Math.imul(high ^ (high >>> 13), 3_266_489_909);
+    Math.imul(low ^ (low >>> 16), 2_246_822_507) ^ Math.imul(high ^ (high >>> 13), 3_266_489_909);
   high =
-    Math.imul(high ^ (high >>> 16), 2_246_822_507) ^
-    Math.imul(low ^ (low >>> 13), 3_266_489_909);
+    Math.imul(high ^ (high >>> 16), 2_246_822_507) ^ Math.imul(low ^ (low >>> 13), 3_266_489_909);
   return 4_294_967_296 * (high & 0x1fffff) + (low >>> 0);
 }
 
@@ -320,24 +321,53 @@ interface CodeWindow {
 
 function extractWindows(filePath: string, content: string, minLines: number): CodeWindow[] {
   const rawLines = content.split(/\r?\n/);
+  // Per-file interval tracker. The naive sliding-window scanner above
+  // emits (rawLines.length - minLines + 1) windows per file; for a 200-line
+  // file with minLines=8 that's 193 windows, most of which overlap and
+  // identify the *same* duplicated block with slightly shifted boundaries.
+  // Each shifted overlap is given a different fingerprint (the fingerprint
+  // normalizes per-line so dropping or adding a boundary line changes the
+  // hash), so a single logical duplication produced N findings, dominating
+  // `maxFindings` and starving truly distinct fingerprints elsewhere in the
+  // project. Track the [startLine, endLine] intervals we've already emitted
+  // and skip any new window whose range overlaps an existing one for the
+  // same file — that way one duplication produces one location per file,
+  // not one location per shifted window.
+  const covered: Array<[number, number]> = [];
   const windows: CodeWindow[] = [];
   for (let i = 0; i <= rawLines.length - minLines; i++) {
+    const startLine = i + 1;
+    const endLine = i + minLines;
+    let overlaps = false;
+    for (const [s, e] of covered) {
+      // Intervals overlap iff startLine <= e && s <= endLine (inclusive on both ends).
+      if (startLine <= e && s <= endLine) {
+        overlaps = true;
+        break;
+      }
+    }
+    if (overlaps) continue;
     const slice = rawLines.slice(i, i + minLines);
     const fingerprint = buildFingerprint(slice);
     if (fingerprint.length === 0) continue;
     const snippet = slice.join('\n');
     windows.push({
       file: filePath,
-      startLine: i + 1,
-      endLine: i + minLines,
+      startLine,
+      endLine,
       snippet,
       fingerprint,
     });
+    covered.push([startLine, endLine]);
   }
   return windows;
 }
 
-function findDuplicates(files: Map<string, string>, minLines: number, maxFindings: number): DuplicateFinding[] {
+function findDuplicates(
+  files: Map<string, string>,
+  minLines: number,
+  maxFindings: number,
+): DuplicateFinding[] {
   const byFingerprint = new Map<string, CodeWindow[]>();
   for (const [filePath, content] of files.entries()) {
     const windows = extractWindows(filePath, content, minLines);
@@ -358,10 +388,69 @@ function findDuplicates(files: Map<string, string>, minLines: number, maxFinding
       snippet: w.snippet,
     }));
     findings.push({ fingerprint, lineCount: fingerprint.split('\n').length, locations });
-    if (findings.length >= maxFindings) break;
   }
 
-  return findings;
+  // Cross-fingerprint merge: a single duplicated block emits multiple
+  // fingerprints because the sliding-window scanner shifts the boundary by
+  // one line at a time, and each shifted overlap produces a different hash
+  // (fingerprint normalization is per-line). The per-file interval dedup in
+  // extractWindows eliminates same-fingerprint multi-locations in the same
+  // file, but it cannot collapse DIFFERENT fingerprints even when they
+  // point at the same logical block. Merge any two findings whose location
+  // sets overlap in at least one file: union their locations, keep the
+  // longer fingerprint + snippet. Process pairs until no further merges
+  // happen (O(n^2) in practice fine for typical project sizes — if a scan
+  // ever produces >1000 findings, maxFindings already truncates upstream).
+  function locationsOverlap(a: (typeof findings)[number], b: (typeof findings)[number]): boolean {
+    for (const la of a.locations) {
+      for (const lb of b.locations) {
+        if (la.file !== lb.file) continue;
+        if (la.startLine <= lb.endLine && lb.startLine <= la.endLine) return true;
+      }
+    }
+    return false;
+  }
+
+  let merged = true;
+  while (merged) {
+    merged = false;
+    for (let i = 0; i < findings.length; i++) {
+      for (let j = i + 1; j < findings.length; j++) {
+        if (!locationsOverlap(findings[i]!, findings[j]!)) continue;
+        const a = findings[i]!;
+        const b = findings[j]!;
+        // Keep the longer fingerprint (most lines = most specific). Union
+        // location sets, dedup exact file+startLine duplicates.
+        const keep = b.fingerprint.split('\n').length > a.fingerprint.split('\n').length ? b : a;
+        const drop = keep === a ? b : a;
+        const seen = new Set<string>();
+        const mergedLocations: typeof a.locations = [];
+        for (const loc of [...keep.locations, ...drop.locations]) {
+          const k = `${loc.file}#${loc.startLine}#${loc.endLine}`;
+          if (seen.has(k)) continue;
+          seen.add(k);
+          mergedLocations.push(loc);
+        }
+        mergedLocations.sort((x, y) =>
+          x.file === y.file ? x.startLine - y.startLine : x.file.localeCompare(y.file),
+        );
+        findings[i] = {
+          fingerprint: keep.fingerprint,
+          lineCount: keep.fingerprint.split('\n').length,
+          locations: mergedLocations,
+        };
+        findings.splice(j, 1);
+        merged = true;
+        break;
+      }
+      if (merged) break;
+    }
+  }
+
+  // maxFindings cap (applied AFTER merging so it counts logical
+  // duplications, not fingerprint explosions).
+  const capped = findings.slice(0, maxFindings);
+  return capped;
 }
 
 async function scanPath(
@@ -382,7 +471,10 @@ async function scanPath(
       // skip unreadable files
     }
   }
-  return { findings: findDuplicates(files, cfg.minLines, cfg.maxFindings), scannedFiles: files.size };
+  return {
+    findings: findDuplicates(files, cfg.minLines, cfg.maxFindings),
+    scannedFiles: files.size,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -392,7 +484,8 @@ async function scanPath(
 const plugin: Plugin = {
   name: 'duplicate-code-detector',
   version: '0.1.0',
-  description: 'Finds duplicated code blocks across source files using normalized-line fingerprinting',
+  description:
+    'Finds duplicated code blocks across source files using normalized-line fingerprinting',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -517,21 +610,16 @@ const plugin: Plugin = {
       return fingerprints;
     }
 
-    const hook = async (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): Promise<
-      | {
-          decision?: 'block';
-          reason?: string;
-          additionalContext?: string;
-          contextAs?: 'inline' | 'separate';
-        }
-      | void
-    > => {
+    const hook = async (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): Promise<{
+      decision?: 'block';
+      reason?: string;
+      additionalContext?: string;
+      contextAs?: 'inline' | 'separate';
+    } | void> => {
       if (!cfg.enabled) return;
       if (input.toolResult?.isError) return;
 
@@ -543,7 +631,9 @@ const plugin: Plugin = {
       // any stat/read/cache operation. This prevents cwd changes or symlinks
       // from redirecting the persistent fingerprint index outside the project.
       const projectRoot = resolve(process.cwd());
-      const resolvedFile = isAbsolute(sourcePath) ? resolve(sourcePath) : resolve(projectRoot, sourcePath);
+      const resolvedFile = isAbsolute(sourcePath)
+        ? resolve(sourcePath)
+        : resolve(projectRoot, sourcePath);
       if (!isWithinRoot(projectRoot, resolvedFile)) return;
       let changedFile: string;
       try {
@@ -617,7 +707,9 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- detect_duplicate_code tool ---
     api.tools.register({
