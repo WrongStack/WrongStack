@@ -269,4 +269,10 @@ describe('auditTool', () => {
       auditTool.executeStream = original;
     }
   });
+
+  it('executes cleanly when opts parameter is omitted', async () => {
+    spawnStreamMocks.spawnStream.mockImplementation(fakeSpawnStream('', 0));
+    const result = await auditTool.execute({}, makeCtx());
+    expect(result.summary).toBe('No vulnerabilities found');
+  });
 });

@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Session Catalog transaction failures preserve their primary SQLite error.** If SQLite has already closed a failed transaction, a best-effort rollback no longer replaces the underlying disk or database error with `cannot rollback - no transaction is active`.
+- **Plugin declaration builds accept the existing alternate tool-input field names without invalid TypeScript narrowing.**
 
 ## [0.317.0] — 2026-08-30
 

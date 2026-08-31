@@ -116,14 +116,20 @@ const DEFAULTS: PathGuardConfig = {
 function readConfig(raw: unknown): PathGuardConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, protect: [...DEFAULT_PROTECT] };
   const r = raw as Record<string, unknown>;
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'warn' ? 'warn' : 'block';
+  const rawProtect = r['protect'] ?? r['protectedPaths'] ?? r['protected_paths'] ?? r['protected'];
+  const rawAllow = r['allow'] ?? r['allowedPaths'] ?? r['allowed_paths'] ?? r['allowed'];
   return {
     enabled: r['enabled'] !== false,
-    mode: r['mode'] === 'warn' ? 'warn' : 'block',
-    protect: Array.isArray(r['protect'])
-      ? r['protect'].filter((p): p is string => typeof p === 'string' && p.length > 0)
+    mode,
+    protect: Array.isArray(rawProtect)
+      ? (rawProtect as unknown[]).filter((p): p is string => typeof p === 'string' && p.length > 0)
       : [...DEFAULT_PROTECT],
-    allow: Array.isArray(r['allow'])
-      ? r['allow'].filter((p): p is string => typeof p === 'string' && p.length > 0)
+    allow: Array.isArray(rawAllow)
+      ? (rawAllow as unknown[]).filter((p): p is string => typeof p === 'string' && p.length > 0)
       : [],
   };
 }

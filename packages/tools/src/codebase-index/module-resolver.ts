@@ -101,10 +101,12 @@ export class ModuleResolver {
       // matching an `# Foo` heading in a README.
       const lang = detectLang(file);
       if (!lang) continue;
-      const key = `${languageFamily(lang)}:${normalizeNamespace(name)}`;
+      const norm = normalizeNamespace(name);
+      if (!norm) continue;
+      const key = `${languageFamily(lang)}:${norm}`;
       // First declaration wins. Rows arrive ordered by file, so a namespace
       // split across several files always resolves to the same one.
-      if (normalizeNamespace(name) && !this.byNamespace.has(key)) {
+      if (!this.byNamespace.has(key)) {
         this.byNamespace.set(key, file);
       }
     }

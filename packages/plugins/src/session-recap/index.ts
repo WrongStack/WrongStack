@@ -133,22 +133,26 @@ const DEFAULTS: SessionRecapConfig = {
   aiSummary: false,
 };
 
-function readConfig(raw: unknown): SessionRecapConfig {
+export function readConfig(raw: unknown): SessionRecapConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawPrefix = r['subjectPrefix'] ?? r['subject_prefix'] ?? r['prefix'];
+  const rawTail = r['includeTranscriptTail'] ?? r['include_transcript_tail'] ?? r['transcriptTail'] ?? r['transcript_tail'];
+  const rawBody = r['maxBodyChars'] ?? r['max_body_chars'] ?? r['maxChars'] ?? r['max_chars'];
+  const rawAi = r['aiSummary'] ?? r['ai_summary'] ?? r['useLlm'] ?? r['use_llm'];
   return {
     enabled: r['enabled'] !== false,
     subjectPrefix:
-      typeof r['subjectPrefix'] === 'string' ? r['subjectPrefix'] : DEFAULTS.subjectPrefix,
+      typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
     includeTranscriptTail:
-      typeof r['includeTranscriptTail'] === 'number' && r['includeTranscriptTail'] >= 0
-        ? r['includeTranscriptTail']
+      typeof rawTail === 'number' && rawTail >= 0
+        ? rawTail
         : DEFAULTS.includeTranscriptTail,
     maxBodyChars:
-      typeof r['maxBodyChars'] === 'number' && r['maxBodyChars'] > 0
-        ? r['maxBodyChars']
+      typeof rawBody === 'number' && rawBody > 0
+        ? rawBody
         : DEFAULTS.maxBodyChars,
-    aiSummary: r['aiSummary'] === true,
+    aiSummary: rawAi === true,
   };
 }
 
@@ -380,11 +384,30 @@ const plugin: Plugin = {
         touchActivity();
         const p = payload as {
           model?: string;
-          usage?: { input?: number; output?: number };
+          usage?: Record<string, unknown>;
         } | null;
         const model = p?.model ?? 'unknown';
-        const input = p?.usage?.input ?? 0;
-        const output = p?.usage?.output ?? 0;
+        const u = p?.usage;
+        const input =
+          typeof u?.['input'] === 'number'
+            ? u['input']
+            : typeof u?.['inputTokens'] === 'number'
+              ? u['inputTokens']
+              : typeof u?.['promptTokens'] === 'number'
+                ? u['promptTokens']
+                : typeof u?.['prompt_tokens'] === 'number'
+                  ? u['prompt_tokens']
+                  : 0;
+        const output =
+          typeof u?.['output'] === 'number'
+            ? u['output']
+            : typeof u?.['outputTokens'] === 'number'
+              ? u['outputTokens']
+              : typeof u?.['completionTokens'] === 'number'
+                ? u['completionTokens']
+                : typeof u?.['completion_tokens'] === 'number'
+                  ? u['completion_tokens']
+                  : 0;
         bumpModelUsage(model, input, output);
       });
       state.eventUnsubscribers.push(offUsage);
@@ -451,6 +474,18 @@ const plugin: Plugin = {
 
       const duration = formatDuration(state.startedAt, state.lastActivityAt);
 
+      const rawInput = (input ?? {}) as Record<string, unknown>;
+      const sessionId =
+        (typeof input.sessionId === 'string' ? input.sessionId : undefined) ??
+        (typeof rawInput['session_id'] === 'string' ? rawInput['session_id'] : undefined) ??
+        (typeof rawInput['id'] === 'string' ? rawInput['id'] : undefined) ??
+        null;
+      const cwd =
+        (typeof input.cwd === 'string' ? input.cwd : undefined) ??
+        (typeof rawInput['workingDirectory'] === 'string' ? rawInput['workingDirectory'] : undefined) ??
+        (typeof rawInput['dir'] === 'string' ? rawInput['dir'] : undefined) ??
+        null;
+
       const recap: {
         session: {
           id: string | null;
@@ -472,8 +507,8 @@ const plugin: Plugin = {
         transcriptTail: Array<{ type?: string; ts?: string; role?: string; preview?: string }>;
       } = {
         session: {
-          id: input.sessionId ?? null,
-          cwd: input.cwd ?? null,
+          id: sessionId,
+          cwd,
           startedAt: state.startedAt,
           endedAt: state.lastActivityAt,
           duration,

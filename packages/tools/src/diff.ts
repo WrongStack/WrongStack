@@ -255,27 +255,36 @@ async function fileDiff(
     };
   }
 
+  const fileEntries = await Promise.all(
+    files.map(async (file) => {
+      // Realpath containment (WS-048): the dump path OPENS the resolved file, so
+      // the syntactic check alone would follow an in-root symlink out of root.
+      const absPath = await safeResolveReal(file, ctx);
+      const stat = await fs.stat(absPath).catch(() => null);
+      if (!stat?.isFile()) return null;
+
+      if (stat.size > MAX_FILE_DUMP_BYTES) {
+        return {
+          truncated: true,
+          output: `--- ${file} (skipped: ${stat.size} bytes exceeds the ${MAX_FILE_DUMP_BYTES} limit; use the read tool with offset/limit) ---`,
+        };
+      }
+
+      const content = await fs.readFile(absPath, 'utf8');
+      const lines = content.split(/\r?\n/);
+      return {
+        truncated: false,
+        output: formatWithLineNumbers(file, lines),
+      };
+    }),
+  );
+
   const results: string[] = [];
   let truncated = false;
-
-  for (const file of files) {
-    // Realpath containment (WS-048): the dump path OPENS the resolved file, so
-    // the syntactic check alone would follow an in-root symlink out of root.
-    const absPath = await safeResolveReal(file, ctx);
-    const stat = await fs.stat(absPath).catch(() => null);
-    if (!stat?.isFile()) continue;
-
-    if (stat.size > MAX_FILE_DUMP_BYTES) {
-      truncated = true;
-      results.push(
-        `--- ${file} (skipped: ${stat.size} bytes exceeds the ${MAX_FILE_DUMP_BYTES} limit; use the read tool with offset/limit) ---`,
-      );
-      continue;
-    }
-
-    const content = await fs.readFile(absPath, 'utf8');
-    const lines = content.split(/\r?\n/);
-    results.push(formatWithLineNumbers(file, lines));
+  for (const entry of fileEntries) {
+    if (!entry) continue;
+    if (entry.truncated) truncated = true;
+    results.push(entry.output);
   }
 
   return {

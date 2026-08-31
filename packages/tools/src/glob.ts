@@ -142,11 +142,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
           subdirs.push({ full, rel });
         } else if (e.isFile()) {
           if (isGitIgnored(rel, false)) continue;
-          re.lastIndex = 0;
-          const relMatch = re.test(rel);
-          re.lastIndex = 0;
-          const nameMatch = re.test(name);
-          if (relMatch || nameMatch) {
+          if (re.test(rel) || re.test(name)) {
             matchedFiles.push(full);
           }
         } else if (e.isSymbolicLink()) {
@@ -167,11 +163,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
               if (isGitIgnored(rel, false)) continue;
               const real = await fs.realpath(full);
               await assertRealInsideRoot(real, ctx);
-              re.lastIndex = 0;
-              const relMatch = re.test(rel);
-              re.lastIndex = 0;
-              const nameMatch = re.test(name);
-              if (relMatch || nameMatch) matchedFiles.push(full);
+              if (re.test(rel) || re.test(name)) matchedFiles.push(full);
             }
           } catch {
             // Skip broken symlink, stat error, OR out-of-root target. All

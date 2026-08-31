@@ -403,7 +403,7 @@ async function extractTreeSitterSkeleton(
         type === 'trait_item'
       ) {
         symbolCount++;
-        let nameNode = node.childForFieldName('name');
+        const nameNode = node.childForFieldName('name');
         symbolRanges.push({
           name: nameNode ? nameNode.text : undefined,
           kind: type.includes('class')

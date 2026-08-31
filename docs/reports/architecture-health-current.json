@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T08:52:57.603Z",
+  "generatedAt": "2026-08-31T09:44:57.163Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,15 +14,15 @@
     "packages": 36,
     "sourceFiles": 3431,
     "testFiles": 3065,
-    "sourceLines": 836546,
+    "sourceLines": 838346,
     "workspaceEdges": 128,
-    "moduleEdges": 10666,
+    "moduleEdges": 10668,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 852
+    "testOnlyExports": 854
   },
   "errors": [],
   "packageCycles": [],
@@ -19708,7 +19708,7 @@
     },
     {
       "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1166,
+      "lines": 1172,
       "relativeImports": 11
     },
     {
@@ -19862,8 +19862,13 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/plugins/src/duplicate-code-detector/index.ts",
+      "lines": 882,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/plugins/src/git-autocommit/index.ts",
-      "lines": 1014,
+      "lines": 1022,
       "relativeImports": 0
     },
     {
@@ -19873,13 +19878,18 @@
     },
     {
       "file": "packages/plugins/src/prompt-firewall/index.ts",
-      "lines": 934,
+      "lines": 938,
       "relativeImports": 2
     },
     {
       "file": "packages/plugins/src/secret-scanner/index.ts",
-      "lines": 913,
+      "lines": 927,
       "relativeImports": 2
+    },
+    {
+      "file": "packages/plugins/src/semantic-search-indexer/index.ts",
+      "lines": 803,
+      "relativeImports": 0
     },
     {
       "file": "packages/plugins/src/test-runner-gate/index.ts",
@@ -19948,7 +19958,7 @@
     },
     {
       "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1013,
+      "lines": 1020,
       "relativeImports": 9
     },
     {
@@ -19958,12 +19968,12 @@
     },
     {
       "file": "packages/tools/src/codebase-index/writer-graph-reader.ts",
-      "lines": 829,
+      "lines": 831,
       "relativeImports": 5
     },
     {
       "file": "packages/tools/src/codebase-index/writer.ts",
-      "lines": 963,
+      "lines": 1081,
       "relativeImports": 19
     },
     {
@@ -20314,14 +20324,14 @@
       "relativeImports": 4
     },
     {
+      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
+      "lines": 1172,
+      "relativeImports": 11
+    },
+    {
       "file": "packages/webui/src/types/server-message.ts",
       "lines": 1169,
       "relativeImports": 10
-    },
-    {
-      "file": "packages/core/src/coordination/multi-agent-coordinator.ts",
-      "lines": 1166,
-      "relativeImports": 11
     },
     {
       "file": "packages/webui/src/components/ChatInput.tsx",
@@ -20352,6 +20362,11 @@
       "file": "packages/core/src/storage/session-store.ts",
       "lines": 1088,
       "relativeImports": 38
+    },
+    {
+      "file": "packages/tools/src/codebase-index/writer.ts",
+      "lines": 1081,
+      "relativeImports": 19
     },
     {
       "file": "packages/core/src/storage/file-session-writer.ts",
@@ -20434,6 +20449,16 @@
       "relativeImports": 6
     },
     {
+      "file": "packages/plugins/src/git-autocommit/index.ts",
+      "lines": 1022,
+      "relativeImports": 0
+    },
+    {
+      "file": "packages/tools/src/codebase-index/project-server.ts",
+      "lines": 1020,
+      "relativeImports": 9
+    },
+    {
       "file": "packages/webui-server/src/server/context-editor.ts",
       "lines": 1020,
       "relativeImports": 1
@@ -20449,19 +20474,9 @@
       "relativeImports": 17
     },
     {
-      "file": "packages/plugins/src/git-autocommit/index.ts",
-      "lines": 1014,
-      "relativeImports": 0
-    },
-    {
       "file": "packages/simpleui/src/simple-ui-session.tsx",
       "lines": 1013,
       "relativeImports": 48
-    },
-    {
-      "file": "packages/tools/src/codebase-index/project-server.ts",
-      "lines": 1013,
-      "relativeImports": 9
     },
     {
       "file": "packages/tui/src/components/status-bar-rails.tsx",
@@ -20532,11 +20547,6 @@
       "file": "packages/tools/src/codebase-index/indexer.ts",
       "lines": 986,
       "relativeImports": 9
-    },
-    {
-      "file": "packages/tui/src/components/agents-monitor.tsx",
-      "lines": 984,
-      "relativeImports": 14
     }
   ],
   "testOnlyExports": [
@@ -22537,6 +22547,10 @@
       "name": "setIndexReady"
     },
     {
+      "file": "packages/tools/src/codebase-index/bm25.ts",
+      "name": "FTS_SIGNATURE_MAX_CHARS"
+    },
+    {
       "file": "packages/tools/src/codebase-index/content-hash.ts",
       "name": "parseContentHash"
     },
@@ -22559,6 +22573,10 @@
     {
       "file": "packages/tools/src/codebase-index/indexer.ts",
       "name": "shouldUseParserWorkerPool"
+    },
+    {
+      "file": "packages/tools/src/codebase-index/json-parser.ts",
+      "name": "JSON_MAX_SYMBOLS_DEFAULT"
     },
     {
       "file": "packages/tools/src/codebase-index/lsp-kind.ts",

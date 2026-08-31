@@ -60,11 +60,14 @@ function isLockError(err: unknown): boolean {
   return /SQLITE_(BUSY|LOCKED)/.test(err.message);
 }
 
+let SLEEP_BUFFER: Int32Array | undefined;
+
 function sleepSync(ms: number): void {
   try {
-    const sab = new SharedArrayBuffer(4);
-    const view = new Int32Array(sab);
-    Atomics.wait(view, 0, 0, ms);
+    if (!SLEEP_BUFFER) {
+      SLEEP_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+    }
+    Atomics.wait(SLEEP_BUFFER, 0, 0, ms);
   } catch {
     // busy_timeout already handled the bulk wait; retry immediately if
     // Atomics.wait is unavailable in this runtime.

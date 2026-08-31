@@ -242,6 +242,9 @@ const walMaintenance = new WalMaintenance({
     const store = indexStorePool.acquire(projectRoot, { indexDir });
     try {
       store.optimize();
+      // P2: FTS5 segment merge once churn justifies it — best-effort and
+      // gated, so a clean index pays only one metadata read + one COUNT.
+      store.optimizeFtsIfNeeded();
     } finally {
       indexStorePool.release(store);
     }
@@ -293,6 +296,13 @@ function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
 function serverHealth(): ProjectIndexServerHealth {
   const memory = process.memoryUsage();
   const now = Date.now();
+  let watchingClients = 0;
+  let oldestClientIdleMs = 0;
+  for (const client of clients) {
+    if (client.watchExternal) watchingClients++;
+    const idle = Math.max(0, now - client.lastSeenAt);
+    if (idle > oldestClientIdleMs) oldestClientIdleMs = idle;
+  }
   return {
     checkedAt: now,
     uptimeMs: Math.round(process.uptime() * 1000),
@@ -308,12 +318,9 @@ function serverHealth(): ProjectIndexServerHealth {
     queuedWrites,
     pendingExternalFiles: externalDebounceTimers.size + externalReadyFiles.size,
     watchingExternal: externalWatcher !== undefined,
-    watchingClients: [...clients].filter((client) => client.watchExternal).length,
+    watchingClients,
     clientLeaseTimeoutMs: clientLeaseMs,
-    oldestClientIdleMs:
-      clients.size > 0
-        ? Math.max(...[...clients].map((client) => Math.max(0, now - client.lastSeenAt)))
-        : 0,
+    oldestClientIdleMs,
     activity: indexActivity,
   };
 }

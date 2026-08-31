@@ -73,6 +73,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
   },
   async execute(input, ctx, opts) {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const manager = await detectPackageManager(cwd, ctx.projectRoot);
 
     // When no JS package manager was detected (npm is the fallback), try the
@@ -91,7 +92,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
             cwd,
             operation: 'package-outdated',
             language: nonJs,
-            signal: opts.signal,
+            signal,
           });
           if (planResult.status === 'planned') {
             const runner = executePackagePlan({
@@ -99,7 +100,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
               workspace: planResult.workspace,
               plan: planResult.plan,
               packages: [],
-              signal: opts.signal,
+              signal,
             });
             let outcome = null;
             for (;;) {
@@ -138,7 +139,7 @@ export const outdatedTool: Tool<OutdatedInput, OutdatedOutput> = {
     // `--include deprecated` flags, so no formatting options are forwarded.
     const args: string[] = ['outdated', '--json'];
 
-    return runOutdated(manager, args, cwd, opts.signal);
+    return runOutdated(manager, args, cwd, signal);
   },
 };
 

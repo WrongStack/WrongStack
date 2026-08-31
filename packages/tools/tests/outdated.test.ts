@@ -245,4 +245,20 @@ describe('runOutdated stderr collection', () => {
     const result = await outdatedTool.execute({}, makeCtx(), makeOpts());
     expect(result).toHaveProperty('exit_code');
   });
+
+  it('executes cleanly when opts parameter is omitted', async () => {
+    class ChildSimple extends EventEmitter {
+      stdout = new EventEmitter();
+      stderr = new EventEmitter();
+    }
+    const child = new ChildSimple();
+    spawnMocks.spawn.mockImplementationOnce(() => child);
+    setImmediate(() => {
+      child.stdout.emit('data', Buffer.from('{}'));
+      child.emit('close', 0);
+    });
+    const result = await outdatedTool.execute({}, makeCtx());
+    expect(result.exit_code).toBe(0);
+    expect(result.packages).toEqual([]);
+  });
 });

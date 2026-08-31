@@ -274,7 +274,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
     if (tier === 'exact') {
       newFileLf = input.replace_all
         ? fileLf.split(oldLf).join(newLf)
-        : fileLf.replace(oldLf, newLf);
+        : fileLf.replace(oldLf, () => newLf);
     } else {
       // Fallback tiers matched whole-line windows — splice by char offsets,
       // right to left so earlier offsets stay valid. For indent-insensitive

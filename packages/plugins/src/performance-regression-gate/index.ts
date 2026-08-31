@@ -338,14 +338,32 @@ const plugin: Plugin = {
 
         state.invocationCount += 1;
 
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawThreshold =
+          input.thresholdPercent ??
+          raw['threshold'] ??
+          raw['threshold_percent'] ??
+          raw['thresholdPercent'] ??
+          raw['percent'];
         const threshold =
-          typeof input.thresholdPercent === 'number' &&
-          input.thresholdPercent >= 0 &&
-          input.thresholdPercent <= 1000
-            ? input.thresholdPercent
+          typeof rawThreshold === 'number' &&
+          rawThreshold >= 0 &&
+          rawThreshold <= 1000
+            ? rawThreshold
             : cfg.thresholdPercent;
 
-        const resultsPath = resolveProjectPath(input.resultsPath || 'bench-results.json') ?? '';
+        const rawResultsPath =
+          input.resultsPath ??
+          raw['results_path'] ??
+          raw['file_path'] ??
+          raw['path'] ??
+          raw['filePath'] ??
+          raw['file'] ??
+          raw['TargetFile'] ??
+          raw['targetFile'] ??
+          'bench-results.json';
+        const resultsPathStr = typeof rawResultsPath === 'string' && rawResultsPath.trim() ? rawResultsPath.trim() : 'bench-results.json';
+        const resultsPath = resolveProjectPath(resultsPathStr) ?? '';
         if (!resultsPath) {
           state.errorCount += 1;
           return { ok: false, error: 'invalid results path (must be inside project)' };
@@ -360,7 +378,7 @@ const plugin: Plugin = {
             thresholdPercent: threshold,
             comparisons: 0,
             regressions: [],
-            message: `No benchmark results found at ${input.resultsPath || 'bench-results.json'}.`,
+            message: `No benchmark results found at ${resultsPathStr}.`,
           };
         }
 
@@ -377,9 +395,17 @@ const plugin: Plugin = {
           };
         }
 
+        const rawBaselinePath =
+          input.baselinePath ??
+          raw['baseline_path'] ??
+          raw['baseline'] ??
+          raw['basePath'] ??
+          raw['base_path'];
+        const baselinePathStr = typeof rawBaselinePath === 'string' && rawBaselinePath.trim() ? rawBaselinePath.trim() : undefined;
+
         let pairs: { old: FlatBenchmark; new: FlatBenchmark }[];
-        if (input.baselinePath) {
-          const baselineResolved = resolveProjectPath(input.baselinePath) ?? '';
+        if (baselinePathStr) {
+          const baselineResolved = resolveProjectPath(baselinePathStr) ?? '';
           if (!baselineResolved) {
             state.errorCount += 1;
             return { ok: false, error: 'invalid baseline path (must be inside project)' };
@@ -389,7 +415,7 @@ const plugin: Plugin = {
             state.errorCount += 1;
             return {
               ok: false,
-              error: `Could not read baseline results at ${input.baselinePath}.`,
+              error: `Could not read baseline results at ${baselinePathStr}.`,
             };
           }
           const baseline = flattenResults(baselineResults);

@@ -1,5 +1,3 @@
-import { expectDefined } from './expect-defined.js';
-
 /**
  * Minimal glob matcher for trust patterns.
  * Supports: *, **, ?, character classes [abc], [a-z], negation [!...] or [^...].
@@ -46,10 +44,12 @@ function getCachedGlob(pattern: string, commandSubject = false): RegExp {
   const cached = COMPILED_GLOB_CACHE.get(cacheKey);
   if (cached) return cached;
   if (COMPILED_GLOB_CACHE.size >= CACHE_MAX_SIZE) {
-    // Evict oldest 25% when at capacity
-    const keys = [...COMPILED_GLOB_CACHE.keys()];
-    for (let i = 0; i < Math.floor(CACHE_MAX_SIZE / 4); i++) {
-      COMPILED_GLOB_CACHE.delete(expectDefined(keys[i]));
+    // Evict oldest 25% when at capacity without array allocation
+    let evicted = 0;
+    const target = Math.floor(CACHE_MAX_SIZE / 4);
+    for (const key of COMPILED_GLOB_CACHE.keys()) {
+      COMPILED_GLOB_CACHE.delete(key);
+      if (++evicted >= target) break;
     }
   }
   let re: RegExp;

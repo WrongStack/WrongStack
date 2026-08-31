@@ -51,27 +51,38 @@ const DEFAULT_PATTERNS = [
   'overload',
   'rate.?limit',
   '\\b429\\b',
-  '\\b50[023]\\b',
+  '\\b50[0234]\\b',
   'timeout',
   'ETIMEDOUT',
   'ECONNRESET',
   'ECONNREFUSED',
   'temporarily unavailable',
+  'resource.?exhausted',
+  'capacity',
+  'gateway',
 ];
 
+const DEFAULTS = {
+  enabled: false,
+  escalation: [],
+  retryablePatterns: DEFAULT_PATTERNS.map((p) => new RegExp(p, 'i')),
+};
+
 function readConfig(raw: unknown): AutoEscalateConfig {
-  const base: AutoEscalateConfig = {
-    enabled: false,
-    escalation: [],
-    retryablePatterns: DEFAULT_PATTERNS.map((p) => new RegExp(p, 'i')),
+  const base = {
+    enabled: DEFAULTS.enabled,
+    escalation: [...DEFAULTS.escalation],
+    retryablePatterns: [...DEFAULTS.retryablePatterns],
   };
   if (!raw || typeof raw !== 'object') return base;
   const r = raw as Record<string, unknown>;
-  const escalation = Array.isArray(r['escalation'])
-    ? r['escalation'].filter((m): m is string => typeof m === 'string' && m.length > 0)
+  const rawEscalation = r['escalation'] ?? r['ladder'] ?? r['models'];
+  const escalation = Array.isArray(rawEscalation)
+    ? (rawEscalation as unknown[]).filter((m): m is string => typeof m === 'string' && m.length > 0)
     : [];
-  const patterns = Array.isArray(r['retryablePatterns'])
-    ? r['retryablePatterns']
+  const rawPatterns = r['retryablePatterns'] ?? r['retryable_patterns'] ?? r['patterns'];
+  const patterns = Array.isArray(rawPatterns)
+    ? rawPatterns
         .filter((p): p is string => typeof p === 'string' && p.length > 0)
         .flatMap((p) => {
           try {

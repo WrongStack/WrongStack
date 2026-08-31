@@ -102,16 +102,21 @@ function readConfig(raw: unknown): SecurityHotspotConfig {
     return { ...DEFAULTS };
   }
   const r = raw as Record<string, unknown>;
-  const scanOnChange = Array.isArray(r['scanOnChange'])
-    ? (r['scanOnChange'] as unknown[]).filter((x): x is string => typeof x === 'string')
+  const rawScan = r['scanOnChange'] ?? r['scan_on_change'] ?? r['extensions'] ?? r['file_extensions'];
+  const scanOnChange = Array.isArray(rawScan)
+    ? (rawScan as unknown[]).filter((x): x is string => typeof x === 'string')
     : DEFAULTS.scanOnChange;
   scanOnChangeSet = new Set(scanOnChange);
+  const rawSev = typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
+    ? String(r['severity'] ?? r['mode'] ?? r['action']).trim().toLowerCase()
+    : undefined;
+  const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
   return {
     enabled: r['enabled'] === true,
-    severity: r['severity'] === 'block' ? 'block' : DEFAULTS.severity,
+    severity: rawSev === 'block' ? 'block' : DEFAULTS.severity,
     maxFindings:
-      typeof r['maxFindings'] === 'number' && r['maxFindings'] >= 1 && r['maxFindings'] <= 100
-        ? r['maxFindings']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 100
+        ? rawMax
         : DEFAULTS.maxFindings,
     scanOnChange,
   };
@@ -137,7 +142,7 @@ const PATTERNS: { type: string; severity: 'high' | 'medium' | 'low'; regex: RegE
   {
     type: 'hardcoded_http',
     severity: 'medium',
-    regex: /http:\/\/[a-zA-Z0-9][^\s'")\\]*/i,
+    regex: /http:\/\/(?!(?:localhost|127\.0\.0\.1|0\.0\.0\.0|www\.w3\.org|schemas\.microsoft\.com)\b)[a-zA-Z0-9][^\s'")\\]*/i,
   },
   {
     type: 'console_log_credentials',
@@ -367,7 +372,13 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawPath = inp['path'] ?? inp['filePath'] ?? inp['file_path'];
+      const rawPath =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['file'];
       const sourcePath = typeof rawPath === 'string' ? rawPath : undefined;
       if (!sourcePath || !withinProject(sourcePath)) return;
 
@@ -449,12 +460,22 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: { path: string }) {
         if (!cfg.enabled) return { ok: false, error: 'security-hotspot-scanner is disabled' };
-        const result = await scanPath(input.path, cfg);
+        const raw = input as Record<string, unknown>;
+        const targetPath =
+          (typeof input.path === 'string' ? input.path : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          '.';
+        const result = await scanPath(targetPath, cfg);
         state.scanCount += 1;
         state.fileScanCount += result.filesScanned;
         state.findingCount += result.findings.length;
         if (!result.scanned) {
-          return { ok: false, error: result.error, path: input.path };
+          return { ok: false, error: result.error, path: targetPath };
         }
         state.lastResult = {
           path: result.path,
@@ -464,7 +485,7 @@ const plugin: Plugin = {
         };
         return {
           ok: true,
-          path: input.path,
+          path: targetPath,
           filesScanned: result.filesScanned,
           findings: result.findings,
           findingCount: result.findings.length,

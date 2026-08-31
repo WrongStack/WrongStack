@@ -36,9 +36,17 @@ export function buildPackageGraphNodes(
   const pkgNodes = new Map<string, GraphNode>();
   const fileToPkg = new Map<string, string>();
 
+  const getOrSetPkg = (file: string): string => {
+    let pkg = fileToPkg.get(file);
+    if (pkg === undefined) {
+      pkg = packageOf(file);
+      fileToPkg.set(file, pkg);
+    }
+    return pkg;
+  };
+
   for (const { file, n } of fileCounts) {
-    const pkg = packageOf(file);
-    fileToPkg.set(file, pkg);
+    const pkg = getOrSetPkg(file);
     const node = pkgNodes.get(pkg);
     if (node) {
       node.symbolCount = (node.symbolCount ?? 0) + n;
@@ -55,8 +63,7 @@ export function buildPackageGraphNodes(
   }
 
   for (const { file } of files) {
-    const pkg = packageOf(file);
-    fileToPkg.set(file, pkg);
+    const pkg = getOrSetPkg(file);
     const node = pkgNodes.get(pkg);
     if (node) {
       node.fileCount = (node.fileCount ?? 0) + 1;
@@ -109,9 +116,11 @@ export function buildFileGraphNodeState(
   const ensureFileNode = (file: string): void => {
     if (fileNodes.has(file)) return;
     const stats = fileStats.get(file);
+    const lastSlash = Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\'));
+    const label = lastSlash === -1 ? file : file.slice(lastSlash + 1);
     fileNodes.set(file, {
       id: `file:${file}`,
-      label: file.replace(/\\/g, '/').split('/').pop() ?? file,
+      label,
       kind: 'file',
       package: packageOf(file),
       file,
@@ -143,36 +152,44 @@ export function buildSymbolGraphNodes(
   localFiles: ReadonlySet<string> | string,
   packageOf: (file: string) => string,
 ): GraphNode[] {
-  const local = new Set(
-    [...(typeof localFiles === 'string' ? [localFiles] : localFiles)].map((file) =>
-      file.replace(/\\/g, '/'),
-    ),
-  );
-  const isLocal = (file: string): boolean => local.has(file.replace(/\\/g, '/'));
-  return [...relatedIds]
-    .map((id) => symById.get(id))
-    .filter((symbol): symbol is WriterSymbolGraphRow => symbol !== undefined)
-    .sort((a, b) => {
-      const aExternal = isLocal(a.file) ? 0 : 1;
-      const bExternal = isLocal(b.file) ? 0 : 1;
-      return (
-        aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
-      );
-    })
-    .map((s) => ({
-      id: `sym:${s.id}`,
-      label: s.name,
-      kind: 'symbol',
-      symbolId: s.id,
-      symbolKind: s.kind as SymbolKind,
-      file: s.file,
-      package: packageOf(s.file),
-      lang: s.lang as SymbolLang,
-      line: s.line,
-      signature: s.signature,
-      scope: s.scope,
-      external: !isLocal(s.file),
-    }));
+  const rawSet = typeof localFiles === 'string' ? [localFiles] : localFiles;
+  const local = new Set<string>();
+  for (const f of rawSet) {
+    local.add(f.includes('\\') ? f.replace(/\\/g, '/') : f);
+  }
+  const isLocal = (file: string): boolean =>
+    local.has(file.includes('\\') ? file.replace(/\\/g, '/') : file);
+
+  const matched: Array<WriterSymbolGraphRow & { isExt: boolean }> = [];
+  for (const id of relatedIds) {
+    const s = symById.get(id);
+    if (s) {
+      matched.push({ ...s, isExt: !isLocal(s.file) });
+    }
+  }
+
+  matched.sort((a, b) => {
+    const aExternal = a.isExt ? 1 : 0;
+    const bExternal = b.isExt ? 1 : 0;
+    return (
+      aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
+    );
+  });
+
+  return matched.map((s) => ({
+    id: `sym:${s.id}`,
+    label: s.name,
+    kind: 'symbol',
+    symbolId: s.id,
+    symbolKind: s.kind as SymbolKind,
+    file: s.file,
+    package: packageOf(s.file),
+    lang: s.lang as SymbolLang,
+    line: s.line,
+    signature: s.signature,
+    scope: s.scope,
+    external: s.isExt,
+  }));
 }
 
 export type WeightedEdgeAccumulator = {

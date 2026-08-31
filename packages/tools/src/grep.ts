@@ -199,7 +199,7 @@ async function* runRgStream(
     if (input.context_lines) args.push('-C', String(input.context_lines));
   }
   for (const ignored of DEFAULT_IGNORE) {
-    args.push('--glob', `!${ignored}/**`, '--glob', `!**/${ignored}/**`);
+    args.push('--glob', `!**/${ignored}/**`);
   }
   // rg only honors .gitignore inside a git repository; pass it explicitly so
   // non-repo trees (scratch dirs, exported archives) get the same pruning as

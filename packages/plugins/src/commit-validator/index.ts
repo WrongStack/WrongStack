@@ -90,22 +90,30 @@ const DEFAULTS: CommitValidatorConfig = {
 function readConfig(raw: unknown): CommitValidatorConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'warn' ? 'warn' : 'block';
+  const rawTypes = r['allowedTypes'] ?? r['allowed_types'] ?? r['types'];
+  const rawMaxSubj = r['maxSubjectLength'] ?? r['max_subject_length'] ?? r['maxLength'] ?? r['max_length'];
+  const rawMinBody = r['minBodyLength'] ?? r['min_body_length'] ?? r['minLength'] ?? r['min_length'];
+
   return {
-    mode: r['mode'] === 'warn' ? 'warn' : 'block',
-    requireScope: r['requireScope'] === true,
-    allowedTypes: Array.isArray(r['allowedTypes'])
-      ? (r['allowedTypes'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    mode,
+    requireScope: (r['requireScope'] ?? r['require_scope']) === true,
+    allowedTypes: Array.isArray(rawTypes)
+      ? (rawTypes as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
     maxSubjectLength:
-      typeof r['maxSubjectLength'] === 'number' && r['maxSubjectLength'] > 0
-        ? r['maxSubjectLength']
+      typeof rawMaxSubj === 'number' && rawMaxSubj > 0
+        ? rawMaxSubj
         : DEFAULTS.maxSubjectLength,
-    bodyRequired: r['bodyRequired'] === true,
+    bodyRequired: (r['bodyRequired'] ?? r['body_required'] ?? r['requireBody'] ?? r['require_body']) === true,
     minBodyLength:
-      typeof r['minBodyLength'] === 'number' && r['minBodyLength'] > 0
-        ? r['minBodyLength']
+      typeof rawMinBody === 'number' && rawMinBody > 0
+        ? rawMinBody
         : DEFAULTS.minBodyLength,
-    suggestFix: r['suggestFix'] === true,
+    suggestFix: (r['suggestFix'] ?? r['suggest_fix']) === true,
   };
 }
 
@@ -136,6 +144,8 @@ const STANDARD_TYPES = [
   'ci',
   'chore',
   'revert',
+  'i18n',
+  'a11y',
 ];
 
 /**
@@ -165,7 +175,7 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
 
   // Regex: type(scope)!: subject  or  type: subject  or  type!: subject
   // Groups: 1=type, 2=scope (optional), 3=breaking marker, 4=subject
-  const match = firstLine.match(/^([a-zA-Z]+)(?:\(([^)]+)\))?(!)?:\s*(.+)$/);
+  const match = firstLine.match(/^([a-zA-Z][a-zA-Z0-9_-]*)(?:\(([^)]+)\))?(!)?:\s*(.+)$/);
 
   if (!match) {
     errors.push(
@@ -387,7 +397,15 @@ const plugin: Plugin = {
         // and the `type` field hints at the conventional type.
         // If the user provided a message, validate it. If not, trust
         // the plugin's heuristic.
-        message = (inp['message'] as string | undefined) ?? null;
+        message =
+          (inp['message'] as string | undefined) ??
+          (inp['msg'] as string | undefined) ??
+          (inp['commitMessage'] as string | undefined) ??
+          (inp['commit_message'] as string | undefined) ??
+          (inp['description'] as string | undefined) ??
+          (inp['summary'] as string | undefined) ??
+          (inp['text'] as string | undefined) ??
+          null;
         if (!message) {
           // No user message — validate the type field instead.
           const type = inp['type'] as string | undefined;
@@ -417,7 +435,12 @@ const plugin: Plugin = {
           return; // No message to validate, type is ok — let it through.
         }
       } else if (toolName === 'bash') {
-        const command = inp['command'] as string | undefined;
+        const command =
+          (inp['command'] as string | undefined) ??
+          (inp['CommandLine'] as string | undefined) ??
+          (inp['cmd'] as string | undefined) ??
+          (inp['script'] as string | undefined) ??
+          (inp['input'] as string | undefined);
         if (typeof command !== 'string') return;
         // Only intercept git commit commands.
         if (!/\bgit\s+commit\b/.test(command)) return;

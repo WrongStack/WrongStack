@@ -392,6 +392,7 @@ const plugin: Plugin = {
         rawInp['path'] ??
         rawInp['TargetFile'] ??
         rawInp['filePath'] ??
+        rawInp['file_path'] ??
         rawInp['targetFile'] ??
         rawInp['file'];
       const filePath = typeof rawPath === 'string' ? rawPath : undefined;
@@ -460,6 +461,7 @@ const plugin: Plugin = {
           rawInp['path'] ??
           rawInp['TargetFile'] ??
           rawInp['filePath'] ??
+          rawInp['file_path'] ??
           rawInp['targetFile'] ??
           rawInp['file'];
         const filePath = typeof rawPath === 'string' ? rawPath : undefined;

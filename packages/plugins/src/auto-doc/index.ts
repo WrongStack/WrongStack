@@ -284,7 +284,8 @@ function injectDocComment(content: string, entity: ParsedEntity, doc: string): s
 // ---------------------------------------------------------------------------
 
 async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[0]) {
-  if (!input.files || typeof input.files !== 'object' || !Array.isArray(input.files)) {
+  const rawInput = input as unknown as Record<string, unknown>;
+  if (rawInput['files'] !== undefined && !Array.isArray(rawInput['files'])) {
     return {
       ok: false,
       error: 'input.files must be an array of file paths',
@@ -292,7 +293,28 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
       changes: [],
     };
   }
-  if (input.files.length === 0) {
+  const rawFiles =
+    rawInput['files'] ??
+    rawInput['file'] ??
+    rawInput['path'] ??
+    rawInput['filePath'] ??
+    rawInput['TargetFile'] ??
+    rawInput['targetFile'];
+  const files = Array.isArray(rawFiles)
+    ? rawFiles.filter((f): f is string => typeof f === 'string' && f.trim().length > 0).map((f) => f.trim())
+    : typeof rawFiles === 'string' && rawFiles.trim().length > 0
+      ? [rawFiles.trim()]
+      : undefined;
+
+  if (!files || !Array.isArray(files)) {
+    return {
+      ok: false,
+      error: 'input.files must be an array of file paths',
+      filesProcessed: 0,
+      changes: [],
+    };
+  }
+  if (files.length === 0) {
     return {
       ok: false,
       error: 'input.files is empty — provide at least one file path',
@@ -304,7 +326,7 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
   const includeTypes = (extConfig['includeTypes'] as boolean) ?? false;
   // LLM prose is opt-in: per-call `use_llm` overrides the config flag.
   const useLlm =
-    (input.use_llm ?? (extConfig['useLlm'] as boolean | undefined) ?? false) === true &&
+    (input.use_llm ?? (rawInput['useLlm'] as boolean | undefined) ?? (extConfig['useLlm'] as boolean | undefined) ?? false) === true &&
     Boolean(api.llm);
   // Bound how many LLM calls one invocation makes so a huge file can't
   // trigger hundreds of completions; entities beyond the cap use the template.
@@ -315,7 +337,7 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
   const results: Array<{ file: string; entity: string; source: 'llm' | 'template' }> = [];
   let llmBudget = maxLlmEntities;
 
-  for (const rawFile of input.files) {
+  for (const rawFile of files) {
     const safeFile = resolveProjectPath(rawFile);
     if (!safeFile) {
       api.log.warn(`auto-doc: skipped file outside project directory: ${rawFile}`);
@@ -338,9 +360,12 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
       // files that gained nothing — as soon as any earlier file produced a
       // doc comment, every later file was written back verbatim, bumping
       // its mtime and waking watchers, rebuilds and other PostToolUse hooks.
-      const beforeCount = results.length;
+      // Process entities in bottom-up (reverse line) order so injecting a docstring
+      // does not invalidate the startLine line numbers of prior entities in the file.
+      const reversedEntities = [...entities].reverse();
+      const fileChanges: Array<{ file: string; entity: string; source: 'llm' | 'template' }> = [];
 
-      for (const entity of entities) {
+      for (const entity of reversedEntities) {
         if (!input.force && !needsDocComment(modified, entity)) continue;
 
         let doc: string | null = null;
@@ -365,13 +390,16 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
         if (!doc) doc = generateDocComment(entity, includeTypes);
 
         modified = injectDocComment(modified, entity, doc);
-        results.push({ file: safeFile, entity: entity.name, source });
+        fileChanges.push({ file: safeFile, entity: entity.name, source });
       }
+
+      // Restore natural file order in results
+      results.push(...fileChanges.reverse());
 
       // Belt and braces: require both a recorded change for this file AND
       // a real content difference, so an injection that turned out to be a
       // no-op does not rewrite the file either.
-      const changedThisFile = results.length > beforeCount && modified !== content;
+      const changedThisFile = fileChanges.length > 0 && modified !== content;
       if (!input.dry_run && changedThisFile) {
         writeFileSync(safeFile, modified, 'utf-8');
         api.log.info(`auto-doc: updated ${safeFile}`);
@@ -383,7 +411,7 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
 
   return {
     ok: true,
-    filesProcessed: input.files.length,
+    filesProcessed: files.length,
     changes: results,
     llm: useLlm ? { docs: state.llmDocs, fallbacks: state.llmFallbacks } : undefined,
   };

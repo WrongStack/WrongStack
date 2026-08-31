@@ -28,6 +28,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 
 interface WrapEntry {
   plugin: string;
@@ -43,12 +44,15 @@ interface PluginStackObserverState {
   contributions: number;
   /** Custom event listener handle for teardown/reload. */
   patternUnregister: (() => void) | null;
+  /** System prompt contributor unregister handle. */
+  contributorUnregister: (() => void) | null;
 }
 
 const state: PluginStackObserverState = {
   wraps: [],
   contributions: 0,
   patternUnregister: null,
+  contributorUnregister: null,
 };
 
 function clearObserverState(): void {
@@ -60,6 +64,7 @@ function clearObserverState(): void {
     }
     state.patternUnregister = null;
   }
+  state.contributorUnregister = releaseHandle(state.contributorUnregister);
   state.wraps = [];
   state.contributions = 0;
 }
@@ -130,12 +135,13 @@ const PLUGIN: Plugin = {
       },
     );
 
+    state.contributorUnregister = releaseHandle(state.contributorUnregister);
     if (cfg.injectIntoSystemPrompt) {
       // Register a system-prompt contributor that returns a TextBlock
       // listing the active wrap stack. Runs on every system-prompt
       // build, but contributes an empty/no-op block when no wraps
       // are loaded so the cost is negligible.
-      api.registerSystemPromptContributor(async () => {
+      state.contributorUnregister = api.registerSystemPromptContributor(async () => {
         if (state.wraps.length === 0) return [];
         state.contributions += 1;
         api.metrics.counter('system_prompt_contribution');
@@ -218,7 +224,8 @@ function readConfig(raw: unknown): PluginStackObserverConfig {
   const r = raw as Record<string, unknown>;
   return {
     enabled: r['enabled'] !== false,
-    injectIntoSystemPrompt: r['injectIntoSystemPrompt'] === true,
+    injectIntoSystemPrompt:
+      r['injectIntoSystemPrompt'] === true || r['inject_into_system_prompt'] === true,
   };
 }
 

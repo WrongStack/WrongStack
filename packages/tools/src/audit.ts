@@ -92,12 +92,13 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
     }
 
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyPackageOperation('package-audit', {
       cwd,
       projectRoot: ctx.projectRoot,
-      signal: opts.signal,
+      signal,
     });
     if (bridge?.outcome) {
       const outcome = bridge.outcome;
@@ -141,7 +142,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
       cmd: manager,
       args,
       cwd,
-      signal: opts.signal,
+      signal,
       maxBytes: 100_000,
     });
 

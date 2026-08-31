@@ -121,10 +121,13 @@ function readBoundedNumber(value: unknown, min: number, max: number, fallback: n
 function readConfig(raw: unknown): TokenBudgetConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const warnPercent = readBoundedNumber(r['warnPercent'], 1, 100, DEFAULTS.warnPercent);
-  const stopPercent = readBoundedNumber(r['stopPercent'], 1, 100, DEFAULTS.stopPercent);
+  const rawWarn = r['warnPercent'] ?? r['warn_percent'] ?? r['warnThreshold'] ?? r['warn_threshold'];
+  const rawStop = r['stopPercent'] ?? r['stop_percent'] ?? r['stopThreshold'] ?? r['stop_threshold'];
+  const rawLimit = r['limit'] ?? r['maxTokens'] ?? r['max_tokens'] ?? r['budget'];
+  const warnPercent = readBoundedNumber(rawWarn, 1, 100, DEFAULTS.warnPercent);
+  const stopPercent = readBoundedNumber(rawStop, 1, 100, DEFAULTS.stopPercent);
   return {
-    limit: readBoundedNumber(r['limit'], 0, Number.MAX_SAFE_INTEGER, DEFAULTS.limit),
+    limit: readBoundedNumber(rawLimit, 0, Number.MAX_SAFE_INTEGER, DEFAULTS.limit),
     warnPercent,
     // A warn threshold above the stop threshold can never fire — the run
     // stops first. Clamp so the pair always describes a reachable window.
@@ -228,13 +231,30 @@ const plugin: Plugin = {
       // Filter by model if configured. Supports '*' wildcard suffix:
       // "gpt-4*" matches gpt-4, gpt-4o, gpt-4o-mini, etc.
       // Empty string = count all models.
-      if (cfg.model !== '' && p?.ctx?.model !== undefined) {
-        const model = p.ctx.model;
-        if (!modelMatches(cfg.model, model)) return;
+      const rawPayload = (p ?? {}) as Record<string, unknown>;
+      const modelName =
+        (typeof rawPayload['model'] === 'string' ? rawPayload['model'] : undefined) ??
+        (typeof p?.ctx?.model === 'string' ? p.ctx.model : undefined) ??
+        (typeof (rawPayload['response'] as Record<string, unknown> | undefined)?.['model'] === 'string'
+          ? ((rawPayload['response'] as Record<string, unknown>)['model'] as string)
+          : 'unknown');
+
+      if (cfg.model !== '' && modelName !== 'unknown') {
+        if (!modelMatches(cfg.model, modelName)) return;
       }
 
-      const promptTokens = usage.input ?? 0;
-      const completionTokens = usage.output ?? 0;
+      const rawUsage = usage as Record<string, unknown>;
+      const promptTokens =
+        (typeof rawUsage['input'] === 'number' ? rawUsage['input'] : undefined) ??
+        (typeof rawUsage['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
+        (typeof rawUsage['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
+        (typeof rawUsage['promptTokens'] === 'number' ? rawUsage['promptTokens'] : 0);
+
+      const completionTokens =
+        (typeof rawUsage['output'] === 'number' ? rawUsage['output'] : undefined) ??
+        (typeof rawUsage['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
+        (typeof rawUsage['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
+        (typeof rawUsage['completionTokens'] === 'number' ? rawUsage['completionTokens'] : 0);
       const total = promptTokens + completionTokens;
 
       state.totalPromptTokens += promptTokens;
@@ -242,7 +262,7 @@ const plugin: Plugin = {
       state.totalTokens += total;
       state.requestCount += 1;
       state.lastRequest = {
-        model: p?.ctx?.model ?? 'unknown',
+        model: modelName,
         prompt: promptTokens,
         completion: completionTokens,
         when: new Date().toISOString(),

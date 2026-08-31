@@ -120,15 +120,21 @@ function readConfig(raw: unknown): TypeGateConfig {
   // Update the module-scope Set for O(1) lookup in the hook.
   runOnChangeSet = new Set(runOnChange);
 
+  const rawPath = r['tsConfigPath'] ?? r['tsconfig_path'] ?? r['tsconfigPath'] ?? r['tsconfig'];
+  const rawSeverity = typeof (r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']) === 'string'
+    ? String(r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']).trim().toLowerCase()
+    : undefined;
+  const failSeverity = rawSeverity === 'block' ? 'block' : DEFAULTS.failSeverity;
+
   return {
     enabled: r['enabled'] === true,
     command: typeof r['command'] === 'string' ? r['command'] : DEFAULTS.command,
-    tsConfigPath: typeof r['tsConfigPath'] === 'string' ? r['tsConfigPath'] : DEFAULTS.tsConfigPath,
+    tsConfigPath: typeof rawPath === 'string' ? rawPath : DEFAULTS.tsConfigPath,
     timeoutMs:
       typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
         ? r['timeoutMs']
         : DEFAULTS.timeoutMs,
-    failSeverity: r['failSeverity'] === 'block' ? 'block' : DEFAULTS.failSeverity,
+    failSeverity,
     maxErrors:
       typeof r['maxErrors'] === 'number' && r['maxErrors'] >= 1 && r['maxErrors'] <= 50
         ? r['maxErrors']
@@ -237,17 +243,17 @@ async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null
   const combined = `${stdout}\n${stderr}`.trim();
   const durationMs = Date.now() - start;
 
-  // tsc --pretty off produces "file.ts(line,col): error TS1234: message"
+  // tsc produces "file.ts(line,col): error TS1234: message" or "file.ts:line:col - error TS1234: message"
   const errors: string[] = [];
   const lines = combined.split(/\r?\n/);
   for (const line of lines) {
-    if (/\berror\b/i.test(line) && /:\s*error\s+TS\d+:/.test(line)) {
+    if (/\berror\b/i.test(line) && /(?::\s*|\s+-\s+)error\s+TS\d+:/i.test(line)) {
       errors.push(line.trim());
       if (errors.length >= cfg.maxErrors) break;
     }
   }
 
-  const passed = errors.length === 0 && !/\bfound\b.*\berror\b/i.test(combined);
+  const passed = errors.length === 0 && !/\bfound\b.*\berrors?\b/i.test(combined);
   return { passed, errorCount: errors.length, errors, durationMs };
 }
 
@@ -343,7 +349,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const sourcePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 

@@ -121,17 +121,14 @@ export function encodeVector(vec: Float32Array): Buffer {
 /** Deserialize a BLOB from SQLite back to a Float32Array. */
 export function decodeVector(buf: Buffer | Uint8Array): Float32Array {
   // node:sqlite returns Uint8Array for BLOB columns, not Buffer. Buffer methods
-  // like readFloatLE only exist on Buffer instances. Use DataView for portable
-  // float decoding regardless of which type arrives from SQLite.
+  // like readFloatLE only exist on Buffer instances. Fast typed array copy
+  // performs byte-level transfer without thousands of JS float decodes.
   if (buf.byteLength === 0) return new Float32Array(0);
   if (buf.byteLength % 4 !== 0) {
     throw new Error(`decodeVector: invalid vector byteLength ${buf.byteLength} (must be a multiple of 4)`);
   }
-  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const copy = new Float32Array(buf.byteLength / 4);
-  for (let i = 0; i < copy.length; i++) {
-    copy[i] = view.getFloat32(i * 4, true);
-  }
+  new Uint8Array(copy.buffer).set(buf);
   return copy;
 }
 

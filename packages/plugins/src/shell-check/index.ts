@@ -330,6 +330,7 @@ const plugin: Plugin = {
           inp.files ??
           (input as Record<string, unknown>)['file'] ??
           (input as Record<string, unknown>)['filePath'] ??
+          (input as Record<string, unknown>)['file_path'] ??
           (input as Record<string, unknown>)['TargetFile'] ??
           (input as Record<string, unknown>)['targetFile'] ??
           (input as Record<string, unknown>)['path'];
@@ -409,7 +410,13 @@ const plugin: Plugin = {
         } catch (err: unknown) {
           /* v8 ignore next -- runShellCheck only throws Error; the String(err) branch is defensive. */
           const msg = err instanceof Error ? err.message : String(err);
-          return { ok: false, error: msg, issues: [], filesScanned: 0 };
+          return {
+            ok: false,
+            error: msg,
+            issues: [],
+            filesScanned: 0,
+            mode: scannedDirectories ? 'directory' : 'files',
+          };
         }
 
         const byFile: Record<string, ShellCheckIssue[]> = {};

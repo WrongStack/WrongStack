@@ -235,14 +235,18 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
 
 /** Drop stale entries, then evict oldest insertions to cap retained result data. */
 function pruneCacheEntries(): void {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
   const cutoff = Date.now() - CACHE_TTL_MS * 2;
   for (const [key, entry] of cache.entries()) {
-    if (entry.timestamp < cutoff) cache.delete(key);
+    if (entry.timestamp < cutoff) {
+      cache.delete(key);
+    }
   }
-  while (cache.size > CACHE_MAX_ENTRIES) {
-    const oldestKey = cache.keys().next().value;
-    if (oldestKey === undefined) break;
-    cache.delete(oldestKey);
+  if (cache.size > CACHE_MAX_ENTRIES) {
+    for (const key of cache.keys()) {
+      cache.delete(key);
+      if (cache.size <= CACHE_MAX_ENTRIES) break;
+    }
   }
 }
 

@@ -125,7 +125,7 @@ export interface ParsedInstall {
 }
 
 const INSTALL_RE =
-  /(?:^|[;&|]\s*)(npm|pnpm|yarn|bun)\s+(?:install|i|add)\s+([^;&|]+)|(?:^|[;&|]\s*)(pip3?|uv)\s+(?:pip\s+)?install\s+([^;&|]+)|(?:^|[;&|]\s*)(cargo)\s+add\s+([^;&|]+)/gi;
+  /(?:^|[;&|]\s*)(npm|pnpm|yarn|bun)\s+(?:install|i|add)\s+([^;&|]+)|(?:^|[;&|]\s*)(pip3?|uv)\s+(?:pip\s+)?install\s+([^;&|]+)|(?:^|[;&|]\s*)(uv)\s+add\s+([^;&|]+)|(?:^|[;&|]\s*)(cargo)\s+add\s+([^;&|]+)/gi;
 
 /**
  * Parse a shell command for dependency installs. Returns one entry
@@ -138,8 +138,8 @@ export function parseInstallCommands(command: string): ParsedInstall[] {
   INSTALL_RE.lastIndex = 0;
   let m: RegExpExecArray | null = INSTALL_RE.exec(command);
   while (m !== null) {
-    const manager = (m[1] ?? m[3] ?? m[5] ?? '').toLowerCase();
-    const argString = m[2] ?? m[4] ?? m[6] ?? '';
+    const manager = (m[1] ?? m[3] ?? m[5] ?? m[7] ?? '').toLowerCase();
+    const argString = m[2] ?? m[4] ?? m[6] ?? m[8] ?? '';
     const packages: ParsedInstall['packages'] = [];
     for (const token of argString.split(/\s+/)) {
       if (!token || token.startsWith('-')) continue;
@@ -335,7 +335,13 @@ const plugin: Plugin = {
       if (!cfg.enabled) return;
       state.invocations += 1;
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-      const command = typeof ti['command'] === 'string' ? ti['command'] : '';
+      const rawCmd =
+        ti['command'] ??
+        ti['CommandLine'] ??
+        ti['cmd'] ??
+        ti['script'] ??
+        ti['input'];
+      const command = typeof rawCmd === 'string' ? rawCmd : '';
       if (!command) return;
 
       const installs = parseInstallCommands(command);

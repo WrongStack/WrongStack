@@ -226,9 +226,9 @@ export function renderUnreleasedBlock(entries: ChangelogEntry[]): string {
 
 /**
  * Merge a rendered Unreleased block into existing changelog content:
- * inserted directly under `## [Unreleased]` (existing unreleased
- * content is preserved below the new lines). Creates the standard
- * header when the file has no Unreleased heading.
+ * inserted directly under `## [Unreleased]`, merging section headings
+ * and deduplicating entries. Creates the standard header when the file
+ * has no Unreleased heading.
  */
 export function mergeIntoChangelog(existing: string | null, block: string): string {
   if (!existing?.trim()) {
@@ -237,7 +237,6 @@ export function mergeIntoChangelog(existing: string | null, block: string): stri
   const unreleasedRe = /^##\s*\[?unreleased\]?.*$/im;
   const m = unreleasedRe.exec(existing);
   if (!m || m.index === undefined) {
-    // No Unreleased section — insert one after the first H1 (or at top).
     const h1 = /^#\s.*$/m.exec(existing);
     if (h1 && h1.index !== undefined) {
       const insertAt = h1.index + h1[0].length;
@@ -245,8 +244,52 @@ export function mergeIntoChangelog(existing: string | null, block: string): stri
     }
     return `## [Unreleased]\n\n${block}\n\n${existing}`;
   }
-  const insertAt = m.index + m[0].length;
-  return `${existing.slice(0, insertAt)}\n\n${block}\n${existing.slice(insertAt)}`;
+
+  const startIndex = m.index + m[0].length;
+  const nextSectionMatch = /^##\s+\[?[0-9v]/im.exec(existing.slice(startIndex));
+  const endIndex = nextSectionMatch ? startIndex + nextSectionMatch.index : existing.length;
+
+  const currentUnreleased = existing.slice(startIndex, endIndex);
+  const rest = existing.slice(endIndex);
+
+  const existingEntries: ChangelogEntry[] = [];
+  let currentSection: Section = 'Changed';
+  for (const line of currentUnreleased.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('### ')) {
+      const secName = trimmed.slice(4).trim() as Section;
+      if (SECTION_ORDER.includes(secName)) currentSection = secName;
+    } else if (trimmed.startsWith('- ')) {
+      existingEntries.push({
+        section: currentSection,
+        text: trimmed.slice(2).trim(),
+        origin: 'manual',
+        when: new Date().toISOString(),
+      });
+    }
+  }
+
+  const newEntries: ChangelogEntry[] = [];
+  let newSec: Section = 'Changed';
+  for (const line of block.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('### ')) {
+      const secName = trimmed.slice(4).trim() as Section;
+      if (SECTION_ORDER.includes(secName)) newSec = secName;
+    } else if (trimmed.startsWith('- ')) {
+      newEntries.push({
+        section: newSec,
+        text: trimmed.slice(2).trim(),
+        origin: 'manual',
+        when: new Date().toISOString(),
+      });
+    }
+  }
+
+  const combinedBlock = renderUnreleasedBlock([...newEntries, ...existingEntries]);
+  const formattedRest = rest.trim() ? `\n\n${rest.trimStart()}` : '\n';
+
+  return `${existing.slice(0, startIndex)}\n\n${combinedBlock}${formattedRest}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -350,8 +393,19 @@ const plugin: Plugin = {
         if (p?.isError) return;
         const toolName = p?.tool ?? p?.name ?? '';
         const input = p?.input ?? {};
-        if (toolName === 'write' || toolName === 'edit') {
-          const raw = input['path'] ?? input['file_path'] ?? input['filePath'];
+        if (
+          toolName === 'write' ||
+          toolName === 'edit' ||
+          toolName === 'write_to_file' ||
+          toolName === 'replace_file_content'
+        ) {
+          const raw =
+            input['path'] ??
+            input['TargetFile'] ??
+            input['filePath'] ??
+            input['targetFile'] ??
+            input['file_path'] ??
+            input['file'];
           if (typeof raw === 'string' && raw) state.filesTouched.add(raw);
           return;
         }
@@ -368,7 +422,14 @@ const plugin: Plugin = {
           return;
         }
         if (toolName === 'bash' || toolName === 'exec') {
-          const command = typeof input['command'] === 'string' ? input['command'] : '';
+          const command =
+            typeof input['command'] === 'string'
+              ? input['command']
+              : typeof input['CommandLine'] === 'string'
+                ? input['CommandLine']
+                : typeof input['cmd'] === 'string'
+                  ? input['cmd']
+                  : '';
           const subject = command ? commitSubjectFromCommand(command) : null;
           if (subject) {
             state.commitsSeen += 1;
@@ -403,7 +464,19 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: { text: string; section?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'changelog-writer is disabled' };
-        const text = String(input.text ?? '').trim();
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawText =
+          input.text ??
+          raw['message'] ??
+          raw['entry'] ??
+          raw['content'] ??
+          raw['description'] ??
+          raw['desc'] ??
+          raw['summary'] ??
+          raw['body'] ??
+          raw['note'] ??
+          raw['item'];
+        const text = String(rawText ?? '').trim();
         if (!text) return { ok: false, error: 'entry text must not be empty' };
         const section = SECTION_ORDER.includes(input.section as Section)
           ? (input.section as Section)
@@ -431,8 +504,15 @@ const plugin: Plugin = {
       category: 'Docs',
       mutating: false,
       async execute(input: { polish?: boolean | undefined }) {
+        const rawInput = (input ?? {}) as Record<string, unknown>;
+        const shouldPolish =
+          input.polish === true ||
+          rawInput['use_llm'] === true ||
+          rawInput['useLlm'] === true ||
+          rawInput['ai'] === true ||
+          rawInput['use_ai'] === true;
         const raw = renderUnreleasedBlock(state.entries);
-        const markdown = raw ? await maybePolish(raw, input.polish === true) : '';
+        const markdown = raw ? await maybePolish(raw, shouldPolish) : '';
         return {
           ok: true,
           enabled: cfg.enabled,
@@ -440,7 +520,7 @@ const plugin: Plugin = {
           pendingEntries: state.entries.length,
           filesTouched: [...state.filesTouched].slice(0, 50),
           commitsSeen: state.commitsSeen,
-          polished: input.polish === true && markdown !== raw,
+          polished: shouldPolish && markdown !== raw,
           llmAvailable: Boolean(api.llm),
           markdown: markdown || '(no pending entries)',
         };
@@ -473,9 +553,16 @@ const plugin: Plugin = {
         if (state.entries.length === 0) {
           return { ok: false, error: 'no pending entries — add some with changelog_add first' };
         }
+        const rawInput = (input ?? {}) as Record<string, unknown>;
+        const shouldPolish =
+          input.polish === true ||
+          rawInput['use_llm'] === true ||
+          rawInput['useLlm'] === true ||
+          rawInput['ai'] === true ||
+          rawInput['use_ai'] === true;
         const block = await maybePolish(
           renderUnreleasedBlock(state.entries),
-          input.polish === true,
+          shouldPolish,
         );
         let existing: string | null = null;
         try {

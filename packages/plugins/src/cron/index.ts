@@ -201,13 +201,17 @@ const plugin: Plugin = {
             activeJobs++;
             promises.push(
               (async () => {
-                await api.session.append({
-                  type: 'cron:scheduled_trigger',
-                  ts: new Date().toISOString(),
-                  jobName: name,
-                  action: job.action,
-                  runCount: job.runCount + 1,
-                });
+                try {
+                  await api.session?.append?.({
+                    type: 'cron:scheduled_trigger',
+                    ts: new Date().toISOString(),
+                    jobName: name,
+                    action: job.action,
+                    runCount: job.runCount + 1,
+                  });
+                } catch {
+                  // best-effort
+                }
                 api.emitCustom('cron:job_due', {
                   name,
                   action: job.action,
@@ -249,15 +253,21 @@ const plugin: Plugin = {
       mutating: false,
       capabilities: [COORDINATION_CRON_CAPABILITY],
       async execute(input: Record<string, unknown>) {
-        const name = input['name'] as string;
-        const intervalMs = Math.max(1000, Number(input['intervalMs']));
-        const action = input['action'] as string;
+        const name = (input['name'] ?? input['jobName'] ?? input['job_name'] ?? input['job'] ?? input['id']) as string;
+        const rawInterval =
+          input['intervalMs'] ??
+          input['interval_ms'] ??
+          input['interval'] ??
+          input['every'] ??
+          input['period'];
+        const intervalMs = Math.max(1000, Number(rawInterval));
+        const action = (input['action'] ?? input['task'] ?? input['command'] ?? input['run']) as string;
         const enabled = (input['enabled'] as boolean | undefined) ?? true;
 
         if (!name || typeof name !== 'string' || name.trim() === '') {
           return { ok: false, error: 'name is required and must be a non-empty string' };
         }
-        if (Number.isNaN(intervalMs)) {
+        if (Number.isNaN(intervalMs) || rawInterval === undefined || rawInterval === null) {
           return { ok: false, error: 'intervalMs must be a number >= 1000' };
         }
 
@@ -341,9 +351,9 @@ const plugin: Plugin = {
       mutating: false,
       capabilities: [COORDINATION_CRON_CAPABILITY],
       async execute(input: Record<string, unknown>) {
-        const name = input['name'] as string;
+        const name = (input['name'] ?? input['jobName'] ?? input['job_name'] ?? input['job'] ?? input['id']) as string;
 
-        if (!state.jobs.has(name)) {
+        if (!name || typeof name !== 'string' || !state.jobs.has(name)) {
           return { ok: false, error: `No cron job named '${name}'` };
         }
 

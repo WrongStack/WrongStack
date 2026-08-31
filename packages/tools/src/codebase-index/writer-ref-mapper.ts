@@ -22,7 +22,7 @@ export function mapWriterRefRow(row: WriterRefRow): Ref {
     line: row.line,
     // `lang`/`module`/`to_file` are absent from the narrower column lists some
     // queries select; `undefined` keeps those rows valid Refs.
-    lang: (row.lang || undefined) as SymbolLang | undefined,
+    lang: (row.lang ?? undefined) as SymbolLang | undefined,
     module: row.module ?? undefined,
     toFile: row.to_file ?? undefined,
   };

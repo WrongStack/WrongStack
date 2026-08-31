@@ -392,6 +392,7 @@ const plugin: Plugin = {
           dry_run: true,
           currentVersion,
           suggestedBump: bumpPart,
+          bump: bumpPart,
           newVersion,
           commitCount: part === 'auto' ? commits.length : undefined,
           message: `Would bump ${currentVersion} → ${newVersion} (${bumpPart})`,
@@ -531,8 +532,26 @@ const plugin: Plugin = {
         state.invocationCount += 1;
         state.perTool['semver_bump'] = (state.perTool['semver_bump'] ?? 0) + 1;
         const cwd = input['cwd'] as string | undefined;
-        const dryRun = (input['dry_run'] as boolean | undefined) ?? false;
-        const part = (input['part'] as BumpType) ?? defaultPart;
+        const dryRun =
+          (input['dry_run'] as boolean | undefined) ??
+          (input['dryRun'] as boolean | undefined) ??
+          (input['dry'] as boolean | undefined) ??
+          false;
+        const rawPart =
+          input['part'] ??
+          input['bumpType'] ??
+          input['bump_type'] ??
+          input['type'] ??
+          input['releaseType'] ??
+          input['release_type'] ??
+          input['level'] ??
+          input['increment'] ??
+          input['bump'];
+        const normPart = typeof rawPart === 'string' ? rawPart.trim().toLowerCase() : undefined;
+        const part =
+          normPart === 'major' || normPart === 'minor' || normPart === 'patch' || normPart === 'auto'
+            ? (normPart as BumpType)
+            : defaultPart;
         return performBump(part, dryRun, cwd);
       },
     });

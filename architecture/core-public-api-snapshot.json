@@ -1309,14 +1309,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 35,
-      "sourceLines": 10255
+      "sourceLines": 10256
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 173,
-      "sourceLines": 50790
+      "sourceLines": 50796
     },
     {
       "directory": "core",
@@ -1498,7 +1498,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10614
+      "sourceLines": 10619
     },
     {
       "directory": "wiring",

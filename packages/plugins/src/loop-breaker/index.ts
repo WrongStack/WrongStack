@@ -153,31 +153,42 @@ function readConfig(raw: unknown): LoopBreakerConfig {
     return { ...DEFAULTS };
   }
   const r = raw as Record<string, unknown>;
+  const rawWarn = r['warnAfter'] ?? r['warn_after'] ?? r['warnThreshold'] ?? r['warn_threshold'];
   const warnAfter =
-    typeof r['warnAfter'] === 'number' && r['warnAfter'] >= 2 ? r['warnAfter'] : DEFAULTS.warnAfter;
+    typeof rawWarn === 'number' && rawWarn >= 2 ? rawWarn : DEFAULTS.warnAfter;
+  const rawBlock = r['blockAfter'] ?? r['block_after'] ?? r['blockThreshold'] ?? r['block_threshold'];
   const blockAfter =
-    typeof r['blockAfter'] === 'number' && r['blockAfter'] > warnAfter
-      ? r['blockAfter']
+    typeof rawBlock === 'number' && rawBlock > warnAfter
+      ? rawBlock
       : Math.max(DEFAULTS.blockAfter, warnAfter + 1);
-  const ignoreTools = Array.isArray(r['ignoreTools'])
-    ? r['ignoreTools'].filter((t): t is string => typeof t === 'string')
+  const rawIgnore = r['ignoreTools'] ?? r['ignore_tools'] ?? r['ignore'] ?? r['ignoredTools'];
+  const ignoreTools = Array.isArray(rawIgnore)
+    ? (rawIgnore as unknown[]).filter((t): t is string => typeof t === 'string')
     : [];
 
   // Update the module-scope Set for O(1) lookup in the hook.
   ignoreToolsSet = new Set(ignoreTools);
 
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'warn' ? 'warn' : 'block';
+
+  const rawOsc = r['oscillationWindow'] ?? r['oscillation_window'] ?? r['window'];
+  const rawMaxSteps = r['maxSteps'] ?? r['max_steps'] ?? r['stepLimit'] ?? r['step_limit'];
+
   return {
     enabled: r['enabled'] !== false,
-    mode: r['mode'] === 'warn' ? 'warn' : 'block',
+    mode,
     warnAfter,
     blockAfter,
     oscillationWindow:
-      typeof r['oscillationWindow'] === 'number' && r['oscillationWindow'] >= 4
-        ? r['oscillationWindow']
+      typeof rawOsc === 'number' && rawOsc >= 4
+        ? rawOsc
         : DEFAULTS.oscillationWindow,
     maxSteps:
-      typeof r['maxSteps'] === 'number' && r['maxSteps'] >= 0
-        ? Math.floor(r['maxSteps'])
+      typeof rawMaxSteps === 'number' && rawMaxSteps >= 0
+        ? Math.floor(rawMaxSteps)
         : DEFAULTS.maxSteps,
     noDiffWarnAfter:
       typeof r['noDiffWarnAfter'] === 'number' && r['noDiffWarnAfter'] >= 1
@@ -277,7 +288,7 @@ function isOscillating(recent: string[], windowSize: number): boolean {
   return window[0] !== window[1];
 }
 
-const MUTATING_TOOLS = new Set(['edit', 'write']);
+const MUTATING_TOOLS = new Set(['edit', 'write', 'write_to_file', 'replace_file_content']);
 
 function hashString(value: string): string {
   let h = 5381;
@@ -590,7 +601,15 @@ const plugin: Plugin = {
 
       if (!MUTATING_TOOLS.has(toolName)) return;
       const toolInput = (input.toolInput ?? {}) as Record<string, unknown>;
-      const targetPath = toolInput['path'];
+      const rawTarget =
+        toolInput['path'] ??
+        toolInput['TargetFile'] ??
+        toolInput['filePath'] ??
+        toolInput['targetFile'] ??
+        toolInput['file_path'] ??
+        toolInput['destination'] ??
+        toolInput['file'];
+      const targetPath = typeof rawTarget === 'string' ? rawTarget : undefined;
       if (typeof targetPath !== 'string' || targetPath.length === 0) return;
       const diffFingerprint = await gitDiffFingerprint(
         input.cwd ?? process.cwd(),

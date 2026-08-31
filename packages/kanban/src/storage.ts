@@ -60,7 +60,7 @@ export function getKanbanEventsPath(projectRoot: string, boardId: string): strin
 }
 
 export function isValidBoardId(boardId: string): boolean {
-  return BOARD_ID_RE.test(boardId) && !boardId.includes('..');
+  return BOARD_ID_RE.test(boardId);
 }
 
 export function assertValidBoardId(boardId: string): void {
@@ -622,9 +622,10 @@ export function createBoardObject(opts: CreateBoardObjectOptions): KanbanBoard {
 }
 
 export async function listBoardSummaries(projectRoot: string): Promise<KanbanBoardSummary[]> {
+  const ids = await listBoardIds(projectRoot);
+  const boards = await Promise.all(ids.map((id) => readBoard(projectRoot, id)));
   const summaries: KanbanBoardSummary[] = [];
-  for (const id of await listBoardIds(projectRoot)) {
-    const board = await readBoard(projectRoot, id);
+  for (const board of boards) {
     if (board) summaries.push(summarizeBoard(board));
   }
   return summaries.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));

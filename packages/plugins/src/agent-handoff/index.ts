@@ -85,16 +85,19 @@ const DEFAULTS: AgentHandoffConfig = {
 function readConfig(raw: unknown): AgentHandoffConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawPrefix = r['subjectPrefix'] ?? r['subject_prefix'] ?? r['prefix'];
+  const rawMax = r['maxBodyChars'] ?? r['max_body_chars'] ?? r['maxChars'];
+  const rawTo = r['to'] ?? r['recipient'] ?? r['target'];
   return {
     enabled: r['enabled'] !== false,
-    subjectPrefix: typeof r['subjectPrefix'] === 'string' ? r['subjectPrefix'] : DEFAULTS.subjectPrefix,
-    includeResult: r['includeResult'] !== false,
-    includeTodos: r['includeTodos'] !== false,
+    subjectPrefix: typeof rawPrefix === 'string' ? rawPrefix : DEFAULTS.subjectPrefix,
+    includeResult: (r['includeResult'] ?? r['include_result']) !== false,
+    includeTodos: (r['includeTodos'] ?? r['include_todos']) !== false,
     maxBodyChars:
-      typeof r['maxBodyChars'] === 'number' && r['maxBodyChars'] >= 500
-        ? r['maxBodyChars']
+      typeof rawMax === 'number' && rawMax >= 500
+        ? rawMax
         : DEFAULTS.maxBodyChars,
-    to: typeof r['to'] === 'string' ? r['to'] : DEFAULTS.to,
+    to: typeof rawTo === 'string' ? rawTo : DEFAULTS.to,
   };
 }
 

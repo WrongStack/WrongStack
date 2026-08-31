@@ -328,8 +328,23 @@ const plugin: Plugin = {
           state.commits.push(msg);
         }
 
-        if ((toolName === 'write' || toolName === 'edit') && p?.input?.path) {
-          state.files.add(p.input.path);
+        const rawInput = (p?.input ?? {}) as Record<string, unknown>;
+        const filePath =
+          (typeof rawInput['path'] === 'string' && rawInput['path']) ||
+          (typeof rawInput['filePath'] === 'string' && rawInput['filePath']) ||
+          (typeof rawInput['file_path'] === 'string' && rawInput['file_path']) ||
+          (typeof rawInput['TargetFile'] === 'string' && rawInput['TargetFile']) ||
+          (typeof rawInput['targetFile'] === 'string' && rawInput['targetFile']) ||
+          (typeof rawInput['file'] === 'string' && rawInput['file']);
+
+        if (
+          (toolName === 'write' ||
+            toolName === 'edit' ||
+            toolName === 'write_to_file' ||
+            toolName === 'replace_file_content') &&
+          filePath
+        ) {
+          state.files.add(filePath);
         }
       });
       state.eventUnsubscribers.push(offTool);
@@ -342,8 +357,19 @@ const plugin: Plugin = {
           usage?: { input?: number; output?: number };
         } | null;
         if (p?.model) state.models.add(p.model);
-        state.totalInputTokens += p?.usage?.input ?? 0;
-        state.totalOutputTokens += p?.usage?.output ?? 0;
+        const rawUsage = p?.usage as Record<string, unknown> | undefined;
+        const inputTokens =
+          (typeof rawUsage?.['input'] === 'number' ? rawUsage['input'] : undefined) ??
+          (typeof rawUsage?.['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
+          (typeof rawUsage?.['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
+          (typeof rawUsage?.['promptTokens'] === 'number' ? rawUsage['promptTokens'] : 0);
+        const outputTokens =
+          (typeof rawUsage?.['output'] === 'number' ? rawUsage['output'] : undefined) ??
+          (typeof rawUsage?.['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
+          (typeof rawUsage?.['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
+          (typeof rawUsage?.['completionTokens'] === 'number' ? rawUsage['completionTokens'] : 0);
+        state.totalInputTokens += inputTokens;
+        state.totalOutputTokens += outputTokens;
       });
       state.eventUnsubscribers.push(offUsage);
     }
@@ -381,11 +407,23 @@ const plugin: Plugin = {
       capabilities: ['fs.write'],
       async execute(input: { preview?: boolean | undefined } = {}) {
         if (!cfg.enabled) return { ok: false, error: 'pr-drafter is disabled' };
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const preview = Boolean(input?.preview ?? raw['dryRun'] ?? raw['dry_run'] ?? raw['dry'] ?? raw['previewOnly']);
+        const rawOutputPath =
+          raw['outputPath'] ??
+          raw['output_path'] ??
+          raw['path'] ??
+          raw['filePath'] ??
+          raw['file'] ??
+          raw['TargetFile'] ??
+          raw['targetFile'] ??
+          cfg.outputPath;
+        const outputPathStr = typeof rawOutputPath === 'string' && rawOutputPath.trim().length > 0 ? rawOutputPath.trim() : cfg.outputPath;
         const draft = await buildDraft(cfg, api.llm);
-        if (input?.preview) {
+        if (preview) {
           return { ok: true, preview: true, title: draft.title, body: draft.body };
         }
-        const resolved = resolveProjectPath(cfg.outputPath);
+        const resolved = resolveProjectPath(outputPathStr);
         if (!resolved) return { ok: false, error: 'outputPath resolves outside project' };
         try {
           await mkdir(dirname(resolved), { recursive: true });
@@ -393,7 +431,7 @@ const plugin: Plugin = {
           state.draftsWritten += 1;
           return {
             ok: true,
-            path: cfg.outputPath,
+            path: outputPathStr,
             resolvedPath: resolved,
             title: draft.title,
           };

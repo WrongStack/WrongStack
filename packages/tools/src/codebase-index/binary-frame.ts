@@ -83,10 +83,11 @@ export function isBinaryFrame(firstByte: number): boolean {
  */
 export function encodeBinaryFrame(message: unknown): Buffer {
   const payload = encode(normalizeUndefined(message));
-  const header = Buffer.allocUnsafe(5);
-  header[0] = BINARY_FRAME_MAGIC;
-  header.writeUInt32BE(payload.length, 1);
-  return Buffer.concat([header, payload], 5 + payload.length);
+  const frame = Buffer.allocUnsafe(5 + payload.length);
+  frame[0] = BINARY_FRAME_MAGIC;
+  frame.writeUInt32BE(payload.length, 1);
+  frame.set(payload, 5);
+  return frame;
 }
 
 function normalizeUndefined(value: unknown): unknown {

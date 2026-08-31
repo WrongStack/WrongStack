@@ -112,8 +112,13 @@ export function searchRankedWithStatement(
   const conditions: string[] = ['symbols_fts MATCH ?'];
   const values: (string | number)[] = [match];
   for (const shortTok of shortTokens) {
-    conditions.push("s.text LIKE ? ESCAPE '\\'");
-    values.push(`%${escapeLike(shortTok)}%`);
+    // P4: symbols.text is no longer persisted — the same coverage comes from
+    // the derived columns (the old text was name + signature + doc_comment).
+    const like = `%${escapeLike(shortTok)}%`;
+    conditions.push(
+      "(s.name LIKE ? ESCAPE '\\' OR s.signature LIKE ? ESCAPE '\\' OR s.doc_comment LIKE ? ESCAPE '\\')",
+    );
+    values.push(like, like, like);
   }
   if (effectiveKind) {
     conditions.push('s.kind = ?');

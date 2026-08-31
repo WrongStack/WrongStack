@@ -25,7 +25,7 @@ export function detectNewlineStyle(text: string): NewlineStyle {
 
 export function toStyle(text: string, style: NewlineStyle): string {
   if (typeof text !== 'string') return '';
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const normalized = text.replace(/\r\n?/g, '\n');
   if (style === 'lf') return normalized;
   if (style === 'crlf') return normalized.replace(/\n/g, '\r\n');
   return normalized.replace(/\n/g, '\r');
@@ -33,5 +33,5 @@ export function toStyle(text: string, style: NewlineStyle): string {
 
 export function normalizeToLf(text: string): string {
   if (typeof text !== 'string') return '';
-  return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  return text.replace(/\r\n?/g, '\n');
 }

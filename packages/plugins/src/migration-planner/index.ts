@@ -89,21 +89,25 @@ const DEFAULTS: MigrationPlannerConfig = {
 function readConfig(raw: unknown): MigrationPlannerConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawPaths = r['changelogPaths'] ?? r['changelog_paths'] ?? r['paths'];
+  const rawMax = r['maxChars'] ?? r['max_chars'] ?? r['limit'];
+  const rawUseLlm = r['useLlm'] ?? r['use_llm'];
+  const rawMaxLlm = r['maxLlmChars'] ?? r['max_llm_chars'];
   return {
     enabled: r['enabled'] !== false,
-    changelogPaths: Array.isArray(r['changelogPaths'])
-      ? (r['changelogPaths'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    changelogPaths: Array.isArray(rawPaths)
+      ? (rawPaths as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.changelogPaths,
     maxChars:
-      typeof r['maxChars'] === 'number' && r['maxChars'] >= 1_000 && r['maxChars'] <= 1_000_000
-        ? r['maxChars']
+      typeof rawMax === 'number' && rawMax >= 1_000 && rawMax <= 1_000_000
+        ? rawMax
         : DEFAULTS.maxChars,
-    useLlm: r['useLlm'] === true,
+    useLlm: rawUseLlm === true,
     maxLlmChars:
-      typeof r['maxLlmChars'] === 'number' &&
-      r['maxLlmChars'] >= 1_000 &&
-      r['maxLlmChars'] <= 100_000
-        ? r['maxLlmChars']
+      typeof rawMaxLlm === 'number' &&
+      rawMaxLlm >= 1_000 &&
+      rawMaxLlm <= 100_000
+        ? rawMaxLlm
         : DEFAULTS.maxLlmChars,
   };
 }

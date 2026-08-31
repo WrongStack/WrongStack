@@ -90,11 +90,13 @@ function normalizeStrings(v: unknown): string[] {
 function readConfig(raw: unknown): LicenseAuditConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const allowed = normalizeStrings(r['allowedLicenses']);
+  const rawLicenses = r['allowedLicenses'] ?? r['allowed_licenses'] ?? r['licenses'];
+  const allowed = normalizeStrings(rawLicenses);
+  const rawBlock = r['block'] ?? r['fail_on_violation'] ?? r['failOnViolation'];
   return {
     enabled: r['enabled'] !== false,
     allowedLicenses: allowed.length > 0 ? allowed : [...DEFAULTS.allowedLicenses],
-    block: r['block'] !== false,
+    block: rawBlock !== false,
   };
 }
 
@@ -299,7 +301,12 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-      const command = typeof ti['command'] === 'string' ? ti['command'] : '';
+      const command =
+        (typeof ti['command'] === 'string' ? ti['command'] : undefined) ??
+        (typeof ti['CommandLine'] === 'string' ? ti['CommandLine'] : undefined) ??
+        (typeof ti['cmd'] === 'string' ? ti['cmd'] : undefined) ??
+        (typeof ti['script'] === 'string' ? ti['script'] : undefined) ??
+        '';
       if (!command) return;
 
       state.invocations += 1;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSymbols } from '../src/codebase-index/json-parser.js';
+import { JSON_MAX_SYMBOLS_DEFAULT, parseSymbols } from '../src/codebase-index/json-parser.js';
 
 const parse = (file: string, content: string) => parseSymbols({ file, content, lang: 'json' });
 
@@ -88,5 +88,55 @@ describe('json-parser parseSymbols', () => {
     expect(res.file).toBe('x.json');
     expect(res.lang).toBe('json');
     expect(typeof res.mtimeMs).toBe('number');
+  });
+
+  it('does not extract keys nested in child objects or arrays (P3)', () => {
+    const content = [
+      '{',
+      '  "top": { "nested": 1 },',
+      '  "list": [{ "inner": 2 }],',
+      '  "plain": 3',
+      '}',
+    ].join('\n');
+    const ns = names('data.json', content);
+    expect(ns).toEqual(expect.arrayContaining(['top', 'list', 'plain']));
+    expect(ns).not.toContain('nested');
+    expect(ns).not.toContain('inner');
+  });
+
+  it('ignores JSONC comments — commented keys are not symbols', () => {
+    const content = [
+      '{',
+      '  // "commented": 1,',
+      '  "target": "ES2023",',
+      '  /* "block": { "deep": 2 } */',
+      '  "ok": 3',
+      '}',
+    ].join('\n');
+    const ns = names('tsconfig.jsonc', content);
+    expect(ns).toEqual(expect.arrayContaining(['target', 'ok']));
+    expect(ns).not.toContain('commented');
+    expect(ns).not.toContain('block');
+    expect(ns).not.toContain('deep');
+  });
+
+  it('is not desynchronized by braces or escaped quotes inside strings', () => {
+    const content = '{"a": "}{ \\" fake", "b": {"x": 1}, "c": 2}';
+    const ns = names('data.json', content);
+    expect(ns).toEqual(expect.arrayContaining(['a', 'b', 'c']));
+    expect(ns).not.toContain('x');
+    expect(ns).not.toContain('fake');
+  });
+
+  it('caps symbols per file at JSON_MAX_SYMBOLS_DEFAULT', () => {
+    const keys = Array.from({ length: 1_500 }, (_, i) => `"k${i}": ${i}`).join(', ');
+    const res = parse('big.json', `{${keys}}`);
+    expect(res.symbols.length).toBe(JSON_MAX_SYMBOLS_DEFAULT);
+  });
+
+  it('honours the maxSymbols override', () => {
+    const keys = Array.from({ length: 50 }, (_, i) => `"k${i}": ${i}`).join(', ');
+    const res = parseSymbols({ file: 'x.json', content: `{${keys}}`, lang: 'json', maxSymbols: 5 });
+    expect(res.symbols.length).toBe(5);
   });
 });

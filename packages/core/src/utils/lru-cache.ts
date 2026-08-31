@@ -26,8 +26,8 @@ export class LruCache<K, V> {
   }
 
   get(key: K): V | undefined {
-    if (!this.store.has(key)) return undefined;
     const value = this.store.get(key);
+    if (value === undefined && !this.store.has(key)) return undefined;
     // Re-insert so this key becomes the most-recently-used (moves to end).
     this.store.delete(key);
     this.store.set(key, value as V);

@@ -93,6 +93,9 @@ export class BoundedMap<K, V> {
     // Delete first so an overwrite also refreshes recency.
     this.map.delete(key);
     this.map.set(key, { value, storedAt: this.now() });
+    if (this.map.size > this.max && this.ttlMs !== undefined) {
+      this.prune();
+    }
     while (this.map.size > this.max) {
       const coldest = this.map.keys().next().value as K | undefined;
       if (coldest === undefined) break;
@@ -112,6 +115,9 @@ export class BoundedMap<K, V> {
   }
 
   get size(): number {
+    if (this.ttlMs !== undefined) {
+      this.prune();
+    }
     return this.map.size;
   }
 

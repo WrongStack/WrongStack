@@ -55,7 +55,7 @@ async function serveCachedGraph(
   compute: () => Promise<CodeMapGraph>,
 ): Promise<void> {
   try {
-    const version = indexDbVersion(deps.projectRoot, deps.indexDir);
+    const version = await indexDbVersion(deps.projectRoot, deps.indexDir);
     const key = codemapCacheKey(deps.projectRoot, deps.indexDir, scope);
     const hit = getCachedCodemapBody(key, version);
     if (hit !== undefined) {

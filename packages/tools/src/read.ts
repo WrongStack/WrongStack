@@ -222,7 +222,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     // on Windows). The full file is read even for offset/limit slices, so
     // the hash always covers the whole content.
     const contentHash = sha256hex(text);
-    const allLines = text.split(/\r\n|\r|\n/);
+    const allLines = text.split(/\r?\n/);
     const total = allLines.length;
 
     if (input.mode === 'summary') {

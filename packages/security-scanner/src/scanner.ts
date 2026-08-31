@@ -155,6 +155,14 @@ export class SecurityScanner {
 
     for (const pattern of patterns) {
       if (!this.matchesCategory(pattern)) continue;
+      if (pattern.fileExtensions && pattern.fileExtensions.length > 0) {
+        const lowerPath = relativePath.toLowerCase();
+        const matchesExt = pattern.fileExtensions.some((ext) => {
+          const lowerExt = ext.toLowerCase();
+          return lowerPath.endsWith(lowerExt);
+        });
+        if (!matchesExt) continue;
+      }
 
       for (const regex of pattern.patterns) {
         for (let lineNum = 0; lineNum < lines.length; lineNum++) {

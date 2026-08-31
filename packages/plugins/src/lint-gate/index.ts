@@ -94,13 +94,24 @@ const DEFAULTS: LintGateConfig = {
 function readConfig(raw: unknown): LintGateConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawLinter = typeof r['linter'] === 'string' ? r['linter'].trim().toLowerCase() : undefined;
+  const linter = rawLinter === 'biome' || rawLinter === 'eslint' ? rawLinter : 'auto';
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'block' ? 'block' : rawMode === 'fix' ? 'fix' : 'warn';
+  const rawSeverity = typeof r['severity'] === 'string' ? r['severity'].trim().toLowerCase() : undefined;
+  const severity = rawSeverity === 'warning' ? 'warning' : 'error';
+  const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
+  const rawRules = r['fixRules'] ?? r['fix_rules'] ?? r['rules'];
+
   return {
-    linter: r['linter'] === 'biome' || r['linter'] === 'eslint' ? r['linter'] : 'auto',
-    mode: r['mode'] === 'block' ? 'block' : r['mode'] === 'fix' ? 'fix' : 'warn',
-    severity: r['severity'] === 'warning' ? 'warning' : 'error',
-    timeoutMs: typeof r['timeoutMs'] === 'number' ? r['timeoutMs'] : DEFAULTS.timeoutMs,
-    fixRules: Array.isArray(r['fixRules'])
-      ? (r['fixRules'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    linter,
+    mode,
+    severity,
+    timeoutMs: typeof rawTimeout === 'number' && rawTimeout > 0 ? rawTimeout : DEFAULTS.timeoutMs,
+    fixRules: Array.isArray(rawRules)
+      ? (rawRules as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
   };
 }

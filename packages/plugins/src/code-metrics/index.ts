@@ -80,14 +80,16 @@ const DEFAULTS: CodeMetricsConfig = {
 function readConfig(raw: unknown): CodeMetricsConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const rawMax = r['maxFiles'] ?? r['max_files'] ?? r['limit'];
   return {
     enabled: r['enabled'] !== false,
-    extensions: Array.isArray(r['extensions'])
-      ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    extensions: Array.isArray(rawExts)
+      ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.extensions,
     maxFiles:
-      typeof r['maxFiles'] === 'number' && r['maxFiles'] >= 1 && r['maxFiles'] <= 500
-        ? r['maxFiles']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
+        ? rawMax
         : DEFAULTS.maxFiles,
   };
 }
@@ -148,17 +150,30 @@ function countFunctions(content: string): number {
 export const COMPLEXITY_FORMULA =
   'control(if|else if|for|while|switch|catch) + (&& || ?? ||= &&= ??=) + ternary ?; optional chaining ?. is not counted';
 
+function stripNonExecutable(code: string): string {
+  return code
+    // Remove multi-line comments
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    // Remove single-line comments
+    .replace(/\/\/[^\n]*/g, ' ')
+    // Remove string literals (single, double, template)
+    .replace(/(["'`])(?:\\.|(?!\1)[^\\])*\1/g, ' ')
+    // Remove TypeScript optional property annotations (e.g. `foo?: string`)
+    .replace(/\b[A-Za-z_$][A-Za-z0-9_$]*\s*\?\s*:/g, ' ');
+}
+
 function countComplexity(content: string): number {
+  const code = stripNonExecutable(content);
   const controlRe = /\b(if|else\s+if|for|while|switch|catch)\b/g;
   let complexity = 0;
 
   controlRe.lastIndex = 0;
-  for (const _match of content.matchAll(controlRe)) complexity++;
+  for (const _match of code.matchAll(controlRe)) complexity++;
 
-  for (let i = 0; i < content.length; i++) {
-    const c = content[i]!;
-    const n1 = content[i + 1];
-    const n2 = content[i + 2];
+  for (let i = 0; i < code.length; i++) {
+    const c = code[i]!;
+    const n1 = code[i + 1];
+    const n2 = code[i + 2];
     if (c === '?' && n1 === '?' && n2 === '=') {
       complexity++;
       i += 2;
@@ -325,7 +340,15 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawSource =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['destination'] ??
+        inp['file'];
+      const sourcePath = typeof rawSource === 'string' ? rawSource : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -371,7 +394,18 @@ const plugin: Plugin = {
       async execute(input: { path?: string }) {
         if (!cfg.enabled) return { ok: false, error: 'code-metrics is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };
         }

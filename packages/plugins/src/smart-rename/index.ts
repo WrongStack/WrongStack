@@ -23,7 +23,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { extname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 
-const API_VERSION = '^0.1.10';
+const NEW_API_VERSION = '^0.1.10';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -55,14 +55,20 @@ const DEFAULTS: SmartRenameConfig = {
   extensions: ['.ts', '.tsx', '.js', '.jsx'],
 };
 
+function normalizeExtensions(exts: string[]): string[] {
+  return exts.map((e) => (e.startsWith('.') ? e.toLowerCase() : `.${e.toLowerCase()}`));
+}
+
 function readConfig(raw: unknown): SmartRenameConfig {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
+  if (!raw || typeof raw !== 'object') return { ...DEFAULTS, extensions: normalizeExtensions(DEFAULTS.extensions) };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const exts = Array.isArray(rawExts)
+    ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
+    : DEFAULTS.extensions;
   return {
     enabled: r['enabled'] !== false,
-    extensions: Array.isArray(r['extensions'])
-      ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
-      : DEFAULTS.extensions,
+    extensions: normalizeExtensions(exts),
   };
 }
 
@@ -145,7 +151,7 @@ const plugin: Plugin = {
   name: 'smart-rename',
   version: '0.1.0',
   description: 'Whole-word identifier rename inside a single source file',
-  apiVersion: API_VERSION,
+  apiVersion: NEW_API_VERSION,
   capabilities: { tools: true },
   defaultConfig: { ...DEFAULTS },
   configSchema: {
@@ -190,12 +196,33 @@ const plugin: Plugin = {
       category: 'Development',
       mutating: true,
       capabilities: ['fs.write'],
-      async execute(input: { path?: string; oldName?: string; newName?: string; apply?: boolean }) {
+      async execute(input: {
+        path?: string;
+        filePath?: string;
+        file_path?: string;
+        TargetFile?: string;
+        targetFile?: string;
+        file?: string;
+        oldName?: string;
+        old_name?: string;
+        from?: string;
+        newName?: string;
+        new_name?: string;
+        to?: string;
+        apply?: boolean;
+      }) {
         if (!cfg.enabled) return { ok: false, error: 'smart-rename is disabled' };
 
-        const rawPath = input.path;
-        const oldName = input.oldName;
-        const newName = input.newName;
+        const inp = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          inp['path'] ??
+          inp['filePath'] ??
+          inp['file_path'] ??
+          inp['TargetFile'] ??
+          inp['targetFile'] ??
+          inp['file'];
+        const oldName = inp['oldName'] ?? inp['old_name'] ?? inp['from'];
+        const newName = inp['newName'] ?? inp['new_name'] ?? inp['to'];
 
         if (!rawPath || typeof rawPath !== 'string') {
           return { ok: false, error: 'path is required' };
@@ -239,7 +266,15 @@ const plugin: Plugin = {
         state.renameCount += 1;
         state.replacementCount += replacements;
 
-        if (input.apply) {
+        const isDryRun =
+          inp['dryRun'] === true ||
+          inp['dry_run'] === true ||
+          inp['dry'] === true ||
+          inp['previewOnly'] === true;
+        const rawApply = inp['apply'] ?? inp['write'] ?? inp['save'] ?? inp['persist'];
+        const shouldApply = Boolean(rawApply) && !isDryRun;
+
+        if (shouldApply) {
           try {
             writeFileSync(resolved, preview, 'utf-8');
           } catch (err) {
@@ -253,7 +288,7 @@ const plugin: Plugin = {
           path: relativePath(resolved),
           replacements,
           preview,
-          applied: Boolean(input.apply),
+          applied: shouldApply,
         };
       },
     });
