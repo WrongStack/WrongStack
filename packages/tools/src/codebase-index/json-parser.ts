@@ -2,29 +2,38 @@ import { expectDefined } from '@wrongstack/core/utils';
 /**
  * JSON file symbol extraction.
  *
- * Extracts top-level keys as "symbols" with kind `property`.
+ * Extracts the ROOT object's keys as "symbols" with kind `property` (P3:
+ * depth-1 only — keys nested in child objects or arrays are deliberately not
+ * extracted; the previous line-anchored regex matched every pretty-printed
+ * key line at any depth, which let a single i18n or report file produce
+ * thousands of noise symbols). Extraction is string-aware and capped.
  * Special handling for:
  * - package.json: scripts, dependencies, devDependencies → `const`
  * - tsconfig.json: compilerOptions keys → `property`
  * - JSON Schema / OpenAPI: $schema, $id, $ref → `schema`
  * - Root object itself → kind `object`
  *
- * Uses regex-based extraction for speed and zero dependencies.
+ * Uses regex/scanner-based extraction for speed and zero dependencies.
  */
 
 import * as path from 'node:path';
 import type { FileSymbols, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 // ─── Public API ─────────────────────────────────────────────────────────────
 
+/** Soft cap per file (mirrors the 500 caps in generic-parser / tree-sitter,
+ * raised because top-level-only extraction yields far fewer candidates). */
+export const JSON_MAX_SYMBOLS_DEFAULT = 1_000;
+
 export function parseSymbols(opts: {
   file: string;
   content: string;
   lang: SymbolLang;
+  maxSymbols?: number | undefined;
 }): FileSymbols {
   const { file, content, lang } = opts;
 
   try {
-    return regexParse({ file, content, lang });
+    return regexParse({ file, content, lang, maxSymbols: opts.maxSymbols });
   } catch {
     /* v8 ignore next -- regexParse is pure regex/string work; the catch is a defensive fallback. */
     return { file, lang, symbols: [], mtimeMs: Date.now() };
@@ -33,15 +42,93 @@ export function parseSymbols(opts: {
 
 export { detectLang } from './languages.js';
 
+// ─── Scanner ────────────────────────────────────────────────────────────────
+
+interface TopLevelKey {
+  key: string;
+  /** Offset of the opening quote, for line/col mapping. */
+  offset: number;
+}
+
+/**
+ * Single-pass scan for the ROOT object's keys: strings seen while the
+ * container stack is exactly `[{` that are followed (after whitespace) by `:`.
+ * String-aware (handles `\"` escapes, so a quote inside a key or value cannot
+ * desynchronize the scan), O(n), zero dependencies. Keys nested in child
+ * objects/arrays are deliberately not emitted (P3).
+ */
+function topLevelKeys(content: string): TopLevelKey[] {
+  const keys: TopLevelKey[] = [];
+  const stack: string[] = [];
+  let inString = false;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (inString) {
+      if (ch === '\\') {
+        i++; // skip the escaped character
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '/' && content[i + 1] === '/') {
+      // JSONC line comment (.jsonc routes here): skip to end of line.
+      while (i < content.length && content[i] !== '\n') i++;
+      continue;
+    }
+    if (ch === '/' && content[i + 1] === '*') {
+      // JSONC block comment: skip past the closing */ (or EOF).
+      i += 2;
+      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      i++; // past '*'; the loop's i++ moves past '/'
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      if (stack.length === 1 && stack[0] === '{') {
+        // Consume the key string manually so escapes cannot end it early.
+        let j = i + 1;
+        while (j < content.length && content[j] !== '"') {
+          if (content[j] === '\\') j++;
+          j++;
+        }
+        if (j < content.length) {
+          const key = content.slice(i + 1, j);
+          let k = j + 1;
+          while (k < content.length && /\s/.test(content[k] ?? '')) k++;
+          if (content[k] === ':') keys.push({ key, offset: i });
+          i = j; // the loop's i++ resumes after the closing quote
+          inString = false;
+        }
+        // j >= length: unterminated key at EOF — the loop exits naturally.
+      }
+      continue;
+    }
+    if (ch === '{' || ch === '[') stack.push(ch);
+    else if (ch === '}' || ch === ']') stack.pop();
+  }
+  return keys;
+}
+
 // ─── Regex parser ───────────────────────────────────────────────────────────
 
 /**
- * Extract key-value pairs from JSON content using regex.
- * Handles: "key": value, arrays with keyed objects, nested objects (depth ≤ 3).
+ * Extract the root object's keys from JSON content. Nested keys are covered
+ * only by the explicit special cases below (package.json scripts, tsconfig
+ * compilerOptions, JSON Schema / OpenAPI definition blocks).
  */
-function regexParse(opts: { file: string; content: string; lang: SymbolLang }): FileSymbols {
+function regexParse(opts: {
+  file: string;
+  content: string;
+  lang: SymbolLang;
+  maxSymbols?: number | undefined;
+}): FileSymbols {
   const { file, content, lang } = opts;
+  const maxSymbols = opts.maxSymbols ?? JSON_MAX_SYMBOLS_DEFAULT;
   const symbols: IndexSymbol[] = [];
+  const pushSymbol = (symbol: IndexSymbol): void => {
+    if (symbols.length < maxSymbols) symbols.push(symbol);
+  };
   const basename = path.basename(file).toLowerCase();
 
   const isPackageJson = basename === 'package.json';
@@ -74,7 +161,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   if (rootMatch) {
     const offset = expectDefined(rootMatch.index);
     const line = lineFromOffset(offset);
-    symbols.push(
+    pushSymbol(
       makeSymbol({
         name: path.basename(file),
         kind: 'object',
@@ -87,15 +174,9 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
     );
   }
 
-  // Extract top-level keys
-  const topLevelKeyRegex = /^\s*"([^"]+)"\s*:/gm;
-  for (
-    let match = topLevelKeyRegex.exec(content);
-    match !== null;
-    match = topLevelKeyRegex.exec(content)
-  ) {
-    const key = expectDefined(match[1]);
-    const offset = match.index ?? 0;
+  // Extract root-object keys
+  for (const { key, offset } of topLevelKeys(content)) {
+    if (symbols.length >= maxSymbols) break;
     const line = lineFromOffset(offset);
     const col = offset - (lineOffsets[line - 1] ?? 0);
 
@@ -132,7 +213,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
       }
     }
 
-    symbols.push(
+    pushSymbol(
       makeSymbol({
         name: key,
         kind,
@@ -146,12 +227,21 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
 
     // For package.json, also extract individual scripts as 'function'
     if (isPackageJson && key === 'scripts') {
-      extractPackageScripts(content, symbols, file, lang, lineOffsets, lineFromOffset);
+      extractPackageScripts(content, symbols, file, lang, lineOffsets, lineFromOffset, maxSymbols);
     }
 
     // For tsconfig.json compilerOptions, extract nested keys
     if (isTsconfig && key === 'compilerOptions') {
-      extractCompilerOptions(content, symbols, file, lang, lineOffsets, line, lineFromOffset);
+      extractCompilerOptions(
+        content,
+        symbols,
+        file,
+        lang,
+        lineOffsets,
+        line,
+        lineFromOffset,
+        maxSymbols,
+      );
     }
   }
 
@@ -161,7 +251,7 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   if (defsMatch !== null) {
     const offset = expectDefined(defsMatch.index);
     const line = lineFromOffset(offset);
-    symbols.push(
+    pushSymbol(
       makeSymbol({
         name: '$defs',
         kind: 'property',
@@ -184,10 +274,11 @@ function regexParse(opts: { file: string; content: string; lang: SymbolLang }): 
   for (const pat of defsPatterns) {
     pat.lastIndex = 0;
     for (let match = pat.exec(content); match !== null; match = pat.exec(content)) {
+      if (symbols.length >= maxSymbols) break;
       const offset = match.index ?? 0;
       const line = lineFromOffset(offset);
       const key = match[0]?.match(/"([^"]+)"/)?.[1] ?? expectDefined(match[0]);
-      symbols.push(
+      pushSymbol(
         makeSymbol({
           name: key,
           kind: 'property',
@@ -211,6 +302,7 @@ function extractPackageScripts(
   lang: SymbolLang,
   lineOffsets: number[],
   lineFromOffset: (offset: number) => number,
+  maxSymbols: number,
 ): void {
   // Find the "scripts": { ... } block and extract each script key
   const scriptsBlockRegex = /"scripts"\s*:\s*\{([^}]+)\}/g;
@@ -219,6 +311,7 @@ function extractPackageScripts(
     match !== null;
     match = scriptsBlockRegex.exec(content)
   ) {
+    if (symbols.length >= maxSymbols) return;
     const blockContent = expectDefined(match[0]);
     const blockOffset = match.index ?? 0;
 
@@ -229,6 +322,7 @@ function extractPackageScripts(
       scriptMatch !== null;
       scriptMatch = scriptKeyRegex.exec(blockContent)
     ) {
+      if (symbols.length >= maxSymbols) return;
       const key = expectDefined(scriptMatch[1]);
       const keyOffset = blockOffset + expectDefined(scriptMatch.index);
       const line = lineFromOffset(keyOffset);
@@ -255,6 +349,7 @@ function extractCompilerOptions(
   lineOffsets: number[],
   parentLine: number,
   lineFromOffset: (offset: number) => number,
+  maxSymbols: number,
 ): void {
   // Find the "compilerOptions": { ... } block
   const optsBlockRegex = /"compilerOptions"\s*:\s*\{([^}]+)\}/g;
@@ -263,6 +358,7 @@ function extractCompilerOptions(
     match !== null;
     match = optsBlockRegex.exec(content)
   ) {
+    if (symbols.length >= maxSymbols) return;
     const blockContent = expectDefined(match[0]);
     const blockOffset = match.index ?? 0;
 
@@ -273,6 +369,7 @@ function extractCompilerOptions(
       optMatch !== null;
       optMatch = optKeyRegex.exec(blockContent)
     ) {
+      if (symbols.length >= maxSymbols) return;
       const key = expectDefined(optMatch[1]);
       const keyOffset = blockOffset + expectDefined(optMatch.index);
       const line = lineFromOffset(keyOffset);

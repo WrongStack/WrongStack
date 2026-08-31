@@ -125,14 +125,30 @@ function isDocFile(p: string, docNames: string[]): boolean {
 
 function extractPath(toolInput: unknown): string | undefined {
   const inp = (toolInput ?? {}) as Record<string, unknown>;
-  const p = inp['path'];
-  return typeof p === 'string' ? p : undefined;
+  const rawPath =
+    inp['path'] ??
+    inp['filePath'] ??
+    inp['file_path'] ??
+    inp['TargetFile'] ??
+    inp['targetFile'] ??
+    inp['file'];
+  return typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
 }
 
 function extractDocContent(toolInput: unknown): string | undefined {
   const inp = (toolInput ?? {}) as Record<string, unknown>;
   if (typeof inp['content'] === 'string') return inp['content'];
+  if (typeof inp['CodeContent'] === 'string') return inp['CodeContent'];
+  if (typeof inp['text'] === 'string') return inp['text'];
+  if (typeof inp['contents'] === 'string') return inp['contents'];
+  if (typeof inp['body'] === 'string') return inp['body'];
+  if (typeof inp['description'] === 'string') return inp['description'];
+  if (typeof inp['summary'] === 'string') return inp['summary'];
+  if (typeof inp['message'] === 'string') return inp['message'];
+  if (typeof inp['code'] === 'string') return inp['code'];
   if (typeof inp['new_string'] === 'string') return inp['new_string'];
+  if (typeof inp['ReplacementContent'] === 'string') return inp['ReplacementContent'];
+  if (typeof inp['newContent'] === 'string') return inp['newContent'];
   return undefined;
 }
 

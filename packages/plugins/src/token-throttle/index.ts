@@ -106,6 +106,7 @@ export function computeThrottleDelay(
 ): number {
   const current = windowSpend(entries);
   if (current + projected <= limit) return 0;
+  if (entries.length === 0) return 0;
   // How many tokens must age out of the window to fit the projection.
   const mustFree = current + projected - limit;
   // Walk oldest→newest, accumulating freed tokens; the delay is until the
@@ -120,9 +121,9 @@ export function computeThrottleDelay(
     }
   }
   // Even freeing the whole window isn't enough (projection alone exceeds
-  // the limit) — wait for the full window to clear.
-  const oldest = sorted[0];
-  return oldest ? Math.max(0, oldest.at + WINDOW_MS - now) : 0;
+  // the limit) — wait for the newest entry to leave the window.
+  const newest = sorted[sorted.length - 1];
+  return newest ? Math.max(0, newest.at + WINDOW_MS - now) : 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,7 +289,25 @@ const plugin: Plugin = {
           const response = (await inner(_ctx, request)) as {
             usage?: { input?: number; output?: number };
           };
-          const used = (response?.usage?.input ?? 0) + (response?.usage?.output ?? 0) || projected;
+          const rawUsage = response?.usage as Record<string, unknown> | undefined;
+          const inputTokens =
+            (typeof rawUsage?.['input'] === 'number' ? rawUsage['input'] : undefined) ??
+            (typeof rawUsage?.['prompt_tokens'] === 'number' ? rawUsage['prompt_tokens'] : undefined) ??
+            (typeof rawUsage?.['input_tokens'] === 'number' ? rawUsage['input_tokens'] : undefined) ??
+            (typeof rawUsage?.['promptTokens'] === 'number' ? rawUsage['promptTokens'] : undefined) ??
+            (typeof rawUsage?.['inputTokens'] === 'number' ? rawUsage['inputTokens'] : 0);
+          const outputTokens =
+            (typeof rawUsage?.['output'] === 'number' ? rawUsage['output'] : undefined) ??
+            (typeof rawUsage?.['completion_tokens'] === 'number' ? rawUsage['completion_tokens'] : undefined) ??
+            (typeof rawUsage?.['output_tokens'] === 'number' ? rawUsage['output_tokens'] : undefined) ??
+            (typeof rawUsage?.['completionTokens'] === 'number' ? rawUsage['completionTokens'] : undefined) ??
+            (typeof rawUsage?.['outputTokens'] === 'number' ? rawUsage['outputTokens'] : 0);
+          const totalTokens =
+            (typeof rawUsage?.['total_tokens'] === 'number' ? rawUsage['total_tokens'] : undefined) ??
+            (typeof rawUsage?.['totalTokens'] === 'number' ? rawUsage['totalTokens'] : undefined) ??
+            (typeof rawUsage?.['total'] === 'number' ? rawUsage['total'] : undefined) ??
+            (inputTokens + outputTokens);
+          const used = totalTokens > 0 ? totalTokens : projected;
           state.window.push({ at: Date.now(), tokens: used });
           return response;
         },

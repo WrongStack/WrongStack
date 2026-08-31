@@ -2,7 +2,7 @@ import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { Symbol as IndexSymbol, Ref } from './schema.js';
 
 export function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+  return /[\\%_]/.test(value) ? value.replace(/[\\%_]/g, (char) => `\\${char}`) : value;
 }
 
 // ─── P4.12: fixed placeholder buckets ────────────────────────────────────────
@@ -58,9 +58,24 @@ export function padToInBucket<T>(values: readonly T[]): T[] {
   return padded;
 }
 
+const PLACEHOLDER_BUCKETS: Record<number, string> = {
+  1: '?',
+  2: '?,?',
+  4: '?,?,?,?',
+  8: '?,?,?,?,?,?,?,?',
+  16: '?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?',
+  32: '?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?',
+  64: '?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?',
+  128: Array.from({ length: 128 }, () => '?').join(','),
+  256: Array.from({ length: 256 }, () => '?').join(','),
+  512: Array.from({ length: 512 }, () => '?').join(','),
+  1024: Array.from({ length: 1024 }, () => '?').join(','),
+};
+
 /** Placeholder string with `count` bind markers — `count` should be a bucket. */
 export function placeholders(count: number): string {
-  return Array.from({ length: count }, () => '?').join(',');
+  if (count <= 0) return '';
+  return PLACEHOLDER_BUCKETS[count] ?? Array.from({ length: count }, () => '?').join(',');
 }
 
 /**
@@ -85,7 +100,8 @@ export function inListChunks(total: number, max: number): number[] {
 
 /** Normalize an indexed or user-supplied file path for comparison. */
 export function posixIndexPath(file: string): string {
-  return file.replace(/\\/g, '/').replace(/^\.\//, '');
+  const p = file.includes('\\') ? file.replace(/\\/g, '/') : file;
+  return p.startsWith('./') ? p.slice(2) : p;
 }
 
 /**

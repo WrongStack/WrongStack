@@ -137,6 +137,9 @@ export interface CompileFail {
 
 export type CompileUserRegexResult = CompileResult | CompileFail;
 
+const COMPILED_CACHE = new Map<string, CompileUserRegexResult>();
+const CACHE_MAX_SIZE = 500;
+
 export function compileUserRegex(
   pattern: string,
   flags: string = '',
@@ -144,6 +147,25 @@ export function compileUserRegex(
   if (typeof pattern !== 'string') {
     return { ok: false, reason: 'pattern must be a string' };
   }
+  const cacheKey = `${flags}\u0000${pattern}`;
+  const cached = COMPILED_CACHE.get(cacheKey);
+  if (cached !== undefined) return cached;
+
+  if (COMPILED_CACHE.size >= CACHE_MAX_SIZE) {
+    let evicted = 0;
+    const target = Math.floor(CACHE_MAX_SIZE / 4);
+    for (const key of COMPILED_CACHE.keys()) {
+      COMPILED_CACHE.delete(key);
+      if (++evicted >= target) break;
+    }
+  }
+
+  const result = compileUncached(pattern, flags);
+  COMPILED_CACHE.set(cacheKey, result);
+  return result;
+}
+
+function compileUncached(pattern: string, flags: string): CompileUserRegexResult {
   if (pattern.length === 0) {
     return { ok: false, reason: 'pattern is empty' };
   }

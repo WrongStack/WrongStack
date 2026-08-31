@@ -546,16 +546,16 @@ export class DefaultSecretScrubber implements SecretScrubber {
     // alternative is a capturing group; only the group that matched is
     // non-undefined. The trailing offset/string args replace() appends are
     // always defined, so the matched group (which precedes them) is found first.
-    let out = text.replace(
-      COMBINED_REGEX,
-      (match, ...groups) => {
-        // groups[i] corresponds to SIMPLE_PATTERNS[i]; find which one fired.
-        const idx = groups.findIndex((g) => g !== undefined);
-        if (idx < 0) return match;
-        const replacement = COMBINED_REPLACEMENTS[idx];
-        return replacement !== undefined ? replacement : match;
-      },
-    );
+    let out = text.replace(COMBINED_REGEX, function (match) {
+      for (let i = 1; i <= SIMPLE_PATTERNS.length; i++) {
+        // biome-ignore lint/complexity/noArguments: Performance-critical hot path to avoid 20+ element array allocation per secret token
+        if (arguments[i] !== undefined) {
+          const replacement = COMBINED_REPLACEMENTS[i - 1];
+          return replacement !== undefined ? replacement : match;
+        }
+      }
+      return match;
+    });
 
     // Pass 2: high_entropy_env needs special handling — preserve the key name.
     // Groups: 1=leading delimiter (re-emitted so adjacent-secret separators

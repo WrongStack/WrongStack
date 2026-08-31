@@ -74,22 +74,29 @@ const DEFAULTS: ModelRouterConfig = {
 function readConfig(raw: unknown): ModelRouterConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, rules: [] };
   const r = raw as Record<string, unknown>;
-  const rules: RouteRule[] = Array.isArray(r['rules'])
-    ? r['rules']
+  const rawRules = r['rules'] ?? r['routes'];
+  const rules: RouteRule[] = Array.isArray(rawRules)
+    ? (rawRules as unknown[])
         .filter(
           (x): x is Record<string, unknown> =>
             !!x && typeof x === 'object' && typeof (x as { model?: unknown }).model === 'string',
         )
-        .map((x) => ({
-          model: x['model'] as string,
-          ...(typeof x['maxChars'] === 'number' ? { maxChars: x['maxChars'] } : {}),
-          ...(typeof x['minChars'] === 'number' ? { minChars: x['minChars'] } : {}),
-          ...(typeof x['hasTools'] === 'boolean' ? { hasTools: x['hasTools'] } : {}),
-        }))
+        .map((x) => {
+          const rawMax = x['maxChars'] ?? x['max_chars'];
+          const rawMin = x['minChars'] ?? x['min_chars'];
+          const rawTools = x['hasTools'] ?? x['has_tools'];
+          return {
+            model: x['model'] as string,
+            ...(typeof rawMax === 'number' ? { maxChars: rawMax } : {}),
+            ...(typeof rawMin === 'number' ? { minChars: rawMin } : {}),
+            ...(typeof rawTools === 'boolean' ? { hasTools: rawTools } : {}),
+          };
+        })
     : [];
+  const rawDryRun = r['dryRun'] ?? r['dry_run'];
   return {
     enabled: r['enabled'] === true,
-    dryRun: r['dryRun'] !== false,
+    dryRun: rawDryRun !== false,
     rules,
   };
 }
@@ -240,7 +247,13 @@ const plugin: Plugin = {
           const req = (request ?? {}) as Record<string, unknown>;
           state.invocations += 1;
           const size = requestCharSize(req);
-          const hasTools = Array.isArray(req['tools']) && (req['tools'] as unknown[]).length > 0;
+          const hasTools =
+            (Array.isArray(req['tools']) && (req['tools'] as unknown[]).length > 0) ||
+            (Array.isArray(req['functions']) && (req['functions'] as unknown[]).length > 0) ||
+            (Array.isArray(req['tool_definitions']) && (req['tool_definitions'] as unknown[]).length > 0) ||
+            (Array.isArray(req['toolDefinitions']) && (req['toolDefinitions'] as unknown[]).length > 0) ||
+            Boolean(req['tool_choice']) ||
+            Boolean(req['toolChoice']);
           const rule = pickRule(cfg.rules, size, hasTools);
           const from = typeof req['model'] === 'string' ? (req['model'] as string) : 'unknown';
 

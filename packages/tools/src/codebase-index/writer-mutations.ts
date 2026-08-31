@@ -96,7 +96,6 @@ export function commitBatchWithStatement(
         signature: s.signature,
         docComment: s.docComment,
         scope: s.scope,
-        text: s.text,
       });
       if (ftsAvailable) {
         ftsRows.push({
@@ -108,7 +107,7 @@ export function commitBatchWithStatement(
         vectorRows.push({
           id,
           vector: encodeVector(
-            embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+            embedText(buildIndexableText(s.name, s.signature, s.docComment)),
           ),
         });
       }
@@ -216,7 +215,6 @@ export function insertSymbolsWithStatement(
       signature: s.signature,
       docComment: s.docComment,
       scope: s.scope,
-      text: s.text,
     });
     if (ftsAvailable) {
       ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
@@ -225,7 +223,7 @@ export function insertSymbolsWithStatement(
       vectorRows.push({
         id,
         vector: encodeVector(
-          embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+          embedText(buildIndexableText(s.name, s.signature, s.docComment)),
         ),
       });
     }

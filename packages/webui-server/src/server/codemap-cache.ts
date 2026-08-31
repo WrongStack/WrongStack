@@ -47,16 +47,16 @@ function deleteCachedCodemapBody(key: string): boolean {
  * Including the WAL file's mtime/size (and falling back gracefully when no WAL
  * exists yet) ensures the fingerprint changes as soon as the indexer writes.
  */
-export function indexDbVersion(projectRoot: string, indexDir?: string): string {
+export async function indexDbVersion(projectRoot: string, indexDir?: string): Promise<string> {
   try {
     const dir = resolveIndexDir(projectRoot, indexDir);
-    const st = fs.statSync(path.join(dir, DB_FILE));
+    const st = await fs.promises.stat(path.join(dir, DB_FILE));
     // Fold the WAL fingerprint in so WAL-mode writes invalidate the cache even
     // when the main DB file hasn't been checkpointed. A missing WAL (pre-write
     // or post-checkpoint) is harmless — the main DB stat already covers those.
     let wal = '';
     try {
-      const walSt = fs.statSync(path.join(dir, `${DB_FILE}-wal`));
+      const walSt = await fs.promises.stat(path.join(dir, `${DB_FILE}-wal`));
       wal = `:${walSt.mtimeMs}:${walSt.size}`;
     } catch {
       /* WAL not present — main DB fingerprint is sufficient */

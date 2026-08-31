@@ -37,9 +37,6 @@ function repairTruncated(s: string): string {
   let sawKey = false; // have we seen any string (i.e. real content) yet?
   let prevSig = ''; // last significant char seen outside of a string
   let contentEnd = 0; // index just past the last significant char
-  // Count unbalanced `{` accumulated *inside* the currently-open string value,
-  // so a truncation mid-string like `"a{` can be balanced before closing it.
-  let stringBraceDepth = 0;
 
   for (let i = 0; i < s.length; i++) {
     const ch = expectDefined(s[i]);
@@ -56,11 +53,8 @@ function repairTruncated(s: string): string {
       if (ch === '"') {
         inString = false;
         prevSig = '"';
-        stringBraceDepth = 0;
         continue;
       }
-      if (ch === '{') stringBraceDepth++;
-      else if (ch === '}' && stringBraceDepth > 0) stringBraceDepth--;
       continue;
     }
     if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') continue;
@@ -68,7 +62,6 @@ function repairTruncated(s: string): string {
     if (ch === '"') {
       inString = true;
       sawKey = true;
-      stringBraceDepth = 0;
       prevSig = '"';
     } else if (ch === '{' || ch === '[') {
       stack.push(ch);
@@ -97,8 +90,6 @@ function repairTruncated(s: string): string {
       // JSON — strip the backslash and its bogus escapee.
       result = result.slice(0, -2);
     }
-    // Balance braces opened inside the truncated string before closing it.
-    if (stringBraceDepth > 0) result += '}'.repeat(stringBraceDepth);
     result += '"';
   } else if (prevSig === ':') {
     // A key with no value (e.g. `{"k":`) — complete it to null.

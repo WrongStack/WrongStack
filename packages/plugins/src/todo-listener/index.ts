@@ -201,8 +201,20 @@ const plugin: Plugin = {
         return;
       }
 
-      const inp = (input.toolInput ?? {}) as { todos?: TodoItem[] };
-      const todos = Array.isArray(inp.todos) ? inp.todos : [];
+      const inp = input.toolInput as { todos?: TodoItem[]; items?: TodoItem[]; tasks?: TodoItem[]; todoList?: TodoItem[]; list?: TodoItem[] } | TodoItem[] | undefined;
+      const todos = Array.isArray(inp)
+        ? (inp as TodoItem[])
+        : Array.isArray(inp?.todos)
+          ? inp.todos
+          : Array.isArray(inp?.items)
+            ? inp.items
+            : Array.isArray(inp?.tasks)
+              ? inp.tasks
+              : Array.isArray(inp?.todoList)
+                ? inp.todoList
+                : Array.isArray(inp?.list)
+                  ? inp.list
+                  : [];
       const inProgress = todos.find((t) => t.status === 'in_progress');
       const pending = todos.filter((t) => t.status === 'pending').length;
       const completed = todos.filter((t) => t.status === 'completed').length;

@@ -16,7 +16,18 @@ export interface BulkSymbolRow {
   signature: string;
   docComment: string;
   scope: string;
-  text: string;
+}
+
+const ROW_PLACEHOLDERS_CACHE = new Map<string, string>();
+
+function getRowPlaceholders(rowTemplate: string, count: number): string {
+  const key = `${rowTemplate}\u0000${count}`;
+  let result = ROW_PLACEHOLDERS_CACHE.get(key);
+  if (result === undefined) {
+    result = Array.from({ length: count }, () => rowTemplate).join(', ');
+    ROW_PLACEHOLDERS_CACHE.set(key, result);
+  }
+  return result;
 }
 
 export function bulkInsertSymbolsWithStatement(
@@ -33,9 +44,12 @@ export function bulkInsertSymbolsWithStatement(
   for (const take of ladder) {
     const chunk = rows.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const placeholders = getRowPlaceholders(
+      '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      chunk.length,
+    );
     const insert = stmt(
-      `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text)
+      `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope)
        VALUES ${placeholders}`,
     );
     const binds: (string | number)[] = [];
@@ -51,7 +65,6 @@ export function bulkInsertSymbolsWithStatement(
         r.signature,
         r.docComment,
         r.scope,
-        r.text,
       );
     }
     insert.run(...binds);
@@ -70,7 +83,7 @@ export function bulkInsertFtsWithStatement(
   for (const take of ladder) {
     const chunk = rows.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = chunk.map(() => '(?, ?)').join(', ');
+    const placeholders = getRowPlaceholders('(?, ?)', chunk.length);
     const insert = stmt(`INSERT INTO symbols_fts(rowid, text) VALUES ${placeholders}`);
     const binds: (string | number)[] = [];
     for (const r of chunk) binds.push(r.id, r.text);
@@ -94,7 +107,7 @@ export function bulkInsertVectorsWithStatement(
   for (const take of ladder) {
     const chunk = rows.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = chunk.map(() => '(?, ?)').join(', ');
+    const placeholders = getRowPlaceholders('(?, ?)', chunk.length);
     const insert = stmt(`INSERT INTO symbol_vectors(symbol_id, vector) VALUES ${placeholders}`);
     const binds: (number | Uint8Array)[] = [];
     for (const r of chunk) binds.push(r.id, r.vector);
@@ -113,7 +126,10 @@ export function bulkInsertRefsWithStatement(
   for (const take of ladder) {
     const chunk = refs.slice(cursor, cursor + take);
     cursor += take;
-    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const placeholders = getRowPlaceholders(
+      '(?, ?, ?, ?, ?, ?, ?, ?)',
+      chunk.length,
+    );
     const insert = stmt(
       `INSERT INTO refs(from_id, to_name, to_id, call_type, line, lang, module, to_file)
        VALUES ${placeholders}`,

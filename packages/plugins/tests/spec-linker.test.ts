@@ -469,7 +469,9 @@ describe('spec-linker plugin', () => {
           path: '/tmp/alias.md',
           text: 'See secret-scanner for the details.',
         },
-      }) as { modifiedInput?: Record<string, unknown> } | undefined;
+      }) as
+        | { decision?: 'allow' | 'block'; modifiedInput?: Record<string, unknown> }
+        | undefined;
       expect(result?.decision).toBe('allow');
       const text = result?.modifiedInput?.['text'];
       expect(typeof text).toBe('string');

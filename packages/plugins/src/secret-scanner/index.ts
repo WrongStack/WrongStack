@@ -469,14 +469,20 @@ const DEFAULTS: SecretScannerConfig = {
 function readConfig(raw: unknown): SecretScannerConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const mode: Mode = r['mode'] === 'redact' || r['mode'] === 'allow' ? r['mode'] : 'block';
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode: Mode = rawMode === 'redact' || rawMode === 'allow' || rawMode === 'warn'
+    ? (rawMode === 'warn' ? 'allow' : rawMode as Mode)
+    : 'block';
   const customPatterns: CustomPattern[] = [];
-  if (Array.isArray(r['customPatterns'])) {
-    for (const entry of r['customPatterns']) {
+  const rawCustom = r['customPatterns'] ?? r['custom_patterns'] ?? r['patterns'];
+  if (Array.isArray(rawCustom)) {
+    for (const entry of rawCustom) {
       if (!entry || typeof entry !== 'object') continue;
       const e = entry as Record<string, unknown>;
-      const type = e['type'];
-      const regex = e['regex'];
+      const type = e['type'] ?? e['name'] ?? e['kind'];
+      const regex = e['regex'] ?? e['pattern'];
       if (typeof type !== 'string' || typeof regex !== 'string') continue;
       // Validate the regex compiles — skip entries that throw.
       try {
@@ -494,8 +500,8 @@ function readConfig(raw: unknown): SecretScannerConfig {
   return {
     matcher: typeof r['matcher'] === 'string' ? r['matcher'] : DEFAULTS.matcher,
     postToolUseMatcher:
-      typeof r['postToolUseMatcher'] === 'string'
-        ? r['postToolUseMatcher']
+      typeof (r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) === 'string'
+        ? (r['postToolUseMatcher'] ?? r['post_tool_use_matcher'] ?? r['outputMatcher']) as string
         : DEFAULTS.postToolUseMatcher,
     mode,
     enabled: r['enabled'] !== false,
@@ -829,7 +835,15 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: Record<string, unknown>) {
         activateRuntime(runtime);
-        const text = typeof input['text'] === 'string' ? (input['text'] as string) : '';
+        const rawText =
+          input['text'] ??
+          input['content'] ??
+          input['string'] ??
+          input['input'] ??
+          input['code'] ??
+          input['value'] ??
+          '';
+        const text = typeof rawText === 'string' ? rawText : '';
         const matched = findMatches(text);
         return {
           ok: true,

@@ -390,7 +390,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawSource =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['file'];
+      const sourcePath = typeof rawSource === 'string' ? rawSource : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -401,10 +408,11 @@ const plugin: Plugin = {
 
       state.hookInvocationCount += 1;
 
-      const scanRoot = await resolveScanRoot(sourcePath);
+      // Scan from project root using defaultDepth so usages across other
+      // directories are accurately captured, preventing false-positive dead-code warnings.
       let result: ScanResult;
       try {
-        result = await scan(scanRoot, 1, cfg);
+        result = await scan(process.cwd(), cfg.defaultDepth, cfg);
       } catch {
         state.errorCount += 1;
         return;
@@ -462,7 +470,18 @@ const plugin: Plugin = {
       async execute(input: { path?: string; depth?: number }) {
         if (!cfg.enabled) return { ok: false, error: 'dead-code-detector is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         const rawDepth = typeof input.depth === 'number' ? input.depth : cfg.defaultDepth;
         const depth = Math.max(0, Math.min(Math.floor(rawDepth), cfg.maxDepth));
 

@@ -162,12 +162,6 @@ const DEFAULTS: DuplicateCodeDetectorConfig = {
   maxFindings: 5,
 };
 
-/**
- * Extension set for O(1) lookup instead of Array.includes() O(n).
- *
- * Performance: converts the extensions array to a Set at config read time
- * so the hook's per-file extension check is O(1) instead of O(n).
- */
 let extensionsSet = new Set(DEFAULTS.extensions);
 
 function readConfig(raw: unknown): DuplicateCodeDetectorConfig {
@@ -176,30 +170,35 @@ function readConfig(raw: unknown): DuplicateCodeDetectorConfig {
     return { ...DEFAULTS };
   }
   const r = raw as Record<string, unknown>;
-  const extensions = Array.isArray(r['extensions'])
-    ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const extensions = Array.isArray(rawExts)
+    ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
     : DEFAULTS.extensions;
 
   // Update the module-scope Set for O(1) lookup in the hook.
   extensionsSet = new Set(extensions);
 
+  const rawMin = r['minLines'] ?? r['min_lines'] ?? r['min'];
+  const rawExclude = r['excludeDirs'] ?? r['exclude_dirs'] ?? r['exclude'];
+  const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
+
   return {
     enabled: r['enabled'] === true,
     minLines:
-      typeof r['minLines'] === 'number' && r['minLines'] >= 2 && r['minLines'] <= 100
-        ? r['minLines']
+      typeof rawMin === 'number' && rawMin >= 2 && rawMin <= 100
+        ? rawMin
         : DEFAULTS.minLines,
     threshold:
       typeof r['threshold'] === 'number' && r['threshold'] > 0 && r['threshold'] <= 1
         ? r['threshold']
         : DEFAULTS.threshold,
     extensions,
-    excludeDirs: Array.isArray(r['excludeDirs'])
-      ? (r['excludeDirs'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    excludeDirs: Array.isArray(rawExclude)
+      ? (rawExclude as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.excludeDirs,
     maxFindings:
-      typeof r['maxFindings'] === 'number' && r['maxFindings'] >= 1 && r['maxFindings'] <= 500
-        ? r['maxFindings']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
+        ? rawMax
         : DEFAULTS.maxFindings,
   };
 }
@@ -379,8 +378,22 @@ function findDuplicates(
   }
 
   const findings: DuplicateFinding[] = [];
+  const coveredSpans = new Set<string>();
+
   for (const [fingerprint, windows] of byFingerprint.entries()) {
     if (windows.length < 2) continue;
+
+    // Filter out consecutive overlapping sliding windows across the same files
+    const isOverlapping = windows.every((w) => {
+      const spanKey = `${w.file}:${Math.floor(w.startLine / minLines)}`;
+      return coveredSpans.has(spanKey);
+    });
+    if (isOverlapping && findings.length > 0) continue;
+
+    for (const w of windows) {
+      coveredSpans.add(`${w.file}:${Math.floor(w.startLine / minLines)}`);
+    }
+
     const locations = windows.map((w) => ({
       file: relativePath(w.file),
       startLine: w.startLine,
@@ -550,6 +563,7 @@ const plugin: Plugin = {
     }
 
     const cfg = readConfig(api.config.extensions?.['duplicate-code-detector']);
+    const extensionsSet = new Set(cfg.extensions);
 
     /**
      * Cached read of a file's fingerprint HASH set. stat() then either return the
@@ -624,7 +638,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawSource =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const sourcePath = typeof rawSource === 'string' ? rawSource : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
 
       // Snapshot cwd once, resolve against that root, then canonicalize before
@@ -728,7 +749,18 @@ const plugin: Plugin = {
       async execute(input: { path?: string }) {
         if (!cfg.enabled) return { ok: false, error: 'duplicate-code-detector is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = input as Record<string, unknown>;
+        const rawPath =
+          (typeof raw['path'] === 'string' ? raw['path'] : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'scan path is outside the project root' };
         }

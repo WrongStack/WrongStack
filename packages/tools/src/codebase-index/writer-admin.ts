@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
+import { buildIndexableText } from './bm25.js';
 import type { FileMeta, IndexStats, SymbolKind, SymbolLang } from './schema.js';
 import { SCHEMA_VERSION } from './schema.js';
 
@@ -12,9 +13,18 @@ type PrepareStatement = (sql: string) => Statement;
 export function getAllIndexableWithStatement(
   stmt: PrepareStatement,
 ): Array<{ id: number; text: string }> {
-  return (stmt('SELECT id, text FROM symbols').all() as { id: number; text: string }[]).map(
-    ({ id, text }) => ({ id, text }),
-  );
+  // P4: symbols.text is no longer persisted — derive the fallback-corpus text
+  // from the same fields the FTS index uses, so BM25 fallback and FTS agree.
+  const rows = stmt('SELECT id, name, signature, doc_comment FROM symbols').all() as Array<{
+    id: number;
+    name: string;
+    signature: string;
+    doc_comment: string;
+  }>;
+  return rows.map((row) => ({
+    id: row.id,
+    text: buildIndexableText(row.name, row.signature, row.doc_comment),
+  }));
 }
 
 export function getMaxSymbolIdWithStatement(stmt: PrepareStatement): number {

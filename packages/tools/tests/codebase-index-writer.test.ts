@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type {
   Symbol as IndexSymbol,
@@ -71,7 +72,7 @@ describe('IndexStore search filters', () => {
           kind: 'class',
           lang: 'ts',
           file: '/p/user.ts',
-          text: 'UserClass entity',
+          docComment: 'entity docs',
         }),
         sym({
           name: 'helperFn',
@@ -118,6 +119,7 @@ describe('IndexStore search filters', () => {
   });
 
   it('matches text tokens in the query', () => {
+    // P4: the searchable "text" domain is now name + signature + doc_comment.
     const r = store.search('entity');
     expect(r.map((x) => x.name)).toContain('UserClass');
   });
@@ -740,5 +742,132 @@ describe('P4.12 statement-cache buckets', () => {
       store.close();
       await fs.rm(bucketRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe('IndexStore.optimizeFtsIfNeeded (P2 churn gate)', () => {
+  it('records churn on inserts and deletes and stays gated below the threshold', () => {
+    store.insertSymbols([
+      sym({ name: 'alpha', file: '/w/a.ts' }),
+      sym({ name: 'beta', file: '/w/a.ts' }),
+    ]);
+    expect(Number(store.getMetadata('fts_churn_since_maintain') ?? '0')).toBe(2);
+    store.deleteFile('/w/a.ts');
+    expect(Number(store.getMetadata('fts_churn_since_maintain') ?? '0')).toBe(4);
+    // 4 rows of churn sit far below the 5,000-row floor: gated off, no reset.
+    expect(store.optimizeFtsIfNeeded()).toBe(false);
+    expect(Number(store.getMetadata('fts_churn_since_maintain') ?? '0')).toBe(4);
+  });
+
+  it('merges once churn crosses the gate, resets the counter, and keeps search working', () => {
+    store.insertSymbols([
+      sym({ name: 'gamma', file: '/w/b.ts' }),
+      sym({ name: 'delta', file: '/w/b.ts' }),
+    ]);
+    store.setMetadata('fts_churn_since_maintain', '9000');
+    expect(store.optimizeFtsIfNeeded()).toBe(true);
+    expect(Number(store.getMetadata('fts_churn_since_maintain') ?? '-1')).toBe(0);
+    const hits = store.search('gamma');
+    expect(hits.some((h) => h.name === 'gamma')).toBe(true);
+  });
+
+  it('reclaims tombstoned FTS postings measurably (dbstat) when the gate runs', () => {
+    const sig = 'x'.repeat(400);
+    store.insertSymbols(
+      Array.from({ length: 1200 }, (_, i) =>
+        sym({ name: `bulk${i}`, file: '/w/bulk.ts', signature: sig }),
+      ),
+    );
+    const dbPath = path.join(tmpDir, '.idx', 'index.db');
+    const ftsDataKb = (): number => {
+      const probe = new DatabaseSync(dbPath, { readOnly: true });
+      try {
+        const row = probe
+          .prepare(
+            `SELECT SUM(pgsize)/1024.0 AS kb FROM dbstat WHERE name = 'symbols_fts_data'`,
+          )
+          .get() as { kb: number };
+        return row.kb;
+      } finally {
+        probe.close();
+      }
+    };
+    const beforeDelete = ftsDataKb();
+    store.deleteFile('/w/bulk.ts');
+    const afterDelete = ftsDataKb();
+    // All 1,200 rows are gone but their postings remain: FTS5 does not shrink
+    // on delete, and neither VACUUM nor PRAGMA optimize would reclaim them.
+    expect(afterDelete).toBeGreaterThanOrEqual(beforeDelete * 0.9);
+    store.setMetadata('fts_churn_since_maintain', '9000');
+    expect(store.optimizeFtsIfNeeded()).toBe(true);
+    const afterOptimize = ftsDataKb();
+    expect(afterOptimize).toBeLessThan(afterDelete * 0.5);
+  });
+});
+
+describe('symbols.text deprecation (P4)', () => {
+  it('drops the legacy text column on open and keeps reads and writes working', async () => {
+    const legacyRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-p4-legacy-'));
+    try {
+      // Simulate a pre-P4 database: symbols still carrying the `text` column.
+      // The .idx directory does not exist yet — IndexStore creates it, but the
+      // legacy DB must be in place first.
+      await fs.mkdir(path.join(legacyRoot, '.idx'), { recursive: true });
+      const legacy = new DatabaseSync(path.join(legacyRoot, '.idx', 'index.db'));
+      legacy.exec(`
+        CREATE TABLE symbols (
+          id INTEGER PRIMARY KEY,
+          lang TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          name TEXT NOT NULL,
+          file TEXT NOT NULL,
+          line INTEGER NOT NULL,
+          col INTEGER NOT NULL,
+          signature TEXT NOT NULL DEFAULT '',
+          doc_comment TEXT NOT NULL DEFAULT '',
+          scope TEXT NOT NULL DEFAULT '',
+          text TEXT NOT NULL DEFAULT ''
+        );
+        INSERT INTO symbols(id, lang, kind, name, file, line, col)
+        VALUES (1, 'ts', 'function', 'legacyFn', '/w/legacy.ts', 1, 0);
+      `);
+      legacy.close();
+
+      const store = new IndexStore(legacyRoot, { indexDir: path.join(legacyRoot, '.idx') });
+      try {
+        store.insertSymbols([sym({ name: 'postP4', file: '/w/new.ts' })]);
+        const hits = store.search('legacyFn');
+        expect(hits.some((h) => h.name === 'legacyFn')).toBe(true);
+      } finally {
+        store.close();
+      }
+
+      const probe = new DatabaseSync(path.join(legacyRoot, '.idx', 'index.db'), {
+        readOnly: true,
+      });
+      try {
+        const colNames = (
+          probe.prepare('PRAGMA table_info(symbols)').all() as Array<{ name: string }>
+        ).map((c) => c.name);
+        expect(colNames).not.toContain('text');
+        expect(colNames).toContain('name');
+      } finally {
+        probe.close();
+      }
+    } finally {
+      await fs.rm(legacyRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('short-token filter matches derived columns after the text column removal', () => {
+    store.insertSymbols([
+      sym({ name: 'zetaRun', file: '/w/z.ts', signature: 'zetaRun(alphaId: string): void' }),
+      sym({ name: 'unrelated', file: '/w/u.ts', signature: 'unrelated(): void' }),
+    ]);
+    // 'al' only exists inside the first symbol's signature — matched via the
+    // derived signature LIKE now that symbols.text is gone.
+    const { results } = store.searchRanked('zeta al', undefined, 10);
+    expect(results.some((r) => r.name === 'zetaRun')).toBe(true);
+    expect(results.every((r) => r.name !== 'unrelated')).toBe(true);
   });
 });

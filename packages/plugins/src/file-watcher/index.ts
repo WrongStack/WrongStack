@@ -293,8 +293,31 @@ const plugin: Plugin = {
       category: 'Filesystem',
       mutating: false,
       async execute(input: Record<string, unknown>) {
-        const rawPaths = input['paths'];
-        if (!rawPaths || typeof rawPaths !== 'object' || !Array.isArray(rawPaths)) {
+        const explicitPaths = input['paths'];
+        let rawPaths: unknown;
+        if (explicitPaths !== undefined) {
+          if (!Array.isArray(explicitPaths)) {
+            return {
+              ok: false,
+              error: 'paths must be an array of file/directory paths',
+              watch_id: null,
+            };
+          }
+          rawPaths = explicitPaths;
+        } else {
+          const fallback =
+            input['path'] ??
+            input['file'] ??
+            input['directory'] ??
+            input['TargetFile'] ??
+            input['filePath'];
+          rawPaths = Array.isArray(fallback)
+            ? fallback
+            : typeof fallback === 'string' && fallback.trim().length > 0
+              ? [fallback.trim()]
+              : undefined;
+        }
+        if (!rawPaths || !Array.isArray(rawPaths)) {
           return {
             ok: false,
             error: 'paths must be an array of file/directory paths',
@@ -402,9 +425,11 @@ const plugin: Plugin = {
         required: ['watch_id'],
       },
       permission: 'auto',
+      category: 'Filesystem',
       mutating: false,
       async execute(input: Record<string, unknown>) {
-        const watch_id = input['watch_id'] as string;
+        const rawId = input['watch_id'] ?? input['watchId'] ?? input['id'];
+        const watch_id = typeof rawId === 'string' ? rawId.trim() : '';
         const handle = watches.get(watch_id);
 
         if (!handle) {
@@ -416,6 +441,15 @@ const plugin: Plugin = {
             w.close();
           } catch {
             /* ignore — may already be closed */
+          }
+        }
+
+        // Cancel and remove any pending debounce timers associated with this watch ID
+        const prefix = `${watch_id}:`;
+        for (const [key, timer] of debounceTimers.entries()) {
+          if (key.startsWith(prefix)) {
+            clearTimeout(timer);
+            debounceTimers.delete(key);
           }
         }
 

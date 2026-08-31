@@ -124,16 +124,19 @@ const DEFAULTS: FormatOnSaveConfig = {
 function readConfig(raw: unknown): FormatOnSaveConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
+  const rawCovered = r['skipWhenCoveredBy'] ?? r['skip_when_covered_by'] ?? r['skipCovered'] ?? r['skip_covered'];
+  const rawTtl = r['skipTtlMs'] ?? r['skip_ttl_ms'] ?? r['ttlMs'] ?? r['ttl_ms'] ?? r['ttl'];
   return {
     enabled: r['enabled'] !== false,
     timeoutMs:
-      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
-        ? r['timeoutMs']
+      typeof rawTimeout === 'number' && rawTimeout > 0
+        ? rawTimeout
         : DEFAULTS.timeoutMs,
-    skipWhenCoveredBy: r['skipWhenCoveredBy'] !== false,
+    skipWhenCoveredBy: rawCovered !== false,
     skipTtlMs:
-      typeof r['skipTtlMs'] === 'number' && r['skipTtlMs'] >= 0
-        ? r['skipTtlMs']
+      typeof rawTtl === 'number' && rawTtl >= 0
+        ? rawTtl
         : DEFAULTS.skipTtlMs,
   };
 }
@@ -463,8 +466,15 @@ const plugin: Plugin = {
 
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const filePath = inp['path'] as string | undefined;
-      if (!filePath || typeof filePath !== 'string') return;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const filePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
+      if (!filePath) return;
 
       // Cross-plugin coordination: skip if import-organizer already
       // touched this path within the TTL window. import-organizer's

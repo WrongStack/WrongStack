@@ -82,16 +82,18 @@ const DEFAULTS: ConfigValidatorConfig = {
 function readConfig(raw: unknown): ConfigValidatorConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, extensions: [...DEFAULT_EXTENSIONS] };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const rawMax = r['maxFileBytes'] ?? r['max_file_bytes'] ?? r['maxBytes'] ?? r['max_bytes'];
   return {
     enabled: r['enabled'] !== false,
-    extensions: Array.isArray(r['extensions'])
-      ? r['extensions']
-          .filter((e): e is string => typeof e === 'string' && e.startsWith('.'))
-          .map((e) => e.toLowerCase())
+    extensions: Array.isArray(rawExts)
+      ? rawExts
+          .filter((e): e is string => typeof e === 'string' && e.trim().length > 0)
+          .map((e) => (e.trim().startsWith('.') ? e.trim().toLowerCase() : `.${e.trim().toLowerCase()}`))
       : [...DEFAULT_EXTENSIONS],
     maxFileBytes:
-      typeof r['maxFileBytes'] === 'number' && r['maxFileBytes'] >= 1024
-        ? r['maxFileBytes']
+      typeof rawMax === 'number' && rawMax >= 1024
+        ? rawMax
         : DEFAULTS.maxFileBytes,
   };
 }
@@ -414,7 +416,13 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
       state.invocations += 1;
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-      const raw = ti['path'] ?? ti['file_path'] ?? ti['filePath'];
+      const raw =
+        ti['path'] ??
+        ti['file_path'] ??
+        ti['filePath'] ??
+        ti['TargetFile'] ??
+        ti['targetFile'] ??
+        ti['file'];
       if (typeof raw !== 'string' || raw.length === 0) return;
       // This was the only plugin in the package that never imported the
       // sandbox helper: `raw` came straight off the tool call and went into

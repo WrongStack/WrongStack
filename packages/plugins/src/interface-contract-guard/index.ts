@@ -292,7 +292,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['file'];
+      const sourcePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -342,7 +349,17 @@ const plugin: Plugin = {
       async execute(input: { path?: string }) {
         if (!cfg.enabled) return { ok: false, error: 'interface-contract-guard is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };
         }

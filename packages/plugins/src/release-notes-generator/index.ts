@@ -71,19 +71,23 @@ const DEFAULTS: ReleaseNotesGeneratorConfig = {
 };
 
 function readAudience(raw: unknown): ReleaseAudience {
-  return raw === 'developers' || raw === 'operators' || raw === 'users'
-    ? raw
+  const norm = typeof raw === 'string' ? raw.trim().toLowerCase() : '';
+  return norm === 'developers' || norm === 'operators' || norm === 'users'
+    ? (norm as ReleaseAudience)
     : DEFAULTS.audience;
 }
 
-function readConfig(raw: unknown): ReleaseNotesGeneratorConfig {
+export function readConfig(raw: unknown): ReleaseNotesGeneratorConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawScope = r['includeScope'] ?? r['include_scope'];
+  const rawFrom = r['defaultFrom'] ?? r['default_from'] ?? r['from'];
+  const rawLlm = r['useLlm'] ?? r['use_llm'];
   return {
     enabled: r['enabled'] !== false,
-    includeScope: r['includeScope'] !== false,
-    defaultFrom: typeof r['defaultFrom'] === 'string' ? r['defaultFrom'] : DEFAULTS.defaultFrom,
-    useLlm: r['useLlm'] === true,
+    includeScope: rawScope !== false,
+    defaultFrom: typeof rawFrom === 'string' ? rawFrom : DEFAULTS.defaultFrom,
+    useLlm: rawLlm === true,
     audience: readAudience(r['audience']),
   };
 }
@@ -92,9 +96,36 @@ function readConfig(raw: unknown): ReleaseNotesGeneratorConfig {
 // Git + conventional commits
 // ---------------------------------------------------------------------------
 
-type CommitType = 'feat' | 'fix' | 'docs' | 'refactor' | 'perf' | 'test' | 'chore';
+type CommitType =
+  | 'feat'
+  | 'fix'
+  | 'docs'
+  | 'refactor'
+  | 'perf'
+  | 'test'
+  | 'chore'
+  | 'revert'
+  | 'build'
+  | 'ci'
+  | 'style'
+  | 'i18n'
+  | 'a11y';
 
-const CONVENTIONAL_TYPES: CommitType[] = ['feat', 'fix', 'docs', 'refactor', 'perf', 'test', 'chore'];
+const CONVENTIONAL_TYPES: CommitType[] = [
+  'feat',
+  'fix',
+  'docs',
+  'refactor',
+  'perf',
+  'test',
+  'chore',
+  'revert',
+  'build',
+  'ci',
+  'style',
+  'i18n',
+  'a11y',
+];
 
 interface Commit {
   hash: string;
@@ -105,11 +136,11 @@ interface Commit {
 }
 
 function parseConventionalCommit(subject: string): { type: CommitType | 'uncategorized'; scope: string | null; description: string } {
-  const match = subject.match(/^([a-z]+)(?:\(([^)]+)\))?!?:\s*(.+)$/);
+  const match = subject.match(/^([a-zA-Z][a-zA-Z0-9_-]*)(?:\(([^)]+)\))?!?:\s*(.+)$/);
   if (!match) {
     return { type: 'uncategorized', scope: null, description: subject };
   }
-  const rawType = match[1]!;
+  const rawType = match[1]!.toLowerCase();
   const scope = match[2] ?? null;
   const description = match[3]!;
   const type = CONVENTIONAL_TYPES.includes(rawType as CommitType) ? (rawType as CommitType) : 'uncategorized';
@@ -203,7 +234,21 @@ function generateNotes(commits: Commit[], includeScope: boolean): string {
   lines.push(`## Release Notes (${commits.length} commit${commits.length === 1 ? '' : 's'})`);
   lines.push('');
 
-  const order: CommitType[] = ['feat', 'fix', 'perf', 'refactor', 'docs', 'test', 'chore'];
+  const order: CommitType[] = [
+    'feat',
+    'fix',
+    'perf',
+    'refactor',
+    'docs',
+    'test',
+    'chore',
+    'revert',
+    'build',
+    'ci',
+    'style',
+    'i18n',
+    'a11y',
+  ];
   for (const type of order) {
     const list = groups[type];
     if (!list || list.length === 0) continue;
@@ -359,8 +404,13 @@ const plugin: Plugin = {
         if (!cfg.enabled) return { ok: false, error: 'release-notes-generator is disabled' };
         execOpts?.signal?.throwIfAborted();
 
-        const toRef = typeof input.to === 'string' ? input.to : 'HEAD';
-        const fromRef = await resolveFromRef(cfg.defaultFrom, input.from, execOpts?.signal);
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawTo = input.to ?? raw['to_ref'] ?? raw['toRef'] ?? raw['until'] ?? raw['end'];
+        const rawFrom = input.from ?? raw['from_ref'] ?? raw['fromRef'] ?? raw['since'] ?? raw['start'];
+        const rawUseLlm = input.use_llm ?? raw['useLlm'] ?? raw['use_ai'] ?? raw['useAi'];
+        const toRef = typeof rawTo === 'string' && rawTo.trim() ? rawTo.trim() : 'HEAD';
+        const fromInput = typeof rawFrom === 'string' && rawFrom.trim() ? rawFrom.trim() : undefined;
+        const fromRef = await resolveFromRef(cfg.defaultFrom, fromInput, execOpts?.signal);
 
         state.generateCount += 1;
         let commits: Commit[];
@@ -374,7 +424,8 @@ const plugin: Plugin = {
         execOpts?.signal?.throwIfAborted();
 
         const deterministicNotes = generateNotes(commits, cfg.includeScope);
-        const requested = (input.use_llm ?? cfg.useLlm) && commits.length > 0;
+        const requested =
+          ((typeof rawUseLlm === 'boolean' ? rawUseLlm : undefined) ?? cfg.useLlm) && commits.length > 0;
         const audience = readAudience(input.audience ?? cfg.audience);
         const llm = await runOptionalPluginLlm({
           requested,

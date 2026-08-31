@@ -445,9 +445,16 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const toolName = input.toolName ?? '';
-      const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawPath = inp['path'];
-      if (typeof rawPath !== 'string' || rawPath.trim().length === 0) return;
+      const toolInput = (input.toolInput ?? {}) as Record<string, unknown>;
+      const raw =
+        toolInput['path'] ??
+        toolInput['filePath'] ??
+        toolInput['file_path'] ??
+        toolInput['TargetFile'] ??
+        toolInput['targetFile'] ??
+        toolInput['file'];
+      const rawPath = typeof raw === 'string' ? raw : '';
+      if (rawPath.trim().length === 0) return;
       // Never flag .gitignore writes themselves (avoids feedback loops).
       if (basename(rawPath) === '.gitignore') return;
 
@@ -575,7 +582,15 @@ const plugin: Plugin = {
       category: 'Code Quality',
       mutating: true,
       async execute(input: { path?: unknown; pattern?: unknown }) {
-        const rawPath = typeof input?.path === 'string' ? input.path : '';
+        const rawInp = (input ?? {}) as Record<string, unknown>;
+        const raw =
+          rawInp['path'] ??
+          rawInp['filePath'] ??
+          rawInp['file_path'] ??
+          rawInp['TargetFile'] ??
+          rawInp['targetFile'] ??
+          rawInp['file'];
+        const rawPath = typeof raw === 'string' ? raw.trim() : '';
         if (rawPath.length === 0) return { ok: false, reason: 'path is required' };
 
         const resolved = projectRelativePath(rawPath, process.cwd());

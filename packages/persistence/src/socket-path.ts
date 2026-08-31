@@ -38,10 +38,10 @@ export function checkUnixSocketPath(
   socketPath: string,
   platform: NodeJS.Platform = process.platform,
 ): UnixSocketPathCheck {
-  const byteLength = Buffer.byteLength(socketPath, 'utf8');
   if (platform === 'win32') {
-    return { ok: true, byteLength, maxBytes: Number.MAX_SAFE_INTEGER };
+    return { ok: true, byteLength: socketPath.length, maxBytes: Number.MAX_SAFE_INTEGER };
   }
+  const byteLength = Buffer.byteLength(socketPath, 'utf8');
   const maxBytes = unixSocketPathLimit(platform);
   return { ok: byteLength <= maxBytes, byteLength, maxBytes };
 }

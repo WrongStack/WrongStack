@@ -64,22 +64,22 @@ describe('codemap graph cache', () => {
     expect(getCachedCodemapBody('large-4', 'v')).toBe(body);
   });
 
-  it('reads index.db mtime:size as the version fingerprint', () => {
+  it('reads index.db mtime:size as the version fingerprint', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemap-cache-'));
     try {
       const dbPath = path.join(dir, 'index.db');
       fs.writeFileSync(dbPath, 'sqlite');
-      const version = indexDbVersion('/any', dir);
+      const version = await indexDbVersion('/any', dir);
       expect(version).toMatch(/^\d+(\.\d+)?:\d+$/);
       const st = fs.statSync(dbPath);
       expect(version).toBe(`${st.mtimeMs}:${st.size}`);
-      expect(indexDbVersion('/missing', path.join(dir, 'nope'))).toBe('missing');
+      expect(await indexDbVersion('/missing', path.join(dir, 'nope'))).toBe('missing');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it('includes WAL file stats in the fingerprint so WAL-mode writes invalidate the cache', () => {
+  it('includes WAL file stats in the fingerprint so WAL-mode writes invalidate the cache', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'codemap-cache-wal-'));
     try {
       const dbPath = path.join(dir, 'index.db');
@@ -87,11 +87,11 @@ describe('codemap graph cache', () => {
       fs.writeFileSync(dbPath, 'sqlite');
 
       // Without WAL — base fingerprint.
-      const versionNoWal = indexDbVersion('/any', dir);
+      const versionNoWal = await indexDbVersion('/any', dir);
 
       // Simulate a WAL write (indexer writes to index.db-wal, not index.db).
       fs.writeFileSync(walPath, 'wal-data');
-      const versionWithWal = indexDbVersion('/any', dir);
+      const versionWithWal = await indexDbVersion('/any', dir);
 
       // The fingerprint must change when a WAL file appears.
       expect(versionWithWal).not.toBe(versionNoWal);
@@ -99,12 +99,12 @@ describe('codemap graph cache', () => {
 
       // A subsequent WAL append (more data written) must also invalidate.
       fs.writeFileSync(walPath, 'wal-data-appended');
-      const versionAfterAppend = indexDbVersion('/any', dir);
+      const versionAfterAppend = await indexDbVersion('/any', dir);
       expect(versionAfterAppend).not.toBe(versionWithWal);
 
       // Deleting the WAL (post-checkpoint) reverts to the base fingerprint.
       fs.rmSync(walPath);
-      expect(indexDbVersion('/any', dir)).toBe(versionNoWal);
+      expect(await indexDbVersion('/any', dir)).toBe(versionNoWal);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

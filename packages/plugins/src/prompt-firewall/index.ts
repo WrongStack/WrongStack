@@ -587,8 +587,9 @@ export function readConfig(raw: unknown): PromptFirewallConfig {
   };
   if (!raw || typeof raw !== 'object') return base;
   const r = raw as Record<string, unknown>;
-  const allow: RegExp[] = Array.isArray(r['allow'])
-    ? r['allow']
+  const rawAllow = r['allow'] ?? r['allowlist'] ?? r['allowed'];
+  const allow: RegExp[] = Array.isArray(rawAllow)
+    ? (rawAllow as unknown[])
         .filter((s): s is string => typeof s === 'string' && s.length > 0)
         .flatMap((s) => {
           try {
@@ -598,10 +599,15 @@ export function readConfig(raw: unknown): PromptFirewallConfig {
           }
         })
     : [];
+  const rawMode = typeof (r['mode'] ?? r['action'] ?? r['behavior']) === 'string'
+    ? String(r['mode'] ?? r['action'] ?? r['behavior']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'warn' ? 'warn' : rawMode === 'block' ? 'block' : 'redact';
+  const rawScan = r['scanResponse'] ?? r['scan_response'];
   return {
     enabled: r['enabled'] === true,
-    mode: r['mode'] === 'warn' ? 'warn' : r['mode'] === 'block' ? 'block' : 'redact',
-    scanResponse: r['scanResponse'] !== false,
+    mode,
+    scanResponse: rawScan !== false,
     allow,
   };
 }
@@ -819,11 +825,9 @@ const plugin: Plugin = {
     function redactResponse(response: unknown, allow: RegExp[], skip?: ReadonlySet<string>): unknown {
       if (!response || typeof response !== 'object') return response;
       const counter = { n: 0 };
-      const content = (response as { content?: unknown }).content;
-      if (content === undefined) return response;
       const budget: ScanBudget = { remaining: RESPONSE_SCAN_BUDGET, truncated: false };
       const deadline = createScanDeadline();
-      const redacted = redactDeep(content, allow, counter, skip, budget, deadline);
+      const redacted = redactDeep(response, allow, counter, skip, budget, deadline);
       if (deadline.tripped.size > 0) surfaceScanTrips(api, deadline.tripped);
       // Only a real skip (budget.truncated) latches the flag — an exact-fit
       // walk that legitimately drives `remaining` to 0 is not truncation.
@@ -843,7 +847,7 @@ const plugin: Plugin = {
           when: new Date().toISOString(),
         };
       }
-      return { ...(response as Record<string, unknown>), content: redacted };
+      return redacted;
     }
 
     api.tools.register({

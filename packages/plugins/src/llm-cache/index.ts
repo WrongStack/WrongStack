@@ -111,15 +111,19 @@ const DEFAULTS: LlmCacheConfig = {
 function readConfig(raw: unknown): LlmCacheConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawMax = r['maxEntries'] ?? r['max_entries'] ?? r['limit'];
+  const rawTtl = r['ttlMs'] ?? r['ttl_ms'] ?? r['ttl'];
+  const rawDet = r['onlyDeterministic'] ?? r['only_deterministic'];
+  const rawZero = r['zeroUsageOnHit'] ?? r['zero_usage_on_hit'] ?? r['zeroUsage'] ?? r['zero_usage'];
   return {
     enabled: r['enabled'] === true,
     maxEntries:
-      typeof r['maxEntries'] === 'number' && r['maxEntries'] >= 1
-        ? Math.floor(r['maxEntries'])
+      typeof rawMax === 'number' && rawMax >= 1
+        ? Math.floor(rawMax)
         : DEFAULTS.maxEntries,
-    ttlMs: typeof r['ttlMs'] === 'number' && r['ttlMs'] >= 0 ? r['ttlMs'] : DEFAULTS.ttlMs,
-    onlyDeterministic: r['onlyDeterministic'] !== false,
-    zeroUsageOnHit: r['zeroUsageOnHit'] === true,
+    ttlMs: typeof rawTtl === 'number' && rawTtl >= 0 ? rawTtl : DEFAULTS.ttlMs,
+    onlyDeterministic: rawDet !== false,
+    zeroUsageOnHit: rawZero === true,
   };
 }
 
@@ -162,6 +166,11 @@ export function fingerprintRequest(request: Record<string, unknown>): string {
   const cached = fingerprintCache.get(request);
   if (cached) return cached;
 
+  const rawTools =
+    request['tools'] ??
+    request['tool_definitions'] ??
+    request['toolDefinitions'] ??
+    request['functions'];
   const subset = {
     maxTokens: request['maxTokens'] ?? null,
     messages: request['messages'] ?? null,
@@ -171,8 +180,8 @@ export function fingerprintRequest(request: Record<string, unknown>): string {
     stopSequences: request['stopSequences'] ?? null,
     system: request['system'] ?? null,
     temperature: request['temperature'] ?? null,
-    tools: Array.isArray(request['tools'])
-      ? (request['tools'] as Array<{ name?: unknown }>).map((t) => t?.name ?? t)
+    tools: Array.isArray(rawTools)
+      ? (rawTools as Array<{ name?: unknown }>).map((t) => t?.name ?? t)
       : null,
     topK: request['topK'] ?? null,
     topP: request['topP'] ?? null,
@@ -342,7 +351,16 @@ const plugin: Plugin = {
           // Only cache well-formed responses that ended cleanly — never
           // cache a truncated / refusal / error-shaped response.
           const sr = response && typeof response === 'object' ? response.stopReason : undefined;
-          if (response && typeof response === 'object' && (sr === 'end_turn' || sr === 'stop' || sr === 'tool_use')) {
+          const normSr = typeof sr === 'string' ? sr.toLowerCase() : '';
+          const validStopReasons = new Set([
+            'end_turn',
+            'stop',
+            'tool_use',
+            'tool_calls',
+            'function_call',
+            'stop_sequence',
+          ]);
+          if (response && typeof response === 'object' && validStopReasons.has(normSr)) {
             lruSet(key, response, cfg.maxEntries);
           }
           return response;

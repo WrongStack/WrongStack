@@ -391,7 +391,7 @@ const plugin: Plugin = {
       // so we save the subprocess spawn.
       const oldStr = String(inp['old_string'] ?? inp['TargetContent'] ?? inp['oldContent'] ?? '');
       const newStr = String(inp['new_string'] ?? inp['ReplacementContent'] ?? inp['newContent'] ?? '');
-      const contentStr = String(inp['content'] ?? inp['CodeContent'] ?? inp['code'] ?? '');
+      const contentStr = String(inp['content'] ?? inp['CodeContent'] ?? inp['code'] ?? inp['text'] ?? inp['contents'] ?? inp['body'] ?? '');
       // Three-way shape: hash old/new when EITHER is present, else the
       // write-content. (Gating the old/new branch on `toolName === 'edit'`
       // collapsed every edit that populates other field aliases to the

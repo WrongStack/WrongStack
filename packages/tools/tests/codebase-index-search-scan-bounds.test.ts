@@ -63,7 +63,7 @@ beforeEach(async () => {
     sym({ name: 'gamma', file: '/p/c.ts', text: 'gamma three' }),
     sym({ name: 'userXid', file: '/p/d.ts', text: 'userXid four' }),
     sym({ name: 'user_id', file: '/p/e.ts', text: 'user_id five' }),
-    sym({ name: 'pctLiteral', file: '/p/f.ts', text: 'holds a 100% literal' }),
+    sym({ name: 'pctLiteral', file: '/p/f.ts', signature: 'pct(share: 100%): void' }),
   ]);
 });
 
@@ -75,8 +75,9 @@ afterEach(async () => {
 describe('LIKE wildcard escaping (WS-031)', () => {
   it('does not let a bare % select the whole corpus — the exact amplifier', () => {
     // Before: `text LIKE '%%%'` matched all six rows. After: `%` is content,
-    // so it matches only the one row whose text literally contains a percent
-    // sign. "Matches nothing" would be the wrong fix — see the next test.
+    // so it matches only the one row whose persisted columns literally contain
+    // a percent sign. "Matches nothing" would be the wrong fix — see the next
+    // test.
     expect(store.search('%').map((r) => r.name)).toEqual(['pctLiteral']);
     expect(store.search('%%%%')).toEqual([]);
   });
@@ -128,9 +129,9 @@ describe('ranked fallback candidate bound (WS-031)', () => {
 
   it('reports total from SQL COUNT(*), so the cap cannot understate the match count', () => {
     forceLegacyRankedPath(store);
-    // Four rows contain "e" in their text; ask for two. `total` used to be the
-    // length of the materialized candidate array, which is precisely the value
-    // a scan cap would corrupt.
+    // Several rows contain "e" in their persisted columns; ask for two.
+    // `total` used to be the length of the materialized candidate array, which
+    // is precisely the value a scan cap would corrupt.
     const out = store.searchRanked('e', undefined, 2);
     expect(out.results.length).toBeLessThanOrEqual(2);
     expect(out.total).toBeGreaterThan(out.results.length);

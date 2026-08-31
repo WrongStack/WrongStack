@@ -243,7 +243,13 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawPath = inp['path'] ?? inp['filePath'] ?? inp['file_path'];
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
       const sourcePath = typeof rawPath === 'string' ? rawPath : undefined;
       if (!sourcePath || !withinProject(sourcePath)) return;
 

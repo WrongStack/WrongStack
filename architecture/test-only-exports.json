@@ -1014,6 +1014,9 @@
       "resetIndexStateForTesting",
       "setIndexReady"
     ],
+    "packages/tools/src/codebase-index/bm25.ts": [
+      "FTS_SIGNATURE_MAX_CHARS"
+    ],
     "packages/tools/src/codebase-index/content-hash.ts": [
       "parseContentHash",
       "xxhash64Hex"
@@ -1027,6 +1030,9 @@
     ],
     "packages/tools/src/codebase-index/indexer.ts": [
       "shouldUseParserWorkerPool"
+    ],
+    "packages/tools/src/codebase-index/json-parser.ts": [
+      "JSON_MAX_SYMBOLS_DEFAULT"
     ],
     "packages/tools/src/codebase-index/lsp-kind.ts": [
       "isLspKind",

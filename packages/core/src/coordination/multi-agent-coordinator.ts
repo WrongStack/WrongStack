@@ -97,6 +97,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
 
   private pendingTasks: TaskSpec[] = [];
   private completedResults: TaskResult[] = [];
+  private readonly completedResultsById = new Map<string, TaskResult>();
   /** Prevents completedResults from growing unbounded in long-running coordinators. */
   private static readonly MAX_COMPLETED_RESULTS = 200_000;
   /** Caps each subagent's retained task history (see assign()); bounds RAM + the recordCompletion lookup. */
@@ -504,7 +505,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     const timeoutMs = opts?.timeoutMs ?? this.config.timeoutMs ?? 300_000;
     return Promise.all(
       taskIds.map((id) => {
-        const cached = this.completedResults.find((r) => r.taskId === id);
+        const cached = this.completedResultsById.get(id);
         if (cached) return cached;
         // Fallback: poll until the task completes (up to timeoutMs).
         // The coordinator fires 'task.completed' on every result, so
@@ -538,12 +539,16 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
    * business timing out unless the caller asks for a window explicitly.
    */
   async awaitTasksAny(taskIds: string[], opts?: { timeoutMs?: number }): Promise<AwaitAnyResult> {
-    const ids = new Set(taskIds);
-    const completed = this.completedResults.filter((r) => ids.has(r.taskId));
-    if (completed.length > 0 || ids.size === 0) {
+    const completed: TaskResult[] = [];
+    for (const id of taskIds) {
+      const cached = this.completedResultsById.get(id);
+      if (cached) completed.push(cached);
+    }
+    if (completed.length > 0 || taskIds.length === 0) {
       const done = new Set(completed.map((r) => r.taskId));
       return { completed, pending: taskIds.filter((id) => !done.has(id)) };
     }
+    const ids = new Set(taskIds);
     return new Promise<AwaitAnyResult>((resolve) => {
       let timer: ReturnType<typeof setTimeout> | undefined;
       const handler = ({ result }: { task: TaskSpec; result: TaskResult }) => {
@@ -743,22 +748,26 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       toolCalls: 0,
       durationMs: 0,
     };
-    this.completedResults.push(synthetic);
-    // Bypassing `recordCompletion` must not also bypass its result cap. A
-    // coordinator whose fleet has died synthetic-completes every task the
-    // caller keeps assigning, and with no real completion ever running the
-    // trim again, these were the one path that could grow `completedResults`
-    // past MAX_COMPLETED_RESULTS without bound.
-    this.trimCompletedResults();
+    this.pushCompletedResult(synthetic);
     this.emit('task.completed', { task, result: synthetic });
+  }
+
+  private pushCompletedResult(result: TaskResult): void {
+    this.completedResults.push(result);
+    this.completedResultsById.set(result.taskId, result);
+    this.trimCompletedResults();
   }
 
   private trimCompletedResults(): void {
     if (this.completedResults.length > DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS) {
-      this.completedResults.splice(
-        0,
-        this.completedResults.length - DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS,
-      );
+      const dropCount =
+        this.completedResults.length - DefaultMultiAgentCoordinator.MAX_COMPLETED_RESULTS;
+      const dropped = this.completedResults.splice(0, dropCount);
+      for (const item of dropped) {
+        if (this.completedResultsById.get(item.taskId) === item) {
+          this.completedResultsById.delete(item.taskId);
+        }
+      }
     }
   }
 
@@ -991,10 +1000,7 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
   }
 
   private recordCompletion(result: TaskResult): void {
-    this.completedResults.push(result);
-    // Trim oldest entries when the cap is exceeded — keep the most recent
-    // results so /fleet and roll_up still have data to work with.
-    this.trimCompletedResults();
+    this.pushCompletedResult(result);
     this.totalIterations += result.iterations;
     if (this.inFlight > 0) {
       this.inFlight--;

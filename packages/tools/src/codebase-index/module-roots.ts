@@ -64,7 +64,7 @@ export interface ProjectStructure {
 
 /** Normalize to forward slashes; every path in this module is compared this way. */
 export function toPortablePath(file: string): string {
-  return file.replace(/\\/g, '/');
+  return file.includes('\\') ? file.replace(/\\/g, '/') : file;
 }
 
 async function readTextIfPresent(file: string): Promise<string | undefined> {

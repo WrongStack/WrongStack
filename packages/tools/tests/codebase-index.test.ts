@@ -12,7 +12,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetIndexStateForTesting } from '../src/codebase-index/background-indexer.js';
-import { buildBm25Index, tokenise } from '../src/codebase-index/bm25.js';
+import { buildBm25Index, buildIndexableText, FTS_SIGNATURE_MAX_CHARS, tokenise } from '../src/codebase-index/bm25.js';
 import { codebaseIndexTool } from '../src/codebase-index/codebase-index-tool.js';
 import { codebaseSearchTool } from '../src/codebase-index/codebase-search-tool.js';
 import { codebaseStatsTool } from '../src/codebase-index/codebase-stats-tool.js';
@@ -159,6 +159,49 @@ describe('BM25', () => {
       expect(results.length).toBe(1);
       expect(results[0].id).toBe(2);
     });
+  });
+});
+
+// ─── buildIndexableText FTS signature cap (P1) ────────────────────────────────
+
+describe('buildIndexableText signature cap', () => {
+  it('drops callable bodies but keeps the declaration header', () => {
+    const sig = 'function process(items: string[]): number { const n = items.length; return n; }';
+    const text = buildIndexableText('process', sig, '');
+    expect(text).toContain('function process(items: string[]): number');
+    expect(text).not.toContain('items.length');
+  });
+
+  it('keeps destructured parameters searchable', () => {
+    const sig = 'function apply({ userId, mode }: Options): void { userId = mode; }';
+    const text = buildIndexableText('apply', sig, '');
+    expect(text).toContain('{ userId, mode }: Options');
+    expect(text).not.toContain('userId = mode');
+  });
+
+  it('keeps object-shaped return types and cuts only the body', () => {
+    const sig = 'function make(): { value: string } { return { value: "x" }; }';
+    const text = buildIndexableText('make', sig, '');
+    expect(text).toContain('{ value: string }');
+    expect(text).not.toContain('"x"');
+  });
+
+  it('keeps declarations without parameter-list + body pairs whole', () => {
+    const typeSig = 'type Result = { value: string; count: number }';
+    expect(buildIndexableText('Result', typeSig, '')).toContain('value: string; count: number');
+    const iface = 'interface Handler { handle(req: Request): Response }';
+    expect(buildIndexableText('Handler', iface, '')).toContain('handle(req: Request): Response');
+  });
+
+  it('caps oversized headers at FTS_SIGNATURE_MAX_CHARS', () => {
+    const long = `function big(${'a'.repeat(400)}: string): void {}`;
+    const text = buildIndexableText('big', long, '');
+    expect(text.length).toBeLessThan(long.length);
+    expect(text).not.toContain('{}');
+  });
+
+  it('exports FTS_SIGNATURE_MAX_CHARS = 300', () => {
+    expect(FTS_SIGNATURE_MAX_CHARS).toBe(300);
   });
 });
 

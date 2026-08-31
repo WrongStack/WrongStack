@@ -28,7 +28,11 @@ export function getFilePackagesWithStatement(
     file: string;
     package: string;
   }>;
-  return new Map(rows.map((row) => [row.file, row.package]));
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    map.set(row.file, row.package);
+  }
+  return map;
 }
 
 export function getUnresolvedImportsWithStatement(

@@ -632,31 +632,37 @@ const plugin: Plugin = {
         try {
           let type = input['type'] as ConventionalType | undefined;
           let scope = input['scope'] as string | undefined;
-          let summary = (input['message'] as string | undefined) ?? '';
+          let summary = ((input['message'] ?? input['summary'] ?? input['msg'] ?? input['description']) as string | undefined) ?? '';
           let body = input['body'] as string | undefined;
-          const dryRun = (input['dry_run'] as boolean) ?? false;
+          const dryRun = (input['dry_run'] ?? input['dryRun'] as boolean) ?? false;
 
           // LLM message generation is opt-in and only runs when the host
           // wired `api.llm`: an explicit `generate: true`, or the `useLlm`
           // config flag when the caller supplied neither type nor message.
-          const explicitAsk = input['generate'] === true;
+          const explicitAsk = (input['generate'] ?? input['autoGenerate'] ?? input['auto_generate']) === true;
           const autoAsk =
             opts.useLlm && !input['type'] && !(input['message'] as string | undefined);
           const wantGenerate = (explicitAsk || autoAsk) && Boolean(api.llm);
 
           // Validate files input shape early.
           let files: string[] | undefined;
-          const rawFiles = input['files'];
+          const rawFiles = input['files'] ?? input['fileList'] ?? input['file_list'];
           if (rawFiles !== undefined) {
             if (!Array.isArray(rawFiles)) {
               return { ok: false, error: 'files must be an array of file paths' };
             }
             files = rawFiles;
+          } else if (typeof (input['file'] ?? input['file_path']) === 'string' && String(input['file'] ?? input['file_path']).trim().length > 0) {
+            files = [String(input['file'] ?? input['file_path']).trim()];
+          } else if (typeof input['filePath'] === 'string' && input['filePath'].trim().length > 0) {
+            files = [input['filePath'].trim()];
+          } else if (typeof (input['TargetFile'] ?? input['targetFile']) === 'string' && String(input['TargetFile'] ?? input['targetFile']).trim().length > 0) {
+            files = [String(input['TargetFile'] ?? input['targetFile']).trim()];
           }
 
           // Validate paths input shape early.
           let pathspecs: string[] | undefined;
-          const rawPaths = input['paths'];
+          const rawPaths = input['paths'] ?? input['pathList'] ?? input['path_list'];
           if (rawPaths !== undefined) {
             if (!Array.isArray(rawPaths)) {
               return { ok: false, error: 'paths must be an array of pathspec patterns' };
@@ -665,15 +671,17 @@ const plugin: Plugin = {
             if (pathspecs.length === 0) {
               return { ok: false, error: 'paths must contain at least one non-empty pattern' };
             }
-            // Reject the combination rather than silently dropping one side:
-            // previously `files` was ignored whenever `paths` was present.
-            if (files && files.length > 0) {
-              return {
-                ok: false,
-                error:
-                  'Pass either files (exact paths) or paths (pathspec globs), not both — the other would be silently ignored.',
-              };
-            }
+          } else if (typeof input['path'] === 'string' && input['path'].trim().length > 0) {
+            pathspecs = [input['path'].trim()];
+          }
+
+          // Reject the combination rather than silently dropping one side:
+          if (rawPaths !== undefined && files && files.length > 0) {
+            return {
+              ok: false,
+              error:
+                'Pass either files (exact paths) or paths (pathspec globs), not both — the other would be silently ignored.',
+            };
           }
 
           // --- Scope guard: resolve what this call owns before touching git.
@@ -921,7 +929,7 @@ const plugin: Plugin = {
           lastCommit.hash = String(hash);
           lastCommit.at = new Date().toISOString();
           try {
-            await api.session.append({
+            await api.session?.append?.({
               type: 'git-autocommit:commit',
               ts: new Date().toISOString(),
               hash: String(hash),

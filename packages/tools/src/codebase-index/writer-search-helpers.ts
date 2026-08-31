@@ -81,14 +81,27 @@ export function buildWriterSearchWhere(
   if (query.trim()) {
     // WS-031: the token pattern MUST be escaped, like every other LIKE in this
     // builder. Unescaped, `%` and `_` from the caller's query stay live
-    // wildcards: the one-character query `%` compiles to `text LIKE '%%%'`,
-    // which matches every row in `symbols` — a whole-corpus scan and
-    // materialization from a single tool argument. `_` is the quieter half of
-    // the same bug: it is common in real symbol names (`user_id`), where it
-    // silently matched any character and inflated the candidate set.
+    // wildcards: the one-character query `%` compiles to a `LIKE '%%%'`
+    // against every derived column, which matches every row in `symbols` — a
+    // whole-corpus scan and materialization from a single tool argument. `_`
+    // is the quieter half of the same bug: it is common in real symbol names
+    // (`user_id`), where it silently matched any character and inflated the
+    // candidate set.
+    // P4: symbols.text is no longer persisted — tokens match the same
+    // coverage via the derived columns (text was name + signature + doc).
     const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-    conditions.push(`(${tokens.map(() => "text LIKE ? ESCAPE '\\'").join(' OR ')})`);
-    for (const token of tokens) values.push(`%${escapeLike(token)}%`);
+    conditions.push(
+      `(${tokens
+        .map(
+          () =>
+            "(name LIKE ? ESCAPE '\\' OR signature LIKE ? ESCAPE '\\' OR doc_comment LIKE ? ESCAPE '\\')",
+        )
+        .join(' OR ')})`,
+    );
+    for (const token of tokens) {
+      const like = `%${escapeLike(token)}%`;
+      values.push(like, like, like);
+    }
   }
 
   return { where: conditions.length ? `WHERE ${conditions.join(' AND ')}` : '', values };

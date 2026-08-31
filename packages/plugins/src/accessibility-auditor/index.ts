@@ -102,17 +102,23 @@ const DEFAULTS: AccessibilityAuditorConfig = {
 function readConfig(raw: unknown): AccessibilityAuditorConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'];
+  const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
+  const rawSeverity = typeof (r['severity'] ?? r['mode'] ?? r['action']) === 'string'
+    ? String(r['severity'] ?? r['mode'] ?? r['action']).trim().toLowerCase()
+    : undefined;
+  const severity = rawSeverity === 'block' ? 'block' : DEFAULTS.severity;
   return {
     enabled: r['enabled'] !== false,
-    includeExtensions: Array.isArray(r['includeExtensions'])
-      ? (r['includeExtensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    includeExtensions: Array.isArray(rawExts)
+      ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.includeExtensions,
     maxFindings:
-      typeof r['maxFindings'] === 'number' && r['maxFindings'] >= 1 && r['maxFindings'] <= 500
-        ? r['maxFindings']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
+        ? rawMax
         : DEFAULTS.maxFindings,
-    severity: r['severity'] === 'block' ? 'block' : DEFAULTS.severity,
-    onWriteEdit: r['onWriteEdit'] !== false,
+    severity,
+    onWriteEdit: (r['onWriteEdit'] ?? r['on_write_edit'] ?? r['onSave']) !== false,
   };
 }
 
@@ -278,7 +284,7 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
       }
 
       // Placeholder used as a label proxy is a common low-contrast / usability issue.
-      if (ATTR_PLACEHOLDER.test(tag)) {
+      if (!hasPrimaryLabel && ATTR_PLACEHOLDER.test(tag)) {
         add(lineNo, 'low-contrast-placeholder', 'warning', '<input> uses placeholder text (often low contrast and disappears on input)');
       }
     }
@@ -458,7 +464,13 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const rawPath = inp['path'] ?? inp['filePath'] ?? inp['file_path'];
+      const rawPath =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['file'];
       const sourcePath = typeof rawPath === 'string' ? rawPath : undefined;
       if (!sourcePath) return;
       if (!withinProject(sourcePath)) return;
@@ -509,10 +521,18 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: { path: string }) {
         if (!cfg.enabled) return { ok: false, error: 'accessibility-auditor is disabled' };
-        const rawPath = input.path;
-        if (!rawPath || typeof rawPath !== 'string') {
-          return { ok: false, error: 'path is required' };
-        }
+        const raw = input as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path must be inside the project' };
         }

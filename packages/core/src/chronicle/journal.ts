@@ -484,10 +484,11 @@ export async function collectPartitions(basePath: string): Promise<string[]> {
     /* ok */
   }
   const baseFile = path.join(dir, base + ext);
+  const hasBase = result.includes(baseFile);
   const rotated = result
     .filter((file) => file !== baseFile)
     .sort((left, right) => parseIndex(left, base, ext) - parseIndex(right, base, ext));
-  return [baseFile, ...rotated];
+  return hasBase ? [baseFile, ...rotated] : rotated;
 }
 
 async function collectJournalPartitions(basePath: string): Promise<string[]> {

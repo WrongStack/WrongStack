@@ -56,6 +56,7 @@ export function resolveContainedPath(root: string, ...segments: string[]): strin
   const resolvedRoot = path.resolve(root);
   const candidate = path.resolve(resolvedRoot, ...segments);
   if (candidate === resolvedRoot) return null;
-  if (!candidate.startsWith(resolvedRoot + path.sep)) return null;
+  const prefix = resolvedRoot.endsWith(path.sep) ? resolvedRoot : resolvedRoot + path.sep;
+  if (!candidate.startsWith(prefix)) return null;
   return candidate;
 }

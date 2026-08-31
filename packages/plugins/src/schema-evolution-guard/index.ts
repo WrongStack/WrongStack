@@ -99,18 +99,23 @@ const DEFAULTS: SchemaEvolutionConfig = {
 function readConfig(raw: unknown): SchemaEvolutionConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawSev = typeof (r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']) === 'string'
+    ? String(r['failSeverity'] ?? r['fail_severity'] ?? r['severity'] ?? r['mode']).trim().toLowerCase()
+    : undefined;
+  const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
+  const rawPatterns = r['filePatterns'] ?? r['file_patterns'] ?? r['patterns'];
   return {
     enabled: r['enabled'] !== false,
-    failSeverity: r['failSeverity'] === 'block' ? 'block' : DEFAULTS.failSeverity,
+    failSeverity: rawSev === 'block' ? 'block' : DEFAULTS.failSeverity,
     maxFindings:
-      typeof r['maxFindings'] === 'number' &&
-      Number.isFinite(r['maxFindings']) &&
-      r['maxFindings'] >= 1 &&
-      r['maxFindings'] <= 50
-        ? Math.floor(r['maxFindings'])
+      typeof rawMax === 'number' &&
+      Number.isFinite(rawMax) &&
+      rawMax >= 1 &&
+      rawMax <= 50
+        ? Math.floor(rawMax)
         : DEFAULTS.maxFindings,
-    filePatterns: Array.isArray(r['filePatterns'])
-      ? (r['filePatterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    filePatterns: Array.isArray(rawPatterns)
+      ? (rawPatterns as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.filePatterns,
   };
 }

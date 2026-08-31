@@ -36,7 +36,10 @@ interface Bm25Doc {
  * conventionally split words in snake_case identifiers).
  */
 export function tokenise(text: string): string[] {
-  return text.replace(TOKENISE_RE, ' ').toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!text) return [];
+  const cleaned = text.replace(TOKENISE_RE, ' ').toLowerCase().trim();
+  if (!cleaned) return [];
+  return cleaned.split(/\s+/);
 }
 
 interface IndexableDoc {
@@ -51,7 +54,10 @@ interface IndexableDoc {
  * This allows a query for "complex" to match "complexOperation"
  * via the shared "complex" token.
  */
+const SPLIT_CANDIDATE_RE = /[A-Z_\d-]/;
+
 function splitName(name: string): string {
+  if (!name || !SPLIT_CANDIDATE_RE.test(name)) return name;
   return (
     name
       // Split an acronym from the word that follows it: HTTPServer → HTTP Server.
@@ -66,13 +72,92 @@ function splitName(name: string): string {
 }
 
 /**
+ * Max chars of `signature` fed to the FTS index (P1, 2026-08-30).
+ *
+ * `signature` stores the full printed declaration — often including the whole
+ * function body, because `ts-parser`'s getSignature uses `printer.printNode`
+ * (capped at 500 chars). Measured on the live 131k-row index: ts+tsx signature
+ * text was ~70% of all trigram FTS input, and capping to the declaration
+ * header cut FTS size 47% and insert time 20-32%. Only the FTS *input* is
+ * capped; the stored `signature` column (display, embeddings fallback) is
+ * untouched.
+ */
+export const FTS_SIGNATURE_MAX_CHARS = 300;
+
+/**
+ * Reduce a signature to its declaration header for indexing purposes.
+ * The body boundary is syntax-aware (see {@link declarationBodyStart}) so that
+ * destructured parameters and object-shaped declarations keep their searchable
+ * terms; everything from the detected body `{` onward is dropped. Signatures
+ * without a body brace pass through, still bounded by
+ * {@link FTS_SIGNATURE_MAX_CHARS}.
+ */
+function ftsSignature(signature: string): string {
+  if (!signature) return '';
+  const bodyStart = declarationBodyStart(signature);
+  const header = bodyStart === -1 ? signature : signature.slice(0, bodyStart);
+  return header.slice(0, FTS_SIGNATURE_MAX_CHARS);
+}
+
+/**
+ * Index of the body `{` of a callable declaration, or -1 when none is found.
+ *
+ * Phase 1 tracks the parameter list: only after its closing `)` (paren-depth
+ * back to 0) can a body brace appear — so destructured parameters
+ * (`function f({ userId }: Args) {`) stay in the header. Phase 2 takes the
+ * next depth-0 `{` as the body, skipping any balanced `{...}` pair that opens
+ * directly after `:` (an object-shaped return type: `): { v: string } {`).
+ * Declarations with no parameter list (`type T = { ... }`, `interface I { … }`,
+ * `class C extends B { … }`, JSON `"key": { ... }`) never satisfy phase 1 and
+ * are kept whole — bounded upstream by the 500-char signature cap. Miscounts
+ * (e.g. paren characters inside string-literal defaults) degrade to keeping
+ * the whole signature, never to over-truncation.
+ */
+function declarationBodyStart(s: string): number {
+  let parenDepth = 0;
+  let paramsClosed = false;
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (!paramsClosed) {
+      if (ch === '(') parenDepth++;
+      else if (ch === ')') {
+        parenDepth = Math.max(0, parenDepth - 1);
+        if (parenDepth === 0) paramsClosed = true;
+      }
+      i++;
+      continue;
+    }
+    if (ch === '{') {
+      let j = i - 1;
+      while (j >= 0 && /\s/.test(s[j] ?? '')) j--;
+      if (s[j] === ':') {
+        // Object-shaped return type: skip the balanced pair, keep searching.
+        let braceDepth = 1;
+        i++;
+        while (i < s.length && braceDepth > 0) {
+          if (s[i] === '{') braceDepth++;
+          else if (s[i] === '}') braceDepth--;
+          i++;
+        }
+        continue;
+      }
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+/**
  * Build indexable text for BM25 from a symbol's fields.
  * The name is split into camelCase/SnakeCase words so that queries
  * like "complex" match "complexOperation". The verbatim name is
- * also included for exact-match queries.
+ * also included for exact-match queries. The signature contributes
+ * only its declaration header (see {@link ftsSignature}).
  */
 export function buildIndexableText(name: string, signature: string, docComment: string): string {
-  return [splitName(name), name, signature, docComment].filter(Boolean).join(' ');
+  return [splitName(name), name, ftsSignature(signature), docComment].filter(Boolean).join(' ');
 }
 
 export function buildBm25Index(docs: IndexableDoc[]): Bm25Index {

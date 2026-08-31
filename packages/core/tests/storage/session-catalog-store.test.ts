@@ -36,6 +36,28 @@ function entry(sessionId: string, pid = process.pid): SessionRegistryEntry {
 }
 
 describe('SessionCatalogStore', () => {
+  it('preserves a failed transaction error when SQLite already ended the transaction', async () => {
+    const { store } = await fixture();
+    store.close();
+
+    const original = new Error('disk I/O error');
+    const state = store as unknown as {
+      db: { exec(sql: string): void };
+      transaction<T>(run: () => T): T;
+    };
+    state.db = {
+      exec(sql) {
+        if (sql === 'ROLLBACK') throw new Error('cannot rollback - no transaction is active');
+      },
+    };
+
+    expect(() =>
+      state.transaction(() => {
+        throw original;
+      }),
+    ).toThrow(original);
+  });
+
   it('elects exactly one live writer and requires the exact lease proof', async () => {
     const { store } = await fixture();
     const first = store.claimNew(entry('2026-08-08/sess_a'), 'owner-a');

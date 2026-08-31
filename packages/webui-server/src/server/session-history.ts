@@ -227,7 +227,7 @@ function detailForEvent(e: SessionEvent): string {
     case 'tool_call_start':
       return `id: ${e.id}`;
     case 'tool_call_end':
-      return `${(e.outputBytes ?? e.outputSize ?? 0).toLocaleString()} B · ${e.outputLines ?? 0} lines`;
+      return `${e.outputBytes ?? e.outputSize ?? 0} B · ${e.outputLines ?? 0} lines`;
     case 'tool_progress':
       return `${e.event.type}${e.event.text ? `: ${e.event.text}` : ''}`;
     case 'compaction':
@@ -326,13 +326,7 @@ export function buildInspectPayload(
     endedAt?: string | undefined;
   },
 ): SessionInspectPayload {
-  const inspectEvents: SessionInspectEvent[] = events.map((e) => ({
-    ts: e.ts,
-    type: e.type,
-    label: labelForEvent(e),
-    detail: detailForEvent(e),
-  }));
-
+  const inspectEvents: SessionInspectEvent[] = new Array(events.length);
   const fileEvents: SessionInspectFileEntry[] = [];
   let computedToolCallCount = 0;
   let computedToolErrorCount = 0;
@@ -341,7 +335,16 @@ export function buildInspectPayload(
   let computedMessageCount = 0;
   let computedIterationCount = 0;
   const computedToolBreakdown: Record<string, number> = {};
-  for (const e of events) {
+
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i]!;
+    inspectEvents[i] = {
+      ts: e.ts,
+      type: e.type,
+      label: labelForEvent(e),
+      detail: detailForEvent(e),
+    };
+
     if (e.type === 'file_event') {
       fileEvents.push({
         operation: e.operation,

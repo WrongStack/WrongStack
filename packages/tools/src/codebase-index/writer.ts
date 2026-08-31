@@ -196,16 +196,49 @@ export class IndexStore {
     ];
 
     for (const { table, columns } of expected) {
-      const present = new Set(
-        (this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name?: unknown }>).flatMap(
-          (row) => (typeof row.name === 'string' ? [row.name] : []),
-        ),
-      );
+      const rows = this.db.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+        name?: unknown;
+      }>;
+      const present = new Set<string>();
+      for (const row of rows) {
+        if (typeof row.name === 'string') present.add(row.name);
+      }
       if (present.size === 0) continue;
       for (const [name, type] of columns) {
         if (present.has(name)) continue;
         this.db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${type}`);
       }
+    }
+  }
+
+  /**
+   * P4: `symbols.text` duplicated name + signature + doc_comment (~19 MB on
+   * the live index) and is derived on demand now. In-place DROP COLUMN — no
+   * SCHEMA_VERSION bump, so no wipe-and-reparse. Best-effort: a busy or
+   * SQLite-without-DROP-COLUMN open leaves the column in place, where new
+   * inserts simply default it to '' and the next open retries.
+   */
+  private dropDeprecatedSymbolsColumns(): void {
+    // One-shot flag: once the column is gone (or never existed on a fresh
+    // database), skip the PRAGMA scan on every subsequent open.
+    if (this.getMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY) !== undefined) return;
+    const present = new Set(
+      (this.db.prepare('PRAGMA table_info(symbols)').all() as Array<{ name?: unknown }>).flatMap(
+        (row) => (typeof row.name === 'string' ? [row.name] : []),
+      ),
+    );
+    if (present.size === 0) return;
+    if (!present.has('text')) {
+      // Fresh database or already migrated — the column is never coming back.
+      this.setMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY, '1');
+      return;
+    }
+    try {
+      this.db.exec('ALTER TABLE symbols DROP COLUMN text');
+      this.setMetadata(IndexStore.SYMBOLS_TEXT_DROPPED_KEY, '1');
+    } catch {
+      // Best-effort: a busy store defers the drop to the next open (the flag
+      // is only set after a successful ALTER, so the retry actually happens).
     }
   }
 
@@ -238,6 +271,7 @@ export class IndexStore {
     this.db.exec(CORE_TABLES_SQL);
     this.db.exec(REFS_TABLE_SQL);
     this.repairMissingColumns();
+    this.dropDeprecatedSymbolsColumns();
     for (const sql of FILE_INDEX_SQL) this.db.exec(sql);
     for (const sql of SYMBOL_INDEX_SQL) this.db.exec(sql);
     for (const sql of REFS_INDEX_SQL) this.db.exec(sql);
@@ -319,6 +353,10 @@ export class IndexStore {
 
   private static readonly NEXT_SYMBOL_ID_KEY = 'next_symbol_id';
   private static readonly MAX_SQL_VARS = 900;
+  /** P2: persisted FTS-mutation churn counter — see {@link optimizeFtsIfNeeded}. */
+  private static readonly FTS_CHURN_KEY = 'fts_churn_since_maintain';
+  /** P4: one-shot marker that the deprecated symbols.text column is gone. */
+  private static readonly SYMBOLS_TEXT_DROPPED_KEY = 'symbols_text_dropped';
 
   private ensureNextSymbolIdSeeded(): void {
     const existing = this.stmt('SELECT value FROM metadata WHERE key = ?').get(
@@ -400,7 +438,6 @@ export class IndexStore {
             signature: s.signature,
             docComment: s.docComment,
             scope: s.scope,
-            text: s.text,
           });
           if (this.ftsAvailable) {
             ftsRows.push({ id, text: buildIndexableText(s.name, s.signature, s.docComment) });
@@ -409,7 +446,7 @@ export class IndexStore {
             vectorRows.push({
               id,
               vector: encodeVector(
-                embedText(s.text || buildIndexableText(s.name, s.signature, s.docComment)),
+                embedText(buildIndexableText(s.name, s.signature, s.docComment)),
               ),
             });
           }
@@ -430,6 +467,7 @@ export class IndexStore {
           );
         }
 
+        this.recordFtsChurn(symbols.length);
         this.commitWriteTransaction(ownsTransaction);
         return result;
       } catch (err) {
@@ -455,7 +493,10 @@ export class IndexStore {
             'DELETE FROM symbol_vectors WHERE symbol_id IN (SELECT id FROM symbols WHERE file = ?)',
           ).run(file);
         }
-        this.stmt('DELETE FROM symbols WHERE file = ?').run(file);
+        const deletedChanges = Number(
+          this.stmt('DELETE FROM symbols WHERE file = ?').run(file).changes,
+        );
+        this.recordFtsChurn(deletedChanges);
         this.resolveRefsForNamesUnsafe(affectedNames);
         this.commitWriteTransaction(ownsTransaction);
       } catch (error) {
@@ -484,7 +525,10 @@ export class IndexStore {
         this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
           file,
         );
-        this.stmt('DELETE FROM symbols WHERE file = ?').run(file);
+        const deletedChanges = Number(
+          this.stmt('DELETE FROM symbols WHERE file = ?').run(file).changes,
+        );
+        this.recordFtsChurn(deletedChanges);
         this.stmt('DELETE FROM files WHERE file = ?').run(file);
         this.resolveRefsForNamesUnsafe(affectedNames);
         this.commitWriteTransaction(ownsTransaction);
@@ -702,6 +746,22 @@ export class IndexStore {
     return this.runWithRetry(() => {
       const ownsTransaction = this.beginWriteTransaction();
       try {
+        const owned = options.deleteForFiles?.length ?? 0;
+        let churnRows = entries.reduce((sum, e) => sum + e.symbols.length, 0);
+        // P2 review fix: deleteForFiles removes FTS rows too. Count those
+        // pre-existing rows (pre-DELETE, inside this transaction) so
+        // delete-only batches can also cross the maintenance gate.
+        if (owned > 0) {
+          let cursor = 0;
+          for (const take of inListChunks(owned, Math.floor(IndexStore.MAX_SQL_VARS / 4))) {
+            const bucket = options.deleteForFiles!.slice(cursor, cursor + take);
+            cursor += take;
+            const row = this.stmt(
+              `SELECT COUNT(*) AS n FROM symbols WHERE file IN (${placeholders(bucket.length)})`,
+            ).get(...bucket) as { n?: number } | undefined;
+            churnRows += Number(row?.n ?? 0);
+          }
+        }
         const result = commitBatchWithStatement(
           (sql) => this.stmt(sql),
           IndexStore.MAX_SQL_VARS,
@@ -713,6 +773,7 @@ export class IndexStore {
           entries,
           options,
         );
+        this.recordFtsChurn(churnRows);
         this.commitWriteTransaction(ownsTransaction);
         return result;
       } catch (err) {
@@ -757,7 +818,10 @@ export class IndexStore {
         this.stmt('DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file = ?)').run(
           meta.file,
         );
-        this.stmt('DELETE FROM symbols WHERE file = ?').run(meta.file);
+        const deletedChanges = Number(
+          this.stmt('DELETE FROM symbols WHERE file = ?').run(meta.file).changes,
+        );
+        this.recordFtsChurn(deletedChanges);
         this.stmt(
           `INSERT INTO files(file, lang, mtime_ms, content_hash, symbol_count, last_indexed)
            VALUES (?, ?, ?, ?, ?, ?)
@@ -791,6 +855,60 @@ export class IndexStore {
       /* optional */
     }
   }
+
+  /**
+   * P2: churn-gated FTS5 segment maintenance.
+   *
+   * FTS5 postings only compact when FTS5 itself merges them: every delete
+   * leaves tombstone postings in the segments, and neither VACUUM nor
+   * `PRAGMA optimize` reclaims them. Measured on the live index (2026-08-30):
+   * one delete+reinsert cycle grew symbols_fts_data 174.9→212.8 MB, while the
+   * FTS5 'optimize'/'rebuild' merge resets it (rebuild: 212.9→28.2 MB in
+   * 1.26 s for 131k rows). 'optimize' is the recurring command — an
+   * incremental merge that discards deleted docs — and only runs once churn
+   * crosses the gate, so a clean index never pays for it.
+   *
+   * Follows the {@link checkpointWal} contract: best-effort, returns whether
+   * it ran, safe to call from the daemon's single-threaded idle path.
+   */
+  optimizeFtsIfNeeded(options: { minChurnRatio?: number; minChurnRows?: number } = {}): boolean {
+    if (!this.ftsAvailable) return false;
+    try {
+      const minChurnRatio = options.minChurnRatio ?? 0.1;
+      const minChurnRows = options.minChurnRows ?? 5_000;
+      const churn = Number(this.getMetadata(IndexStore.FTS_CHURN_KEY) ?? '0') || 0;
+      const liveRows = Number(
+        (this.stmt('SELECT COUNT(*) AS n FROM symbols').get() as { n?: number } | undefined)?.n ??
+          0,
+      );
+      if (churn < Math.max(minChurnRows, liveRows * minChurnRatio)) return false;
+      this.runWithRetry(() => {
+        this.stmt(`INSERT INTO symbols_fts(symbols_fts) VALUES('optimize')`).run();
+      });
+      this.setMetadata(IndexStore.FTS_CHURN_KEY, '0');
+      return true;
+    } catch {
+      // Maintenance must never fail its caller (mirrors checkpointWal).
+      return false;
+    }
+  }
+
+  /**
+   * Best-effort churn bookkeeping for {@link optimizeFtsIfNeeded}. Counts the
+   * FTS rows a mutation inserts or deletes so the maintenance gate can fire
+   * after real churn, not on a timer. Persisted in metadata so the counter
+   * survives store open/close cycles in the daemon pool.
+   */
+  private recordFtsChurn(rows: number): void {
+    if (rows <= 0 || !this.ftsAvailable) return;
+    try {
+      const current = Number(this.getMetadata(IndexStore.FTS_CHURN_KEY) ?? '0') || 0;
+      this.setMetadata(IndexStore.FTS_CHURN_KEY, String(current + rows));
+    } catch {
+      /* tracking must never fail the owning write */
+    }
+  }
+
 
   /**
    * P4.14: best-effort WAL checkpoint for idle-time maintenance.

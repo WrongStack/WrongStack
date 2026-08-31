@@ -95,7 +95,7 @@
       "relativeImports": 6
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1166,
+      "lines": 1172,
       "relativeImports": 11
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
@@ -163,7 +163,7 @@
       "relativeImports": 9
     },
     "packages/core/src/session-catalog/store.ts": {
-      "lines": 988,
+      "lines": 994,
       "relativeImports": 11
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -223,7 +223,7 @@
       "relativeImports": 1
     },
     "packages/plugins/src/git-autocommit/index.ts": {
-      "lines": 1014,
+      "lines": 1022,
       "relativeImports": 0
     },
     "packages/plugins/src/path-guard/shell-targets.ts": {
@@ -231,11 +231,11 @@
       "relativeImports": 1
     },
     "packages/plugins/src/prompt-firewall/index.ts": {
-      "lines": 934,
+      "lines": 932,
       "relativeImports": 2
     },
     "packages/plugins/src/secret-scanner/index.ts": {
-      "lines": 913,
+      "lines": 927,
       "relativeImports": 2
     },
     "packages/plugins/src/test-runner-gate/index.ts": {
@@ -291,7 +291,7 @@
       "relativeImports": 6
     },
     "packages/tools/src/codebase-index/project-server.ts": {
-      "lines": 1013,
+      "lines": 1020,
       "relativeImports": 9
     },
     "packages/tools/src/codebase-index/tree-sitter/queries.ts": {
@@ -299,11 +299,11 @@
       "relativeImports": 1
     },
     "packages/tools/src/codebase-index/writer-graph-reader.ts": {
-      "lines": 829,
+      "lines": 831,
       "relativeImports": 5
     },
     "packages/tools/src/codebase-index/writer.ts": {
-      "lines": 963,
+      "lines": 1081,
       "relativeImports": 19
     },
     "packages/tools/src/json.ts": {

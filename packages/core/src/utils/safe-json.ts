@@ -7,7 +7,10 @@ export interface SafeParseResult<T> {
 }
 
 export function safeParse<T = unknown>(input: string, maxBytes = 5_000_000): SafeParseResult<T> {
-  if (Buffer.byteLength(input, 'utf8') > maxBytes) {
+  if (
+    input.length > maxBytes ||
+    (input.length * 3 > maxBytes && Buffer.byteLength(input, 'utf8') > maxBytes)
+  ) {
     return { ok: false, error: `Input exceeds limit (${maxBytes} bytes)` };
   }
   try {
@@ -21,15 +24,23 @@ export function safeParse<T = unknown>(input: string, maxBytes = 5_000_000): Saf
 }
 
 export function safeStringify(value: unknown, pretty = false): string {
-  const seen = new WeakSet();
-  const replacer = (_k: string, v: unknown): unknown => {
+  const stack: object[] = [];
+  const replacer = function (this: unknown, _k: string, v: unknown): unknown {
     if (typeof v === 'bigint') return v.toString();
     if (v instanceof Error) {
       return { name: v.name, message: v.message, stack: v.stack };
     }
     if (typeof v === 'object' && v !== null) {
-      if (seen.has(v as object)) return '[Circular]';
-      seen.add(v as object);
+      if (typeof this === 'object' && this !== null) {
+        const thisIndex = stack.indexOf(this);
+        if (thisIndex !== -1) {
+          stack.length = thisIndex + 1;
+        }
+      }
+      if (stack.includes(v as object)) {
+        return '[Circular]';
+      }
+      stack.push(v as object);
     }
     return v;
   };

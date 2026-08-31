@@ -73,10 +73,10 @@ interface FeatureFlagTrackerConfig {
 }
 
 const DEFAULT_PATTERNS: string[] = [
-  String.raw`isFeatureEnabled\(['"]([^'"]+)['"]\)`,
-  String.raw`featureFlags?\.([A-Za-z_$][A-Za-z0-9_$]*)`,
-  String.raw`useFeatureFlag\(['"]([^'"]+)['"]\)`,
-  String.raw`flags\.([A-Za-z_$][A-Za-z0-9_$]*)`,
+  String.raw`isFeatureEnabled\(['"\`]([^'"\`]+)['"\`]\)`,
+  String.raw`featureFlags?(?:\.|\?\.)([A-Za-z_$][A-Za-z0-9_$]*)`,
+  String.raw`useFeatureFlag\(['"\`]([^'"\`]+)['"\`]\)`,
+  String.raw`flags(?:\.|\?\.)([A-Za-z_$][A-Za-z0-9_$]*)`,
 ];
 
 const DEFAULTS: FeatureFlagTrackerConfig = {
@@ -89,17 +89,20 @@ const DEFAULTS: FeatureFlagTrackerConfig = {
 function readConfig(raw: unknown): FeatureFlagTrackerConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const rawPatterns = r['patterns'] ?? r['custom_patterns'] ?? r['customPatterns'];
+  const rawMax = r['maxFindings'] ?? r['max_findings'] ?? r['limit'];
   return {
     enabled: r['enabled'] !== false,
-    extensions: Array.isArray(r['extensions'])
-      ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    extensions: Array.isArray(rawExts)
+      ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.extensions,
-    patterns: Array.isArray(r['patterns'])
-      ? (r['patterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    patterns: Array.isArray(rawPatterns)
+      ? (rawPatterns as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.patterns,
     maxFindings:
-      typeof r['maxFindings'] === 'number' && r['maxFindings'] >= 1 && r['maxFindings'] <= 500
-        ? r['maxFindings']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
+        ? rawMax
         : DEFAULTS.maxFindings,
   };
 }
@@ -148,6 +151,35 @@ function compilePatterns(patterns: string[]): RegExp[] {
   return out;
 }
 
+const RESERVED_FLAG_NAMES = new Set([
+  'includes',
+  'length',
+  'has',
+  'get',
+  'set',
+  'size',
+  'slice',
+  'split',
+  'filter',
+  'map',
+  'forEach',
+  'join',
+  'push',
+  'pop',
+  'indexOf',
+  'values',
+  'keys',
+  'entries',
+  'toString',
+  'trim',
+  'toLowerCase',
+  'toUpperCase',
+  'match',
+  'replace',
+  'name',
+  'type',
+]);
+
 function scanFile(filePath: string, content: string, patterns: RegExp[], maxFindings: number): FeatureFlagUsage[] {
   const usages: FeatureFlagUsage[] = [];
   const lines = content.split(/\r?\n/);
@@ -156,6 +188,7 @@ function scanFile(filePath: string, content: string, patterns: RegExp[], maxFind
     re.lastIndex = 0;
     for (const m of content.matchAll(re)) {
       const flag = m[1] ?? m[0]!;
+      if (RESERVED_FLAG_NAMES.has(flag)) continue;
       const lineNo = content.slice(0, m.index).split(/\r?\n/).length;
       const context = (lines[lineNo - 1] ?? '').trim();
       usages.push({
@@ -281,7 +314,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const sourcePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -331,7 +371,18 @@ const plugin: Plugin = {
       async execute(input: { path?: string }) {
         if (!cfg.enabled) return { ok: false, error: 'feature-flag-tracker is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };
         }

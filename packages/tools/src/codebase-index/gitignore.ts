@@ -73,14 +73,22 @@ export function compileGitignore(lines: string[]): IgnoreMatcher {
     });
   }
 
+  const hasNegation = rules.some((r) => r.negated);
+
   return (relPath: string, isDir: boolean): boolean => {
-    const p = relPath.replace(/\\/g, '/').replace(/^\/+/, '');
+    const p =
+      relPath.includes('\\') || relPath.startsWith('/')
+        ? relPath.replace(/\\/g, '/').replace(/^\/+/, '')
+        : relPath;
     let ignored = false;
     for (const r of rules) {
       // A directory-only rule never matches a file by its own name; it only
       // matches files that live strictly beneath the named directory.
       const re = r.dirOnly && !isDir ? r.under : r.eqOrUnder;
-      if (re.test(p)) ignored = !r.negated;
+      if (re.test(p)) {
+        ignored = !r.negated;
+        if (!hasNegation && ignored) return true;
+      }
     }
     return ignored;
   };

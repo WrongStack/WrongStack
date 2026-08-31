@@ -108,21 +108,35 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
 function readConfig(raw: unknown): KnowledgeGraphConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawPath =
+    typeof r['filePath'] === 'string'
+      ? r['filePath']
+      : typeof r['file_path'] === 'string'
+        ? r['file_path']
+        : typeof r['path'] === 'string'
+          ? r['path']
+          : typeof r['file'] === 'string'
+            ? r['file']
+            : DEFAULTS.filePath;
+  const rawMaxFacts = r['maxFacts'] ?? r['max_facts'] ?? r['limit'];
+  const rawMaxFactChars = r['maxFactChars'] ?? r['max_fact_chars'] ?? r['maxChars'] ?? r['max_chars'];
+  const rawContribute = r['contributeToSystemPrompt'] ?? r['contribute_to_system_prompt'] ?? r['contribute'];
+  const rawContributeMax = r['contributeMaxChars'] ?? r['contribute_max_chars'];
   return {
     enabled: r['enabled'] !== false,
-    filePath: typeof r['filePath'] === 'string' ? r['filePath'] : DEFAULTS.filePath,
+    filePath: typeof rawPath === 'string' ? rawPath : DEFAULTS.filePath,
     maxFacts:
-      typeof r['maxFacts'] === 'number' && r['maxFacts'] >= 1 && r['maxFacts'] <= 2000
-        ? r['maxFacts']
+      typeof rawMaxFacts === 'number' && rawMaxFacts >= 1 && rawMaxFacts <= 2000
+        ? rawMaxFacts
         : DEFAULTS.maxFacts,
     maxFactChars:
-      typeof r['maxFactChars'] === 'number' && r['maxFactChars'] >= 20
-        ? r['maxFactChars']
+      typeof rawMaxFactChars === 'number' && rawMaxFactChars >= 20
+        ? rawMaxFactChars
         : DEFAULTS.maxFactChars,
-    contributeToSystemPrompt: r['contributeToSystemPrompt'] !== false,
+    contributeToSystemPrompt: rawContribute !== false,
     contributeMaxChars:
-      typeof r['contributeMaxChars'] === 'number' && r['contributeMaxChars'] >= 100
-        ? r['contributeMaxChars']
+      typeof rawContributeMax === 'number' && rawContributeMax >= 100
+        ? rawContributeMax
         : DEFAULTS.contributeMaxChars,
   };
 }
@@ -313,16 +327,42 @@ const plugin: Plugin = {
           };
         }
 
-        const trim = (s: string) =>
+        const trim = (s: unknown) =>
           String(s ?? '')
             .trim()
             .slice(0, cfg.maxFactChars);
-        const subject = trim(input.subject);
-        const relation = trim(input.relation);
-        const object = trim(input.object);
+        const raw = input as Record<string, unknown>;
+        const subject = trim(
+          input.subject ??
+          raw['entity'] ??
+          raw['topic'] ??
+          raw['sub'] ??
+          raw['name'] ??
+          raw['sourceEntity'],
+        );
+        const relation = trim(
+          input.relation ??
+          raw['predicate'] ??
+          raw['rel'] ??
+          raw['verb'] ??
+          raw['relationship'] ??
+          raw['action'],
+        );
+        const object = trim(
+          input.object ??
+          raw['target'] ??
+          raw['val'] ??
+          raw['value'] ??
+          raw['obj'] ??
+          raw['targetEntity'],
+        );
         if (!subject || !relation || !object) {
           return { ok: false, error: 'subject, relation, and object are required' };
         }
+
+        const rawConf = typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : '';
+        const confidence: 'low' | 'medium' | 'high' =
+          rawConf === 'low' || rawConf === 'high' || rawConf === 'medium' ? rawConf : 'medium';
 
         const fact: Fact = {
           id: `kg-${state.nextId++}`,
@@ -330,7 +370,7 @@ const plugin: Plugin = {
           relation,
           object,
           source: input.source ? String(input.source).slice(0, cfg.maxFactChars) : null,
-          confidence: input.confidence ?? 'medium',
+          confidence,
           createdAt: new Date().toISOString(),
         };
         state.facts.push(fact);
@@ -368,13 +408,30 @@ const plugin: Plugin = {
       }) {
         if (!cfg.enabled) return { ok: false, error: 'knowledge-graph is disabled' };
         state.queries += 1;
+        const raw = input as Record<string, unknown>;
+        const rawQ =
+          (typeof raw['query'] === 'string' ? raw['query'] : undefined) ??
+          (typeof raw['q'] === 'string' ? raw['q'] : undefined);
+        const q = rawQ?.toLowerCase();
+        const rawFilterConf = typeof input.confidence === 'string' ? input.confidence.trim().toLowerCase() : undefined;
+        const filterConf =
+          rawFilterConf === 'low' || rawFilterConf === 'medium' || rawFilterConf === 'high'
+            ? rawFilterConf
+            : undefined;
         const limit =
           typeof input.limit === 'number' && input.limit >= 1 ? Math.floor(input.limit) : 20;
         const matches = state.facts.filter((f) => {
+          if (q) {
+            const hasMatch =
+              f.subject.toLowerCase().includes(q) ||
+              f.relation.toLowerCase().includes(q) ||
+              f.object.toLowerCase().includes(q);
+            if (!hasMatch) return false;
+          }
           if (input.subject && !f.subject.toLowerCase().includes(input.subject.toLowerCase())) return false;
           if (input.relation && !f.relation.toLowerCase().includes(input.relation.toLowerCase())) return false;
           if (input.object && !f.object.toLowerCase().includes(input.object.toLowerCase())) return false;
-          if (input.confidence && f.confidence !== input.confidence) return false;
+          if (filterConf && f.confidence.toLowerCase() !== filterConf) return false;
           return true;
         });
         const returnedFacts = matches.slice(-limit);
@@ -404,11 +461,12 @@ const plugin: Plugin = {
       async execute(input: { id: string }) {
         if (!cfg.enabled) return { ok: false, error: 'knowledge-graph is disabled' };
         const before = state.facts.length;
-        const rawId = String(input.id ?? '').trim();
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawId = String(input.id ?? raw['factId'] ?? raw['fact_id'] ?? '').trim();
         const normalized = rawId.toLowerCase().startsWith('kg-') ? rawId.toLowerCase() : `kg-${rawId.toLowerCase()}`;
         state.facts = state.facts.filter((f) => f.id.toLowerCase() !== normalized && f.id !== rawId);
         const removed = before - state.facts.length;
-        if (removed === 0) return { ok: false, error: `no fact matches "${input.id}"` };
+        if (removed === 0) return { ok: false, error: `no fact matches "${input.id ?? rawId}"` };
         state.removals += removed;
         api.metrics.counter('removals', removed);
         const persisted = await persistFacts(resolved);

@@ -33,8 +33,7 @@ export const CORE_TABLES_SQL = `
     col INTEGER NOT NULL,
     signature TEXT NOT NULL DEFAULT '',
     doc_comment TEXT NOT NULL DEFAULT '',
-    scope TEXT NOT NULL DEFAULT '',
-    text TEXT NOT NULL DEFAULT ''
+    scope TEXT NOT NULL DEFAULT ''
     );
 `;
 

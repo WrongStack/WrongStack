@@ -62,10 +62,10 @@ let contributorUnregister: (() => void) | null = null;
 function expandTemplate(template: string, variables: Record<string, string>): string {
   let result = template;
 
-  // Replace simple {{variable}} patterns (supporting hyphens and dots)
-  result = result.replace(/\{\{([\w.-]+)\}\}/g, (match, key) => {
+  // Replace simple {{variable}} patterns (supporting hyphens and dots with optional whitespace)
+  result = result.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, key) => {
     const value = variables[key];
-    if (value !== undefined) return value;
+    if (value !== undefined) return String(value);
     return match; // leave unresolved
   });
 
@@ -74,7 +74,7 @@ function expandTemplate(template: string, variables: Record<string, string>): st
 
 function expandConditionals(template: string, variables: Record<string, string>): string {
   // Handle {{#if variable}}...{{/if}}
-  return template.replace(/\{\{#if\s+([\w.-]+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
+  return template.replace(/\{\{#if\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
     const val = variables[key];
     return val !== undefined && val !== '' && val !== 'false' && val !== '0' ? content : '';
   });
@@ -83,7 +83,7 @@ function expandConditionals(template: string, variables: Record<string, string>)
 function expandLoops(template: string, variables: Record<string, string>): string {
   // Handle {{#each items}}...{{item}}...{{/each}}
   // Simplified: just repeat the block for each item separated by newlines
-  return template.replace(/\{\{#each\s+([\w.-]+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, key, content) => {
+  return template.replace(/\{\{#each\s+([\w.-]+)\s*\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, key, content) => {
     const val = variables[key];
     if (!val) return '';
     // If the variable value is a comma-separated list, expand each
@@ -232,10 +232,9 @@ const plugin: Plugin = {
     // here). If setup is called for the first time, the module-level
     // Map is already empty.
     templates.clear();
+    const extCfg = (api.config.extensions?.['template-engine'] as Record<string, unknown>) ?? {};
     const autoEscapeHtml =
-      ((api.config.extensions?.['template-engine'] as Record<string, unknown>)?.[
-        'autoEscapeHtml'
-      ] as boolean) ?? true;
+      (extCfg['autoEscapeHtml'] ?? extCfg['auto_escape_html'] ?? extCfg['escapeHtml'] ?? extCfg['escape_html']) !== false;
 
     // --- template_expand ---
     api.tools.register({
@@ -273,9 +272,12 @@ const plugin: Plugin = {
       category: 'Project',
       mutating: true,
       async execute(input: Record<string, unknown>) {
-        const template = input['template'];
-        const variables = input['variables'] as Record<string, string> | undefined;
-        const output_path = input['output_path'] as string | undefined;
+        const rawTemplate = input['template'] ?? input['content'] ?? input['text'] ?? input['templateContent'] ?? input['body'];
+        const template = typeof rawTemplate === 'string' ? rawTemplate : undefined;
+        const rawVariables = input['variables'] ?? input['vars'] ?? input['params'] ?? input['data'] ?? input['context'];
+        const variables = (rawVariables && typeof rawVariables === 'object' && !Array.isArray(rawVariables)) ? (rawVariables as Record<string, string>) : undefined;
+        const rawOutputPath = input['output_path'] ?? input['outputPath'] ?? input['output'] ?? input['out'] ?? input['TargetFile'] ?? input['targetFile'] ?? input['file'];
+        const output_path = typeof rawOutputPath === 'string' && rawOutputPath.trim().length > 0 ? rawOutputPath.trim() : undefined;
         const raw = (input['raw'] as boolean | undefined) ?? false;
 
         if (!template || typeof template !== 'string') {
@@ -350,9 +352,12 @@ const plugin: Plugin = {
       riskTier: 'destructive',
       mutating: true,
       async execute(input: Record<string, unknown>) {
-        const template_path = input['template_path'];
-        const variables = input['variables'] as Record<string, string> | undefined;
-        const output_path = input['output_path'] as string | undefined;
+        const rawTemplatePath = input['template_path'] ?? input['templatePath'] ?? input['path'] ?? input['file'] ?? input['filePath'] ?? input['TargetFile'] ?? input['targetFile'];
+        const template_path = typeof rawTemplatePath === 'string' ? rawTemplatePath.trim() : undefined;
+        const rawVariables = input['variables'] ?? input['vars'] ?? input['params'] ?? input['data'] ?? input['context'];
+        const variables = (rawVariables && typeof rawVariables === 'object' && !Array.isArray(rawVariables)) ? (rawVariables as Record<string, string>) : undefined;
+        const rawOutputPath = input['output_path'] ?? input['outputPath'] ?? input['output'] ?? input['out'] ?? input['TargetFile'] ?? input['targetFile'];
+        const output_path = typeof rawOutputPath === 'string' && rawOutputPath.trim().length > 0 ? rawOutputPath.trim() : undefined;
         const raw = (input['raw'] as boolean | undefined) ?? false;
 
         if (!template_path || typeof template_path !== 'string') {
@@ -435,9 +440,12 @@ const plugin: Plugin = {
       permission: 'auto',
       mutating: false,
       async execute(input: Record<string, unknown>) {
-        const name = input['name'] as string;
-        const content = input['content'] as string;
-        const description = input['description'] as string | undefined;
+        const rawName = input['name'] ?? input['templateName'] ?? input['template_name'] ?? input['id'] ?? input['key'];
+        const name = typeof rawName === 'string' ? rawName.trim() : '';
+        const rawContent = input['content'] ?? input['template'] ?? input['templateContent'] ?? input['template_content'] ?? input['text'] ?? input['body'];
+        const content = typeof rawContent === 'string' ? rawContent : '';
+        const rawDesc = input['description'] ?? input['desc'] ?? input['summary'];
+        const description = typeof rawDesc === 'string' ? rawDesc : undefined;
 
         if (!name || typeof name !== 'string' || name.trim() === '') {
           return { ok: false, error: 'name is required and must be a non-empty string' };

@@ -124,6 +124,7 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
     const stat = await fs.stat(absPath);
     existed = stat.isFile();
     if (existed) {
+      prev = await fs.readFile(absPath, 'utf8');
       if (!ctx.hasRead(absPath)) {
         // User approved this write (confirm → yes/always) but ctx has no
         // read record. The model may call write without a prior explicit
@@ -131,10 +132,7 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
         // the user's intent to overwrite. Tag as 'write' (NOT 'user') so
         // this internal read-for-diff does not widen the permission bypass
         // — the user never saw the old content (P1 #1).
-        prev = await fs.readFile(absPath, 'utf8');
         ctx.recordRead(absPath, stat.mtimeMs, 'write', sha256hex(prev));
-      } else {
-        prev = await fs.readFile(absPath, 'utf8');
       }
     }
   } catch (err) {

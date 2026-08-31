@@ -130,6 +130,7 @@ function readConfig(raw: unknown): CheckpointConfig {
 // ---------------------------------------------------------------------------
 
 function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+  if (typeof rawPath !== 'string' || rawPath.length === 0) return null;
   const root = resolve(cwd);
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const rel = relative(root, resolved);
@@ -278,7 +279,13 @@ const plugin: Plugin = {
         runtime: { signal: AbortSignal } = { signal: new AbortController().signal },
       ) => {
         const ti = (input.toolInput ?? {}) as Record<string, unknown>;
-        const raw = ti['path'] ?? ti['file_path'] ?? ti['filePath'];
+        const raw =
+          ti['path'] ??
+          ti['file_path'] ??
+          ti['filePath'] ??
+          ti['TargetFile'] ??
+          ti['targetFile'] ??
+          ti['file'];
         if (typeof raw !== 'string' || raw.length === 0) return;
         const safePath = resolveProjectPath(raw);
         if (!safePath) return;
@@ -347,9 +354,22 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: { paths: string[]; label?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'checkpoint is disabled' };
-        const paths = Array.isArray(input.paths)
-          ? input.paths.filter((p): p is string => typeof p === 'string' && p.length > 0)
-          : [];
+        let paths: string[] = [];
+        const rawInput = input as unknown as Record<string, unknown>;
+        const raw =
+          rawInput['paths'] ??
+          rawInput['path'] ??
+          rawInput['files'] ??
+          rawInput['file'] ??
+          rawInput['filePath'] ??
+          rawInput['file_path'] ??
+          rawInput['TargetFile'] ??
+          rawInput['targetFile'];
+        if (typeof raw === 'string' && raw.trim().length > 0) {
+          paths = [raw.trim()];
+        } else if (Array.isArray(raw)) {
+          paths = raw.filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
+        }
         if (paths.length === 0) return { ok: false, error: 'paths must not be empty' };
         const files: Snapshot['files'] = [];
         const rejectedOutsideProject: string[] = [];
@@ -461,21 +481,33 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: { id?: string | undefined; path?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'checkpoint is disabled' };
-        const snapshot = input.id
-          ? state.snapshots.find((s) => s.id === input.id)
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawId =
+          (typeof input.id === 'string' && input.id.trim().length > 0 ? input.id.trim() : undefined) ??
+          (typeof raw['snapshotId'] === 'string' ? raw['snapshotId'] : undefined) ??
+          (typeof raw['snapshot_id'] === 'string' ? raw['snapshot_id'] : undefined);
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['file_path'] === 'string' ? raw['file_path'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          (typeof raw['file'] === 'string' ? raw['file'] : undefined);
+        const snapshot = rawId
+          ? state.snapshots.find((s) => s.id === rawId)
           : state.snapshots[state.snapshots.length - 1];
         if (!snapshot) {
           return {
             ok: false,
-            error: input.id ? `no snapshot with id "${input.id}"` : 'no snapshots captured yet',
+            error: rawId ? `no snapshot with id "${rawId}"` : 'no snapshots captured yet',
           };
         }
-        const targetPath = input.path ? (resolveProjectPath(input.path) ?? input.path) : null;
+        const targetPath = rawPath ? (resolveProjectPath(rawPath) ?? rawPath) : null;
         const targets = targetPath
-          ? snapshot.files.filter((f) => f.path === targetPath || f.path === input.path)
+          ? snapshot.files.filter((f) => f.path === targetPath || f.path === rawPath)
           : snapshot.files;
         if (targets.length === 0) {
-          return { ok: false, error: `snapshot ${snapshot.id} has no entry for "${input.path}"` };
+          return { ok: false, error: `snapshot ${snapshot.id} has no entry for "${rawPath}"` };
         }
         const restored: string[] = [];
         const createdByTool: string[] = [];

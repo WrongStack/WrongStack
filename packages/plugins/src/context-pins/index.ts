@@ -96,17 +96,28 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
 function readConfig(raw: unknown): ContextPinsConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const rawPath = typeof r['filePath'] === 'string' ? r['filePath'] : DEFAULTS.filePath;
+  const rawPath =
+    typeof r['filePath'] === 'string'
+      ? r['filePath']
+      : typeof r['file_path'] === 'string'
+        ? r['file_path']
+        : typeof r['path'] === 'string'
+          ? r['path']
+          : typeof r['file'] === 'string'
+            ? r['file']
+            : DEFAULTS.filePath;
+  const rawMaxPins = r['maxPins'] ?? r['max_pins'] ?? r['limit'];
+  const rawMaxChars = r['maxPinChars'] ?? r['max_pin_chars'] ?? r['maxChars'] ?? r['max_chars'];
   return {
     enabled: r['enabled'] !== false,
     filePath: rawPath ? (resolveProjectPath(rawPath) ?? '') : '',
     maxPins:
-      typeof r['maxPins'] === 'number' && r['maxPins'] >= 1 && r['maxPins'] <= 100
-        ? r['maxPins']
+      typeof rawMaxPins === 'number' && rawMaxPins >= 1 && rawMaxPins <= 100
+        ? rawMaxPins
         : DEFAULTS.maxPins,
     maxPinChars:
-      typeof r['maxPinChars'] === 'number' && r['maxPinChars'] >= 20
-        ? r['maxPinChars']
+      typeof rawMaxChars === 'number' && rawMaxChars >= 20
+        ? rawMaxChars
         : DEFAULTS.maxPinChars,
   };
 }
@@ -131,7 +142,14 @@ function loadPins(filePath: string): { pins: Pin[]; nextId: number } {
             typeof (p as Pin).text === 'string',
         )
       : [];
-    const nextId = typeof raw.nextId === 'number' && raw.nextId >= 1 ? raw.nextId : pins.length + 1;
+    const maxExistingId = pins.reduce((max, p) => {
+      const num = parseInt(p.id.replace(/\D/g, ''), 10);
+      return Number.isFinite(num) && num > max ? num : max;
+    }, 0);
+    const nextId =
+      typeof raw.nextId === 'number' && raw.nextId > maxExistingId
+        ? raw.nextId
+        : maxExistingId + 1;
     return { pins, nextId };
   } catch {
     return { pins: [], nextId: 1 };
@@ -250,7 +268,16 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: { text: string; label?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'context-pins is disabled' };
-        const text = String(input.text ?? '').trim();
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawText =
+          input.text ??
+          raw['pin'] ??
+          raw['content'] ??
+          raw['message'] ??
+          raw['note'] ??
+          raw['fact'] ??
+          raw['data'];
+        const text = String(rawText ?? '').trim();
         if (!text) return { ok: false, error: 'pin text must not be empty' };
         if (state.pins.length >= cfg.maxPins) {
           return {
@@ -288,7 +315,16 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: { id?: string | undefined; label?: string | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'context-pins is disabled' };
-        const key = String(input.id ?? input.label ?? '').trim();
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const key = String(
+          input.id ??
+          input.label ??
+          raw['pinId'] ??
+          raw['pin_id'] ??
+          raw['name'] ??
+          raw['key'] ??
+          '',
+        ).trim();
         if (!key) return { ok: false, error: 'id or label is required' };
         const before = state.pins.length;
         state.pins = state.pins.filter((p) => p.id !== key && p.label !== key);

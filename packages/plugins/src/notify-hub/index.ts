@@ -200,20 +200,23 @@ function readConfig(raw: unknown): NotifyHubConfig {
       if (typeof v === 'string') headers[k] = v;
     }
   }
+  const rawUrl = r['webhookUrl'] ?? r['webhook_url'] ?? r['url'];
+  const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
+  const rawFailures = r['maxConsecutiveFailures'] ?? r['max_consecutive_failures'] ?? r['maxFailures'] ?? r['max_failures'];
   return {
     enabled: r['enabled'] !== false,
-    webhookUrl: normalizeWebhookUrl(r['webhookUrl']),
+    webhookUrl: normalizeWebhookUrl(rawUrl),
     events: Array.isArray(r['events'])
       ? r['events'].filter((e): e is NotifyEvent => KNOWN_EVENTS.includes(e as NotifyEvent))
       : [...DEFAULTS.events],
     headers,
     timeoutMs:
-      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] >= 500 && r['timeoutMs'] <= 60_000
-        ? r['timeoutMs']
+      typeof rawTimeout === 'number' && rawTimeout >= 500 && rawTimeout <= 60_000
+        ? rawTimeout
         : DEFAULTS.timeoutMs,
     maxConsecutiveFailures:
-      typeof r['maxConsecutiveFailures'] === 'number' && r['maxConsecutiveFailures'] >= 1
-        ? r['maxConsecutiveFailures']
+      typeof rawFailures === 'number' && rawFailures >= 1
+        ? rawFailures
         : DEFAULTS.maxConsecutiveFailures,
   };
 }
@@ -462,7 +465,11 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: {
         title?: string | undefined;
-        message: string;
+        message?: string | undefined;
+        body?: string | undefined;
+        text?: string | undefined;
+        content?: string | undefined;
+        msg?: string | undefined;
         level?: string | undefined;
       }) {
         if (!cfg.enabled) return { ok: false, error: 'notify-hub is disabled' };
@@ -474,9 +481,16 @@ const plugin: Plugin = {
               'no webhookUrl configured — set config.extensions["notify-hub"].webhookUrl to enable deliveries',
           };
         }
+        const inp = (input ?? {}) as Record<string, unknown>;
+        const rawMsg = inp['message'] ?? inp['body'] ?? inp['text'] ?? inp['content'] ?? inp['msg'];
+        const message = typeof rawMsg === 'string' && rawMsg.trim().length > 0 ? rawMsg.trim() : '';
+        if (!message) return { ok: false, error: 'message is required' };
+        const rawTitle = inp['title'] ?? inp['subject'] ?? inp['header'];
+        const title = typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim() : 'WrongStack notification';
+
         const result = await deliverViaChannel(ch, 'manual', {
-          title: truncateText(String(input.title ?? 'WrongStack notification'), 200),
-          body: truncateText(String(input.message ?? ''), 2_000),
+          title: truncateText(title, 200),
+          body: truncateText(message, 2_000),
           level: input.level === 'warning' || input.level === 'critical' ? input.level : 'info',
           source: 'manual',
         });

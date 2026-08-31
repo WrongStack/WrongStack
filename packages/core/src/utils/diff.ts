@@ -16,16 +16,16 @@ function myersDiff(a: string[], b: string[]): Edit[] {
   const max = N + M;
   if (max === 0) return [];
 
-  const v = new Map<number, number>();
-  v.set(1, 0);
-  const trace: Map<number, number>[] = [];
+  const offset = max;
+  const v = new Int32Array(2 * max + 1).fill(-1);
+  v[1 + offset] = 0;
+  const trace: Int32Array[] = [];
 
   for (let d = 0; d <= max; d++) {
-    const snapshot = new Map(v);
-    trace.push(snapshot);
+    trace.push(new Int32Array(v));
     for (let k = -d; k <= d; k += 2) {
-      const left = v.get(k - 1) ?? -1;
-      const right = v.get(k + 1) ?? -1;
+      const left = v[k - 1 + offset] ?? -1;
+      const right = v[k + 1 + offset] ?? -1;
       let x: number;
       if (k === -d || (k !== d && left < right)) {
         x = right;
@@ -37,9 +37,9 @@ function myersDiff(a: string[], b: string[]): Edit[] {
         x++;
         y++;
       }
-      v.set(k, x);
+      v[k + offset] = x;
       if (x >= N && y >= M) {
-        return backtrack(trace, a, b, N, M, d);
+        return backtrack(trace, a, b, N, M, d, offset);
       }
     }
   }
@@ -47,12 +47,13 @@ function myersDiff(a: string[], b: string[]): Edit[] {
 }
 
 function backtrack(
-  trace: Map<number, number>[],
+  trace: Int32Array[],
   a: string[],
   b: string[],
   N: number,
   M: number,
   finalD: number,
+  offset: number,
 ): Edit[] {
   const edits: Edit[] = [];
   let x = N;
@@ -61,15 +62,15 @@ function backtrack(
     const v = trace[d];
     if (!v) break;
     const k = x - y;
-    const left = v.get(k - 1) ?? -1;
-    const right = v.get(k + 1) ?? -1;
+    const left = v[k - 1 + offset] ?? -1;
+    const right = v[k + 1 + offset] ?? -1;
     let prevK: number;
     if (k === -d || (k !== d && left < right)) {
       prevK = k + 1;
     } else {
       prevK = k - 1;
     }
-    const prevX = v.get(prevK) ?? 0;
+    const prevX = v[prevK + offset] ?? 0;
     const prevY = prevX - prevK;
     while (x > prevX && y > prevY) {
       edits.push({ op: 'equal', a: x - 1, b: y - 1, line: a[x - 1] ?? '' });

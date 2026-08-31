@@ -15,8 +15,8 @@ export function slugify(name: string, fallback = 'prompt', maxLen = 64): string 
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/^-+/, '')
       .slice(0, maxLen)
-      .replace(/-+$/g, '') || fallback
+      .replace(/-+$/, '') || fallback
   );
 }

@@ -83,16 +83,19 @@ const DEFAULTS: InjectionShieldConfig = {
 function readConfig(raw: unknown): InjectionShieldConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawTools = r['tools'] ?? r['matcher'] ?? r['toolMatcher'] ?? r['tool_matcher'];
+  const rawMin = r['minMatches'] ?? r['min_matches'] ?? r['min'];
+  const rawMax = r['maxScanChars'] ?? r['max_scan_chars'] ?? r['maxChars'] ?? r['max_chars'];
   return {
     enabled: r['enabled'] !== false,
-    tools: typeof r['tools'] === 'string' && r['tools'].length > 0 ? r['tools'] : DEFAULTS.tools,
+    tools: typeof rawTools === 'string' && rawTools.length > 0 ? rawTools : DEFAULTS.tools,
     minMatches:
-      typeof r['minMatches'] === 'number' && r['minMatches'] >= 1 && r['minMatches'] <= 10
-        ? r['minMatches']
+      typeof rawMin === 'number' && rawMin >= 1 && rawMin <= 10
+        ? rawMin
         : DEFAULTS.minMatches,
     maxScanChars:
-      typeof r['maxScanChars'] === 'number' && r['maxScanChars'] >= 1024
-        ? r['maxScanChars']
+      typeof rawMax === 'number' && rawMax >= 1024
+        ? rawMax
         : DEFAULTS.maxScanChars,
   };
 }
@@ -191,6 +194,35 @@ export function scanForInjection(text: string): string[] {
   return [...hits];
 }
 
+export function extractToolContent(toolResult: unknown): string {
+  if (!toolResult) return '';
+  if (typeof toolResult === 'string') return toolResult;
+  if (typeof toolResult === 'object') {
+    const tr = toolResult as Record<string, unknown>;
+    if (typeof tr['content'] === 'string') return tr['content'];
+    if (Array.isArray(tr['content'])) {
+      return tr['content']
+        .map((item) =>
+          typeof item === 'string'
+            ? item
+            : typeof item === 'object' && item && typeof (item as Record<string, unknown>)['text'] === 'string'
+              ? ((item as Record<string, unknown>)['text'] as string)
+              : '',
+        )
+        .filter(Boolean)
+        .join('\n');
+    }
+    if (typeof tr['output'] === 'string') return tr['output'];
+    if (typeof tr['stdout'] === 'string') return tr['stdout'];
+    if (typeof tr['text'] === 'string') return tr['text'];
+    if (typeof tr['result'] === 'string') return tr['result'];
+    if (typeof tr['body'] === 'string') return tr['body'];
+    if (typeof tr['contents'] === 'string') return tr['contents'];
+    if (typeof tr['data'] === 'string') return tr['data'];
+  }
+  return '';
+}
+
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -247,12 +279,12 @@ const plugin: Plugin = {
 
     const hook = (input: {
       toolName?: string | undefined;
-      toolResult?: { content: string; isError: boolean } | undefined;
+      toolResult?: { content?: unknown; isError?: boolean } | undefined;
     }) => {
       if (!cfg.enabled) return;
       state.invocations += 1;
-      const content = input.toolResult?.content;
-      if (typeof content !== 'string' || content.length === 0) return;
+      const content = extractToolContent(input.toolResult);
+      if (content.length === 0) return;
       state.scans += 1;
 
       const hits = scanForInjection(content.slice(0, cfg.maxScanChars));

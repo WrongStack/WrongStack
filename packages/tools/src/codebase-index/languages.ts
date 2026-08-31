@@ -7,7 +7,6 @@
  * regex extractor under their mapped lang (or `'other'`).
  */
 
-import * as path from 'node:path';
 import type { SymbolLang } from './schema.js';
 
 /**
@@ -118,7 +117,8 @@ const SPECIAL_FILENAMES: Readonly<Record<string, SymbolLang>> = {
  * assets, lockfiles handled elsewhere, plain `.txt` without special name, …).
  */
 export function detectLang(file: string): SymbolLang | null {
-  const base = path.basename(file);
+  const lastSlash = Math.max(file.lastIndexOf('/'), file.lastIndexOf('\\'));
+  const base = lastSlash === -1 ? file : file.slice(lastSlash + 1);
   const lowerBase = base.toLowerCase();
 
   // declaration files: foo.d.ts → ts
@@ -129,8 +129,9 @@ export function detectLang(file: string): SymbolLang | null {
   const special = SPECIAL_FILENAMES[lowerBase];
   if (special) return special;
 
-  const ext = path.extname(base).toLowerCase();
-  if (!ext) return null;
+  const dot = lowerBase.lastIndexOf('.');
+  if (dot <= 0) return null;
+  const ext = lowerBase.slice(dot);
   return EXT_TO_LANG[ext] ?? null;
 }
 

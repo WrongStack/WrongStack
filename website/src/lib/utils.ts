@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.317.0',
+  version: '0.317.1',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -344,9 +344,18 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.317.1',
+    date: '2026-08-31',
+    latest: true,
+    tagline: 'Session Catalog SQLite error recovery',
+    highlights: [
+      'Session Catalog transactions preserve the underlying SQLite or disk failure when SQLite has already ended a transaction',
+      'A failed best-effort rollback no longer masks the primary error with `cannot rollback - no transaction is active`',
+    ],
+  },
+  {
     version: '0.317.0',
     date: '2026-08-30',
-    latest: true,
     tagline: 'Mailbox SSE hardening, MCP-alias diff rendering & session-note hygiene',
     highlights: [
       'Mailbox SSE revalidation races a 10-second timeout and the delivery queue caps at 256 pending operations — wedged streams close cleanly instead of leaking',

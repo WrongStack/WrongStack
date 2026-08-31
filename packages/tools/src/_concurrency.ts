@@ -18,6 +18,7 @@ export async function mapWithConcurrency<T, R>(
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
   if (items.length === 0) return [];
+  if (items.length === 1) return [await fn(items[0] as T)];
   const effectiveLimit = Math.max(1, Math.min(limit | 0, items.length));
   const results: R[] = new Array(items.length);
   let nextIndex = 0;

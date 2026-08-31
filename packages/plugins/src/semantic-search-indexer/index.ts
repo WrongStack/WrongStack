@@ -148,30 +148,36 @@ const DEFAULTS: SemanticSearchConfig = {
   maxFiles: 5_000,
 };
 
-function readConfig(raw: unknown): SemanticSearchConfig {
+export function readConfig(raw: unknown): SemanticSearchConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, includeExtensions: [...DEFAULTS.includeExtensions], excludePatterns: [...DEFAULTS.excludePatterns] };
   const r = raw as Record<string, unknown>;
 
-  const includeExtensions = Array.isArray(r['includeExtensions'])
-    ? (r['includeExtensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+  const rawExts = r['includeExtensions'] ?? r['include_extensions'] ?? r['extensions'] ?? r['file_extensions'];
+  const includeExtensions = Array.isArray(rawExts)
+    ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
     : [...DEFAULTS.includeExtensions];
 
-  const excludePatterns = Array.isArray(r['excludePatterns'])
-    ? (r['excludePatterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
+  const rawExclude = r['excludePatterns'] ?? r['exclude_patterns'] ?? r['exclude'];
+  const excludePatterns = Array.isArray(rawExclude)
+    ? (rawExclude as unknown[]).filter((x): x is string => typeof x === 'string')
     : [...DEFAULTS.excludePatterns];
 
   const clamp = (v: unknown, min: number, max: number, fallback: number): number =>
     typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? v : fallback;
 
+  const rawBytes = r['maxFileBytes'] ?? r['max_file_bytes'] ?? r['maxBytes'] ?? r['max_bytes'];
+  const rawLimit = r['defaultLimit'] ?? r['default_limit'] ?? r['limit'];
+  const rawMaxFiles = r['maxFiles'] ?? r['max_files'];
+
   return {
     enabled: r['enabled'] !== false,
     includeExtensions,
     excludePatterns,
-    maxFileBytes: clamp(r['maxFileBytes'], 1_024, 50_000_000, DEFAULTS.maxFileBytes),
-    defaultLimit: clamp(r['defaultLimit'], 1, 1_000, DEFAULTS.defaultLimit),
+    maxFileBytes: clamp(rawBytes, 1_024, 50_000_000, DEFAULTS.maxFileBytes),
+    defaultLimit: clamp(rawLimit, 1, 1_000, DEFAULTS.defaultLimit),
     minTokenLength: clamp(r['minTokenLength'], 1, 10, DEFAULTS.minTokenLength),
     maxMatchesPerFile: clamp(r['maxMatchesPerFile'], 1, 100, DEFAULTS.maxMatchesPerFile),
-    maxFiles: clamp(r['maxFiles'], 1, 50_000, DEFAULTS.maxFiles),
+    maxFiles: clamp(rawMaxFiles, 1, 50_000, DEFAULTS.maxFiles),
   };
 }
 
@@ -655,7 +661,11 @@ const plugin: Plugin = {
           (input as Record<string, unknown>)['directory'] ??
           (input as Record<string, unknown>)['dir'] ??
           (input as Record<string, unknown>)['SearchDirectory'] ??
-          (input as Record<string, unknown>)['SearchPath'];
+          (input as Record<string, unknown>)['SearchPath'] ??
+          (input as Record<string, unknown>)['TargetFile'] ??
+          (input as Record<string, unknown>)['targetFile'] ??
+          (input as Record<string, unknown>)['filePath'] ??
+          (input as Record<string, unknown>)['file'];
         const resolved = resolveProjectPath(typeof rawPath === 'string' ? rawPath : undefined);
         if (!resolved) {
           return { ok: false, error: 'path outside project root' };

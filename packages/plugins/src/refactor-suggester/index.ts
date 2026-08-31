@@ -112,29 +112,34 @@ const DEFAULTS: RefactorSuggesterConfig = {
 function readRules(raw: unknown): RefactorRules {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS.rules };
   const r = raw as Record<string, unknown>;
+  const rawLong = r['longFunctionLines'] ?? r['long_function_lines'] ?? r['maxLines'] ?? r['max_lines'];
+  const rawParams = r['maxParams'] ?? r['max_params'];
+  const rawNesting = r['maxNesting'] ?? r['max_nesting'] ?? r['nesting'];
   return {
     longFunctionLines:
-      typeof r['longFunctionLines'] === 'number' && r['longFunctionLines'] >= 1
-        ? r['longFunctionLines']
+      typeof rawLong === 'number' && rawLong >= 1
+        ? rawLong
         : DEFAULTS.rules.longFunctionLines,
     maxParams:
-      typeof r['maxParams'] === 'number' && r['maxParams'] >= 1 ? r['maxParams'] : DEFAULTS.rules.maxParams,
+      typeof rawParams === 'number' && rawParams >= 1 ? rawParams : DEFAULTS.rules.maxParams,
     maxNesting:
-      typeof r['maxNesting'] === 'number' && r['maxNesting'] >= 1 ? r['maxNesting'] : DEFAULTS.rules.maxNesting,
+      typeof rawNesting === 'number' && rawNesting >= 1 ? rawNesting : DEFAULTS.rules.maxNesting,
   };
 }
 
 function readConfig(raw: unknown): RefactorSuggesterConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawExts = r['extensions'] ?? r['file_extensions'] ?? r['fileExtensions'];
+  const rawMax = r['maxSuggestions'] ?? r['max_suggestions'] ?? r['limit'];
   return {
     enabled: r['enabled'] === true,
-    extensions: Array.isArray(r['extensions'])
-      ? (r['extensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    extensions: Array.isArray(rawExts)
+      ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.extensions,
     maxSuggestions:
-      typeof r['maxSuggestions'] === 'number' && r['maxSuggestions'] >= 1 && r['maxSuggestions'] <= 500
-        ? r['maxSuggestions']
+      typeof rawMax === 'number' && rawMax >= 1 && rawMax <= 500
+        ? rawMax
         : DEFAULTS.maxSuggestions,
     rules: readRules(r['rules']),
   };
@@ -161,6 +166,29 @@ function relativePath(p: string): string {
 // ---------------------------------------------------------------------------
 // Smell detection
 // ---------------------------------------------------------------------------
+
+function splitTopLevelParams(paramsRaw: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let depth = 0;
+  for (let i = 0; i < paramsRaw.length; i++) {
+    const ch = paramsRaw[i]!;
+    if (ch === '(' || ch === '{' || ch === '[' || ch === '<') {
+      depth++;
+      current += ch;
+    } else if (ch === ')' || ch === '}' || ch === ']' || ch === '>') {
+      if (depth > 0) depth--;
+      current += ch;
+    } else if (ch === ',' && depth === 0) {
+      if (current.trim().length > 0) result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim().length > 0) result.push(current.trim());
+  return result;
+}
 
 function leadingIndentLevel(line: string): number {
   const leading = line.match(/^(\s*)/)?.[1] ?? '';
@@ -192,10 +220,7 @@ function detectSmells(filePath: string, content: string, rules: RefactorRules): 
     const name = match[1]!;
     if (CONTROL_KEYWORDS.has(name)) continue;
     const paramsRaw = match[2]!;
-    const params = paramsRaw
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    const params = splitTopLevelParams(paramsRaw);
     if (params.length > rules.maxParams) {
       suggestions.push({
         file: relativePath(filePath),
@@ -391,7 +416,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const sourcePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -449,7 +481,16 @@ const plugin: Plugin = {
       async execute(input: { path?: string }) {
         if (!cfg.enabled) return { ok: false, error: 'refactor-suggester is disabled' };
 
-        const rawPath = typeof input.path === 'string' ? input.path : '.';
+        const raw = (input ?? {}) as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['directory'] === 'string' ? raw['directory'] : undefined) ??
+          (typeof raw['dir'] === 'string' ? raw['dir'] : undefined) ??
+          (typeof raw['SearchDirectory'] === 'string' ? raw['SearchDirectory'] : undefined) ??
+          (typeof raw['TargetFile'] === 'string' ? raw['TargetFile'] : undefined) ??
+          (typeof raw['filePath'] === 'string' ? raw['filePath'] : undefined) ??
+          (typeof raw['targetFile'] === 'string' ? raw['targetFile'] : undefined) ??
+          '.';
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };
         }

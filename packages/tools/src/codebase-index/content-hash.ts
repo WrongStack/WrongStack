@@ -62,24 +62,14 @@ function rotl64(x: bigint, n: number): bigint {
   return ((v << BigInt(n)) | (v >> BigInt(64 - n))) & MASK64;
 }
 
-/** Read 8 bytes from `buf` at byte offset `off` as a little-endian BigInt. */
-function readU64LE(buf: Uint8Array, off: number): bigint {
-  let v = 0n;
-  for (let i = 7; i >= 0; i--) {
-    v = (v << 8n) | BigInt(buf[off + i] ?? 0);
-  }
-  return v & MASK64;
+/** Read 8 bytes from `view` at byte offset `off` as a little-endian BigInt. */
+function readU64LE(view: DataView, off: number): bigint {
+  return view.getBigUint64(off, true);
 }
 
-/** Read 4 bytes from `buf` at byte offset `off` as a little-endian BigInt. */
-function readU32LE(buf: Uint8Array, off: number): bigint {
-  return (
-    (BigInt(buf[off] ?? 0) |
-      (BigInt(buf[off + 1] ?? 0) << 8n) |
-      (BigInt(buf[off + 2] ?? 0) << 16n) |
-      (BigInt(buf[off + 3] ?? 0) << 24n)) &
-    MASK64
-  );
+/** Read 4 bytes from `view` at byte offset `off` as a little-endian BigInt. */
+function readU32LE(view: DataView, off: number): bigint {
+  return BigInt(view.getUint32(off, true));
 }
 
 /**
@@ -120,6 +110,7 @@ function xxh64MergeRound(acc: bigint, val: bigint): bigint {
  */
 export function xxhash64Hex(buf: Uint8Array, explicitLen?: number): string {
   const length = explicitLen ?? buf.length;
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   let h: bigint;
   // Byte cursor shared by the stripe loop (Step 2) and the tail loops
   // (Step 5). Declared at function scope so the tail consumer runs for both
@@ -135,10 +126,10 @@ export function xxhash64Hex(buf: Uint8Array, explicitLen?: number): string {
     // Step 2 — process 32-byte stripes (4 lanes × 8 bytes).
     const end32 = length - 32;
     while (off <= end32) {
-      v1 = xxh64Round(v1, readU64LE(buf, off));
-      v2 = xxh64Round(v2, readU64LE(buf, off + 8));
-      v3 = xxh64Round(v3, readU64LE(buf, off + 16));
-      v4 = xxh64Round(v4, readU64LE(buf, off + 24));
+      v1 = xxh64Round(v1, readU64LE(view, off));
+      v2 = xxh64Round(v2, readU64LE(view, off + 8));
+      v3 = xxh64Round(v3, readU64LE(view, off + 16));
+      v4 = xxh64Round(v4, readU64LE(view, off + 24));
       off += 32;
     }
     // Step 3 — converge the four accumulators.
@@ -158,13 +149,13 @@ export function xxhash64Hex(buf: Uint8Array, explicitLen?: number): string {
 
   // Step 5 — consume remaining bytes (after the last full stripe).
   while (off + 8 <= length) {
-    const k1 = xxh64Round(0n, readU64LE(buf, off));
+    const k1 = xxh64Round(0n, readU64LE(view, off));
     h = (mul64(rotl64(h ^ k1, 27), PRIME64_1) + PRIME64_4) & MASK64;
     off += 8;
   }
   if (off + 4 <= length) {
     h =
-      (mul64(rotl64(h ^ mul64(readU32LE(buf, off), PRIME64_1), 23), PRIME64_2) + PRIME64_3) &
+      (mul64(rotl64(h ^ mul64(readU32LE(view, off), PRIME64_1), 23), PRIME64_2) + PRIME64_3) &
       MASK64;
     off += 4;
   }

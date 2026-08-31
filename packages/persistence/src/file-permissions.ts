@@ -24,7 +24,27 @@
  * @module file-permissions
  */
 
+import * as childProcess from 'node:child_process';
 import { chmod } from 'node:fs/promises';
+import { promisify } from 'node:util';
+
+let _execFileAsync:
+  | ((
+      file: string,
+      args: readonly string[],
+      options?: object,
+    ) => Promise<{ stdout: string; stderr: string }>)
+  | undefined;
+
+function getExecFileAsync() {
+  if (!_execFileAsync) {
+    const fn = childProcess.execFile;
+    if (typeof fn === 'function') {
+      _execFileAsync = promisify(fn);
+    }
+  }
+  return _execFileAsync;
+}
 
 /** Owner read/write, nothing for group or other. */
 export const SECRET_FILE_MODE = 0o600;
@@ -56,9 +76,6 @@ export async function restrictFilePermissions(
   const warn = opts?.warn ?? ((msg: string) => console.warn(msg));
   if (process.platform === 'win32') {
     try {
-      const { execFile } = await import('node:child_process');
-      const { promisify } = await import('node:util');
-      const execFileAsync = promisify(execFile);
       const user = windowsAccountName();
       if (!user) {
         warn(
@@ -67,7 +84,12 @@ export async function restrictFilePermissions(
         return;
       }
       // Remove inherited ACEs, grant full control only to current user.
-      await execFileAsync('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`], {
+      const execFn = getExecFileAsync();
+      if (!execFn) {
+        warn(`[${label}] child_process.execFile unavailable on this platform.`);
+        return;
+      }
+      await execFn('icacls', [filePath, '/inheritance:r', '/grant:r', `${user}:(F)`], {
         windowsHide: true,
       });
     } catch {

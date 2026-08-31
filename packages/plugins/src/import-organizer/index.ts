@@ -250,19 +250,22 @@ const DEFAULTS: ImportOrganizerConfig = {
 function readConfig(raw: unknown): ImportOrganizerConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawFallback = r['fallbackCommand'] ?? r['fallback_command'] ?? r['fallback'];
+  const rawTimeout = r['timeoutMs'] ?? r['timeout_ms'] ?? r['timeout'];
+  const rawNotify = r['notifyFormatOnSave'] ?? r['notify_format_on_save'] ?? r['notify'];
   return {
     enabled: r['enabled'] !== false,
     command:
       typeof r['command'] === 'string' && r['command'].length > 0 ? r['command'] : DEFAULTS.command,
     fallbackCommand:
-      typeof r['fallbackCommand'] === 'string' && r['fallbackCommand'].length > 0
-        ? r['fallbackCommand']
+      typeof rawFallback === 'string' && rawFallback.length > 0
+        ? rawFallback
         : DEFAULTS.fallbackCommand,
     timeoutMs:
-      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
-        ? r['timeoutMs']
+      typeof rawTimeout === 'number' && rawTimeout > 0
+        ? rawTimeout
         : DEFAULTS.timeoutMs,
-    notifyFormatOnSave: r['notifyFormatOnSave'] !== false,
+    notifyFormatOnSave: rawNotify !== false,
   };
 }
 
@@ -517,8 +520,15 @@ const plugin: Plugin = {
 
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const filePath = inp['path'] as string | undefined;
-      if (!filePath || typeof filePath !== 'string') return;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const filePath = typeof rawPath === 'string' ? rawPath : undefined;
+      if (!filePath) return;
 
       // Only process TypeScript/JavaScript files.
       const ext = filePath.includes('.') ? filePath.slice(filePath.lastIndexOf('.')) : '';

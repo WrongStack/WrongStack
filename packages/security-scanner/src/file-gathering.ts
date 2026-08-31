@@ -104,6 +104,17 @@ function globToRegex(pattern: string): RegExp {
   return new RegExp(`^(?:${source})$`);
 }
 
+const GLOB_REGEX_CACHE = new Map<string, RegExp>();
+
+function getGlobRegex(pattern: string): RegExp {
+  let re = GLOB_REGEX_CACHE.get(pattern);
+  if (!re) {
+    re = globToRegex(pattern);
+    GLOB_REGEX_CACHE.set(pattern, re);
+  }
+  return re;
+}
+
 export function shouldExcludeDir(
   name: string,
   relativePath: string,
@@ -112,14 +123,16 @@ export function shouldExcludeDir(
 ): boolean {
   if (excludeHidden && name.startsWith('.')) return true;
 
-  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const normalizedPath = relativePath.includes('\\')
+    ? relativePath.replace(/\\/g, '/')
+    : relativePath;
   return excludePatterns.some((rawPattern) => {
     const pattern = rawPattern.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '');
     if (!pattern) return false;
     if (!pattern.includes('*') && !pattern.includes('?') && !pattern.includes('/')) {
       return name === pattern;
     }
-    const matcher = globToRegex(pattern);
+    const matcher = getGlobRegex(pattern);
     return matcher.test(normalizedPath) || matcher.test(`${normalizedPath}/`);
   });
 }

@@ -79,7 +79,8 @@ function deriveFilePath(api: { config: { extensions?: Record<string, unknown> } 
   projectSlug: string | null;
 } {
   const raw = api.config.extensions?.['todo-tracker'] as Record<string, unknown> | undefined;
-  const explicit = typeof raw?.['filePath'] === 'string' ? (raw['filePath'] as string) : null;
+  const rawPath = raw?.['filePath'] ?? raw?.['file_path'] ?? raw?.['path'] ?? raw?.['file'] ?? raw?.['targetFile'];
+  const explicit = typeof rawPath === 'string' && rawPath.trim().length > 0 ? rawPath.trim() : null;
   if (explicit) {
     // The projectSlug is the file's basename (without extension).
     const base =
@@ -277,8 +278,10 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const status = (input['status'] as string | undefined) ?? 'active';
-        const priority = input['priority'] as Priority | undefined;
+        const rawStatus = typeof input['status'] === 'string' ? input['status'].trim().toLowerCase() : undefined;
+        const status = rawStatus ?? 'active';
+        const rawPriority = typeof input['priority'] === 'string' ? input['priority'].trim().toLowerCase() : undefined;
+        const priority = rawPriority as Priority | undefined;
         const tag = input['tag'] as string | undefined;
         const limit = Math.min(Math.max(Number(input['limit'] ?? 50) || 50, 1), 200);
         const file = ensureFile();
@@ -287,10 +290,10 @@ const plugin: Plugin = {
           if (status === 'active') {
             items = items.filter((it) => it.status === 'pending' || it.status === 'in_progress');
           } else {
-            items = items.filter((it) => it.status === status);
+            items = items.filter((it) => it.status.toLowerCase() === status);
           }
         }
-        if (priority) items = items.filter((it) => it.priority === priority);
+        if (priority) items = items.filter((it) => it.priority.toLowerCase() === priority);
         if (tag) items = items.filter((it) => it.tags.includes(tag));
         const total = items.length;
         const truncated = items.slice(0, limit);
@@ -327,13 +330,22 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const content = typeof input['content'] === 'string' ? input['content'].trim() : '';
+        const rawContent =
+          input['content'] ??
+          input['text'] ??
+          input['task'] ??
+          input['title'] ??
+          input['todo'] ??
+          input['message'] ??
+          input['item'];
+        const content = typeof rawContent === 'string' ? rawContent.trim() : '';
         if (!content) {
           return { ok: false, error: 'content is required and must be a non-empty string' };
         }
+        const rawPri = typeof input['priority'] === 'string' ? input['priority'].trim().toLowerCase() : '';
         const priority: Priority =
-          input['priority'] === 'low' || input['priority'] === 'high'
-            ? input['priority']
+          rawPri === 'low' || rawPri === 'high'
+            ? (rawPri as Priority)
             : 'normal';
         const tags = Array.isArray(input['tags'])
           ? (input['tags'] as unknown[]).filter((t): t is string => typeof t === 'string')
@@ -364,7 +376,7 @@ const plugin: Plugin = {
         recordMutation('add', item.id);
         api.log.info('todo-tracker: added item', { id: item.id, content });
         try {
-          await api.session.append({
+          await api.session?.append?.({
             type: 'todo-tracker:add',
             ts: now,
             id: item.id,
@@ -394,7 +406,8 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const id = typeof input['id'] === 'string' ? (input['id'] as string) : '';
+        const rawId = input['id'] ?? input['itemId'] ?? input['taskId'] ?? input['todoId'];
+        const id = typeof rawId === 'string' ? rawId.trim() : '';
         if (!id) return { ok: false, error: 'id is required' };
         const idx = findItemIndex(id);
         if (idx === -1) return { ok: false, error: `no item with id ${id}` };
@@ -431,7 +444,8 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const id = typeof input['id'] === 'string' ? (input['id'] as string) : '';
+        const rawId = input['id'] ?? input['itemId'] ?? input['taskId'] ?? input['todoId'];
+        const id = typeof rawId === 'string' ? rawId.trim() : '';
         if (!id) return { ok: false, error: 'id is required' };
         const idx = findItemIndex(id);
         if (idx === -1) return { ok: false, error: `no item with id ${id}` };
@@ -467,7 +481,8 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: Record<string, unknown>) {
         if (state.filePath === null) return notConfiguredError();
-        const id = typeof input['id'] === 'string' ? (input['id'] as string) : '';
+        const rawId = input['id'] ?? input['itemId'] ?? input['taskId'] ?? input['todoId'];
+        const id = typeof rawId === 'string' ? rawId.trim() : '';
         if (!id) return { ok: false, error: 'id is required' };
         const idx = findItemIndex(id);
         if (idx === -1) return { ok: false, error: `no item with id ${id}` };

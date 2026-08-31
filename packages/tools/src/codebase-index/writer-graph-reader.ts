@@ -43,14 +43,15 @@ const MAX_SQL_VARS = 900;
  */
 function chunkedIdQuery(
   stmt: PrepareStatement,
-  ids: number[],
+  ids: readonly number[],
   buildSql: (placeholders: string) => string,
   extraArgs: readonly (string | number)[] = [],
 ): unknown[] {
   const results: unknown[] = [];
+  let cursor = 0;
   for (const take of inListChunks(ids.length, MAX_SQL_VARS)) {
-    const chunk = padToInBucket(ids.slice(0, take));
-    ids = ids.slice(take);
+    const chunk = padToInBucket(ids.slice(cursor, cursor + take));
+    cursor += take;
     const sql = buildSql(placeholders(chunk.length));
     results.push(...(stmt(sql).all(...chunk, ...extraArgs) as unknown[]));
   }
@@ -60,14 +61,15 @@ function chunkedIdQuery(
 /** Like chunkedIdQuery but returns a single scalar (COUNT, SUM, …). */
 function chunkedIdScalar(
   stmt: PrepareStatement,
-  ids: number[],
+  ids: readonly number[],
   buildSql: (placeholders: string) => string,
   extraArgs: readonly (string | number)[] = [],
 ): number {
   let total = 0;
+  let cursor = 0;
   for (const take of inListChunks(ids.length, MAX_SQL_VARS)) {
-    const chunk = padToInBucket(ids.slice(0, take));
-    ids = ids.slice(take);
+    const chunk = padToInBucket(ids.slice(cursor, cursor + take));
+    cursor += take;
     const sql = buildSql(placeholders(chunk.length));
     const rows = stmt(sql).all(...chunk, ...extraArgs) as Array<{ n: number }>;
     total += rows[0]?.n ?? 0;

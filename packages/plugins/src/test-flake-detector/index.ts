@@ -164,7 +164,25 @@ const ALLOWED_RUNNER_FLAGS = new Set([
   '--passWithNoTests',
   '--reporter=verbose',
   '--reporter=default',
+  '--reporter=basic',
+  '--reporter=dot',
+  '--reporter=json',
+  '--reporter=tap',
+  '--no-color',
+  '--silent',
+  '--bail',
+  '-b',
+  '--isolate',
+  '-t',
+  '--testNamePattern',
 ]);
+
+function isAllowedRunnerArg(arg: string): boolean {
+  if (ALLOWED_RUNNER_FLAGS.has(arg)) return true;
+  if (arg.startsWith('--reporter=') || arg.startsWith('--testNamePattern=')) return true;
+  if (/^\d+$/.test(arg)) return true;
+  return false;
+}
 
 // withinProject() imported from ../runtime/index.js
 
@@ -212,7 +230,7 @@ function resolveTestCommand(
     return null;
   }
 
-  if (runnerArgs.some((arg) => !ALLOWED_RUNNER_FLAGS.has(arg))) return null;
+  if (runnerArgs.some((arg) => !isAllowedRunnerArg(arg))) return null;
   let resolvedEntry: string;
   try {
     const requireFromProject = createRequire(resolve(process.cwd(), 'package.json'));
@@ -367,15 +385,36 @@ const plugin: Plugin = {
           return { ok: false, error: 'test-flake-detector is disabled' };
         }
 
+        const raw = input as Record<string, unknown>;
+        const rawPattern =
+          input.testPattern ??
+          raw['pattern'] ??
+          raw['path'] ??
+          raw['file'] ??
+          raw['filePath'] ??
+          raw['TargetFile'] ??
+          raw['targetFile'];
+        const testPattern =
+          typeof rawPattern === 'string' && rawPattern.trim().length > 0 ? rawPattern.trim() : undefined;
+
+        const rawCommand =
+          input.command ??
+          raw['cmd'] ??
+          raw['CommandLine'] ??
+          raw['script'];
+        const commandString =
+          typeof rawCommand === 'string' && rawCommand.trim().length > 0
+            ? rawCommand.trim()
+            : cfg.defaultCommand;
+
+        const rawRuns = input.runs ?? raw['runsRequested'] ?? raw['count'] ?? raw['repeat'] ?? raw['times'];
         const requestedRuns =
-          typeof input.runs === 'number' && input.runs >= 1
-            ? Math.min(Math.floor(input.runs), cfg.maxRuns)
+          typeof rawRuns === 'number' && rawRuns >= 1
+            ? Math.min(Math.floor(rawRuns), cfg.maxRuns)
             : 5;
         const command = resolveTestCommand(
-          typeof input.command === 'string' && input.command.trim().length > 0
-            ? input.command
-            : cfg.defaultCommand,
-          input.testPattern,
+          commandString,
+          testPattern,
         );
         if (!command) {
           return {

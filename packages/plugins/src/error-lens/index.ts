@@ -139,12 +139,12 @@ const ERROR_LINE_PATTERNS = [
 ];
 
 const FRAME_PATTERNS: RegExp[] = [
-  // Node/V8: "at fn (path/file.ts:12:5)" or "at path/file.ts:12:5"
-  /\bat\s+(?:[^(\n]+\()?((?:[A-Za-z]:[\\/])?[^()\n:]+:\d+)(?::\d+)?\)?/g,
+  // Node/V8: "at fn (path/file.ts:12:5)" or "at file:///path/file.ts:12:5"
+  /\bat\s+(?:[^(\n]+\()?((?:file:\/\/\/?)?(?:[A-Za-z]:[\\/])?[^()\n:]+:\d+)(?::\d+)?\)?/g,
   // Python: File "path/file.py", line 12
   /File "([^"]+)", line (\d+)/g,
   // tsc/vitest/eslint bare: "src/foo.ts:12:5" (require a path-ish prefix)
-  /(?:^|[ \t(])((?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\-]+\.[a-z]{1,4}:\d+)(?::\d+)?/gm,
+  /(?:^|[ \t(])((?:file:\/\/\/?)?(?:[A-Za-z]:[\\/])?[A-Za-z0-9_./\\-]+\.[a-z]{1,4}:\d+)(?::\d+)?/gm,
   // Rust: "--> src/main.rs:4:5"
   /-->\s+((?:[A-Za-z]:[\\/])?[^\s:]+:\d+)/g,
 ];
@@ -173,7 +173,10 @@ export function extractFrames(output: string, maxFrames: number): string[] {
     while (m !== null) {
       // Python pattern has file + line in separate groups.
       const frame = m[2] !== undefined ? `${m[1]}:${m[2]}` : (m[1] ?? '');
-      const cleaned = frame.replace(/\\/g, '/').trim();
+      const cleaned = frame
+        .replace(/^file:\/\/\/?/i, '')
+        .replace(/\\/g, '/')
+        .trim();
       if (cleaned && !seen.has(cleaned)) {
         seen.add(cleaned);
         const isVendor =
@@ -294,10 +297,11 @@ const plugin: Plugin = {
       } else {
         isNewFailure = true;
         const ti = (input.toolInput ?? {}) as Record<string, unknown>;
+        const rawCmd = ti['command'] ?? ti['CommandLine'] ?? ti['cmd'] ?? ti['script'];
         state.history.push({
           when: new Date().toISOString(),
           tool: input.toolName ?? 'unknown',
-          command: typeof ti['command'] === 'string' ? ti['command'].slice(0, 200) : null,
+          command: typeof rawCmd === 'string' ? rawCmd.slice(0, 200) : null,
           errorLine,
           frames,
           repeats: 1,

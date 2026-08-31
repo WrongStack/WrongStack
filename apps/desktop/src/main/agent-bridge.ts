@@ -257,7 +257,10 @@ export class DesktopAgentBridge extends EventEmitter {
         this.emitChanged(conversation);
 
         // Schedule reconnection if applicable
-        if (conversation.reconnectUrl && conversation.status === 'disconnected') {
+        if (
+          conversation.reconnectUrl &&
+          (conversation.status === 'disconnected' || conversation.status === 'error')
+        ) {
           this.scheduleReconnect(conversation);
         }
       });

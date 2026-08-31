@@ -82,17 +82,21 @@ const DEFAULTS: BranchGuardConfig = {
 function readConfig(raw: unknown): BranchGuardConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
-  const branches = Array.isArray(r['branches'])
-    ? (r['branches'] as unknown[]).filter((b): b is string => typeof b === 'string')
+  const rawBranches = r['branches'] ?? r['protectedBranches'] ?? r['protected_branches'] ?? r['protected'];
+  const branches = Array.isArray(rawBranches)
+    ? (rawBranches as unknown[]).filter((b): b is string => typeof b === 'string')
     : DEFAULTS.branches;
-  const mode = r['mode'] === 'warn' ? 'warn' : r['mode'] === 'off' ? 'off' : 'block';
+  const rawMode = typeof (r['mode'] ?? r['action']) === 'string'
+    ? String(r['mode'] ?? r['action']).trim().toLowerCase()
+    : undefined;
+  const mode = rawMode === 'warn' ? 'warn' : rawMode === 'off' ? 'off' : 'block';
   return {
     enabled: r['enabled'] !== false && mode !== 'off',
     branches: branches.length > 0 ? branches : DEFAULTS.branches,
     mode,
-    blockCommit: r['blockCommit'] !== false,
-    blockPush: r['blockPush'] !== false,
-    blockMerge: r['blockMerge'] !== false,
+    blockCommit: (r['blockCommit'] ?? r['block_commit']) !== false,
+    blockPush: (r['blockPush'] ?? r['block_push']) !== false,
+    blockMerge: (r['blockMerge'] ?? r['block_merge']) !== false,
   };
 }
 
@@ -330,12 +334,18 @@ const plugin: Plugin = {
         if (inp['dry_run'] === true) return;
         // The git-autocommit plugin's tool is a direct commit.
         gitOp = { type: 'commit', snippet: 'git_autocommit' };
-      } else if (toolName === 'bash') {
-        const command = inp['command'] as string | undefined;
-        if (typeof command !== 'string') return;
-        gitOp = detectGitCommand(command);
       } else if (toolName === 'git') {
         gitOp = detectStructuredGitCommand(inp);
+      } else {
+        const rawCmd =
+          inp['command'] ??
+          inp['CommandLine'] ??
+          inp['cmd'] ??
+          inp['script'] ??
+          inp['input'];
+        const command = typeof rawCmd === 'string' ? rawCmd : undefined;
+        if (typeof command !== 'string') return;
+        gitOp = detectGitCommand(command);
       }
 
       if (!gitOp) return; // not a git commit/push/merge — let it through

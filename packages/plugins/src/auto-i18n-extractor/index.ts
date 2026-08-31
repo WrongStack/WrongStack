@@ -101,15 +101,20 @@ function readConfig(raw: unknown): AutoI18nConfig {
   const clamp = (n: unknown, min: number, max: number, fallback: number): number =>
     typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max ? Math.floor(n) : fallback;
 
+  const rawExts = r['fileExtensions'] ?? r['file_extensions'] ?? r['extensions'];
+  const rawMin = r['minLength'] ?? r['min_length'] ?? r['min'];
+  const rawMax = r['maxContextStrings'] ?? r['max_context_strings'] ?? r['maxStrings'] ?? r['limit'];
+  const rawExcl = r['excludeAttributes'] ?? r['exclude_attributes'];
+
   return {
     enabled: r['enabled'] !== false,
-    fileExtensions: Array.isArray(r['fileExtensions'])
-      ? (r['fileExtensions'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    fileExtensions: Array.isArray(rawExts)
+      ? (rawExts as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.fileExtensions,
-    minLength: clamp(r['minLength'], 1, 500, DEFAULTS.minLength),
-    maxContextStrings: clamp(r['maxContextStrings'], 1, 100, DEFAULTS.maxContextStrings),
-    excludeAttributes: Array.isArray(r['excludeAttributes'])
-      ? (r['excludeAttributes'] as unknown[]).filter((x): x is string => typeof x === 'string')
+    minLength: clamp(rawMin, 1, 500, DEFAULTS.minLength),
+    maxContextStrings: clamp(rawMax, 1, 100, DEFAULTS.maxContextStrings),
+    excludeAttributes: Array.isArray(rawExcl)
+      ? (rawExcl as unknown[]).filter((x): x is string => typeof x === 'string')
       : DEFAULTS.excludeAttributes,
   };
 }
@@ -138,10 +143,14 @@ interface ExtractedString {
 function generateKey(value: string): string {
   const base = value
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
+    .normalize('NFKD')
+    .replace(/[^\p{L}\p{N}]+/gu, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 40);
-  return base ? `t.${base}` : 't.unknown';
+  if (base) return `t.${base}`;
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
+  return `t.str_${hash.toString(36)}`;
 }
 
 function looksLikeUserText(value: string, minLength: number): boolean {
@@ -281,7 +290,14 @@ const plugin: Plugin = {
       if (input.toolResult?.isError) return;
 
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const sourcePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['TargetFile'] ??
+        inp['filePath'] ??
+        inp['targetFile'] ??
+        inp['file_path'] ??
+        inp['file'];
+      const sourcePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
       if (!withinProject(sourcePath)) return;
 
@@ -341,8 +357,16 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: { path: string }) {
         if (!cfg.enabled) return { ok: false, error: 'auto-i18n-extractor is disabled' };
-        const filePath = input.path;
-        if (typeof filePath !== 'string' || !filePath) {
+        const raw = input as Record<string, unknown>;
+        const rawPath =
+          (typeof input.path === 'string' && input.path.trim().length > 0 ? input.path.trim() : undefined) ??
+          (typeof raw['TargetFile'] === 'string' && raw['TargetFile'].trim().length > 0 ? raw['TargetFile'].trim() : undefined) ??
+          (typeof raw['targetFile'] === 'string' && raw['targetFile'].trim().length > 0 ? raw['targetFile'].trim() : undefined) ??
+          (typeof raw['filePath'] === 'string' && raw['filePath'].trim().length > 0 ? raw['filePath'].trim() : undefined) ??
+          (typeof raw['file_path'] === 'string' && raw['file_path'].trim().length > 0 ? raw['file_path'].trim() : undefined) ??
+          (typeof raw['file'] === 'string' && raw['file'].trim().length > 0 ? raw['file'].trim() : undefined);
+        const filePath = typeof rawPath === 'string' ? rawPath.trim() : '';
+        if (!filePath) {
           return { ok: false, error: 'path is required' };
         }
         if (!withinProject(filePath)) {
