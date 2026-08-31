@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T07:55:36.476Z",
+  "generatedAt": "2026-08-31T08:26:11.636Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3431,
     "testFiles": 3065,
-    "sourceLines": 836495,
+    "sourceLines": 836587,
     "workspaceEdges": 128,
     "moduleEdges": 10666,
     "nonCommandSlashImports": 0,
@@ -19860,6 +19860,11 @@
       "file": "packages/mcp/src/client.ts",
       "lines": 997,
       "relativeImports": 11
+    },
+    {
+      "file": "packages/plugins/src/duplicate-code-detector/index.ts",
+      "lines": 850,
+      "relativeImports": 1
     },
     {
       "file": "packages/plugins/src/git-autocommit/index.ts",

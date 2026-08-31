@@ -218,6 +218,10 @@
       "lines": 997,
       "relativeImports": 11
     },
+    "packages/plugins/src/duplicate-code-detector/index.ts": {
+      "lines": 850,
+      "relativeImports": 1
+    },
     "packages/plugins/src/git-autocommit/index.ts": {
       "lines": 1014,
       "relativeImports": 0
