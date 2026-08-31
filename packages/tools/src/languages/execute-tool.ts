@@ -144,11 +144,12 @@ export const languageTool: Tool<LanguageToolInput, LanguageToolOutput> = {
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<LanguageToolOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : (ctx.workingDir ?? ctx.cwd);
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const operations = operationsFor(input);
     const runs: LanguageRunResult[] = [];
     const unavailableReasons: string[] = [];
     for (const operation of operations) {
-      opts.signal.throwIfAborted();
+      signal.throwIfAborted();
       const planResult = await planLanguageOperation({
         projectRoot: ctx.projectRoot,
         cwd,
@@ -158,7 +159,7 @@ export const languageTool: Tool<LanguageToolInput, LanguageToolOutput> = {
         ...(input.workspace ? { workspace: input.workspace } : {}),
         ...(input.mode ? { mode: input.mode } : {}),
         operationOptions: operationOptions(input),
-        signal: opts.signal,
+        signal,
       });
       if (planResult.status !== 'planned') {
         const reason =
@@ -177,7 +178,7 @@ export const languageTool: Tool<LanguageToolInput, LanguageToolOutput> = {
         projectRoot: ctx.projectRoot,
         workspace: planResult.workspace,
         plan: planResult.plan,
-        signal: opts.signal,
+        signal,
       });
       for (;;) {
         const next = await runner.next();

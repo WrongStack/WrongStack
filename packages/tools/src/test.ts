@@ -78,6 +78,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TestOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const runner = input.runner ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -85,7 +86,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
       const bridge = await tryLegacyCodeOperation('test', {
         cwd,
         projectRoot: ctx.projectRoot,
-        signal: opts.signal,
+        signal,
       });
       if (bridge?.run) {
         const run = bridge.run;
@@ -133,7 +134,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
       cmd: detected,
       args,
       cwd,
-      signal: opts.signal,
+      signal,
       maxBytes: 200_000,
     });
     const duration = Date.now() - start;

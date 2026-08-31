@@ -762,7 +762,7 @@ export async function rebindSessionKanbanTask(
     return null;
   }
   if (!best) return null;
-  context.setCurrentKanbanTask(best.taskId, best.boardId);
+  context.setCurrentKanbanTask?.(best.taskId, best.boardId);
   return { boardId: best.boardId, taskId: best.taskId };
 }
 
@@ -796,15 +796,15 @@ async function hydrateSessionKanbanBoard(
     fireAndForget('prune-session-boards', pruneSessionBoards(context.projectRoot));
   }
   let board = await ensureSessionKanbanBoard(context.projectRoot, id);
-  if (context.todos.length) {
+  if (context.todos?.length) {
     board = await projectSessionTodosToKanban(context.projectRoot, context.todos, id);
   }
-  const planPath = context.meta['plan.path'];
+  const planPath = context.meta?.['plan.path'];
   if (typeof planPath === 'string' && planPath) {
     const plan = await loadPlan(planPath);
     if (plan) board = await projectSessionPlanToKanban(context.projectRoot, plan.items, id);
   }
-  const taskPath = context.meta['task.path'];
+  const taskPath = context.meta?.['task.path'];
   if (typeof taskPath === 'string' && taskPath) {
     const tasks = await loadTasks(taskPath);
     if (tasks) board = await projectSessionTasksToKanban(context.projectRoot, tasks.tasks, id);

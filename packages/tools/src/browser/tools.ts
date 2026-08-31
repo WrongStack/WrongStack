@@ -9,8 +9,12 @@ import { parsePrivateOriginAllowlist } from './security.js';
 const managers = new Map<string, BrowserSessionManager>();
 const cleanupSignalByContext = new WeakMap<object, AbortSignal>();
 
+function signalFor(ctx: Context, opts?: { signal?: AbortSignal }): AbortSignal {
+  return opts?.signal ?? ctx.signal ?? new AbortController().signal;
+}
+
 function managerFor(ctx: Context): BrowserSessionManager {
-  const root = path.resolve(ctx.projectRoot);
+  const root = path.resolve(ctx.projectRoot ?? ctx.cwd ?? process.cwd());
   let manager = managers.get(root);
   if (!manager) {
     const wpaths = resolveWstackPaths({ projectRoot: root });
@@ -23,7 +27,7 @@ function managerFor(ctx: Context): BrowserSessionManager {
     managers.set(root, manager);
   }
   const runSignal = ctx.signal;
-  if (cleanupSignalByContext.get(ctx) !== runSignal) {
+  if (runSignal && cleanupSignalByContext.get(ctx) !== runSignal) {
     cleanupSignalByContext.set(ctx, runSignal);
     const managerForRun = manager;
     const rootForRun = root;
@@ -93,13 +97,13 @@ export const browserOpenTool: Tool<{
       await managerFor(ctx).open(
         owner(ctx),
         { url: input.url, viewport, trace: input.trace },
-        opts.signal,
+        signalFor(ctx, opts),
       ),
     );
   },
 };
 
-export const browserListTool: Tool<Record<string, never>> = {
+export const browserListTool = {
   name: 'browser_list',
   description:
     'List browser sessions owned by the current agent without exposing other agents sessions.',
@@ -108,10 +112,10 @@ export const browserListTool: Tool<Record<string, never>> = {
   riskTier: 'safe',
   capabilities: [ToolCapabilities.NET_OUTBOUND],
   inputSchema: { type: 'object', properties: {} },
-  async execute(_input, ctx) {
+  async execute(_input: Record<string, never>, ctx: Context, _opts?: { signal: AbortSignal }) {
     return json(await managerFor(ctx).list(owner(ctx)));
   },
-};
+} satisfies Tool<Record<string, never>>;
 
 export const browserStatusTool: Tool<Record<string, never>> = {
   name: 'browser_status',
@@ -144,7 +148,7 @@ export const browserNavigateTool: Tool<{ sessionId: string; url: string }> = {
   },
   async execute(input, ctx, opts) {
     return json(
-      await managerFor(ctx).navigate(input.sessionId, owner(ctx), input.url, opts.signal),
+      await managerFor(ctx).navigate(input.sessionId, owner(ctx), input.url, signalFor(ctx, opts)),
     );
   },
 };
@@ -163,7 +167,7 @@ export const browserSnapshotTool: Tool<{ sessionId: string }> = {
     required: ['sessionId'],
   },
   async execute(input, ctx, opts) {
-    return json(await managerFor(ctx).snapshot(input.sessionId, owner(ctx), opts.signal));
+    return json(await managerFor(ctx).snapshot(input.sessionId, owner(ctx), signalFor(ctx, opts)));
   },
 };
 
@@ -198,7 +202,7 @@ export const browserScreenshotTool: Tool<{
         input.sessionId,
         owner(ctx),
         { fullPage: input.fullPage, selector: input.selector },
-        opts.signal,
+        signalFor(ctx, opts),
       ),
     );
   },
@@ -233,7 +237,7 @@ function selectorTool(
       required: ['sessionId', 'selector'],
     },
     async execute(input, ctx, opts) {
-      await run(managerFor(ctx), input, owner(ctx), opts.signal);
+      await run(managerFor(ctx), input, owner(ctx), signalFor(ctx, opts));
       return 'ok';
     },
   };
@@ -291,7 +295,13 @@ export const browserTypeTool: Tool<
     if (value === undefined) {
       throw new Error(`browser: secret environment variable "${input.secretEnv ?? ''}" is not set`);
     }
-    await managerFor(ctx).type(input.sessionId, owner(ctx), input.selector, value, opts.signal);
+    await managerFor(ctx).type(
+      input.sessionId,
+      owner(ctx),
+      input.selector,
+      value,
+      signalFor(ctx, opts),
+    );
     return 'ok';
   },
 };
@@ -322,7 +332,7 @@ export const browserSelectTool: Tool<SelectorInput & { value: string }> = {
       owner(ctx),
       input.selector,
       input.value,
-      opts.signal,
+      signalFor(ctx, opts),
     );
     return 'ok';
   },
@@ -345,7 +355,7 @@ export const browserPressTool: Tool<{ sessionId: string; key: string }> = {
     required: ['sessionId', 'key'],
   },
   async execute(input, ctx, opts) {
-    await managerFor(ctx).press(input.sessionId, owner(ctx), input.key, opts.signal);
+    await managerFor(ctx).press(input.sessionId, owner(ctx), input.key, signalFor(ctx, opts));
     return 'ok';
   },
 };
@@ -371,7 +381,13 @@ export const browserDragTool: Tool<{ sessionId: string; from: string; to: string
     required: ['sessionId', 'from', 'to'],
   },
   async execute(input, ctx, opts) {
-    await managerFor(ctx).drag(input.sessionId, owner(ctx), input.from, input.to, opts.signal);
+    await managerFor(ctx).drag(
+      input.sessionId,
+      owner(ctx),
+      input.from,
+      input.to,
+      signalFor(ctx, opts),
+    );
     return 'ok';
   },
 };
@@ -402,7 +418,7 @@ export const browserWaitTool: Tool<{
       input.sessionId,
       owner(ctx),
       { selector: input.selector, timeoutMs: input.timeoutMs },
-      opts.signal,
+      signalFor(ctx, opts),
     );
     return 'ok';
   },
@@ -430,7 +446,12 @@ export const browserEvaluateTool: Tool<{ sessionId: string; expression: string }
   },
   async execute(input, ctx, opts) {
     return json(
-      await managerFor(ctx).evaluate(input.sessionId, owner(ctx), input.expression, opts.signal),
+      await managerFor(ctx).evaluate(
+        input.sessionId,
+        owner(ctx),
+        input.expression,
+        signalFor(ctx, opts),
+      ),
     );
   },
 };
@@ -456,13 +477,14 @@ export const browserUploadTool: Tool<SelectorInput & { files: string[] }> = {
     required: ['sessionId', 'selector', 'files'],
   },
   async execute(input, ctx, opts) {
+    const root = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
     await managerFor(ctx).upload(
       input.sessionId,
       owner(ctx),
       input.selector,
       input.files,
-      ctx.projectRoot,
-      opts.signal,
+      root,
+      signalFor(ctx, opts),
     );
     return 'ok';
   },

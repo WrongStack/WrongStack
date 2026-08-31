@@ -64,12 +64,13 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<TypecheckOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyCodeOperation('semantic', {
       cwd,
       projectRoot: ctx.projectRoot,
-      signal: opts.signal,
+      signal,
     });
     if (bridge?.run) {
       const run = bridge.run;
@@ -124,7 +125,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
       cmd,
       args: cmdArgs,
       cwd,
-      signal: opts.signal,
+      signal,
       maxBytes: 200_000,
     });
 

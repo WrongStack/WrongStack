@@ -64,6 +64,7 @@ export const lintTool: Tool<LintInput, LintOutput> = {
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<LintOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const linter = input.linter ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -71,7 +72,7 @@ export const lintTool: Tool<LintInput, LintOutput> = {
       const bridge = await tryLegacyCodeOperation('lint', {
         cwd,
         projectRoot: ctx.projectRoot,
-        signal: opts.signal,
+        signal,
       });
       if (bridge?.run) {
         const run = bridge.run;
@@ -120,7 +121,7 @@ export const lintTool: Tool<LintInput, LintOutput> = {
     }
 
     const cmd = detected === 'biome' ? 'biome' : detected;
-    const result = yield* spawnStream({ cmd, args, cwd, signal: opts.signal, maxBytes: 100_000 });
+    const result = yield* spawnStream({ cmd, args, cwd, signal, maxBytes: 100_000 });
 
     const errors = [...result.stdout.matchAll(/\berror\b/gi)].length;
     const warnings = [...result.stdout.matchAll(/\bwarning\b/gi)].length;

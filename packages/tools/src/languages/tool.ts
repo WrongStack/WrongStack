@@ -159,12 +159,13 @@ export const languageInfoTool: Tool<LanguageInfoInput, LanguageInfoOutput> = {
       };
     }
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : (ctx.workingDir ?? ctx.cwd);
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const common = {
       projectRoot: ctx.projectRoot,
       cwd,
       ...(input.target ? { target: input.target } : {}),
       ...(input.language ? { language: input.language } : {}),
-      signal: opts.signal,
+      signal,
     };
     if (input.action === 'detect') {
       return { action: 'detect', ...(await detectLanguageWorkspaces(common)) };

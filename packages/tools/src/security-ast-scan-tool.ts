@@ -269,7 +269,7 @@ export const securityAstScanTool: Tool<SecurityScanInput, SecurityScanOutput> = 
   },
   async execute(input, ctx) {
     try {
-      const projectRoot = ctx.projectRoot;
+      const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
       let targetFile = input.file ?? 'inline-code.ts';
       let content = input.content;
 

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { checkUnixSocketPath } from '@wrongstack/core/utils';
+import { checkUnixSocketPath } from '@wrongstack/persistence';
 import { IndexTimeoutError, LockError } from './circuit-breaker.js';
 import {
   projectIndexServerBuildId,
@@ -80,9 +80,7 @@ export interface ProjectIndexServerConnectionState {
   health?: ProjectIndexServerClientHealth | undefined;
 }
 
-type ProjectIndexServerConnectionListener = (
-  state: ProjectIndexServerConnectionState,
-) => void;
+type ProjectIndexServerConnectionListener = (state: ProjectIndexServerConnectionState) => void;
 
 export const connectionStates = new Map<string, ProjectIndexServerConnectionState>();
 const connectionStateListeners = new Set<ProjectIndexServerConnectionListener>();

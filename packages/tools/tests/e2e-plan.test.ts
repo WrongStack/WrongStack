@@ -216,4 +216,11 @@ describe('e2e_plan tool', () => {
       'stop discovery',
     );
   });
+
+  it('executes cleanly when opts parameter is omitted', async () => {
+    const box = await sandbox();
+    const output = await e2ePlanTool.execute({}, box.ctx);
+    expect(output.projects).toBeDefined();
+    expect(Array.isArray(output.projects)).toBe(true);
+  });
 });

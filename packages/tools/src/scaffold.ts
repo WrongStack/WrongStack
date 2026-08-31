@@ -154,7 +154,7 @@ async function handleBuiltIn(
     const resolvedPath = substituteVars(filePath, name, vars);
     const joinedPath = path.join(cwd, resolvedPath);
     // Ensure generated files cannot escape the project root via template variable injection (e.g. name containing "../")
-    const root = path.resolve(ctx.projectRoot);
+    const root = path.resolve(ctx.projectRoot ?? ctx.cwd ?? process.cwd());
     const target = path.resolve(joinedPath);
     const rel = path.relative(root, target);
     if (rel.startsWith('..') || path.isAbsolute(rel)) {

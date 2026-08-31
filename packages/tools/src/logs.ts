@@ -75,6 +75,7 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
   },
   async execute(input, ctx, opts) {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const lines = input.lines ?? 100;
     let filterRe: RegExp | null = null;
     if (input.filter) {
@@ -86,7 +87,7 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
     }
 
     if (input.service) {
-      return await dockerLogs(input.service, lines, filterRe, cwd, opts.signal, input.since);
+      return await dockerLogs(input.service, lines, filterRe, cwd, signal, input.since);
     }
 
     if (input.path) {

@@ -39,8 +39,8 @@ const realCheckUnixSocketPath = vi.hoisted<{
     maxBytes: number;
   };
 }>(() => ({}));
-vi.mock('@wrongstack/core/utils', async (orig) => {
-  const actual = await orig<typeof import('@wrongstack/core/utils')>();
+vi.mock('@wrongstack/persistence', async (orig) => {
+  const actual = await orig<typeof import('@wrongstack/persistence')>();
   realCheckUnixSocketPath.fn = actual.checkUnixSocketPath;
   return {
     ...actual,

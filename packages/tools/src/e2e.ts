@@ -560,7 +560,9 @@ export async function discoverE2EProjects(
   };
 }
 
-export const e2ePlanTool: Tool<E2EPlanInput, E2EPlanOutput> = {
+type E2EPlanContext = Parameters<Tool<E2EPlanInput, E2EPlanOutput>['execute']>[1];
+
+export const e2ePlanTool = {
   name: 'e2e_plan',
   category: 'Code Quality',
   description:
@@ -595,13 +597,14 @@ export const e2ePlanTool: Tool<E2EPlanInput, E2EPlanOutput> = {
       },
     },
   },
-  async execute(input, ctx, opts) {
+  async execute(input: E2EPlanInput, ctx: E2EPlanContext, opts?: { signal: AbortSignal }) {
     const root = await safeResolveReal(input.cwd ?? '.', ctx);
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     return discoverE2EProjects(root, {
       framework: input.framework,
       maxDepth: input.maxDepth,
       includeSpecs: input.includeSpecs,
-      signal: opts.signal,
+      signal,
     });
   },
-};
+} satisfies Tool<E2EPlanInput, E2EPlanOutput>;

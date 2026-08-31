@@ -90,4 +90,13 @@ describe('first-party browser tool contract', () => {
 
     expect(ctx.registerAbortHook).toHaveBeenCalledTimes(2);
   });
+
+  it('executes browserListTool cleanly when opts parameter is omitted', async () => {
+    const ctx = {
+      projectRoot: 'browser-cleanup-project',
+      agentId: 'leader',
+    };
+    const result = await browserListTool.execute({}, ctx as never);
+    expect(typeof result).toBe('string');
+  });
 });

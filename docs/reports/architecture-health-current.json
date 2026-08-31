@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T09:44:57.163Z",
+  "generatedAt": "2026-08-31T10:32:37.397Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3431,
     "testFiles": 3065,
-    "sourceLines": 838346,
+    "sourceLines": 838403,
     "workspaceEdges": 128,
     "moduleEdges": 10668,
     "nonCommandSlashImports": 0,
@@ -19863,7 +19863,7 @@
     },
     {
       "file": "packages/plugins/src/duplicate-code-detector/index.ts",
-      "lines": 882,
+      "lines": 876,
       "relativeImports": 1
     },
     {

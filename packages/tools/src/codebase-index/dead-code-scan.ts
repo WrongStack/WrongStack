@@ -121,7 +121,7 @@ export const deadCodeScanTool: Tool<DeadCodeScanInput, DeadCodeScanOutput> = {
   },
   async execute(input, ctx, _execOpts) {
     const startMs = Date.now();
-    const projectRoot = input.projectRoot ?? ctx.projectRoot;
+    const projectRoot = input.projectRoot ?? ctx.projectRoot ?? ctx.cwd ?? process.cwd();
     const indexDir = input.indexDir ?? codebaseIndexDirOverride(ctx) ?? undefined;
 
     const result = runDeadCodeScan(projectRoot, {

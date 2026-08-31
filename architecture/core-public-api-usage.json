@@ -189,9 +189,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 552,
-      "typeOnly": 58,
-      "runtimeOrMixed": 523
+      "files": 550,
+      "typeOnly": 57,
+      "runtimeOrMixed": 522
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -18527,12 +18527,6 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/src/codebase-index/project-server-client-state.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 1
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/project-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18738,12 +18732,6 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/tests/process-registry-persistent.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/utils",
-      "file": "packages/tools/tests/project-index-server-endpoint-invalid.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },

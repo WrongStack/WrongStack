@@ -168,6 +168,7 @@ export const languagePackageTool: Tool<LanguagePackageInput, LanguagePackageTool
     opts,
   ): AsyncGenerator<ToolStreamEvent<LanguagePackageToolOutput>> {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : (ctx.workingDir ?? ctx.cwd);
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const planOperation = OPERATION_TO_PLAN[input.operation];
     const operationOptions = {
       ...(input.names ? { packages: input.names } : {}),
@@ -181,7 +182,7 @@ export const languagePackageTool: Tool<LanguagePackageInput, LanguagePackageTool
       ...(input.language ? { language: input.language } : {}),
       ...(input.workspace ? { workspace: input.workspace } : {}),
       operationOptions,
-      signal: opts.signal,
+      signal,
     });
     if (planResult.status !== 'planned') {
       const reason =
@@ -225,7 +226,7 @@ export const languagePackageTool: Tool<LanguagePackageInput, LanguagePackageTool
       workspace: planResult.workspace,
       plan: planResult.plan,
       packages: input.names ?? [],
-      signal: opts.signal,
+      signal,
     });
     let outcome: LanguagePackageOutcome | undefined;
     for (;;) {

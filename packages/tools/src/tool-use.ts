@@ -95,7 +95,7 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
       };
     }
 
-    const governedExecute = ctx.meta[GOVERNED_TOOL_EXECUTOR_META_KEY] as
+    const governedExecute = ctx.meta?.[GOVERNED_TOOL_EXECUTOR_META_KEY] as
       | GovernedToolExecutor
       | undefined;
     if (typeof governedExecute !== 'function') {
