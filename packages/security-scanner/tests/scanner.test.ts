@@ -67,6 +67,40 @@ describe('SecurityScanner', () => {
       await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
+    it('detects secrets across .env.* file variants', async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-scanner-env-'));
+      await fs.writeFile(
+        path.join(tmpDir, '.env.local'),
+        'API_KEY="sktestabcdefghij1234567890";\n',
+      );
+      await fs.writeFile(
+        path.join(tmpDir, '.env.production'),
+        'API_KEY="sktestabcdefghij1234567890";\n',
+      );
+
+      const patterns: SecurityPattern[] = [
+        {
+          id: 'env-secret',
+          name: 'Env Secret',
+          severity: 'critical',
+          description: 'Detects secrets in env files',
+          patterns: [/(?:api[_-]?key)[^\w]*[=:]\s*["']([a-zA-Z0-9]{20,})["']/gi],
+          fileExtensions: ['.env'],
+          falsePositiveMarkers: [],
+          remediation: 'Move out of repo',
+        },
+      ];
+
+      const skill = createMockSkill(patterns);
+      const techStack = createMockTechStack();
+
+      const result = await scanner.scan(tmpDir, skill, techStack);
+      const files = [...new Set(result.findings.map((f) => f.file))].sort();
+      expect(files).toEqual(['.env.local', '.env.production']);
+
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
     it('detects every match across multiple lines (regression: /g flag lastIndex bug)', async () => {
       // Regression test for a bug where `.test()` on a /g-flagged regex
       // advances `lastIndex` between calls, causing the scanner to silently
@@ -291,6 +325,39 @@ describe('SecurityScanner', () => {
       // JS files should be filtered out
       const jsFindings = result.findings.filter((f) => f.file.endsWith('.js'));
       expect(jsFindings).toHaveLength(0);
+    });
+
+    it('normalizes extensions without leading dots and avoids false matches on suffix substrings', async () => {
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-scanner-ext-'));
+      const tsFile = path.join(tmpDir, 'main.ts');
+      const statsFile = path.join(tmpDir, 'stats');
+      const apiKey = 'sk-live-12345678901234567890';
+      await fs.writeFile(tsFile, `const apiKey = "${apiKey}";\n`);
+      await fs.writeFile(statsFile, `const apiKey = "${apiKey}";\n`);
+
+      const patterns: SecurityPattern[] = [
+        {
+          id: 'api-key',
+          name: 'API Key',
+          severity: 'critical',
+          description: 'API key secret',
+          patterns: [/sk-live-[a-zA-Z0-9]{20}/g],
+          fileExtensions: ['ts'], // no leading dot
+          falsePositiveMarkers: [],
+          remediation: 'Use env',
+        },
+      ];
+
+      const skill = createMockSkill(patterns);
+      const techStack = createMockTechStack();
+
+      const scannerNoDot = new SecurityScanner({ fileExtensions: ['ts'] });
+      const result = await scannerNoDot.scan(tmpDir, skill, techStack);
+
+      expect(result.findings.map((f) => f.file)).toEqual(['main.ts']);
+      expect(result.findings.some((f) => f.file.includes('stats'))).toBe(false);
+
+      await fs.rm(tmpDir, { recursive: true, force: true });
     });
   });
 

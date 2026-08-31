@@ -66,6 +66,18 @@ describe('SecurityScanner - edge coverage', () => {
         ]),
         createMockTechStack(),
       ),
+    ).toEqual(['.ts']);
+    expect(
+      internals.getTargetExtensions(
+        createMockSkill([
+          {
+            fileExtensions: [''],
+            patterns: [],
+            falsePositiveMarkers: [],
+          } as never,
+        ]),
+        createMockTechStack(),
+      ),
     ).toEqual([]);
     const pattern = { confidence: undefined } as never;
     expect(internals.getConfidence(pattern, 0.7, 'src/a.ts', 'normal')).toBe('medium');

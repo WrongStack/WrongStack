@@ -219,10 +219,26 @@ export function summarizeFriction(friction: unknown): FrictionSummary {
   const topEntry = [...pairTotals.values()].sort((x, y) => y.count - x.count)[0];
   const topPair = topEntry ? `${topEntry.a} ↔ ${topEntry.b} (${topEntry.count} conflicts)` : null;
 
-  const selfThrash = edges.filter((e) => e.is_self_thrash).length;
-  const crossAgent = total - selfThrash;
-  const crossAgentRatioPct = total > 0 ? Math.round((crossAgent / total) * 100) : 0;
-  const selfThrashRatioPct = total > 0 ? Math.round((selfThrash / total) * 100) : 0;
+  // Ratio units must match. `total` is a COLLISION count when the report
+  // carries `total_collisions`, so self-thrash must be weighted by each
+  // edge's conflict_count (falling back to one collision per edge when the
+  // count is missing) — the old per-EDGE count inflated the cross-agent
+  // share (99% instead of the true 50/50) and went NEGATIVE when
+  // self-thrash edges outnumbered total_collisions. When the report omits
+  // total_collisions, `total` is an edge count and per-edge counting is the
+  // correct unit. Percentages are clamped to [0,100] so a self-thrash
+  // collision sum bigger than the daemon's windowed total renders 100%,
+  // never 1433%.
+  const collisionUnits = typeof r.total_collisions === "number";
+  const selfThrash = edges.reduce((acc, e) => {
+    if (!e.is_self_thrash) return acc;
+    if (!collisionUnits) return acc + 1;
+    const raw = (e as { conflict_count?: unknown }).conflict_count;
+    return acc + (typeof raw === "number" ? raw : 1);
+  }, 0);
+  const crossAgent = Math.max(0, total - selfThrash);
+  const crossAgentRatioPct = total > 0 ? Math.min(100, Math.round((crossAgent / total) * 100)) : 0;
+  const selfThrashRatioPct = total > 0 ? Math.min(100, Math.round((selfThrash / total) * 100)) : 0;
 
   const prose =
     (topPair ? `Top friction pair: ${topPair}. ` : "") +

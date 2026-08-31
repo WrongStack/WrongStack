@@ -151,9 +151,46 @@ export interface WrongTraceHookOptions {
  * same path increment the count and the daemon lock is only released when
  * the LAST finisher's postToolUse decrements it to zero — a sibling finishing
  * early can never unlock a path another in-flight edit still holds.
+ *
+ * Counts PARTICIPANTS, not just acquirers: a lock-conflict-race preToolUse
+ * (claim failed but the edit proceeds) also increments, so the racer's own
+ * postToolUse decrements its own entry instead of a sibling's claim. The
+ * final release is owner-guarded: when a race touched the path, count-zero
+ * does not prove the lock is ours, so the daemon's file-health is consulted
+ * before unlocking (a peer's lock is never released).
  */
 function newWrongTraceLockCounter(): Map<string, number> {
   return new Map<string, number>();
+}
+
+// Race-flag ledger keyed by the counters map identity, so pairs AND the
+// legacy factories (which share the module-level `legacyLocks` map) see the
+// same "did a race touch this path" state for the same map.
+const racedByCounters = new WeakMap<Map<string, number>, Set<string>>();
+
+function racedSetFor(counters: Map<string, number>): Set<string> {
+  let set = racedByCounters.get(counters);
+  if (!set) {
+    set = new Set<string>();
+    racedByCounters.set(counters, set);
+  }
+  return set;
+}
+
+// Acquiring identity per path, keyed by the counters map identity. The
+// owner-guard at release compares the daemon's lock_owner against the owner
+// the claim was ACTUALLY acquired with — not re-derived from sessionId() —
+// so legacy post hooks (which are built with an empty session identity) can
+// still verify and release locks their paired pre hook acquired.
+const claimedOwnerByCounters = new WeakMap<Map<string, number>, Map<string, string>>();
+
+function claimedOwnerSetFor(counters: Map<string, number>): Map<string, string> {
+  let map = claimedOwnerByCounters.get(counters);
+  if (!map) {
+    map = new Map<string, string>();
+    claimedOwnerByCounters.set(counters, map);
+  }
+  return map;
 }
 
 function acquireLock(counters: Map<string, number>, path: string): void {
@@ -217,12 +254,22 @@ export function createWrongTraceHookPair(
           });
           if (res?.ok === true) {
             acquireLock(counters, path);
+            // Remember the identity this claim was actually acquired with —
+            // the release-side owner-guard needs it (legacy post hooks are
+            // built with an empty session identity and cannot re-derive it).
+            claimedOwnerSetFor(counters).set(path, owner);
             emitSafe(emit, { kind: "lock-acquired", path, owner });
           } else {
             // Peer grabbed it between the pre-flight and the claim (or our
             // own earlier leak still holds it — the exemption let us through).
             // Either way the file is being edited by someone: we proceed
-            // without re-claiming; coordination stays advisory.
+            // without re-claiming; coordination stays advisory. The edit is
+            // STILL an in-flight participant on this path, so count it —
+            // otherwise this racer's postToolUse would decrement a sibling's
+            // claim and release the daemon lock mid-edit (the refcount
+            // contract: only the LAST finisher releases).
+            acquireLock(counters, path);
+            racedSetFor(counters).add(path);
             emitSafe(emit, { kind: "lock-conflict-race", path });
           }
         }
@@ -253,10 +300,37 @@ export function createWrongTraceHookPair(
         shouldUnlock = true;
       });
       if (!shouldUnlock) return; // a sibling still holds this path
-      emitSafe(emit, { kind: "lock-released", path });
       try {
         const wt = await getWrongTrace();
-        if (wt.isAvailable) await wt.unlockFile(path);
+        if (wt.isAvailable) {
+          // If a lock-conflict-race ever touched this path, count-zero does
+          // NOT prove the daemon lock is ours — the claim went to a peer (or
+          // never landed). Verify ownership against the daemon's file-health
+          // before releasing, and never unlock a peer's lock. The expected
+          // owner is the identity the claim was ACTUALLY acquired with
+          // (recorded on acquire) — legacy post hooks are built with an
+          // empty session identity and cannot re-derive it; only when no
+          // acquisition was recorded do we fall back to the pair's session
+          // id (pure self-leak cleanup).
+          let racerInvolved = false;
+          if (racedSetFor(counters).has(path)) {
+            racerInvolved = true;
+            const recordedOwner = claimedOwnerSetFor(counters).get(path);
+            const expectedOwner = recordedOwner ?? `wrongstack:${sessionId()}`;
+            const health = await wt.getFileHealth(path);
+            if (health?.lock_owner !== expectedOwner) return; // not ours — TTL reaps
+          }
+          const released = await wt.unlockFile(path);
+          if (released !== null && released.ok !== false) {
+            // Emit lock-released only on a CONFIRMED daemon response —
+            // mirroring lock-acquired's confirmed-emission rule. A failed
+            // unlock (daemon offline mid-flight, HTTP 5xx/4xx, IPC
+            // unreachable → null) must not record a release the daemon never
+            // performed; the TTL backstop reaps the lock instead.
+            emitSafe(emit, { kind: "lock-released", path });
+          }
+          if (racerInvolved) racedSetFor(counters).delete(path);
+        }
       } catch {
         // TTL backstop will reap it.
       }

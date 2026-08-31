@@ -78,6 +78,19 @@ describe('PackageAuditRunner', () => {
     );
   });
 
+  it('surfaces execution error message when stderr is empty', async () => {
+    const root = await temporaryProject(['package-lock.json']);
+    const result = await new PackageAuditRunner(async () => ({
+      stdout: '',
+      stderr: '',
+      exitCode: null,
+      error: new Error('spawn npm.cmd ENOENT'),
+    })).run(root);
+    expect(result).toEqual(
+      expect.objectContaining({ success: false, skipped: false, error: 'spawn npm.cmd ENOENT' }),
+    );
+  });
+
   it('prefers pnpm when both supported lockfiles exist', async () => {
     const root = await temporaryProject(['pnpm-lock.yaml', 'package-lock.json']);
     expect(await detectAuditablePackageManager(root)).toBe('pnpm');

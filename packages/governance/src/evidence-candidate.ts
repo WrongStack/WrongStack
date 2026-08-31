@@ -44,6 +44,7 @@ export interface GovernanceEvidenceCandidate {
         readonly state: 'incomplete';
         readonly missing: readonly GovernanceEvidenceCandidateMissingBinding[];
       };
+  readonly trace: GovernanceEvidenceTraceSnapshot;
   readonly tool: { readonly callId: string | null; readonly name: string };
   readonly outcome: {
     readonly status: 'succeeded' | 'failed';
@@ -178,6 +179,7 @@ export function createGovernanceEvidenceCandidate(
         ? candidateIdentity(trace, { ...outcome, toolCallId })
         : null,
     binding,
+    trace,
     tool: Object.freeze({ callId: toolCallId ?? null, name: outcome.toolName }),
     outcome: Object.freeze({
       status: outcome.ok ? 'succeeded' : 'failed',

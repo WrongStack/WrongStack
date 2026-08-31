@@ -314,7 +314,10 @@ async function handleReport(
       .filter(
         (f) =>
           f.startsWith('security-report-') &&
-          (f.endsWith('.md') || f.endsWith('.json') || f.endsWith('.html')),
+          (f.endsWith('.markdown') ||
+            f.endsWith('.md') ||
+            f.endsWith('.json') ||
+            f.endsWith('.html')),
       )
       .sort()
       .reverse();
@@ -327,7 +330,9 @@ async function handleReport(
 
       const list = reports
         .map((r, i) => {
-          const date = r.replace('security-report-', '').replace(/\.(md|json|html)$/, '');
+          const date = r
+            .replace('security-report-', '')
+            .replace(/\.(markdown|md|json|html)$/, '');
           return `  ${i + 1}. ${date}`;
         })
         .join('\n');

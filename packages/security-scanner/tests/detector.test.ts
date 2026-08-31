@@ -75,10 +75,21 @@ describe('TechStackDetector', () => {
       expect(result.detectedStacks[0]!.packageManager).toBe('yarn');
     });
 
-    it('detects bun project', async () => {
+    it('detects bun project with bun.lockb', async () => {
       const dir = await createTempProject({
         'package.json': JSON.stringify({ name: 'test' }),
         'bun.lockb': 'lockfile',
+      });
+
+      const result = await detector.detect(dir);
+
+      expect(result.detectedStacks[0]!.packageManager).toBe('bun');
+    });
+
+    it('detects bun project with text bun.lock', async () => {
+      const dir = await createTempProject({
+        'package.json': JSON.stringify({ name: 'test' }),
+        'bun.lock': '# bun lockfile v0\n',
       });
 
       const result = await detector.detect(dir);
@@ -91,6 +102,19 @@ describe('TechStackDetector', () => {
     it('detects pip requirements.txt project', async () => {
       const dir = await createTempProject({
         'requirements.txt': 'flask==2.0.0\nrequests>=2.25.0',
+      });
+
+      const result = await detector.detect(dir);
+
+      expect(result.detectedStacks).toHaveLength(1);
+      expect(result.detectedStacks[0]!.stack).toBe('python');
+      expect(result.detectedStacks[0]!.packageManager).toBe('pip');
+    });
+
+    it('detects pip project with pyproject.toml when poetry.lock is absent', async () => {
+      const dir = await createTempProject({
+        'pyproject.toml': `[build-system]
+requires = ["setuptools"]`,
       });
 
       const result = await detector.detect(dir);

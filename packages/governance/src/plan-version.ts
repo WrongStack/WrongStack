@@ -164,6 +164,12 @@ function pathMatchesPattern(value: string, pattern: string): boolean {
     const prefix = normalizedPattern.slice(0, -3);
     return path === prefix || path.startsWith(`${prefix}/`);
   }
+  if (normalizedPattern.endsWith('/*')) {
+    const prefix = normalizedPattern.slice(0, -2);
+    if (!path.startsWith(`${prefix}/`)) return false;
+    const remainder = path.slice(prefix.length + 1);
+    return remainder.length > 0 && !remainder.includes('/');
+  }
   return path === normalizedPattern;
 }
 

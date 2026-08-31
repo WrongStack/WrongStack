@@ -116,7 +116,13 @@ export class ReportGenerator {
         lines.push(`## ${category.toUpperCase()} (${findings.length})`);
         lines.push('');
 
-        for (const finding of findings) {
+        const displayedFindings =
+          typeof this.options.maxFindingsPerCategory === 'number' &&
+          this.options.maxFindingsPerCategory >= 0
+            ? findings.slice(0, this.options.maxFindingsPerCategory)
+            : findings;
+
+        for (const finding of displayedFindings) {
           lines.push(this.formatFinding(finding));
         }
 

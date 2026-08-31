@@ -22,7 +22,7 @@ const STACK_SIGNATURES: StackSignature[] = [
     stack: 'nodejs',
     packageManager: 'bun',
     manifestFiles: ['package.json'],
-    lockFiles: ['bun.lockb'],
+    lockFiles: ['bun.lockb', 'bun.lock'],
   },
   {
     stack: 'nodejs',
@@ -34,7 +34,7 @@ const STACK_SIGNATURES: StackSignature[] = [
     stack: 'nodejs',
     packageManager: 'npm',
     manifestFiles: ['package.json'],
-    lockFiles: ['package-lock.json'],
+    lockFiles: ['package-lock.json', 'npm-shrinkwrap.json'],
   },
   // Python variants
   {
@@ -47,7 +47,7 @@ const STACK_SIGNATURES: StackSignature[] = [
     stack: 'python',
     packageManager: 'pip',
     manifestFiles: ['requirements.txt', 'setup.py'],
-    lockFiles: ['requirements.txt'],
+    lockFiles: [],
   },
   {
     stack: 'python',
@@ -224,10 +224,13 @@ export class TechStackDetector {
     const manifestMatch = this.findMatchingManifest(signature.manifestFiles, files);
     if (!manifestMatch) return null;
 
-    // For Node.js package managers, require lock file presence as a positive signal
-    // This disambiguates pnpm/yarn/bun from npm (which uses package-lock.json)
-    // For other ecosystems, the manifest alone is sufficient
-    if (signature.lockFiles.length > 0 && signature.stack === 'nodejs') {
+    // For package managers that share a manifest file with other managers in the same stack
+    // (pnpm/bun/yarn vs npm for package.json in nodejs; poetry vs pip for pyproject.toml in python),
+    // require lock file presence as a positive signal before picking that package manager.
+    if (
+      signature.lockFiles.length > 0 &&
+      (signature.stack === 'nodejs' || signature.packageManager === 'poetry')
+    ) {
       const hasLockFile = signature.lockFiles.some((lock) => files.includes(lock));
       // npm is the fallback PM when no specific lock file is present
       if (!hasLockFile && signature.packageManager !== 'npm') {

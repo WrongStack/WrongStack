@@ -140,6 +140,9 @@ describe("summarizeFriction", () => {
     };
     const s = summarizeFriction(liveShape);
     expect(s.totalCollisions).toBe(8);
+    // Ratios are collision-weighted: 3 cross + 5 self of 8 collisions.
+    expect(s.crossAgentRatioPct).toBe(38);
+    expect(s.selfThrashRatioPct).toBe(63);
     // Top pair is whichever direction has the highest count — both are valid
     // candidates depending on whether self-thrash is filtered. We assert the
     // pair is one of the two inputs, not specifically which one wins.
@@ -147,6 +150,34 @@ describe("summarizeFriction", () => {
       .toContain(s.topPair);
     expect(s.prose).toMatch(/Top friction pair/);
     expect(s.prose).toMatch(/Self-thrash/);
+  });
+
+  it("clamps ratios to [0,100] when self-thrash conflicts exceed a windowed total", () => {
+    // Daemon windowed total (3) is smaller than the self-thrash edge's
+    // cumulative conflict_count (43) — ratios must clamp, never go negative
+    // or above 100.
+    const s = summarizeFriction({
+      total_collisions: 3,
+      edges: [
+        { author_model: "X", overwriter_model: "Y", is_self_thrash: true, conflict_count: 43 },
+      ],
+    });
+    expect(s.crossAgentRatioPct).toBe(0);
+    expect(s.selfThrashRatioPct).toBe(100);
+  });
+
+  it("keeps per-edge counting when the report has no total_collisions", () => {
+    // Without total_collisions, total falls back to edges.length, so
+    // self-thrash is counted per edge (1 of 2) — units stay consistent.
+    const s = summarizeFriction({
+      edges: [
+        { author_model: "A", overwriter_model: "A", is_self_thrash: true },
+        { author_model: "B", overwriter_model: "C", is_self_thrash: false },
+      ],
+    });
+    expect(s.totalCollisions).toBe(2);
+    expect(s.crossAgentRatioPct).toBe(50);
+    expect(s.selfThrashRatioPct).toBe(50);
   });
 
   it("tolerates schema drift (missing fields)", () => {

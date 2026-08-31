@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/telegram",
-  "version": "0.317.1",
+  "version": "0.317.2",
   "license": "MIT",
   "description": "WrongStack plugin — Telegram bridge: send messages, receive prompts, get notified.",
   "repository": {

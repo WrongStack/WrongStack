@@ -144,6 +144,26 @@ describe('SecurityScannerOrchestrator - timeout and signal', () => {
     // Should complete with fallback skill since signal is already aborted
     expect(result.generatedSkill).toBeDefined();
   }, 15000);
+
+  it('handles already-aborted external signal even when timeoutMs is configured', async () => {
+    const ac = new AbortController();
+    ac.abort(); // Pre-abort
+    const complete = vi.fn<Provider['complete']>().mockRejectedValue(new Error('never called'));
+    const orch = new SecurityScannerOrchestrator();
+    stubGitignore(orch);
+
+    const start = Date.now();
+    const result = await orch.run(fakeProvider(complete), {
+      projectRoot,
+      reportOptions: { outputDir },
+      skipGitignore: true,
+      signal: ac.signal,
+      timeoutMs: 10000,
+    });
+    const elapsed = Date.now() - start;
+    expect(elapsed).toBeLessThan(2000);
+    expect(result.generatedSkill).toBeDefined();
+  }, 15000);
 });
 
 describe('SecurityScannerOrchestrator - gatherFiles error paths', () => {

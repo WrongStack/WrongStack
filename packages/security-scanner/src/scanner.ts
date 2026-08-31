@@ -129,14 +129,21 @@ export class SecurityScanner {
 
   private getTargetExtensions(skill: GeneratedSkill, _techStack: TechStackInfo): string[] {
     if (this.options.fileExtensions.length > 0) {
-      return this.options.fileExtensions;
+      return this.options.fileExtensions
+        .filter((ext) => typeof ext === 'string' && ext.trim().length > 0)
+        .map((ext) => {
+          const lower = ext.toLowerCase().trim();
+          return lower.startsWith('.') ? lower : `.${lower}`;
+        });
     }
 
     const extensions = new Set<string>();
     for (const pattern of skill.patterns) {
       for (const ext of pattern.fileExtensions) {
-        if (ext.startsWith('.')) {
-          extensions.add(ext.toLowerCase());
+        if (!ext || typeof ext !== 'string') continue;
+        const lower = ext.toLowerCase().trim();
+        if (lower) {
+          extensions.add(lower.startsWith('.') ? lower : `.${lower}`);
         }
       }
     }
@@ -157,9 +164,15 @@ export class SecurityScanner {
       if (!this.matchesCategory(pattern)) continue;
       if (pattern.fileExtensions && pattern.fileExtensions.length > 0) {
         const lowerPath = relativePath.toLowerCase();
+        const baseName = lowerPath.split('/').pop() ?? lowerPath;
         const matchesExt = pattern.fileExtensions.some((ext) => {
-          const lowerExt = ext.toLowerCase();
-          return lowerPath.endsWith(lowerExt);
+          if (!ext || typeof ext !== 'string') return false;
+          const lowerExt = ext.toLowerCase().trim();
+          const normalizedExt = lowerExt.startsWith('.') ? lowerExt : `.${lowerExt}`;
+          return (
+            lowerPath.endsWith(normalizedExt) ||
+            (normalizedExt === '.env' && baseName.startsWith('.env'))
+          );
         });
         if (!matchesExt) continue;
       }

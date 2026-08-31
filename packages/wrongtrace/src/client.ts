@@ -33,6 +33,7 @@
 
 import { createMcpTransport, type McpToolBag } from "./adapters/mcp.js";
 import { createIpcTransport, type IpcTransport } from "./adapters/ipc.js";
+import { DEFAULT_TRANSPORT_TIMEOUT_MS } from "./constants.js";
 import { discover, type DiscoveryOptions, type DiscoveryResult } from "./discovery.js";
 import type {
   WrongTraceAtlasSummary,
@@ -51,8 +52,6 @@ import type {
   WrongTraceTelemetryReport,
   WrongTraceUnlockRequest,
 } from "./types.js";
-
-const DEFAULT_TIMEOUT_MS = 4_000;
 
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) {
@@ -79,7 +78,7 @@ async function httpJson<T>(
   const fetchImpl = globalThis.fetch;
   if (typeof fetchImpl !== "function") return null;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), init?.timeoutMs ?? DEFAULT_TRANSPORT_TIMEOUT_MS);
   try {
     const headers: Record<string, string> = { Accept: "application/json" };
     if (init?.body !== undefined) headers["Content-Type"] = "application/json";
@@ -223,30 +222,46 @@ export async function createWrongTraceClient(
       reason: string,
       opts?: WrongTraceLockOwnership,
     ): Promise<WrongTraceLockResult | null> {
-      // Deliberately HTTP-first — the ONE IPC exception; see the strategy
-      // header. Live probe 2026-08-24: IPC guardrail/lock ignores conflicts
-      // (silently takes over even with force:false), so routing lock calls
-      // through the pipe would break the 409-conflict semantics the
-      // production guardrail depends on.
+      // Deliberately HTTP-first — the ONE exception to the transport
+      // preference order; see the strategy header. Live probe 2026-08-24:
+      // the daemon's non-HTTP lock surface ignores conflicts (IPC silently
+      // takes over another owner's lock even with force:false), and the MCP
+      // lock_file tool mirrors the pipe — so routing lock calls through
+      // either surface BEFORE HTTP would break the 409-conflict semantics
+      // the production guardrail depends on. MCP is consulted only when the
+      // HTTP path is unavailable.
       const body: WrongTraceLockRequest = { path, reason };
       if (opts?.owner !== undefined) body.owner = opts.owner;
       if (opts?.ownerRunId !== undefined) body.owner_run_id = opts.ownerRunId;
       if (opts?.ttlSeconds !== undefined) body.ttl_seconds = opts.ttlSeconds;
       if (opts?.force === true) body.force = true;
+      const base = requireBaseUrl();
+      if (base) {
+        // 409 = lock conflict: the daemon returns {ok:false, owner, owner_run_id,
+        // locked_at, expires_at, error, message} — exactly what the caller needs
+        // to decide whether to wait or take over, so pass the body through.
+        const viaHttp = await httpJson<WrongTraceLockResult>(base, "/api/guardrail/lock", {
+          method: "POST",
+          body,
+          acceptStatus: [409],
+        });
+        if (viaHttp !== null) return viaHttp;
+        // httpJson collapses timeout / 5xx / unreadable-409-body into null —
+        // the POST's outcome is AMBIGUOUS: it may have been processed and may
+        // have conflicted. Consulting the conflict-unsafe MCP lock surface now
+        // could silently take over a peer's lock (live-probed daemon behavior,
+        // see header). Fail closed instead: report no lock; the caller's
+        // fail-open/TTL philosophy covers the coordination gap.
+        return null;
+      }
+      // No HTTP route exists at all (daemon undiscoverable over HTTP) — MCP
+      // is the only remaining surface. Best-effort coordination, and any
+      // conflict the MCP tool does report (ok:false) reaches the caller.
       if (mcp.isWired) {
         const viaMcp = await mcp.invoke<WrongTraceLockResult>("lock_file", { ...body });
         if (viaMcp) return viaMcp;
       }
-      const base = requireBaseUrl();
-      if (!base) return notAvailable();
-      // 409 = lock conflict: the daemon returns {ok:false, owner, owner_run_id,
-      // locked_at, expires_at, error, message} — exactly what the caller needs
-      // to decide whether to wait or take over, so pass the body through.
-      return httpJson<WrongTraceLockResult>(base, "/api/guardrail/lock", {
-        method: "POST",
-        body,
-        acceptStatus: [409],
-      });
+      return null;
     },
 
     async unlockFile(path: string): Promise<WrongTraceLockResult | null> {

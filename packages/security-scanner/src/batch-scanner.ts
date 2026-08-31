@@ -57,7 +57,8 @@ export class BatchScanner {
       new Set(
         targetFiles
           .map((p: string) => {
-            const match = p.match(/\.[a-z0-9]+$/i);
+            const stripped = p.replace(/\*+$/, '');
+            const match = stripped.match(/\.[a-z0-9]+$/i);
             return match ? [match[0].toLowerCase()] : [];
           })
           .flat(),

@@ -86,6 +86,26 @@ describe('ReportGenerator', () => {
     expect(md).toContain('INJECTION (1)');
   });
 
+  it('respects maxFindingsPerCategory when groupBySeverity=false', async () => {
+    const gen = new ReportGenerator({
+      outputDir: path.join(tmp, 'reports'),
+      groupBySeverity: false,
+      maxFindingsPerCategory: 1,
+    });
+    const scanResult = mkScanResult({
+      findings: [
+        mkFinding({ title: 'Secret 1', category: 'secrets' }),
+        mkFinding({ title: 'Secret 2', category: 'secrets' }),
+      ],
+      summary: { critical: 0, high: 2, medium: 0, low: 0, total: 2 } as never,
+    });
+    const file = await gen.generate(scanResult);
+    const md = await fs.readFile(file, 'utf8');
+    expect(md).toContain('## SECRETS (2)');
+    expect(md).toContain('Secret 1');
+    expect(md).not.toContain('Secret 2');
+  });
+
   it('omits remediation when includeRemediation=false', async () => {
     const gen = new ReportGenerator({
       outputDir: path.join(tmp, 'reports'),

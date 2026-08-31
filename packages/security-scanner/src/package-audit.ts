@@ -255,7 +255,7 @@ export class PackageAuditRunner {
         exitCode: execution.exitCode,
         success: false,
         skipped: false,
-        error: execution.stderr.trim() || parseError,
+        error: execution.stderr.trim() || execution.error?.message || parseError,
       };
     }
   }

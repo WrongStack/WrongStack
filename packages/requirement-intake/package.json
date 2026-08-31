@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/requirement-intake",
-  "version": "0.317.1",
+  "version": "0.317.2",
   "license": "MIT",
   "description": "WrongStack Requirements Intake — collect, preserve, validate, normalize, and submit unstructured software development requests as structured intake records. Upstream of spec-driven development: it never plans, specifies, or implements.",
   "repository": {

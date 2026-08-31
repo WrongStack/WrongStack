@@ -282,6 +282,8 @@ When `enabled` is true **and** the daemon at `url` is reachable, every provider'
 | `packages/wrongtrace/src/__tests__/client.test.ts` | Discovery contract (both health schemas, socket fallbacks), client behavior online/offline, per-endpoint shapes — all against a stubbed `fetch` |
 | `packages/wrongtrace/src/__tests__/ipc.test.ts` | JSON-RPC 2.0 newline framing against an **in-process socket daemon**; IPC-first routing; error-envelope → HTTP fallback; the `lockFile` HTTP-first exception |
 | `packages/wrongtrace/src/__tests__/agent-helpers.test.ts` | Risk-band heuristics, friction prose, activity merging, atlas digest — pure functions |
+| `packages/wrongtrace/src/__tests__/hooks.test.ts` | Hook-pair gate events: confirmed `lock-acquired`/`lock-released` emission, fail-closed release on failed unlock (503 / 409 `ok:false` / offline), reference-counted sibling release |
+| `packages/wrongtrace/src/__tests__/mcp.test.ts` | MCP transport adapter: unknown-tool/reject fail-open, empty bag unwired, per-call timeout bounds a never-settling handler, fast handler wins |
 | `packages/cli/tests/wrongtrace-hooks.executor.test.ts` | Hook deny/allow/claim/release behavior on the executor path, **plus typed gate-decision events** (`deny` / `lock-acquired` / `lock-released` emitted and asserted) |
 | `packages/cli/tests/wrongtrace-gate.live.test.ts` | Live-daemon assertions — **self-skip when the daemon is offline** (see trap below) |
 | `packages/cli/tests/wrongtrace-telemetry.test.ts` | Telemetry payload mapping + fail-open report contract (report-once, offline no-op, throw-swallowed) |

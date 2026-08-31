@@ -105,6 +105,17 @@ describe("discover()", () => {
     expect(typeof p).toBe("string");
     expect(p.length).toBeGreaterThan(0);
   });
+
+  it.skipIf(process.platform !== "win32")("win32 default socket path matches the live daemon pipe (no .sock)", () => {
+    const p = defaultSocketPath("C:\\Users\\someone");
+    // The daemon's live pipe is \\.\pipe\wrongtrace (see adapters/ipc.ts);
+    // the fallback must never append ".sock", or socket-less health
+    // responses wire IPC to a pipe no daemon opens. Skipped on non-win32:
+    // defaultSocketPath branches on platform(), and the posix branches are
+    // asserted by the "non-empty string" test above.
+    expect(p).toBe("\\\\.\\pipe\\wrongtrace");
+    expect(p).not.toContain(".sock");
+  });
 });
 
 describe("createWrongTraceClient()", () => {
@@ -201,12 +212,115 @@ describe("createWrongTraceClient()", () => {
     expect(await wt.lockFile("src/auth.ts", "my edit")).toBeNull();
   });
 
+  it("lockFile stays HTTP-first when MCP lock_file is wired — the 409 conflict body wins", async () => {
+    // Regression pin: lockFile deliberately routes HTTP BEFORE the MCP
+    // lock_file tool (daemon's non-HTTP lock surface silently takes over
+    // another owner's lock; live-probed — see client.ts header). A wired
+    // MCP bag must never shadow the daemon's structured 409.
+    let httpLockCalls = 0;
+    let mcpLockCalls = 0;
+    globalThis.fetch = makeFetch(async (url) => {
+      const u = new URL(url);
+      if (u.pathname === "/api/health") return jsonResponse({ ok: true, socket_path: "" });
+      if (u.pathname === "/api/guardrail/lock") {
+        httpLockCalls++;
+        return jsonResponse(
+          { ok: false, status: "conflict", owner: "agent-x", message: "already locked by agent-x" },
+          409,
+        );
+      }
+      return jsonResponse({});
+    });
+    const wt = await createWrongTraceClient({
+      baseUrl: "http://localhost:3444",
+      mcpTools: {
+        lock_file: async () => {
+          mcpLockCalls++;
+          return { ok: true, status: "locked" };
+        },
+      },
+    });
+    const res = await wt.lockFile("src/auth.ts", "my edit");
+    expect(httpLockCalls).toBe(1);
+    expect(mcpLockCalls).toBe(0); // MCP must not be consulted while HTTP can answer
+    expect(res?.ok).toBe(false);
+    expect(res?.owner).toBe("agent-x");
+  });
+
+  it("lockFile fails closed when the HTTP 409 body is unreadable — MCP not consulted", async () => {
+    // Regression pin: httpJson collapses timeout/5xx/unparseable-409 into
+    // null (lossy). With an HTTP route present, that ambiguous null must
+    // fail closed — consulting the conflict-unsafe MCP lock surface here
+    // would turn a real conflict into a silent takeover.
+    let mcpLockCalls = 0;
+    globalThis.fetch = makeFetch(async (url) => {
+      const u = new URL(url);
+      if (u.pathname === "/api/health") return jsonResponse({ ok: true, socket_path: "" });
+      return new Response("<html>gateway error</html>", { status: 409 });
+    });
+    const wt = await createWrongTraceClient({
+      baseUrl: "http://localhost:3444",
+      mcpTools: {
+        lock_file: async () => {
+          mcpLockCalls++;
+          return { ok: true, status: "locked" };
+        },
+      },
+    });
+    expect(await wt.lockFile("src/auth.ts", "my edit")).toBeNull();
+    expect(mcpLockCalls).toBe(0);
+  });
+
+  it("lockFile fails closed on an ambiguous HTTP 503 — MCP not consulted", async () => {
+    let mcpLockCalls = 0;
+    globalThis.fetch = makeFetch(async (url) => {
+      const u = new URL(url);
+      if (u.pathname === "/api/health") return jsonResponse({ ok: true, socket_path: "" });
+      return new Response("boom", { status: 503 });
+    });
+    const wt = await createWrongTraceClient({
+      baseUrl: "http://localhost:3444",
+      mcpTools: {
+        lock_file: async () => {
+          mcpLockCalls++;
+          return { ok: true, status: "locked" };
+        },
+      },
+    });
+    expect(await wt.lockFile("src/auth.ts", "my edit")).toBeNull();
+    expect(mcpLockCalls).toBe(0);
+  });
+
+  it("lockFile falls back to MCP lock_file only when no HTTP route exists", async () => {
+    // Discovery fails (ECONNREFUSED) → requireBaseUrl() null → the MCP
+    // surface is the only remaining route; the fallback must still work.
+    let mcpLockCalls = 0;
+    globalThis.fetch = makeFetch(async () => {
+      throw new Error("ECONNREFUSED");
+    });
+    const wt = await createWrongTraceClient({
+      baseUrl: "http://localhost:59999",
+      mcpTools: {
+        lock_file: async () => {
+          mcpLockCalls++;
+          return { ok: true, status: "locked" };
+        },
+      },
+    });
+    const res = await wt.lockFile("src/auth.ts", "my edit");
+    expect(mcpLockCalls).toBe(1);
+    expect(res?.ok).toBe(true);
+  });
+
   it("routes getFileHealth through MCP when the tool is wired", async () => {
     let httpCalls = 0;
     globalThis.fetch = makeFetch(async (url) => {
       httpCalls++;
       const u = new URL(url);
-      if (u.pathname === "/api/health") return jsonResponse({ ok: true });
+      // socket_path: "" keeps IPC unwired so the MCP path is exercised
+      // deterministically; a live daemon on the default pipe would otherwise
+      // win the IPC-first routing and beat the stub.
+      if (u.pathname === "/api/health") return jsonResponse({ ok: true, socket_path: "" });
       return jsonResponse({ path: "", health_score: 0, is_fragile: false, recent_thrashing_count: 0, is_locked: false });
     });
     const wt = await createWrongTraceClient({
@@ -229,7 +343,9 @@ describe("createWrongTraceClient()", () => {
   it("falls back to HTTP when MCP tool is wired but throws", async () => {
     globalThis.fetch = makeFetch(async (url) => {
       const u = new URL(url);
-      if (u.pathname === "/api/health") return jsonResponse({ ok: true });
+      // socket_path: "" keeps IPC unwired (see test above) so the HTTP
+      // fallback path is exercised rather than a live daemon's IPC answer.
+      if (u.pathname === "/api/health") return jsonResponse({ ok: true, socket_path: "" });
       if (u.pathname === "/api/file/health") {
         return jsonResponse({ path: "src/foo.ts", health_score: 30, is_fragile: true, recent_thrashing_count: 7, is_locked: false });
       }

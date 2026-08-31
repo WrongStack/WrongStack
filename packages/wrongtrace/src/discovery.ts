@@ -43,7 +43,7 @@ export interface DiscoveryResult {
 export function defaultSocketPath(
   home = process.env['HOME'] ?? process.env['USERPROFILE'] ?? "",
 ): string {
-  if (platform() === "win32") return "\\\\.\\pipe\\wrongtrace.sock";
+  if (platform() === "win32") return "\\\\.\\pipe\\wrongtrace";
   if (home) return join(home, ".wrongtrace", "ipc.sock");
   return "/tmp/wrongtrace.sock";
 }

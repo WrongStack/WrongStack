@@ -108,89 +108,99 @@ export class SecurityScannerOrchestrator {
 
     const startMs = Date.now();
     const abortController = new AbortController();
-    if (timeoutMs) {
-      const timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
-      externalSignal?.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timeoutId);
-          abortController.abort();
-        },
-        { once: true },
-      );
-    } else if (externalSignal) {
-      if (externalSignal.aborted) abortController.abort();
-      else
-        externalSignal.addEventListener(
-          'abort',
-          () => abortController.abort(),
-          { once: true },
-        );
-    }
 
-    // Phase 1: tech-stack detection (static, deterministic).
-    const detectionResult = await this.detector.detect(projectRoot);
-    if (detectionResult.detectedStacks.length === 0) {
-      throw new ConfigError({
-        message: `No supported tech stack detected in ${projectRoot}`,
-        code: 'CONFIG_INVALID',
-        context: { projectRoot },
-      });
-    }
-    const techStack: TechStackInfo = expectDefined(detectionResult.detectedStacks[0]);
-
-    // Phase 2: skill generation (LLM-rendered with static fallback).
-    const generatedSkill = await this.skillGenerator.generateSkillLLM(
-      provider,
-      model,
-      projectRoot,
-      techStack,
-      abortController,
-    );
-
-    // Phase 3: batch scan (LLM-per-batch with severity summary).
-    const scanResult = await this.batchScanner.runBatchScan({
-      provider,
-      model,
-      projectRoot,
-      skill: generatedSkill,
-      techStack,
-      depth: options.scanOptions?.depth || 'standard',
-      llmBatchSize: options.scanOptions?.llmBatchSize,
-      fileConcurrency: options.scanOptions?.fileConcurrency,
-      abortController,
-      retryPolicy: this.retryPolicy,
-      errorHandler: this.errorHandler,
-    });
-
-    // Phase 4: report synthesis + write (LLM-rendered markdown with fallback).
-    const synthesizedReport = await this.reportWriter.synthesizeReportLLM(
-      provider,
-      model,
-      projectRoot,
-      techStack,
-      scanResult,
-      abortController,
-    );
-    const reportPath = await this.reportWriter.writeReport(
-      synthesizedReport,
-      projectRoot,
-      reportOptions,
-    );
-
-    const gitignoreResult = skipGitignore
-      ? undefined
-      : await this.gitignoreUpdater.update();
-
-    return {
-      detectionResult,
-      generatedSkill,
-      scanResult,
-      reportPath,
-      synthesizedReport,
-      gitignoreResult,
-      durationMs: Date.now() - startMs,
+    let timeoutId: NodeJS.Timeout | undefined;
+    const onAbort = () => {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+      abortController.abort();
     };
+
+    if (externalSignal?.aborted) {
+      abortController.abort();
+    } else {
+      if (externalSignal) {
+        externalSignal.addEventListener('abort', onAbort, { once: true });
+      }
+      if (timeoutMs) {
+        timeoutId = setTimeout(() => abortController.abort(), timeoutMs);
+      }
+    }
+
+    try {
+      // Phase 1: tech-stack detection (static, deterministic).
+      const detectionResult = await this.detector.detect(projectRoot);
+      if (detectionResult.detectedStacks.length === 0) {
+        throw new ConfigError({
+          message: `No supported tech stack detected in ${projectRoot}`,
+          code: 'CONFIG_INVALID',
+          context: { projectRoot },
+        });
+      }
+      const techStack: TechStackInfo = expectDefined(detectionResult.detectedStacks[0]);
+
+      // Phase 2: skill generation (LLM-rendered with static fallback).
+      const generatedSkill = await this.skillGenerator.generateSkillLLM(
+        provider,
+        model,
+        projectRoot,
+        techStack,
+        abortController,
+      );
+
+      // Phase 3: batch scan (LLM-per-batch with severity summary).
+      const scanResult = await this.batchScanner.runBatchScan({
+        provider,
+        model,
+        projectRoot,
+        skill: generatedSkill,
+        techStack,
+        depth: options.scanOptions?.depth || 'standard',
+        llmBatchSize: options.scanOptions?.llmBatchSize,
+        fileConcurrency: options.scanOptions?.fileConcurrency,
+        abortController,
+        retryPolicy: this.retryPolicy,
+        errorHandler: this.errorHandler,
+      });
+
+      // Phase 4: report synthesis + write (LLM-rendered markdown with fallback).
+      const synthesizedReport = await this.reportWriter.synthesizeReportLLM(
+        provider,
+        model,
+        projectRoot,
+        techStack,
+        scanResult,
+        abortController,
+      );
+      const reportPath = await this.reportWriter.writeReport(
+        synthesizedReport,
+        projectRoot,
+        reportOptions,
+      );
+
+      const gitignoreResult = skipGitignore
+        ? undefined
+        : await this.gitignoreUpdater.update();
+
+      return {
+        detectionResult,
+        generatedSkill,
+        scanResult,
+        reportPath,
+        synthesizedReport,
+        gitignoreResult,
+        durationMs: Date.now() - startMs,
+      };
+    } finally {
+      if (timeoutId !== undefined) {
+        clearTimeout(timeoutId);
+      }
+      if (externalSignal) {
+        externalSignal.removeEventListener('abort', onAbort);
+      }
+    }
   }
 
   /** Quick scan — legacy entry point that does not require a full LLM context. */

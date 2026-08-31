@@ -115,4 +115,53 @@ describe('SecurityScanner refactor contracts', () => {
       }),
     );
   });
+
+  it('gathers and scans wildcard targetFiles such as **/.env* in BatchScanner', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'batch-scanner-wildcard-'));
+    temporaryDirectories.push(root);
+    await fs.writeFile(path.join(root, '.env'), 'SECRET_KEY="abc123456789"\n');
+    await fs.writeFile(path.join(root, 'index.ts'), 'export const x = 1;\n');
+
+    const testSkill: GeneratedSkill = {
+      name: 'test',
+      description: 'test',
+      version: '1.0.0',
+      techStack: 'nodejs',
+      content: { type: 'skill', content: '' },
+      patterns: [],
+      metadata: {
+        generatedAt: new Date().toISOString(),
+        confidence: 1.0,
+        targetFiles: ['**/*.ts', '**/.env*'],
+      },
+    };
+
+    const passedFiles: string[] = [];
+    const { BatchScanner } = await import('../src/batch-scanner.js');
+    const scanner = new BatchScanner();
+    await scanner.runBatchScan({
+      provider: {
+        name: 'mock',
+        complete: async (req) => {
+          const text = req.messages[0]?.content as string;
+          const matches = text.match(/===\s+([^\s=]+)\s+===/g) ?? [];
+          for (const m of matches) {
+            passedFiles.push(m.replace(/===\s+/, '').replace(/\s+===/, ''));
+          }
+          return { content: [{ type: 'text', text: '[]' }] };
+        },
+      },
+      model: 'test',
+      projectRoot: root,
+      skill: testSkill,
+      techStack: stack,
+      depth: 'standard',
+      llmBatchSize: 10,
+      fileConcurrency: 5,
+      abortController: new AbortController(),
+    });
+
+    expect(passedFiles).toContain('.env');
+    expect(passedFiles).toContain('index.ts');
+  });
 });

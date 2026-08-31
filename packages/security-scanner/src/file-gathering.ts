@@ -138,7 +138,16 @@ export function shouldExcludeDir(
 }
 
 export async function gatherFiles(options: GatherFilesOptions): Promise<string[]> {
-  const extensions = [...new Set(options.extensions.map((extension) => extension.toLowerCase()))];
+  const extensions = [
+    ...new Set(
+      options.extensions
+        .filter((extension) => typeof extension === 'string' && extension.trim().length > 0)
+        .map((extension) => {
+          const lower = extension.toLowerCase().trim();
+          return lower.startsWith('.') ? lower : `.${lower}`;
+        }),
+    ),
+  ];
   const files: string[] = [];
 
   async function visit(directory: string, currentDepth: number): Promise<void> {
@@ -166,7 +175,13 @@ export async function gatherFiles(options: GatherFilesOptions): Promise<string[]
         } else if (
           entry.isFile() &&
           (extensions.length === 0 ||
-            extensions.some((extension) => entry.name.toLowerCase().endsWith(extension)))
+            extensions.some((extension) => {
+              const lowerName = entry.name.toLowerCase();
+              return (
+                lowerName.endsWith(extension) ||
+                (extension === '.env' && lowerName.startsWith('.env'))
+              );
+            }))
         ) {
           files.push(fullPath);
         }
