@@ -1,10 +1,14 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import plugin from '../src/schema-evolution-guard';
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
   metrics: { counter: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
 }
@@ -32,7 +36,7 @@ function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unk
     ([t]: unknown[]) => (t as { name: string }).name === 'schema_evolution_status',
   );
   if (!call) throw new Error('schema_evolution_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -120,8 +124,7 @@ describe('schema-evolution-guard plugin', () => {
       toolName: 'write',
       toolInput: {
         path: 'prisma/migrations/20240104_safe/migration.sql',
-        content:
-          "ALTER TABLE orders ALTER COLUMN status SET DEFAULT 'pending' NOT NULL;",
+        content: "ALTER TABLE orders ALTER COLUMN status SET DEFAULT 'pending' NOT NULL;",
       },
       toolResult: { content: '', isError: false },
     });
@@ -144,7 +147,52 @@ describe('schema-evolution-guard plugin', () => {
       },
       toolResult: { content: '', isError: false },
     });
-    expect(result?.additionalContext).toContain('required field without default at line 3: email (String)');
+    expect(result?.additionalContext).toContain(
+      'required field without default at line 3: email (String)',
+    );
+  });
+
+  it('does not flag required fields whose only attributes are exempt names', () => {
+    const api = makeApi();
+    plugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'write',
+      toolInput: {
+        path: 'prisma/schema.prisma',
+        content: `model Audit {
+  id        Int      @id
+  createdAt DateTime @updatedAt
+  author    User     @relation("UserAudit")
+  deleted   Boolean  @ignore
+}
+`,
+      },
+      toolResult: { content: '', isError: false },
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('flags lookalike attributes like @idempotencyKey as required-without-default', () => {
+    // Regression: the exemption used substring containment, so
+    // `attrs.includes('@id')` silently waived `@idempotencyKey` fields.
+    const api = makeApi();
+    plugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'write',
+      toolInput: {
+        path: 'prisma/schema.prisma',
+        content: `model Ledger {
+  externalId String @idempotencyKey
+}
+`,
+      },
+      toolResult: { content: '', isError: false },
+    });
+    expect(result?.additionalContext).toContain(
+      'required field without default at line 2: externalId (String)',
+    );
   });
 
   it('detects required fields added to OpenAPI YAML', () => {
@@ -168,7 +216,9 @@ describe('schema-evolution-guard plugin', () => {
       },
       toolResult: { content: '', isError: false },
     });
-    expect(result?.additionalContext).toContain('required field added to OpenAPI schema at line 6: email');
+    expect(result?.additionalContext).toContain(
+      'required field added to OpenAPI schema at line 6: email',
+    );
   });
 
   it('detects required fields added to OpenAPI JSON', () => {

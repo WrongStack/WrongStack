@@ -247,6 +247,138 @@ describe('migration-planner plugin', () => {
     expect(complete).not.toHaveBeenCalled();
   });
 
+  it('consumes the useAi alias for the LLM request', async () => {
+    // Regression: the useLlm/use_ai/useAi alias chain was declared but never
+    // consumed — alias callers silently fell back to cfg.useLlm (TS6133 on
+    // rawUseLlm). A boolean alias must drive the LLM path like use_llm does.
+    const complete = vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        summary: 'One breaking API removal.',
+        riskLevel: 'high',
+        risks: ['Call sites may still use foo().'],
+        additionalSteps: [],
+        verificationSteps: ['Run the focused test suite.'],
+      }),
+    });
+    const api = makeApi({ llm: { complete } });
+    migrationPlannerPlugin.setup(api as never);
+
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
+      packageName: 'my-pkg',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+      useAi: true,
+    })) as { ok: boolean; llm: { used: boolean } };
+
+    expect(result.ok).toBe(true);
+    expect(result.llm.used).toBe(true);
+  });
+
+  it('does not let a string alias like "false" enable the council', async () => {
+    // Regression: the cast-bridged fallback (`(rawUseLlm as boolean|undef) ??
+    // cfg.useLlm`) passed string values straight through — `useAi: "false"`
+    // was truthy and enabled the council against the caller's intent.
+    const complete = vi.fn().mockResolvedValue({
+      text: JSON.stringify({
+        summary: 'One breaking API removal.',
+        riskLevel: 'high',
+        risks: [],
+        additionalSteps: [],
+        verificationSteps: [],
+      }),
+    });
+    const api = makeApi({
+      llm: { complete },
+      extensions: { 'migration-planner': { useLlm: false } },
+    });
+    migrationPlannerPlugin.setup(api as never);
+
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
+      packageName: 'my-pkg',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+      useAi: 'false',
+    })) as { ok: boolean; llm: { used: boolean; requested: unknown } };
+
+    expect(result.ok).toBe(true);
+    expect(result.llm.requested).toBe(false);
+    expect(result.llm.used).toBe(false);
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('falls through an empty-string primary to the alias chain', async () => {
+    // Regression: `??` chains short-circuit on empty string, so a caller
+    // sending packageName: "" with an alias never reached the alias value.
+    const api = makeApi();
+    migrationPlannerPlugin.setup(api as never);
+
+    const result = (await getTool(
+      api,
+      'migration_plan',
+    )({
+      packageName: '',
+      package: 'real-pkg',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+    })) as { ok: boolean };
+
+    expect(result.ok).toBe(true);
+    expect(JSON.stringify(result)).toContain('real-pkg');
+  });
+
+  it('admits alias-only payloads through the tool inputSchema', () => {
+    // Regression: the schema only declared the canonical fields, so
+    // schema-validated hosts rejected alias-only calls before the
+    // executor's normalization could run.
+    const api = makeApi();
+    migrationPlannerPlugin.setup(api as never);
+    const registered = api.tools.register.mock.calls
+      .map(
+        ([t]) =>
+          t as {
+            name: string;
+            inputSchema?: {
+              properties?: Record<string, unknown>;
+              allOf?: Array<{ anyOf?: Array<{ required?: string[] }> }>;
+            };
+          },
+      )
+      .find((t) => t.name === 'migration_plan');
+    expect(registered).toBeDefined();
+    const schema = registered!.inputSchema!;
+
+    for (const alias of [
+      'package',
+      'pkg',
+      'name',
+      'from',
+      'from_version',
+      'to',
+      'targetVersion',
+      'useLlm',
+      'use_ai',
+      'useAi',
+    ]) {
+      expect(schema.properties?.[alias]).toBeDefined();
+    }
+
+    const groups = (schema.allOf ?? []).map((g) => (g.anyOf ?? []).map((b) => b.required ?? []));
+    expect(groups.length).toBe(3);
+    const satisfies = (group: string[][], payload: string[]) =>
+      group.some((req) => req.every((k) => payload.includes(k)));
+    expect(satisfies(groups[0]!, ['package'])).toBe(true);
+    expect(satisfies(groups[1]!, ['from'])).toBe(true);
+    expect(satisfies(groups[2]!, ['to'])).toBe(true);
+    // A payload missing an entire group still fails every branch.
+    expect(satisfies(groups[0]!, ['from', 'to'])).toBe(false);
+  });
+
   it('keeps the deterministic plan when optional LLM JSON is invalid', async () => {
     vi.mocked(existsSync).mockReturnValue(false);
     const api = makeApi({

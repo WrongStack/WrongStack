@@ -120,9 +120,7 @@ function readConfig(raw: unknown): SchemaEvolutionConfig {
 // ---------------------------------------------------------------------------
 
 function patternToRegExp(pattern: string): RegExp {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*/g, '.*');
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
   return new RegExp(`^${escaped}$`, 'i');
 }
 
@@ -172,7 +170,22 @@ function findIssues(content: string, kind: FileKind, maxFindings: number): strin
 
       case 'prisma': {
         const match = line.match(/^\s+([A-Za-z_]\w*)\s+([A-Za-z_]\w+)(\?)?(\s+@.*)?$/);
-        if (match && !match[3] && !match[4]?.includes('@default')) {
+        const attrs = match?.[4] ?? '';
+        // Exempt by attribute NAME (the token before any parenthesized
+        // arguments), never by substring: `attrs.includes('@id')` also
+        // matched `@idempotencyKey`-style attributes and silently waived
+        // genuinely required fields.
+        const isExempt = attrs.split(/\s+/).some((t) => {
+          const name = t.replace(/\(.*$/, '');
+          return (
+            name === '@default' ||
+            name === '@id' ||
+            name === '@updatedAt' ||
+            name === '@relation' ||
+            name === '@ignore'
+          );
+        });
+        if (match && !match[3] && !isExempt) {
           findings.push(
             `required field without default at line ${lineNumber}: ${match[1]} (${match[2]})`,
           );
@@ -186,8 +199,7 @@ function findIssues(content: string, kind: FileKind, maxFindings: number): strin
           const rest = (requiredMatch[1] ?? '').trim();
           if (rest.startsWith('[')) {
             const close = rest.indexOf(']');
-            const inner =
-              close >= 0 ? rest.slice(1, close) : rest.slice(1);
+            const inner = close >= 0 ? rest.slice(1, close) : rest.slice(1);
             const items = inner
               .split(',')
               .map((s) => s.trim().replace(/^["']|["']$/g, ''))
@@ -297,20 +309,25 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['schema-evolution-guard']);
 
-    const hook = (
-      input: {
-        toolName?: string | undefined;
-        toolInput?: unknown;
-        toolResult?: { content: string; isError: boolean } | undefined;
-      },
-    ): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
+    const hook = (input: {
+      toolName?: string | undefined;
+      toolInput?: unknown;
+      toolResult?: { content: string; isError: boolean } | undefined;
+    }): { decision?: 'block'; reason?: string; additionalContext?: string } | void => {
       if (!cfg.enabled) return;
 
       // Skip if the write/edit itself errored.
       if (input.toolResult?.isError) return;
 
       const toolInput = (input.toolInput ?? {}) as Record<string, unknown>;
-      const filePath = typeof toolInput['path'] === 'string' ? toolInput['path'] : undefined;
+      const rawPath =
+        toolInput['path'] ??
+        toolInput['filePath'] ??
+        toolInput['file_path'] ??
+        toolInput['TargetFile'] ??
+        toolInput['targetFile'] ??
+        toolInput['file'];
+      const filePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!filePath) return;
 
       state.invocationCount += 1;
@@ -330,6 +347,22 @@ const plugin: Plugin = {
       let content: string | undefined;
       if (typeof toolInput['content'] === 'string') {
         content = toolInput['content'];
+      } else if (typeof toolInput['CodeContent'] === 'string') {
+        content = toolInput['CodeContent'];
+      } else if (typeof toolInput['code'] === 'string') {
+        content = toolInput['code'];
+      } else if (typeof toolInput['text'] === 'string') {
+        content = toolInput['text'];
+      } else if (typeof toolInput['contents'] === 'string') {
+        content = toolInput['contents'];
+      } else if (typeof toolInput['body'] === 'string') {
+        content = toolInput['body'];
+      } else if (typeof toolInput['new_string'] === 'string') {
+        content = toolInput['new_string'];
+      } else if (typeof toolInput['ReplacementContent'] === 'string') {
+        content = toolInput['ReplacementContent'];
+      } else if (typeof toolInput['newContent'] === 'string') {
+        content = toolInput['newContent'];
       } else if (withinProject(filePath)) {
         try {
           content = readFileSync(filePath, 'utf-8');
@@ -367,7 +400,9 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, {
+      background: true,
+    });
 
     // --- schema_evolution_status tool ---
     api.tools.register({
