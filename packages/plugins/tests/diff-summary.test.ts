@@ -548,4 +548,34 @@ describe('per-path throttle + content-hash dedupe', () => {
     expect(status.counters.throttled).toBe(0);
     expect(status.counters.duplicateContent).toBe(0);
   });
+
+  it('content-hash dedupe does not collapse distinct content-style edits', async () => {
+    // Regression: gating the old/new fingerprint branch on
+    // `toolName === 'edit'` hashed every content-style edit to the constant
+    // `:::` fingerprint, so a SECOND, DIFFERENT edit on the same path was
+    // wrongly suppressed as a duplicate.
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 0 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    await hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', content: 'export const v1 = 1;' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const afterFirst = diffCallsCount();
+    expect(afterFirst).toBeGreaterThan(0);
+
+    await hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', content: 'export const v2 = 2;' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(afterFirst + 1);
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { duplicateContent: number };
+    };
+    expect(status.counters.duplicateContent).toBe(0);
+  });
 });

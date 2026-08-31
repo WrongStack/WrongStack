@@ -162,6 +162,10 @@ function extractVersionSections(
   let current: VersionSection | null = null;
 
   for (const line of changelog.split(/\r?\n/)) {
+    // `#{2,3}` only: `#` is the document-title level in every common changelog
+    // convention (keep-a-changelog's `# Changelog`), so a level-1 heading that
+    // embeds a version (`# v1.0.0 — historical archive`) must not become a
+    // release section — it would shift body attribution for the real sections.
     const match = line.match(/^#{2,3}\s+(\[?v?(\d+\.\d+\.\d+[^[\]\s]*)\]?)\s*(.*)$/);
     if (match) {
       if (current) sections.push(current);

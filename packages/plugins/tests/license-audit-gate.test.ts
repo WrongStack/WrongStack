@@ -280,4 +280,54 @@ describe('license-audit-gate plugin', () => {
     const api = makeApi();
     expect(() => licenseAuditPlugin.teardown!(api as never)).not.toThrow();
   });
+
+  it('denies (A OR B) AND C when only one OR branch is allow-listed', () => {
+    // Regression: the old parser stripped parentheses, so this collapsed to
+    // `MIT OR Apache-2.0 AND GPL-3.0` and the OR-branch short-circuit allowed
+    // the package despite the non-allow-listed GPL AND-clause.
+    mockPackage('dual', { name: 'dual', license: '(MIT OR Apache-2.0) AND GPL-3.0' });
+    const api = makeApi({
+      extensions: { 'license-audit-gate': { allowedLicenses: ['MIT'] } },
+    });
+    licenseAuditPlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'bash',
+      toolInput: { command: 'npm install dual' },
+      toolResult: { content: '', isError: false },
+    }) as HookResult;
+    expect(result?.decision).toBe('block');
+  });
+
+  it('allows (A OR B) AND C when every AND branch is allow-listed', () => {
+    mockPackage('dual', { name: 'dual', license: '(MIT OR Apache-2.0) AND GPL-3.0' });
+    const api = makeApi({
+      extensions: { 'license-audit-gate': { allowedLicenses: ['MIT', 'GPL-3.0'] } },
+    });
+    licenseAuditPlugin.setup(api as never);
+    const hook = getHook(api);
+    expect(
+      hook({
+        toolName: 'bash',
+        toolInput: { command: 'npm install dual' },
+        toolResult: { content: '', isError: false },
+      }),
+    ).toBeUndefined();
+  });
+
+  it('keeps OR semantics for grouped sub-expressions', () => {
+    mockPackage('grouped', { name: 'grouped', license: 'MIT OR (GPL-3.0 AND Apache-2.0)' });
+    const api = makeApi({
+      extensions: { 'license-audit-gate': { allowedLicenses: ['MIT'] } },
+    });
+    licenseAuditPlugin.setup(api as never);
+    const hook = getHook(api);
+    expect(
+      hook({
+        toolName: 'bash',
+        toolInput: { command: 'npm install grouped' },
+        toolResult: { content: '', isError: false },
+      }),
+    ).toBeUndefined();
+  });
 });

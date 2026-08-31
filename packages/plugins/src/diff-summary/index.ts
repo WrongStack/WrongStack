@@ -363,7 +363,14 @@ const plugin: Plugin = {
 
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
-      const filePath = inp['path'] as string | undefined;
+      const rawPath =
+        inp['path'] ??
+        inp['filePath'] ??
+        inp['file_path'] ??
+        inp['TargetFile'] ??
+        inp['targetFile'] ??
+        inp['file'];
+      const filePath = typeof rawPath === 'string' && rawPath.trim() ? rawPath.trim() : undefined;
       if (!filePath || typeof filePath !== 'string') return;
 
       state.invocationCount += 1;
@@ -382,12 +389,17 @@ const plugin: Plugin = {
       // in quick succession). They run AFTER the sandbox check so
       // hostile paths are still refused; they run BEFORE `git diff`
       // so we save the subprocess spawn.
+      const oldStr = String(inp['old_string'] ?? inp['TargetContent'] ?? inp['oldContent'] ?? '');
+      const newStr = String(inp['new_string'] ?? inp['ReplacementContent'] ?? inp['newContent'] ?? '');
+      const contentStr = String(inp['content'] ?? inp['CodeContent'] ?? inp['code'] ?? '');
+      // Three-way shape: hash old/new when EITHER is present, else the
+      // write-content. (Gating the old/new branch on `toolName === 'edit'`
+      // collapsed every edit that populates other field aliases to the
+      // constant `:::` fingerprint, defeating the dedupe for distinct edits.)
       const toolInputForHash =
-        toolName === 'edit'
-          ? `${String(inp['old_string'] ?? '')}:::${String(inp['new_string'] ?? '')}`
-          : toolName === 'write'
-            ? ((inp['content'] as unknown) ?? '')
-            : '';
+        oldStr || newStr
+          ? `${oldStr}:::${newStr}`
+          : contentStr;
       const now = Date.now();
       const memo = pathMemo.get(filePath);
       if (memo) {

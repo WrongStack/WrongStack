@@ -144,6 +144,67 @@ interface PackageAuditResult {
   allowed: boolean;
 }
 
+/** Split on TOP-LEVEL OR/AND separators only. Parentheses create
+ *  sub-expressions, so `(A OR B) AND C` must never be flattened into
+ *  `A OR B AND C` — the old paren-stripping regex did exactly that and
+ *  turned the allow-gate into a bypass (a single allow-listed OR branch
+ *  short-circuited the required AND clause). */
+function splitTopLevel(expr: string, separator: RegExp): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < expr.length; i++) {
+    const ch = expr[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0) {
+      const match = separator.exec(expr.slice(i));
+      if (match && match.index === 0) {
+        parts.push(expr.slice(start, i).trim());
+        i += match[0].length - 1;
+        start = i + 1;
+      }
+    }
+  }
+  parts.push(expr.slice(start).trim());
+  return parts;
+}
+
+function isLicenseAllowed(licenseStr: string, normalizedAllowed: Set<string>): boolean {
+  let expr = licenseStr.trim();
+  if (!expr) return false;
+  if (normalizedAllowed.has(expr.toLowerCase())) return true;
+
+  // Unwrap parentheses that wrap the ENTIRE expression: `(A)` -> `A`.
+  while (expr.startsWith('(')) {
+    let depth = 0;
+    let close = -1;
+    for (let i = 0; i < expr.length; i++) {
+      if (expr[i] === '(') depth++;
+      else if (expr[i] === ')') {
+        depth--;
+        if (depth === 0) {
+          close = i;
+          break;
+        }
+      }
+    }
+    if (close !== expr.length - 1) break;
+    expr = expr.slice(1, -1).trim();
+  }
+
+  const orParts = splitTopLevel(expr, /\s+OR\s+/i);
+  if (orParts.length > 1) {
+    return orParts.some((p) => isLicenseAllowed(p, normalizedAllowed));
+  }
+  const andParts = splitTopLevel(expr, /\s+AND\s+/i);
+  if (andParts.length > 1) {
+    return andParts.every((p) => isLicenseAllowed(p, normalizedAllowed));
+  }
+
+  return normalizedAllowed.has(expr.toLowerCase());
+}
+
 function auditPackages(names: string[], allowedLicenses: string[]): {
   ok: boolean;
   results: PackageAuditResult[];
@@ -163,7 +224,7 @@ function auditPackages(names: string[], allowedLicenses: string[]): {
       errors.push(name);
     }
 
-    const allowed = licenses.length > 0 && licenses.every((l) => normalizedAllowed.has(l.toLowerCase()));
+    const allowed = licenses.length > 0 && licenses.every((l) => isLicenseAllowed(l, normalizedAllowed));
     results.push({ name, licenses, allowed });
   }
 

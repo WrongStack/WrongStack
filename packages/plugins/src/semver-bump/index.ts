@@ -156,33 +156,60 @@ function bumpVersion(version: string, part: BumpType): string {
   return `${major}.${minor}.${patch}`;
 }
 
-/** Parse a conventional-commit subject line. Accepts the breaking `!` both
- * before and after the scope (`feat!: x`, `feat(api)!: x`). */
-export function parseConventional(subject: string): Omit<ConventionalCommit, 'hash'> {
+/** Parse a conventional-commit subject line and optional body. Accepts the breaking `!` both
+ * before and after the scope (`feat!: x`, `feat(api)!: x`), and checks body for BREAKING CHANGE. */
+export function parseConventional(subject: string, body = ''): Omit<ConventionalCommit, 'hash'> {
   const m = subject.match(/^(\w+)(!)?(?:\(([^)]+)\))?(!)?:\s+(.+)/);
+  const hasBreakingInSubject = !!(m?.[2] ?? m?.[4]);
+  // Prose-aware: spec footers (`BREAKING CHANGE: …` / `BREAKING-CHANGE: …`)
+  // AND plain mentions ("this is a BREAKING CHANGE for consumers") both count,
+  // so a breaking commit can no longer fold into a minor bump by omitting the
+  // footer colon. Subject `!` handling is unchanged.
+  const hasBreakingInBody = /(?:^|\W)BREAKING[ -]CHANGES?(?!\w)/i.test(body);
   return {
     type: m?.[1] ?? 'chore',
-    breaking: !!(m?.[2] ?? m?.[4]),
+    breaking: hasBreakingInSubject || hasBreakingInBody,
     scope: m?.[3],
     message: m?.[5] ?? subject,
   };
 }
 
-async function getRecentCommits(sinceTag?: string, cwd?: string): Promise<ConventionalCommit[]> {
-  const range = sinceTag ? `${sinceTag}..HEAD` : '-30';
-  const output = await runGit(['log', range, '--format=%H %s'], cwd);
-
+function parseGitLogOutput(output: string): ConventionalCommit[] {
   if (!output) return [];
+
+  if (output.includes('\x1e') || output.includes('\x1f')) {
+    return output
+      .split('\x1e')
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => {
+        const parts = block.split('\x1f');
+        const hash = parts[0] ?? '';
+        const subject = parts[1] ?? '';
+        const body = parts[2] ?? '';
+        return { hash, ...parseConventional(subject, body) };
+      });
+  }
 
   return output
     .split('\n')
+    .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
       const spaceIdx = line.indexOf(' ');
+      if (spaceIdx === -1) {
+        return { hash: line, ...parseConventional('') };
+      }
       const hash = line.slice(0, spaceIdx);
       const message = line.slice(spaceIdx + 1);
       return { hash, ...parseConventional(message) };
     });
+}
+
+async function getRecentCommits(sinceTag?: string, cwd?: string): Promise<ConventionalCommit[]> {
+  const range = sinceTag ? `${sinceTag}..HEAD` : '-30';
+  const output = await runGit(['log', range, '--format=%H%x1f%s%x1f%b%x1e'], cwd);
+  return parseGitLogOutput(output);
 }
 
 export function determineBump(commits: ConventionalCommit[]): BumpType {
@@ -660,18 +687,10 @@ const plugin: Plugin = {
         let commits: ConventionalCommit[];
         try {
           const output = await runGit(
-            ['log', range === to ? '-30' : range, '--format=%H %s'],
+            ['log', range === to ? '-30' : range, '--format=%H%x1f%s%x1f%b%x1e'],
             safeCwd,
           );
-          commits = output
-            .split('\n')
-            .filter(Boolean)
-            .map((line) => {
-              const spaceIdx = line.indexOf(' ');
-              const hash = line.slice(0, spaceIdx);
-              const message = line.slice(spaceIdx + 1);
-              return { hash, ...parseConventional(message) };
-            });
+          commits = parseGitLogOutput(output);
         } catch (err: unknown) {
           return { ok: false, error: `Failed to get git log: ${err}` };
         }

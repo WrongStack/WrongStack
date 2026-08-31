@@ -170,3 +170,37 @@ describe('determineBump', () => {
     expect(determineBump([])).toBe('patch');
   });
 });
+
+describe('parseConventional breaking detection', () => {
+  it('detects the spec footer forms', () => {
+    expect(parseConventional('fix: x', 'BREAKING CHANGE: dropped callback API').breaking).toBe(
+      true,
+    );
+    expect(parseConventional('fix: x', 'BREAKING-CHANGE: dropped callback API').breaking).toBe(
+      true,
+    );
+  });
+
+  it('detects prose mentions without the footer colon', () => {
+    // Regression: prose like this used to fold a breaking commit into a
+    // minor bump because only `BREAKING CHANGE:` (with colon) matched.
+    expect(
+      parseConventional('fix: rewrite api', 'This is a BREAKING CHANGE for consumers').breaking,
+    ).toBe(true);
+    expect(
+      parseConventional('fix: rewrite api', 'breaking change mentioned in lowercase').breaking,
+    ).toBe(true);
+    expect(
+      parseConventional('fix: rewrite api', 'see the BREAKING CHANGES section before upgrading')
+        .breaking,
+    ).toBe(true);
+  });
+
+  it('does not flag unrelated text', () => {
+    expect(parseConventional('fix: tweak', 'no breaking news here').breaking).toBe(false);
+    expect(parseConventional('fix: tweak', 'added BREAKINGCHANGE token handling').breaking).toBe(
+      false,
+    );
+    expect(parseConventional('fix: tweak').breaking).toBe(false);
+  });
+});

@@ -324,4 +324,52 @@ describe('migration-planner plugin', () => {
       expect.any(Object),
     );
   });
+
+  it('does not treat a level-1 title with an embedded version as a release section', async () => {
+    // Regression: widening the heading regex to `#{1,3}` let document titles
+    // like `# v1.5.0 — historical archive` become release sections whose body
+    // leaked into the migration plan. `#` stays the title level; `##`/`###`
+    // start release sections.
+    vi.mocked(existsSync).mockImplementation(
+      (p) => String(p) === 'node_modules/my-pkg/CHANGELOG.md',
+    );
+    vi.mocked(readFileSync).mockReturnValue(`
+# Changelog
+
+## [2.0.0] - 2024-01-01
+
+### BREAKING CHANGES
+- Removed legacy API \`bar()\`
+
+# v1.5.0 — historical archive
+
+Archived note: Removed legacy API \`foo()\`
+
+## [1.0.0] - 2023-01-01
+
+### BREAKING CHANGES
+- Initial stable release
+`);
+
+    const api = makeApi();
+    migrationPlannerPlugin.setup(api as never);
+    const plan = getTool(api, 'migration_plan');
+    const result = (await plan({
+      packageName: 'my-pkg',
+      fromVersion: '1.0.0',
+      toVersion: '2.0.0',
+    })) as {
+      ok: boolean;
+      fallback: boolean;
+      breakingChanges: string[];
+      changelogSource: string | null;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.fallback).toBe(false);
+    expect(result.breakingChanges).toContain('Removed legacy API `bar()`');
+    // The archived 1.5.0 note sits between from and to — it must NOT be
+    // attributed to the plan now that level-1 headings are excluded.
+    expect(result.breakingChanges).not.toContain('Removed legacy API `foo()`');
+  });
 });
