@@ -219,7 +219,7 @@
       "relativeImports": 11
     },
     "packages/plugins/src/duplicate-code-detector/index.ts": {
-      "lines": 850,
+      "lines": 882,
       "relativeImports": 1
     },
     "packages/plugins/src/git-autocommit/index.ts": {
@@ -231,12 +231,16 @@
       "relativeImports": 1
     },
     "packages/plugins/src/prompt-firewall/index.ts": {
-      "lines": 932,
+      "lines": 938,
       "relativeImports": 2
     },
     "packages/plugins/src/secret-scanner/index.ts": {
       "lines": 927,
       "relativeImports": 2
+    },
+    "packages/plugins/src/semantic-search-indexer/index.ts": {
+      "lines": 803,
+      "relativeImports": 0
     },
     "packages/plugins/src/test-runner-gate/index.ts": {
       "lines": 861,

@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-31T08:26:11.636Z
+**Generated:** 2026-08-31T08:48:17.803Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3431 |
-| Production source lines | 836587 |
+| Production source lines | 838344 |
 | Test files | 3065 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10666 |
+| Relative module edges | 10668 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -91,14 +91,15 @@ None.
 | 1343 | `packages/webui/src/lib/ws-client.ts` |
 | 1297 | `packages/core/src/chronicle/query.ts` |
 | 1292 | `packages/webui/src/stores/ui-store.ts` |
+| 1172 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1169 | `packages/webui/src/types/server-message.ts` |
-| 1166 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1128 | `packages/webui/src/components/ChatInput.tsx` |
 | 1096 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
 | 1088 | `packages/core/src/core/context.ts` |
 | 1088 | `packages/core/src/storage/session-store.ts` |
+| 1081 | `packages/tools/src/codebase-index/writer.ts` |
 | 1078 | `packages/core/src/storage/file-session-writer.ts` |
 | 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
@@ -115,12 +116,12 @@ None.
 | 1035 | `packages/tui/src/components/sidebar-content.tsx` |
 | 1034 | `packages/cli/src/plugin-management.ts` |
 | 1024 | `packages/tui/src/components/context-panel.tsx` |
+| 1022 | `packages/plugins/src/git-autocommit/index.ts` |
+| 1020 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1020 | `packages/webui-server/src/server/context-editor.ts` |
 | 1019 | `packages/webui-server/src/server/goal-ws-handler.ts` |
 | 1015 | `packages/tui/src/components/history/utils.tsx` |
-| 1014 | `packages/plugins/src/git-autocommit/index.ts` |
 | 1013 | `packages/simpleui/src/simple-ui-session.tsx` |
-| 1013 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1011 | `packages/tui/src/components/status-bar-rails.tsx` |
 | 1005 | `packages/tui/src/kanban-slash.ts` |
 | 1004 | `packages/tui/src/app.tsx` |
@@ -128,18 +129,17 @@ None.
 | 1002 | `packages/webui/src/components/ChronicleDashboard.tsx` |
 | 1001 | `packages/webui/src/components/SettingsPanel/BrainSection.tsx` |
 | 997 | `packages/mcp/src/client.ts` |
+| 994 | `packages/core/src/session-catalog/store.ts` |
 | 993 | `packages/sage/src/types.ts` |
 | 992 | `packages/kanban/src/types.ts` |
 | 992 | `packages/webui/src/hooks/ws-handlers/misc-handlers.ts` |
 | 991 | `packages/kanban/src/manager/assignment.ts` |
-| 988 | `packages/core/src/session-catalog/store.ts` |
 | 987 | `packages/core/src/execution/brain-runtime.ts` |
 | 986 | `packages/tools/src/codebase-index/indexer.ts` |
-| 984 | `packages/tui/src/components/agents-monitor.tsx` |
 
 ## Exports only tests reference
 
-- 852 runtime exports are referenced by tests and by no other production file.
+- 854 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
