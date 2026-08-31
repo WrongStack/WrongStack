@@ -158,4 +158,30 @@ describe('wrapMCPTool', () => {
     ).rejects.toThrow('boom');
     expect(onFinish).toHaveBeenCalledWith({ durationMs: expect.any(Number), ok: false });
   });
+
+  it('safely executes without opts and falls back to ctx.signal', async () => {
+    const callTool = vi.fn(async (_name, _input, opts?: { signal?: AbortSignal }) => {
+      return { content: opts?.signal?.aborted ? 'aborted' : 'ok', isError: false };
+    });
+    const client = { callTool } as never as MCPClient;
+    const wrapped = wrapMCPTool(
+      'server',
+      { name: 'query', inputSchema: { type: 'object' } },
+      client,
+    );
+
+    const ctx = {} as Parameters<typeof wrapped.execute>[1];
+    const executeWithoutOpts = wrapped.execute as (
+      input: Parameters<typeof wrapped.execute>[0],
+      context: Parameters<typeof wrapped.execute>[1],
+    ) => ReturnType<typeof wrapped.execute>;
+    const result = await executeWithoutOpts({ a: 1 }, ctx);
+    expect(result).toBe('ok');
+
+    const ac = new AbortController();
+    ac.abort();
+    const ctxWithSignal = { signal: ac.signal } as Parameters<typeof wrapped.execute>[1];
+    const abortedResult = await executeWithoutOpts({ a: 1 }, ctxWithSignal);
+    expect(abortedResult).toBe('aborted');
+  });
 });

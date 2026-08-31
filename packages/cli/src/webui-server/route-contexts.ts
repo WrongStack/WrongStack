@@ -6,6 +6,10 @@
 
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
+import {
+  seedSessionSubagentPolicy,
+  setSessionSubagentsAllowed,
+} from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import { PromptUsageStore } from '@wrongstack/core/storage';
@@ -232,7 +236,16 @@ export function createWebuiRouteContexts({
   const prefsCtx: PrefsHandlerContext = {
     meta: opts.agent.ctx.meta,
     metaFor: metaForSession,
-    snapshot: (sessionId) => prefSnapshot(sessionId ? metaForSession(sessionId) : undefined),
+    snapshot: (sessionId) => {
+      const target = sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx;
+      seedSessionSubagentPolicy(target);
+      return prefSnapshot(target.meta);
+    },
+    setSubagentsAllowed: (allowed, sessionId) =>
+      setSessionSubagentsAllowed(
+        sessionId ? getSessionAgent(sessionId).ctx : opts.agent.ctx,
+        allowed,
+      ),
     persist: persistPrefs,
     setYolo: opts.onYoloSwitch,
     setAutonomy: opts.onAutonomySwitch,

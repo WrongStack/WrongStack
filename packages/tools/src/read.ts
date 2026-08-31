@@ -132,6 +132,8 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
         field: 'path',
       });
     }
+    const signal = execOpts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const absPath = await safeResolveReal(input.path, ctx);
 
     // Determine whether to include symbols: per-call param overrides meta flag.
@@ -191,7 +193,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     ) {
       ctx.recordRead(absPath, stat.mtimeMs);
       const symResult = shouldIncludeSymbols
-        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
       return {
         text:
@@ -206,6 +208,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       };
     }
 
+    signal?.throwIfAborted();
     const buf = await fs.readFile(absPath);
     if (isBinaryBuffer(buf)) {
       throw new FsError({
@@ -229,7 +232,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, Math.min(total, 200));
       const symResult = shouldIncludeSymbols
-        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
       return {
         text: summarizeFile(input.path, stat.size, allLines),
@@ -247,7 +250,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, 1, 0);
       const symResult = shouldIncludeSymbols
-        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
       return {
         text: '',
@@ -267,7 +270,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
       ctx.recordRead(absPath, stat.mtimeMs, 'user', contentHash);
       rememberReadRange(ctx, absPath, stat.mtimeMs, total, total + 1, total + 1);
       const symResult = shouldIncludeSymbols
-        ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+        ? await fetchSymbolsForFile(absPath, ctx, signal)
         : undefined;
       return {
         text: `[offset ${offset} is past end of file "${input.path}" — file has ${total} line(s). Do not retry this offset.]`,
@@ -291,7 +294,7 @@ export const readTool: Tool<ReadInput, ReadOutput> = {
     rememberReadRange(ctx, absPath, stat.mtimeMs, total, offset, offset + slice.length - 1);
 
     const symResult = shouldIncludeSymbols
-      ? await fetchSymbolsForFile(absPath, ctx, execOpts?.signal)
+      ? await fetchSymbolsForFile(absPath, ctx, signal)
       : undefined;
     return {
       text: numbered,

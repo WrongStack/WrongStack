@@ -101,11 +101,20 @@ export class BrowserSessionManager {
       },
       () => undefined,
     );
+    const page = await context.newPage().catch(async (error) => {
+      // newPage() runs outside the session-facing try/catch below (it is
+      // part of the session literal). A failure here would otherwise leak
+      // the freshly created BrowserContext — a full renderer process — until
+      // dispose(). Close it and reclaim the idle browser before propagating.
+      await context.close().catch(() => undefined);
+      await this.closeBrowserIfIdle();
+      throw error;
+    });
     const session: LiveSession = {
       id: ulid(),
       ownerId,
       context,
-      page: await context.newPage(),
+      page,
       createdAt: new Date().toISOString(),
       lastUsedAt: new Date().toISOString(),
       tracing: input.trace ?? true,
@@ -114,25 +123,25 @@ export class BrowserSessionManager {
     };
     this.sessions.set(session.id, session);
     this.attachEvidenceCollectors(session);
-    await context.route('**/*', async (route) => {
-      try {
-        await assertBrowserUrlAllowed(route.request().url(), {
-          allowPrivateHosts: this.allowPrivateHosts,
-          allowedPrivateOrigins: this.allowedPrivateOrigins,
-          navigation: false,
-        });
-        await route.continue();
-      } catch {
-        this.pushNetwork(session, {
-          method: route.request().method(),
-          url: safeBrowserUrl(route.request().url()),
-          failed: true,
-          at: new Date().toISOString(),
-        });
-        await route.abort('blockedbyclient');
-      }
-    });
     try {
+      await context.route('**/*', async (route) => {
+        try {
+          await assertBrowserUrlAllowed(route.request().url(), {
+            allowPrivateHosts: this.allowPrivateHosts,
+            allowedPrivateOrigins: this.allowedPrivateOrigins,
+            navigation: false,
+          });
+          await route.continue();
+        } catch {
+          this.pushNetwork(session, {
+            method: route.request().method(),
+            url: safeBrowserUrl(route.request().url()),
+            failed: true,
+            at: new Date().toISOString(),
+          });
+          await route.abort('blockedbyclient');
+        }
+      });
       if (session.tracing) {
         await context.tracing.start({ screenshots: true, snapshots: true, sources: false });
       }

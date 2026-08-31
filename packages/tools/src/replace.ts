@@ -88,7 +88,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     },
     required: ['pattern', 'replacement', 'files'],
   },
-  async execute(input: ReplaceInput, ctx: Context) {
+  async execute(input: ReplaceInput, ctx: Context, opts?: { signal?: AbortSignal }) {
     if (!input?.pattern) {
       throw new ToolValidationError({
         message: 'replace: pattern is required',
@@ -107,6 +107,9 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
         field: 'files',
       });
     }
+
+    const signal = opts?.signal ?? ctx.signal;
+    signal?.throwIfAborted();
 
     const replaceAll = input.replace_all ?? true;
     // Always compile with 'g' so matchAll() works — matchAll throws
@@ -143,6 +146,7 @@ export const replaceTool: Tool<ReplaceInput, ReplaceOutput> = {
     let diffsTruncated = 0;
 
     for (const absPath of fileList) {
+      signal?.throwIfAborted();
       // Use lstat to detect symlinks. resolveFiles already applies
       // safeResolve, but a symlink with a target outside the project
       // root would still pass that string check — explicitly skip it
@@ -324,14 +328,29 @@ function expandReplacement(template: string, match: RegExpMatchArray): string {
   return out;
 }
 
-/** True when `name` (basename) or `full` (path) passes the compiled extra glob. */
-function passesExtraGlob(extraGlob: RegExp, name: string, full: string): boolean {
+/** True when `name` (basename), `rel` (relative to base), or `full` (path) passes the compiled extra glob. */
+function passesExtraGlob(
+  extraGlob: RegExp,
+  name: string,
+  full: string,
+  base?: string,
+): boolean {
   extraGlob.lastIndex = 0;
-  const nameMatch = extraGlob.test(name);
+  if (extraGlob.test(name)) return true;
+  if (base) {
+    const rel = path.relative(base, full);
+    const posixRel =
+      !rel || rel.startsWith('..') || path.isAbsolute(rel)
+        ? full.split(path.sep).join('/')
+        : rel.split(path.sep).join('/');
+    extraGlob.lastIndex = 0;
+    if (extraGlob.test(posixRel)) return true;
+  }
+  const posixFull = full.split(path.sep).join('/');
   extraGlob.lastIndex = 0;
-  const fullMatch = extraGlob.test(full);
+  if (extraGlob.test(posixFull)) return true;
   extraGlob.lastIndex = 0;
-  return nameMatch || fullMatch;
+  return extraGlob.test(full);
 }
 
 async function resolveFiles(
@@ -340,19 +359,26 @@ async function resolveFiles(
   extraGlob?: RegExp | null | undefined,
 ): Promise<string[]> {
   const base = ctx.cwd;
-  const normalized = filesInput.trim();
-
-  if (normalized.startsWith('**/') || normalized.startsWith('*') || normalized.includes('**')) {
-    return await globFiles(normalized, base, extraGlob);
-  }
-
-  const parts = normalized
+  // Glob routing is per-entry so a comma list can mix literal paths and
+  // globs. Any `*` or `?` marks the entry as a glob — a mid-path single-star
+  // pattern like `src/*.ts` previously fell through to the literal branch,
+  // where stat("src/*.ts") failed and the file was silently dropped (the
+  // tool reported files_modified=0 for a documented "glob pattern" input).
+  // `[`/`]` are deliberately NOT treated as glob syntax here: they are legal
+  // in Windows filenames (C:\Users\Foo[1]\...), so a literal path containing
+  // them must stay on the literal branch.
+  const parts = filesInput
+    .trim()
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
   const resolved: string[] = [];
 
   for (const p of parts) {
+    if (p.includes('*') || p.includes('?')) {
+      resolved.push(...(await globFiles(p, base, extraGlob)));
+      continue;
+    }
     // `safeResolveReal`, not `safeResolve`: this list feeds a MUTATING tool, so
     // an in-root symlink pointing outside the project must not be rewritten
     // through. Matches what `edit`/`write` already do per file.
@@ -360,7 +386,7 @@ async function resolveFiles(
     // Honor the extra `glob` filter on explicitly-listed files too — a
     // comma-separated list combined with `glob: "*.ts"` must not rewrite
     // the non-.ts entries.
-    if (extraGlob && !passesExtraGlob(extraGlob, path.basename(absPath), absPath)) continue;
+    if (extraGlob && !passesExtraGlob(extraGlob, path.basename(absPath), absPath, base)) continue;
     const stat = await fs.stat(absPath).catch(() => null);
     if (stat?.isFile()) {
       resolved.push(absPath);
@@ -385,7 +411,7 @@ async function globFiles(
       // (rg's own multi-`--glob` semantics are a union, so the narrowing must
       // happen on the enumerated list).
       if (extraGlob) {
-        return files.filter((f) => passesExtraGlob(extraGlob, path.basename(f), f));
+        return files.filter((f) => passesExtraGlob(extraGlob, path.basename(f), f, base));
       }
       return files;
     } catch {
@@ -434,6 +460,12 @@ function spawnRgFind(pattern: string, base: string): { promise: Promise<string[]
   // 30-second safety net to prevent zombie rg processes. Unlike the main
   // grep tool, glob file enumeration is fast and should never need more time.
   const child = spawn('rg', args, {
+    // Anchored globs (`src/*.ts`) are matched by rg against paths relative to
+    // ITS cwd, not the search root. Without this the child inherits the
+    // process cwd, so `files: "src/*.ts"` silently matches nothing whenever
+    // the tool's base differs from the cwd of the host process and the native
+    // walker never engages (the rg call resolves, just empty).
+    cwd: base,
     signal: AbortSignal.timeout(30_000),
     env: buildChildEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -500,12 +532,20 @@ async function globNative(
         await walk(full);
       } else if (e.isFile()) {
         const name = e.name;
-        if (globRe.test(name) || globRe.test(full)) {
-          if (extraGlob && !extraGlob.test(name) && !extraGlob.test(full)) continue;
+        // The walker compares compiled globs (anchored at the walk base, e.g.
+        // `^src/[^/]*\.ts$`) against the basename and the ABSOLUTE `full`
+        // path — a relative-anchored glob can never match an absolute path,
+        // so `src/*.ts` silently matched nothing even when routed here. Test
+        // the path relative to `base` as well (forward-slashed so the pattern
+        // separators line up on Windows too).
+        const rel = path.relative(base, full).split(path.sep).join('/');
+        if (globRe.test(name) || globRe.test(rel) || globRe.test(full)) {
+          if (extraGlob && !passesExtraGlob(extraGlob, name, full, base)) {
+            continue;
+          }
           results.push(full);
         }
         globRe.lastIndex = 0;
-        if (extraGlob) extraGlob.lastIndex = 0;
       }
     }
   };

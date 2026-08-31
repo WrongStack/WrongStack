@@ -108,7 +108,7 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
     if (!final) throw new Error('search: stream ended without final event');
     return final;
   },
-  async *executeStream(input, _ctx, opts): AsyncGenerator<ToolStreamEvent<SearchOutput>> {
+  async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<SearchOutput>> {
     if (!input?.query || input.query.trim() === '') {
       throw new ToolValidationError({
         message: 'search: query is required and must be a non-empty string',
@@ -116,6 +116,7 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
       });
     }
 
+    const signal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
     const num = Math.max(1, Math.min(input.num_results ?? DEFAULT_NUM, MAX_RESULTS));
     const source = input.source ?? 'duckduckgo';
     const skipCache = input.skip_cache ?? false;
@@ -167,13 +168,13 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
     let effectiveSource: SearchOutput['source'] = source;
     switch (source) {
       case 'duckduckgo':
-        engine = await duckduckgoSearch(input.query, opts.signal);
+        engine = await duckduckgoSearch(input.query, signal);
         break;
       case 'google':
-        engine = await googleSearch(input.query, opts.signal);
+        engine = await googleSearch(input.query, signal);
         break;
       case 'bing':
-        engine = await bingSearch(input.query, opts.signal);
+        engine = await bingSearch(input.query, signal);
         break;
       default:
         throw new ToolValidationError({
@@ -190,7 +191,7 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
         text: `${source} returned no relevant static results; falling back to duckduckgo`,
         data: { source, fallback: 'duckduckgo', query: input.query },
       };
-      const fallback = await duckduckgoSearch(input.query, opts.signal);
+      const fallback = await duckduckgoSearch(input.query, signal);
       ranked = rankSearchResults(fallback.results, input.query);
       engineError = fallback.error;
       effectiveSource = 'duckduckgo';

@@ -39,8 +39,9 @@ export function createDefinitionTool(deps: ToolDeps): Tool<PositionInput, string
     timeoutMs: LSP_CONSTANTS.TOOL_TIMEOUT_MS,
     async execute(input, ctx, opts) {
       try {
+        const signal = opts?.signal ?? ctx?.signal;
         const file = resolveInputPath(input.path, ctx);
-        const server = await requireServer(deps.registry, file, opts.signal);
+        const server = await requireServer(deps.registry, file, signal);
         if (server.capabilities && !supportsDefinition(server.capabilities)) {
           throw new LSPError(
             LSPErrorCode.CapabilityMissing,
@@ -52,7 +53,7 @@ export function createDefinitionTool(deps: ToolDeps): Tool<PositionInput, string
         const locs = await server.definition(
           { textDocument: { uri: pathToUri(file) }, position },
           LSP_CONSTANTS.TOOL_TIMEOUT_MS,
-          opts.signal,
+          signal,
         );
         return formatLocations(locs, ctx.cwd);
       } catch (err) {

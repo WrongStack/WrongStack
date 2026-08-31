@@ -4,8 +4,11 @@ import * as path from 'node:path';
 import { type Context, resolveEventSessionId } from '../core/context.js';
 import {
   getDangerousCapabilities,
+  hasCapability,
   hasDangerousCapabilityForSubagents,
+  ToolCapabilities,
 } from '../security/capabilities.js';
+import { areSubagentsAllowed } from '../coordination/session-subagent-policy.js';
 import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
 import type { ToolResultRenderMode, ToolResultRenderModeConfig } from '../types/config.js';
 import { isWrongStackError } from '../types/errors.js';
@@ -141,6 +144,18 @@ export class ToolExecutor {
 
       if (!tool) {
         const result = unknownToolResult(use, () => this.registry.list().map((t) => t.name));
+        budget = this.budgetForString(result.content, budget);
+        return { result, tool, durationMs: Date.now() - start };
+      }
+
+      if (
+        !areSubagentsAllowed(ctx) &&
+        hasCapability(tool, ToolCapabilities.SUBAGENT_SPAWN)
+      ) {
+        const result = deniedResult(
+          use,
+          'Subagents are disabled for this session. This policy is locked after the session starts.',
+        );
         budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }

@@ -29,9 +29,15 @@ const SENSITIVE_FLAG_PATTERNS: RegExp[] = [
   // is daily. The lookbehind `(?<![-\w])` rejects `-t` inside `--token`
   // where the preceding char is another `-`.
   /(?<![-\w])-t(?:[\s=][^\s,]+)/g,
-  /(?<![-\w])-(?:p|password)(?:[\s=][^\s,]+)/gi,
+  // `-a` is redis-cli auth (`redis-cli -a <password>`); synced with the
+  // canonical redactCommand set (core observability / tools _redact-command),
+  // which has always carried it. Same separated-form semantics as -p below.
+  /(?<![-\w])-(?:p|password|a)(?:[\s=][^\s,]+)/gi,
   // env-var style: TOKEN=x, API_KEY=y, DATABASE_URL=z, …
-  /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD|DATABASE_URL|CONNECTION_STRING)\s*[=:][^\s,]+/gi,
+  // PASSPHRASE is part of the canonical redactCommand env set; a short
+  // (sub-20-char) value is not caught by the core scrubber's high_entropy_env
+  // pattern, so this labelled-flag layer is the only guard for it.
+  /(?:TOKEN|API_KEY|API_SECRET|AUTH_TOKEN|GITHUB_TOKEN|GH_TOKEN|BEARER|JWT|OAUTH|CREDENTIAL|SECRET|PRIVATE_KEY|PASSWORD|PASSWD|PASSPHRASE|DATABASE_URL|CONNECTION_STRING)\s*[=:][^\s,]+/gi,
   // Generic high-entropy look — only when preceded by a flag name.
   /--\w*(?:token|key|secret|password|passwd|auth|credential)\w*[=\s,][A-Za-z0-9+/=]{32,}/g,
 ];

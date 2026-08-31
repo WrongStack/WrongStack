@@ -97,8 +97,7 @@ describe('write tool', () => {
       sb.ctx,
       { signal: newSignal() },
     );
-    expect(out.syntax_errors).toBeUndefined();
-    expect(out.note).toBeUndefined();
+    expect(await fs.readFile(path.join(sb.dir, 'ok.ts'), 'utf8')).toBe('export const x = 1;\n');
   });
 
   it('aborted signal prevents the write from touching the filesystem', async () => {
@@ -111,6 +110,29 @@ describe('write tool', () => {
     ).rejects.toMatchObject({ name: 'AbortError' });
     await expect(fs.access(path.join(sb.dir, 'aborted.txt'))).rejects.toThrow();
   });
+
+  it('honors ctx.signal when opts is omitted in execute and executeStream', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const ctxWithSignal = { ...sb.ctx, signal: ctrl.signal };
+
+    await expect(
+      writeTool.execute({ path: 'aborted_ctx.txt', content: 'never' }, ctxWithSignal as any),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(fs.access(path.join(sb.dir, 'aborted_ctx.txt'))).rejects.toThrow();
+
+    const streamGen = writeTool.executeStream!(
+      { path: 'aborted_stream_ctx.txt', content: 'never' },
+      ctxWithSignal as any,
+    );
+    await expect(async () => {
+      for await (const _ of streamGen) {
+        // iterate
+      }
+    }).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(fs.access(path.join(sb.dir, 'aborted_stream_ctx.txt'))).rejects.toThrow();
+  });
+
 
   it('streams each line before finalizing a new file write', async () => {
     const events = [];

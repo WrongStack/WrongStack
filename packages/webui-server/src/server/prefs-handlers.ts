@@ -30,6 +30,9 @@ export interface PrefsHandlerContext {
    */
   snapshot: (sessionId?: string) => Record<string, unknown>;
   persist: (payload: Record<string, unknown>) => Promise<void>;
+  setSubagentsAllowed?:
+    | ((allowed: boolean, sessionId?: string | undefined) => Promise<void>)
+    | undefined;
   pendingConfirms: Map<string, PendingConfirm>;
   configStore?: ConfigStore | undefined;
   /**
@@ -180,6 +183,19 @@ export async function handlePrefsUpdate(
     return;
   }
   const payload = parsed.value.prefs;
+  if (typeof payload['subagentsAllowed'] === 'boolean') {
+    if (!ctx.setSubagentsAllowed) {
+      sendResult(ctx, ws, false, 'Session subagent policy is unavailable.');
+      return;
+    }
+    try {
+      await ctx.setSubagentsAllowed(payload['subagentsAllowed'], sessionId);
+    } catch (err) {
+      sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));
+      handlePrefsGet(ctx, ws, sessionId);
+      return;
+    }
+  }
   // Session-scoped keys land on the CALLING tab's context; the rest stay
   // process-wide. Both still go to `persist`, which keeps the config file as
   // the default a newly opened tab starts from.
@@ -188,7 +204,9 @@ export async function handlePrefsUpdate(
     if (SESSION_SCOPED_PREF_KEYS.has(key)) sessionMeta[key] = value;
     else ctx.meta[key] = value;
   }
-  void ctx.persist(payload);
+  const { subagentsAllowed: _sessionPolicy, subagentsPolicyLocked: _locked, ...durablePayload } =
+    payload;
+  if (Object.keys(durablePayload).length > 0) void ctx.persist(durablePayload);
 
   // Mirror `autonomy.switch`: an `autonomy` payload arriving through
   // `prefs.update` must drive `setAutonomy` so the runtime mode flips

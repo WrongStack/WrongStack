@@ -1,13 +1,17 @@
 import { createReadStream } from 'node:fs';
 import { stat as fspStat } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
-import type { EventBus } from '../event-bus-port.js';
-import type { SessionLoadProgress } from '../../types/session.js';
 import type { ContentBlock } from '../../types/blocks.js';
 import type { Message } from '../../types/messages.js';
 import type { SecretScrubber } from '../../types/secret-scrubber.js';
-import type { SessionData, SessionEvent, SessionMetadata } from '../../types/session.js';
+import type {
+  SessionData,
+  SessionEvent,
+  SessionLoadProgress,
+  SessionMetadata,
+} from '../../types/session.js';
 import { repairToolUseAdjacency } from '../../utils/message-invariants.js';
+import type { EventBus } from '../event-bus-port.js';
 import { scrubPersistedSessionEvent } from '../session-read-scrubber.js';
 import { extractToolCallEnds } from '../session-tool-call-ends.js';
 import { applyContextSnapshot, replayableMessage, trackMessageToolState } from './replay.js';
@@ -72,6 +76,7 @@ export async function loadSessionDataFromFile(params: {
   let sessionModel: string | undefined;
   let sessionProvider: string | undefined;
   let sessionPendingToolUses: string[] | undefined;
+  let subagentsAllowed: boolean | undefined;
   let sessionForkedEvent: Extract<SessionEvent, { type: 'session_forked' }> | undefined;
   const messages: Message[] | undefined = params.full ? [] : undefined;
   const openToolUses: Set<string> | undefined = params.full ? new Set<string>() : undefined;
@@ -170,6 +175,9 @@ export async function loadSessionDataFromFile(params: {
         if (ev.type === 'session_forked' && !sessionForkedEvent) {
           sessionForkedEvent = ev;
         }
+        if (ev.type === 'subagent_policy') {
+          subagentsAllowed = ev.allowed;
+        }
 
         if (params.full && messages !== undefined && openToolUses !== undefined) {
           const replayState = replaySessionEvent({
@@ -249,6 +257,7 @@ export async function loadSessionDataFromFile(params: {
     events,
     messages: finalMessages,
     usage,
+    ...(subagentsAllowed !== undefined ? { subagentsAllowed } : {}),
     toolCallEnds,
     ...(pendingToolUseCount !== undefined ? { pendingToolUseCount } : {}),
     ...(eventsDropped > 0 ? { eventsDropped } : {}),

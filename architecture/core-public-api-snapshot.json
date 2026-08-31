@@ -630,6 +630,7 @@
         "export { actionToAckInput } from './mailbox-actions.js';",
         "export { activeTierConfig, applyTierToSubagentConfig, classifyTier, DEFAULT_TIER_ID, isConfiguredTier, listTierIds, type ModelTierBudget, type ModelTierDecision, type ModelTierSource, type ResolvedTierTarget, resolveTier, tierBudget, tierLevel, tierModelTarget, } from './model-tier.js';",
         "export { applyMailboxSendPolicy, type MailboxResolver, type MailboxToolOptions, mailboxSessionTag, makeMailboxTool, resolveMailboxIdentity, } from './mailbox-tool.js';",
+        "export { areSubagentsAllowed, areSubagentsAllowedForSession, isSubagentPolicyLocked, lockSessionSubagentPolicy, lockSessionSubagentPolicyForSession, restoreSessionSubagentPolicy, resetSessionSubagentPolicy, seedSessionSubagentPolicy, setSessionSubagentsAllowed, SUBAGENTS_ALLOWED_META_KEY, SUBAGENTS_POLICY_LOCKED_META_KEY, } from './session-subagent-policy.js';",
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
@@ -1315,15 +1316,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 173,
-      "sourceLines": 50796
+      "sourceFiles": 174,
+      "sourceLines": 50919
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 47,
-      "sourceLines": 12059
+      "sourceLines": 12054
     },
     {
       "directory": "design",
@@ -1337,7 +1338,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 59,
-      "sourceLines": 18017
+      "sourceLines": 18032
     },
     {
       "directory": "extension",
@@ -1414,7 +1415,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 21,
-      "sourceLines": 8161
+      "sourceLines": 8260
     },
     {
       "directory": "prompts",
@@ -1456,7 +1457,7 @@
       "classification": "product feature",
       "intendedOwner": "skills implementation package or Runtime",
       "sourceFiles": 11,
-      "sourceLines": 2358
+      "sourceLines": 2363
     },
     {
       "directory": "statusline",
@@ -1470,7 +1471,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 92,
-      "sourceLines": 21276
+      "sourceLines": 21285
     },
     {
       "directory": "tasking",
@@ -1491,7 +1492,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12871
+      "sourceLines": 12874
     },
     {
       "directory": "utils",

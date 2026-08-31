@@ -11,7 +11,11 @@
  */
 
 import type { Agent, Context, TodoItem } from '@wrongstack/core/agent';
-import { mailboxSessionTag } from '@wrongstack/core/coordination';
+import {
+  mailboxSessionTag,
+  resetSessionSubagentPolicy,
+  restoreSessionSubagentPolicy,
+} from '@wrongstack/core/coordination';
 import type { createStrategyCompactor } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
@@ -660,6 +664,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             // finalizeSession is best-effort and setSession is synchronous.
             activated = true;
             await activateSession(next, []);
+            resetSessionSubagentPolicy(ctx.getAgent?.(next.id)?.ctx ?? ctx.context);
           } catch (err) {
             if (!activated) {
               await rollbackClaim?.().catch(() => undefined);
@@ -1373,6 +1378,12 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
             resumed.data.usage,
             restoredTodos,
             projectLastRequestTokens(resumed.data.events),
+          );
+          const resumedContext = ctx.getAgent?.(resumed.writer.id)?.ctx ?? ctx.context;
+          restoreSessionSubagentPolicy(
+            resumedContext,
+            resumed.data.events,
+            resumed.data.subagentsAllowed,
           );
           const client = ctx.clients?.get(ws);
           if (client) {

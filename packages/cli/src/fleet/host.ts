@@ -9,6 +9,7 @@ import {
 } from '@wrongstack/core/agent-catalog';
 import {
   AdaptiveConcurrencyController,
+  areSubagentsAllowedForSession,
   type AgentFactory,
   DEFAULT_MAX_FLEET_SPAWNS,
   type DefaultMultiAgentCoordinator,
@@ -208,6 +209,7 @@ export class MultiAgentHost {
    * means the host's own session, which is the only one a CLI or TUI has.
    */
   async runShadowPass(reason: string, sessionId?: string): Promise<void> {
+    if (!areSubagentsAllowedForSession(sessionId ?? this.deps.session.id)) return;
     return this.shadowManager.runShadowPass(reason, sessionId);
   }
 
@@ -321,6 +323,7 @@ export class MultiAgentHost {
               mailboxProjectDir: this.mailboxProjectDir(),
               roster: this.roster,
               config: config.fleet?.exploreCompanion,
+              subagentsAllowed: () => areSubagentsAllowedForSession(sessionId),
             })
           : null,
     });
@@ -328,7 +331,9 @@ export class MultiAgentHost {
     this.exploreCompanionOff = this.deps.events.on('agent.run.started', (e) => {
       // Unstamped runs exist (thin embedders); `ensure` ignores an empty id,
       // but keep the narrowing explicit rather than relying on that.
-      if (e.sessionId) this.exploreCompanions?.ensure(e.sessionId);
+      if (e.sessionId && areSubagentsAllowedForSession(e.sessionId)) {
+        this.exploreCompanions?.ensure(e.sessionId);
+      }
     });
 
     this.directorOffHandles.push(
@@ -483,6 +488,7 @@ export class MultiAgentHost {
       mailboxProjectDir: this.mailboxProjectDir(),
       roster: this.roster,
       getLeaderMailboxId: this.opts.getLeaderMailboxId,
+      subagentsAllowed: areSubagentsAllowedForSession,
     });
   }
 
@@ -516,6 +522,13 @@ export class MultiAgentHost {
     // not reuse — or overwrite — the foreground tab's reviewer, and the
     // worker it spawns belongs in the asking tab's roster.
     const originSessionId = opts?.originSessionId ?? this.deps.session.id;
+    if (!areSubagentsAllowedForSession(originSessionId)) {
+      throw new AgentError({
+        message: 'Subagents are disabled for this session.',
+        code: 'AGENT_RUN_FAILED',
+        context: { sessionId: originSessionId, phase: 'subagentPolicy' },
+      });
+    }
     if (isShadowSpawn) this.shadowManager.enterShadowSpawn(originSessionId);
     try {
       await this.buildDirector();
@@ -585,6 +598,14 @@ export class MultiAgentHost {
         | undefined;
     },
   ): Promise<{ subagentId: string; taskId: string }> {
+    const originSessionId = subagentConfig.originSessionId ?? this.deps.session.id;
+    if (!areSubagentsAllowedForSession(originSessionId)) {
+      throw new AgentError({
+        message: 'Subagents are disabled for this session.',
+        code: 'AGENT_RUN_FAILED',
+        context: { sessionId: originSessionId, phase: 'subagentPolicy' },
+      });
+    }
     const taskId = randomUUID();
     if (!this.director)
       throw new AgentError({

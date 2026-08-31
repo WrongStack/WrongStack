@@ -87,6 +87,7 @@ export function createCodebaseLspSearchTool(deps: ToolDeps): Tool<CodebaseLspSea
         const limit = Math.min(input.limit ?? 20, 100);
         const query = input.query ?? '';
 
+        const signal = opts?.signal ?? ctx?.signal;
         let indexResults: CodebaseLspResult[] = [];
         let totalIndex = 0;
         let usedIndex = false;
@@ -114,7 +115,7 @@ export function createCodebaseLspSearchTool(deps: ToolDeps): Tool<CodebaseLspSea
         const needsLsp = input.preferLsp || indexResults.length === 0;
 
         if (needsLsp) {
-          const lspOutcome = await searchLsp(deps, query, limit, opts.signal);
+          const lspOutcome = await searchLsp(deps, query, limit, signal);
           lspResults = lspOutcome.results;
           totalLsp = lspOutcome.total;
           usedLsp = true;

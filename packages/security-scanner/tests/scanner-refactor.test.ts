@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Provider, Request } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it } from 'vitest';
 import { SecurityScanner } from '../src/scanner.js';
 import type { GeneratedSkill } from '../src/skill-generator.js';
@@ -141,16 +142,23 @@ describe('SecurityScanner refactor contracts', () => {
     const scanner = new BatchScanner();
     await scanner.runBatchScan({
       provider: {
-        name: 'mock',
-        complete: async (req) => {
+        id: 'mock',
+        capabilities: {} as never,
+        stream: (async function* () {})() as never,
+        complete: async (req: Request) => {
           const text = req.messages[0]?.content as string;
           const matches = text.match(/===\s+([^\s=]+)\s+===/g) ?? [];
           for (const m of matches) {
             passedFiles.push(m.replace(/===\s+/, '').replace(/\s+===/, ''));
           }
-          return { content: [{ type: 'text', text: '[]' }] };
+          return {
+            content: [{ type: 'text', text: '[]' }],
+            stopReason: 'end_turn',
+            usage: { input: 0, output: 0 },
+            model: 'test',
+          };
         },
-      },
+      } as never as Provider,
       model: 'test',
       projectRoot: root,
       skill: testSkill,

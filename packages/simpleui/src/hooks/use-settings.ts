@@ -72,13 +72,19 @@ export function useSettings(options: UseSettingsOptions): UseSettingsResult {
     // Optimistic local snapshot — the panel needs an immediate visual reset
     // even if the socket is slow. The server's `prefs.updated` echo will
     // re-confirm the values on the next round-trip.
-    setPrefs(DEFAULT_PREFS);
+    const resettable = {
+      ...DEFAULT_PREFS,
+      subagentsAllowed: prefsRef.current.subagentsAllowed,
+      subagentsPolicyLocked: prefsRef.current.subagentsPolicyLocked,
+    };
+    setPrefs(resettable);
     // Two wire ops: prefs.update persists the snapshot so other tabs catch up,
     // and autonomy.switch re-aims the running loop at the default mode — the
     // loop reads autonomy from `autonomy.switch` traffic, never from
     // prefs.update, so sending only the latter would leave a stale YOLO/auto
     // agent running even though the panel shows `off`.
-    socketRef.current?.send('prefs.update', { ...DEFAULT_PREFS });
+    const { subagentsAllowed: _allowed, subagentsPolicyLocked: _locked, ...durable } = resettable;
+    socketRef.current?.send('prefs.update', durable);
     socketRef.current?.send('autonomy.switch', { mode: DEFAULT_PREFS.autonomy });
   }, [socketRef]);
 

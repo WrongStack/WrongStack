@@ -96,9 +96,14 @@ describe('useSettings — resetPrefs', () => {
 
     // Filter to the sends that landed after resetPrefs was called.
     const resetSends = socket.sends.slice(sendsBeforeReset);
+    const {
+      subagentsAllowed: _subagentsAllowed,
+      subagentsPolicyLocked: _subagentsPolicyLocked,
+      ...resettablePrefs
+    } = DEFAULT_PREFS;
     expect(resetSends).toContainEqual({
       type: 'prefs.update',
-      payload: { ...DEFAULT_PREFS },
+      payload: resettablePrefs,
     });
 
     roots.push(root);

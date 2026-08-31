@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
 import { Context } from '@wrongstack/core/agent';
+import {
+  restoreSessionSubagentPolicy,
+  seedSessionSubagentPolicy,
+} from '@wrongstack/core/coordination';
 import { ProviderCacheLedger } from '@wrongstack/core/infrastructure';
 import {
   attachTodosCheckpoint,
@@ -205,6 +209,7 @@ export async function setupSession(params: {
   let restoredMessages: import('@wrongstack/core/types').Message[] = [];
   let restoredToolCalls: SessionResult['restoredToolCalls'] = [];
   let restoredEvents: SessionResult['restoredEvents'] = [];
+  let restoredSubagentsAllowed: boolean | undefined;
   let resumedModel: string | undefined;
   let resumedProvider: string | undefined;
   if (resumeId) {
@@ -226,6 +231,7 @@ export async function setupSession(params: {
       // perfectly resumable session into RESUME_FAILED.
       restoredToolCalls = resumed.data.toolCallEnds ?? [];
       restoredEvents = resumed.data.events ?? [];
+      restoredSubagentsAllowed = resumed.data.subagentsAllowed;
       // Prefer the resumed session's own model/provider on boot (applied later,
       // once the provider runtime + switch callback exist).
       resumedModel = resumed.data.metadata.model;
@@ -312,6 +318,9 @@ export async function setupSession(params: {
     context.state.replaceMessages(restoredMessages);
     await context.flushConversationJournal();
   }
+  if (restoredEvents.length > 0 || restoredSubagentsAllowed !== undefined) {
+    restoreSessionSubagentPolicy(context, restoredEvents, restoredSubagentsAllowed);
+  } else seedSessionSubagentPolicy(context);
 
   const queueStore = new QueueStore({
     dir: sessionDir,

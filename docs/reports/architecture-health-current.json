@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T10:35:33.279Z",
+  "generatedAt": "2026-08-31T19:20:43.325Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3431,
-    "testFiles": 3065,
-    "sourceLines": 838403,
+    "sourceFiles": 3433,
+    "testFiles": 3069,
+    "sourceLines": 839324,
     "workspaceEdges": 128,
-    "moduleEdges": 10668,
+    "moduleEdges": 10676,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -210,8 +210,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 781,
-      "testFiles": 692,
+      "sourceFiles": 782,
+      "testFiles": 693,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -226,7 +226,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 692
+          "testFiles": 693
         }
       ]
     },
@@ -808,7 +808,7 @@
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
       "sourceFiles": 498,
-      "testFiles": 402,
+      "testFiles": 403,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -832,7 +832,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 402
+          "testFiles": 403
         }
       ]
     },
@@ -918,8 +918,8 @@
     {
       "name": "@wrongstack/wrongtrace",
       "dir": "packages/wrongtrace",
-      "sourceFiles": 10,
-      "testFiles": 3,
+      "sourceFiles": 11,
+      "testFiles": 5,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -930,7 +930,7 @@
         {
           "path": "packages/wrongtrace/tsconfig.test.json",
           "error": null,
-          "testFiles": 3
+          "testFiles": 5
         }
       ]
     },
@@ -5524,6 +5524,12 @@
       },
       {
         "file": "packages/core/tests/coordination/session-note-subagent-routing.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/coordination/session-subagent-policy.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17961,6 +17967,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/welcome-screen-bug-hunter.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/workbench-topbar.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -19479,7 +19491,19 @@
         ]
       },
       {
+        "file": "packages/wrongtrace/src/__tests__/hooks.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/wrongtrace/src/__tests__/ipc.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/wrongtrace/src/__tests__/mcp.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19593,7 +19617,7 @@
   "hotspotCandidates": [
     {
       "file": "packages/cli/src/boot/tui-session-resume.ts",
-      "lines": 822,
+      "lines": 824,
       "relativeImports": 1
     },
     {
@@ -19613,7 +19637,7 @@
     },
     {
       "file": "packages/cli/src/fleet/host.ts",
-      "lines": 820,
+      "lines": 841,
       "relativeImports": 23
     },
     {
@@ -19698,8 +19722,8 @@
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 953,
-      "relativeImports": 40
+      "lines": 962,
+      "relativeImports": 41
     },
     {
       "file": "packages/core/src/coordination/fleet-supervisor.ts",
@@ -19813,7 +19837,7 @@
     },
     {
       "file": "packages/core/src/types/session.ts",
-      "lines": 944,
+      "lines": 947,
       "relativeImports": 4
     },
     {
@@ -19913,7 +19937,7 @@
     },
     {
       "file": "packages/sage/src/tools/memory-tools.ts",
-      "lines": 971,
+      "lines": 985,
       "relativeImports": 4
     },
     {
@@ -20048,7 +20072,7 @@
     },
     {
       "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
-      "lines": 863,
+      "lines": 902,
       "relativeImports": 8
     },
     {
@@ -20193,7 +20217,7 @@
     },
     {
       "file": "packages/webui/src/stores/local-prefs.ts",
-      "lines": 897,
+      "lines": 905,
       "relativeImports": 0
     },
     {
@@ -20268,12 +20292,12 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 953,
+      "lines": 962,
       "relativeImports": 47
     },
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1695,
+      "lines": 1706,
       "relativeImports": 11
     },
     {
@@ -20300,7 +20324,7 @@
   "hotspots": [
     {
       "file": "packages/webui-server/src/server/session-handlers.ts",
-      "lines": 1695,
+      "lines": 1706,
       "relativeImports": 11
     },
     {

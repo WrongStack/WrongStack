@@ -61,6 +61,7 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
   async execute(input, ctx, opts) {
     if (!input?.patch) throw new Error('patch: patch content is required');
 
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const strip = Math.max(1, input.strip ?? 1);
     const dryRun = input.dry_run ?? false;
     const refuse = (message: string): PatchOutput => ({
@@ -146,7 +147,7 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
 
       const args = [`-p${strip}`, '--merge', ...(dryRun ? ['--dry-run'] : []), '-i', patchFile];
 
-      const result = await runPatch(args, dir, opts.signal, {
+      const result = await runPatch(args, dir, signal, {
         patchFile,
         strip,
         dryRun,

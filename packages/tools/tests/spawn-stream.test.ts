@@ -117,4 +117,25 @@ describe('spawnStream teardown', () => {
     // The finally teardown must have force-killed the child.
     await expect.poll(() => getProcessRegistry().stats().activeCount, { timeout: 10_000 }).toBe(0);
   });
+
+  it('executes successfully when signal is omitted or undefined', async () => {
+    const gen = spawnStream({
+      cmd: 'node',
+      args: ['-e', 'console.log("no signal test")'],
+      cwd: process.cwd(),
+      signal: undefined,
+    });
+    let result: { exitCode: number; stdout: string } | undefined;
+    for (;;) {
+      const { value, done } = await gen.next();
+      if (done) {
+        result = value as { exitCode: number; stdout: string };
+        break;
+      }
+    }
+    expect(result).toBeDefined();
+    expect(result?.exitCode).toBe(0);
+    expect(result?.stdout).toContain('no signal test');
+  });
 });
+

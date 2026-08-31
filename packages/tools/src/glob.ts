@@ -74,7 +74,10 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
         field: 'pattern',
       });
     }
-    const signal = opts?.signal;
+    const signal = opts?.signal ?? ctx?.signal;
+    if (signal?.aborted) {
+      return { files: [], truncated: true };
+    }
     // `safeResolveReal` validates that the input base — even if symlinked —
     // resolves to a real path inside the project root (or `~/.wrongstack`).
     // Throws on escape, matching how single-file tools (`read`, `edit`,
@@ -93,7 +96,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     const pushResult = async (full: string): Promise<void> => {
       // Bail before stat if a concurrent worker has already filled the budget —
       // the limit is a global cap across all parallel walkers, not per-worker.
-      if (truncated || results.length >= limit) {
+      if (signal?.aborted || truncated || results.length >= limit) {
         truncated = true;
         return;
       }

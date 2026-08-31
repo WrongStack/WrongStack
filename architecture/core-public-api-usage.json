@@ -19,9 +19,9 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/coordination": {
-      "files": 196,
-      "typeOnly": 85,
-      "runtimeOrMixed": 165
+      "files": 201,
+      "typeOnly": 80,
+      "runtimeOrMixed": 173
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -159,8 +159,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1023,
-      "typeOnly": 946,
+      "files": 1024,
+      "typeOnly": 947,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -2279,9 +2279,21 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/boot/tui-project-switch.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/boot/tui-runtime-state.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/boot/tui-session-resume.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2316,8 +2328,8 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/execution-chimera-review.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2388,8 +2400,8 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/fleet/host-shadow-manager.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2621,6 +2633,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/webui-server/route-contexts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/webui-server/session-start-payload.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -2646,7 +2664,7 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/command-host-state.ts",
-      "typeOnly": 1,
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -2682,7 +2700,7 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/fleet-command-handlers.ts",
-      "typeOnly": 1,
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -2731,6 +2749,12 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/session-registry.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/wiring/session.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -3161,6 +3185,12 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/src/hooks/use-tui-slash-commands.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
       "file": "packages/tui/src/mailbox-view-model-types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3324,8 +3354,8 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/webui-server/src/server/routes.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -13748,6 +13778,12 @@
       "file": "packages/security-scanner/tests/orchestrator-flow.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/tests/scanner-refactor.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",

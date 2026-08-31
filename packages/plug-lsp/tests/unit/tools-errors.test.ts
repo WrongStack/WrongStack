@@ -215,7 +215,41 @@ describe('tool error and edge paths', () => {
     );
     expect(await fs.readFile(file, 'utf8')).toBe('!const a = 1;');
   });
+
+  it('safely executes tools without opts and falls back to ctx.signal', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-no-opts-'));
+    const file = path.join(root, 'test.ts');
+    await fs.writeFile(file, 'const a = 1;');
+
+    const server = fakeServer({
+      capabilities: {
+        completionProvider: {},
+        definitionProvider: true,
+        renameProvider: true,
+      },
+      completion: vi.fn(async () => ({ items: [{ label: 'test' }] })),
+      definition: vi.fn(async () => null),
+      rename: vi.fn(async () => null),
+      pullDiagnostics: vi.fn(async () => []),
+      getDiagnostics: vi.fn(() => []),
+    });
+    const deps = makeDeps(server);
+    const ctx = { cwd: root, projectRoot: root } as never;
+
+    const compRes = await createCompletionTool(deps).execute({ path: file, line: 1, character: 1 }, ctx);
+    expect(String(compRes)).not.toContain('Cannot read properties of undefined');
+
+    const defRes = await createDefinitionTool(deps).execute({ path: file, line: 1, character: 1 }, ctx);
+    expect(String(defRes)).not.toContain('Cannot read properties of undefined');
+
+    const diagRes = await createDiagnosticsTool(deps).execute({ path: file }, ctx);
+    expect(String(diagRes)).not.toContain('Cannot read properties of undefined');
+
+    const renameRes = await createRenameTool(deps).execute({ path: file, line: 1, character: 1, new_name: 'b' }, ctx);
+    expect(String(renameRes)).not.toContain('Cannot read properties of undefined');
+  });
 });
+
 
 function makeDeps(
   server: unknown,

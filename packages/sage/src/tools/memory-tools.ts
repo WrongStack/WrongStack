@@ -228,7 +228,8 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
       ['text'],
     ),
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       const detectedRole =
         typeof ctx?.meta?.['agentRole'] === 'string'
           ? (ctx.meta['agentRole'] as string)
@@ -293,8 +294,9 @@ function memoryForgetTool(
       },
       ['query'],
     ),
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       const scope: MemoryScope = input.scope ?? 'project-memory';
       const removed = await memory.forget(input.query, scope);
       return { removed, scope };
@@ -351,7 +353,8 @@ function memoryUpdateTool(
       return [];
     },
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       const { id, ...patch } = input;
       await assertSessionMayMutate(memory, id, ctx);
       return memory.updateSage(id, patch);
@@ -409,7 +412,8 @@ function memoryDeleteTool(
       return [];
     },
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       await assertSessionMayMutate(memory, input.id, ctx);
       await memory.deleteSage(input.id, input.reason, {
         force: true,
@@ -456,7 +460,8 @@ function memoryRecoverTool(
       ['id'],
     ),
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       await assertSessionMayMutate(memory, input.id, ctx);
       // Read pre-call status: only `deleted` → `active` is a real write.
       // Id-equality can't distinguish "wrote and returned same id" from
@@ -541,8 +546,9 @@ function memoryBackfillRecoverableTool(
       },
       [],
     ),
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       // `--apply` semantics: the CLI surfaces the flag as `apply: true`,
       // the JS API as `dryRun: false`. We accept both shapes here.
       const dryRun = input.apply !== true;
@@ -632,7 +638,8 @@ function memoryForFileTool(memory: SageServiceLike): Tool<
     capabilities: ['memory.read'],
     icon: 'search',
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       return memory.findMemoriesForFile(input.path, {
         sessionId: callerSessionId(ctx),
         ...(input.lineStart !== undefined ? { lineStart: input.lineStart } : {}),
@@ -665,7 +672,8 @@ function memoryForPathTool(
     capabilities: ['memory.read'],
     icon: 'search',
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       return memory.retrieveForPath({
         path: input.path,
         limit: input.limit ?? 20,
@@ -697,7 +705,8 @@ function memorySearchTool(
     capabilities: ['memory.read'],
     icon: 'search',
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       return memory.searchSage(input.query, {
         limit: input.limit ?? 20,
         includeStatuses: input.include_stale ? ['active', 'stale'] : ['active'],
@@ -759,7 +768,8 @@ function memorySearchExplainTool(
     capabilities: ['memory.read'],
     icon: 'search',
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       const sessionId = callerSessionId(ctx);
       const includeStatuses: Sage['status'][] = input.include_stale
         ? ['active', 'stale']
@@ -820,8 +830,9 @@ function memoryGraphTool(
     riskTier: 'safe',
     capabilities: ['memory.read'],
     icon: 'tree',
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       return memory.graphFor(input.query, input.depth ?? 2, input.limit ?? 100);
     },
   };
@@ -867,7 +878,8 @@ function memoryGatherBatchTool(
     capabilities: ['memory.read'],
     icon: 'search',
     async execute(input, ctx, opts) {
-      opts.signal.throwIfAborted();
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       const pageOpts: ListSagePageOptions = {
         statuses: input.statuses,
         kind: input.kind,
@@ -887,7 +899,7 @@ function memoryGatherBatchTool(
         const seen = new Set<string>();
         const idsToScan = page.memories.slice(0, BATCH_GRAPH_SCAN_LIMIT);
         for (const mem of idsToScan) {
-          opts.signal.throwIfAborted();
+          signal?.throwIfAborted();
           scannedCount++;
           try {
             const edges = await memory.graphFor(mem.id, 1, 100);
@@ -900,7 +912,7 @@ function memoryGatherBatchTool(
           } catch (err) {
             // Best-effort: one memory's graph failure does not fail the batch;
             // rethrow abort so the caller can cancel promptly.
-            if (opts.signal.aborted) throw err;
+            if (signal?.aborted) throw err;
           }
         }
       }
@@ -932,9 +944,10 @@ function memoryVerifyTool(
     riskTier: 'standard',
     capabilities: ['memory.write', 'fs.read'],
     icon: 'settings',
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
-      return memory.verify(input.memory_id, opts.signal);
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
+      return memory.verify(input.memory_id, signal);
     },
   };
 }
@@ -962,9 +975,10 @@ function memoryHygieneTool(
     riskTier: 'standard',
     capabilities: ['memory.write', 'memory.delete', 'fs.read'],
     icon: 'settings',
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
-      return memory.hygiene(input, opts.signal);
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
+      return memory.hygiene(input, signal);
     },
   };
 }

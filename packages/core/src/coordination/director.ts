@@ -58,6 +58,10 @@ import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 import { resolveMaxSpawnDepth } from './spawn-budget.js';
 import { nicknameKeyFromDisplay } from './subagent-nicknames.js';
 import {
+  areSubagentsAllowedForSession,
+  lockSessionSubagentPolicyForSession,
+} from './session-subagent-policy.js';
+import {
   type WorktreeTaskStateUpdate,
   wrapSubagentRunnerWithWorktrees,
 } from './worktree-task-runner.js';
@@ -532,6 +536,11 @@ export class Director implements DirectorFleetHost, ICoordinator {
       cacheWrite?: number | undefined;
     },
   ): Promise<string> {
+    const policySessionId = callerConfig.originSessionId ?? this.currentSessionId();
+    if (!areSubagentsAllowedForSession(policySessionId)) {
+      throw new Error('Subagents are disabled for this session.');
+    }
+    lockSessionSubagentPolicyForSession(policySessionId);
     if (this.workCompleteFlag) {
       throw new FleetSpawnBudgetError(
         'max_spawns',

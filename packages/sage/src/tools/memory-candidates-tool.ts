@@ -89,8 +89,9 @@ export function memoryCandidatesTool(memory: SageServiceLike): Tool<
       }
       return [];
     },
-    async execute(input, _ctx, opts) {
-      opts.signal.throwIfAborted();
+    async execute(input, ctx, opts) {
+      const signal = opts?.signal ?? ctx?.signal;
+      signal?.throwIfAborted();
       if (input.action === 'accept') return memory.acceptCandidate(input.candidate_id!);
       if (input.action === 'reject') {
         return {

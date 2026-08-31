@@ -536,7 +536,30 @@ describe('fetch prettyJson error handling', () => {
       await sb.cleanup();
     }
   });
+
+  it('safely executes without opts and falls back to ctx.signal or default signal', async () => {
+    globalThis.fetch = vi.fn(async () =>
+      mkResponse({ body: 'no-opts content', contentType: 'text/plain' }),
+    ) as never as typeof fetch;
+    const sb = await mkSandbox();
+    try {
+      const out = await fetchTool.execute({ url: 'https://api.example.com/data' }, sb.ctx);
+      expect(out.status).toBe(200);
+      expect(out.content).toBe('no-opts content');
+
+      const ac = new AbortController();
+      const ctxWithSignal = { ...sb.ctx, signal: ac.signal };
+      const outWithSignal = await fetchTool.execute(
+        { url: 'https://api.example.com/data' },
+        ctxWithSignal,
+      );
+      expect(outWithSignal.status).toBe(200);
+    } finally {
+      await sb.cleanup();
+    }
+  });
 });
+
 
 // F-05: the exported guardedFetch (now used by the `search` tool) must carry
 // the same SSRF guard as the `fetch` tool — private/loopback targets rejected

@@ -1,7 +1,11 @@
 /** Mutable command-host state created after the runtime fleet is available. */
 
-import type { BrainArbiter, Director } from '@wrongstack/core/coordination';
-import { FLEET_ROSTER } from '@wrongstack/core/coordination';
+import {
+  areSubagentsAllowedForSession,
+  type BrainArbiter,
+  type Director,
+  FLEET_ROSTER,
+} from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import {
   AgentError,
@@ -70,7 +74,7 @@ export async function setupCommandHostState(input: CommandHostStateInput) {
   input.hqCommandController.terminateAgent = (subagentId) =>
     terminateAgent(input.getDirector(), subagentId);
   input.hqCommandController.spawnAgent = (role, task, maxIterations) =>
-    spawnAgent(input.getDirector(), role, task, maxIterations);
+    spawnAgent(input.getDirector(), input.sessionRef.current?.id ?? input.session.id, role, task, maxIterations);
 
   const enhanceController = createEnhanceController(input.getConfig());
   const statuslineConfigDeps = createStatuslineConfigDeps();
@@ -182,6 +186,7 @@ async function terminateAgent(director: Director | null, subagentId: string): Pr
 
 async function spawnAgent(
   director: Director | null,
+  sessionId: string,
   role: string,
   task?: string,
   maxIterations?: number,
@@ -193,6 +198,9 @@ async function spawnAgent(
       context: { phase: 'hq-spawn', role },
     });
   }
+  if (!areSubagentsAllowedForSession(sessionId)) {
+    throw new Error('Subagents are disabled for this session.');
+  }
   const base = FLEET_ROSTER[role] ?? {
     id: `manual-${Date.now()}`,
     name: role,
@@ -200,5 +208,5 @@ async function spawnAgent(
     maxToolCalls: 200,
   };
   const config = task !== undefined ? { ...base, task } : base;
-  return director.spawn(config);
+  return director.spawn({ ...config, originSessionId: sessionId });
 }

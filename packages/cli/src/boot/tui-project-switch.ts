@@ -16,6 +16,7 @@ import {
   DefaultSystemPromptBuilder,
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core/agent';
+import { resetSessionSubagentPolicy } from '@wrongstack/core/coordination';
 import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
@@ -167,6 +168,7 @@ export async function switchProjectInPlace(
   context.workingDir = resolved;
   context.session = nextWriter;
   context.state.replaceMessages([]);
+  resetSessionSubagentPolicy(context);
   context.state.replaceTodos([]);
   context.clearFileTracking();
   context.clearMemoryEvidence?.();

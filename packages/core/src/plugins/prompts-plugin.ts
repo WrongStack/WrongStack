@@ -1,17 +1,18 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { setSessionSubagentsAllowed } from '../coordination/session-subagent-policy.js';
 import { DefaultPromptLoader, renderPrompt } from '../execution/prompt-loader.js';
+import type { Context, SlashCommand } from '../index.js';
 import { DefaultPromptStore, migratePromptEntry } from '../storage/prompt-store.js';
 import { PromptUsageStore } from '../storage/prompt-usage-store.js';
+import type { Plugin } from '../types/plugin.js';
 import type { PromptEntry, PromptLoader, PromptVariable } from '../types/prompt.js';
-import type { WstackPaths } from '../utils/wstack-paths.js';
 import { expectDefined } from '../utils/expect-defined.js';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
 } from '../utils/instruction-file.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SlashCommand, Context } from '../index.js';
+import type { WstackPaths } from '../utils/wstack-paths.js';
 
 interface PromptsPluginOptions {
   store?: DefaultPromptStore | undefined;
@@ -23,10 +24,11 @@ interface PromptsPluginOptions {
 /**
  * PromptsPlugin — built-in prompt library.
  *
- * Registers three slash commands:
+ * Registers four slash commands:
  *   - `/prompts`     manage your library (list/view/add/edit/delete/favorite/extend)
  *   - `/prompt`      search the merged library (builtin + user + project) and insert
  *   - `/prompt-gen`  AI-guided authoring of a new high-quality prompt
+ *   - `/bughunt`     run one proof-driven Elite Bug Hunter round
  *
  * Active by default for all WrongStack sessions. The host injects a
  * `PromptLoader` (cross-layer read + copy-on-write) via `config.promptLoader`;
@@ -61,21 +63,92 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
 
       usage = opts?.usage ?? (paths ? new PromptUsageStore(paths.promptUsage) : null);
 
-      api.slashCommands.register(buildPromptsCommand(() => store, () => loader, () => api.llm));
-      api.slashCommands.register(buildPromptSearchCommand(() => loader, () => usage));
+      api.slashCommands.register(
+        buildPromptsCommand(
+          () => store,
+          () => loader,
+          () => api.llm,
+        ),
+      );
+      api.slashCommands.register(
+        buildPromptSearchCommand(
+          () => loader,
+          () => usage,
+        ),
+      );
       api.slashCommands.register(buildPromptGenCommand(() => loader));
-      api.log.info('[prompts] loaded — /prompts, /prompt, /prompt-gen available');
+      api.slashCommands.register(
+        buildBugHuntCommand(
+          () => loader,
+          () => usage,
+        ),
+      );
+      api.log.info('[prompts] loaded — /prompts, /prompt, /prompt-gen, /bughunt available');
     },
 
     teardown(api) {
       api.slashCommands.unregister('prompts');
       api.slashCommands.unregister('prompt');
       api.slashCommands.unregister('prompt-gen');
+      api.slashCommands.unregister('bughunt');
       api.log.info('[prompts] unloaded');
     },
 
     async health() {
       return { ok: true, message: 'Prompt store accessible' };
+    },
+  };
+}
+
+const ELITE_BUG_HUNTER_SLUG = 'elite-bug-hunter';
+
+function buildBugHuntCommand(
+  getLoader: () => PromptLoader | null,
+  getUsage: () => PromptUsageStore | null,
+): SlashCommand {
+  return {
+    name: 'bughunt',
+    description: 'Start one proof-driven Elite Bug Hunter round.',
+    argsHint: '[package | path | feature | symptom]',
+    help: [
+      'Start one autonomous bug discovery, proof, fix, and verification round.',
+      '',
+      'Usage:',
+      '  /bughunt                         Hunt across the current project',
+      '  /bughunt packages/core/storage  Restrict the round to a target',
+      '',
+      'The agent handles exactly one bug and stops after its round report.',
+    ].join('\n'),
+    async run(args: string, ctx: Context) {
+      const loader = getLoader();
+      if (!loader) return { message: 'Prompt library not available.' };
+      const entry = await loader.find(ELITE_BUG_HUNTER_SLUG);
+      if (!entry) {
+        return {
+          message: `Builtin prompt "${ELITE_BUG_HUNTER_SLUG}" is unavailable. Rebuild or reinstall the prompt dataset.`,
+        };
+      }
+      try {
+        await setSessionSubagentsAllowed(ctx, false);
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : String(err);
+        return { message: `Elite Bug Hunter could not start: ${reason}` };
+      }
+      try {
+        await getUsage()?.record(entry.slug);
+      } catch {
+        // Usage tracking must never block a hunt.
+      }
+      const target = args.trim();
+      const runText = target
+        ? `${entry.content}\n\n## User-selected target\nStay within this package, area, feature, or symptom for this round: ${target}`
+        : entry.content;
+      return {
+        message: target
+          ? `Elite Bug Hunter started for: ${target}`
+          : 'Elite Bug Hunter started for the current project.',
+        runText,
+      };
     },
   };
 }
@@ -89,8 +162,7 @@ function buildPromptsCommand(
 ): SlashCommand {
   return {
     name: 'prompts',
-    description:
-      'Manage your prompt library: /prompts [list|view|add|edit|delete|favorite|extend]',
+    description: 'Manage your prompt library: /prompts [list|view|add|edit|delete|favorite|extend]',
     async run(args: string, ctx: Context) {
       const store = getStore();
       const loader = getLoader();
@@ -108,7 +180,8 @@ function buildPromptsCommand(
             return { message: 'Prompt library empty. Add: /prompts add "title" "content"' };
           }
           const lines = entries.map(
-            (e) => `  ${e.favorite ? '★ ' : ''}${e.title}  ${dim(e.id)}  ${e.tags.join(', ') || ''}`,
+            (e) =>
+              `  ${e.favorite ? '★ ' : ''}${e.title}  ${dim(e.id)}  ${e.tags.join(', ') || ''}`,
           );
           return { message: `Prompt library (${entries.length}):\n${lines.join('\n')}\n` };
         }
@@ -222,7 +295,9 @@ function buildPromptsCommand(
           exact.updatedAt = new Date().toISOString();
           await store.save(exact);
           getLoader()?.invalidateCache();
-          return { message: `Extended "${exact.title}".\n\n${dim('New content:')}\n${exact.content}` };
+          return {
+            message: `Extended "${exact.title}".\n\n${dim('New content:')}\n${exact.content}`,
+          };
         }
 
         case 'export': {
@@ -230,7 +305,9 @@ function buildPromptsCommand(
           // Export only user-authored prompts (builtins are shipped already).
           const own = (await loader.list()).filter((e) => e.source !== 'builtin');
           if (own.length === 0) {
-            return { message: 'No user prompts to export. (Builtin prompts ship with WrongStack.)' };
+            return {
+              message: 'No user prompts to export. (Builtin prompts ship with WrongStack.)',
+            };
           }
           const target = resolveIoPath(restJoined || 'wrongstack-prompts.json', ctx);
           const payload = JSON.stringify(
@@ -242,7 +319,9 @@ function buildPromptsCommand(
             await fs.writeFile(target, payload, 'utf8');
             return { message: `Exported ${own.length} prompt(s) → ${target}` };
           } catch (err) {
-            return { message: `Export failed: ${err instanceof Error ? err.message : String(err)}` };
+            return {
+              message: `Export failed: ${err instanceof Error ? err.message : String(err)}`,
+            };
           }
         }
 
@@ -254,14 +333,17 @@ function buildPromptsCommand(
           try {
             raw = JSON.parse(await fs.readFile(src, 'utf8'));
           } catch (err) {
-            return { message: `Import failed: ${err instanceof Error ? err.message : String(err)}` };
+            return {
+              message: `Import failed: ${err instanceof Error ? err.message : String(err)}`,
+            };
           }
           const list = Array.isArray(raw)
             ? raw
             : Array.isArray((raw as { prompts?: unknown }).prompts)
               ? (raw as { prompts: unknown[] }).prompts
               : null;
-          if (!list) return { message: 'Import failed: expected a JSON array or { prompts: [...] }.' };
+          if (!list)
+            return { message: 'Import failed: expected a JSON array or { prompts: [...] }.' };
 
           let imported = 0;
           let skipped = 0;
@@ -301,7 +383,8 @@ function buildPromptSearchCommand(
 ): SlashCommand {
   return {
     name: 'prompt',
-    description: 'Search the prompt library and insert one: /prompt <query> | /prompt insert <slug>',
+    description:
+      'Search the prompt library and insert one: /prompt <query> | /prompt insert <slug>',
     argsHint: '<query> | insert <slug> [var=value …] | recent | favorites',
     async run(args: string) {
       const loader = getLoader();
@@ -359,7 +442,9 @@ function buildPromptSearchCommand(
         for (const { slug, usage } of top) {
           const e = await loader.find(slug);
           const title = e?.title ?? slug;
-          lines.push(`  ${e ? sourceGlyph(e) : '•'} ${title}  ${dim(slug)}  ${dim(`×${usage.count}`)}`);
+          lines.push(
+            `  ${e ? sourceGlyph(e) : '•'} ${title}  ${dim(slug)}  ${dim(`×${usage.count}`)}`,
+          );
         }
         return {
           message: `${trimmed === 'popular' ? 'Most-used' : 'Recent'} prompts:\n${lines.join('\n')}\n\nInsert: /prompt insert <slug>`,
@@ -375,7 +460,9 @@ function buildPromptSearchCommand(
         const lines = favs.map(
           (e) => `  ${sourceGlyph(e)} ★ ${e.title}  ${dim(e.slug)}  ${dim(`[${e.category}]`)}`,
         );
-        return { message: `Favorites (${favs.length}):\n${lines.join('\n')}\n\nInsert: /prompt insert <slug>` };
+        return {
+          message: `Favorites (${favs.length}):\n${lines.join('\n')}\n\nInsert: /prompt insert <slug>`,
+        };
       }
 
       // /prompt  (no query) → overview
@@ -434,9 +521,7 @@ function buildPromptGenCommand(getLoader: () => PromptLoader | null): SlashComma
         if (!loader) return { message: 'Prompt library not available.' };
         const all = await loader.list();
         if (all.length === 0) return { message: 'No prompts found.' };
-        const lines = all
-          .slice(0, 50)
-          .map((e) => `  ${sourceGlyph(e)} ${e.title}  ${dim(e.slug)}`);
+        const lines = all.slice(0, 50).map((e) => `  ${sourceGlyph(e)} ${e.title}  ${dim(e.slug)}`);
         return { message: `Prompts (${all.length}):\n${lines.join('\n')}` };
       }
 
@@ -494,7 +579,13 @@ function resolveIoPath(p: string, ctx: Context): string {
 }
 
 function sourceGlyph(e: PromptEntry): string {
-  return e.source === 'project' ? '📁' : e.source === 'user' ? '👤' : e.source === 'synced' ? '☁' : '📦';
+  return e.source === 'project'
+    ? '📁'
+    : e.source === 'user'
+      ? '👤'
+      : e.source === 'synced'
+        ? '☁'
+        : '📦';
 }
 
 /** Parse leading `--flag value` / `--flag=value` pairs; return the rest as positional. */
@@ -554,7 +645,10 @@ function parseVarFlags(raw: string | undefined): PromptVariable[] | undefined {
     const description = colon === -1 ? undefined : head.slice(colon + 1).trim();
     if (!name) continue;
     const v: PromptVariable = { name, description, required: true };
-    for (const token of meta.split('::').map((t) => t.trim()).filter(Boolean)) {
+    for (const token of meta
+      .split('::')
+      .map((t) => t.trim())
+      .filter(Boolean)) {
       if (token === 'multiline') v.multiline = true;
       else if (token.startsWith('enum=')) {
         const opts = token
@@ -588,7 +682,10 @@ function parseTitleContent(args: string): { title: string; content: string } {
     return { title: expectDefined(doubleMatch[1]), content: expectDefined(doubleMatch[2]) };
   const quotedTitleMatch = /^"([^"]+)"\s+(.+)$/.exec(trimmed) || /^'([^']+)'\s+(.+)$/.exec(trimmed);
   if (quotedTitleMatch)
-    return { title: expectDefined(quotedTitleMatch[1]), content: expectDefined(quotedTitleMatch[2]) };
+    return {
+      title: expectDefined(quotedTitleMatch[1]),
+      content: expectDefined(quotedTitleMatch[2]),
+    };
   const firstSpace = trimmed.indexOf(' ');
   if (firstSpace === -1) return { title: trimmed, content: '' };
   return { title: trimmed.slice(0, firstSpace), content: trimmed.slice(firstSpace + 1) };

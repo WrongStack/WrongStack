@@ -96,6 +96,16 @@ describe('matchesExtension', () => {
 
   it('is case-insensitive', () => {
     expect(matchesExtension('file.TS', ['.ts'])).toBe(true);
+    expect(matchesExtension('file.ts', ['.TS'])).toBe(true);
+  });
+
+  it('handles extensions without leading dots', () => {
+    expect(matchesExtension('file.ts', ['ts', 'tsx'])).toBe(true);
+    expect(matchesExtension('file.ts', ['TS'])).toBe(true);
+  });
+
+  it('handles whitespace in extension specifications', () => {
+    expect(matchesExtension('file.ts', [' .ts '])).toBe(true);
   });
 
   it('returns false when no extension matches', () => {
@@ -104,8 +114,10 @@ describe('matchesExtension', () => {
 
   it('returns false for file with no extension', () => {
     expect(matchesExtension('Makefile', ['.ts'])).toBe(false);
+    expect(matchesExtension('Makefile', ['ts'])).toBe(false);
   });
 });
+
 
 describe('collectSourceFiles', () => {
   it('returns an empty array when root does not exist', () => {
@@ -158,6 +170,13 @@ describe('collectSourceFiles', () => {
     expect(relFiles).not.toContain('/src/nested/util.ts');
   });
 
+  it('supports extensions specified without leading dots', () => {
+    const files = collectSourceFiles(tmpDir, { extensions: ['ts'] });
+    const relFiles = files.map((f) => f.replace(tmpDir, '').replace(/\\/g, '/'));
+    expect(relFiles).toContain('/src/index.ts');
+    expect(relFiles).toContain('/only-file.ts');
+  });
+
   it('skips stat failures gracefully', () => {
     // A symlink to nowhere would cause stat to throw, but on Windows
     // this is tricky. Instead, we just verify the function doesn't
@@ -171,6 +190,13 @@ describe('collectSourceFiles', () => {
 });
 
 describe('collectSourceFilesAsync', () => {
+  it('supports extensions specified without leading dots', async () => {
+    const files = await collectSourceFilesAsync(tmpDir, { extensions: ['ts'] });
+    const relFiles = files.map((f) => f.replace(tmpDir, '').replace(/\\/g, '/'));
+    expect(relFiles).toContain('/src/index.ts');
+    expect(relFiles).toContain('/only-file.ts');
+  });
+
   it('returns an empty array when root does not exist', async () => {
     const files = await collectSourceFilesAsync(join(tmpDir, 'nonexistent'), { extensions: ['.ts'] });
     expect(files).toEqual([]);

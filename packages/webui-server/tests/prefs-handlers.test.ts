@@ -107,6 +107,39 @@ describe('canonical preference handlers', () => {
     });
   });
 
+  it('applies the session-only subagent policy without persisting a global default', async () => {
+    const state = makeContext();
+    const setSubagentsAllowed = vi.fn(async () => undefined);
+    state.context.setSubagentsAllowed = setSubagentsAllowed;
+
+    await handlePrefsUpdate(state.context, ws, { subagentsAllowed: false }, 'solo-session');
+
+    expect(setSubagentsAllowed).toHaveBeenCalledWith(false, 'solo-session');
+    expect(state.meta['subagentsAllowed']).toBe(false);
+    expect(state.persist).not.toHaveBeenCalled();
+  });
+
+  it('rejects a mid-session subagent policy change and restores the snapshot', async () => {
+    const state = makeContext();
+    state.meta['subagentsAllowed'] = false;
+    state.meta['subagentsPolicyLocked'] = true;
+    state.context.setSubagentsAllowed = vi.fn(async () => {
+      throw new Error('Subagent policy is locked after the session starts.');
+    });
+
+    await handlePrefsUpdate(state.context, ws, { subagentsAllowed: true }, 'locked-session');
+
+    expect(state.meta['subagentsAllowed']).toBe(false);
+    expect(state.persist).not.toHaveBeenCalled();
+    expect(state.sent).toContainEqual({
+      type: 'key.operation_result',
+      payload: {
+        success: false,
+        message: 'Subagent policy is locked after the session starts.',
+      },
+    });
+  });
+
   it('switches real autonomy state, persists, and broadcasts', () => {
     const state = makeContext();
 

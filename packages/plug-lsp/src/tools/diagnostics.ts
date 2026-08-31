@@ -26,19 +26,20 @@ export function createDiagnosticsTool(deps: ToolDeps): Tool<DiagnosticsInput, st
     maxOutputBytes: 65_536,
     async execute(input, ctx, opts) {
       try {
+        const signal = opts?.signal ?? ctx?.signal;
         const byFile = new Map<string, import('vscode-languageserver-protocol').Diagnostic[]>();
         if (input.path) {
           const file = resolveInputPath(input.path, ctx);
-          const server = await requireServer(deps.registry, file, opts.signal);
+          const server = await requireServer(deps.registry, file, signal);
           const uri = pathToUri(file);
           const diagnostics =
             server.capabilities && supportsPullDiagnostics(server.capabilities)
-              ? await server.pullDiagnostics(uri, LSP_CONSTANTS.TOOL_TIMEOUT_MS, opts.signal)
+              ? await server.pullDiagnostics(uri, LSP_CONSTANTS.TOOL_TIMEOUT_MS, signal)
               : server.getDiagnostics(uri);
           byFile.set(file, diagnostics);
         } else {
           for (const doc of deps.tracker.list()) {
-            const server = await deps.registry.findForPath(doc.path, opts.signal);
+            const server = await deps.registry.findForPath(doc.path, signal);
             if (!server) continue;
             byFile.set(uriToPath(doc.uri), server.getDiagnostics(doc.uri));
           }

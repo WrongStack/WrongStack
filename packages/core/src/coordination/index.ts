@@ -592,6 +592,19 @@ export {
 } from './subagent-budget.js';
 export { assignNickname } from './subagent-nicknames.js';
 export {
+  areSubagentsAllowed,
+  areSubagentsAllowedForSession,
+  isSubagentPolicyLocked,
+  lockSessionSubagentPolicy,
+  lockSessionSubagentPolicyForSession,
+  restoreSessionSubagentPolicy,
+  resetSessionSubagentPolicy,
+  seedSessionSubagentPolicy,
+  setSessionSubagentsAllowed,
+  SUBAGENTS_ALLOWED_META_KEY,
+  SUBAGENTS_POLICY_LOCKED_META_KEY,
+} from './session-subagent-policy.js';
+export {
   formatSubagentStructuredReport,
   MAX_SUBAGENT_STRUCTURED_REPORT_CHARS,
   makeSubagentResultTool,

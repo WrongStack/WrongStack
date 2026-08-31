@@ -453,4 +453,17 @@ describe('search cache, dedup, and ranking', () => {
     // Title match (+2 per term, 2 terms = +4) beats snippet match (+1 per term = +2)
     expect(result.results[0]?.url).toBe('https://title-match.com/b');
   });
+
+  it('safely executes without opts and falls back to ctx.signal or default signal', async () => {
+    globalThis.fetch = mockFetch(() => DDG_FIXTURE) as any;
+    const ctx = {} as any;
+    const result = await searchTool.execute({ query: 'hello' }, ctx);
+    expect(result.results.length).toBeGreaterThan(0);
+
+    const ac = new AbortController();
+    const ctxWithSignal = { ...ctx, signal: ac.signal };
+    const resultWithSignal = await searchTool.execute({ query: 'hello' }, ctxWithSignal);
+    expect(resultWithSignal.results.length).toBeGreaterThan(0);
+  });
 });
+

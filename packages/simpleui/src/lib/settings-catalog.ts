@@ -107,6 +107,14 @@ export const SETTINGS_CATALOG: readonly SettingsEntry[] = [
 
   // ── Session ─────────────────────────────────────────────────────────
   {
+    id: 'session.solo',
+    group: 'session',
+    label: 'Solo session',
+    hint: 'Block Chimera, delegation, and every background subagent. Locks after the first message.',
+    keywords: ['solo', 'subagent', 'chimera', 'delegate', 'background'],
+    kind: 'toggle',
+  },
+  {
     id: 'session.showModelReasoning',
     group: 'session',
     label: 'Model reasoning',

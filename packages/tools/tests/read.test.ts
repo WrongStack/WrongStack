@@ -490,5 +490,27 @@ describe('read tool', () => {
       expect(fe.code).toBe('FS_READ_FAILED');
       expect(fe.context?.reason).toBe('not-a-regular-file');
     });
+
+    it('throws when ctx.signal is aborted and execOpts is omitted', async () => {
+      const file = path.join(sb.dir, 'abort.txt');
+      await fs.writeFile(file, 'hello world\n');
+      const ctrl = new AbortController();
+      ctrl.abort();
+      const ctxWithSignal = { ...sb.ctx, signal: ctrl.signal };
+      await expect(
+        readTool.execute({ path: 'abort.txt' }, ctxWithSignal as any),
+      ).rejects.toMatchObject({ name: 'AbortError' });
+    });
+
+    it('throws when execOpts.signal is pre-aborted', async () => {
+      const file = path.join(sb.dir, 'abort2.txt');
+      await fs.writeFile(file, 'hello world\n');
+      const ctrl = new AbortController();
+      ctrl.abort();
+      await expect(
+        readTool.execute({ path: 'abort2.txt' }, sb.ctx, { signal: ctrl.signal }),
+      ).rejects.toMatchObject({ name: 'AbortError' });
+    });
   });
 });
+

@@ -154,6 +154,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
 
     yield { type: 'log', text: `GET ${input.url}` };
 
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const ctrl = new AbortController();
     const timer = setTimeout(
       () =>
@@ -166,7 +167,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
         ),
       TIMEOUT_MS,
     );
-    const combined = combineSignals([opts.signal, ctrl.signal]);
+    const combined = combineSignals([signal, ctrl.signal]);
 
     try {
       let res: Response;
@@ -179,7 +180,7 @@ export const fetchTool: Tool<FetchInput, FetchOutput> = {
         // UND_ERR_CONNECT_TIMEOUT, a TLS/cert error, …) lives only on `.cause`.
         // Surfacing just `.message` left users with "fetch failed" and no clue
         // why HTTPS broke (see #100), so unwrap the cause chain here.
-        if (opts.signal.aborted) throw err;
+        if (signal.aborted) throw err;
         throw describeFetchError(err, input.url, ctrl.signal.aborted);
       }
 

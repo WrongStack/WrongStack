@@ -50,9 +50,28 @@ const DANGEROUS_PATTERNS: ReadonlyArray<RegExp> = [
  * step-budgeted matcher.
  */
 function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
+  // Character-class and escape state tracked across the WHOLE scan, not just
+  // per group probe. A `(` inside `[...]` is literal — a probe started there
+  // runs off the end of the pattern and aborts the scan with `false` before a
+  // real `(a|a)+` later in the string is ever examined. And `(` after an ODD
+  // escape run is a literal `\(`, while `\\(` (escaped backslash) still opens
+  // a real group — the old one-character lookbehind misclassified the latter.
+  let outerInClass = false;
   for (let i = 0; i < pattern.length; i++) {
-    if (pattern[i] !== '(') continue;
-    if (i > 0 && pattern[i - 1] === '\\') continue;
+    const ch = pattern[i];
+    if (ch === '\\') {
+      i++; // escape pair — the following character belongs to it
+      continue;
+    }
+    if (outerInClass) {
+      if (ch === ']') outerInClass = false;
+      continue;
+    }
+    if (ch === '[') {
+      outerInClass = true;
+      continue;
+    }
+    if (ch !== '(') continue;
     let depth = 0;
     let inClass = false;
     let j = i;
@@ -149,7 +168,16 @@ export function compileUserRegex(
   }
   const cacheKey = `${flags}\u0000${pattern}`;
   const cached = COMPILED_CACHE.get(cacheKey);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    // The cache stores the VERDICT only — never the instance that is handed
+    // out. RegExp is mutable (`lastIndex`), and this cache is process-global:
+    // returning the same object to every consumer of a pattern would let one
+    // caller's match state (a `g`/`y` flag, an exec loop) silently leak into
+    // another caller's results. Reconstruct a fresh instance from the
+    // validated source on every call; the expensive ReDoS heuristics are
+    // already skipped by the cache hit.
+    return cached.ok ? { ok: true, regex: new RegExp(pattern, flags) } : cached;
+  }
 
   if (COMPILED_CACHE.size >= CACHE_MAX_SIZE) {
     let evicted = 0;
@@ -162,7 +190,9 @@ export function compileUserRegex(
 
   const result = compileUncached(pattern, flags);
   COMPILED_CACHE.set(cacheKey, result);
-  return result;
+  // Same instance-isolation as the cache-hit path above: callers get a fresh
+  // RegExp, so mutating `lastIndex` on one result cannot corrupt another.
+  return result.ok ? { ok: true, regex: new RegExp(pattern, flags) } : result;
 }
 
 function compileUncached(pattern: string, flags: string): CompileUserRegexResult {

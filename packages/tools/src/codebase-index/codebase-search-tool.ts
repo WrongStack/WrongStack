@@ -118,6 +118,9 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
     required: ['query'],
   },
   async execute(input, ctx, execOpts) {
+    const signal = execOpts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
+
     const state = getIndexState();
     if (state.lastError) {
       const circuit = state.circuit;
@@ -153,10 +156,12 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
           lspKind: input.lspKind,
           limit,
         },
-        { signal: execOpts?.signal },
+        { signal },
       );
     } catch (err) {
-      if (execOpts?.signal?.aborted) throw err;
+      if (signal?.aborted) {
+        signal.throwIfAborted();
+      }
       if ((err as { name?: string }).name === 'IndexRefreshInProgressError') {
         return {
           results: [],

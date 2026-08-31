@@ -1,7 +1,7 @@
 {
   "datasetVersion": 1,
   "generatedAt": "2026-01-01T00:00:00.000Z",
-  "count": 224,
+  "count": 225,
   "categories": [
     {
       "id": "agentic-workflows",
@@ -31,7 +31,7 @@
     {
       "id": "debugging",
       "label": "debugging",
-      "count": 16
+      "count": 17
     },
     {
       "id": "devops",
@@ -1285,6 +1285,22 @@
       ],
       "checksum": "f0b235ec5027dbc41659fb0b876632adf0be4e2b90eccd47a4dafa16b0cfda66",
       "file": "prompts/debugging/diagnose-a-memory-leak.json"
+    },
+    {
+      "id": "elite-bug-hunter",
+      "slug": "elite-bug-hunter",
+      "title": "Elite Bug Hunter",
+      "description": "Autonomously discover, prove, fix, and verify exactly one real bug per round.",
+      "category": "debugging",
+      "tags": [
+        "autonomous",
+        "bug-hunt",
+        "proof",
+        "regression",
+        "fix"
+      ],
+      "checksum": "55038a1f2f04a58ec5d0e1736944dbbe2b167d3f980a32522f91a302ee93fec9",
+      "file": "prompts/debugging/elite-bug-hunter.json"
     },
     {
       "id": "explain-this-error",

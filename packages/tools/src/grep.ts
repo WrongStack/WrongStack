@@ -135,17 +135,18 @@ export const grepTool: Tool<GrepInput, GrepOutput> = {
       });
     }
 
+    const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     const rgAvailable = await detectRg();
     if (rgAvailable) {
       try {
-        yield* runRgStream(input, base, mode, limit, opts.signal);
+        yield* runRgStream(input, base, mode, limit, signal);
         return;
       } catch {
         // fall through to native
       }
     }
     yield { type: 'log', text: 'Falling back to native grep…' };
-    const out = await runNative(input, base, mode, limit, opts.signal);
+    const out = await runNative(input, base, mode, limit, signal);
     yield { type: 'final', output: out };
   },
 };

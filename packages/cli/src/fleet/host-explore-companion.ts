@@ -55,6 +55,7 @@ interface HostExploreCompanionInput {
   mailboxProjectDir: string;
   roster: Record<string, SubagentConfig>;
   config?: HostExploreCompanionConfig | undefined;
+  subagentsAllowed?: (() => boolean) | undefined;
 }
 
 export function createHostExploreCompanion(
@@ -71,6 +72,9 @@ export function createHostExploreCompanion(
 
   /** Spawn (or reuse) the resident companion and return its subagent id. */
   const ensureResident = async (): Promise<string> => {
+    if (input.subagentsAllowed?.() === false) {
+      throw new Error('Subagents are disabled for this session.');
+    }
     if (residentId) {
       const alive = director.status().subagents.some((s) => s.id === residentId);
       if (alive) return residentId;

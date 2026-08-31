@@ -27,7 +27,7 @@ interface SpawnStreamOptions {
   cmd: string;
   args: string[];
   cwd: string;
-  signal: AbortSignal;
+  signal?: AbortSignal | undefined;
   maxBytes?: number | undefined;
   /** Bytes of new stdout/stderr to accumulate before yielding a `partial_output` event. */
   flushBytes?: number | undefined;
@@ -47,6 +47,7 @@ interface SpawnStreamOptions {
 export async function* spawnStream(
   opts: SpawnStreamOptions,
 ): AsyncGenerator<ToolProgressEvent, SpawnStreamResult> {
+  const signal = opts.signal;
   const max = opts.maxBytes ?? 999_999_999;
   const flushAt = opts.flushBytes ?? 4 * 1024;
   const maxQueue = opts.maxQueueSize ?? 500;
@@ -81,7 +82,7 @@ export async function* spawnStream(
     env: buildChildEnv(),
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    ...(isWin ? {} : { signal: opts.signal }),
+    ...(isWin || !signal ? {} : { signal }),
     ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
   });
 
@@ -250,9 +251,9 @@ export async function* spawnStream(
     completeTelemetry(124, 'SIGKILL', true);
     wake();
   };
-  if (isWin) {
-    if (opts.signal.aborted) onAbort();
-    else opts.signal.addEventListener('abort', onAbort, { once: true });
+  if (isWin && signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener('abort', onAbort, { once: true });
   }
 
   let exitCode = 0;
@@ -311,7 +312,7 @@ export async function* spawnStream(
     // child handle — alive until OOM. Detach the handlers, destroy the
     // pipes, and make sure nothing is left running.
     spool.finalize(); // idempotent — closes the file if the stream was abandoned
-    if (isWin) opts.signal.removeEventListener('abort', onAbort);
+    if (isWin && signal) signal.removeEventListener('abort', onAbort);
     child.stdout?.off('data', onOut);
     child.stderr?.off('data', onErr);
     child.stdout?.destroy();

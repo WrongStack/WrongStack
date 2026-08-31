@@ -68,7 +68,13 @@ export function validateManagedTaskTransition(
   }
   const fromIndex = KANBAN_AGENT_STAGES.indexOf(from);
   const toIndex = KANBAN_AGENT_STAGES.indexOf(input.to);
-  if (from === 'done' || Math.abs(toIndex - fromIndex) !== 1) {
+  if (toIndex === -1) {
+    issues.push({
+      code: 'transition-skipped',
+      field: 'to',
+      message: `Unknown lifecycle stage "${input.to}". Valid stages: ${KANBAN_AGENT_STAGES.join(', ')}.`,
+    });
+  } else if (from === 'done' || Math.abs(toIndex - fromIndex) !== 1) {
     issues.push({
       code: 'transition-skipped',
       message: `Managed cards must move exactly one stage at a time; ${from} -> ${input.to} is not allowed.`,

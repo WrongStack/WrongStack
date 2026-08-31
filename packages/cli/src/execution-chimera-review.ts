@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { effectiveFallbackChain, fallbackProfileChain } from '@wrongstack/core/agent';
-import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import {
+  areSubagentsAllowedForSession,
+  type ProviderModelStatusTracker,
+} from '@wrongstack/core/coordination';
 import {
   CHIMERA_REVIEW_PROMPT,
   type ChimeraReviewCompletePayload,
@@ -108,6 +111,10 @@ export function installChimeraReviewHandler({
       reviewModelSelection?: 'round-robin' | 'random' | undefined;
     };
     const reviewSessionId = agent.ctx.activeRunSessionId ?? agent.ctx.session?.id ?? session.id;
+    if (!areSubagentsAllowedForSession(reviewSessionId)) {
+      void recordCompletedReview(events, { bundle: p }).catch(() => undefined);
+      return;
+    }
     const dir = director;
     if (!dir) {
       // No Director — the review will never spawn. Release the claims made by

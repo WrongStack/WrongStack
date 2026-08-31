@@ -713,9 +713,17 @@ export async function collectSourceFilesAsync(
 
 /**
  * Check whether `p` has one of the given extensions (case-insensitive).
+ * Handles extensions with or without a leading dot and normalizes casing/whitespace.
  * Replaces a 6-copy helper that was duplicated identically across
  * source-scan plugins.
  */
 export function matchesExtension(p: string, exts: string[]): boolean {
-  return exts.includes(extname(p).toLowerCase());
+  const fileExt = extname(p).toLowerCase();
+  if (!fileExt) return false;
+  return exts.some((ext) => {
+    if (!ext || typeof ext !== 'string') return false;
+    const trimmed = ext.trim().toLowerCase();
+    const normalized = trimmed.startsWith('.') ? trimmed : `.${trimmed}`;
+    return normalized === fileExt;
+  });
 }

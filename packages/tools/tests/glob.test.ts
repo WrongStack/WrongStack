@@ -190,5 +190,20 @@ describe('glob tool', () => {
         }),
       ).rejects.toThrow(/outside project root/);
     });
+
+    it('honors ctx.signal when opts is omitted and ctx.signal is aborted', async () => {
+      await fs.mkdir(path.join(sb.dir, 'src'), { recursive: true });
+      await fs.writeFile(path.join(sb.dir, 'src', 'a.ts'), '');
+      await fs.writeFile(path.join(sb.dir, 'src', 'b.ts'), '');
+
+      const ctrl = new AbortController();
+      ctrl.abort();
+      const ctxWithSignal = { ...sb.ctx, signal: ctrl.signal };
+
+      const out = await globTool.execute({ pattern: '**/*.ts' }, ctxWithSignal as any);
+      expect(out.truncated).toBe(true);
+      expect(out.files.length).toBe(0);
+    });
   });
 });
+

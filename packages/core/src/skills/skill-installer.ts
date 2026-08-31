@@ -316,15 +316,20 @@ export class SkillInstaller {
    */
   async update(
     nameOrRef?: string | undefined,
-    _opts?: { global?: boolean | undefined } | undefined,
+    opts?: { global?: boolean | undefined } | undefined,
   ): Promise<UpdateResult> {
     const result: UpdateResult = { updated: [], unchanged: [], errors: [] };
     const allEntries = await this.manifest.listAll();
+    const targetScope =
+      opts?.global !== undefined ? (opts.global ? 'user' : 'project') : undefined;
+    const scopedEntries = targetScope
+      ? allEntries.filter((e) => e.scope === targetScope)
+      : allEntries;
 
     let targets: InstalledSkillEntry[];
     if (nameOrRef) {
       // Check if it's a name or a ref (user/repo@ref)
-      const byName = allEntries.filter((e) => e.name === nameOrRef);
+      const byName = scopedEntries.filter((e) => e.name === nameOrRef);
       if (byName.length > 0) {
         targets = byName;
       } else {
@@ -332,7 +337,7 @@ export class SkillInstaller {
         try {
           const parsed = parseSkillRef(nameOrRef);
           const source = `github:${parsed.owner}/${parsed.repo}`;
-          targets = allEntries.filter((e) => e.source === source);
+          targets = scopedEntries.filter((e) => e.source === source);
           if (targets.length === 0) {
             result.errors.push({
               name: nameOrRef,
@@ -349,13 +354,13 @@ export class SkillInstaller {
         }
       }
     } else {
-      targets = allEntries;
+      targets = scopedEntries;
     }
 
-    // Group by source to avoid downloading the same repo multiple times
+    // Group by scope and source to avoid downloading the same repo multiple times
     const bySource = new Map<string, InstalledSkillEntry[]>();
     for (const entry of targets) {
-      const key = `${entry.source}@${entry.ref}`;
+      const key = `${entry.scope}:${entry.source}@${entry.ref}`;
       if (!bySource.has(key)) bySource.set(key, []);
       bySource.get(key)?.push(entry);
     }

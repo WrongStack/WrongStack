@@ -39,7 +39,7 @@
  */
 
 import type { Config, SubagentConfig } from '@wrongstack/core/types';
-import type { Director } from '@wrongstack/core/coordination';
+import { areSubagentsAllowedForSession, type Director } from '@wrongstack/core/coordination';
 import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 
@@ -343,6 +343,7 @@ export class HostShadowManager {
     const director = this.ctx.getDirector();
     if (!director) return;
     const id = this.resolve(sessionId);
+    if (!areSubagentsAllowedForSession(id)) return;
     const state = this.stateFor(id);
     if (state.passInFlight || (state.agentId && this.isActiveSubagent(state.agentId))) {
       state.queuedProblem = state.queuedProblem ? `${state.queuedProblem}; ${reason}` : reason;

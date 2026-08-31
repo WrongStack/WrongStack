@@ -68,4 +68,26 @@ describe('memory candidates branch coverage', () => {
       tool.validate?.({ action: 'resolve', candidate_id: 'candidate', decision: 'keep' }),
     ).toEqual([]);
   });
+
+  it('safely executes without opts and falls back to ctx.signal', async () => {
+    const memory = service();
+    const tool = memoryCandidatesTool(memory);
+    const ctx = {} as never;
+
+    await Reflect.apply(tool.execute, tool, [
+      { action: 'reject', candidate_id: 'cand-no-opts' },
+      ctx,
+    ]);
+    expect(memory.rejectCandidate).toHaveBeenCalledWith('cand-no-opts', 'Rejected by user or agent.');
+
+    const ac = new AbortController();
+    ac.abort();
+    const ctxWithSignal = { signal: ac.signal } as never;
+    await expect(
+      Reflect.apply(tool.execute, tool, [
+        { action: 'reject', candidate_id: 'cand-no-opts' },
+        ctxWithSignal,
+      ]),
+    ).rejects.toThrow();
+  });
 });

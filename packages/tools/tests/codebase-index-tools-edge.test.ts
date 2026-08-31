@@ -393,4 +393,22 @@ describe('codebase call-graph tool gates', () => {
     expect(incoming.note).toBeUndefined();
     expect(outgoing.note).toBeUndefined();
   });
+
+  it('codebaseSearchTool honors ctx.signal when execOpts is omitted and ctx.signal is aborted', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const abortedCtx = { ...ctx(), signal: ctrl.signal };
+    await expect(
+      codebaseSearchTool.execute({ query: 'Target' }, abortedCtx),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('codebaseSearchTool honors execOpts.signal when pre-aborted', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    await expect(
+      codebaseSearchTool.execute({ query: 'Target' }, ctx(), { signal: ctrl.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });
+

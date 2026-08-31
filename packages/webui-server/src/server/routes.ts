@@ -21,7 +21,11 @@
  */
 import path from 'node:path';
 import type { Agent, AgentPipelines, Context } from '@wrongstack/core/agent';
-import type { ObservableBrainArbiter } from '@wrongstack/core/coordination';
+import {
+  type ObservableBrainArbiter,
+  seedSessionSubagentPolicy,
+  setSessionSubagentsAllowed,
+} from '@wrongstack/core/coordination';
 import type {
   AutoCompactionMiddleware,
   BrainAutoRisk,
@@ -667,8 +671,13 @@ export function buildRoutes(
     // reasoning) land on the calling tab's own context meta.
     metaFor: (sessionId?: string) => sessionContext(sessionId).meta,
     // Session-aware: the scoped keys live on that tab's own context meta.
-    snapshot: (sessionId?: string) =>
-      sessionId ? prefSnapshotImpl(sessionContext(sessionId).meta) : cb.prefSnapshot(),
+    snapshot: (sessionId?: string) => {
+      const target = sessionContext(sessionId);
+      seedSessionSubagentPolicy(target);
+      return sessionId ? prefSnapshotImpl(target.meta) : cb.prefSnapshot();
+    },
+    setSubagentsAllowed: (allowed, sessionId) =>
+      setSessionSubagentsAllowed(sessionContext(sessionId), allowed),
     persist: cb.persistPrefsToConfig,
     pendingConfirms: deps.pendingConfirms,
     configStore: deps.configStore,

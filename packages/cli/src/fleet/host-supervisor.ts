@@ -30,6 +30,7 @@ interface HostFleetSupervisorInput {
   mailboxProjectDir: string;
   roster: Record<string, SubagentConfig>;
   getLeaderMailboxId?: (() => string | undefined) | undefined;
+  subagentsAllowed?: ((sessionId: string) => boolean) | undefined;
 }
 
 export function createHostFleetSupervisor(input: HostFleetSupervisorInput): FleetSupervisor | null {
@@ -54,6 +55,10 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
       retargetPendingTask: (taskId, subagentId) => director.retargetPendingTask(taskId, subagentId),
       spawnHelper: async ({ reason, task }) => {
         try {
+          const originSessionId = sessionOf(task?.subagentId);
+          if (input.subagentsAllowed?.(originSessionId) === false) {
+            return { error: 'Subagents are disabled for this session.' };
+          }
           const routed = await dispatchAgent(task?.description ?? reason, {
             classifier: director.dispatchClassifier,
           });
@@ -72,7 +77,7 @@ export function createHostFleetSupervisor(input: HostFleetSupervisorInput): Flee
             systemPromptOverride: helperPrompt,
             // The helper drains a specific backlog, so it belongs to whoever
             // owns that work — not to the tab this host booted with.
-            originSessionId: sessionOf(task?.subagentId),
+            originSessionId,
           });
           return { subagentId };
         } catch (err) {

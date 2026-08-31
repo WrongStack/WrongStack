@@ -101,6 +101,8 @@ function labelForEvent(e: SessionEvent): string {
   switch (e.type) {
     case 'session_start':
       return 'Session started';
+    case 'subagent_policy':
+      return `Subagents ${e.allowed ? 'allowed' : 'blocked'}`;
     case 'session_resumed':
       return 'Session resumed';
     case 'session_forked':
@@ -214,6 +216,8 @@ function detailForEvent(e: SessionEvent): string {
   switch (e.type) {
     case 'session_start':
       return `${e.model} @ ${e.provider}`;
+    case 'subagent_policy':
+      return e.allowed ? 'allowed' : 'blocked';
     case 'session_resumed':
       return `${e.model} @ ${e.provider}`;
     case 'session_forked':

@@ -22,6 +22,7 @@ interface SettingsPanelProps {
   onReset: () => void;
   /** True when the current prefs already match DEFAULT_PREFS. */
   isAtDefaults: boolean;
+  subagentPolicyLocked: boolean;
 }
 
 const AUTONOMY_HINT: Record<AutonomyMode, string> = {
@@ -98,6 +99,7 @@ export function SettingsPanel({
   onPrefChange,
   onReset,
   isAtDefaults,
+  subagentPolicyLocked,
 }: SettingsPanelProps) {
   const panelRef = useRef<HTMLElement | null>(null);
   useFocusTrap(panelRef, true);
@@ -454,6 +456,19 @@ export function SettingsPanel({
               SESSION
               <GroupCount groupId="session" label={groupCountLabel('session')} />
             </h2>
+            <ToggleRow
+              label="Solo session"
+              hint={
+                subagentPolicyLocked || prefs.subagentsPolicyLocked
+                  ? 'Locked for this session. Start a new session to change it.'
+                  : 'Block Chimera, delegation, and every background subagent.'
+              }
+              checked={!prefs.subagentsAllowed}
+              disabled={offline || subagentPolicyLocked || prefs.subagentsPolicyLocked}
+              onChange={(solo) => onPrefChange({ subagentsAllowed: !solo })}
+              settingId="session.solo"
+              hidden={rowHidden('session.solo')}
+            />
             <ToggleRow
               label="Model reasoning"
               hint="Show the model's thinking and reasoning in the chat."

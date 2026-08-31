@@ -58,7 +58,7 @@ export function wrapMCPTool(
     mutating: isMutatingTool(mcpTool),
     capabilities: [ToolCapabilities.MCP_PROXY],
     inputSchema: mcpTool.inputSchema ?? { type: 'object', properties: {} },
-    async execute(input, _ctx, opts) {
+    async execute(input, ctx, opts) {
       const startedAt = Date.now();
       observer?.onStart();
       let ok = false;
@@ -69,7 +69,8 @@ export function wrapMCPTool(
         // Propagate the run's abort signal: on Ctrl+C the JSON-RPC request is
         // dropped AND the server is told via `notifications/cancelled` to stop
         // the in-flight work, instead of it running to completion server-side.
-        const res = await live.callTool(mcpTool.name, input, { signal: opts.signal });
+        const signal = opts?.signal ?? ctx?.signal;
+        const res = await live.callTool(mcpTool.name, input, signal ? { signal } : undefined);
         if (res.isError) {
           throw new Error(stringify(res.content));
         }

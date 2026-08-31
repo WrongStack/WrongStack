@@ -127,6 +127,25 @@ describe('replaceTool ripgrep glob path (faked rg)', () => {
     expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
   });
 
+  it('applies subpath extra glob filter on the rg path', async () => {
+    await fs.mkdir(path.join(dir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(dir, 'other'), { recursive: true });
+    const keep = path.join(dir, 'src', 'keep.ts');
+    const skip = path.join(dir, 'other', 'skip.ts');
+    await fs.writeFile(keep, 'TARGET');
+    await fs.writeFile(skip, 'TARGET');
+    cfg.versionCode = 0; // rg available
+    cfg.files = [keep, skip];
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: '**/*', glob: 'src/*.ts', dry_run: false },
+      ctx(),
+      opts(),
+    );
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
+  });
+
   it('skips paths that rg returns but no longer exist (lstat ENOENT)', async () => {
     cfg.versionCode = 0;
     cfg.files = [path.join(dir, 'vanished.ts')]; // never created
@@ -165,6 +184,24 @@ describe('replaceTool ripgrep glob path (faked rg)', () => {
     expect(await fs.readFile(path.join(dir, 'skip.md'), 'utf8')).toBe('TARGET');
   });
 
+  it('applies subpath extra glob filter in the native walker', async () => {
+    await fs.mkdir(path.join(dir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(dir, 'other'), { recursive: true });
+    const keep = path.join(dir, 'src', 'keep.ts');
+    const skip = path.join(dir, 'other', 'skip.ts');
+    await fs.writeFile(keep, 'TARGET');
+    await fs.writeFile(skip, 'TARGET');
+    cfg.versionCode = 1; // native walker
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: '**/*', glob: 'src/*.ts', dry_run: false },
+      ctx(),
+      opts(),
+    );
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
+  });
+
   it('recurses into subdirectories in the native walker', async () => {
     await fs.mkdir(path.join(dir, 'nested'));
     await fs.writeFile(path.join(dir, 'nested', 'deep.ts'), 'AA');
@@ -188,5 +225,53 @@ describe('replaceTool ripgrep glob path (faked rg)', () => {
     );
     expect(result.total_replacements).toBe(1);
     expect(await fs.readFile(file, 'utf8')).toBe('Q z z');
+  });
+
+  it('native walker expands a relative single-star glob (src/*.ts)', async () => {
+    // Regression: globNative only tested basename + absolute path, so a
+    // relative-anchored pattern like src/*.ts (compiled to ^src/[^/]*\.ts$)
+    // could never match and the walker returned nothing. It must now match
+    // the path relative to the walk base as well.
+    await fs.mkdir(path.join(dir, 'src', 'sub'), { recursive: true });
+    const a = path.join(dir, 'src', 'a.ts');
+    const b = path.join(dir, 'src', 'b.ts');
+    const nested = path.join(dir, 'src', 'sub', 'c.ts');
+    await fs.writeFile(a, 'TARGET');
+    await fs.writeFile(b, 'TARGET');
+    await fs.writeFile(nested, 'TARGET');
+    cfg.versionCode = 1; // rg unavailable → native walker
+
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: 'src/*.ts', dry_run: false },
+      ctx(),
+      opts(),
+    );
+    expect(result.files_modified).toBe(2);
+    expect(await fs.readFile(a, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(b, 'utf8')).toBe('DONE');
+    // Single `*` must not cross a directory boundary.
+    expect(await fs.readFile(nested, 'utf8')).toBe('TARGET');
+  });
+
+  it('rg path expands a relative single-star glob (src/*.ts)', async () => {
+    // Regression: spawnRgFind spawned rg WITHOUT cwd, so anchored globs were
+    // resolved against the host process cwd instead of the search base and
+    // returned nothing; the tool then reported files_modified=0 with no
+    // native-walker fallback (the rg call resolved — just empty).
+    await fs.mkdir(path.join(dir, 'src'));
+    const a = path.join(dir, 'src', 'a.ts');
+    const b = path.join(dir, 'src', 'b.ts');
+    await fs.writeFile(a, 'TARGET');
+    await fs.writeFile(b, 'TARGET');
+    cfg.versionCode = 0; // rg available
+    cfg.files = [a, b]; // rg --files enumerates both
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: 'src/*.ts', dry_run: false },
+      ctx(),
+      opts(),
+    );
+    expect(result.files_modified).toBe(2);
+    expect(await fs.readFile(a, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(b, 'utf8')).toBe('DONE');
   });
 });

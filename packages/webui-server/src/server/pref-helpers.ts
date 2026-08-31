@@ -131,6 +131,8 @@ export const PREF_KEYS = [
   'multiDiffSummaryThreshold',
   'enhanceCountdownMs',
   'keyboardShortcuts',
+  'subagentsAllowed',
+  'subagentsPolicyLocked',
 ] as const;
 
 export interface PrefHelperDeps {

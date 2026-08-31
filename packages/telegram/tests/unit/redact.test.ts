@@ -8,6 +8,8 @@ const TOKEN_VALUE = 'CANARY_TOKEN_VALUE_AAA';
 const APIKEY_VALUE = 'CANARY_APIKEY_VALUE_BBB';
 const PASSWORD_VALUE = 'CANARY_PWD_VALUE_CCC';
 const ENV_VALUE = 'CANARY_ENV_VALUE_DDD';
+const REDIS_PW_VALUE = 'CANARY_REDIS_PW_EEE';
+const PASSPHRASE_VALUE = 'CANARY_PASSPHRASE_FFF';
 
 describe('redactSecrets', () => {
   describe('long flags', () => {
@@ -67,6 +69,19 @@ describe('redactSecrets', () => {
       const out = redactSecrets('clang -target=x86_64 foo.c');
       expect(out).toBe('clang -target=x86_64 foo.c');
     });
+
+    it('redacts -a value (redis auth) — parity with canonical redactCommand', () => {
+      const out = redactSecrets(`redis-cli -a ${REDIS_PW_VALUE} get key`);
+      expect(out).not.toContain(REDIS_PW_VALUE);
+      expect(out).toContain('-a [REDACTED]');
+    });
+
+    it('does NOT redact a glued -aVALUE flag (matches the -p/-t glued-form policy)', () => {
+      // Same intentional boundary as glued `-tVALUE` above: only the
+      // separated/-equals form is matched in this file.
+      const input = `redis-cli -a${REDIS_PW_VALUE} get key`;
+      expect(redactSecrets(input)).toBe(input);
+    });
   });
 
   describe('env-var style secrets', () => {
@@ -77,6 +92,12 @@ describe('redactSecrets', () => {
     it('redacts API_KEY=value', () => {
       expect(redactSecrets(`API_KEY=${ENV_VALUE} node app.js`)).toBe(
         'API_KEY=[REDACTED] node app.js',
+      );
+    });
+
+    it('redacts PASSPHRASE=value — parity with canonical redactCommand', () => {
+      expect(redactSecrets(`PASSPHRASE=${PASSPHRASE_VALUE} openssl enc -d`)).toBe(
+        'PASSPHRASE=[REDACTED] openssl enc -d',
       );
     });
 

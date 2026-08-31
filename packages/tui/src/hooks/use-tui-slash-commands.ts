@@ -12,6 +12,11 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import { SKILL_LIMITS, stripFrontmatter } from '@wrongstack/core/skills';
+import {
+  areSubagentsAllowed,
+  isSubagentPolicyLocked,
+  setSessionSubagentsAllowed,
+} from '@wrongstack/core/coordination';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect } from 'react';
 import type { Action } from '../app-action-type.js';
@@ -95,6 +100,40 @@ export function useTuiSlashCommands({
   listSessions,
   openPromptPicker,
 }: TuiSlashCommandOptions): void {
+  useEffect(() => {
+    const cmd = {
+      name: 'solo',
+      description: 'Control session-only subagents before the first message: /solo on|off|status.',
+      async run(args: string) {
+        const action = (args ?? '').trim().toLowerCase() || 'status';
+        const allowed = areSubagentsAllowed(agent.ctx);
+        if (action === 'status') {
+          return {
+            message: `Solo session is ${allowed ? 'off' : 'on'}${isSubagentPolicyLocked(agent.ctx) ? ' (locked)' : ''}.`,
+          };
+        }
+        if (action !== 'on' && action !== 'off') {
+          return { message: 'Usage: /solo on|off|status' };
+        }
+        try {
+          await setSessionSubagentsAllowed(agent.ctx, action === 'off');
+          return {
+            message:
+              action === 'on'
+                ? 'Solo session enabled. Chimera, delegation, and background subagents are blocked.'
+                : 'Solo session disabled. Subagents are allowed for this session.',
+          };
+        } catch (err) {
+          return { message: toErrorMessage(err) };
+        }
+      },
+    };
+    return registerSlashCommandLifecycle(slashRegistry, cmd, {
+      owner: 'tui',
+      official: true,
+    });
+  }, [agent, slashRegistry]);
+
   // Register the TUI-only `/model` command — opens a two-step picker
   // (provider → model). All work is local state mutation; the actual
   // switch fires only after the user confirms a model in step 2.

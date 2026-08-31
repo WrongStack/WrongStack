@@ -41,4 +41,6 @@ export const SESSION_SCOPED_PREF_KEYS: ReadonlySet<string> = new Set([
   'reasoningPreserve',
   'nextPrediction',
   'nextStepsTool',
+  'subagentsAllowed',
+  'subagentsPolicyLocked',
 ]);

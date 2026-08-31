@@ -10,6 +10,10 @@ import { detectLocale } from '@/i18n/languages';
  * these via WS events when connected.
  */
 export interface LocalPrefs {
+  /** Allow delegated and autonomous subagents in this session. */
+  subagentsAllowed: boolean;
+  /** Server-derived lock: true after the first user message. */
+  subagentsPolicyLocked: boolean;
   /** Autonomy mode */
   autonomy: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
   /** Auto-proceed delay in ms */
@@ -315,6 +319,8 @@ export interface LocalPrefs {
  * by `tests/server/session-scoped-prefs-parity.test.ts`, not by memory.
  */
 export const SESSION_SCOPED_PREFS = [
+  'subagentsAllowed',
+  'subagentsPolicyLocked',
   'autonomy',
   'autonomyDelayMs',
   'autoProceedMaxIterations',
@@ -379,6 +385,8 @@ type LocalPrefsData = Omit<
 >;
 
 const DEFAULTS: LocalPrefsData = {
+  subagentsAllowed: true,
+  subagentsPolicyLocked: false,
   // Default to self-driving + auto-approve, matching the core config defaults
   // (config.autonomy.defaultMode='auto', config.yolo=true). Existing browsers
   // are synced from the server's prefs snapshot on connect (handlePrefsUpdated),

@@ -3,7 +3,7 @@
   "thresholdLines": 800,
   "files": {
     "packages/cli/src/boot/tui-session-resume.ts": {
-      "lines": 822,
+      "lines": 824,
       "relativeImports": 1
     },
     "packages/cli/src/boot.ts": {
@@ -19,7 +19,7 @@
       "relativeImports": 41
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 820,
+      "lines": 841,
       "relativeImports": 23
     },
     "packages/cli/src/goal-host.ts": {
@@ -87,8 +87,8 @@
       "relativeImports": 17
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 953,
-      "relativeImports": 40
+      "lines": 962,
+      "relativeImports": 41
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
       "lines": 828,
@@ -179,7 +179,7 @@
       "relativeImports": 7
     },
     "packages/core/src/types/session.ts": {
-      "lines": 944,
+      "lines": 947,
       "relativeImports": 4
     },
     "packages/core/src/utils/tool-output-serializer.ts": {
@@ -259,7 +259,7 @@
       "relativeImports": 43
     },
     "packages/sage/src/tools/memory-tools.ts": {
-      "lines": 971,
+      "lines": 985,
       "relativeImports": 4
     },
     "packages/sage/src/types.ts": {
@@ -367,7 +367,7 @@
       "relativeImports": 12
     },
     "packages/tui/src/hooks/use-tui-slash-commands.ts": {
-      "lines": 863,
+      "lines": 902,
       "relativeImports": 8
     },
     "packages/tui/src/input-validation.ts": {
@@ -483,7 +483,7 @@
       "relativeImports": 2
     },
     "packages/webui/src/stores/local-prefs.ts": {
-      "lines": 897,
+      "lines": 905,
       "relativeImports": 0
     },
     "packages/webui/src/stores/session-tab-store.ts": {
@@ -543,11 +543,11 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 953,
+      "lines": 962,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/session-handlers.ts": {
-      "lines": 1695,
+      "lines": 1706,
       "relativeImports": 11
     },
     "packages/webui-server/src/server/start-webui.ts": {

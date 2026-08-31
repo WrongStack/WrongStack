@@ -920,6 +920,35 @@ describe('memory_delete tool', () => {
       'force: true is required to delete any memory. This prevents accidental or autonomous deletions. Pass force: true to authorize; the override is audit-logged. For non-destructive review, use memory_candidates({ action: "propose" }) instead.',
     );
   });
+
+  it('safely executes memory tools without opts and falls back to ctx.signal', async () => {
+    const service = createMockService();
+    const tools = createSageTools(service);
+    const ctx = {} as never;
+
+    const rememberTool = tools.find((t) => t.name === 'remember')!;
+    const searchTool = tools.find((t) => t.name === 'memory_search')!;
+    const forgetTool = tools.find((t) => t.name === 'forget')!;
+
+    const rememberRes = await Reflect.apply(rememberTool.execute, rememberTool, [
+      { text: 'test note' },
+      ctx,
+    ]);
+    expect(rememberRes).toHaveProperty('id');
+
+    const searchRes = await Reflect.apply(searchTool.execute, searchTool, [{ query: 'test' }, ctx]);
+    expect(Array.isArray(searchRes)).toBe(true);
+
+    const forgetRes = await Reflect.apply(forgetTool.execute, forgetTool, [{ query: 'test' }, ctx]);
+    expect(forgetRes).toHaveProperty('removed');
+
+    const ac = new AbortController();
+    ac.abort();
+    const ctxWithSignal = { signal: ac.signal } as never;
+    await expect(
+      Reflect.apply(rememberTool.execute, rememberTool, [{ text: 'test note' }, ctxWithSignal]),
+    ).rejects.toThrow();
+  });
 });
 
 

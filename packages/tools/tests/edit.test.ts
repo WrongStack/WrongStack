@@ -59,6 +59,18 @@ describe('edit tool', () => {
     expect(await fs.readFile(path.join(sb.dir, 'a.txt'), 'utf8')).toBe('hello world');
   });
 
+  it('honors ctx.signal when opts is omitted and ctx.signal is aborted', async () => {
+    await fs.writeFile(path.join(sb.dir, 'a.txt'), 'hello world');
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const ctxWithSignal = { ...sb.ctx, signal: ctrl.signal };
+    await expect(
+      editTool.execute({ path: 'a.txt', old_string: 'hello', new_string: 'bye' }, ctxWithSignal as any),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(await fs.readFile(path.join(sb.dir, 'a.txt'), 'utf8')).toBe('hello world');
+  });
+
+
   it('auto-reads when no prior read is recorded and the edit is unambiguous', async () => {
     await fs.writeFile(path.join(sb.dir, 'a.txt'), 'hello world');
     const out = await editTool.execute(

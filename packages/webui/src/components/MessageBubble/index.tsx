@@ -2,6 +2,7 @@ import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import {
   Bot,
   Brain,
+  Crosshair,
   ChevronDown,
   ChevronRight,
   FileCode2,
@@ -53,6 +54,8 @@ export const MessageBubble = memo(function MessageBubble({
   const [editValue, setEditValue] = useState('');
   const [showRaw, setShowRaw] = useState(false);
   const isUser = message.role === 'user';
+  const bugHunt = message.bugHunt;
+  const isBugHunt = !!bugHunt;
   const isTool = message.role === 'tool';
   const isThinkingLog = !!message.thinkingLog;
   const isSystem = message.role === 'system' && !isThinkingLog;
@@ -361,7 +364,25 @@ export const MessageBubble = memo(function MessageBubble({
               isUser && message.status === 'failed' && 'opacity-60 ring-1 ring-destructive/30',
             )}
           >
-            {editing && isUser ? (
+            {isBugHunt ? (
+              <div className="min-w-[15rem]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <Crosshair className="h-4 w-4" />
+                  <span>Elite Bug Hunter</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1">
+                    {bugHunt?.maxBugs} {bugHunt?.maxBugs === 1 ? 'bug' : 'bugs'} max
+                  </span>
+                  <span
+                    className="max-w-full truncate rounded-full border border-border bg-background/60 px-2 py-1"
+                    title={bugHunt?.scope || 'Whole project'}
+                  >
+                    {bugHunt?.scope ? `${bugHunt.scope} and below` : 'Whole project'}
+                  </span>
+                </div>
+              </div>
+            ) : editing && isUser ? (
               <div className="flex flex-col gap-2 min-w-[280px]">
                 <textarea
                   value={editValue}
@@ -649,7 +670,7 @@ export const MessageBubble = memo(function MessageBubble({
               );
             })()}
           {/* ── Actions — always visible, subtle opacity, full on hover ── */}
-          {!isTool && message.content && !message.streaming && (
+          {!isTool && !isBugHunt && message.content && !message.streaming && (
             <CopyButton
               text={message.content}
               label={t('common:action.copy')}
@@ -678,7 +699,7 @@ export const MessageBubble = memo(function MessageBubble({
               </span>
             </button>
           )}
-          {isUser && !editing && !isLoading && (
+          {isUser && !isBugHunt && !editing && !isLoading && (
             <>
               {message.status === 'failed' && (
                 <button

@@ -590,6 +590,29 @@ describe('validateManagedTaskTransition', () => {
     const issues = validateManagedTaskTransition(b, t, { to: 'review', actor: 'a', comment: 'c' });
     expect(issues.some((i) => i.code === 'review-evidence-missing')).toBe(true);
   });
+  it('rejects an unknown lifecycle stage instead of accepting it as a step', () => {
+    // Regression: KANBAN_AGENT_STAGES.indexOf('in_progress') is -1, and -1 is
+    // exactly one index away from backlog (0), so the adjacency guard used to
+    // pass and the transition silently wrote lifecycle.currentStage = the bogus
+    // value, wedging the card (every later currentManagedStage threw).
+    const b = managedBoard();
+    const t = card({
+      id: 't1',
+      columnId: 'backlog',
+      status: 'pending',
+      lifecycle: { currentStage: 'backlog', stageEnteredAt: nowIso(), history: [] },
+    });
+    const issues = validateManagedTaskTransition(b, t, {
+      to: 'in_progress' as never,
+      actor: 'a',
+      comment: 'c',
+    });
+    const unknown = issues.find((i) => i.code === 'transition-skipped');
+    expect(unknown?.message).toContain('Unknown lifecycle stage "in_progress"');
+    expect(unknown?.message).toContain('backlog');
+    // The unknown stage must not fall through to a "valid" step error.
+    expect(issues.some((i) => i.message.includes('one stage at a time'))).toBe(false);
+  });
   it('blocks every Running transition until dependencies exist and are completed', () => {
     const dependency = card({ id: 'dep-1', status: 'in_progress' });
     const task = card({
@@ -774,6 +797,39 @@ describe('end-to-end managed lifecycle validation paths', () => {
         comment: 'go',
       }),
     ).rejects.toThrow('Assign an owner');
+  });
+
+  it('rejects an unknown lifecycle stage and leaves the card transitionable', async () => {
+    const { board, cardId } = await managedBoardWithCard();
+    await updateTask(tmpDir, board.id, cardId, fullDetails());
+
+    // Regression: indexOf('in_progress') === -1 is one "step" away from
+    // backlog (0), so the adjacency guard used to accept it and write a bogus
+    // lifecycle.currentStage that wedged the card forever.
+    await expect(
+      transitionTask(tmpDir, board.id, cardId, {
+        to: 'in_progress' as never,
+        actor: 'agent-1',
+        comment: 'Typo: status name instead of a lifecycle stage.',
+      }),
+    ).rejects.toThrow('Unknown lifecycle stage "in_progress"');
+
+    // The card is untouched: still in backlog with a clean lifecycle ledger...
+    const stored = (await getBoard(tmpDir, board.id))!;
+    const card = stored.tasks.find((task) => task.id === cardId)!;
+    expect(card.columnId).toBe('backlog');
+    expect(card.status).toBe('pending');
+    expect(card.lifecycle?.currentStage).toBe('backlog');
+    expect(card.lifecycle?.history.some((entry) => entry.to === 'in_progress')).toBe(false);
+
+    // ...and a legitimate next step still works (no permanent wedge).
+    await expect(
+      transitionTask(tmpDir, board.id, cardId, {
+        to: 'todo',
+        actor: 'agent-1',
+        comment: 'Planned.',
+      }),
+    ).resolves.toMatchObject({ transition: { to: 'todo' } });
   });
 
   it('progresses a fully-detailed card through todo -> running -> review with evidence', async () => {

@@ -76,16 +76,21 @@ export const writeTool: Tool<WriteInput, WriteOutput> = {
     required: ['path', 'content'],
   },
   async execute(input, ctx, opts) {
-    return writeFile(input, ctx, opts?.signal);
+    const signal = opts?.signal ?? ctx?.signal;
+    return writeFile(input, ctx, signal);
   },
   async *executeStream(input, ctx, opts) {
+    const signal = opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     const prepared = await prepareWrite(input, ctx);
+    signal?.throwIfAborted();
     if (!prepared.existed) {
       for (const line of input.content.split('\n')) {
+        signal?.throwIfAborted();
         yield { type: 'partial_output', text: `${line}\n`, data: { livePreview: true } };
       }
     }
-    yield { type: 'final', output: await finishWrite(input, ctx, prepared, opts?.signal) };
+    yield { type: 'final', output: await finishWrite(input, ctx, prepared, signal) };
   },
 };
 
@@ -100,6 +105,7 @@ async function writeFile(
   ctx: Context,
   signal?: AbortSignal | undefined,
 ): Promise<WriteOutput> {
+  signal?.throwIfAborted();
   return finishWrite(input, ctx, await prepareWrite(input, ctx), signal);
 }
 

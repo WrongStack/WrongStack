@@ -134,6 +134,29 @@ describe('replaceTool', () => {
     expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
   });
 
+  it('honors subpath extra glob filter on a comma-separated files list', async () => {
+    await fs.mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tmpDir, 'other'), { recursive: true });
+    const keep = path.join(tmpDir, 'src', 'keep.ts');
+    const skip = path.join(tmpDir, 'other', 'skip.ts');
+    await fs.writeFile(keep, 'TARGET', 'utf8');
+    await fs.writeFile(skip, 'TARGET', 'utf8');
+    const result = await replaceTool.execute(
+      {
+        pattern: 'TARGET',
+        replacement: 'DONE',
+        files: `${keep},${skip}`,
+        glob: 'src/*.ts',
+        dry_run: false,
+      },
+      makeCtx(),
+      makeOpts(),
+    );
+    expect(result.files_modified).toBe(1);
+    expect(await fs.readFile(keep, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(skip, 'utf8')).toBe('TARGET');
+  });
+
   it('actually replaces when not dry_run', async () => {
     const filePath = path.join(tmpDir, 'test.txt');
     await fs.writeFile(filePath, 'hello world', 'utf8');
@@ -338,5 +361,90 @@ describe('replace change tracking', () => {
       makeOpts(),
     );
     expect(recorded).toHaveLength(0);
+  });
+
+  it('throws and aborts immediately when signal is aborted', async () => {
+    const filePath = path.join(tmpDir, 'abort_test.txt');
+    await fs.writeFile(filePath, 'hello world', 'utf8');
+    const ac = new AbortController();
+    ac.abort();
+    const ctx = makeCtx();
+
+    await expect(
+      replaceTool.execute(
+        { pattern: 'hello', replacement: 'goodbye', files: filePath, dry_run: false },
+        ctx,
+        { signal: ac.signal },
+      ),
+    ).rejects.toThrow();
+
+    expect(await fs.readFile(filePath, 'utf8')).toBe('hello world');
+  });
+
+  it('honors ctx.signal when opts is omitted', async () => {
+    const filePath = path.join(tmpDir, 'ctx_abort_test.txt');
+    await fs.writeFile(filePath, 'hello world', 'utf8');
+    const ac = new AbortController();
+    ac.abort();
+    const ctx = { ...makeCtx(), signal: ac.signal };
+
+    await expect(
+      replaceTool.execute(
+        { pattern: 'hello', replacement: 'goodbye', files: filePath, dry_run: false },
+        ctx,
+      ),
+    ).rejects.toThrow();
+
+    expect(await fs.readFile(filePath, 'utf8')).toBe('hello world');
+  });
+});
+
+describe('replace relative single-star globs (regression)', () => {
+  it('expands files: "src/*.ts" under the project root', async () => {
+    // A mid-path single-star glob used to fall through to the literal-path
+    // branch, where stat("src/*.ts") failed and the file was silently
+    // dropped — the tool reported files_modified=0 with no explanation.
+    // Routing must now send the entry to the glob walker (rg or native).
+    await fs.mkdir(path.join(tmpDir, 'src', 'sub'), { recursive: true });
+    const a = path.join(tmpDir, 'src', 'a.ts');
+    const b = path.join(tmpDir, 'src', 'b.ts');
+    const nested = path.join(tmpDir, 'src', 'sub', 'c.ts');
+    await fs.writeFile(a, 'TARGET', 'utf8');
+    await fs.writeFile(b, 'TARGET', 'utf8');
+    await fs.writeFile(nested, 'TARGET', 'utf8');
+
+    const result = await replaceTool.execute(
+      { pattern: 'TARGET', replacement: 'DONE', files: 'src/*.ts', dry_run: false },
+      makeCtx(),
+      makeOpts(),
+    );
+    expect(result.files_modified).toBe(2);
+    expect(result.total_replacements).toBe(2);
+    expect(await fs.readFile(a, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(b, 'utf8')).toBe('DONE');
+    // A single `*` must not cross a directory boundary.
+    expect(await fs.readFile(nested, 'utf8')).toBe('TARGET');
+  });
+
+  it('mixes literal paths and relative globs in one comma-separated files list', async () => {
+    await fs.mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    const literal = path.join(tmpDir, 'keep.txt');
+    const globbed = path.join(tmpDir, 'src', 'x.ts');
+    await fs.writeFile(literal, 'TARGET', 'utf8');
+    await fs.writeFile(globbed, 'TARGET', 'utf8');
+
+    const result = await replaceTool.execute(
+      {
+        pattern: 'TARGET',
+        replacement: 'DONE',
+        files: `${literal},src/*.ts`,
+        dry_run: false,
+      },
+      makeCtx(),
+      makeOpts(),
+    );
+    expect(result.files_modified).toBe(2);
+    expect(await fs.readFile(literal, 'utf8')).toBe('DONE');
+    expect(await fs.readFile(globbed, 'utf8')).toBe('DONE');
   });
 });

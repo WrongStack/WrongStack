@@ -48,8 +48,9 @@ export function createCompletionTool(deps: ToolDeps): Tool<CompletionInput, stri
     maxOutputBytes: 32_768,
     async execute(input, ctx, opts) {
       try {
+        const signal = opts?.signal ?? ctx?.signal;
         const file = resolveInputPath(input.path, ctx);
-        const server = await requireServer(deps.registry, file, opts.signal);
+        const server = await requireServer(deps.registry, file, signal);
         if (server.capabilities && !supportsCompletion(server.capabilities)) {
           throw new LSPError(
             LSPErrorCode.CapabilityMissing,
@@ -71,7 +72,7 @@ export function createCompletionTool(deps: ToolDeps): Tool<CompletionInput, stri
               : { triggerKind: 1 },
           },
           LSP_CONSTANTS.TOOL_TIMEOUT_MS,
-          opts.signal,
+          signal,
         );
         const items = collectCompletionItems(result, Math.min(input.limit ?? 25, 100));
         if (input.format === 'json') {

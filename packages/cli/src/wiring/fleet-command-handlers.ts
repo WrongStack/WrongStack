@@ -3,8 +3,11 @@ import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
-import type { Director } from '@wrongstack/core/coordination';
-import { FLEET_ROSTER } from '@wrongstack/core/coordination';
+import {
+  areSubagentsAllowedForSession,
+  type Director,
+  FLEET_ROSTER,
+} from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { loadDirectorState } from '@wrongstack/core/storage';
 import { AgentError } from '@wrongstack/core/types';
@@ -96,6 +99,10 @@ export function createFleetCommandHandlers(input: FleetCommandHandlersInput): Fl
       }
     },
     onFleetSpawn: async (role) => {
+      const originSessionId = input.getSessionId();
+      if (!areSubagentsAllowedForSession(originSessionId)) {
+        throw new Error('Subagents are disabled for this session.');
+      }
       const director = input.getDirector();
       if (!director) {
         throw new AgentError({
@@ -104,14 +111,15 @@ export function createFleetCommandHandlers(input: FleetCommandHandlersInput): Fl
           context: { phase: 'fleet-spawn', role },
         });
       }
-      return director.spawn(
-        FLEET_ROSTER[role] ?? {
+      return director.spawn({
+        ...(FLEET_ROSTER[role] ?? {
           id: `manual-${Date.now()}`,
           name: role,
           maxIterations: 50,
           maxToolCalls: 200,
-        },
-      );
+        }),
+        originSessionId,
+      });
     },
     onFleetLog: (subagentId, mode) => readFleetLog(input.fleetRoot, subagentId, mode),
     onFleetRetry: (taskId) => retryInterruptedTasks(input, taskId),
@@ -500,6 +508,10 @@ async function retryInterruptedTasks(
       : interrupted.filter((task) => task.taskId === taskId || task.taskId.startsWith(taskId));
   if (targets.length === 0) return `No interrupted task matched "${taskId}".`;
   const results: string[] = [];
+  const originSessionId = input.getSessionId();
+  if (!areSubagentsAllowedForSession(originSessionId)) {
+    return 'Subagents are disabled for this session.';
+  }
   for (const task of targets) {
     const owner = task.subagentId
       ? prior.subagents.find((subagent) => subagent.id === task.subagentId)
@@ -518,7 +530,7 @@ async function retryInterruptedTasks(
           model: owner.model,
         };
     try {
-      const subagentId = await director.spawn(config);
+      const subagentId = await director.spawn({ ...config, originSessionId });
       const newTaskId = await director.assign({
         id: '',
         description: task.description ?? '(no description)',

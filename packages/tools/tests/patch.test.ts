@@ -225,4 +225,22 @@ describe('patchTool — bookkeeping on every outcome', () => {
       expect(result.files.length).toBeGreaterThan(0);
     }
   });
+
+  it('safely executes without opts and falls back to ctx.signal or default signal', async () => {
+    const ctx = makeCtx();
+    const result = await patchTool.execute(
+      { patch: '--- fake\n+++ fake\n@@ -1,1 +1,1 @@\n-old\n+new', dry_run: true },
+      ctx,
+    );
+    expect(result).toHaveProperty('dry_run');
+
+    const ac = new AbortController();
+    const ctxWithSignal = { ...ctx, signal: ac.signal };
+    const resultWithSignal = await patchTool.execute(
+      { patch: '--- fake\n+++ fake\n@@ -1,1 +1,1 @@\n-old\n+new', dry_run: true },
+      ctxWithSignal,
+    );
+    expect(resultWithSignal).toHaveProperty('dry_run');
+  });
 });
+

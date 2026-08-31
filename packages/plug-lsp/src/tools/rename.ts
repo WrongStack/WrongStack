@@ -42,8 +42,9 @@ export function createRenameTool(deps: ToolDeps): Tool<RenameInput, string> {
     maxOutputBytes: 65_536,
     async execute(input, ctx, opts) {
       try {
+        const signal = opts?.signal ?? ctx?.signal;
         const file = resolveInputPath(input.path, ctx);
-        const server = await requireServer(deps.registry, file, opts.signal);
+        const server = await requireServer(deps.registry, file, signal);
         if (server.capabilities && !supportsRename(server.capabilities)) {
           throw new LSPError(
             LSPErrorCode.CapabilityMissing,
@@ -59,7 +60,7 @@ export function createRenameTool(deps: ToolDeps): Tool<RenameInput, string> {
             newName: input.new_name,
           },
           15_000,
-          opts.signal,
+          signal,
         );
         if (!edit) return 'Rename produced no edits.';
         const summary = summarizeWorkspaceEdit(edit, ctx.cwd);

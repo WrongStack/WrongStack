@@ -10,6 +10,8 @@
 export type AutonomyMode = 'off' | 'suggest' | 'auto';
 
 export interface SimplePrefs {
+  subagentsAllowed: boolean;
+  subagentsPolicyLocked: boolean;
   autonomy: AutonomyMode;
   yolo: boolean;
   enhanceEnabled: boolean;
@@ -25,6 +27,8 @@ export interface SimplePrefs {
 }
 
 export const DEFAULT_PREFS: SimplePrefs = {
+  subagentsAllowed: true,
+  subagentsPolicyLocked: false,
   autonomy: 'off',
   yolo: false,
   enhanceEnabled: false,
@@ -52,6 +56,8 @@ export function parsePrefs(payload: unknown, previous: SimplePrefs = DEFAULT_PRE
   const raw = payload as Record<string, unknown>;
   const autonomy = raw['autonomy'];
   return {
+    subagentsAllowed: bool(raw['subagentsAllowed'], previous.subagentsAllowed),
+    subagentsPolicyLocked: bool(raw['subagentsPolicyLocked'], previous.subagentsPolicyLocked),
     autonomy: AUTONOMY_MODES.includes(autonomy as AutonomyMode)
       ? (autonomy as AutonomyMode)
       : // `eternal` and friends are live-only modes the server may report;

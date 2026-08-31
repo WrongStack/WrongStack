@@ -1,22 +1,17 @@
 import type { RunController } from '../kernel/run-controller.js';
 import { TOKENS } from '../kernel/tokens.js';
 import { attachFleetPulse, attachMailboxChecker } from '../mailbox-attach.js';
+import { recordPromptJournalEntry } from '../prompts/prompt-journal.js';
 import { attachSessionNotes } from '../session-note-attach.js';
 import type { TextBlock } from '../types/blocks.js';
 import { isToolUseBlock } from '../types/blocks.js';
 import { toWrongStackError } from '../types/errors.js';
 import type { Request, Response } from '../types/provider.js';
 import { effectiveInputTokens } from '../types/provider.js';
-import {
-  isRuntimeContextInput,
-  recordUserIntentEvidence,
-} from '../utils/context-evidence.js';
+import { isRuntimeContextInput, recordUserIntentEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { formatTodosForModel, hasKanbanBoundTodos, hasOpenTodos } from '../utils/todos-format.js';
-import {
-  getCalibrationState,
-  recordActualUsage,
-} from '../utils/token-estimate.js';
+import { getCalibrationState, recordActualUsage } from '../utils/token-estimate.js';
 import type { AgentInternals } from './agent-internals.js';
 import { createAgentLoopContextManager } from './agent-loop-context.js';
 import { AgentLoopDetector } from './agent-loop-detector.js';
@@ -24,16 +19,15 @@ import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
 import { buildBtwBlock, consumeBtwNotes } from './btw.js';
-import { buildSessionNoteBlock, consumeSessionNotes } from './session-notes.js';
 import { type RunOptions, resolveEventSessionId } from './context.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
 import { clearPendingNextSteps } from './next-steps-slot.js';
-import { recordPromptJournalEntry } from '../prompts/prompt-journal.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate } from './queued-messages.js';
 import { providerBoundToRequest } from './request-provider-binding.js';
+import { buildSessionNoteBlock, consumeSessionNotes } from './session-notes.js';
 
 function toError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
@@ -192,6 +186,7 @@ export function createAgentLoopHandler(
     controller: RunController,
     autonomousContinue: boolean,
   ): Promise<RunResult> {
+    a.ctx.meta['subagentsPolicyLocked'] = true;
     await a.pipelines.userInput.run(inputPayload);
     recordUserIntentEvidence(a.ctx, inputPayload.text);
     await a.ctx.session.append({

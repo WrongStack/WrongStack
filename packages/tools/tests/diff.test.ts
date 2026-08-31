@@ -298,4 +298,17 @@ describe('diffTool', () => {
     expect(result.truncated).toBe(false);
     expect(result.diff).toContain('small content');
   });
+
+  it('safely executes without opts and falls back to ctx.signal or default signal', async () => {
+    const ctx = makeCtx();
+    const result = await diffTool.execute({}, ctx);
+    expect(result.diff).toBe('No files specified');
+    expect(result.files).toEqual([]);
+
+    const ac = new AbortController();
+    const ctxWithSignal = { ...ctx, signal: ac.signal };
+    const resultWithSignal = await diffTool.execute({ staged: true }, ctxWithSignal);
+    expect(resultWithSignal).toHaveProperty('mode');
+  });
 });
+

@@ -49,4 +49,16 @@ describe('Telegram outbound security', () => {
     expect(output).not.toContain('123456789:');
     expect(output).not.toContain('hunter2');
   });
+
+  it('scrubs redis -a auth and short PASSPHRASE values through the full pipeline (canonical-parity regression)', () => {
+    // Both forms were previously missed by the drifted telegram copy while
+    // the canonical redactCommand set redacted them (r1-telegram-redact-drift).
+    const output = scrubTelegramOutboundText(
+      'redis-cli -a CANARY_REDIS_PW_GGG get key; PASSPHRASE=CANARY_PASSPHRASE_HHH openssl enc -d',
+    );
+    expect(output).not.toContain('CANARY_REDIS_PW_GGG');
+    expect(output).not.toContain('CANARY_PASSPHRASE_HHH');
+    expect(output).toContain('-a [REDACTED]');
+    expect(output).toContain('PASSPHRASE=[REDACTED]');
+  });
 });

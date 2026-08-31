@@ -12,8 +12,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DefaultSessionStore } from '../../src/storage/session-store.js';
 import { loadSessionDataFromFile } from '../../src/storage/session-store/load-session-data.js';
+import { DefaultSessionStore } from '../../src/storage/session-store.js';
 import type { SecretScrubber } from '../../src/types/secret-scrubber.js';
 
 const passthroughScrubber: SecretScrubber = {
@@ -90,8 +90,18 @@ describe('session loader snapshot payload retention', () => {
   it('strips context_snapshot payloads on the same rule', async () => {
     await writeSession([
       start,
-      { type: 'context_snapshot', ts: '2026-01-01T00:01:00.000Z', reason: 'compaction', messages: [userMessage('old')] },
-      { type: 'context_snapshot', ts: '2026-01-01T00:02:00.000Z', reason: 'compaction', messages: [userMessage('new')] },
+      {
+        type: 'context_snapshot',
+        ts: '2026-01-01T00:01:00.000Z',
+        reason: 'compaction',
+        messages: [userMessage('old')],
+      },
+      {
+        type: 'context_snapshot',
+        ts: '2026-01-01T00:02:00.000Z',
+        reason: 'compaction',
+        messages: [userMessage('new')],
+      },
     ]);
 
     const data = await new DefaultSessionStore({ dir }).load(SESSION_ID);
@@ -106,7 +116,12 @@ describe('session loader snapshot payload retention', () => {
     await writeSession([
       start,
       snapshot('2026-01-01T00:01:00.000Z', ['replaced-payload']),
-      { type: 'context_snapshot', ts: '2026-01-01T00:02:00.000Z', reason: 'compaction', messages: [userMessage('survivor')] },
+      {
+        type: 'context_snapshot',
+        ts: '2026-01-01T00:02:00.000Z',
+        reason: 'compaction',
+        messages: [userMessage('survivor')],
+      },
     ]);
 
     const data = await new DefaultSessionStore({ dir }).load(SESSION_ID);
@@ -134,7 +149,11 @@ describe('session loader snapshot payload retention', () => {
     // Source bytes are dominated by snapshot payloads that get stripped. A
     // budget charged on raw line length would evict here; charged on what is
     // actually resident, it must not.
-    const fat = (ts: string) => snapshot(ts, Array.from({ length: 400 }, (_, i) => `pad-${i}`.repeat(20)));
+    const fat = (ts: string) =>
+      snapshot(
+        ts,
+        Array.from({ length: 400 }, (_, i) => `pad-${i}`.repeat(20)),
+      );
     await writeSession([
       start,
       fat('2026-01-01T00:01:00.000Z'),
@@ -191,13 +210,46 @@ describe('session loader snapshot payload retention', () => {
     expect(JSON.stringify(bounded.messages)).toBe(JSON.stringify(unbounded.messages));
   });
 
+  it('retains the latest subagent policy after its event is evicted', async () => {
+    const inputs = Array.from({ length: 60 }, (_, i) => ({
+      type: 'user_input',
+      ts: `2026-01-01T00:${String(i).padStart(2, '0')}:00.000Z`,
+      content: [{ type: 'text', text: `turn-${i}-${'x'.repeat(500)}` }],
+    }));
+    await writeSession([
+      start,
+      { type: 'subagent_policy', ts: '2026-01-01T00:00:01.000Z', allowed: false },
+      ...inputs,
+    ]);
+
+    const data = await loadSessionDataFromFile({
+      id: SESSION_ID,
+      file: sessionFile,
+      full: true,
+      secretScrubber: passthroughScrubber,
+      maxRetainedEventBytes: 4_000,
+    });
+
+    expect(data.eventsDropped).toBeGreaterThan(0);
+    expect(data.events.some((event) => event.type === 'subagent_policy')).toBe(false);
+    expect(data.subagentsAllowed).toBe(false);
+  });
+
   it('does not disturb non-snapshot events', async () => {
     await writeSession([
       start,
-      { type: 'user_input', ts: '2026-01-01T00:01:00.000Z', content: [{ type: 'text', text: 'hi' }] },
+      {
+        type: 'user_input',
+        ts: '2026-01-01T00:01:00.000Z',
+        content: [{ type: 'text', text: 'hi' }],
+      },
       snapshot('2026-01-01T00:02:00.000Z', ['a']),
       snapshot('2026-01-01T00:03:00.000Z', ['b']),
-      { type: 'user_input', ts: '2026-01-01T00:04:00.000Z', content: [{ type: 'text', text: 'bye' }] },
+      {
+        type: 'user_input',
+        ts: '2026-01-01T00:04:00.000Z',
+        content: [{ type: 'text', text: 'bye' }],
+      },
     ]);
 
     const data = await new DefaultSessionStore({ dir }).load(SESSION_ID);

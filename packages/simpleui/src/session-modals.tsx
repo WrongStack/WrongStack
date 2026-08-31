@@ -163,6 +163,7 @@ export function SessionModals(props: SessionModalsProps) {
           onPrefChange={onPrefChange}
           onReset={onResetPrefs}
           isAtDefaults={isAtDefaults}
+          subagentPolicyLocked={messages.some((message) => message.role === 'user')}
         />
       </ErrorBoundary>
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { EventBus } from '../../src/kernel/events.js';
+import { ToolCapabilities } from '../../src/security/capabilities.js';
 import type { Tool, ToolUseBlock } from '../../src/types/tool.js';
 import { createMockTool } from '../helpers/test-harness.js';
 
@@ -78,6 +79,24 @@ describe('ToolExecutor — executeTool', () => {
 });
 
 describe('ToolExecutor — executeBatch', () => {
+  it('blocks every subagent-spawn capability when the session policy is off', async () => {
+    const tool = createMockTool({ name: 'custom_agent_launcher', result: 'spawned' });
+    tool.capabilities = [ToolCapabilities.SUBAGENT_SPAWN];
+    const executeSpy = vi.spyOn(tool, 'execute');
+    const exec = new ToolExecutor(makeRegistry([tool]), { secretScrubber: noopScrubber } as any);
+    const ctx = makeCtx();
+    ctx.meta.subagentsAllowed = false;
+
+    const result = await exec.executeBatch(
+      [makeToolUse('custom_agent_launcher', 'solo-1')],
+      ctx,
+      'sequential',
+    );
+
+    expect(executeSpy).not.toHaveBeenCalled();
+    expect(result.outputs[0]?.result.content).toContain('Subagents are disabled for this session');
+  });
+
   it('handles empty input without error', async () => {
     const reg = makeRegistry([]);
     const exec = new ToolExecutor(reg, { secretScrubber: noopScrubber } as any);

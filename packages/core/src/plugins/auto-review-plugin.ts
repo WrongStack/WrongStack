@@ -1,6 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventMap } from '../kernel/events.js';
+import { areSubagentsAllowed } from '../coordination/session-subagent-policy.js';
 import type { Plugin } from '../types/plugin.js';
 import type { SlashCommand } from '../types/slash-command.js';
 import { toErrorMessage } from '../utils/error.js';
@@ -283,6 +284,7 @@ export function createAutoReviewPlugin(): Plugin {
         try {
           const cfg = resolved;
           if (!cfg.enabled || sessionEnded) return;
+          if (payload?.ctx && !areSubagentsAllowed(payload.ctx)) return;
           if (payload) latestIterationPayload = payload;
 
           const cwd = api.config.cwd ?? process.cwd();

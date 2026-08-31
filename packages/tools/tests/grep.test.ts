@@ -750,4 +750,19 @@ describe('grep tool — buffer overflow path (rg mode)', () => {
     // The used field exists
     expect(['rg', 'native']).toContain(out.used);
   });
+
+  it('safely executes without opts and falls back to ctx.signal or default signal', async () => {
+    await fs.writeFile(path.join(sb.dir, 'test-no-opts.txt'), 'hello world\n');
+    const out = await grepTool.execute({ pattern: 'hello', output_mode: 'content' }, sb.ctx);
+    expect(out.count).toBeGreaterThanOrEqual(1);
+
+    const ac = new AbortController();
+    const ctxWithSignal = { ...sb.ctx, signal: ac.signal };
+    const outWithSignal = await grepTool.execute(
+      { pattern: 'hello', output_mode: 'content' },
+      ctxWithSignal,
+    );
+    expect(outWithSignal.count).toBeGreaterThanOrEqual(1);
+  });
 });
+

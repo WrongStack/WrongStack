@@ -118,6 +118,12 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
+      // Scratch and stale-mirror copies under `.temp_files/**` (release-scoped
+      // snapshots, bug-hunter fixtures) must never enter root-suite discovery:
+      // they are not workspace members and fail to resolve `@wrongstack/*`
+      // imports, surfacing as phantom Failed Suites. Unanchored on purpose —
+      // mirrors live at `.temp_files/<scope>/packages/**/tests/**`.
+      '**/.temp_files/**',
       // WebUI tests require jsdom + globals:true — run separately:
       //   cd packages/webui && pnpm test
       // or: pnpm --filter webui test

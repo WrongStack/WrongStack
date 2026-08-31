@@ -115,6 +115,8 @@ export const editTool: Tool<EditInput, EditOutput> = {
     if (!input?.path) {
       throw new ToolValidationError({ message: 'edit: path is required', field: 'path' });
     }
+    const signal = opts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
     if (input.old_string === undefined) {
       throw new ToolValidationError({
         message: 'edit: old_string is required',
@@ -220,11 +222,11 @@ export const editTool: Tool<EditInput, EditOutput> = {
     }
 
     // Check abort signal before entering potentially slow matching logic
-    opts?.signal?.throwIfAborted();
+    signal?.throwIfAborted();
     const ladder = findLadderMatches(fileLf, oldLf);
 
     if (!ladder) {
-      opts?.signal?.throwIfAborted();
+      signal?.throwIfAborted();
       throw noMatchError(input.path, fileLf, oldLf);
     }
 
@@ -307,7 +309,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
     // Last exit before mutating the filesystem: a run aborted during the
     // read/match phase must not leave the edit behind. (atomicWrite itself
     // is all-or-nothing — the file is old or new, never partial.)
-    opts?.signal?.throwIfAborted();
+    signal?.throwIfAborted();
     await atomicWrite(absPath, newFile, { mode: updated.mode & 0o777 });
 
     try {
@@ -332,7 +334,7 @@ export const editTool: Tool<EditInput, EditOutput> = {
     });
 
     // Check abort before diff generation (can be slow on large files)
-    opts?.signal?.throwIfAborted();
+    signal?.throwIfAborted();
     const { text: diff, truncated: diffTruncated } = truncateDiffPayload(
       unifiedDiff(original, newFile, {
         fromFile: input.path,

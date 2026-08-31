@@ -11,6 +11,7 @@ import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
+import { parseBugHuntMessage } from '@/lib/bug-hunt-message';
 import type { ChatMessage, ChatMessageAttachment, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -148,11 +149,13 @@ export function hydrateReplayMessages(
     const id = replayMessageId(messages.length);
     switch (item.kind) {
       case 'user':
+        const bugHunt = parseBugHuntMessage(item.text);
         messages.push({
           id,
           role: 'user',
           content: item.text,
           timestamp,
+          ...(bugHunt ? { bugHunt } : {}),
           ...(item.images ? { attachments: replayAttachments(item.images, id) } : {}),
         });
         break;

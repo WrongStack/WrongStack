@@ -59,6 +59,15 @@ export interface ChatMessage {
   content: string;
   /** Images the user attached to this message (user role only). */
   attachments?: ChatMessageAttachment[] | undefined;
+  /** A compact, presentation-only summary for a built-in Elite Bug Hunter
+   * request. The full instruction is still sent to the agent, but never
+   * printed into the user's transcript. */
+  bugHunt?:
+    | {
+        scope: string;
+        maxBugs: 1 | 2 | 3;
+      }
+    | undefined;
   role: 'user' | 'assistant' | 'system' | 'tool';
   toolName?: string | undefined;
   toolInput?: unknown | undefined;
@@ -147,9 +156,7 @@ export interface ChatMessage {
    * work on this report" affordance; `actionedAt` flips once that prompt has
    * been submitted so the button can never double-fire.
    */
-  chimeraReport?:
-    | { reportId: string; actionable: boolean; actionedAt: number | null }
-    | undefined;
+  chimeraReport?: { reportId: string; actionable: boolean; actionedAt: number | null } | undefined;
   /**
    * Council multi-model consensus & decision payload — present when this
    * message renders as a dedicated, visually styled CouncilDecisionCard with

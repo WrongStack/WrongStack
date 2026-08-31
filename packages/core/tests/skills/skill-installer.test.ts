@@ -290,7 +290,71 @@ describe('SkillInstaller.update', () => {
     expect(res.errors[0]!.name).toBe('broken');
     expect(res.errors[0]!.error).toContain('network down');
   });
+
+  it('updates only global skills when { global: true } is passed without a name', async () => {
+    fetcherMocks.downloadGitHubTarball.mockImplementation(async (parsed) => {
+      const d = await fs.mkdtemp(path.join(tmpRoot, 'dl-'));
+      if (parsed.repo === 'repo-global') {
+        await seedSingleSkillRepo(d, 'skill-global');
+      } else {
+        await seedSingleSkillRepo(d, 'skill-local');
+      }
+      return { tempDir: d };
+    });
+
+    const inst = mkInstaller();
+    await inst.install('user/repo-local', { global: false });
+    await inst.install('user/repo-global', { global: true });
+
+    // Update with { global: true }
+    const res = await inst.update(undefined, { global: true });
+    const updatedNames = res.updated.map((u) => u.name);
+
+    // Expected: ONLY skill-global is updated, NOT skill-local
+    expect(updatedNames).toContain('skill-global');
+    expect(updatedNames).not.toContain('skill-local');
+  });
+
+  it('updates only project skills when { global: false } is passed without a name', async () => {
+    fetcherMocks.downloadGitHubTarball.mockImplementation(async (parsed) => {
+      const d = await fs.mkdtemp(path.join(tmpRoot, 'dl-'));
+      if (parsed.repo === 'repo-global') {
+        await seedSingleSkillRepo(d, 'skill-global');
+      } else {
+        await seedSingleSkillRepo(d, 'skill-local');
+      }
+      return { tempDir: d };
+    });
+
+    const inst = mkInstaller();
+    await inst.install('user/repo-local', { global: false });
+    await inst.install('user/repo-global', { global: true });
+
+    // Update with { global: false }
+    const res = await inst.update(undefined, { global: false });
+    const updatedNames = res.updated.map((u) => u.name);
+
+    // Expected: ONLY skill-local is updated, NOT skill-global
+    expect(updatedNames).toContain('skill-local');
+    expect(updatedNames).not.toContain('skill-global');
+  });
+
+  it('reports error when updating a skill with { global: true } that is only installed in project scope', async () => {
+    fetcherMocks.downloadGitHubTarball.mockImplementation(async () => {
+      const d = await fs.mkdtemp(path.join(tmpRoot, 'dl-'));
+      await seedSingleSkillRepo(d, 'local-only');
+      return { tempDir: d };
+    });
+    const inst = mkInstaller();
+    await inst.install('user/local-only', { global: false });
+
+    // Attempt update with { global: true }
+    const res = await inst.update('local-only', { global: true });
+    expect(res.errors).toHaveLength(1);
+    expect(res.updated).toHaveLength(0);
+  });
 });
+
 
 // ── importFromDir ────────────────────────────────────────────────────────────
 
