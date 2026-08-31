@@ -4,7 +4,7 @@
 
 ## What to avoid
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=1081; wins=1074 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-10T19:41:24.805Z; applied=1087; wins=1080 -->
 - **Always verify a comment's test claim by searching for the named test file before trusting it as a drift guard. When a diff duplicates a canonical constant across packages (e.g. `BOARD_SOFT_MAX_BYTES` mirrored in `packages/tui`, `packages/webui`, and `packages/kanban/src/storage.ts`), grep the whole repo for the symbol and for `*.test.*` matches — a comment saying "`X.test.ts` pins both copies" is unverified until the test file is found, and an absent pin is the classic declared-but-not-enforced drift hazard.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `BOARD_SOFT_MAX_BYTES`
@@ -27,7 +27,7 @@
   - *How:* `claimedEvidence: accumulatedEvidence`
   - *How:* `verify...`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=156; wins=144 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T10:38:35.669Z; skill=chimera; applied=159; wins=147 -->
 - **When a Chimera review diff's line annotations disagree with the live on-disk file (e.g., diff shows `string[]` but the file reads `KanbanLifecycleValidationIssue[]`), always trust the file on disk and flag the divergence — an in-session `file.external.edit` can land a half-applied refactor between the diff being captured and review running. Resolve every finding against `read`/`grep` of the actual file, never the diff hunk, and cite the live line number.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `string[]`
@@ -43,7 +43,7 @@
   - *How:* `runCteWithSeeds`
   - *How:* `ReferenceError`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=157; wins=154 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-12T09:26:43.569Z; applied=162; wins=159 -->
 - **When a test-file diff adds a new import block but the test bodies it accompanies never reference those symbols, immediately grep the changed file for every imported name before trusting the diff — `noUnusedLocals: true` (set in `tsconfig.base.json`, inherited by every package's `tsconfig.json` and `tsconfig.test.json`) turns each unused import into `error TS6133` and fails the package's test typecheck. Unused `type`-qualified inline imports are flagged too; do not assume type-only imports are exempt.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `noUnusedLocals: true`
@@ -63,7 +63,7 @@
   - *How:* `payload.bundle`
   - *How:* `packages/cli/src/execution-chimera-review.ts`
 
-<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=89; wins=87 -->
+<!-- learned-stamp: category=warning; capturedAt=2026-08-11T15:48:37.933Z; skill=chimera; applied=90; wins=88 -->
 - **When reviewing a generated ratchet baseline such as `architecture/hotspots.json`, do not judge a metric field by a naive grep — read the generator first (`collectModuleSpecifiers` in `scripts/lib/architecture-health.mjs`) to learn every form it counts. `relativeImports` includes static `from './x'`, bare side-effect `import './x.css'`, dynamic `import('./x')`, `require()`, and `import x = require()`, so a file whose static imports number 6 can legitimately record 20.**
   - *Why:* Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.
   - *How:* `architecture/hotspots.json`
@@ -77,4 +77,4 @@
   - *How:* `import x = require()`
 
 ---
-*Last capture: 2026-08-12T10:38:35.669Z · 8 entries*
+*Last capture: 2026-08-31T07:46:41.375Z · 8 entries*
