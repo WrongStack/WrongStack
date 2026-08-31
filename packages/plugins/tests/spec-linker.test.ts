@@ -291,6 +291,48 @@ describe('spec-linker plugin', () => {
       expect(ctx).toContain('./src/token-budget');
     });
 
+    it('still detects a bare reference on a line with a stray dangling ](', async () => {
+      // Regression: the link-URL heuristic treated ANY `](` earlier on the
+      // line plus any later `)` as "the name is inside a link", so a bare
+      // mention near a stray bracket was silently not reported. The `](` must
+      // have a plausible label bracket before it to count as a link.
+      const api = createMockAPI();
+      specLinkerPlugin.setup(api as never);
+      const hook = getHook(api, 'PostToolUse');
+      const filePath = path.join(tmpDir, 'dangling.md');
+      await fs.writeFile(
+        filePath,
+        'Prefix ]( dangling and secret-scanner continues here) with prose.\n',
+        'utf-8',
+      );
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      const ctx = (result as { additionalContext?: string } | undefined)?.additionalContext ?? '';
+      expect(ctx).toContain('secret-scanner');
+    });
+
+    it('detects a bare reference when the name repeats on the line', async () => {
+      const api = createMockAPI();
+      specLinkerPlugin.setup(api as never);
+      const hook = getHook(api, 'PostToolUse');
+      const filePath = path.join(tmpDir, 'repeat.md');
+      await fs.writeFile(
+        filePath,
+        'secret-scanner first, then secret-scanner again, and secret-scanner once more.\n',
+        'utf-8',
+      );
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      const ctx = (result as { additionalContext?: string } | undefined)?.additionalContext ?? '';
+      expect(ctx).toContain('secret-scanner');
+    });
+
     it('skips references already wrapped in markdown links', async () => {
       const api = createMockAPI();
       specLinkerPlugin.setup(api as never);

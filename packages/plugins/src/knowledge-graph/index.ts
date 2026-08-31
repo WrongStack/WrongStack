@@ -96,9 +96,13 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
   if (typeof rawPath !== 'string' || rawPath.length === 0) return null;
   const root = resolve(cwd);
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
+  // Containment: the store both READS and WRITES this file, so a config-
+  // controlled path that escapes the project root (an absolute path or `..`
+  // traversal) would turn fact persistence into arbitrary-file I/O. Reject
+  // anything outside the root — including the root directory itself.
   const rel = relative(root, resolved);
-  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
-  return null;
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) return null;
+  return resolved;
 }
 
 function readConfig(raw: unknown): KnowledgeGraphConfig {
@@ -400,7 +404,9 @@ const plugin: Plugin = {
       async execute(input: { id: string }) {
         if (!cfg.enabled) return { ok: false, error: 'knowledge-graph is disabled' };
         const before = state.facts.length;
-        state.facts = state.facts.filter((f) => f.id !== input.id);
+        const rawId = String(input.id ?? '').trim();
+        const normalized = rawId.toLowerCase().startsWith('kg-') ? rawId.toLowerCase() : `kg-${rawId.toLowerCase()}`;
+        state.facts = state.facts.filter((f) => f.id.toLowerCase() !== normalized && f.id !== rawId);
         const removed = before - state.facts.length;
         if (removed === 0) return { ok: false, error: `no fact matches "${input.id}"` };
         state.removals += removed;

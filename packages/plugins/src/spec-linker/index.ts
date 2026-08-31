@@ -150,17 +150,53 @@ function fileMatchesGlobs(filePath: string, globs: string[]): boolean {
   });
 }
 
-/** True if `name` appears as a markdown link `[name](` or inline code `` `name` ``. */
-function isWrappedAsLinkOrCode(line: string, name: string): boolean {
-  const lower = line.toLowerCase();
-  const target = name.toLowerCase();
-  // Markdown link: [name](
-  if (lower.includes(`[${target}](`)) return true;
-  // Inline code: `name`
-  if (lower.includes(`\`${target}\``)) return true;
-  // Markdown link with label containing the name (e.g. [the `secret-scanner`
-  // plugin](./src/secret-scanner))
-  if (new RegExp(`\\[[^\\]]*\`${escapeRegExp(target)}\`[^\\]]*\\]\\(`, 'i').test(line)) return true;
+const WRAP_LINE_REGEX_CACHE = new Map<string, RegExp>();
+function getWrapLineRegex(name: string): RegExp {
+  let re = WRAP_LINE_REGEX_CACHE.get(name);
+  if (!re) {
+    re = new RegExp(`(^|[^\\w-])(${escapeRegExp(name)})(?![\\w-])`, 'gi');
+    WRAP_LINE_REGEX_CACHE.set(name, re);
+  }
+  return re;
+}
+
+/** True if `name` at [start, end) appears as a markdown link `[name](` or inline code `` `name` `` or inside link target. */
+function isRangeWrappedAsLinkOrCode(line: string, start: number, end: number, _name: string): boolean {
+  if (start > 0 && line[start - 1] === '`' && end < line.length && line[end] === '`') {
+    return true;
+  }
+  if (start > 0 && line[start - 1] === '[' && line.slice(end).startsWith('](')) {
+    return true;
+  }
+  const before = line.slice(0, start);
+  const after = line.slice(end);
+
+  // Check if inside link URL destination: e.g. [label](./src/secret-scanner)
+  // The '](' must have a plausible label bracket before it — a stray, dangling
+  // `](` in prose (no `[` anywhere before) does not put the name into a link.
+  const lastLinkOpen = before.lastIndexOf('](');
+  if (lastLinkOpen !== -1) {
+    const labelOpen = before.lastIndexOf('[', lastLinkOpen);
+    const intermediateParenClose = before.slice(lastLinkOpen).indexOf(')');
+    const nextParenClose = after.indexOf(')');
+    if (labelOpen !== -1 && intermediateParenClose === -1 && nextParenClose !== -1) {
+      return true;
+    }
+  }
+
+  // Check if inside link label with backticks: e.g. [the `secret-scanner` plugin](...)
+  const openBracket = before.lastIndexOf('[');
+  const closeBracket = after.indexOf('](');
+  if (openBracket !== -1 && closeBracket !== -1) {
+    const intermediateBracketClose = before.slice(openBracket).indexOf(']');
+    if (intermediateBracketClose === -1) {
+      return true;
+    }
+  }
+
+  const backticksBefore = (before.match(/`/g) || []).length;
+  if (backticksBefore % 2 === 1) return true; // Inside inline code span
+
   return false;
 }
 
@@ -195,14 +231,20 @@ function findUnlinkedReferences(lines: string[], names: string[]): string[] {
     const line = lines[i]!;
     if (line.length === 0) continue;
     for (const name of names) {
-      // Word-boundary check: the name must appear as a complete
-      // token, not as a substring of a longer identifier. We also
-      // exclude hyphenated continuations (`secret-scanner-config`
-      // should not match `secret-scanner`) and dot-continuations
-      // (`secret-scanner.json`).
-      const re = new RegExp(`(^|[^\\w-])${escapeRegExp(name)}(?![\\w-])`, 'i');
-      if (re.test(line) && !isWrappedAsLinkOrCode(line, name)) {
-        if (!found.has(name)) found.set(name, true);
+      const re = getWrapLineRegex(name);
+      re.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(line)) !== null) {
+        const leadingLen = m[1]!.length;
+        const nameStart = m.index + leadingLen;
+        const nameEnd = nameStart + m[2]!.length;
+        if (!isRangeWrappedAsLinkOrCode(line, nameStart, nameEnd, name)) {
+          if (!found.has(name)) found.set(name, true);
+          // One unlinked reference is enough — the old single `re.test()`
+          // stopped at the first match; keep that early-exit instead of
+          // scanning every remaining occurrence on the line.
+          break;
+        }
       }
     }
   }
@@ -246,28 +288,19 @@ function wrapUnlinkedReferences(content: string): string {
 function wrapLineReferences(line: string): string {
   let out = '';
   let cursor = 0;
-  // Iterate over all plugin names; for each, walk the line and
-  // find the leftmost non-overlapping match starting from the
-  // current cursor. We rebuild the line as a sequence of
-  // (raw, replacement) segments.
   type Span = { start: number; end: number; name: string };
   const spans: Span[] = [];
 
   for (const name of PLUGIN_NAMES) {
-    // Case-insensitive match but preserve the original substring
-    // for substitution. The `i` flag handles the match; the
-    // capture group around the name lets us pull the original
-    // casing back out without re-implementing the regex.
-    const re = new RegExp(`(^|[^\\w-])(${escapeRegExp(name)})(?![\\w-])`, 'gi');
+    const re = getWrapLineRegex(name);
     let m: RegExpExecArray | null;
     re.lastIndex = 0;
-    // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic RegExp.exec loop
     while ((m = re.exec(line)) !== null) {
       const leadingLen = m[1]!.length;
       const nameStart = m.index + leadingLen;
       const nameEnd = nameStart + m[2]!.length;
       const originalName = line.slice(nameStart, nameEnd);
-      if (isWrappedAsLinkOrCode(line, originalName)) continue;
+      if (isRangeWrappedAsLinkOrCode(line, nameStart, nameEnd, originalName)) continue;
       if (spans.some((s) => !(nameEnd <= s.start || nameStart >= s.end))) {
         continue;
       }
