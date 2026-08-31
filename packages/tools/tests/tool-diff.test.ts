@@ -117,6 +117,12 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
     { tool: 'str_replace', input: { file_path: 't.ts', old_string: '1\n2', new_string: '' } },
     { tool: 'write', input: { path: 'new.ts', content: 'line1\nline2\nline3' } },
     { tool: 'create_file', input: { file_path: 'c.ts', content: 'only' } },
+    // Parity regressions (2026-08-31): the browser write-caption collapsed
+    // inner whitespace runs where the TS `.trim()` preserves them — and the
+    // two diverged when file_path was absent. These cases lock both shapes.
+    { tool: 'write', input: { content: 'a\nb' } },
+    { tool: 'write', input: { file_path: 'my  folder/a  b.ts', content: 'x' } },
+    { tool: 'write', input: { file_path: 'dir/\ta.ts', content: 'x' } },
     {
       tool: 'patch',
       input: { patch: '--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n', path: 'x.ts' },

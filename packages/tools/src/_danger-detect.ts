@@ -47,20 +47,26 @@ interface DangerRule {
 
 const argHas = (args: readonly string[], value: string): boolean => args.includes(value);
 const argMatches = (args: readonly string[], re: RegExp): boolean => args.some((a) => re.test(a));
+
 /**
- * Check for a flag like `-rf`, `-fr`, `-r -f`, `-f -r` etc. where the *order*
- * (and whether the letters are joined into one token or split across
- * separate `-x` tokens) does not matter. We accumulate every short-flag
- * letter seen across all args, then check the required letters are all
- * present somewhere in that set.
+ * Every flag letter visible in `args`: short clusters (`-rf` → r,f) plus the
+ * letters implied by the GNU long forms we classify (`--recursive` → r,
+ * `--force` → f). Presence-only — cluster/split form and flag order are
+ * irrelevant, and a mixed invocation (`rm -r --force x`) must classify the
+ * same as either pure form.
  */
-const hasShortFlags = (args: readonly string[], letters: string): boolean => {
+const flagLetters = (args: readonly string[]): Set<string> => {
   const seen = new Set<string>();
   for (const a of args) {
-    if (!/^-[a-zA-Z]+$/.test(a)) continue;
-    for (const ch of a.slice(1)) seen.add(ch);
+    if (/^-[a-zA-Z]+$/.test(a)) {
+      for (const ch of a.slice(1)) seen.add(ch);
+    } else if (a === '--recursive') {
+      seen.add('r');
+    } else if (a === '--force') {
+      seen.add('f');
+    }
   }
-  return letters.split('').every((l) => seen.has(l));
+  return seen;
 };
 
 const RULES: readonly DangerRule[] = [
@@ -68,11 +74,16 @@ const RULES: readonly DangerRule[] = [
   // Note: BLOCKED_ARG_PATTERNS already hard-denies root/home/glob paths,
   // but `rm -rf ./build` is a normal dev workflow that the user might
   // want to do intentionally. We downgrade it to 'destructive' so the
-  // confirm prompt can approve.
+  // confirm prompt can approve. Short clusters, GNU long forms
+  // (`--recursive --force`), and mixed shapes all classify identically.
   {
     id: 'rm-recursive',
     level: 'destructive',
-    test: (cmd, args) => (cmd === 'rm' || cmd === 'rmdir') && hasShortFlags(args, 'rf'),
+    test: (cmd, args) => {
+      if (cmd !== 'rm' && cmd !== 'rmdir') return false;
+      const letters = flagLetters(args);
+      return letters.has('r') && letters.has('f');
+    },
     reason: 'recursive force-delete',
   },
   // ----- Windows PowerShell Remove-Item: -Recurse -Force -----

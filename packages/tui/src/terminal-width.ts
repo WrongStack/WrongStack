@@ -132,6 +132,11 @@ export function padDisplayEnd(value: string, width: number): string {
   return `${value}${' '.repeat(Math.max(0, width - displayWidth(value)))}`;
 }
 
+/**
+ * One-line frame rule of exactly `width` display columns for `width >= 6`
+ * (labels are truncated to fit; the auxiliary right label yields first).
+ * Narrower widths degrade to bare corners narrower than `width`.
+ */
 export function frameRule(
   width: number,
   leftLabel: string,
@@ -140,14 +145,30 @@ export function frameRule(
 ): string {
   const leftCorner = edge === 'top' ? '╭' : '╰';
   const rightCorner = edge === 'top' ? '╮' : '╯';
-  if (width <= 2) return `${leftCorner}${rightCorner}`.slice(0, Math.max(0, width));
+  // Degenerate: below 6 columns no labeled rule fits (`╭─ x ─╮` needs 6).
+  if (width < 6) return `${leftCorner}${rightCorner}`.slice(0, Math.max(0, width));
 
   const available = width - 2;
-  const left = truncateDisplay(leftLabel.trim(), Math.max(1, Math.floor(available * 0.62)));
-  const reservedRight = rightLabel
-    ? Math.min(displayWidth(rightLabel.trim()), Math.floor(available * 0.3))
+  const leftTrimmed = leftLabel.trim();
+  const rightTrimmed = rightLabel.trim();
+  let left = truncateDisplay(leftTrimmed, Math.max(1, Math.floor(available * 0.62)));
+  // The right label is bounded by its own 30% budget AND by the room the left
+  // label leaves: labels plus their 3+3 bookend columns must fit `available`
+  // or the fill clamps to zero and the rule overflows `width`.
+  const rightBudget = rightTrimmed
+    ? Math.min(
+        displayWidth(rightTrimmed),
+        Math.floor(available * 0.3),
+        Math.max(0, available - displayWidth(left) - 6),
+      )
     : 0;
-  const right = reservedRight > 0 ? truncateDisplay(rightLabel.trim(), reservedRight) : '';
+  const right = rightBudget > 0 ? truncateDisplay(rightTrimmed, rightBudget) : '';
+  // Left keeps priority, but its own bookends still have to fit beside the
+  // rendered right label (or alone, when the right label was dropped).
+  const leftRoom = available - (right ? displayWidth(right) + 3 : 0) - 3;
+  if (displayWidth(left) > leftRoom) {
+    left = truncateDisplay(leftTrimmed, Math.max(1, leftRoom));
+  }
   const prefix = left ? `─ ${left} ` : '';
   const suffix = right ? ` ${right} ─` : '';
   const fill = '─'.repeat(Math.max(0, available - displayWidth(prefix) - displayWidth(suffix)));
@@ -168,9 +189,12 @@ export function frameRule(
  *   `tail` = ` ─` + right corner
  *
  * Invariant: `displayWidth(head) + reservedRightWidth + displayWidth(tail) === width`
- * for any `width ≥ 2` and any reserved width (the chip's live content — spinner,
- * rolling word, growing dots — must be padded to exactly `reservedRightWidth` by
- * the caller so the right corner never jitters).
+ * for every renderable geometry — any `width ≥ 6` with no slot, and any
+ * `width ≥ reservedRightWidth + 9` with one (the label prefix needs its
+ * `─ ` / ` ` bookends beside the slot). Narrower widths or oversized slots
+ * degrade to bare corners. The chip's live content — spinner, rolling word,
+ * growing dots — must still be padded to exactly `reservedRightWidth` by
+ * the caller so the right corner never jitters.
  */
 export function frameRuleParts(
   width: number,
@@ -180,17 +204,25 @@ export function frameRuleParts(
 ): { head: string; tail: string } {
   const leftCorner = edge === 'top' ? '╭' : '╰';
   const rightCorner = edge === 'top' ? '╮' : '╯';
-  if (width <= 2) {
-    // Degenerate: no room for a gap. Emit just the corners, no reserved slot.
+  // Degenerate: below 6 columns no labeled rule fits — bare corners, no slot.
+  if (width < 6) {
     return { head: `${leftCorner}${rightCorner}`.slice(0, Math.max(0, width)), tail: '' };
   }
 
   const available = width - 2;
   const reserved = Math.max(0, reservedRightWidth);
-  const left = truncateDisplay(leftLabel.trim(), Math.max(1, Math.floor(available * 0.62)));
+  // The reserved slot and its ` ─` bookends (3 cols) share `available` with
+  // the label prefix, so the label budget must clamp to the room that
+  // actually remains — otherwise the FILL below clamps to zero instead and
+  // head + reserved + tail overflows `width`, breaking the invariant.
+  const reservedChrome = reserved > 0 ? reserved + 3 : 0;
+  const left = truncateDisplay(
+    leftLabel.trim(),
+    Math.max(1, Math.min(Math.floor(available * 0.62), available - reservedChrome - 3)),
+  );
   const prefix = left ? `─ ${left} ` : '';
   // Suffix shape when a slot is reserved: ` {reserved} ─` → width reserved + 3.
-  const suffixWidth = reserved > 0 ? reserved + 3 : 0;
+  const suffixWidth = reservedChrome;
   const fill = '─'.repeat(Math.max(0, available - displayWidth(prefix) - suffixWidth));
   if (reserved <= 0) {
     // No reserved slot — behaves like frameRule with an empty right label.

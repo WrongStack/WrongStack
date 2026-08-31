@@ -333,7 +333,7 @@ export const TOOL_DIFF_BROWSER_SRC: string = [
   '  if(n==="write"||n==="write_file"||n==="create_file"){',
   '    var c=typeof obj.content==="string"?obj.content:"";',
   '    if(!c) return null;',
-  '    return { mode:"lcs", oldText:"", newText:c, caption:("write "+fp+" (new)").replace(/\\s+/g," ").replace(/\\s+$/,"") };',
+  '    return { mode:"lcs", oldText:"", newText:c, caption:("write "+fp+" (new)").replace(/^\\s+/,"").replace(/\\s+$/,"") };',
   '  }',
   '  if(n==="patch"){',
   '    var pt=typeof obj.patch==="string"?obj.patch:"";',

@@ -131,12 +131,29 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
     let failed = 0;
 
     if (input.parallel !== false) {
-      const allResults = await mapWithConcurrency(input.calls, MAX_PARALLEL_BATCH_CALLS, (call) =>
-        executeSingle(call, ctx, governedExecute),
+      // stop_on_error must hold in parallel mode too: calls already in flight
+      // finish (they cannot be un-run), but once a failure is recorded the
+      // pool stops STARTING queued calls — the same semantics as the serial
+      // path's `break`, which also omits unexecuted calls from `results`.
+      let stopRequested = false;
+      const allResults = await mapWithConcurrency(
+        input.calls,
+        MAX_PARALLEL_BATCH_CALLS,
+        async (call) => {
+          const result = await executeSingle(call, ctx, governedExecute);
+          if (input.stop_on_error && !result.success) stopRequested = true;
+          return result;
+        },
+        () => stopRequested,
       );
-      results.push(...allResults);
-      succeeded = allResults.filter((r) => r.success).length;
-      failed = allResults.filter((r) => !r.success).length;
+      // Workers that exited before claiming a call leave holes in the indexed
+      // array — drop them so `results` mirrors the serial path.
+      const executed = allResults.filter(
+        (r): r is BatchToolUseOutput['results'][number] => r !== undefined,
+      );
+      results.push(...executed);
+      succeeded = executed.filter((r) => r.success).length;
+      failed = executed.filter((r) => !r.success).length;
     } else {
       for (const call of input.calls) {
         const result = await executeSingle(call, ctx, governedExecute);
@@ -164,11 +181,13 @@ async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
   run: (item: T) => Promise<R>,
+  shouldStop?: () => boolean,
 ): Promise<R[]> {
   const results = new Array<R>(items.length);
   let nextIndex = 0;
   const worker = async (): Promise<void> => {
     while (nextIndex < items.length) {
+      if (shouldStop?.()) return;
       const index = nextIndex++;
       results[index] = await run(items[index]!);
     }

@@ -50,6 +50,43 @@ describe('terminal column helpers', () => {
     expect(bottom).toMatch(/^╰─ Enter send · \/ commands .*╯$/);
   });
 
+  it('keeps frame rails at exactly `width` columns when labels max their budgets', () => {
+    // Regression: the fill used to clamp to zero once the 62%/30% label
+    // budgets plus their `─ `/` ─` bookends exceeded the available space,
+    // silently overflowing the rule past `width`. Labels must yield instead.
+    const longLeft = 'L'.repeat(60);
+    const longRight = 'R'.repeat(40);
+    for (const width of [6, 10, 16, 24, 32, 40, 48, 64, 80]) {
+      expect(displayWidth(frameRule(width, longLeft, longRight, 'top'))).toBe(width);
+    }
+  });
+
+  it('keeps frameRuleParts head + reserved + tail === width for long labels', () => {
+    // Regression: each combo is renderable (reserved <= width - 9) but the
+    // old unclamped 62% label budget pushed the prefix past the slot's room.
+    const longLeft = 'L'.repeat(60);
+    for (const [width, reserved] of [
+      [24, 4],
+      [32, 7],
+      [40, 11],
+      [48, 20],
+      [64, 20],
+    ] as const) {
+      const { head, tail } = frameRuleParts(width, longLeft, reserved, 'top');
+      expect(displayWidth(head) + reserved + displayWidth(tail)).toBe(width);
+    }
+  });
+
+  it('degrades frame rails to bare corners below the minimum labeled width', () => {
+    for (const width of [1, 2, 3, 5]) {
+      expect(displayWidth(frameRule(width, 'toolong', 'alsotoolong', 'top'))).toBeLessThanOrEqual(
+        width,
+      );
+      const parts = frameRuleParts(width, 'toolong', 20, 'top');
+      expect(displayWidth(parts.head) + displayWidth(parts.tail)).toBeLessThanOrEqual(width);
+    }
+  });
+
   it('splits a top rail into head/tail that reserve an exact-width chip slot', () => {
     // Invariant: head + reserved-gap + tail === full width, for any reserve.
     for (const width of [48, 60, 80, 120]) {

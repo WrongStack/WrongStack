@@ -282,6 +282,78 @@ describe('batchToolUseTool', () => {
     expect(result.stop_on_error).toBe(true);
   });
 
+  it('stop_on_error=true does not start queued calls after a failure (parallel default)', async () => {
+    const started: number[] = [];
+    // Park calls 1 and 2 so their workers stay busy while call 0 fails fast.
+    const gates = [1, 2].map(() => {
+      let resolve!: () => void;
+      const promise = new Promise<void>((r) => {
+        resolve = r;
+      });
+      return { promise, resolve };
+    });
+    const governedExecute: GovernedToolExecutor = async (_toolName, input) => {
+      const i = (input as { i: number }).i;
+      started.push(i);
+      if (i === 0) return { success: false, error: 'boom' };
+      if (i === 1 || i === 2) await gates[i - 1]!.promise;
+      return { success: true, result: i };
+    };
+    const ctx = {
+      cwd: '/fake',
+      tools: [{ name: 'read', mutating: false }],
+      projectRoot: '/fake',
+      meta: { [GOVERNED_TOOL_EXECUTOR_META_KEY]: governedExecute },
+    } as any;
+
+    const calls = Array.from({ length: 8 }, (_, i) => ({ tool: 'read', input: { i } }));
+    // Release the gates so the pool can always drain (both pre- and post-stop).
+    const release = setTimeout(() => {
+      gates.forEach((g) => {
+        g.resolve();
+      });
+    }, 100);
+    release.unref?.();
+
+    const result = await batchToolUseTool.execute(
+      { calls, stop_on_error: true, parallel: true },
+      ctx,
+      makeOpts(),
+    );
+
+    // In-flight calls (1, 2) finish — they cannot be un-run — but no queued
+    // call (3..7) may start once the failure has been recorded.
+    expect(started.filter((i) => i >= 3)).toEqual([]);
+    // Serial-path parity: executed results only; total still reflects the input.
+    expect(result.total).toBe(8);
+    expect(result.results).toHaveLength(3);
+    expect(result.failed).toBe(1);
+    expect(result.succeeded).toBe(2);
+  });
+
+  it('stop_on_error=false (default) still runs every call in parallel mode', async () => {
+    const started: number[] = [];
+    const governedExecute: GovernedToolExecutor = async (_toolName, input) => {
+      const i = (input as { i: number }).i;
+      started.push(i);
+      return { success: true, result: i };
+    };
+    const ctx = {
+      cwd: '/fake',
+      tools: [{ name: 'read', mutating: false }],
+      projectRoot: '/fake',
+      meta: { [GOVERNED_TOOL_EXECUTOR_META_KEY]: governedExecute },
+    } as any;
+
+    const calls = Array.from({ length: 8 }, (_, i) => ({ tool: 'read', input: { i } }));
+    const result = await batchToolUseTool.execute({ calls }, ctx, makeOpts());
+
+    expect(started).toHaveLength(8);
+    expect(result.results).toHaveLength(8);
+    expect(result.succeeded).toBe(8);
+    expect(result.failed).toBe(0);
+  });
+
   it('continues when stop_on_error=false even after failure', async () => {
     const fakeTool = {
       name: 'read',

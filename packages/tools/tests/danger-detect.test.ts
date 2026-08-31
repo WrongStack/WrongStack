@@ -33,6 +33,26 @@ describe('detectDanger — rm / rmdir recursive force', () => {
     const r = detectDanger('ls', ['-rf', '/']);
     expect(r.level).toBe('safe');
   });
+
+  it('flags `rm --recursive --force ./build` (GNU long forms) as destructive', () => {
+    const r = detectDanger('rm', ['--recursive', '--force', './build']);
+    expect(r.level).toBe('destructive');
+    expect(r.reasons).toContain('recursive force-delete');
+    expect(r.matchedRule).toBe('rm-recursive');
+  });
+
+  it('flags mixed short/long recursive force-delete as destructive', () => {
+    expect(detectDanger('rm', ['-r', '--force', './build']).level).toBe('destructive');
+    expect(detectDanger('rm', ['--recursive', '-f', './build']).level).toBe('destructive');
+  });
+
+  it('does NOT flag `rm --recursive ./build` (long form, no force)', () => {
+    expect(detectDanger('rm', ['--recursive', './build']).level).toBe('safe');
+  });
+
+  it('does NOT flag `rm --force ./build` (long form, no recursive)', () => {
+    expect(detectDanger('rm', ['--force', './build']).level).toBe('safe');
+  });
 });
 
 describe('detectDanger — PowerShell Remove-Item -Recurse -Force', () => {
