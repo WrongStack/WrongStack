@@ -272,10 +272,19 @@ const plugin: Plugin = {
         type: 'object',
         properties: {
           files: {
-            type: 'array',
-            items: { type: 'string' },
-            description: 'Shell script files to check. Mutually exclusive with `directory`.',
+            description:
+              'Shell script files to check — a single path string or an array of paths. ' +
+              'Mutually exclusive with `directory`. Aliases: `file`, `filePath`, `TargetFile`, ' +
+              '`targetFile`, `path`.',
+            // execute() normalizes the string form and the alias keys, but
+            // schema-validating hosts check this BEFORE execute — declare them.
+            anyOf: [{ type: 'array', items: { type: 'string' } }, { type: 'string' }],
           },
+          file: { type: 'string', description: 'Alias for `files` (single path).' },
+          filePath: { type: 'string', description: 'Alias for `files` (single path).' },
+          TargetFile: { type: 'string', description: 'Alias for `files` (single path).' },
+          targetFile: { type: 'string', description: 'Alias for `files` (single path).' },
+          path: { type: 'string', description: 'Alias for `files` (single path).' },
           directory: {
             type: 'string',
             default: '.',
@@ -311,13 +320,32 @@ const plugin: Plugin = {
         // file list, runShellCheck threw) are still counted because
         // the operator wants to see activity.
         const inp = input as {
-          files?: string[];
+          files?: string[] | string;
           directory?: string;
           pattern?: string;
           severity?: ShellCheckIssue['level'];
         };
-        const files = inp.files;
-        const directory = inp.directory ?? '.';
+        let files: string[] | undefined;
+        const rawFiles =
+          inp.files ??
+          (input as Record<string, unknown>)['file'] ??
+          (input as Record<string, unknown>)['filePath'] ??
+          (input as Record<string, unknown>)['TargetFile'] ??
+          (input as Record<string, unknown>)['targetFile'] ??
+          (input as Record<string, unknown>)['path'];
+        if (rawFiles !== undefined) {
+          if (typeof rawFiles === 'string' && rawFiles.trim().length > 0) {
+            files = [rawFiles.trim()];
+          } else if (Array.isArray(rawFiles)) {
+            files = rawFiles.filter((f): f is string => typeof f === 'string' && f.trim().length > 0);
+          }
+        }
+        const rawDirectory =
+          inp.directory ??
+          (input as Record<string, unknown>)['dir'] ??
+          (input as Record<string, unknown>)['SearchDirectory'];
+        const directory =
+          typeof rawDirectory === 'string' && rawDirectory.length > 0 ? rawDirectory : '.';
         const pattern = inp.pattern ?? '';
         const severity = inp.severity ?? 'warning';
         state.invocationCount += 1;

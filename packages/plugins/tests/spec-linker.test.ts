@@ -455,6 +455,27 @@ describe('spec-linker plugin', () => {
       expect(preCall).toBeDefined();
     });
 
+    it('patches the text alias when the write executor consumes it', async () => {
+      // Regression: rawContent reads `content ?? CodeContent ?? text` but the
+      // modifiedInput only patched content/CodeContent — a write executor on
+      // the `text` alias silently dropped the fix.
+      const api = createMockAPI();
+      api.config.extensions = { 'spec-linker': { autoFix: true } };
+      specLinkerPlugin.setup(api as never);
+      const hook = getHook(api, 'PreToolUse');
+      const result = await hook({
+        toolName: 'write',
+        toolInput: {
+          path: '/tmp/alias.md',
+          text: 'See secret-scanner for the details.',
+        },
+      }) as { modifiedInput?: Record<string, unknown> } | undefined;
+      expect(result?.decision).toBe('allow');
+      const text = result?.modifiedInput?.['text'];
+      expect(typeof text).toBe('string');
+      expect(text as string).toContain('[secret-scanner](./src/secret-scanner)');
+    });
+
     it('skips when content is already clean', async () => {
       const api = createMockAPI();
       api.config.extensions = { 'spec-linker': { autoFix: true } };

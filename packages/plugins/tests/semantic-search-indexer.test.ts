@@ -281,4 +281,128 @@ describe('semantic-search-indexer plugin', () => {
       expect.any(Object),
     );
   });
+
+  it('declares query/path aliases in the tool schema for schema-validating hosts', () => {
+    const api = makeApi();
+    plugin.setup(api as never);
+    const reg = api.tools.register.mock.calls.find(
+      (c) => (c[0] as { name: string }).name === 'semantic_search',
+    );
+    const schema = (reg?.[0] as {
+      inputSchema: { properties: Record<string, unknown>; anyOf: Array<Record<string, string[]>> };
+    }).inputSchema;
+
+    for (const alias of ['q', 'text', 'keyword', 'keywords', 'search']) {
+      expect(schema.properties[alias]).toBeDefined();
+    }
+    for (const alias of ['directory', 'dir', 'SearchDirectory', 'SearchPath']) {
+      expect(schema.properties[alias]).toBeDefined();
+    }
+    const requiredAlternatives = schema.anyOf.map((entry) => entry.required?.[0]);
+    for (const q of ['query', 'q', 'text', 'keyword', 'keywords', 'search']) {
+      expect(requiredAlternatives).toContain(q);
+    }
+  });
+
+  it('does not serve a stale in-flight build after an invalidation lands mid-build', async () => {
+    // Tree v1: only alpha. The first build starts and hangs at readdir.
+    mockTree({
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['a.ts'] },
+      '/project/src/a.ts': { type: 'file', content: 'const alpha = true;\n' },
+    });
+
+    // makeApi has no registerHook — add a capturing one so the invalidation
+    // hook can be fired mid-build.
+    const invalidations: Array<() => void> = [];
+    const api = makeApi();
+    (api as unknown as { registerHook: (...args: unknown[]) => () => void }).registerHook = (
+      ...args: unknown[]
+    ) => {
+      invalidations.push(args[2] as () => void);
+      return () => {};
+    };
+    plugin.setup(api as never);
+    const search = getTool(api, 'semantic_search');
+
+    // Deferred readdir: the first build blocks mid-walk with buildPromise set.
+    let releaseRead: (() => void) | undefined;
+    vi.mocked(readdir).mockImplementationOnce(
+      () =>
+        new Promise((resolveReaddir) => {
+          releaseRead = () => resolveReaddir([] as never);
+        }) as never,
+    );
+
+    const staleQuery = search({ query: 'alpha', path: 'src' });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(releaseRead).toBeDefined();
+
+    // A write lands mid-build: the hook invalidates (generation bump).
+    invalidations[invalidations.length - 1]?.();
+
+    // Swap to the post-write tree and let the blocked (stale) build finish.
+    mockTree({
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['b.ts'] },
+      '/project/src/b.ts': { type: 'file', content: 'const bravo = true;\n' },
+    });
+    releaseRead?.();
+
+    // The stale build completes with an EMPTY index and cachedPath === 'src'.
+    // Without the generation guard, ensureIndex would short-circuit on it and
+    // the query for the NEW token would return zero results.
+    await staleQuery;
+    const result = (await search({ query: 'bravo', path: 'src' })) as {
+      ok: boolean;
+      totalResults: number;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.totalResults).toBe(1);
+  });
+
+  it('rebuilds after an idle invalidation with no build in flight', async () => {
+    // Regression (chimera HIGH): the invalidation hook used to bump the
+    // generation while the fast path checked only index+cachedPath — an edit
+    // landing between builds was never examined and the stale index was
+    // served indefinitely.
+    mockTree({
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['a.ts'] },
+      '/project/src/a.ts': { type: 'file', content: 'const alpha = true;\n' },
+    });
+
+    const invalidations: Array<() => void> = [];
+    const api = makeApi();
+    (api as unknown as { registerHook: (...args: unknown[]) => () => void }).registerHook = (
+      ...args: unknown[]
+    ) => {
+      invalidations.push(args[2] as () => void);
+      return () => {};
+    };
+    plugin.setup(api as never);
+    const search = getTool(api, 'semantic_search');
+
+    // First search builds and publishes the index (no pending invalidation).
+    const first = (await search({ query: 'alpha', path: 'src' })) as { ok: boolean };
+    expect(first.ok).toBe(true);
+
+    // An edit lands with NO build in flight — generation bumps only.
+    invalidations[invalidations.length - 1]?.();
+
+    // The post-edit content must be indexed, not the stale pre-edit index.
+    mockTree({
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['b.ts'] },
+      '/project/src/b.ts': { type: 'file', content: 'const bravo = true;\n' },
+    });
+    const result = (await search({ query: 'bravo', path: 'src' })) as {
+      ok: boolean;
+      totalResults: number;
+    };
+
+    expect(result.ok).toBe(true);
+    expect(result.totalResults).toBe(1);
+  });
 });

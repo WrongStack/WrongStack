@@ -281,7 +281,28 @@ const plugin: Plugin = {
           state.skippedCount += 1;
           return;
         }
-        const p = (payload ?? {}) as HandoffPayload;
+        const raw = (payload ?? {}) as Record<string, unknown>;
+        // Explicit picks + string coercion: the old `...raw` spread leaked
+        // `unknown`-typed values into the string fields, so an object-valued
+        // task/status rendered into the note as "[object Object]".
+        const asString = (v: unknown): string | undefined => {
+          if (v === undefined || v === null) return undefined;
+          // String() alone would render object payloads as "[object Object]";
+          // JSON-stringify them so the note stays readable.
+          return typeof v === 'string' ? v : (safeJsonStringify(v) ?? undefined);
+        };
+        const rawTodos = raw['todos'];
+        const p: HandoffPayload = {
+          agentId: asString(raw['agentId']),
+          agentName: asString(raw['agentName']),
+          task: asString(raw['task']),
+          status: asString(raw['status']),
+          summary: asString(raw['summary']),
+          result: raw['result'] ?? raw['output'] ?? raw['data'] ?? raw['toolResult'],
+          todos: Array.isArray(rawTodos)
+            ? (rawTodos as Array<{ id?: string; status?: string; content?: string }>)
+            : undefined,
+        };
         sendHandoff(cfg, mailbox, p).catch((err: unknown) => {
           state.errorCount += 1;
           api.log.warn('agent-handoff: mailbox.send failed', {
@@ -323,14 +344,36 @@ const plugin: Plugin = {
       }) {
         if (!cfg.enabled) return { ok: false, error: 'agent-handoff is disabled' };
         if (!mailbox) return { ok: false, error: 'mailbox not available' };
+        const raw = input as Record<string, unknown>;
+        const summary =
+          (typeof raw['summary'] === 'string' ? raw['summary'] : undefined) ??
+          (typeof raw['note'] === 'string' ? raw['note'] : undefined) ??
+          (typeof raw['message'] === 'string' ? raw['message'] : undefined) ??
+          (typeof raw['content'] === 'string' ? raw['content'] : undefined) ??
+          (typeof raw['text'] === 'string' ? raw['text'] : undefined) ??
+          (typeof raw['body'] === 'string' ? raw['body'] : undefined);
+
+        const task =
+          (typeof raw['task'] === 'string' ? raw['task'] : undefined) ??
+          (typeof raw['title'] === 'string' ? raw['title'] : undefined) ??
+          (typeof raw['subject'] === 'string' ? raw['subject'] : undefined);
+
         const payload: HandoffPayload = {
           agentName: 'manual',
-          task: input.task,
-          summary: input.summary,
+          task,
+          summary,
           result: input.result,
-          todos: Array.isArray(input.todos) ? input.todos : undefined,
+          todos: Array.isArray(input.todos)
+            ? input.todos
+            : input.todos && typeof input.todos === 'object'
+              ? [input.todos as { id?: string; status?: string; content?: string }]
+              : undefined,
         };
-        const recipient = input.to ?? cfg.to;
+        const recipient =
+          (typeof raw['to'] === 'string' ? raw['to'] : undefined) ??
+          (typeof raw['recipient'] === 'string' ? raw['recipient'] : undefined) ??
+          (typeof raw['target'] === 'string' ? raw['target'] : undefined) ??
+          cfg.to;
         try {
           const body = buildBody(payload, cfg);
           const result = (await mailbox.send({

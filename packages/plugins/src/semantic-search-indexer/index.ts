@@ -70,6 +70,8 @@ interface SemanticSearchState {
   queryCount: number;
   reindexCount: number;
   buildPromise: Promise<void> | null;
+  buildGeneration: number;
+  publishedGeneration: number;
   hookUnregister: (() => void) | null;
 }
 
@@ -83,6 +85,8 @@ const state: SemanticSearchState = {
   queryCount: 0,
   reindexCount: 0,
   buildPromise: null,
+  buildGeneration: 0,
+  publishedGeneration: 0,
   hookUnregister: null,
 };
 
@@ -363,27 +367,48 @@ async function buildIndex(rootPath: string, cfg: SemanticSearchConfig): Promise<
   if (rootStats.isFile()) {
     const relPath = normalizeSlashes(relative(normalizeSlashes(process.cwd()), rootPath));
     await indexFileFromStats(rootPath, relPath === '' ? '.' : relPath, rootStats, cfg);
-    state.fileCount = state.index.files.size;
+    state.fileCount = state.index ? state.index.files.size : 0;
   } else if (rootStats.isDirectory()) {
     const fileBatch: Array<{ absPath: string; relPath: string; stats: Stats }> = [];
     await walkDirectory(rootPath, cfg, excludes, fileBatch);
     await flushFileBatch(fileBatch, cfg);
   }
 
-  state.termCount = state.index.terms.size;
+  state.termCount = state.index ? state.index.terms.size : 0;
 }
 
 async function ensureIndex(rootPath: string, cfg: SemanticSearchConfig): Promise<void> {
-  if (state.index && state.cachedPath === rootPath) return;
-  state.buildPromise ??= buildIndex(rootPath, cfg).finally(() => {
-    state.buildPromise = null;
-  });
-  await state.buildPromise;
-  if (!state.index || state.cachedPath !== rootPath) {
-    state.buildPromise = buildIndex(rootPath, cfg).finally(() => {
+  // Invalidation protocol: the hook bumps buildGeneration ONLY (buildIndex is
+  // in flight and dereferences state.index across its awaits — nulling shared
+  // state mid-build would yank it from under the builder). Freshness is
+  // tracked by publishedGeneration: an index is servable only while it was
+  // published at the current generation, so an idle invalidation (no build in
+  // flight) is picked up by the fast path and a mid-build one by the
+  // post-build generation check. Both drop the stale index and rebuild.
+  for (;;) {
+    if (
+      state.index &&
+      state.cachedPath === rootPath &&
+      state.publishedGeneration === state.buildGeneration
+    ) {
+      return;
+    }
+    const gen = state.buildGeneration;
+    state.buildPromise ??= buildIndex(rootPath, cfg).finally(() => {
       state.buildPromise = null;
     });
     await state.buildPromise;
+    if (gen === state.buildGeneration && state.index && state.cachedPath === rootPath) {
+      // Fresh: published at the current generation — every invalidation seen
+      // before this build started is already reflected in it.
+      state.publishedGeneration = gen;
+      return;
+    }
+    // Stale: an invalidation landed while the build was in flight (or the
+    // index predates one). Drop it — the builder has settled, so this cannot
+    // yank shared state from under it — and rebuild.
+    state.index = null;
+    state.cachedPath = null;
   }
 }
 
@@ -559,6 +584,8 @@ const plugin: Plugin = {
     state.queryCount = 0;
     state.reindexCount = 0;
     state.buildPromise = null;
+    state.buildGeneration = 0;
+    state.publishedGeneration = 0;
     if (state.hookUnregister) {
       try {
         state.hookUnregister();
@@ -583,6 +610,11 @@ const plugin: Plugin = {
             type: 'string',
             description: 'Space-separated keywords to search for.',
           },
+          q: { type: 'string', description: 'Alias for `query`.' },
+          text: { type: 'string', description: 'Alias for `query`.' },
+          keyword: { type: 'string', description: 'Alias for `query`.' },
+          keywords: { type: 'string', description: 'Alias for `query`.' },
+          search: { type: 'string', description: 'Alias for `query`.' },
           limit: {
             type: 'number',
             description: 'Maximum number of results (defaults to configured defaultLimit).',
@@ -591,8 +623,22 @@ const plugin: Plugin = {
             type: 'string',
             description: 'Directory or file to search under (defaults to project root).',
           },
+          directory: { type: 'string', description: 'Alias for `path`.' },
+          dir: { type: 'string', description: 'Alias for `path`.' },
+          SearchDirectory: { type: 'string', description: 'Alias for `path`.' },
+          SearchPath: { type: 'string', description: 'Alias for `path`.' },
         },
-        required: ['query'],
+        // Schema-validating hosts check this BEFORE execute() normalizes the
+        // aliases, so every query alternative must be declared or alias-only
+        // inputs are rejected as schema-invalid before they reach the tool.
+        anyOf: [
+          { required: ['query'] },
+          { required: ['q'] },
+          { required: ['text'] },
+          { required: ['keyword'] },
+          { required: ['keywords'] },
+          { required: ['search'] },
+        ],
       },
       permission: 'auto',
       category: 'Search',
@@ -604,14 +650,28 @@ const plugin: Plugin = {
           return { ok: false, error: 'semantic-search-indexer is disabled' };
         }
 
-        const resolved = resolveProjectPath(input.path);
+        const rawPath =
+          input.path ??
+          (input as Record<string, unknown>)['directory'] ??
+          (input as Record<string, unknown>)['dir'] ??
+          (input as Record<string, unknown>)['SearchDirectory'] ??
+          (input as Record<string, unknown>)['SearchPath'];
+        const resolved = resolveProjectPath(typeof rawPath === 'string' ? rawPath : undefined);
         if (!resolved) {
           return { ok: false, error: 'path outside project root' };
         }
 
         await ensureIndex(resolved, cfg);
 
-        const query = String(input.query ?? '');
+        const rawQuery =
+          input.query ??
+          (input as Record<string, unknown>)['q'] ??
+          (input as Record<string, unknown>)['text'] ??
+          (input as Record<string, unknown>)['keyword'] ??
+          (input as Record<string, unknown>)['keywords'] ??
+          (input as Record<string, unknown>)['search'] ??
+          '';
+        const query = String(rawQuery);
         const limit =
           typeof input.limit === 'number' && input.limit >= 1
             ? Math.floor(input.limit)
@@ -661,6 +721,23 @@ const plugin: Plugin = {
       },
     });
 
+    // Invalidate index cache when files are written or edited.
+    if (typeof (api as any).registerHook === 'function') {
+      state.hookUnregister = (api as any).registerHook(
+        'PostToolUse',
+        'write|edit|write_to_file|replace_file_content',
+        (() => {
+          // Generation bump ONLY: buildIndex may be in flight right now and
+          // dereferences state.index across its awaits — nulling the shared
+          // index here would yank it out from under the builder. Freshness is
+          // enforced by publishedGeneration in ensureIndex (fast path AND
+          // post-build check), which drops the stale index and rebuilds.
+          state.buildGeneration += 1;
+        }) as never,
+        { background: true },
+      );
+    }
+
     api.log.info('semantic-search-indexer plugin loaded', {
       version: '0.1.0',
       defaultLimit: cfg.defaultLimit,
@@ -692,6 +769,8 @@ const plugin: Plugin = {
     state.queryCount = 0;
     state.reindexCount = 0;
     state.buildPromise = null;
+    state.buildGeneration = 0;
+    state.publishedGeneration = 0;
     api.log.info('semantic-search-indexer: teardown complete', { final });
   },
 

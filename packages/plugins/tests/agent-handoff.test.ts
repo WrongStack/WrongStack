@@ -69,6 +69,26 @@ describe('agent-handoff plugin', () => {
     );
   });
 
+  it('coerces object-valued fields instead of rendering [object Object]', async () => {
+    // Regression: the `...raw` spread leaked unknown-typed values into the
+    // string fields, so an object-valued task rendered into the note body as
+    // "[object Object]" instead of readable JSON.
+    const api = makeApi();
+    agentHandoffPlugin.setup(api as never);
+    const handler = getEventHandler(api, 'subagent.done');
+    handler({
+      task: { id: 't-1', title: 'fix bug' },
+      status: 'done',
+      result: { ok: true },
+    });
+    await new Promise((r) => setTimeout(r, 10));
+    const send = api.mailbox?.send as ReturnType<typeof vi.fn>;
+    expect(send).toHaveBeenCalledTimes(1);
+    const note = send.mock.calls[0]?.[0] as { body?: string };
+    expect(note.body).toContain('fix bug');
+    expect(note.body).not.toContain('[object Object]');
+  });
+
   it('handoff_note tool sends a manual note', async () => {
     const api = makeApi();
     agentHandoffPlugin.setup(api as never);

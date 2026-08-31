@@ -61,4 +61,20 @@ describe('shell-check plugin', () => {
   it('setup does not throw', () => {
     expect(() => shellCheckPlugin.setup(mockApi as any)).not.toThrow();
   });
+
+  it('shellcheck schema accepts string files and declares the execute aliases', () => {
+    // Regression: the schema declared `files` as array-only while execute()
+    // normalizes the string form plus alias keys — schema-validating hosts
+    // rejected those inputs before execute could normalize them.
+    shellCheckPlugin.setup(mockApi as any);
+    const tool = mockApi.tools.register.mock.calls
+      .map(([t]: any[]) => t as any)
+      .find((t: any) => t.name === 'shellcheck');
+    const schema = tool?.inputSchema as { properties: Record<string, { anyOf?: unknown[] }> };
+
+    expect(Array.isArray(schema.properties['files']?.anyOf)).toBe(true);
+    for (const alias of ['file', 'filePath', 'TargetFile', 'targetFile', 'path']) {
+      expect(schema.properties[alias]).toBeDefined();
+    }
+  });
 });

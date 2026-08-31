@@ -387,8 +387,14 @@ const plugin: Plugin = {
       const toolName = input.toolName ?? '';
       if (toolName !== 'write' && toolName !== 'edit') return;
 
-      const inp = (input.toolInput ?? {}) as { path?: string };
-      const filePath = inp.path;
+      const rawInp = (input.toolInput ?? {}) as Record<string, unknown>;
+      const rawPath =
+        rawInp['path'] ??
+        rawInp['TargetFile'] ??
+        rawInp['filePath'] ??
+        rawInp['targetFile'] ??
+        rawInp['file'];
+      const filePath = typeof rawPath === 'string' ? rawPath : undefined;
       if (!filePath || typeof filePath !== 'string') return;
 
       if (!fileMatchesGlobs(filePath, cfg.fileGlobs)) {
@@ -449,20 +455,36 @@ const plugin: Plugin = {
         // for why we don't touch `edit` (partial-string complexity).
         if (input.toolName !== 'write') return;
 
-        const inp = (input.toolInput ?? {}) as { path?: string; content?: string };
-        const filePath = inp.path;
+        const rawInp = (input.toolInput ?? {}) as Record<string, unknown>;
+        const rawPath =
+          rawInp['path'] ??
+          rawInp['TargetFile'] ??
+          rawInp['filePath'] ??
+          rawInp['targetFile'] ??
+          rawInp['file'];
+        const filePath = typeof rawPath === 'string' ? rawPath : undefined;
         if (!filePath || typeof filePath !== 'string') return;
         if (!fileMatchesGlobs(filePath, cfg.fileGlobs)) return;
-        if (typeof inp.content !== 'string' || inp.content.length === 0) return;
+        const rawContent = rawInp['content'] ?? rawInp['CodeContent'] ?? rawInp['text'];
+        if (typeof rawContent !== 'string' || rawContent.length === 0) return;
 
         state.preInvocations += 1;
-        const fixed = wrapUnlinkedReferences(inp.content);
-        if (fixed === inp.content) return; // no-op
+        const fixed = wrapUnlinkedReferences(rawContent);
+        if (fixed === rawContent) return; // no-op
 
         state.autoFixApplied += 1;
         return {
           decision: 'allow',
-          modifiedInput: { ...inp, content: fixed, path: filePath },
+          modifiedInput: {
+            ...rawInp,
+            content: fixed,
+            ...(rawInp['CodeContent'] !== undefined ? { CodeContent: fixed } : {}),
+            // Mirror the content-alias read above: when the write executor
+            // consumes `text`, patching only `content` would silently drop
+            // the fix while autoFixApplied was already counted.
+            ...(rawInp['text'] !== undefined ? { text: fixed } : {}),
+            path: filePath,
+          },
           additionalContext: `\n🔗 spec-linker (autoFix): wrapped unlinked plugin reference(s) in '${filePath}'.`,
         };
       };
