@@ -166,6 +166,14 @@ describe('formatDuration', () => {
     expect(formatDuration(Infinity)).toBe('');
     expect(formatDuration(NaN)).toBe('');
   });
+
+  it('rolls rounded 60s into the next minute (no Nm60s rendering)', () => {
+    // Math.round(59.5) === 60 — the last 500 ms of a minute must roll
+    // forward into the next minute, not render "Nm60s".
+    expect(formatDuration(119_500)).toBe('2m0s');
+    expect(formatDuration(179_500)).toBe('3m0s');
+    expect(formatDuration(239_999)).toBe('4m0s');
+  });
 });
 
 describe('toolDisplayName', () => {

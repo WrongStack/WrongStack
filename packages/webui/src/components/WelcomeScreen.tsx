@@ -1,8 +1,20 @@
-import { ArrowRight, Crosshair, KeyRound, Loader2, ShieldOff } from 'lucide-react';
+import { ArrowRight, Crosshair, Gauge, KeyRound, Loader2, ShieldOff } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
 import { buildBugHuntMessage } from '@/lib/bug-hunt-message';
+import { launchBuiltinRound } from '@/lib/launch-builtin-round';
+import {
+  buildPerfRunMessage,
+  PERF_MODE_SLUGS,
+  PERF_MUTATING_MODES,
+  PERF_RUN_METRIC_LABELS,
+  PERF_RUN_METRICS,
+  PERF_RUN_MODE_LABELS,
+  PERF_RUN_MODES,
+  type PerfRunMetric,
+  type PerfRunMode,
+} from '@/lib/perf-run-message';
 import { cn } from '@/lib/utils';
 import { openMainView } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
@@ -12,6 +24,7 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
 const ELITE_BUG_HUNTER_SLUG = 'elite-bug-hunter';
+
 
 function directoryPaths(tree: TreeNode[]): string[] {
   const paths: string[] = [];
@@ -56,6 +69,10 @@ export function WelcomeScreen() {
   const [bugHuntState, setBugHuntState] = useState<'idle' | 'loading' | 'error'>('idle');
   const [bugHuntScope, setBugHuntScope] = useState('');
   const [bugHuntMaxBugs, setBugHuntMaxBugs] = useState<1 | 2 | 3>(1);
+  const [perfState, setPerfState] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [perfScope, setPerfScope] = useState('');
+  const [perfMode, setPerfMode] = useState<PerfRunMode>('ratchet');
+  const [perfMetric, setPerfMetric] = useState<PerfRunMetric | ''>('');
   const scopeDirectories = directoryPaths(projectTree);
   useEffect(() => {
     if (!wsConnected) return;
@@ -83,79 +100,95 @@ export function WelcomeScreen() {
     if (!client.isConnected || bugHuntState === 'loading') return;
     setBugHuntState('loading');
 
-    let settled = false;
-    let policyOff = () => {};
-    let contentOff = () => {};
-    const finish = (next: 'idle' | 'error') => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      policyOff();
-      contentOff();
-      setBugHuntState(next);
-    };
-    const timeout = setTimeout(() => finish('error'), 8_000);
-
-    const requestPrompt = () => {
-      contentOff = client.on('prompts.content', (message) => {
-        const payload = message.payload as
-          | { slug?: string; found?: boolean; content?: string }
-          | null
-          | undefined;
-        if (payload?.slug !== ELITE_BUG_HUNTER_SLUG) return;
-        const content = payload.content?.trim() ?? '';
-        if (!payload.found || !content) {
-          finish('error');
-          return;
-        }
+    launchBuiltinRound({
+      client,
+      slug: ELITE_BUG_HUNTER_SLUG,
+      requireSoloSession: true,
+      subagentsAllowed,
+      sessionId,
+      setPrefs,
+      compose: (content) => {
         const scopeText = bugHuntScope
           ? `${bugHuntScope} and all of its descendants`
           : 'the whole project';
-        const runPrompt = buildBugHuntMessage(
-          `${content}\n\n## WebUI run configuration (mandatory)\nThis run may complete up to ${bugHuntMaxBugs} proven bug ${bugHuntMaxBugs === 1 ? 'round' : 'rounds'}. Work on only one bug at a time; after its proof, fix, verification, and cleanup are complete, continue to the next round only while below this limit. Stop early when no further proven bug is available. Stay strictly within ${scopeText}. This configuration overrides the prompt's one-issue total limit, but not its one-issue-per-round discipline.`,
+        return buildBugHuntMessage(
+          `${content}
+
+## WebUI run configuration (mandatory)
+This run may complete up to ${bugHuntMaxBugs} proven bug ${bugHuntMaxBugs === 1 ? 'round' : 'rounds'}. Work on only one bug at a time; after its proof, fix, verification, and cleanup are complete, continue to the next round only while below this limit. Stop early when no further proven bug is available. Stay strictly within ${scopeText}. This configuration overrides the prompt's one-issue total limit, but not its one-issue-per-round discipline.`,
           { scope: bugHuntScope, maxBugs: bugHuntMaxBugs },
         );
-        const id = client.sendMessage(runPrompt);
+      },
+      onSent: (id, content) => {
         addMessage({
           id,
           role: 'user',
-          content: runPrompt,
+          content,
           bugHunt: { scope: bugHuntScope, maxBugs: bugHuntMaxBugs },
         });
         setLoading(true);
-        client.send({ type: 'prompts.used', payload: { slug: ELITE_BUG_HUNTER_SLUG } });
-        finish('idle');
-      });
-      client.send({ type: 'prompts.content', payload: { slug: ELITE_BUG_HUNTER_SLUG } });
-    };
-
-    if (!subagentsAllowed) {
-      requestPrompt();
-      return;
-    }
-
-    policyOff = client.on('prefs.updated', (message) => {
-      const payload = message.payload as Record<string, unknown>;
-      if (sessionId && payload['sessionId'] !== sessionId) return;
-      if (typeof payload['subagentsAllowed'] !== 'boolean') return;
-      if (payload['subagentsAllowed'] !== false) {
-        finish('error');
-        return;
-      }
-      policyOff();
-      policyOff = () => {};
-      requestPrompt();
-    });
-    setPrefs({ subagentsAllowed: false });
-    client.send({
-      type: 'prefs.update',
-      payload: { subagentsAllowed: false, ...(sessionId ? { sessionId } : {}) },
+      },
+      onSettle: setBugHuntState,
     });
   }, [
     addMessage,
     bugHuntMaxBugs,
     bugHuntScope,
     bugHuntState,
+    sessionId,
+    setLoading,
+    setPrefs,
+    subagentsAllowed,
+    wsUrl,
+  ]);
+
+  const startPerfRun = useCallback(() => {
+    const client = getWSClient(wsUrl);
+    if (!client.isConnected || perfState === 'loading') return;
+    setPerfState('loading');
+
+    launchBuiltinRound({
+      client,
+      slug: PERF_MODE_SLUGS[perfMode],
+      // Only the modes that may edit production code force a solo session; an
+      // audit or a triage is read-only and has no attribution to protect.
+      requireSoloSession: PERF_MUTATING_MODES.has(perfMode),
+      subagentsAllowed,
+      sessionId,
+      setPrefs,
+      compose: (content) => {
+        const scopeText = perfScope
+          ? `${perfScope} and all of its descendants`
+          : 'the whole project';
+        const metricLine = perfMetric
+          ? `Optimise for ${PERF_RUN_METRIC_LABELS[perfMetric]} (\`${perfMetric}\`). A change that improves another metric while making this one worse is a regression for this round.`
+          : 'Pick the metric the user actually feels for this workload, name it explicitly, and state why it is the one that matters before you measure anything.';
+        return buildPerfRunMessage(
+          `${content}
+
+## WebUI run configuration (mandatory)
+Stay strictly within ${scopeText}. ${metricLine}
+Record the baseline, every attempt, and every keep/revert verdict in \`PERF_LOG.md\` as you go — a result that is not in the ledger did not happen.`,
+          { scope: perfScope, mode: perfMode, metric: perfMetric },
+        );
+      },
+      onSent: (id, content) => {
+        addMessage({
+          id,
+          role: 'user',
+          content,
+          perfRun: { scope: perfScope, mode: perfMode, metric: perfMetric },
+        });
+        setLoading(true);
+      },
+      onSettle: setPerfState,
+    });
+  }, [
+    addMessage,
+    perfMetric,
+    perfMode,
+    perfScope,
+    perfState,
     sessionId,
     setLoading,
     setPrefs,
@@ -307,6 +340,93 @@ export function WelcomeScreen() {
             {bugHuntState === 'error' && (
               <p className="mt-2 text-xs text-destructive" role="alert">
                 {t('setup:welcome.bugHunterError')}
+              </p>
+            )}
+            <div className="mt-3 rounded-md border border-primary/35 bg-primary/8 p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                  {perfState === 'loading' ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Gauge className="h-5 w-5" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">
+                    {t('setup:welcome.perfTitle')}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                    {t('setup:welcome.perfBody')}
+                  </span>
+                </span>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <label className="sr-only" htmlFor="perf-scope">
+                  {t('setup:welcome.perfScope')}
+                </label>
+                <select
+                  id="perf-scope"
+                  value={perfScope}
+                  onChange={(event) => setPerfScope(event.target.value)}
+                  disabled={!wsConnected || perfState === 'loading'}
+                  className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">{t('setup:welcome.perfWholeProject')}</option>
+                  {scopeDirectories.map((path) => (
+                    <option key={path} value={path}>
+                      {t('setup:welcome.perfDirectoryScope', { path })}
+                    </option>
+                  ))}
+                </select>
+                <label className="sr-only" htmlFor="perf-mode">
+                  {t('setup:welcome.perfMode')}
+                </label>
+                <select
+                  id="perf-mode"
+                  value={perfMode}
+                  onChange={(event) => setPerfMode(event.target.value as PerfRunMode)}
+                  disabled={!wsConnected || perfState === 'loading'}
+                  className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {PERF_RUN_MODES.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {PERF_RUN_MODE_LABELS[mode]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="sr-only" htmlFor="perf-metric">
+                  {t('setup:welcome.perfMetric')}
+                </label>
+                <select
+                  id="perf-metric"
+                  value={perfMetric}
+                  onChange={(event) => setPerfMetric(event.target.value as PerfRunMetric | '')}
+                  disabled={!wsConnected || perfState === 'loading'}
+                  className="min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">{t('setup:welcome.perfMetricAuto')}</option>
+                  {PERF_RUN_METRICS.map((metric) => (
+                    <option key={metric} value={metric}>
+                      {PERF_RUN_METRIC_LABELS[metric]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={startPerfRun}
+                  disabled={!wsConnected || savedCount === 0 || perfState === 'loading'}
+                  className="group flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t('setup:welcome.perfStart')}
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </button>
+              </div>
+            </div>
+            {perfState === 'error' && (
+              <p className="mt-2 text-xs text-destructive" role="alert">
+                {t('setup:welcome.perfError')}
               </p>
             )}
           </div>

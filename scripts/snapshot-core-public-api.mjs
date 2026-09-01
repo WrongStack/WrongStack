@@ -45,6 +45,10 @@ const ownership = {
   models: ['concrete runtime default', 'Runtime or Providers'],
   notifications: ['host/application concern', 'host adapter behind contract'],
   observability: ['concrete runtime default', 'preferred Runtime pilot'],
+  // performance: measurement + the keep/revert gate for the ratchet. Pure
+  // stats and a subprocess runner over a markdown ledger — the same shape as
+  // `worktree`, and consumed by the CLI, the WebUI card, and CI alike.
+  performance: ['concrete runtime default', 'Runtime or focused performance package'],
   plugin: ['agent-domain contract', 'Core plugin API'],
   plugins: ['product feature', '@wrongstack/plugins'],
   prompts: ['product feature', 'plugin/runtime implementation'],

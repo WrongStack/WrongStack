@@ -109,6 +109,9 @@ export function formatDuration(ms: number | undefined): string {
   if (ms < 60_000) return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
   const m = Math.floor(ms / 60_000);
   const s = Math.round((ms % 60_000) / 1000);
+  // Math.round(59.5) === 60: a duration in the last 500 ms of a minute must
+  // roll into the next minute instead of rendering "1m60s".
+  if (s === 60) return `${m + 1}m0s`;
   return `${m}m${s}s`;
 }
 

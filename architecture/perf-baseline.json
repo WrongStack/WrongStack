@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "thresholdPct": 15,
+  "runs": 5,
+  "warmup": 1,
+  "entries": [
+    {
+      "id": "core.import-time",
+      "label": "@wrongstack/core barrel import",
+      "metric": "cold-start-ms",
+      "value": 274,
+      "source": "Module-graph load cost of the root barrel. Core publishes ~40 subpath entries; a new eager import at module scope shows up here before it shows up in a user's cold start.",
+      "command": "node -e \"import('./packages/core/dist/index.js')\"",
+      "extract": "wall",
+      "recordedAt": "2026-09-01T10:35:27.542Z",
+      "commit": "b608d82f6",
+      "machine": "AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0"
+    },
+    {
+      "id": "cli.cold-start",
+      "label": "wstack --version cold start",
+      "metric": "cold-start-ms",
+      "value": 398,
+      "source": "Process launch to first useful output. The metric a CLI user feels on every single invocation.",
+      "command": "node packages/cli/dist/index.js --version",
+      "extract": "wall",
+      "recordedAt": "2026-09-01T11:53:21.050Z",
+      "commit": "b608d82f6",
+      "machine": "AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0"
+    },
+    {
+      "id": "tui.import-time",
+      "label": "@wrongstack/tui barrel import",
+      "metric": "cold-start-ms",
+      "value": 848,
+      "source": "TUI module-graph load cost, paid before the first frame is drawn.",
+      "command": "node -e \"import('./packages/tui/dist/index.js')\"",
+      "extract": "wall",
+      "recordedAt": "2026-09-01T10:35:27.542Z",
+      "commit": "b608d82f6",
+      "machine": "AMD Ryzen 9 9950X3D 16-Core Processor / 32c / 126GB / win32 10.0.26200 / node 24.13.0"
+    }
+  ]
+}

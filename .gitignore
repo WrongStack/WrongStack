@@ -59,8 +59,12 @@ packages/security-scanner/coverage_output.txt
 # Vitest coverage
 coverage/**
 .reports/
-# Vitest benchmark output (V0-A)
+# Vitest benchmark output (V0-A) — `pnpm bench`, read by the
+# performance-regression-gate plugin, which expects the Vitest bench shape.
 bench-results.json
+# `pnpm bench:perf` (scripts/bench.mjs) — a different shape entirely; it had
+# been overwriting the file above.
+bench-perf-results.json
 security-reports/
 security-reports/*
 # security-check pipeline output — contains working exploit payloads and a

@@ -1,9 +1,9 @@
 import { Bot, Clock, Layers, TriangleAlert, Wrench, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { getToolVisual } from '@/lib/tool-icon';
 import { cn } from '@/lib/utils';
 import {
-  bucketSuccessRatio,
   LEADER_AGENT_KEY,
   sessionInFlight,
   type ToolStatsBucket,
@@ -52,16 +52,32 @@ function formatMs(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function toolDisplayName(name: string): string {
+  const knownNames: Record<string, string> = {
+    bash: 'Shell command',
+    cat: 'Read file',
+    edit: 'Edit file',
+    glob: 'Find files',
+    grep: 'Search text',
+    read: 'Read file',
+    web_fetch: 'Fetch URL',
+    web_search: 'Web search',
+    write: 'Write file',
+  };
+  const normalized = name.toLowerCase();
+  const known = knownNames[normalized];
+  if (known) return known;
+
+  // Keep custom/MCP tool names recognizable while removing implementation noise.
+  return name
+    .replace(/^mcp__/, '')
+    .replace(/__/g, ' · ')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 /** Two-segment ok/failed bar; in-flight calls show as a muted remainder. */
-function RatioBar({
-  ok,
-  failed,
-  inFlight,
-}: {
-  ok: number;
-  failed: number;
-  inFlight: number;
-}) {
+function RatioBar({ ok, failed, inFlight }: { ok: number; failed: number; inFlight: number }) {
   const total = Math.max(1, ok + failed + inFlight);
   return (
     <span className="relative inline-block h-2 w-full min-w-16 overflow-hidden rounded-full bg-muted/60 align-middle ring-1 ring-inset ring-border/20">
@@ -91,20 +107,38 @@ function StatChip({ label, value, tone }: { label: string; value: string; tone?:
 function ToolRow({ name, bucket }: { name: string; bucket: ToolStatsBucket }) {
   const completed = bucket.ok + bucket.failed;
   const avg = completed > 0 ? bucket.totalMs / completed : 0;
+  const { Icon, color } = getToolVisual(name);
+  const label = toolDisplayName(name);
   return (
-    <div className="flex items-center gap-2 px-2 py-1 text-xs rounded hover:bg-muted/40 transition-colors">
-      <Wrench className="h-3 w-3 shrink-0 text-muted-foreground" />
-      <span className="font-mono truncate flex-1 min-w-0" title={name}>
-        {name}
+    <div className="grid grid-cols-[minmax(9rem,1.15fr)_minmax(5rem,1fr)_3.5rem_4rem] items-center gap-x-3 gap-y-1 rounded-md px-2.5 py-2 text-xs transition-colors hover:bg-muted/50 sm:grid-cols-[minmax(11rem,1.2fr)_minmax(7rem,1.5fr)_3.5rem_3.5rem_4rem]">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-background ring-1 ring-inset ring-border/50">
+          <Icon className="h-3.5 w-3.5" style={{ color }} />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate font-medium text-foreground" title={name}>
+            {label}
+          </span>
+          <span className="block truncate font-mono text-[10px] text-muted-foreground" title={name}>
+            {name}
+          </span>
+        </span>
+      </div>
+      <div className="hidden sm:block">
+        <RatioBar ok={bucket.ok} failed={bucket.failed} inFlight={0} />
+      </div>
+      <span className="text-right font-mono tabular-nums text-muted-foreground" title="Calls">
+        {bucket.started}×
       </span>
-      <span className="tabular-nums text-muted-foreground w-12 text-right">
-        {bucket.started}×</span>
-      <RatioBar ok={bucket.ok} failed={bucket.failed} inFlight={0} />
-      <span className="tabular-nums text-success w-8 text-right">{bucket.ok}</span>
-      <span className="tabular-nums text-destructive w-8 text-right">
-        {bucket.failed}
+      <span
+        className={cn(
+          'text-right font-mono tabular-nums',
+          bucket.failed > 0 ? 'text-destructive' : 'text-success',
+        )}
+      >
+        {formatPct(successPct(bucket.ok, bucket.failed))}
       </span>
-      <span className="tabular-nums text-muted-foreground w-14 text-right">
+      <span className="text-right font-mono tabular-nums text-muted-foreground">
         {formatMs(avg)}
       </span>
     </div>
@@ -164,9 +198,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
 
   const pastSessions = useMemo(
     () =>
-      historyEntries
-        .filter((e) => !(e.id in sessions) && (e.toolCallCount ?? 0) > 0)
-        .slice(0, 12),
+      historyEntries.filter((e) => !(e.id in sessions) && (e.toolCallCount ?? 0) > 0).slice(0, 12),
     [historyEntries, sessions],
   );
 
@@ -188,7 +220,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
       <section
         aria-label={t('chat:toolStats.title', 'Tool call statistics')}
         className={cn(
-          'flex max-h-[82vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xl transition-transform duration-200',
+          'flex max-h-[86vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xl transition-transform duration-200',
           animateIn ? 'scale-100' : 'scale-95',
         )}
         onClick={(e) => e.stopPropagation()}
@@ -214,12 +246,16 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
 
         <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
           {/* ── Aggregate strip ── */}
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <StatChip
               label={t('chat:toolStats.calls', 'Calls')}
               value={totals.started.toLocaleString()}
             />
-            <StatChip label={t('chat:toolStats.ok', 'Success')} value={`${totals.ok}`} tone="text-success" />
+            <StatChip
+              label={t('chat:toolStats.ok', 'Success')}
+              value={`${totals.ok}`}
+              tone="text-success"
+            />
             <StatChip
               label={t('chat:toolStats.failed', 'Failed')}
               value={`${totals.failed}`}
@@ -242,11 +278,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
               value={formatMs(totals.totalMs)}
             />
           </div>
-          <RatioBar
-            ok={totals.ok}
-            failed={totals.failed}
-            inFlight={totals.inFlight}
-          />
+          <RatioBar ok={totals.ok} failed={totals.failed} inFlight={totals.inFlight} />
 
           {/* ── Live sessions (open tabs) ── */}
           <div>
@@ -264,7 +296,11 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
             ) : (
               <div className="space-y-2">
                 {liveSessions.map((session) => (
-                  <SessionCard key={session.sessionId} session={session} label={sessionLabel(session.sessionId, nicknames)} />
+                  <SessionCard
+                    key={session.sessionId}
+                    session={session}
+                    label={sessionLabel(session.sessionId, nicknames)}
+                  />
                 ))}
               </div>
             )}
@@ -294,9 +330,7 @@ export function ToolStatsModal({ open, onClose }: ToolStatsModalProps) {
                         {entry.toolCallCount}×
                       </span>
                       <span className="tabular-nums text-success w-8 text-right">{ok}</span>
-                      <span className="tabular-nums text-destructive w-8 text-right">
-                        {failed}
-                      </span>
+                      <span className="tabular-nums text-destructive w-8 text-right">{failed}</span>
                       <span className="tabular-nums w-10 text-right font-mono text-muted-foreground">
                         {formatPct(successPct(ok, failed))}
                       </span>
@@ -323,10 +357,7 @@ function SessionCard({ session, label }: { session: ToolStatsSession; label: str
     () => Object.entries(session.perTool).sort(([, a], [, b]) => b.started - a.started),
     [session.perTool],
   );
-  const agentEntries = useMemo(
-    () => Object.entries(session.perAgent),
-    [session.perAgent],
-  );
+  const agentEntries = useMemo(() => Object.entries(session.perAgent), [session.perAgent]);
   const agentToAgent = agentEntries.filter(([key]) => key !== LEADER_AGENT_KEY);
   const leader = session.perAgent[LEADER_AGENT_KEY];
   const totals = useMemo(() => {
@@ -356,10 +387,19 @@ function SessionCard({ session, label }: { session: ToolStatsSession; label: str
         </span>
       </div>
 
-      <div className="space-y-0.5">
-        {tools.map(([name, bucket]) => (
-          <ToolRow key={name} name={name} bucket={bucket} />
-        ))}
+      <div className="overflow-hidden rounded-lg border border-border/40 bg-background/30">
+        <div className="grid grid-cols-[minmax(9rem,1.15fr)_3.5rem_4rem] gap-x-3 border-b border-border/40 bg-muted/30 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground sm:grid-cols-[minmax(11rem,1.2fr)_minmax(7rem,1.5fr)_3.5rem_3.5rem_4rem]">
+          <span>{t('chat:toolStats.tool', 'Tool')}</span>
+          <span className="hidden sm:block">{t('chat:toolStats.outcome', 'Outcome')}</span>
+          <span className="text-right">{t('chat:toolStats.calls', 'Calls')}</span>
+          <span className="text-right">{t('chat:toolStats.successRate', 'Success rate')}</span>
+          <span className="text-right">{t('chat:toolStats.average', 'Avg.')}</span>
+        </div>
+        <div className="divide-y divide-border/30">
+          {tools.map(([name, bucket]) => (
+            <ToolRow key={name} name={name} bucket={bucket} />
+          ))}
+        </div>
       </div>
 
       {/* Agent-to-agent slice: agent-attributed calls + delegated runs */}
@@ -370,19 +410,14 @@ function SessionCard({ session, label }: { session: ToolStatsSession; label: str
             {t('chat:toolStats.agentToAgent', 'Agent-to-agent')}
           </div>
           {agentToAgent.map(([agent, bucket]) => (
-            <div
-              key={agent}
-              className="flex items-center gap-2 px-1 py-0.5 text-xs"
-            >
+            <div key={agent} className="flex items-center gap-2 px-1 py-0.5 text-xs">
               <Bot className="h-3 w-3 shrink-0 text-info" />
               <span className="font-mono truncate flex-1 min-w-0" title={agent}>
                 {agent}
               </span>
               <RatioBar ok={bucket.ok} failed={bucket.failed} inFlight={0} />
               <span className="tabular-nums text-success w-8 text-right">{bucket.ok}</span>
-              <span className="tabular-nums text-destructive w-8 text-right">
-                {bucket.failed}
-              </span>
+              <span className="tabular-nums text-destructive w-8 text-right">{bucket.failed}</span>
             </div>
           ))}
           {d.started > 0 && (

@@ -41,6 +41,7 @@ const executableScripts = [
   'scripts/lint-distributive-types.mjs',
   'scripts/list-publishable-packages.mjs',
   'scripts/perf-chronicle-append.mts',
+  'scripts/perf-guard.mjs',
   'scripts/publish-workspace.mjs',
   'scripts/purge-stale-mailbox-entries.mjs',
   'scripts/sage-maintenance.mjs',

@@ -6,6 +6,7 @@ import {
   ChevronDown,
   ChevronRight,
   FileCode2,
+  Gauge,
   Info,
   Pencil,
   Pin,
@@ -17,6 +18,7 @@ import {
 import { memo, useEffect, useState } from 'react';
 import remarkGfm from 'remark-gfm';
 import { useAppTranslation } from '@/i18n';
+import { PERF_RUN_METRIC_LABELS, PERF_RUN_MODE_LABELS } from '@/lib/perf-run-message';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import type { ChatMessage } from '@/stores';
@@ -56,6 +58,11 @@ export const MessageBubble = memo(function MessageBubble({
   const isUser = message.role === 'user';
   const bugHunt = message.bugHunt;
   const isBugHunt = !!bugHunt;
+  const perfRun = message.perfRun;
+  const isPerfRun = !!perfRun;
+  // Both built-in rounds print a card instead of their instruction text, so
+  // the transcript actions that operate on that text are suppressed together.
+  const isPromptCard = isBugHunt || isPerfRun;
   const isTool = message.role === 'tool';
   const isThinkingLog = !!message.thinkingLog;
   const isSystem = message.role === 'system' && !isThinkingLog;
@@ -382,6 +389,26 @@ export const MessageBubble = memo(function MessageBubble({
                   </span>
                 </div>
               </div>
+            ) : isPerfRun ? (
+              <div className="min-w-[15rem]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-primary">
+                  <Gauge className="h-4 w-4" />
+                  <span>{PERF_RUN_MODE_LABELS[perfRun.mode]}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span
+                    className="max-w-full truncate rounded-full border border-border bg-background/60 px-2 py-1"
+                    title={perfRun.scope || 'Whole project'}
+                  >
+                    {perfRun.scope ? `${perfRun.scope} and below` : 'Whole project'}
+                  </span>
+                  {perfRun.metric && (
+                    <span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-1">
+                      {PERF_RUN_METRIC_LABELS[perfRun.metric]}
+                    </span>
+                  )}
+                </div>
+              </div>
             ) : editing && isUser ? (
               <div className="flex flex-col gap-2 min-w-[280px]">
                 <textarea
@@ -670,7 +697,7 @@ export const MessageBubble = memo(function MessageBubble({
               );
             })()}
           {/* ── Actions — always visible, subtle opacity, full on hover ── */}
-          {!isTool && !isBugHunt && message.content && !message.streaming && (
+          {!isTool && !isPromptCard && message.content && !message.streaming && (
             <CopyButton
               text={message.content}
               label={t('common:action.copy')}
@@ -699,7 +726,7 @@ export const MessageBubble = memo(function MessageBubble({
               </span>
             </button>
           )}
-          {isUser && !isBugHunt && !editing && !isLoading && (
+          {isUser && !isPromptCard && !editing && !isLoading && (
             <>
               {message.status === 'failed' && (
                 <button

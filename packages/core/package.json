@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/core",
-  "version": "0.318.0",
+  "version": "0.319.0",
   "license": "MIT",
   "description": "WrongStack core: kernel, types, and shared utilities for the WrongStack CLI agent.",
   "repository": {
@@ -173,6 +173,10 @@
     "./prompts": {
       "types": "./dist/prompts/index.d.ts",
       "import": "./dist/prompts/index.js"
+    },
+    "./performance": {
+      "types": "./dist/performance/index.d.ts",
+      "import": "./dist/performance/index.js"
     },
     "./chronicle": {
       "types": "./dist/chronicle/index.d.ts",

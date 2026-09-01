@@ -12,6 +12,7 @@ import { setFaviconStatus } from '@/lib/favicon';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { parseBugHuntMessage } from '@/lib/bug-hunt-message';
+import { parsePerfRunMessage } from '@/lib/perf-run-message';
 import type { ChatMessage, ChatMessageAttachment, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -150,12 +151,14 @@ export function hydrateReplayMessages(
     switch (item.kind) {
       case 'user': {
         const bugHunt = parseBugHuntMessage(item.text);
+        const perfRun = parsePerfRunMessage(item.text);
         messages.push({
           id,
           role: 'user',
           content: item.text,
           timestamp,
           ...(bugHunt ? { bugHunt } : {}),
+          ...(perfRun ? { perfRun } : {}),
           ...(item.images ? { attachments: replayAttachments(item.images, id) } : {}),
         });
         break;

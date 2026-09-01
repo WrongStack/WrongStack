@@ -1,4 +1,5 @@
 import type { ContentBlock, Usage } from '@wrongstack/core/types';
+import type { PerfRunMetric, PerfRunMode } from '@/lib/perf-run-message';
 
 // ============================================
 // Shared Types
@@ -66,6 +67,16 @@ export interface ChatMessage {
     | {
         scope: string;
         maxBugs: 1 | 2 | 3;
+      }
+    | undefined;
+  /** The same treatment for a built-in performance ratchet round: the full
+   * prompt goes to the agent, the transcript shows the mode, scope, and the
+   * metric the round is optimising. */
+  perfRun?:
+    | {
+        scope: string;
+        mode: PerfRunMode;
+        metric: PerfRunMetric | '';
       }
     | undefined;
   role: 'user' | 'assistant' | 'system' | 'tool';
