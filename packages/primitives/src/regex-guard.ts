@@ -45,15 +45,542 @@ const DANGEROUS_PATTERNS: ReadonlyArray<RegExp> = [
  * and uninterruptible). The DANGEROUS_PATTERNS rule above only rejects a
  * DOUBLED quantifier after the group, so this class sailed through. Flag
  * a quantified group whose top-level branches are identical, prefix-related,
- * or empty; disjoint branches (`(foo|bar)+`) stay allowed. Character-class
- * overlap (`(\w|a)*`) remains undetected — the durable fix is a
- * step-budgeted matcher.
+ * or empty; disjoint branches (`(foo|bar)+`) stay allowed. Overlapping
+ * char sets are detected per token position — single-token (round 13) and
+ * fixed-length multi-token sequences (round 14, `(\w\w|ab)+`).
+ * Variable-length token sequences and self-decomposition ambiguity
+ * (`((?:a+)|b)+`) remain undetected — the durable fix is a step-budgeted
+ * matcher.
  */
+/**
+ * Strip a group prefix — `(?:`, lookarounds `(?= (?<=` / `(?! (?<!`, and named
+ * capture groups `(?<name>` — leaving only the alternation branches to
+ * compare. Named groups use the full JS identifier grammar so Unicode names
+ * like `(?<ñ>…)` cannot dodge the strip (round 11).
+ */
+const GROUP_PREFIX_RE = /^\?(?::|[=!]|<[=!]|<[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D]*>)/u;
+
+function stripGroupPrefix(inner: string): string {
+  return inner.replace(GROUP_PREFIX_RE, '');
+}
+
+/** Split group content on top-level `|` — nested groups, character classes,
+ * and escape pairs stay intact inside their branch. */
+function splitTopLevelBranches(inner: string): string[] {
+  const branches: string[] = [];
+  let current = '';
+  let d = 0;
+  let cls = false;
+  for (let k = 0; k < inner.length; k++) {
+    const ch = inner[k];
+    if (ch === '\\') {
+      current += ch + (inner[k + 1] ?? '');
+      k++;
+      continue;
+    }
+    if (cls) {
+      if (ch === ']') cls = false;
+      current += ch;
+      continue;
+    }
+    if (ch === '[') {
+      cls = true;
+      current += ch;
+      continue;
+    }
+    if (ch === '(') d++;
+    if (ch === ')') d--;
+    if (ch === '|' && d === 0) {
+      branches.push(current);
+      current = '';
+      continue;
+    }
+    current += ch;
+  }
+  branches.push(current);
+  return branches;
+}
+
+/** Original pairwise overlap test extended in round 13: two branches that
+ * are equal, prefix-related, empty, zero-width-only, or whose single-char
+ * token sets intersect can consume the same text. */
+function branchesOverlap(branches: string[]): boolean {
+  // Round 13 compared ONLY the unwrap-normalized branches, which replaced
+  // the raw textual comparisons instead of extending them: `((\w)x|(\w))+`
+  // has raw branches where one is a strict prefix of the other (clear
+  // overlap), but after unwrapping the wrapper group they are `(\w)x` vs
+  // `\w` — neither a prefix of the other, and neither the char-set rules
+  // nor the fixed-token rules can see it (unequal token counts). Run the
+  // pairwise suite on BOTH forms: normalization catches redundant wrappers,
+  // the raw strings keep the original textual-prefix signal
+  // (security-review handoff 2026-09-01).
+  const norm = branches.map(unwrapGroupBranch);
+  for (const list of [branches, norm]) {
+    for (let a = 0; a < list.length; a++) {
+      for (let b = a + 1; b < list.length; b++) {
+        const x = list[a] as string;
+        const y = list[b] as string;
+        if (x === '' || y === '') return true;
+        // A lone zero-width token (anchor, word boundary, lookaround) matches
+        // the empty string — under a quantifier that is the empty-branch case.
+        if (matchesEmptyToken(x) || matchesEmptyToken(y)) return true;
+        if (x === y || x.startsWith(y) || y.startsWith(x)) return true;
+        // Round 13: a literal inside a character class (`(\w|a)+`) is overlap
+        // the string rules cannot see. Only single-character tokens are set-
+        // compared: a 1-char branch can never equal a 2+-char branch, so
+        // multi-token branches correctly stay out of this check.
+        const sx = singleTokenCharSet(x);
+        const sy = singleTokenCharSet(y);
+        if (sx && sy && charSetsIntersect(sx, sy)) return true;
+        // Round 14: fixed-length multi-token sequences — exact per-position
+        // language intersection. `(\w\w|ab)+`: \w∩{a} and \w∩{b} both
+        // intersect, so 'ab' is matchable by both branches; a length mismatch
+        // or any single disjoint position (`(\w\d|ab)+`: \d∩{b}=∅) means no
+        // common string exists and the pair stays allowed.
+        const fx = fixedTokenSets(x);
+        const fy = fixedTokenSets(y);
+        if (
+          fx &&
+          fy &&
+          fx.length === fy.length &&
+          fx.every((s, idx) => charSetsIntersect(s, fy[idx] as CharSet))
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Round 13: single-token character sets
+// ---------------------------------------------------------------------------
+
+/** Inclusive code-point ranges, sorted ascending and disjoint. */
+type CharSet = readonly (readonly [number, number])[];
+
+const MAX_CP = 0x10ffff;
+
+const WORD_SET: CharSet = [
+  [48, 57],
+  [65, 90],
+  [95, 95],
+  [97, 122],
+];
+const DIGIT_SET: CharSet = [[48, 57]];
+/** Exact JS `\s` (ASCII + the Unicode spaces ECMAScript defines). */
+const SPACE_SET: CharSet = [
+  [9, 13],
+  [32, 32],
+  [0x00a0, 0x00a0],
+  [0x1680, 0x1680],
+  [0x2000, 0x200a],
+  [0x2028, 0x2029],
+  [0x202f, 0x202f],
+  [0x205f, 0x205f],
+  [0x3000, 0x3000],
+  [0xfeff, 0xfeff],
+];
+/** `.` without the dotAll flag: everything except line feed. */
+const DOT_SET: CharSet = [
+  [0, 9],
+  [11, MAX_CP],
+];
+
+function complementOf(set: CharSet): CharSet {
+  const out: [number, number][] = [];
+  let next = 0;
+  for (const [lo, hi] of set) {
+    if (lo > next) out.push([next, lo - 1]);
+    next = hi + 1;
+  }
+  if (next <= MAX_CP) out.push([next, MAX_CP]);
+  return out;
+}
+
+function mergeRanges(ranges: [number, number][]): CharSet {
+  if (ranges.length === 0) return [];
+  ranges.sort((a, b) => a[0] - b[0]);
+  const out: [number, number][] = [ranges[0] as [number, number]];
+  for (let i = 1; i < ranges.length; i++) {
+    const last = out[out.length - 1] as [number, number];
+    const r = ranges[i] as [number, number];
+    if (r[0] <= last[1] + 1) {
+      last[1] = Math.max(last[1], r[1]);
+    } else {
+      out.push(r);
+    }
+  }
+  return out;
+}
+
+function charSetsIntersect(a: CharSet, b: CharSet): boolean {
+  let i = 0;
+  let j = 0;
+  while (i < a.length && j < b.length) {
+    const [alo, ahi] = a[i] as [number, number];
+    const [blo, bhi] = b[j] as [number, number];
+    if (alo <= bhi && blo <= ahi) return true;
+    if (ahi < bhi) i++;
+    else j++;
+  }
+  return false;
+}
+
+const NAMED_CLASS_SETS: Record<string, CharSet> = {
+  w: WORD_SET,
+  W: complementOf(WORD_SET),
+  d: DIGIT_SET,
+  D: complementOf(DIGIT_SET),
+  s: SPACE_SET,
+  S: complementOf(SPACE_SET),
+};
+
+interface EscapedToken {
+  readonly kind: 'literal' | 'named';
+  readonly cp: number;
+  readonly name: string;
+  readonly next: number;
+}
+
+const SIMPLE_ESCAPES: Record<string, number> = {
+  n: 10,
+  r: 13,
+  t: 9,
+  f: 12,
+  v: 11,
+  0: 0,
+  b: 8, // backspace inside a class; outside, a lone `\b` is caught by matchesEmptyToken first
+};
+
+function hexAt(s: string, start: number, len: number): number | null {
+  if (start + len > s.length) return null;
+  const cp = Number.parseInt(s.slice(start, start + len), 16);
+  return Number.isFinite(cp) ? cp : null;
+}
+
+/** Parse the escape sequence starting AT the backslash `s[i]`. Returns the
+ * token and the index just past it, or null for unknown escapes (`\p`, `\k`,
+ * `\c`, …) — callers treat null as "not comparable" (sound under-rejection). */
+function parseEscape(s: string, i: number): EscapedToken | null {
+  const ch = s[i + 1];
+  if (ch === undefined) return null;
+  if (NAMED_CLASS_SETS[ch] !== undefined) {
+    return { kind: 'named', cp: -1, name: ch, next: i + 2 };
+  }
+  const simple = SIMPLE_ESCAPES[ch];
+  if (simple !== undefined) {
+    return { kind: 'literal', cp: simple, name: '', next: i + 2 };
+  }
+  if (ch === 'x') {
+    const cp = hexAt(s, i + 2, 2);
+    if (cp === null) return null;
+    return { kind: 'literal', cp, name: '', next: i + 4 };
+  }
+  if (ch === 'u') {
+    if (s[i + 2] === '{') {
+      const close = s.indexOf('}', i + 3);
+      if (close === -1 || close - (i + 3) > 6) return null;
+      const cp = hexAt(s, i + 3, close - (i + 3));
+      if (cp === null || cp > MAX_CP) return null;
+      return { kind: 'literal', cp, name: '', next: close + 1 };
+    }
+    const cp = hexAt(s, i + 2, 4);
+    if (cp === null) return null;
+    return { kind: 'literal', cp, name: '', next: i + 6 };
+  }
+  if (/[A-Za-z]/.test(ch)) return null; // \p{…}, \k<…>, \c…, invalid — unknown
+  // Escaped punctuation and separators are literals of that character.
+  return { kind: 'literal', cp: ch.codePointAt(0) ?? -1, name: '', next: i + 2 };
+}
+
+/** Find the index of the `)` closing the group that opens at `s[open]`,
+ * escape- and class-aware; -1 when unbalanced. */
+function groupCloseIndex(s: string, open: number): number {
+  let depth = 0;
+  let inClass = false;
+  for (let j = open; j < s.length; j++) {
+    const c = s[j] as string;
+    if (c === '\\') {
+      j++;
+      continue;
+    }
+    if (inClass) {
+      if (c === ']') inClass = false;
+      continue;
+    }
+    if (c === '[') {
+      inClass = true;
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') {
+      depth--;
+      if (depth === 0) return j;
+    }
+  }
+  return -1;
+}
+
+/** Strip redundant full group wraps — `(x)`, `(?:x)`, `(?<name>x)` — down to
+ * the content; `((x))` → `x`. Lookarounds are zero-width and never unwrapped;
+ * a wrap that is not the whole branch is left alone. */
+function unwrapGroupBranch(branch: string): string {
+  let s = branch;
+  for (;;) {
+    if (!s.startsWith('(') || !s.endsWith(')')) return s;
+    const close = groupCloseIndex(s, 0);
+    if (close !== s.length - 1) return s; // not a full wrap
+    let inner = s.slice(1, -1);
+    if (inner.startsWith('?')) {
+      if (/^(?:=|!|<=|<!)/.test(inner.slice(1))) return s; // lookaround
+      const prefix = GROUP_PREFIX_RE.exec(inner);
+      if (!prefix) return s;
+      inner = inner.slice(prefix[0].length);
+    }
+    s = inner;
+  }
+}
+
+/** True when the branch is exactly one zero-width token — an anchor, a word
+ * boundary, or a lone lookaround — i.e. it can match the empty string. */
+function matchesEmptyToken(branch: string): boolean {
+  return (
+    branch === '^' ||
+    branch === '$' ||
+    branch === '\\b' ||
+    branch === '\\B' ||
+    /^\(\?(?:=|!|<=|<!)[\s\S]*\)$/.test(branch)
+  );
+}
+
+/** Parse `[...]` (the branch must be exactly one class) into a char set.
+ * Supports negation, ranges, named and literal escapes, a leading literal
+ * `]`, and literal `-` at the edges; anything else yields null. */
+function parseCharClass(s: string): CharSet | null {
+  if (!s.startsWith('[') || !s.endsWith(']') || s.length < 3) return null;
+  let i = 1;
+  let negated = false;
+  if (s[i] === '^') {
+    negated = true;
+    i++;
+  }
+  const ranges: [number, number][] = [];
+  // A `]` immediately after `[` (or `[^`) is a literal member.
+  let first = true;
+  while (i < s.length - 1) {
+    const ch = s[i] as string;
+    let lo: number;
+    let width: number;
+    if (ch === '\\') {
+      const tok = parseEscape(s, i);
+      if (!tok) return null;
+      if (tok.kind === 'named') {
+        ranges.push(...(NAMED_CLASS_SETS[tok.name] as [number, number][]));
+        i = tok.next;
+        first = false;
+        continue; // named classes cannot be range endpoints
+      }
+      lo = tok.cp;
+      width = tok.next - i;
+    } else {
+      lo = ch.codePointAt(0) ?? -1;
+      width = 1;
+    }
+    const nextCh = s[i + width];
+    if (nextCh === '-' && i + width + 1 < s.length - 1) {
+      // range: lo-hi where hi is a single literal/escape member
+      const hiStart = i + width + 1;
+      let hi: number;
+      if (s[hiStart] === '\\') {
+        const tok = parseEscape(s, hiStart);
+        if (tok?.kind !== 'literal') return null;
+        hi = tok.cp;
+        i = tok.next;
+      } else {
+        hi = (s[hiStart] as string).codePointAt(0) ?? -1;
+        i = hiStart + 1;
+      }
+      if (hi < lo) return null;
+      ranges.push([lo, hi]);
+    } else {
+      ranges.push([lo, lo]);
+      i += width;
+    }
+    first = false;
+    void first; // leading `]`-literal handled by the loop bound (s.length-1)
+  }
+  if (ranges.length === 0) return null;
+  const merged = mergeRanges(ranges);
+  return negated ? complementOf(merged) : merged;
+}
+
+/** Conservative char set for a branch that is EXACTLY one single-character
+ * token: `.`, a literal, an escape, or a `[...]` class. Null for anything
+ * else (multi-token, quantified, zero-width, unknown escape) — callers then
+ * skip the set comparison, which can only under-reject, never over-reject. */
+function singleTokenCharSet(branch: string): CharSet | null {
+  if (branch === '.') return DOT_SET;
+  if (branch.startsWith('\\')) {
+    const tok = parseEscape(branch, 0);
+    if (!tok || tok.next !== branch.length) return null;
+    if (tok.kind === 'named') return NAMED_CLASS_SETS[tok.name] ?? null;
+    return [[tok.cp, tok.cp]];
+  }
+  if (branch.length === 1) {
+    const cp = branch.codePointAt(0);
+    return cp === undefined ? null : [[cp, cp]];
+  }
+  if (branch.startsWith('[')) return parseCharClass(branch);
+  return null;
+}
+
+/** Round 14: per-position token char sets for a branch that is a plain
+ * concatenation of single-character tokens — literals, `.`, escape classes,
+ * `[...]` classes — with fixed-count `{n}` quantifiers (1 ≤ n ≤ 16)
+ * expanded. Null for anything else (variable quantifiers `* + ?` `{n,}`,
+ * groups, anchors, backreferences, unknown escapes): callers then skip the
+ * sequence comparison, which can only under-reject, never over-reject. For
+ * two such sequences language intersection is EXACT: they match a common
+ * string iff lengths are equal and every position's sets intersect. */
+function fixedTokenSets(branch: string): CharSet[] | null {
+  const sets: CharSet[] = [];
+  let i = 0;
+  while (i < branch.length) {
+    const ch = branch[i] as string;
+    let set: CharSet | null;
+    let next: number;
+    if (ch === '.') {
+      set = DOT_SET;
+      next = i + 1;
+    } else if (ch === '\\') {
+      const tok = parseEscape(branch, i);
+      if (!tok) return null;
+      set = tok.kind === 'named' ? (NAMED_CLASS_SETS[tok.name] ?? null) : [[tok.cp, tok.cp]];
+      next = tok.next;
+    } else if (ch === '[') {
+      let end = i + 1;
+      if (branch[end] === '^') end++;
+      if (branch[end] === ']') end++; // first-position `]` is a literal member
+      while (end < branch.length && branch[end] !== ']') {
+        if (branch[end] === '\\') end++;
+        end++;
+      }
+      if (end >= branch.length) return null; // unclosed class
+      set = parseCharClass(branch.slice(i, end + 1));
+      next = end + 1;
+    } else if ('^$()*+?{|'.includes(ch)) {
+      return null; // anchors, groups, quantifier starters — out of scope
+    } else {
+      const cp = ch.codePointAt(0);
+      if (cp === undefined) return null;
+      set = [[cp, cp]];
+      next = i + 1;
+    }
+    if (set === null) return null;
+    const q = branch[next];
+    if (q === undefined) {
+      sets.push(set);
+      break;
+    }
+    if (q === '*' || q === '+' || q === '?') return null; // variable repetition
+    if (q === '{') {
+      const close = branch.indexOf('}', next);
+      if (close === -1) return null; // engine treats a lone `{` as literal — bail
+      const body = branch.slice(next + 1, close);
+      if (!/^\d+$/.test(body)) return null; // `{n,}` / `{,m}` — variable; bail
+      const n = Number.parseInt(body, 10);
+      if (n < 1 || n > 16 || sets.length + n > 64) return null; // `{0}` matches ε — bail
+      for (let k = 0; k < n; k++) sets.push(set);
+      i = close + 1;
+      continue;
+    }
+    sets.push(set);
+    i = next;
+  }
+  return sets.length > 0 && sets.length <= 64 ? sets : null;
+}
+
+/** Contents of every depth-0 `(...)` group inside `s` (escape- and
+ * class-aware). Used to find groups nested within a single branch; an
+ * unbalanced span ends the scan — `new RegExp()` rejects the pattern anyway. */
+function directChildGroupContents(s: string): string[] {
+  const children: string[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (ch === '\\') {
+      i += 2;
+      continue;
+    }
+    if (ch === '[') {
+      for (i++; i < s.length && s[i] !== ']'; i++) {
+        if (s[i] === '\\') i++;
+      }
+      i++; // past ']'
+      continue;
+    }
+    if (ch !== '(') {
+      i++;
+      continue;
+    }
+    let depth = 0;
+    let j = i;
+    for (; j < s.length; j++) {
+      const c = s[j];
+      if (c === '\\') {
+        j++;
+        continue;
+      }
+      if (c === '[') {
+        for (j++; j < s.length && s[j] !== ']'; j++) {
+          if (s[j] === '\\') j++;
+        }
+        continue;
+      }
+      if (c === '(') depth++;
+      else if (c === ')') {
+        depth--;
+        if (depth === 0) break;
+      }
+    }
+    if (j >= s.length) break; // unbalanced — engine will reject
+    children.push(s.slice(i + 1, j));
+    i = j + 1;
+  }
+  return children;
+}
+
+/**
+ * Ambiguity check for the content of a QUANTIFIED group (prefix stripped):
+ * overlapping top-level branches, or — the round-12 fix — an ambiguous
+ * alternation nested one or more groups down inside any branch.
+ *
+ * `((a|a))+` used to pass because its quantified group has a SINGLE branch
+ * (the nested group) while the nested group itself carries no quantifier, so
+ * nothing ever compared `a` with `a`. The outer quantifier amplifies a nested
+ * choice exactly like a direct one (same ~2^n choice tree), so the check
+ * recurses into nested groups. Disjoint nested alternations (`(x(y|z))+`)
+ * stay allowed, and unquantified wrappers (`((a|a))`) are never analysed —
+ * only groups reached from a quantifier are.
+ */
+function hasAmbiguousBranches(content: string): boolean {
+  const branches = splitTopLevelBranches(content);
+  if (branches.length >= 2 && branchesOverlap(branches)) return true;
+  for (const branch of branches) {
+    for (const child of directChildGroupContents(branch)) {
+      if (hasAmbiguousBranches(stripGroupPrefix(child))) return true;
+    }
+  }
+  return false;
+}
+
 function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
   // Character-class and escape state tracked across the WHOLE scan, not just
   // per group probe. A `(` inside `[...]` is literal — a probe started there
-  // runs off the end of the pattern and aborts the scan with `false` before a
-  // real `(a|a)+` later in the string is ever examined. And `(` after an ODD
+  // runs off the end of the pattern and aborts the scan with `false` before
+  // a real `(a|a)+` later in the string is ever examined. And `(` after an ODD
   // escape run is a literal `\(`, while `\\(` (escaped backslash) still opens
   // a real group — the old one-character lookbehind misclassified the latter.
   let outerInClass = false;
@@ -98,47 +625,8 @@ function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
     if (j >= pattern.length) return false; // unbalanced — RegExp() will reject
     const next = pattern[j + 1];
     if (next !== '+' && next !== '*' && next !== '{') continue;
-    let inner = pattern.slice(i + 1, j);
-    inner = inner.replace(/^\?(?::|<?[=!])/u, '');
-    const branches: string[] = [];
-    let current = '';
-    let d = 0;
-    let cls = false;
-    for (let k = 0; k < inner.length; k++) {
-      const ch = inner[k];
-      if (ch === '\\') {
-        current += ch + (inner[k + 1] ?? '');
-        k++;
-        continue;
-      }
-      if (cls) {
-        if (ch === ']') cls = false;
-        current += ch;
-        continue;
-      }
-      if (ch === '[') {
-        cls = true;
-        current += ch;
-        continue;
-      }
-      if (ch === '(') d++;
-      if (ch === ')') d--;
-      if (ch === '|' && d === 0) {
-        branches.push(current);
-        current = '';
-        continue;
-      }
-      current += ch;
-    }
-    branches.push(current);
-    if (branches.length < 2) continue;
-    for (let a = 0; a < branches.length; a++) {
-      for (let b = a + 1; b < branches.length; b++) {
-        const x = branches[a] as string;
-        const y = branches[b] as string;
-        if (x === '' || y === '') return true;
-        if (x === y || x.startsWith(y) || y.startsWith(x)) return true;
-      }
+    if (hasAmbiguousBranches(stripGroupPrefix(pattern.slice(i + 1, j)))) {
+      return true;
     }
   }
   return false;
@@ -159,10 +647,7 @@ export type CompileUserRegexResult = CompileResult | CompileFail;
 const COMPILED_CACHE = new Map<string, CompileUserRegexResult>();
 const CACHE_MAX_SIZE = 500;
 
-export function compileUserRegex(
-  pattern: string,
-  flags: string = '',
-): CompileResult | CompileFail {
+export function compileUserRegex(pattern: string, flags: string = ''): CompileResult | CompileFail {
   if (typeof pattern !== 'string') {
     return { ok: false, reason: 'pattern must be a string' };
   }
