@@ -61,7 +61,7 @@ fonts all flow from `design materialize`). Never hardcode hex/`oklch()`, generic
 <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-bg shadow-2 transition-colors duration-[var(--duration-fast)] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
   Save
 </button>
-<button className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-fg hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring">
+<button className="rounded-lg border border-border bg-surface px-4 py-2 text-sm text-fg hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring">
   Cancel
 </button>
 
