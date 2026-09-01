@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { setSessionSubagentsAllowed } from '../coordination/session-subagent-policy.js';
 import { DefaultPromptLoader, renderPrompt } from '../execution/prompt-loader.js';
 import type { Context, SlashCommand } from '../index.js';
+import { buildPerfCommand } from './perf-command.js';
 import { DefaultPromptStore, migratePromptEntry } from '../storage/prompt-store.js';
 import { PromptUsageStore } from '../storage/prompt-usage-store.js';
 import type { Plugin } from '../types/plugin.js';
@@ -24,11 +25,12 @@ interface PromptsPluginOptions {
 /**
  * PromptsPlugin — built-in prompt library.
  *
- * Registers four slash commands:
+ * Registers five slash commands:
  *   - `/prompts`     manage your library (list/view/add/edit/delete/favorite/extend)
  *   - `/prompt`      search the merged library (builtin + user + project) and insert
  *   - `/prompt-gen`  AI-guided authoring of a new high-quality prompt
  *   - `/bughunt`     run one proof-driven Elite Bug Hunter round
+ *   - `/perf`        run one measure-change-measure performance ratchet round
  *
  * Active by default for all WrongStack sessions. The host injects a
  * `PromptLoader` (cross-layer read + copy-on-write) via `config.promptLoader`;
@@ -83,7 +85,15 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
           () => usage,
         ),
       );
-      api.log.info('[prompts] loaded — /prompts, /prompt, /prompt-gen, /bughunt available');
+      api.slashCommands.register(
+        buildPerfCommand(
+          () => loader,
+          () => usage,
+        ),
+      );
+      api.log.info(
+        '[prompts] loaded — /prompts, /prompt, /prompt-gen, /bughunt, /perf available',
+      );
     },
 
     teardown(api) {
@@ -91,6 +101,7 @@ export function createPromptsPlugin(opts?: PromptsPluginOptions): Plugin {
       api.slashCommands.unregister('prompt');
       api.slashCommands.unregister('prompt-gen');
       api.slashCommands.unregister('bughunt');
+      api.slashCommands.unregister('perf');
       api.log.info('[prompts] unloaded');
     },
 

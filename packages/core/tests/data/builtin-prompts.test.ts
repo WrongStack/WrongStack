@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { DefaultPromptLoader } from '../../src/execution/prompt-loader.js';
+import { PERF_MODES, PERF_PROMPT_SLUGS } from '../../src/performance/perf-modes.js';
 import { promptChecksum } from '../../src/storage/prompt-store.js';
 import { BUILTIN_PROMPT_CATEGORIES } from '../../src/types/prompt.js';
 import type { JSONSchema } from '../../src/types/tool.js';
@@ -129,6 +130,43 @@ describe('builtin prompt dataset', () => {
     expect(entry.content).toContain('.temp_files/elite-bug-hunter/<round-id>/');
     expect(entry.content).toContain('Never delete `.temp_files/` wholesale');
     expect(entry.content).toContain('Do not hunt or fix a second issue');
+  });
+
+  it('ships a prompt for every performance mode', () => {
+    // The `/perf` command and the WebUI card both resolve a mode to a slug and
+    // then ask the prompt library for it. A mode whose slug is not in the
+    // dataset fails at click time with an unhelpful "prompt not found", so the
+    // mapping is checked against the files on disk instead.
+    const slugs = new Set(
+      files.map((file) => (JSON.parse(fs.readFileSync(file, 'utf8')) as { slug: string }).slug),
+    );
+    const missing = PERF_PROMPT_SLUGS.filter((slug) => !slugs.has(slug));
+    expect(missing).toEqual([]);
+  });
+
+  it('every performance prompt lives in the performance category', () => {
+    for (const mode of Object.values(PERF_MODES)) {
+      const file = path.join(promptsDir, 'performance', `${mode.slug}.json`);
+      expect(fs.existsSync(file), `${mode.id} -> ${mode.slug}`).toBe(true);
+      const entry = JSON.parse(fs.readFileSync(file, 'utf8')) as { category: string };
+      expect(entry.category).toBe('performance');
+    }
+  });
+
+  it('ships the ratchet measure-change-measure contract', () => {
+    const entry = JSON.parse(
+      fs.readFileSync(path.join(promptsDir, 'performance', 'elite-performance-ratchet.json'), 'utf8'),
+    ) as { slug: string; content: string; variables?: unknown[] };
+    expect(entry.slug).toBe('elite-performance-ratchet');
+    // Like the bug hunter, the ratchet is launched with one click and must not
+    // stall on an unfilled placeholder.
+    expect(entry.variables).toBeUndefined();
+    expect(entry.content).toContain('nothing counts unless it was measured');
+    expect(entry.content).toContain('anything not measurably better gets reverted');
+    expect(entry.content).toContain('One variable at a time');
+    expect(entry.content).toContain('PERF_LOG.md');
+    expect(entry.content).toContain('.temp_files/perf-ratchet/<round-id>/');
+    expect(entry.content).toContain('Never delete `.temp_files/` wholesale');
   });
 
   it('the DefaultPromptLoader loads the bundled dataset from disk', async () => {

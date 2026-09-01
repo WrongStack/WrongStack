@@ -31,6 +31,7 @@ const CATEGORIES = [
   'testing',
   'code-review',
   'architecture',
+  'performance',
   'devops',
   'documentation',
   'data-analysis',

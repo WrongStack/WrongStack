@@ -1,7 +1,7 @@
 {
   "datasetVersion": 1,
   "generatedAt": "2026-01-01T00:00:00.000Z",
-  "count": 225,
+  "count": 233,
   "categories": [
     {
       "id": "agentic-workflows",
@@ -47,6 +47,11 @@
       "id": "meta-prompting",
       "label": "meta-prompting",
       "count": 16
+    },
+    {
+      "id": "performance",
+      "label": "performance",
+      "count": 8
     },
     {
       "id": "product",
@@ -2050,6 +2055,130 @@
       ],
       "checksum": "ae6ef347d819537062d3908ae95dda300791b036378120da7a276032571190b8",
       "file": "prompts/meta-prompting/write-reusable-prompt-template.json"
+    },
+    {
+      "id": "elite-performance-ratchet",
+      "slug": "elite-performance-ratchet",
+      "title": "Elite Performance Ratchet",
+      "description": "Run one measure-change-measure round: baseline, one hypothesis, verify, then keep it or revert it.",
+      "category": "performance",
+      "tags": [
+        "autonomous",
+        "ratchet",
+        "benchmark",
+        "measurement",
+        "revert"
+      ],
+      "checksum": "3a77d04bedfcccf45b56096be806dea507aa291e96ef24b2b90f12e360eae679",
+      "file": "prompts/performance/elite-performance-ratchet.json"
+    },
+    {
+      "id": "performance-baseline-audit",
+      "slug": "performance-baseline-audit",
+      "title": "Performance Baseline and Bottleneck Audit",
+      "description": "Read-only audit that ranks the real cost centres and gives the command that would prove each one.",
+      "category": "performance",
+      "tags": [
+        "audit",
+        "baseline",
+        "bottleneck",
+        "read-only",
+        "profiling"
+      ],
+      "checksum": "835bf6cab86b952490551102a824129821607f9aca58bf65db17458839604674",
+      "file": "prompts/performance/performance-baseline-audit.json"
+    },
+    {
+      "id": "performance-contract",
+      "slug": "performance-contract",
+      "title": "Performance Contract",
+      "description": "The standing rules for every performance change: measure first, one variable, revert what is not measurably better.",
+      "category": "performance",
+      "tags": [
+        "contract",
+        "rules",
+        "measurement",
+        "discipline"
+      ],
+      "checksum": "aee0b5b54028530aa290228749b9f33e5dd6a175cdac38fc91818eb56efca87d",
+      "file": "prompts/performance/performance-contract.json"
+    },
+    {
+      "id": "performance-cpu-hot-path",
+      "slug": "performance-cpu-hot-path",
+      "title": "CPU Hot Path Reduction",
+      "description": "Profile-first reduction of a named hot path, cheapest wins first, micro-optimisation last.",
+      "category": "performance",
+      "tags": [
+        "cpu",
+        "profiling",
+        "hot-path",
+        "allocations"
+      ],
+      "checksum": "3177ee6ce81fb2f5c65adc88e6b9e71d236d03e9b9d4b9a4300d7c3a7808079f",
+      "file": "prompts/performance/performance-cpu-hot-path.json"
+    },
+    {
+      "id": "performance-io-concurrency",
+      "slug": "performance-io-concurrency",
+      "title": "I/O, Network and Concurrency Bottlenecks",
+      "description": "Map every boundary crossing for N+1 calls, blocking work, missing timeouts, pool saturation, and serialisation points.",
+      "category": "performance",
+      "tags": [
+        "io",
+        "network",
+        "concurrency",
+        "n-plus-one",
+        "latency"
+      ],
+      "checksum": "33721c12487504bd4dfd240b5e05c26b4b9b12a708b8117f2f41b495439ee905",
+      "file": "prompts/performance/performance-io-concurrency.json"
+    },
+    {
+      "id": "performance-memory-hunt",
+      "slug": "performance-memory-hunt",
+      "title": "Memory Growth and Retention Hunt",
+      "description": "Find unbounded growth, lifetime mismatch, subscription and resource leaks, plus the soak test that confirms each.",
+      "category": "performance",
+      "tags": [
+        "memory",
+        "leak",
+        "retention",
+        "soak-test",
+        "heap"
+      ],
+      "checksum": "8054f036d20528f64b46100461e236deebb85fd847d3402d587831cbec8e26ca",
+      "file": "prompts/performance/performance-memory-hunt.json"
+    },
+    {
+      "id": "performance-quick-triage",
+      "slug": "performance-quick-triage",
+      "title": "Performance Quick Triage",
+      "description": "Three highest-leverage performance problems, each with the smallest fix and the command that proves it.",
+      "category": "performance",
+      "tags": [
+        "triage",
+        "quick",
+        "ranking"
+      ],
+      "checksum": "022f6eb49f0dbc940f039c161be93db10f8f987374040b7988807df27ace2a07",
+      "file": "prompts/performance/performance-quick-triage.json"
+    },
+    {
+      "id": "performance-regression-guard",
+      "slug": "performance-regression-guard",
+      "title": "Performance Regression Guard",
+      "description": "Pick the metrics that matter, baseline them, and wire a check that fails on regression and ratchets on improvement.",
+      "category": "performance",
+      "tags": [
+        "regression",
+        "guard",
+        "ci",
+        "baseline",
+        "ratchet"
+      ],
+      "checksum": "f723665f92493b7f78704b1a3b011fd06a2aaa92da9b6ffd21a3c8c8ad257b73",
+      "file": "prompts/performance/performance-regression-guard.json"
     },
     {
       "id": "critique-a-feature-idea",

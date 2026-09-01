@@ -1,0 +1,20 @@
+{
+  "id": "performance-memory-hunt",
+  "slug": "performance-memory-hunt",
+  "title": "Memory Growth and Retention Hunt",
+  "description": "Find unbounded growth, lifetime mismatch, subscription and resource leaks, plus the soak test that confirms each.",
+  "content": "# ROLE: Memory Growth and Retention Hunt\n\nAudit this codebase for memory growth and leak risk. Report every occurrence with `file:line`. Do not fix anything until the priority order is confirmed.\n\n## What to look for\n\n- **Unbounded growth**: caches, maps, lists, queues, buffers, session stores, and memo tables with no size cap or eviction policy.\n- **Lifetime mismatch**: short-lived data reachable from a long-lived root — globals, statics, singletons, module-level state, DI containers, connection objects.\n- **Subscription leaks**: event listeners, observers, signal handlers, timers, intervals, watchers, and topic subscriptions registered but never unregistered. Note that a one-shot listener still leaks when the event it waits for never fires — normal completion counts.\n- **Resource leaks**: file handles, sockets, database connections, cursors, streams, locks, and temp files not released on *every* path, including error paths and early returns.\n- **Concurrency leaks**: goroutines, threads, or tasks blocked forever; workers spawned per request without a bound; contexts or cancellation tokens never cancelled.\n- **Closure retention**: large objects captured by callbacks that are stored for later.\n- **Managed-runtime specifics**: objects promoted to the old generation that should have died young, large-object allocations in hot paths, fragmentation, finalizer queues.\n\n## For each finding, report\n\n1. Severity: leaks forever / grows with load / grows with input.\n2. The scenario that triggers it — the concrete sequence, not \"under load\".\n3. The fix: bounded cache with eviction, explicit teardown, defer / using / finally / context-manager, weak references, pooling.\n\n## Then tell me how to confirm it empirically\n\nGive the heap-snapshot, live-heap, or allocation-profile procedure for this runtime, plus a soak-test recipe: steady load for N minutes, compare RSS and live heap at t0, t5, and t30. Flat or sawtooth is fine; monotonic rise is not.\n\nSeparate what you observed in the code from what you are inferring, and label the inferences SPECULATIVE.",
+  "category": "performance",
+  "tags": [
+    "memory",
+    "leak",
+    "retention",
+    "soak-test",
+    "heap"
+  ],
+  "source": "builtin",
+  "favorite": false,
+  "checksum": "8054f036d20528f64b46100461e236deebb85fd847d3402d587831cbec8e26ca",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

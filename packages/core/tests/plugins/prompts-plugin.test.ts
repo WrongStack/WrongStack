@@ -66,10 +66,12 @@ describe('createPromptsPlugin lifecycle', () => {
       'prompt',
       'prompt-gen',
       'bughunt',
+      'perf',
     ]);
     plugin.teardown!(api);
     expect(unregister).toHaveBeenCalledWith('prompts');
     expect(unregister).toHaveBeenCalledWith('bughunt');
+    expect(unregister).toHaveBeenCalledWith('perf');
     expect(await plugin.health!()).toMatchObject({ ok: true });
   });
 

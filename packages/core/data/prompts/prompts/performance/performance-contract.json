@@ -1,0 +1,19 @@
+{
+  "id": "performance-contract",
+  "slug": "performance-contract",
+  "title": "Performance Contract",
+  "description": "The standing rules for every performance change: measure first, one variable, revert what is not measurably better.",
+  "content": "# Performance Contract\n\nThese rules apply to every performance-motivated change in this repository. They exist because the two ways performance work goes wrong — claiming a win that was never measured, and keeping a change that bought nothing — are both invisible without a standing rule against them.\n\n1. **No performance claim without a number.** If you say something is faster, show the before/after measurement and the exact command that produced it.\n2. **Baseline before you touch anything.** Record workload, command, metric, value, commit hash, machine, and runtime version in `PERF_LOG.md` before changing code for performance reasons.\n3. **One variable at a time, then re-measure.** If the delta is inside noise — below the spread of 3 repeat runs, or under 5% — revert the change.\n4. **Correctness gates everything.** The test suite passes before and after, with identical observable behaviour. A faster wrong answer is a regression.\n5. **Prefer, in this order:** (a) do less work — algorithm, complexity, caching; (b) do work fewer times — batching, deduplication; (c) do work later or never — laziness, short-circuits, streaming; (d) do the same work faster — micro-optimisation. Never start at (d).\n6. **Do not trade readability for less than a 10% win** on a path that is not hot.\n7. **Report regressions honestly**, including ones you introduced yourself.\n8. **Distinguish explicitly** between what you measured, what you read in the code, and what you are inferring. Label the last one SPECULATIVE.\n\nApply this contract to the work at hand now. If the current task already contains a performance claim that does not meet rule 1, say which claim and what would have to be run to support it.",
+  "category": "performance",
+  "tags": [
+    "contract",
+    "rules",
+    "measurement",
+    "discipline"
+  ],
+  "source": "builtin",
+  "favorite": false,
+  "checksum": "aee0b5b54028530aa290228749b9f33e5dd6a175cdac38fc91818eb56efca87d",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}

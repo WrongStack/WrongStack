@@ -1,0 +1,20 @@
+{
+  "id": "performance-regression-guard",
+  "slug": "performance-regression-guard",
+  "title": "Performance Regression Guard",
+  "description": "Pick the metrics that matter, baseline them, and wire a check that fails on regression and ratchets on improvement.",
+  "content": "# ROLE: Performance Regression Guard\n\nSet up a performance regression guard for this project — the pawl that stops the ratchet from slipping back.\n\n## 1. Pick the metrics that matter\n\nChoose 3 to 7 metrics that reflect how this software is actually used: p99 request latency, cold-start time, peak RSS under load, items per second, allocations per operation, binary or bundle size. Justify each in one line. Reject vanity metrics — a number nobody would act on is a number that will be silently ignored the first time it goes red.\n\n## 2. Write a comparable benchmark for each\n\nFixed input, fixed seed, warmup phase, at least 5 samples. Report **median and p95, not mean** — a mean hides the tail that users actually feel.\n\n## 3. Record today's values as the ratchet baseline\n\nWrite them to `PERF_LOG.md` and the machine-readable baseline file, with commit, date, hardware, and runtime version. A baseline without the machine it ran on is not comparable to anything.\n\n## 4. Add the check\n\nIt must **fail** when a metric regresses by more than the agreed threshold against the baseline, and **update the baseline** when a metric improves. Noise between the two changes nothing, including the baseline — silently re-recording a slightly worse number every run is how a guarded project drifts 40% slower without a single failing check.\n\nWire it into existing CI if there is any; otherwise give one command that can be run locally.\n\n## 5. Document it\n\nIn the repo: how to run it, and how to read a failure — specifically, how to tell a real regression from machine noise.\n\n## Constraint\n\nDo not add a dependency for this unless the language's standard tooling genuinely cannot do it. If you do, justify it in one sentence.",
+  "category": "performance",
+  "tags": [
+    "regression",
+    "guard",
+    "ci",
+    "baseline",
+    "ratchet"
+  ],
+  "source": "builtin",
+  "favorite": false,
+  "checksum": "f723665f92493b7f78704b1a3b011fd06a2aaa92da9b6ffd21a3c8c8ad257b73",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "updatedAt": "2026-01-01T00:00:00.000Z"
+}
