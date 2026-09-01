@@ -884,11 +884,15 @@ export function buildRoutes(
     update: (ws, msg) =>
       handleMcpUpdate(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
     remove: (ws, msg) => handleMcpRemove(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    enable: (ws, msg) => handleMcpEnable(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    disable: (ws, msg) => handleMcpDisable(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
+    enable: (ws, msg) =>
+      handleMcpEnable(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
+    disable: (ws, msg) =>
+      handleMcpDisable(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
     sleep: (ws, msg) => handleMcpSleep(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    wake: (ws, msg) => handleMcpWake(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
-    restart: (ws, msg) => handleMcpRestart(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
+    wake: (ws, msg) =>
+      handleMcpWake(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
+    restart: (ws, msg) =>
+      handleMcpRestart(ws, msg, deps.profileConfigPath, deps.mcpRegistry, deps.trustBoundary),
     discover: (ws, msg) => handleMcpDiscover(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
     resources: (ws, msg) => handleMcpResources(ws, msg, deps.profileConfigPath, deps.mcpRegistry),
     prompts: (ws, msg) => handleMcpPrompts(ws, msg, deps.profileConfigPath, deps.mcpRegistry),

@@ -19,7 +19,6 @@ import { explainPermissionTrace } from './permission-explain.js';
 import { type TrustPolicyDiagnostic, validateTrustPolicy } from './permission-policy-schema.js';
 import {
   attachesWellKnownCredential,
-  getInputString,
   isClearlyDestructiveBashCommand,
 } from './yolo-risk.js';
 
@@ -28,6 +27,7 @@ export { alwaysAllowUnavailableReason, inputPathLooksSensitive, matchesTrust, sh
 
 import {
   alwaysAllowUnavailableReason,
+  fsWriteTargetPaths,
   hasShellSubject,
   isInsideAgentStateRoot,
   isSensitiveReadCall,
@@ -36,35 +36,6 @@ import {
   permissionFingerprint,
   shellCommandLineFromInput,
 } from './permission-helpers.js';
-
-function fsWriteTargetPaths(input: unknown): string[] {
-  const out: string[] = [];
-  if (!input || typeof input !== 'object') return out;
-  const obj = input as Record<string, unknown>;
-  for (const key of [
-    'path',
-    'file_path',
-    'file',
-    'filePath',
-    'files',
-    'target',
-    'targetPath',
-    'out',
-    'directory',
-    'cwd',
-    'template',
-  ]) {
-    const value = obj[key];
-    if (typeof value === 'string') {
-      if (value.length > 0) out.push(value);
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === 'string' && item.length > 0) out.push(item);
-      }
-    }
-  }
-  return out;
-}
 
 /**
  * Combine an exact-name trust entry with the wildcard entry that also matched.
@@ -157,7 +128,12 @@ export class DefaultPermissionPolicy implements PermissionPolicy {
       tool.name === 'exec' ||
       (tool.capabilities ?? []).includes('shell.arbitrary');
     if (!isShellSurface) return false;
-    const command = getInputString(input, 'command') ?? shellCommandLineFromInput(input);
+    // H-1 (security report VF-03): `getInputString(input, 'command') ?? …`
+    // short-circuited on the bare program name, so `isClearlyDestructiveBashCommand`
+    // never saw the args — `{command:'rm', args:['-rf','/']}` classified as "rm".
+    // `shellCommandLineFromInput` already joins command/cmd/script with args; it
+    // is the whole reason this branch exists.
+    const command = shellCommandLineFromInput(input);
     if (!command) return false;
     return isClearlyDestructiveBashCommand(command, ctx.projectRoot);
   }

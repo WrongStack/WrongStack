@@ -407,34 +407,38 @@ describe('DefaultPermissionPolicy', () => {
       expect(d.source).toBe('yolo');
     });
 
-    it('yolo auto-approves a catastrophic exec command by command plus args', async () => {
+    // H-1 (security report VF-03): these two tests previously PINNED the
+    // vulnerable outcome — `getInputString(input, 'command') ?? …` classified
+    // the bare program name, so YOLO auto-approved `rm -rf /` built from
+    // command + args. The gate is restored; the assertions now pin the guard.
+    it('yolo blocks a catastrophic exec command built from command plus args', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const d = await p.evaluate(
         tool('exec', 'confirm', 'standard', true, ['shell.restricted']),
         { command: 'rm', args: ['-rf', '/'] },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(d.permission).toBe('auto');
-      expect(d.source).toBe('yolo');
+      expect(d.permission).toBe('confirm');
+      expect(d.source).toBe('yolo_destructive');
     });
 
-    it('yolo auto-approves destructive git exec commands by command plus args', async () => {
+    it('yolo blocks destructive git exec commands built from command plus args', async () => {
       const p = new DefaultPermissionPolicy({ trustFile, yolo: true });
       const reset = await p.evaluate(
         tool('exec', 'confirm', 'standard', true, ['shell.restricted']),
         { command: 'git', args: ['reset', '--hard'] },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(reset.permission).toBe('auto');
-      expect(reset.source).toBe('yolo');
+      expect(reset.permission).toBe('confirm');
+      expect(reset.source).toBe('yolo_destructive');
 
       const forcePush = await p.evaluate(
         tool('exec', 'confirm', 'standard', true, ['shell.restricted']),
         { command: 'git', args: ['push', '--force-with-lease'] },
         { projectRoot: process.cwd() } as Context,
       );
-      expect(forcePush.permission).toBe('auto');
-      expect(forcePush.source).toBe('yolo');
+      expect(forcePush.permission).toBe('confirm');
+      expect(forcePush.source).toBe('yolo_destructive');
     });
 
     it.each([
@@ -718,6 +722,113 @@ describe('AutoApprovePermissionPolicy', () => {
     expect(d.permission).toBe('deny');
     expect(d.source).toBe('subagent_guard');
     expect(d.reason).toContain('lacks allowed capability');
+  });
+
+  // C-1/C-2/H-3 (security report VF-01/VF-02/H-3): the input-based guards the
+  // leader applies must bind delegated agents too — the less-supervised
+  // principal may never have the weaker gate.
+  describe('input-based guards and leader deny propagation', () => {
+    let trustFile: string;
+    let dir: string;
+    let fakeHome: string;
+    let prevHome: string | undefined;
+
+    beforeEach(async () => {
+      dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-perm-sub-'));
+      trustFile = path.join(dir, 'trust.json');
+      fakeHome = path.join(dir, 'dot-wrongstack');
+      prevHome = process.env['WRONGSTACK_HOME'];
+      process.env['WRONGSTACK_HOME'] = fakeHome;
+    });
+    afterEach(async () => {
+      if (prevHome === undefined) delete process.env['WRONGSTACK_HOME'];
+      else process.env['WRONGSTACK_HOME'] = prevHome;
+      await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it('denies clearly destructive shell even with shell.arbitrary granted (C-1)', async () => {
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
+      const d = await p.evaluate(
+        tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']),
+        { command: 'rm', args: ['-rf', '/'] },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.source).toBe('subagent_guard');
+      expect(d.reason).toContain('destructive');
+    });
+
+    it('still auto-approves non-destructive shell with the capability granted', async () => {
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
+      const d = await p.evaluate(
+        tool('exec', 'confirm', 'standard', true, ['shell.arbitrary']),
+        { command: 'echo', args: ['hello'] },
+      );
+      expect(d.permission).toBe('auto');
+    });
+
+    it('denies binding well-known credentials to a provider endpoint', async () => {
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
+      const d = await p.evaluate(
+        tool('provider_check', 'confirm', undefined, false, ['net.outbound']),
+        { envVars: ['ANTHROPIC_API_KEY'] },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.reason).toContain('credential');
+    });
+
+    it('denies writes into the agent state root even with fs.write granted (C-2)', async () => {
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
+      const d = await p.evaluate(
+        tool('write', 'confirm', undefined, true, ['fs.write']),
+        { path: path.join(fakeHome, 'trust.json') },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.source).toBe('subagent_guard');
+      expect(d.reason).toContain('agent state');
+    });
+
+    it('auto-approves ordinary writes with fs.write granted', async () => {
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES);
+      const d = await p.evaluate(
+        tool('write', 'confirm', undefined, true, ['fs.write']),
+        { path: path.join(dir, 'src', 'a.ts') },
+      );
+      expect(d.permission).toBe('auto');
+    });
+
+    it('propagates leader deny rules to subagents (H-3)', async () => {
+      await fs.writeFile(trustFile, JSON.stringify({ bash: { deny: ['git status'] } }));
+      const p = new AutoApprovePermissionPolicy(WIDE_SUBAGENT_CAPABILITIES, { trustFile });
+      const d = await p.evaluate(
+        tool('bash', 'confirm', 'standard', true, ['shell.arbitrary']),
+        { command: 'git status' },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.source).toBe('subagent_guard');
+      expect(d.reason).toContain('leader deny rule');
+    });
+
+    it('does not widen: leader allow/auto rules never auto-approve a subagent call', async () => {
+      await fs.writeFile(trustFile, JSON.stringify({ edit: { auto: true, allow: ['**'] } }));
+      const p = new AutoApprovePermissionPolicy(undefined, { trustFile });
+      const d = await p.evaluate(
+        tool('edit', 'confirm', undefined, true, ['fs.write']),
+        { path: 'src/a.ts' },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.source).toBe('subagent_guard');
+    });
+
+    it('fails closed when the leader trust file is invalid JSON', async () => {
+      await fs.writeFile(trustFile, '{not json');
+      const p = new AutoApprovePermissionPolicy(undefined, { trustFile });
+      const d = await p.evaluate(
+        tool('read', 'auto', undefined, false, ['fs.read']),
+        { path: 'a.ts' },
+      );
+      expect(d.permission).toBe('deny');
+      expect(d.reason).toContain('not valid JSON');
+    });
   });
 
   // Subagent guard: tools with non-allowed capabilities are denied.

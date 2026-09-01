@@ -54,7 +54,13 @@ import { send } from './ws-utils.js';
  */
 async function authorizeMcpMutation(
   ws: WebSocket,
-  operation: 'mcp.add' | 'mcp.update',
+  operation:
+    | 'mcp.add'
+    | 'mcp.update'
+    | 'mcp.enable'
+    | 'mcp.disable'
+    | 'mcp.wake'
+    | 'mcp.restart',
   serverName: string,
   trustBoundary: TrustBoundary | undefined,
 ): Promise<boolean> {
@@ -317,9 +323,14 @@ export async function handleMcpEnable(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
+  // H-2 (security report VF-04): enable is spawn-capable — it starts the
+  // configured server process — and unlike add/update it never crossed the
+  // trust boundary. Same authorization as the spawn-capable pair.
+  if (!(await authorizeMcpMutation(ws, 'mcp.enable', name(msg), trustBoundary))) return;
   const result = await enableMcp(name(msg), d);
   if (result.ok && result.server) {
     send(ws, { type: 'mcp.server.updated', payload: { server: toView(result.server) } });
@@ -344,9 +355,14 @@ export async function handleMcpDisable(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
+  // H-2: disable mutates persisted config from a bare name frame; route it
+  // through the same authorizer as its siblings (audit record under the
+  // default policy, enforceable where a stricter boundary is installed).
+  if (!(await authorizeMcpMutation(ws, 'mcp.disable', name(msg), trustBoundary))) return;
   const result = await disableMcp(name(msg), d);
   if (result.ok) {
     send(ws, { type: 'mcp.server.sleeping', payload: { name: name(msg) } });
@@ -394,9 +410,15 @@ export async function handleMcpWake(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
+  // Chimera review follow-up to H-2: wake reaches restartMcp() → startServer()
+  // → registry.start(), i.e. it spawns the configured server process, exactly
+  // like enable — a strict boundary that denies mcp.enable must not be
+  // bypassable through mcp.wake.
+  if (!(await authorizeMcpMutation(ws, 'mcp.wake', name(msg), trustBoundary))) return;
   send(ws, { type: 'mcp.server.waking', payload: { name: name(msg) } });
   const result = await restartMcp(name(msg), d);
   if (result.ok && !result.registryError) {
@@ -419,9 +441,12 @@ export async function handleMcpRestart(
   msg: WSClientMessage,
   globalConfigPath: string,
   mcpRegistry?: MCPRegistry,
+  trustBoundary?: TrustBoundary,
 ): Promise<void> {
   const d = deps(ws, globalConfigPath, mcpRegistry);
   if (!d) return;
+  // Same spawn-capable class as wake/enable — see handleMcpWake.
+  if (!(await authorizeMcpMutation(ws, 'mcp.restart', name(msg), trustBoundary))) return;
   const result = await restartMcp(name(msg), d);
   if (result.ok && !result.registryError) {
     send(ws, { type: 'mcp.server.connected', payload: { name: name(msg) } });

@@ -306,6 +306,16 @@ const IN_PROJECT_DENIED_PATHS: ReadonlyArray<{ path: string; reason: string }> =
       'Disabled-tool audit-trail metadata; a repo-committed entry could obscure operator-authored disables as auto-thinned.',
   },
   {
+    // H-4 (security report VF-05): `tools` is allow-listed, but this subtree
+    // reroutes EVERY provider's base URL through a repo-chosen proxy `url` —
+    // API keys and full prompt content exfiltrated on the next request. Same
+    // trust boundary as the denied top-level `baseUrl`/`providers`, one level
+    // down inside the allowed parent.
+    path: 'tools.wrongProxy',
+    reason:
+      'Reroutes every provider base URL through a repo-chosen proxy host; API keys and prompt content would be sent there on the next request.',
+  },
+  {
     // The bridge spawn path resolves the CLI entry by walking UP from the
     // project root, so a repo that ships its own `packages/cli/dist/index.js`
     // gets that file spawned with `process.execPath` on WebUI boot — no

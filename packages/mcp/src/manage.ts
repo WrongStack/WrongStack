@@ -132,6 +132,31 @@ async function persist(
   await writeConfig(configPath, full);
 }
 
+/**
+ * Server names that must never index into `servers`. It is a `JSON.parse`
+ * result, so a bare `servers[name]` lookup with `name === '__proto__'`
+ * resolves through the prototype chain to `Object.prototype` — a truthy
+ * object that passes every `if (!cfg)` guard — and `cfg.enabled = …` then
+ * writes to `Object.prototype` process-wide: silent, no trace in config.
+ * (`constructor`/`prototype` are screened for the same class of accident, and
+ * because `servers[name] = cfg` on `__proto__` would instead rewire the
+ * object's prototype.) The wire protocol screens forbidden payload KEYS, but
+ * `name` is a VALUE on mcp.enable/mcp.disable frames — so every name-taking
+ * operation screens here, at the shared choke point all surfaces delegate to.
+ * (Security report H-2 / VF-04.)
+ */
+const UNSAFE_SERVER_NAMES: ReadonlySet<string> = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+
+/** Rejection for an unsafe server name, or undefined when the name is usable. */
+function unsafeServerNameResult(name: string): McpOpResult | undefined {
+  if (!UNSAFE_SERVER_NAMES.has(name)) return undefined;
+  return { ok: false, message: `Invalid server name "${name}"` };
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 /** Normalise UI transport values; UI offers a bare "http" → streamable-http. */
@@ -270,15 +295,22 @@ export async function listMcp(deps: McpManageDeps): Promise<McpServerInfo[]> {
  */
 export async function addMcp(input: McpServerInput, deps: McpManageDeps): Promise<McpOpResult> {
   if (!input.name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(input.name);
+  if (unsafe) return unsafe;
 
   const { full, servers } = await readServers(deps.configPath);
-  if (servers[input.name]) {
+  if (Object.hasOwn(servers, input.name)) {
     return { ok: false, message: `Server "${input.name}" already exists` };
   }
 
   // Name-only add resolves a preset; an explicit transport/command means the
   // caller supplied the full config and the preset (if any) is just a base.
-  const preset = deps.presets?.[input.name];
+  // hasOwn: presets is a plain record, so a name like 'toString' resolves
+  // through Object.prototype and reads as a (truthy, function-valued) preset.
+  const preset =
+    deps.presets && Object.hasOwn(deps.presets, input.name)
+      ? deps.presets[input.name]
+      : undefined;
   const hasExplicitConfig = !!(input.transport || input.command || input.url);
   const cfg = hasExplicitConfig
     ? buildConfig(input, preset)
@@ -314,8 +346,13 @@ export async function addMcp(input: McpServerInput, deps: McpManageDeps): Promis
 /** Update an existing server's config, then re-apply it to the live registry. */
 export async function updateMcp(input: McpServerInput, deps: McpManageDeps): Promise<McpOpResult> {
   if (!input.name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(input.name);
+  if (unsafe) return unsafe;
 
   const { full, servers } = await readServers(deps.configPath);
+  if (!Object.hasOwn(servers, input.name)) {
+    return { ok: false, message: `Server "${input.name}" not found` };
+  }
   const existing = servers[input.name];
   if (!existing) return { ok: false, message: `Server "${input.name}" not found` };
 
@@ -339,8 +376,10 @@ export async function updateMcp(input: McpServerInput, deps: McpManageDeps): Pro
 /** Remove a server from config and stop it if running. */
 export async function removeMcp(name: string, deps: McpManageDeps): Promise<McpOpResult> {
   if (!name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(name);
+  if (unsafe) return unsafe;
   const { full, servers } = await readServers(deps.configPath);
-  if (!servers[name]) return { ok: false, message: `Server "${name}" not found` };
+  if (!Object.hasOwn(servers, name)) return { ok: false, message: `Server "${name}" not found` };
 
   await safeStop(name, deps);
   forgetRegistryState(deps.registry, name);
@@ -352,7 +391,12 @@ export async function removeMcp(name: string, deps: McpManageDeps): Promise<McpO
 /** Enable a server in config and start it. */
 export async function enableMcp(name: string, deps: McpManageDeps): Promise<McpOpResult> {
   if (!name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(name);
+  if (unsafe) return unsafe;
   const { full, servers } = await readServers(deps.configPath);
+  if (!Object.hasOwn(servers, name)) {
+    return { ok: false, message: `Server "${name}" is not in config. Add it first.` };
+  }
   const cfg = servers[name];
   if (!cfg) {
     return { ok: false, message: `Server "${name}" is not in config. Add it first.` };
@@ -366,7 +410,12 @@ export async function enableMcp(name: string, deps: McpManageDeps): Promise<McpO
 /** Disable a server in config and stop it. */
 export async function disableMcp(name: string, deps: McpManageDeps): Promise<McpOpResult> {
   if (!name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(name);
+  if (unsafe) return unsafe;
   const { full, servers } = await readServers(deps.configPath);
+  if (!Object.hasOwn(servers, name)) {
+    return { ok: false, message: `Server "${name}" is not in config.` };
+  }
   const cfg = servers[name];
   if (!cfg) return { ok: false, message: `Server "${name}" is not in config.` };
 
@@ -385,6 +434,8 @@ export async function disableMcp(name: string, deps: McpManageDeps): Promise<Mcp
 /** Restart a running server (or start it from config if registered but stopped). */
 export async function restartMcp(name: string, deps: McpManageDeps): Promise<McpOpResult> {
   if (!name) return { ok: false, message: 'Server name is required' };
+  const unsafe = unsafeServerNameResult(name);
+  if (unsafe) return unsafe;
   const registered = deps.registry.list().some((s) => s.name === name);
   if (registered) {
     try {
@@ -395,8 +446,12 @@ export async function restartMcp(name: string, deps: McpManageDeps): Promise<Mcp
       return { ok: false, message: `Failed to restart "${name}": ${errMessage(err)}` };
     }
   }
-  // Not in the registry yet — start it from config if it exists and is enabled.
+  // Not in the registry yet — start it from config if the entry exists
+  // (enabled or not; enable/disable own that flag).
   const { servers } = await readServers(deps.configPath);
+  if (!Object.hasOwn(servers, name)) {
+    return { ok: false, message: `Server "${name}" is not in config.` };
+  }
   const cfg = servers[name];
   if (!cfg) return { ok: false, message: `Server "${name}" is not in config.` };
   return startServer(name, { ...cfg, name }, deps, `Server "${name}" started`, { restart: true });

@@ -348,11 +348,15 @@ export function createEmbeddedMessageRouter(
     update: (ws, msg) =>
       handleMcpUpdate(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
     remove: (ws, msg) => handleMcpRemove(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    enable: (ws, msg) => handleMcpEnable(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    disable: (ws, msg) => handleMcpDisable(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
+    enable: (ws, msg) =>
+      handleMcpEnable(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
+    disable: (ws, msg) =>
+      handleMcpDisable(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
     sleep: (ws, msg) => handleMcpSleep(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    wake: (ws, msg) => handleMcpWake(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
-    restart: (ws, msg) => handleMcpRestart(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
+    wake: (ws, msg) =>
+      handleMcpWake(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
+    restart: (ws, msg) =>
+      handleMcpRestart(ws, msg, opts.profileConfigPath, opts.mcpRegistry, deps.trustBoundary),
     discover: (ws, msg) => handleMcpDiscover(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
     resources: (ws, msg) => handleMcpResources(ws, msg, opts.profileConfigPath, opts.mcpRegistry),
     prompts: (ws, msg) => handleMcpPrompts(ws, msg, opts.profileConfigPath, opts.mcpRegistry),

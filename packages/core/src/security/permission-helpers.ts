@@ -59,6 +59,41 @@ export function matchesCommandTrust(patterns: string[], subject: string): boolea
 }
 
 /**
+ * Every path-like string a write-capable tool input may carry. Shared by both
+ * permission policies so a new write-target key recognized here protects the
+ * leader and its subagents in the same edit (the same contract as
+ * {@link isSensitiveReadCall}).
+ */
+export function fsWriteTargetPaths(input: unknown): string[] {
+  const out: string[] = [];
+  if (!input || typeof input !== 'object') return out;
+  const obj = input as Record<string, unknown>;
+  for (const key of [
+    'path',
+    'file_path',
+    'file',
+    'filePath',
+    'files',
+    'target',
+    'targetPath',
+    'out',
+    'directory',
+    'cwd',
+    'template',
+  ]) {
+    const value = obj[key];
+    if (typeof value === 'string') {
+      if (value.length > 0) out.push(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item.length > 0) out.push(item);
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * True when this tool's permission subject is a shell command line rather than
  * a path, url, or name — i.e. when the stricter wildcard rules apply.
  */

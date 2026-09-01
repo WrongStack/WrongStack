@@ -410,6 +410,22 @@ describe('management edge cases', () => {
     await expect(disableMcp('missing', d)).resolves.toMatchObject({ ok: false });
   });
 
+  it('rejects prototype-polluting names without touching Object.prototype', async () => {
+    // H-2 (security report VF-04): `servers` is a JSON.parse result, so a bare
+    // `servers['__proto__']` lookup resolved to Object.prototype — truthy, so
+    // the `if (!cfg)` guard passed and `cfg.enabled = …` polluted every object
+    // in the process. The name screen must reject before any lookup.
+    const d = deps(makeRegistry());
+    await expect(enableMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
+    await expect(disableMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
+    await expect(removeMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
+    await expect(restartMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
+    await expect(discoverMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
+    await expect(addMcp({ name: 'constructor' }, d)).resolves.toMatchObject({ ok: false });
+    await expect(updateMcp({ name: 'prototype' }, d)).resolves.toMatchObject({ ok: false });
+    expect(Object.prototype.enabled).toBeUndefined();
+  });
+
   it('restarts an enabled update and an already tracked add', async () => {
     await addMcp({ name: 'github', enabled: true }, deps(makeRegistry(), { github: githubPreset }));
     const updateRegistry = makeRegistry({

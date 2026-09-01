@@ -49,7 +49,11 @@ function makeEventBus(): EventBus {
 }
 
 /** The production subagent policy grants exactly the capabilities under test. */
-const autoApprovePolicy = new AutoApprovePermissionPolicy(['fs.read', 'fs.write']);
+const autoApprovePolicy = new AutoApprovePermissionPolicy(['fs.read', 'fs.write'], {
+  // Hermetic: without this the policy derives the leader trust path from
+  // ctx.projectRoot and would read the real user's trust.json on this machine.
+  trustFile: '',
+});
 
 /** Create a minimal context with spyable `recordFileEvent` and kanban fields. */
 function makeFileEventCtx(overrides: Record<string, unknown> = {}) {
