@@ -102,4 +102,51 @@ describe('pwshTool', () => {
       await sb.cleanup();
     }
   });
+
+  it('renders the world-writable caution banner for split-argument danger rules', async () => {
+    // The danger assessment must see argv-shaped tokens: `chmod 777 …` is
+    // classified by the cmd-gated `chmod-world-writable` rule, which can only
+    // fire when the first token is treated as the program (as exec would).
+    const sb = await mkSandbox();
+    try {
+      const out = await pwshTool.execute(
+        { command: 'chmod 777 .definitely-missing-proof-target' },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.output).toContain('[caution: chmod with world-writable octal mode');
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('keeps phrase-scanned caution rules rendering (execution-policy bypass)', async () => {
+    // `Set-ExecutionPolicy Bypass` is matched as a phrase that spans two
+    // tokens; the raw-line assessment must survive the tokenized assessment.
+    const sb = await mkSandbox();
+    try {
+      const out = await pwshTool.execute(
+        { command: 'Set-ExecutionPolicy Bypass -Scope Process' },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.output).toContain('[caution: PowerShell execution policy bypass');
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('renders no caution banner for a benign command', async () => {
+    const sb = await mkSandbox();
+    try {
+      const out = await pwshTool.execute(
+        { command: 'Get-ChildItem .definitely-missing-proof-target' },
+        sb.ctx,
+        { signal: newSignal() },
+      );
+      expect(out.output).not.toContain('[caution:');
+    } finally {
+      await sb.cleanup();
+    }
+  });
 });

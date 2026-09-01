@@ -7,7 +7,7 @@ import {
   emitProcessStarted,
 } from '@wrongstack/core/observability';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
-import { detectDanger } from './_danger-detect.js';
+import { type DangerAssessment, detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { diagnoseBashism, shellArgs } from './_shell-pick.js';
@@ -70,6 +70,110 @@ function wrapPwshCommand(command: string): string {
     `${command}\n` +
     `if ($LASTEXITCODE -is [int]) { exit $LASTEXITCODE }`
   );
+}
+
+/**
+ * Split a PowerShell command line into argv-shaped tokens for danger
+ * classification.
+ *
+ * `detectDanger` rules inspect individual argv tokens (`-Force` as its own
+ * element), but the pwsh tool receives the whole command as one string.
+ * Passing that string as a single-element argv made every split-argument
+ * rule structurally unable to fire on this path (e.g. `chmod 777 x` or
+ * `Remove-Item -Recurse -Force` classified safe); only rules that regex the
+ * whole line (pipe-to-shell, execution-policy) were effective.
+ *
+ * PowerShell-aware: single-quoted strings are literal (`''` escapes a
+ * quote), double-quoted strings allow `""` and backtick escapes, and a
+ * backtick outside quotes escapes the next character (including the
+ * line-continuation newline). Quotes are stripped — they are syntax, not
+ * content. An unterminated quote takes the rest of the line as one token.
+ */
+function tokenizePwshCommand(command: string): string[] {
+  const tokens: string[] = [];
+  let current = '';
+
+  const push = () => {
+    if (current !== '') {
+      tokens.push(current);
+      current = '';
+    }
+  };
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command.charAt(i);
+    if (ch === '`') {
+      // Backtick escape: the next character (including a line-continuation
+      // newline) loses its special meaning and joins the current token.
+      const next = command.charAt(i + 1);
+      if (next !== '') {
+        current += next;
+        i++;
+      }
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      const quote = ch;
+      i++;
+      while (i < command.length) {
+        const qch = command.charAt(i);
+        if (qch === quote) {
+          // A doubled quote (`''` / `""`) is an escaped quote; a lone one
+          // terminates the string.
+          if (command.charAt(i + 1) === quote) {
+            current += quote;
+            i += 2;
+            continue;
+          }
+          break;
+        }
+        if (quote === '"' && qch === '`') {
+          const next = command.charAt(i + 1);
+          if (next !== '') {
+            current += next;
+            i += 2;
+            continue;
+          }
+        }
+        current += qch;
+        i++;
+      }
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      push();
+      continue;
+    }
+    current += ch;
+  }
+  push();
+  return tokens;
+}
+
+const DANGER_LEVEL_RANK: Readonly<Record<DangerAssessment['level'], number>> = {
+  safe: 0,
+  caution: 1,
+  destructive: 2,
+};
+
+/**
+ * Combine the assessments of one command made over different argv shapes.
+ * Token-based rules need split argv; cmd-gated binary rules need the first
+ * token as the program (mirroring how the exec tool sees the same line);
+ * phrase-scanning rules (e.g. the execution-policy scanner matching
+ * `Set-ExecutionPolicy Bypass` across two tokens) need the raw line. Takes
+ * the highest level, unions the reasons, and keeps the matched rule of the
+ * highest-level assessment.
+ */
+function mergeDanger(...assessments: readonly DangerAssessment[]): DangerAssessment {
+  const top = assessments.reduce((acc, cur) =>
+    DANGER_LEVEL_RANK[cur.level] > DANGER_LEVEL_RANK[acc.level] ? cur : acc,
+  );
+  const reasons = [...new Set(assessments.flatMap((a) => a.reasons))];
+  if (top.level === 'safe') return { level: 'safe', reasons: [] };
+  const result: DangerAssessment = { level: top.level, reasons };
+  if (top.matchedRule !== undefined) result.matchedRule = top.matchedRule;
+  return result;
 }
 
 export const pwshTool: Tool<PwshInput, PwshOutput> = {
@@ -502,7 +606,21 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
               ? diagnoseBashism(input.command, 'pwsh')
               : undefined;
 
-          const danger = detectDanger('pwsh', [input.command]);
+          // Classify the command under the argv shapes each rule family
+          // expects, so none goes dark on this path:
+          //   - `pwsh` + all tokens → PowerShell cmdlet rules
+          //     (`Remove-Item -recurse -force …`);
+          //   - first token as the program → native-binary rules
+          //     (`chmod 777 …`, `git push --force …`), mirroring how the
+          //     exec tool would see the same line;
+          //   - the raw line → phrase scanners
+          //     (`Set-ExecutionPolicy Bypass …`).
+          const tokens = tokenizePwshCommand(input.command);
+          const danger = mergeDanger(
+            detectDanger('pwsh', tokens),
+            detectDanger(tokens[0] ?? 'pwsh', tokens.slice(1)),
+            detectDanger('pwsh', [input.command]),
+          );
           const cautionText =
             danger.level === 'caution' && danger.reasons.length > 0
               ? `\n[caution: ${danger.reasons.join('; ')}]`
