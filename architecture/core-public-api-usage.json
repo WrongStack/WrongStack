@@ -89,9 +89,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 30,
+      "files": 31,
       "typeOnly": 9,
-      "runtimeOrMixed": 23
+      "runtimeOrMixed": 24
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -102,6 +102,11 @@
       "files": 9,
       "typeOnly": 0,
       "runtimeOrMixed": 9
+    },
+    "@wrongstack/core/performance": {
+      "files": 1,
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     "@wrongstack/core/plugin": {
       "files": 29,
@@ -114,8 +119,8 @@
       "runtimeOrMixed": 7
     },
     "@wrongstack/core/registry": {
-      "files": 111,
-      "typeOnly": 56,
+      "files": 112,
+      "typeOnly": 57,
       "runtimeOrMixed": 56
     },
     "@wrongstack/core/replay": {
@@ -159,8 +164,8 @@
       "runtimeOrMixed": 5
     },
     "@wrongstack/core/types": {
-      "files": 1024,
-      "typeOnly": 947,
+      "files": 1028,
+      "typeOnly": 951,
       "runtimeOrMixed": 247
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -189,9 +194,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 550,
+      "files": 551,
       "typeOnly": 57,
-      "runtimeOrMixed": 522
+      "runtimeOrMixed": 523
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -6701,6 +6706,12 @@
     },
     {
       "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/src/pre-launch/first-run.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
       "file": "packages/cli/src/provider-helpers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -6954,6 +6965,12 @@
     {
       "specifier": "@wrongstack/core/observability",
       "file": "packages/tools/src/pwsh.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/performance",
+      "file": "packages/webui/tests/lib/perf-run-message.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7638,6 +7655,12 @@
     {
       "specifier": "@wrongstack/core/registry",
       "file": "packages/providers/src/index.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/registry",
+      "file": "packages/providers/src/setup-provider.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10355,6 +10378,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/pre-launch/first-run.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/preflight.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -11504,6 +11533,12 @@
       "file": "packages/cli/tests/fallback-model.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/first-run.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -12965,6 +13000,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/setup-provider.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/sse.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -13170,6 +13211,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/prompt-cache-key.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/setup-provider.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -16602,6 +16649,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/plugin-management.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/pre-launch/first-run.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-01T07:48:35.547Z",
+  "generatedAt": "2026-09-01T18:18:52.734Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,19 +12,25 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3434,
-    "testFiles": 3075,
-    "sourceLines": 839987,
+    "sourceFiles": 3448,
+    "testFiles": 3087,
+    "sourceLines": 843577,
     "workspaceEdges": 128,
-    "moduleEdges": 10677,
+    "moduleEdges": 10717,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 853
+    "testOnlyExports": 856
   },
-  "errors": [],
+  "errors": [
+    "packages/cli/src/boot.ts: hotspot grew from 851 to 921 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/semantic-search-indexer/index.ts: hotspot grew from 803 to 936 lines; review and update the ratchet in the same change",
+    "packages/webui/src/stores/fleet-store.ts: hotspot grew from 972 to 996 lines; review and update the ratchet in the same change",
+    "packages/webui/src/stores/ui-store.ts: hotspot shrunk from 1292 to 1279 lines; review and update the ratchet in the same change",
+    "packages/plugins/src/semantic-search-indexer/index.ts: \"semanticIndexerCoverage\" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json"
+  ],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -42,6 +48,7 @@
       "models",
       "notifications",
       "observability",
+      "performance",
       "plugin",
       "plugins",
       "prompts",
@@ -74,6 +81,7 @@
       "models",
       "notifications",
       "observability",
+      "performance",
       "plugin",
       "plugins",
       "prompts",
@@ -140,8 +148,8 @@
     {
       "name": "@wrongstack/cli",
       "dir": "packages/cli",
-      "sourceFiles": 475,
-      "testFiles": 450,
+      "sourceFiles": 476,
+      "testFiles": 452,
       "workspaceDependencies": [
         "@wrongstack/acp",
         "@wrongstack/bench",
@@ -180,7 +188,7 @@
         {
           "path": "packages/cli/tsconfig.test.json",
           "error": null,
-          "testFiles": 450
+          "testFiles": 452
         }
       ]
     },
@@ -210,8 +218,8 @@
     {
       "name": "@wrongstack/core",
       "dir": "packages/core",
-      "sourceFiles": 782,
-      "testFiles": 694,
+      "sourceFiles": 792,
+      "testFiles": 699,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -226,7 +234,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 694
+          "testFiles": 699
         }
       ]
     },
@@ -474,8 +482,8 @@
     {
       "name": "@wrongstack/providers",
       "dir": "packages/providers",
-      "sourceFiles": 58,
-      "testFiles": 53,
+      "sourceFiles": 59,
+      "testFiles": 54,
       "workspaceDependencies": [
         "@wrongstack/core"
       ],
@@ -488,7 +496,7 @@
         {
           "path": "packages/providers/tsconfig.test.json",
           "error": null,
-          "testFiles": 53
+          "testFiles": 54
         }
       ]
     },
@@ -566,7 +574,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 103,
-      "testFiles": 79,
+      "testFiles": 80,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -581,7 +589,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 79
+          "testFiles": 80
         }
       ]
     },
@@ -807,8 +815,8 @@
     {
       "name": "@wrongstack/webui",
       "dir": "packages/webui",
-      "sourceFiles": 499,
-      "testFiles": 403,
+      "sourceFiles": 501,
+      "testFiles": 406,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -832,7 +840,7 @@
         {
           "path": "packages/webui/tsconfig.test.json",
           "error": null,
-          "testFiles": 403
+          "testFiles": 406
         }
       ]
     },
@@ -2266,6 +2274,12 @@
       },
       {
         "file": "packages/cli/tests/fallback-model.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/first-run.test.ts",
         "projects": [
           "root-node"
         ]
@@ -3976,6 +3990,12 @@
       },
       {
         "file": "packages/cli/tests/theme-preset-end-to-end.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/cli/tests/tier-budget-validation.test.ts",
         "projects": [
           "root-node"
         ]
@@ -6915,6 +6935,30 @@
         ]
       },
       {
+        "file": "packages/core/tests/performance/perf-guard.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/performance/perf-log.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/performance/perf-runner.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/performance/perf-stats.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/plugin/api-mutation-boundary.test.ts",
         "projects": [
           "root-node"
@@ -7000,6 +7044,12 @@
       },
       {
         "file": "packages/core/tests/plugins/git-plugin-extra.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/plugins/perf-command.test.ts",
         "projects": [
           "root-node"
         ]
@@ -10605,6 +10655,12 @@
         ]
       },
       {
+        "file": "packages/providers/tests/setup-provider.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/providers/tests/sse.test.ts",
         "projects": [
           "root-node"
@@ -11056,6 +11112,12 @@
       },
       {
         "file": "packages/sage/tests/project-server-endpoint.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/project-server-slow-op.test.ts",
         "projects": [
           "root-node"
         ]
@@ -17601,6 +17663,12 @@
         ]
       },
       {
+        "file": "packages/webui/tests/components/message-bubble-perf-run.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
         "file": "packages/webui/tests/components/message-bubble-thinking-log.test.tsx",
         "projects": [
           "webui-jsdom"
@@ -18004,6 +18072,12 @@
       },
       {
         "file": "packages/webui/tests/components/welcome-screen-bug-hunter.test.tsx",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/components/welcome-screen-perf-ratchet.test.tsx",
         "projects": [
           "webui-jsdom"
         ]
@@ -18592,6 +18666,12 @@
       },
       {
         "file": "packages/webui/tests/lib/palettes.test.ts",
+        "projects": [
+          "webui-jsdom"
+        ]
+      },
+      {
+        "file": "packages/webui/tests/lib/perf-run-message.test.ts",
         "projects": [
           "webui-jsdom"
         ]
@@ -19658,7 +19738,7 @@
     },
     {
       "file": "packages/cli/src/boot.ts",
-      "lines": 851,
+      "lines": 921,
       "relativeImports": 19
     },
     {
@@ -19953,7 +20033,7 @@
     },
     {
       "file": "packages/plugins/src/semantic-search-indexer/index.ts",
-      "lines": 803,
+      "lines": 936,
       "relativeImports": 0
     },
     {
@@ -19973,7 +20053,7 @@
     },
     {
       "file": "packages/sage/src/project-server.ts",
-      "lines": 817,
+      "lines": 853,
       "relativeImports": 6
     },
     {
@@ -20258,7 +20338,7 @@
     },
     {
       "file": "packages/webui/src/stores/fleet-store.ts",
-      "lines": 972,
+      "lines": 996,
       "relativeImports": 2
     },
     {
@@ -20273,7 +20353,7 @@
     },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
-      "lines": 1292,
+      "lines": 1279,
       "relativeImports": 4
     },
     {
@@ -20390,7 +20470,7 @@
     },
     {
       "file": "packages/webui/src/stores/ui-store.ts",
-      "lines": 1292,
+      "lines": 1279,
       "relativeImports": 4
     },
     {
@@ -20584,6 +20664,11 @@
       "relativeImports": 11
     },
     {
+      "file": "packages/webui/src/stores/fleet-store.ts",
+      "lines": 996,
+      "relativeImports": 2
+    },
+    {
       "file": "packages/core/src/session-catalog/store.ts",
       "lines": 994,
       "relativeImports": 11
@@ -20612,11 +20697,6 @@
       "file": "packages/core/src/execution/brain-runtime.ts",
       "lines": 987,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/tools/src/codebase-index/indexer.ts",
-      "lines": 986,
-      "relativeImports": 9
     }
   ],
   "testOnlyExports": [
@@ -21601,6 +21681,14 @@
       "name": "requirementIntakeServer"
     },
     {
+      "file": "packages/core/src/plugins/perf-command.ts",
+      "name": "buildPerfRunText"
+    },
+    {
+      "file": "packages/core/src/plugins/perf-command.ts",
+      "name": "parsePerfArgs"
+    },
+    {
       "file": "packages/core/src/plugins/review-context-builder.ts",
       "name": "parsePorcelainStatusZ"
     },
@@ -22231,6 +22319,10 @@
     {
       "file": "packages/plugins/src/prompt-firewall/index.ts",
       "name": "SCAN_WINDOW_LIMIT"
+    },
+    {
+      "file": "packages/plugins/src/semantic-search-indexer/index.ts",
+      "name": "semanticIndexerCoverage"
     },
     {
       "file": "packages/plugins/src/semver-bump/index.ts",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.318.0",
+  "packageVersion": "0.319.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1177,6 +1177,24 @@
       ]
     },
     {
+      "subpath": "./performance",
+      "target": {
+        "types": "./dist/performance/index.d.ts",
+        "import": "./dist/performance/index.js"
+      },
+      "source": "packages/core/src/performance/index.ts",
+      "declarations": [
+        "export { DEFAULT_MIN_DELTA_PCT, DEFAULT_RUNS, isPerfMetricId, PERF_METRIC_IDS, PERF_METRICS, type PerfDecision, type PerfDirection, type PerfMeasurement, type PerfMetricId, type PerfMetricSpec, type PerfStats, type PerfVerdict, } from './perf-types.js';",
+        "export { DEFAULT_PERF_MODE, isPerfModeId, PERF_MODE_IDS, PERF_MODES, PERF_PROMPT_SLUGS, type PerfMode, type PerfModeId, } from './perf-modes.js';",
+        "export { appendPerfAttempt, appendPerfRound, latestRound, parsePerfLog, PERF_LOG_HEADER, type PerfAttempt, type PerfAttemptOutcome, type PerfLogDocument, type PerfRound, renderPerfLog, renderRound, summarizePerfLog, } from './perf-log.js';",
+        "export { applyRatchet, DEFAULT_GUARD_THRESHOLD_PCT, type EvaluateGuardOptions, evaluateGuard, formatGuardReport, guardFailed, type GuardResult, PERF_BASELINE_SCHEMA_VERSION, parseBaselineFile, type PerfBaselineEntry, type PerfBaselineFile, type RatchetOptions, } from './perf-guard.js';",
+        "export { describeMachine, measure, type MeasureOptions, runOnce, } from './perf-runner.js';",
+        "export { detectPerfStacks, GENERIC_STACK, type PerfStackId, type PerfStackProfile, renderStackGuidance, } from './perf-stack.js';",
+        "export { gnuTimeMaxRssExtractor, hyperfineMeanExtractor, isPerfExtractorName, jsonPathExtractor, type MetricExtractor, PERF_EXTRACTORS, type PerfExtractorName, type PerfRunOutput, regexExtractor, resolveExtractor, wallTimeExtractor, } from './perf-extractors.js';",
+        "export { type DecideOptions, decide, decideForMetric, formatMetricValue, isStableBaseline, percentileSorted, rawDeltaPct, summarize, } from './perf-stats.js';"
+      ]
+    },
+    {
       "subpath": "./chronicle",
       "target": {
         "types": "./dist/chronicle/index.d.ts",
@@ -1317,7 +1335,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 174,
-      "sourceLines": 50962
+      "sourceLines": 50983
     },
     {
       "directory": "core",
@@ -1404,6 +1422,13 @@
       "sourceLines": 1821
     },
     {
+      "directory": "performance",
+      "classification": "concrete runtime default",
+      "intendedOwner": "Runtime or focused performance package",
+      "sourceFiles": 9,
+      "sourceLines": 1723
+    },
+    {
       "directory": "plugin",
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
@@ -1414,8 +1439,8 @@
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
-      "sourceFiles": 21,
-      "sourceLines": 8260
+      "sourceFiles": 22,
+      "sourceLines": 8535
     },
     {
       "directory": "prompts",
@@ -1443,7 +1468,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6552
+      "sourceLines": 6569
     },
     {
       "directory": "session-catalog",
@@ -1471,7 +1496,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 92,
-      "sourceLines": 21285
+      "sourceLines": 21305
     },
     {
       "directory": "tasking",
@@ -1492,7 +1517,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 71,
-      "sourceLines": 12874
+      "sourceLines": 12876
     },
     {
       "directory": "utils",
