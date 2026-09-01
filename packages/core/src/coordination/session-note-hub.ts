@@ -90,6 +90,24 @@ export class SessionNoteHub {
           this.buses.delete(sid);
         } else {
           this.busRefCounts.set(sid, remaining);
+          // Rebind away from a torn-down first contributor: if the disposed
+          // inbox owned the cached bus, point the session at a surviving
+          // live contributor's bus. Keeping first-wins here would retain the
+          // dead agent's EventBus (listeners and all closures) until the
+          // session's LAST inbox unregisters, and post() would emit
+          // `session.note` on that dead bus.
+          if (this.buses.get(sid) === inbox.events) {
+            let survivor: EventBus | undefined;
+            for (const other of this.inboxes) {
+              const otherSid = resolveInboxSessionId(other)?.trim().replace(/\\/g, '/');
+              if (otherSid !== sid) continue;
+              if (!other.events) continue;
+              survivor = other.events;
+              break;
+            }
+            if (survivor) this.buses.set(sid, survivor);
+            else this.buses.delete(sid);
+          }
         }
       }
     };

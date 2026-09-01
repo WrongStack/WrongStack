@@ -134,7 +134,7 @@ describe('SessionNoteHub', () => {
     expect(seen).toEqual(['leader:hi']);
   });
 
-  it('drops the cached session bus once the last contributing inbox unregisters', () => {
+  it('rebinds the cached bus to a surviving contributor, then drops it after the last unregisters', () => {
     const hub = new SessionNoteHub();
     const firstBus = new EventBus();
     const secondBus = new EventBus();
@@ -160,17 +160,21 @@ describe('SessionNoteHub', () => {
     hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'one' });
     expect(firstSeen).toEqual(['one']);
 
-    // While another contributor is live, the cached bus must survive.
+    // When the owning (first) contributor unregisters, the cache rebinds to
+    // the surviving contributor's bus: the dead agent's EventBus (and every
+    // closure its listeners hold) is released immediately instead of being
+    // retained until the session's LAST inbox unregisters.
     offFirst();
     hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'two' });
-    expect(firstSeen).toEqual(['one', 'two']);
+    expect(firstSeen).toEqual(['one']);
+    expect(secondSeen).toEqual(['two']);
 
     // After the last contributor unregisters the cached bus is dropped — no
     // zombie emissions on a torn-down agent's bus.
     offSecond();
     hub.post({ sessionId: 'sess-1', from: 'a', to: 'worker-1', kind: 'note', body: 'three' });
-    expect(firstSeen).toEqual(['one', 'two']);
-    expect(secondSeen).toEqual([]);
+    expect(firstSeen).toEqual(['one']);
+    expect(secondSeen).toEqual(['two']);
 
     // A later live inbox re-primes the cache with its own bus.
     const thirdBus = new EventBus();
@@ -184,8 +188,43 @@ describe('SessionNoteHub', () => {
     });
     hub.post({ sessionId: 'sess-1', from: 'a', to: 'leader-2', kind: 'note', body: 'four' });
     expect(thirdSeen).toEqual(['four']);
-    expect(firstSeen).toEqual(['one', 'two']);
+    expect(firstSeen).toEqual(['one']);
     offThird();
+  });
+
+  it('keeps the cached bus when a non-owning contributor unregisters', () => {
+    const hub = new SessionNoteHub();
+    const firstBus = new EventBus();
+    const secondBus = new EventBus();
+    const firstSeen: string[] = [];
+    const secondSeen: string[] = [];
+    firstBus.on('session.note', (e) => firstSeen.push(e.body));
+    secondBus.on('session.note', (e) => secondSeen.push(e.body));
+
+    const offFirst = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'leader',
+      events: firstBus,
+      deliver: () => {},
+    });
+    const offSecond = hub.register({
+      sessionId: 'sess-1',
+      agentId: 'worker-1',
+      events: secondBus,
+      deliver: () => {},
+    });
+
+    // The non-owning contributor leaves while the first is still live: no
+    // rebind, the first bus stays bound.
+    offSecond();
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'leader', kind: 'note', body: 'kept' });
+    expect(firstSeen).toEqual(['kept']);
+    expect(secondSeen).toEqual([]);
+
+    // Then the owning contributor leaves too: refcount hits zero, bus drops.
+    offFirst();
+    hub.post({ sessionId: 'sess-1', from: 'a', to: 'leader', kind: 'note', body: 'gone' });
+    expect(firstSeen).toEqual(['kept']);
   });
 
   it('treats a disposer as single-use so a repeated call cannot drop a live bus', () => {
