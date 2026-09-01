@@ -76,6 +76,12 @@ export interface SageToolCallMiddlewareOptions {
   relationFloor?: number | undefined;
   repeatCooldownMs?: number | undefined;
   verifyOnMutation?: boolean | undefined;
+  /**
+   * Wall-clock budget for the automatic retrieval fan-out, in milliseconds.
+   * `0` (or a non-finite value) disables the budget. Defaults to
+   * {@link DEFAULT_RETRIEVAL_TIMEOUT_MS}.
+   */
+  retrievalTimeoutMs?: number | undefined;
   taskAware?: boolean | undefined;
   triggers?: Partial<Record<MemoryToolTrigger, boolean>> | undefined;
   tracker?: InjectionTracker | undefined;
@@ -152,6 +158,44 @@ const DEFAULT_MAX_HINTS = 8;
 const DEFAULT_MAX_CHARS = 2800;
 const DEFAULT_REPEAT_COOLDOWN_MS = 0;
 const MAX_REJECTED_DETAIL = 20;
+/**
+ * Default budget for the retrieval fan-out. Deliberately far below the SAGE
+ * client's 30s per-call timeout: injection is best-effort decoration on a tool
+ * result that has already succeeded, so a slow store should cost the pipeline
+ * a few seconds, not half a minute. The daemon serializes requests on one
+ * event loop, so a single slow query queues every other client behind it —
+ * without this budget that queue is paid in full by the tool call.
+ */
+const DEFAULT_RETRIEVAL_TIMEOUT_MS = 5_000;
+
+/**
+ * Race `work` against `timeoutMs`, rejecting with a named error on expiry.
+ *
+ * The loser keeps running — there is no cancellation channel on
+ * {@link SageRetrieverLike} — so both settlement paths stay attached and a
+ * late rejection is absorbed here instead of surfacing as an unhandled
+ * rejection. The caller's catch turns the expiry into a fail-open
+ * `outcome: 'error'` trace, which is what a retrieval failure already does.
+ */
+function withRetrievalBudget<T>(work: Promise<T>, timeoutMs: number): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return work;
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`SAGE retrieval exceeded its ${timeoutMs}ms budget`));
+    }, timeoutMs);
+    timer.unref?.();
+    work.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
 
 import { nowIso } from '@wrongstack/primitives';
 
@@ -207,13 +251,16 @@ export function createSageToolCallMiddleware(
         attemptedPlan = plan;
         trigger.queryText = plan.queryText;
         const maxHints = plan.maxHints;
-        const memories = await retrieveTriggeredMemories(
-          opts.memory,
-          trigger,
-          maxHints,
-          nextPayload.ctx.projectRoot,
-          relationFloor,
-          opts.getSessionId?.(),
+        const memories = await withRetrievalBudget(
+          retrieveTriggeredMemories(
+            opts.memory,
+            trigger,
+            maxHints,
+            nextPayload.ctx.projectRoot,
+            relationFloor,
+            opts.getSessionId?.(),
+          ),
+          opts.retrievalTimeoutMs ?? DEFAULT_RETRIEVAL_TIMEOUT_MS,
         );
         const alreadyVisible = visibleContextText(nextPayload);
         const rejectedDetail: RejectedDetailEntry[] = [];

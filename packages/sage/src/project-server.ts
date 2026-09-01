@@ -43,6 +43,40 @@ import type {
 const DEFAULT_IDLE_MS = 5 * 60_000;
 const AUTO_HYGIENE_INTERVAL_MS = 60 * 60_000;
 const MAX_FRAME_BUFFER_CHARS = 8 * 1024 * 1024;
+/**
+ * Dispatch duration above which a request is reported on stderr.
+ *
+ * SQLite is synchronous and this daemon runs one event loop, so a slow
+ * operation is never slow for its caller alone — every other client of the
+ * project waits behind it, and a queue deep enough makes them fail with their
+ * own 30s call timeout somewhere else entirely. That is how an FTS join-order
+ * regression (seconds per `searchSage` under one SQLite build, milliseconds
+ * under another) stayed invisible until unrelated ops started timing out. One
+ * throttled line names the op and the queue depth instead.
+ *
+ * `WRONGSTACK_SAGE_SLOW_OP_MS` overrides the threshold; 0 reports every
+ * request, which is what the lifecycle test asserts against.
+ */
+const SLOW_OPERATION_WARN_MS = (() => {
+  const raw = Number(process.env['WRONGSTACK_SAGE_SLOW_OP_MS']);
+  return Number.isFinite(raw) && raw >= 0 ? raw : 1_000;
+})();
+/** Per-op throttle so a persistent regression cannot flood stderr. */
+const SLOW_OPERATION_THROTTLE_MS = 60_000;
+const lastSlowReportAt = new Map<string, number>();
+
+function reportSlowOperation(op: SageServerOperationName, durationMs: number): void {
+  if (durationMs < SLOW_OPERATION_WARN_MS) return;
+  const now = Date.now();
+  const previous = lastSlowReportAt.get(op);
+  if (previous !== undefined && now - previous < SLOW_OPERATION_THROTTLE_MS) return;
+  lastSlowReportAt.set(op, now);
+  process.stderr.write(
+    `sage project server: ${op} took ${Math.round(durationMs)}ms ` +
+      `(queued=${pendingRequests}, clients=${clients.size}) — every client waits behind it
+`,
+  );
+}
 const MAX_LEGACY_IMPORT_BYTES = 5 * 1024 * 1024;
 
 interface ParsedArgs {
@@ -558,6 +592,7 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
     ...(message.meta.sessionId !== undefined ? { sessionId: message.meta.sessionId } : {}),
     ...(message.meta.traceId !== undefined ? { traceId: message.meta.traceId } : {}),
   };
+  const startedAt = Date.now();
   void requestContext
     .run(safeMeta, () => dispatch(message.op, message.args, controller.signal))
     .then((result) => {
@@ -579,6 +614,7 @@ function handleMessage(state: ClientState, message: SageProjectServerClientMessa
     .finally(() => {
       state.active.delete(message.id);
       pendingRequests = Math.max(0, pendingRequests - 1);
+      reportSlowOperation(message.op, Date.now() - startedAt);
     });
 }
 

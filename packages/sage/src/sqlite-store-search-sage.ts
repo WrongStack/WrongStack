@@ -107,8 +107,18 @@ export function searchSqliteSage(
     const runFts = (ftsQuery: string): Array<{ data: string }> =>
       ctx
         .stmt(
-          `SELECT m.data FROM memories m
-             JOIN memories_fts f ON m.rowid = f.rowid
+          // CROSS JOIN, not JOIN, and `memories_fts` first: the keyword pins the
+          // join order so the MATCH always drives the scan and `memories` is
+          // probed by rowid. A plain JOIN lets each SQLite build pick its own
+          // order, and the one bundled with Bun (the runtime the project daemon
+          // runs under) picks `memories` as the outer loop via idx_status and
+          // re-evaluates the MATCH once per candidate row: measured 1.7-4.2s
+          // versus 14ms here, on a 12.5k-memory store. Those seconds block the
+          // daemon's single event loop, so every other client's request —
+          // including a 12ms retrieveForPath — queues behind them until it
+          // trips its 30s call timeout.
+          `SELECT m.data FROM memories_fts f
+             CROSS JOIN memories m ON m.rowid = f.rowid
              WHERE m.status IN (${placeholders})${ftsScopeClause}${ftsSession.clause}${ftsAudienceClause}${neverInjectClause}
              AND memories_fts MATCH ?
              ORDER BY bm25(memories_fts) ASC, m.importance DESC

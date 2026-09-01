@@ -1093,3 +1093,52 @@ describe('containsMemoryText short-memory self-suppression', () => {
     ).toBe(false);
   });
 });
+
+describe('SageToolCallMiddleware — retrieval budget', () => {
+  it('fails open with an error trace when retrieval outlives its budget', async () => {
+    const store = makeStore();
+    let release: (() => void) | undefined;
+    const hung = new Promise<Sage[]>((resolve) => {
+      release = () => resolve([]);
+    });
+    const memory: SageRetrieverLike = {
+      ...store,
+      retrieveForPath: () => hung,
+      searchSage: () => hung,
+    };
+    const events = new EventBus();
+    const traces: Array<Record<string, unknown>> = [];
+    events.onPattern('memory.injector_run', (_event, payload) => {
+      traces.push(payload as Record<string, unknown>);
+    });
+    const mw = createSageToolCallMiddleware({ memory, events, retrievalTimeoutMs: 20 });
+
+    const payload = makePayload();
+    await mw.handler(payload as never, async (p) => p);
+
+    // Fail-open: the tool result reaches the caller untouched.
+    expect(payload.result.content).toBe('file content');
+    expect(traces).toHaveLength(1);
+    expect(traces[0]).toMatchObject({ outcome: 'error', candidates: 0, injectedChars: 0 });
+    expect(String(traces[0]?.['error'])).toContain('20ms budget');
+    // The abandoned retrieval settling later must not surface as an
+    // unhandled rejection or a second trace.
+    release?.();
+    await hung;
+    expect(traces).toHaveLength(1);
+  });
+
+  it('leaves retrieval unbounded when the budget is zero', async () => {
+    const store = await storeWithFileMemory('src/file.ts');
+    const mw = createSageToolCallMiddleware({
+      memory: store,
+      repeatCooldownMs: 0,
+      retrievalTimeoutMs: 0,
+    });
+
+    const payload = makePayload();
+    await mw.handler(payload as never, async (p) => p);
+
+    expect(memoryEvidenceText(payload)).toContain('Memory for src/file.ts');
+  });
+});

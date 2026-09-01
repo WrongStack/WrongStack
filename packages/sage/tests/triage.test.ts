@@ -15,11 +15,27 @@ import type { Sage } from '../src/types.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-const NOW = '2026-08-04T12:00:00.000Z';
-const RECENT = '2026-08-01T12:00:00.000Z'; // 3 days ago
-const MONTH_AGO = '2026-07-04T12:00:00.000Z'; // 31 days ago
-const THREE_MONTHS_AGO = '2026-05-04T12:00:00.000Z'; // 92 days ago
-const YEAR_AGO = '2025-08-04T12:00:00.000Z';
+/**
+ * Ages are derived from the real clock, not hardcoded.
+ *
+ * `computeValueScore` takes no injectable `now` — `computeFreshnessScore` calls
+ * `daysSince()`, which reads `Date.now()` directly. Absolute dates therefore age
+ * on their own and eventually drift across the FRESH_DAYS (30) / AGING_DAYS (90)
+ * boundaries, turning these into time bombs: `RECENT` was written as "3 days
+ * ago" on 2026-08-04 and started failing on 2026-09-01, the day it turned 31.
+ * `MONTH_AGO` was 5 weeks from doing the same at the 90-day line.
+ *
+ * Offsets are placed mid-band rather than one day inside an edge, so a rounding
+ * difference in `daysSince()` cannot flip a bucket.
+ */
+const daysAgo = (days: number): string =>
+  new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+const NOW = new Date().toISOString();
+const RECENT = daysAgo(3); // well inside FRESH_DAYS (30)
+const MONTH_AGO = daysAgo(45); // mid aging band (30 < age <= 90)
+const THREE_MONTHS_AGO = daysAgo(120); // beyond AGING_DAYS (90)
+const YEAR_AGO = daysAgo(365);
 
 let idCounter = 0;
 

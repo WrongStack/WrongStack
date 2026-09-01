@@ -150,12 +150,14 @@ export function executeUnifiedSearch(
     const ftsDataSql =
       // `m.id` rides along with `m.data` purely so the bm25-by-id map below can
       // be built without a second JSON.parse of every returned row.
-      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      // CROSS JOIN with `memories_fts` first pins the join order so the MATCH
+      // drives the scan — see the note in sqlite-store-search-sage.ts.
+      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories_fts f CROSS JOIN memories m ON m.rowid = f.rowid` +
       ftsWhereSql +
       ` ORDER BY ${orderBy.fts}` +
       ` LIMIT ${sqlLimit}`;
     const ftsCountSql =
-      `SELECT COUNT(*) AS n FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      `SELECT COUNT(*) AS n FROM memories_fts f CROSS JOIN memories m ON m.rowid = f.rowid` +
       ftsWhereSql;
 
     dataRows = host.stmt(ftsDataSql).all(...ftsParams) as Array<{
@@ -563,7 +565,7 @@ function suggestLexicalAdjacent(input: SuggestLexicalAdjacentInput): SearchHit[]
     .stmt(
       // `m.id` rides along with `m.data` purely so the bm25-by-id map below can
       // be built without a second JSON.parse of every returned row.
-      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories m JOIN memories_fts f ON m.rowid = f.rowid` +
+      `SELECT m.id AS id, m.data, bm25(memories_fts) AS bm25 FROM memories_fts f CROSS JOIN memories m ON m.rowid = f.rowid` +
         whereSql +
         ` ORDER BY ${buildOrderBy(ranking, true).fts}` +
         ` LIMIT ${suggestionSqlLimit}`,
