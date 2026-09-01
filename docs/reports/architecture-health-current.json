@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-01T06:12:28.490Z",
+  "generatedAt": "2026-09-01T07:48:35.547Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,8 +13,8 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3434,
-    "testFiles": 3074,
-    "sourceLines": 839979,
+    "testFiles": 3075,
+    "sourceLines": 839987,
     "workspaceEdges": 128,
     "moduleEdges": 10677,
     "nonCommandSlashImports": 0,
@@ -566,7 +566,7 @@
       "name": "@wrongstack/sage",
       "dir": "packages/sage",
       "sourceFiles": 103,
-      "testFiles": 78,
+      "testFiles": 79,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/persistence",
@@ -581,7 +581,7 @@
         {
           "path": "packages/sage/tsconfig.test.json",
           "error": null,
-          "testFiles": 78
+          "testFiles": 79
         }
       ]
     },
@@ -11032,6 +11032,12 @@
       },
       {
         "file": "packages/sage/tests/project-server-client-behavior.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/sage/tests/project-server-client-nextid-wrap.test.ts",
         "projects": [
           "root-node"
         ]

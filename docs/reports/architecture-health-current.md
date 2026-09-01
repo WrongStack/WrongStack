@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-01T06:12:28.490Z
+**Generated:** 2026-09-01T07:48:35.547Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,8 +9,8 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3434 |
-| Production source lines | 839979 |
-| Test files | 3074 |
+| Production source lines | 839987 |
+| Test files | 3075 |
 | Workspace dependency edges | 128 |
 | Relative module edges | 10677 |
 | Non-command slash imports | 0 |
@@ -47,7 +47,7 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/requirement-intake | 16 | 9 | @wrongstack/core |
 | @wrongstack/requirement-intake-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/requirement-intake |
 | @wrongstack/runtime | 13 | 16 | @wrongstack/core, @wrongstack/governance, @wrongstack/kanban, @wrongstack/sage, @wrongstack/tools, @wrongstack/vector-memory |
-| @wrongstack/sage | 103 | 78 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/sage | 103 | 79 | @wrongstack/core, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/sage-mcp | 5 | 3 | @wrongstack/core, @wrongstack/mcp, @wrongstack/sage |
 | @wrongstack/sdd | 38 | 36 | @wrongstack/core, @wrongstack/kanban, @wrongstack/primitives, @wrongstack/requirement-intake |
 | @wrongstack/security-scanner | 18 | 26 | @wrongstack/core |
