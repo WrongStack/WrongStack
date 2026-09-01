@@ -125,19 +125,19 @@ describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', ()
       if (choice < 0.75) return String.raw`\w`;
       return pick(['a', 'b']); // bias toward overlap-prone literals
     };
-    const quantified = (): string => {
-      const base = depth <= 0 ? atom() : rand() < 0.25 ? `(${expr(depth - 1)})` : atom();
+    const quantified = (d: number): string => {
+      const base = d <= 0 ? atom() : rand() < 0.25 ? `(${expr(d - 1)})` : atom();
       return base + pick(['', '', '', '?', '*', '+', '{1,2}', '{2}']);
     };
-    const seq = (): string => {
+    const seq = (d: number): string => {
       const n = 1 + Math.floor(rand() * 2);
       let out = '';
-      for (let i = 0; i < n; i++) out += quantified();
+      for (let i = 0; i < n; i++) out += quantified(d);
       return out;
     };
-    const expr = (): string =>
-      rand() < 0.55 ? `${seq()}|${seq()}` : rand() < 0.3 ? `${seq()}|${seq()}|${seq()}` : seq();
-    return expr();
+    const expr = (d: number): string =>
+      rand() < 0.55 ? `${seq(d)}|${seq(d)}` : rand() < 0.3 ? `${seq(d)}|${seq(d)}|${seq(d)}` : seq(d);
+    return expr(depth);
   }
 
   /**
