@@ -234,6 +234,10 @@ export async function replaceSymbolInFile(
   opts: MutateSymbolOptions,
   projectRoot: string,
 ): Promise<MutateSymbolResult> {
+  // Path containment (safeResolveReal) is applied by the tool layer
+  // (codebase-ast-replace-tool.ts) BEFORE this call, so `opts.file` arrives
+  // canonical and absolute here; the fallback below only serves direct
+  // callers (tests) that pass relative paths.
   const resolved = path.isAbsolute(opts.file) ? opts.file : path.resolve(projectRoot, opts.file);
 
   const content = await fs.readFile(resolved, 'utf8');

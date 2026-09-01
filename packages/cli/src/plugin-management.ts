@@ -15,7 +15,7 @@ import {
   unpinPluginTrust,
 } from '@wrongstack/core/plugin';
 import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
-import { atomicWrite } from '@wrongstack/core/utils';
+import { atomicWrite, buildChildEnv } from '@wrongstack/core/utils';
 import {
   PLUGIN_AUDIT_ENTRIES,
   type PluginAuditEntry,
@@ -941,6 +941,10 @@ function runPackageManagerInstall(
       invocation.args,
       {
         cwd,
+        // H-8 (security report VF-09): this runs npm/pnpm install — including
+        // untrusted package lifecycle scripts — with the full inherited
+        // environment. Strip credentials via the shared child env.
+        env: buildChildEnv(),
         timeout: 300_000,
         maxBuffer: 16 * 1024 * 1024,
         windowsHide: true,

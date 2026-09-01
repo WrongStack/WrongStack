@@ -12,6 +12,7 @@
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { safeResolveProjectPath } from '../_util.js';
 import { type MutateSymbolOptions, replaceSymbolInFile } from './ast-symbol-mutator.js';
 
 interface CodebaseAstReplaceInput extends MutateSymbolOptions {}
@@ -83,7 +84,14 @@ export const codebaseAstReplaceTool: Tool<CodebaseAstReplaceInput, CodebaseAstRe
   async execute(input, ctx) {
     try {
       const projectRoot = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
-      const result = await replaceSymbolInFile(input, projectRoot);
+      // H-5 (security report VF-07): this was the only MUTATING file tool that
+      // resolved its target with a bare isAbsolute passthrough — an absolute
+      // or ../ path wrote outside the project root (unprompted under YOLO).
+      // safeResolveProjectPath keeps the project-root-relative contract while
+      // enforcing containment; the mutator then receives an already-canonical
+      // absolute path.
+      const file = await safeResolveProjectPath(input.file, ctx);
+      const result = await replaceSymbolInFile({ ...input, file }, projectRoot);
 
       return {
         status: 'ok',

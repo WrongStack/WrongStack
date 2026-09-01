@@ -13,9 +13,9 @@
  */
 
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { safeResolveProjectPath } from '../_util.js';
 import {
   extractDirectorySkeleton,
   extractFileSkeleton,
@@ -90,9 +90,14 @@ export const codebaseSkeletonTool: Tool<CodebaseSkeletonInput, CodebaseSkeletonO
     additionalProperties: false,
   },
   async execute(input, ctx) {
-    const targetPath = path.isAbsolute(input.path)
-      ? input.path
-      : path.resolve(ctx.projectRoot ?? process.cwd(), input.path);
+    // H-5 (security report VF-06): this tool is `permission: 'auto'`, so the
+    // resolve must not be a bare isAbsolute passthrough — an absolute or ../
+    // path read arbitrary files (the fallback extractor returns FULL content
+    // for non-source files) without ever prompting. safeResolveProjectPath
+    // keeps this tool's documented contract (relative = project-root-relative,
+    // NOT session-cwd-relative) while enforcing the shared realpath
+    // containment; restricted mode now actually restricts this tool.
+    const targetPath = await safeResolveProjectPath(input.path, ctx);
 
     let stat: import('node:fs').Stats;
     try {

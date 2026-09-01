@@ -212,6 +212,24 @@ export async function safeResolveReal(input: string, ctx: Context): Promise<stri
 }
 
 /**
+ * Project-root-relative variant of {@link safeResolveReal} for the codebase
+ * tools whose documented input contract is "relative to projectRoot or
+ * absolute" (codebase-skeleton, security-ast-scan, codebase-invariant-check,
+ * codebase-ast-replace). The sibling file tools (edit/grep/glob/…) resolve
+ * relative input against the session cwd — that is THEIR contract; these four
+ * always resolved against the project root and their schemas say so. Routing
+ * them through plain safeResolveReal silently changed that: with a nested
+ * workingDir (worktrees, set_working_dir) a relative input resolved to the
+ * wrong file. Containment is still enforced exactly as in safeResolveReal
+ * (realpath + allowOutsideProjectRoot honored).
+ */
+export async function safeResolveProjectPath(input: string, ctx: Context): Promise<string> {
+  const root = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
+  const abs = path.isAbsolute(input) ? input : path.resolve(root, input);
+  return await safeResolveReal(abs, ctx);
+}
+
+/**
  * Truncate a diff (or similar text payload) to `maxBytes`, cutting at a line
  * boundary and appending an explicit marker. Used by the mutating file tools
  * (`write`, `edit`, `replace`) so their returned diffs stay inside the tool's

@@ -33,6 +33,8 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, extname, isAbsolute, relative, resolve } from 'node:path';
 
+import { buildChildEnv } from '@wrongstack/core/utils';
+
 export {
   parseLlmJsonObject,
   runOptionalPluginCouncil,
@@ -395,6 +397,12 @@ export function runRunnerCommand(
       invocation.args,
       {
         cwd: trimmedCwd,
+        // H-8 (security report VF-09): plugin subprocesses inherit the FULL
+        // environment by default — every provider API key and the vault
+        // passphrase were visible to any plugin exec(). Route through the
+        // shared allowlist + secret-strip child env (operators can widen it
+        // deliberately via WRONGSTACK_CHILD_ENV_PASSTHROUGH).
+        env: buildChildEnv(),
         timeout: options.timeoutMs,
         signal: options.signal,
         maxBuffer: MAX_BUFFER_BYTES,

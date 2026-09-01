@@ -6,9 +6,9 @@
  */
 
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { safeResolveProjectPath } from '../_util.js';
 import { type InvariantViolation, polyglotInvariantEngine } from './ast-invariant-engine.js';
 import { detectLang } from './languages.js';
 import type { SymbolLang } from './schema.js';
@@ -75,10 +75,10 @@ export const codebaseInvariantCheckTool: Tool<
       let lang = input.lang;
 
       if (!originalCode && input.file) {
-        const root = ctx.projectRoot ?? ctx.cwd ?? process.cwd();
-        const resolved = path.isAbsolute(input.file)
-          ? input.file
-          : path.resolve(root, input.file);
+        // H-5 (security report VF-06 family): shared realpath containment
+        // instead of a bare isAbsolute passthrough — same gap as the
+        // skeleton tool, same fix (project-root-relative contract kept).
+        const resolved = await safeResolveProjectPath(input.file, ctx);
         originalCode = await fs.readFile(resolved, 'utf8');
         if (!lang) {
           lang = detectLang(resolved) ?? 'ts';

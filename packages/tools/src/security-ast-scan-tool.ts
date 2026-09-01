@@ -14,6 +14,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { safeResolveProjectPath } from './_util.js';
 
 export interface SecurityFinding {
   ruleId:
@@ -274,9 +275,12 @@ export const securityAstScanTool: Tool<SecurityScanInput, SecurityScanOutput> = 
       let content = input.content;
 
       if (!content && input.file) {
-        const absPath = path.isAbsolute(input.file)
-          ? input.file
-          : path.resolve(projectRoot, input.file);
+        // H-6 (security report VF-06): same fix as codebase-skeleton — this
+        // tool is `permission: 'auto'`, so a bare isAbsolute passthrough read
+        // arbitrary files (and echoed matched secret lines verbatim) without
+        // a prompt. safeResolveProjectPath preserves the schema-documented
+        // "relative to project root" contract while enforcing containment.
+        const absPath = await safeResolveProjectPath(input.file, ctx);
         targetFile = path.relative(projectRoot, absPath).replace(/\\/g, '/');
         content = await fs.readFile(absPath, 'utf8');
       }

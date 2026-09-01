@@ -153,7 +153,11 @@ function isSensitiveKey(key: string): boolean {
     lower.includes('secret') ||
     lower.endsWith('token') ||
     lower.endsWith('apikey') ||
-    lower.endsWith('api_key')
+    lower.endsWith('api_key') ||
+    // H-7 (security report VF-08): the hyphenated spelling — `x-api-key` is
+    // the literal Anthropic header name. Parity with the scrubber's
+    // `api[-_]?key` and config-secrets' SECRET_KEY_PATTERN.
+    lower.endsWith('api-key')
   );
 }
 

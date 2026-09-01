@@ -181,10 +181,17 @@ const PATTERNS: Pattern[] = [
     // The key may carry a prefix (`"anthropicApiKey"`), but the credential word
     // must END the key: `"tokenCount"` and `"maxTokens"` do not match, because
     // the closing quote has to follow the word immediately.
+    // H-7 (security report VF-08): the prefix class now admits `-` and the
+    // alternation uses `api[-_]?key` — hyphenated header-style keys
+    // (`x-api-key`, `x-goog-api-key`, `api-key`) previously failed BOTH the
+    // prefix class and the literal `apiKey|api_key` spellings, so the literal
+    // Anthropic API header name passed through verbatim. Parity with
+    // `config-secrets.ts` SECRET_KEY_PATTERN is pinned by
+    // tests/security/redaction-api-key-parity.test.ts.
     // Value floor of 8 chars keeps enum-ish values (`"authorization":"none"`)
     // out. Capture groups: 1=key + punctuation, 2=value, 3=closing quote.
     regex:
-      /("[A-Za-z0-9_]*(?:apiKey|api_key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s*:\s*")([^"\\]{8,512})(")/gi,
+      /("[A-Za-z0-9_-]*(?:api[-_]?key|token|secret|password|authorization|bearer|private_key|access_token|refresh_token|client_secret)"\s*:\s*")([^"\\]{8,512})(")/gi,
     anchor: JSON_CREDENTIAL_KEY_ANCHORS,
   },
 
