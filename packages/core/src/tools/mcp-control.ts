@@ -229,8 +229,13 @@ async function runEnable(
   const all = allServers();
   const configured = deps.getConfig().mcpServers ?? {};
 
-  // Resolve the target config — it may be a preset not yet in config
-  const cfg = configured[name] ?? all[name];
+  // Resolve the target config — it may be a preset not yet in config.
+  // hasOwn on both records (Phase 3 truthiness sweep, security report item
+  // 14): `name` is agent-controlled tool input and `configured` is a
+  // JSON-derived record — a bare `configured[name]` resolves through
+  // Object.prototype for '__proto__'-shaped names.
+  const fromConfig = Object.hasOwn(configured, name) ? configured[name] : undefined;
+  const cfg = fromConfig ?? (Object.hasOwn(all, name) ? all[name] : undefined);
   if (!cfg) {
     const known = Object.keys(all).join(', ');
     return `Unknown server "${name}". Available presets: ${known}`;
@@ -269,14 +274,21 @@ async function runDisable(
   if (!name) return '`server` is required for disable. Example: { action: "disable", server: "github" }';
 
   const configured = deps.getConfig().mcpServers ?? {};
-  if (!configured[name]) {
+  // Phase 3 truthiness sweep: hasOwn guard — `name` is agent-controlled, the
+  // record is JSON-derived.
+  const existingEntry = Object.hasOwn(configured, name) ? configured[name] : undefined;
+  if (!existingEntry) {
     return `Server "${name}" is not in config. Add it with \`mcp_control({ action: "enable", server: "${name}" })\`.`;
   }
 
-  // Write to config using the shared JSON path helper.
+  // Write to config using the shared JSON path helper. hasOwn-derived value:
+  // `current` is re-read from the JSON file, so a prototype-chain key must
+  // not satisfy the lookup (Phase 3 truthiness sweep).
   await updateJsonObjectFile(deps.configPath, (full) => {
     const current = isMcpServerRecord(full.mcpServers) ? full.mcpServers : {};
-    const existing = expectDefined(current[name]);
+    const existing = expectDefined(
+      Object.hasOwn(current, name) ? current[name] : undefined,
+    );
     setJsonPath(full, ['mcpServers', name], { ...existing, enabled: false });
   });
 
@@ -296,7 +308,9 @@ async function runRestart(
   if (!name) return '`server` is required for restart. Example: { action: "restart", server: "github" }';
 
   const configured = deps.getConfig().mcpServers ?? {};
-  if (!configured[name]) {
+  // Phase 3 truthiness sweep: hasOwn guard on the JSON-derived record.
+  const configuredEntry = Object.hasOwn(configured, name) ? configured[name] : undefined;
+  if (!configuredEntry) {
     return `Server "${name}" is not configured. Use \`mcp_control({ action: "enable", server: "${name}" })\` first.`;
   }
 

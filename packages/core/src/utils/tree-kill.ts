@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { buildChildEnv } from './child-env.js';
 
 /**
  * Minimal shape shared by Node's `ChildProcess` and lighter child wrappers.
@@ -62,6 +63,9 @@ export function treeKill(child: KillableChild, opts: TreeKillOptions = {}): void
     try {
       const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
         stdio: 'ignore',
+        // H-8 convention (spawn-convention test): taskkill needs PATH only —
+        // do not hand it the credential-bearing parent environment.
+        env: buildChildEnv(),
         windowsHide: true,
       });
       killer.once('error', directKill);

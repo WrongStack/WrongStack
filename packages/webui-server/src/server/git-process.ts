@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { buildChildEnv } from '@wrongstack/core/utils';
 
 const GIT_TIMEOUT_MS = 10_000;
 const GIT_MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -11,6 +12,9 @@ export function gitStdout(cwd: string, args: readonly string[]): Promise<string 
       [...args],
       {
         cwd,
+        // H-8 convention (spawn-convention test): read-only git query —
+        // PATH and git config are enough; strip credentials.
+        env: buildChildEnv(),
         encoding: 'utf8',
         windowsHide: true,
         timeout: GIT_TIMEOUT_MS,
