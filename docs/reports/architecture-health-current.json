@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-01T18:20:48.798Z",
+  "generatedAt": "2026-09-01T20:18:49.343Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,10 +13,10 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3448,
-    "testFiles": 3087,
-    "sourceLines": 843577,
+    "testFiles": 3091,
+    "sourceLines": 844583,
     "workspaceEdges": 128,
-    "moduleEdges": 10717,
+    "moduleEdges": 10729,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -213,7 +213,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 792,
-      "testFiles": 699,
+      "testFiles": 701,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -228,7 +228,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 699
+          "testFiles": 701
         }
       ]
     },
@@ -732,7 +732,7 @@
       "name": "@wrongstack/tools",
       "dir": "packages/tools",
       "sourceFiles": 191,
-      "testFiles": 200,
+      "testFiles": 202,
       "workspaceDependencies": [
         "@wrongstack/core",
         "@wrongstack/kanban",
@@ -748,7 +748,7 @@
         {
           "path": "packages/tools/tsconfig.test.json",
           "error": null,
-          "testFiles": 200
+          "testFiles": 202
         }
       ]
     },
@@ -4565,6 +4565,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/path-resolution-convention.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/project-daemon-boundary.test.ts",
         "projects": [
           "root-node"
@@ -7320,6 +7326,12 @@
       },
       {
         "file": "packages/core/tests/security/readonly-permission-policy.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/core/tests/security/redaction-api-key-parity.test.ts",
         "projects": [
           "root-node"
         ]
@@ -12917,6 +12929,12 @@
         ]
       },
       {
+        "file": "packages/tools/tests/codebase-tool-path-confinement.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/tools/tests/danger-detect.test.ts",
         "projects": [
           "root-node"
@@ -13008,6 +13026,12 @@
       },
       {
         "file": "packages/tools/tests/fs-tools-stat-error.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/tools/tests/generic-parser-redos.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19762,7 +19786,7 @@
     },
     {
       "file": "packages/cli/src/plugin-management.ts",
-      "lines": 1034,
+      "lines": 1038,
       "relativeImports": 1
     },
     {
@@ -20392,7 +20416,7 @@
     },
     {
       "file": "packages/webui-server/src/server/embedded-message-router.ts",
-      "lines": 851,
+      "lines": 855,
       "relativeImports": 53
     },
     {
@@ -20412,7 +20436,7 @@
     },
     {
       "file": "packages/webui-server/src/server/routes.ts",
-      "lines": 962,
+      "lines": 966,
       "relativeImports": 47
     },
     {
@@ -20573,6 +20597,11 @@
       "relativeImports": 9
     },
     {
+      "file": "packages/cli/src/plugin-management.ts",
+      "lines": 1038,
+      "relativeImports": 1
+    },
+    {
       "file": "packages/webui-server/src/server/ws-payload-validation.ts",
       "lines": 1038,
       "relativeImports": 1
@@ -20586,11 +20615,6 @@
       "file": "packages/tui/src/components/sidebar-content.tsx",
       "lines": 1035,
       "relativeImports": 13
-    },
-    {
-      "file": "packages/cli/src/plugin-management.ts",
-      "lines": 1034,
-      "relativeImports": 1
     },
     {
       "file": "packages/tui/src/components/context-panel.tsx",

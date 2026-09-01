@@ -31,7 +31,7 @@
       "relativeImports": 11
     },
     "packages/cli/src/plugin-management.ts": {
-      "lines": 1034,
+      "lines": 1038,
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban-task-subcommands.ts": {
@@ -535,7 +535,7 @@
       "relativeImports": 1
     },
     "packages/webui-server/src/server/embedded-message-router.ts": {
-      "lines": 851,
+      "lines": 855,
       "relativeImports": 53
     },
     "packages/webui-server/src/server/file-handlers.ts": {
@@ -551,7 +551,7 @@
       "relativeImports": 11
     },
     "packages/webui-server/src/server/routes.ts": {
-      "lines": 962,
+      "lines": 966,
       "relativeImports": 47
     },
     "packages/webui-server/src/server/session-handlers.ts": {

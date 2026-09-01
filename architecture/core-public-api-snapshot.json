@@ -1384,7 +1384,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 43,
-      "sourceLines": 8892
+      "sourceLines": 8896
     },
     {
       "directory": "infrastructure",
@@ -1426,7 +1426,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or focused performance package",
       "sourceFiles": 9,
-      "sourceLines": 1723
+      "sourceLines": 1734
     },
     {
       "directory": "plugin",
@@ -1468,7 +1468,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6569
+      "sourceLines": 6796
     },
     {
       "directory": "session-catalog",
@@ -1496,7 +1496,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 92,
-      "sourceLines": 21305
+      "sourceLines": 21315
     },
     {
       "directory": "tasking",
@@ -1510,7 +1510,7 @@
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
       "sourceFiles": 20,
-      "sourceLines": 3589
+      "sourceLines": 3603
     },
     {
       "directory": "types",
@@ -1524,7 +1524,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 67,
-      "sourceLines": 10619
+      "sourceLines": 10623
     },
     {
       "directory": "wiring",

@@ -194,9 +194,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 551,
+      "files": 554,
       "typeOnly": 57,
-      "runtimeOrMixed": 523
+      "runtimeOrMixed": 526
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -17956,6 +17956,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/mcp/src/client-process.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/mcp/src/client.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18029,6 +18035,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/plug-lsp/src/utils/safe-spawn.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugin-sdk/src/runtime/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -19193,6 +19205,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/file-handlers.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/git-process.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
