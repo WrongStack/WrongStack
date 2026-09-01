@@ -7,10 +7,12 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 const { readdir, readFile, stat } = await import('node:fs/promises');
+const { semanticIndexerCoverage, readConfig } = await import('../src/semantic-search-indexer');
 const plugin = (await import('../src/semantic-search-indexer')).default;
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
+  registerHook: ReturnType<typeof vi.fn>;
   config: { extensions: Record<string, unknown> };
   log: {
     info: ReturnType<typeof vi.fn>;
@@ -38,6 +40,7 @@ type Tree = Record<string, TreeEntry | FileEntry>;
 function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): MockApi {
   return {
     tools: { register: vi.fn() },
+    registerHook: vi.fn(() => vi.fn()),
     config: { extensions: overrides.extensions ?? {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn() },
@@ -127,6 +130,59 @@ describe('semantic-search-indexer plugin', () => {
     expect(names).toContain('semantic_search');
     expect(names).toContain('semantic_index_status');
     expect(api.tools.register).toHaveBeenCalledTimes(2);
+  });
+
+  it('prunes deleted files from the index without a rebuild', async () => {
+    const tree: Tree = {
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['auth.ts', 'utils.ts'] },
+      '/project/src/auth.ts': { type: 'file', content: 'const auth = true;\n' },
+      '/project/src/utils.ts': { type: 'file', content: 'const auth = false;\n' },
+    };
+    mockTree(tree);
+
+    const api = makeApi();
+    plugin.setup(api as never);
+    const search = getTool(api, 'semantic_search');
+    const before = (await search({ query: 'auth' })) as { totalResults: number };
+    expect(before.totalResults).toBe(2);
+
+    // The file is deleted on disk: the tree entry disappears, so the stat
+    // mock now rejects for it (ENOENT) — exactly like a real delete.
+    delete (tree as Record<string, unknown>)['/project/src/auth.ts'];
+
+    const removed = await semanticIndexerCoverage.pruneDeletedFiles(
+      '/project',
+      readConfig(undefined),
+      { force: true },
+    );
+    expect(removed).toBe(1);
+
+    const after = (await search({ query: 'auth' })) as {
+      totalResults: number;
+      results: Array<{ path: string }>;
+    };
+    expect(after.totalResults).toBe(1);
+    expect(after.results[0]?.path).toBe('src/utils.ts');
+  });
+
+  it('registers a PostToolUse prune hook for deletion-capable tools', async () => {
+    mockTree({
+      '/project': { type: 'dir', entries: ['src'] },
+      '/project/src': { type: 'dir', entries: ['auth.ts'] },
+      '/project/src/auth.ts': { type: 'file', content: 'const auth = true;\n' },
+    });
+
+    const api = makeApi();
+    plugin.setup(api as never);
+    // Write-invalidation hook + deletion-prune hook.
+    expect(api.registerHook).toHaveBeenCalledTimes(2);
+    const deleteCall = api.registerHook.mock.calls.find((c) => String(c[1]).includes('bash'));
+    expect(deleteCall).toBeDefined();
+    expect(deleteCall?.[0]).toBe('PostToolUse');
+    // Firing the hook (fire-and-forget prune) must not throw with no index loaded.
+    const deleteHook = deleteCall?.[2] as (() => void) | undefined;
+    expect(() => deleteHook?.()).not.toThrow();
   });
 
   it('returns ranked results with matched lines for a basic query', async () => {
@@ -315,12 +371,12 @@ describe('semantic-search-indexer plugin', () => {
 
     // makeApi has no registerHook — add a capturing one so the invalidation
     // hook can be fired mid-build.
-    const invalidations: Array<() => void> = [];
+    const invalidations: Array<{ matcher: unknown; hook: () => void }> = [];
     const api = makeApi();
     (api as unknown as { registerHook: (...args: unknown[]) => () => void }).registerHook = (
       ...args: unknown[]
     ) => {
-      invalidations.push(args[2] as () => void);
+      invalidations.push({ matcher: args[1], hook: args[2] as () => void });
       return () => {};
     };
     plugin.setup(api as never);
@@ -340,7 +396,10 @@ describe('semantic-search-indexer plugin', () => {
     expect(releaseRead).toBeDefined();
 
     // A write lands mid-build: the hook invalidates (generation bump).
-    invalidations[invalidations.length - 1]?.();
+    // Select the WRITE hook by matcher: the deletion-prune hook registered
+    // after it does not bump the generation.
+    const writeHook = invalidations.find((entry) => String(entry.matcher).includes('write'));
+    writeHook?.hook();
 
     // Swap to the post-write tree and let the blocked (stale) build finish.
     mockTree({
@@ -374,12 +433,12 @@ describe('semantic-search-indexer plugin', () => {
       '/project/src/a.ts': { type: 'file', content: 'const alpha = true;\n' },
     });
 
-    const invalidations: Array<() => void> = [];
+    const invalidations: Array<{ matcher: unknown; hook: () => void }> = [];
     const api = makeApi();
     (api as unknown as { registerHook: (...args: unknown[]) => () => void }).registerHook = (
       ...args: unknown[]
     ) => {
-      invalidations.push(args[2] as () => void);
+      invalidations.push({ matcher: args[1], hook: args[2] as () => void });
       return () => {};
     };
     plugin.setup(api as never);
@@ -390,7 +449,10 @@ describe('semantic-search-indexer plugin', () => {
     expect(first.ok).toBe(true);
 
     // An edit lands with NO build in flight — generation bumps only.
-    invalidations[invalidations.length - 1]?.();
+    // Select the WRITE hook by matcher: the deletion-prune hook registered
+    // after it does not bump the generation.
+    const writeHook = invalidations.find((entry) => String(entry.matcher).includes('write'));
+    writeHook?.hook();
 
     // The post-edit content must be indexed, not the stale pre-edit index.
     mockTree({

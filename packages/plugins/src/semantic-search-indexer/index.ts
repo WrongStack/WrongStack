@@ -53,6 +53,8 @@ interface Posting {
 interface FileEntry {
   lines: string[];
   size: number;
+  /** Absolute path as walked — lets the delete-prune stat exactly this file. */
+  absPath: string;
 }
 
 interface InvertedIndex {
@@ -73,6 +75,12 @@ interface SemanticSearchState {
   buildGeneration: number;
   publishedGeneration: number;
   hookUnregister: (() => void) | null;
+  /** Unregister for the deletion-tool prune hook (PostToolUse on shell tools). */
+  deleteHookUnregister: (() => void) | null;
+  /** Throttle stamp for the post-delete prune stat-scan. */
+  lastPruneAt: number;
+  /** In-flight prune pass — overlapping delete events share one scan. */
+  pruneInFlight: Promise<number> | null;
 }
 
 const state: SemanticSearchState = {
@@ -88,6 +96,9 @@ const state: SemanticSearchState = {
   buildGeneration: 0,
   publishedGeneration: 0,
   hookUnregister: null,
+  deleteHookUnregister: null,
+  lastPruneAt: 0,
+  pruneInFlight: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -247,12 +258,18 @@ function yieldEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
-function addFileToIndex(relPath: string, content: string, size: number, cfg: SemanticSearchConfig): void {
+function addFileToIndex(
+  relPath: string,
+  absPath: string,
+  content: string,
+  size: number,
+  cfg: SemanticSearchConfig,
+): void {
   if (!state.index || content.includes('\u0000')) return; // skip binary-looking files
 
   state.bytesIndexed += content.length;
   const lines = content.split(/\r?\n/);
-  state.index.files.set(relPath, { lines, size });
+  state.index.files.set(relPath, { lines, size, absPath });
 
   for (let i = 0; i < lines.length; i += 1) {
     const terms = tokenize(lines[i]!, cfg.minTokenLength);
@@ -287,7 +304,7 @@ async function indexFileFromStats(
     return;
   }
 
-  addFileToIndex(relPath, content, stats.size, cfg);
+  addFileToIndex(relPath, absPath, content, stats.size, cfg);
 }
 
 async function flushFileBatch(
@@ -416,6 +433,76 @@ async function ensureIndex(rootPath: string, cfg: SemanticSearchConfig): Promise
     state.index = null;
     state.cachedPath = null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Incremental deletion pruning
+// ---------------------------------------------------------------------------
+
+/** Minimum wall-clock gap between post-delete prune stat-scans. */
+const PRUNE_MIN_INTERVAL_MS = 30_000;
+
+/**
+ * Remove one indexed file's entries (postings + file record) from the index.
+ * The stored lines re-derive exactly the terms that were indexed for the
+ * file, so each term's posting for it can be dropped and emptied posting
+ * maps pruned — no rebuild needed.
+ */
+function removeFileFromIndex(relPath: string, cfg: SemanticSearchConfig): void {
+  const index = state.index;
+  if (!index) return;
+  const entry = index.files.get(relPath);
+  if (!entry) return;
+  const terms = new Set<string>();
+  for (const line of entry.lines) {
+    for (const term of tokenize(line, cfg.minTokenLength)) terms.add(term);
+  }
+  for (const term of terms) {
+    const postings = index.terms.get(term);
+    if (!postings) continue;
+    postings.delete(relPath);
+    if (postings.size === 0) index.terms.delete(term);
+  }
+  index.files.delete(relPath);
+  state.fileCount = Math.max(0, state.fileCount - 1);
+  state.bytesIndexed = Math.max(0, state.bytesIndexed - entry.size);
+  state.termCount = index.terms.size;
+}
+
+/**
+ * Stat-scan the indexed files and drop entries whose file no longer exists —
+ * the delete-side counterpart of the write-path generation bump. Shell tools
+ * cannot be matched to exact deleted paths reliably, so instead of a full
+ * rebuild we prune exactly the dead entries. Throttled and single-flight;
+ * resolves with the number of entries removed.
+ */
+async function pruneDeletedFiles(
+  rootPath: string,
+  cfg: SemanticSearchConfig,
+  opts?: { force?: boolean },
+): Promise<number> {
+  const index = state.index;
+  if (!index || state.cachedPath !== rootPath) return 0;
+  if (state.pruneInFlight) return state.pruneInFlight;
+  const now = Date.now();
+  if (!opts?.force && now - state.lastPruneAt < PRUNE_MIN_INTERVAL_MS) return 0;
+  state.lastPruneAt = now;
+  const pass = (async (): Promise<number> => {
+    const missing: string[] = [];
+    for (const [relPath, entry] of index.files) {
+      try {
+        await fs.stat(entry.absPath);
+      } catch {
+        missing.push(relPath);
+      }
+    }
+    for (const relPath of missing) removeFileFromIndex(relPath, cfg);
+    return missing.length;
+  })();
+  state.pruneInFlight = pass.finally(() => {
+    state.pruneInFlight = null;
+  });
+  return pass;
 }
 
 // ---------------------------------------------------------------------------
@@ -600,6 +687,16 @@ const plugin: Plugin = {
       }
       state.hookUnregister = null;
     }
+    if (state.deleteHookUnregister) {
+      try {
+        state.deleteHookUnregister();
+      } catch {
+        // best-effort
+      }
+      state.deleteHookUnregister = null;
+    }
+    state.lastPruneAt = 0;
+    state.pruneInFlight = null;
 
     const cfg = readConfig(api.config.extensions?.['semantic-search-indexer']);
 
@@ -748,6 +845,22 @@ const plugin: Plugin = {
       );
     }
 
+    // Deletion counterpart: shell tools can remove files without any write
+    // event, so their PostToolUse fires a throttled stat-scan that prunes
+    // exactly the dead entries instead of paying a full rebuild (see
+    // pruneDeletedFiles). Scoped to shell + explicit-delete tools.
+    if (typeof (api as any).registerHook === 'function') {
+      state.deleteHookUnregister = (api as any).registerHook(
+        'PostToolUse',
+        'bash|exec|pwsh|delete_file|remove_file',
+        (() => {
+          const root = state.cachedPath;
+          if (root) void pruneDeletedFiles(root, cfg);
+        }) as never,
+        { background: true },
+      );
+    }
+
     api.log.info('semantic-search-indexer plugin loaded', {
       version: '0.1.0',
       defaultLimit: cfg.defaultLimit,
@@ -763,6 +876,14 @@ const plugin: Plugin = {
         // best-effort
       }
       state.hookUnregister = null;
+    }
+    if (state.deleteHookUnregister) {
+      try {
+        state.deleteHookUnregister();
+      } catch {
+        // best-effort
+      }
+      state.deleteHookUnregister = null;
     }
     const final = {
       fileCount: state.fileCount,
@@ -781,6 +902,8 @@ const plugin: Plugin = {
     state.buildPromise = null;
     state.buildGeneration = 0;
     state.publishedGeneration = 0;
+    state.lastPruneAt = 0;
+    state.pruneInFlight = null;
     api.log.info('semantic-search-indexer: teardown complete', { final });
   },
 
@@ -797,6 +920,16 @@ const plugin: Plugin = {
       },
     };
   },
+};
+
+/**
+ * Test seam: direct access to the incremental delete-prune. `force` bypasses
+ * the throttle window (production callers go through the PostToolUse hook).
+ */
+export const semanticIndexerCoverage = {
+  removeFileFromIndex,
+  pruneDeletedFiles,
+  readConfig,
 };
 
 export default plugin;
