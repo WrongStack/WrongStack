@@ -137,18 +137,11 @@ describe('DefaultDesignKitLoader', () => {
       ['muted', 'surface'],
       ['bg', 'primary'],
     ];
-    // Tier-3 button-label exceptions — identity-sensitive kits where reaching
-    // the floor needs a large primary lightness move that reshapes the brand
-    // color; awaiting a per-kit design decision (or an explicit onPrimary
-    // label token). This list must SHRINK as kits are fixed (remove the entry
-    // when bg/primary clears 4.5:1); anything newly violating fails the test.
-    const PENDING_BUTTON_LABEL: ReadonlySet<string> = new Set([
-      'cottagecore.light',
-      'dark-academia.dark',
-      'neo-brutalist.light',
-      'scandinavian.light',
-      'skeuomorphic.light',
-    ]);
+    // Button-label pending list — MUST remain empty: every bundled kit now
+    // clears bg/primary >= 4.5:1. Keep the mechanism so a future kit that
+    // regresses (or a deliberate temporary exception) must be added here
+    // explicitly; anything not listed fails the floor assertion.
+    const PENDING_BUTTON_LABEL: ReadonlySet<string> = new Set<string>([]);
     for (const e of entries) {
       const tokens = await loader.readTokens(e.id);
       expect(tokens, `tokens for ${e.id}`).toBeDefined();
