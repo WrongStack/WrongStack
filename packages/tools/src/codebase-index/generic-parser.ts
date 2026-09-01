@@ -22,7 +22,17 @@ interface ExtractPattern {
 const C_LIKE: ExtractPattern[] = [
   { re: /\b(?:class|struct|enum|interface|union)\s+([A-Za-z_]\w*)/g, kind: 'class' },
   {
-    re: /\b(?:public|private|protected|static|final|async|override|virtual|inline|export)?\s*(?:[\w:<>[\]\s*&]+)\s+([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const)?\s*[{;]/g,
+    // H-10 (security report VF-11): the old shape
+    // `(?:…modifiers…)?\s*(?:[\w:<>[\]\s*&]+)\s+name\(` had three adjacent
+    // quantifiers that could each consume whitespace (`\s*`, the class with
+    // `\s` inside, `\s+`) — catastrophic backtracking on whitespace runs
+    // (516 bytes = 4.5 s measured). Decomposed so whitespace is owned by
+    // exactly one position: modifiers each consume their own trailing
+    // whitespace, the type is a single no-whitespace class, one `\s+`
+    // separates type from name. Generic types with internal spaces
+    // (`Map<String, Integer> x;`) are no longer matched — tree-sitter is the
+    // primary parser for C/C++ and this is only its WASM-less fallback.
+    re: /\b(?:(?:public|private|protected|static|final|async|override|virtual|inline|export)\s+)?[\w:<>[\]*&]+\s+([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const)?\s*[{;]/g,
     kind: 'function',
   },
   { re: /\b(?:namespace)\s+([A-Za-z_]\w*)/g, kind: 'namespace' },
@@ -54,7 +64,11 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
   java: [
     { re: /\b(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/g, kind: 'class' },
     {
-      re: /\b(?:public|private|protected|static|final|abstract|synchronized|native|default|\s)+\s*[\w.<>,[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
+      // H-10 (security report VF-11): same rewrite as C_LIKE above — the old
+      // `(?:…|\s)+\s*[\w.<>,[\]\s]+\s+` let three quantifiers compete for the
+      // same whitespace (800 bytes of padding measured at 42 s). Whitespace
+      // now has exactly one owner per position.
+      re: /\b(?:(?:public|private|protected|static|final|abstract|synchronized|native|default)\s+)*[\w.$,<>[\]]+\s+([A-Za-z_]\w*)\s*\(/g,
       kind: 'method',
     },
   ],
@@ -62,7 +76,8 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
     { re: /\b(?:class|interface|struct|enum|record)\s+([A-Za-z_]\w*)/g, kind: 'class' },
     { re: /\bnamespace\s+([A-Za-z_.\w]+)/g, kind: 'namespace' },
     {
-      re: /\b(?:public|private|protected|internal|static|async|override|virtual|\s)+\s*[\w.<>,[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
+      // H-10: see java above.
+      re: /\b(?:(?:public|private|protected|internal|static|async|override|virtual)\s+)*[\w.$,<>[\]]+\s+([A-Za-z_]\w*)\s*\(/g,
       kind: 'method',
     },
   ],
@@ -290,8 +305,15 @@ function lineColAt(offsets: number[], index: number): { line: number; col: numbe
 
 /** Soft default: enough for normal sources without runaway regex on minified blobs. */
 export const GENERIC_MAX_SYMBOLS_DEFAULT = 500;
-/** Only the leading window is scanned — huge generated files stay cheap. */
-export const GENERIC_MAX_FILE_CHARS = 512 * 1024;
+/**
+ * Only the leading window is scanned — huge generated files stay cheap.
+ * H-10 (security report VF-11): lowered from 512 KB. The fallback regex
+ * extractor is a last resort (tree-sitter missing/failed), and a whitespace
+ * bomb under the old window needed only ~500 bytes to stall the indexer for
+ * seconds — the remaining risk scales with window size, so the window itself
+ * is bounded well below real source-file sizes.
+ */
+export const GENERIC_MAX_FILE_CHARS = 128 * 1024;
 
 /**
  * Extract symbols with language-tuned regexes. Never throws.
