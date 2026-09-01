@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-01T20:18:49.343Z",
+  "generatedAt": "2026-09-01T21:34:18.882Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -12,11 +12,11 @@
   },
   "summary": {
     "packages": 36,
-    "sourceFiles": 3448,
-    "testFiles": 3091,
-    "sourceLines": 844583,
+    "sourceFiles": 3449,
+    "testFiles": 3092,
+    "sourceLines": 845307,
     "workspaceEdges": 128,
-    "moduleEdges": 10729,
+    "moduleEdges": 10730,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -457,8 +457,8 @@
     {
       "name": "@wrongstack/primitives",
       "dir": "packages/primitives",
-      "sourceFiles": 4,
-      "testFiles": 3,
+      "sourceFiles": 5,
+      "testFiles": 4,
       "workspaceDependencies": [],
       "tsconfigs": [
         {
@@ -469,7 +469,7 @@
         {
           "path": "packages/primitives/tsconfig.test.json",
           "error": null,
-          "testFiles": 3
+          "testFiles": 4
         }
       ]
     },
@@ -10386,6 +10386,12 @@
       },
       {
         "file": "packages/plugins/tests/webhook-channel.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/primitives/tests/regex-ambiguity.test.ts",
         "projects": [
           "root-node"
         ]
