@@ -42,6 +42,8 @@
  * Exit codes: 0 success; 1 publish or verification failure; 2 usage error.
  */
 import { spawn } from 'node:child_process';
+import { existsSync, readdirSync } from 'node:fs';
+import * as path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { collectPublishablePackages, layerByDependencies } from './lib/publishable-packages.mjs';
@@ -53,13 +55,25 @@ const PACKUMENT_ACCEPT = 'application/vnd.npm.install-v1+json';
 const USAGE = `Usage: node scripts/publish-workspace.mjs [options] [-- <extra pnpm publish args>]
 
   --plan                 print the dependency-layer plan and exit
-  --dry-run              pass --dry-run to pnpm; skip registry verification
+  --dry-run              pass --dry-run to pnpm/npm; skip registry verification
   --verify-only          verify the working-tree versions are live; publish nothing
   --no-verify            publish in order but skip registry verification
   --registry <url>       registry URL (default $WRONGSTACK_PUBLISH_REGISTRY or ${DEFAULT_REGISTRY})
   --verify-timeout <s>   per-layer verification budget, seconds (default 300)
   --verify-interval <s>  verification poll interval, seconds (default 5)
   --settle <s>           extra settle wait after the final layer (default 0)
+  --pack                 pack every publishable package into tarballs and exit
+                        (no publish). Run this in an UNPRIVILEGED job: packing
+                        runs lifecycle scripts (prepack), which is exactly the
+                        code that must never see the OIDC credential.
+  --pack-destination <d> where --pack writes tarballs (default artifacts/npm-packs)
+  --tarballs-dir <d>     publish PRE-PACKED tarballs from <d> with \`npm publish\`
+                        instead of packing from the working tree. Designed for
+                        the id-token job: no pnpm install, no lifecycle scripts,
+                        no dependency code executes — only this script and the
+                        Node-bundled npm. Tarball names follow npm's convention
+                        (@scope/name@version -> scope-name-version.tgz) and are
+                        asserted to exist before publishing.
   -h, --help             show this message
 `;
 
@@ -68,9 +82,9 @@ export class UsageError extends Error {}
 
 /**
  * @param {string[]} argv
- * @returns {{plan: boolean, dryRun: boolean, verifyOnly: boolean, verify: boolean,
- *   registry: string, timeoutMs: number, intervalMs: number, settleMs: number,
- *   passthrough: string[], help: boolean}}
+ * @returns {import('./publish-workspace.d.mts').PublishOptions}
+ *   Parsed options — the field set is declared ONCE in publish-workspace.d.mts
+ *   and imported here, so the two cannot drift (Chimera review).
  */
 export function parseArgs(argv) {
   const options = {
@@ -78,6 +92,9 @@ export function parseArgs(argv) {
     dryRun: false,
     verifyOnly: false,
     verify: true,
+    pack: false,
+    packDestination: 'artifacts/npm-packs',
+    tarballsDir: null,
     help: false,
     registry: process.env.WRONGSTACK_PUBLISH_REGISTRY || DEFAULT_REGISTRY,
     timeoutMs: 300_000,
@@ -131,6 +148,17 @@ export function parseArgs(argv) {
       case '--verify-only':
         options.verifyOnly = true;
         break;
+      case '--pack':
+        options.pack = true;
+        break;
+      case '--pack-destination':
+        options.packDestination = valueAt(i, flag);
+        i += 1;
+        break;
+      case '--tarballs-dir':
+        options.tarballsDir = valueAt(i, flag);
+        i += 1;
+        break;
       case '--no-verify':
         options.verify = false;
         break;
@@ -183,6 +211,70 @@ function runPnpm(args) {
       else reject(new Error(`pnpm ${args.join(' ')} exited with code ${code}`));
     });
   });
+}
+
+/**
+ * Run npm, streaming its output. Rejects on a non-zero exit. Used by the
+ * tarball publish mode, which must not invoke pnpm (and therefore cannot run
+ * any workspace lifecycle code) in the privileged job.
+ * @param {string[]} args
+ * @returns {Promise<void>}
+ */
+function runNpm(args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('npm', args, {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      windowsHide: true,
+    });
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`npm ${args.join(' ')} exited with code ${code}`));
+    });
+  });
+}
+
+/**
+ * npm's tarball naming convention: `@scope/name@version` packs to
+ * `scope-name-version.tgz` in the destination directory.
+ * @param {string} dir
+ * @param {string} name
+ * @param {string} version
+ * @returns {string}
+ */
+function tarballPath(dir, name, version) {
+  return path.join(dir, `${name.replace(/^@/, '').replace('/', '-')}-${version}.tgz`);
+}
+
+/**
+ * Resolve the packed tarball for `name@version` inside `dir`. Expected name
+ * first; a case-insensitive fallback second — pnpm's emitted filename can
+ * diverge from the simple normalization formula for mixed-case names
+ * (Chimera review). Matching by version suffix alone would be ambiguous
+ * here: every workspace package shares one version in a pack run.
+ * Ambiguity or absence stays a loud error with the directory listing —
+ * publishing from a mismatched pack would ship layers out of sync.
+ * @param {string} dir
+ * @param {string} name
+ * @param {string} version
+ * @returns {string} resolved tarball path
+ */
+function resolveTarball(dir, name, version) {
+  const expected = tarballPath(dir, name, version);
+  if (existsSync(expected)) return expected;
+  const expectedBasename = path.basename(expected).toLowerCase();
+  if (existsSync(dir)) {
+    const match = readdirSync(dir).find((f) => f.toLowerCase() === expectedBasename);
+    if (match) return path.join(dir, match);
+  }
+  const produced = existsSync(dir) ? readdirSync(dir).join('\n  ') : '(directory missing)';
+  throw new Error(
+    `Expected packed tarball not found: ${expected}\n` +
+      `Pack destination contains:\n  ${produced}\n\n` +
+      `Refusing to continue: the pack step and this publish step disagree ` +
+      `about what was built. Re-run the pack job.`,
+  );
 }
 
 /**
@@ -323,6 +415,29 @@ export async function main(argv) {
 
   if (options.plan) return 0;
 
+  if (options.pack) {
+    // Pack mode (M13/VF-19): produce npm tarballs WITHOUT publishing. Runs in
+    // the unprivileged `pack` CI job — packing executes lifecycle scripts
+    // (prepack), which is exactly the code that must never see the OIDC
+    // credential held by the publish job.
+    const total = layers.reduce((n, l) => n + l.length, 0);
+    console.log(`\nPacking ${total} publishable package(s) into ${options.packDestination}`);
+    for (const layer of layers) {
+      for (const p of layer) {
+        await runPnpm([
+          '--filter',
+          p.name,
+          'pack',
+          '--pack-destination',
+          options.packDestination,
+        ]);
+        resolveTarball(options.packDestination, p.name, p.version);
+      }
+    }
+    console.log(`\nPacked ${total} tarball(s) into ${options.packDestination}`);
+    return 0;
+  }
+
   const verify = options.verify && !options.dryRun;
 
   if (options.verifyOnly) {
@@ -358,7 +473,42 @@ export async function main(argv) {
       ...options.passthrough,
     ];
     try {
-      await runPnpm(args);
+      if (options.tarballsDir) {
+        // Tarball mode (M13/VF-19): publish exactly what the unprivileged
+        // pack job already packed, in dependency layers, via `npm publish`.
+        // No pnpm runs here — no install, build, or lifecycle script of any
+        // dependency can execute under this job's OIDC credential; only this
+        // script and the Node-bundled npm run. npm attaches the provenance
+        // attestation automatically from the ambient OIDC token; an explicit
+        // --provenance flag would break every non-GitHub-Actions invocation
+        // (Chimera review).
+        for (const p of layer) {
+          const tarball = resolveTarball(options.tarballsDir, p.name, p.version);
+          // workflow_dispatch re-run recovery: npm publish of an existing
+          // version fails the whole job with E403 instead of skipping it
+          // (Chimera review), which would break the documented "re-run
+          // resumes a partly-failed publish" contract. Ask the registry
+          // first and skip packages that are already live — the same
+          // semantics pnpm's own publish path has.
+          if (!options.dryRun) {
+            const live = await checkPublished(options.registry, p.name, p.version);
+            if (live.ok) {
+              console.log(`   SKIP ${p.name}@${p.version} — already live on the registry`);
+              continue;
+            }
+          }
+          await runNpm([
+            'publish',
+            tarball,
+            '--access',
+            'public',
+            ...(options.registry === DEFAULT_REGISTRY ? [] : ['--registry', options.registry]),
+            ...(options.dryRun ? ['--dry-run'] : []),
+          ]);
+        }
+      } else {
+        await runPnpm(args);
+      }
     } catch (error) {
       console.error(`\nLayer ${index + 1} publish failed: ${error.message}`);
       console.error('Already-published layers stay published; re-running this script skips them.');

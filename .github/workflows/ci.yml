@@ -54,7 +54,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Lint
         run: pnpm biome lint .
@@ -86,7 +99,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       # Build first so cross-package type declarations exist. Several packages
       # (e.g. @wrongstack/kanban) import workspace deps like
@@ -131,7 +157,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Assert clean artifact lineage
         run: pnpm check:clean-dist
@@ -140,6 +179,14 @@ jobs:
       # ESBuild for JS bundles, native tsc --emitDeclarationOnly for types.
       - name: Build
         run: pnpm build
+
+      # Security report Phase 4 item 20 / VF-30: pin the vendored tree-sitter
+      # grammar set to wasm/checksums.json — a tampered or accidentally
+      # swapped .wasm fails the build here instead of executing silently at
+      # index time (the runtime check in tree-sitter-parser.ts is the
+      # second layer).
+      - name: Verify vendored tree-sitter grammars
+        run: node scripts/check-tree-sitter-wasm.mjs
 
       - name: Verify package contracts
         run: node scripts/check-package-contracts.mjs
@@ -196,7 +243,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Download verified build lineage
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -253,7 +313,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       # Download verified build artifacts so workspace dist/ folders exist
       # before the coverage run. Without this, 257+ test files that import
@@ -317,7 +390,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Download verified build lineage
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -362,7 +448,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Download verified build lineage
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -474,7 +573,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Download verified build lineage
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -562,7 +674,20 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       # Warm up workspace dist artifacts before the heap-soak benchmark
       # runs esbuild. The benchmark script imports entry points like
@@ -616,6 +741,45 @@ jobs:
           retention-days: 14
 
   # -----------------------------------------------------------------
+  # Repo security scan (VF-20): run the repo's own analyzers against the
+  # repo's own source — hardcoded secrets, unsafe dynamic execution, SQL
+  # interpolation, prototype pollution, ReDoS-shaped regexes. Before this
+  # job existed, only unit tests OF the scanners ran; nothing scanned the
+  # repository itself.
+  # -----------------------------------------------------------------
+  security-scan:
+    name: Security Scan (secrets + SAST)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
+
+      - name: Download verified build lineage
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wrongstack-build-${{ github.sha }}
+          path: .
+
+      - name: Scan repo source (secrets + SAST)
+        run: node scripts/ci-security-scan.mjs
+
+  # -----------------------------------------------------------------
   # Security audit (pnpm audit)
   # Fails on moderate-or-higher advisories in production deps.
   # -----------------------------------------------------------------
@@ -638,16 +802,34 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # VF-31 (security report Phase 4): lifecycle scripts must not run from
+        # the in-repo pnpm-workspace.yaml allowBuilds during CI — a fork PR
+        # can edit that allowlist in the same PR that CI executes. CI installs
+        # with --ignore-scripts and rebuilds ONLY the reviewed native set,
+        # pinned HERE in the workflow file. The workspace allowlist remains
+        # the local-development source of truth; keeping the two in sync is a
+        # review-time responsibility (build-allowlist-freshness.test.ts pins
+        # the workspace side).
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Same reviewed set as pnpm-workspace.yaml allowBuilds. Additions here
+        # require the same review bar documented at the top of that file.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
 
       - name: Audit dependencies
         run: pnpm audit --audit-level=moderate
+
+      # VF-35: website/ resolves from its own npm package-lock.json — audit
+      # it here too so PR-time coverage matches the weekly audit workflow.
+      - name: Audit website lockfile (npm)
+        run: npm audit --prefix website --audit-level=moderate
 
   # Composite gate so branch-protection rules can require a single
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, manifests, plugin-guards, test, e2e, tui-smoke, tui-heap-soak, audit]
+    needs: [lint, typecheck, build, manifests, plugin-guards, test, e2e, tui-smoke, tui-heap-soak, security-scan, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -665,6 +847,7 @@ jobs:
           echo "  e2e:           ${{ needs.e2e.result }}"
           echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"
           echo "  tui-heap-soak: ${{ needs.tui-heap-soak.result }}"
+          echo "  security-scan: ${{ needs.security-scan.result }}"
           echo "  audit:         ${{ needs.audit.result }}"
           exit 1
       - name: Gate passed

@@ -133,7 +133,7 @@ No package was marked deprecated or archived in registry metadata. No package ex
 
 | Package | Note |
 |---------|------|
-| `node-pty` (`1.2.0-beta.14`, optional) | Project uses a **beta pre-release** (`1.2.0-beta.14`) that is newer than the latest stable (`1.1.0`). Beta has been stable for this project but be aware it's not a formal release. |
+| `node-pty` (`1.1.0`, optional) | Re-pinned from `1.2.0-beta.14` prerelease to the latest stable (2026-09-01, security report Phase 4): the 1.1.0 prebuild resolves and passes the pty smoke check on Node 24 / ABI 137 with no compile step, so the prerelease channel is no longer needed. |
 | `jszip` | See Critical Issues above. 4 years without a release. |
 | `class-variance-authority` | Last release Nov 2024 (~8 months). Small utility; no activity but not deprecated. |
 | `@types/ws` | Installed in both `^8.18.1` and `^8.18.0` across workspaces; align to `^8.18.1`. |
@@ -159,7 +159,7 @@ No package was marked deprecated or archived in registry metadata. No package ex
 
 4. **Keep Vitest + Coverage synchronized.** Root pins `vitest@^4.1.9` and `@vitest/coverage-v8@^4.1.9`. The coverage peer depends on matching vitest major. Bump together to `4.1.10`.
 
-5. **Audit `node-pty` beta usage.** If the project relies on features in `1.2.0-beta.14` not available in `1.1.0` stable, continue as-is. Otherwise, consider pinning to the stable release.
+5. **`node-pty` prerelease channel.** Resolved 2026-09-01: pinned to stable `1.1.0` after verifying empirically that its prebuild covers Node 24 / ABI 137 (see `scripts/check-node-pty.mjs`); revisit only if a future Node major regresses the prebuild.
 
 ### Additional Housekeeping
 

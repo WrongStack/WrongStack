@@ -23,6 +23,8 @@
  *     file from the index" contract.
  */
 
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { FileSymbols, SymbolLang } from './schema.js';
@@ -41,6 +43,76 @@ const WASM_DIR = fileURLToPath(new URL('./wasm/', import.meta.url));
 
 /** Runtime tree-sitter engine WASM (the `web-tree-sitter` package's binary). */
 const RUNTIME_WASM = path.join(WASM_DIR, 'tree-sitter-runtime.wasm');
+
+// ─── Grammar integrity gate (security report Phase 4, item 20 / VF-30) ───────
+//
+// The vendored .wasm set is pinned by `wasm/checksums.json` (generated and
+// CI-verified by scripts/check-tree-sitter-wasm.mjs). Verified lazily at the
+// first load of each grammar: on mismatch this throws, `parseSymbols`'s
+// never-throws contract turns that into zero symbols, and the dispatcher
+// falls back to the regex parser — tampered bytes never execute and the
+// failure is visible on stderr. When the manifest is absent (the published
+// dist tree does not ship the wasm directory) verification is skipped and
+// behavior is unchanged for that surface.
+
+const CHECKSUMS_PATH = path.join(WASM_DIR, 'checksums.json');
+let cachedChecksums: Record<string, string> | null | undefined;
+
+function expectedChecksums(): Record<string, string> | null {
+  if (cachedChecksums !== undefined) return cachedChecksums;
+  try {
+    cachedChecksums = JSON.parse(readFileSync(CHECKSUMS_PATH, 'utf8')) as Record<
+      string,
+      string
+    >;
+  } catch (err) {
+    // Only an intentionally ABSENT manifest (the published dist tree does
+    // not ship the wasm directory) skips verification. A manifest that
+    // exists but cannot be read or parsed must not silently disable the
+    // gate — that is exactly the state a tampered pin would produce — so it
+    // is cached as an EMPTY record: every subsequent lookup finds no entry
+    // and fails closed (Chimera review).
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      cachedChecksums = null;
+    } else {
+      console.error(
+        `[tree-sitter] grammar checksum manifest is unreadable (${CHECKSUMS_PATH}): ` +
+          `${err instanceof Error ? err.message : String(err)}. ` +
+          'Treating as an integrity failure — tree-sitter grammars will not load.',
+      );
+      cachedChecksums = {};
+    }
+  }
+  return cachedChecksums;
+}
+
+function verifyWasmIntegrity(wasmPath: string): void {
+  const manifest = expectedChecksums();
+  // null = manifest intentionally absent (dist tree) → verification skipped.
+  if (manifest === null) return;
+  const rel = path.relative(WASM_DIR, wasmPath).split(path.sep).join('/');
+  const expected = manifest[rel];
+  // A PRESENT manifest must pin every wasm file about to load: a missing
+  // entry means the file arrived outside the checksum workflow (Chimera
+  // review) — including the empty record cached for an unreadable manifest.
+  if (expected === undefined) {
+    console.error(
+      `[tree-sitter] grammar ${rel} is not pinned in checksums.json. ` +
+        'Refusing to load; falling back to the regex parser. If this change is intentional, ' +
+        'regenerate wasm/checksums.json via scripts/check-tree-sitter-wasm.mjs --write and review the diff.',
+    );
+    throw new Error(`tree-sitter grammar not pinned: ${rel}`);
+  }
+  const actual = createHash('sha256').update(readFileSync(wasmPath)).digest('hex');
+  if (actual !== expected) {
+    console.error(
+      `[tree-sitter] grammar integrity FAILED for ${rel}: expected sha256 ${expected}, found ${actual}. ` +
+        'Refusing to load; falling back to the regex parser. If this change is intentional, ' +
+        'regenerate wasm/checksums.json via scripts/check-tree-sitter-wasm.mjs --write and review the diff.',
+    );
+    throw new Error(`tree-sitter grammar integrity failure: ${rel}`);
+  }
+}
 
 /**
  * Map our {@link SymbolLang} taxonomy to the tree-sitter grammar directory
@@ -104,7 +176,10 @@ function getRuntime(): Promise<RuntimeState> {
       // runtime WASM lookup is redirected via `locateFile`, which is the
       // Emscripten-standard hook for "where is the .wasm". Pointing it at our
       // vendored runtime keeps the build deterministic — no fetch-on-first-run.
-      const init = (): Promise<void> => mod.Parser.init({ locateFile: () => RUNTIME_WASM });
+      const init = (): Promise<void> => {
+        verifyWasmIntegrity(RUNTIME_WASM);
+        return mod.Parser.init({ locateFile: () => RUNTIME_WASM });
+      };
       return { Parser: mod.Parser, Language: mod.Language, init };
     })();
   }
@@ -131,6 +206,7 @@ async function loadLanguage(lang: SymbolLang): Promise<CachedLanguage> {
     // Node 0.26.x the string form is resolved against cwd — passing a file://
     // URI produces a path concatenation like `cwd/file:///...` and crashes.
     // Use the raw absolute path; the runtime opens it directly.
+    verifyWasmIntegrity(wasmPath);
     const languageObj = await Language.load(wasmPath);
     return { lang, Language: languageObj };
   })();
@@ -273,6 +349,12 @@ export async function parseTreeSitterAst(opts: { content: string; lang: SymbolLa
     const { Parser, Language, init } = await getRuntime();
     await init();
     const wasmPath = path.join(WASM_DIR, grammar, `tree-sitter-${grammar}.wasm`);
+    // Same integrity gate as loadLanguage(): this second grammar-load path
+    // bypassed the checksum check (Chimera review) — a tampered .wasm would
+    // have been accepted here while every parseSymbols load verified.
+    // The catch below converts the throw to `null`, preserving the caller
+    // contract of degrading rather than throwing.
+    verifyWasmIntegrity(wasmPath);
     const languageObj = await Language.load(wasmPath);
     const parser = new Parser();
     parser.setLanguage(languageObj);

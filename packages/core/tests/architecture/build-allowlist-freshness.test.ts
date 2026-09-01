@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
 /**
  * WS-072 / DEP-005 — `allowBuilds` and `onlyBuiltDependencies` must not
  * pre-authorise install lifecycle scripts for packages that are not in the
@@ -18,10 +22,6 @@
  * transitive dependencies too, so a package can legitimately need an entry
  * without any workspace member declaring it.
  */
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
-
 const repoRoot = resolve(import.meta.dirname, '../../../..');
 const workspaceYaml = readFileSync(resolve(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
 const lockfile = readFileSync(resolve(repoRoot, 'pnpm-lock.yaml'), 'utf8');
@@ -107,4 +107,53 @@ describe('build-script allowlists stay in sync with the tree (WS-072)', () => {
     }
     expect(claim).not.toContain('better-sqlite3');
   });
+});
+
+/**
+ * VF-31 (security report Phase 4): CI installs with `--ignore-scripts` and
+ * rebuilds an explicit, workflow-pinned list of native dependencies, so a
+ * fork PR cannot widen its own allowlist via pnpm-workspace.yaml. The same
+ * package set now lives in three places, and drift in any of them is silent
+ * without this check:
+ *
+ *   1. `pnpm-workspace.yaml` `allowBuilds` — the LOCAL-DEV source of truth
+ *   2. `.github/workflows/ci.yml` — every job's `pnpm rebuild <list>` step
+ *   3. `.github/workflows/release.yml` — the `pack` job's rebuild step
+ *
+ * Adding to the workspace file without the workflows means CI silently lacks
+ * the native binary; adding to a workflow without the workspace file means
+ * local dev and CI disagree about what lifecycle code runs. Both fail here.
+ */
+describe('build-allowlist freshness across workflows (VF-31)', () => {
+  const workspace = new Set(blockEntries('allowBuilds'));
+
+  /** Extract every `pnpm rebuild <list>` package set from a workflow file. */
+  function workflowRebuildLists(relPath: string): Array<{ where: string; pkgs: Set<string> }> {
+    const lines = readFileSync(resolve(repoRoot, relPath), 'utf8').split('\n');
+    const lists: Array<{ where: string; pkgs: Set<string> }> = [];
+    lines.forEach((line, i) => {
+      const m = line.match(/pnpm rebuild\s+([^\n#]+)/);
+      if (!m || !m[1]) return;
+      lists.push({ where: `${relPath}:${i + 1}`, pkgs: new Set(m[1].trim().split(/\s+/)) });
+    });
+    return lists;
+  }
+
+  const lists = [
+    ...workflowRebuildLists('.github/workflows/ci.yml'),
+    ...workflowRebuildLists('.github/workflows/release.yml'),
+  ];
+
+  it('the workflow files actually contain rebuild lists to compare', () => {
+    // 10 CI install jobs + the release pack job. Guards the parser: an
+    // empty result would make the suite below vacuously green.
+    expect(lists.length).toBeGreaterThanOrEqual(11);
+  });
+
+  it.each(lists.map((l) => [l.where, l] as const))(
+    'rebuild list at %s matches pnpm-workspace.yaml allowBuilds',
+    (_where, list) => {
+      expect([...list.pkgs].sort()).toEqual([...workspace].sort());
+    },
+  );
 });

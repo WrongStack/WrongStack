@@ -11,8 +11,12 @@
  *     were silently skipped because `allowBuilds: { node-pty: false }` in
  *     pnpm-workspace.yaml blocked the prebuild-install script).
  *   - Microsoft publishing a prebuilt for the Node major version on
- *     windows-x64 but not the actual ABI patch level (1.1.0 line stopped
- *     at Node 22 — bumped to 1.2.0-beta.14 in f651b229 to get Node 24).
+ *     windows-x64 but not the actual ABI patch level (the 1.1.0 line's
+ *     pre-NAPI prebuilds stopped at Node 22, which is why f651b229 moved to
+ *     1.2.0-beta.14). Re-pinned to stable 1.1.0 in the security-report
+ *     Phase-4 pass (2026-09-01): verified empirically — the 1.1.0 prebuild
+ *     resolves and passes this smoke check on Node 24.13 / ABI 137 / win32
+ *     with no compile step, so the prerelease channel is no longer needed.
  *   - Dist/ artifacts referencing node-pty by path but the symlink
  *     missing in `packages/<pkg>/node_modules/node-pty`.
  *

@@ -18,17 +18,20 @@ import { describe, expect, it } from 'vitest';
  *
  * Nothing here can establish upstream provenance after the fact. What it CAN do
  * is make a later change to these bytes impossible to land silently: swapping a
- * grammar now fails CI instead of shipping. Regenerate `SHA256SUMS.json`
- * deliberately, in a reviewed commit, whenever a grammar is genuinely updated.
+ * grammar now fails CI instead of shipping. Regenerate `checksums.json`
+ * deliberately, in a reviewed commit, whenever a grammar is genuinely updated
+ * (`node scripts/check-tree-sitter-wasm.mjs --write`).
+ *
+ * Single source of truth (2026-09-01 consistency pass): this test reads the
+ * SAME `checksums.json` that the CI build job (scripts/check-tree-sitter-
+ * wasm.mjs) and the runtime integrity gate (tree-sitter-parser.ts) consume.
+ * A separate SHA256SUMS.json duplicate was consolidated away — two manifests
+ * for the same 14 binaries could drift and disagree about what "intact"
+ * means. Its byte-size field is subsumed by sha256.
  */
 
 const WASM_DIR = fileURLToPath(new URL('../src/codebase-index/wasm/', import.meta.url));
-const MANIFEST = path.join(WASM_DIR, 'SHA256SUMS.json');
-
-interface Entry {
-  sha256: string;
-  bytes: number;
-}
+const MANIFEST = path.join(WASM_DIR, 'checksums.json');
 
 function listWasmFiles(dir: string, base = dir): string[] {
   const out: string[] = [];
@@ -43,7 +46,7 @@ function listWasmFiles(dir: string, base = dir): string[] {
   return out.sort();
 }
 
-const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Record<string, Entry>;
+const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Record<string, string>;
 const onDisk = listWasmFiles(WASM_DIR);
 
 describe('committed WASM binaries match their recorded checksums', () => {
@@ -54,13 +57,11 @@ describe('committed WASM binaries match their recorded checksums', () => {
   });
 
   it.each(onDisk)('%s is unmodified', (rel) => {
-    const entry = manifest[rel];
-    expect(entry, `${rel} has no manifest entry`).toBeDefined();
-
+    const expected = manifest[rel];
+    expect(expected, `${rel} has no manifest entry`).toBeDefined();
     const buf = readFileSync(path.join(WASM_DIR, rel));
-    expect(buf.length, `${rel} size changed`).toBe(entry?.bytes);
     expect(createHash('sha256').update(buf).digest('hex'), `${rel} contents changed`).toBe(
-      entry?.sha256,
+      expected,
     );
   });
 });

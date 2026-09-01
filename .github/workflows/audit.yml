@@ -19,6 +19,7 @@ on:
       - 'apps/*/package.json'
       - 'packages/*/package.json'
       - 'website/package.json'
+      - 'website/package-lock.json'
       - '.github/workflows/audit.yml'
   pull_request:
     paths:
@@ -28,6 +29,7 @@ on:
       - 'apps/*/package.json'
       - 'packages/*/package.json'
       - 'website/package.json'
+      - 'website/package-lock.json'
       - '.github/workflows/audit.yml'
   schedule:
     # Weekly, Mondays 03:23 UTC (odd minute avoids top-of-hour contention).
@@ -56,3 +58,12 @@ jobs:
 
       - name: Audit dependencies (high and above fail the build)
         run: pnpm audit --audit-level high
+
+      # VF-35 (security report Phase 4): website/ is dual-lockfile — it is a
+      # pnpm workspace member yet the tree that actually deploys resolves from
+      # its own npm package-lock.json, which the pnpm audit above never reads.
+      # Audit that lockfile too, at the same severity floor, so the tree that
+      # actually deploys the website is covered by the same gate (npm audit
+      # reads the lockfile directly; no install step).
+      - name: Audit website lockfile (npm, high and above fail the build)
+        run: npm audit --prefix website --audit-level high

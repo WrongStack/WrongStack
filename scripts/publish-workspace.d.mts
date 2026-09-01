@@ -5,6 +5,9 @@ export interface PublishOptions {
   dryRun: boolean;
   verifyOnly: boolean;
   verify: boolean;
+  pack: boolean;
+  packDestination: string;
+  tarballsDir: string | null;
   help: boolean;
   registry: string;
   timeoutMs: number;

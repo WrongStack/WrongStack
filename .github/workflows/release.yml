@@ -150,9 +150,61 @@ jobs:
       - name: Release gate
         run: pnpm release:check
 
+  pack:
+    name: Pack npm tarballs
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          # The SHA `verify` validated — same anti-movable-tag rule as publish.
+          ref: ${{ needs.verify.outputs.sha }}
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        # Same VF-31 hardening as CI: this job's OUTPUT is what gets
+        # published, so dependency lifecycle code must not run here either —
+        # a tampered tarball poisons the release exactly like a tampered
+        # publish would. Native build deps come from the explicit rebuild.
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Rebuild reviewed native dependencies
+        # Kept in sync with pnpm-workspace.yaml allowBuilds — pinned by
+        # packages/core/tests/architecture/build-allowlist-freshness.test.ts.
+        run: pnpm rebuild @biomejs/biome electron esbuild node-pty onnxruntime-node protobufjs sharp
+
+      - name: Build
+        run: pnpm build
+
+      # M13 / VF-19 (security report Phase 4): all build-time and pack-time
+      # dependency code — postinstall, prepare, prepack — executes HERE, in a
+      # job whose only credential is the read-only checkout. The privileged
+      # `publish` job below consumes this job's OUTPUT as tarballs and runs no
+      # dependency code at all.
+      - name: Pack publishable tarballs
+        run: node scripts/publish-workspace.mjs --pack --pack-destination artifacts/npm-packs
+
+      - name: Upload packed tarballs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-tarballs-${{ needs.verify.outputs.version }}
+          path: artifacts/npm-packs/
+          if-no-files-found: error
+          retention-days: 1
+
   publish:
     name: Publish to npm
-    needs: [verify, portable-windows]
+    needs: [verify, portable-windows, pack]
     runs-on: ubuntu-latest
     # Raised from 30: the publish step now waits on registry propagation
     # between dependency layers (11 layers x 120s worst case) on top of
@@ -175,25 +227,44 @@ jobs:
           ref: ${{ needs.verify.outputs.sha }}
           persist-credentials: false
 
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-08-01)
-
+      # M13 / VF-19: deliberately NO pnpm here and NO install step. This job
+      # holds the id-token; `pnpm install` + `pnpm build` inside it meant every
+      # dependency's lifecycle scripts executed one environment-variable read
+      # away from the publish credential. Tarballs arrive pre-packed from the
+      # unprivileged `pack` job; only this repository's own dependency-free
+      # script and the Node-bundled npm run below.
+      #
       # Deliberately NO `registry-url` here. setup-node's registry-url writes
       # an .npmrc containing `_authToken=${NODE_AUTH_TOKEN}` unconditionally;
-      # with no token in the environment, pnpm sends the literal unexpanded
+      # with no token in the environment, npm sends the literal unexpanded
       # placeholder as a bearer token and the OIDC exchange never happens. The
-      # default registry is correct and needs no .npmrc.
+      # default registry is correct and needs no .npmrc. No pnpm also means no
+      # pnpm store to cache.
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
-          cache: pnpm
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Download packed tarballs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: npm-tarballs-${{ needs.verify.outputs.version }}
+          path: release-tarballs
 
-      - name: Build
-        run: pnpm build
+      - name: Ensure npm supports OIDC trusted publishing (>= 11.5.1)
+        # Node 22 bundles npm 10.x, whose publish path cannot exchange the
+        # OIDC token for publish rights — npm trusted publishing needs
+        # npm >= 11.5.1 (Chimera review). setup-node does not upgrade npm,
+        # so install an explicit npm 11 and assert the floor here, failing
+        # loudly instead of with a confusing 403/404 at publish time.
+        run: |
+          npm install -g npm@11
+          node -e "const v=require('node:child_process').execSync('npm --version').toString().trim().split('.').map(Number);const [major,minor,patch]=v;const ok=major>11||(major===11&&(minor>5||(minor===5&&patch>=1)));if(!ok){console.error('npm '+v.join('.')+' is below the 11.5.1 OIDC trusted-publishing floor');process.exit(1)}console.log('npm '+v.join('.')+' clears the OIDC floor')"
 
       - name: Publish
+        # Tarball mode (M13/VF-19): publishes exactly what the unprivileged
+        # `pack` job produced — see the download step above for why no
+        # dependency code runs in this job.
+        #
         # `release:ci` keeps `--no-git-checks`, and that is not the defect the
         # finding was about. A tag checkout is a DETACHED HEAD, so pnpm's
         # "are you on the publish branch" check cannot pass here by
@@ -216,7 +287,7 @@ jobs:
         # each layer is resolvable before starting the next. Verification is
         # network-bound, so  caps each layer at 120s and the job
         # timeout above accounts for the worst-case sum.
-        run: pnpm release:ci
+        run: node scripts/publish-workspace.mjs --tarballs-dir release-tarballs --verify-timeout 120
 
       - name: Summary
         if: always()
