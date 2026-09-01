@@ -27,6 +27,7 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
       workingDir: projectDir,
       allowOutsideProjectRoot: allowOutside,
     }) as never;
+  const execOpts = { signal: new AbortController().signal };
 
   beforeEach(async () => {
     projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-confine-in-'));
@@ -43,18 +44,18 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
   const outside = () => path.join(outsideDir, 'target.ts');
 
   it('codebase-skeleton refuses an out-of-root absolute path', async () => {
-    await expect(codebaseSkeletonTool.execute({ path: outside() }, ctx())).rejects.toThrow(
+    await expect(codebaseSkeletonTool.execute({ path: outside() }, ctx(), execOpts)).rejects.toThrow(
       /outside project root/,
     );
   });
 
   it('codebase-skeleton honors allowOutsideProjectRoot', async () => {
-    const result = await codebaseSkeletonTool.execute({ path: outside() }, ctx(true));
+    const result = await codebaseSkeletonTool.execute({ path: outside() }, ctx(true), execOpts);
     expect(result.isDir).toBe(false);
   });
 
   it('security-ast-scan errors on an out-of-root path', async () => {
-    const result = await securityAstScanTool.execute({ file: outside() }, ctx());
+    const result = await securityAstScanTool.execute({ file: outside() }, ctx(), execOpts);
     expect(result.status).toBe('error');
     expect(result.error).toContain('outside project root');
   });
@@ -63,6 +64,7 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
     const result = await codebaseInvariantCheckTool.execute(
       { file: outside(), modifiedCode: 'export const a = 2;\n' },
       ctx(),
+      execOpts,
     );
     expect(result.error).toContain('outside project root');
   });
@@ -71,6 +73,7 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
     const result = await codebaseAstReplaceTool.execute(
       { file: outside(), symbol: 'a', newBody: '2' },
       ctx(),
+      execOpts,
     );
     expect(result.status).toBe('error');
     expect(result.error).toContain('outside project root');
@@ -80,6 +83,7 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
     const result = await codebaseSkeletonTool.execute(
       { path: path.join(projectDir, 'inside.ts') },
       ctx(),
+      execOpts,
     );
     expect(result.isDir).toBe(false);
   });
@@ -100,13 +104,13 @@ describe('codebase tool path confinement (H-5/H-6 / VF-06, VF-07)', () => {
 
     // 'inside.ts' lives at the project ROOT — resolving it against the nested
     // cwd would look for nested/inside.ts and fail.
-    const result = await codebaseSkeletonTool.execute({ path: 'inside.ts' }, nestedCtx);
+    const result = await codebaseSkeletonTool.execute({ path: 'inside.ts' }, nestedCtx, execOpts);
     expect(result.isDir).toBe(false);
 
     // And the file that exists ONLY under nested/ is not reachable by bare
     // name — proving the resolve was root-relative, not cwd-relative.
     await expect(
-      codebaseSkeletonTool.execute({ path: 'only-here.ts' }, nestedCtx),
+      codebaseSkeletonTool.execute({ path: 'only-here.ts' }, nestedCtx, execOpts),
     ).rejects.toThrow(/not found/);
   });
 });

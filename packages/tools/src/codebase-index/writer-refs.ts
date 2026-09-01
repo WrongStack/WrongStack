@@ -3,6 +3,7 @@ import { LANG_FAMILY_WILDCARD } from './writer-schema.js';
 
 export const FAMILY_MATCH_SQL = `(
   sym.lang = refs.lang
+  OR refs.lang = ''
   OR EXISTS (
     SELECT 1 FROM lang_family lf1
       JOIN lang_family lf2 ON lf1.family = lf2.family

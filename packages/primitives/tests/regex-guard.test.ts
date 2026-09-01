@@ -40,12 +40,13 @@ describe('compileUserRegex — accepted patterns', () => {
   });
 
   it('allows non-intersecting single-token branches', () => {
-    // Round 13 char-set comparison must not over-block: a 1-char branch can
-    // never equal a 2+-char branch, complements and disjoint classes do not
-    // intersect, first-char overlap with distinct full strings is safe, and
-    // the dot-with-newline idiom stays legal because `.` excludes \n
-    // without the dotAll flag.
-    expect(compileUserRegex(String.raw`(\w|ab)+`, '').ok).toBe(true);
+    // Round 13 char-set comparison must not over-block: complements and
+    // disjoint classes do not intersect, first-char overlap with distinct
+    // full strings is safe, and the dot-with-newline idiom stays legal
+    // because `.` excludes \n without the dotAll flag.
+    // (`(\w|ab)+` used to live here — see the ADR-004 rejection test: two
+    // iterations of the 1-char branch equal one iteration of the 2-char
+    // branch, so the quantifier amplifies it. Genuinely catastrophic.)
     expect(compileUserRegex('(x|[^x])+', '').ok).toBe(true);
     expect(compileUserRegex(String.raw`(\d|a)+`, '').ok).toBe(true);
     expect(compileUserRegex(String.raw`(.|\n)+`, '').ok).toBe(true);
@@ -54,12 +55,12 @@ describe('compileUserRegex — accepted patterns', () => {
 
   it('allows multi-token branches with no common string', () => {
     // Round 14 soundness pins: a single disjoint position (`\d` ∩ {b} = ∅)
-    // or a length mismatch (2 vs 3) proves the branch languages cannot
-    // intersect, so these stay allowed despite per-position overlap
-    // elsewhere.
+    // proves the branch languages cannot intersect, so these stay allowed
+    // despite per-position overlap elsewhere.
+    // (`(\w\w|abc)+` used to live here — see the ADR-004 rejection test:
+    // 'abcabc' = [abc][abc] = [\w\w][\w\w][\w\w]. Genuinely catastrophic.)
     expect(compileUserRegex(String.raw`(\w\d|ab)+`, '').ok).toBe(true);
     expect(compileUserRegex(String.raw`(\wa|ab)+`, '').ok).toBe(true);
-    expect(compileUserRegex(String.raw`(\w\w|abc)+`, '').ok).toBe(true);
     expect(compileUserRegex('(ab|cd)+', '').ok).toBe(true);
   });
 
@@ -241,6 +242,23 @@ describe('compileUserRegex — rejected patterns', () => {
     expect(compileUserRegex(String.raw`(a\w|ab)+`, '').ok).toBe(false);
     expect(compileUserRegex(String.raw`(\w{2}|ab)+`, '').ok).toBe(false); // {n} expanded
     expect(compileUserRegex('([ab][cd]|ac)+', '').ok).toBe(false);
+  });
+
+  it('rejects the ADR-004 residual classes via the semantic layer', () => {
+    // Variable-length token sequences and self-decomposition ambiguity —
+    // invisible to every pairwise-branch layer (rounds 11-14) because the
+    // ambiguity lives across iterations or inside variable repetition.
+    // The step-budgeted matcher (regex-ambiguity.ts: squared product over
+    // char-source pairs + Sardinas–Patterson code check) proves them
+    // ambiguous; budget/out-of-subset content under-rejects (allows).
+    expect(compileUserRegex('((?:a+)|b)+', '').ok).toBe(false);
+    expect(compileUserRegex('(?<g>a+)+', '').ok).toBe(false);
+    expect(compileUserRegex('(a{1,2}|b)+', '').ok).toBe(false);
+    expect(compileUserRegex('(ab?|a)+', '').ok).toBe(false);
+    // Static-layer false-allows the semantic layer corrected — two
+    // iterations of a short branch equal one of a long branch:
+    expect(compileUserRegex(String.raw`(\w|ab)+`, '').ok).toBe(false); // 'ab' = [\w][\w] = [ab]
+    expect(compileUserRegex(String.raw`(\w\w|abc)+`, '').ok).toBe(false); // 'abcabc' 2-way
   });
 
   it('still allows disjoint alternations and literal parens after the fix', () => {

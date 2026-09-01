@@ -114,6 +114,6 @@ public class Hello {
     const many = Array.from({ length: 2000 }, (_, i) => `def fn_${i}():\n  pass\n`).join('');
     const res = parseGeneric({ file: 'huge.py', lang: 'py', content: many });
     expect(res.symbols.length).toBeLessThanOrEqual(GENERIC_MAX_SYMBOLS_DEFAULT);
-    expect(GENERIC_MAX_FILE_CHARS).toBe(512 * 1024);
+    expect(GENERIC_MAX_FILE_CHARS).toBe(128 * 1024);
   });
 });

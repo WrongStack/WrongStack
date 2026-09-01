@@ -22,6 +22,8 @@
  * Callers should additionally bound the *subject* length via `capSubject`.
  */
 
+import { detectQuantifiedAmbiguity } from './regex-ambiguity.js';
+
 const MAX_PATTERN_LEN = 256;
 
 // Heuristics for catastrophic-backtracking constructs. Not exhaustive; bias
@@ -626,6 +628,14 @@ function hasAmbiguousQuantifiedAlternation(pattern: string): boolean {
     const next = pattern[j + 1];
     if (next !== '+' && next !== '*' && next !== '{') continue;
     if (hasAmbiguousBranches(stripGroupPrefix(pattern.slice(i + 1, j)))) {
+      return true;
+    }
+    // ADR-004 semantic layer — additive final check. Answers the ambiguity
+    // question exactly for the parseable subset (squared product over
+    // char-source pairs + Sardinas–Patterson code check); budget and
+    // out-of-subset content both under-reject (allow), so this can only
+    // ADD rejections on top of the static layers above.
+    if (detectQuantifiedAmbiguity(pattern.slice(i + 1, j)).verdict === 'ambiguous') {
       return true;
     }
   }

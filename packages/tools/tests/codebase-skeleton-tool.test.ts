@@ -260,7 +260,7 @@ private:
   it('throws error for non-existent file or directory', async () => {
     await expect(
       codebaseSkeletonTool.execute(
-        { path: '/non/existent/path/for/skeleton/test.ts' },
+        { path: path.join(process.cwd(), '.nonexistent-skeleton-test.ts') },
         dummyCtx,
         dummyOpts,
       ),

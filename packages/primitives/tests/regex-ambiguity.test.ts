@@ -1,0 +1,411 @@
+/**
+ * Tests for the ADR-004 step-budgeted ambiguity matcher.
+ *
+ * Three layers of evidence:
+ *  1. Unit battery — both residual classes, subsumption of rounds 11-14's
+ *     catches, static-layer misses the semantic layer must now catch, and
+ *     precision pins that must stay allowed.
+ *  2. Witness contract — every 'ambiguous' verdict carries a witness.
+ *  3. Property test — random small contents against an INDEPENDENT oracle:
+ *     brute-force decomposition counting over a fixed alphabet, with word
+ *     membership via the real RegExp engine. Hard assertions both ways for
+ *     decided verdicts (no false positives ever; no misses within the
+ *     oracle's bound), permissive verdicts skipped.
+ *
+ * @module regex-ambiguity
+ * @see docs/adr/adr-004-step-budgeted-regex-ambiguity-matcher.md
+ */
+
+import { describe, expect, it } from 'vitest';
+import { detectQuantifiedAmbiguity } from '../src/regex-ambiguity.js';
+
+describe('detectQuantifiedAmbiguity — residual classes (ADR-004 targets)', () => {
+  it('detects self-decomposition ambiguity behind wraps', () => {
+    expect(detectQuantifiedAmbiguity(String.raw`(?:a+)|b`).verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('(?<g>a+)').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`((?:a+)|b)`).verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('a+').verdict).toBe('ambiguous');
+  });
+
+  it('detects variable-length token sequences', () => {
+    expect(detectQuantifiedAmbiguity('a{1,2}|b').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('ab?|a').verdict).toBe('ambiguous');
+  });
+
+  it('detects ε-matching content (insertable empty iterations)', () => {
+    expect(detectQuantifiedAmbiguity('a*').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('a?|b').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('a|').verdict).toBe('ambiguous');
+  });
+});
+
+describe('detectQuantifiedAmbiguity — subsumption of rounds 11-14', () => {
+  it('still detects every class the static layers catch', () => {
+    expect(detectQuantifiedAmbiguity('a|a').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\w|a`).verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\w\w|ab`).verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('(a|a)').verdict).toBe('ambiguous');
+  });
+});
+
+describe('detectQuantifiedAmbiguity — static-layer misses now caught', () => {
+  it('catches quantifier-amplified 1-vs-2 char overlap', () => {
+    // Round 13 pinned `(\w|ab)+` as allowed ("a 1-char branch can never
+    // equal a 2+-char branch") — true pairwise, but TWO iterations of the
+    // 1-char branch equal ONE iteration of the 2-char branch: 'ab' =
+    // [\w→a][\w→b] = [ab]. Genuinely catastrophic; the semantic layer
+    // catches it via Sardinas–Patterson.
+    expect(detectQuantifiedAmbiguity(String.raw`\w|ab`).verdict).toBe('ambiguous');
+  });
+
+  it('catches quantifier-amplified length mismatch', () => {
+    // Round 14 pinned `(\w\w|abc)+` as allowed (length 2 vs 3 pairwise) —
+    // but 'abcabc' = [abc][abc] = [\w\w][\w\w][\w\w]. Catastrophic.
+    expect(detectQuantifiedAmbiguity(String.raw`\w\w|abc`).verdict).toBe('ambiguous');
+  });
+});
+
+describe('detectQuantifiedAmbiguity — precision pins (must stay allowed)', () => {
+  it('allows codes and per-position-disjoint shapes', () => {
+    expect(detectQuantifiedAmbiguity('foo|bar').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('x(y|z)').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('a{2}').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\w\d|ab`).verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('ab|cd').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('a|b').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('ab|ac').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('[a-z]{3}|[0-9]{5}').verdict).toBe('unambiguous');
+  });
+
+  it('allows the Sardinas–Patterson code shapes the prefix heuristic over-blocks', () => {
+    // {a, ab} and {\wa, ab} are CODES: no string has two decompositions.
+    expect(detectQuantifiedAmbiguity('a|ab').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity(String.raw`\wa|ab`).verdict).toBe('unambiguous');
+  });
+
+  it('is permissive for out-of-subset content (under-reject only)', () => {
+    const permissive = (v: string): boolean =>
+      v === 'unambiguous' || v === 'unparsable' || v === 'budget';
+    expect(permissive(detectQuantifiedAmbiguity(String.raw`(?=a)a|b`).verdict)).toBe(true);
+    expect(permissive(detectQuantifiedAmbiguity(String.raw`\1a|b`).verdict)).toBe(true);
+    expect(permissive(detectQuantifiedAmbiguity(String.raw`a\kb|c`).verdict)).toBe(true);
+  });
+});
+
+describe('detectQuantifiedAmbiguity — witness contract', () => {
+  it('every ambiguous verdict carries a non-empty witness', () => {
+    for (const content of [String.raw`(?:a+)|b`, 'a{1,2}|b', 'a|a', String.raw`\w|ab`, 'a*']) {
+      const r = detectQuantifiedAmbiguity(content);
+      expect(r.verdict, content).toBe('ambiguous');
+      expect(typeof r.witness === 'string' && r.witness.length > 0, content).toBe(true);
+    }
+  });
+});
+
+describe('detectQuantifiedAmbiguity — property test vs brute-force oracle', () => {
+  // Deterministic PRNG so a failure reproduces exactly.
+  function lcg(seed: number): () => number {
+    let s = seed;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 0x100000000;
+    };
+  }
+
+  const ALPHABET = ['a', 'b', 'c'] as const;
+  const ORACLE_MAX = 5; // strings up to this length (module WORD_MAX is 6)
+
+  /** Random content over a small grammar, depth-bounded. */
+  function randomContent(rand: () => number, depth: number): string {
+    const pick = <T>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)] as T;
+    const atom = (): string => {
+      const choice = rand();
+      if (choice < 0.45) return pick(['a', 'b', 'c']);
+      if (choice < 0.6) return pick(['[ab]', '[bc]', '[a-c]']);
+      if (choice < 0.75) return String.raw`\w`;
+      return pick(['a', 'b']); // bias toward overlap-prone literals
+    };
+    const quantified = (): string => {
+      const base = depth <= 0 ? atom() : rand() < 0.25 ? `(${expr(depth - 1)})` : atom();
+      return base + pick(['', '', '', '?', '*', '+', '{1,2}', '{2}']);
+    };
+    const seq = (): string => {
+      const n = 1 + Math.floor(rand() * 2);
+      let out = '';
+      for (let i = 0; i < n; i++) out += quantified();
+      return out;
+    };
+    const expr = (): string =>
+      rand() < 0.55 ? `${seq()}|${seq()}` : rand() < 0.3 ? `${seq()}|${seq()}|${seq()}` : seq();
+    return expr();
+  }
+
+  /**
+   * Independent oracle: does `(?:content)+` admit a string (over the fixed
+   * alphabet, length ≤ ORACLE_MAX) with ≥2 decompositions into L-words?
+   * Word membership via the REAL RegExp engine, memoized per substring.
+   * ε ∈ L counts as ambiguous immediately (insertable empty iterations).
+   */
+  function oracleAmbiguous(content: string): boolean {
+    let re: RegExp;
+    try {
+      re = new RegExp(`^(?:${content})$`);
+    } catch {
+      return false; // invalid — the layer bails too; nothing to compare
+    }
+    const memo = new Map<string, boolean>();
+    const inL = (w: string): boolean => {
+      const hit = memo.get(w);
+      if (hit !== undefined) return hit;
+      const ok = re.test(w);
+      memo.set(w, ok);
+      return ok;
+    };
+    if (inL('')) return true;
+    const strings: string[] = [''];
+    for (let len = 1; len <= ORACLE_MAX; len++) {
+      for (const prefix of strings.filter((s) => s.length === len - 1)) {
+        for (const ch of ALPHABET) strings.push(prefix + ch);
+      }
+    }
+    for (const s of strings) {
+      if (s.length < 2) continue; // need ≥2 words → ≥2 chars
+      const ways = new Array<number>(s.length + 1).fill(0);
+      ways[0] = 1;
+      for (let j = 1; j <= s.length; j++) {
+        for (let i = 0; i < j; i++) {
+          if (ways[i]! > 0 && inL(s.slice(i, j))) ways[j]! += ways[i]!;
+        }
+      }
+      if (ways[s.length]! >= 2) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Deep oracle pass for disagreement resolution: Sardinas–Patterson
+   * violations can require witnesses LONGER than ORACLE_MAX (real case:
+   * `([bc]+|…)…` — an 11-char witness of two ~5-char words). Enumerate the
+   * engine-verified word dictionary over the alphabet plus '0' (anyMember
+   * of \w — chars the module may use in its own witnesses), then look for
+   * a word-pair concatenation with ≥2 dictionary decompositions.
+   */
+  function oracleAmbiguousDeep(content: string): boolean {
+    let re: RegExp;
+    try {
+      re = new RegExp(`^(?:${content})$`);
+    } catch {
+      return false;
+    }
+    const deepAlphabet = [...ALPHABET, '0'];
+    const words: string[] = [];
+    let level = [''];
+    for (let len = 1; len <= 6 && words.length < 200; len++) {
+      const next: string[] = [];
+      for (const s of level) {
+        for (const ch of deepAlphabet) {
+          const ns = s + ch;
+          if (re.test(ns)) words.push(ns);
+          next.push(ns);
+        }
+      }
+      level = next;
+    }
+    const wordSet = new Set(words);
+    const ways = (s: string): number => {
+      const dp = new Array<number>(s.length + 1).fill(0);
+      dp[0] = 1;
+      for (let j = 1; j <= s.length; j++) {
+        for (let i = 0; i < j; i++) {
+          if (dp[i]! > 0 && wordSet.has(s.slice(i, j))) dp[j]! += dp[i]!;
+        }
+      }
+      return dp[s.length]!;
+    };
+    for (const wi of words) {
+      for (const wj of words) {
+        if (ways(wi + wj) >= 2) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Parse-ambiguity oracle: any two branches of an alternation — at ANY
+   * nesting depth — that both match the same word make every occurrence of
+   * that word a 2-way engine choice: the `(a|a)+` class. Top-level only
+   * misses nested cases (`c*(b|b)` — identical branches one group down), so
+   * branch-sets are collected recursively. The decomposition oracles are
+   * blind to this class (they count splits, not parses).
+   */
+  /** Split a fragment on top-level `|` (paren- and class-aware). */
+  function splitTopLevel(frag: string): string[] {
+    const branches: string[] = [];
+    let depth = 0;
+    let cls = false;
+    let current = '';
+    for (let k = 0; k < frag.length; k++) {
+      const ch = frag[k]!;
+      if (ch === '\\') {
+        current += ch + (frag[k + 1] ?? '');
+        k++;
+        continue;
+      }
+      if (cls) {
+        if (ch === ']') cls = false;
+        current += ch;
+        continue;
+      }
+      if (ch === '[') {
+        cls = true;
+        current += ch;
+        continue;
+      }
+      if (ch === '(') depth++;
+      if (ch === ')') depth--;
+      if (ch === '|' && depth === 0) {
+        branches.push(current);
+        current = '';
+        continue;
+      }
+      current += ch;
+    }
+    branches.push(current);
+    return branches;
+  }
+
+  function branchSets(frag: string, depth = 0): string[][] {
+    if (depth > 4) return [];
+    const sets: string[][] = [];
+    const topLevel = splitTopLevel(frag);
+    if (topLevel.length >= 2) sets.push(topLevel);
+    for (const b of topLevel) {
+      let i = 0;
+      while (i < b.length) {
+        const ch = b[i]!;
+        if (ch === '\\') {
+          i += 2;
+          continue;
+        }
+        if (ch === '[') {
+          i++;
+          while (i < b.length && b[i] !== ']') {
+            if (b[i] === '\\') i++;
+            i++;
+          }
+          i++;
+          continue;
+        }
+        if (ch === '(') {
+          let d = 0;
+          let j = i;
+          for (; j < b.length; j++) {
+            const c = b[j]!;
+            if (c === '\\') {
+              j++;
+              continue;
+            }
+            if (c === '[') {
+              j++;
+              while (j < b.length && b[j] !== ']') {
+                if (b[j] === '\\') j++;
+                j++;
+              }
+              continue;
+            }
+            if (c === '(') d++;
+            else if (c === ')') {
+              d--;
+              if (d === 0) break;
+            }
+          }
+          if (j >= b.length) break;
+          let inner = b.slice(i + 1, j);
+          if (inner.startsWith('?')) {
+            if (/^[=!]/.test(inner.slice(1))) {
+              i = j + 1;
+              continue; // lookaround — assertions, not consuming branches
+            }
+            const m = /^\?(?::|<[=!]|<[$_\p{ID_Start}][$_\p{ID_Continue}\u200C\u200D]*>)/u.exec(inner);
+            if (!m) {
+              i = j + 1;
+              continue;
+            }
+            inner = inner.slice(m[0].length);
+          }
+          sets.push(...branchSets(inner, depth + 1));
+          i = j + 1;
+          continue;
+        }
+        i++;
+      }
+    }
+    return sets;
+  }
+
+  function oracleAmbiguousParse(content: string): boolean {
+    const sets = branchSets(content);
+    const deepAlphabet = [...ALPHABET, '0'];
+    const words: string[] = [''];
+    for (let len = 1; len <= 4; len++) {
+      for (const s of words.filter((w) => w.length === len - 1)) {
+        for (const ch of deepAlphabet) words.push(s + ch);
+      }
+    }
+    for (const branches of sets) {
+      const compiled = branches.map((b) => {
+        try {
+          return new RegExp(`^(?:${b})$`);
+        } catch {
+          return null;
+        }
+      });
+      for (let i = 0; i < compiled.length; i++) {
+        for (let j = i + 1; j < compiled.length; j++) {
+          const ri = compiled[i];
+          const rj = compiled[j];
+          if (!ri || !rj) continue;
+          for (const w of words) {
+            if (ri.test(w) && rj.test(w)) return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  it('agrees with the oracle on 250 random contents (seeded)', () => {
+    const rand = lcg(0xad04_2026);
+    let checked = 0;
+    for (let iter = 0; iter < 250; iter++) {
+      const content = randomContent(rand, 2);
+      const verdict = detectQuantifiedAmbiguity(content).verdict;
+      if (verdict === 'unparsable' || verdict === 'budget') continue; // permissive skip
+      const oracle = oracleAmbiguous(content);
+      checked++;
+      if (verdict === 'ambiguous') {
+        // Soundness: the layer must NEVER flag what the oracles prove clean.
+        // Deep pass covers long SP witnesses; parse pass covers same-word
+        // branch equivalence the decomposition oracles cannot see.
+        const verified =
+          oracle || oracleAmbiguousDeep(content) || oracleAmbiguousParse(content);
+        expect(verified, `false positive on ${content}`).toBe(true);
+      } else {
+        // Completeness within the oracle bound: no misses on decided cases.
+        expect(oracle, `missed ambiguity on ${content}`).toBe(false);
+      }
+    }
+    expect(checked).toBeGreaterThan(100); // the generator must stay in-subset
+  });
+});
+
+describe('detectQuantifiedAmbiguity — checker cost sanity', () => {
+  it('decides a large alternation well under 50ms', () => {
+    const content = Array.from({ length: 40 }, (_, i) => `x{1,2}${String.fromCharCode(97 + (i % 26))}`).join('|');
+    const t0 = performance.now();
+    const r = detectQuantifiedAmbiguity(content);
+    const dt = performance.now() - t0;
+    expect(['ambiguous', 'unambiguous', 'budget']).toContain(r.verdict);
+    expect(dt).toBeLessThan(50);
+  });
+});

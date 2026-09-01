@@ -190,3 +190,24 @@ note:     first launch attempt crashed at require.resolve('@wrongstack/webui-ser
           workspace has no self-link at the package's own anchor; the driver imports the dist
           entry via pathToFileURL instead.
 artifacts: .temp_files/soak2/ deleted after this entry.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2026-09-01 — ADR-004 semantic ambiguity layer: guard-path cost baseline
+workload: compileUserRegex + detectQuantifiedAmbiguity microbench, 4 cases
+command:  pnpm exec tsx .temp_files/adr004-impl/perf.ts (2000/200/2000/2000
+          iterations after warm-up; artifacts deleted after this entry)
+metric:   ms per call
+values:   static-only baseline (unquantified group) 0.0001
+          benign guard path `(foo|bar)+`            0.0001
+          semantic layer direct, `(?:a+)|b`         0.0112
+          worst-case ~250-char alternation          0.0005
+commit:   working tree post-62599ac1b (ADR-004 implementation, uncommitted)
+machine:  WHITE (Windows dev box)
+runtime:  node v24.13.0
+verdict:  PASS — ADR-004 perf gate (<1 ms/pattern for ≤256-char patterns)
+          cleared by ~100x on the worst measured case; benign guard paths
+          unaffected at measurement resolution.
+limitations: microbench on an otherwise-idle box, wall-clock via
+          performance.now; the "worst-case" pattern is one synthetic
+          40-branch fixed-count alternation, not an exhaustive search of
+          the 256-char pattern space (checker budget caps at 60k steps).

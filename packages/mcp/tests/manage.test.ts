@@ -423,7 +423,7 @@ describe('management edge cases', () => {
     await expect(discoverMcp('__proto__', d)).resolves.toMatchObject({ ok: false });
     await expect(addMcp({ name: 'constructor' }, d)).resolves.toMatchObject({ ok: false });
     await expect(updateMcp({ name: 'prototype' }, d)).resolves.toMatchObject({ ok: false });
-    expect(Object.prototype.enabled).toBeUndefined();
+    expect((Object.prototype as { enabled?: unknown }).enabled).toBeUndefined();
   });
 
   it('restarts an enabled update and an already tracked add', async () => {
