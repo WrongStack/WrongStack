@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-01T18:18:52.734Z
+**Generated:** 2026-09-01T18:20:48.798Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,11 +21,7 @@
 
 ## Verification result
 
-- packages/cli/src/boot.ts: hotspot grew from 851 to 921 lines; review and update the ratchet in the same change
-- packages/plugins/src/semantic-search-indexer/index.ts: hotspot grew from 803 to 936 lines; review and update the ratchet in the same change
-- packages/webui/src/stores/fleet-store.ts: hotspot grew from 972 to 996 lines; review and update the ratchet in the same change
-- packages/webui/src/stores/ui-store.ts: hotspot shrunk from 1292 to 1279 lines; review and update the ratchet in the same change
-- packages/plugins/src/semantic-search-indexer/index.ts: "semanticIndexerCoverage" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

@@ -486,6 +486,10 @@
       "mailboxServer",
       "requirementIntakeServer"
     ],
+    "packages/core/src/plugins/perf-command.ts": [
+      "buildPerfRunText",
+      "parsePerfArgs"
+    ],
     "packages/core/src/plugins/review-context-builder.ts": [
       "parsePorcelainStatusZ"
     ],
@@ -813,6 +817,9 @@
       "detectSecretsGuarded",
       "KIND_ALIASES",
       "SCAN_WINDOW_LIMIT"
+    ],
+    "packages/plugins/src/semantic-search-indexer/index.ts": [
+      "semanticIndexerCoverage"
     ],
     "packages/plugins/src/semver-bump/index.ts": [
       "determineBump",

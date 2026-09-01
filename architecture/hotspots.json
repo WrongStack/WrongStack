@@ -7,7 +7,7 @@
       "relativeImports": 1
     },
     "packages/cli/src/boot.ts": {
-      "lines": 851,
+      "lines": 921,
       "relativeImports": 19
     },
     "packages/cli/src/cli-main.ts": {
@@ -243,7 +243,7 @@
       "relativeImports": 2
     },
     "packages/plugins/src/semantic-search-indexer/index.ts": {
-      "lines": 803,
+      "lines": 936,
       "relativeImports": 0
     },
     "packages/plugins/src/test-runner-gate/index.ts": {
@@ -259,7 +259,7 @@
       "relativeImports": 1
     },
     "packages/sage/src/project-server.ts": {
-      "lines": 817,
+      "lines": 853,
       "relativeImports": 6
     },
     "packages/sage/src/sqlite-store.ts": {
@@ -487,7 +487,7 @@
       "relativeImports": 4
     },
     "packages/webui/src/stores/fleet-store.ts": {
-      "lines": 972,
+      "lines": 996,
       "relativeImports": 2
     },
     "packages/webui/src/stores/local-prefs.ts": {
@@ -499,7 +499,7 @@
       "relativeImports": 16
     },
     "packages/webui/src/stores/ui-store.ts": {
-      "lines": 1292,
+      "lines": 1279,
       "relativeImports": 4
     },
     "packages/webui/src/stores/viz-store.ts": {
