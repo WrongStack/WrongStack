@@ -170,12 +170,12 @@ function activate(sessionId: string) {
   setActiveLane(sessionId);
   setActiveSessionLane(sessionId);
   useSessionStore.getState().switchSession(sessionId);
-  // Restore what THIS tab was showing: its own subagent transcript, or the
-  // leader. Leaving the previous tab's focus in place opened tab 2 on tab 1's
-  // subagent.
+  // Arriving at a tab always lands on the Leader chat — subagent focus is
+  // foreground-only and never follows the user across tabs (setSubagentChatFocus
+  // still stamps the session so ChatView can clear a focus that names another).
   const ui = useUIStore.getState();
   ui.bindSessionChrome(sessionId);
-  ui.setSubagentChatFocus(ui.subagentChatFocusBySession[sessionId] ?? null, sessionId);
+  ui.setSubagentChatFocus(null, sessionId);
   // Raise this tab's own unanswered approval prompt, and never another tab's:
   // the dialog is a single global surface, so switching away from a tab with a
   // live prompt must take it down with the tab.

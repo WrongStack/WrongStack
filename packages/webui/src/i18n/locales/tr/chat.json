@@ -90,6 +90,9 @@
     "delegations": "{{count}} devredilen çalıştırma",
     "delegationFailed": "{{count}} başarısız",
     "delegateToolCalls": "içinde {{count}} araç",
-    "leaderLine": "Lider: {{ok}}✓ {{failed}}✗"
+    "leaderLine": "Lider: {{ok}}✓ {{failed}}✗",
+    "tool": "Araç",
+    "outcome": "Sonuç",
+    "average": "Ort."
   }
 }

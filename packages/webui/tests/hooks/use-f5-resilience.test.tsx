@@ -173,7 +173,6 @@ describe('useF5Resilience — lane/slot reconciliation', () => {
     useUIStore.setState({
       subagentChatFocusId: null,
       subagentChatFocusSessionId: null,
-      subagentChatFocusBySession: {},
     } as never);
   });
 
@@ -209,7 +208,8 @@ describe('useF5Resilience — lane/slot reconciliation', () => {
     ensureSessionLane('tab-orphan');
     useLocalPrefs.setState({ bySession: { 'tab-orphan': { provider: 'p' } } } as never);
     useUIStore.setState({
-      subagentChatFocusBySession: { 'tab-orphan': 'agent-1' },
+      subagentChatFocusId: 'agent-1',
+      subagentChatFocusSessionId: 'tab-orphan',
     } as never);
 
     renderHook(() => useF5Resilience());
@@ -217,7 +217,8 @@ describe('useF5Resilience — lane/slot reconciliation', () => {
     expect(laneIds()).not.toContain('tab-orphan');
     expect(sessionLaneIds()).not.toContain('tab-orphan');
     expect('tab-orphan' in useLocalPrefs.getState().bySession).toBe(false);
-    expect(useUIStore.getState().subagentChatFocusBySession['tab-orphan']).toBeUndefined();
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
+    expect(useUIStore.getState().subagentChatFocusSessionId).toBeNull();
   });
 
   it('recovers accounting headroom after a partial write orphans session lanes', () => {

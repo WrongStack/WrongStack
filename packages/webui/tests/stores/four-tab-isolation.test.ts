@@ -51,7 +51,6 @@ beforeEach(() => {
   useUIStore.setState({
     subagentChatFocusId: null,
     subagentChatFocusSessionId: null,
-    subagentChatFocusBySession: {},
     queuePanelOpen: false,
     processMonitorOpen: false,
     cronJobsOpen: false,
@@ -132,17 +131,21 @@ describe('four open tabs never share session-owned state', () => {
     expect(useLocalPrefs.getState().autonomy).toBe('off');
   });
 
-  it('restores each tab’s subagent focus and never leaves a neighbour’s agent selected', () => {
+  it('arriving at a tab always lands on the Leader chat — never a neighbour’s agent', () => {
     useUIStore.getState().setSubagentChatFocus('agent-a', 'sess-a');
     useUIStore.getState().setSubagentChatFocus('agent-b', 'sess-b');
 
     useSessionTabStore.getState().openTab('sess-a');
-    expect(useUIStore.getState().subagentChatFocusId).toBe('agent-a');
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
     expect(useUIStore.getState().subagentChatFocusSessionId).toBe('sess-a');
 
     useSessionTabStore.getState().openTab('sess-b');
-    expect(useUIStore.getState().subagentChatFocusId).toBe('agent-b');
-    expect(useUIStore.getState().subagentChatFocusBySession['sess-a']).toBe('agent-a');
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
+    expect(useUIStore.getState().subagentChatFocusSessionId).toBe('sess-b');
+
+    // The reset is sticky: revisiting a tab never resurrects an old focus.
+    useSessionTabStore.getState().openTab('sess-a');
+    expect(useUIStore.getState().subagentChatFocusId).toBeNull();
   });
 
   it('closes slash overlays when the foreground tab changes', () => {

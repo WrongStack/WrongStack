@@ -116,6 +116,8 @@
     "openChat": "Sohbet aç",
     "leaderTab": "Lider",
     "tabsLabel": "Ajan görünümünü değiştir",
+    "moreTabsTitle": "Diğer ajanlar ({{n}})",
+    "closeTab": "Kapat ({{name}})",
     "emptyFilteredTitle": "Filtreyle eşleşen aracı yok",
     "emptyFilteredHint": "Tüm aracıları görmek için filtreyi değiştirin veya temizleyin.",
     "emptyFilteredClear": "Tümünü göster",

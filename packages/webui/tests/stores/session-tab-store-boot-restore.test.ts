@@ -104,7 +104,6 @@ beforeEach(() => {
   useUIStore.setState({
     subagentChatFocusId: null,
     subagentChatFocusSessionId: null,
-    subagentChatFocusBySession: {},
     queuePanelOpen: false,
     processMonitorOpen: false,
     cronJobsOpen: false,

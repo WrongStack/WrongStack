@@ -239,13 +239,12 @@ describe('dock sections', () => {
     });
   });
 
-  it('parks subagent chat focus per session when callers omit the session id', () => {
+  it('rebinding to another session lands on the Leader chat — focus never follows', () => {
     ui().bindSessionChrome('session-a');
     ui().setSubagentChatFocus('worker-a');
     expect(ui()).toMatchObject({
       subagentChatFocusId: 'worker-a',
       subagentChatFocusSessionId: 'session-a',
-      subagentChatFocusBySession: { 'session-a': 'worker-a' },
     });
 
     ui().bindSessionChrome('session-b');
@@ -254,17 +253,13 @@ describe('dock sections', () => {
       subagentChatFocusSessionId: 'session-b',
     });
 
+    // A focus written under session-b must not resurrect on re-entering
+    // session-a: subagent focus is foreground-only.
     ui().setSubagentChatFocus('worker-b');
     ui().bindSessionChrome('session-a');
     expect(ui()).toMatchObject({
-      subagentChatFocusId: 'worker-a',
+      subagentChatFocusId: null,
       subagentChatFocusSessionId: 'session-a',
-    });
-
-    ui().bindSessionChrome('session-b');
-    expect(ui()).toMatchObject({
-      subagentChatFocusId: 'worker-b',
-      subagentChatFocusSessionId: 'session-b',
     });
   });
 

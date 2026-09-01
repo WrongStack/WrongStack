@@ -71,6 +71,10 @@ export interface FleetState {
    *  roster. Scoped: only agents belonging to `sessionId` are removed, so a
    *  panel in one tab never drops another tab's finished agents. */
   clearFinishedAgents: (sessionId: string | null) => void;
+  /** Remove ONE agent from the roster (AgentTabs close affordance). Same
+   *  cleanup path as clearFinishedAgents — transcripts, timelines, token
+   *  totals and the leader pointer all follow the agent out. */
+  removeAgent: (subagentId: string) => void;
 }
 
 function blankAgent(id: string, name?: string, sessionId?: string): SubagentView {
@@ -299,6 +303,26 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
         // tokens of agents no longer shown made the fleet chip drift up.
         fleetTokensIn: Math.max(0, state.fleetTokensIn - droppedTokensIn),
         fleetTokensOut: Math.max(0, state.fleetTokensOut - droppedTokensOut),
+      };
+    }),
+  removeAgent: (subagentId) =>
+    set((state) => {
+      const agent = state.agents.get(subagentId);
+      if (!agent) return state;
+      const agents = new Map(state.agents);
+      agents.delete(subagentId);
+      const agentTranscripts = new Map(state.agentTranscripts);
+      agentTranscripts.delete(subagentId);
+      return {
+        agents,
+        agentTranscripts,
+        agentTimeline: state.agentTimeline.filter((e) => e.subagentId !== subagentId),
+        eventTimeline: state.eventTimeline.filter((e) => e.agentId !== subagentId),
+        leaderId: state.leaderId === subagentId ? undefined : state.leaderId,
+        // Same running-delta contract as clearFinishedAgents: totals are sums
+        // of per-agent contributions, so the agent's tokens leave with it.
+        fleetTokensIn: Math.max(0, state.fleetTokensIn - (agent.tokensIn ?? 0)),
+        fleetTokensOut: Math.max(0, state.fleetTokensOut - (agent.tokensOut ?? 0)),
       };
     }),
   applyEvent: (e) =>

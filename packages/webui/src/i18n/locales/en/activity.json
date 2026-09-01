@@ -124,6 +124,8 @@
     "openChat": "Open chat",
     "leaderTab": "Leader",
     "tabsLabel": "Switch agent view",
+    "moreTabsTitle": "More agents ({{n}})",
+    "closeTab": "Close {{name}}",
     "emptyFilteredTitle": "No agents match the filter",
     "emptyFilteredHint": "Change the filter or clear it to see all agents.",
     "emptyFilteredClear": "Show all",

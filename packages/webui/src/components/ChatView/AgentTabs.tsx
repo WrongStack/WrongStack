@@ -9,8 +9,14 @@
  * detail sections — can jump straight into an agent's chat view.
  */
 
-import { Bot, CheckCircle2, Crown, Loader2, Square } from 'lucide-react';
+import { Bot, Check, CheckCircle2, ChevronDown, Crown, Loader2, Square, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useAppTranslation } from '@/i18n';
 import { agentBelongsToSession } from '@/lib/agent-session';
 import { taskBriefPreview } from '@/lib/task-brief-preview';
@@ -35,6 +41,68 @@ const TAB_LED: Record<SubagentView['status'], { led: string; pulse: boolean }> =
   stopped: { led: 'bg-muted-foreground', pulse: false },
 };
 
+/**
+ * Inline tab budget before the rest of the roster collapses into the
+ * overflow dropdown. Three subagent tabs + the leader tab + the AGENTS
+ * label leave the session summary pill (Stop/Waiting) room even with
+ * worst-case 10rem-wide names, so the bar never overflows.
+ */
+const MAX_INLINE_SUBAGENTS = 3;
+
+function SubagentTabButton({
+  agent,
+  active,
+  onOpen,
+  onRemove,
+  removeLabel,
+}: {
+  agent: SubagentView;
+  active: boolean;
+  onOpen: () => void;
+  /** Present only on finished agents — removes the agent from the roster. */
+  onRemove?: (() => void) | undefined;
+  removeLabel?: string | undefined;
+}) {
+  const meta = TAB_LED[agent.status] ?? TAB_LED.stopped;
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      title={agent.description ? taskBriefPreview(agent.description, 180) : agent.name}
+      onClick={onOpen}
+      className={cn(
+        'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',
+        active
+          ? 'bg-primary/15 text-primary border-primary/30 shadow-xs'
+          : 'text-muted-foreground border-transparent hover:bg-muted/50 hover:text-foreground',
+      )}
+    >
+      <span
+        className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')}
+        aria-hidden="true"
+      />
+      <span className="max-w-[10rem] truncate">{agent.name}</span>
+      {onRemove && (
+        <span
+          role="button"
+          tabIndex={-1}
+          data-testid="agent-tab-close"
+          aria-label={removeLabel}
+          title={removeLabel}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="-mr-0.5 flex shrink-0 items-center rounded-sm p-0.5 text-muted-foreground/60 transition-colors hover:bg-destructive/15 hover:text-destructive"
+        >
+          <X className="h-2.5 w-2.5" aria-hidden="true" />
+        </span>
+      )}
+    </button>
+  );
+}
+
 export function AgentTabs() {
   const { t } = useAppTranslation();
   const currentSessionId = useActiveSessionId();
@@ -48,6 +116,7 @@ export function AgentTabs() {
   const leaderName = useFleetStore((s) => (leaderId ? s.agents.get(leaderId)?.name : undefined));
   const focusId = useUIStore((s) => s.subagentChatFocusId);
   const setFocus = useUIStore((s) => s.setSubagentChatFocus);
+  const removeAgent = useFleetStore((s) => s.removeAgent);
 
   // The leader already owns the dedicated first tab — never list it twice.
   //
@@ -59,6 +128,19 @@ export function AgentTabs() {
 
   const runningSubs = subagents.filter((a) => a.status === 'running').length;
   const finishedSubs = subagents.length - runningSubs;
+
+  // Collapsed roster: first MAX_INLINE_SUBAGENTS stay as tabs, the rest live
+  // behind the "+N" overflow dropdown so the bar never pushes the Stop /
+  // summary pill out of view.
+  const inlineSubs = subagents.slice(0, MAX_INLINE_SUBAGENTS);
+  const overflowSubs = subagents.slice(MAX_INLINE_SUBAGENTS);
+  const overflowFocusActive = overflowSubs.some((a) => a.id === focusId);
+  const anyOverflowRunning = overflowSubs.some((a) => a.status === 'running');
+  const openAgent = (id: string) => {
+    setFocus(id, currentSessionId);
+    useUIStore.getState().setCurrentView('chat');
+  };
+  const closeLabel = (name: string) => t('activity:agents.closeTab', { name });
 
   return (
     <div
@@ -94,35 +176,84 @@ export function AgentTabs() {
             {leaderName ?? t('activity:agents.leaderTab')}
           </span>
         </button>
-        {subagents.map((a) => {
-          const meta = TAB_LED[a.status] ?? TAB_LED.stopped;
-          const active = focusId === a.id;
-          return (
-            <button
-              key={a.id}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              title={a.description ? taskBriefPreview(a.description, 180) : a.name}
-              onClick={() => {
-                setFocus(a.id, currentSessionId);
-                useUIStore.getState().setCurrentView('chat');
-              }}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',
-                active
-                  ? 'bg-primary/15 text-primary border-primary/30 shadow-xs'
-                  : 'text-muted-foreground border-transparent hover:bg-muted/50 hover:text-foreground',
-              )}
-            >
-              <span
-                className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')}
-                aria-hidden="true"
-              />
-              <span className="max-w-[10rem] truncate">{a.name}</span>
-            </button>
-          );
-        })}
+        {inlineSubs.map((a) => (
+          <SubagentTabButton
+            key={a.id}
+            agent={a}
+            active={focusId === a.id}
+            onOpen={() => openAgent(a.id)}
+            onRemove={a.status !== 'running' ? () => removeAgent(a.id) : undefined}
+            removeLabel={closeLabel(a.name)}
+          />
+        ))}
+        {overflowSubs.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                data-testid="agent-tabs-overflow"
+                title={t('activity:agents.moreTabsTitle', { n: overflowSubs.length })}
+                aria-label={t('activity:agents.moreTabsTitle', { n: overflowSubs.length })}
+                className={cn(
+                  'flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors border',
+                  overflowFocusActive
+                    ? 'bg-primary/15 text-primary border-primary/30 shadow-xs'
+                    : 'text-muted-foreground border-transparent hover:bg-muted/50 hover:text-foreground',
+                )}
+              >
+                <span
+                  className={cn(
+                    'led shrink-0',
+                    anyOverflowRunning ? 'bg-success led-pulse' : 'bg-muted-foreground',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="font-mono">+{overflowSubs.length}</span>
+                <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 w-60 overflow-y-auto">
+              {overflowSubs.map((a) => {
+                const meta = TAB_LED[a.status] ?? TAB_LED.stopped;
+                const active = focusId === a.id;
+                return (
+                  <DropdownMenuItem
+                    key={a.id}
+                    data-testid="agent-tabs-overflow-item"
+                    title={a.description ? taskBriefPreview(a.description, 180) : a.name}
+                    onSelect={() => openAgent(a.id)}
+                  >
+                    <span
+                      className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')}
+                      aria-hidden="true"
+                    />
+                    <span className="max-w-[12rem] flex-1 truncate">{a.name}</span>
+                    {active && <Check className="h-3 w-3 shrink-0 text-primary" aria-hidden="true" />}
+                    {a.status !== 'running' && (
+                      <span
+                        role="button"
+                        tabIndex={-1}
+                        data-testid="agent-tab-close"
+                        aria-label={closeLabel(a.name)}
+                        title={closeLabel(a.name)}
+                        onClick={(e) => {
+                          // Keep the menu open so several finished agents can
+                          // be dismissed in one pass; stopPropagation also
+                          // keeps the click from selecting the item.
+                          e.stopPropagation();
+                          removeAgent(a.id);
+                        }}
+                        className="flex shrink-0 items-center rounded-sm p-1 text-muted-foreground/60 transition-colors hover:bg-destructive/15 hover:text-destructive"
+                      >
+                        <X className="h-3 w-3" aria-hidden="true" />
+                      </span>
+                    )}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Session & Fleet Summary Pill */}

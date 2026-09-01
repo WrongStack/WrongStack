@@ -243,8 +243,6 @@ interface UIState {
   subagentChatFocusId: string | null;
   /** Which session the flat `subagentChatFocusId` describes. */
   subagentChatFocusSessionId: string | null;
-  /** Per-tab subagent focus, so switching tabs restores what each was showing. */
-  subagentChatFocusBySession: Record<string, string | null>;
   /** Process Monitor overlay — triggered by /kill slash command. */
   processMonitorOpen: boolean;
   /** Queue Panel overlay — triggered by /queue slash command. */
@@ -491,7 +489,6 @@ function homeNavigationStatePatch(
     inspectorFocusedAgentId: null,
     subagentChatFocusId: null,
     subagentChatFocusSessionId: null,
-    subagentChatFocusBySession: {},
     terminalOpen: false,
     paletteOpen: false,
     shortcutsOpen: false,
@@ -664,7 +661,6 @@ export const useUIStore = create<UIState>()(
       inspectorFocusedAgentId: null,
       subagentChatFocusId: null,
       subagentChatFocusSessionId: null,
-      subagentChatFocusBySession: {},
       processMonitorOpen: false,
       queuePanelOpen: false,
       cronJobsOpen: false,
@@ -838,13 +834,12 @@ export const useUIStore = create<UIState>()(
           }
           const parked = sessionId ? chromeBySession[sessionId] : undefined;
           const chrome = parked ?? defaultSessionChrome();
-          const subagentChatFocusId = sessionId
-            ? (state.subagentChatFocusBySession[sessionId] ?? null)
-            : null;
+          // Arriving at a session always lands on the Leader chat: subagent
+          // focus is foreground-only and never follows the user across tabs.
           return {
             chromeSessionId: sessionId,
             chromeBySession,
-            subagentChatFocusId,
+            subagentChatFocusId: null,
             subagentChatFocusSessionId: sessionId,
             sidebarOpen: chrome.sidebarOpen ?? defaultSessionChrome().sidebarOpen,
             activeActivity: chrome.activeActivity,
@@ -1004,10 +999,10 @@ export const useUIStore = create<UIState>()(
           inspectorFocusedAgentId: id,
           ...parkChrome(state, { inspectorFocusedAgentId: id }),
         })),
-      // Which subagent transcript is open is a property of the TAB, not of the
-      // app: focusing one in tab 2 must not swap tab 1's chat out from under
-      // the user. The map is keyed by session; the flat field stays as the
-      // foreground projection so existing readers keep working.
+      // Which subagent transcript is open is stamped with the session it
+      // belongs to, so ChatView can auto-clear a focus that arrives from (or
+      // names) another tab. Focus itself is foreground-only: switching tabs
+      // always lands on the Leader chat.
       setSubagentChatFocus: (id: string | null, sessionId?: string | null) =>
         set((state) => {
           // '' is "no session" — an empty stamp must never become a map key
@@ -1018,29 +1013,21 @@ export const useUIStore = create<UIState>()(
           return {
             subagentChatFocusId: id,
             subagentChatFocusSessionId: key ?? null,
-            subagentChatFocusBySession: key
-              ? { ...state.subagentChatFocusBySession, [key]: id }
-              : state.subagentChatFocusBySession,
           };
         }),
       forgetSession: (sessionId) =>
         set((state) => {
-          const hasSubagentFocus =
-            sessionId in state.subagentChatFocusBySession ||
-            state.subagentChatFocusSessionId === sessionId;
+          const hasSubagentFocus = state.subagentChatFocusSessionId === sessionId;
           const hasChrome =
             sessionId in state.chromeBySession || state.chromeSessionId === sessionId;
           if (!hasSubagentFocus && !hasChrome) {
             return state;
           }
-          const nextFocus = { ...state.subagentChatFocusBySession };
-          delete nextFocus[sessionId];
           const nextChrome = { ...state.chromeBySession };
           delete nextChrome[sessionId];
           const droppingFront = state.subagentChatFocusSessionId === sessionId;
           const droppingChrome = state.chromeSessionId === sessionId;
           return {
-            subagentChatFocusBySession: nextFocus,
             chromeBySession: nextChrome,
             ...(droppingFront
               ? { subagentChatFocusId: null, subagentChatFocusSessionId: null }

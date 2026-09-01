@@ -90,6 +90,9 @@
     "delegations": "{{count}} execução(ões) delegada(s)",
     "delegationFailed": "{{count}} falha(s)",
     "delegateToolCalls": "{{count}} ferramentas dentro",
-    "leaderLine": "Líder: {{ok}}✓ {{failed}}✗"
+    "leaderLine": "Líder: {{ok}}✓ {{failed}}✗",
+    "tool": "Ferramenta",
+    "outcome": "Resultado",
+    "average": "Média"
   }
 }

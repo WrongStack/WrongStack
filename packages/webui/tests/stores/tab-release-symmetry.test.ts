@@ -73,7 +73,6 @@ beforeEach(() => {
   useUIStore.setState({
     subagentChatFocusId: null,
     subagentChatFocusSessionId: null,
-    subagentChatFocusBySession: {},
     queuePanelOpen: false,
     processMonitorOpen: false,
     cronJobsOpen: false,
@@ -144,7 +143,6 @@ describe('retiring a tab frees the same state through either door', () => {
     expect(disposeStreakState).toHaveBeenCalledWith('tab-b');
     expect(useSessionTabStore.getState().lastSeenCounts['tab-b']).toBeUndefined();
     expect(useSessionTabStore.getState().attention['tab-b']).toBeUndefined();
-    expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
     expect(useChimeraReportsStore.getState().bySession['tab-b']).toBeUndefined();
     expect(useToolStatsStore.getState().sessions['tab-b']).toBeUndefined();
   });
@@ -170,7 +168,6 @@ describe('retiring a tab frees the same state through either door', () => {
 
     expect(hasLane('tab-b')).toBe(false);
     expect(useLocalPrefs.getState().bySession['tab-b']).toBeUndefined();
-    expect(useUIStore.getState().subagentChatFocusBySession['tab-b']).toBeUndefined();
     expect(useChimeraReportsStore.getState().bySession['tab-b']).toBeUndefined();
     expect(useToolStatsStore.getState().sessions['tab-b']).toBeUndefined();
   });

@@ -116,6 +116,8 @@
     "openChat": "Abrir chat",
     "leaderTab": "Líder",
     "tabsLabel": "Cambiar vista de agente",
+    "moreTabsTitle": "Más agentes ({{n}})",
+    "closeTab": "Cerrar {{name}}",
     "emptyFilteredTitle": "Ningún agente coincide con el filtro",
     "emptyFilteredHint": "Cambia o borra el filtro para ver todos los agentes.",
     "emptyFilteredClear": "Mostrar todos",

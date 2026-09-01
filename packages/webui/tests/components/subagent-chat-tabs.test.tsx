@@ -113,6 +113,80 @@ describe('subagent chat tabs', () => {
     expect(screen.getByRole('tab', { name: /Alpha/ }).getAttribute('aria-selected')).toBe('true');
   });
 
+  it('collapses subagents beyond the inline budget into the +N overflow trigger', () => {
+    const agents = new Map<string, SubagentView>([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ...(['s1', 's2', 's3', 's4', 's5'].map((id) => [id, makeAgent(id)] as const)),
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    render(<AgentTabs />);
+
+    // Leader + the first 3 subagents stay inline as tabs; the remaining 2
+    // live behind the "+2" overflow trigger so the bar cannot overflow into
+    // the Stop/summary cluster.
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    const trigger = screen.getByTestId('agent-tabs-overflow');
+    expect(trigger.textContent).toContain('+2');
+
+    // Focusing an agent that lives in the overflow keeps it visible: the
+    // trigger takes the active styling while collapsed.
+    act(() => {
+      useUIStore.setState({ subagentChatFocusId: 's4' });
+    });
+    expect(trigger.getAttribute('class')).toContain('bg-primary/15');
+  });
+
+  it('offers a close affordance on finished agent tabs only, and removing clears the roster entry', () => {
+    const agents = new Map<string, SubagentView>([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ['s1', makeAgent('s1', { name: 'Alpha', status: 'completed' })],
+      ['s2', makeAgent('s2', { name: 'Beta' })], // running — never closable
+    ]);
+    useFleetStore.setState({
+      agents,
+      leaderId: 'ldr',
+      agentTranscripts: new Map([['s1', [entry({ kind: 'status', content: 'done' })]]]),
+    });
+
+    render(<AgentTabs />);
+
+    // Only the finished tab carries the close affordance.
+    const closeButtons = screen.getAllByTestId('agent-tab-close');
+    expect(closeButtons).toHaveLength(1);
+
+    // Selecting the other tab first proves closing does not steal focus.
+    fireEvent.click(screen.getByRole('tab', { name: /Beta/ }));
+    expect(useUIStore.getState().subagentChatFocusId).toBe('s2');
+
+    fireEvent.click(closeButtons[0]!);
+    expect(useFleetStore.getState().agents.has('s1')).toBe(false);
+    // The transcript follows the agent out (same contract as clear-finished).
+    expect(useFleetStore.getState().agentTranscripts.has('s1')).toBe(false);
+    // The ✕ removed the agent without switching the focused tab.
+    expect(useUIStore.getState().subagentChatFocusId).toBe('s2');
+    expect(screen.queryByRole('tab', { name: /Alpha/ })).toBeNull();
+  });
+
+  it('keeps the bar structural with a large fleet: inline budget, +9 trigger, summary pill intact', () => {
+    const agents = new Map<string, SubagentView>([
+      ['ldr', makeAgent('ldr', { name: 'Main' })],
+      ...(['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12'].map(
+        (id) => [id, makeAgent(id)] as const,
+      )),
+    ]);
+    useFleetStore.setState({ agents, leaderId: 'ldr' });
+
+    render(<AgentTabs />);
+
+    // The collapse is what keeps the bar from overflowing: leader + 3 tabs,
+    // the rest behind "+9", and the right-hand Stop/summary cluster still
+    // present in the same bar (it must never be pushed out of view).
+    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.getByTestId('agent-tabs-overflow').textContent).toContain('+9');
+    expect(screen.getByText(/Waiting for next prompt/i)).toBeTruthy();
+  });
+
   it('renders Stop button in summary pill when isLoading is true and clicks sendAbort', () => {
     mockSendAbort.mockClear();
     const agents = new Map([
