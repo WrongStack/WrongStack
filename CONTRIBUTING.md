@@ -96,6 +96,46 @@ Key conventions:
 
 ---
 
+## Performance Contract
+
+These rules apply to every performance-motivated change in this repository —
+human or agent. They exist because the two ways performance work goes wrong
+(claiming a win that was never measured, and keeping a change that bought
+nothing) are both invisible without a standing rule against them.
+
+1. **No performance claim without a number.** If you say something is faster,
+   show the before/after measurement and the exact command that produced it.
+2. **Baseline before you touch anything.** Record workload, command, metric,
+   value, commit hash, machine, and runtime version in `PERF_LOG.md` before
+   changing code for performance reasons.
+3. **One variable at a time, then re-measure.** If the delta is inside noise —
+   below the spread of 3 repeat runs, or under 5% — revert the change.
+4. **Correctness gates everything.** The test suite passes before and after,
+   with identical observable behaviour. A faster wrong answer is a regression.
+5. **Prefer, in this order:** (a) do less work — algorithm, complexity, caching;
+   (b) do work fewer times — batching, deduplication; (c) do work later or never
+   — laziness, short-circuits, streaming; (d) do the same work faster —
+   micro-optimisation. Never start at (d).
+6. **Do not trade readability for less than a 10% win** on a path that is not hot.
+7. **Report regressions honestly**, including ones you introduced yourself.
+8. **Distinguish explicitly** between what you measured, what you read in the
+   code, and what you are inferring. Label the last one SPECULATIVE.
+
+The tooling that enforces this:
+
+| Command | What it does |
+|---|---|
+| `/perf` | One measure-change-measure round (also `audit`, `triage`, `memory`, `io`, `cpu`, `guard`) |
+| `/perf log` | Print the `PERF_LOG.md` ledger — deterministic, no model call |
+| `pnpm perf:guard` | Re-measure the probes in `architecture/perf-baseline.json` and gate on regressions |
+| `pnpm perf:guard:write` | …and ratchet the baseline down for improvements |
+
+Rule 3 is not advisory: `decide()` in `@wrongstack/core/performance` requires a
+delta to clear **both** the run-to-run spread and the 5% floor before a change
+counts as an improvement. Full design in [`docs/performance-ratchet.md`](docs/performance-ratchet.md).
+
+---
+
 ## Monorepo Layout
 
 ```

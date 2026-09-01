@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/tools",
-  "version": "0.318.0",
+  "version": "0.319.0",
   "license": "MIT",
   "description": "WrongStack built-in tools: read/write/edit, bash/exec, grep/glob, git, fetch, test, lint, and more.",
   "repository": {

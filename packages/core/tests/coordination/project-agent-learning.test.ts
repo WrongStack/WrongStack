@@ -62,6 +62,29 @@ describe('project agent self-learning lifecycle', () => {
     });
   });
 
+  it('splits blocks when a later heading omits the space after ##', () => {
+    // The block-start regex accepts `##LEARNED` ([ \t]* lets the space be
+    // zero), so the delimiter must recognise that same form as a boundary.
+    // `/^##\s/` alone absorbed the second block into the first: two distinct
+    // directives collapsed into one candidate whose text contained the
+    // literal `##LEARNED` marker.
+    const lessonA = 'Always run pnpm typecheck before declaring work complete.';
+    const lessonB = 'Avoid mutating shared state in async handlers.';
+    const result = captureLearnedFromAgentOutputDetailed(
+      `## LEARNED\n${lessonA}\n\n##LEARNED\n${lessonB}`,
+      'executor',
+      projectRoot,
+      true,
+    );
+    expect(result).toMatchObject({ status: 'captured', captured: 2, skipped: 0 });
+    const entries = parseStructuredLearnedEntries('executor', projectRoot);
+    expect(entries).toHaveLength(2);
+    const texts = entries.map((entry) => entry.what);
+    expect(texts).toContain(lessonA);
+    expect(texts).toContain(lessonB);
+    for (const text of texts) expect(text).not.toContain('##LEARNED');
+  });
+
   it('does not consume the automatic capture guard when output has no LEARNED block', () => {
     expect(
       captureLearnedFromAgentOutputDetailed('ordinary task output', 'reviewer', projectRoot),

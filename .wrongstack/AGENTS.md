@@ -40,6 +40,26 @@
   mailbox, memory store, knowledge graph, and installed skills. It is
   gitignored — each developer maintains their own.
 
+## Performance contract
+
+Applies to every performance-motivated change. Canonical text lives in
+`CONTRIBUTING.md` (committed — this file is not); design in
+`docs/performance-ratchet.md`.
+
+- **No performance claim without a number** — show the before/after and the
+  exact command that produced it.
+- **Baseline first**, into `PERF_LOG.md`: workload, command, metric, value,
+  commit, machine, runtime version.
+- **One variable at a time.** If the delta is inside noise — below the spread of
+  3 repeat runs, or under 5% — **revert it**. This is enforced by `decide()` in
+  `@wrongstack/core/performance`, not left to judgement.
+- **Correctness gates everything.** A faster wrong answer is a regression.
+- **Order of attack:** do less work → do it fewer times → do it later or never →
+  only then make the same work faster. Never start at micro-optimisation.
+- Label every statement **measured**, **read in the code**, or **SPECULATIVE**.
+
+Tools: `/perf` (round), `/perf log` (ledger, no model call), `pnpm perf:guard`.
+
 ## Commands
 
 | Command | Script |
@@ -49,6 +69,7 @@
 | Lint | `pnpm run lint` |
 | Typecheck | `pnpm run typecheck` |
 | Format | `pnpm run format` |
+| Perf gate | `pnpm perf:guard` (needs `pnpm build` first — it measures `dist/`) |
 | Run locally | `pnpm --filter @wrongstack/cli exec wstack` |
 
 ## Key files and entry points

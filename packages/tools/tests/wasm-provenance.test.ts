@@ -46,11 +46,21 @@ function listWasmFiles(dir: string, base = dir): string[] {
   return out.sort();
 }
 
+// Missing directory must surface as ONE clear message, not a raw ENOENT
+// thrown mid-walk during module scope (Chimera review).
+let onDisk: string[] = [];
+let walkError: string | null = null;
+try {
+  onDisk = listWasmFiles(WASM_DIR);
+} catch (err) {
+  walkError = err instanceof Error ? err.message : String(err);
+}
+
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as Record<string, string>;
-const onDisk = listWasmFiles(WASM_DIR);
 
 describe('committed WASM binaries match their recorded checksums', () => {
-  it('the manifest covers exactly the files on disk', () => {
+  it('the wasm directory is readable and the manifest covers exactly the files on disk', () => {
+    expect(walkError, `cannot list ${WASM_DIR}`).toBeNull();
     // Both directions matter: an unlisted new binary is the interesting case,
     // and a stale entry means a grammar was removed without updating the gate.
     expect(Object.keys(manifest).sort()).toEqual(onDisk);

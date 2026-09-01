@@ -256,6 +256,32 @@ describe('todos-checkpoint', () => {
     }
   });
 
+  it('does not raise storage.error when the checkpoint was never written', async () => {
+    // ENOENT is the normal state of a session that never used the todo list.
+    // `storage.error` is the alert channel for disk-full/permission faults and
+    // is always logged at warning level, so sending ENOENT there produced a
+    // WARN on every boot and resume.
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-todos-'));
+    const events: EventBus = { emit: vi.fn() } as never;
+    const file = path.join(dir, 'never-written.todos.json');
+
+    const result = await loadTodosCheckpoint(file, events, 'trace-enoent', 'sess-enoent');
+
+    expect(result).toBeNull();
+    expect(events.emit).not.toHaveBeenCalledWith('storage.error', expect.anything());
+    expect(events.emit).toHaveBeenCalledWith(
+      'storage.read',
+      expect.objectContaining({
+        sessionId: 'sess-enoent',
+        traceId: 'trace-enoent',
+        store: 'todos',
+        operation: 'load',
+        outcome: 'success',
+      }),
+    );
+    await fs.rm(dir, { recursive: true, force: true });
+  });
+
   it('emits storage.error when loadTodosCheckpoint encounters a disk I/O error', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-todos-'));
     const file = path.join(dir, 'io-error.todos.json');

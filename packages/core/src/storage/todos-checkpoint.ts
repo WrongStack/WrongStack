@@ -38,6 +38,26 @@ export async function loadTodosCheckpoint(
   try {
     raw = await fsp.readFile(filePath, 'utf8');
   } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    // A checkpoint that was never written is the normal state of every session
+    // that has not touched the todo list — not a storage failure. `storage.error`
+    // is the alert channel for persistent faults (disk full, permissions) and is
+    // *always* surfaced at warning level by the CLI observability bridge, so
+    // routing ENOENT there turned "no todos yet" into a warning on every boot
+    // and every resume. Every sibling store (completed-work, goal, queue,
+    // replay-log, tool-audit) guards this first; this one did not.
+    if (code === 'ENOENT') {
+      events?.emit('storage.read', {
+        sessionId: sessionId ?? '~boot~',
+        store: 'todos',
+        filePath,
+        operation: 'load',
+        outcome: 'success',
+        durationMs: Date.now() - t0,
+        ...(traceId !== undefined && { traceId }),
+      });
+      return null;
+    }
     events?.emit('storage.error', {
       sessionId: sessionId ?? '~boot~',
       store: 'todos',

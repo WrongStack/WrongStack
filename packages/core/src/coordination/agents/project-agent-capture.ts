@@ -260,7 +260,10 @@ export function captureLearnedFromAgentOutputDetailed(
   while (startMatch !== null) {
     const blockStart = startMatch.index + startMatch[0].length;
     const rest = output.slice(blockStart);
-    const nextHeading = /^##\s/gm.exec(rest);
+    // The delimiter must recognise every heading the block-start regex accepts.
+    // `/^##\s/` alone misses a no-space `##LEARNED` heading (`[ \t]*` allows
+    // zero whitespace), silently absorbing the second block into the first.
+    const nextHeading = /^##(?:\s|LEARNED\b)/gim.exec(rest);
     const blockEnd = nextHeading ? blockStart + nextHeading.index : output.length;
     candidates.push({
       heading: startMatch[0],
