@@ -137,32 +137,17 @@ describe('DefaultDesignKitLoader', () => {
       ['muted', 'surface'],
       ['bg', 'primary'],
     ];
-    // Tier-2/3 button-label exceptions still awaiting a per-kit design decision.
-    // This list must SHRINK as kits are fixed (remove the entry when bg/primary
-    // clears 4.5:1); anything newly violating fails the test.
+    // Tier-3 button-label exceptions — identity-sensitive kits where reaching
+    // the floor needs a large primary lightness move that reshapes the brand
+    // color; awaiting a per-kit design decision (or an explicit onPrimary
+    // label token). This list must SHRINK as kits are fixed (remove the entry
+    // when bg/primary clears 4.5:1); anything newly violating fails the test.
     const PENDING_BUTTON_LABEL: ReadonlySet<string> = new Set([
-      'art-deco.light',
-      'bento-dashboard.light',
-      'claymorphism.light',
       'cottagecore.light',
       'dark-academia.dark',
-      'dopamine-pop.light',
-      'frutiger-aero.light',
-      'health-calm.light',
-      'holographic.light',
-      'japandi.light',
-      'kids-bright.light',
-      'luxury-dark.light',
       'neo-brutalist.light',
-      'neumorphism.light',
-      'pastel-dream.light',
-      'playful-rounded.light',
-      'retro-70s.light',
       'scandinavian.light',
       'skeuomorphic.light',
-      'soft-glass.light',
-      'vaporwave.light',
-      'warm-organic.light',
     ]);
     for (const e of entries) {
       const tokens = await loader.readTokens(e.id);
