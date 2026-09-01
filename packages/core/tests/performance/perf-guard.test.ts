@@ -4,9 +4,9 @@ import {
   evaluateGuard,
   formatGuardReport,
   guardFailed,
-  parseBaselineFile,
   type PerfBaselineEntry,
   type PerfBaselineFile,
+  parseBaselineFile,
 } from '../../src/performance/perf-guard.js';
 
 const BASELINE: PerfBaselineFile = {
@@ -45,7 +45,7 @@ describe('parseBaselineFile', () => {
   it('accepts a well-formed file and fills in defaults', () => {
     const parsed = parseBaselineFile(JSON.stringify({ entries: BASELINE.entries }));
     expect(parsed.schemaVersion).toBe(1);
-    expect(parsed.thresholdPct).toBe(10);
+    expect(parsed.thresholdPct).toBe(15);
     expect(parsed.entries).toHaveLength(3);
   });
 
@@ -61,9 +61,7 @@ describe('parseBaselineFile', () => {
 
   it('rejects an unknown metric and a non-numeric value', () => {
     expect(() =>
-      parseBaselineFile(
-        JSON.stringify({ entries: [{ ...BASELINE.entries[0], metric: 'vibes' }] }),
-      ),
+      parseBaselineFile(JSON.stringify({ entries: [{ ...BASELINE.entries[0], metric: 'vibes' }] })),
     ).toThrow(/unknown metric/);
     expect(() =>
       parseBaselineFile(JSON.stringify({ entries: [{ ...BASELINE.entries[0], value: 'fast' }] })),
@@ -101,19 +99,17 @@ describe('evaluateGuard', () => {
   });
 
   it('can be told to ignore missing metrics', () => {
-    const results = evaluateGuard(
-      BASELINE,
-      { 'boot.cold-start': 400 },
-      { failOnMissing: false },
-    );
+    const results = evaluateGuard(BASELINE, { 'boot.cold-start': 400 }, { failOnMissing: false });
     expect(guardFailed(results)).toBe(false);
   });
 
   it('surfaces an unbaselined measurement without failing on it', () => {
-    const results = evaluateGuard(
-      BASELINE,
-      { 'boot.cold-start': 400, 'search.throughput': 1000, 'session.rss': 5e8, 'new.bench': 12 },
-    );
+    const results = evaluateGuard(BASELINE, {
+      'boot.cold-start': 400,
+      'search.throughput': 1000,
+      'session.rss': 5e8,
+      'new.bench': 12,
+    });
     expect(results.find((r) => r.id === 'new.bench')?.verdict).toBe('unbaselined');
     expect(guardFailed(results)).toBe(false);
   });
@@ -198,11 +194,9 @@ describe('a declared but unrecorded probe', () => {
     expect(first.file.entries[0]?.value).toBe(400);
 
     // Now that it has a baseline, a worse number must not move it.
-    const worse = applyRatchet(
-      first.file,
-      evaluateGuard(first.file, { 'boot.cold-start': 800 }),
-      { now },
-    );
+    const worse = applyRatchet(first.file, evaluateGuard(first.file, { 'boot.cold-start': 800 }), {
+      now,
+    });
     expect(worse.recorded).toEqual([]);
     expect(worse.file.entries[0]?.value).toBe(400);
   });
@@ -299,11 +293,7 @@ describe('machine drift', () => {
       ...recordedElsewhere,
       entries: [{ ...(recordedElsewhere.entries[0] as PerfBaselineEntry), value: null }],
     };
-    const results = evaluateGuard(
-      pending,
-      { 'boot.cold-start': 400 },
-      { currentMachine: HERE },
-    );
+    const results = evaluateGuard(pending, { 'boot.cold-start': 400 }, { currentMachine: HERE });
     expect(results[0]?.verdict).toBe('unbaselined');
     const { recorded, file } = applyRatchet(pending, results, {
       now: () => new Date('2026-09-01T12:00:00.000Z'),

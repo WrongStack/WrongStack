@@ -12,14 +12,17 @@
  * @module performance/perf-guard
  */
 import { rawDeltaPct } from './perf-stats.js';
-import { isPerfMetricId, type PerfMetricId, PERF_METRICS, type PerfVerdict } from './perf-types.js';
+import { isPerfMetricId, PERF_METRICS, type PerfMetricId, type PerfVerdict } from './perf-types.js';
 
 export const PERF_BASELINE_SCHEMA_VERSION = 1;
 
 /** Default guard threshold. Looser than the ratchet's keep gate on purpose:
  * CI machines are noisier than a developer's, and a guard that cries wolf gets
- * disabled, which is strictly worse than a guard that only catches the big ones. */
-export const DEFAULT_GUARD_THRESHOLD_PCT = 10;
+ * disabled, which is strictly worse than a guard that only catches the big ones.
+ * 15 matches the documented default in docs/performance-ratchet.md (Guard) —
+ * the shipped baseline pins it per file as well, so hand-authored baselines
+ * without an explicit thresholdPct behave identically (Chimera review). */
+export const DEFAULT_GUARD_THRESHOLD_PCT = 15;
 
 export interface PerfBaselineEntry {
   /** Stable key. Must match the key the measurement step produces. */
@@ -131,7 +134,10 @@ export function parseBaselineFile(text: string): PerfBaselineFile {
       throw new Error(`perf baseline entry "${entry.id}" has unknown metric "${entry.metric}"`);
     }
     if (entry.value === undefined) entry.value = null;
-    if (entry.value !== null && (typeof entry.value !== 'number' || !Number.isFinite(entry.value))) {
+    if (
+      entry.value !== null &&
+      (typeof entry.value !== 'number' || !Number.isFinite(entry.value))
+    ) {
       throw new Error(`perf baseline entry "${entry.id}" has a non-numeric value`);
     }
   }
