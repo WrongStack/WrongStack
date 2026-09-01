@@ -276,7 +276,15 @@ export class SqliteVerificationLedger {
       this.#db.exec('COMMIT');
       return deepFreeze({ recorded: true, snapshot });
     } catch (error) {
-      this.#db.exec('ROLLBACK');
+      // SQLite may have already ended the transaction when the write or
+      // COMMIT failed; a follow-up ROLLBACK then throws `cannot rollback -
+      // no transaction is active`, which would mask the original disk or
+      // database error. Preserve the primary error for the caller.
+      try {
+        this.#db.exec('ROLLBACK');
+      } catch {
+        /* preserve original error */
+      }
       throw error;
     }
   }
@@ -395,7 +403,15 @@ export class SqliteVerificationLedger {
         credential: { leaseId, secret },
       });
     } catch (error) {
-      this.#db.exec('ROLLBACK');
+      // SQLite may have already ended the transaction when the write or
+      // COMMIT failed; a follow-up ROLLBACK then throws `cannot rollback -
+      // no transaction is active`, which would mask the original disk or
+      // database error. Preserve the primary error for the caller.
+      try {
+        this.#db.exec('ROLLBACK');
+      } catch {
+        /* preserve original error */
+      }
       throw error;
     }
   }
@@ -766,7 +782,15 @@ export class SqliteVerificationLedger {
         },
       });
     } catch (error) {
-      this.#db.exec('ROLLBACK');
+      // SQLite may have already ended the transaction when the write or
+      // COMMIT failed; a follow-up ROLLBACK then throws `cannot rollback -
+      // no transaction is active`, which would mask the original disk or
+      // database error. Preserve the primary error for the caller.
+      try {
+        this.#db.exec('ROLLBACK');
+      } catch {
+        /* preserve original error */
+      }
       throw error;
     }
   }

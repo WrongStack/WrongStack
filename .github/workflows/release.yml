@@ -154,7 +154,10 @@ jobs:
     name: Publish to npm
     needs: [verify, portable-windows]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Raised from 30: the publish step now waits on registry propagation
+    # between dependency layers (11 layers x 120s worst case) on top of
+    # install and build.
+    timeout-minutes: 60
     # Required reviewers on this environment are what stop a tag push from
     # shipping on its own. Do not remove without replacing the control.
     environment: npm-publish
@@ -203,6 +206,16 @@ jobs:
         # The flag has been removed from the LOCAL `release` script, which is
         # where it was actually dangerous: there it let a maintainer publish a
         # dirty tree from any branch, so the tarball need not match any commit.
+        #
+        # `release:ci` no longer calls `pnpm publish -r` directly. That
+        # published concurrently, so the registry could observe a package
+        # before its own dependencies — in 0.317.2 `wrongstack` landed 25s
+        # ahead of `@wrongstack/webui-hq` and every install in that window
+        # died with ETARGET. It now runs `scripts/publish-workspace.mjs`,
+        # which publishes in dependency layers and polls the registry until
+        # each layer is resolvable before starting the next. Verification is
+        # network-bound, so  caps each layer at 120s and the job
+        # timeout above accounts for the worst-case sum.
         run: pnpm release:ci
 
       - name: Summary

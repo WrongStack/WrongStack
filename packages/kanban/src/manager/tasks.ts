@@ -42,6 +42,13 @@ import {
   KanbanLifecycleError,
 } from './lifecycle.js';
 
+const VALID_CHECK_STATUSES: ReadonlySet<KanbanCheckStatus> = new Set([
+  'pending',
+  'passed',
+  'failed',
+  'skipped',
+]);
+
 function taskEventSnapshot(task: KanbanTask): Record<string, unknown> {
   return {
     title: task.title,
@@ -547,6 +554,13 @@ export async function updateCheckOnTask(
   patch: Partial<Omit<KanbanCheck, 'id'>>,
   eventContext: KanbanEventContext,
 ): Promise<KanbanBoard | null> {
+  // The TypeScript type is not enforced across the IPC boundary; an unvalidated
+  // caller can set check.status to an arbitrary string, after which the Done
+  // gate (validateDefinitionOfDone) refuses Done forever because it treats any
+  // non-'passed' value as unmet. Reject an unknown status before persisting.
+  if (patch.status !== undefined && !VALID_CHECK_STATUSES.has(patch.status)) {
+    return null;
+  }
   let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);

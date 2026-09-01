@@ -138,6 +138,97 @@ describe('file handlers integration', () => {
       expect(names).not.toContain('.hidden');
       expect(names).toContain('visible.txt');
     });
+
+    it('skips directories and files matched by the project-root .gitignore', async () => {
+      // The Bug Hunter scope dropdown was previously bloated by every
+      // build/cache directory the project already told git to ignore.
+      // Seed a .gitignore, add a mix of ignored and kept entries at both
+      // the root and a nested level, and confirm only the kept entries
+      // survive the walk.
+      fsSync.writeFileSync(
+        path.join(tempDir, '.gitignore'),
+        'ignored-root/\nignored-root-file.txt\n/anchored-ignored/\n',
+      );
+      fsSync.mkdirSync(path.join(tempDir, 'ignored-root'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'ignored-root', 'inside.txt'), 'x');
+      fsSync.writeFileSync(path.join(tempDir, 'ignored-root-file.txt'), 'x');
+      fsSync.mkdirSync(path.join(tempDir, 'anchored-ignored'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'anchored-ignored', 'inside.txt'), 'x');
+      fsSync.mkdirSync(path.join(tempDir, 'kept'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'kept', 'inside.txt'), 'x');
+      fsSync.writeFileSync(path.join(tempDir, 'kept-root-file.txt'), 'x');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      const names = tree.map((n) => n.name);
+      expect(names).toContain('kept');
+      expect(names).toContain('kept-root-file.txt');
+      expect(names).not.toContain('ignored-root');
+      expect(names).not.toContain('ignored-root-file.txt');
+      expect(names).not.toContain('anchored-ignored');
+    });
+
+    it('prunes a symlinked directory that matches a trailing-slash gitignore rule', async () => {
+      // readdir({withFileTypes:true}) reports isDirectory() === false for
+      // symlinks even when the link target is a directory. Without
+      // resolving the symlink, a `node_modules/` rule would miss a
+      // symlinked node_modules and leak it into the Bug Hunter scope.
+      fsSync.writeFileSync(path.join(tempDir, '.gitignore'), 'node_modules/\n');
+      const realDir = path.join(tempDir, 'real_node_modules');
+      const linkDir = path.join(tempDir, 'node_modules');
+      fsSync.mkdirSync(realDir);
+      try {
+        fsSync.symlinkSync(realDir, linkDir, 'dir');
+      } catch {
+        // Windows without developer mode may refuse symlinks; skip.
+        return;
+      }
+      fsSync.writeFileSync(path.join(tempDir, 'kept.txt'), 'x');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      const names = tree.map((n) => n.name);
+      expect(names).toContain('kept.txt');
+      expect(names).not.toContain('node_modules');
+    });
+
+    it('keeps a !-negated entry that would otherwise be ignored', async () => {
+      // `.gitignore` ignores a single file at the root; `!` re-includes
+      // it. Confirm the negation rule wins — last match wins is the
+      // gitignore semantics the indexer matcher implements.
+      fsSync.writeFileSync(
+        path.join(tempDir, '.gitignore'),
+        'scratch.txt\n!keep.txt\n',
+      );
+      fsSync.writeFileSync(path.join(tempDir, 'scratch.txt'), 'tmp');
+      fsSync.writeFileSync(path.join(tempDir, 'keep.txt'), 'kept');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      const names = tree.map((n) => n.name);
+      expect(names).toContain('keep.txt');
+      expect(names).not.toContain('scratch.txt');
+    });
+
+    it('treats a missing .gitignore as "match nothing"', async () => {
+      // No .gitignore on disk → every entry should survive the walk,
+      // matching the indexer's behaviour. Regression guard against a
+      // future matcher refactor that defaults to "match everything".
+      fsSync.mkdirSync(path.join(tempDir, 'kept-dir'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'kept-dir', 'a.ts'), '');
+
+      const ws = createMockWs();
+      await handleFilesTree(ws, { type: 'files.tree', payload: {} }, tempDir);
+
+      const tree = (ws.sent[0] as { payload: { tree: TreeNodeShape[] } }).payload.tree;
+      expect(tree.map((n) => n.name)).toContain('kept-dir');
+    });
   });
 
   describe('handleFilesRead', () => {
@@ -287,6 +378,23 @@ describe('file handlers integration', () => {
       expect(ws.sent).toHaveLength(1);
       const response = ws.sent[0] as { payload: { files: unknown[] } };
       expect(response.payload.files).toEqual([]);
+    });
+
+    it('excludes files matched by the project-root .gitignore', async () => {
+      // The chat `@`-mention picker should match the file explorer: a
+      // file the project told git to ignore shouldn't surface as a
+      // mention candidate either.
+      fsSync.writeFileSync(path.join(tempDir, '.gitignore'), 'scratch/\n');
+      fsSync.mkdirSync(path.join(tempDir, 'scratch'), { recursive: true });
+      fsSync.writeFileSync(path.join(tempDir, 'scratch', 'leaked.ts'), '');
+      fsSync.writeFileSync(path.join(tempDir, 'kept.ts'), '');
+
+      const ws = createMockWs();
+      await handleFilesList(ws, { type: 'files.list', payload: {} }, tempDir);
+
+      const files = (ws.sent[0] as { payload: { files: string[] } }).payload.files;
+      expect(files).toContain('kept.ts');
+      expect(files).not.toContain('scratch/leaked.ts');
     });
   });
 

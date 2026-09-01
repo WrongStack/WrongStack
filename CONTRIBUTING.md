@@ -179,10 +179,22 @@ Releases are manual (no automated publishing yet):
 
 ```bash
 pnpm release:check    # Full gate: audit + build + contracts + lint + typecheck + test
-pnpm release          # release:check + pnpm publish -r --access public
+pnpm release          # release:check + portable build + ordered publish
+pnpm release:plan     # print the dependency-layer publish order (publishes nothing)
+pnpm release:verify   # confirm every working-tree version is live on npm
 ```
 
 Versioning uses `pnpm version:patch` (or `version:minor` / `version:major`) and conventional-commit-based semver bumps.
+
+### Why the publish is ordered
+
+`pnpm publish -r` sorts topologically but publishes concurrently, so the
+registry can observe a package before its dependencies. That shipped a real
+outage in 0.317.2: `wrongstack` landed on npm 25 seconds ahead of its
+transitive dependency `@wrongstack/webui-hq`, and every `npm i -g wrongstack`
+in that window failed with `ETARGET`. `scripts/publish-workspace.mjs` publishes
+in dependency layers and polls the registry until each layer is actually
+resolvable before starting the next, so the install target is always last.
 
 ---
 

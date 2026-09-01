@@ -106,7 +106,15 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         this.db.exec('COMMIT');
         return inserted;
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // SQLite may have already ended the transaction when the write or
+        // COMMIT failed; a follow-up ROLLBACK then throws `cannot rollback -
+        // no transaction is active`, which would mask the original disk or
+        // database error. Preserve the primary error for the caller.
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
     });
@@ -166,7 +174,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         this.db.exec('COMMIT');
         return { boardId, deleted: Number(result.changes) > 0 };
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // Preserve the original error if ROLLBACK itself fails (e.g. the
+        // transaction was already ended by the failing write).
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
     });
@@ -291,7 +305,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
           ...(row.payload === null ? {} : { payload: JSON.parse(row.payload) as unknown }),
         }));
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // Preserve the original error if ROLLBACK itself fails (e.g. the
+        // transaction was already ended by the failing write).
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
     });
@@ -336,7 +356,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         this.db.exec('COMMIT');
         return state;
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // Preserve the original error if ROLLBACK itself fails (e.g. the
+        // transaction was already ended by the failing write).
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
     });
@@ -394,7 +420,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         this.db.exec('COMMIT');
         return { value: { board, result }, changed };
       } catch (error) {
-        this.db.exec('ROLLBACK');
+        // Preserve the original error if ROLLBACK itself fails (e.g. the
+        // transaction was already ended by the failing write).
+        try {
+          this.db.exec('ROLLBACK');
+        } catch {
+          /* preserve original error */
+        }
         throw error;
       }
     });
@@ -607,7 +639,13 @@ export class SqliteKanbanStorage implements KanbanStorageBackend {
         .run(LEGACY_MIGRATION_KEY, new Date().toISOString());
       this.db.exec('COMMIT');
     } catch (error) {
-      this.db.exec('ROLLBACK');
+      // Preserve the original error if ROLLBACK itself fails (e.g. the
+      // transaction was already ended by the failing write).
+      try {
+        this.db.exec('ROLLBACK');
+      } catch {
+        /* preserve original error */
+      }
       throw error;
     }
     // Filesystem deletion deliberately happens only after COMMIT. A parse,

@@ -93,6 +93,16 @@ export type {
 // Indexer entry point + background coordinator (used by CLI auto-index wiring
 // and the file-watcher plugin's autoIndex path).
 export { runIndexer } from './indexer.js';
+// Project-root .gitignore matcher. Re-exported here so non-indexer
+// consumers (e.g. `@wrongstack/webui-server`'s file tree builder) can
+// import it from the submodule barrel without reaching into the deep
+// `./gitignore.js` path — that path has runtime files but no colocated
+// `.d.ts` at every resolution, which silently breaks `tsc --noEmit`.
+export {
+  compileGitignore,
+  loadGitignoreMatcher,
+  type IgnoreMatcher,
+} from './gitignore.js';
 export { detectLang, INDEXABLE_EXTENSIONS, isIndexablePath } from './languages.js';
 export {
   internalKindToLspKind,

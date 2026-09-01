@@ -14,6 +14,7 @@ import * as path from 'node:path';
 import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 import { enqueueReindex, extractFileSkeleton, type SkeletonOptions } from '@wrongstack/tools';
+import { loadGitignoreMatcher } from '@wrongstack/tools/codebase-index';
 import type { WebSocket } from 'ws';
 import { isHiddenEntry, rankFiles, SKIP_DIRS } from './file-picker.js';
 import { isPathInside, resolveWorkingDirInsideProject } from './path-containment.js';
@@ -95,6 +96,26 @@ function splitParentAndBase(p: string): { parent: string; base: string } {
   const base = path.basename(p);
   const parent = path.dirname(p);
   return { parent, base };
+}
+
+/**
+ * True when a readdir entry is a directory, resolving symlinks. `Dirent.isDirectory()`
+ * returns false for symlinks even when the link target is a directory; the
+ * gitignore matcher's trailing-slash rules (e.g. `node_modules/`) prune a
+ * directory by its own name and would otherwise miss a symlinked directory.
+ */
+async function isEntryDirectory(
+  dir: string,
+  e: import('node:fs').Dirent,
+): Promise<boolean> {
+  if (e.isDirectory()) return true;
+  if (!e.isSymbolicLink()) return false;
+  try {
+    const stat = await fs.stat(path.join(dir, e.name));
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -197,6 +218,8 @@ export async function handleFilesTree(
     children?: TreeNode[];
     size?: number;
     lastModified?: number;
+    /** True when the project-root `.gitignore` matches this entry. */
+    ignored?: boolean;
   }
 
   // Use the optional `path` from the message payload as the tree root.
@@ -237,6 +260,14 @@ export async function handleFilesTree(
       ? ''
       : (path.relative(projectRoot, treeRoot) + '/').replace(/\\/g, '/');
 
+  // Load the project-root `.gitignore` once per request. A missing or
+  // unreadable file returns a matcher that matches nothing, matching the
+  // indexer's behaviour. Entries whose relative path is matched are
+  // stamped `ignored: true` and pruned from the tree — the WebUI Bug
+  // Hunter scope dropdown otherwise has to show dozens of build/cache
+  // directories that the developer has already told git to ignore.
+  const isGitignored = await loadGitignoreMatcher(projectRoot);
+
   /**
    * Walk one directory level into `TreeNode`s.
    *
@@ -274,6 +305,16 @@ export async function handleFilesTree(
         const childAbs = path.join(dir, e.name);
         // Prepend the workingDir prefix so the path is projectRoot-relative
         const childPath = pathPrefix + childRel;
+        // Project-root .gitignore (loaded once per request above). Skip the
+        // entry entirely when it matches — keeping it would force every
+        // downstream consumer (file explorer, picker, Bug Hunter scope list)
+        // to re-derive the same rule. The path passed to the matcher is
+        // projectRoot-relative; we pass `isEntryDirectory(e)` so a trailing-slash
+        // rule like `dist/` prunes a directory by its own name, including
+        // when it is a symlink to a directory (readdir reports
+        // isDirectory() === false for symlinks, which would otherwise let a
+        // `node_modules/` rule miss a symlinked node_modules).
+        if (isGitignored(childRel, await isEntryDirectory(dir, e))) return null;
         if (e.isDirectory()) {
           if (SKIP_DIRS.has(e.name)) return null;
           // Reject symlinked directories whose real path escapes the
@@ -579,6 +620,10 @@ export async function handleFilesList(
 
   const results: string[] = [];
 
+  // Same project-root `.gitignore` rule as the file tree — see
+  // handleFilesTree above for the rationale.
+  const isGitignored = await loadGitignoreMatcher(projectRoot);
+
   async function walk(dir: string, rel: string, depth: number): Promise<void> {
     if (depth > 8 || results.length >= 600) return;
     let entries: import('node:fs').Dirent[] = [];
@@ -591,6 +636,11 @@ export async function handleFilesList(
       if (results.length >= 600) return;
       if (isHiddenEntry(e.name)) continue;
       const childRel = rel ? `${rel}/${e.name}` : e.name;
+      // Same projectRoot .gitignore rule — pass isEntryDirectory() so a
+      // trailing-slash rule like `node_modules/` prunes a directory by its
+      // own name, including when it is a symlink to a directory. See
+      // handleFilesTree above for the full rationale.
+      if (isGitignored(childRel, await isEntryDirectory(dir, e))) continue;
       if (e.isDirectory()) {
         if (SKIP_DIRS.has(e.name)) continue;
         // Reject symlinked directories whose real path escapes the

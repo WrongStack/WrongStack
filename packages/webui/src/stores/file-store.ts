@@ -12,6 +12,15 @@ export interface TreeNode {
   size?: number;
   /** Last-modified timestamp in milliseconds since epoch. */
   lastModified?: number;
+  /**
+   * True when the project-root `.gitignore` matches this entry. The server
+   * already filters these out of `files.tree`, so this flag is normally
+   * absent — it is declared so the WebUI can defensively ignore any
+   * `ignored: true` node that slips through (e.g. if a future server
+   * version stops pruning), keeping features like the Bug Hunter scope
+   * dropdown from re-listing hidden directories.
+   */
+  ignored?: boolean;
 }
 
 export interface OpenFile {

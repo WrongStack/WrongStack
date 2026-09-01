@@ -8,86 +8,30 @@
  * bare 404 that reads like a network problem. This prints the exact list, and
  * flags the `publishConfig` drift that matters for a CI publish.
  *
+ * The inventory itself lives in `scripts/lib/publishable-packages.mjs`, shared
+ * with `scripts/publish-workspace.mjs` so the release and the trusted-publisher
+ * checklist can never disagree about which packages ship.
+ *
  *   node scripts/list-publishable-packages.mjs
  *   node scripts/list-publishable-packages.mjs --json
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { collectPublishablePackages, layerByDependencies } from './lib/publishable-packages.mjs';
 
-const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-
-/**
- * Resolve the workspace member directories from `pnpm-workspace.yaml`, so the
- * list matches what `pnpm publish -r` actually considers — not just `packages/*`.
- * The workspace globs here are simple (`packages/*`, `apps/*`, a literal
- * `website`), so a line parse avoids pulling in a YAML dependency.
- * @returns {string[]} absolute workspace member directory paths
- */
-function workspaceMemberDirs() {
-  const text = readFileSync(join(repoRoot, 'pnpm-workspace.yaml'), 'utf8');
-  /** @type {string[]} */
-  const dirs = [];
-  let inPackages = false;
-  for (const line of text.split('\n')) {
-    if (/^packages:\s*$/.test(line)) {
-      inPackages = true;
-      continue;
-    }
-    if (!inPackages) continue;
-    const item = /^\s+-\s*(.+?)\s*$/.exec(line);
-    if (item) {
-      const glob = item[1].replace(/^["']|["']$/g, '');
-      if (glob.endsWith('/*')) {
-        const base = join(repoRoot, glob.slice(0, -2));
-        if (existsSync(base)) {
-          for (const entry of readdirSync(base, { withFileTypes: true })) {
-            if (entry.isDirectory()) dirs.push(join(base, entry.name));
-          }
-        }
-      } else if (!glob.includes('*') && existsSync(join(repoRoot, glob))) {
-        dirs.push(join(repoRoot, glob));
-      }
-      continue;
-    }
-    // First non-list line at column 0 (e.g. `overrides:`) ends the block.
-    if (/^\S/.test(line)) break;
-  }
-  return dirs;
-}
-
-/** @type {{name: string, version: string, access: string | undefined, provenance: boolean}[]} */
-const publishable = [];
-/** @type {string[]} */
-const skipped = [];
-
-for (const dir of workspaceMemberDirs()) {
-  let manifest;
-  try {
-    manifest = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8'));
-  } catch {
-    continue;
-  }
-  if (manifest.private === true) {
-    skipped.push(`${manifest.name ?? basename(dir)} (private)`);
-    continue;
-  }
-  publishable.push({
-    name: manifest.name,
-    version: manifest.version,
-    access: manifest.publishConfig?.access,
-    provenance: manifest.publishConfig?.provenance === true,
-  });
-}
-
-publishable.sort((a, b) => a.name.localeCompare(b.name));
+const { publishable, skipped } = collectPublishablePackages();
 
 if (process.argv.includes('--json')) {
-  console.log(JSON.stringify({ publishable, skipped }, null, 2));
+  const { layers, cycles } = layerByDependencies(publishable);
+  console.log(
+    JSON.stringify(
+      { publishable, skipped, layers: layers.map((l) => l.map((p) => p.name)), cycles },
+      null,
+      2,
+    ),
+  );
   process.exit(0);
 }
 
-console.log(`${publishable.length} package(s) would be published by \`pnpm publish -r\`:\n`);
+console.log(`${publishable.length} package(s) would be published by \`pnpm release:ci\`:\n`);
 for (const p of publishable) {
   const notes = [];
   // `--access public` is passed on the command line, so a missing
@@ -108,5 +52,6 @@ if (skipped.length > 0) {
 console.log(
   '\nRegister a trusted publisher for EACH package above at' +
     '\n  https://www.npmjs.com/package/<name>/access' +
-    '\nwith workflow `release.yml` and environment `npm-publish`.',
+    '\nwith workflow `release.yml` and environment `npm-publish`.' +
+    '\n\nPublish order: `node scripts/publish-workspace.mjs --plan`',
 );

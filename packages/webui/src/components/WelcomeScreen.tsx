@@ -18,6 +18,14 @@ function directoryPaths(tree: TreeNode[]): string[] {
   const visit = (nodes: TreeNode[]) => {
     for (const node of nodes) {
       if (node.type !== 'directory') continue;
+      // The server already prunes project-root `.gitignore` matches from the
+      // tree, but it also stamps `ignored: true` on any node that survives
+      // pruning so the WebUI can stay defensive across server versions.
+      // The Bug Hunter scope dropdown is the place where gitignored
+      // directories are most visible — every `.gitignore`'d build/cache
+      // dir would otherwise crowd out the directories the user actually
+      // wants to scan.
+      if (node.ignored) continue;
       paths.push(node.path);
       if (node.children) visit(node.children);
     }
