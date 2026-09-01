@@ -463,6 +463,14 @@ export class ACPSession {
       this.sessionId = await executeCreateSession(this.opContext());
     }
 
+    // Re-check after the await: an abort landing during session/new never
+    // reaches the listener registered below — addEventListener on an
+    // already-aborted signal does not fire — so without this the prompt is
+    // sent anyway and the agent runs the whole turn despite the cancellation.
+    if (signal.aborted) {
+      return emptyRunResult('cancelled');
+    }
+
     this.resetScratch();
     this.progressHandler = onProgress ?? null;
 

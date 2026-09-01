@@ -379,6 +379,35 @@ describe('ACPSession', () => {
     await session.close();
   });
 
+  it('returns stopReason=cancelled when the signal aborts during session/new (no session/prompt sent)', async () => {
+    const session = await startSession();
+    const t = lastTransport();
+    const ac = new AbortController();
+
+    const promptP = session.prompt([textContent('hello')], ac.signal);
+    await new Promise((r) => setImmediate(r));
+    const newMsg = t.sent.find((m) => m.method === 'session/new');
+    expect(newMsg).toBeDefined();
+
+    // The abort lands while session/new is still in flight — before prompt()
+    // registers its abort listener. addEventListener on an already-aborted
+    // signal never fires, so the cancellation must be re-checked after the
+    // create resolves instead of being lost.
+    ac.abort();
+    t.respond(newMsg!.id!, 'session/new', { sessionId: 'sess_aborted_create' });
+    await new Promise((r) => setImmediate(r));
+
+    // The cancelled turn must never reach the wire.
+    expect(t.sent.some((m) => m.method === 'session/prompt')).toBe(false);
+
+    const result = await promptP;
+    expect(result.stopReason).toBe('cancelled');
+    expect(result.text).toBe('');
+    expect(result.hasText).toBe(false);
+
+    await session.close();
+  });
+
   it('throws ACPSessionError(init_failed) when the agent speaks a different version', async () => {
     hoisted.instances.length = 0;
     const p = ACPSession.start({ command: 'fake', projectRoot: PROJECT_ROOT });
