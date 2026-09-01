@@ -46,6 +46,19 @@ describe('detectDanger — rm / rmdir recursive force', () => {
     expect(detectDanger('rm', ['--recursive', '-f', './build']).level).toBe('destructive');
   });
 
+  it('flags GNU -R spellings as destructive (uppercase R ≡ --recursive)', () => {
+    expect(detectDanger('rm', ['-Rf', './build']).level).toBe('destructive');
+    expect(detectDanger('rm', ['-fR', './build']).level).toBe('destructive');
+    expect(detectDanger('rm', ['-R', '-f', './build']).level).toBe('destructive');
+    expect(detectDanger('rm', ['-R', '--force', './build']).level).toBe('destructive');
+  });
+
+  it('keeps half-flag -R / -f shapes safe (lowercasing must not over-flag)', () => {
+    expect(detectDanger('rm', ['-R', './build']).level).toBe('safe');
+    expect(detectDanger('rm', ['-f', './build']).level).toBe('safe');
+    expect(detectDanger('ls', ['-RF', 'dir']).level).toBe('safe');
+  });
+
   it('does NOT flag `rm --recursive ./build` (long form, no force)', () => {
     expect(detectDanger('rm', ['--recursive', './build']).level).toBe('safe');
   });

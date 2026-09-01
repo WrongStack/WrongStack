@@ -50,15 +50,16 @@ const argMatches = (args: readonly string[], re: RegExp): boolean => args.some((
 /**
  * Every flag letter visible in `args`: short clusters (`-rf` → r,f) plus the
  * letters implied by the GNU long forms we classify (`--recursive` → r,
- * `--force` → f). Presence-only — cluster/split form and flag order are
- * irrelevant, and a mixed invocation (`rm -r --force x`) must classify the
- * same as either pure form.
+ * `--force` → f). Cluster letters are lowercased so GNU `-R` (≡
+ * `--recursive`) counts as recursive. Presence-only — cluster/split form,
+ * flag order, and letter case are irrelevant, and a mixed invocation
+ * (`rm -r --force x`) must classify the same as either pure form.
  */
 const flagLetters = (args: readonly string[]): Set<string> => {
   const seen = new Set<string>();
   for (const a of args) {
     if (/^-[a-zA-Z]+$/.test(a)) {
-      for (const ch of a.slice(1)) seen.add(ch);
+      for (const ch of a.slice(1)) seen.add(ch.toLowerCase());
     } else if (a === '--recursive') {
       seen.add('r');
     } else if (a === '--force') {
