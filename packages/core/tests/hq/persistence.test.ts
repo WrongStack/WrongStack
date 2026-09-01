@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createHqPersistence,
   HqEventLog,
@@ -128,9 +128,14 @@ describe('HqEventLog', () => {
     const blocker = path.join(dataDir, 'blocker');
     await fs.writeFile(blocker, 'x');
     const log = new HqEventLog({ dataDir: blocker });
-    log.append(makeEvent(1));
-    log.append(makeEvent(2)); // must not throw synchronously
-    await log.drain();
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      log.append(makeEvent(1));
+      log.append(makeEvent(2)); // must not throw synchronously
+      await log.drain();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

@@ -148,7 +148,7 @@ export function hydrateReplayMessages(
     const timestamp = replayTimestamp(item.ts);
     const id = replayMessageId(messages.length);
     switch (item.kind) {
-      case 'user':
+      case 'user': {
         const bugHunt = parseBugHuntMessage(item.text);
         messages.push({
           id,
@@ -159,6 +159,7 @@ export function hydrateReplayMessages(
           ...(item.images ? { attachments: replayAttachments(item.images, id) } : {}),
         });
         break;
+      }
       case 'assistant':
         messages.push({ id, role: 'assistant', content: item.text, timestamp });
         break;

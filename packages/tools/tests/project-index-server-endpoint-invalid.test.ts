@@ -102,7 +102,15 @@ function setEnv(name: string, value: string | undefined): () => void {
   };
 }
 
+let stderrWrite: ReturnType<typeof vi.spyOn>;
+let stderrChunks: string[] = [];
+
 beforeEach(() => {
+  stderrChunks = [];
+  stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+    stderrChunks.push(typeof chunk === 'string' ? chunk : chunk.toString());
+    return true;
+  });
   // Default: the REAL length guard (used by the TMPDIR-depth integration
   // test). Tests that need a synthetic result override with mockReturnValue
   // after this. mockReset() first so a prior test's override is cleared.
@@ -116,6 +124,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  stderrWrite?.mockRestore();
   vi.restoreAllMocks();
 });
 
@@ -314,21 +323,6 @@ describe('background-indexer callIndexOp — endpoint-invalid rejection', () => 
 });
 
 describe('warnEndpointInvalidOnce — stderr throttle', () => {
-  let stderrWrite: ReturnType<typeof vi.spyOn>;
-  let stderrChunks: string[];
-
-  beforeEach(() => {
-    stderrChunks = [];
-    stderrWrite = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-      stderrChunks.push(typeof chunk === 'string' ? chunk : chunk.toString());
-      return true;
-    });
-  });
-
-  afterEach(() => {
-    stderrWrite.mockRestore();
-  });
-
   it('writes the actionable message to stderr exactly once per endpoint', async () => {
     checkUnixSocketPathMock.mockReturnValue({ ok: false, byteLength: 142, maxBytes: 103 });
     // Three back-to-back startup attempts on the same over-long endpoint.

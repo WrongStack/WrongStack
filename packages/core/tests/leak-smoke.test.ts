@@ -37,7 +37,7 @@ async function buildAgent(provider: MockProvider) {
   const sessionDir = path.join(tmp, 'sessions');
 
   const container = new Container();
-  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error' }));
+  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   container.bind(TOKENS.ErrorHandler, () => new DefaultErrorHandler());
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());
@@ -153,7 +153,7 @@ describe('leak smoke (V2-D)', () => {
       return;
     }
 
-    const script = Array.from({ length: 30 }, () => ({
+    const script = Array.from({ length: 31 }, () => ({
       content: [{ type: 'text' as const, text: 'ok' }],
       stopReason: 'end_turn' as const,
     }));

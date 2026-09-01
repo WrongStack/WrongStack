@@ -153,7 +153,8 @@ describe('registry publication check', () => {
     await checkPublished('https://registry.test', '@scope/pkg', '2.0.0', {
       fetch: fetchStub as unknown as typeof fetch,
     });
-    const headers = seen[0].headers as Record<string, string>;
+    expect(seen[0]).toBeDefined();
+    const headers = seen[0]!.headers as Record<string, string>;
     expect(headers['cache-control']).toBe('no-cache');
     expect(headers.accept).toBe('application/vnd.npm.install-v1+json');
   });

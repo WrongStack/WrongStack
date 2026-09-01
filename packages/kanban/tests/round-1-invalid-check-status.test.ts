@@ -60,7 +60,7 @@ describe('updateCheckOnTask runtime validation', () => {
 
     // Caller passes an invalid status — mimics a malformed IPC payload or a
     // caller that bypasses the TypeScript type.
-    const result = await updateCheckOnTask(
+    await updateCheckOnTask(
       tmpDir,
       board.id,
       taskId!,

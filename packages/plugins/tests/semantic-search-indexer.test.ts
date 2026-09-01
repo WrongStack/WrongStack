@@ -288,7 +288,8 @@ describe('semantic-search-indexer plugin', () => {
     const reg = api.tools.register.mock.calls.find(
       (c) => (c[0] as { name: string }).name === 'semantic_search',
     );
-    const schema = (reg?.[0] as {
+    expect(reg).toBeDefined();
+    const schema = (reg![0] as {
       inputSchema: { properties: Record<string, unknown>; anyOf: Array<Record<string, string[]>> };
     }).inputSchema;
 

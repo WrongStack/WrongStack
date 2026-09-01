@@ -121,7 +121,7 @@ async function buildRecoveringAgent(
   const sessionDir = path.join(tmp, 'sessions');
 
   const container = new Container();
-  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error' }));
+  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   container.bind(TOKENS.ErrorHandler, () => opts.errorHandler ?? new RetryOnceErrorHandler());
   container.bind(TOKENS.SecretScrubber, () => new DefaultSecretScrubber());

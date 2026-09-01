@@ -1025,9 +1025,6 @@
       "GENERIC_MAX_FILE_CHARS",
       "GENERIC_MAX_SYMBOLS_DEFAULT"
     ],
-    "packages/tools/src/codebase-index/gitignore.ts": [
-      "compileGitignore"
-    ],
     "packages/tools/src/codebase-index/indexer.ts": [
       "shouldUseParserWorkerPool"
     ],

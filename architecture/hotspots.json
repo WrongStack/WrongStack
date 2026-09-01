@@ -199,7 +199,7 @@
       "relativeImports": 8
     },
     "packages/governance/src/verification-ledger-store.ts": {
-      "lines": 892,
+      "lines": 916,
       "relativeImports": 6
     },
     "packages/kanban/src/manager/assignment.ts": {
@@ -539,7 +539,7 @@
       "relativeImports": 53
     },
     "packages/webui-server/src/server/file-handlers.ts": {
-      "lines": 1058,
+      "lines": 1108,
       "relativeImports": 3
     },
     "packages/webui-server/src/server/goal-ws-handler.ts": {

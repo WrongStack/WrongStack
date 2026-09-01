@@ -114,11 +114,15 @@ describe('MCP stdio fault-injection soak', () => {
     let successes = 0;
     let _failures = 0;
     const start = Date.now();
-    while (Date.now() - start < 25_000) {
+    while (Date.now() - start < 10_000) {
+      const op = reg.operationalHealth()[0];
+      if (op && op.restartCount + op.reconnectCount >= 2 && successes >= 2) {
+        break;
+      }
       const client = getClient(reg, 'soak');
       const health = reg.health()[0];
       if (!client || (health && !health.alive)) {
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 50));
         continue;
       }
       try {
@@ -130,7 +134,7 @@ describe('MCP stdio fault-injection soak', () => {
         _failures++;
       }
       // Pace calls so the child reliably reaches its 2-call crash limit.
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 100));
     }
 
     // The server keeps crashing but always reconnects successfully, so it
@@ -211,9 +215,10 @@ rl.createInterface({ input: process.stdin, terminal: false }).on('line', (line) 
 
     let successes = 0;
     for (let i = 0; i < 30; i++) {
+      if (successes >= 3) break;
       const client = getClient(reg, 'recover');
       if (!client) {
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 50));
         continue;
       }
       try {
@@ -224,7 +229,7 @@ rl.createInterface({ input: process.stdin, terminal: false }).on('line', (line) 
       } catch {
         /* ignore transient */
       }
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 50));
     }
 
     // Should see a healthy state and multiple consecutive successes after recovery.

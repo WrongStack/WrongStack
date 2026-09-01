@@ -412,7 +412,15 @@ export class SageProjectServerConnection {
     if (!socket || socket.destroyed) {
       return Promise.reject(new Error('SAGE server connection is not available'));
     }
-    const id = this.nextId++;
+    // Wrap before Number.MAX_SAFE_INTEGER: float64 cannot represent 2^53 + 1,
+    // so an unchecked `++` saturates there and every later request would emit
+    // the previous wire id — `pending.set` would then overwrite the earlier
+    // request's routing entry and deliver responses to the wrong caller. A
+    // wrapped id can only collide with an in-flight request if 2^53 requests
+    // are outstanding simultaneously, which the per-request timeout makes
+    // impossible.
+    const id = this.nextId;
+    this.nextId = id >= Number.MAX_SAFE_INTEGER ? 1 : id + 1;
     // Auth stamp: every outbound `request` — and `shutdown` (WS-028) —
     // carries the authToken read from the daemon's owner-only `server.json`.
     // The server-side gate enforces equality; a wrong or missing token causes

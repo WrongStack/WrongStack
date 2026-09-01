@@ -87,7 +87,7 @@ async function buildDedupAgent(provider: MockProvider): Promise<{ agent: Agent; 
   const sessionDir = path.join(tmp, 'sessions');
 
   const container = new Container();
-  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error' }));
+  container.bind(TOKENS.Logger, () => new DefaultLogger({ level: 'error', stderr: false }));
   container.bind(TOKENS.RetryPolicy, () => new DefaultRetryPolicy());
   // No internal recovery anywhere: attempt counts stay 1:1 with runs.
   container.bind(TOKENS.ErrorHandler, () => new NeverRetryErrorHandler());

@@ -39,6 +39,7 @@ describe('ProcessGuardian fatal handlers', () => {
     // installed for every test instead of relying on module-scope lifetime.
     vi.spyOn(process, 'exit').mockImplementation(exitSpy as never);
     vi.spyOn(console, 'log').mockImplementation(logSpy as never);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

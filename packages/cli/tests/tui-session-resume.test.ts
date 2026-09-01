@@ -172,6 +172,7 @@ beforeEach(() => {
   mocks.loadTodosCheckpoint.mockReset().mockResolvedValue([]);
   mocks.attachTodosCheckpoint.mockReset().mockReturnValue(vi.fn());
   mocks.replaySessionMessages.mockReset().mockReturnValue([{ id: 1, kind: 'user' }]);
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
 });
 
 describe('TUI session resume ownership', () => {
