@@ -78,6 +78,22 @@ describe('isClearlyDestructiveBashCommand — destructive detection (P2 #12)', (
     });
   });
 
+  describe('git per-refspec force push (+refspec) — shape parity with flag forms', () => {
+    it.each([
+      ['git push origin +main', true],
+      ['git push +main', true],
+      ['git push origin +HEAD:refs/heads/main', true],
+      ['git push origin +refs/heads/*:refs/heads/*', true],
+      // A `+` elsewhere in a refspec (branch `feature+fix`) and a leading `^`
+      // exclusion refspec are not force syntax.
+      ['git push origin main', false],
+      ['git push origin feature+fix', false],
+      ['git push origin ^main', false],
+    ])('%j → destructive=%s', (cmd, expected) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(expected);
+    });
+  });
+
   describe('disk / partition wipes', () => {
     it.each([
       ['mkfs.ext4 /dev/sda1', true],

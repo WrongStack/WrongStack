@@ -7,8 +7,8 @@ vi.mock('node:fs/promises', () => ({
 }));
 
 const { readdir, readFile, stat } = await import('node:fs/promises');
-const { semanticIndexerCoverage, readConfig } = await import('../src/semantic-search-indexer');
-const plugin = (await import('../src/semantic-search-indexer')).default;
+const { semanticIndexerCoverage, readConfig } = await import('../src/semantic-search-indexer/index.js');
+const plugin = (await import('../src/semantic-search-indexer/index.js')).default;
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -328,7 +328,7 @@ describe('semantic-search-indexer plugin', () => {
     const api = makeApi();
     plugin.setup(api as never);
     await plugin.teardown?.(api as never);
-    const health = (await plugin.health!()) as { counters: Record<string, number> };
+    const health = (await plugin.health!()) as unknown as { counters: Record<string, number> };
 
     expect(health.counters['fileCount']).toBe(0);
     expect(health.counters['termCount']).toBe(0);

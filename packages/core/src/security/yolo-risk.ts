@@ -210,7 +210,13 @@ function hasGitHistoryRewrite(command: string): boolean {
             arg === '--force' ||
             arg === '--force-with-lease' ||
             arg.startsWith('--force=') ||
-            arg.startsWith('--force-with-lease='),
+            arg.startsWith('--force-with-lease=') ||
+            // Per-refspec force (`git push origin +main`,
+            // `+HEAD:refs/heads/main`): documented git shorthand equivalent
+            // to `--force` for that ref. A `+` anywhere else in a refspec
+            // (branch `feature+fix`) and a leading `^` exclusion refspec are
+            // not force syntax.
+            arg.startsWith('+'),
         )
       ) {
         return true;

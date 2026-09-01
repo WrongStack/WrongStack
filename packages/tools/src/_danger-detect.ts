@@ -76,13 +76,29 @@ const RULES: readonly DangerRule[] = [
   // want to do intentionally. We downgrade it to 'destructive' so the
   // confirm prompt can approve. Short clusters, GNU long forms
   // (`--recursive --force`), and mixed shapes all classify identically.
+  // The Windows cmd.exe shape classifies identically too: `rmdir /s /q`
+  // (and its `rd` alias) is the same operation — /s is the recursive half,
+  // /q the quiet (no per-directory prompt, i.e. the "force") half. /s alone
+  // still prompts in cmd, so it stays safe, mirroring the PowerShell rule's
+  // requirement for both -Recurse and -Force. `del`/`erase` (erase is a cmd
+  // alias of del) with /s is classified as well: `del /s` deletes matching
+  // files in the whole subtree WITHOUT any per-file prompt, so there /s
+  // alone is the recursive-force half (/f only overrides read-only, /q only
+  // mutes the global-wildcard "are you sure"). Non-recursive del/erase
+  // (single files, or a quiet single-directory wildcard) stays safe.
   {
     id: 'rm-recursive',
     level: 'destructive',
     test: (cmd, args) => {
-      if (cmd !== 'rm' && cmd !== 'rmdir') return false;
+      if (cmd !== 'rm' && cmd !== 'rmdir' && cmd !== 'rd' && cmd !== 'del' && cmd !== 'erase') {
+        return false;
+      }
       const letters = flagLetters(args);
-      return letters.has('r') && letters.has('f');
+      if (letters.has('r') && letters.has('f')) return true;
+      const has = (flag: string): boolean => args.some((a) => a.toLowerCase() === `/${flag}`);
+      if (cmd === 'rmdir' || cmd === 'rd') return has('s') && has('q');
+      if (cmd === 'del' || cmd === 'erase') return has('s');
+      return false;
     },
     reason: 'recursive force-delete',
   },
@@ -236,6 +252,15 @@ const RULES: readonly DangerRule[] = [
   // ----- VCS history rewrite (destructive) -----
   // `git push --force` / `-f` rewrites remote history. `--force-with-lease`
   // is the safer variant (checks remote hasn't moved) but still rewrites.
+  // A refspec prefixed with `+` (`git push origin +main`,
+  // `+HEAD:refs/heads/main`) is per-refspec force — documented git shorthand
+  // equivalent to `--force` for that ref — so it classifies identically. A
+  // `+` anywhere else in a refspec (branch `feature+fix`) is just a
+  // character, and a leading `^` EXCLUDES the ref (with --all/--mirror);
+  // neither is force syntax. `--dry-run` / `-n` rewrites nothing and is
+  // exempt, like the PowerShell -WhatIf carve-out above (combined short
+  // clusters like `-nf` count as dry-run too — git push's short flags are
+  // only -q -v -f -n -u -o, so an 'n' in a cluster means dry-run).
   {
     id: 'git-push-force',
     level: 'destructive',
@@ -243,10 +268,20 @@ const RULES: readonly DangerRule[] = [
       if (cmd !== 'git') return false;
       const pushIdx = args.indexOf('push');
       if (pushIdx < 0) return false;
+      if (
+        args
+          .slice(pushIdx + 1)
+          .some((a) => a === '--dry-run' || a === '-n' || /^-[a-z]*n[a-z]*$/i.test(a))
+      ) {
+        return false;
+      }
       for (let i = pushIdx + 1; i < args.length; i++) {
         const a = args[i]!;
         if (a === '--force' || a === '-f' || a === '--force-with-lease') return true;
-        if (!a.startsWith('-') && !a.includes('=')) continue;
+        if (!a.startsWith('-') && !a.includes('=')) {
+          if (a.startsWith('+')) return true;
+          continue;
+        }
         if (a.startsWith('--force') /* covers --force-with-lease already */) return true;
       }
       return false;

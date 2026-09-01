@@ -87,10 +87,15 @@ const emailRegex = /^([a-zA-Z0-9_]+)+@domain.com$/;
     );
 
     try {
+      // H-6: the tool now resolves through safeResolveReal like every sibling
+      // file tool — relative paths resolve against ctx.workingDir ?? ctx.cwd
+      // (the runtime ctx always carries cwd), then containment is checked
+      // against projectRoot. A ctx with only projectRoot no longer works for
+      // relative paths; pass the temp dir as cwd as the runtime would.
       // Clean scan
       const cleanRes = await securityAstScanTool.execute(
         { file: 'clean.ts' },
-        { projectRoot: tempDir } as never,
+        { projectRoot: tempDir, cwd: tempDir } as never,
         { signal: new AbortController().signal },
       );
       expect(cleanRes.status).toBe('clean');
@@ -99,7 +104,7 @@ const emailRegex = /^([a-zA-Z0-9_]+)+@domain.com$/;
       // Dirty scan
       const dirtyRes = await securityAstScanTool.execute(
         { file: 'dirty.ts' },
-        { projectRoot: tempDir } as never,
+        { projectRoot: tempDir, cwd: tempDir } as never,
         { signal: new AbortController().signal },
       );
       expect(dirtyRes.status).toBe('findings_detected');

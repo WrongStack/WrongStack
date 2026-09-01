@@ -66,6 +66,63 @@ describe('detectDanger — rm / rmdir recursive force', () => {
   it('does NOT flag `rm --force ./build` (long form, no recursive)', () => {
     expect(detectDanger('rm', ['--force', './build']).level).toBe('safe');
   });
+
+  it('flags `rmdir /s /q` (cmd.exe recursive force-delete) as destructive', () => {
+    const r = detectDanger('rmdir', ['/s', '/q', 'node_modules']);
+    expect(r.level).toBe('destructive');
+    expect(r.reasons).toContain('recursive force-delete');
+    expect(r.matchedRule).toBe('rm-recursive');
+  });
+
+  it('flags `rd /s /q` (rmdir alias) as destructive', () => {
+    const r = detectDanger('rd', ['/s', '/q', 'node_modules']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('rm-recursive');
+  });
+
+  it('flags Windows slash-flags case-insensitively and in any order', () => {
+    expect(detectDanger('rmdir', ['/S', '/Q', 'build']).level).toBe('destructive');
+    expect(detectDanger('rd', ['/q', '/s', 'dist']).level).toBe('destructive');
+  });
+
+  it('keeps Windows half-flags safe (/s alone still prompts in cmd)', () => {
+    expect(detectDanger('rmdir', ['/s', 'dir']).level).toBe('safe');
+    expect(detectDanger('rd', ['/q', 'dir']).level).toBe('safe');
+  });
+
+  it('keeps POSIX rmdir (empty-dir removal, no recursive shape) safe', () => {
+    expect(detectDanger('rmdir', ['somedir']).level).toBe('safe');
+  });
+
+  it('flags `del /f /s /q` (cmd.exe recursive file deletion) as destructive', () => {
+    const r = detectDanger('del', ['/f', '/s', '/q', 'logs']);
+    expect(r.level).toBe('destructive');
+    expect(r.reasons).toContain('recursive force-delete');
+    expect(r.matchedRule).toBe('rm-recursive');
+  });
+
+  it('flags `del /s` alone as destructive (del /s deletes the subtree without prompting)', () => {
+    expect(detectDanger('del', ['/s', 'node_modules/.cache/*.log']).level).toBe('destructive');
+    expect(detectDanger('del', ['/s', '/q', '*.tmp']).level).toBe('destructive');
+  });
+
+  it('flags `erase /s` as destructive (erase is a cmd alias of del)', () => {
+    const r = detectDanger('erase', ['/s', '/q', 'dist']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('rm-recursive');
+  });
+
+  it('flags del/erase slash-flags case-insensitively and in any order', () => {
+    expect(detectDanger('del', ['/Q', '/S', '/F', 'build']).level).toBe('destructive');
+    expect(detectDanger('erase', ['/S', 'tmp']).level).toBe('destructive');
+  });
+
+  it('keeps non-recursive del/erase safe (single files, /f alone, quiet single-dir wildcard)', () => {
+    expect(detectDanger('del', ['a.txt']).level).toBe('safe');
+    expect(detectDanger('del', ['/f', 'a.txt']).level).toBe('safe');
+    expect(detectDanger('del', ['/q', '*.log']).level).toBe('safe');
+    expect(detectDanger('erase', ['b.txt']).level).toBe('safe');
+  });
 });
 
 describe('detectDanger — PowerShell Remove-Item -Recurse -Force', () => {
@@ -289,6 +346,35 @@ describe('detectDanger — git push --force / -f', () => {
     // The rule looks for the `push` subcommand first; `status` is unrelated.
     const r = detectDanger('git', ['status', '--force']);
     expect(r.level).toBe('safe');
+  });
+
+  it('flags `git push origin +main` (per-refspec force) as destructive', () => {
+    const r = detectDanger('git', ['push', 'origin', '+main']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('git-push-force');
+  });
+
+  it('flags `git push +main` (bare refspec force) as destructive', () => {
+    expect(detectDanger('git', ['push', '+main']).level).toBe('destructive');
+  });
+
+  it('flags `git push origin +HEAD:refs/heads/main` (CI force-push form) as destructive', () => {
+    expect(detectDanger('git', ['push', 'origin', '+HEAD:refs/heads/main']).level).toBe('destructive');
+  });
+
+  it('flags wildcard `+refs/heads/*:refs/heads/*` refspec force as destructive', () => {
+    expect(detectDanger('git', ['push', 'origin', '+refs/heads/*:refs/heads/*']).level).toBe('destructive');
+  });
+
+  it('keeps non-force plus/exclusion refspecs safe (`feature+fix`, `^main`)', () => {
+    expect(detectDanger('git', ['push', 'origin', 'feature+fix']).level).toBe('safe');
+    expect(detectDanger('git', ['push', 'origin', '^main']).level).toBe('safe');
+  });
+
+  it('exempts `--dry-run` force pushes (rewrites nothing)', () => {
+    expect(detectDanger('git', ['push', '--dry-run', 'origin', '+main']).level).toBe('safe');
+    expect(detectDanger('git', ['push', '-n', 'origin', '+main']).level).toBe('safe');
+    expect(detectDanger('git', ['push', '-nf', 'origin', '+main']).level).toBe('safe');
   });
 });
 
