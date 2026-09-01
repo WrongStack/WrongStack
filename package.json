@@ -86,7 +86,7 @@
     "postinstall": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.10",
+    "@biomejs/biome": "2.5.11",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.20.1",
     "@vitest/coverage-istanbul": "^4.1.11",

@@ -259,10 +259,10 @@
     "@wrongstack/kanban": "workspace:*",
     "@wrongstack/persistence": "workspace:*",
     "@wrongstack/primitives": "workspace:*",
-    "tree-sitter-wasm": "1.1.4",
+    "tree-sitter-wasm": "1.1.6",
     "turndown": "^7.2.4",
     "undici": "^8.10.0",
-    "web-tree-sitter": "0.26.12"
+    "web-tree-sitter": "0.26.13"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

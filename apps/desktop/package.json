@@ -45,7 +45,7 @@
     "@wrongstack/webui-server": "workspace:*",
     "electron": "^43.4.1",
     "ws": "^8.21.3",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
