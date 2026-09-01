@@ -242,8 +242,20 @@ export function buildTierCommand(opts: SlashCommandContext): SlashCommand {
           if (!Number.isFinite(usd) || usd < 0) {
             return { message: `${color.red('Invalid')} maxCostUsd: "${parts[2] ?? ''}"` };
           }
+          // maxIterations/maxToolCalls get the same validation as maxCostUsd: a
+          // negative value stored here propagates through resolveTier().budget →
+          // applyTierToSubagentConfig into every agent spawned under the tier,
+          // where `iterations >= maxIterations` is instantly true — the agent
+          // does zero work while this command reported ✓. A non-numeric value
+          // must not be silently dropped either: the ✓ reply would hide it.
           const iters = parts[3] !== undefined ? Number.parseInt(parts[3], 10) : undefined;
+          if (iters !== undefined && (!Number.isFinite(iters) || iters < 0)) {
+            return { message: `${color.red('Invalid')} maxIterations: "${parts[3]}"` };
+          }
           const tools = parts[4] !== undefined ? Number.parseInt(parts[4], 10) : undefined;
+          if (tools !== undefined && (!Number.isFinite(tools) || tools < 0)) {
+            return { message: `${color.red('Invalid')} maxToolCalls: "${parts[4]}"` };
+          }
           await persist((tiers) => {
             const levels = levelsOf(tiers);
             levels[tier] = {
