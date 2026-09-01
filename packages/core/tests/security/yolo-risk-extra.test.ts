@@ -52,6 +52,18 @@ describe('yolo-risk — extra coverage', () => {
       expect(isClearlyDestructiveBashCommand('rm -rf node_modules', ROOT)).toBe(false);
       expect(isClearlyDestructiveBashCommand('rm -rf dist build', ROOT)).toBe(false);
     });
+    it('flags MIXED short/long flag forms on rm recursive force-deletes (shape variance)', () => {
+      // `rm -r --force x` must classify identically to either pure form
+      // (`rm -rf x`, `rm --recursive --force x`). The mixed spellings used to
+      // fall through both flag checks and auto-approve under YOLO.
+      expect(isClearlyDestructiveBashCommand(`rm --force -r ${OUTSIDE}`, ROOT)).toBe(true);
+      expect(isClearlyDestructiveBashCommand(`rm -r --force ${OUTSIDE}`, ROOT)).toBe(true);
+      expect(isClearlyDestructiveBashCommand(`rm --recursive -f ${OUTSIDE}`, ROOT)).toBe(true);
+      expect(isClearlyDestructiveBashCommand(`rm -f --recursive ${OUTSIDE}`, ROOT)).toBe(true);
+      // Half-mixed shapes lacking one of the two flags stay frictionless.
+      expect(isClearlyDestructiveBashCommand('rm --force file.txt', ROOT)).toBe(false);
+      expect(isClearlyDestructiveBashCommand('rm -r ./build', ROOT)).toBe(false);
+    });
     it('flags Windows rmdir /s, del, and Remove-Item -Recurse on a system directory', () => {
       expect(isClearlyDestructiveBashCommand('rmdir /s C:\\Windows', ROOT)).toBe(true);
       expect(isClearlyDestructiveBashCommand('del C:\\Windows', ROOT)).toBe(true);

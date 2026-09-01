@@ -111,13 +111,25 @@ function commandSegment(tokens: string[], start: number): string[] {
   return out;
 }
 
-function hasShortFlag(args: readonly string[], letters: string): boolean {
+/**
+ * Every flag letter visible in `args`, presence-only: short clusters
+ * (`-rf` → r,f — lowercased so GNU `-R` counts as recursive) plus the GNU
+ * long forms (`--recursive` → r, `--force` → f). A mixed invocation
+ * (`rm -r --force x`) must classify identically to either pure form — the
+ * same shape-variance contract the tools-side danger rules enforce.
+ */
+function flagLetters(args: readonly string[]): Set<string> {
   const seen = new Set<string>();
   for (const arg of args) {
-    if (!arg.startsWith('-') || arg.startsWith('--')) continue;
-    for (const ch of arg.replace(/^-+/, '')) seen.add(ch.toLowerCase());
+    if (/^-[a-zA-Z]+$/.test(arg)) {
+      for (const ch of arg.replace(/^-+/, '')) seen.add(ch.toLowerCase());
+    } else if (arg === '--recursive') {
+      seen.add('r');
+    } else if (arg === '--force') {
+      seen.add('f');
+    }
   }
-  return letters.split('').every((letter) => seen.has(letter));
+  return seen;
 }
 
 function hasRecursiveForceDelete(command: string, projectRoot: string | undefined): boolean {
@@ -128,9 +140,8 @@ function hasRecursiveForceDelete(command: string, projectRoot: string | undefine
 
     if (token === 'rm' || token === 'rmdir') {
       const args = commandSegment(tokens, i + 1);
-      const recursiveForce =
-        hasShortFlag(args, 'rf') ||
-        (args.some((arg) => arg === '--recursive') && args.some((arg) => arg === '--force'));
+      const letters = flagLetters(args);
+      const recursiveForce = letters.has('r') && letters.has('f');
       if (recursiveForce) {
         const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
         if (targets.length > 0 && targets.every((target) => target.trim().length === 0)) {
