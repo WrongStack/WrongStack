@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  computeMessageTokens,
+  estimateMessageTokens,
   estimateRequestTokens,
   estimateRequestTokensCalibrated,
   estimateRequestTokensUpperBound,
@@ -12,6 +14,7 @@ import {
   recordActualUsage,
   resetCalibration,
 } from '../../src/utils/token-estimate.js';
+import type { Message } from '../../src/types/messages.js';
 
 afterEach(() => {
   resetCalibration();
@@ -422,5 +425,32 @@ describe('realAnchoredInputTokens', () => {
   it('falls back to null when the array shrank below the anchor (post-compaction)', () => {
     // Anchor said 40 messages, but compaction cut it to 5 → anchor unusable.
     expect(realAnchoredInputTokens([msg('a')], 90_000, 40)).toBeNull();
+  });
+});
+
+describe('text content block without `text` (runtime contract: text is optional)', () => {
+  // Wire data and plugin-provided messages are not type-checked: a text-type
+  // content block may legally omit `text`. computeMessageTokens runs on every
+  // message append (ConversationState._estTokens) and the density scan runs on
+  // every send — either one throwing TypeError breaks the session, so the
+  // estimators must treat missing text as an empty string.
+  const bare = { type: 'text' } as { type: 'text'; text?: string };
+  const msg = { role: 'assistant', content: [bare] } as unknown as Message;
+
+  it('computeMessageTokens counts omitted text the same as empty text', () => {
+    const withEmpty = computeMessageTokens({ role: 'assistant', content: [{ type: 'text', text: '' }] });
+    expect(computeMessageTokens(msg)).toBe(withEmpty);
+  });
+
+  it('estimateMessageTokens does not throw on omitted text', () => {
+    expect(() => estimateMessageTokens([msg])).not.toThrow();
+  });
+
+  it('estimateRequestTokens does not throw on omitted text', () => {
+    expect(() => estimateRequestTokens([msg], 'system prompt', [])).not.toThrow();
+  });
+
+  it('send-guard estimateRequestTokensUpperBound does not throw on omitted text', () => {
+    expect(() => estimateRequestTokensUpperBound([msg], 'system prompt', [])).not.toThrow();
   });
 });

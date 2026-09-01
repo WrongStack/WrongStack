@@ -156,7 +156,7 @@ export function computeMessageTokens(msg: Message): number {
   if (typeof msg.content === 'string') return estimateTextTokens(msg.content);
   let total = 0;
   for (const b of msg.content) {
-    if (b.type === 'text') total += estimateTextTokens(b.text);
+    if (b.type === 'text') total += estimateTextTokens(b.text ?? '');
     else if (b.type === 'tool_use') total += estimateToolInputTokens(b.input);
     else if (b.type === 'tool_result') total += estimateToolResultTokens(b.content);
     else {
@@ -289,7 +289,7 @@ export function estimateRequestTokens(
           for (const b of content) {
             if (typeof b === 'object' && b !== null) {
               if ((b as { type?: string | undefined }).type === 'text') {
-                messagesTokens += RoughTokenEstimate((b as { text: string }).text);
+                messagesTokens += RoughTokenEstimate((b as { text: string }).text ?? '');
               } else {
                 messagesTokens += RoughTokenEstimate(JSON.stringify(b));
               }
@@ -475,7 +475,7 @@ function textDensityMultiplier(messages: readonly Message[]): number {
       consider(m.content);
     } else if (Array.isArray(m.content)) {
       for (const b of m.content) {
-        if (b.type === 'text') consider(b.text);
+        if (b.type === 'text') consider(b.text ?? '');
         else if (b.type === 'tool_result' && typeof b.content === 'string') consider(b.content);
         else if (b.type === 'thinking') consider(b.thinking);
       }
