@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-31T22:50:34.956Z",
+  "generatedAt": "2026-09-01T06:12:28.490Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -13,16 +13,16 @@
   "summary": {
     "packages": 36,
     "sourceFiles": 3434,
-    "testFiles": 3070,
-    "sourceLines": 839825,
+    "testFiles": 3074,
+    "sourceLines": 839979,
     "workspaceEdges": 128,
-    "moduleEdges": 10676,
+    "moduleEdges": 10677,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
     "testsWithoutTypecheck": 0,
     "testsWithMultipleTypechecks": 0,
-    "testOnlyExports": 854
+    "testOnlyExports": 853
   },
   "errors": [],
   "packageCycles": [],
@@ -211,7 +211,7 @@
       "name": "@wrongstack/core",
       "dir": "packages/core",
       "sourceFiles": 782,
-      "testFiles": 693,
+      "testFiles": 694,
       "workspaceDependencies": [
         "@wrongstack/kanban",
         "@wrongstack/persistence",
@@ -226,7 +226,7 @@
         {
           "path": "packages/core/tsconfig.test.json",
           "error": null,
-          "testFiles": 693
+          "testFiles": 694
         }
       ]
     },
@@ -258,7 +258,7 @@
       "name": "@wrongstack/governance",
       "dir": "packages/governance",
       "sourceFiles": 39,
-      "testFiles": 26,
+      "testFiles": 27,
       "workspaceDependencies": [
         "@wrongstack/persistence"
       ],
@@ -271,7 +271,7 @@
         {
           "path": "packages/governance/tsconfig.test.json",
           "error": null,
-          "testFiles": 26
+          "testFiles": 27
         }
       ]
     },
@@ -279,7 +279,7 @@
       "name": "@wrongstack/kanban",
       "dir": "packages/kanban",
       "sourceFiles": 87,
-      "testFiles": 63,
+      "testFiles": 65,
       "workspaceDependencies": [
         "@wrongstack/persistence",
         "@wrongstack/primitives"
@@ -293,7 +293,7 @@
         {
           "path": "packages/kanban/tsconfig.test.json",
           "error": null,
-          "testFiles": 63
+          "testFiles": 65
         }
       ]
     },
@@ -4557,6 +4557,12 @@
         ]
       },
       {
+        "file": "packages/core/tests/architecture/publish-workspace-script.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/core/tests/architecture/published-artifacts.test.ts",
         "projects": [
           "root-node"
@@ -8709,6 +8715,12 @@
         ]
       },
       {
+        "file": "packages/governance/tests/verification-ledger-rollback-mask.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/governance/tests/verification-planner.test.ts",
         "projects": [
           "root-node"
@@ -8997,6 +9009,12 @@
         ]
       },
       {
+        "file": "packages/kanban/tests/round-1-invalid-check-status.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
         "file": "packages/kanban/tests/server-kanban-store.test.ts",
         "projects": [
           "root-node"
@@ -9004,6 +9022,12 @@
       },
       {
         "file": "packages/kanban/tests/sqlite-project-server.test.ts",
+        "projects": [
+          "root-node"
+        ]
+      },
+      {
+        "file": "packages/kanban/tests/sqlite-storage-rollback-mask.test.ts",
         "projects": [
           "root-node"
         ]
@@ -19868,7 +19892,7 @@
     },
     {
       "file": "packages/governance/src/verification-ledger-store.ts",
-      "lines": 892,
+      "lines": 916,
       "relativeImports": 6
     },
     {
@@ -20293,7 +20317,7 @@
     },
     {
       "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1058,
+      "lines": 1108,
       "relativeImports": 3
     },
     {
@@ -20379,6 +20403,11 @@
       "relativeImports": 19
     },
     {
+      "file": "packages/webui-server/src/server/file-handlers.ts",
+      "lines": 1108,
+      "relativeImports": 3
+    },
+    {
       "file": "packages/core/src/coordination/provider-status-tracker.ts",
       "lines": 1096,
       "relativeImports": 3
@@ -20427,11 +20456,6 @@
       "file": "packages/webui/src/components/FileActivityDrawer.tsx",
       "lines": 1063,
       "relativeImports": 2
-    },
-    {
-      "file": "packages/webui-server/src/server/file-handlers.ts",
-      "lines": 1058,
-      "relativeImports": 3
     },
     {
       "file": "packages/webui-server/src/server/kanban-routes.ts",
@@ -22605,10 +22629,6 @@
     {
       "file": "packages/tools/src/codebase-index/generic-parser.ts",
       "name": "GENERIC_MAX_SYMBOLS_DEFAULT"
-    },
-    {
-      "file": "packages/tools/src/codebase-index/gitignore.ts",
-      "name": "compileGitignore"
     },
     {
       "file": "packages/tools/src/codebase-index/indexer.ts",

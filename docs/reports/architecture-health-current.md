@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-08-31T22:50:34.956Z
+**Generated:** 2026-09-01T06:12:28.490Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3434 |
-| Production source lines | 839825 |
-| Test files | 3070 |
+| Production source lines | 839979 |
+| Test files | 3074 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10676 |
+| Relative module edges | 10677 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -31,10 +31,10 @@ PASS — no blocking architecture-health errors.
 | @wrongstack/bench | 22 | 45 | @wrongstack/core |
 | @wrongstack/cli | 475 | 450 | @wrongstack/acp, @wrongstack/bench, @wrongstack/core, @wrongstack/desktop, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/persistence, @wrongstack/plug-lsp, @wrongstack/plugins, @wrongstack/primitives, @wrongstack/providers, @wrongstack/requirement-intake, @wrongstack/runtime, @wrongstack/sage, @wrongstack/sdd, @wrongstack/security-scanner, @wrongstack/simpleui, @wrongstack/techstack, @wrongstack/telegram, @wrongstack/tools, @wrongstack/tui, @wrongstack/vector-memory, @wrongstack/webui, @wrongstack/webui-hq, @wrongstack/webui-protocol, @wrongstack/webui-server, @wrongstack/wrongtrace |
 | @wrongstack/codebase-index-mcp | 5 | 4 | @wrongstack/core, @wrongstack/mcp, @wrongstack/tools |
-| @wrongstack/core | 782 | 693 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/core | 782 | 694 | @wrongstack/kanban, @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/desktop | 37 | 18 | @wrongstack/core, @wrongstack/webui, @wrongstack/webui-protocol, @wrongstack/webui-server |
-| @wrongstack/governance | 39 | 26 | @wrongstack/persistence |
-| @wrongstack/kanban | 87 | 63 | @wrongstack/persistence, @wrongstack/primitives |
+| @wrongstack/governance | 39 | 27 | @wrongstack/persistence |
+| @wrongstack/kanban | 87 | 65 | @wrongstack/persistence, @wrongstack/primitives |
 | @wrongstack/kanban-mcp | 5 | 5 | @wrongstack/core, @wrongstack/kanban, @wrongstack/mcp, @wrongstack/primitives, @wrongstack/tools |
 | @wrongstack/mailbox-mcp | 5 | 7 | @wrongstack/core, @wrongstack/mcp |
 | @wrongstack/mcp | 37 | 32 | @wrongstack/core |
@@ -94,6 +94,7 @@ None.
 | 1172 | `packages/core/src/coordination/multi-agent-coordinator.ts` |
 | 1169 | `packages/webui/src/types/server-message.ts` |
 | 1128 | `packages/webui/src/components/ChatInput.tsx` |
+| 1108 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1096 | `packages/core/src/coordination/provider-status-tracker.ts` |
 | 1089 | `packages/tui/src/components/settings-picker-model.ts` |
 | 1089 | `packages/webui/src/components/AgentOfficeView.tsx` |
@@ -104,7 +105,6 @@ None.
 | 1068 | `packages/tools/src/codebase-index/project-server.ts` |
 | 1063 | `packages/sage/src/sqlite-store.ts` |
 | 1063 | `packages/webui/src/components/FileActivityDrawer.tsx` |
-| 1058 | `packages/webui-server/src/server/file-handlers.ts` |
 | 1056 | `packages/webui-server/src/server/kanban-routes.ts` |
 | 1051 | `packages/core/src/coordination/delegate-tool.ts` |
 | 1048 | `packages/plugins/src/path-guard/shell-targets.ts` |
@@ -139,7 +139,7 @@ None.
 
 ## Exports only tests reference
 
-- 854 runtime exports are referenced by tests and by no other production file.
+- 853 runtime exports are referenced by tests and by no other production file.
 - Green coverage on one of these proves the function works, not that anything calls it.
 - The set is frozen in `architecture/test-only-exports.json`; the check fires on additions.
 
