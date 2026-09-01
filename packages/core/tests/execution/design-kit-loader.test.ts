@@ -94,10 +94,15 @@ describe('DefaultDesignKitLoader', () => {
     }
   });
 
-  // Regression: muted body-copy contrast floor. The foundations Card recipe
-  // renders `text-muted` on `bg-surface`, and muted text also sits on plain
-  // `bg` — every such pair must clear WCAG AA 4.5:1, computed through the
-  // production oklchToHex (sRGB relative luminance per WCAG 2.x).
+  // Regression: body-copy + button-label contrast floors. The foundations Card
+  // recipe renders `text-muted` on `bg-surface`, muted text also sits on plain
+  // `bg`, and the Button recipe renders `text-bg` on `bg-primary` — every such
+  // pair must clear WCAG AA 4.5:1, computed through the production oklchToHex
+  // (sRGB relative luminance per WCAG 2.x). The button-label pair is exempt
+  // for the tier-2/3 kits below: reaching the floor there needs large primary
+  // lightness moves that reshape the brand color, which is a deliberate
+  // per-kit design decision still pending. The allowlist must SHRINK as those
+  // are fixed — and no new violating kit can slip in silently.
   it('bundled kits keep body-text pairs at or above the 4.5:1 AA floor', async () => {
     const loader = bundledLoader();
     const entries = await loader.listEntries();
@@ -130,7 +135,35 @@ describe('DefaultDesignKitLoader', () => {
       ['fg', 'surface'],
       ['muted', 'bg'],
       ['muted', 'surface'],
+      ['bg', 'primary'],
     ];
+    // Tier-2/3 button-label exceptions still awaiting a per-kit design decision.
+    // This list must SHRINK as kits are fixed (remove the entry when bg/primary
+    // clears 4.5:1); anything newly violating fails the test.
+    const PENDING_BUTTON_LABEL: ReadonlySet<string> = new Set([
+      'art-deco.light',
+      'bento-dashboard.light',
+      'claymorphism.light',
+      'cottagecore.light',
+      'dark-academia.dark',
+      'dopamine-pop.light',
+      'frutiger-aero.light',
+      'health-calm.light',
+      'holographic.light',
+      'japandi.light',
+      'kids-bright.light',
+      'luxury-dark.light',
+      'neo-brutalist.light',
+      'neumorphism.light',
+      'pastel-dream.light',
+      'playful-rounded.light',
+      'retro-70s.light',
+      'scandinavian.light',
+      'skeuomorphic.light',
+      'soft-glass.light',
+      'vaporwave.light',
+      'warm-organic.light',
+    ]);
     for (const e of entries) {
       const tokens = await loader.readTokens(e.id);
       expect(tokens, `tokens for ${e.id}`).toBeDefined();
@@ -138,6 +171,9 @@ describe('DefaultDesignKitLoader', () => {
       for (const theme of ['light', 'dark'] as const) {
         const set = (tokens[theme] ?? {}) as Record<string, string>;
         for (const [a, b] of PAIRS) {
+          if (a === 'bg' && b === 'primary' && PENDING_BUTTON_LABEL.has(`${e.id}.${theme}`)) {
+            continue;
+          }
           const r = ratio(set, a, b);
           expect(r, `${e.id}.${theme} ${a}/${b} should be computable`).not.toBeNull();
           expect(
