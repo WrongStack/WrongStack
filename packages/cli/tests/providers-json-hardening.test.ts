@@ -188,11 +188,33 @@ describe('providers.json hardening — schema validation', () => {
 
   it('CLI providers.json has a _removeProviders array', () => {
     // _removeProviders is at the top level but not a provider entry
-    // We need to read the raw JSON to access it
+    // We need to read the raw JSON to access it.
+    //
+    // The array may legitimately be EMPTY — that is the healthy steady state
+    // for an override layer whose job is to add and fix, not to prune. The
+    // assertion used to demand `length > 0`, which locked in a 20-entry
+    // example payload that shipped by accident and deleted anthropic, google,
+    // groq, openrouter and 16 others from every user's catalog. Shape only.
     const raw = JSON.parse(readFileSync(CLI_PROVIDERS_PATH, 'utf8')) as Record<string, unknown>;
     const removeProviders = raw['_removeProviders'];
     expect(Array.isArray(removeProviders)).toBe(true);
-    expect((removeProviders as string[]).length).toBeGreaterThan(0);
+    for (const id of removeProviders as unknown[]) {
+      expect(typeof id).toBe('string');
+      expect(id).not.toBe('');
+    }
+  });
+
+  it('_removeProviders never deletes a provider WrongStack ships a definition for', () => {
+    // A provider in PROVIDER_DEFINITIONS is one the product actively offers
+    // (auth catalog card, wire family, env vars). Deleting its catalog entry
+    // strips its model list, so the launch picker shows the provider with zero
+    // models and the user dead-ends at a bare "type a model id" prompt. That
+    // is exactly the regression this guard exists to catch.
+    const raw = JSON.parse(readFileSync(CLI_PROVIDERS_PATH, 'utf8')) as Record<string, unknown>;
+    const removeProviders = (raw['_removeProviders'] ?? []) as string[];
+    const shipped = new Set(Object.keys(PROVIDER_DEFINITIONS));
+    const conflicts = removeProviders.filter((id) => shipped.has(id));
+    expect(conflicts).toEqual([]);
   });
 
   it('CLI providers.json has a _removeModels object', () => {

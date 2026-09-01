@@ -4,8 +4,11 @@ import { type Config, ConfigError, type Logger, type ModelsRegistry } from '@wro
 import {
   buildProviderFactoriesFromRegistry,
   createAiGatewayProviderFactory,
+  createSetupProviderFactory,
   installCatalogModelOutputLimits,
+  isSetupProvider,
   makeProviderFromConfig,
+  setupProviderResolved,
   withCatalogCapabilities,
 } from '@wrongstack/providers';
 import {
@@ -27,6 +30,20 @@ export async function setupProvider(params: {
   logger: Logger;
 }): Promise<ProviderSetupResult> {
   const { config, modelsRegistry, logger } = params;
+
+  // Setup mode short-circuits catalog resolution entirely. It is never
+  // published through models.dev and never written into `config.providers`,
+  // so both lookups below would miss and boot would fall through to
+  // makeProviderFromConfig's "needs an explicit family" error.
+  if (isSetupProvider(config.provider)) {
+    const providerRegistry = new ProviderRegistry();
+    providerRegistry.register(createSetupProviderFactory());
+    return {
+      resolvedProvider: setupProviderResolved(),
+      provider: providerRegistry.create({ type: config.provider }),
+      providerRegistry,
+    };
+  }
 
   // Resolve provider details from models.dev.
   const savedProviderCfg = config.providers?.[config.provider];
@@ -118,6 +135,10 @@ export async function setupProvider(params: {
   // models.dev catalog is disabled; catalog factories are layered on top.
   const providerRegistry = new ProviderRegistry();
   providerRegistry.register(createAiGatewayProviderFactory());
+  // Always available, never selected implicitly: registering setup mode here
+  // means a `/model wrongstack-setup` switch or a fallback hop can construct
+  // it instead of throwing "provider type not registered".
+  providerRegistry.register(createSetupProviderFactory());
   if (config.features.modelsRegistry) {
     try {
       const factories = await buildProviderFactoriesFromRegistry({

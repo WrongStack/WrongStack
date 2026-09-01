@@ -48,6 +48,14 @@ export {
 export { MiniMaxProvider, type MiniMaxProviderOptions } from './minimax.js';
 export { OpenCodeGoProvider, type OpenCodeGoProviderOptions } from './opencode-go.js';
 export {
+  createSetupProviderFactory,
+  isSetupProvider,
+  SETUP_MODEL_ID,
+  SETUP_PROVIDER_ID,
+  SETUP_PROVIDER_NAME,
+  setupProviderResolved,
+} from './setup-provider.js';
+export {
   OpenAICompatibleProvider,
   type OpenAICompatibleOptions,
   type CompatibilityQuirks,

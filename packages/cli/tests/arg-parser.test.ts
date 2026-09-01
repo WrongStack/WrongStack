@@ -292,6 +292,32 @@ describe('parseSpawnFlags', () => {
     expect(r.description).toBe('do something');
   });
 
+  it('parses --provider= / --model= with quoted values', () => {
+    const r = parseSpawnFlags('--provider="anthropic" --model="gpt-4o" audit the code');
+    expect(r.opts.provider).toBe('anthropic');
+    expect(r.opts.model).toBe('gpt-4o');
+    expect(r.description).toBe('audit the code');
+  });
+
+  it('parses -p / -m with single-quoted values', () => {
+    const r = parseSpawnFlags("-p 'openai' -m 'claude-sonnet-4' run checks");
+    expect(r.opts.provider).toBe('openai');
+    expect(r.opts.model).toBe('claude-sonnet-4');
+    expect(r.description).toBe('run checks');
+  });
+
+  it('keeps quoted --model values containing spaces and preserves the description', () => {
+    const r = parseSpawnFlags('--model="gpt 4" fix the auth bug');
+    expect(r.opts.model).toBe('gpt 4');
+    expect(r.description).toBe('fix the auth bug');
+  });
+
+  it('falls back to the raw token when a quote is unterminated', () => {
+    const r = parseSpawnFlags('--model="gpt-4o fix it');
+    expect(r.opts.model).toBe('"gpt-4o');
+    expect(r.description).toBe('fix it');
+  });
+
   it('parses --name= with quoted value', () => {
     const r = parseSpawnFlags('--name="bug hunter" find bugs');
     expect(r.opts.name).toBe('bug hunter');

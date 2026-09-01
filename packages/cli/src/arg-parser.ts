@@ -269,6 +269,10 @@ interface SpawnFlags {
  *   --name=<label>  / -n <label> display name
  *   --tools=a,b,c               restrict the subagent's tool slice
  *
+ * All four value flags accept quoted values (`--model="gpt-4o"`); the
+ * surrounding quotes are stripped. Without this, a habitually quoted id
+ * flows into multiAgentHost.spawn() with the quote characters embedded.
+ *
  * Anything after the last flag is the task description.
  */
 export function parseSpawnFlags(input: string): SpawnFlags {
@@ -284,11 +288,11 @@ export function parseSpawnFlags(input: string): SpawnFlags {
   };
   while (rest.length > 0) {
     let m: RegExpMatchArray | null;
-    m = consume(/^(?:--provider|-p)[=\s]+(\S+)\s*/);
-    if (m) opts.provider = m[1];
+    m = consume(/^(?:--provider|-p)[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+    if (m) opts.provider = m[1] ?? m[2] ?? m[3];
     else {
-      m = consume(/^(?:--model|-m)[=\s]+(\S+)\s*/);
-      if (m) opts.model = m[1];
+      m = consume(/^(?:--model|-m)[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
+      if (m) opts.model = m[1] ?? m[2] ?? m[3];
       else {
         m = consume(/^(?:--name|-n)[=\s]+(?:"([^"]+)"|'([^']+)'|(\S+))\s*/);
         if (m) opts.name = m[1] ?? m[2] ?? m[3];

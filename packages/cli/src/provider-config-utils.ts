@@ -13,6 +13,7 @@ import * as fs from 'node:fs/promises';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import type { ProviderApiKey, ProviderConfig, SecretVault } from '@wrongstack/core/types';
 import { atomicWrite, color } from '@wrongstack/core/utils';
+import { isSetupProvider as isSetupProviderId } from '@wrongstack/providers';
 /**
  * Normalize a ProviderConfig to the canonical `apiKeys[]` form.
  * Migrates the legacy single-key `apiKey` field on the fly so every
@@ -99,6 +100,18 @@ export function clearStaleProviderDefaults(config: Record<string, unknown>): voi
   const providerId = typeof config['provider'] === 'string' ? config['provider'] : undefined;
   if (!providerId) return;
   const providers = config['providers'] as Record<string, ProviderConfig> | undefined;
+  // Setup mode is a placeholder, not a provider: it exists only so a machine
+  // with no credential can still open the app. This function runs on every
+  // credential write, so reaching it means the user just configured something
+  // real — retire the placeholder and let the launch picker offer the real
+  // provider next time. The defensive delete covers a hand-edited config that
+  // wrote a `providers` entry the code never creates.
+  if (isSetupProviderId(providerId)) {
+    delete config['provider'];
+    delete config['model'];
+    if (providers) delete providers[providerId];
+    return;
+  }
   const provider = providers?.[providerId];
   if (!provider || !hasUsableSavedProvider(provider)) {
     delete config['provider'];

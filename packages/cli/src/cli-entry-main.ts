@@ -22,9 +22,33 @@
  * nothing at all. `packages/cli/tests/architecture/boot-graph-boundary.test.ts`
  * pins both halves of that contract.
  */
-import { initializeCli } from './cli-context.js';
+import { parseArgs } from './arg-parser.js';
+import { applyNodeEnvDefault, applySessionShellDefault } from './preflight.js';
 
 export async function main(argv: string[]): Promise<number> {
+  // Pre-boot side effects, in the same order (and with the same idempotency)
+  // initializeCli() applies them. The NODE_ENV default is pinned on the
+  // --help path by cli-main-flag-content.test.ts, so it must run before ANY
+  // short-circuit returns — including the informational-flag one below.
+  applyNodeEnvDefault();
+  applySessionShellDefault();
+
+  // --help / --version print text and exit; they need none of the boot graph.
+  // cli-context.ts statically imports boot.ts (@wrongstack/runtime, the core
+  // model/registry barrels, picker, pre-launch, the full subcommand
+  // registry), so importing it before knowing what was asked put ~510ms of
+  // module load on every invocation. Route the two informational flags
+  // through a dynamic import BEFORE cli-context.js is fetched;
+  // initializeCli keeps its own short-circuit for direct callers and for
+  // every other flag.
+  const earlyFlags = parseArgs(argv).flags;
+  if (earlyFlags['help'] === true || earlyFlags['version'] === true) {
+    const { handleHelpVersionShortCircuit } = await import('./boot/short-circuit-flags.js');
+    const earlyExit = await handleHelpVersionShortCircuit(argv);
+    if (earlyExit !== null) return earlyExit;
+  }
+
+  const { initializeCli } = await import('./cli-context.js');
   const cliCtx = await initializeCli(argv);
   // A number means a short-circuit flag or a subcommand already ran to
   // completion; the interactive stack is never touched.

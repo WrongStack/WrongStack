@@ -1,4 +1,5 @@
 import type { ProviderConfig } from '@wrongstack/core/types';
+import { SETUP_MODEL_ID, SETUP_PROVIDER_ID } from '@wrongstack/providers';
 import { describe, expect, it } from 'vitest';
 import {
   activeLabel,
@@ -216,6 +217,39 @@ describe('clearStaleProviderDefaults', () => {
     clearStaleProviderDefaults(config);
     expect(config.provider).toBe('ollama');
     expect(config.model).toBe('llama3');
+  });
+
+  // Setup mode is the no-credential placeholder the first-run gate installs.
+  // This function runs on every credential write, so reaching it means a real
+  // provider was just configured — the placeholder must not survive it.
+  it('retires setup mode when a credential write happens', () => {
+    const config: Record<string, unknown> = {
+      provider: SETUP_PROVIDER_ID,
+      model: SETUP_MODEL_ID,
+      providers: {
+        anthropic: {
+          type: 'anthropic',
+          apiKeys: [{ label: 'default', apiKey: 'sk-ant-test', createdAt: '' }],
+        },
+      },
+    };
+    clearStaleProviderDefaults(config);
+    expect(config.provider).toBeUndefined();
+    expect(config.model).toBeUndefined();
+    // The real provider the user just added is untouched.
+    expect(Object.keys(config.providers as Record<string, unknown>)).toEqual(['anthropic']);
+  });
+
+  it('deletes a hand-written setup-mode providers entry', () => {
+    // The code never creates this entry; a hand-edited config might. Left in
+    // place it would make setup mode look like a configured provider forever.
+    const config: Record<string, unknown> = {
+      provider: SETUP_PROVIDER_ID,
+      model: SETUP_MODEL_ID,
+      providers: { [SETUP_PROVIDER_ID]: { type: SETUP_PROVIDER_ID } },
+    };
+    clearStaleProviderDefaults(config);
+    expect(config.providers).toEqual({});
   });
 });
 

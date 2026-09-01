@@ -314,13 +314,19 @@ describe('setupSession', () => {
     });
     // No "Restored X todos" message — but the function should have completed.
     expect(renderer.writeError).not.toHaveBeenCalled();
+    // "Silently" is the point of this case: a session that never wrote a todo
+    // list is the normal state, not a storage fault. `storage.error` is the
+    // alert channel for disk-full/permission faults and is always surfaced at
+    // warning level, so the absent checkpoint reports on `storage.read`.
+    expect(events.emit).not.toHaveBeenCalledWith('storage.error', expect.anything());
     expect(events.emit).toHaveBeenCalledWith(
-      'storage.error',
+      'storage.read',
       expect.objectContaining({
         sessionId: 'resumed-3',
         traceId: expect.any(String),
         store: 'todos',
         operation: 'load',
+        outcome: 'success',
       }),
     );
   });

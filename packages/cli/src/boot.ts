@@ -38,6 +38,7 @@ import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
+import { isSetupProvider, SETUP_MODEL_ID, SETUP_PROVIDER_ID } from '@wrongstack/providers';
 import { color, isStdinTTY, type WstackPaths, writeErr } from '@wrongstack/core/utils';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import { registerBuiltinToolTier } from '@wrongstack/tools/tool-tier';
@@ -51,8 +52,10 @@ import { ReadlineInputReader } from './input-reader.js';
 import { printLaunchHints } from './launch-hints.js';
 import { type PickerResult, runPicker, saveToGlobalConfig } from './picker.js';
 import {
+  hasAnyCredential,
   LaunchAbortedError,
   persistLaunchChoices,
+  runFirstRunSetup,
   runLaunchPrompts,
   runProjectCheck,
 } from './pre-launch.js';
@@ -78,6 +81,11 @@ async function validateSavedProviderModel(
   const providerId = config.provider;
   const modelId = config.model;
   if (!providerId || !modelId) return { ok: false, reason: 'missing provider/model' };
+
+  // Setup mode is always usable by construction: no catalog entry, no saved
+  // config entry, no credential. Every check below would (correctly) reject
+  // it, so answer here instead of teaching each one about it.
+  if (isSetupProvider(providerId)) return { ok: true };
 
   const saved = config.providers?.[providerId];
   const lookupId = saved?.type && saved.type !== providerId ? saved.type : providerId;
@@ -511,10 +519,64 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
       let picked: PickerResult | undefined;
       let skipPicker = false;
 
+      // --- First-run gate: nothing on this machine can reach a model ---
+      // Runs BEFORE the picker. The picker lists the ~190-entry models.dev
+      // catalog, none of which is usable without a credential, and cancelling
+      // it exits the process — so a newcomer could never reach the TUI to run
+      // `/auth`. This gate offers the four real ways in plus setup mode, so
+      // there is always a path that ends inside the app.
+      if (isSetupProvider(config.provider)) {
+        // Already opted into setup mode on an earlier launch. Re-showing the
+        // welcome screen every time would nag; a one-line reminder plus the
+        // `/auth` pointer is enough, and adding a credential retires this
+        // state on its own.
+        skipPicker = true;
+        renderer.write(
+          `\n  ${color.amber('▶')} ${color.bold('Setup mode')} ${color.dim('— no model connected. Run')} ${color.bold('/auth')} ${color.dim('to connect one.')}\n\n`,
+        );
+      } else if (!(await hasAnyCredential(config, modelsRegistry))) {
+        const outcome = await runFirstRunSetup({
+          renderer,
+          reader,
+          modelsRegistry,
+          vault,
+          profileConfigPath,
+          reloadConfig: async () => (await bootConfig(flags)).config,
+        });
+        if (outcome.kind === 'quit') {
+          await reader.close();
+          return 0;
+        }
+        if (outcome.kind === 'setup-mode') {
+          config = patchConfig(config, { provider: SETUP_PROVIDER_ID, model: SETUP_MODEL_ID });
+          // Persist so a relaunch goes straight back in rather than re-asking.
+          // Only the top-level pointers are written — never a `providers[]`
+          // entry — which is what makes the first real credential retire setup
+          // mode automatically (see clearStaleProviderDefaults).
+          await saveToGlobalConfig(profileConfigPath, SETUP_PROVIDER_ID, SETUP_MODEL_ID);
+          skipPicker = true;
+        } else {
+          // Credentials landed on disk; our in-memory copy is stale. Re-read it
+          // the same way the backup-restore path above does, then fall through
+          // to the normal picker — which now has something real to offer.
+          try {
+            const reloaded = await bootConfig(flags);
+            config = reloaded.config;
+            vault = reloaded.vault;
+          } catch (err) {
+            writeErr(`Config error after setup: ${toErrorMessage(err)}\n`);
+            await reader.close();
+            return 2;
+          }
+        }
+      }
+
       // --- Summary gate: saved provider/model from last session ---
+      // Skipped when the first-run gate above already decided the surface —
+      // otherwise setup mode would be announced twice and then re-confirmed.
       const savedProvider = config.provider;
       const savedModel = config.model;
-      if (savedProvider && savedModel) {
+      if (!skipPicker && savedProvider && savedModel) {
         const savedStatus = await validateSavedProviderModel(config, modelsRegistry);
         renderer.write(
           `\n  ${color.dim('Last settings:')} ${color.bold(savedProvider)} / ${color.bold(savedModel)}\n`,
@@ -560,6 +622,13 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
 
       if (!picked && !skipPicker) {
         if (!config.provider || !config.model) {
+          // Cancelling the picker used to exit 2 with nothing printed, which
+          // reads as a crash. Say what happened and name both ways forward.
+          renderer.write(
+            `\n  ${color.dim('No provider selected.')}\n` +
+              `  ${color.dim('Run')} ${color.bold('wstack auth')} ${color.dim('to add a key or sign in, or start with no model:')}\n` +
+              `  ${color.bold(`wstack --provider ${SETUP_PROVIDER_ID} --model ${SETUP_MODEL_ID}`)}\n\n`,
+          );
           await reader.close();
           return 2;
         }
@@ -582,7 +651,8 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
       }
     } else if (!config.provider || !config.model) {
       writeErr(
-        'No provider or model configured. Run `wstack auth`, or pass --provider <id> --model <id>.\n',
+        'No provider or model configured. Run `wstack auth`, or pass --provider <id> --model <id>.\n' +
+          `To start the app with no model connected, pass --provider ${SETUP_PROVIDER_ID} --model ${SETUP_MODEL_ID}.\n`,
       );
       await reader.close();
       return 2;

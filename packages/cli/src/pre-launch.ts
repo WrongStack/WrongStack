@@ -4,6 +4,12 @@
 // re-exports the public symbols so callers don't need to know about the split.
 
 export {
+  type FirstRunDeps,
+  type FirstRunOutcome,
+  hasAnyCredential,
+  runFirstRunSetup,
+} from './pre-launch/first-run.js';
+export {
   LaunchAbortedError,
   type LaunchModeChoices,
   persistLaunchChoices,

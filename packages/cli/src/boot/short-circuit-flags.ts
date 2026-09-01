@@ -10,12 +10,14 @@
  * neither flag was present (caller should proceed to boot()).
  */
 import { parseArgs } from '../arg-parser.js';
-import {
-  renderDeepHelp,
-  renderFocusedHelp,
-} from '../subcommands/handlers/per-subcommand-help.js';
 import { helpCmd, versionCmd } from '../subcommands/handlers/version-help.js';
-import { subcommandNames } from '../subcommands/index.js';
+
+// `per-subcommand-help.js` (the deep-help table) and `subcommands/index.js`
+// (the full subcommand registry) are deliberately NOT static imports here.
+// cli-entry-main.ts routes --help/--version to this module BEFORE the boot
+// graph loads; static registry imports would put that graph right back on
+// the `wstack --version` fast path. Both are only needed for a
+// subcommand-focused help (`wstack auth --help`), so they load lazily there.
 
 /**
  * Check argv for --help / --version and dispatch directly.
@@ -47,14 +49,20 @@ export async function handleHelpVersionShortCircuit(argv: string[]): Promise<num
   }
 
   if (earlyFlags['help'] === true) {
-    if (positional.length > 0 && subcommandNames.includes(positional[0]!)) {
-      const first = positional[0]!;
-      const deep = positional[1];
-      if (deep && renderDeepHelp(`${first}:${deep}`, stubRenderer)) {
-        return 0;
-      }
-      if (renderFocusedHelp(first, stubRenderer)) {
-        return 0;
+    if (positional.length > 0) {
+      const { subcommandNames } = await import('../subcommands/index.js');
+      if (subcommandNames.includes(positional[0]!)) {
+        const first = positional[0]!;
+        const deep = positional[1];
+        const { renderDeepHelp, renderFocusedHelp } = await import(
+          '../subcommands/handlers/per-subcommand-help.js'
+        );
+        if (deep && renderDeepHelp(`${first}:${deep}`, stubRenderer)) {
+          return 0;
+        }
+        if (renderFocusedHelp(first, stubRenderer)) {
+          return 0;
+        }
       }
     }
     return await helpCmd([], { renderer: stubRenderer } as Parameters<typeof helpCmd>[1]);
