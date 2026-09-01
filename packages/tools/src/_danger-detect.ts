@@ -45,7 +45,6 @@ interface DangerRule {
   reason: string;
 }
 
-const argHas = (args: readonly string[], value: string): boolean => args.includes(value);
 const argMatches = (args: readonly string[], re: RegExp): boolean => args.some((a) => re.test(a));
 
 /**
@@ -92,10 +91,15 @@ const RULES: readonly DangerRule[] = [
     level: 'destructive',
     test: (cmd, args) => {
       if (cmd !== 'powershell' && cmd !== 'pwsh') return false;
-      const hasRecurse = argMatches(args, /^-(?:R|Recurse|Recurse\s)/);
-      const hasForce = argHas(args, '-Force') || argHas(args, '-F');
-      // Allow `-WhatIf` (dry-run) without confirmation
-      if (argHas(args, '-WhatIf')) return false;
+      // PowerShell parameters are case-insensitive by language spec
+      // (`-recurse` ≡ `-Recurse`), so match with the `/i` flag like the
+      // sibling PowerShell rules below. Case-sensitive matching here let
+      // `Remove-Item -recurse -force` classify as safe and bypass the
+      // confirm gate its canonical spelling triggers.
+      const hasRecurse = argMatches(args, /^-(?:r|recurse)/i);
+      const hasForce = argMatches(args, /^-(?:f|force)$/i);
+      // Allow `-WhatIf` (dry-run, any casing) without confirmation
+      if (argMatches(args, /^-whatif$/i)) return false;
       return hasRecurse && hasForce;
     },
     reason: 'Remove-Item with -Recurse -Force',

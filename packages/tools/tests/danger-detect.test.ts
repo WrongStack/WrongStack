@@ -72,6 +72,27 @@ describe('detectDanger — PowerShell Remove-Item -Recurse -Force', () => {
     expect(r.level).toBe('safe');
   });
 
+  it('flags lowercase parameters as destructive (PowerShell params are case-insensitive)', () => {
+    expect(detectDanger('powershell', ['Remove-Item', '-recurse', '-force', './build']).level).toBe(
+      'destructive',
+    );
+    expect(detectDanger('pwsh', ['Remove-Item', '-r', '-f', 'build']).level).toBe('destructive');
+  });
+
+  it('flags mixed-casing parameters as destructive', () => {
+    expect(detectDanger('powershell', ['Remove-Item', '-Recurse', '-force', 'build']).level).toBe(
+      'destructive',
+    );
+    expect(detectDanger('pwsh', ['Remove-Item', '-recurse', '-F', 'build']).level).toBe(
+      'destructive',
+    );
+  });
+
+  it('does NOT flag lowercase `-whatif` (dry-run, any casing)', () => {
+    const r = detectDanger('powershell', ['Remove-Item', '-whatif', '-recurse', '-force', 'foo']);
+    expect(r.level).toBe('safe');
+  });
+
   it('does NOT flag `powershell Get-ChildItem -Recurse` (different verb)', () => {
     const r = detectDanger('powershell', ['Get-ChildItem', '-Recurse']);
     expect(r.level).toBe('safe');
