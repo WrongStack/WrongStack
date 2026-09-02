@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-02T18:55:13.588Z
+**Generated:** 2026-09-02T19:14:35.267Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -21,105 +21,7 @@
 
 ## Verification result
 
-- packages/cli/src/execution.ts: hotspot grew from 878 to 881 lines; review and update the ratchet in the same change
-- packages/cli/src/fleet/host.ts: hotspot shrunk from 841 to 839 lines; review and update the ratchet in the same change
-- packages/cli/src/goal-host.ts: hotspot grew from 930 to 931 lines; review and update the ratchet in the same change
-- packages/cli/src/plugin-management.ts: hotspot shrunk from 1038 to 1033 lines; review and update the ratchet in the same change
-- packages/cli/src/slash-commands/sdd.ts: hotspot grew from 1003 to 1014 lines; review and update the ratchet in the same change
-- packages/cli/src/webui-server.ts: hotspot grew from 941 to 943 lines; review and update the ratchet in the same change
-- packages/core/src/chronicle/file-observer.ts: hotspot shrunk from 812 to 807 lines; review and update the ratchet in the same change
-- packages/core/src/chronicle/query.ts: hotspot grew from 1297 to 1309 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/autonomous-coordinator.ts: hotspot grew from 982 to 1103 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/collab-debug.ts: hotspot grew from 900 to 915 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/director.ts: hotspot shrunk from 967 to 966 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/fleet-supervisor.ts: hotspot grew from 828 to 834 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/provider-status-tracker.ts: hotspot shrunk from 1096 to 1092 lines; review and update the ratchet in the same change
-- packages/core/src/coordination/subagent-budget.ts: hotspot grew from 828 to 855 lines; review and update the ratchet in the same change
-- packages/core/src/core/fallback-model.ts: hotspot grew from 874 to 879 lines; review and update the ratchet in the same change
-- packages/core/src/execution/prompt-enhancer.ts: hotspot shrunk from 823 to 814 lines; review and update the ratchet in the same change
-- packages/core/src/hq/protocol/core.ts: hotspot shrunk from 949 to 944 lines; review and update the ratchet in the same change
-- packages/plugins/src/duplicate-code-detector/index.ts: hotspot shrunk from 876 to 872 lines; review and update the ratchet in the same change
-- packages/plugins/src/git-autocommit/index.ts: hotspot grew from 1022 to 1030 lines; review and update the ratchet in the same change
-- packages/plugins/src/prompt-firewall/index.ts: hotspot grew from 938 to 955 lines; review and update the ratchet in the same change
-- packages/plugins/src/secret-scanner/index.ts: hotspot grew from 927 to 934 lines; review and update the ratchet in the same change
-- packages/plugins/src/semantic-search-indexer/index.ts: hotspot grew from 936 to 948 lines; review and update the ratchet in the same change
-- packages/plugins/src/semver-bump/index.ts: new 807-line hotspot is not in architecture/hotspots.json
-- packages/plugins/src/test-runner-gate/index.ts: hotspot grew from 861 to 876 lines; review and update the ratchet in the same change
-- packages/primitives/src/regex-ambiguity.ts: hotspot grew from 827 to 834 lines; review and update the ratchet in the same change
-- packages/providers/src/openai-codex.ts: hotspot grew from 817 to 819 lines; review and update the ratchet in the same change
-- packages/sage/src/domain-term-extractor.ts: hotspot shrunk from 873 to 872 lines; review and update the ratchet in the same change
-- packages/sage/src/sqlite-store.ts: hotspot shrunk from 1063 to 1033 lines; review and update the ratchet in the same change
-- packages/sage/src/tools/memory-tools.ts: hotspot shrunk from 985 to 977 lines; review and update the ratchet in the same change
-- packages/sage/src/types.ts: hotspot grew from 993 to 996 lines; review and update the ratchet in the same change
-- packages/tools/src/codebase-index/writer.ts: hotspot shrunk from 1081 to 1080 lines; review and update the ratchet in the same change
-- packages/tools/src/json.ts: hotspot grew from 861 to 908 lines; review and update the ratchet in the same change
-- packages/tui/src/components/context-panel.tsx: hotspot shrunk from 1024 to 1014 lines; review and update the ratchet in the same change
-- packages/tui/src/components/history/utils.tsx: hotspot grew from 1015 to 1030 lines; review and update the ratchet in the same change
-- packages/tui/src/components/settings-picker-model.ts: hotspot grew from 1089 to 1095 lines; review and update the ratchet in the same change
-- packages/tui/src/components/settings-picker.tsx: hotspot grew from 816 to 821 lines; review and update the ratchet in the same change
-- packages/tui/src/components/sidebar-content.tsx: hotspot grew from 1035 to 1041 lines; review and update the ratchet in the same change
-- packages/tui/src/input-validation.ts: hotspot grew from 959 to 983 lines; review and update the ratchet in the same change
-- packages/tui/src/reducers/settings-values.ts: hotspot grew from 842 to 845 lines; review and update the ratchet in the same change
-- packages/webui/src/components/AgentOfficeView.tsx: hotspot shrunk from 1089 to 1081 lines; review and update the ratchet in the same change
-- packages/webui/src/components/AudienceMemoryPanel.tsx: hotspot grew from 906 to 909 lines; review and update the ratchet in the same change
-- packages/webui/src/components/CodeMap.tsx: hotspot shrunk from 936 to 931 lines; review and update the ratchet in the same change
-- packages/webui/src/components/ContextDashboard.tsx: hotspot shrunk from 1046 to 1044 lines; review and update the ratchet in the same change
-- packages/webui/src/components/FileActivityDrawer.tsx: hotspot shrunk from 1063 to 1062 lines; review and update the ratchet in the same change
-- packages/webui/src/components/OfficeMapCanvas.tsx: hotspot grew from 1044 to 1049 lines; review and update the ratchet in the same change
-- packages/webui/src/components/SddWizard.tsx: hotspot grew from 851 to 899 lines; review and update the ratchet in the same change
-- packages/webui/src/components/SidePanel/SkillsList.tsx: new 800-line hotspot is not in architecture/hotspots.json
-- packages/webui/src/components/SkillDetailView.tsx: hotspot grew from 915 to 1051 lines; review and update the ratchet in the same change
-- packages/webui/src/components/TechStackView/index.tsx: hotspot grew from 831 to 865 lines; review and update the ratchet in the same change
-- packages/webui/src/hooks/ws-handlers/misc-handlers.ts: hotspot grew from 992 to 1004 lines; review and update the ratchet in the same change
-- packages/webui/src/stores/viz-store.ts: hotspot grew from 974 to 1110 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/context-editor.ts: hotspot grew from 1020 to 1039 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/file-handlers.ts: hotspot shrunk from 1108 to 1105 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/routes.ts: hotspot shrunk from 966 to 964 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/session-handlers.ts: hotspot grew from 1706 to 1715 lines; review and update the ratchet in the same change
-- packages/webui-server/src/server/start-webui.ts: hotspot grew from 1044 to 1053 lines; review and update the ratchet in the same change
-- apps/desktop/src/renderer/src/renderer.ts: hotspot grew from 944 to 961 lines; review and update the ratchet in the same change
-- packages/webui-hq/src/app.tsx: stale hotspot baseline; remove or tighten it in the same change
-- packages/webui-hq/src/views/control.tsx: stale hotspot baseline; remove or tighten it in the same change
-- packages/webui-hq/src/views/settings.tsx: stale hotspot baseline; remove or tighten it in the same change
-- packages/tools/src/builtin.ts: "BUILTIN_TOOL_DESCRIPTIONS" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/local-prefs.ts: "getHqLocalPrefsSnapshot" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/local-prefs.ts: "reloadHqLocalPrefs" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/local-prefs.ts: "resetHqLocalPrefs" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/selectors.ts: "actionableAlertCount" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/transport/hq-socket.ts: "closeHqSocket" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/transport/hq-socket.ts: "resolveHqSocketUrl" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/transport/resume-frames.ts: "MAX_RESUME_FRAMES" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/transport/resume-frames.ts: "normalizeResumeSeq" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/wire.ts: "applySocketMessage" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/wire.ts: "armSnapshotRefresh" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/data/wire.ts: "hydrateFromHttp" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/fleet-topology.ts: "FLEET_COLUMN_GAP" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/fleet-topology.ts: "FLEET_LEAF_H" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/mailbox-filters.ts: "EMPTY_LIVE_FILTER_STATE" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/mailbox-live.ts: "buildLiveFeed" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/transcript-store.ts: "entryKey" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/domain/use-session-transcript.ts: "coalesceStreamedText" is exported but only tests reference it; wire it, drop it, or record it in architecture/test-only-exports.json
-- packages/webui-hq/src/app.tsx: "getHqViewDefinition" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/app.tsx: "HQ_VIEW_DEFINITIONS" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/auth.ts: "authHeaders" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/auth.ts: "normalizeHqTokenInput" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/auth.ts: "setHqToken" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/hq-ws-client.ts: "closeHqClient" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/inspector-slots.tsx: "RightInspector" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/inspector.ts: "clearInspectorSlots" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/transcript-store.ts: "entryKey" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/lib/use-session-transcript.ts: "coalesceStreamedText" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/stores/hq-local-prefs.ts: "getHqLocalPrefsSnapshot" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/stores/hq-local-prefs.ts: "reloadHqLocalPrefs" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/stores/hq-local-prefs.ts: "resetHqLocalPrefs" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/control.tsx: "controlClientLabel" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/fleet-nav.tsx: "buildNav" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/fleet-topology.ts: "FLEET_COLUMN_GAP" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/fleet-topology.ts: "FLEET_LEAF_H" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/live-console.tsx: "commandLifecycleTone" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/mailbox-filters.ts: "EMPTY_LIVE_FILTER_STATE" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/mailbox-live.ts: "buildLiveFeed" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
-- packages/webui-hq/src/views/settings.tsx: "scorePassword" is no longer test-only; remove it from architecture/test-only-exports.json in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

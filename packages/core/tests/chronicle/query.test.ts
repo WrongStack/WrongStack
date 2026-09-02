@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, open, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, open, rm, stat, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -130,9 +130,11 @@ describe('ChronicleQueryEngine', () => {
 
     const shrinkHandle = await open(partition, 'r+');
     const probe = await open(partition, 'r');
-    const readProto = Object.getPrototypeOf(probe) as { read: unknown };
+    const readProto = Object.getPrototypeOf(probe) as {
+      read: (...args: unknown[]) => Promise<unknown>;
+    };
     await probe.close();
-    const originalRead = readProto.read as (...args: unknown[]) => Promise<unknown>;
+    const originalRead = readProto.read;
     const spy = vi.spyOn(readProto, 'read').mockImplementation(async function (
       this: unknown,
       ...args: unknown[]

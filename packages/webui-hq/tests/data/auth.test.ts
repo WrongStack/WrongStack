@@ -317,7 +317,6 @@ describe('storage() null-fallback and SSR guard', () => {
   it('scrubTokenFromUrl SSR guard: no-op when window is undefined', () => {
     // Make window undefined → scrubTokenFromUrl returns early.
     const origWindow = (globalThis as { window?: unknown }).window;
-    // @ts-expect-error: temporarily deleting window
     delete (globalThis as { window?: unknown }).window;
     try {
       expect(() => scrubTokenFromUrl()).not.toThrow();
@@ -332,7 +331,6 @@ describe('error-path catch blocks', () => {
     // URLSearchParams can throw when the query string is extreme; the catch
     // safety-net must return null so the caller falls through to stored token.
     setUrl('/?token=boom');
-    // @ts-expect-error: deliberately injecting a throwing constructor
     const OrigURLSearchParams = globalThis.URLSearchParams;
     // @ts-expect-error: assigning a throwing stub
     globalThis.URLSearchParams = class {

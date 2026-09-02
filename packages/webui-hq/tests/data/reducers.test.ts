@@ -260,9 +260,9 @@ describe('reduceCommandStatus', () => {
 
   it('upserts in place so one command is one audit row', () => {
     const state = fleetState({ commandStatuses: [commandEntry('c1')] });
-    const patch = reduceCommandStatus(state, commandEntry('c1', { ackStatus: 'acked' }));
+    const patch = reduceCommandStatus(state, commandEntry('c1', { ackStatus: 'accepted' }));
     expect(patch.commandStatuses).toHaveLength(1);
-    expect(patch.commandStatuses?.[0]?.ackStatus).toBe('acked');
+    expect(patch.commandStatuses?.[0]?.ackStatus).toBe('accepted');
   });
 
   it(`is bounded at ${MAX_COMMAND_STATUSES}`, () => {
