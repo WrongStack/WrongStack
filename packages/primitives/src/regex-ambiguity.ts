@@ -102,7 +102,9 @@ const SPACE: CharSet = freezeSet([
   [9, 13],
   [32, 32],
 ]);
-const NAMED_SETS: Record<string, CharSet> = Object.freeze({
+// Typed Readonly on top of Object.freeze, so a key write into this table is a
+// compile error (TS2542) and not merely a runtime TypeError.
+const NAMED_SETS: Readonly<Record<string, CharSet>> = Object.freeze({
   w: WORD,
   W: freezeSet(complementOf(WORD)),
   d: DIGIT,

@@ -272,7 +272,7 @@ function charSetsIntersect(a: CharSet, b: CharSet): boolean {
 // working range lists by `parseCharClass`, so the cached complements are
 // frozen exactly like the base sets — folding `_` into `\W`'s [91,94] tuple
 // was one of the proven corruption paths.
-const NAMED_CLASS_SETS: Record<string, CharSet> = Object.freeze({
+const NAMED_CLASS_SETS: Readonly<Record<string, CharSet>> = Object.freeze({
   w: WORD_SET,
   W: freezeSet(complementOf(WORD_SET)),
   d: DIGIT_SET,
