@@ -1,282 +1,274 @@
 /**
- * Trends view — time-bucketed cost + activity from /api/trends/cost, rendered
- * as a KPI row plus one single-series column chart per measure (cost, tokens,
- * tool calls). One chart = one measure = one hue; never a dual axis. When the
- * server reports per-model / per-provider breakdowns (newer cost signals),
- * those roll up into a "By Model" / "By Provider" share table.
+ * Trends — time-bucketed telemetry.
+ *
+ * Three measures, three charts, one hue each. Cost, tokens and tool calls are
+ * never plotted together: they differ by orders of magnitude, and a dual axis
+ * would make any pair look correlated. When the server reports per-model or
+ * per-provider cost, those roll up into share tables underneath.
  */
 import type { HqTimeseriesBreakdownEntry, HqTimeseriesSample } from '@wrongstack/core/hq';
-import type React from 'react';
+import { ChartNoAxesCombined } from 'lucide-react';
+import type * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';
-import { TimeseriesChart } from '../lib/timeseries-chart.js';
-import { fetchJson } from '../store.js';
+import { EmptyState, Mono } from '../components/hq/primitives.js';
+import { TimeseriesChart } from '../components/hq/timeseries-chart.js';
+import { HeroMetric, Section, ViewHero, ViewShell } from '../components/hq/view-chrome.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
+import { fetchJson } from '../data/api.js';
+import { cn } from '../lib/utils.js';
+import { formatCount, formatPercent, formatUsd } from '../lib/format.js';
+
+/** Trend buckets are five minutes wide; 30s polling is well inside that. */
+const TRENDS_POLL_MS = 30_000;
+const FALLBACK_BUCKETS = 24;
 
 interface TrendsResponse {
   samples: HqTimeseriesSample[];
 }
 
-const RANGES: { label: string; ms: number }[] = [
+const RANGES = [
   { label: '1h', ms: 60 * 60 * 1000 },
   { label: '6h', ms: 6 * 60 * 60 * 1000 },
   { label: '24h', ms: 24 * 60 * 60 * 1000 },
   { label: '7d', ms: 7 * 24 * 60 * 60 * 1000 },
-];
+] as const;
 
-function fmtTokens(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
-  return String(Math.round(v));
-}
+const DEFAULT_RANGE_MS = RANGES[2].ms;
 
-/** Aggregate per-model / per-provider breakdown entries across shown buckets. */
+/** Sum per-model / per-provider entries across the buckets in view. */
 function rollup(
   samples: readonly HqTimeseriesSample[],
-  dim: 'byModel' | 'byProvider',
+  dimension: 'byModel' | 'byProvider',
 ): { key: string; entry: HqTimeseriesBreakdownEntry }[] {
-  const acc = new Map<string, HqTimeseriesBreakdownEntry>();
-  for (const s of samples) {
-    const map = s[dim];
-    if (map === undefined) continue;
-    for (const [key, raw] of Object.entries(map)) {
-      const existing = acc.get(key);
+  const totals = new Map<string, HqTimeseriesBreakdownEntry>();
+  for (const sample of samples) {
+    const breakdown = sample[dimension];
+    if (breakdown === undefined) continue;
+    for (const [key, raw] of Object.entries(breakdown)) {
+      const existing = totals.get(key);
       if (existing === undefined) {
-        acc.set(key, { ...raw });
-      } else {
-        existing.costUsd += raw.costUsd;
-        existing.inputTokens += raw.inputTokens;
-        existing.outputTokens += raw.outputTokens;
-        existing.cacheRead = (existing.cacheRead ?? 0) + (raw.cacheRead ?? 0);
-        existing.cacheWrite = (existing.cacheWrite ?? 0) + (raw.cacheWrite ?? 0);
+        totals.set(key, { ...raw });
+        continue;
       }
+      existing.costUsd += raw.costUsd;
+      existing.inputTokens += raw.inputTokens;
+      existing.outputTokens += raw.outputTokens;
+      existing.cacheRead = (existing.cacheRead ?? 0) + (raw.cacheRead ?? 0);
+      existing.cacheWrite = (existing.cacheWrite ?? 0) + (raw.cacheWrite ?? 0);
     }
   }
-  return [...acc.entries()]
+  return [...totals.entries()]
     .map(([key, entry]) => ({ key, entry }))
-    .sort((a, b) => b.entry.costUsd - a.entry.costUsd);
+    .sort((left, right) => right.entry.costUsd - left.entry.costUsd);
+}
+
+function BreakdownRows({
+  rows,
+  totalCost,
+  showTokens,
+}: {
+  rows: { key: string; entry: HqTimeseriesBreakdownEntry }[];
+  totalCost: number;
+  showTokens: boolean;
+}): React.ReactElement {
+  return (
+    <Card className="divide-y divide-border">
+      {rows.map(({ key, entry }) => {
+        const share = totalCost > 0 ? entry.costUsd / totalCost : 0;
+        const cache = (entry.cacheRead ?? 0) + (entry.cacheWrite ?? 0);
+        return (
+          <div
+            key={key}
+            data-testid="breakdown-row"
+            className="flex flex-wrap items-baseline gap-2 px-3 py-1.5 text-xs"
+          >
+            <span className="font-medium">{key}</span>
+            {showTokens && (
+              <Mono>
+                {formatCount(entry.inputTokens)}→{formatCount(entry.outputTokens)}
+                {cache > 0 ? ` · cache ${formatCount(cache)}` : ''}
+              </Mono>
+            )}
+            <span className="tabular ml-auto font-semibold">{formatUsd(entry.costUsd)}</span>
+            <Mono className="tabular w-12 text-right">{formatPercent(share, 1)}</Mono>
+          </div>
+        );
+      })}
+    </Card>
+  );
 }
 
 export function TrendsView(): React.ReactElement {
   const [samples, setSamples] = useState<HqTimeseriesSample[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [rangeMs, setRangeMs] = useState(RANGES[2]!.ms);
+  const [rangeMs, setRangeMs] = useState<number>(DEFAULT_RANGE_MS);
 
   useEffect(() => {
     let cancelled = false;
     const load = (): void => {
       fetchJson<TrendsResponse>('/api/trends/cost')
         .then((data) => {
-          if (!cancelled) {
-            setSamples(data.samples);
-            setError(null);
-          }
+          if (cancelled) return;
+          setSamples(data.samples);
+          setError(null);
         })
-        .catch((err: Error) => {
-          if (!cancelled) setError(err.message);
+        .catch((cause: Error) => {
+          if (!cancelled) setError(cause.message);
         });
     };
     load();
-    const timer = setInterval(load, 30_000);
+    const timer = window.setInterval(load, TRENDS_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, []);
 
-  const {
-    shown,
-    totalCost,
-    totalTokens,
-    totalTools,
-    byModel,
-    byProvider,
-    totalCacheRead,
-    totalPromptTokens,
-  } = useMemo(() => {
+  const view = useMemo(() => {
     const cutoff = Date.now() - rangeMs;
-    const inRange = samples.filter((s) => s.ts >= cutoff);
-    const shown = inRange.length > 0 ? inRange : samples.slice(-24);
-    const totalCost = shown.reduce((s, b) => s + b.costUsd, 0);
-    const totalTokens = shown.reduce((s, b) => s + b.inputTokens + b.outputTokens, 0);
-    const totalTools = shown.reduce((s, b) => s + b.toolCalls, 0);
+    const inRange = samples.filter((sample) => sample.ts >= cutoff);
+    // An empty window on a quiet fleet reads as "broken"; fall back to the
+    // most recent buckets so the charts always show the latest activity.
+    const shown = inRange.length > 0 ? inRange : samples.slice(-FALLBACK_BUCKETS);
+    const totalCost = shown.reduce((sum, bucket) => sum + bucket.costUsd, 0);
+    const totalTokens = shown.reduce(
+      (sum, bucket) => sum + bucket.inputTokens + bucket.outputTokens,
+      0,
+    );
+    const totalTools = shown.reduce((sum, bucket) => sum + bucket.toolCalls, 0);
     const byModel = rollup(shown, 'byModel');
     const byProvider = rollup(shown, 'byProvider');
-    const totalCacheRead = byModel.reduce((s, e) => s + (e.entry.cacheRead ?? 0), 0);
-    const totalPromptTokens = shown.reduce((s, b) => s + b.inputTokens, 0);
-    return {
-      shown,
-      totalCost,
-      totalTokens,
-      totalTools,
-      byModel,
-      byProvider,
-      totalCacheRead,
-      totalPromptTokens,
-    };
+    const cacheRead = byModel.reduce((sum, row) => sum + (row.entry.cacheRead ?? 0), 0);
+    const promptTokens = shown.reduce((sum, bucket) => sum + bucket.inputTokens, 0);
+    const cacheHit =
+      promptTokens > 0 && cacheRead > 0 ? Math.min(1, cacheRead / promptTokens) : null;
+    return { shown, totalCost, totalTokens, totalTools, byModel, byProvider, cacheHit };
   }, [samples, rangeMs]);
 
-  if (error !== null)
-    return <div className="hq-empty hq-empty-ornate">Error loading trends: {error}</div>;
-  if (samples.length === 0) {
+  if (error !== null) {
     return (
-      <div className="hq-empty hq-empty-ornate">
-        No trend data yet. Trends accumulate as cost signals arrive.
-      </div>
+      <ViewShell>
+        <EmptyState icon={ChartNoAxesCombined} title="Could not load trends" hint={error} />
+      </ViewShell>
     );
   }
 
-  const hasModelBreakdown = byModel.length > 0;
-  const cacheHitPct =
-    totalPromptTokens > 0 && totalCacheRead > 0
-      ? Math.min(100, Math.max(0, (totalCacheRead / totalPromptTokens) * 100))
-      : null;
+  if (samples.length === 0) {
+    return (
+      <ViewShell>
+        <EmptyState
+          icon={ChartNoAxesCombined}
+          title="No trend data yet"
+          hint="Buckets accumulate as cost signals arrive from the fleet."
+        />
+      </ViewShell>
+    );
+  }
+
   const activeRange = RANGES.find((range) => range.ms === rangeMs)?.label ?? 'custom';
 
   return (
-    <div className="hq-screen hq-trends-screen">
-      <section className="hq-screen-hero hq-trends-hero" aria-label="Telemetry trend summary">
-        <div>
-          <span className="hq-section-kicker">Telemetry runway</span>
-          <h2>{activeRange} signal window</h2>
-          <p>
-            Cost, tokens and tool activity are split into single-purpose charts so spikes stay
-            attributable without dual-axis ambiguity.
-          </p>
-        </div>
-        <div className="hq-hero-metrics">
-          <Metric label="cost" value={`$${totalCost.toFixed(4)}`} />
-          <Metric label="tokens" value={fmtTokens(totalTokens)} tone="warn" />
-          <Metric label="tool calls" value={totalTools.toLocaleString()} tone="ok" />
-          {cacheHitPct !== null ? (
-            <Metric label="cache hit" value={`${cacheHitPct.toFixed(0)}%`} />
-          ) : null}
-        </div>
-      </section>
+    <ViewShell>
+      <ViewHero
+        eyebrow="Telemetry runway"
+        headline={`${activeRange} signal window`}
+        description="Cost, tokens and tool activity in single-purpose charts, so a spike stays attributable."
+        metrics={
+          <>
+            <HeroMetric label="cost" value={formatUsd(view.totalCost)} tone="running" />
+            <HeroMetric label="tokens" value={formatCount(view.totalTokens)} tone="info" />
+            <HeroMetric label="tool calls" value={formatCount(view.totalTools)} tone="active" />
+            {view.cacheHit !== null && (
+              <HeroMetric label="cache hit" value={formatPercent(view.cacheHit)} />
+            )}
+          </>
+        }
+      />
 
-      <div className="hq-filter-row hq-trends-filter-row">
-        {RANGES.map((r) => (
+      <div className="flex flex-wrap items-center gap-1.5">
+        {RANGES.map((range) => (
           <button
-            key={r.label}
+            key={range.label}
             type="button"
-            className={`hq-pill hq-filter-chip${rangeMs === r.ms ? ' selected' : ''}`}
-            onClick={() => setRangeMs(r.ms)}
+            data-testid="range-chip"
+            aria-pressed={rangeMs === range.ms}
+            onClick={() => setRangeMs(range.ms)}
+            className={cn(
+              'border px-2 py-0.5 text-[11px] transition-colors',
+              rangeMs === range.ms
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border text-muted-foreground hover:text-foreground',
+            )}
           >
-            {r.label}
+            {range.label}
           </button>
         ))}
-        <span className="hq-mono hq-row-subtle hq-ml-auto">{shown.length} × 5-min buckets</span>
+        <Mono className="tabular ml-auto">{view.shown.length} × 5-min buckets</Mono>
       </div>
 
-      <section className="hq-chart-gallery" aria-label="Trend charts">
-        <div className="hq-card hq-chart-card primary">
-          <div className="hq-section-head compact">
-            <div>
-              <span className="hq-section-kicker">Spend</span>
-              <h3>Cost (USD)</h3>
-            </div>
-          </div>
-          <TimeseriesChart
-            points={shown.map((s) => ({ ts: s.ts, value: s.costUsd }))}
-            color="var(--chart-1)"
-            format={(v) => `$${v >= 1 ? v.toFixed(2) : v.toFixed(4)}`}
-          />
-        </div>
-        <div className="hq-card hq-chart-card">
-          <div className="hq-section-head compact">
-            <div>
-              <span className="hq-section-kicker">Volume</span>
-              <h3>Tokens (in + out)</h3>
-            </div>
-          </div>
-          <TimeseriesChart
-            points={shown.map((s) => ({ ts: s.ts, value: s.inputTokens + s.outputTokens }))}
-            color="var(--chart-2)"
-            format={fmtTokens}
-          />
-        </div>
-        <div className="hq-card hq-chart-card">
-          <div className="hq-section-head compact">
-            <div>
-              <span className="hq-section-kicker">Activity</span>
-              <h3>Tool calls</h3>
-            </div>
-          </div>
-          <TimeseriesChart
-            points={shown.map((s) => ({ ts: s.ts, value: s.toolCalls }))}
-            color="var(--chart-3)"
-            format={(v) => String(Math.round(v))}
-          />
-        </div>
-      </section>
+      <div className="grid gap-3 2xl:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Cost (USD)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimeseriesChart
+              label="Cost per 5-minute bucket"
+              points={view.shown.map((sample) => ({ ts: sample.ts, value: sample.costUsd }))}
+              color="hsl(var(--primary))"
+              format={formatUsd}
+            />
+          </CardContent>
+        </Card>
 
-      {hasModelBreakdown && (
-        <section className="hq-two-column hq-trends-breakdowns">
-          <div>
-            <div className="hq-section-head compact">
-              <div>
-                <span className="hq-section-kicker">Model economics</span>
-                <h3>By Model</h3>
-              </div>
-            </div>
-            <div className="hq-card hq-breakdown-card">
-              {byModel.map(({ key, entry }) => {
-                const pct = totalCost > 0 ? (entry.costUsd / totalCost) * 100 : 0;
-                return (
-                  <div key={key} className="hq-row hq-breakdown-row">
-                    <span className="hq-text-bright">{key}</span>
-                    <span className="hq-mono hq-row-subtle">
-                      {fmtTokens(entry.inputTokens)}→{fmtTokens(entry.outputTokens)}
-                      {entry.cacheRead !== undefined || entry.cacheWrite !== undefined
-                        ? ` · cache ${fmtTokens((entry.cacheRead ?? 0) + (entry.cacheWrite ?? 0))}`
-                        : ''}
-                    </span>
-                    <span className="hq-cost-amount hq-ml-auto">${entry.costUsd.toFixed(4)}</span>
-                    <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          {byProvider.length > 1 && (
-            <div>
-              <div className="hq-section-head compact">
-                <div>
-                  <span className="hq-section-kicker">Provider split</span>
-                  <h3>By Provider</h3>
-                </div>
-              </div>
-              <div className="hq-card hq-breakdown-card">
-                {byProvider.map(({ key, entry }) => {
-                  const pct = totalCost > 0 ? (entry.costUsd / totalCost) * 100 : 0;
-                  return (
-                    <div key={key} className="hq-row hq-breakdown-row">
-                      <span className="hq-text-bright">{key}</span>
-                      <span className="hq-cost-amount hq-ml-auto">${entry.costUsd.toFixed(4)}</span>
-                      <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Tokens (in + out)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimeseriesChart
+              label="Tokens per 5-minute bucket"
+              points={view.shown.map((sample) => ({
+                ts: sample.ts,
+                value: sample.inputTokens + sample.outputTokens,
+              }))}
+              color="hsl(var(--info))"
+              format={formatCount}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Tool calls</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimeseriesChart
+              label="Tool calls per 5-minute bucket"
+              points={view.shown.map((sample) => ({ ts: sample.ts, value: sample.toolCalls }))}
+              color="hsl(var(--brand-orange))"
+              format={(value) => String(Math.round(value))}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {view.byModel.length > 0 && (
+        <div className="grid gap-5 2xl:grid-cols-2">
+          <Section eyebrow="Model economics" title="By model">
+            <BreakdownRows rows={view.byModel} totalCost={view.totalCost} showTokens />
+          </Section>
+          {view.byProvider.length > 1 && (
+            <Section eyebrow="Provider split" title="By provider">
+              <BreakdownRows
+                rows={view.byProvider}
+                totalCost={view.totalCost}
+                showTokens={false}
+              />
+            </Section>
           )}
-        </section>
+        </div>
       )}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone?: 'ok' | 'warn' | 'error';
-}): React.ReactElement {
-  return (
-    <div className="hq-hero-metric" data-tone={tone}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
+    </ViewShell>
   );
 }

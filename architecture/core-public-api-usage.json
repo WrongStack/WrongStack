@@ -64,14 +64,14 @@
       "runtimeOrMixed": 10
     },
     "@wrongstack/core/hq": {
-      "files": 124,
-      "typeOnly": 81,
+      "files": 121,
+      "typeOnly": 78,
       "runtimeOrMixed": 73
     },
     "@wrongstack/core/hq/protocol": {
-      "files": 3,
-      "typeOnly": 1,
-      "runtimeOrMixed": 2
+      "files": 5,
+      "typeOnly": 0,
+      "runtimeOrMixed": 5
     },
     "@wrongstack/core/infrastructure": {
       "files": 42,
@@ -149,9 +149,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/storage": {
-      "files": 117,
+      "files": 118,
       "typeOnly": 32,
-      "runtimeOrMixed": 119
+      "runtimeOrMixed": 120
     },
     "@wrongstack/core/tasking": {
       "files": 32,
@@ -3256,7 +3256,7 @@
     },
     {
       "specifier": "@wrongstack/core/coordination",
-      "file": "packages/webui-hq/src/lib/mailbox-actions.ts",
+      "file": "packages/webui-hq/src/domain/mailbox-actions.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4588,43 +4588,121 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/app.tsx",
+      "file": "packages/webui-hq/src/components/hq/transcript/turn.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/lib/hq-ws-client.ts",
+      "file": "packages/webui-hq/src/data/selectors.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/lib/transcript-store.ts",
+      "file": "packages/webui-hq/src/data/store/reducers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/lib/use-backfilled-events.ts",
+      "file": "packages/webui-hq/src/data/store/types.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/lib/use-session-transcript.ts",
+      "file": "packages/webui-hq/src/data/transport/hq-socket.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/main.tsx",
+      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/store.ts",
+      "file": "packages/webui-hq/src/data/wire.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/console-target.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/control-format.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/fleet-nav-tree.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/fleet-topology.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/kanban-model.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/mailbox-events.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/mailbox-filters.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/mailbox-grouping.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/mailbox-live.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/mailbox-types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/transcript-store.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/use-backfilled-events.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
+      "file": "packages/webui-hq/src/domain/use-session-transcript.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4648,79 +4726,31 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/console-target.ts",
+      "file": "packages/webui-hq/src/views/console/fleet-nav.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/control.tsx",
+      "file": "packages/webui-hq/src/views/control/audit-rail.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/fleet-nav.tsx",
+      "file": "packages/webui-hq/src/views/control/index.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/fleet-topology.ts",
+      "file": "packages/webui-hq/src/views/kanban/index.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/kanban-model.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/kanban.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox-filters.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox-grouping.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox-live-view.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox-live.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox-types.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/mailbox.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/src/views/transcript-turn.tsx",
+      "file": "packages/webui-hq/src/views/mailbox/live-feed.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4738,31 +4768,13 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/alerts-views.test.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/app-shell.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/coalesce-streamed-text.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/cockpit-alerts-badge.test.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/cockpit-token-stats.test.tsx",
+      "file": "packages/webui-hq/tests/components/transcript-turn.test.tsx",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4780,7 +4792,7 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/control-view.test.tsx",
+      "file": "packages/webui-hq/tests/fixtures/hq.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4804,19 +4816,7 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/kanban-view.test.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/mailbox-grouping.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/mailbox-live-view.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4828,25 +4828,7 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/store-reducers.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/store.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
       "file": "packages/webui-hq/tests/transcript-store.test.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/hq",
-      "file": "packages/webui-hq/tests/transcript-turn.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -4876,21 +4858,33 @@
     },
     {
       "specifier": "@wrongstack/core/hq/protocol",
-      "file": "packages/webui-hq/src/lib/peer-resume-id.ts",
+      "file": "packages/webui-hq/src/data/store/reducers.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq/protocol",
-      "file": "packages/webui-hq/src/store.ts",
+      "file": "packages/webui-hq/src/data/transport/resume-frames.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq/protocol",
-      "file": "packages/webui-hq/tests/cockpit-governance.test.tsx",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "file": "packages/webui-hq/tests/data/hq-socket.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq/protocol",
+      "file": "packages/webui-hq/tests/data/reducers.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq/protocol",
+      "file": "packages/webui-hq/tests/data/transport.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/infrastructure",
@@ -9559,6 +9553,12 @@
       "file": "packages/webui-server/tests/session-child-discovery.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/webui-server/tests/session-handlers.gaps.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",

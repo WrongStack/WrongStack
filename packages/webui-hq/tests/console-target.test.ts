@@ -1,6 +1,6 @@
 import type { HqSnapshot } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { resolveConsoleControlTarget } from '../src/views/console-target.js';
+import { resolveConsoleControlTarget } from '../src/domain/console-target.js';
 
 function snapshot(): HqSnapshot {
   return {

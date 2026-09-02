@@ -1511,13 +1511,22 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     rewindSession: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'session.rewind')) return;
       const { checkpointIndex } = (msg as { payload: { checkpointIndex: number } }).payload;
+      // Rewind truncates the session journal AND reverts project files, so
+      // running it under a live run destroys the in-flight turn's journal
+      // window and reverts files its tools are mid-way through editing — the
+      // same destructive window `session.delete` refuses. A client's view of
+      // the run state can lag, so the guard is enforced here, server-side.
+      const targetSessionId = actingSessionId(msg);
+      if (ctx.isRunActive?.(targetSessionId)) {
+        result(ws, false, 'Cannot rewind while an agent run is active. Please stop the run first.');
+        return;
+      }
       try {
         const { applyRewindToConversation, DefaultSessionRewinder } = await import(
           '@wrongstack/core/storage'
         );
         const projectRoot = ctx.getProjectRoot();
         const rewinder = new DefaultSessionRewinder(sessionsDirectory(), projectRoot);
-        const targetSessionId = actingSessionId(msg);
         const target = contextForMessage(msg);
         // Refuse to rewind a session whose journal this process does not
         // actually hold open: cutting the file while another context still

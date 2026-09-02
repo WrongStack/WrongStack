@@ -569,8 +569,15 @@ async function* reverseLines(filePath: string, maxBytes?: number): AsyncGenerato
       const length = Math.min(CHUNK, position);
       position -= length;
       const buffer = Buffer.allocUnsafe(length);
-      await handle.read(buffer, 0, length, position);
-      const data = suffix.length === 0 ? buffer : Buffer.concat([buffer, suffix]);
+      const { bytesRead } = await handle.read(buffer, 0, length, position);
+      // A concurrent shrink (e.g. the retention purge running while a query
+      // streams) can leave the recorded offset at or past the file's new EOF:
+      // the OS then returns FEWER bytes than requested — zero at most — and
+      // allocUnsafe leaves the unread tail uninitialized. Consuming the whole
+      // buffer emitted garbage lines (invalidLines noise); honor bytesRead and
+      // let the walk continue over the content that still exists below.
+      const chunk = bytesRead === length ? buffer : buffer.subarray(0, bytesRead);
+      const data = suffix.length === 0 ? chunk : Buffer.concat([chunk, suffix]);
       let lineEnd = data.length;
       let firstNewline = -1;
       for (let index = data.length - 1; index >= 0; index--) {
@@ -1046,7 +1053,12 @@ function readPath(value: Record<string, unknown>, key: string): unknown {
     );
 }
 function deepEqual(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  // Compare via stableStringify so OBJECT KEY ORDER never decides a match: a
+  // nested attribute filter arrives from a client whose key insertion order
+  // carries no meaning, while a raw JSON.stringify comparison made the
+  // verdict depend on it (content-identical usage objects silently missed).
+  // Array order is preserved — element order is semantic.
+  return stableStringify(left) === stableStringify(right);
 }
 function findInsertionIndex(
   events: readonly ChronicleEvent[],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commandLifecycleTone } from '../src/views/live-console.js';
+import { commandLifecycleTone } from '../src/domain/status-tone.js';
 
 describe('Console command lifecycle presentation', () => {
   it('maps pushed command states to readable status tones', () => {

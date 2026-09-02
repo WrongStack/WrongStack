@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, open, rm, stat, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ChronicleJournal,
   ChroniclePartitionRangeCache,
@@ -40,6 +40,103 @@ describe('ChronicleQueryEngine', () => {
     ]);
     expect(engine.diagnostics.invalidLines).toBe(1);
     expect((await engine.query({ promptManifestId: 'prompt_1' })).events).toHaveLength(1);
+  });
+
+  // Round 12: deepEqual compared raw JSON.stringify, so a nested-object
+  // attribute filter only matched when the client's key insertion order
+  // equaled the journal's serialization order — content-identical usage
+  // objects silently missed. Object key order carries no meaning; array
+  // element order still does (stableStringify preserves it).
+  it('matches nested attribute objects regardless of key insertion order', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-deepeq-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-09-02.events.jsonl') });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+      'trace',
+    );
+    await journal.append({
+      eventType: 'provider.attempt.completed',
+      scope: context.scope,
+      correlation: context.correlation,
+      runtime: { providerId: 'openai', modelId: 'gpt-x' },
+      outcome: 'success',
+      occurredAt: '2026-09-02T10:00:00.000Z',
+      // Journal insertion order: cacheRead, cacheWrite, input, output.
+      attributes: { usage: { cacheRead: 0, cacheWrite: 0, input: 100, output: 200 } },
+    });
+    const engine = await ChronicleQueryEngine.fromDirectory(dir);
+    const reordered = await engine.query({
+      attributes: { usage: { input: 100, output: 200, cacheRead: 0, cacheWrite: 0 } },
+    });
+    expect(reordered.events).toHaveLength(1);
+    expect((await engine.query({ attributes: { 'usage.input': 100 } })).events).toHaveLength(1);
+  });
+
+  // Round 13: reverseLines walked its allocUnsafe chunk without honoring the
+  // bytesRead an ftruncate-shortened read returns, so a retention-purge shrink
+  // landing mid-scan consumed the buffer's uninitialized tail as a garbage
+  // line (invalidLines noise). The purge is modeled with ftruncate on a
+  // pre-opened r+ handle — never a path rewrite, which would detach the
+  // engine's open handle on Windows.
+  it('never consumes bytes beyond what the OS returned when the journal shrinks mid-scan', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-revlines-'));
+    tempDirs.push(dir);
+    const partition = path.join(dir, '2026-09-02.events.jsonl');
+    const lines = [1, 2, 3, 4, 5].map((index) =>
+      `${JSON.stringify({
+        schemaVersion: 1,
+        eventId: `evt_${String(index).padStart(2, '0')}_0000000000000000000`,
+        eventType: 'provider.attempt.completed',
+        occurredAt: `2026-09-02T10:0${index}:00.000Z`,
+        observedAt: `2026-09-02T10:0${index}:00.000Z`,
+        persistedAt: `2026-09-02T10:0${index}:00.000Z`,
+        sequence: index,
+        previousHash: '',
+        hash: '',
+        scope: { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 's' },
+        correlation: { traceId: 't1', spanId: `sp${index}` },
+        runtime: { providerId: 'openai', modelId: 'gpt-x' },
+        outcome: 'success',
+        attributes: { usage: { cacheRead: 0, cacheWrite: 0, input: 100, output: 200 } },
+      })}\n`,
+    );
+    const full = lines.join('');
+    await writeFile(partition, full, 'utf8');
+    // Cut at a line boundary so the retained prefix stays fully valid — the
+    // ONLY source of invalid lines may be the bug itself.
+    const shrinkTo = lines.slice(0, 4).join('').length;
+
+    const shrinkHandle = await open(partition, 'r+');
+    const probe = await open(partition, 'r');
+    const readProto = Object.getPrototypeOf(probe) as { read: unknown };
+    await probe.close();
+    const originalRead = readProto.read as (...args: unknown[]) => Promise<unknown>;
+    const spy = vi.spyOn(readProto, 'read').mockImplementation(async function (
+      this: unknown,
+      ...args: unknown[]
+    ) {
+      // The desc walk's single read covers the whole small file at position
+      // 0: truncate right before it delegates so the OS returns fewer bytes
+      // than requested.
+      if ((args[3] as number | null) === 0) await shrinkHandle.truncate(shrinkTo);
+      return originalRead.apply(this, args);
+    });
+
+    try {
+      const engine = await ChronicleQueryEngine.fromFiles([partition]);
+      const result = await engine.query({ order: 'desc' });
+      expect(result.events.map((event) => event.eventId)).toEqual([
+        'evt_04_0000000000000000000',
+        'evt_03_0000000000000000000',
+        'evt_02_0000000000000000000',
+        'evt_01_0000000000000000000',
+      ]);
+      expect(result.invalidLines).toBe(0);
+    } finally {
+      spy.mockRestore();
+      await shrinkHandle.close().catch(() => undefined);
+    }
   });
 
   it('discovers rolled partitions and preserves their numeric order', async () => {

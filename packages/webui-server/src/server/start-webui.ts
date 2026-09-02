@@ -72,7 +72,7 @@ import { createStandaloneTodosCheckpointLifecycle } from './start-webui-todos.js
 import { startTerminalDashboard } from './terminal-dashboard.js';
 import type { WebUIOptions } from './types.js';
 import { startWebUILiveStatusLogger } from './webui-status-logger.js';
-import { broadcast, resolveAuthToken } from './ws-utils.js';
+import { broadcast, buildWebUIAccessUrl, resolveAuthToken } from './ws-utils.js';
 
 export { createStandaloneTodosCheckpointLifecycle };
 
@@ -886,7 +886,16 @@ export async function startWebUI(
   // by itself on non-TTY output or WEBUI_VERBOSE=1 (append-only logs).
   const terminalDashboard = startTerminalDashboard({
     title: 'WebUI',
-    getUrl: () => `http://${wsHost}:${httpPort}`,
+    // Keep the copyable, authenticated browser URL in the persistent TTY
+    // header. This is intentionally different from log banners, which stay
+    // token-free because they may be captured outside the operator terminal.
+    getUrl: () =>
+      buildWebUIAccessUrl({
+        host: wsHost,
+        port: httpPort,
+        token: accessToken,
+        publicUrl,
+      }),
   });
   const stopLiveStatusLogger = startWebUILiveStatusLogger({
     events,

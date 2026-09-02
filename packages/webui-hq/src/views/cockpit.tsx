@@ -1,11 +1,10 @@
 /**
- * Cockpit view — compact HQ overview for Fleet, Alerts, and Cost.
- * Pulls the same data the dedicated views consume (snapshot +
- * alert envelope stream + alert API history) and renders a
- * single at-a-glance card grid so the operator can triage the
- * fleet without bouncing between tabs.
+ * Cockpit — the whole fleet on one screen.
+ *
+ * Every card here duplicates a dedicated view on purpose: the point is triage
+ * without navigation. Each one therefore ends in a jump to the surface that
+ * can act on it, so the Cockpit is a starting point rather than a dead end.
  */
-
 import type { HqAlert, HqSnapshot } from '@wrongstack/core/hq';
 import {
   Activity,
@@ -21,10 +20,26 @@ import {
   Server,
   ShieldCheck,
 } from 'lucide-react';
-import type React from 'react';
+import type * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { fetchJson, postCommand, useHqStore, type ViewId } from '../store.js';
+import { EmptyState, Mono, StatTile, StatusDot } from '../components/hq/primitives.js';
+import { ShareBar } from '../components/hq/view-chrome.js';
+import { Badge, type BadgeTone } from '../components/ui/badge.js';
+import { Button } from '../components/ui/button.js';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '../components/ui/card.js';
+import { fetchJson, postCommand } from '../data/api.js';
+import { type HqViewId, useHqStore } from '../data/store/index.js';
+import type { HqTone } from '../domain/status-tone.js';
+import { shortenId } from '../lib/format.js';
+import { formatClock, formatPercent, formatUsd } from '../lib/format.js';
+import { cn } from '../lib/utils.js';
+
+const HEALTH_POLL_MS = 30_000;
+const ALERTS_POLL_MS = 15_000;
+/** Cockpit shows a digest, not the archive — the Attention view has the rest. */
+const ALERT_DIGEST_LIMIT = 12;
+const TOP_PROJECTS = 4;
 
 interface SystemHealth {
   status: 'healthy' | 'degraded';
@@ -33,50 +48,157 @@ interface SystemHealth {
   connections: { total: number; active: number; stale: number };
 }
 
-interface CockpitAlertEntry {
-  severity: 'info' | 'warn' | 'error' | 'critical' | string;
-  ruleId: string;
-  message: string;
-  timestamp: string;
-}
-
-interface CockpitAlertsResponse {
+interface AlertsResponse {
   active: HqAlert[];
   history: HqAlert[];
 }
 
-interface CockpitSection {
-  title: string;
-  view: ViewId;
-  cta: string;
-  body: React.ReactNode;
-  icon: LucideIcon;
-  tone?: 'attention' | 'positive' | undefined;
-  wide?: boolean | undefined;
+interface AlertDigestEntry {
+  severity: string;
+  ruleId: string;
+  message: string;
+  /**
+   * ISO string from the live WS feed, epoch ms from `/api/alerts`. Kept as a
+   * union rather than normalised: the previous implementation tested
+   * `typeof … === 'string'` on the API's NUMBER and silently fell back to
+   * `Date.now()`, so every polled alert claimed to have just fired.
+   */
+  timestamp: string | number;
 }
 
-type CockpitQuickAction = 'pause-noisy' | 'status-request';
+type QuickAction = 'pause-noisy' | 'status-request';
+
+function alertTone(severity: string): BadgeTone {
+  if (severity === 'critical' || severity === 'error' || severity === 'high') return 'error';
+  if (severity === 'warn' || severity === 'warning' || severity === 'medium') return 'warn';
+  if (severity === 'info' || severity === 'low') return 'info';
+  return 'idle';
+}
+
+function CockpitCard({
+  icon: Icon,
+  title,
+  cta,
+  view,
+  tone,
+  className,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  cta: string;
+  view: HqViewId;
+  tone?: 'attention' | 'positive';
+  className?: string;
+  children: React.ReactNode;
+}): React.ReactElement {
+  return (
+    <Card
+      data-testid="cockpit-card"
+      data-tone={tone}
+      className={cn(tone === 'attention' && 'border-warning/50', className)}
+    >
+      <CardHeader>
+        <Icon />
+        <CardTitle>{title}</CardTitle>
+        <CardAction>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-[11px] text-muted-foreground"
+            onClick={() => useHqStore.getState().setActiveView(view)}
+          >
+            {cta}
+            <ArrowUpRight className="size-3" />
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+function HeroMetric({
+  icon: Icon,
+  label,
+  value,
+  detail,
+  tone = 'idle',
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  detail: string;
+  tone?: HqTone;
+}): React.ReactElement {
+  return (
+    <div className="flex min-w-32 flex-col gap-0.5">
+      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.09em] text-muted-foreground">
+        <Icon className="size-3" />
+        {label}
+      </span>
+      <span
+        className={cn(
+          'tabular font-display text-2xl leading-none',
+          tone === 'error'
+            ? 'text-destructive'
+            : tone === 'warn'
+              ? 'text-warning'
+              : tone === 'active'
+                ? 'text-success'
+                : 'text-foreground',
+        )}
+      >
+        {value}
+      </span>
+      <span className="text-[10px] text-muted-foreground">{detail}</span>
+    </div>
+  );
+}
+
+function TokenStats({
+  tokenStats,
+}: {
+  tokenStats: NonNullable<HqSnapshot['totals']['tokenStats']> | undefined;
+}): React.ReactElement {
+  // Absent on older snapshots — an additive field. Show a placeholder rather
+  // than zeros, so "no data yet" is distinguishable from "zero tokens issued".
+  if (tokenStats === undefined) {
+    return <EmptyState title="Token stats unavailable on this HQ version" />;
+  }
+  const { browserTotal, clientTotal, expired, expiringSoon } = tokenStats;
+  return (
+    <div className="flex flex-wrap gap-x-6 gap-y-3">
+      <StatTile label="browser" value={browserTotal} />
+      <StatTile label="client" value={clientTotal} />
+      <StatTile label="total" value={browserTotal + clientTotal} />
+      <StatTile label="expired" value={expired} tone={expired > 0 ? 'error' : 'idle'} />
+      <StatTile
+        label="expiring soon"
+        value={expiringSoon}
+        tone={expiringSoon > 0 ? 'warn' : 'idle'}
+      />
+    </div>
+  );
+}
 
 export function CockpitView(): React.ReactElement {
-  const {
-    snapshot: snap,
-    alerts,
-    selectedClientId,
-    connected,
-  } = useHqStore(
-    useShallow((s) => ({
-      snapshot: s.snapshot,
-      alerts: s.alerts,
-      selectedClientId: s.selectedClientId,
-      connected: s.connected,
+  const { snapshot, alerts, selectedClientId, connected } = useHqStore(
+    useShallow((state) => ({
+      snapshot: state.snapshot,
+      alerts: state.alerts,
+      selectedClientId: state.selectedClientId,
+      connected: state.connected,
     })),
   );
-  const snapshot = snap;
+
   const totals = snapshot?.totals;
   const machines = snapshot?.machines ?? [];
   const projects = snapshot?.projects ?? [];
   const clients = snapshot?.clients ?? [];
   const sessions = snapshot?.liveSessions ?? [];
+  const fleets = snapshot?.fleets ?? [];
+
   const governanceProjects = projects.filter((project) => project.governance !== undefined);
   const governanceWarnings = governanceProjects.filter(
     (project) =>
@@ -87,106 +209,98 @@ export function CockpitView(): React.ReactElement {
   const controllableClients = clients.filter((client) =>
     client.capabilities.includes('control.receive'),
   );
-  const quickActionClientId = selectedClientId ?? controllableClients[0]?.clientId ?? null;
   const quickActionClient =
-    controllableClients.find((client) => client.clientId === quickActionClientId) ??
+    controllableClients.find((client) => client.clientId === selectedClientId) ??
     controllableClients[0] ??
     null;
 
-  const [apiActive, setApiActive] = useState<HqAlert[]>([]);
-  const [apiHistory, setApiHistory] = useState<HqAlert[]>([]);
+  const [activeAlerts, setActiveAlerts] = useState<HqAlert[]>([]);
+  const [alertHistory, setAlertHistory] = useState<HqAlert[]>([]);
   const [alertsError, setAlertsError] = useState<string | null>(null);
-  const [quickActionBusy, setQuickActionBusy] = useState<CockpitQuickAction | null>(null);
-  const [quickActionStatus, setQuickActionStatus] = useState<string | null>(null);
-  const [quickActionError, setQuickActionError] = useState<string | null>(null);
-  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
-  const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+  const [health, setHealth] = useState<SystemHealth | null>(null);
+  const [healthError, setHealthError] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<QuickAction | null>(null);
+  const [actionResult, setActionResult] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const loadHealth = (): void => {
+    const load = (): void => {
       fetchJson<SystemHealth>('/api/system/health')
         .then((data) => {
-          if (!cancelled) {
-            setSystemHealth(data);
-            setSystemHealthError(null);
-          }
+          if (cancelled) return;
+          setHealth(data);
+          setHealthError(null);
         })
-        .catch((err: unknown) => {
-          if (!cancelled) setSystemHealthError(err instanceof Error ? err.message : String(err));
+        .catch((cause: unknown) => {
+          if (!cancelled) setHealthError(cause instanceof Error ? cause.message : String(cause));
         });
     };
-    loadHealth();
-    const healthTimer = setInterval(loadHealth, 30_000);
+    load();
+    const timer = window.setInterval(load, HEALTH_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(healthTimer);
+      window.clearInterval(timer);
     };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     const load = (): void => {
-      fetchJson<CockpitAlertsResponse>('/api/alerts')
+      fetchJson<AlertsResponse>('/api/alerts')
         .then((data) => {
-          if (!cancelled) {
-            setApiActive(data.active);
-            setApiHistory(data.history);
-            setAlertsError(null);
-          }
+          if (cancelled) return;
+          setActiveAlerts(data.active);
+          setAlertHistory(data.history);
+          setAlertsError(null);
         })
-        .catch((err: unknown) => {
-          if (!cancelled) {
-            setAlertsError(err instanceof Error ? err.message : String(err));
-          }
+        .catch((cause: unknown) => {
+          if (!cancelled) setAlertsError(cause instanceof Error ? cause.message : String(cause));
         });
     };
     load();
-    const timer = setInterval(load, 15_000);
+    const timer = window.setInterval(load, ALERTS_POLL_MS);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      window.clearInterval(timer);
     };
   }, []);
 
-  const liveAlerts: CockpitAlertEntry[] = useMemo(() => {
-    const liveRecent = alerts
+  /**
+   * The digest merges the live WS feed with the polled API and dedupes on
+   * (rule, message, time): the same alert legitimately arrives through both
+   * channels, and showing it twice makes the fleet look worse than it is.
+   */
+  const alertDigest = useMemo<AlertDigestEntry[]>(() => {
+    const fromLive = alerts.slice(-30).reverse().map<AlertDigestEntry>((alert) => ({
+      severity: alert.severity,
+      ruleId: alert.type ?? 'hq.alert',
+      message: alert.message,
+      timestamp: alert.timestamp,
+    }));
+    const fromApi = [...activeAlerts, ...alertHistory]
       .slice(-30)
       .reverse()
-      .map<CockpitAlertEntry>((alert) => ({
-        severity: typeof alert.severity === 'string' ? alert.severity : 'info',
-        ruleId: alert.type ?? 'hq.alert',
-        message: typeof alert.message === 'string' ? alert.message : 'Alert envelope received',
-        timestamp: typeof alert.timestamp === 'string' ? alert.timestamp : new Date().toISOString(),
+      .map<AlertDigestEntry>((entry) => ({
+        severity: entry.severity,
+        ruleId: entry.ruleId,
+        message: entry.message,
+        timestamp: entry.lastFiredAt ?? entry.firstFiredAt,
       }));
-    const fromApi = [...(apiActive ?? []), ...(apiHistory ?? [])]
-      .slice(-30)
-      .reverse()
-      .map<CockpitAlertEntry>((entry) => ({
-        severity: typeof entry.severity === 'string' ? entry.severity : 'info',
-        ruleId: typeof entry.ruleId === 'string' ? entry.ruleId : 'alert',
-        message: typeof entry.message === 'string' ? entry.message : '',
-        timestamp:
-          typeof entry.lastFiredAt === 'string'
-            ? entry.lastFiredAt
-            : typeof entry.firstFiredAt === 'string'
-              ? entry.firstFiredAt
-              : new Date().toISOString(),
-      }));
-    const merged = [...liveRecent, ...fromApi];
+
     const seen = new Set<string>();
-    const deduped: CockpitAlertEntry[] = [];
-    for (const entry of merged) {
+    const digest: AlertDigestEntry[] = [];
+    for (const entry of [...fromLive, ...fromApi]) {
       const key = `${entry.ruleId}|${entry.message}|${entry.timestamp}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      deduped.push(entry);
-      if (deduped.length >= 12) break;
+      digest.push(entry);
+      if (digest.length >= ALERT_DIGEST_LIMIT) break;
     }
-    return deduped;
-  }, [alerts, apiActive, apiHistory]);
+    return digest;
+  }, [alerts, activeAlerts, alertHistory]);
 
-  const agentRollup = useMemo(() => {
+  const agents = useMemo(() => {
     let total = 0;
     let busy = 0;
     let waiting = 0;
@@ -205,15 +319,35 @@ export function CockpitView(): React.ReactElement {
   }, [sessions]);
 
   const topProjects = useMemo(
-    () => [...projects].sort((a, b) => b.totalCostUsd - a.totalCostUsd).slice(0, 4),
+    () => [...projects].sort((left, right) => right.totalCostUsd - left.totalCostUsd).slice(0, TOP_PROJECTS),
     [projects],
   );
 
-  async function dispatchQuickAction(action: CockpitQuickAction): Promise<void> {
+  /** Spawn ceilings, summed over the fleets that actually report them. */
+  const spawnBudget = useMemo(() => {
+    let used = 0;
+    let max = 0;
+    let remaining = 0;
+    let known = 0;
+    let mismatch = 0;
+    for (const fleet of fleets) {
+      if (typeof fleet.usedSpawns !== 'number' || typeof fleet.maxSpawns !== 'number') continue;
+      known += 1;
+      used += fleet.usedSpawns;
+      if (Number.isFinite(fleet.maxSpawns)) max += fleet.maxSpawns;
+      if (typeof fleet.remainingSpawns === 'number' && Number.isFinite(fleet.remainingSpawns)) {
+        remaining += fleet.remainingSpawns;
+      }
+      if (fleet.ceilingMismatch) mismatch += 1;
+    }
+    return known > 0 ? { used, max, remaining, mismatch } : null;
+  }, [fleets]);
+
+  async function dispatchQuickAction(action: QuickAction): Promise<void> {
     if (quickActionClient === null) return;
-    setQuickActionBusy(action);
-    setQuickActionStatus(null);
-    setQuickActionError(null);
+    setBusyAction(action);
+    setActionResult(null);
+    setActionError(null);
     try {
       const payload =
         action === 'pause-noisy'
@@ -227,211 +361,20 @@ export function CockpitView(): React.ReactElement {
               body: 'HQ operator requests a concise status broadcast from active agents: current task, blocker if any, and next expected action.',
               priority: 'normal',
             };
-      const res = await postCommand(quickActionClient.clientId, 'broadcast', payload);
-      setQuickActionStatus(`queued ${res.commandId}`);
-    } catch (err) {
-      setQuickActionError(err instanceof Error ? err.message : String(err));
+      const result = await postCommand(quickActionClient.clientId, 'broadcast', payload);
+      setActionResult(`queued ${result.commandId}`);
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : String(cause));
     } finally {
-      setQuickActionBusy(null);
+      setBusyAction(null);
     }
   }
 
-  const fleets = snapshot?.fleets ?? [];
-  const spawnBudget = useMemo(() => {
-    let used = 0;
-    let max = 0;
-    let remaining = 0;
-    let known = 0;
-    let mismatch = 0;
-    for (const f of fleets) {
-      if (typeof f.usedSpawns === 'number' && typeof f.maxSpawns === 'number') {
-        known += 1;
-        used += f.usedSpawns;
-        if (Number.isFinite(f.maxSpawns)) max += f.maxSpawns;
-        if (typeof f.remainingSpawns === 'number' && Number.isFinite(f.remainingSpawns)) {
-          remaining += f.remainingSpawns;
-        }
-        if (f.ceilingMismatch) mismatch += 1;
-      }
-    }
-    return known > 0 ? { used, max, remaining, known, mismatch } : null;
-  }, [fleets]);
-
-  const fleetSections: CockpitSection[] = [
-    {
-      title: 'Fleet',
-      view: 'fleet',
-      cta: 'open fleet',
-      icon: Network,
-      wide: true,
-      body: (
-        <div className="hq-cockpit-grid">
-          <Stat label="machines" value={machines.length} />
-          <Stat label="clients" value={clients.length} />
-          <Stat
-            label="sessions"
-            value={agentRollup.activeSessions}
-            accent={agentRollup.activeSessions > 0 ? 'green' : undefined}
-          />
-          <Stat label="agents" value={agentRollup.total} />
-          <Stat
-            label="busy"
-            value={agentRollup.busy}
-            accent={agentRollup.busy > 0 ? 'green' : undefined}
-          />
-          <Stat
-            label="waiting"
-            value={agentRollup.waiting}
-            accent={agentRollup.waiting > 0 ? 'warn' : undefined}
-          />
-          <Stat
-            label="errored"
-            value={agentRollup.errored}
-            accent={agentRollup.errored > 0 ? 'error' : undefined}
-          />
-          <Stat label="cost $" value={(totals?.totalCostUsd ?? 0).toFixed(2)} accent="green" />
-          {spawnBudget && (
-            <Stat
-              label="spawns"
-              value={`${spawnBudget.used}/${Number.isFinite(spawnBudget.max) ? spawnBudget.max : '∞'}`}
-              accent={spawnBudget.mismatch > 0 ? 'warn' : undefined}
-            />
-          )}
-          {spawnBudget && (
-            <Stat
-              label="spawns left"
-              value={Number.isFinite(spawnBudget.remaining) ? spawnBudget.remaining : '∞'}
-              accent={spawnBudget.remaining === 0 ? 'error' : undefined}
-            />
-          )}
-        </div>
-      ),
-    },
-  ];
-
-  const tokenStatsSection: CockpitSection = {
-    title: 'Auth Tokens',
-    view: 'settings',
-    cta: 'open settings',
-    icon: ShieldCheck,
-    body: <TokenStatsCard tokenStats={totals?.tokenStats} />,
-  };
-
-  const governanceSection: CockpitSection = {
-    title: 'Governance Advisory',
-    view: 'fleet',
-    cta: 'open fleet',
-    icon: Gauge,
-    tone: governanceWarnings.length > 0 ? 'attention' : 'positive',
-    body:
-      governanceProjects.length === 0 ? (
-        <div className="hq-empty hq-cockpit-empty">No project governance snapshots yet.</div>
-      ) : (
-        <div className="hq-cockpit-alert-list">
-          {governanceProjects.map((project) => {
-            const governance = project.governance;
-            if (governance === undefined) return null;
-            const tone =
-              governance.signal.level === 'healthy'
-                ? 'green'
-                : governance.signal.level === 'notice'
-                  ? 'warn'
-                  : 'error';
-            return (
-              <div key={project.projectId} className="hq-cockpit-alert-row">
-                <span className={`hq-pill ${tone}`}>{governance.signal.level}</span>
-                <span>{project.projectName}</span>
-                <span className="hq-mono hq-cockpit-alert-msg">{governance.signal.code}</span>
-                <span className="hq-mono hq-text-dim hq-ml-auto">
-                  {governance.signal.executionDisposition}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ),
-  };
-
-  const alertSection: CockpitSection = {
-    title: 'Alerts',
-    view: 'alerts',
-    cta: 'open alerts',
-    icon: BellRing,
-    tone: liveAlerts.length > 0 ? 'attention' : 'positive',
-    wide: true,
-    body:
-      liveAlerts.length === 0 ? (
-        <div className="hq-empty hq-cockpit-empty">No alerts in the last few minutes.</div>
-      ) : (
-        <div className="hq-cockpit-alert-list">
-          {liveAlerts.map((alert, index) => (
-            <div
-              key={`${alert.ruleId}-${alert.timestamp}-${index}`}
-              className="hq-cockpit-alert-row"
-            >
-              <span className={'hq-pill ' + alertTone(alert.severity)}>{alert.severity}</span>
-              <span className="hq-mono">{alert.ruleId}</span>
-              <span className="hq-cockpit-alert-msg">{alert.message}</span>
-              <span className="hq-mono hq-text-dim hq-ml-auto">{formatTime(alert.timestamp)}</span>
-            </div>
-          ))}
-        </div>
-      ),
-  };
-
-  const costSection: CockpitSection = {
-    title: 'Cost',
-    view: 'cost',
-    cta: 'open cost',
-    icon: CircleDollarSign,
-    wide: true,
-    body:
-      topProjects.length === 0 ? (
-        <div className="hq-empty hq-cockpit-empty">No cost data yet — connect some clients.</div>
-      ) : (
-        <div className="hq-cockpit-cost-list">
-          {topProjects.map((project) => {
-            const pct =
-              (totals?.totalCostUsd ?? 0) > 0
-                ? (project.totalCostUsd / totals!.totalCostUsd) * 100
-                : 0;
-            return (
-              <div key={project.projectId} className="hq-cockpit-cost-row">
-                <div className="hq-cockpit-cost-line">
-                  <span className="hq-cockpit-cost-name">{project.projectName}</span>
-                  <span className="hq-mono hq-text-dim">{project.projectId}</span>
-                  <span className="hq-mono hq-cockpit-cost-amount hq-ml-auto">
-                    ${project.totalCostUsd.toFixed(4)}
-                  </span>
-                  <span className="hq-mono hq-text-dim">{pct.toFixed(1)}%</span>
-                </div>
-                <div
-                  className="hq-cockpit-cost-bar"
-                  role="progressbar"
-                  aria-label={`${project.projectName} share of fleet cost`}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Number(pct.toFixed(1))}
-                >
-                  <span style={{ width: `${Math.max(2, pct)}%` }} />
-                </div>
-                <div className="hq-cockpit-cost-meta">
-                  <span>{project.activeSessions} sessions</span>
-                  <span>{project.activeSubagents} subagents</span>
-                  <span>{project.activeClients} clients</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ),
-  };
-
-  const attentionCount = (apiActive?.length ?? 0) + governanceWarnings.length;
-  const operationalTone =
-    !connected || systemHealth?.status === 'degraded'
+  const attention = activeAlerts.length + governanceWarnings.length;
+  const operationalTone: 'degraded' | 'attention' | 'nominal' =
+    !connected || health?.status === 'degraded'
       ? 'degraded'
-      : attentionCount > 0
+      : attention > 0
         ? 'attention'
         : 'nominal';
   const operationalLabel =
@@ -442,44 +385,58 @@ export function CockpitView(): React.ReactElement {
         : 'Systems nominal';
 
   return (
-    <div className="hq-cockpit-screen">
-      <section className="hq-cockpit-hero" data-tone={operationalTone}>
-        <div className="hq-cockpit-hero-copy">
-          <div className="hq-cockpit-kicker">
-            <span className="hq-cockpit-pulse" aria-hidden="true" />
+    <div className="flex flex-col gap-4 p-4">
+      <section
+        data-testid="cockpit-hero"
+        data-tone={operationalTone}
+        className={cn(
+          'flex flex-wrap items-start gap-x-10 gap-y-4 border-l-2 bg-card/40 py-1 pl-4',
+          operationalTone === 'degraded'
+            ? 'border-destructive'
+            : operationalTone === 'attention'
+              ? 'border-warning'
+              : 'border-success',
+        )}
+      >
+        <div className="min-w-64 flex-1 space-y-1">
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.11em] text-muted-foreground">
+            <StatusDot
+              tone={
+                operationalTone === 'degraded'
+                  ? 'error'
+                  : operationalTone === 'attention'
+                    ? 'warn'
+                    : 'active'
+              }
+              pulse={operationalTone === 'nominal' && connected}
+            />
             {operationalLabel}
           </div>
-          <h2>Operational picture</h2>
-          <p>
-            Live fleet health, agent activity, governance and spend — resolved into one command
-            surface.
+          <h2 className="font-display text-2xl leading-none">Operational picture</h2>
+          <p className="max-w-prose text-xs text-muted-foreground">
+            Live fleet health, agent activity, governance and spend on one surface.
           </p>
-          <div className="hq-cockpit-hero-meta">
-            <span>
-              {snapshot?.generatedAt
-                ? `Snapshot ${formatTime(snapshot.generatedAt)}`
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Mono>
+              {snapshot?.generatedAt !== undefined
+                ? `Snapshot ${formatClock(snapshot.generatedAt)}`
                 : 'Awaiting first snapshot'}
-            </span>
-            <span>{controllableClients.length} command-ready clients</span>
-          </div>
-          <div className="hq-cockpit-signals" role="status" aria-label="Operational signals">
-            {(apiActive?.length ?? 0) > 0 && (
-              <span className="hq-pill error">{apiActive?.length ?? 0} active alerts</span>
-            )}
+            </Mono>
+            <Mono>{controllableClients.length} command-ready clients</Mono>
+            {activeAlerts.length > 0 && <Badge tone="error">{activeAlerts.length} active alerts</Badge>}
             {governanceWarnings.length > 0 && (
-              <span className="hq-pill error">
-                {governanceWarnings.length} governance advisories
-              </span>
+              <Badge tone="error">{governanceWarnings.length} governance advisories</Badge>
             )}
-            {alertsError !== null && <span className="hq-pill error">{alertsError}</span>}
+            {alertsError !== null && <Badge tone="error">{alertsError}</Badge>}
           </div>
         </div>
-        <fieldset className="hq-cockpit-hero-metrics" aria-label="Fleet headline metrics">
+
+        <div className="flex flex-wrap gap-x-8 gap-y-4">
           <HeroMetric
             icon={Bot}
             label="Active agents"
             value={totals?.activeAgents ?? 0}
-            detail={`${agentRollup.busy} working`}
+            detail={`${agents.busy} working`}
           />
           <HeroMetric
             icon={Activity}
@@ -490,246 +447,252 @@ export function CockpitView(): React.ReactElement {
           <HeroMetric
             icon={BellRing}
             label="Attention"
-            value={attentionCount}
-            detail={attentionCount > 0 ? 'review signals' : 'all clear'}
-            tone={attentionCount > 0 ? 'attention' : 'positive'}
+            value={attention}
+            detail={attention > 0 ? 'review signals' : 'all clear'}
+            tone={attention > 0 ? 'warn' : 'active'}
           />
           <HeroMetric
             icon={CircleDollarSign}
             label="Total cost"
-            value={`$${(totals?.totalCostUsd ?? 0).toFixed(2)}`}
+            value={formatUsd(totals?.totalCostUsd ?? 0)}
             detail={`${projects.length} projects`}
-            tone="positive"
           />
-        </fieldset>
+        </div>
       </section>
 
-      <section className="hq-cockpit-command-bar" aria-label="Cockpit quick actions">
-        <div className="hq-cockpit-command-copy">
-          <span className="hq-cockpit-command-icon">
-            <Command size={17} />
-          </span>
-          <div>
-            <strong>Command strip</strong>
-            <span className="hq-mono">
-              {quickActionClient === null
-                ? 'No controllable client connected'
-                : `Target ${shortId(quickActionClient.clientId)}`}
-            </span>
-          </div>
+      <section
+        aria-label="Cockpit quick actions"
+        className="flex flex-wrap items-center gap-2 border border-border bg-card px-3 py-2"
+      >
+        <Command className="size-4 shrink-0 text-muted-foreground" />
+        <div className="flex flex-col leading-tight">
+          <strong className="text-xs">Command strip</strong>
+          <Mono>
+            {quickActionClient === null
+              ? 'No controllable client connected'
+              : `Target ${shortenId(quickActionClient.clientId, 9, 6)}`}
+          </Mono>
         </div>
-        <div className="hq-cockpit-actions-buttons">
-          <button
-            type="button"
-            className="hq-btn secondary"
-            disabled={quickActionClient === null || quickActionBusy !== null}
+
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={quickActionClient === null || busyAction !== null}
             onClick={() => void dispatchQuickAction('pause-noisy')}
           >
-            {quickActionBusy === 'pause-noisy' ? 'Queuing…' : 'Pause noisy agents'}
-          </button>
-          <button
-            type="button"
-            className="hq-btn secondary"
-            disabled={quickActionClient === null || quickActionBusy !== null}
+            {busyAction === 'pause-noisy' ? 'Queuing…' : 'Pause noisy agents'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={quickActionClient === null || busyAction !== null}
             onClick={() => void dispatchQuickAction('status-request')}
           >
-            {quickActionBusy === 'status-request' ? 'Queuing…' : 'Request fleet status'}
-          </button>
-          <button
-            type="button"
-            className="hq-btn hq-cockpit-primary-action"
-            onClick={() => useHqStore.getState().setActiveView('control')}
-          >
-            <RadioTower size={13} /> Open control
-          </button>
+            {busyAction === 'status-request' ? 'Queuing…' : 'Request fleet status'}
+          </Button>
+          <Button size="sm" onClick={() => useHqStore.getState().setActiveView('control')}>
+            <RadioTower />
+            Open control
+          </Button>
         </div>
-        {quickActionStatus !== null && <span className="hq-pill info">{quickActionStatus}</span>}
-        {quickActionError !== null && <span className="hq-pill error">{quickActionError}</span>}
+        {actionResult !== null && <Badge tone="info">{actionResult}</Badge>}
+        {actionError !== null && <Badge tone="error">{actionError}</Badge>}
       </section>
 
-      <div className="hq-cockpit-section-label">
-        <span>Live intelligence</span>
-        <span>{alertsError !== null ? alertsError : `${projects.length} projects in scope`}</span>
-      </div>
-
-      <div className="hq-cockpit-bento">
-        {(systemHealth !== null || systemHealthError !== null) && (
-          <div
-            className="hq-card hq-cockpit-section"
-            data-tone={systemHealth?.status === 'degraded' ? 'attention' : 'positive'}
+      {/* `grid-flow-row-dense` matters here: the cards have mixed spans and are
+          conditionally rendered, so without it a wide card that cannot fit
+          beside a narrow one leaves a visible hole in the bento. */}
+      <div className="grid grid-flow-row-dense gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+        {(health !== null || healthError !== null) && (
+          <CockpitCard
+            icon={Server}
+            title="System health"
+            cta="open settings"
+            view="settings"
+            tone={health?.status === 'degraded' ? 'attention' : 'positive'}
+            className="xl:col-span-2"
           >
-            <CockpitCardHeader
-              icon={Server}
-              title="System Health"
-              cta="open settings"
-              onClick={() => useHqStore.getState().setActiveView('settings')}
-            />
-            {systemHealthError !== null ? (
-              <div className="hq-empty hq-cockpit-empty">{systemHealthError}</div>
-            ) : systemHealth !== null ? (
-              <div className="hq-cockpit-grid">
-                <Stat
+            {healthError !== null ? (
+              <EmptyState title={healthError} />
+            ) : health !== null ? (
+              <div className="flex flex-wrap gap-x-6 gap-y-3">
+                <StatTile
                   label="status"
-                  value={systemHealth.status}
-                  accent={systemHealth.status === 'healthy' ? 'green' : 'error'}
+                  value={health.status}
+                  tone={health.status === 'healthy' ? 'active' : 'error'}
                 />
-                <Stat label="event log" value={systemHealth.uptime?.eventLogSize ?? 0} />
-                <Stat label="connections" value={systemHealth.connections?.total ?? 0} />
-                <Stat
+                <StatTile label="event log" value={health.uptime?.eventLogSize ?? 0} />
+                <StatTile label="connections" value={health.connections?.total ?? 0} />
+                <StatTile
                   label="active"
-                  value={systemHealth.connections?.active ?? 0}
-                  accent={(systemHealth.connections?.active ?? 0) > 0 ? 'green' : undefined}
+                  value={health.connections?.active ?? 0}
+                  tone={(health.connections?.active ?? 0) > 0 ? 'active' : 'idle'}
                 />
-                <Stat
+                <StatTile
                   label="stale"
-                  value={systemHealth.connections?.stale ?? 0}
-                  accent={(systemHealth.connections?.stale ?? 0) > 3 ? 'warn' : undefined}
+                  value={health.connections?.stale ?? 0}
+                  tone={(health.connections?.stale ?? 0) > 3 ? 'warn' : 'idle'}
                 />
               </div>
             ) : null}
+          </CockpitCard>
+        )}
+
+        <CockpitCard
+          icon={Network}
+          title="Fleet"
+          cta="open fleet"
+          view="fleet"
+          className="xl:col-span-2"
+        >
+          <div className="flex flex-wrap gap-x-6 gap-y-3">
+            <StatTile label="machines" value={machines.length} />
+            <StatTile label="clients" value={clients.length} />
+            <StatTile
+              label="sessions"
+              value={agents.activeSessions}
+              tone={agents.activeSessions > 0 ? 'active' : 'idle'}
+            />
+            <StatTile label="agents" value={agents.total} />
+            <StatTile label="busy" value={agents.busy} tone={agents.busy > 0 ? 'running' : 'idle'} />
+            <StatTile
+              label="waiting"
+              value={agents.waiting}
+              tone={agents.waiting > 0 ? 'warn' : 'idle'}
+            />
+            <StatTile
+              label="errored"
+              value={agents.errored}
+              tone={agents.errored > 0 ? 'error' : 'idle'}
+            />
+            <StatTile label="cost" value={formatUsd(totals?.totalCostUsd ?? 0)} tone="active" />
+            {spawnBudget !== null && (
+              <>
+                <StatTile
+                  label="spawns"
+                  value={`${spawnBudget.used}/${Number.isFinite(spawnBudget.max) ? spawnBudget.max : '∞'}`}
+                  tone={spawnBudget.mismatch > 0 ? 'warn' : 'idle'}
+                />
+                <StatTile
+                  label="spawns left"
+                  value={Number.isFinite(spawnBudget.remaining) ? spawnBudget.remaining : '∞'}
+                  tone={spawnBudget.remaining === 0 ? 'error' : 'idle'}
+                />
+              </>
+            )}
           </div>
-        )}
+        </CockpitCard>
 
-        {[...fleetSections, governanceSection, tokenStatsSection, alertSection, costSection].map(
-          (section) => (
-            <div
-              key={section.title}
-              className="hq-card hq-cockpit-section"
-              data-tone={section.tone}
-              data-wide={section.wide}
-            >
-              <CockpitCardHeader
-                icon={section.icon}
-                title={section.title}
-                cta={section.cta}
-                onClick={() => useHqStore.getState().setActiveView(section.view)}
-              />
-              {section.body}
+        <CockpitCard
+          icon={Gauge}
+          title="Governance advisory"
+          cta="open fleet"
+          view="fleet"
+          tone={governanceWarnings.length > 0 ? 'attention' : 'positive'}
+        >
+          {governanceProjects.length === 0 ? (
+            <EmptyState title="No project governance snapshots yet" />
+          ) : (
+            <div className="space-y-1">
+              {governanceProjects.map((project) => {
+                const governance = project.governance;
+                if (governance === undefined) return null;
+                const tone: BadgeTone =
+                  governance.signal.level === 'healthy'
+                    ? 'active'
+                    : governance.signal.level === 'notice'
+                      ? 'warn'
+                      : 'error';
+                return (
+                  <div key={project.projectId} className="flex items-center gap-2 text-xs">
+                    <Badge tone={tone}>{governance.signal.level}</Badge>
+                    <span className="truncate">{project.projectName}</span>
+                    <Mono className="truncate">{governance.signal.code}</Mono>
+                    <Mono className="ml-auto shrink-0">
+                      {governance.signal.executionDisposition}
+                    </Mono>
+                  </div>
+                );
+              })}
             </div>
-          ),
-        )}
+          )}
+        </CockpitCard>
+
+        <CockpitCard icon={ShieldCheck} title="Auth tokens" cta="open settings" view="settings">
+          <TokenStats tokenStats={totals?.tokenStats} />
+        </CockpitCard>
+
+        <CockpitCard
+          icon={BellRing}
+          title="Alerts"
+          cta="open alerts"
+          view="alerts"
+          tone={alertDigest.length > 0 ? 'attention' : 'positive'}
+          className="xl:col-span-2"
+        >
+          {alertDigest.length === 0 ? (
+            <EmptyState title="No alerts in the last few minutes" />
+          ) : (
+            <div className="space-y-1">
+              {alertDigest.map((entry) => (
+                <div
+                  key={`${entry.ruleId}-${entry.timestamp}-${entry.message}`}
+                  className="flex items-center gap-2 text-xs"
+                >
+                  <Badge tone={alertTone(entry.severity)}>{entry.severity}</Badge>
+                  <Mono className="shrink-0">{entry.ruleId}</Mono>
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                    {entry.message}
+                  </span>
+                  <Mono className="tabular shrink-0">{formatClock(entry.timestamp)}</Mono>
+                </div>
+              ))}
+            </div>
+          )}
+        </CockpitCard>
+
+        <CockpitCard
+          icon={CircleDollarSign}
+          title="Cost"
+          cta="open cost"
+          view="cost"
+          className="xl:col-span-2"
+        >
+          {topProjects.length === 0 ? (
+            <EmptyState title="No cost data yet" hint="Connect a client to start reporting spend." />
+          ) : (
+            <div className="space-y-2.5">
+              {topProjects.map((project) => {
+                const share =
+                  (totals?.totalCostUsd ?? 0) > 0
+                    ? project.totalCostUsd / totals!.totalCostUsd
+                    : 0;
+                return (
+                  <div key={project.projectId} className="space-y-1">
+                    <div className="flex items-baseline gap-2 text-xs">
+                      <span className="truncate font-medium">{project.projectName}</span>
+                      <Mono className="truncate">{project.projectId}</Mono>
+                      <span className="tabular ml-auto shrink-0 font-semibold">
+                        {formatUsd(project.totalCostUsd)}
+                      </span>
+                      <Mono className="tabular w-12 shrink-0 text-right">
+                        {formatPercent(share, 1)}
+                      </Mono>
+                    </div>
+                    <ShareBar fraction={share} />
+                    <div className="flex gap-3 text-[10px] text-muted-foreground">
+                      <span>{project.activeSessions} sessions</span>
+                      <span>{project.activeSubagents} subagents</span>
+                      <span>{project.activeClients} clients</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CockpitCard>
       </div>
     </div>
   );
-}
-
-function CockpitCardHeader({
-  icon: Icon,
-  title,
-  cta,
-  onClick,
-}: {
-  icon: LucideIcon;
-  title: string;
-  cta: string;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <div className="hq-cockpit-card-head">
-      <span className="hq-cockpit-card-icon">
-        <Icon size={15} />
-      </span>
-      <span className="hq-cockpit-section-title">{title}</span>
-      <button type="button" className="hq-cockpit-card-link" onClick={onClick}>
-        {cta}
-        <ArrowUpRight size={13} />
-      </button>
-    </div>
-  );
-}
-
-function HeroMetric({
-  icon: Icon,
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string | number;
-  detail: string;
-  tone?: 'attention' | 'positive';
-}): React.ReactElement {
-  return (
-    <div className="hq-cockpit-hero-metric" data-tone={tone}>
-      <Icon size={15} />
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string | number;
-  accent?: 'green' | 'warn' | 'error';
-}): React.ReactElement {
-  return (
-    <div className={'hq-stat' + (accent ? ` ${accent}` : '')}>
-      <span className="hq-stat-num">{value}</span>
-      <span className="hq-stat-label">{label}</span>
-    </div>
-  );
-}
-
-type TokenStats = NonNullable<HqSnapshot['totals']['tokenStats']>;
-
-function TokenStatsCard({
-  tokenStats,
-}: {
-  tokenStats: TokenStats | undefined;
-}): React.ReactElement {
-  // Absent on older snapshots — additive field, default undefined. Show a
-  // neutral placeholder instead of zeros so the operator can tell "no data
-  // yet" apart from "zero tokens issued".
-  if (tokenStats === undefined) {
-    return (
-      <div className="hq-empty hq-cockpit-empty">
-        Token expiry stats unavailable on this HQ version.
-      </div>
-    );
-  }
-  const { browserTotal, clientTotal, expired, expiringSoon } = tokenStats;
-  const total = browserTotal + clientTotal;
-  return (
-    <fieldset
-      className="hq-cockpit-grid"
-      aria-label="Auth token stats"
-      style={{ border: 0, margin: 0, padding: 0 }}
-    >
-      <Stat label="browser" value={browserTotal} />
-      <Stat label="client" value={clientTotal} />
-      <Stat label="total" value={total} />
-      <Stat label="expired" value={expired} accent={expired > 0 ? 'error' : undefined} />
-      <Stat
-        label="expiring soon"
-        value={expiringSoon}
-        accent={expiringSoon > 0 ? 'warn' : undefined}
-      />
-    </fieldset>
-  );
-}
-
-function shortId(id: string): string {
-  if (id.length <= 18) return id;
-  return `${id.slice(0, 9)}…${id.slice(-6)}`;
-}
-
-function formatTime(ts: string): string {
-  const date = new Date(ts);
-  if (Number.isNaN(date.getTime())) return ts;
-  return date.toLocaleTimeString();
-}
-
-function alertTone(severity: string): 'info' | 'warn' | 'error' | 'idle' {
-  if (severity === 'critical' || severity === 'error' || severity === 'high') return 'error';
-  if (severity === 'warn' || severity === 'warning' || severity === 'medium') return 'warn';
-  if (severity === 'info' || severity === 'low') return 'info';
-  return 'idle';
 }

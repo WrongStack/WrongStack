@@ -82,7 +82,7 @@ export interface DashboardAgentRow {
 export interface TerminalDashboardOptions {
   /** Panel title, e.g. `WebUI` / `SimpleUI`. */
   title?: string | undefined;
-  /** Live URL shown in the panel header (token-less). */
+  /** Live access URL shown in the panel header, including its auth token when configured. */
   getUrl?: (() => string | undefined) | undefined;
   stdout?: DashboardStdout | undefined;
   consoleTarget?: DashboardConsoleTarget | undefined;

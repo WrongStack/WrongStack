@@ -74,6 +74,42 @@ describe('DoneConditionChecker', () => {
     expect(result.done).toBe(false);
   });
 
+  it('enforces an explicit maxIterations of 0 (zero-iteration budget)', () => {
+    // Regression (round r15): the old truthiness guard treated 0 as "no cap"
+    // and failed open, while the /tier CLI accepts+stores 0 ("✓ · 0 iters")
+    // and SubagentBudget.checkLimits enforces it (`!== undefined`). An
+    // explicit zero budget must stop the loop before any work.
+    const checker = new DoneConditionChecker({ type: 'iterations', maxIterations: 0 });
+    const result = checker.check({ iterations: 0, toolCalls: 0 });
+    expect(result.done).toBe(true);
+    expect(result.reason).toMatch(/max iterations \(0\) reached/);
+  });
+
+  it('enforces an explicit maxToolCalls of 0 (zero-tool budget)', () => {
+    const checker = new DoneConditionChecker({ type: 'tool_calls', maxToolCalls: 0 });
+    const result = checker.check({ iterations: 0, toolCalls: 0 });
+    expect(result.done).toBe(true);
+    expect(result.reason).toMatch(/max tool calls \(0\) reached/);
+  });
+
+  it('enforces explicit zero caps in directive mode', () => {
+    const checker = new DoneConditionChecker({ type: 'directive', maxIterations: 0 });
+    const result = checker.check({ iterations: 0, toolCalls: 0 });
+    expect(result.done).toBe(true);
+    expect(result.reason).toMatch(/max iterations \(0\) reached/);
+  });
+
+  it('treats an undefined budget as no cap (unchanged semantics)', () => {
+    expect(
+      new DoneConditionChecker({ type: 'iterations' }).check({ iterations: 99, toolCalls: 99 })
+        .done,
+    ).toBe(false);
+    expect(
+      new DoneConditionChecker({ type: 'tool_calls' }).check({ iterations: 99, toolCalls: 99 })
+        .done,
+    ).toBe(false);
+  });
+
   it('returns done=true for output_match when pattern matches', () => {
     const checker = new DoneConditionChecker({ type: 'output_match', pattern: 'success' });
     const result = checker.check({
@@ -138,6 +174,27 @@ describe('AutonomousRunner', () => {
     expect(result.reason).toMatch(/max iterations/);
     // Should have run once per iteration until hitting max
     expect(agent.run).toHaveBeenCalled();
+  });
+
+  it('completes immediately without running the agent when maxIterations is 0', async () => {
+    // Regression (round r15): a zero-iteration budget is fail-closed — the
+    // runner stops on the first done-check, before the first agent.run.
+    // The old truthiness guard made `maxIterations: 0` mean "no cap", so the
+    // outer loop never finished (each inner run capped at 1 iteration).
+    const agent = mockAgent();
+    const runner = new AutonomousRunner({
+      agent,
+      context: mockContext(),
+      doneCondition: { type: 'iterations', maxIterations: 0 },
+      iterationTimeoutMs: 5000,
+    });
+
+    const result = await runner.run();
+
+    expect(result.status).toBe('done');
+    expect(result.reason).toMatch(/max iterations \(0\) reached/);
+    expect(result.iterations).toBe(0);
+    expect(agent.run).not.toHaveBeenCalled();
   });
 
   it('stops when max tool_calls condition is met', async () => {

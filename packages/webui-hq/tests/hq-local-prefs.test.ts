@@ -25,7 +25,7 @@ import {
   setHqFleetPrefs,
   setHqMailboxPrefs,
   useHqLocalPrefs,
-} from '../src/stores/hq-local-prefs.js';
+} from '../src/data/local-prefs.js';
 
 function clearStorage(): void {
   window.localStorage.removeItem(__test__.STORAGE_KEY);
@@ -275,7 +275,7 @@ describe('hq-local-prefs', () => {
   it('DEFAULT_PREFS is frozen and matches the snapshot at rest', async () => {
     // The frozen default is returned by getServerSnapshot during SSR and
     // serves as the reset target. Verify it matches a clean snapshot.
-    const { __test__: prefTest } = await import('../src/stores/hq-local-prefs.js');
+    const { __test__: prefTest } = await import('../src/data/local-prefs.js');
     expect(getHqLocalPrefsSnapshot()).toEqual(prefTest.DEFAULT_PREFS);
   });
 });

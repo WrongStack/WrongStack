@@ -92,7 +92,7 @@ describe('startTerminalDashboard', () => {
     const dashboard = startTerminalDashboard({
       stdout,
       consoleTarget: target,
-      getUrl: () => 'http://127.0.0.1:3456',
+      getUrl: () => 'http://127.0.0.1:3456?token=operator-token',
       now: () => 10_000,
     });
 
@@ -142,7 +142,7 @@ describe('startTerminalDashboard', () => {
 
     const text = outputText(stdout);
     expect(text).toContain('WebUI');
-    expect(text).toContain('http://127.0.0.1:3456');
+    expect(text).toContain('http://127.0.0.1:3456?token=operator-token');
     expect(text).toContain('1/2 running');
     expect(text).toContain('RUNNING');
     expect(text).toContain('IDLE');

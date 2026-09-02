@@ -1,6 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSessionHandlers, type SessionHandlersContext } from '../src/server/session-handlers.js';
 
@@ -24,6 +25,7 @@ interface HarnessInput {
   getCompactor?: (() => unknown) | undefined;
   store?: Record<string, unknown>;
   customModeStore?: Record<string, unknown>;
+  isRunActive?: (id?: string) => boolean;
 }
 
 function makeHarness(input: HarnessInput = {}) {
@@ -124,7 +126,7 @@ function makeHarness(input: HarnessInput = {}) {
     setSessionStartedAt: vi.fn(),
     claimSession,
     onSessionSwapped,
-    isRunActive: () => false,
+    isRunActive: input.isRunActive ?? (() => false),
     abortActiveRun: vi.fn(),
     sessionStartPayload: async (overrides?: Record<string, unknown>) => ({
       sessionId: active.id,
@@ -547,5 +549,61 @@ describe('createSessionHandlers — checkpoints and rewind', () => {
     } as never);
     const res = h.sent.find((m) => m.type === 'key.operation_result');
     expect(res?.payload['success']).toBe(false);
+  });
+
+  // Rewind truncates the session journal AND reverts project files, so it
+  // must refuse while the target session has a live run — the same
+  // destructive window `session.delete` refuses. Regression for the
+  // round-11 guard: pre-fix, a rewind under an active run reported success
+  // while truncating the journal and reverting files under the writer.
+  it('refuses to rewind while the session has an active run', async () => {
+    const h = makeHarness({ isRunActive: (id) => id === 'sess_current' });
+    // Seed a real journal so a guard-less rewind would have destructive work
+    // to do: the refusal must come from the run guard, not an empty journal.
+    const live = await new DefaultSessionStore({ dir: sessionsDir }).create({
+      id: 'sess_current',
+      title: '',
+      model: 'test-model',
+      provider: 'test-provider',
+    });
+    await live.writeCheckpoint(0, 'first prompt');
+    await live.writeFileSnapshot(0, []);
+    await live.writeCheckpoint(1, 'second prompt');
+    await live.flush();
+    await h.routes.rewindSession(h.ws as never, {
+      type: 'session.rewind',
+      payload: { checkpointIndex: 0 },
+    } as never);
+    const res = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(res?.payload['success']).toBe(false);
+    expect(res?.payload['message']).toBe(
+      'Cannot rewind while an agent run is active. Please stop the run first.',
+    );
+    expect(h.context.session.truncateToCheckpoint).not.toHaveBeenCalled();
+    expect(h.context.state.replaceMessages).not.toHaveBeenCalled();
+    const journal = await fs.readFile(path.join(sessionsDir, 'sess_current.jsonl'), 'utf8');
+    expect(journal).toContain('"promptIndex":1');
+  });
+
+  it('still rewinds when no run is active', async () => {
+    const h = makeHarness();
+    const live = await new DefaultSessionStore({ dir: sessionsDir }).create({
+      id: 'sess_current',
+      title: '',
+      model: 'test-model',
+      provider: 'test-provider',
+    });
+    await live.writeCheckpoint(0, 'first prompt');
+    await live.writeFileSnapshot(0, []);
+    await live.writeCheckpoint(1, 'second prompt');
+    await live.flush();
+    await h.routes.rewindSession(h.ws as never, {
+      type: 'session.rewind',
+      payload: { checkpointIndex: 0 },
+    } as never);
+    const res = h.sent.find((m) => m.type === 'key.operation_result');
+    expect(res?.payload['success']).toBe(true);
+    expect(h.context.session.truncateToCheckpoint).toHaveBeenCalled();
+    expect(h.context.state.replaceMessages).toHaveBeenCalled();
   });
 });

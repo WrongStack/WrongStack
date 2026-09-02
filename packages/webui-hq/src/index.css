@@ -1,0 +1,227 @@
+/* ===========================================================================
+   WrongStack HQ — Command Center
+   Tailwind v4 + shadcn/Radix. Shares the WebUI design system verbatim; see
+   `src/styles/tokens.css` (mirror) and `tests/design-tokens-parity.test.ts`.
+
+   Everything here is either a token import or a global reset. Component and
+   layout styling belongs in the components themselves — HQ deliberately no
+   longer carries a hand-written `hq-*` class cascade.
+   =========================================================================== */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./styles/tokens.css";
+
+/* Tailwind v4 dark mode keys on a class, matching the WebUI's ThemeProvider:
+   `<html class="dark">`. The palette rides alongside as `data-palette="…"`. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    @apply border-border;
+    /* The website's operator-manual geometry: nothing is rounded, anywhere. */
+    border-radius: 0 !important;
+  }
+
+  html,
+  body {
+    height: 100%;
+    /* The shell owns every scroll container; the document never scrolls. */
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    font-feature-settings: "liga" 1, "calt" 1, "ss03" 1;
+    letter-spacing: -0.012em;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+  }
+
+  #root {
+    height: 100%;
+    isolation: isolate;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.85);
+    outline-offset: 2px;
+  }
+
+  /* Tailwind's `tracking-*` utilities must win over the body letter-spacing. */
+  [class*="tracking-"] {
+    letter-spacing: 0;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.28);
+  }
+}
+
+@layer base {
+  /* Scrollbars: thin, token-coloured, visible in both themes. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.55);
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /* The one piece of brand chrome HQ keeps: a 2px signal rule across the top
+     of the workbench, pink into orange, mirroring the WebUI app root. */
+  .brand-rule {
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--primary)) 0%,
+      hsl(var(--brand-orange)) 100%
+    );
+  }
+
+  /*
+   * Markdown prose.
+   *
+   * react-markdown emits plain <p>/<ul>/<table>/<code> — elements we never
+   * render ourselves, so utility classes cannot reach them. This is the one
+   * place in HQ where a descendant selector block is the right tool; it is
+   * scoped to `.markdown-body` and uses the same tokens as everything else.
+   */
+  .markdown-body {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+  }
+  .markdown-body > :first-child { margin-top: 0; }
+  .markdown-body > :last-child { margin-bottom: 0; }
+  .markdown-body p,
+  .markdown-body ul,
+  .markdown-body ol,
+  .markdown-body blockquote {
+    margin: 0.5rem 0;
+  }
+  .markdown-body h1,
+  .markdown-body h2,
+  .markdown-body h3,
+  .markdown-body h4 {
+    margin: 0.9rem 0 0.4rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .markdown-body h1 { font-size: 1.05rem; }
+  .markdown-body h2 { font-size: 0.95rem; }
+  .markdown-body h3 { font-size: 0.875rem; }
+  .markdown-body h4 { font-size: 0.8125rem; }
+  .markdown-body ul { list-style: disc; padding-left: 1.15rem; }
+  .markdown-body ol { list-style: decimal; padding-left: 1.35rem; }
+  .markdown-body li { margin: 0.15rem 0; }
+  .markdown-body li::marker { color: hsl(var(--muted-foreground)); }
+  .markdown-body a {
+    color: hsl(var(--primary));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .markdown-body strong { font-weight: 600; }
+  .markdown-body blockquote {
+    border-left: 2px solid hsl(var(--border));
+    padding-left: 0.75rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .markdown-body hr { border-top: 1px solid hsl(var(--border)); margin: 0.9rem 0; }
+  /* Inline code only — fenced blocks are framed by the `pre` renderer. */
+  .markdown-body :not(pre) > code {
+    background: hsl(var(--muted));
+    padding: 0.05rem 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+  }
+  .markdown-body pre {
+    margin: 0;
+    overflow-x: auto;
+    padding: 0.6rem 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
+  }
+  .markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+  }
+  .markdown-body th,
+  .markdown-body td {
+    border: 1px solid hsl(var(--border));
+    padding: 0.25rem 0.45rem;
+    text-align: left;
+  }
+  .markdown-body th {
+    background: hsl(var(--muted));
+    font-weight: 600;
+  }
+
+  /* React Flow paints its own chrome (minimap, zoom controls) from a private
+     variable set and ships a light default. `colorMode` on <ReactFlow> picks
+     the right base; these bind the rest to the design tokens so the fleet map
+     follows the active palette instead of xyflow's greys. */
+  .react-flow {
+    --xy-controls-button-background-color: hsl(var(--card));
+    --xy-controls-button-background-color-hover: hsl(var(--muted));
+    --xy-controls-button-color: hsl(var(--foreground));
+    --xy-controls-button-color-hover: hsl(var(--foreground));
+    --xy-controls-button-border-color: hsl(var(--border));
+    --xy-minimap-background-color: hsl(var(--card));
+    --xy-minimap-mask-background-color: hsl(var(--background) / 0.72);
+    --xy-attribution-background-color: transparent;
+  }
+
+  .react-flow__minimap,
+  .react-flow__controls {
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* Numeric columns line up only with tabular figures. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

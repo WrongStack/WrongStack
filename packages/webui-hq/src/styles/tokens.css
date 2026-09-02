@@ -1,0 +1,360 @@
+/* ===========================================================================
+   WrongStack HQ — design tokens
+   ---------------------------------------------------------------------------
+   MIRROR, NOT A FORK. Everything below is copied VERBATIM from
+   `packages/webui/src/index.css` (lines 10-354: the `@theme` bridge plus the
+   `@layer base` light / dark / data-palette token blocks).
+
+   `packages/webui` is the single source of truth. HQ keeps a copy instead of
+   importing across the package boundary so that neither build depends on the
+   other's source tree. `tests/design-tokens-parity.test.ts` reads BOTH files
+   and fails when a single token value drifts — so when you change the WebUI
+   palette, that test tells you to re-copy this region. Do not hand-edit the
+   token values here; edit `packages/webui/src/index.css` and re-copy.
+   =========================================================================== */
+
+@theme {
+  --font-sans: "Manrope Variable", "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    "Space Grotesk Variable", "Space Grotesk", "Manrope Variable", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* shadcn-compatible color tokens bridged to Tailwind 4 */
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-info: hsl(var(--info));
+  --color-running: hsl(var(--running));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-brand-orange: hsl(var(--brand-orange));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  /* Product UI uses the website's crisp operator-manual geometry. */
+  --radius-xs: 0;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
+  --radius-2xl: 0;
+  --radius-3xl: 0;
+  --radius-4xl: 0;
+}
+
+@layer base {
+  :root {
+    /* Website light palette: warm paper, precise ink, signal pink. */
+    --background: 45 36.4% 95.7%;
+    --foreground: 60 7% 8.4%;
+    --card: 42.9 100% 98.6%;
+    --card-foreground: 60 7% 8.4%;
+    --popover: 42.9 100% 98.6%;
+    --popover-foreground: 60 7% 8.4%;
+
+    --primary: 344.8 74.6% 47.8%;
+    --primary-foreground: 0 0% 100%;
+    --brand-orange: 32.1 94.6% 43.7%;
+    --secondary: 43.6 26.8% 92%;
+    --secondary-foreground: 60 7% 8.4%;
+    --muted: 43.6 26.8% 92%;
+    --muted-foreground: 43.6 5.8% 37.1%;
+    --accent: 38 70% 90%;
+    --accent-foreground: 33.9 100% 30.2%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 42.9 17.9% 84.7%;
+    --input: 40 14.3% 75.3%;
+    --ring: 344.8 74.6% 47.8%;
+
+    --success: 150 58% 36%;
+    --warning: 32 92% 44%;
+    --info: 200 80% 40%;
+    --running: 344.8 74.6% 47.8%;
+
+    --radius: 0;
+    --font-sans: "Manrope Variable", "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --font-display:
+      "Space Grotesk Variable", "Space Grotesk", "Manrope Variable", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+    --surface-1: 42.9 100% 98.6%;
+    --surface-2: 43.6 26.8% 92%;
+    --surface-3: 42.9 17.9% 84.7%;
+    --shadow-color: 60 5.9% 6.7%;
+  }
+
+  .dark {
+    /* Website dark palette: warm graphite, cream ink, exact brand signals. */
+    --background: 90 3.7% 10.6%;
+    --foreground: 45 37.5% 93.7%;
+    --card: 75 5% 15.7%;
+    --card-foreground: 45 37.5% 93.7%;
+    --popover: 75 6.1% 12.9%;
+    --popover-foreground: 45 37.5% 93.7%;
+
+    --primary: 345.9 99% 58.8%;
+    --primary-foreground: 60 5.9% 6.7%;
+    --brand-orange: 37.5 98.4% 50%;
+    --secondary: 75 6.1% 12.9%;
+    --secondary-foreground: 45 37.5% 93.7%;
+    --muted: 75 5% 15.7%;
+    --muted-foreground: 42.9 8.8% 68.6%;
+    --accent: 37.5 42% 19%;
+    --accent-foreground: 37.5 98.4% 50%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 70 5.3% 22.4%;
+    --input: 66.7 5.8% 30.4%;
+    --ring: 345.9 99% 58.8%;
+
+    --success: 150 64% 46%;
+    --warning: 38 94% 58%;
+    --info: 198 82% 56%;
+    --running: 345.9 99% 58.8%;
+
+    --surface-1: 75 5% 15.7%;
+    --surface-2: 75 6.1% 12.9%;
+    --surface-3: 70 5.3% 22.4%;
+    --shadow-color: 60 5.9% 6.7%;
+  }
+
+  /* ── Color palettes ──────────────────────────────────────────────────────
+     Users can pick a palette on top of light/dark. Each palette swaps the
+     brand-signal tokens — the main color (--primary) plus its derivatives
+     (--ring focus, --running indicator, --accent hover tint, --brand-orange
+     secondary signal). The neutral surfaces (background/card/border/muted)
+     stay shared so the whole UI never re-paints per palette.
+
+     The current palette is carried on <html> as `data-palette="…"`, set by
+     ThemeProvider. The default "signal" palette needs no block — it IS the
+     base token set above. Everything downstream resolves through
+     `hsl(var(--token))`, so no component changes are required when a palette
+     is added: just add a CSS block + a `lib/palettes.ts` entry + an i18n key.
+  */
+
+  :root[data-palette="emerald-gold"] {
+    --primary: 151 68% 30%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 151 68% 30%;
+    --running: 151 68% 30%;
+    --accent: 45 60% 88%;
+    --accent-foreground: 38 80% 24%;
+    --brand-orange: 40 92% 42%;
+  }
+  .dark[data-palette="emerald-gold"] {
+    --primary: 152 66% 48%;
+    --primary-foreground: 155 40% 7%;
+    --ring: 152 66% 48%;
+    --running: 152 66% 48%;
+    --accent: 42 38% 18%;
+    --accent-foreground: 42 92% 62%;
+    --brand-orange: 42 96% 54%;
+  }
+
+  :root[data-palette="blue-navy"] {
+    --primary: 217 89% 42%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 217 89% 42%;
+    --running: 217 89% 42%;
+    --accent: 216 62% 90%;
+    --accent-foreground: 222 72% 30%;
+    --brand-orange: 32 94% 42%;
+  }
+  .dark[data-palette="blue-navy"] {
+    --primary: 213 90% 60%;
+    --primary-foreground: 222 47% 9%;
+    --ring: 213 90% 60%;
+    --running: 213 90% 60%;
+    --accent: 218 44% 19%;
+    --accent-foreground: 213 92% 76%;
+    --brand-orange: 36 96% 54%;
+  }
+
+  :root[data-palette="purple-pink"] {
+    --primary: 262 75% 50%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 262 75% 50%;
+    --running: 262 75% 50%;
+    --accent: 330 72% 92%;
+    --accent-foreground: 335 72% 34%;
+    --brand-orange: 332 85% 45%;
+  }
+  .dark[data-palette="purple-pink"] {
+    --primary: 263 82% 66%;
+    --primary-foreground: 262 42% 8%;
+    --ring: 263 82% 66%;
+    --running: 263 82% 66%;
+    --accent: 330 44% 20%;
+    --accent-foreground: 332 92% 74%;
+    --brand-orange: 332 94% 62%;
+  }
+
+  :root[data-palette="cyan-teal"] {
+    --primary: 178 82% 27%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 178 82% 27%;
+    --running: 178 82% 27%;
+    --accent: 172 58% 88%;
+    --accent-foreground: 175 80% 22%;
+    --brand-orange: 32 94% 42%;
+  }
+  .dark[data-palette="cyan-teal"] {
+    --primary: 180 76% 46%;
+    --primary-foreground: 184 40% 8%;
+    --ring: 180 76% 46%;
+    --running: 180 76% 46%;
+    --accent: 174 40% 18%;
+    --accent-foreground: 176 80% 62%;
+    --brand-orange: 36 96% 54%;
+  }
+
+  :root[data-palette="rose-copper"] {
+    --primary: 12 78% 44%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 12 78% 44%;
+    --running: 12 78% 44%;
+    --accent: 25 70% 90%;
+    --accent-foreground: 18 85% 28%;
+    --brand-orange: 32 86% 46%;
+  }
+  .dark[data-palette="rose-copper"] {
+    --primary: 14 82% 56%;
+    --primary-foreground: 14 42% 7%;
+    --ring: 14 82% 56%;
+    --running: 14 82% 56%;
+    --accent: 24 38% 18%;
+    --accent-foreground: 28 84% 60%;
+    --brand-orange: 34 96% 54%;
+  }
+
+  :root[data-palette="indigo-amber"] {
+    --primary: 235 70% 48%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 235 70% 48%;
+    --running: 235 70% 48%;
+    --accent: 42 64% 89%;
+    --accent-foreground: 38 82% 26%;
+    --brand-orange: 38 90% 44%;
+  }
+  .dark[data-palette="indigo-amber"] {
+    --primary: 233 74% 58%;
+    --primary-foreground: 235 42% 8%;
+    --ring: 233 74% 58%;
+    --running: 233 74% 58%;
+    --accent: 40 40% 18%;
+    --accent-foreground: 40 90% 60%;
+    --brand-orange: 38 96% 54%;
+  }
+
+  :root[data-palette="sage-sand"] {
+    --primary: 130 28% 38%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 130 28% 38%;
+    --running: 130 28% 38%;
+    --accent: 38 44% 88%;
+    --accent-foreground: 130 30% 26%;
+    --brand-orange: 36 55% 60%;
+  }
+  .dark[data-palette="sage-sand"] {
+    --primary: 130 28% 55%;
+    --primary-foreground: 130 20% 8%;
+    --ring: 130 28% 55%;
+    --running: 130 28% 55%;
+    --accent: 38 30% 18%;
+    --accent-foreground: 36 55% 72%;
+    --brand-orange: 36 55% 72%;
+  }
+
+  :root[data-palette="slate-violet"] {
+    --primary: 248 50% 40%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 248 50% 40%;
+    --running: 248 50% 40%;
+    --accent: 285 40% 90%;
+    --accent-foreground: 248 45% 30%;
+    --brand-orange: 285 52% 50%;
+  }
+  .dark[data-palette="slate-violet"] {
+    --primary: 248 50% 55%;
+    --primary-foreground: 248 35% 8%;
+    --ring: 248 50% 55%;
+    --running: 248 50% 55%;
+    --accent: 285 30% 18%;
+    --accent-foreground: 285 52% 62%;
+    --brand-orange: 285 52% 62%;
+  }
+
+  :root[data-palette="coral-mint"] {
+    --primary: 12 85% 48%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 12 85% 48%;
+    --running: 12 85% 48%;
+    --accent: 162 50% 90%;
+    --accent-foreground: 162 55% 28%;
+    --brand-orange: 14 88% 52%;
+  }
+  .dark[data-palette="coral-mint"] {
+    --primary: 12 85% 62%;
+    --primary-foreground: 12 40% 8%;
+    --ring: 12 85% 62%;
+    --running: 12 85% 62%;
+    --accent: 162 35% 18%;
+    --accent-foreground: 162 55% 55%;
+    --brand-orange: 14 88% 60%;
+  }
+
+  :root[data-palette="arctic-ember"] {
+    --primary: 195 85% 45%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 195 85% 45%;
+    --running: 195 85% 45%;
+    --accent: 14 80% 90%;
+    --accent-foreground: 14 85% 28%;
+    --brand-orange: 14 85% 48%;
+  }
+  .dark[data-palette="arctic-ember"] {
+    --primary: 195 85% 58%;
+    --primary-foreground: 195 40% 8%;
+    --ring: 195 85% 58%;
+    --running: 195 85% 58%;
+    --accent: 14 40% 18%;
+    --accent-foreground: 14 85% 55%;
+    --brand-orange: 14 85% 55%;
+  }
+
+  :root[data-palette="moss-rust"] {
+    --primary: 100 45% 28%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 100 45% 28%;
+    --running: 100 45% 28%;
+    --accent: 18 65% 88%;
+    --accent-foreground: 18 70% 24%;
+    --brand-orange: 18 70% 40%;
+  }
+  .dark[data-palette="moss-rust"] {
+    --primary: 100 45% 38%;
+    --primary-foreground: 100 30% 8%;
+    --ring: 100 45% 38%;
+    --running: 100 45% 38%;
+    --accent: 18 35% 18%;
+    --accent-foreground: 18 70% 48%;
+    --brand-orange: 18 70% 48%;
+  }
+}

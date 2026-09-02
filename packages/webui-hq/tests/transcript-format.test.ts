@@ -16,7 +16,7 @@ import {
   summarizeToolInput,
   toolDisplayName,
   tryParseJson,
-} from '../src/lib/transcript-format.js';
+} from '../src/domain/transcript-format.js';
 
 describe('classifyTool', () => {
   it('maps tool names to families case-insensitively', () => {

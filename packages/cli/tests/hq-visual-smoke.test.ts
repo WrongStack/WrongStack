@@ -28,9 +28,16 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
     ).not.toBeNull();
 
     const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hq-smoke-data-'));
+    // `version` is mandatory — `readHqAuthFile` throws on anything else, which
+    // used to fail this test before the browser even launched.
     fs.writeFileSync(
       path.join(dataDir, 'auth.json'),
-      JSON.stringify({ updatedAt: new Date().toISOString(), browserTokens: [], clientTokens: [] }),
+      JSON.stringify({
+        version: 1,
+        updatedAt: new Date().toISOString(),
+        browserTokens: [],
+        clientTokens: [],
+      }),
     );
 
     let handle: HqServerHandle | null = null;
@@ -245,30 +252,36 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
         source: 'director',
         risk: 'medium',
         question: 'Merge worktree phase-2 into main despite 1 flaky test?',
-        at: now(),
+        at: Date.now(),
       });
       event('brain.event', {
         kind: 'decision_answered',
         source: 'director',
         decision: 'proceed',
         detail: 'Flake is the known CI timer flake; safe to merge.',
-        at: now(),
+        at: Date.now(),
       });
+      // `handleId` is required by the worktree payload schema, and there is no
+      // `at` field on it — an envelope missing the former is dropped server-side
+      // and the Worktrees view stays empty.
       event('worktree.event', {
         kind: 'allocated',
+        handleId: 'wt-phase-2',
         ownerId: 'phase-2',
+        ownerLabel: 'phase-2',
         branch: 'ws/phase-2',
-        at: now(),
+        baseBranch: 'main',
       });
       event('worktree.event', {
         kind: 'committed',
+        handleId: 'wt-phase-2',
         ownerId: 'phase-2',
+        ownerLabel: 'phase-2',
         branch: 'ws/phase-2',
         insertions: 120,
         deletions: 30,
         files: 6,
         sha: 'abc1234def',
-        at: now(),
       });
 
       // Mailbox snapshot so the Mailbox view has content.
@@ -370,16 +383,27 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
       await new Promise((r) => setTimeout(r, 700));
 
       const { chromium } = await import('@playwright/test');
+      type Locator = ReturnType<import('@playwright/test').Page['locator']>;
       browser = await chromium.launch();
       const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+      // The HQ server sends a strict CSP (script-src 'self' 'wasm-unsafe-eval').
+      // A violation surfaces here as a console error and nowhere else, so the
+      // whole run collects them and asserts at the end.
+      const consoleErrors: string[] = [];
+      page.on('console', (message) => {
+        if (message.type() === 'error') consoleErrors.push(message.text());
+      });
+      page.on('pageerror', (error) => consoleErrors.push(String(error)));
       await page.goto(`http://127.0.0.1:${handle.port}/`);
-      await page.waitForSelector('.hq-nav');
+      await page.waitForSelector('[data-testid="hq-workbench"]');
 
       const shots = path.join(os.tmpdir(), 'wrongstack-hq-smoke');
       fs.mkdirSync(shots, { recursive: true });
-      const shoot = async (tab: string | null, name: string) => {
-        if (tab !== null) {
-          await page.click(`.hq-tab:has-text("${tab}")`);
+      // Surfaces are addressed by their stable `data-view` id rather than by
+      // label text, so renaming a tab never silently skips a screenshot.
+      const shoot = async (view: string | null, name: string) => {
+        if (view !== null) {
+          await page.click(`[data-testid="nav-item"][data-view="${view}"]`);
           await page.waitForTimeout(600);
         }
         await page.screenshot({ path: path.join(shots, `${name}.png`) });
@@ -387,38 +411,163 @@ describe.skipIf(!E2E)('HQ visual smoke (WSTACK_E2E=1)', () => {
 
       await page.waitForTimeout(1000);
       await shoot(null, '01-cockpit');
-      await shoot('Fleet', '02-fleet');
-      // Clicking the session tree node must land in the Console with the transcript.
-      await page.click('.hq-tree-node');
+      await shoot('fleet', '02-fleet');
+
+      // Clicking a client in the fleet navigator must land in the Console with
+      // its transcript.
+      await shoot('console', '03-console');
+      await page.click('[data-testid="nav-client"]');
       await page.waitForTimeout(900);
       await expect
-        .poll(async () => page.locator('.hq-tool-head').count(), { timeout: 10_000 })
+        .poll(async () => page.locator('[data-testid="tool-head"]').count(), { timeout: 10_000 })
         .toBeGreaterThanOrEqual(4);
       await page.screenshot({ path: path.join(shots, '03-console-collapsed.png') });
 
       // Expand thinking + every tool card; the bash card must show the merged
       // exit-code result (live merge path) and the edit card a real diff.
-      for (const h of await page.locator('.hq-thinking-head, .hq-tool-head').all()) {
-        await h.click().catch(() => {});
+      // The transcript is a virtua VList: only the rows in view are mounted, and
+      // expanding one pushes the rest out of the window. So indexing a snapshot
+      // of heads taken up front misses the tail. Instead: always take the first
+      // still-collapsed head, scroll it into view (which mounts it), click, and
+      // repeat — pushing to the last row whenever the mounted window looks done,
+      // until three consecutive passes find nothing left to open.
+      const collapsedHeads = () =>
+        page.locator(
+          '[data-testid="thinking-head"][aria-expanded="false"], [data-testid="tool-head"][aria-expanded="false"]',
+        );
+      for (let pass = 0, idle = 0; pass < 60 && idle < 3; pass += 1) {
+        if ((await collapsedHeads().count()) === 0) {
+          idle += 1;
+          await page
+            .locator('[data-testid="transcript-turn"]')
+            .last()
+            .scrollIntoViewIfNeeded()
+            .catch(() => {});
+          await page.waitForTimeout(200);
+          continue;
+        }
+        idle = 0;
+        const head = collapsedHeads().first();
+        await head.scrollIntoViewIfNeeded().catch(() => {});
+        await head.click().catch(() => {});
+        await page.waitForTimeout(120);
       }
       await page.waitForTimeout(500);
-      expect(await page.locator('.hq-diff-line.add').count()).toBeGreaterThan(0);
-      expect(await page.locator('.hq-result-exit').textContent()).toContain('exit code 0');
-      expect(await page.locator('.hq-todo').count()).toBe(3);
-      expect(await page.locator('.hq-md-code-lang').first().textContent()).toBe('ts');
       await page.screenshot({ path: path.join(shots, '04-console-expanded.png') });
 
-      await shoot('Brain', '05-brain');
-      expect(await page.locator('.hq-card').count()).toBeGreaterThan(0);
-      await shoot('Worktrees', '06-worktrees');
-      await shoot('Cost', '07-cost');
-      await shoot('Trends', '08-trends');
-      await shoot('Control', '09-control');
-      // Mailbox: the default mode is the live event feed (empty here — we only
-      // seeded a snapshot); the snapshot renders in grouped-by-project mode.
-      await shoot('Mailbox', '10-mailbox');
-      expect(await page.locator('.hq-msg').count()).toBeGreaterThan(0);
-      await shoot('Alerts', '11-alerts');
+      // Same virtualization caveat for the assertions: a card is only in the DOM
+      // while it is near the viewport, so scroll the list until it mounts and
+      // then assert INSIDE that card rather than page-wide.
+      const scrollTranscript = async (delta: number): Promise<void> => {
+        const box = await page.locator('[data-testid="transcript-list"]').boundingBox();
+        if (box === null) return;
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+        await page.mouse.wheel(0, delta);
+        await page.waitForTimeout(140);
+      };
+      const findCard = async (name: string): Promise<Locator> => {
+        const card = page
+          .locator('[data-testid="transcript-turn"][data-role="tool"]')
+          .filter({ has: page.locator(`[data-testid="tool-name"]:text-is("${name}")`) });
+        await scrollTranscript(-6000);
+        for (let step = 0; step < 40; step += 1) {
+          if ((await card.count()) > 0) return card.first();
+          await scrollTranscript(400);
+        }
+        throw new Error(`transcript card never mounted: ${name}`);
+      };
+
+      const editCard = await findCard('edit');
+      expect(
+        await editCard.locator('[data-testid="tool-diff-line"][data-kind="add"]').count(),
+      ).toBeGreaterThan(0);
+
+      const bashCard = await findCard('bash');
+      expect(await bashCard.locator('[data-testid="tool-result-exit"]').textContent()).toContain(
+        'exit code 0',
+      );
+
+      const todoCard = await findCard('TodoWrite');
+      expect(await todoCard.locator('[data-testid="todo"]').count()).toBe(3);
+
+      await scrollTranscript(-6000);
+      expect(
+        await page.locator('[data-testid="markdown-code-lang"]').first().textContent(),
+      ).toBe('ts');
+
+      await shoot('brain', '05-brain');
+      expect(await page.locator('[data-testid="brain-entry"]').count()).toBeGreaterThan(0);
+      await shoot('worktree', '06-worktrees');
+      await shoot('cost', '07-cost');
+      await shoot('trends', '08-trends');
+      await shoot('control', '09-control');
+      // Mailbox opens on the live event feed (empty here — only a snapshot was
+      // seeded); the snapshot content lives under "Grouped by project".
+      await shoot('mailbox', '10-mailbox');
+      await page.click('[role="tab"]:has-text("Grouped by project")');
+      await page.waitForTimeout(400);
+      expect(await page.locator('[data-testid="message-row"]').count()).toBeGreaterThan(0);
+      await shoot('alerts', '11-alerts');
+      await shoot('kanban', '12-kanban');
+      await shoot('settings', '13-security');
+
+      // Appearance: light/dark is a CLASS on <html> and the accent palette an
+      // ATTRIBUTE, so both must actually land on the document element — a
+      // token stylesheet keyed on anything else is silently theme-less.
+      const openAppearance = async () => {
+        await page.click('[aria-label="Appearance"]');
+        await page.waitForTimeout(250);
+      };
+      await openAppearance();
+      await page.click('[role="menuitemradio"]:has-text("Light")');
+      await page.waitForTimeout(350);
+      expect(
+        await page.evaluate(() => document.documentElement.classList.contains('dark')),
+      ).toBe(false);
+      await shoot('cockpit', '14-cockpit-light');
+
+      await openAppearance();
+      await page.click('[role="menuitemradio"]:has-text("Emerald / Gold")');
+      await page.waitForTimeout(350);
+      expect(
+        await page.evaluate(() => document.documentElement.getAttribute('data-palette')),
+      ).toBe('emerald-gold');
+      await page.screenshot({ path: path.join(shots, '15-cockpit-light-emerald.png') });
+
+      await openAppearance();
+      await page.click('[role="menuitemradio"]:has-text("Dark")');
+      await page.waitForTimeout(350);
+      await openAppearance();
+      await page.click('[role="menuitemradio"]:has-text("Signal (default)")');
+      await page.waitForTimeout(350);
+      expect(await page.evaluate(() => document.documentElement.hasAttribute('data-palette'))).toBe(
+        false,
+      );
+
+      // Narrow viewport: the rail collapses to an overlay with a scrim, so the
+      // content is never squeezed to nothing on a laptop half-screen.
+      await page.setViewportSize({ width: 820, height: 900 });
+      await page.waitForTimeout(400);
+      // Narrowing must fold the rail away rather than leave it covering the
+      // content behind a scrim.
+      expect(
+        await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open'),
+      ).toBe('false');
+      await page.screenshot({ path: path.join(shots, '16-narrow-collapsed.png') });
+      await page.keyboard.press('Control+b');
+      await page.waitForTimeout(400);
+      // The scrim is always in the DOM; what matters is that it is actually
+      // covering the content, so assert visibility rather than presence.
+      expect(await page.locator('[data-testid="nav-scrim"]').isVisible()).toBe(true);
+      await page.screenshot({ path: path.join(shots, '17-narrow-rail-open.png') });
+      await page.click('[data-testid="nav-scrim"]');
+      await page.waitForTimeout(300);
+      expect(
+        await page.locator('[data-testid="nav-sidebar"]').getAttribute('data-open'),
+      ).toBe('false');
+      await page.setViewportSize({ width: 1440, height: 900 });
+
+      expect(consoleErrors.join(' | ')).toBe('');
 
       // eslint-disable-next-line no-console
       console.log(`HQ smoke screenshots: ${shots}`);

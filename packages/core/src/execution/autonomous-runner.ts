@@ -52,7 +52,10 @@ export class DoneConditionChecker {
   check(state: { iterations: number; toolCalls: number; lastOutput?: string | undefined }): DoneCheckResult {
     switch (this.condition.type) {
       case 'iterations':
-        if (this.condition.maxIterations && state.iterations >= this.condition.maxIterations) {
+        if (
+          this.condition.maxIterations !== undefined &&
+          state.iterations >= this.condition.maxIterations
+        ) {
           return {
             done: true,
             reason: `max iterations (${this.condition.maxIterations}) reached`,
@@ -62,7 +65,10 @@ export class DoneConditionChecker {
         break;
 
       case 'tool_calls':
-        if (this.condition.maxToolCalls && state.toolCalls >= this.condition.maxToolCalls) {
+        if (
+          this.condition.maxToolCalls !== undefined &&
+          state.toolCalls >= this.condition.maxToolCalls
+        ) {
           return {
             done: true,
             reason: `max tool calls (${this.condition.maxToolCalls}) reached`,
@@ -86,10 +92,16 @@ export class DoneConditionChecker {
         // The done condition is never satisfied by the checker — the agent returns
         // `status: 'done'` when the model emits [done] or naturally finishes.
         // The runner's outer loop uses maxIterations/maxToolCalls as hard caps.
-        if (this.condition.maxIterations && state.iterations >= this.condition.maxIterations) {
+        if (
+          this.condition.maxIterations !== undefined &&
+          state.iterations >= this.condition.maxIterations
+        ) {
           return { done: true, reason: `max iterations (${this.condition.maxIterations}) reached`, ...state };
         }
-        if (this.condition.maxToolCalls && state.toolCalls >= this.condition.maxToolCalls) {
+        if (
+          this.condition.maxToolCalls !== undefined &&
+          state.toolCalls >= this.condition.maxToolCalls
+        ) {
           return { done: true, reason: `max tool calls (${this.condition.maxToolCalls}) reached`, ...state };
         }
         break;

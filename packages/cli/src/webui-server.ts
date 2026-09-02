@@ -107,7 +107,9 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const terminalLogView = startTerminalDashboard({
     title: surface === 'simpleui' ? 'SimpleUI' : 'WebUI',
     quiet: !envFlag('WEBUI_LOGS'),
-    getUrl: () => `http://${host}:${httpPort}`,
+    // The dashboard is operator-owned terminal output, so retain the full
+    // authenticated access URL here even though startup logs remain redacted.
+    getUrl: () => accessUrl,
   });
   const strictPort = opts.strictPort ?? isStrictPort();
   let httpPort = requestedHttpPort;

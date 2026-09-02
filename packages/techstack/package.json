@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/techstack",
-  "version": "0.319.0",
+  "version": "0.319.1",
   "license": "MIT",
   "description": "WrongStack TechStack — cross-language dependency intelligence for the active target project: discover, inventory, enrich, analyze, and report.",
   "repository": {

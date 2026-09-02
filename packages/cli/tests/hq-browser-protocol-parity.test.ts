@@ -48,11 +48,17 @@ function serverSentTypes(): Set<string> {
   return found;
 }
 
-/** Frame types the browser SPA actually branches on. */
+/**
+ * Frame types the browser SPA actually branches on.
+ *
+ * The dispatch lives in `webui-hq/src/data/wire.ts` (`applySocketMessage`) as a
+ * `switch` over `message.type` — it moved out of `main.tsx`, which is now only
+ * boot wiring.
+ */
 function browserHandledTypes(): Set<string> {
-  const source = read('webui-hq/src/main.tsx');
+  const source = read('webui-hq/src/data/wire.ts');
   const found = new Set<string>();
-  for (const m of source.matchAll(/msg\.type\s*===\s*'(hq\.[a-z_]+)'/g)) {
+  for (const m of source.matchAll(/case\s*'(hq\.[a-z_]+)':/g)) {
     if (m[1]) found.add(m[1]);
   }
   return found;
@@ -87,9 +93,9 @@ const BROWSER_IGNORED: Record<string, string> = {
   // a browser socket.
   'hq.command_batch': 'client-plane only — delivered to publishers, not browsers',
   'hq.welcome': 'client-plane handshake ack on /ws/client',
-  // Consumed by HqWsClient's transport layer rather than the top-level
-  // if/else chain, so it never reaches main.tsx.
-  'hq.heartbeat': 'transport keepalive, handled by HqWsClient',
+  // Consumed by the transport (HqSocket) as liveness rather than by the
+  // dispatch switch, so it has no `case` in wire.ts.
+  'hq.heartbeat': 'transport keepalive, handled by HqSocket',
   // Client-plane only as of this audit: the browser fan-out was removed
   // because nothing consumed it (see fanoutKanbanDelta). Sent at client hello
   // and after each merge, to publishing CLI/TUI peers.
@@ -104,7 +110,7 @@ describe('HQ browser protocol parity', () => {
     );
     expect(
       unhandled,
-      `hq-server/ws.ts sends these to browsers but webui-hq/src/main.tsx has no branch ` +
+      `hq-server/ws.ts sends these to browsers but webui-hq/src/data/wire.ts has no case ` +
         `for them: ${unhandled.join(', ')}. Add a branch, or add an entry to ` +
         `BROWSER_IGNORED explaining why the browser drops it.`,
     ).toEqual([]);
@@ -115,7 +121,7 @@ describe('HQ browser protocol parity', () => {
     const missing = [...browserHandledTypes()].filter((t) => !union.has(t));
     expect(
       missing,
-      `main.tsx branches on these but HqBrowserMessage does not declare them: ` +
+      `wire.ts branches on these but HqBrowserMessage does not declare them: ` +
         `${missing.join(', ')}`,
     ).toEqual([]);
   });

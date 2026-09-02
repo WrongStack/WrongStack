@@ -5,7 +5,7 @@
  * @vitest-environment jsdom
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mailboxActions } from '../src/lib/mailbox-actions.js';
+import { mailboxActions } from '../src/domain/mailbox-actions.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -164,7 +164,7 @@ describe('mailboxActions', () => {
     it('calls markAuthRequired on 401', async () => {
       // We need to check that store.markAuthRequired was called.
       // Import the store module's spy.
-      const store = await import('../src/store.js');
+      const store = await import('../src/data/store/index.js');
       const markAuthRequiredSpy = vi.spyOn(store.useHqStore.getState(), 'markAuthRequired');
 
       const fetchMock = vi.fn().mockResolvedValue(

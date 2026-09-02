@@ -1,27 +1,50 @@
 /**
- * Brain view — decision requests, answers, denials, interventions timeline.
- * Seeded from the persisted event log (`/api/events?type=brain.event`) so a
- * fresh browser sees history immediately, then fed live by `brain.event`
- * envelopes.
+ * Brain — the decision trail.
+ *
+ * Requests, answers, human escalations and interventions as a governed ledger
+ * rather than a flat event stream: newest first, each entry carrying its
+ * source, its risk and the decision that came out of it. Seeded from the
+ * persisted log so a fresh browser sees history immediately.
  */
 import type { HqBrainEventPayload } from '@wrongstack/core/hq';
-import { Brain, CheckCircle2, CircleHelp, CircleSlash, Hand, UserRound, Zap } from 'lucide-react';
-import type React from 'react';
+import {
+  BrainCircuit,
+  CircleCheck,
+  CircleHelp,
+  CircleSlash,
+  Hand,
+  UserRound,
+  Zap,
+} from 'lucide-react';
+import type * as React from 'react';
 import { useMemo } from 'react';
-import { useBackfilledEvents } from '../lib/use-backfilled-events.js';
+import { EmptyState, Mono, toneText } from '../components/hq/primitives.js';
+import { HeroMetric, Section, ViewHero, ViewShell } from '../components/hq/view-chrome.js';
+import { Badge, type BadgeTone } from '../components/ui/badge.js';
+import { Card } from '../components/ui/card.js';
+import type { HqTone } from '../domain/status-tone.js';
+import { useBackfilledEvents } from '../domain/use-backfilled-events.js';
+import { formatClock } from '../lib/format.js';
 
-const KIND_META: Record<string, { label: string; Icon: typeof Brain; cls: string }> = {
-  decision_requested: { label: 'Requested', Icon: CircleHelp, cls: 'info' },
-  decision_answered: { label: 'Answered', Icon: CheckCircle2, cls: 'active' },
-  decision_ask_human: { label: 'Ask Human', Icon: Hand, cls: 'warn' },
-  decision_denied: { label: 'Denied', Icon: CircleSlash, cls: 'error' },
-  human_answered: { label: 'Human', Icon: UserRound, cls: 'info' },
-  intervention: { label: 'Intervention', Icon: Zap, cls: 'warn' },
+/** How many entries the trail renders. Older ones stay in the log, not the DOM. */
+const TRAIL_LIMIT = 200;
+
+const KIND_META: Record<
+  string,
+  { label: string; icon: typeof BrainCircuit; tone: HqTone; badge: BadgeTone }
+> = {
+  decision_requested: { label: 'Requested', icon: CircleHelp, tone: 'info', badge: 'info' },
+  decision_answered: { label: 'Answered', icon: CircleCheck, tone: 'active', badge: 'active' },
+  decision_ask_human: { label: 'Ask human', icon: Hand, tone: 'warn', badge: 'warn' },
+  decision_denied: { label: 'Denied', icon: CircleSlash, tone: 'error', badge: 'error' },
+  human_answered: { label: 'Human', icon: UserRound, tone: 'info', badge: 'info' },
+  intervention: { label: 'Intervention', icon: Zap, tone: 'warn', badge: 'warn' },
 };
 
 export function BrainView(): React.ReactElement {
-  const { events: all, loading } = useBackfilledEvents('brain.event', 200);
-  const events = all.slice(-200).reverse();
+  const { events: all, loading } = useBackfilledEvents('brain.event', TRAIL_LIMIT);
+  const events = useMemo(() => all.slice(-TRAIL_LIMIT).reverse(), [all]);
+
   const summary = useMemo(() => {
     let requested = 0;
     let answered = 0;
@@ -41,104 +64,106 @@ export function BrainView(): React.ReactElement {
 
   if (events.length === 0) {
     return (
-      <div className="hq-empty hq-empty-ornate">
-        {loading
-          ? 'Loading brain history…'
-          : 'No brain decisions yet. Brain events appear when autonomous consumers route decisions through the Brain.'}
-      </div>
+      <ViewShell>
+        <EmptyState
+          icon={BrainCircuit}
+          title={loading ? 'Loading brain history…' : 'No brain decisions yet'}
+          hint={
+            loading
+              ? undefined
+              : 'Entries appear when autonomous consumers route decisions through the Brain.'
+          }
+        />
+      </ViewShell>
     );
   }
 
   return (
-    <div className="hq-screen hq-brain-screen">
-      <section className="hq-screen-hero hq-brain-hero" aria-label="Brain decision summary">
-        <div>
-          <span className="hq-section-kicker">Decision ledger</span>
-          <h2>Brain arbitration timeline</h2>
-          <p>
-            Requests, answers, human escalations and interventions are shown as a governed decision
-            trail instead of a flat event stream.
-          </p>
-        </div>
-        <div className="hq-hero-metrics">
-          <Metric label="requested" value={summary.requested} />
-          <Metric label="answered" value={summary.answered} tone="ok" />
-          <Metric label="human" value={summary.human} tone={summary.human > 0 ? 'warn' : undefined} />
-          <Metric
-            label="high risk"
-            value={summary.highRisk}
-            tone={summary.highRisk > 0 ? 'error' : 'ok'}
-          />
-        </div>
-      </section>
+    <ViewShell>
+      <ViewHero
+        eyebrow="Decision ledger"
+        headline="Brain arbitration"
+        description="Requests, answers, escalations and interventions as a governed trail."
+        tone={summary.highRisk > 0 ? 'error' : summary.human > 0 ? 'warn' : 'active'}
+        metrics={
+          <>
+            <HeroMetric label="requested" value={summary.requested} />
+            <HeroMetric label="answered" value={summary.answered} tone="active" />
+            <HeroMetric
+              label="human"
+              value={summary.human}
+              tone={summary.human > 0 ? 'warn' : 'idle'}
+            />
+            <HeroMetric
+              label="high risk"
+              value={summary.highRisk}
+              tone={summary.highRisk > 0 ? 'error' : 'active'}
+            />
+          </>
+        }
+      />
 
-      <div className="hq-section-head">
-        <div>
-          <span className="hq-section-kicker">Latest {events.length}</span>
-          <h3>Decision trail</h3>
-        </div>
-        {summary.interventions > 0 ? (
-          <span className="hq-pill warn">{summary.interventions} interventions</span>
-        ) : null}
-      </div>
-
-      <div className="hq-decision-timeline">
-        {events.map((e) => {
-          const p = e.payload as HqBrainEventPayload;
-          const meta = KIND_META[p.kind] ?? { label: p.kind, Icon: Brain, cls: 'info' };
-          return (
-            <article key={e.id} className={`hq-card hq-decision-card ${meta.cls}`}>
-              <div className="hq-decision-marker" aria-hidden="true">
-                <meta.Icon size={15} className={`hq-kind-icon ${meta.cls}`} />
-              </div>
-              <div className="hq-decision-body">
-                <div className="hq-row">
-                  <span className="hq-text-bright">{meta.label}</span>
-                  {p.source !== undefined && <span className="hq-pill info">{p.source}</span>}
-                  {p.risk !== undefined && (
-                    <span
-                      className={`hq-pill ${p.risk === 'high' || p.risk === 'critical' ? 'error' : 'warn'}`}
-                    >
-                      {p.risk} risk
-                    </span>
-                  )}
-                  <span className="hq-mono hq-row-time">{new Date(p.at).toLocaleTimeString()}</span>
+      <Section
+        eyebrow={`Latest ${events.length}`}
+        title="Decision trail"
+        action={
+          summary.interventions > 0 && (
+            <Badge tone="warn">{summary.interventions} interventions</Badge>
+          )
+        }
+      >
+        <div className="space-y-2">
+          {events.map((event) => {
+            const payload = event.payload as HqBrainEventPayload;
+            const meta = KIND_META[payload.kind] ?? {
+              label: payload.kind,
+              icon: BrainCircuit,
+              tone: 'info' as HqTone,
+              badge: 'info' as BadgeTone,
+            };
+            const Icon = meta.icon;
+            const highRisk = payload.risk === 'high' || payload.risk === 'critical';
+            return (
+              <Card
+                key={event.id}
+                data-testid="brain-entry"
+                data-kind={payload.kind}
+                className="flex-row items-stretch"
+              >
+                <div className="flex w-9 shrink-0 items-start justify-center border-r border-border pt-3">
+                  <Icon className={`size-4 ${toneText(meta.tone)}`} />
                 </div>
-                {p.question !== undefined && <div className="hq-mono hq-row-detail">{p.question}</div>}
-                {p.decision !== undefined && (
-                  <div className="hq-row hq-row-detail">
-                    <span className="hq-pill active">→ {p.decision}</span>
+                <div className="min-w-0 flex-1 space-y-1.5 p-3">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-medium">{meta.label}</span>
+                    {payload.source !== undefined && <Badge tone="info">{payload.source}</Badge>}
+                    {payload.risk !== undefined && (
+                      <Badge tone={highRisk ? 'error' : 'warn'}>{payload.risk} risk</Badge>
+                    )}
+                    <Mono className="tabular ml-auto">{formatClock(payload.at)}</Mono>
                   </div>
-                )}
-                {p.detail !== undefined && <div className="hq-mono hq-row-subtle">{p.detail}</div>}
-                {p.kind === 'intervention' && (
-                  <div className="hq-row hq-row-detail">
-                    <span className="hq-pill warn">{p.interventionKind}</span>
-                    <span className="hq-pill">{p.intervened ? 'steered' : 'observed'}</span>
-                  </div>
-                )}
-              </div>
-            </article>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone?: 'ok' | 'warn' | 'error';
-}): React.ReactElement {
-  return (
-    <div className="hq-hero-metric" data-tone={tone}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
+                  {payload.question !== undefined && (
+                    <p className="font-mono text-[11px] leading-relaxed">{payload.question}</p>
+                  )}
+                  {payload.decision !== undefined && (
+                    <Badge tone="active">→ {payload.decision}</Badge>
+                  )}
+                  {payload.detail !== undefined && <Mono>{payload.detail}</Mono>}
+                  {payload.kind === 'intervention' && (
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge tone="warn">{payload.interventionKind}</Badge>
+                      <Badge tone={payload.intervened ? 'running' : 'idle'}>
+                        {payload.intervened ? 'steered' : 'observed'}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </Section>
+    </ViewShell>
   );
 }

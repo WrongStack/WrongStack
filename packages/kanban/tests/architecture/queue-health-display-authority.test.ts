@@ -25,7 +25,8 @@ function read(relativePath: string): string {
 const DISPLAY_SURFACES = [
   'packages/tui/src/kanban-slash.ts',
   'packages/webui/src/components/KanbanQueueHealthBar.tsx',
-  'packages/webui-hq/src/views/kanban-queue-health.tsx',
+  'packages/webui-hq/src/domain/kanban-queue-health.ts',
+  'packages/webui-hq/src/views/kanban/queue-health.tsx',
   'packages/webui-server/src/server/kanban-routes.ts',
   'packages/webui-server/src/server/kanban-supervisor.ts',
   'packages/tools/src/kanban.ts',
@@ -84,7 +85,7 @@ describe('queue health display authority', () => {
     expect(read('packages/webui-server/src/server/kanban-supervisor.ts')).toContain(
       'counts.startable',
     );
-    expect(read('packages/webui-hq/src/views/kanban-queue-health.tsx')).toContain(
+    expect(read('packages/webui-hq/src/views/kanban/queue-health.tsx')).toContain(
       'counts.startable',
     );
   });

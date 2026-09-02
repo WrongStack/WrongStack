@@ -8,7 +8,7 @@
  * is truthy and has the expected icon-map lookup behaviour.
  */
 import { describe, expect, it } from 'vitest';
-import { getToolVisual } from '../src/lib/tool-visual.js';
+import { getToolVisual } from '../src/domain/tool-visual.js';
 
 describe('getToolVisual', () => {
   it('returns the icon and color for a known tool name', () => {

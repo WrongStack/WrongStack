@@ -3,7 +3,7 @@ import {
   formatMailboxTime,
   formatRelativeTime,
   shortMailboxId,
-} from '../src/views/mailbox-time.js';
+} from '../src/domain/mailbox-time.js';
 
 describe('mailbox-time', () => {
   describe('formatMailboxTime', () => {

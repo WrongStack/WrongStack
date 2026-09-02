@@ -9,7 +9,7 @@ import {
   layoutFleetTopology,
   orderFleetTopologyNodes,
   type FleetTopologyNode,
-} from '../src/views/fleet-topology.js';
+} from '../src/domain/fleet-topology.js';
 
 function baseSnapshot(overrides: Partial<HqSnapshot> = {}): HqSnapshot {
   return {

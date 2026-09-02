@@ -1,18 +1,27 @@
 /* ===========================================================================
-   Syntax Highlighting Theme — HQ Console
-   Ported from the main WebUI's syntax-highlight.css,
-   keyed on the HQ token set so highlighted code follows the panel theme.
+   Syntax highlighting — HQ Console
+
+   highlight.js emits `.hljs-*` classes on elements we never render, so this is
+   a plain stylesheet rather than utilities. Structural colours come from the
+   design tokens; the syntax hues are literals, because a code theme needs more
+   distinct hues than a UI palette carries and they must stay readable against
+   both surfaces.
+
+   LIGHT IS THE BASE, `.dark` overrides — matching the `.dark`-class theme
+   contract in `index.css`. (The previous version keyed on a `data-hq-theme`
+   attribute that no longer exists, and referenced `--text` / `--muted` tokens
+   that no longer exist either, so it had stopped following the theme at all.)
    =========================================================================== */
 
 .hljs {
-  color: var(--text);
+  color: hsl(var(--foreground));
   background: transparent;
 }
 
 /* ── Comments ── */
 .hljs-comment,
 .hljs-quote {
-  color: color-mix(in oklab, var(--muted) 60%, transparent);
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 
@@ -21,7 +30,7 @@
 .hljs-selector-tag,
 .hljs-type,
 .hljs-literal {
-  color: #f28dbc;
+  color: #9f2862;
 }
 
 /* ── Strings ── */
@@ -29,68 +38,68 @@
 .hljs-attr,
 .hljs-template-tag,
 .hljs-template-variable {
-  color: #64d488;
+  color: #146b39;
 }
 
 /* ── Numbers ── */
 .hljs-number,
 .hljs-symbol,
 .hljs-bullet {
-  color: var(--primary);
+  color: hsl(var(--primary));
 }
 
-/* ── Functions / classes ── */
+/* ── Functions and classes ── */
 .hljs-function .hljs-keyword,
 .hljs-title.function_,
 .hljs-title.class_,
 .hljs-title.class_.inherited__ {
-  color: #6cb6ff;
+  color: #175aa3;
 }
 
 /* ── Variables and parameters ── */
 .hljs-variable,
 .hljs-params {
-  color: var(--text);
+  color: hsl(var(--foreground));
 }
 
-/* ── Tags (JSX/HTML) ── */
+/* ── Tags (JSX / HTML) ── */
 .hljs-tag,
 .hljs-name {
-  color: #f47a95;
+  color: #b32947;
 }
 
-/* ── Attributes / properties ── */
+/* ── Attributes and properties ── */
 .hljs-attribute,
 .hljs-property {
-  color: #ffb055;
+  color: #8b4b00;
 }
 
 /* ── Regex ── */
 .hljs-regexp {
-  color: #49d3c5;
+  color: #08746c;
 }
 
-/* ── Punctuation / operators ── */
+/* ── Punctuation and operators ── */
 .hljs-punctuation,
 .hljs-operator {
-  color: color-mix(in oklab, var(--muted) 80%, var(--text));
+  color: hsl(var(--muted-foreground));
 }
 
-/* ── Meta / doctype ── */
+/* ── Meta and doctype ── */
 .hljs-meta,
 .hljs-doctag,
 .hljs-section {
-  color: var(--muted);
+  color: hsl(var(--muted-foreground));
 }
 
-/* ── Additions / deletions (diff) ── */
+/* ── Diff ── */
 .hljs-addition {
-  color: #64d488;
-  background: hsl(150 58% 36% / 0.12);
+  color: #146b39;
+  background: hsl(var(--success) / 0.12);
 }
 .hljs-deletion {
-  color: #ff7a7a;
-  background: hsl(0 72% 48% / 0.12);
+  color: #b32947;
+  background: hsl(var(--destructive) / 0.12);
 }
 
 /* ── Emphasis ── */
@@ -103,38 +112,41 @@
 
 /* ── Links ── */
 .hljs-link {
+  color: hsl(var(--primary));
   text-decoration: underline;
-  color: var(--primary);
 }
 
-:root[data-hq-theme="light"] .hljs-keyword,
-:root[data-hq-theme="light"] .hljs-selector-tag,
-:root[data-hq-theme="light"] .hljs-type,
-:root[data-hq-theme="light"] .hljs-literal {
-  color: #9f2862;
+/* ── Dark surface: lift every hue so it clears the graphite background ── */
+.dark .hljs-keyword,
+.dark .hljs-selector-tag,
+.dark .hljs-type,
+.dark .hljs-literal {
+  color: #f28dbc;
 }
-:root[data-hq-theme="light"] .hljs-string,
-:root[data-hq-theme="light"] .hljs-attr,
-:root[data-hq-theme="light"] .hljs-template-tag,
-:root[data-hq-theme="light"] .hljs-template-variable,
-:root[data-hq-theme="light"] .hljs-addition {
-  color: #146b39;
+.dark .hljs-string,
+.dark .hljs-attr,
+.dark .hljs-template-tag,
+.dark .hljs-template-variable,
+.dark .hljs-addition {
+  color: #64d488;
 }
-:root[data-hq-theme="light"] .hljs-function .hljs-keyword,
-:root[data-hq-theme="light"] .hljs-title.function_,
-:root[data-hq-theme="light"] .hljs-title.class_,
-:root[data-hq-theme="light"] .hljs-title.class_.inherited__ {
-  color: #175aa3;
+.dark .hljs-function .hljs-keyword,
+.dark .hljs-title.function_,
+.dark .hljs-title.class_,
+.dark .hljs-title.class_.inherited__ {
+  color: #6cb6ff;
 }
-:root[data-hq-theme="light"] .hljs-tag,
-:root[data-hq-theme="light"] .hljs-name,
-:root[data-hq-theme="light"] .hljs-deletion {
-  color: #b32947;
+.dark .hljs-tag,
+.dark .hljs-name {
+  color: #f47a95;
 }
-:root[data-hq-theme="light"] .hljs-attribute,
-:root[data-hq-theme="light"] .hljs-property {
-  color: #8b4b00;
+.dark .hljs-deletion {
+  color: #ff7a7a;
 }
-:root[data-hq-theme="light"] .hljs-regexp {
-  color: #08746c;
+.dark .hljs-attribute,
+.dark .hljs-property {
+  color: #ffb055;
+}
+.dark .hljs-regexp {
+  color: #49d3c5;
 }

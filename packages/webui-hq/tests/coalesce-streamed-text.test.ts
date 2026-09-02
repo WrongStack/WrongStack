@@ -1,6 +1,6 @@
 import type { HqTranscriptEntry } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { coalesceStreamedText } from '../src/lib/use-session-transcript.js';
+import { coalesceStreamedText } from '../src/domain/use-session-transcript.js';
 
 const E = (over: Partial<HqTranscriptEntry> & { text: string }): HqTranscriptEntry => ({
   ts: '2026-07-10T00:00:00.000Z',

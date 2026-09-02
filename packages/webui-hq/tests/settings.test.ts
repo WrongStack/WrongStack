@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scorePassword } from '../src/views/settings.js';
+import { scorePassword } from '../src/domain/password-strength.js';
 
 describe('scorePassword', () => {
   it('returns empty for zero-length input', () => {

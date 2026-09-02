@@ -111,7 +111,7 @@
       }
     },
     {
-      "includes": ["packages/webui/src/index.css"],
+      "includes": ["packages/webui/src/index.css", "packages/webui-hq/src/index.css"],
       "linter": {
         "rules": {
           "complexity": {

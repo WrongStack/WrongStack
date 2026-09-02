@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HqClientRecord, HqSnapshot } from '@wrongstack/core/hq';
-import { controlClientLabel, relativeTime } from '../src/views/control.js';
+import { controlClientLabel, relativeTime } from '../src/domain/control-format.js';
 
 const NOW = new Date('2026-07-10T12:00:00.000Z').getTime();
 

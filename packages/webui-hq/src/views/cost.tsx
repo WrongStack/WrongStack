@@ -1,154 +1,155 @@
 /**
- * Cost view — fleet-wide cost: hero total, per-project share bars, and a
- * per-session/agent breakdown (model, tokens, cost) from the live snapshot.
+ * Cost — where the money went.
+ *
+ * Two levels, deliberately: projects ranked by spend (the budget question),
+ * then the costed sessions inside them (the "which run did this" question).
+ * Session rows are clickable and land in the Console with that session
+ * selected, because the next question after "what cost this" is always "what
+ * was it doing".
  */
-import type React from 'react';
+import { CircleDollarSign } from 'lucide-react';
+import type * as React from 'react';
 import { useMemo } from 'react';
-import { useHqStore } from '../store.js';
-
-function fmtTokens(v: number): string {
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
-  return String(v);
-}
+import { useHqStore } from '../data/store/index.js';
+import { HeroMetric, Section, ShareBar, ViewHero, ViewShell } from '../components/hq/view-chrome.js';
+import { EmptyState, Mono } from '../components/hq/primitives.js';
+import { Badge } from '../components/ui/badge.js';
+import { Card } from '../components/ui/card.js';
+import { formatCount, formatPercent, formatUsd } from '../lib/format.js';
 
 export function CostView(): React.ReactElement {
-  const snapshot = useHqStore((s) => s.snapshot);
+  const snapshot = useHqStore((state) => state.snapshot);
   const projects = snapshot?.projects ?? [];
   const sessions = snapshot?.liveSessions ?? [];
   const total = snapshot?.totals.totalCostUsd ?? 0;
 
   const sessionRows = useMemo(() => {
-    const rows = sessions.map((s) => {
-      let cost = 0;
-      let tokens = 0;
-      const models = new Set<string>();
-      for (const a of s.agents) {
-        cost += a.costUsd ?? 0;
-        tokens += (a.tokensIn ?? 0) + (a.tokensOut ?? 0);
-        if (a.model !== undefined) models.add(a.model);
-      }
-      return { s, cost, tokens, models: [...models] };
-    });
-    return rows.filter((r) => r.cost > 0 || r.tokens > 0).sort((a, b) => b.cost - a.cost);
+    return sessions
+      .map((session) => {
+        let cost = 0;
+        let tokens = 0;
+        const models = new Set<string>();
+        for (const agent of session.agents) {
+          cost += agent.costUsd ?? 0;
+          tokens += (agent.tokensIn ?? 0) + (agent.tokensOut ?? 0);
+          if (agent.model !== undefined) models.add(agent.model);
+        }
+        return { session, cost, tokens, models: [...models] };
+      })
+      .filter((row) => row.cost > 0 || row.tokens > 0)
+      .sort((left, right) => right.cost - left.cost);
   }, [sessions]);
 
   if (projects.length === 0) {
-    return <div className="hq-empty hq-empty-ornate">No cost data yet — connect some clients.</div>;
+    return (
+      <ViewShell>
+        <EmptyState
+          icon={CircleDollarSign}
+          title="No cost data yet"
+          hint="Cost appears once a client connects and starts spending tokens."
+        />
+      </ViewShell>
+    );
   }
 
-  const sorted = [...projects].sort((a, b) => b.totalCostUsd - a.totalCostUsd);
-  const leader = sorted[0];
-  const leaderPct = leader && total > 0 ? (leader.totalCostUsd / total) * 100 : 0;
+  const ranked = [...projects].sort((left, right) => right.totalCostUsd - left.totalCostUsd);
+  const leader = ranked[0];
+  const leaderShare = leader !== undefined && total > 0 ? leader.totalCostUsd / total : 0;
   const totalTokens = sessionRows.reduce((sum, row) => sum + row.tokens, 0);
 
   return (
-    <div className="hq-screen hq-cost-screen">
-      <section className="hq-screen-hero hq-cost-hero" aria-label="Cost command summary">
-        <div>
-          <span className="hq-section-kicker">Economics</span>
-          <h2>${total.toFixed(4)}</h2>
-          <p>
-            Fleet spend is ranked by project first, then drilled down into costed sessions and model
-            fingerprints.
-          </p>
-        </div>
-        <div className="hq-hero-metrics">
-          <Metric label="projects" value={projects.length} />
-          <Metric label="costed sessions" value={sessionRows.length} />
-          <Metric label="tokens" value={fmtTokens(totalTokens)} />
-          <Metric label="top share" value={`${leaderPct.toFixed(0)}%`} tone={leaderPct > 60 ? 'warn' : undefined} />
-        </div>
-      </section>
+    <ViewShell>
+      <ViewHero
+        eyebrow="Economics"
+        headline={formatUsd(total)}
+        description="Fleet spend, ranked by project and drilled into the sessions and models that produced it."
+        // A single project past 60% of fleet spend is worth a second look —
+        // usually a runaway loop rather than a deliberate concentration.
+        tone={leaderShare > 0.6 ? 'warn' : undefined}
+        metrics={
+          <>
+            <HeroMetric label="projects" value={projects.length} />
+            <HeroMetric label="costed sessions" value={sessionRows.length} />
+            <HeroMetric label="tokens" value={formatCount(totalTokens)} />
+            <HeroMetric
+              label="top share"
+              value={formatPercent(leaderShare)}
+              tone={leaderShare > 0.6 ? 'warn' : 'idle'}
+            />
+          </>
+        }
+      />
 
-      <section className="hq-priority-section" aria-label="Project cost ranking">
-        <div className="hq-section-head">
-          <div>
-            <span className="hq-section-kicker">Spend distribution</span>
-            <h3>By Project</h3>
-          </div>
-          {leader ? <span className="hq-pill info">leader: {leader.projectName}</span> : null}
-        </div>
-        <div className="hq-cost-rank-list">
-          {sorted.map((p, index) => {
-            const pct = total > 0 ? (p.totalCostUsd / total) * 100 : 0;
+      <Section
+        eyebrow="Spend distribution"
+        title="By project"
+        action={
+          leader !== undefined && <Badge tone="info">leader: {leader.projectName}</Badge>
+        }
+      >
+        <div className="space-y-2">
+          {ranked.map((project, index) => {
+            const share = total > 0 ? project.totalCostUsd / total : 0;
             return (
-              <article key={p.projectId} className="hq-card hq-cost-project-card">
-                <div className="hq-cost-rank">#{index + 1}</div>
-                <div className="hq-cost-project-main">
-                  <div className="hq-row">
-                    <span className="hq-text-bright">{p.projectName}</span>
-                    <span className="hq-mono hq-row-subtle">{p.projectId}</span>
-                    <span className="hq-cost-amount">${p.totalCostUsd.toFixed(4)}</span>
-                    <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
+              <Card key={project.projectId} className="flex-row items-stretch">
+                <div className="tabular flex w-10 shrink-0 items-center justify-center border-r border-border text-xs text-muted-foreground">
+                  #{index + 1}
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5 p-3">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-sm font-medium">{project.projectName}</span>
+                    <Mono title={project.projectId}>{project.projectId}</Mono>
+                    <span className="tabular ml-auto text-sm font-semibold">
+                      {formatUsd(project.totalCostUsd)}
+                    </span>
+                    <Mono className="tabular w-12 text-right">{formatPercent(share, 1)}</Mono>
                   </div>
-                  <div className="hq-share-track">
-                    <div className="hq-share-fill" style={{ width: `${pct}%` }} />
-                  </div>
-                  <div className="hq-row hq-row-detail">
-                    <span className="hq-pill info">{p.activeSessions} sessions</span>
-                    <span className="hq-pill active">{p.activeSubagents} subagents</span>
-                    <span className="hq-pill idle">{p.activeClients} clients</span>
+                  <ShareBar fraction={share} />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge tone="info">{project.activeSessions} sessions</Badge>
+                    <Badge tone="active">{project.activeSubagents} subagents</Badge>
+                    <Badge tone="idle">{project.activeClients} clients</Badge>
                   </div>
                 </div>
-              </article>
+              </Card>
             );
           })}
         </div>
-      </section>
+      </Section>
 
       {sessionRows.length > 0 && (
-        <section>
-          <div className="hq-section-head compact">
-            <div>
-              <span className="hq-section-kicker">Drilldown</span>
-              <h3>By Session</h3>
-            </div>
-            <span className="hq-mono hq-row-subtle">{sessionRows.length} costed</span>
-          </div>
-          <div className="hq-card hq-cost-session-card">
-            {sessionRows.map(({ s, cost, tokens, models }) => (
+        <Section
+          eyebrow="Drilldown"
+          title="By session"
+          action={<Mono>{sessionRows.length} costed</Mono>}
+        >
+          <Card className="divide-y divide-border">
+            {sessionRows.map(({ session, cost, tokens, models }) => (
               <button
-                key={s.sessionId}
+                key={session.sessionId}
                 type="button"
-                className="hq-row hq-row-click hq-cost-session-row"
+                data-testid="cost-session-row"
+                title="Open in Console"
                 onClick={() => {
-                  useHqStore.getState().selectSession(s.sessionId);
+                  useHqStore.getState().selectSession(session.sessionId);
                   useHqStore.getState().setActiveView('console');
                 }}
-                title="Open in Console"
+                className="flex w-full flex-wrap items-center gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-muted/50"
               >
-                <span className="hq-text-bright">{s.projectName}</span>
-                <span className="hq-pill idle">{s.clientKind}</span>
-                {models.map((m) => (
-                  <span key={m} className="hq-pill info">
-                    {m}
-                  </span>
+                <span className="font-medium">{session.projectName}</span>
+                <Badge tone="idle">{session.clientKind}</Badge>
+                {models.map((model) => (
+                  <Badge key={model} tone="info">
+                    {model}
+                  </Badge>
                 ))}
-                <span className="hq-mono hq-row-subtle">{fmtTokens(tokens)} tok</span>
-                <span className="hq-cost-amount">${cost.toFixed(4)}</span>
+                <Mono className="tabular ml-auto">{formatCount(tokens)} tok</Mono>
+                <span className="tabular w-20 text-right font-semibold">{formatUsd(cost)}</span>
               </button>
             ))}
-          </div>
-        </section>
+          </Card>
+        </Section>
       )}
-    </div>
-  );
-}
-
-function Metric({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone?: 'ok' | 'warn' | 'error';
-}): React.ReactElement {
-  return (
-    <div className="hq-hero-metric" data-tone={tone}>
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </div>
+    </ViewShell>
   );
 }

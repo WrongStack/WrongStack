@@ -1,6 +1,6 @@
 import type { HqSnapshot } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { buildNav } from '../src/views/fleet-nav.js';
+import { buildNav } from '../src/domain/fleet-nav-tree.js';
 
 function snapshot(overrides: Partial<HqSnapshot> = {}): HqSnapshot {
   return {

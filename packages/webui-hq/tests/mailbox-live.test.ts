@@ -18,8 +18,8 @@ import type {
   HqMailboxSummary,
 } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import type { FlatMessage } from '../src/views/mailbox-grouping.js';
-import { buildLiveFeed, buildLiveFeedFromHq } from '../src/views/mailbox-live.js';
+import type { FlatMessage } from '../src/domain/mailbox-grouping.js';
+import { buildLiveFeed, buildLiveFeedFromHq } from '../src/domain/mailbox-live.js';
 
 /** Shorthand to build a FlatMessage fixture for the live feed. */
 function flatOf(

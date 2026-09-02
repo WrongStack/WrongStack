@@ -1,6 +1,6 @@
 import type { HqKanbanSnapshotPayload } from '@wrongstack/core/hq';
 import { describe, expect, it } from 'vitest';
-import { projectKanbanBoards, projectKanbanUrl } from '../src/views/kanban-model.js';
+import { projectKanbanBoards, projectKanbanUrl } from '../src/domain/kanban-model.js';
 
 function snapshot(): HqKanbanSnapshotPayload {
   return {

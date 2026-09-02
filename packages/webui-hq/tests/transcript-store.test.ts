@@ -12,7 +12,7 @@ import {
   createTranscriptState,
   entryKey,
   isToolRunning,
-} from '../src/lib/transcript-store.js';
+} from '../src/domain/transcript-store.js';
 
 function e(partial: Partial<HqTranscriptEntry>): HqTranscriptEntry {
   return { ts: 't0', role: 'assistant', text: 'hi', ...partial };
