@@ -35,14 +35,35 @@ export class MetricPlugin implements VerifierPlugin {
       if (m.target === undefined || m.current === undefined) {
         return { ...m, met: false, reason: 'Target or current value not set.' };
       }
-      const target = typeof m.target === 'number' ? m.target : Number(m.target);
-      const current = typeof m.current === 'number' ? m.current : Number(m.current);
+      // Blank strings are "not set" in string form: Number('') is 0, and
+      // treating it as a real target would mark at_least metrics met with a
+      // target of zero. Non-numeric strings ('95%') coerce to NaN, which
+      // would fail silently with null-masked evidence. Both surface a reason,
+      // mirroring the undefined branch above.
+      const rawTarget = typeof m.target === 'string' ? m.target.trim() : m.target;
+      const rawCurrent = typeof m.current === 'string' ? m.current.trim() : m.current;
+      if (rawTarget === '' || rawCurrent === '') {
+        return {
+          ...m,
+          met: false,
+          reason: 'Target or current value is blank; set a numeric value.',
+        };
+      }
+      const target = typeof rawTarget === 'number' ? rawTarget : Number(rawTarget);
+      const current = typeof rawCurrent === 'number' ? rawCurrent : Number(rawCurrent);
       // direction: 'at_least' (default) means met when current >= target;
       // 'at_most' means met when current <= target (error rate, cost ceiling,
       // latency, open-bug count — anything where lower is better).
       const direction = m.direction ?? 'at_least';
       const numeric = !Number.isNaN(target) && !Number.isNaN(current);
-      const met = numeric && (direction === 'at_most' ? current <= target : current >= target);
+      if (!numeric) {
+        return {
+          ...m,
+          met: false,
+          reason: `Target and current must be numbers or numeric strings; got target ${JSON.stringify(m.target)} and current ${JSON.stringify(m.current)}.`,
+        };
+      }
+      const met = direction === 'at_most' ? current <= target : current >= target;
       return { ...m, target, current, direction, met };
     });
 

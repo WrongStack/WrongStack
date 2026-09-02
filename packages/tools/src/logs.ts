@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { compileUserRegex } from './_regex.js';
 import { safeResolveReal } from './_util.js';
 
@@ -85,12 +87,25 @@ export const logsTool: Tool<LogsInput, LogsOutput> = {
         stream_mode: false,
       };
     }
-    const lines = input.lines ?? 100;
+    const VALID_SINCE: ReadonlySet<string> = new Set(['1h', '6h', '24h', 'all']);
+    if (input.since !== undefined && !VALID_SINCE.has(input.since)) {
+      throw new ToolValidationError({
+        message: `logs: invalid since option "${input.since}". Allowed: 1h, 6h, 24h, all`,
+        field: 'since',
+      });
+    }
+
+    const rawLines = typeof input.lines === 'number' && !Number.isNaN(input.lines) ? input.lines : 100;
+    const lines = Math.max(0, Math.floor(rawLines));
+
     let filterRe: RegExp | null = null;
     if (input.filter) {
       const compiled = compileUserRegex(input.filter, 'i');
       if (!compiled.ok) {
-        throw new Error(`logs: ${compiled.reason}`);
+        throw new ToolValidationError({
+          message: `logs: ${compiled.reason}`,
+          field: 'filter',
+        });
       }
       filterRe = compiled.regex;
     }
@@ -158,6 +173,8 @@ async function dockerLogs(
     let stdout = '';
     let stderr = '';
     const MAX = 200_000;
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
     let settled = false;
 
     const empty = (): LogsOutput => ({
@@ -192,15 +209,15 @@ async function dockerLogs(
       finish(empty());
     }, DOCKER_LOGS_TIMEOUT_MS);
 
-    child.stdout?.on('data', (c) => {
+    child.stdout?.on('data', (c: Buffer) => {
       if (stdout.length < MAX) {
-        const text = c.toString();
+        const text = stdoutDecoder.write(c);
         stdout += text.slice(0, MAX - stdout.length);
       }
     });
-    child.stderr?.on('data', (c) => {
+    child.stderr?.on('data', (c: Buffer) => {
       if (stderr.length < MAX) {
-        const text = c.toString();
+        const text = stderrDecoder.write(c);
         stderr += text.slice(0, MAX - stderr.length);
       }
     });

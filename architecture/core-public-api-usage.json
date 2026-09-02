@@ -166,7 +166,7 @@
     "@wrongstack/core/types": {
       "files": 1028,
       "typeOnly": 951,
-      "runtimeOrMixed": 260
+      "runtimeOrMixed": 265
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -14076,7 +14076,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/audit.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14184,7 +14184,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/design.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14250,7 +14250,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/install.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14316,7 +14316,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/logs.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14340,7 +14340,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/outdated.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

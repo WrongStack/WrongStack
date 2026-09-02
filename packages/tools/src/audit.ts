@@ -1,4 +1,5 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import {
   COMMAND_OUTPUT_MAX_BYTES,
@@ -90,11 +91,21 @@ export const auditTool = {
     // `audit` is declared `mutating: false` — silently forwarding `--fix`
     // would rewrite package.json/lockfile behind the permission gate.
     if (input.fix === true) {
-      throw new Error(
-        'audit: `fix: true` is not supported — this tool is read-only (mutating: false). ' +
+      throw new ToolValidationError({
+        message:
+          'audit: `fix: true` is not supported — this tool is read-only (mutating: false). ' +
           'To remediate vulnerabilities, upgrade the affected packages with the `install` tool ' +
           '(or `language_package` for non-JS ecosystems).',
-      );
+        field: 'fix',
+      });
+    }
+
+    const VALID_LEVELS: ReadonlySet<string> = new Set(['low', 'moderate', 'high', 'critical']);
+    if (input.level !== undefined && !VALID_LEVELS.has(input.level)) {
+      throw new ToolValidationError({
+        message: `audit: invalid severity level "${input.level}". Allowed: low, moderate, high, critical`,
+        field: 'level',
+      });
     }
 
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
@@ -253,16 +264,32 @@ function extractAdvisories(data: Record<string, unknown>): AuditVulnerability[] 
     for (const [pkg, value] of Object.entries(vulns as Record<string, unknown>)) {
       const vuln = (value ?? {}) as Record<string, unknown>;
       const via = Array.isArray(vuln['via']) ? (vuln['via'] as unknown[]) : [];
-      const detail = via.find((v): v is Record<string, unknown> => !!v && typeof v === 'object');
-      advisories.push({
-        severity: typeof vuln['severity'] === 'string' ? (vuln['severity'] as string) : 'unknown',
-        package: pkg,
-        title:
-          detail && typeof detail['title'] === 'string'
-            ? (detail['title'] as string)
-            : 'Unknown vulnerability',
-        url: detail && typeof detail['url'] === 'string' ? (detail['url'] as string) : '',
-      });
+      const details = via.filter((v): v is Record<string, unknown> => !!v && typeof v === 'object');
+      if (details.length > 0) {
+        for (const detail of details) {
+          advisories.push({
+            severity:
+              typeof detail['severity'] === 'string'
+                ? (detail['severity'] as string)
+                : typeof vuln['severity'] === 'string'
+                  ? (vuln['severity'] as string)
+                  : 'unknown',
+            package: pkg,
+            title:
+              typeof detail['title'] === 'string'
+                ? (detail['title'] as string)
+                : 'Unknown vulnerability',
+            url: typeof detail['url'] === 'string' ? (detail['url'] as string) : '',
+          });
+        }
+      } else {
+        advisories.push({
+          severity: typeof vuln['severity'] === 'string' ? (vuln['severity'] as string) : 'unknown',
+          package: pkg,
+          title: 'Unknown vulnerability',
+          url: '',
+        });
+      }
     }
   }
 

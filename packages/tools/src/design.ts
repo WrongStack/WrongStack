@@ -16,6 +16,7 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { atomicWrite } from '@wrongstack/core/utils';
 
 type Overrides = Record<string, string>;
@@ -178,10 +179,33 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
   async execute(input, ctx, _opts): Promise<DesignOutput> {
     const signal = _opts?.signal ?? ctx?.signal;
     signal?.throwIfAborted();
+
+    const VALID_ACTIONS: ReadonlySet<string> = new Set([
+      'list',
+      'use',
+      'foundations',
+      'set',
+      'tune',
+      'materialize',
+      'verify',
+    ]);
+    if (input.action !== undefined && !VALID_ACTIONS.has(input.action)) {
+      throw new ToolValidationError({
+        message: `design: unknown action "${input.action}". Allowed actions: ${[...VALID_ACTIONS].join(', ')}`,
+        field: 'action',
+      });
+    }
+
+    if (input.stack !== undefined && !isDesignStack(input.stack)) {
+      throw new ToolValidationError({
+        message: `design: invalid stack "${input.stack}". Allowed stacks: web, react-native, flutter, swiftui, compose`,
+        field: 'stack',
+      });
+    }
+
     const loader = getDesignKitLoader(ctx.projectRoot);
     const action = input.action ?? 'list';
-    const stack: DesignStack | undefined =
-      input.stack && isDesignStack(input.stack) ? input.stack : undefined;
+    const stack: DesignStack | undefined = input.stack;
 
     if (action === 'foundations') {
       const text = await loader.foundationsText(stack);
@@ -335,7 +359,10 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
       const abs = path.join(absParent, path.basename(absResolved));
       const rel = path.relative(root, abs);
       if (rel.startsWith('..') || path.isAbsolute(rel)) {
-        throw new Error(`design: materialize path "${result.path}" would escape the project root`);
+        throw new ToolValidationError({
+          message: `design: materialize path "${result.path}" would escape the project root`,
+          field: 'out',
+        });
       }
       let exists = false;
       try {

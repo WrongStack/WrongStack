@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv } from '@wrongstack/core/utils';
 import {
   COMMAND_OUTPUT_MAX_BYTES,
@@ -8,6 +10,7 @@ import {
   safeResolveReal,
 } from './_util.js';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from './_win32-resolve.js';
+import { getProcessRegistry } from './process-registry.js';
 
 interface OutdatedInput {
   cwd?: string | undefined;
@@ -74,6 +77,13 @@ export const outdatedTool = {
     },
   },
   async execute(input: OutdatedInput, ctx: OutdatedContext, opts?: { signal: AbortSignal }) {
+    if (input.cwd !== undefined && (typeof input.cwd !== 'string' || !input.cwd.trim())) {
+      throw new ToolValidationError({
+        message: 'outdated: cwd must be a non-empty string when provided.',
+        field: 'cwd',
+      });
+    }
+
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
@@ -168,6 +178,8 @@ function runOutdated(
     let stdoutBytes = 0;
     let stderrBytes = 0;
     const MAX = 100_000;
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
 
     const resolved = resolveWin32Command(manager);
     const needsShell =
@@ -183,21 +195,58 @@ function runOutdated(
       windowsHide: true,
       ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
     });
+
+    const registry = getProcessRegistry();
+    if (typeof child.pid === 'number') {
+      registry.register(child.pid, spawnCmd, args, cwd);
+    }
+    const onAbort = () => {
+      if (typeof child.pid === 'number') {
+        registry.kill(child.pid, { force: true });
+      } else {
+        try {
+          child.kill('SIGKILL');
+        } catch {
+          /* already gone */
+        }
+      }
+    };
+    if (signal) {
+      if (signal.aborted) onAbort();
+      else signal.addEventListener('abort', onAbort, { once: true });
+    }
+
     child.stdout?.on('data', (c: Buffer) => {
       stdoutBytes += c.byteLength;
       if (stdout.length < MAX) {
-        const text = c.toString();
+        const text = stdoutDecoder.write(c);
         stdout += text.slice(0, MAX - stdout.length);
       }
     });
     child.stderr?.on('data', (c: Buffer) => {
       stderrBytes += c.byteLength;
       if (stderr.length < MAX) {
-        const text = c.toString();
+        const text = stderrDecoder.write(c);
         stderr += text.slice(0, MAX - stderr.length);
       }
     });
     child.on('close', (code) => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (typeof child.pid === 'number') registry.unregister(child.pid);
+      if (signal.aborted) {
+        resolve({
+          exit_code: 124,
+          packages: [],
+          total: 0,
+          output: 'Aborted',
+          truncated: false,
+        });
+        return;
+      }
+      const restOut = stdoutDecoder.end();
+      if (restOut && stdout.length < MAX) {
+        stdout += restOut.slice(0, MAX - stdout.length);
+      }
       const isTruncated =
         stdoutBytes > MAX ||
         stderrBytes > MAX ||
@@ -206,6 +255,18 @@ function runOutdated(
       resolve(result);
     });
     child.on('error', (e) => {
+      if (signal) signal.removeEventListener('abort', onAbort);
+      if (typeof child.pid === 'number') registry.unregister(child.pid);
+      if (signal.aborted || e.name === 'AbortError') {
+        resolve({
+          exit_code: 124,
+          packages: [],
+          total: 0,
+          output: 'Aborted',
+          truncated: false,
+        });
+        return;
+      }
       resolve({
         exit_code: 1,
         packages: [],

@@ -475,7 +475,9 @@
         "import": "./dist/utils/expect-defined.js"
       },
       "source": "packages/core/src/utils/expect-defined.ts",
-      "declarations": ["export function expectDefined"]
+      "declarations": [
+        "export function expectDefined"
+      ]
     },
     {
       "subpath": "./utils/sage-output-block",
@@ -498,7 +500,9 @@
         "import": "./dist/utils/error.js"
       },
       "source": "packages/core/src/utils/error.ts",
-      "declarations": ["export function toErrorMessage"]
+      "declarations": [
+        "export function toErrorMessage"
+      ]
     },
     {
       "subpath": "./utils/tree-kill",

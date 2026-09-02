@@ -6,11 +6,11 @@
  * - FileMatchesPlugin: file content regex matching with JSON/description parsing
  */
 import { describe, expect, it } from 'vitest';
-import { MetricPlugin } from '../../../src/verification/plugins/metric.js';
+import type { KanbanCheck, KanbanGoalMetric, KanbanTask } from '../../../src/types.js';
 import { CommandPlugin } from '../../../src/verification/plugins/command.js';
 import { FileExistsPlugin } from '../../../src/verification/plugins/file-exists.js';
 import { FileMatchesPlugin } from '../../../src/verification/plugins/file-matches.js';
-import type { KanbanCheck, KanbanTask, KanbanGoalMetric } from '../../../src/types.js';
+import { MetricPlugin } from '../../../src/verification/plugins/metric.js';
 import type { VerificationContext } from '../../../src/verification/verification-context.js';
 
 function makeCheck(overrides: Partial<KanbanCheck> = {}): KanbanCheck {
@@ -145,6 +145,29 @@ describe('MetricPlugin comprehensive', () => {
     );
     expect(result.status).toBe('failed');
     expect(metricEvidence(result)[0]?.met).toBe(false);
+    // r5 regression: the coercion failure must surface a reason carrying the
+    // raw values, not fail silently with null-masked evidence.
+    const reason = String(metricEvidence(result)[0]?.reason ?? '');
+    expect(reason).toContain('abc');
+    expect(reason.toLowerCase()).toContain('numeric');
+  });
+
+  it('fails a blank-string target instead of coercing it to 0 (r5 regression)', async () => {
+    // Regression (2026-09-02): Number('') is 0, so a blank target under
+    // at_least silently passed as "target 0" while undefined failed with a
+    // reason. Blank strings are the string form of not-set and must fail
+    // with a surfaced reason too.
+    const metrics: KanbanGoalMetric[] = [
+      { id: 'm1', name: 'coverage', status: 'pending', target: '', current: '90' },
+    ];
+    const result = await plugin.verify(
+      makeCheck({ type: 'metric' }),
+      makeContext({ task: { goalMetrics: metrics } as KanbanTask }),
+    );
+    expect(result.status).toBe('failed');
+    const row = metricEvidence(result)[0]!;
+    expect(row.met).toBe(false);
+    expect(String(row.reason)).toContain('blank');
   });
 
   it('preserves unit field in evidence', async () => {

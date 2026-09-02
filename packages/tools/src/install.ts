@@ -4,6 +4,7 @@ import {
   recordPackageAction,
 } from '@wrongstack/core/coordination';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyPackageOperation } from './languages/legacy-bridge.js';
@@ -109,13 +110,22 @@ export const installTool = {
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
 
+    const VALID_SAVES: ReadonlySet<string> = new Set(['dependency', 'dev', 'optional']);
+    if (input.save !== undefined && !VALID_SAVES.has(input.save)) {
+      throw new ToolValidationError({
+        message: `install: invalid save option "${input.save}". Allowed: dependency, dev, optional`,
+        field: 'save',
+      });
+    }
+
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     if (!input.global) {
-      const pkgList = input.packages
-        ? Array.isArray(input.packages)
-          ? input.packages
-          : input.packages.split(',').map((p) => p.trim())
+      const rawList = input.packages
+        ? (Array.isArray(input.packages) ? input.packages : input.packages.split(','))
+            .map((p) => p.trim())
+            .filter(Boolean)
         : [];
+      const pkgList = Array.from(new Set(rawList));
       const bridge = await tryLegacyPackageOperation(
         'package-install',
         {
@@ -154,11 +164,12 @@ export const installTool = {
     // the moment it lands in `node_modules`. Opt-in only.
     const ignoreScripts = input.lifecycleScripts !== true;
 
-    const pkgList = input.packages
-      ? (Array.isArray(input.packages) ? input.packages : input.packages.split(',')).map((p) =>
-          p.trim(),
-        )
+    const rawList = input.packages
+      ? (Array.isArray(input.packages) ? input.packages : input.packages.split(','))
+          .map((p) => p.trim())
+          .filter(Boolean)
       : [];
+    const pkgList = Array.from(new Set(rawList));
 
     // Validate package specs to prevent flag injection and path traversal.
     // A name like "--ignore-scripts=false" would be interpreted as a flag;
