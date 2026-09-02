@@ -1,4 +1,5 @@
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
@@ -77,6 +78,13 @@ export const formatTool = {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+    const VALID_FIXERS: ReadonlySet<string> = new Set(['biome', 'prettier', 'auto']);
+    if (input.fixer !== undefined && !VALID_FIXERS.has(input.fixer)) {
+      throw new ToolValidationError({
+        message: `format: unsupported fixer "${input.fixer}". Allowed fixers: biome, prettier, auto`,
+        field: 'fixer',
+      });
+    }
     const fixer = input.fixer ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -128,9 +136,9 @@ export const formatTool = {
     };
 
     const fileList = input.files
-      ? (Array.isArray(input.files) ? input.files : input.files.split(',')).map((f) =>
-          f.trim().replace(/\\/g, '/'),
-        )
+      ? (Array.isArray(input.files) ? input.files : input.files.split(','))
+          .map((f) => f.trim().replace(/\\/g, '/'))
+          .filter(Boolean)
       : [];
 
     let args: string[];
@@ -153,7 +161,7 @@ export const formatTool = {
     });
 
     const combinedOut = `${result.stdout}\n${result.stderr}`;
-    const counts = parseFormatterCounts(detected, combinedOut);
+    const counts = parseFormatterCounts(detected, combinedOut, !!input.check);
     const rawOutput =
       result.stdout && result.stderr
         ? `${result.stdout}\n${result.stderr}`
@@ -181,16 +189,20 @@ export const formatTool = {
 function parseFormatterCounts(
   fixer: string,
   output: string,
+  isCheck = false,
 ): { checked: number | undefined; changed: number | undefined } {
   if (fixer !== 'biome') return { checked: undefined, changed: undefined };
   const checkedMatch = /\b(?:Checked|Formatted)\s+(\d+)\s+files?\b/i.exec(output);
-  const changedMatch = /\bFixed\s+(\d+)\s+files?\b/i.exec(output);
-  const changed =
-    changedMatch?.[1] !== undefined
-      ? Number(changedMatch[1])
-      : output.includes('Formatted') && checkedMatch?.[1]
-        ? Number(checkedMatch[1])
-        : undefined;
+  const fixedMatch = /\bFixed\s+(\d+)\s+files?\b/i.exec(output);
+  const formattedCountMatch = /\bFormatted\s+(\d+)\s+files?\b/i.exec(output);
+  let changed: number | undefined;
+  if (isCheck) {
+    changed = 0;
+  } else if (fixedMatch?.[1] !== undefined) {
+    changed = Number(fixedMatch[1]);
+  } else if (formattedCountMatch?.[1] !== undefined) {
+    changed = Number(formattedCountMatch[1]);
+  }
   return {
     checked: checkedMatch?.[1] !== undefined ? Number(checkedMatch[1]) : undefined,
     changed,

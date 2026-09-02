@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
@@ -80,6 +81,13 @@ export const testTool: Tool<TestInput, TestOutput> = {
     const cwd = input.cwd ? await safeResolveReal(input.cwd, ctx) : ctx.cwd;
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
+    const VALID_RUNNERS: ReadonlySet<string> = new Set(['vitest', 'jest', 'mocha', 'auto', 'none']);
+    if (input.runner !== undefined && !VALID_RUNNERS.has(input.runner)) {
+      throw new ToolValidationError({
+        message: `test: unsupported runner "${input.runner}". Allowed runners: vitest, jest, mocha, auto, none`,
+        field: 'runner',
+      });
+    }
     const runner = input.runner ?? 'auto';
 
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
@@ -109,7 +117,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
     }
 
     const detected = runner === 'auto' ? await detectRunner(cwd) : runner;
-    if (!detected) {
+    if (!detected || detected === 'none') {
       yield {
         type: 'final',
         output: {
@@ -176,7 +184,11 @@ async function detectRunner(cwd: string): Promise<string | null> {
 
 function buildArgs(runner: string, input: TestInput): string[] {
   const args: string[] = [];
-  const timeout = input.timeout ?? 30000;
+  const rawTimeout =
+    typeof input.timeout === 'number' && Number.isFinite(input.timeout) && input.timeout > 0
+      ? Math.floor(input.timeout)
+      : 30000;
+  const timeout = Math.max(100, rawTimeout);
 
   switch (runner) {
     case 'vitest':
@@ -206,8 +218,12 @@ function buildArgs(runner: string, input: TestInput): string[] {
   }
 
   if (input.files) {
-    const files = Array.isArray(input.files) ? input.files : input.files.split(',');
-    args.push('--', ...files.map((f) => f.trim().replace(/\\/g, '/')));
+    const files = (Array.isArray(input.files) ? input.files : input.files.split(','))
+      .map((f) => f.trim().replace(/\\/g, '/'))
+      .filter(Boolean);
+    if (files.length > 0) {
+      args.push('--', ...files);
+    }
   }
 
   return args;

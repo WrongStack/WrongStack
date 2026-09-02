@@ -23,7 +23,15 @@ describe('git info store', () => {
   });
 
   it('clear resets info to null', () => {
-    useGitInfoStore.getState().setInfo({ branch: 'main', added: 0, deleted: 0, untracked: 0, behind: 0, ahead: 0, fetchedAt: 0 });
+    useGitInfoStore.getState().setInfo({
+      branch: 'main',
+      added: 0,
+      deleted: 0,
+      untracked: 0,
+      behind: 0,
+      ahead: 0,
+      fetchedAt: 0,
+    });
     useGitInfoStore.getState().clear();
     expect(useGitInfoStore.getState().info).toBeNull();
   });

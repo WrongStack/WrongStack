@@ -8,6 +8,7 @@ import {
   mutateTasks,
 } from '@wrongstack/core/storage';
 import type { TaskStatus, Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { computeTaskItemProgress, formatTaskList, type TaskItem } from '@wrongstack/core/utils';
 import { mirrorSessionTasksToKanban } from './session-kanban.js';
 import { todoTool } from './todo.js';
@@ -210,7 +211,33 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
   async execute(input, ctx, _opts) {
     const signal = _opts?.signal ?? ctx?.signal;
     signal?.throwIfAborted();
-    const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
+
+    const VALID_ACTIONS: ReadonlySet<string> = new Set([
+      'replace',
+      'add',
+      'status',
+      'show',
+      'promote',
+      'planify',
+    ]);
+    if (!input?.action || !VALID_ACTIONS.has(input.action)) {
+      return {
+        ok: false,
+        message: `Unknown action "${(input as { action: string })?.action}". Use replace | add | status | show | promote | planify.`,
+        count: 0,
+        completed: 0,
+        inProgress: 0,
+      };
+    }
+
+    if (input.scope !== undefined && input.scope !== 'session' && input.scope !== 'project') {
+      throw new ToolValidationError({
+        message: `task: invalid scope "${input.scope}". Allowed: session, project`,
+        field: 'scope',
+      });
+    }
+
+    const meta = (ctx.meta ??= {}) as Record<string, unknown>;
     const sessionTaskPath = meta['task.path'] as string | undefined;
     let taskPath: string | undefined;
 
@@ -421,6 +448,14 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
           }
 
           case 'status': {
+            const VALID_TASK_STATUSES: ReadonlySet<string> = new Set([
+              'pending',
+              'in_progress',
+              'blocked',
+              'failed',
+              'review',
+              'completed',
+            ]);
             if (!input.id || !input.status) {
               early = {
                 ok: false,
@@ -428,6 +463,15 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
                 count: 0,
                 completed: 0,
                 inProgress: 0,
+              };
+              return f;
+            }
+            if (!VALID_TASK_STATUSES.has(input.status)) {
+              early = {
+                ok: false,
+                message: `action=status requires valid status ('pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed'), got "${input.status}".`,
+                count: f.tasks.length,
+                ...computeTaskItemProgress(f.tasks),
               };
               return f;
             }

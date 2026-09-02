@@ -14,6 +14,7 @@ import {
   type TaskFile,
 } from '@wrongstack/core/storage';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { formatTaskList } from '@wrongstack/core/utils';
 import { projectSessionPlanToKanban } from './session-kanban.js';
 import { todoTool } from './todo.js';
@@ -170,7 +171,34 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
   async execute(input, ctx, _opts) {
     const signal = _opts?.signal ?? ctx?.signal;
     signal?.throwIfAborted();
-    const meta = ((ctx.meta ??= {}) as Record<string, unknown>);
+
+    const VALID_ACTIONS: ReadonlySet<string> = new Set([
+      'show',
+      'add',
+      'status',
+      'start',
+      'done',
+      'remove',
+      'promote',
+      'template_use',
+      'clear',
+      'taskify',
+    ]);
+    if (!input?.action || !VALID_ACTIONS.has(input.action)) {
+      throw new ToolValidationError({
+        message: `plan: unknown or missing action "${input?.action}". Allowed actions: ${[...VALID_ACTIONS].join(', ')}`,
+        field: 'action',
+      });
+    }
+
+    if (input.scope !== undefined && input.scope !== 'session' && input.scope !== 'project') {
+      throw new ToolValidationError({
+        message: `plan: invalid scope "${input.scope}". Allowed: session, project`,
+        field: 'scope',
+      });
+    }
+
+    const meta = (ctx.meta ??= {}) as Record<string, unknown>;
     const sessionPlanPath = meta['plan.path'] as string | undefined;
     let planPath: string | undefined;
 
@@ -271,11 +299,20 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
           }
 
           case 'status': {
+            const VALID_PLAN_STATUSES: ReadonlySet<string> = new Set(['open', 'in_progress', 'done']);
             if (!input.target || !input.status) {
               early = mkResult(
                 p,
                 false,
                 'status requires `target` (id|index|substring) and `status`.',
+              );
+              return p;
+            }
+            if (!VALID_PLAN_STATUSES.has(input.status)) {
+              early = mkResult(
+                p,
+                false,
+                `status requires valid status ('open' | 'in_progress' | 'done'), got "${input.status}".`,
               );
               return p;
             }

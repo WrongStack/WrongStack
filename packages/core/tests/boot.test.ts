@@ -27,8 +27,7 @@ const { canonicalRootMock, mkdirMock, writeFileMock, renameMock, mockWpaths } = 
     profileConfig: (name: string) => `/home/testuser/.wrongstack/profiles/${name}/config.json`,
     profileStatuslineConfig: (name: string) =>
       `/home/testuser/.wrongstack/profiles/${name}/statusline.json`,
-    profileModeConfig: (name: string) =>
-      `/home/testuser/.wrongstack/profiles/${name}/mode.json`,
+    profileModeConfig: (name: string) => `/home/testuser/.wrongstack/profiles/${name}/mode.json`,
     profileProviderStatus: (name: string) =>
       `/home/testuser/.wrongstack/profiles/${name}/provider-status.json`,
     profileUpdateCache: (name: string) =>
@@ -52,14 +51,12 @@ vi.mock('node:fs/promises', () => ({
 
 vi.mock('../src/storage/config-loader.js', () => ({
   DefaultConfigLoader: vi.fn().mockImplementation(function (this: any) {
-    this.load = vi
-      .fn()
-      .mockResolvedValue({
-        version: 1,
-        provider: 'anthropic',
-        model: 'anthropic-test-model',
-        log: { level: 'info' },
-      });
+    this.load = vi.fn().mockResolvedValue({
+      version: 1,
+      provider: 'anthropic',
+      model: 'anthropic-test-model',
+      log: { level: 'info' },
+    });
     this.loadSyncConfig = vi.fn().mockResolvedValue(null);
   }),
 }));
@@ -70,7 +67,15 @@ vi.mock('../src/infrastructure/logger.js', () => ({
   // boot.ts passes noOpLogger into migratePlaintextSecrets. A missing export
   // on a vitest module mock THROWS on access — which the migration loop's
   // best-effort catch silently swallows, making migrate look "never called".
-  noOpLogger: { debug() {}, info() {}, warn() {}, error() {}, child() { return this; } },
+  noOpLogger: {
+    debug() {},
+    info() {},
+    warn() {},
+    error() {},
+    child() {
+      return this;
+    },
+  },
 }));
 vi.mock('../src/infrastructure/path-resolver.js', () => ({
   DefaultPathResolver: vi.fn().mockImplementation(function (this: any) {
@@ -192,12 +197,16 @@ describe('flagsToConfigPatch — fallbackModels', () => {
 describe('flagsToConfigPatch — all branches', () => {
   it('patches provider/model/cwd', () => {
     expect(flagsToConfigPatch({ provider: 'openai', model: 'gpt', cwd: '/x' })).toMatchObject({
-      provider: 'openai', model: 'gpt', cwd: '/x',
+      provider: 'openai',
+      model: 'gpt',
+      cwd: '/x',
     });
   });
 
   it('log-level wins over verbose/trace; verbose→debug; trace→trace', () => {
-    expect(flagsToConfigPatch({ 'log-level': 'warn', verbose: true, trace: true }).log).toEqual({ level: 'warn' });
+    expect(flagsToConfigPatch({ 'log-level': 'warn', verbose: true, trace: true }).log).toEqual({
+      level: 'warn',
+    });
     expect(flagsToConfigPatch({ verbose: true }).log).toEqual({ level: 'debug' });
     expect(flagsToConfigPatch({ trace: true }).log).toEqual({ level: 'trace' });
   });
@@ -210,7 +219,11 @@ describe('flagsToConfigPatch — all branches', () => {
 
   it('no-features disables every feature', () => {
     expect(flagsToConfigPatch({ 'no-features': true }).features).toEqual({
-      mcp: false, plugins: false, memory: false, modelsRegistry: false, skills: false,
+      mcp: false,
+      plugins: false,
+      memory: false,
+      modelsRegistry: false,
+      skills: false,
     });
   });
 
@@ -219,10 +232,13 @@ describe('flagsToConfigPatch — all branches', () => {
   });
 
   it('token-saving-tier normalises and takes precedence', () => {
-    expect(flagsToConfigPatch({ 'token-saving-tier': 'aggressive' }).features?.tokenSavingMode).toBe('aggressive');
+    expect(
+      flagsToConfigPatch({ 'token-saving-tier': 'aggressive' }).features?.tokenSavingMode,
+    ).toBe('aggressive');
     // precedence: tier overrides mode
     expect(
-      flagsToConfigPatch({ 'token-saving-mode': true, 'token-saving-tier': 'light' }).features?.tokenSavingMode,
+      flagsToConfigPatch({ 'token-saving-mode': true, 'token-saving-tier': 'light' }).features
+        ?.tokenSavingMode,
     ).toBe('light');
   });
 
@@ -237,7 +253,9 @@ describe('flagsToConfigPatch — all branches', () => {
     expect(flagsToConfigPatch({ 'system-lite': 'false' }).systemPrompt).toBeUndefined();
     expect(flagsToConfigPatch({ 'system-prompt': 'pro' }).systemPrompt?.variant).toBe('pro');
     expect(flagsToConfigPatch({ 'system-prompt': 'lite' }).systemPrompt?.variant).toBe('lite');
-    expect(flagsToConfigPatch({ 'system-prompt': 'default' }).systemPrompt?.variant).toBe('default');
+    expect(flagsToConfigPatch({ 'system-prompt': 'default' }).systemPrompt?.variant).toBe(
+      'default',
+    );
     expect(flagsToConfigPatch({ 'system-prompt': 'other' }).systemPrompt).toBeUndefined();
   });
 });
@@ -247,7 +265,8 @@ describe('flagsToConfigPatch — all branches', () => {
 describe('bootConfig identity + sync', () => {
   it('skipIdentityValidation keeps provider/model unset on "no provider configured"', async () => {
     loaderMock.mockImplementationOnce(function (this: any) {
-      this.load = vi.fn()
+      this.load = vi
+        .fn()
         .mockRejectedValueOnce(new Error('no provider configured'))
         .mockResolvedValueOnce({ version: 1, log: { level: 'info' } });
       this.loadSyncConfig = vi.fn().mockResolvedValue(null);
@@ -267,16 +286,29 @@ describe('bootConfig identity + sync', () => {
 
   it('merges a loaded sync config', async () => {
     loaderMock.mockImplementationOnce(function (this: any) {
-      this.load = vi.fn().mockResolvedValue({ version: 1, provider: 'anthropic', model: 'x', log: { level: 'info' } });
+      this.load = vi.fn().mockResolvedValue({
+        version: 1,
+        provider: 'anthropic',
+        model: 'x',
+        log: { level: 'info' },
+      });
       this.loadSyncConfig = vi.fn().mockResolvedValue({ category: 'memory', repoUrl: 'gh://x' });
     });
     const result = await bootConfig({ loadSyncConfig: true });
-    expect((result.config as never as { sync: unknown }).sync).toEqual({ category: 'memory', repoUrl: 'gh://x' });
+    expect((result.config as never as { sync: unknown }).sync).toEqual({
+      category: 'memory',
+      repoUrl: 'gh://x',
+    });
   });
 
   it('loadSyncConfig=false skips the sync merge', async () => {
     loaderMock.mockImplementationOnce(function (this: any) {
-      this.load = vi.fn().mockResolvedValue({ version: 1, provider: 'anthropic', model: 'x', log: { level: 'info' } });
+      this.load = vi.fn().mockResolvedValue({
+        version: 1,
+        provider: 'anthropic',
+        model: 'x',
+        log: { level: 'info' },
+      });
       this.loadSyncConfig = vi.fn().mockResolvedValue({ category: 'memory' });
     });
     const result = await bootConfig({ loadSyncConfig: false });

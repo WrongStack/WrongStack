@@ -33,36 +33,47 @@ export const kanbanTool = {
     const signal = _opts?.signal ?? ctx.signal ?? new AbortController().signal;
     if (signal.aborted) return fail('Operation aborted.');
 
+    if (!input || typeof input !== 'object' || typeof input.action !== 'string' || !input.action.trim()) {
+      return fail('kanban: action is required and must be a non-empty string.');
+    }
+
+    const normalizedInput: KanbanToolInput = {
+      ...input,
+      action: input.action.trim() as KanbanToolInput['action'],
+    };
+
     const projectRoot = ctx.projectRoot;
     if (!projectRoot) return fail('No project root is available.');
 
-    const withPresence = createKanbanPresenceWrapper(projectRoot, input, ctx);
+    const withPresence = createKanbanPresenceWrapper(projectRoot, normalizedInput, ctx);
 
     try {
       const result = await (async (): Promise<KanbanToolOutput> => {
-        const decompositionResult = await handleKanbanDecompositionAction(projectRoot, input, ctx);
+        const decompositionResult = await handleKanbanDecompositionAction(projectRoot, normalizedInput, ctx);
         if (decompositionResult !== undefined) return decompositionResult;
 
-        const boardResult = await handleKanbanBoardAction(projectRoot, input, ctx);
+        const boardResult = await handleKanbanBoardAction(projectRoot, normalizedInput, ctx);
         if (boardResult !== undefined) return boardResult;
 
-        const lifecycleResult = await handleKanbanLifecycleAction(projectRoot, input, ctx);
+        const lifecycleResult = await handleKanbanLifecycleAction(projectRoot, normalizedInput, ctx);
         if (lifecycleResult !== undefined) return lifecycleResult;
 
         const contractResult = await handleKanbanContractAction(
           projectRoot,
-          input,
-          input.author ?? input.agentId,
+          normalizedInput,
+          normalizedInput.author ?? normalizedInput.agentId,
           ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session',
         );
         if (contractResult !== undefined) return contractResult;
 
-        const detailResult = await handleKanbanDetailAction(projectRoot, input, ctx);
+        const detailResult = await handleKanbanDetailAction(projectRoot, normalizedInput, ctx);
         if (detailResult !== undefined) return detailResult;
 
-        return fail(`Unknown kanban action: ${(input as { action: string }).action}`);
+        return fail(`Unknown kanban action: ${(normalizedInput as { action: string }).action}`);
       })();
-      return withPresence(result);
+
+      if (signal.aborted) return fail('Operation aborted.');
+      return await withPresence(result);
     } catch (err) {
       return fail(stripLifecycleIssues(err instanceof Error ? err.message : String(err)));
     }

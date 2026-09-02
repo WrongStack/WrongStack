@@ -7,6 +7,7 @@ import {
   setPlanItemStatus,
 } from '@wrongstack/core/storage';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { addTask, getBoard, type KanbanBoard, type KanbanTask } from '@wrongstack/kanban';
 import { kanbanTool } from './kanban.js';
 import {
@@ -61,9 +62,7 @@ function bindTodosToBoard(
   const previousById = new Map(previous.map((item) => [item.id, item]));
   const taskById = new Map(board.tasks.map((task) => [task.id, task]));
   const taskByOriginId = new Map(
-    board.tasks
-      .filter((task) => task.origin?.taskId)
-      .map((task) => [task.origin!.taskId, task]),
+    board.tasks.filter((task) => task.origin?.taskId).map((task) => [task.origin!.taskId, task]),
   );
   const available = board.tasks
     .filter(
@@ -162,7 +161,10 @@ async function createMissingManagedCards(
             item.activeForm?.trim() || `Added from the session todo list: ${item.content}`,
         },
         // The card mirrors this session's todo row, so the session owns it.
-        { sessionId: ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session', actor: 'todo' },
+        {
+          sessionId: ctx.eventSessionId?.() ?? ctx.session?.id ?? 'default-session',
+          actor: 'todo',
+        },
       );
       if (!result) {
         warnings.push(`Could not open a Kanban card for "${item.content}": board not found.`);
@@ -442,9 +444,44 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     required: ['todos'],
   },
   async execute(input, ctx, call) {
+    const signal = call?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
+
     if (!Array.isArray(input?.todos)) {
-      throw new Error('todo: todos must be an array');
+      throw new ToolValidationError({
+        message: 'todo: todos must be an array',
+        field: 'todos',
+      });
     }
+
+    const VALID_STATUSES: ReadonlySet<string> = new Set(['pending', 'in_progress', 'completed']);
+    for (const item of input.todos) {
+      if (!item || typeof item !== 'object') {
+        throw new ToolValidationError({
+          message: 'todo: each item in todos must be an object',
+          field: 'todos',
+        });
+      }
+      if (!item.id || typeof item.id !== 'string' || !item.id.trim()) {
+        throw new ToolValidationError({
+          message: 'todo: each item must have a non-empty string "id"',
+          field: 'todos',
+        });
+      }
+      if (item.content === undefined || typeof item.content !== 'string') {
+        throw new ToolValidationError({
+          message: `todo: item "${item.id}" must have a string "content"`,
+          field: 'todos',
+        });
+      }
+      if (item.status !== undefined && !VALID_STATUSES.has(item.status)) {
+        throw new ToolValidationError({
+          message: `todo: item "${item.id}" has invalid status "${item.status}". Allowed: pending, in_progress, completed`,
+          field: 'todos',
+        });
+      }
+    }
+
     const items = input.todos.filter((t): t is TodoItem => Boolean(t?.id && t.content));
     const todoIdentity = (item: TodoItem): string =>
       item.kanbanBoardId && item.kanbanTaskId
@@ -501,7 +538,6 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     }
     ctx.state.replaceTodos(boundItems);
 
-    const signal = call?.signal ?? ctx.signal ?? new AbortController().signal;
     const kanbanSync =
       managed && board
         ? await synchronizeManagedKanban(boundItems, board, ctx, signal)

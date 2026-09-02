@@ -101,7 +101,9 @@ describe('pushEvent', () => {
   it('prepends event as newest first', () => {
     const now = Date.now();
     useVizStore.getState().pushEvent(makeEvent({ id: 'ev-1', timestamp: now, label: 'First' }));
-    useVizStore.getState().pushEvent(makeEvent({ id: 'ev-2', timestamp: now + 1, label: 'Second' }));
+    useVizStore
+      .getState()
+      .pushEvent(makeEvent({ id: 'ev-2', timestamp: now + 1, label: 'Second' }));
     const events = useVizStore.getState().events;
     expect(events[0].label).toBe('Second');
     expect(events[1].label).toBe('First');
@@ -116,9 +118,11 @@ describe('pushEvent', () => {
     const nowSpy = vi.spyOn(Date, 'now');
     try {
       nowSpy.mockReturnValue(100_000);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'd1', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(
+          makeEvent({ id: 'd1', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+        );
       const nodesAfterFirst = useVizStore.getState().nodes;
       const edgesAfterFirst = useVizStore.getState().edges;
 
@@ -126,9 +130,11 @@ describe('pushEvent', () => {
       // nodes reference. The EDGE still clones once here — its intensity is
       // genuinely rising 0.7→1 (content, not presence).
       nowSpy.mockReturnValue(100_020);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'd2', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(
+          makeEvent({ id: 'd2', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+        );
       expect(useVizStore.getState().nodes).toBe(nodesAfterFirst);
       expect(useVizStore.getState().edges).not.toBe(edgesAfterFirst);
 
@@ -137,18 +143,22 @@ describe('pushEvent', () => {
       const nodesSaturated = useVizStore.getState().nodes;
       const edgesSaturated = useVizStore.getState().edges;
       nowSpy.mockReturnValue(100_040);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'd2b', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(
+          makeEvent({ id: 'd2b', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+        );
       expect(useVizStore.getState().nodes).toBe(nodesSaturated);
       expect(useVizStore.getState().edges).toBe(edgesSaturated);
 
       // Past the window the presence stamp refreshes again (recency caps
       // depend on it staying roughly current).
       nowSpy.mockReturnValue(100_400);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'd3', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(
+          makeEvent({ id: 'd3', kind: 'provider:delta', source: 'leader', target: 'model-x' }),
+        );
       expect(useVizStore.getState().nodes).not.toBe(nodesAfterFirst);
       expect(useVizStore.getState().nodes.get('leader')?.lastSeenAt).toBe(100_400);
     } finally {
@@ -160,14 +170,14 @@ describe('pushEvent', () => {
     const nowSpy = vi.spyOn(Date, 'now');
     try {
       nowSpy.mockReturnValue(200_000);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'c1', kind: 'provider:delta', source: 'leader', label: 'one' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(makeEvent({ id: 'c1', kind: 'provider:delta', source: 'leader', label: 'one' }));
       const nodesAfterFirst = useVizStore.getState().nodes;
       nowSpy.mockReturnValue(200_010);
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: 'c2', kind: 'provider:delta', source: 'leader', label: 'two' }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(makeEvent({ id: 'c2', kind: 'provider:delta', source: 'leader', label: 'two' }));
       expect(useVizStore.getState().nodes).not.toBe(nodesAfterFirst);
       expect(useVizStore.getState().nodes.get('leader')?.label).toBe('two');
     } finally {
@@ -211,13 +221,15 @@ describe('pushEvent', () => {
 
   it('keeps tool activity in a separate archive when general events overflow', () => {
     useVizStore.setState({ maxEvents: 2 });
-    useVizStore.getState().pushEvent(
-      makeEvent({ id: 'tool-1', kind: 'tool:executed', label: 'read_file' }),
-    );
+    useVizStore
+      .getState()
+      .pushEvent(makeEvent({ id: 'tool-1', kind: 'tool:executed', label: 'read_file' }));
     for (let index = 0; index < 5; index += 1) {
-      useVizStore.getState().pushEvent(
-        makeEvent({ id: `stream-${index}`, kind: 'provider:delta', label: `delta ${index}` }),
-      );
+      useVizStore
+        .getState()
+        .pushEvent(
+          makeEvent({ id: `stream-${index}`, kind: 'provider:delta', label: `delta ${index}` }),
+        );
     }
 
     expect(useVizStore.getState().events.map((event) => event.id)).not.toContain('tool-1');
@@ -304,7 +316,9 @@ describe('upsertNode', () => {
   });
 
   it('updates existing node by merging', () => {
-    useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'Original', activity: 0.5 });
+    useVizStore
+      .getState()
+      .upsertNode({ id: 'n1', kind: 'agent', label: 'Original', activity: 0.5 });
     useVizStore.getState().upsertNode({ id: 'n1', label: 'Updated' });
     const node = useVizStore.getState().nodes.get('n1');
     expect(node?.label).toBe('Updated');
@@ -323,7 +337,11 @@ describe('upsertNode', () => {
 
   it('preserves fields not in partial update', () => {
     useVizStore.getState().upsertNode({
-      id: 'n1', kind: 'agent', label: 'A', status: 'streaming', activity: 0.9,
+      id: 'n1',
+      kind: 'agent',
+      label: 'A',
+      status: 'streaming',
+      activity: 0.9,
     } as any);
     useVizStore.getState().upsertNode({ id: 'n1', label: 'B' });
     const node = useVizStore.getState().nodes.get('n1');
@@ -346,9 +364,15 @@ describe('removeNode', () => {
   it('removes connected edges', () => {
     useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'A' } as any);
     useVizStore.getState().upsertNode({ id: 'n2', kind: 'provider', label: 'P' } as any);
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'n1', target: 'n2', kind: 'provider:call', label: 'call' });
-    useVizStore.getState().upsertEdge({ id: 'e2', source: 'n2', target: 'n1', kind: 'agent:tool', label: 'tool' });
-    useVizStore.getState().upsertEdge({ id: 'e3', source: 'n1', target: 'n2', kind: 'provider:call', label: 'call2' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'n1', target: 'n2', kind: 'provider:call', label: 'call' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e2', source: 'n2', target: 'n1', kind: 'agent:tool', label: 'tool' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e3', source: 'n1', target: 'n2', kind: 'provider:call', label: 'call2' });
     useVizStore.getState().removeNode('n1');
     const edges = useVizStore.getState().edges;
     expect(edges.has('e1')).toBe(false);
@@ -359,7 +383,9 @@ describe('removeNode', () => {
   it('leaves unrelated edges', () => {
     useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'A' } as any);
     useVizStore.getState().upsertNode({ id: 'n2', kind: 'tool', label: 'T' } as any);
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'n1', target: 'n2', kind: 'agent:tool', label: 'tool' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'n1', target: 'n2', kind: 'agent:tool', label: 'tool' });
     useVizStore.getState().removeNode('n1');
     expect(useVizStore.getState().edges.has('e1')).toBe(false);
   });
@@ -371,12 +397,21 @@ describe('upsertEdge', () => {
   beforeEach(() => resetStore());
 
   it('inserts a new edge', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'call' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'call' });
     expect(useVizStore.getState().edges.get('e1')?.label).toBe('call');
   });
 
   it('merges partial edge update', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'call', intensity: 0.3 });
+    useVizStore.getState().upsertEdge({
+      id: 'e1',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'call',
+      intensity: 0.3,
+    });
     useVizStore.getState().upsertEdge({ id: 'e1', label: 'updated call' });
     const edge = useVizStore.getState().edges.get('e1');
     expect(edge?.label).toBe('updated call');
@@ -384,40 +419,74 @@ describe('upsertEdge', () => {
   });
 
   it('sets default intensity from EDGE_COLORS then existing', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'call' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'call' });
     expect(useVizStore.getState().edges.get('e1')?.intensity).toBe(0.5); // default
   });
 
   it('uses existing intensity when partial has none', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c', intensity: 0.9 });
+    useVizStore.getState().upsertEdge({
+      id: 'e1',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      intensity: 0.9,
+    });
     useVizStore.getState().upsertEdge({ id: 'e1', label: 'updated' }); // no intensity
     expect(useVizStore.getState().edges.get('e1')?.intensity).toBe(0.9);
   });
 
   it('uses partial intensity when provided', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c', intensity: 0.9 });
+    useVizStore.getState().upsertEdge({
+      id: 'e1',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      intensity: 0.9,
+    });
     useVizStore.getState().upsertEdge({ id: 'e1', label: 'updated', intensity: 0.2 });
     expect(useVizStore.getState().edges.get('e1')?.intensity).toBe(0.2);
   });
 
   it('sets color from EDGE_COLORS by kind', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
     expect(useVizStore.getState().edges.get('e1')?.color).toBe('hsl(var(--info))');
   });
 
   it('uses partial color when provided', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c', color: 'red' });
+    useVizStore.getState().upsertEdge({
+      id: 'e1',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      color: 'red',
+    });
     expect(useVizStore.getState().edges.get('e1')?.color).toBe('red');
   });
 
   it('accumulates totalMagnitude', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c', totalMagnitude: 10 });
+    useVizStore.getState().upsertEdge({
+      id: 'e1',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      totalMagnitude: 10,
+    });
     useVizStore.getState().upsertEdge({ id: 'e1', totalMagnitude: 5 });
     expect(useVizStore.getState().edges.get('e1')?.totalMagnitude).toBe(15);
   });
 
   it('updates lastActiveAt on every upsert', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
     const before = useVizStore.getState().edges.get('e1')!.lastActiveAt;
     // wait a tiny bit
     const _now = Date.now();
@@ -433,13 +502,17 @@ describe('removeEdge', () => {
   beforeEach(() => resetStore());
 
   it('removes the edge', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
     useVizStore.getState().removeEdge('e1');
     expect(useVizStore.getState().edges.has('e1')).toBe(false);
   });
 
   it('is a no-op when edge does not exist', () => {
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
     useVizStore.getState().removeEdge('non-existent'); // should not throw
     expect(useVizStore.getState().edges.size).toBe(1);
   });
@@ -452,10 +525,12 @@ describe('clear', () => {
 
   it('resets events, tool archive, nodes, edges, and counters but preserves isActive', () => {
     useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'A' } as any);
-    useVizStore.getState().upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
-    useVizStore.getState().pushEvent(
-      makeEvent({ id: 'ev-1', kind: 'tool:executed', label: 'read_file' }),
-    );
+    useVizStore
+      .getState()
+      .upsertEdge({ id: 'e1', source: 'a', target: 'b', kind: 'provider:call', label: 'c' });
+    useVizStore
+      .getState()
+      .pushEvent(makeEvent({ id: 'ev-1', kind: 'tool:executed', label: 'read_file' }));
     useVizStore.setState({ isActive: true });
     useVizStore.getState().clear();
     const state = useVizStore.getState();
@@ -491,7 +566,9 @@ describe('decayActivity', () => {
   beforeEach(() => resetStore());
 
   it('multiplies activity by 0.92 per call', () => {
-    useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'A', activity: 1.0 } as any);
+    useVizStore
+      .getState()
+      .upsertNode({ id: 'n1', kind: 'agent', label: 'A', activity: 1.0 } as any);
     useVizStore.getState().upsertNode({ id: 'n2', kind: 'tool', label: 'T', activity: 0.5 } as any);
     useVizStore.getState().decayActivity();
     const n1 = useVizStore.getState().nodes.get('n1')!;
@@ -501,7 +578,9 @@ describe('decayActivity', () => {
   });
 
   it('sets very low activity to 0', () => {
-    useVizStore.getState().upsertNode({ id: 'n1', kind: 'agent', label: 'A', activity: 0.01 } as any);
+    useVizStore
+      .getState()
+      .upsertNode({ id: 'n1', kind: 'agent', label: 'A', activity: 0.01 } as any);
     useVizStore.getState().decayActivity();
     expect(useVizStore.getState().nodes.get('n1')!.activity).toBeLessThan(0.01);
   });
@@ -514,9 +593,27 @@ describe('prunesStale', () => {
 
   it('removes every node not seen since the cutoff', () => {
     const now = Date.now();
-    useVizStore.getState().upsertNode({ id: 'stale', kind: 'agent', label: 'A', lastSeenAt: now - 10000, status: 'idle' } as any);
-    useVizStore.getState().upsertNode({ id: 'recent', kind: 'agent', label: 'B', lastSeenAt: now - 1000, status: 'idle' } as any);
-    useVizStore.getState().upsertNode({ id: 'active', kind: 'agent', label: 'C', lastSeenAt: now - 10000, status: 'active' } as any);
+    useVizStore.getState().upsertNode({
+      id: 'stale',
+      kind: 'agent',
+      label: 'A',
+      lastSeenAt: now - 10000,
+      status: 'idle',
+    } as any);
+    useVizStore.getState().upsertNode({
+      id: 'recent',
+      kind: 'agent',
+      label: 'B',
+      lastSeenAt: now - 1000,
+      status: 'idle',
+    } as any);
+    useVizStore.getState().upsertNode({
+      id: 'active',
+      kind: 'agent',
+      label: 'C',
+      lastSeenAt: now - 10000,
+      status: 'active',
+    } as any);
     useVizStore.getState().prunesStale(5000); // 5s cutoff
     const nodes = useVizStore.getState().nodes;
     expect(nodes.has('stale')).toBe(false);
@@ -528,8 +625,22 @@ describe('prunesStale', () => {
 
   it('removes edges inactive before cutoff', () => {
     const now = Date.now();
-    useVizStore.getState().upsertEdge({ id: 'e-stale', source: 'a', target: 'b', kind: 'provider:call', label: 'c', lastActiveAt: now - 10000 });
-    useVizStore.getState().upsertEdge({ id: 'e-recent', source: 'a', target: 'b', kind: 'provider:call', label: 'c', lastActiveAt: now - 1000 });
+    useVizStore.getState().upsertEdge({
+      id: 'e-stale',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      lastActiveAt: now - 10000,
+    });
+    useVizStore.getState().upsertEdge({
+      id: 'e-recent',
+      source: 'a',
+      target: 'b',
+      kind: 'provider:call',
+      label: 'c',
+      lastActiveAt: now - 1000,
+    });
     useVizStore.getState().prunesStale(5000);
     const edges = useVizStore.getState().edges;
     expect(edges.has('e-stale')).toBe(false);
@@ -538,8 +649,12 @@ describe('prunesStale', () => {
 
   it('removes events older than cutoff', () => {
     const now = Date.now();
-    useVizStore.getState().pushEvent(makeEvent({ id: 'ev-old', timestamp: now - 10000, label: 'Old' }));
-    useVizStore.getState().pushEvent(makeEvent({ id: 'ev-new', timestamp: now - 1000, label: 'New' }));
+    useVizStore
+      .getState()
+      .pushEvent(makeEvent({ id: 'ev-old', timestamp: now - 10000, label: 'Old' }));
+    useVizStore
+      .getState()
+      .pushEvent(makeEvent({ id: 'ev-new', timestamp: now - 1000, label: 'New' }));
     useVizStore.getState().prunesStale(5000);
     const labels = useVizStore.getState().events.map((e) => e.label);
     expect(labels).not.toContain('Old');
@@ -592,7 +707,9 @@ describe('wsToVizEvent', () => {
 
   it('handles subagent.event spawned', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'spawned', subagentId: 'agent-42', name: 'Worker',
+      kind: 'spawned',
+      subagentId: 'agent-42',
+      name: 'Worker',
     });
     expect(result?.kind).toBe('agent:spawned');
     expect(result?.source).toBe('agent-42');
@@ -602,7 +719,11 @@ describe('wsToVizEvent', () => {
 
   it('handles subagent.event tool_executed', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'tool_executed', subagentId: 'a1', toolName: 'write', ok: true, durationMs: 200,
+      kind: 'tool_executed',
+      subagentId: 'a1',
+      toolName: 'write',
+      ok: true,
+      durationMs: 200,
     });
     expect(result?.kind).toBe('agent:tool');
     expect(result?.source).toBe('a1');
@@ -612,7 +733,10 @@ describe('wsToVizEvent', () => {
 
   it('handles subagent.event task_completed success', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'task_completed', subagentId: 'a1', name: 'Worker', status: 'success',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      name: 'Worker',
+      status: 'success',
     });
     expect(result?.kind).toBe('agent:status');
     expect(result?.color).toBe('hsl(var(--success))'); // green
@@ -620,14 +744,20 @@ describe('wsToVizEvent', () => {
 
   it('handles subagent.event task_completed failure', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'task_completed', subagentId: 'a1', name: 'Worker', status: 'failed',
+      kind: 'task_completed',
+      subagentId: 'a1',
+      name: 'Worker',
+      status: 'failed',
     });
     expect(result?.color).toBe('hsl(var(--destructive))'); // error
   });
 
   it('handles subagent.event ctx_pct', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'ctx_pct', subagentId: 'a1', load: 0.75, tokens: 80000,
+      kind: 'ctx_pct',
+      subagentId: 'a1',
+      load: 0.75,
+      tokens: 80000,
     });
     expect(result?.kind).toBe('agent:ctx');
     expect(result?.label).toBe('ctx 75%');
@@ -636,14 +766,20 @@ describe('wsToVizEvent', () => {
 
   it('caps subagent.event ctx_pct labels at 100%', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'ctx_pct', subagentId: 'a1', load: 1.5, tokens: 150000,
+      kind: 'ctx_pct',
+      subagentId: 'a1',
+      load: 1.5,
+      tokens: 150000,
     });
     expect(result?.label).toBe('ctx 100%');
   });
 
   it('handles subagent.event iteration_summary', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'iteration_summary', subagentId: 'a1', partialText: 'Writing tests...', costUsd: 0.05,
+      kind: 'iteration_summary',
+      subagentId: 'a1',
+      partialText: 'Writing tests...',
+      costUsd: 0.05,
     });
     expect(result?.kind).toBe('agent:text');
     expect(result?.magnitude).toBe(0.05);
@@ -651,7 +787,10 @@ describe('wsToVizEvent', () => {
 
   it('handles subagent.event budget_extended', () => {
     const result = wsToVizEvent('subagent.event', {
-      kind: 'budget_extended', subagentId: 'a1', name: 'Worker', totalExtensions: 3,
+      kind: 'budget_extended',
+      subagentId: 'a1',
+      name: 'Worker',
+      totalExtensions: 3,
     });
     expect(result?.kind).toBe('budget:extended');
     expect(result?.magnitude).toBe(3);
@@ -659,7 +798,10 @@ describe('wsToVizEvent', () => {
 
   it('handles mailbox.event sent', () => {
     const result = wsToVizEvent('mailbox.event', {
-      event: 'mailbox.sent', from: 'leader', to: 'sub-1', subject: 'Start task',
+      event: 'mailbox.sent',
+      from: 'leader',
+      to: 'sub-1',
+      subject: 'Start task',
     });
     expect(result?.kind).toBe('mailbox:send');
     expect(result?.source).toBe('leader');
@@ -669,7 +811,9 @@ describe('wsToVizEvent', () => {
 
   it('handles mailbox.event delivered', () => {
     const result = wsToVizEvent('mailbox.event', {
-      event: 'mailbox.delivered', from: 'leader', to: 'sub-1',
+      event: 'mailbox.delivered',
+      from: 'leader',
+      to: 'sub-1',
     });
     expect(result?.kind).toBe('mailbox:deliver');
     expect(result?.source).toBe('leader');
@@ -704,7 +848,10 @@ describe('wsToVizEvent', () => {
   });
 
   it('handles session.start', () => {
-    const result = wsToVizEvent('session.start', { sessionId: 'sess_abc123', projectName: 'MyApp' });
+    const result = wsToVizEvent('session.start', {
+      sessionId: 'sess_abc123',
+      projectName: 'MyApp',
+    });
     expect(result?.kind).toBe('session:start');
     expect(result?.label).toBe('MyApp');
   });

@@ -166,7 +166,7 @@
     "@wrongstack/core/types": {
       "files": 1028,
       "typeOnly": 951,
-      "runtimeOrMixed": 254
+      "runtimeOrMixed": 260
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -14226,7 +14226,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/format.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14352,7 +14352,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/plan.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14424,19 +14424,19 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/task.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/todo.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14472,7 +14472,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/typecheck.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",

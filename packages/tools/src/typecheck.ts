@@ -1,5 +1,6 @@
 import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { spawnStream } from './_spawn-stream.js';
 import { detectPackageManager, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { tryLegacyCodeOperation } from './languages/legacy-bridge.js';
@@ -67,6 +68,22 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
     signal.throwIfAborted();
 
+    if (input.all && input.project !== undefined) {
+      throw new ToolValidationError({
+        message: 'typecheck: cannot specify both "all: true" and "project"',
+        field: 'project',
+      });
+    }
+
+    if (input.project !== undefined) {
+      if (typeof input.project !== 'string' || !input.project.trim()) {
+        throw new ToolValidationError({
+          message: 'typecheck: "project" must be a non-empty string path',
+          field: 'project',
+        });
+      }
+    }
+
     // Delegate to the language planner for non-JS ecosystems (Go, Rust, PHP, C#).
     const bridge = await tryLegacyCodeOperation('semantic', {
       cwd,
@@ -110,7 +127,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
       }
     } else {
       const tsconfig = input.project
-        ? await safeResolveReal(input.project, ctx)
+        ? await safeResolveReal(input.project.trim(), ctx)
         : await findTsConfig(cwd);
       const tscArgs = ['--noEmit'];
       if (input.strict) tscArgs.push('--strict');
@@ -134,8 +151,8 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
     // occurrence of the word "error" — messages quoting the word inflated the
     // old \berror\b count.
     const combined = `${result.stdout}\n${result.stderr}`;
-    let errors = [...combined.matchAll(/^.*\berror TS\d+:/gm)].length;
-    const warnings = [...combined.matchAll(/^.*\bwarning TS\d+:/gm)].length;
+    let errors = [...combined.matchAll(/^.*\berror TS\d+:/gmi)].length;
+    const warnings = [...combined.matchAll(/^.*\bwarning TS\d+:/gmi)].length;
     if (errors === 0 && result.exitCode !== 0) {
       errors = 1;
     }

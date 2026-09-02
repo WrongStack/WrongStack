@@ -59,11 +59,13 @@ export interface FirstBootSageSyncOptions {
   /** The host MemoryPort — the SAGE surface capability is read from it. */
   memoryStore: MemoryPort;
   /** Structurally compatible with `@wrongstack/core`'s `Logger`. */
-  logger?: {
-    debug?(msg: string, ctx?: unknown): void | undefined;
-    info?(msg: string, ctx?: unknown): void | undefined;
-    warn?(msg: string, ctx?: unknown): void | undefined;
-  } | undefined;
+  logger?:
+    | {
+        debug?(msg: string, ctx?: unknown): void | undefined;
+        info?(msg: string, ctx?: unknown): void | undefined;
+        warn?(msg: string, ctx?: unknown): void | undefined;
+      }
+    | undefined;
   /** Tests: inject a custom staleness window. */
   staleAfterMs?: number | undefined;
   /**
@@ -92,126 +94,122 @@ export async function startFirstBootSageSync(
   opts: FirstBootSageSyncOptions,
 ): Promise<FirstBootSageSyncResult> {
   const { store, memoryStore } = opts;
-    const log = opts.logger;
-    try {
-      // Operator-initiated `--vector-sync` re-runs the full walk even
-      // when the `complete` marker says we're done. The `force` flag is
-      // the single source of truth — the run-time checks below still
-      // defend against taking over a live `running` marker from another
-      // process.
-      if (opts.force) {
-        try {
-          fs.unlinkSync(markerPath(store));
-        } catch {
-          // No marker to remove is the common case (first-ever force run
-          // or after a crash); treat as success.
-        }
+  const log = opts.logger;
+  try {
+    // Operator-initiated `--vector-sync` re-runs the full walk even
+    // when the `complete` marker says we're done. The `force` flag is
+    // the single source of truth — the run-time checks below still
+    // defend against taking over a live `running` marker from another
+    // process.
+    if (opts.force) {
+      try {
+        fs.unlinkSync(markerPath(store));
+      } catch {
+        // No marker to remove is the common case (first-ever force run
+        // or after a crash); treat as success.
       }
-      const decision = decideWhetherToSync(
-        store,
-        opts.staleAfterMs ?? RUNNING_STALE_MS,
-        undefined,
-        opts.pidAlive,
+    }
+    const decision = decideWhetherToSync(
+      store,
+      opts.staleAfterMs ?? RUNNING_STALE_MS,
+      undefined,
+      opts.pidAlive,
+    );
+    if (!decision.run) {
+      log?.debug?.(`vector-memory sage sync skipped: ${decision.reason}`);
+      return { synced: false, reason: decision.reason };
+    }
+
+    const provider = storeProvider(store);
+    // Cheap pre-check: module not even installed → defer without a throw.
+    if (provider && typeof provider.isAvailable === 'function' && !(await provider.isAvailable())) {
+      log?.debug?.(
+        'vector-memory sage sync deferred: embedding provider unavailable (optional dependency not installed?)',
       );
-      if (!decision.run) {
-        log?.debug?.(`vector-memory sage sync skipped: ${decision.reason}`);
-        return { synced: false, reason: decision.reason };
-      }
-  
-      const provider = storeProvider(store);
-      // Cheap pre-check: module not even installed → defer without a throw.
-      if (
-        provider &&
-        typeof provider.isAvailable === 'function' &&
-        !(await provider.isAvailable())
-      ) {
+      return { synced: false, reason: 'provider-unavailable' };
+    }
+    // Authoritative gate: actually embed a probe. `isAvailable()` only proves
+    // the module imports — a model that fails to load/download would let the
+    // fail-open `remember()` store vector-less entries and (absent the
+    // completion invariant below) permanently mark the mirror complete.
+    if (provider && typeof provider.embed === 'function') {
+      try {
+        const probe = await provider.embed(['wrongstack vector memory warmup probe']);
+        if (!probe[0] || probe[0].length === 0) throw new Error('empty embedding');
+      } catch {
         log?.debug?.(
-          'vector-memory sage sync deferred: embedding provider unavailable (optional dependency not installed?)',
+          'vector-memory sage sync deferred: embedding probe failed (model not cached / backend error)',
         );
         return { synced: false, reason: 'provider-unavailable' };
       }
-      // Authoritative gate: actually embed a probe. `isAvailable()` only proves
-      // the module imports — a model that fails to load/download would let the
-      // fail-open `remember()` store vector-less entries and (absent the
-      // completion invariant below) permanently mark the mirror complete.
-      if (provider && typeof provider.embed === 'function') {
-        try {
-          const probe = await provider.embed(['wrongstack vector memory warmup probe']);
-          if (!probe[0] || probe[0].length === 0) throw new Error('empty embedding');
-        } catch {
-          log?.debug?.(
-            'vector-memory sage sync deferred: embedding probe failed (model not cached / backend error)',
-          );
-          return { synced: false, reason: 'provider-unavailable' };
-        }
-      }
-  
-      const surface = getSageSurface(memoryStore);
-      if (!surface) {
-        log?.debug?.('vector-memory sage sync skipped: memory store exposes no SAGE surface');
-        return { synced: false, reason: 'no-sage-surface' };
-      }
-  
-      writeMarker(store, {
-        phase: 'running',
-        pid: process.pid,
-        startedAt: new Date().toISOString(),
-      });
-      const report = await store.syncFromSage(createSageSurfaceSyncSource(surface));
-      if (report.failed > 0) {
-        // Leave no complete marker: next boot retries, content-hash dedup
-        // skips what already landed.
-        log?.warn?.(
-          `vector-memory sage sync finished with ${report.failed} failure(s) — will retry on next boot`,
-        );
-        return {
-          synced: false,
-          reason: 'partial-failure',
-          marker: { phase: 'running', ...counts(report) },
-        };
-      }
-  
-      // Completion invariant: every entry must carry a vector for the current
-      // provider. A provider that died mid-sync leaves vector-less entries
-      // (remember() fails open) which syncFromSage's content-hash dedup would
-      // then skip forever — reindexAll() is the only existing backfill path.
-      let stats = store.stats();
-      if (stats.vectors !== stats.entries) {
-        log?.warn?.(
-          `vector-memory sage sync healed ${stats.entries - stats.vectors} vector-less entr(ies) via reindexAll()`,
-        );
-        await store.reindexAll();
-        stats = store.stats();
-      }
-      if (stats.vectors !== stats.entries) {
-        log?.warn?.(
-          `vector-memory sage sync incomplete: ${stats.entries - stats.vectors} entr(ies) still vector-less — will retry on next boot`,
-        );
-        return {
-          synced: false,
-          reason: 'vector-incomplete',
-          marker: { phase: 'running', ...counts(report) },
-        };
-      }
-  
-      const marker: SageSyncMarker = {
-        phase: 'complete',
-        completedAt: new Date().toISOString(),
-        ...(provider ? { providerId: provider.id } : {}),
-        ...counts(report),
-      };
-      writeMarker(store, marker);
-      log?.info?.(
-        `vector-memory sage sync complete: ${report.indexed} indexed, ${report.skipped} skipped (already present)`,
-      );
-      return { synced: true, reason: 'synced', marker };
-    } catch (error) {
-      // Never let a fire-and-forget boot hook reject — but do surface it.
-      log?.warn?.(
-        `vector-memory sage sync failed: ${error instanceof Error ? error.message : String(error)} — will retry on next boot`,
-      );
-      return { synced: false, reason: 'error' };
     }
+
+    const surface = getSageSurface(memoryStore);
+    if (!surface) {
+      log?.debug?.('vector-memory sage sync skipped: memory store exposes no SAGE surface');
+      return { synced: false, reason: 'no-sage-surface' };
+    }
+
+    writeMarker(store, {
+      phase: 'running',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+    const report = await store.syncFromSage(createSageSurfaceSyncSource(surface));
+    if (report.failed > 0) {
+      // Leave no complete marker: next boot retries, content-hash dedup
+      // skips what already landed.
+      log?.warn?.(
+        `vector-memory sage sync finished with ${report.failed} failure(s) — will retry on next boot`,
+      );
+      return {
+        synced: false,
+        reason: 'partial-failure',
+        marker: { phase: 'running', ...counts(report) },
+      };
+    }
+
+    // Completion invariant: every entry must carry a vector for the current
+    // provider. A provider that died mid-sync leaves vector-less entries
+    // (remember() fails open) which syncFromSage's content-hash dedup would
+    // then skip forever — reindexAll() is the only existing backfill path.
+    let stats = store.stats();
+    if (stats.vectors !== stats.entries) {
+      log?.warn?.(
+        `vector-memory sage sync healed ${stats.entries - stats.vectors} vector-less entr(ies) via reindexAll()`,
+      );
+      await store.reindexAll();
+      stats = store.stats();
+    }
+    if (stats.vectors !== stats.entries) {
+      log?.warn?.(
+        `vector-memory sage sync incomplete: ${stats.entries - stats.vectors} entr(ies) still vector-less — will retry on next boot`,
+      );
+      return {
+        synced: false,
+        reason: 'vector-incomplete',
+        marker: { phase: 'running', ...counts(report) },
+      };
+    }
+
+    const marker: SageSyncMarker = {
+      phase: 'complete',
+      completedAt: new Date().toISOString(),
+      ...(provider ? { providerId: provider.id } : {}),
+      ...counts(report),
+    };
+    writeMarker(store, marker);
+    log?.info?.(
+      `vector-memory sage sync complete: ${report.indexed} indexed, ${report.skipped} skipped (already present)`,
+    );
+    return { synced: true, reason: 'synced', marker };
+  } catch (error) {
+    // Never let a fire-and-forget boot hook reject — but do surface it.
+    log?.warn?.(
+      `vector-memory sage sync failed: ${error instanceof Error ? error.message : String(error)} — will retry on next boot`,
+    );
+    return { synced: false, reason: 'error' };
+  }
 }
 
 interface SyncDecision {
@@ -240,7 +238,10 @@ export function decideWhetherToSync(
     // Anonymous marker: no pid to probe — the wall-clock window is the only
     // signal, so a fresh one is respected and a stale/undated one is taken over.
     return Number.isNaN(startedAt) || stale
-      ? { run: true, reason: Number.isNaN(startedAt) ? 'running-marker-undated' : 'running-marker-stale' }
+      ? {
+          run: true,
+          reason: Number.isNaN(startedAt) ? 'running-marker-undated' : 'running-marker-stale',
+        }
       : { run: false, reason: 'running-unknown-pid' };
   }
   try {
@@ -277,7 +278,9 @@ function readMarker(store: VectorMemoryStore): SageSyncMarker | undefined {
   try {
     const raw = fs.readFileSync(markerPath(store), 'utf8');
     const parsed = JSON.parse(raw) as SageSyncMarker;
-    return parsed && (parsed.phase === 'running' || parsed.phase === 'complete') ? parsed : undefined;
+    return parsed && (parsed.phase === 'running' || parsed.phase === 'complete')
+      ? parsed
+      : undefined;
   } catch {
     return undefined;
   }
@@ -303,9 +306,13 @@ function markerPath(store: VectorMemoryStore): string {
   return path.join(dir, SAGE_SYNC_MARKER_FILENAME);
 }
 
-function storeProvider(
-  store: VectorMemoryStore,
-): { id: string; embed?: (texts: string[]) => Promise<Float32Array[]>; isAvailable?: () => Promise<boolean> } | undefined {
+function storeProvider(store: VectorMemoryStore):
+  | {
+      id: string;
+      embed?: (texts: string[]) => Promise<Float32Array[]>;
+      isAvailable?: () => Promise<boolean>;
+    }
+  | undefined {
   const provider = (store as unknown as { provider?: unknown }).provider;
   if (provider && typeof (provider as { id?: unknown }).id === 'string') {
     return provider as {
@@ -323,5 +330,10 @@ function counts(report: { scanned: number; indexed: number; skipped: number; fai
   skipped: number;
   failed: number;
 } {
-  return { scanned: report.scanned, indexed: report.indexed, skipped: report.skipped, failed: report.failed };
+  return {
+    scanned: report.scanned,
+    indexed: report.indexed,
+    skipped: report.skipped,
+    failed: report.failed,
+  };
 }
