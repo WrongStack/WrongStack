@@ -142,6 +142,33 @@ describe('isClearlyDestructiveBashCommand — destructive detection (P2 #12)', (
     });
   });
 
+  describe('remove-item/ri explicit switch-value forms — parity with tools-side powershell rule', () => {
+    // Tools-side `powershell-remove-item-recursive-force` matches
+    // case-insensitively and, after the round-15 parity fix, treats the
+    // explicit boolean forms `-Switch:$true` as ON and `-Switch:$false` as
+    // OFF, with `-WhatIf:$true` a dry-run exemption. Core-side
+    // `hasRecursiveForceDelete` previously exact-matched lowercase
+    // `-recurse`/`-r`/`-force`/`-f`, so `-Recurse:$true` and `-Force:$true`
+    // (both genuine recursive force-deletes) escaped the YOLO gate.
+    it.each([
+      // Explicit `:true` switch ON forms are genuine recursive force-deletes.
+      ['Remove-Item -Recurse:$true -Force C:\\Users\\victim\\Downloads', true],
+      ['Remove-Item -Recurse -Force:$true C:\\Users\\victim\\Downloads', true],
+      ['Remove-Item -Recurse:$true -Force:$true C:\\Users\\victim\\Downloads', true],
+      ['Remove-Item -RECURSE:$TRUE -FORCE:$TRUE C:\\Users\\victim\\Downloads', true],
+      ['ri -Recurse:$true -Force ..\\..\\shared-secrets', true],
+      ['remove-item -recurse:$true -force C:\\Users\\victim\\Downloads', true],
+      // Explicit `:false` switch OFF forms are NOT recursive/force deletes.
+      ['Remove-Item -Recurse:$false -Force C:\\Users\\victim\\Downloads', false],
+      ['Remove-Item -Recurse -Force:$false C:\\Users\\victim\\Downloads', false],
+      // `-WhatIf:$true` is a dry-run (exempt); `-WhatIf:$false` re-enables execution.
+      ['Remove-Item -Recurse -Force -WhatIf:$true C:\\Users\\victim\\Downloads', false],
+      ['Remove-Item -Recurse -Force -WhatIf:$false C:\\Users\\victim\\Downloads', true],
+    ])('%j → destructive=%s', (cmd, expected) => {
+      expect(isClearlyDestructiveBashCommand(cmd, ROOT)).toBe(expected);
+    });
+  });
+
   describe('disk / partition wipes', () => {
     it.each([
       ['mkfs.ext4 /dev/sda1', true],

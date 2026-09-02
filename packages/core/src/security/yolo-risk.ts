@@ -155,9 +155,15 @@ function hasRecursiveForceDelete(command: string, projectRoot: string | undefine
 
     if (token === 'remove-item' || token === 'ri') {
       const args = commandSegment(tokens, i + 1).map((arg) => arg.toLowerCase());
-      const recurse = args.some((arg) => arg === '-recurse' || arg === '-r');
-      const force = args.some((arg) => arg === '-force' || arg === '-f');
-      if (recurse && force && !args.includes('-whatif')) {
+      // PowerShell switch parameters accept an explicit boolean value spelling:
+      // `-Recurse:$true` ≡ `-Recurse` and `-Force:$true` ≡ `-Force` (switch ON);
+      // `-Recurse:$false` / `-Force:$false` explicitly disable the switch and
+      // must NOT count. `-WhatIf:$true` (like bare `-WhatIf`) is a dry-run and
+      // exempt; `-WhatIf:$false` re-enables execution and is NOT exempt.
+      const recurse = args.some((arg) => /^-(?:recurse|r)(?::\$true)?$/.test(arg));
+      const force = args.some((arg) => /^-(?:force|f)(?::\$true)?$/.test(arg));
+      const dryRun = args.some((arg) => /^-whatif(?::\$true)?$/.test(arg));
+      if (recurse && force && !dryRun) {
         const targets = args.filter((arg) => !arg.startsWith('-') && !SHELL_OPERATORS.has(arg));
         if (targets.length === 0) return true;
         if (targets.some(isCatastrophicDeleteTarget)) return true;
