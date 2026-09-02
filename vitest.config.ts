@@ -184,6 +184,7 @@ export default defineConfig({
         // WebUI has a dedicated jsdom coverage run in packages/webui. Excluding
         // it here prevents the Node run from reporting the same files as 0%.
         'packages/webui/src/**',
+        'packages/webui-hq/src/**',
         // WebUI server entry points require process/WebSocket binding.
         'packages/webui-server/src/server/index.ts',
         'packages/webui-server/src/server/entry.ts',
