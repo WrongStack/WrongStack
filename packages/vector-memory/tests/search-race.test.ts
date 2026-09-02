@@ -12,15 +12,10 @@
  */
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { getSageSurface, isSqliteAvailable, type Sage, SqliteMemoryPort } from '@wrongstack/sage';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import {
-  getSageSurface,
-  isSqliteAvailable,
-  SqliteMemoryPort,
-  type Sage,
-} from '@wrongstack/sage';
 
-import { runSearchRace, VectorMemoryStore } from '../src/index.js';
+import { runSearchRace, VectorMemoryStore, type VectorSearchHit } from '../src/index.js';
 import { FakeEmbeddingProvider } from './fake-provider.js';
 
 const testRunId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -158,5 +153,43 @@ describeIfSqlite('runSearchRace', () => {
     expect(race.lexicalOnly.length).toBeGreaterThan(0);
     expect(race.metrics.vectorCount).toBe(0);
     expect(race.metrics.lexicalOnlyRatio).toBe(1);
+  });
+});
+
+// Regression (2026-09-02): the overlap bucket used `vectorScore: 0` as a
+// "not yet patched" sentinel, so a genuine score-0 vector hit — routine when
+// store.search clamps negative cosines to 0 (HashingEmbeddingProvider
+// fallback) — was swept into lexicalOnly with vectorScore null, the inverse
+// of the truth. Null is the sentinel now; a real 0 stays in overlap.
+describe('runSearchRace — zero-score vector hits', () => {
+  it('classifies a score-0 vector hit as overlap, not lexical-only', async () => {
+    const lexical = [
+      { id: 'm1', text: 'alpha beta' },
+      { id: 'm2', text: 'gamma delta' },
+    ] as unknown as Sage[];
+    const store = {
+      search: async () =>
+        [
+          {
+            entry: { id: 'v1', text: 'alpha beta mirror', metadata: { sageId: 'm1' } },
+            score: 0,
+          },
+          {
+            entry: { id: 'v2', text: 'semantic paraphrase', metadata: { sageId: 'v-only' } },
+            score: 0.9,
+          },
+        ] as unknown as VectorSearchHit[],
+    } as unknown as VectorMemoryStore;
+
+    const race = await runSearchRace('anything', lexical, store, { limit: 10 });
+
+    expect(race.lexicalOnly.map((row) => row.id)).toEqual(['m2']);
+    const m1 = race.overlap.find((row) => row.id === 'm1');
+    expect(m1?.vectorScore).toBe(0);
+    expect(m1?.lexicalScore).toBe(1);
+    expect(race.vectorOnly.map((row) => row.id)).toEqual(['v-only']);
+    expect(race.metrics.lexicalCount).toBe(2);
+    expect(race.metrics.lexicalOnlyRatio).toBe(0.5);
+    expect(race.metrics.agreementRatio).toBe(0.5);
   });
 });

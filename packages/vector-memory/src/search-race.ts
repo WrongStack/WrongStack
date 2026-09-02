@@ -110,7 +110,15 @@ export async function runSearchRace(
   // so per-result scores stay comparable across the two entry points.
   const lexicalOnly: SearchRaceChannelHit[] = [];
   const vectorOnly: SearchRaceChannelHit[] = [];
-  const overlap: SearchRaceResult['overlap'] = [];
+  // Intermediate bucket: `vectorScore: null` means "no vector hit seen yet".
+  // A real cosine of 0 is a legitimate overlap (the store clamps negatives
+  // to 0), so 0 cannot double as the unpatched sentinel.
+  const overlap: Array<{
+    id: string;
+    lexicalScore: number;
+    vectorScore: number | null;
+    preview: string;
+  }> = [];
   const seenIds = new Set<string>();
 
   const lexicalCapped = lexical.slice(0, limit);
@@ -122,7 +130,7 @@ export async function runSearchRace(
     overlap.push({
       id,
       lexicalScore: score,
-      vectorScore: 0, // patched below
+      vectorScore: null, // patched below when a vector hit carries this id
       preview: previewText(mem.text, 140),
     });
   }
@@ -147,7 +155,7 @@ export async function runSearchRace(
   // Move "lexical only" (no vector hit) out of the overlap bucket.
   for (let i = overlap.length - 1; i >= 0; i--) {
     const row = overlap[i]!;
-    if (row.vectorScore === 0) {
+    if (row.vectorScore === null) {
       lexicalOnly.push({
         id: row.id,
         lexicalScore: row.lexicalScore,
@@ -165,7 +173,9 @@ export async function runSearchRace(
     query,
     lexicalOnly,
     vectorOnly,
-    overlap,
+    // The sweep above removed every row still carrying a null vectorScore,
+    // so every remaining row holds a real number here.
+    overlap: overlap as SearchRaceResult['overlap'],
     metrics: {
       lexicalCount,
       vectorCount,
