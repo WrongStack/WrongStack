@@ -253,14 +253,25 @@ export function truncateDiffPayload(
   };
 }
 
+/**
+ * Truncate to `max` UTF-8 bytes keeping BOTH ends, appending a marker that
+ * reports the true omitted byte count. Like `truncateHeadTail` and
+ * `truncateDiffPayload`, marker room is reserved from the budget and both
+ * slices are cut byte-accurately (not by UTF-16 code unit), so the result
+ * never exceeds `max` — the contract `fetchTool`'s `maxOutputBytes` relies on.
+ */
 export function truncateMiddle(s: string, max: number): string {
-  if (Buffer.byteLength(s, 'utf8') <= max) return s;
-  const half = Math.floor(max / 2);
-  return (
-    s.slice(0, half) +
-    `\n…[truncated ${Buffer.byteLength(s, 'utf8') - max} bytes from middle]…\n` +
-    s.slice(-half)
-  );
+  const total = Buffer.byteLength(s, 'utf8');
+  if (total <= max) return s;
+  // Reserve a fixed allowance for the marker so the final string can't exceed
+  // the cap even though the dropped-byte count's digit width varies.
+  const MARKER_RESERVE = 64;
+  const avail = Math.max(0, max - MARKER_RESERVE);
+  if (avail === 0) return takeHeadBytes(s, max); // budget too small for a marker — hard cut
+  const head = takeHeadBytes(s, Math.floor(avail / 2));
+  const tail = takeTailBytes(s, avail - Buffer.byteLength(head, 'utf8'));
+  const kept = Buffer.byteLength(head, 'utf8') + Buffer.byteLength(tail, 'utf8');
+  return `${head}\n…[truncated ${total - kept} bytes from middle]…\n${tail}`;
 }
 
 export function isBinaryBuffer(buf: Buffer): boolean {

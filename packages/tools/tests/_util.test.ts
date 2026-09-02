@@ -130,24 +130,54 @@ describe('truncateMiddle', () => {
     // 'é' is 2 UTF-8 bytes — 4 chars but 8 bytes.
     const s = 'éééé';
     expect(truncateMiddle(s, 8)).toBe(s); // 8 bytes fits exactly at limit 8
+    // Budget 4 leaves no room for the marker (MARKER_RESERVE = 64) — hard cut.
     const out = truncateMiddle(s, 4);
     expect(out).not.toBe(s);
-    expect(out).toContain('truncated');
-    expect(out).toContain('4 bytes'); // 8 - 4 = 4 bytes removed
+    expect(out).toBe('éé');
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(4);
   });
 
-  it('truncates the middle and notes the byte count removed', () => {
+  it('truncates the middle and notes the true byte count removed', () => {
     const s = 'a'.repeat(1000);
     const out = truncateMiddle(s, 100);
     expect(out).toContain('truncated');
-    expect(out).toContain('900 bytes');
-    expect(out.startsWith('a'.repeat(50))).toBe(true);
-    expect(out.endsWith('a'.repeat(50))).toBe(true);
+    // Marker room is reserved from the budget: 18+18 content bytes are kept,
+    // 964 reported — and content + marker together stay within the 100-byte cap.
+    expect(out).toContain('964 bytes');
+    expect(out.startsWith('a'.repeat(18))).toBe(true);
+    expect(out.endsWith('a'.repeat(18))).toBe(true);
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(100);
   });
 
   it('handles exact-fit input without truncation', () => {
     const s = 'a'.repeat(10);
     expect(truncateMiddle(s, 10)).toBe(s);
+  });
+
+  // Regression (elite-bug-hunter r1-truncate-middle-byte-budget-20260902):
+  // the pre-fix implementation gated on byte length but sliced by UTF-16 code
+  // units, so multibyte content (3-4 UTF-8 bytes per code unit) sailed past
+  // the budget — the fetch tool's declared maxOutputBytes — and the marker
+  // reported `total - max` regardless of what was actually kept.
+  it('multibyte content never exceeds the byte budget (fetch-tool scale)', () => {
+    const s = '中'.repeat(400_000); // 400k UTF-16 units = 1.2 MB UTF-8
+    const max = 131_072; // fetchTool MAX_BYTES / maxOutputBytes
+    const out = truncateMiddle(s, max);
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(max);
+    expect(out).toContain('truncated');
+  });
+
+  it('marker reports the dropped content byte count truthfully', () => {
+    const s = 'é'.repeat(100); // 100 units = 200 UTF-8 bytes
+    const out = truncateMiddle(s, 100);
+    const m = /truncated (\d+) bytes/.exec(out);
+    expect(m).not.toBeNull();
+    const claimed = Number(m?.[1] ?? -1);
+    // House semantic (truncateHeadTail/truncateDiffPayload): the marker counts
+    // dropped CONTENT bytes — output minus the marker itself.
+    const marker = `\n…[truncated ${claimed} bytes from middle]…\n`;
+    const keptContent = Buffer.byteLength(out, 'utf8') - Buffer.byteLength(marker, 'utf8');
+    expect(claimed).toBe(Buffer.byteLength(s, 'utf8') - keptContent);
   });
 });
 
