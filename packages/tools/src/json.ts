@@ -28,10 +28,21 @@ class JsonFileTooLargeError extends Error {
   }
 }
 
+/** Thrown when the target file is a directory. */
+class JsonFileIsDirectoryError extends Error {
+  constructor(filePath: string) {
+    super(`json: "${filePath}" is a directory, not a file`);
+    this.name = 'JsonFileIsDirectoryError';
+  }
+}
+
 /** Resolve (containment-checked), size-check, then read a JSON file. */
 async function readJsonFileBounded(filePath: string, ctx: Context): Promise<string> {
   const resolved = await safeResolveReal(filePath, ctx);
   const stat = await fs.stat(resolved);
+  if (stat.isDirectory()) {
+    throw new JsonFileIsDirectoryError(filePath);
+  }
   if (stat.size > MAX_JSON_FILE_BYTES) {
     throw new JsonFileTooLargeError(filePath, stat.size);
   }
@@ -161,6 +172,23 @@ export const jsonTool: Tool<JsonInput, JsonOutput> = {
     signal?.throwIfAborted();
     const action = input.action ?? 'parse';
 
+    const ALLOWED_ACTIONS: ReadonlySet<string> = new Set([
+      'parse',
+      'query',
+      'validate',
+      'transform',
+      'merge',
+    ]);
+    if (input.action !== undefined && !ALLOWED_ACTIONS.has(input.action)) {
+      return {
+        data: null,
+        formatted: '',
+        type: 'unknown',
+        action: String(input.action),
+        error: `Unknown action "${input.action}". Allowed actions: parse, query, validate, transform, merge`,
+      };
+    }
+
     switch (action) {
       case 'query':
         return executeQuery(input, ctx);
@@ -195,7 +223,10 @@ async function executeParse(input: JsonInput, ctx: Context): Promise<JsonOutput>
         formatted: '',
         type: 'unknown',
         action: 'parse',
-        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read file',
+        error:
+          error instanceof JsonFileTooLargeError || error instanceof JsonFileIsDirectoryError
+            ? error.message
+            : 'Could not read file',
       };
     }
   } else if (input.data) {
@@ -287,7 +318,10 @@ async function executeQuery(input: JsonInput, ctx: Context): Promise<JsonOutput>
         formatted: '',
         type: 'unknown',
         action: 'query',
-        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+        error:
+          error instanceof JsonFileTooLargeError || error instanceof JsonFileIsDirectoryError
+            ? error.message
+            : 'Could not read/parse file',
       };
     }
   } else if (input.data) {
@@ -360,7 +394,10 @@ async function executeValidate(input: JsonInput, ctx: Context): Promise<JsonOutp
         formatted: '',
         type: 'unknown',
         action: 'validate',
-        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+        error:
+          error instanceof JsonFileTooLargeError || error instanceof JsonFileIsDirectoryError
+            ? error.message
+            : 'Could not read/parse file',
       };
     }
   } else if (input.data) {
@@ -433,7 +470,10 @@ async function executeTransform(input: JsonInput, ctx: Context): Promise<JsonOut
         formatted: '',
         type: 'unknown',
         action: 'transform',
-        error: error instanceof JsonFileTooLargeError ? error.message : 'Could not read/parse file',
+        error:
+          error instanceof JsonFileTooLargeError || error instanceof JsonFileIsDirectoryError
+            ? error.message
+            : 'Could not read/parse file',
       };
     }
   } else if (input.data) {
@@ -542,6 +582,9 @@ function jmespathSearch(data: unknown, query: string): unknown {
   const dotMatch = query.match(/^([a-zA-Z_][a-zA-Z0-9_]*)(?:\.(.+))?$/);
   if (dotMatch) {
     const key = dotMatch[1]!;
+    if (key === '__proto__' || key === 'prototype' || key === 'constructor') {
+      return undefined;
+    }
     const rest = dotMatch[2];
     const val = (data as Record<string, unknown> | undefined)?.[key];
     if (rest === undefined) return val;
@@ -775,6 +818,10 @@ function simpleQuery(data: unknown, path: string): unknown {
 
   for (const part of parts) {
     if (current === null || current === undefined) return undefined;
+
+    if (part === '__proto__' || part === 'prototype' || part === 'constructor') {
+      return undefined;
+    }
 
     const idx = Number(part);
     if (!Number.isNaN(idx) && Array.isArray(current)) {

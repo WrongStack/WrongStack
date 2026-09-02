@@ -105,6 +105,7 @@ export const diffTool: Tool<DiffInput, DiffOutput> = {
   },
   async execute(input, ctx, opts) {
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
+    signal.throwIfAborted();
     if (input.a !== undefined || input.b !== undefined) {
       return await gitDiff(input, ctx, signal);
     }
@@ -118,19 +119,31 @@ async function gitDiff(
   ctx: import('@wrongstack/core/agent').Context,
   signal: AbortSignal,
 ): Promise<DiffOutput> {
+  if (input.a !== undefined && (!input.a || !input.a.trim())) {
+    throw new ToolValidationError({
+      message: "diff: ref 'a' cannot be empty or whitespace-only",
+      field: 'a',
+    });
+  }
+  if (input.b !== undefined && (!input.b || !input.b.trim())) {
+    throw new ToolValidationError({
+      message: "diff: ref 'b' cannot be empty or whitespace-only",
+      field: 'b',
+    });
+  }
   // Flag injection: a/b are passed as positional args BEFORE the `--`
   // separator, so a leading '-' would be parsed as a git option. The most
   // dangerous is `--output=<path>`, which makes `git diff` write to an
   // arbitrary path (outside the project root, with no confirmation since this
   // tool is permission:'auto'). Reject leading-dash refs unconditionally —
   // mirrors the guard in git.ts (validateWorktreeInput) and install.ts.
-  if (input.a?.startsWith('-')) {
+  if (input.a?.trim().startsWith('-')) {
     throw new ToolValidationError({
       message: `diff: unsafe ref "${input.a}" — refs may not begin with '-' (flag injection)`,
       field: 'a',
     });
   }
-  if (input.b?.startsWith('-')) {
+  if (input.b?.trim().startsWith('-')) {
     throw new ToolValidationError({
       message: `diff: unsafe ref "${input.b}" — refs may not begin with '-' (flag injection)`,
       field: 'b',
@@ -150,7 +163,13 @@ async function gitDiff(
   const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
   const gitDir = findGitDir(basePath);
   if (!gitDir) {
-    return { diff: '', files: [], truncated: false, mode: effectiveMode };
+    return {
+      diff: '',
+      files: [],
+      truncated: false,
+      mode: effectiveMode,
+      note: 'Not a git repository (or any parent up to root).',
+    };
   }
 
   const args: string[] = ['diff', '--no-color'];
@@ -161,8 +180,8 @@ async function gitDiff(
     if (Number.isFinite(contextLines)) args.push(`-U${contextLines}`);
   }
   if (input.staged) args.push('--staged');
-  if (input.a) args.push(input.a);
-  if (input.b) args.push(input.b);
+  if (input.a) args.push(input.a.trim());
+  if (input.b) args.push(input.b.trim());
   if (input.files) {
     const files = Array.isArray(input.files) ? input.files : input.files.split(',');
     args.push('--', ...files.map((f) => f.trim().replace(/\\/g, '/')));
@@ -180,12 +199,17 @@ async function gitDiff(
     diff = `${clipped}\n…[git diff truncated: ${result.stdout.length - clipped.length} of ${result.stdout.length} characters omitted]`;
     truncated = true;
   }
+  const exitNote =
+    result.exitCode !== 0
+      ? `git diff exited with code ${result.exitCode}: ${result.stderr.trim() || 'command failed'}`
+      : undefined;
+  const combinedNote = [sideBySideNote, exitNote].filter(Boolean).join('\n') || undefined;
   return {
     diff,
     files: [],
     truncated,
     mode: effectiveMode,
-    note: sideBySideNote,
+    note: combinedNote,
   };
 }
 
@@ -240,8 +264,9 @@ function runGit(
 async function fileDiff(
   input: DiffInput,
   ctx: import('@wrongstack/core/agent').Context,
-  _signal: AbortSignal,
+  signal: AbortSignal,
 ): Promise<DiffOutput> {
+  signal.throwIfAborted();
   // `context` is accepted on the input schema but only affects the git-diff
   // path (`a`/`b`), where it becomes `-U<n>`. This line-dump path has no
   // notion of "context lines" because there is no real diff.
@@ -265,6 +290,7 @@ async function fileDiff(
   const basePath = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
 
   const fileEntries = await mapWithConcurrency(files, 16, async (file) => {
+    signal.throwIfAborted();
     // Realpath containment (WS-048): the dump path OPENS the resolved file, so
     // the syntactic check alone would follow an in-root symlink out of root.
     const fileToResolve = path.isAbsolute(file) ? file : path.resolve(basePath, file);

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 306,
-      "typeOnly": 242,
+      "files": 308,
+      "typeOnly": 244,
       "runtimeOrMixed": 81
     },
     "@wrongstack/core/agent-catalog": {
@@ -166,7 +166,7 @@
     "@wrongstack/core/types": {
       "files": 1028,
       "typeOnly": 951,
-      "runtimeOrMixed": 247
+      "runtimeOrMixed": 250
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -194,9 +194,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 554,
+      "files": 556,
       "typeOnly": 57,
-      "runtimeOrMixed": 526
+      "runtimeOrMixed": 528
     },
     "@wrongstack/core/utils/error": {
       "files": 5,
@@ -1216,6 +1216,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/exec.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/json.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -1255,6 +1261,12 @@
       "file": "packages/tools/src/next-steps-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/pwsh.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -14142,7 +14154,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/codebase-index/codebase-search-tool.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14334,7 +14346,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/patch.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -14346,7 +14358,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tools/src/pwsh.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -18604,6 +18616,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/codebase-index/codebase-stats-tool.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/codebase-targeted-test-tool.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -18665,6 +18683,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/codebase-index/yaml-parser.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/design.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

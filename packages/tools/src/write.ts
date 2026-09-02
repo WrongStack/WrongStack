@@ -1,5 +1,5 @@
 import * as fs from 'node:fs/promises';
-import { ToolValidationError } from '@wrongstack/core/types';
+import { FsError, ToolValidationError } from '@wrongstack/core/types';
 import {
   atomicWrite,
   detectNewlineStyle,
@@ -102,9 +102,10 @@ type PreparedWrite = {
 
 function countLines(text: string): number {
   if (!text) return 0;
+  const trimmed = text.endsWith('\n') ? text.slice(0, -1) : text;
   let count = 1;
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) === 0x0a) count++;
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed.charCodeAt(i) === 0x0a) count++;
   }
   return count;
 }
@@ -137,6 +138,14 @@ async function prepareWrite(input: WriteInput, ctx: Context): Promise<PreparedWr
   let prev = '';
   try {
     const stat = await fs.stat(absPath);
+    if (stat.isDirectory()) {
+      throw new FsError({
+        message: `write: "${input.path}" is an existing directory and cannot be overwritten`,
+        code: 'FS_WRITE_FAILED',
+        path: absPath,
+        context: { reason: 'is-directory' },
+      });
+    }
     existed = stat.isFile();
     if (existed) {
       prev = await fs.readFile(absPath, 'utf8');
@@ -186,8 +195,11 @@ async function finishWrite(
     // Non-fatal background reindex
   }
 
+  const isIdentical = prepared.existed && prepared.prev === content;
   const rawDiff = prepared.existed
-    ? unifiedDiff(prepared.prev, content, { fromFile: input.path, toFile: input.path })
+    ? isIdentical
+      ? '(no-op: file content is identical to existing content)'
+      : unifiedDiff(prepared.prev, content, { fromFile: input.path, toFile: input.path })
     : `+++ ${input.path}\n+ (new file, ${countLines(content)} lines)`;
   const { text: diff, truncated: diffTruncated } = truncateDiffPayload(rawDiff, MAX_DIFF_BYTES);
 
@@ -217,6 +229,11 @@ async function finishWrite(
   const hasSyntaxErrors = syntax !== undefined && syntax.errors.length > 0;
 
   const notes: string[] = [];
+  if (isIdentical) {
+    notes.push(
+      'Write completed with no content changes (new content is identical to existing content).',
+    );
+  }
   if (diffTruncated) {
     notes.push('Diff truncated to the 256 KiB output budget — the full write is on disk.');
   }

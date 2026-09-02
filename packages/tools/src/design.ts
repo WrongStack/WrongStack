@@ -16,6 +16,7 @@ import {
   setDesignOverrides,
 } from '@wrongstack/core/design';
 import type { Tool } from '@wrongstack/core/types';
+import { atomicWrite } from '@wrongstack/core/utils';
 
 type Overrides = Record<string, string>;
 
@@ -61,7 +62,7 @@ interface DesignInput {
   /** action "materialize": overwrite an existing file. */
   force?: boolean | undefined;
   /** action "verify": explicit files to scan (project-relative). Defaults to a UI-file walk. */
-  files?: string[] | undefined;
+  files?: string | string[] | undefined;
 }
 
 interface DesignOutput {
@@ -355,7 +356,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
         };
       }
       await fs.mkdir(path.dirname(abs), { recursive: true });
-      await fs.writeFile(abs, result.content);
+      await atomicWrite(abs, result.content);
       return {
         action,
         kit: active.kit,
@@ -368,6 +369,7 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
     }
 
     if (action === 'verify') {
+      signal?.throwIfAborted();
       const active = await loadActiveKit(ctx.projectRoot);
       if (!active) {
         return {
@@ -375,12 +377,19 @@ export const designTool: Tool<DesignInput, DesignOutput> = {
           output: 'No active kit to verify against. Pick one: `design {action:"use", kit:"<id>"}`.',
         };
       }
+      signal?.throwIfAborted();
       const rawTokens = await loader.readTokens(active.kit);
       if (!rawTokens) {
         return { action, kit: active.kit, output: `Kit "${active.kit}" has no tokens.json.` };
       }
+      signal?.throwIfAborted();
       const tokens = applyTokenOverrides(rawTokens, active.overrides);
-      const report = await runDesignVerify(ctx.projectRoot, tokens, input.files);
+      const normalizedFiles = input.files
+        ? (Array.isArray(input.files) ? input.files : String(input.files).split(','))
+            .map((f) => f.trim().replace(/\\/g, '/'))
+            .filter(Boolean)
+        : undefined;
+      const report = await runDesignVerify(ctx.projectRoot, tokens, normalizedFiles);
       const pct = Math.round(report.score * 100);
       const top = report.violations
         .slice(0, 25)

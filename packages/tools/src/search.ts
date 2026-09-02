@@ -109,7 +109,7 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
     return final;
   },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<SearchOutput>> {
-    if (!input?.query || input.query.trim() === '') {
+    if (!input?.query || typeof input.query !== 'string' || input.query.trim() === '') {
       throw new ToolValidationError({
         message: 'search: query is required and must be a non-empty string',
         field: 'query',
@@ -117,10 +117,15 @@ export const searchTool: Tool<SearchInput, SearchOutput> = {
     }
 
     const signal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
-    const num = Math.max(1, Math.min(input.num_results ?? DEFAULT_NUM, MAX_RESULTS));
+    const rawNum =
+      typeof input.num_results === 'number' && !Number.isNaN(input.num_results)
+        ? input.num_results
+        : DEFAULT_NUM;
+    const num = Math.max(1, Math.min(Math.floor(rawNum), MAX_RESULTS));
     const source = input.source ?? 'duckduckgo';
     const skipCache = input.skip_cache ?? false;
-    const cacheKey = `${source}:${input.query}`;
+    const normalizedQuery = input.query.trim().toLowerCase().replace(/\s+/g, ' ');
+    const cacheKey = `${source}:${normalizedQuery}`;
 
     // --- Cache hit ---
     if (!skipCache) {

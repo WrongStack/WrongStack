@@ -7,6 +7,7 @@
  */
 
 import type { Tool } from '@wrongstack/core/types';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState } from './background-indexer.js';
 import { IndexTimeoutError } from './circuit-breaker.js';
 import { SCHEMA_VERSION } from './schema.js';
@@ -37,6 +38,9 @@ export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput>
     additionalProperties: false,
   },
   async execute(_input, ctx, execOpts) {
+    const signal = execOpts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
+
     const idxState = getIndexState();
     const indexPath = resolveIndexDir(ctx.projectRoot, codebaseIndexDirOverride(ctx));
 
@@ -73,11 +77,11 @@ export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput>
     try {
       stats = await codebaseIndexStats(
         { projectRoot: ctx.projectRoot, indexDir: codebaseIndexDirOverride(ctx) },
-        { signal: execOpts?.signal },
+        { signal },
       );
     } catch (err) {
-      if (!(err instanceof IndexTimeoutError) && (err as Error)?.name !== 'IndexTimeoutError') {
-        throw err;
+      if (signal?.aborted) {
+        signal.throwIfAborted();
       }
       return {
         totalSymbols: 0,
@@ -90,7 +94,9 @@ export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput>
         version: SCHEMA_VERSION,
         statsAvailable: false,
         indexStatus:
-          'Index statistics timed out. Do not repeatedly retry stats; try codebase-search directly or use the appropriate grep/glob/tree fallback.',
+          err instanceof IndexTimeoutError || (err as Error)?.name === 'IndexTimeoutError'
+            ? 'Index statistics timed out. Do not repeatedly retry stats; try codebase-search directly or use the appropriate grep/glob/tree fallback.'
+            : `Index statistics query failed: ${toErrorMessage(err)}. The index may be corrupted or inaccessible; try /codebase-reindex.`,
       };
     }
 
@@ -98,10 +104,11 @@ export const codebaseStatsTool: Tool<Record<string, never>, CodebaseStatsOutput>
     const hasPersistedIndex = stats.totalFiles > 0 || stats.lastIndexed !== null;
     let indexStatus: string | undefined;
     if (circuit.state === 'open') {
+      const cooldownSec = Math.max(1, Math.ceil(circuit.cooldownRemainingMs / 1000));
       indexStatus =
         `${hasPersistedIndex ? 'Indexing' : 'No persisted index data found, and indexing'} is paused after repeated failures ` +
         `(last: ${circuit.lastFailure ?? 'unknown'}); auto-retry in ` +
-        `${Math.ceil(circuit.cooldownRemainingMs / 1000)}s, or run /codebase-reindex. ` +
+        `${cooldownSec}s, or run /codebase-reindex. ` +
         (hasPersistedIndex
           ? 'Stats reflect the last successful build.'
           : 'Build the index after recovery.');

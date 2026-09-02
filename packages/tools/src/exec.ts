@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { StringDecoder } from 'node:string_decoder';
+import type { Context } from '@wrongstack/core/agent';
 import {
   emitProcessCompleted,
   emitProcessOutput,
@@ -422,7 +424,11 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     }
 
     const args = (input.args ?? []).slice(0, MAX_ARGS);
-    const timeout = Math.max(1, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS));
+    const rawTimeout =
+      typeof input.timeout === 'number' && !Number.isNaN(input.timeout)
+        ? input.timeout
+        : DEFAULT_TIMEOUT_MS;
+    const timeout = Math.max(1, Math.min(rawTimeout, MAX_TIMEOUT_MS));
 
     // Heuristic danger assessment. Computed once here, attached to every
     // return from this point on (including error returns) so the UI can
@@ -500,6 +506,18 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     }
 
     return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id, danger);
+  },
+
+  async cleanup(_input: ExecInput, ctx: Context): Promise<void> {
+    const registry = getProcessRegistry();
+    const sessionId = ctx.session?.id;
+    if (!sessionId) return;
+    for (const entry of registry.bySession(sessionId)) {
+      if (entry.name !== 'exec') continue;
+      if (entry.child && entry.child.exitCode !== null) continue;
+      if (entry.protected) continue;
+      registry.kill(entry.pid, { force: true });
+    }
   },
 };
 
@@ -698,20 +716,27 @@ function runCommand(
       else signal.addEventListener('abort', onAbort, { once: true });
     }
 
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
+
     child.stdout?.on('data', (chunk: Buffer) => {
-      const text = chunk.toString();
+      const text = stdoutDecoder.write(chunk);
       stdoutBytes += chunk.byteLength;
       emitProcessOutput({ pid, stream: 'stdout', chunk });
-      if (stdout.length < MAX_OUTPUT) stdout += text;
-      spool.write(text);
+      if (text.length > 0) {
+        if (stdout.length < MAX_OUTPUT) stdout += text.slice(0, MAX_OUTPUT - stdout.length);
+        spool.write(text);
+      }
     });
 
     child.stderr?.on('data', (chunk: Buffer) => {
-      const text = chunk.toString();
+      const text = stderrDecoder.write(chunk);
       stderrBytes += chunk.byteLength;
       emitProcessOutput({ pid, stream: 'stderr', chunk });
-      if (stderr.length < MAX_OUTPUT) stderr += text;
-      spool.write(text);
+      if (text.length > 0) {
+        if (stderr.length < MAX_OUTPUT) stderr += text.slice(0, MAX_OUTPUT - stderr.length);
+        spool.write(text);
+      }
     });
 
     child.on('close', (code) => {
@@ -722,6 +747,16 @@ function runCommand(
       const exitCode = killed ? 124 : (code ?? 1);
       emitCompletedOnce(exitCode, pid);
       registry.afterCall(durationMs, exitCode !== 0);
+      const stdoutTail = stdoutDecoder.end();
+      if (stdoutTail) {
+        if (stdout.length < MAX_OUTPUT) stdout += stdoutTail.slice(0, MAX_OUTPUT - stdout.length);
+        spool.write(stdoutTail);
+      }
+      const stderrTail = stderrDecoder.end();
+      if (stderrTail) {
+        if (stderr.length < MAX_OUTPUT) stderr += stderrTail.slice(0, MAX_OUTPUT - stderr.length);
+        spool.write(stderrTail);
+      }
       const spooled = spool.finalize();
       const isTruncated =
         stdoutBytes > MAX_OUTPUT ||

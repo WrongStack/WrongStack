@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { builtinTools } from '../src/builtin.js';
+import { BUILTIN_TOOL_DESCRIPTIONS, builtinTools } from '../src/builtin.js';
 
 describe('builtinTools', () => {
   it('exports a non-empty array of Tool definitions', () => {
@@ -27,5 +27,14 @@ describe('builtinTools', () => {
       expect(seen.has(t.name)).toBe(false);
       seen.add(t.name);
     }
+  });
+
+  it('gives every built-in a reviewed provider-facing description', () => {
+    expect(Object.keys(BUILTIN_TOOL_DESCRIPTIONS).sort()).toEqual(
+      builtinTools.map((tool) => tool.name).sort(),
+    );
+    expect(
+      builtinTools.every((tool) => tool.description === BUILTIN_TOOL_DESCRIPTIONS[tool.name]),
+    ).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import { resolveRealInsideRoot, safeResolveReal, sha256hex } from './_util.js';
 import { enqueueReindex } from './codebase-index/background-indexer.js';
@@ -59,10 +60,19 @@ export const patchTool: Tool<PatchInput, PatchOutput> = {
     required: ['patch'],
   },
   async execute(input, ctx, opts) {
-    if (!input?.patch) throw new Error('patch: patch content is required');
+    if (!input?.patch || typeof input.patch !== 'string' || !input.patch.trim()) {
+      throw new ToolValidationError({
+        message: 'patch: patch content is required and cannot be empty',
+        field: 'patch',
+      });
+    }
 
     const signal = opts?.signal ?? ctx.signal ?? new AbortController().signal;
-    const strip = Math.max(1, input.strip ?? 1);
+    signal.throwIfAborted();
+    const strip =
+      typeof input.strip === 'number' && Number.isFinite(input.strip) && input.strip >= 0
+        ? Math.floor(input.strip)
+        : 1;
     const dryRun = input.dry_run ?? false;
     const refuse = (message: string): PatchOutput => ({
       applied: 0,

@@ -47,10 +47,20 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
     },
   },
   async execute(input, ctx, execOpts) {
+    const signal = execOpts?.signal ?? ctx?.signal;
+    signal?.throwIfAborted();
+
     // Validate `langs` against the same enum codebase-search exposes — an
     // unknown id used to be silently ignored by the indexer, which looked
     // like a successful-but-empty run.
     if (input.langs) {
+      if (!Array.isArray(input.langs) || input.langs.length === 0) {
+        throw new ToolValidationError({
+          message:
+            'codebase-index: langs cannot be an empty array. Pass at least one valid language or omit langs.',
+          field: 'langs',
+        });
+      }
       const unknown = input.langs.filter(
         (lang) => !(INDEXABLE_LANG_IDS as readonly string[]).includes(lang),
       );
@@ -78,19 +88,23 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
     }
 
     // Circuit breaker: after repeated failures/timeouts indexing is paused.
-    // Report instead of erroring so the agent can carry on without the index.
-    const circuit = indexCircuitBreaker.snapshot();
-    if (circuit.state === 'open' && circuit.cooldownRemainingMs > 0) {
-      return {
-        filesIndexed: 0,
-        symbolsIndexed: 0,
-        langStats: {},
-        durationMs: 0,
-        errors: [],
-        note:
-          `Codebase indexing is paused after repeated failures (last: ${circuit.lastFailure ?? 'unknown'}). ` +
-          `Auto-retry possible in ${Math.ceil(circuit.cooldownRemainingMs / 1000)}s; the user can run /codebase-reindex to retry immediately.`,
-      };
+    // When the user explicitly requests force: true, reset the breaker and proceed.
+    if (input.force) {
+      indexCircuitBreaker.reset();
+    } else {
+      const circuit = indexCircuitBreaker.snapshot();
+      if (circuit.state === 'open' && circuit.cooldownRemainingMs > 0) {
+        return {
+          filesIndexed: 0,
+          symbolsIndexed: 0,
+          langStats: {},
+          durationMs: 0,
+          errors: [],
+          note:
+            `Codebase indexing is paused after repeated failures (last: ${circuit.lastFailure ?? 'unknown'}). ` +
+            `Auto-retry possible in ${Math.max(1, Math.ceil(circuit.cooldownRemainingMs / 1000))}s; use force: true or run /codebase-reindex to retry immediately.`,
+        };
+      }
     }
 
     // Route through the background coordinator so the run shares the
@@ -102,7 +116,7 @@ export const codebaseIndexTool: Tool<CodebaseIndexInput, CodebaseIndexOutput> = 
       force: input.force ?? false,
       langs: input.langs,
       indexDir: codebaseIndexDirOverride(ctx),
-      signal: execOpts?.signal,
+      signal,
     });
     if (result.errors.length > MAX_REPORTED_ERRORS) {
       const hidden = result.errors.length - MAX_REPORTED_ERRORS;

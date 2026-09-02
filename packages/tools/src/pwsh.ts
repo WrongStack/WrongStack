@@ -6,7 +6,9 @@ import {
   emitProcessOutput,
   emitProcessStarted,
 } from '@wrongstack/core/observability';
+import type { Context } from '@wrongstack/core/agent';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { type DangerAssessment, detectDanger } from './_danger-detect.js';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
@@ -244,8 +246,24 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
     if (!final) throw new Error('pwsh: stream ended without final event');
     return final;
   },
+  async cleanup(_input: PwshInput, ctx: Context): Promise<void> {
+    const registry = getProcessRegistry();
+    const sessionId = ctx.session?.id;
+    if (!sessionId) return;
+    for (const entry of registry.bySession(sessionId)) {
+      if (entry.name !== 'pwsh') continue;
+      if (entry.child && entry.child.exitCode !== null) continue;
+      if (entry.protected) continue;
+      registry.kill(entry.pid, { force: true });
+    }
+  },
   async *executeStream(input, ctx, opts): AsyncGenerator<ToolStreamEvent<PwshOutput>> {
-    if (!input?.command) throw new Error('pwsh: command is required');
+    if (!input?.command || typeof input.command !== 'string' || !input.command.trim()) {
+      throw new ToolValidationError({
+        message: 'pwsh: command is required and cannot be empty',
+        field: 'command',
+      });
+    }
 
     const callerSignal = opts?.signal ?? ctx?.signal ?? new AbortController().signal;
     if (callerSignal.aborted) {
@@ -441,7 +459,11 @@ export const pwshTool: Tool<PwshInput, PwshOutput> = {
       });
     }
 
-    const timeoutMs = Math.min(Math.max(1_000, input.timeout_ms ?? DEFAULT_TIMEOUT_MS), 600_000);
+    const rawTimeout =
+      typeof input.timeout_ms === 'number' && !Number.isNaN(input.timeout_ms)
+        ? input.timeout_ms
+        : DEFAULT_TIMEOUT_MS;
+    const timeoutMs = Math.min(Math.max(1_000, rawTimeout), 600_000);
 
     let timedOut = false;
     const timers: NodeJS.Timeout[] = [];

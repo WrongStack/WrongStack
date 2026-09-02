@@ -17,6 +17,7 @@
  */
 
 import type { Tool } from '@wrongstack/core/types';
+import { ToolValidationError } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { codebaseIndexStats, getIndexState, searchCodebaseIndex } from './background-indexer.js';
 import { EXT_TO_LANG } from './languages.js';
@@ -118,6 +119,23 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
     required: ['query'],
   },
   async execute(input, ctx, execOpts) {
+    if (!input?.query || typeof input.query !== 'string' || !input.query.trim()) {
+      throw new ToolValidationError({
+        message: 'codebase-search: query is required and cannot be empty',
+        field: 'query',
+      });
+    }
+
+    if (
+      input.lspKind !== undefined &&
+      (!Number.isInteger(input.lspKind) || input.lspKind < 1 || input.lspKind > 26)
+    ) {
+      throw new ToolValidationError({
+        message: 'codebase-search: lspKind must be an integer between 1 and 26',
+        field: 'lspKind',
+      });
+    }
+
     const signal = execOpts?.signal ?? ctx?.signal;
     signal?.throwIfAborted();
 
@@ -152,7 +170,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
           query: input.query,
           kind: input.kind?.toLowerCase(),
           lang: input.lang?.toLowerCase(),
-          file: input.file ? input.file.replace(/\\/g, '/') : undefined,
+          file: input.file ? input.file.replace(/\\/g, '/').replace(/^\.\//, '') : undefined,
           lspKind: input.lspKind,
           limit,
         },
@@ -193,7 +211,7 @@ export const codebaseSearchTool: Tool<CodebaseSearchInput, CodebaseSearchOutput>
       try {
         const stats = await codebaseIndexStats(
           { projectRoot: ctx.projectRoot, indexDir: codebaseIndexDirOverride(ctx) },
-          { signal: execOpts?.signal },
+          { signal },
         );
         hasPersistedIndex = stats.totalFiles > 0 || stats.lastIndexed !== null;
       } catch {
