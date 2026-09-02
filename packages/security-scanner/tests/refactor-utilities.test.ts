@@ -68,18 +68,31 @@ describe('LLM JSON extraction', () => {
 
   it('handles escaped quotes and falls back across malformed fenced blocks', () => {
     const valid = String.raw`{"quoted":"a \" brace","ok":true}`;
-    const text = [
-      '```json',
-      '{"unfinished": true',
-      '```',
-      `then ${valid}`,
-    ].join('\n');
+    const text = ['```json', '{"unfinished": true', '```', `then ${valid}`].join('\n');
     expect(extractJsonBlock(text, 'object')).toBe(valid);
   });
 
   it('returns null when no balanced container exists', () => {
     expect(extractJsonBlock('prefix { "open": [1, 2]', 'object')).toBeNull();
     expect(extractJsonBlock('plain text', 'array')).toBeNull();
+  });
+
+  it('ignores a bracket inside quoted prose and extracts the real array (r3 regression)', () => {
+    // Regression (2026-09-02): the start scan ignored string state, so the
+    // first bracket of a quoted preamble ("[note]") became the extraction
+    // start and the unparseable "[note]" slice was returned even though the
+    // real findings array followed — batch-scanner then dropped the whole
+    // batch's findings when JSON.parse rejected it.
+    const text =
+      'Results for "[note]" markers: [{"file":"a.ts","title":"t","description":"d","remediation":"r"}]';
+    expect(extractJsonBlock(text, 'array')).toBe(
+      '[{"file":"a.ts","title":"t","description":"d","remediation":"r"}]',
+    );
+  });
+
+  it('ignores a brace inside quoted prose and extracts the real object (r3 regression)', () => {
+    const text = 'The config "{mode}" is parsed as: {"ok": true}';
+    expect(extractJsonBlock(text, 'object')).toBe('{"ok": true}');
   });
 });
 
