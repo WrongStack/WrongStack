@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-01T21:34:18.882Z",
+  "generatedAt": "2026-09-02T07:33:05.343Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,7 +14,7 @@
     "packages": 36,
     "sourceFiles": 3449,
     "testFiles": 3092,
-    "sourceLines": 845307,
+    "sourceLines": 845491,
     "workspaceEdges": 128,
     "moduleEdges": 10730,
     "nonCommandSlashImports": 0,
@@ -19867,7 +19867,7 @@
     },
     {
       "file": "packages/core/src/coordination/director.ts",
-      "lines": 962,
+      "lines": 967,
       "relativeImports": 41
     },
     {
@@ -20063,6 +20063,11 @@
     {
       "file": "packages/plugins/src/test-runner-gate/index.ts",
       "lines": 861,
+      "relativeImports": 1
+    },
+    {
+      "file": "packages/primitives/src/regex-guard.ts",
+      "lines": 806,
       "relativeImports": 1
     },
     {

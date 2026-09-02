@@ -91,7 +91,7 @@
       "relativeImports": 17
     },
     "packages/core/src/coordination/director.ts": {
-      "lines": 962,
+      "lines": 967,
       "relativeImports": 41
     },
     "packages/core/src/coordination/fleet-supervisor.ts": {
@@ -248,6 +248,10 @@
     },
     "packages/plugins/src/test-runner-gate/index.ts": {
       "lines": 861,
+      "relativeImports": 1
+    },
+    "packages/primitives/src/regex-guard.ts": {
+      "lines": 806,
       "relativeImports": 1
     },
     "packages/providers/src/openai-codex.ts": {

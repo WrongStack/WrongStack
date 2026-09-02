@@ -1335,7 +1335,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 174,
-      "sourceLines": 50983
+      "sourceLines": 50988
     },
     {
       "directory": "core",
@@ -1468,7 +1468,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 20,
-      "sourceLines": 6796
+      "sourceLines": 6822
     },
     {
       "directory": "session-catalog",
