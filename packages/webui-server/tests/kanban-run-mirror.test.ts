@@ -38,13 +38,63 @@ describe('createKanbanRunMirror', () => {
     vi.useFakeTimers();
   });
 
-  it('returns a mirror with onGoalState, bind, bindGoalNext, and dispose', () => {
+  it('returns a mirror with onGoalState, bind, bindGoalNext, flush, and dispose', () => {
     vi.useRealTimers();
     const mirror = createKanbanRunMirror(makeDeps());
     expect(typeof mirror.onGoalState).toBe('function');
     expect(typeof mirror.bind).toBe('function');
     expect(typeof mirror.bindGoalNext).toBe('function');
+    expect(typeof mirror.flush).toBe('function');
     expect(typeof mirror.dispose).toBe('function');
+  });
+
+  it('flush runs a pending projection without waiting out the debounce', async () => {
+    vi.useRealTimers();
+    const deps = makeDeps();
+    const mirror = createKanbanRunMirror(deps);
+    const { createBoard } = await import('@wrongstack/kanban');
+    mirror.onGoalState('graph-flush', {
+      title: 'Flushed',
+      phases: [
+        {
+          id: 'p1',
+          name: 'Phase 1',
+          tasks: [
+            { id: 't1', title: 'Task 1', status: 'pending', priority: 'high', type: 'feature' },
+          ],
+        },
+      ],
+    });
+    expect(vi.mocked(createBoard)).not.toHaveBeenCalled();
+    await mirror.flush();
+    expect(vi.mocked(createBoard)).toHaveBeenCalledTimes(1);
+    // Nothing left to settle — a second flush is a no-op, not a second write.
+    await mirror.flush();
+    expect(vi.mocked(createBoard)).toHaveBeenCalledTimes(1);
+    mirror.dispose();
+  });
+
+  it('flush surfaces a failing projection through log instead of rejecting', async () => {
+    vi.useRealTimers();
+    const deps = makeDeps();
+    const mirror = createKanbanRunMirror(deps);
+    const { createBoard } = await import('@wrongstack/kanban');
+    vi.mocked(createBoard).mockRejectedValueOnce(new Error('disk full'));
+    mirror.onGoalState('graph-boom', {
+      title: 'Boom',
+      phases: [
+        {
+          id: 'p1',
+          name: 'Phase 1',
+          tasks: [
+            { id: 't1', title: 'Task 1', status: 'pending', priority: 'high', type: 'feature' },
+          ],
+        },
+      ],
+    });
+    await expect(mirror.flush()).resolves.toBeUndefined();
+    expect(deps.log).toHaveBeenCalledWith(expect.stringContaining('disk full'));
+    mirror.dispose();
   });
 
   it('onGoalState does not throw for an empty state', () => {

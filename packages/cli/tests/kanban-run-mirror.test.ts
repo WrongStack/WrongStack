@@ -9,7 +9,6 @@ import {
   createKanbanRunMirror,
 } from '../src/webui-server/kanban-run-mirror.js';
 
-const settle = () => new Promise((r) => setTimeout(r, 500)); // > DEBOUNCE_MS (300)
 
 function goalState(over: { statusA?: string } = {}) {
   return {
@@ -188,7 +187,7 @@ describe('KanbanRunMirror SDD → one board per topo wave', () => {
           ],
         },
       });
-      await settle();
+      await mirror.flush();
       const boards = (await listBoards(dir)).filter((b) => b.tags?.includes('sdd'));
       expect(boards.length).toBe(2);
       expect(boards.every((b) => b.tags?.includes('run:sdd-wave'))).toBe(true);
@@ -210,7 +209,7 @@ describe('KanbanRunMirror Goal → one board per phase', () => {
     const mirror = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
     try {
       mirror.onGoalState('g-run', goalState() as any);
-      await settle();
+      await mirror.flush();
 
       const ap = (await listBoards(dir)).filter((b) => b.tags?.includes('goal'));
       expect(ap.length).toBe(2); // one board PER PHASE, not one crowded board
@@ -233,7 +232,7 @@ describe('KanbanRunMirror Goal → one board per phase', () => {
     const m1 = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
     try {
       m1.onGoalState('g-run', goalState() as any);
-      await settle();
+      await m1.flush();
       const first = (await listBoards(dir)).length;
       m1.dispose();
 
@@ -241,7 +240,7 @@ describe('KanbanRunMirror Goal → one board per phase', () => {
       // so it actually re-projects) → must reclaim the 2 boards via disk scan.
       const m2 = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
       m2.onGoalState('g-run', goalState({ statusA: 'in_progress' }) as any);
-      await settle();
+      await m2.flush();
       expect((await listBoards(dir)).length).toBe(first); // reclaimed, not duplicated
       m2.dispose();
     } finally {
@@ -292,7 +291,7 @@ describe('KanbanRunMirror SDD verification + field preservation', () => {
           }),
         ]),
       });
-      await settle();
+      await mirror.flush();
 
       const { getBoard, listBoards: list } = await import('@wrongstack/kanban');
       const { updateTask } = await import('@wrongstack/kanban/test-support');
@@ -337,7 +336,7 @@ describe('KanbanRunMirror SDD verification + field preservation', () => {
           }),
         ]),
       });
-      await settle();
+      await mirror.flush();
 
       board = await getBoard(dir, summary!.id);
       const after = board!.tasks.find((t) => t.origin?.taskId === 'n1');
@@ -375,7 +374,7 @@ describe('KanbanRunMirror SDD verification + field preservation', () => {
           }),
         ]),
       });
-      await settle();
+      await mirror.flush();
 
       const { getBoard, listBoards: list } = await import('@wrongstack/kanban');
       const summary = (await list(dir)).find((b) => b.tags?.includes('run:sdd-v2'));

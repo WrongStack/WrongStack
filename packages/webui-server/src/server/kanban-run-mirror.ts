@@ -85,6 +85,11 @@ export interface KanbanRunMirror {
    * is only known after the async build, so we can't `bind()` up front.
    */
   bindGoalNext(boardId: string): void;
+  /**
+   * Resolve once every debounced and in-flight projection has been written.
+   * Observers must await this instead of sleeping past the debounce window.
+   */
+  flush(): Promise<void>;
   dispose(): void;
 }
 
@@ -102,8 +107,23 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
   const stamps = new Map<string, string>();
   const pending = new Map<string, () => Promise<void>>();
   const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  // Projections currently running — awaited by `flush()`.
+  const inFlight = new Set<Promise<void>>();
 
   const mapKey = (engine: Engine, key: string) => `${engine}:${key}`;
+
+  // Run the debounced projection for `k` now, tracking it so `flush()` can await it.
+  function fire(k: string): void {
+    const fn = pending.get(k);
+    pending.delete(k);
+    if (!fn) return;
+    const p = fn()
+      .catch((err) => log(`[KanbanRunMirror] ${k}: ${errMsg(err)}`))
+      .finally(() => {
+        inFlight.delete(p);
+      });
+    inFlight.add(p);
+  }
 
   // Trailing debounce keyed by engine:key — latest projection wins.
   function schedule(engine: Engine, key: string, run: () => Promise<void>): void {
@@ -114,11 +134,29 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
       k,
       setTimeout(() => {
         timers.delete(k);
-        const fn = pending.get(k);
-        pending.delete(k);
-        if (fn) void fn().catch((err) => log(`[KanbanRunMirror] ${k}: ${errMsg(err)}`));
+        fire(k);
       }, DEBOUNCE_MS),
     );
+  }
+
+  /**
+   * Settle every debounced + in-flight projection. Projections are disk writes,
+   * so callers that need to observe the boards (tests, shutdown) must await this
+   * rather than sleep past DEBOUNCE_MS — a slow machine loses that race.
+   */
+  async function flush(): Promise<void> {
+    // Bounded: a projection never re-schedules itself, so this settles in one or
+    // two passes; the cap only guards against a future self-feeding tick.
+    for (let i = 0; i < 100; i++) {
+      for (const [k, t] of [...timers]) {
+        clearTimeout(t);
+        timers.delete(k);
+        fire(k);
+      }
+      for (const k of [...pending.keys()]) fire(k);
+      if (inFlight.size === 0) return;
+      await Promise.all([...inFlight]);
+    }
   }
 
   async function resolveBoardId(
@@ -401,6 +439,7 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
     bindGoalNext(boardId) {
       pendingGoalBoardId = boardId;
     },
+    flush,
     dispose() {
       unsub?.();
       for (const t of timers.values()) clearTimeout(t);
