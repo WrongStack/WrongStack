@@ -519,3 +519,21 @@ describe('detectQuantifiedAmbiguity — checker cost sanity', () => {
     expect(dt).toBeLessThan(50);
   });
 });
+
+describe('detectQuantifiedAmbiguity — raw astral literals model as one atom', () => {
+  it('flags raw-vs-escaped astral identity in sequences and classes', () => {
+    // parseSeq/parseClass advanced one UTF-16 unit per raw astral literal,
+    // so the low surrogate became a phantom atom and raw-vs-escaped
+    // identical branches looked disjoint: 😀a|\u{1F600}a and
+    // 😀|[\u{1F600}] were reported unambiguous though both branches match
+    // the same word (the (a|a)+ class under (?:X)+). Proven failing
+    // pre-fix in the 2026-09-02 round-6 repro.
+    expect(detectQuantifiedAmbiguity('\u{1F600}a|\\u{1F600}a').verdict).toBe('ambiguous');
+    expect(detectQuantifiedAmbiguity('\u{1F600}|[\\u{1F600}]').verdict).toBe('ambiguous');
+  });
+
+  it('keeps genuinely disjoint astral branches unambiguous', () => {
+    expect(detectQuantifiedAmbiguity('\u{1F600}a|\u{1F601}a').verdict).toBe('unambiguous');
+    expect(detectQuantifiedAmbiguity('\u{1F600}a|\u{1F600}b').verdict).toBe('unambiguous');
+  });
+});

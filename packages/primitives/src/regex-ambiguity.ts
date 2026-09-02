@@ -254,8 +254,13 @@ function parseSeq(c: Cursor, budget: Budget, foldCase: boolean, dotAll: boolean)
     } else if (ch === '^' || ch === '$' || ch === '{' || ch === '*' || ch === '+' || ch === '?') {
       return null; // anchors / dangling quantifiers — outside the subset
     } else {
-      const cp = ch.codePointAt(0)!;
-      c.i++;
+      // Astral literals are surrogate PAIRS: read from the full source at
+      // c.i (codePointAt combines the pair there) and advance by the code
+      // point's UTF-16 width — one unit modeled the low surrogate as a
+      // phantom atom and hid raw-vs-escape branch identity (round-6 sibling
+      // of df8040684).
+      const cp = c.s.codePointAt(c.i)!;
+      c.i += cp > 0xffff ? 2 : 1;
       atom = { k: 'cls', set: foldCase ? foldForCompare([[cp, cp]]) : [[cp, cp]] };
     }
     const q = c.peek();
@@ -322,8 +327,11 @@ function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
       lo = t;
       i += escapeWidth(s, i);
     } else {
-      lo = s[i]!.codePointAt(0)!;
-      i++;
+      // Astral literals are surrogate PAIRS: read from the full class text
+      // at i and advance by the code point's UTF-16 width (round-6 sibling
+      // of df8040684) — applies to the range hi endpoint below too.
+      lo = s.codePointAt(i)!;
+      i += lo > 0xffff ? 2 : 1;
     }
     if (s[i] === '-' && s[i + 1] !== ']' && s[i + 1] !== undefined) {
       i++;
@@ -334,8 +342,8 @@ function parseClass(c: Cursor, foldCase: boolean): CharSet | null {
         hi = t;
         i += escapeWidth(s, i);
       } else {
-        hi = s[i]!.codePointAt(0)!;
-        i++;
+        hi = s.codePointAt(i)!;
+        i += hi > 0xffff ? 2 : 1;
       }
       if (hi < lo) return null;
       ranges.push([lo, hi]);

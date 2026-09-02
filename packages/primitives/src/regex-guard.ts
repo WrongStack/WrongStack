@@ -486,8 +486,13 @@ function parseCharClass(s: string): CharSet | null {
       lo = tok.cp;
       width = tok.next - i;
     } else {
-      lo = ch.codePointAt(0) ?? -1;
-      width = 1;
+      // Astral literals are surrogate PAIRS: read from the full class text
+      // at i (codePointAt combines the pair there) and advance by the code
+      // point's UTF-16 width — one unit re-parses the low surrogate as a
+      // phantom lone-surrogate member (round-6 sibling of df8040684).
+      const cp = s.codePointAt(i) ?? -1;
+      lo = cp;
+      width = cp > 0xffff ? 2 : 1;
     }
     const nextCh = s[i + width];
     if (nextCh === '-' && i + width + 1 < s.length - 1) {
@@ -500,8 +505,9 @@ function parseCharClass(s: string): CharSet | null {
         hi = tok.cp;
         i = tok.next;
       } else {
-        hi = (s[hiStart] as string).codePointAt(0) ?? -1;
-        i = hiStart + 1;
+        // Same surrogate-pair rule for the range's hi endpoint.
+        hi = s.codePointAt(hiStart) ?? -1;
+        i = hiStart + (hi > 0xffff ? 2 : 1);
       }
       if (hi < lo) return null;
       ranges.push([lo, hi]);

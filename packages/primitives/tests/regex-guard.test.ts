@@ -133,6 +133,17 @@ describe('compileUserRegex — accepted patterns', () => {
     expect(compileUserRegex('(?:\u{1F600}|a)+', 'u').ok).toBe(true);
   });
 
+  it('models raw astral CLASS members as one token (surrogate-pair advance)', () => {
+    // parseCharClass advanced one UTF-16 unit per raw astral member, so
+    // [😀] modeled lone surrogates {D83D, DE00} instead of {1F600}: the
+    // raw-vs-escaped identity `(?:[😀]a|\u{1F600}a)+` compiled (the (a|a)+
+    // class) and the phantom DE00 member falsely intersected [\u{DE00}].
+    // Proven failing pre-fix in the 2026-09-02 round-6 repro.
+    expect(compileUserRegex('(?:[\u{1F600}]a|\\u{1F600}a)+', 'u').ok).toBe(false);
+    expect(compileUserRegex('(?:[\u{1F600}]x|[\\u{DE00}]x)+', 'u').ok).toBe(true);
+    expect(compileUserRegex('(?:[\u{1F600}]x|[\\u{1F601}]x)+', 'u').ok).toBe(true);
+  });
+
   it('allows multi-token branches with no common string', () => {
     // Round 14 soundness pins: a single disjoint position (`\d` ∩ {b} = ∅)
     // proves the branch languages cannot intersect, so these stay allowed
