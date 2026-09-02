@@ -1,6 +1,6 @@
 # Architecture Health Report
 
-**Generated:** 2026-09-02T09:02:40.775Z
+**Generated:** 2026-09-02T10:13:05.055Z
 **Scope:** packages, apps; excluded: website
 
 ## Summary
@@ -9,10 +9,10 @@
 |---|---:|
 | Workspace packages | 36 |
 | Production source files | 3449 |
-| Production source lines | 845608 |
+| Production source lines | 845996 |
 | Test files | 3092 |
 | Workspace dependency edges | 128 |
-| Relative module edges | 10730 |
+| Relative module edges | 10732 |
 | Non-command slash imports | 0 |
 | Runtime module cycles | 0 |
 | Type-inclusive module cycles | 9 |
@@ -21,8 +21,7 @@
 
 ## Verification result
 
-- packages/primitives/src/regex-ambiguity.ts: hotspot grew from 819 to 827 lines; review and update the ratchet in the same change
-- packages/primitives/src/regex-guard.ts: hotspot grew from 849 to 855 lines; review and update the ratchet in the same change
+PASS — no blocking architecture-health errors.
 
 ## Workspace packages
 

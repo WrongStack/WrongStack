@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-02T09:02:40.775Z",
+  "generatedAt": "2026-09-02T10:13:05.055Z",
   "scope": {
     "workspaceRoots": [
       "packages",
@@ -14,9 +14,9 @@
     "packages": 36,
     "sourceFiles": 3449,
     "testFiles": 3092,
-    "sourceLines": 845608,
+    "sourceLines": 845996,
     "workspaceEdges": 128,
-    "moduleEdges": 10730,
+    "moduleEdges": 10732,
     "nonCommandSlashImports": 0,
     "runtimeModuleCycles": 0,
     "typeModuleCycles": 9,
@@ -24,10 +24,7 @@
     "testsWithMultipleTypechecks": 0,
     "testOnlyExports": 856
   },
-  "errors": [
-    "packages/primitives/src/regex-ambiguity.ts: hotspot grew from 819 to 827 lines; review and update the ratchet in the same change",
-    "packages/primitives/src/regex-guard.ts: hotspot grew from 849 to 855 lines; review and update the ratchet in the same change"
-  ],
+  "errors": [],
   "packageCycles": [],
   "coreAreas": {
     "actual": [
@@ -20165,7 +20162,7 @@
     },
     {
       "file": "packages/tools/src/json.ts",
-      "lines": 811,
+      "lines": 858,
       "relativeImports": 2
     },
     {

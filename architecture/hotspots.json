@@ -327,7 +327,7 @@
       "relativeImports": 19
     },
     "packages/tools/src/json.ts": {
-      "lines": 811,
+      "lines": 858,
       "relativeImports": 2
     },
     "packages/tools/src/session-kanban.ts": {
