@@ -87,8 +87,16 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
   // Tier 1 — exact substring scan (supports sub-line needles).
   const exact: LadderMatch[] = [];
   let idx = fileLf.indexOf(oldLf);
+  let currentLine = 1;
+  let lastPos = 0;
   while (idx !== -1) {
-    exact.push({ start: idx, end: idx + oldLf.length, startLine: lineAt(fileLf, idx) });
+    while (lastPos < idx) {
+      const nextNewline = fileLf.indexOf('\n', lastPos);
+      if (nextNewline === -1 || nextNewline >= idx) break;
+      currentLine++;
+      lastPos = nextNewline + 1;
+    }
+    exact.push({ start: idx, end: idx + oldLf.length, startLine: currentLine });
     idx = fileLf.indexOf(oldLf, idx + 1);
   }
   if (exact.length > 0) return { tier: 'exact', matches: exact };
@@ -118,29 +126,6 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
   if (normalized.length > 0) return { tier: 'whitespace-normalized', matches: normalized };
 
   return fuzzyScan(fileLines, needleLines, offsets);
-}
-
-/** 1-based line number containing char offset `pos`.
- *  Uses indexOf('\n') for O(log n) instead of scanning char-by-char.
- *  For small pos (< 512 chars) the simple loop is faster, so we keep that
- *  fast path for the common case (single-line needles, small files). */
-function lineAt(text: string, pos: number): number {
-  if (pos < 512) {
-    let line = 1;
-    for (let i = 0; i < pos; i++) {
-      if (text.charCodeAt(i) === 0x0a) line++;
-    }
-    return line;
-  }
-  // For large offsets, binary-search through newline positions.
-  let line = 1;
-  let search = 0;
-  while (true) {
-    const idx = text.indexOf('\n', search);
-    if (idx === -1 || idx >= pos) return line;
-    search = idx + 1;
-    line++;
-  }
 }
 
 /** Start char offset of each line in the LF-normalized text. */
@@ -212,14 +197,12 @@ function fuzzyScan(
     .join('\n');
   if (needleInterior.length > FUZZY_MAX_INTERIOR_CHARS) return undefined;
 
+  const fileTrimmed = fileLines.map((l) => l.trim());
   const candidates: Array<{ match: LadderMatch; score: number }> = [];
   for (let i = 0; i + n <= fileLines.length; i++) {
-    if ((fileLines[i] as string).trim() !== firstNeedle) continue;
-    if ((fileLines[i + n - 1] as string).trim() !== lastNeedle) continue;
-    const windowInterior = fileLines
-      .slice(i + 1, i + n - 1)
-      .map((l) => l.trim())
-      .join('\n');
+    if ((fileTrimmed[i] as string) !== firstNeedle) continue;
+    if ((fileTrimmed[i + n - 1] as string) !== lastNeedle) continue;
+    const windowInterior = fileTrimmed.slice(i + 1, i + n - 1).join('\n');
     if (windowInterior.length > FUZZY_MAX_INTERIOR_CHARS) continue;
     const score = similarity(needleInterior, windowInterior);
     if (score >= FUZZY_MIN_SIMILARITY) {
@@ -247,10 +230,12 @@ export function similarity(a: string, b: string): number {
   if (a === b) return 1;
   const max = Math.max(a.length, b.length);
   if (max === 0) return 1;
-  // Quick reject: a length gap larger than the allowed edit budget can
-  // never reach the threshold — skip the O(n·m) DP entirely.
-  if (Math.abs(a.length - b.length) / max > 1 - FUZZY_MIN_SIMILARITY + 0.05) {
-    return 1 - Math.abs(a.length - b.length) / max;
+  const lenDiff = Math.abs(a.length - b.length);
+  // Quick reject: Levenshtein distance is bounded below by |a.length - b.length|.
+  // If the length difference alone forces similarity below the threshold,
+  // skip the expensive O(n·m) DP entirely.
+  if (lenDiff / max > 1 - FUZZY_MIN_SIMILARITY) {
+    return 1 - lenDiff / max;
   }
   return 1 - levenshtein(a, b) / max;
 }
@@ -334,12 +319,13 @@ export function nearestMatchHint(
   if (needleLines.length > fileLines.length) return undefined;
 
   const needleTrimmed = needleLines.map((l) => l.trim());
+  const fileTrimmed = fileLines.map((l) => l.trim());
   let bestScore = 0;
   let bestStart = -1;
   for (let i = 0; i + needleLines.length <= fileLines.length; i++) {
     let sum = 0;
     for (let j = 0; j < needleLines.length; j++) {
-      sum += prefixSimilarity(needleTrimmed[j] as string, (fileLines[i + j] as string).trim());
+      sum += prefixSimilarity(needleTrimmed[j] as string, fileTrimmed[i + j] as string);
     }
     const score = sum / needleLines.length;
     if (score > bestScore) {
