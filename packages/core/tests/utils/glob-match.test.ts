@@ -44,6 +44,27 @@ describe('glob-match', () => {
     expect(matchGlob('file[a-z].txt', 'fileq.txt')).toBe(true);
   });
 
+  it('a literal ] as the first class member is a member, not the terminator ([]] / []a])', () => {
+    // `[]]` is the standard glob spelling for class { ']' }. The parser used
+    // to terminate the class on that first `]`, compiling an empty class
+    // `[]` that could never match — every one of these assertions was false.
+    expect(matchGlob('[]]', ']')).toBe(true);
+    expect(matchGlob('[]]', 'a')).toBe(false);
+    expect(matchGlob('[]a]', ']')).toBe(true);
+    expect(matchGlob('[]a]', 'a')).toBe(true);
+    expect(matchGlob('[]a]', 'b')).toBe(false);
+    expect(matchGlob('*[]]*', 'a]b')).toBe(true);
+    expect(matchGlob('*[]]*', 'abc')).toBe(false);
+  });
+
+  it('negation with a literal ] member rejects ] only', () => {
+    expect(matchGlob('[!]]', 'a')).toBe(true);
+    expect(matchGlob('[!]]', ']')).toBe(false);
+    expect(matchGlob('[^]a]', 'b')).toBe(true);
+    expect(matchGlob('[^]a]', ']')).toBe(false);
+    expect(matchGlob('[^]a]', 'a')).toBe(false);
+  });
+
   it('treats unclosed bracket as literal bracket rather than synthesizing an invalid wildcard', () => {
     expect(matchGlob('file[1.txt', 'file[1.txt')).toBe(true);
     expect(matchGlob('file[1.txt', 'filet')).toBe(false);

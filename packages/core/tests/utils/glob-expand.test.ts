@@ -57,6 +57,16 @@ describe('expandGlob', () => {
     expect(neg).toEqual(['b.ts']);
   });
 
+  it('matches a literal ] as the first class member ([]] / []x] / [!]])', async () => {
+    // Regression for the empty-class bug: `[]]` used to compile to `[]`,
+    // which never matches, so a file named `]` was unreachable by glob.
+    await fs.writeFile(path.join(dir, ']'), '');
+    await fs.writeFile(path.join(dir, 'x'), '');
+    expect((await expandGlob('[]]')).map(base)).toEqual([']']);
+    expect((await expandGlob('[]x]')).map(base).sort()).toEqual([']', 'x']);
+    expect((await expandGlob('[!]]')).map(base)).toEqual(['x']);
+  });
+
   it('resolves matches to absolute paths for an absolute pattern', async () => {
     const out = await expandGlob(path.join(dir, '*.js'));
     expect(out.every((p) => path.isAbsolute(p))).toBe(true);

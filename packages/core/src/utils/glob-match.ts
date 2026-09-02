@@ -119,7 +119,14 @@ export function compileGlob(pattern: string, commandSubject = false): RegExp {
         cls += '^';
         i++;
       }
-      while (i < pattern.length && pattern[i] !== ']') {
+      // A `]` as the FIRST member of the class body is a literal `]` member
+      // (the standard glob spelling: `[]]` ≡ class { ']' }), not the
+      // terminator. The old loop closed the class on the first `]`, so
+      // `[]]` compiled to an empty class `[]` that could never match — the
+      // `ch === ']'` escape branch below was dead code. `firstMember` is
+      // cleared after the first iteration, so any later `]` still closes.
+      let firstMember = true;
+      while (i < pattern.length && (pattern[i] !== ']' || firstMember)) {
         const ch = pattern[i] ?? '';
         // Inside a regex class, only `]`, `\`, and `^`/`-` at boundaries need
         // escaping. We've already consumed the leading `^`; the rest are
@@ -132,6 +139,7 @@ export function compileGlob(pattern: string, commandSubject = false): RegExp {
         } else {
           cls += ch;
         }
+        firstMember = false;
         i++;
       }
       cls += ']';

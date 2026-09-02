@@ -52,11 +52,18 @@ function globToRegex(pat: string): RegExp {
         cls += '^';
         i++;
       }
-      while (i < pat.length && pat[i] !== ']') {
+      // Same literal-`]`-as-first-member rule as `compileGlob` in
+      // glob-match.ts: `[]]` is class { ']' }, not an empty class. The
+      // `ch === ']'` branch was previously dead code because the loop closed
+      // on the first `]`; `first` is cleared after the first iteration so
+      // any later `]` still terminates the class.
+      let first = true;
+      while (i < pat.length && (pat[i] !== ']' || first)) {
         const ch = pat[i] ?? '';
         if (ch === '\\') cls += '\\\\';
         else if (ch === ']' || ch === '^') cls += `\\${ch}`;
         else cls += ch;
+        first = false;
         i++;
       }
       cls += ']';
